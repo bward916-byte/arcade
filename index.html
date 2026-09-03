@@ -2,118 +2,35 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#1b1230">
 <title>Blythe Arcade</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
 <style>
-:root{
-  --cab:#1b1230;      /* cabinet plum */
-  --cab2:#2a1c48;
-  --paper:#f3e7c9;    /* label stock */
-  --ink:#2b1a12;
-  --plastic:#4a4556;
-  --plastic2:#67617a;
-  --accent:#7fd7ff;
-  --safe-b:env(safe-area-inset-bottom,0px);
-}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-html,body{height:100%;background:var(--cab);color:var(--paper);overflow:hidden;
-  font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
-  -webkit-user-select:none;user-select:none;touch-action:manipulation}
-.pixel{font-family:"Silkscreen","Courier New",monospace}
-
-#app{position:fixed;inset:0;display:flex;flex-direction:column;
-  background:
-    radial-gradient(120% 60% at 50% -10%,#3a2a66 0%,transparent 60%),
-    repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.18) 3px 4px),
-    var(--cab)}
-
-/* ===== marquee (the screen) ===== */
-#screenWrap{flex:0 0 auto;padding:max(10px,env(safe-area-inset-top)) 14px 0}
-#bezel{position:relative;border-radius:18px;padding:8px;
-  background:linear-gradient(180deg,#5c5670,#2f2a3c);
-  box-shadow:0 8px 0 #120a22,0 14px 30px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.25)}
-#screen{display:block;width:100%;aspect-ratio:16/9;border-radius:10px;background:#000;
-  box-shadow:inset 0 0 40px rgba(0,0,0,.9)}
-#glass{position:absolute;inset:8px;border-radius:10px;pointer-events:none;
-  background:
-    linear-gradient(115deg,rgba(255,255,255,.14) 0%,rgba(255,255,255,0) 35%),
-    repeating-linear-gradient(0deg,rgba(0,0,0,.22) 0 1px,transparent 1px 3px)}
-#screen.flicker{animation:flick .18s steps(2) 1}
-@keyframes flick{0%{filter:brightness(2.4) contrast(1.6)}100%{filter:none}}
-
-/* ===== title block ===== */
-#info{flex:0 0 auto;padding:16px 18px 6px}
-#count{font-size:12px;color:#b9a9dc;letter-spacing:.02em}
-#title{font-size:clamp(20px,6.2vw,30px);line-height:1.1;color:#fff;margin-top:6px;
-  text-shadow:0 0 14px var(--accent),0 2px 0 #000;word-break:break-word}
-#tag{margin-top:8px;font-size:15px;line-height:1.35;color:#ddd3f0;max-width:34em}
-#meta{margin-top:10px;font-size:13px;color:#a496c7;display:flex;gap:14px;flex-wrap:wrap}
-#meta span::before{content:"";display:inline-block;width:8px;height:8px;margin-right:6px;
-  background:var(--accent);border-radius:1px;vertical-align:baseline}
-
-/* ===== play button ===== */
-#play{margin:14px 18px 0;display:block;width:calc(100% - 36px);border:0;cursor:pointer;
-  padding:16px;border-radius:12px;font-size:18px;color:var(--ink);
-  background:linear-gradient(180deg,#fff2d0,#e9d49a);
-  box-shadow:0 6px 0 #9a7b3a,0 10px 18px rgba(0,0,0,.45);transition:transform .08s,box-shadow .08s}
-#play:active{transform:translateY(5px);box-shadow:0 1px 0 #9a7b3a}
-#play:focus-visible,.cart:focus-visible{outline:3px solid #fff;outline-offset:3px}
-#play small{display:block;font:13px/1.2 system-ui,sans-serif;margin-top:4px;color:#6b4d1e}
-
-/* ===== cartridge rack ===== */
-#rack{flex:1 1 auto;min-height:0;position:relative;display:flex;flex-direction:column;justify-content:flex-end;padding:26px 0 calc(28px + var(--safe-b))}
-#rack::before{content:"";position:absolute;left:0;right:0;bottom:calc(14px + var(--safe-b));height:14px;
-  background:linear-gradient(180deg,#3d3450,#241b36);border-top:2px solid #6a5f85}
-#rail{display:flex;gap:12px;padding:0 calc(50vw - 62px);overflow-x:auto;scroll-snap-type:x mandatory;
-  scrollbar-width:none;-webkit-overflow-scrolling:touch}
-#rail::-webkit-scrollbar{display:none}
-.cart{flex:0 0 124px;height:150px;margin-bottom:18px;scroll-snap-align:center;position:relative;border:0;cursor:pointer;
-  background:linear-gradient(180deg,var(--plastic2),var(--plastic));border-radius:10px 10px 6px 6px;
-  padding:10px 10px 0;transform:translateY(18px);transition:transform .22s cubic-bezier(.2,.8,.2,1)}
-.cart::after{content:"";position:absolute;left:14px;right:14px;bottom:0;height:12px;
-  background:repeating-linear-gradient(90deg,#2b2636 0 4px,#3d3750 4px 8px);border-radius:0 0 4px 4px}
-.cart.sel{transform:translateY(0)}
-.cart .label{height:96px;border-radius:5px;background:var(--paper);overflow:hidden;position:relative;
-  box-shadow:inset 0 0 0 2px rgba(0,0,0,.12)}
-.cart canvas{display:block;width:100%;height:100%}
-.cart .name{position:absolute;left:0;right:0;bottom:0;padding:4px 6px;font-size:9px;line-height:1.2;
-  color:var(--ink);background:linear-gradient(0deg,var(--paper) 70%,transparent);text-align:left}
-.cart .stripe{position:absolute;top:0;left:0;right:0;height:6px;background:var(--c)}
-
-#status{position:absolute;left:18px;top:8px;font-size:11px;color:#8d7fb0}
-@media (prefers-reduced-motion:reduce){.cart,#play{transition:none}#screen.flicker{animation:none}}
-@media (min-width:700px) and (min-height:560px){#app{max-width:520px;margin:0 auto;border-left:1px solid #2f2447;border-right:1px solid #2f2447}}
-/* phone held sideways: screen on the left, the rest on the right */
-@media (orientation:landscape) and (max-height:560px){
-  #app{display:grid;grid-template-columns:minmax(0,46%) minmax(0,1fr);grid-template-rows:auto 1fr auto;
-    column-gap:14px;padding-left:max(10px,env(safe-area-inset-left));padding-right:max(10px,env(safe-area-inset-right))}
-  #screenWrap{grid-column:1;grid-row:1/3;padding:10px 0 0;align-self:start}
-  #play{grid-column:1;grid-row:3;margin:10px 0 calc(10px + var(--safe-b));width:100%;padding:12px}
-  #info{grid-column:2;grid-row:1;padding:12px 4px 0}
-  #title{font-size:clamp(16px,3.2vw,24px)}#tag{font-size:13px}#meta{font-size:12px;margin-top:6px}
-  #rack{grid-column:2;grid-row:2/4;padding:8px 0 calc(10px + var(--safe-b))}
-  #rail{padding:0 calc(27vw - 46px)}
-  .cart{flex:0 0 92px;height:112px;margin-bottom:8px;padding:7px 7px 0;transform:translateY(10px)}
-  .cart .label{height:72px}.cart .name{font-size:7px;padding:3px 4px}
-  #rack::before{bottom:calc(10px + var(--safe-b))}#status{display:none}
-}
+html{background:#1b1230}
+body{min-height:100%;color:#f3e7c9;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  background:radial-gradient(120% 40% at 50% -5%,#3a2a66 0%,transparent 60%),#1b1230;
+  padding:max(14px,env(safe-area-inset-top)) 14px calc(24px + env(safe-area-inset-bottom))}
+h1{font-family:"Courier New",monospace;font-weight:700;font-size:22px;letter-spacing:.06em;color:#fff;text-shadow:0 2px 0 #000}
+p.sub{color:#b9a9dc;font-size:13px;margin:4px 0 16px}
+#list{list-style:none;display:grid;gap:12px;max-width:560px;margin:0 auto}
+a.game{display:grid;grid-template-columns:112px 1fr;gap:12px;align-items:center;text-decoration:none;color:inherit;
+  background:linear-gradient(180deg,#67617a,#4a4556);border-radius:12px;padding:8px;
+  box-shadow:0 5px 0 #120a22,0 8px 14px rgba(0,0,0,.4)}
+a.game:active{transform:translateY(3px);box-shadow:0 2px 0 #120a22}
+a.game:focus-visible{outline:3px solid #fff;outline-offset:2px}
+.thumb{width:112px;height:72px;border-radius:6px;overflow:hidden;background:#000;border-top:5px solid var(--c)}
+.thumb canvas{display:block;width:100%;height:100%}
+.t{font-family:"Courier New",monospace;font-weight:700;font-size:15px;color:#fff;line-height:1.15}
+.d{font-size:13px;color:#ddd3f0;margin-top:3px;line-height:1.3}
+.m{font-size:11px;color:#b9a9dc;margin-top:4px}
+@media (min-width:700px){#list{grid-template-columns:1fr 1fr;max-width:1000px}}
 </style>
 </head>
 <body>
-<div id="app">
-  <div id="screenWrap"><div id="bezel"><canvas id="screen" width="640" height="360"></canvas><div id="glass"></div></div></div>
-  <div id="info">
-    <div id="count" class="pixel"></div>
-    <div id="title" class="pixel"></div>
-    <div id="tag"></div>
-    <div id="meta"></div>
-  </div>
-  <button id="play" class="pixel">Play<small></small></button>
-  <div id="rack"><div id="status"></div><div id="rail" role="listbox" aria-label="Games"></div></div>
-</div>
+<h1>BLYTHE ARCADE</h1>
+<p class="sub" id="sub">Tap a game to play.</p>
+<ul id="list"></ul>
 <script>
 const OWNER='bward916-byte';
 const GAMES=[
@@ -129,7 +46,7 @@ const GAMES=[
 ];
 const url=r=>`https://${OWNER}.github.io/${r}/`;
 
-/* ---------- procedural label + marquee art ---------- */
+
 function rng(seed){let s=seed>>>0||1;return()=>((s=(s*1664525+1013904223)>>>0)/4294967296);}
 function hash(str){let h=2166136261;for(const ch of str)h=Math.imul(h^ch.charCodeAt(0),16777619);return h>>>0;}
 const ART={
@@ -187,48 +104,24 @@ const ART={
   g.fillStyle='#ff7a7a';g.fillRect(w*.25+Math.sin(t*3)*5,h*.6,12,16);g.fillStyle='#d4d4d4';g.fillRect(w*.75,h*.6-Math.abs(Math.sin(t*2))*10,10,10);},
  generic(g,w,h,t,r){g.fillStyle='#22263a';g.fillRect(0,0,w,h);for(let i=0;i<30;i++){g.fillStyle=`hsl(${r()*360},60%,60%)`;const x=r()*w,y=(r()*h+t*30*(1+r()))%h;g.fillRect(x,y,12,12);}}
 };
-function draw(cv,game,t,scale){const g=cv.getContext('2d');const w=cv.width/scale,h=cv.height/scale;g.save();g.scale(scale,scale);(ART[game.art]||ART.generic)(g,w,h,t,rng(hash(game.repo)));g.restore();}
 
-/* ---------- state ---------- */
-let list=GAMES.slice(),sel=0,t0=performance.now();
-const $=id=>document.getElementById(id);
-const screen=$('screen'),rail=$('rail');
-function fmtDate(iso){if(!iso)return null;const d=new Date(iso);return d.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});}
-
-function buildRack(){rail.innerHTML='';list.forEach((gm,i)=>{
-  const b=document.createElement('button');b.className='cart pixel';b.setAttribute('role','option');b.style.setProperty('--c',gm.c);
-  b.innerHTML=`<div class="label"><canvas width="248" height="192"></canvas><div class="stripe"></div><div class="name">${gm.title}</div></div>`;
-  b.addEventListener('click',()=>select(i,true));rail.appendChild(b);
-  const cv=b.querySelector('canvas');draw(cv,gm,gm.tOff=hash(gm.repo)%100,2);});}
-function select(i,scroll){sel=(i+list.length)%list.length;const gm=list[sel];
-  document.documentElement.style.setProperty('--accent',gm.c);
-  $('count').textContent=`GAME ${sel+1} OF ${list.length}`;$('title').textContent=gm.title;$('tag').textContent=gm.tag;
-  const m=[gm.genre,gm.orient];const d=fmtDate(gm.pushed);if(d)m.push('Updated '+d);
-  $('meta').innerHTML=m.map(s=>`<span>${s}</span>`).join('');
-  $('play').querySelector('small').textContent=url(gm.repo).replace('https://','');
-  [...rail.children].forEach((c,k)=>{c.classList.toggle('sel',k===sel);c.setAttribute('aria-selected',k===sel);});
-  screen.classList.remove('flicker');void screen.offsetWidth;screen.classList.add('flicker');
-  if(scroll)rail.children[sel].scrollIntoView({behavior:'smooth',inline:'center',block:'nearest'});}
-function launch(){const gm=list[sel];$('play').textContent='Loading '+gm.title+'…';location.href=url(gm.repo);}
-$('play').addEventListener('click',launch);
-screen.addEventListener('click',launch);
-document.addEventListener('keydown',e=>{if(e.key==='ArrowRight')select(sel+1,true);else if(e.key==='ArrowLeft')select(sel-1,true);else if(e.key==='Enter'&&document.activeElement.id!=='play')launch();});
-let snapT;rail.addEventListener('scroll',()=>{clearTimeout(snapT);snapT=setTimeout(()=>{const mid=rail.scrollLeft+rail.clientWidth/2;let best=0,bd=1e9;[...rail.children].forEach((c,k)=>{const d=Math.abs(c.offsetLeft+c.offsetWidth/2-mid);if(d<bd){bd=d;best=k;}});if(best!==sel)select(best,false);},80);});
-
-function frame(now){const t=(now-t0)/1000;draw(screen,list[sel],t+ (list[sel].tOff||0),2);requestAnimationFrame(frame);}
-buildRack();select(0,false);requestAnimationFrame(frame);
-
-/* ---------- live discovery: any new Pages repo shows up automatically ---------- */
-$('status').textContent='Checking for new games…';
-fetch(`https://api.github.com/users/${OWNER}/repos?per_page=100&sort=pushed`).then(r=>r.ok?r.json():Promise.reject(r.status)).then(repos=>{
-  const known=new Map(list.map(g=>[g.repo,g]));let added=0;
-  repos.filter(r=>r.has_pages&&!r.fork).forEach(r=>{
-    if(known.has(r.name)){known.get(r.name).pushed=r.pushed_at;}
-    else{list.push({repo:r.name,title:r.name.replace(/-/g,' ').toUpperCase(),tag:r.description||'A new game. No notes yet.',genre:'New',orient:'',c:'#ffffff',art:'generic',pushed:r.pushed_at});added++;}});
-  list.sort((a,b)=>(b.pushed||'').localeCompare(a.pushed||''));
-  const cur=list[sel].repo;buildRack();select(list.findIndex(g=>g.repo===cur),false);
-  $('status').textContent=added?`${added} new game${added>1?'s':''} found`:'';
-}).catch(()=>{$('status').textContent='';});
+const list=document.getElementById('list');
+function card(gm){
+  const li=document.createElement('li');
+  li.innerHTML=`<a class="game" href="${url(gm.repo)}" style="--c:${gm.c}"><div class="thumb"><canvas width="224" height="144"></canvas></div>
+   <div><div class="t">${gm.title}</div><div class="d">${gm.tag}</div><div class="m">${[gm.genre,gm.orient].filter(Boolean).join(' • ')}</div></div></a>`;
+  const cv=li.querySelector('canvas'),g=cv.getContext('2d');g.scale(2,2);
+  (ART[gm.art]||ART.generic)(g,112,72,(hash(gm.repo)%100),rng(hash(gm.repo)));
+  return li;
+}
+GAMES.forEach(gm=>list.appendChild(card(gm)));
+document.getElementById('sub').textContent=`${GAMES.length} games. Tap one to play.`;
+// quietly append any new Pages repo that isn't in the list yet (no reorder, no rebuild)
+fetch(`https://api.github.com/users/${OWNER}/repos?per_page=100`).then(r=>r.ok?r.json():[]).then(repos=>{
+  const known=new Set(GAMES.map(g=>g.repo));
+  repos.filter(r=>r.has_pages&&!r.fork&&!known.has(r.name)&&r.name!=='arcade').forEach(r=>
+    list.appendChild(card({repo:r.name,title:r.name.replace(/-/g,' ').toUpperCase(),tag:r.description||'',genre:'New',orient:'',c:'#fff',art:'generic'})));
+}).catch(()=>{});
 </script>
 </body>
 </html>
