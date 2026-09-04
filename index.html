@@ -119,7 +119,7 @@ function card(gm){
 }
 GAMES.forEach(gm=>list.appendChild(card(gm)));
 // navigate in-place (keeps home-screen / standalone mode from spawning a browser sheet)
-list.addEventListener('click',e=>{const a=e.target.closest('a.game');if(!a)return;e.preventDefault();window.location.assign(a.href);});
+list.addEventListener('click',e=>{const a=e.target.closest('a.game');if(!a)return;e.preventDefault();window.location.assign(a.href+'?v='+Date.now());});
 document.getElementById('sub').textContent=`${GAMES.length} games. Tap one to play.`;
 // quietly append any new Pages repo that isn't in the list yet (no reorder, no rebuild)
 fetch(`https://api.github.com/users/${OWNER}/repos?per_page=100`).then(r=>r.ok?r.json():[]).then(repos=>{
