@@ -37,7 +37,8 @@ a.game:focus-visible{outline:3px solid #fff;outline-offset:2px}
 <script>
 const OWNER='bward916-byte';
 const GAMES=[
- {repo:'hordegate',title:'HORDEGATE',tag:'Generators never stop. Twin-stick horde gauntlet with upgradeable weapons and a persistent armory.',genre:'Horde crawler',orient:'Landscape',c:'#f2c14e',art:'dungeon'},
+ {repo:'seedlight',title:'SEEDLIGHT',tag:'A young Mother Nature climbs a dead mountain to wake the world. Every step leaves something growing.',genre:'Platformer',orient:'Landscape',c:'#9be36b',art:'seed'},
+ {repo:'hordegate',title:'HORDEGATE',tag:'Generators never stop. Twin-stick horde gauntlet with upgradeable weapons and a persistent armory.',genre:'Horde crawler',orient:'Landscape',c:'#f2c14e',art:'horde'},
  {repo:'farlight',title:'FARLIGHT',tag:'Crew a survey ship, land on strange worlds and trade with the docktown. Starflight, on your phone.',genre:'Space exploration',orient:'Landscape',c:'#7fd7ff',art:'space'},
  {repo:'hecktown-road',title:'HECKTOWN ROAD',tag:'A Phillips Pet adventure down a very strange road.',genre:'Adventure',orient:'Landscape',c:'#ffb347',art:'road'},
  {repo:'highline',title:'HIGHLINE',tag:'Climb a cinematic mountain ridge, one ledge at a time.',genre:'Mountain adventure',orient:'Landscape',c:'#c9e6ff',art:'mountain'},
@@ -106,6 +107,18 @@ const ART={
   grd.addColorStop(0,'rgba(255,170,70,.55)');grd.addColorStop(1,'rgba(0,0,0,0)');g.fillStyle=grd;g.fillRect(0,0,w,h);
   g.fillStyle='#ffb040';g.fillRect(tx-4,ty-10,8,10);g.fillStyle='#5a3a20';g.fillRect(tx-2,ty,4,20);
   g.fillStyle='#ff7a7a';g.fillRect(w*.25+Math.sin(t*3)*5,h*.6,12,16);g.fillStyle='#d4d4d4';g.fillRect(w*.75,h*.6-Math.abs(Math.sin(t*2))*10,10,10);},
+ seed(g,w,h,t,r){const sky=g.createLinearGradient(0,0,0,h);sky.addColorStop(0,'#2c2a3f');sky.addColorStop(1,'#6b5a55');g.fillStyle=sky;g.fillRect(0,0,w,h);
+  g.fillStyle='#3b3436';g.beginPath();g.moveTo(0,h);g.lineTo(w*.15,h*.55);g.lineTo(w*.35,h*.7);g.lineTo(w*.55,h*.3);g.lineTo(w*.7,h*.5);g.lineTo(w,h*.25);g.lineTo(w,h);g.fill();
+  g.fillStyle='#4a4244';for(let i=0;i<8;i++)g.fillRect(w*.05+i*w*.12,h*.75-i*h*.06,w*.09,4);
+  g.fillStyle='#9be36b';for(let i=0;i<5;i++){const x=w*.05+i*w*.12+6,y=h*.75-i*h*.06;g.fillRect(x,y-8,3,8);g.fillRect(x-3,y-8,9,3);}
+  g.fillStyle='#ffe9a8';g.fillRect(w*.65,h*.4-14,7,14);g.fillStyle='#f3c98a';g.fillRect(w*.64,h*.4-20,9,7);
+  const gl=g.createRadialGradient(w*.68,h*.36,2,w*.68,h*.36,h*.4);gl.addColorStop(0,'rgba(190,255,150,.45)');gl.addColorStop(1,'rgba(0,0,0,0)');g.fillStyle=gl;g.fillRect(0,0,w,h);},
+ horde(g,w,h,t,r){g.fillStyle='#14100c';g.fillRect(0,0,w,h);
+  for(let y=0;y<h;y+=14)for(let x=(y/14%2)*16;x<w;x+=32){g.fillStyle=`hsl(30,25%,${9+r()*7}%)`;g.fillRect(x,y,30,12);}
+  g.fillStyle='#5a3a8a';g.fillRect(w*.78,h*.3,18,26);g.fillStyle='#c9a1ff';g.fillRect(w*.78+5,h*.3+6,8,8);
+  g.fillStyle='#8a4a2a';for(let i=0;i<14;i++){const x=w*.45+r()*w*.5,y=h*.15+r()*h*.7;g.fillRect(x,y,8,10);g.fillStyle='#e05a3a';g.fillRect(x+2,y+2,2,2);g.fillStyle='#8a4a2a';}
+  g.fillStyle='#f2c14e';g.fillRect(w*.2,h*.5,10,14);g.fillStyle='#fff';g.fillRect(w*.2+12,h*.55,10,2);g.fillRect(w*.2+26,h*.55,6,2);g.fillRect(w*.2+36,h*.55,4,2);
+  g.fillStyle='rgba(242,193,78,.12)';g.beginPath();g.moveTo(w*.25,h*.57);g.lineTo(w,h*.3);g.lineTo(w,h*.85);g.fill();},
  generic(g,w,h,t,r){g.fillStyle='#22263a';g.fillRect(0,0,w,h);for(let i=0;i<30;i++){g.fillStyle=`hsl(${r()*360},60%,60%)`;const x=r()*w,y=(r()*h+t*30*(1+r()))%h;g.fillRect(x,y,12,12);}}
 };
 
