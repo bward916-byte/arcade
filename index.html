@@ -37,6 +37,7 @@ a.game:focus-visible{outline:3px solid #fff;outline-offset:2px}
 <script>
 const OWNER='bward916-byte';
 const GAMES=[
+ {repo:'mageling',title:'MAGELING',tag:'A wizard childhood told in pictures. Grow up, collect rare robes and staffs, and turn the world sideways.',genre:'Action RPG',orient:'Portrait or landscape',c:'#ff6fd8',art:'wizard'},
  {repo:'seedlight',title:'SEEDLIGHT',tag:'A young Mother Nature climbs a dead mountain to wake the world. Every step leaves something growing.',genre:'Platformer',orient:'Landscape',c:'#9be36b',art:'seed'},
  {repo:'hordegate',title:'HORDEGATE',tag:'Generators never stop. Twin-stick horde gauntlet with upgradeable weapons and a persistent armory.',genre:'Horde crawler',orient:'Landscape',c:'#f2c14e',art:'horde'},
  {repo:'farlight',title:'FARLIGHT',tag:'Crew a survey ship, land on strange worlds and trade with the docktown. Starflight, on your phone.',genre:'Space exploration',orient:'Landscape',c:'#7fd7ff',art:'space'},
@@ -55,6 +56,10 @@ const url=r=>`https://${OWNER}.github.io/${r}/`;
 function rng(seed){let s=seed>>>0||1;return()=>((s=(s*1664525+1013904223)>>>0)/4294967296);}
 function hash(str){let h=2166136261;for(const ch of str)h=Math.imul(h^ch.charCodeAt(0),16777619);return h>>>0;}
 const ART={
+ wizard(g,w,h,t,r){const sky=g.createLinearGradient(0,0,0,h);sky.addColorStop(0,'#2a1a4a');sky.addColorStop(1,'#ff6fd8');g.fillStyle=sky;g.fillRect(0,0,w,h);
+  for(let i=0;i<30;i++){g.fillStyle='#fff';g.fillRect((r()*w+t)%w,r()*h*.6,2,2);}g.fillStyle='#7ccf5a';g.beginPath();g.ellipse(w*.5,h,w*.7,h*.35,0,Math.PI,0);g.fill();
+  for(let i=0;i<5;i++){const x=w*.1+i*w*.2;g.fillStyle=['#e2523c','#f2a33a','#7c4fd3','#3aa6f2','#ef6ba8'][i];g.beginPath();g.moveTo(x-9,h*.7);g.lineTo(x,h*.52);g.lineTo(x+9,h*.7);g.fill();g.fillStyle='#fbe9c8';g.fillRect(x-7,h*.7,14,h*.18);}
+  const px=w*.5,py=h*.78;g.fillStyle='#8e6cd6';g.beginPath();g.moveTo(px-5,py-16);g.lineTo(px+5,py-16);g.lineTo(px+9,py);g.lineTo(px-9,py);g.fill();g.fillStyle='#ffdbac';g.beginPath();g.arc(px,py-20,5,0,7);g.fill();g.fillStyle='#7b6fd6';g.beginPath();g.moveTo(px-8,py-23);g.lineTo(px+2,py-40);g.lineTo(px+8,py-23);g.fill();g.fillStyle='#ffe66d';g.fillRect(px-1,py-32,3,3);},
  space(g,w,h,t,r){g.fillStyle='#050816';g.fillRect(0,0,w,h);
   for(let i=0;i<120;i++){const x=(r()*w+t*(4+r()*10))%w,y=r()*h;g.fillStyle=r()<.2?'#9fd':'#fff';g.fillRect(x,y,r()<.9?1.5:3,1.5);}
   const px=w*.72,py=h*.5,R=h*.26;const grad=g.createRadialGradient(px-R*.4,py-R*.4,R*.1,px,py,R);
