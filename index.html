@@ -37,6 +37,7 @@ a.game:focus-visible{outline:3px solid #fff;outline-offset:2px}
 <script>
 const OWNER='bward916-byte';
 const GAMES=[
+ {repo:'floor-83',title:'FLOOR 83',tag:'You are a regular guy on the eighty-third floor of a very tall building. Go outside, make some money, talk to the voice, and maybe take the bus to the desert.',genre:'Exploration adventure',orient:'Portrait or landscape',c:'#ffe14f',art:'tower'},
  {repo:'bonevow',title:'BONEVOW',tag:'Every enemy you kill is a recruit. March a necromancer\'s squad through the Blightlands, raise the fallen, fuse them, and find out who really hired you.',genre:'Squad action RPG',orient:'Portrait or landscape',c:'#b48cff',art:'bone'},
  {repo:'mageling',title:'MAGELING',tag:'A wizard childhood under a red moon. Run, jump, grow up, and take the sun back from the Hollow Throne.',genre:'Side-scrolling RPG',orient:'Portrait or landscape',c:'#ff6fd8',art:'wizard'},
  {repo:'seedlight',title:'SEEDLIGHT',tag:'A young Mother Nature climbs a dead mountain to wake the world. Every step leaves something growing.',genre:'Platformer',orient:'Landscape',c:'#9be36b',art:'seed'},
@@ -57,6 +58,12 @@ const url=r=>`https://${OWNER}.github.io/${r}/`;
 function rng(seed){let s=seed>>>0||1;return()=>((s=(s*1664525+1013904223)>>>0)/4294967296);}
 function hash(str){let h=2166136261;for(const ch of str)h=Math.imul(h^ch.charCodeAt(0),16777619);return h>>>0;}
 const ART={
+ tower(g,w,h,t,r){const sky=g.createLinearGradient(0,0,0,h);sky.addColorStop(0,'#7fb2e0');sky.addColorStop(1,'#f0c090');g.fillStyle=sky;g.fillRect(0,0,w,h);
+  g.fillStyle='#8a9bb0';for(let i=0;i<9;i++){const bw=w*.1,bh=h*(.2+r()*.4);g.fillRect(i*w*.115,h-bh,bw,bh);}
+  g.fillStyle='#c9c4b8';g.fillRect(w*.42,h*.08,w*.18,h*.92);g.strokeStyle='#1a1a1a';g.lineWidth=1;g.strokeRect(w*.42,h*.08,w*.18,h*.92);
+  g.fillStyle='#2e3a48';for(let f=0;f<14;f++)for(let k=0;k<3;k++)g.fillRect(w*.445+k*w*.045,h*.11+f*h*.062,w*.03,h*.035);
+  g.fillStyle='#ffe14f';g.fillRect(w*.445,h*.11+2*h*.062,w*.12,h*.045);g.fillStyle='#d9534f';g.fillRect(w*.495,h*.11+2*h*.062+2,4,7);g.fillStyle='#f1c6a0';g.beginPath();g.arc(w*.495+2,h*.11+2*h*.062+1,2.2,0,6.29);g.fill();
+  g.fillStyle='#3a3a3c';g.fillRect(0,h*.94,w,h*.06);},
  bone(g,w,h,t,r){const sky=g.createLinearGradient(0,0,0,h);sky.addColorStop(0,'#0b0810');sky.addColorStop(1,'#2a1420');g.fillStyle=sky;g.fillRect(0,0,w,h);
   for(let i=0;i<25;i++){g.fillStyle='rgba(180,140,255,.5)';g.fillRect(r()*w,r()*h*.5,2,2);}
   for(let i=0;i<7;i++){const x=w*.12+i*w*.12,y=h*.75;g.fillStyle='#1a1420';g.fillRect(x-4,y-14,8,14);g.fillStyle='#b8c9a8';g.beginPath();g.arc(x,y-17,3.5,0,6.29);g.fill();g.fillStyle='#7fd35a';g.fillRect(x-2,y-18,1.5,1.5);g.fillRect(x+.5,y-18,1.5,1.5);}
