@@ -37,6 +37,7 @@ a.game:focus-visible{outline:3px solid #fff;outline-offset:2px}
 <script>
 const OWNER='bward916-byte';
 const GAMES=[
+ {repo:'bonevow',title:'BONEVOW',tag:'Every enemy you kill is a recruit. March a necromancer\'s squad through the Blightlands, raise the fallen, fuse them, and find out who really hired you.',genre:'Squad action RPG',orient:'Portrait or landscape',c:'#b48cff',art:'bone'},
  {repo:'mageling',title:'MAGELING',tag:'A wizard childhood under a red moon. Run, jump, grow up, and take the sun back from the Hollow Throne.',genre:'Side-scrolling RPG',orient:'Portrait or landscape',c:'#ff6fd8',art:'wizard'},
  {repo:'seedlight',title:'SEEDLIGHT',tag:'A young Mother Nature climbs a dead mountain to wake the world. Every step leaves something growing.',genre:'Platformer',orient:'Landscape',c:'#9be36b',art:'seed'},
  {repo:'hordegate',title:'HORDEGATE',tag:'Generators never stop. Twin-stick horde gauntlet with upgradeable weapons and a persistent armory.',genre:'Horde crawler',orient:'Landscape',c:'#f2c14e',art:'horde'},
@@ -56,6 +57,10 @@ const url=r=>`https://${OWNER}.github.io/${r}/`;
 function rng(seed){let s=seed>>>0||1;return()=>((s=(s*1664525+1013904223)>>>0)/4294967296);}
 function hash(str){let h=2166136261;for(const ch of str)h=Math.imul(h^ch.charCodeAt(0),16777619);return h>>>0;}
 const ART={
+ bone(g,w,h,t,r){const sky=g.createLinearGradient(0,0,0,h);sky.addColorStop(0,'#0b0810');sky.addColorStop(1,'#2a1420');g.fillStyle=sky;g.fillRect(0,0,w,h);
+  for(let i=0;i<25;i++){g.fillStyle='rgba(180,140,255,.5)';g.fillRect(r()*w,r()*h*.5,2,2);}
+  for(let i=0;i<7;i++){const x=w*.12+i*w*.12,y=h*.75;g.fillStyle='#1a1420';g.fillRect(x-4,y-14,8,14);g.fillStyle='#b8c9a8';g.beginPath();g.arc(x,y-17,3.5,0,6.29);g.fill();g.fillStyle='#7fd35a';g.fillRect(x-2,y-18,1.5,1.5);g.fillRect(x+.5,y-18,1.5,1.5);}
+  g.fillStyle='#e9dcc4';g.fillRect(w*.5-4,h*.72-16,8,14);g.fillStyle='#4a1a2a';g.beginPath();g.arc(w*.5,h*.72-19,5,Math.PI,0);g.fill();g.fillStyle='#b48cff';g.beginPath();g.arc(w*.5+8,h*.72-24,2.5,0,6.29);g.fill();},
  wizard(g,w,h,t,r){const sky=g.createLinearGradient(0,0,0,h);sky.addColorStop(0,'#2a1a4a');sky.addColorStop(1,'#ff6fd8');g.fillStyle=sky;g.fillRect(0,0,w,h);
   for(let i=0;i<30;i++){g.fillStyle='#fff';g.fillRect((r()*w+t)%w,r()*h*.6,2,2);}g.fillStyle='#7ccf5a';g.beginPath();g.ellipse(w*.5,h,w*.7,h*.35,0,Math.PI,0);g.fill();
   for(let i=0;i<5;i++){const x=w*.1+i*w*.2;g.fillStyle=['#e2523c','#f2a33a','#7c4fd3','#3aa6f2','#ef6ba8'][i];g.beginPath();g.moveTo(x-9,h*.7);g.lineTo(x,h*.52);g.lineTo(x+9,h*.7);g.fill();g.fillStyle='#fbe9c8';g.fillRect(x-7,h*.7,14,h*.18);}
