@@ -37,6 +37,7 @@ a.game:focus-visible{outline:3px solid #fff;outline-offset:2px}
 <script>
 const OWNER='bward916-byte';
 const GAMES=[
+ {repo:'hecktown-cutover-night',title:'HECKTOWN ROAD: CUTOVER NIGHT',tag:'A+ retires at midnight and wants six signatures first. Walk the Easton campus floor by floor: stairs, tunnels, coworkers, no bosses. Saves as you go.',genre:'Exploration adventure RPG',orient:'Landscape or portrait',c:'#f2b544',art:'stairs'},
  {repo:'farlight-lamp',title:'FARLIGHT: THE LAMP OF HEARTH',tag:'Hearth\'s beacon has gone silent. Fight through three worlds, recover the shards of its core, and learn who silenced it.',genre:'Action adventure',orient:'Portrait or landscape',c:'#ff6c2f',art:'space'},
  {repo:'nightrise',title:'NIGHTRISE',tag:'Paper-cutout city, always night. Ride the elevator, explore your 83rd-floor apartment, step onto the balcony and look down.',genre:'Exploration adventure',orient:'Portrait or landscape',c:'#ffd36a',art:'tower'},
  {repo:'highrise',title:'HIGHRISE',tag:'Inked-comic city, light shifting with the hour. Zoom out from the 83rd floor, ride down to the street, and meet the crowd in the alley.',genre:'Exploration adventure',orient:'Portrait or landscape',c:'#ffbf5e',art:'tower'},
@@ -82,6 +83,15 @@ const ART={
   g.strokeStyle='rgba(255,255,255,.35)';g.lineWidth=3;g.beginPath();g.ellipse(px,py,R*1.7,R*.35,-.3,0,7);g.stroke();
   g.fillStyle='#cfe';g.save();g.translate(w*.25+Math.sin(t*1.3)*6,h*.55+Math.cos(t)*4);g.beginPath();g.moveTo(-14,8);g.lineTo(16,0);g.lineTo(-14,-8);g.lineTo(-8,0);g.fill();
   g.fillStyle='#7fd7ff';g.fillRect(-22-((t*60)%12),-2,8,4);g.restore();},
+ stairs(g,w,h,t,r){g.fillStyle='#101a2e';g.fillRect(0,0,w,h);
+  for(let i=0;i<30;i++)g.fillStyle='#f6ecd8',g.fillRect(r()*w,r()*h*.3,1.5,1.5);
+  const bx=w*.12,bw=w*.76,fh=h*.22;for(let k=0;k<3;k++){const y=h*.92-(k+1)*fh;g.fillStyle=['#5b6676','#566a68','#62606f'][k];g.fillRect(bx,y,bw,fh-5);g.fillStyle='#252a34';g.fillRect(bx,y+fh-5,bw,5);
+   g.fillStyle='rgba(255,240,200,.18)';for(let j=0;j<3;j++)g.fillRect(bx+bw*(.08+j*.12),y+fh*.2,bw*.07,fh*.35);}
+  g.fillStyle='#2c3340';g.fillRect(bx+bw*.5,h*.92-3*fh,bw*.26,3*fh-5);g.strokeStyle='#c9ced4';g.lineWidth=3;g.beginPath();
+  for(let k=0;k<3;k++){const y=h*.92-k*fh-5,x0=bx+bw*.53,x1=bx+bw*.73;g.moveTo(x0,y);g.lineTo(x1,y-fh/2);g.lineTo(x0,y-fh);}g.stroke();
+  const p=(t*.12)%1,seg=Math.floor(p*6),u=p*6-seg,k=Math.floor(seg/2),up=seg%2,x0=bx+bw*.53,x1=bx+bw*.73,yy=h*.92-k*fh-5-(up?fh/2:0)-u*fh/2,xx=up?x1+(x0-x1)*u:x0+(x1-x0)*u;
+  g.fillStyle='#f2b544';g.fillRect(xx-3,yy-16,6,12);g.fillStyle='#efc39d';g.beginPath();g.arc(xx,yy-20,4,0,7);g.fill();
+  g.fillStyle='#2a2420';g.fillRect(0,h*.92,w,h*.08);},
  road(g,w,h,t,r){g.fillStyle='#16112a';g.fillRect(0,0,w,h);
   for(let i=0;i<40;i++)g.fillStyle='#fff',g.fillRect(r()*w,r()*h*.45,1.5,1.5);
   g.fillStyle='#2a2340';for(let i=0;i<9;i++){const x=i*w/8;g.fillRect(x,h*.42-r()*h*.15,w/8+2,h);}
