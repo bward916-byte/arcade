@@ -37,6 +37,7 @@ a.game:focus-visible{outline:3px solid #fff;outline-offset:2px}
 <script>
 const OWNER='bward916-byte';
 const GAMES=[
+ {repo:'embervale',title:'EMBERVALE',tag:'A 16-bit village, a broken bridge, goblin woods and a castle on the hill. Run, jump, gather coins and sharpen your blade.',genre:'Pixel platformer',orient:'Portrait or landscape',c:'#7fd0ff',art:'castle'},
  {repo:'hecktown-cutover-night',title:'HECKTOWN ROAD: CUTOVER NIGHT',tag:'A+ retires at midnight and wants six signatures first. Walk the Easton campus floor by floor: stairs, tunnels, coworkers, no bosses. Saves as you go.',genre:'Exploration adventure RPG',orient:'Landscape or portrait',c:'#f2b544',art:'stairs'},
  {repo:'farlight-lamp',title:'FARLIGHT: THE LAMP OF HEARTH',tag:'Hearth\'s beacon has gone silent. Fight through three worlds, recover the shards of its core, and learn who silenced it.',genre:'Action adventure',orient:'Portrait or landscape',c:'#ff6c2f',art:'space'},
  {repo:'nightrise',title:'NIGHTRISE',tag:'Paper-cutout city, always night. Ride the elevator, explore your 83rd-floor apartment, step onto the balcony and look down.',genre:'Exploration adventure',orient:'Portrait or landscape',c:'#ffd36a',art:'tower'},
@@ -147,6 +148,15 @@ const ART={
   g.fillStyle='#8a4a2a';for(let i=0;i<14;i++){const x=w*.45+r()*w*.5,y=h*.15+r()*h*.7;g.fillRect(x,y,8,10);g.fillStyle='#e05a3a';g.fillRect(x+2,y+2,2,2);g.fillStyle='#8a4a2a';}
   g.fillStyle='#f2c14e';g.fillRect(w*.2,h*.5,10,14);g.fillStyle='#fff';g.fillRect(w*.2+12,h*.55,10,2);g.fillRect(w*.2+26,h*.55,6,2);g.fillRect(w*.2+36,h*.55,4,2);
   g.fillStyle='rgba(242,193,78,.12)';g.beginPath();g.moveTo(w*.25,h*.57);g.lineTo(w,h*.3);g.lineTo(w,h*.85);g.fill();},
+ castle(g,w,h,t,r){g.fillStyle='#4f98f0';g.fillRect(0,0,w,h);g.fillStyle='#8cc8fa';g.fillRect(0,h*.45,w,h*.3);
+  g.fillStyle='#fff';for(let i=0;i<3;i++){const x=((i*50+t*6)%(w+30))-30;g.fillRect(x,8+i*7,22,6);g.fillRect(x+5,4+i*7,12,5);}
+  g.fillStyle='#6f7fc0';g.beginPath();g.moveTo(0,h*.7);g.lineTo(18,h*.3);g.lineTo(36,h*.6);g.lineTo(52,h*.36);g.lineTo(70,h*.7);g.fill();g.fillStyle='#fff';g.fillRect(15,h*.3,6,5);g.fillRect(49,h*.36,6,5);
+  g.fillStyle='#b7bcc8';g.fillRect(70,26,30,26);g.fillRect(66,20,8,32);g.fillRect(96,20,8,32);g.fillRect(81,12,8,16);
+  g.fillStyle='#3b74d8';[[70,20,7],[100,20,7],[85,12,7]].forEach(([x,y,s])=>{g.beginPath();g.moveTo(x-s,y);g.lineTo(x,y-s*2);g.lineTo(x+s,y);g.fill();});
+  g.fillStyle='#6b4220';g.fillRect(81,40,8,12);g.fillStyle='#e03a3a';g.fillRect(85,-3+Math.round(Math.sin(t*4)),5,3);
+  g.fillStyle='#2f9440';g.fillRect(0,52,w,6);g.fillStyle='#58c653';g.fillRect(0,52,w,2);g.fillStyle='#7a4e28';g.fillRect(0,58,w,h-58);
+  g.fillStyle='#ecd9a8';g.fillRect(8,38,22,14);g.fillStyle='#d0432f';g.fillRect(6,32,26,7);g.fillStyle='#ffd66b';g.fillRect(13,42,5,5);
+  const hx=38+((t*14)%24),jy=Math.abs(Math.sin(t*5))*6;g.fillStyle='#3b74d8';g.fillRect(hx,44-jy,5,6);g.fillStyle='#f6cf4a';g.fillRect(hx,40-jy,5,4);g.fillStyle='#ffd24a';g.fillRect(58,38+Math.sin(t*3)*2,3,4);},
  generic(g,w,h,t,r){g.fillStyle='#22263a';g.fillRect(0,0,w,h);for(let i=0;i<30;i++){g.fillStyle=`hsl(${r()*360},60%,60%)`;const x=r()*w,y=(r()*h+t*30*(1+r()))%h;g.fillRect(x,y,12,12);}}
 };
 
