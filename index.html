@@ -37,6 +37,7 @@ a.game:focus-visible{outline:3px solid #fff;outline-offset:2px}
 <script>
 const OWNER='bward916-byte';
 const GAMES=[
+ {repo:'dustfall',title:'DUSTFALL',tag:'Ride into a dead Old West town with a purse of coins. Toss them to drifters, rebuild the street, hold off bandits and bring the railroad.',genre:'Town builder',orient:'Portrait or landscape',c:'#f2a65a',art:'west'},
  {repo:'embervale',title:'EMBERVALE',tag:'Three 16-bit chapters: the village road, Frostpeak Pass and the Ember Wastes. Run, double jump, beat three bosses and sharpen your blade.',genre:'Pixel platformer',orient:'Portrait or landscape',c:'#7fd0ff',art:'castle'},
  {repo:'hecktown-cutover-night',title:'HECKTOWN ROAD: CUTOVER NIGHT',tag:'A+ retires at midnight and wants six signatures first. Walk the Easton campus floor by floor: stairs, tunnels, coworkers, no bosses. Saves as you go.',genre:'Exploration adventure RPG',orient:'Landscape or portrait',c:'#f2b544',art:'stairs'},
  {repo:'farlight-lamp',title:'FARLIGHT: THE LAMP OF HEARTH',tag:'Hearth\'s beacon has gone silent. Fight through three worlds, recover the shards of its core, and learn who silenced it.',genre:'Action adventure',orient:'Portrait or landscape',c:'#ff6c2f',art:'space'},
@@ -61,6 +62,15 @@ const url=r=>`https://${OWNER}.github.io/${r}/`;
 function rng(seed){let s=seed>>>0||1;return()=>((s=(s*1664525+1013904223)>>>0)/4294967296);}
 function hash(str){let h=2166136261;for(const ch of str)h=Math.imul(h^ch.charCodeAt(0),16777619);return h>>>0;}
 const ART={
+ west(g,w,h,t,r){const sky=g.createLinearGradient(0,0,0,h);sky.addColorStop(0,'#3a2a5c');sky.addColorStop(.7,'#f08a4b');sky.addColorStop(1,'#f6c27a');g.fillStyle=sky;g.fillRect(0,0,w,h);
+  g.fillStyle='#ffe9a8';g.beginPath();g.arc(w*.8,h*.56,9,0,6.29);g.fill();
+  g.fillStyle='#b5684a';g.fillRect(0,h*.5,w*.2,h*.3);g.fillRect(w*.24,h*.44,w*.1,h*.36);g.fillRect(w*.86,h*.46,w*.14,h*.34);
+  g.fillStyle='#6a3c20';g.fillRect(w*.38,h*.36,w*.34,h*.44);g.fillRect(w*.36,h*.26,w*.38,h*.11);g.fillStyle='#ead7a4';g.fillRect(w*.45,h*.285,w*.2,h*.06);
+  g.fillStyle='#ffcf6b';g.fillRect(w*.42,h*.5,w*.07,h*.13);g.fillRect(w*.61,h*.5,w*.07,h*.13);g.fillRect(w*.52,h*.56,w*.06,h*.24);
+  g.fillStyle='#4a2a18';g.fillRect(w*.35,h*.44,w*.4,h*.03);g.fillStyle='#c9995c';g.fillRect(0,h*.8,w,h*.2);g.fillStyle='#a97a45';g.fillRect(0,h*.92,w,h*.08);
+  const x=w*.1,y=h*.82;g.fillStyle='#2a1810';g.fillRect(x,y-11,16,6);g.fillRect(x+13,y-16,4,6);g.fillRect(x+15,y-18,6,4);for(const k of [1,5,10,13])g.fillRect(x+k,y-5,2,5);g.fillRect(x-2,y-10,2,6);
+  g.fillRect(x+6,y-18,4,7);g.fillRect(x+3,y-20,10,1.5);g.fillRect(x+6,y-23,4,3);
+  g.fillStyle='#f2c14e';g.beginPath();g.arc(x+27,y-3,2.4,0,6.29);g.fill();},
  tower(g,w,h,t,r){const sky=g.createLinearGradient(0,0,0,h);sky.addColorStop(0,'#7fb2e0');sky.addColorStop(1,'#f0c090');g.fillStyle=sky;g.fillRect(0,0,w,h);
   g.fillStyle='#8a9bb0';for(let i=0;i<9;i++){const bw=w*.1,bh=h*(.2+r()*.4);g.fillRect(i*w*.115,h-bh,bw,bh);}
   g.fillStyle='#c9c4b8';g.fillRect(w*.42,h*.08,w*.18,h*.92);g.strokeStyle='#1a1a1a';g.lineWidth=1;g.strokeRect(w*.42,h*.08,w*.18,h*.92);
