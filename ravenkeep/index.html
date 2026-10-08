@@ -44,6 +44,17 @@ button:focus-visible{outline:3px solid var(--parch);outline-offset:3px}
 #skip{position:absolute;right:14px;top:6px;margin:0;font-size:12px;opacity:0;z-index:4;pointer-events:none}
 .cine #skip{opacity:.6;transition:opacity .6s .8s}
 .cine #hud,.cine #pad,.cine .tb,.cine #prompt,.cine #hint{display:none}
+#barB{flex-direction:column;gap:3px}
+#chap{font-family:var(--disp);font-size:clamp(14px,2.2vw,19px);color:var(--gold);letter-spacing:.05em;white-space:pre}
+#chap:empty{display:none}
+.demo #barB{height:19%;background:linear-gradient(rgba(7,7,11,0),rgba(7,7,11,.8) 30%,rgba(7,7,11,.94));justify-content:flex-end;padding-bottom:max(12px,env(safe-area-inset-bottom,0px))}
+.demo #cap{max-width:56rem}
+@media (min-height:501px){.demo #map{bottom:17%}}
+body.demo #pad,body.demo .tb,.demo #hint,.demo #prompt,.demo #mapb{display:none}
+.demo #skip{opacity:.7;top:50px;right:auto;left:max(16px,env(safe-area-inset-left,0px));text-shadow:0 1px 0 rgba(17,19,28,.9)}
+#dexit{position:absolute;right:max(16px,env(safe-area-inset-right,0px));top:46px;z-index:6;display:none}
+@media (max-width:560px){.demo #skip{top:88px}#dexit{top:84px}}
+.demo #dexit{display:block}
 #day{margin-left:auto;white-space:nowrap;font-family:var(--disp);font-size:21px}
 .hb{pointer-events:auto;font-size:14px;background:linear-gradient(rgba(52,46,60,.92),rgba(17,19,28,.92));border:1px solid rgba(234,220,182,.5);border-radius:4px;padding:3px 10px;white-space:nowrap;box-shadow:0 2px 0 rgba(0,0,0,.35)}
 .bump{animation:bump .28s}
@@ -80,9 +91,9 @@ button:focus-visible{outline:3px solid var(--parch);outline-offset:3px}
 #title h1{margin:0;font-family:var(--disp);font-weight:400;font-size:clamp(54px,14vw,124px);line-height:.95;letter-spacing:.01em;text-shadow:0 4px 0 var(--blood),0 8px 0 var(--ink)}
 #title p{margin:0;font-size:18px;max-width:34rem;text-shadow:0 1px 0 var(--ink),0 0 8px var(--ink);text-wrap:balance}
 #go{font-family:var(--disp);font-size:26px;color:var(--ink);background:var(--gold);border:0;border-bottom:4px solid #a87c1c;border-radius:4px;padding:8px 30px 6px;margin-top:6px}
-#cont{font-size:17px;background:rgba(17,19,28,.66);border:1px solid rgba(234,220,182,.6);border-radius:4px;padding:7px 20px}
+#cont,#demo{font-size:17px;background:rgba(17,19,28,.66);border:1px solid rgba(234,220,182,.6);border-radius:4px;padding:7px 20px}
 #how{font-size:15px;opacity:.9}
-#map{position:absolute;inset:0;display:grid;place-items:center;background:rgba(9,10,16,.78);padding:14px 16px;z-index:5;overflow:auto}
+#map{position:absolute;inset:0;display:grid;place-items:center;align-items:safe center;background:rgba(9,10,16,.78);padding:14px 16px;z-index:5;overflow:auto}
 #mapin{width:min(100%,46rem);background:#eadcb6;color:#231a12;border:3px solid #6b5230;border-radius:6px;box-shadow:0 0 0 2px #231a12,0 14px 40px rgba(0,0,0,.5);padding:12px 16px 14px}
 #mapin h2{margin:0 0 2px;font-family:var(--disp);font-weight:400;font-size:28px;text-align:center}
 #mapin p{margin:4px 0 0;font-size:15px;text-align:center}
@@ -118,7 +129,8 @@ button:focus-visible{outline:3px solid var(--parch);outline-offset:3px}
   <button id="mapb" class="hb" type="button">Map</button>
   <button id="mute" class="hb" type="button">Sound on</button>
 </div>
-<i id="barT"></i><i id="barB"><span id="cap"></span></i><p id="skip">Tap or press any key to skip</p>
+<i id="barT"></i><i id="barB"><span id="chap"></span><span id="cap"></span></i><p id="skip">Tap or press any key to skip</p>
+<button id="dexit" class="hb" type="button">Exit demo</button>
 <h2 id="card"></h2>
 <div id="hint" role="status"></div>
 <div id="prompt"></div>
@@ -135,6 +147,7 @@ button:focus-visible{outline:3px solid var(--parch);outline-offset:3px}
   <p id="tag">A ruined keep, a tired horse and a purse of coins. Raise a kingdom before the raiders return.</p>
   <button id="go" type="button">Ride in</button>
   <button id="cont" type="button" hidden>Continue</button>
+  <button id="demo" type="button">Watch the demo</button>
   <p id="how">Arrows or A and D to ride. Space tosses coins, F swings your sword, B raises your banner.</p>
 </div>
 
@@ -359,7 +372,7 @@ function reset(){
     folk:[],vag:[],units:[],foes:[],P:[],shots:[],parts:[],fx:[],floats:[],down:[],limp:[],wounded:[],orders:[],court:[],decks:[],
     healT:0,stance:'hold',front:1,frontT:0,formT:0,raid:{day:4,side:Math.random()<.5?-1:1,idx:0,both:false},battle:null,raidsWon:0,lands:[0,0,0,0,0],
     field:null,stay:null,cam:0,shake:0,spoils:0,repost:1,seen:{},ww:WORLD,S:[],tgt:null,part:null,tossT:0,hold:0,lost:0,killed:0,dark:0,foeK:1,foeD:1,done:0,
-    bio:'vale',rain:0,rainT:0,cheer:0,fade:0,slow:0,decals:[],bow:0,intro:null,mapOpen:false,edgeLock:0,timeScale:1,cardT:0,endT:0};
+    bio:'vale',rain:0,rainT:0,cheer:0,fade:0,slow:0,decals:[],bow:0,intro:null,demo:null,mapOpen:false,edgeLock:0,timeScale:1,cardT:0,endT:0};
   B={};for(const b of G.b)B[b.id]=b;
   G.king={king:1,side:0,id:0,x:CX+60,h:0,vx:0,dir:-1,phase:0,hp:30,max:30,dmg:5,armor:2,cd:0,swing:0,hurt:0,toss:0,down:0,regen:9,cav:1,row:4,moving:false};
   G.S=[B.wallW,B.wallE,B.keep];
@@ -384,9 +397,9 @@ function snap(){
   return {v:1,day:G.day,t:G.t,coins:G.coins,b:G.b.map(b=>[b.level,b.sprung?1:0,b.burnt||0,b.type==='wall'&&b.level&&b.hp<=0?1:0]),u:cnt(allUnits()),
     w:cnt(G.wounded.concat(G.down,G.limp)),folk:G.folk.length,raid:G.raid,lands:G.lands,won:G.raidsWon,seen:G.seen,lost:G.lost,killed:G.killed,done:G.done};
 }
-function save(){if(!G||G.state!=='play'||G.scene!=='home'||G.battle)return;try{localStorage.setItem(SAVE,JSON.stringify(snap()));}catch(e){}}
+function save(){if(!G||G.demo||G.state!=='play'||G.scene!=='home'||G.battle)return;try{localStorage.setItem(SAVE,JSON.stringify(snap()));}catch(e){}}
 function peek(){try{const s=JSON.parse(localStorage.getItem(SAVE));return s&&s.v===1?s:null;}catch(e){return null;}}
-function wipe(){try{localStorage.removeItem(SAVE);}catch(e){}}
+function wipe(){if(G&&G.demo)return;try{localStorage.removeItem(SAVE);}catch(e){}}
 function restore(s){
   reset();G.day=s.day;G.t=clamp(s.t||.06,0,.55);G.coins=s.coins;G.raid=s.raid;G.lands=s.lands;G.raidsWon=s.won||0;G.seen=s.seen||{};G.lost=s.lost||0;G.killed=s.killed||0;G.done=s.done||0;
   s.b.forEach((a,i)=>{const b=G.b[i];if(!b)return;setLevel(b,a[0]);b.sprung=!!a[1];b.burnt=a[2]||0;if(a[3])b.hp=0;});
@@ -401,7 +414,7 @@ function restore(s){
 // ---------- messages and the HUD
 let hintT=0,promptKey='';
 function hint(k,txt,again){
-  if(!again&&G.seen[k])return;G.seen[k]=1;
+  if(G.demo||(!again&&G.seen[k]))return;G.seen[k]=1;
   const e=$('hint');e.textContent=txt;e.classList.add('on');hintT=8;
 }
 function card(title,sub,ms){
@@ -415,6 +428,7 @@ function setTxt(id,v,bump){
   if(up){e.classList.remove('bump');void e.offsetWidth;e.classList.add('bump');}
 }
 function newsText(){
+  if(G.demo&&G.scene==='home'&&!G.battle&&G.raid.day>90)return '';
   if(G.scene==='field'){const f=G.field,S=G.S;return f.done?'':`${LANDS[f.i].n}: ${G.foes.length} defenders`+(S[0].hp>0?', wall stands':', wall breached');}
   if(G.battle)return `Raid: ${G.foes.length+G.battle.q.length} raiders left`;
   if(landsWon()===5)return 'The realm is at peace';
@@ -616,7 +630,7 @@ function tossing(dt){
   if(G.intro){G.tgt=null;return;}
   const tg=G.tgt=findTarget(),key=tg?tg.key:'';
   if(G.part&&G.part.key!==key)refund();
-  const want=input.coin||input.coinT||input.padCoin;
+  const want=G.demo?G.demo.coin:input.coin||input.coinT||input.padCoin;
   G.hold=want?G.hold+dt:0;G.tossT-=dt;
   if(want&&G.tossT<=0){
     if(!tg||!tg.full){if(G.hold<=dt*1.01)sfx.no();}
@@ -645,7 +659,7 @@ function updKing(dt){
   const k=G.king;
   if(k.hurt>0)k.hurt-=dt;if(k.swing>0)k.swing-=dt;if(k.toss>0)k.toss-=dt;k.cd-=dt;
   if(k.down>0){k.down-=dt;k.vx=0;if(k.down<=0){k.hp=Math.ceil(k.max/2);k.x=CX+10;}return;}
-  const ax=G.intro?(k.x<CX+46?.72:0):input.key||input.dpad||(Math.abs(input.stick)>.16?input.stick:0)||input.padAxis,want=clamp(ax,-1,1)*88;
+  const ax=G.demo?G.demo.ax:G.intro?(k.x<CX+46?.72:0):input.key||input.dpad||(Math.abs(input.stick)>.16?input.stick:0)||input.padAxis,want=clamp(ax,-1,1)*88;
   const acc=(Math.abs(want)<1||want*k.vx<0)?460:240;
   k.vx+=clamp(want-k.vx,-acc*dt,acc*dt);
   const nx=clamp(bound(k,k.x+k.vx*dt),18,G.ww-18);if(Math.abs(nx-(k.x+k.vx*dt))>.01)k.vx=0;k.x=nx;
@@ -653,7 +667,7 @@ function updKing(dt){
   if(k.moving){k.dir=sgn(k.vx);k.phase+=Math.abs(k.vx)*dt*.085;if(Math.abs(k.vx)>60&&Math.random()<dt*14){const sea=G.scene==='home'?season():1,sn=BIO[G.bio].snowy;      // what the hooves throw up depends on the season
       G.parts.push({x:k.x-k.dir*8,h:1,vx:-k.dir*rnd(4,14),vh:rnd(4,12)+(sea===2?8:0),life:0,max:sea===2?.9:.5,col:sn?'#f2f5f8':sea===2?['#c98a2e','#b5562a','#d2a43a'][Math.floor(rnd(0,3))]:'#b9a77c',grav:sea===2?-14:-20});}
     k.px=(k.px||0)+Math.abs(k.vx)*dt;if(k.px>9){k.px=0;const sn=BIO[G.bio].snowy;decal(k.x-k.dir*6,'print',sn?16:G.rain>.3?9:4);}}
-  if((input.sword||input.swordT||input.padSword)&&k.cd<=0){
+  if((G.demo?G.demo.sword:input.sword||input.swordT||input.padSword)&&k.cd<=0){
     k.cd=.42;k.swing=.22;let n=0;const pw=k.dmg*(Math.abs(k.vx)>70?1.5:1);
     for(const f of G.foes){if(f.h>0||n>=3)continue;const d=(f.x-k.x)*k.dir;if(d>-4&&d<17&&!wallBetween(0,k.x,f.x)){hurtU(f,pw,false);n++;}}
     if(!n)for(const s of G.S)if(s.own===1&&s.hp>0&&Math.abs(s.x-k.x)<s.half+16){handHit(s,pw);n=1;break;}
@@ -2184,7 +2198,7 @@ function drawShot(s){
 function draw(){
   const k=G.king;LT=[];WN=[];SNOWR=!!BIO[G.bio].snowy;
   // camera
-  const want=clamp((G.state==='play'?k.x+clamp(k.vx*.3,-26,26):CX)-W/2,0,Math.max(0,G.ww-W));
+  const want=clamp((G.state==='play'?k.x+clamp(k.vx*.3,-26,26)+(G.demo?G.demo.look:0):CX)-W/2,0,Math.max(0,G.ww-W));
   G.cam=Math.abs(want-G.cam)>W?want:G.cam+(want-G.cam)*.14;
   CAM=Math.round(G.cam+(G.shake>0?Math.sin(G.clock*70)*G.shake:0));
   ctx.setTransform(1,0,0,1,0,0);
@@ -2285,10 +2299,11 @@ function update(dt){
   if(hintT>0){hintT-=dt;if(hintT<=0)$('hint').classList.remove('on');}
   if(G.cardT>0){G.cardT-=dt;if(G.cardT<=0)$('card').classList.remove('on');}
   if(G.state!=='play'){updCourt(dt);updVag(dt);updParts(dt);G.dark=darkness(G.t);return;}
+  if(G.demo)updDemo(dt);
   if(G.mapOpen)return;
   if(G.intro)updIntro(dt);
   if(G.edgeLock>0)G.edgeLock-=dt;if(G.cheer>0)G.cheer-=dt;if(G.fade>0)G.fade-=dt*1.1;
-  if(input.banner){input.banner=false;if(!G.intro)toggleStance();}
+  if(input.banner){input.banner=false;if(!G.intro&&!G.demo)toggleStance();}
   updTime(dt);updKing(dt);tossing(dt);
   const k=G.king;
   if(G.scene==='home'){
@@ -2325,6 +2340,7 @@ reset();G.t=.56;addEventListener('resize',resize);resize();
 const KEYS={ArrowLeft:-1,a:-1,A:-1,ArrowRight:1,d:1,D:1},COINK=[' ','ArrowDown','s','S'],SWORDK=['f','F','x','X','Enter','ArrowUp','w','W'],BANK=['b','B','q','Q','Shift'];
 const held=new Set();
 addEventListener('keydown',e=>{
+  if(G.demo){e.preventDefault();if(e.key==='Escape')endDemo();else if(!e.repeat&&G.demo.t>.4)demoChapter(G.demo.i+1);return;}
   if(G.state!=='play'){if((e.key==='Enter'||e.key===' ')&&document.activeElement.id!=='cont'){e.preventDefault();start(false,true);}return;}
   if(G.intro){e.preventDefault();if(G.intro.t>.6)endIntro();return;}
   if(G.mapOpen){if(e.key==='Escape'){e.preventDefault();hideMap();}return;}
@@ -2364,7 +2380,7 @@ function pollPad(){
   input.padAxis=gp&&Math.abs(gp.axes[0])>.25?gp.axes[0]:0;input.dpad=(on(15)?1:0)-(on(14)?1:0);input.padCoin=on(0)||on(7);input.padSword=on(1)||on(2)||on(5);
   const y=on(3);if(y&&!padY&&G.state==='play'&&!G.mapOpen)input.banner=true;padY=y;
   const m=on(8);if(m&&!padM&&G.state==='play'){if(G.mapOpen)hideMap();else showMap('view');}padM=m;
-  const go=on(0)||on(9);if(go&&!padWas){if(G.state!=='play')start(false,true);else if(G.intro){if(G.intro.t>.6)endIntro();}else if(G.mapOpen&&!$('mgo').hidden&&!$('mgo').disabled)mapGo();}padWas=go;
+  const go=on(0)||on(9);if(go&&!padWas){if(G.demo){if(on(9))endDemo();else demoChapter(G.demo.i+1);}else if(G.state!=='play')start(false,true);else if(G.intro){if(G.intro.t>.6)endIntro();}else if(G.mapOpen&&!$('mgo').hidden&&!$('mgo').disabled)mapGo();}padWas=go;
 }
 addEventListener('gamepadconnected',()=>{if(G.state==='title')$('how').textContent='Controller: stick or d-pad rides, A pays, X strikes, Y raises your banner.';});
 $('mapb').addEventListener('click',()=>{$('mapb').blur();showMap('view');});
@@ -2404,7 +2420,7 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden)save();});a
 {const s=peek();if(s){$('cont').hidden=false;$('cont').textContent='Continue, day '+s.day;}}
 // an open page keeps its kingdom when a new build arrives
 const hot=window.claude&&window.claude.hot;
-try{if(hot&&hot.snapshot)hot.snapshot(()=>G.state==='play'&&G.scene==='home'&&!G.battle?{s:snap()}:{});}catch(e){}
+try{if(hot&&hot.snapshot)hot.snapshot(()=>G.state==='play'&&!G.demo&&G.scene==='home'&&!G.battle?{s:snap()}:{});}catch(e){}
 const boot=d=>{try{if(d&&d.s&&restore(d.s))start(true);}catch(e){}};
 if(hot&&hot.ready)hot.ready(boot);else boot(hot&&hot.data||{});
 window.RK={get G(){return G;},get B(){return B;},update,draw,start,reset,restore,snap,setLevel,mkUnit,villager,assignPosts,startRaid,startField,findTarget,dawn,input,UT,DEF,LANDS,toggleStance,showMap,hideMap,mapGo,income,popCap,raidSize};
@@ -2416,6 +2432,104 @@ function frame(now){
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
+
+// ---------- the demo: ten short chapters that play themselves, each staged from scratch, with a caption under the picture
+function dFresh(){const d=G.demo;reset();G.demo=d;G.state='play';G.fade=.9;G.raid.day=99;G.rainT=0;d.ax=0;d.coin=d.sword=false;d.f={};$('card').classList.remove('on');}
+function dTown(L,wall){for(const b of G.b)setLevel(b,Math.min(DEF[b.type].cost.length,b.type==='wall'&&wall?wall:L));}
+function dFolk(n,x,spread){for(let i=0;i<n;i++)villager((x||CX)+rnd(-(spread||380),spread||380));}
+function dArmy(spec){for(const t in spec)for(let i=0;i<spec[t];i++)G.units.push(mkUnit(t,CX));assignPosts();for(const u of G.units){u.x=u.post.x;u.h=u.post.h;}}
+function dSeason(day){G.day=day;G.bio=homeBio();}
+const dJump=x=>{G.king.x=x;G.king.vx=0;G.cam=x-W/2;};
+const dGo=(D,x,sp)=>{const d=x-G.king.x;D.ax=Math.abs(d)>4?sgn(d)*(sp||.6):0;return Math.abs(d)<=6;};
+const dOnce=(D,t,key,fn)=>{if(D.t>=t&&!D.f[key]){D.f[key]=1;fn();}};
+const DEMO=[
+  {title:'Coins and vagrants',sec:11,caps:[[.3,'You ride in alone with a purse of coins. Vagrants camp in the wilds.'],[5,'A coin wins each of them to your banner.']],
+    setup(){dFresh();G.t=.2;G.king.x=CX+CAMP-110;},
+    tick(D){const v=G.vag.find(q=>q.camp===1);if(v&&D.t>1){D.coin=dGo(D,v.x,.5)&&D.t>2.5;}else{D.coin=false;D.ax=D.t>1?-.45:0;}}},
+  {title:'The castle grows',sec:21,caps:[[.3,'Toss coins at the ruin and your villagers rebuild it.'],[6.2,'Each level makes the castle wider and taller, and opens more of the town.'],[14,'Courtiers stroll its gallery and wall-walks. Guards keep the roof.']],
+    setup(){dFresh();G.t=.3;G.coins=500;G.king.x=CX+34;dFolk(5,CX,50);},
+    tick(D){D.coin=D.t>1&&B.keep.level<1&&!B.keep.building;
+      for(const [t,L] of [[6.5,2],[10,3],[13.5,4],[17,5]])dOnce(D,t,'k'+L,()=>{setLevel(B.keep,L);sfx.built();float(CX,B.keep.hgt+14,'KEEP '+L,'#eadcb6');});}},
+  {title:'Plots, buildings and recruits',sec:17,caps:[[.3,'Every plot shows a ghost of what can stand there, with its name and price.'],[5.5,'Pay, and villagers build it.'],[9.5,'The posts beside a barracks turn villagers into soldiers.']],
+    setup(){dFresh();G.t=.25;G.coins=60;setLevel(B.keep,1);setLevel(B.cotA,1);G.king.x=B.barracks.x+84;dFolk(8,B.barracks.x,60);},
+    tick(D){const b=B.barracks;D.coin=false;
+      if(b.building)D.ax=0;else if(b.level<1){if(D.t>2.5)D.coin=dGo(D,b.x,.5);}else D.coin=dGo(D,b.x-38,.4)&&G.units.length+G.orders.length<5;}},
+  {title:'A working town',sec:17,caps:[[.3,'Smith, barracks, archery range, market, infirmary, cottages, stables, workshop.'],[7,'Farms, the market and taxes pay in at every dawn.'],[12.2,'Cottages bring settlers. Housing caps your people, soldiers included.']],
+    setup(){dFresh();dSeason(8);G.t=.35;G.coins=120;dTown(3);dFolk(40);G.king.x=CX-380;},
+    tick(D){G.t=.35;D.ax=.5;dOnce(D,10.5,'dawn',()=>{dawn();G.rainT=0;});}},
+  {title:'The army',sec:18,caps:[[.3,'Nine kinds of soldier: militia, swordsmen, pikemen, men-at-arms,'],[5,'archers, longbowmen, crossbowmen, light horse and knights.'],[10,'Three engines too. Raise your banner and the whole host marches with you.']],
+    setup(){dFresh();dSeason(8);G.t=.3;dTown(4);dFolk(20);G.king.x=CX-800;G.king.dir=-1;G.front=-1;
+      dArmy({militia:8,sword:10,pike:8,maa:8,archer:8,longbow:8,crossbow:8,hobelar:5,knight:5,mangonel:1,ballista:1,trebuchet:1});
+      G.stance='follow';for(const u of G.units)u.mode='follow';formation();for(const u of G.units){u.x=u.slot;u.h=0;}},
+    tick(D){G.t=.3;D.ax=D.t>1.5&&D.t<13?-.33:0;dOnce(D,14,'hold',()=>toggleStance());}},
+  {title:'Seasons and weather',sec:18,caps:[[.3,'Spring. The valley turns through four seasons, six days each.'],[4.7,'Summer rain, and a rainbow when it clears.'],[9.2,'Autumn: the woods turn and the sheaves are stacked.'],[13.7,'Winter: snow on the roofs, ice on the river.']],
+    setup(){dFresh();dSeason(2);G.t=.35;dTown(3);dFolk(30);dJump(CX+270);},
+    tick(D){G.t=.35;D.ax=.22;
+      dOnce(D,4.5,'su',()=>{dSeason(8);dJump(CX+905);G.rain=G.rainT=1;G.fade=.5;});dOnce(D,6.6,'bow',()=>{G.rainT=0;G.rain=.25;G.bow=16;});
+      dOnce(D,9,'au',()=>{dSeason(14);dJump(CX+670);G.rain=0;G.bow=0;G.fade=.5;});dOnce(D,13.5,'wi',()=>{dSeason(20);dJump(CX+885);G.fade=.5;});}},
+  {title:'A night raid',sec:34,caps:[[.3,'Raids come every three to five days. Scouts name the night and the side.'],[6,'Archers man the gate. Engines throw over the wall.'],[12,'Torch a field under them, or let them find the spike pits.'],[21,'When the gate is in danger, raise your banner and lead the charge.']],
+    setup(){dFresh();dSeason(8);dTown(3);dFolk(24);G.raid={day:G.day,side:1,idx:5,both:false};G.t=.588;
+      dArmy({sword:14,pike:8,maa:6,archer:10,longbow:12,crossbow:8,knight:4,mangonel:2,ballista:1});G.king.x=CX+WALLX-86;G.king.dir=1;},
+    tick(D){
+      for(const f of G.foes)if(!f.dm){f.dm=1;if(f.x>CX+900)f.x-=230;}                 // start them closer, so the fight comes sooner
+      if(!D.f.torch&&G.foes.filter(f=>Math.abs(f.x-B.farmE1.x)<46).length>5){D.f.torch=1;B.farmE1.burn=12;B.farmE1.tick=0;sfx.fire(B.farmE1.x);}
+      dOnce(D,21.5,'charge',()=>{if(G.stance!=='follow')toggleStance();});
+      D.lookT=D.t<5?0:D.t<11?50:D.t<21.5?150:30;
+      D.ax=D.t>23&&G.king.x<CX+WALLX+50?.4:0;D.sword=D.t>23;}},
+  {title:'The wounded',sec:12,caps:[[.3,'After the fight, the wounded limp to the infirmary and return to duty one by one.'],[6.2,'Survivors earn veteran stripes. A better infirmary heals faster and saves more.']],
+    setup(){const D=G.demo;D.f={};D.ax=0;D.coin=D.sword=false;if(G.battle)G.battle.q.length=0;for(const f of G.foes.slice())hurtU(f,9999,true);
+      if(G.stance==='follow')toggleStance();G.fade=.5;for(let i=0;i<6;i++)G.down.push({type:i%2?'sword':'longbow',rank:0,x:CX+WALLX-30-i*9,t:1.5,id:900+i,dir:-1});},
+    tick(D){G.t=.16;dGo(D,B.infirm.x+44,.75);if(G.wounded.length)G.healT+=.05;}},
+  {title:'War abroad',sec:46,caps:[[.3,'Five rival lands lie beyond your border. Each one you take pays tribute every dawn.'],[5,'March with the army. Engines batter the wall, then your men storm the breach.'],[24,'Take the hall and the land is yours.']],
+    setup(){dFresh();dSeason(8);G.t=.3;dTown(4);dFolk(20);G.lands[0]=1;G.king.x=CX+BORDER-30;
+      dArmy({sword:16,pike:10,maa:12,archer:8,longbow:14,crossbow:10,hobelar:4,knight:8,mangonel:2,ballista:2,trebuchet:2});G.stance='follow';for(const u of G.units)u.mode='follow';},
+    tick(D){
+      dOnce(D,.6,'map',()=>showMap('travel'));dOnce(D,4.6,'go',()=>{mapGo();G.timeScale=3;});
+      if(G.scene==='field'){
+        const k=G.king,f=G.field;let nf=999,ns=999;for(const e of G.foes)nf=Math.min(nf,Math.abs(e.x-k.x));for(const s of G.S)if(s.hp>0)ns=Math.min(ns,Math.abs(s.x-k.x)-s.half);
+        D.ax=f.done?0:nf<34&&k.x>90?-.6:nf<120||ns<64?0:.36;D.sword=nf<18||ns<14;
+        dOnce(D,38,'force',()=>{for(const s of G.S)if(s.hp>0)hurtS(s,99999);});
+      }else if(D.f.go&&D.t>8){G.timeScale=1;D.ax=0;D.sword=false;if(!D.f.home){D.f.home=1;D.end=D.t+5;}}}},
+  {title:'A royal castle',sec:13,caps:[[.3,'A royal castle on a winter night, under the northern lights.'],[6.5,'That is Ravenkeep. The demo ends here.']],
+    setup(){dFresh();dSeason(21);G.t=.8;dTown(5);dFolk(30);G.king.x=CX-34;},
+    tick(D){G.t=.8;D.ax=0;}},
+];
+function demoChapter(i){
+  const D=G.demo;G.timeScale=1;if(G.mapOpen)hideMap();
+  if(i>=DEMO.length)return endDemo();
+  D.i=i;D.t=0;D.c=0;D.end=0;D.look=D.lookT=0;const s=DEMO[i];s.setup();
+  $('chap').textContent=`${i+1} / ${DEMO.length}   ${s.title}`;$('cap').classList.remove('on');
+}
+function startDemo(){
+  if(G.demo)return;
+  initAudio();if(AC&&AC.state==='suspended')AC.resume();
+  G.demo={i:0,t:0,c:0,f:{},ax:0,coin:false,sword:false,end:0,look:0};
+  $('title').hidden=true;document.body.classList.remove('title','cine');document.body.classList.add('demo');
+  $('skip').textContent=document.body.classList.contains('touch')?'Tap for the next chapter':'Any key: next chapter. Esc: leave';
+  for(const k in hudLast)delete hudLast[k];
+  demoChapter(0);
+}
+function endDemo(){
+  if(!G.demo)return;
+  if(G.mapOpen)hideMap();
+  document.body.classList.remove('demo');$('cap').classList.remove('on');$('chap').textContent='';$('card').classList.remove('on');$('skip').textContent='Tap or press any key to skip';
+  reset();G.t=.56;$('title').hidden=false;document.body.classList.add('title');
+  const s=peek();$('cont').hidden=!s;if(s)$('cont').textContent='Continue, day '+s.day;
+}
+function updDemo(dt){
+  const D=G.demo,s=DEMO[D.i];D.t+=dt/(G.timeScale||1);
+  while(D.c<s.caps.length&&D.t>=s.caps[D.c][0]){const c=$('cap');c.textContent=s.caps[D.c++][1];c.classList.add('on');}
+  if(G.state!=='play'){G.state='play';}
+  const k=G.king;k.hp=k.max;if(k.down>0)k.down=0;B.keep.hp=B.keep.max;
+  s.tick(D);
+  D.look+=((D.lookT||0)-D.look)*Math.min(1,dt*1.4);
+  if(D.t>=s.sec||(D.end&&D.t>=D.end))demoChapter(D.i+1);
+}
+$('demo').addEventListener('click',startDemo);
+$('dexit').addEventListener('click',e=>{e.stopPropagation();endDemo();});
+document.addEventListener('pointerdown',e=>{if(G.demo&&G.demo.t>.4&&!(e.target.closest&&e.target.closest('#dexit,#mute')))demoChapter(G.demo.i+1);});
+window.RK.startDemo=startDemo;window.RK.endDemo=endDemo;window.RK.DEMO=DEMO;window.RK.demoChapter=demoChapter;
+if(typeof location!=='undefined'&&location.hash==='#demo')startDemo();
 
 })();
 </script>
