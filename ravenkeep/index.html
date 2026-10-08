@@ -144,7 +144,7 @@ button:focus-visible{outline:3px solid var(--parch);outline-offset:3px}
 const $=id=>document.getElementById(id);
 const cv=$('game'),stage=$('stage');
 let ctx=cv.getContext('2d'),W=320,H=180,GY=136,G,B={};
-const DAY=96,CX=1600,WORLD=3200,CAMP=1020,BORDER=1530,SPAWN=1130,WALLX=560;
+const DAY=96,CX=1600,WORLD=3200,CAMP=1060,BORDER=1530,SPAWN=1170,WALLX=600;
 const clamp=(v,a,b)=>v<a?a:v>b?b:v,rnd=(a,b)=>a+Math.random()*(b-a),sgn=v=>v<0?-1:1;
 const hash=n=>{n=Math.sin(n*127.1+3.7)*43758.5453;return n-Math.floor(n);};
 const rgb=h=>[1,3,5].map(i=>parseInt(h.substr(i,2),16));
@@ -162,7 +162,7 @@ const tone=(h,f)=>{f=Math.round(f*20)/20;return toneC[h+f]||(toneC[h+f]=css(rgb(
 
 // buildings: cost per level, and the keep level each level needs
 const DEF={
-  keep:{n:'Keep',w:40,cost:[5,25,60,120,220],need:[0,0,0,0,0],gives:['a timber hall','a stone keep','a third storey and towers','the great towers','a royal castle']},
+  keep:{n:'Keep',w:40,cost:[5,25,60,120,220],need:[0,0,0,0,0],gives:['a timber tower behind a palisade','a stone keep and curtain wall','corner towers and a great hall','tall towers, a chapel and a twin gatehouse','a royal castle with a spired keep']},
   cottage:{n:'Cottages',w:40,cost:[4,12,26],need:[1,2,3],gives:['room for 16 more','room for 16 more','room for 16 more']},
   farm:{n:'Farm',w:100,cost:[5,14,30],need:[1,2,3],gives:['4 coins each dawn','9 coins each dawn','16 coins each dawn']},
   wall:{n:'Gate',w:24,cost:[8,22,50,100],need:[1,2,3,4],gives:['a palisade','a stone gatehouse','a high wall with towers','a fortress gate with boiling oil']},
@@ -175,12 +175,12 @@ const DEF={
   workshop:{n:'Siege workshop',w:60,cost:[28,60,110],need:[3,4,5],gives:['mangonels','ballistas','trebuchets']},
   trap:{n:'Spike pit',w:14,cost:[3],need:[1],gives:['a hidden pit']},
 };
-const SITES=[['keep','keep',0],['smith','smith',-89],['barracks','barracks',-168],['range','range',-305],['stable','stable',-422],
-  ['market','market',81],['infirm','infirm',153],['cotA','cottage',215],['cotB','cottage',265],['cotC','cottage',315],['cotD','cottage',365],['works','workshop',440],
-  ['wallW','wall',-WALLX],['wallE','wall',WALLX],['farmW1','farm',-670],['farmW2','farm',-795],['farmE1','farm',670],['farmE2','farm',795],
-  ['trapW1','trap',-600],['trapW2','trap',-880],['trapE1','trap',600],['trapE2','trap',880]];
+const SITES=[['keep','keep',0],['smith','smith',-133],['barracks','barracks',-212],['range','range',-349],['stable','stable',-466],
+  ['market','market',129],['infirm','infirm',201],['cotA','cottage',263],['cotB','cottage',313],['cotC','cottage',363],['cotD','cottage',413],['works','workshop',488],
+  ['wallW','wall',-WALLX],['wallE','wall',WALLX],['farmW1','farm',-710],['farmW2','farm',-835],['farmE1','farm',710],['farmE2','farm',835],
+  ['trapW1','trap',-640],['trapW2','trap',-920],['trapE1','trap',640],['trapE2','trap',920]];
 const WALL={hp:[0,120,260,480,800],h:[0,15,22,30,38],half:[4,4,7,10,13],slots:[0,3,6,10,14]};
-const KEEP={w:[34,40,48,56,64,72],h:[14,28,48,66,84,102],fl:[0,0,2,3,4,5]};
+const KEEP={w:[60,92,112,140,164,184],h:[24,40,58,72,86,98]};        // the castle's footprint and the height of its keep, by level
 const FARMY=[0,4,9,16],MARKY=[0,6,14,26],HEALT=[26,14,9,5];
 // fighters. side 0 is yours, side 1 is the enemy
 const UT={
@@ -348,14 +348,15 @@ function mkUnit(type,x,rank){
 function villager(x){const f={id:G.nid++,x,dir:1,walk:0,st:'idle',tx:x,wait:rnd(0,2),moving:false,job:null,work:false};G.folk.push(f);return f;}
 function vagrant(s){const hx=CX+s*CAMP+rnd(-22,22);G.vag.push({id:G.nid++,x:hx,home:hx,camp:s,dir:-s,walk:0,wait:rnd(0,3),tx:hx,moving:false});}
 function court(){
-  const L=B.keep.level,fl=KEEP.fl[L],hw=KEEP.w[L]/2-7;G.court=[];
-  if(L<1)return;
-  for(let f=0;f<=fl;f++){const n=f===fl?(L>1?3:1):2+(f%2);
-    for(let i=0;i<n;i++){const x=rnd(-hw,hw);G.court.push({fl:f,x,tx:x,wait:rnd(0,4),dir:1,walk:0,c:(G.court.length*3+f)%6,guard:f===fl,moving:false});}}
+  const L=B.keep.level,D=G.decks=decks(L);G.court=[];
+  D.forEach((d,i)=>{
+    const n=d[3]===1?3+(L>3?1:0):d[3]===3?1:d[3]===2?(L>1?2:1):2+(L>3?1:0);
+    for(let k=0;k<n;k++){const x=rnd(d[0],d[1]);G.court.push({dk:i,x,tx:x,wait:rnd(0,4),dir:1,walk:0,c:(G.court.length*3+i)%6,guard:d[3]===2||(d[3]===0&&k===0),moving:false});}
+  });
 }
 function reset(){
   G={state:'title',scene:'home',clock:0,t:.1,day:1,coins:24,nid:1,king:null,b:SITES.map(s=>mkB(s[0],s[1],s[2])),
-    folk:[],vag:[],units:[],foes:[],P:[],shots:[],parts:[],fx:[],floats:[],down:[],limp:[],wounded:[],orders:[],court:[],
+    folk:[],vag:[],units:[],foes:[],P:[],shots:[],parts:[],fx:[],floats:[],down:[],limp:[],wounded:[],orders:[],court:[],decks:[],
     healT:0,stance:'hold',front:1,frontT:0,formT:0,raid:{day:4,side:Math.random()<.5?-1:1,idx:0,both:false},battle:null,raidsWon:0,lands:[0,0,0,0,0],
     field:null,stay:null,cam:0,shake:0,spoils:0,repost:1,seen:{},ww:WORLD,S:[],tgt:null,part:null,tossT:0,hold:0,lost:0,killed:0,dark:0,foeK:1,foeD:1,done:0,
     bio:'vale',rain:0,rainT:0,cheer:0,fade:0,slow:0,decals:[],bow:0,intro:null,mapOpen:false,edgeLock:0,timeScale:1,cardT:0,endT:0};
@@ -500,7 +501,7 @@ function updFolk(dt){
         f.wait=rnd(1.5,7);
         if(night)f.tx=CX+((f.id*53)%640-320);
         else{const farms=G.b.filter(b=>b.type==='farm'&&b.level&&!b.burnt&&b.burn<=0);
-          f.tx=farms.length&&Math.random()<.3?farms[f.id%farms.length].x+rnd(-44,44):CX+rnd(-500,500);}
+          f.tx=farms.length&&Math.random()<.3?farms[f.id%farms.length].x+rnd(-44,44):CX+rnd(-530,530);}
       }else if(!night&&Math.abs(f.x-CX)>WALLX+50)f.work=true;
     }
     step(f,f.tx,sp,dt);
@@ -512,14 +513,17 @@ function updVag(dt){
   }
 }
 function updCourt(dt){
-  const L=B.keep.level,hw=KEEP.w[L]/2-7,fl=KEEP.fl[L];
+  const D=G.decks;
   for(const c of G.court){
+    const d=D[c.dk];if(!d)continue;
     if(Math.abs(c.x-c.tx)<.6){
       c.moving=false;c.wait-=dt;
       if(c.wait<=0){
         c.wait=c.guard?rnd(.5,2):rnd(1,6);
-        if(!c.guard&&fl>1&&Math.abs(c.x)>hw-3&&Math.random()<.5)c.fl=clamp(c.fl+(Math.random()<.5?-1:1),0,fl-1);   // takes the stair
-        c.tx=Math.random()<.3?sgn(rnd(-1,1))*hw:rnd(-hw,hw);
+        if(!c.guard&&D.length>2&&(c.x<d[0]+3||c.x>d[1]-3)&&Math.random()<.5){          // takes a stair inside a tower and comes out on another walk
+          const j=Math.floor(rnd(0,D.length));if(D[j][3]!==2){c.dk=j;c.x=Math.random()<.5?D[j][0]:D[j][1];}
+        }
+        const e=D[c.dk];c.tx=Math.random()<.3?(Math.random()<.5?e[0]:e[1]):rnd(e[0],e[1]);
       }
     }else{c.dir=sgn(c.tx-c.x);c.x+=c.dir*dt*(c.guard?5:6.5);c.walk+=dt*5;c.moving=true;}
   }
@@ -532,10 +536,10 @@ function built(b){
   sfx.built();float(b.x,(b.hgt||20)+14,b.type==='keep'?'KEEP '+b.level:'BUILT','#eadcb6');
   for(let k=0;k<10;k++)G.parts.push({x:b.x+rnd(-b.w/2,b.w/2),h:rnd(2,18),vx:rnd(-10,10),vh:rnd(4,16),life:0,max:rnd(.5,1),col:'#cdbf9a',grav:0});
   const t=b.type,L=b.level;
-  if(t==='keep'&&L===1)hint('k1','The keep stands again. Plots are staked out around it: stand on one and toss coins. Cottages bring settlers, farms bring coins.');
-  else if(t==='keep'&&L===2)hint('k2','A stone keep. A market, a blacksmith and an infirmary can now be built, and the roads past your border stones are open: there are lands to conquer.');
+  if(t==='keep'&&L===1)hint('k1','A timber keep stands on its mound. Plots are staked out around it: stand on one and toss coins. Cottages bring settlers, farms bring coins.');
+  else if(t==='keep'&&L===2)hint('k2','A stone keep behind its own wall. A market, a blacksmith and an infirmary can now be built, and the roads past your border stones are open: there are lands to conquer.');
   else if(t==='keep'&&L===3)hint('k3','Stables and a siege workshop are open to you. Stone walls abroad will need engines.');
-  else if(t==='keep'&&L>3)hint('k'+L,'The castle climbs. Its halls fill with courtiers and its roof with guards.');
+  else if(t==='keep'&&L>3)hint('k'+L,'The castle grows. Courtiers stroll its gallery and wall-walks, and guards keep the roof.');
   else if(t==='barracks'||t==='range'||t==='stable'||t==='workshop')hint('post'+t+L,`${DEF[t].n}: toss coins at the ${L>1?'new post':'post'} beside it to ${t==='workshop'?'build '+DEF[t].gives[L-1]:'arm villagers as '+DEF[t].gives[L-1]}.`,L>1&&!(t==='range'&&L===4));
   else if(t==='wall'&&L===1)hint('wall','Archers climb the gate on their own. Everyone else waits behind it until it breaks or you lead them out.');
   else if(t==='farm'&&L===1)hint('farm','A farm pays each dawn. In a raid, the brazier beside it lets you torch the field under the raiders.');
@@ -1148,7 +1152,7 @@ function tree(sx,kind,sz,p,wx){
 }
 const HOMEPROPS=[];
 for(let x=40;x<WORLD-40;x+=14+Math.floor(hash(x)*30)){
-  const d=Math.abs(x-CX),o=x-CX;if(d<WALLX+34||(d>604&&d<896)||Math.abs(d-CAMP)<34||Math.abs(d-BORDER)<16||(o>908&&o<994)||(o>-1312&&o<-1168))continue;
+  const d=Math.abs(x-CX),o=x-CX;if(d<WALLX+34||(d>644&&d<936)||Math.abs(d-CAMP)<34||Math.abs(d-BORDER)<16||(o>948&&o<1034)||(o>-1312&&o<-1168))continue;
   HOMEPROPS.push({x,k:hash(x*3)>.6?1:0,s:Math.floor(hash(x*7)*3),b:hash(x*11)>.82});
 }
 function props(list,bio){
@@ -1164,56 +1168,6 @@ function drawCourtier(x,y,c){
   if(c.guard){R(x+(c.dir>0?2:-1),y-8,1,8,C.wood);P(x+(c.dir>0?2:-1),y-9,'#dfe5ee');}
   else if(c.c===3)P(x,y-6,C.gold);else if(c.c===1)R(x-1,y-2,4,2,col);
 }
-function drawKeep(sx,b){
-  const L=b.level,w=KEEP.w[L],h=KEEP.h[L],x0=Math.round(sx-w/2);
-  if(L===0){
-    stoneR(x0,GY,11,7,C.st2);stoneR(x0+2,GY-7,7,6,C.st1);stoneR(sx+4,GY,13,10,C.st2);stoneR(sx+8,GY-10,6,6,C.st1);stoneR(sx-7,GY,11,3,C.st3);
-    P(x0+3,GY-13,C.st1);P(sx+10,GY-17,C.st1);for(let i=0;i<8;i++)P(x0+hash(i)*w,GY-1-hash(i*3)*9,'#4f7c35');
-    return;
-  }
-  if(L===1){
-    timber(x0,GY,w,14,C.daub,C.beam);R(sx-3,GY-9,6,9,C.wood2);P(sx+1,GY-5,C.gold);win(x0+5,GY-10,3,4);win(x0+w-8,GY-10,3,4);
-    gable(x0-2,GY-14,w+4,14,C.th1,C.th2);R(sx,GY-36,1,9,C.beam);flag(sx+1,GY-36,1,C.red,7,4);
-    for(const c of G.court)drawCourtier(sx+Math.round(c.x),GY,c);
-    return;
-  }
-  const fl=KEEP.fl[L],fh=18,base=12;
-  if(L>=3)for(const s of [-1,1]){
-    const tw=12,th=h+8+(L-3)*5,tx=Math.round(sx+s*(w/2+4)-tw/2);
-    stoneR(tx,GY,tw,th,C.st2);
-    for(let j=14;j<th-30;j+=12){R(tx+5,GY-j-4,2,4,C.dark);WN.push([tx+5,GY-j-4,2,4]);}
-    {const by=GY-th+9,o=Math.round(Math.sin(G.clock*2+s)*.6);R(tx+3,by-1,6,1,C.beam);R(tx+4,by,4,15,C.red);R(tx+4,by,1,15,'#7a2420');P(tx+5+o,by+5,C.gold);P(tx+6+o,by+6,C.gold);P(tx+5+o,by+7,C.gold);P(tx+5,by+14,C.st2);P(tx+6,by+14,C.st2);}
-    if(L>=4){gable(tx-2,GY-th,tw+4,11,C.sl1,C.sl2);R(tx+tw/2,GY-th-18,1,7,C.beam);flag(tx+tw/2+1,GY-th-18,1,s<0?C.red:C.gold,6,3);}
-    else for(let i=0;i<tw;i+=4)R(tx+i,GY-th-3,2,3,C.st2);
-  }
-  stoneR(x0,GY,w,h,C.st1);
-  for(const s of [-1,1]){const bx=s<0?x0+7:x0+w-10;R(bx,GY-10,3,10,C.st2);R(bx,GY-11,2,1,C.st2);R(bx,GY-10,1,10,tone(C.st1,1.1));}       // buttresses
-  for(let j=0;j<fl;j++)for(let i=6;i<w-6;i+=7)if(hash(i*1.9+j*5.3+L)>.55)R(x0+i,GY-base-j*fh+1,1,2+Math.floor(hash(i+j)*3),'rgba(40,40,50,.22)');      // weather stains under each ledge
-  const hall=css(mixA([42,36,48],[190,128,62],G.battle?.15:clamp(G.dark,0,1)*.8));
-  R(sx-5,GY-10,10,10,hall);R(sx-4,GY-11,8,1,hall);R(sx-3,GY-12,6,1,hall);R(sx-5,GY-10,1,10,C.dark);R(sx+4,GY-10,1,10,C.dark);
-  for(let i=-4;i<5;i+=2)R(sx+i,GY-11,1,G.battle?11:4,'#59606e');if(G.battle)R(sx-4,GY-6,8,1,'#59606e');       // the portcullis drops in a raid
-  smoke(b.x+w/2-8,h+2,.015);
-  R(sx-7,GY-1,14,1,C.st3);R(sx-6,GY,12,2,C.wood2);R(sx-6,GY,12,1,C.wood);torch(sx-8,GY-7,16);torch(sx+8,GY-7,16);if(G.dark>.3)pool(sx,26,.4);
-  for(let f=0;f<fl;f++){
-    const y0=GY-base-f*fh,gx=x0+4,gw=w-8;
-    R(gx,y0-13,gw,11,css(mixA([58,52,66],[168,116,60],G.battle?0:clamp(G.dark,0,1)*.75)));R(gx,y0-13,gw,1,C.dark);
-    for(const c of G.court)if(c.fl===f&&!(G.battle&&!c.guard))drawCourtier(sx+Math.round(c.x),y0-3,c);
-    R(gx-1,y0-2,gw+2,2,C.st2);R(gx-1,y0-3,gw+2,1,tone(C.st1,1.12));
-    for(let i=0;i<=gw;i+=8){R(gx+i-(i>=gw?1:0),y0-13,1,11,C.st1);P(gx+i+1,y0-13,C.st1);P(gx+i-1,y0-13,C.st1);}
-    lt(sx,y0-7,gw*.7,.22);
-  }
-  const ry=GY-h;
-  for(let k=0;k<16;k++){const s=k%2?1:-1,ix=s<0?x0+hash(k*2.1)*7:x0+w-1-hash(k*2.1)*7;P(ix,GY-1-hash(k*3.7)*(10+L*3),k%3?'#4f7c35':'#6c9a44');}
-  if(G.dark>.3){torch(x0+2,ry-3,14);torch(x0+w-3,ry-3,14);}
-  for(const c of G.court)if(c.fl===fl)drawCourtier(sx+Math.round(c.x),ry,c);
-  for(let i=0;i<w;i+=4){R(x0+i,ry-3,2,3,C.st1);if(SNOWR)R(x0+i,ry-4,2,1,'#eef2f6');}R(x0-1,ry,w+2,1,SNOWR?'#e4eaf0':C.st2);
-  if(L>=5){
-    stoneR(sx-8,ry,16,12,C.st2);disc(sx,ry-7,2,C.glass);P(sx,ry-7,C.gold);P(sx-1,ry-8,'#c0392b');P(sx+1,ry-8,'#3f5fa0');P(sx-1,ry-6,'#3f5fa0');P(sx+1,ry-6,'#c0392b');WN.push([sx-1,ry-8,3,3]);for(let i=0;i<16;i+=4)R(sx-8+i,ry-15,2,3,C.st2);
-    gable(sx-7,ry-12,14,12,C.sl1,C.sl2);R(sx,ry-33,1,10,C.beam);flag(sx+1,ry-33,1,C.red,9,5);P(sx+3,ry-31,C.gold);
-  }else{R(sx,ry-14,1,14,C.beam);flag(sx+1,ry-14,1,C.red,8,4);P(sx+3,ry-12,C.gold);}
-  gateGuards(sx);
-}
-
 // ---------- the town
 function drawCottage(sx,b,L){
   if(L>=3){timber(sx-15,GY,13,15,C.daub,C.beam);win(sx-12,GY-12,2,2);win(sx-7,GY-12,2,2);R(sx-10,GY-6,3,6,C.wood2);gable(sx-16,GY-15,15,7,C.sl1,C.sl2);}
@@ -1354,7 +1308,7 @@ function drawGate(sx,L,o){
   if(o.flash>0){ctx.fillStyle='rgba(255,255,255,.35)';ctx.fillRect(sx-half,GY-h,half*2,h);}
 }
 function scaffold(sx,b){
-  const w=b.type==='farm'?40:b.type==='trap'?12:b.type==='wall'?16:b.w,h=b.type==='keep'?KEEP.h[b.level+1]:b.type==='wall'?WALL.h[b.level+1]+4:b.type==='trap'||b.type==='farm'?7:22;
+  const w=b.type==='farm'?40:b.type==='trap'?12:b.type==='wall'?16:b.type==='keep'?Math.round(KEEP.w[b.level+1]*.55):b.w,h=b.type==='keep'?KEEP.h[b.level+1]:b.type==='wall'?WALL.h[b.level+1]+4:b.type==='trap'||b.type==='farm'?7:22;
   if(h>12){const cx=sx+w/2,by=GY-h+3+Math.round((Math.sin(G.clock*1.4)*.5+.5)*(h-10));line(cx,GY-h,cx-9,GY-h-8,C.wood2);R(cx-9,GY-h-8,1,by-(GY-h-8),'#cdbf9a');R(cx-11,by,5,3,C.st2);}       // a crane hauls stone up
   if(Math.random()<.06)G.parts.push({x:b.x+rnd(-w/2,w/2),h:rnd(1,4),vx:rnd(-4,4),vh:rnd(3,8),life:0,max:rnd(.6,1.2),col:'#b9a77c',grav:0,big:1});
   ctx.fillStyle='rgba(157,153,143,.5)';ctx.fillRect(Math.round(sx-w/2+1),Math.round(GY-h*b.prog),w-2,Math.round(h*b.prog));
@@ -1376,7 +1330,7 @@ function drawPosts(sx0,b){
 const DRAWB={keep:drawKeep,cottage:drawCottage,farm:drawFarm,barracks:drawBarracks,range:drawRange,stable:drawStable,smith:drawSmith,market:drawMarket,infirm:drawInfirm,workshop:drawWorkshop,trap:drawTrap};
 function drawSite(b){
   const sx=Math.round(b.x-CAM),L=b.level,pad=b.type==='farm'?80:70;if(sx<-pad||sx>W+pad)return;
-  if(L>0&&b.type!=='farm'&&b.type!=='trap'&&!(b.type==='wall'&&b.hp<=0)){const hw=b.type==='keep'?KEEP.w[L]/2+(L>=3?12:2):b.type==='wall'?b.half+3:b.w/2+2;ctx.fillStyle='rgba(0,0,0,.24)';ctx.fillRect(Math.round(sx-hw),GY-1,Math.round(hw*2+4),2);}
+  if(L>0&&b.type!=='farm'&&b.type!=='trap'&&!(b.type==='wall'&&b.hp<=0)){const hw=b.type==='keep'?KEEP.w[L]/2+3:b.type==='wall'?b.half+3:b.w/2+2;ctx.fillStyle='rgba(0,0,0,.24)';ctx.fillRect(Math.round(sx-hw),GY-1,Math.round(hw*2+4),2);}
   if(b.type==='wall'){drawGate(sx,L,{wx:b.x,half:b.half,dir:b.dir,dead:L>0&&b.hp<=0,r:b.max?b.hp/b.max:1,flash:b.flash,closed:G.foes.some(f=>Math.abs(f.x-b.x)<170)});}
   else if(L>0){
     DRAWB[b.type](sx,b,L);
@@ -1630,7 +1584,7 @@ function drawRavens(){
   if(sx<-140||sx>W+140)return;
   for(let i=0;i<n;i++){
     const roost=G.dark>.55||G.rain>.5||i===0&&L>0;let x,y,flap=0;
-    if(roost){x=sx+clamp((i-(n-1)/2)*7,-KEEP.w[L]/2+2,KEEP.w[L]/2-4);y=L<1?GY-15+(i%2)*4:roof;if(Math.sin(G.clock*.9+i*2)>.96)y--;}
+    if(roost){x=sx+clamp((i-(n-1)/2)*6,-17,15)+(L===1?12:0);y=L<1?GY-15+(i%2)*4:L===1?GY-48:roof;if(Math.sin(G.clock*.9+i*2)>.96)y--;}
     else{const a=G.clock*(.45+hash(i)*.35)*(i%2?1:-1)+i*2.1,rx=24+hash(i*3)*46;x=sx+Math.cos(a)*rx;y=top-4-hash(i*5)*20+Math.sin(a*2+i)*7;flap=Math.sin(G.clock*11+i*2)>0?1:-1;}
     x=Math.round(x);y=Math.round(y);
     P(x,y,'#16131a');P(x+1,y,'#16131a');
@@ -1639,7 +1593,7 @@ function drawRavens(){
   }
 }
 // lamps, a well and the clutter of a working town; more of it as the keep grows
-const TOWN=[[-58,'lamp',2],[-126,'lamp',2],[-265,'lamp',2],[-382,'lamp',3],[-506,'lamp',2],[397,'lamp',2],[530,'lamp',2],[118,'well',1],[-258,'barrels',2],[-528,'cart',1],[522,'crates',2],[-134,'crates',3],[46,'banner',4],[-46,'banner',4]];
+const TOWN=[[-102,'lamp',2],[-170,'lamp',2],[-309,'lamp',2],[-426,'lamp',3],[-552,'lamp',2],[445,'lamp',2],[578,'lamp',2],[166,'well',1],[-302,'barrels',2],[-574,'cart',1],[568,'crates',2],[-178,'crates',3]];
 function drawTown(){
   const KL=B.keep.level,lit=G.dark>.3||G.rain>.6;
   for(const [off,kind,need] of TOWN){
@@ -1712,7 +1666,7 @@ function drawFinish(){
 }
 
 // ---------- drawing: shadows and sunbeams, the river, and the animals that live around the kingdom
-const RIVX=CX+951;
+const RIVX=CX+991;
 let SUN=null;
 // shadows fall toward you, away from the sun behind the town: short at noon, long and slanted at either end of the day
 function sunVec(){
@@ -1731,7 +1685,7 @@ function drawShadows(){
     const HT={cottage:14,barracks:24,range:16,market:12,infirm:18,smith:20,stable:18,workshop:20};
     for(const b of G.b){
       const L=b.level;if(!L||b.type==='farm'||b.type==='trap'||(b.type==='wall'&&b.hp<=0))continue;const sx=b.x-CAM;
-      if(b.type==='keep')quad(sx,KEEP.w[L]/2+(L>=3?12:0),KEEP.h[L]+(L>=3?10:0));
+      if(b.type==='keep')quad(sx,KEEP.w[L]/2+2,KEEP.h[L]*.85);
       else if(b.type==='wall')quad(sx,b.half+(L>=3?5:0),WALL.h[L]+6);
       else quad(sx,b.w/2,HT[b.type]||16);
     }
@@ -1795,7 +1749,7 @@ function drawLife(){
   // hens
   const n=Math.min(7,G.b.reduce((m,b)=>m+(b.type==='cottage'?b.level:0),0)*2);
   if(n&&G.dark<.75&&!G.battle)for(let i=0;i<n;i++){
-    let x=CX+198+i*27+Math.sin(G.clock*.23+i*2.3)*9,y=GY+2+i%3,hop=0;const dk=k.x-x;
+    let x=CX+246+i*27+Math.sin(G.clock*.23+i*2.3)*9,y=GY+2+i%3,hop=0;const dk=k.x-x;
     if(play&&Math.abs(dk)<20&&Math.abs(k.vx)>45){x-=sgn(dk)*(20-Math.abs(dk))*.6;hop=1+Math.round(Math.abs(Math.sin(G.clock*20+i))*3);}
     const sx=Math.round(x-CAM);if(sx<-6||sx>W+6)continue;
     const d=Math.cos(G.clock*.23+i*2.3)>0?1:-1,peck=!hop&&Math.sin(G.clock*3+i*1.9)>.55,c=['#f2ead8','#a86a3a','#3a3038'][i%3];
@@ -1892,7 +1846,7 @@ function drawCurtain(){
       R(sa,GY-h,sb-sa,h,c2);R(sa,GY-h,sb-sa,1,hi);R(sa,GY-4,sb-sa,4,c3);
       for(let wx=a;wx<xb;wx+=4){const sx=wx-CAM;R(sx,GY-h-2,2,2,c2);if(SNOWR)P(sx,GY-h-3,'#eef2f6');if(hash(wx*.37)>.6)P(sx+1,GY-h+3+Math.floor(hash(wx*1.3)*(h-8)),c3);}
       for(let k=0;k<6;k++){           // towers along the wall
-        const wx=CX+s*(70+k*98);if((wx-w.x)*s>-20||wx<CAM-12||wx>CAM+W+12)continue;const sx=Math.round(wx-CAM),th=h+7+(L>=4?3:0);
+        const wx=CX+s*(150+k*98);if((wx-w.x)*s>-20||wx<CAM-12||wx>CAM+W+12)continue;const sx=Math.round(wx-CAM),th=h+7+(L>=4?3:0);
         R(sx-4,GY-th,9,th,c1);R(sx-4,GY-th,1,th,hi);R(sx+3,GY-th,2,th,c2);R(sx,GY-th+5,1,3,C.dark);
         if(L>=4)gable(sx-5,GY-th,11,7,C.sl1,C.sl2);else for(let i=-4;i<5;i+=3)R(sx+i,GY-th-2,2,2,c1);
         if(G.dark>.3){P(sx,GY-th+4,'#ffd98a');lt(sx,GY-th+4,10,.5);}
@@ -1925,7 +1879,121 @@ const WORK={
   infirm(sx,b,L){if(!working())return;const x=sx+(L===1?9:7);npc(x,GY+1,LK.monk,-1,6);P(x,GY-9,'#e2aa7c');R(x-2,GY-7,1,3,'#6b4d30');},
   workshop(sx,b,L){if(!working())return;const x0=sx-30,o=Math.round(Math.sin(G.clock*7));npc(x0+11,GY+1,LK.carp,1,4);R(x0+13+o,GY-7,4,1,C.steel);P(x0+13+o,GY-8,C.wood);},
 };
-function gateGuards(sx){for(const s of [-1,1])npc(sx+s*13,GY+1,LK.guard,s,9+s);}
+function gateGuards(sx){for(const s of [-1,1])npc(sx+s*(B.keep.level>=4?21:16),GY+1,LK.guard,s,9+s);}
+
+// ---------- drawing: the castle. A ruin, then a timber motte, then stone that grows wider and taller with every level
+const hx=a=>'#'+a.map(v=>clamp(Math.round(v/8)*8,0,255).toString(16).padStart(2,'0')).join('');
+const farC=(c,k)=>hx(mixA(rgb(c),HZ,k));              // stone that stands further back takes on the sky
+// cw: half-width of the curtain wall, ch: its height, gt: gatehouse, kw/kh: the keep, ct: corner towers, ft: tall towers behind [x, height, width]
+const CAS=[null,null,
+  {cw:54,ch:16,gt:27,kw:38,kh:58},
+  {cw:68,ch:18,gt:31,kw:40,kh:72,ct:35,hall:38,ft:[[42,63,12]]},
+  {cw:80,ch:20,gt:37,kw:42,kh:86,ct:44,hall:42,chap:40,ft:[[-46,71,13],[46,81,13]],cone:1,br:1},
+  {cw:90,ch:22,gt:43,kw:46,kh:98,ct:50,hall:47,chap:44,ft:[[-50,85,14],[50,95,14]],cone:1,br:1,spire:1}];
+// the walks where the court strolls: [from, to, height, kind]. kind 0 wall-walk, 1 the keep's gallery, 2 its roof, 3 the bridge
+function decks(L){
+  if(L<1)return [];
+  if(L===1)return [[-42,-11,9,0],[11,42,9,0],[-5,5,21,2]];
+  const c=CAS[L],d=[[-c.cw+5,-14,c.ch,0],[14,c.cw-5,c.ch,0],[-c.kw/2+5,c.kw/2-5,Math.round(c.kh*.62),1],[-c.kw/2+2,c.kw/2-2,c.kh,2]];
+  if(c.br)d.push([c.kw/2+1,c.ft[1][0]-c.ft[1][2]/2-1,Math.round(c.kh*.7),3]);
+  return d;
+}
+function cren(x,y,w,c){for(let i=0;i<w-1;i+=4){R(x+i,y-3,2,3,c);if(SNOWR)R(x+i,y-4,2,1,'#eef2f6');}}
+function slit(x,y){R(x,y,1,3,C.dark);if(!GHOST)WN.push([x,y,1,3]);}
+function deckFolk(sx,i,y){for(const c of G.court)if(c.dk===i&&!(G.battle&&!c.guard))drawCourtier(sx+Math.round(c.x),y,c);}
+function ctower(cx,w,h,o){
+  cx=Math.round(cx);const x=Math.round(cx-w/2),col=o.col||C.st2,dk=tone(col,.84);
+  stoneR(x,GY,w,h,col);R(x-1,GY-h,w+2,4,dk);for(let i=0;i<w+2;i+=3)P(x-1+i,GY-h+4,dk);            // a corbelled head, wider than the shaft
+  for(let j=o.from||15;j<h-9;j+=13)slit(cx-(j%2),GY-j-3);
+  if(o.cone){const rh=Math.round(w*.95);gable(x-2,GY-h,w+4,rh,o.roof||C.sl1,o.roof2||C.sl2);R(cx,GY-h-rh-7,1,7,C.beam);flag(cx+1,GY-h-rh-7,1,o.flag||C.red,6,3);}
+  else{cren(x-1,GY-h,w+2,col);if(o.flag){R(cx,GY-h-11,1,11,C.beam);flag(cx+1,GY-h-11,1,o.flag,6,3);}}
+  if(o.torch&&G.dark>.3)torch(cx,GY-h+9,12);
+}
+function drawRuin(sx){
+  stoneR(sx-27,GY,12,8,C.st2);stoneR(sx-25,GY-8,8,7,C.st1);R(sx-23,GY-17,3,2,C.st1);R(sx-19,GY-16,2,1,C.st2);
+  stoneR(sx-7,GY,17,22,C.st2);R(sx-7,GY-27,4,5,C.st2);R(sx-1,GY-24,3,2,C.st1);R(sx+6,GY-28,4,6,C.st1);R(sx+3,GY-23,2,1,C.st2);
+  R(sx-2,GY-9,6,9,C.dark);R(sx-1,GY-10,4,1,C.dark);R(sx+4,GY-18,2,3,C.dark);
+  stoneR(sx+15,GY,14,5,C.st3);stoneR(sx+19,GY-5,8,4,C.st2);R(sx+24,GY-11,2,2,C.st1);stoneR(sx-16,GY,7,3,C.st3);
+  for(let i=0;i<22;i++){const k=hash(i*2.3);P(sx-27+k*56,GY-1-hash(i*3.7)*(k>.35&&k<.65?20:8),i%3?'#4f7c35':'#6c9a44');}
+}
+function drawMotte(sx,b){
+  const bio=BIO[G.bio],wd='#8a6a40';
+  timber(sx-39,GY,27,13,C.daub,C.beam);win(sx-34,GY-9,2,3);win(sx-22,GY-9,2,3);gable(sx-41,GY-13,31,10,C.th1,C.th2);smoke(b.x-28,24,.02);        // the hall
+  for(let i=0;i<10;i++){const w=22-i;R(sx+13-w,GY-i-1,w*2,1,i%2?bio.g2:bio.g1);}                                                              // the mound
+  timber(sx+5,GY-10,16,24,wd,C.beam);slit(sx+12,GY-22);slit(sx+9,GY-30);R(sx+3,GY-39,20,6,C.wood2);R(sx+3,GY-39,20,1,C.wood);for(let i=0;i<20;i+=4)R(sx+4+i,GY-37,2,2,C.dark);
+  gable(sx+2,GY-39,22,9,C.th1,C.th2);R(sx+13,GY-56,1,9,C.beam);flag(sx+14,GY-56,1,C.red,7,4);
+  deckFolk(sx,0,GY-9);deckFolk(sx,1,GY-9);
+  for(let i=-44;i<44;i+=2){if(i>=-6&&i<6)continue;const hh=12+(Math.abs(i)%4?0:2);R(sx+i,GY-hh,2,hh,(i/2)%2?C.wood:C.wood2);P(sx+i,GY-hh-1,C.wood2);}
+  R(sx-44,GY-8,38,1,'#3a2a18');R(sx+6,GY-8,38,1,'#3a2a18');
+  R(sx-8,GY-21,2,21,C.wood2);R(sx+6,GY-21,2,21,C.wood2);R(sx-6,GY-12,12,12,C.dark);R(sx-6,GY-12,3,12,C.wood);R(sx+3,GY-12,3,12,C.wood);        // gate tower, doors standing open
+  deckFolk(sx,2,GY-21);R(sx-9,GY-22,18,2,C.wood);R(sx-9,GY-25,1,3,C.wood2);R(sx+8,GY-25,1,3,C.wood2);gable(sx-10,GY-27,20,5,C.th1,C.th2);
+  torch(sx-10,GY-9,14);torch(sx+10,GY-9,14);if(G.dark>.3)pool(sx,24,.4);
+}
+function drawCastle(sx,L,b){
+  const c=CAS[L],S1=C.st1,S2=C.st2,S3=C.st3,F2=farC(S2,.16),F1=farC(S1,.1),kx=Math.round(sx-c.kw/2),kh=c.kh,gh=Math.round(kh*.62),ch=c.ch,dark=clamp(G.dark,0,1);
+  // the tall towers behind, and the bridge to the keep
+  for(const [fx,fh,fw] of c.ft||[])ctower(sx+fx,fw,fh,{cone:c.cone,col:F2,flag:fx<0?C.red:C.gold,from:ch+12,torch:1});
+  if(c.br){
+    const bh=Math.round(kh*.7),x0=kx+c.kw,x1=Math.round(sx+c.ft[1][0]-c.ft[1][2]/2);
+    deckFolk(sx,4,GY-bh);R(x0,GY-bh,x1-x0,3,S3);R(x0+2,GY-bh+3,x1-x0-4,1,C.dark);for(let i=1;i<x1-x0;i+=3)P(x0+i,GY-bh-2,S2);R(x0,GY-bh-1,x1-x0,1,tone(S1,1.1));
+  }
+  // the keep
+  stoneR(kx,GY,c.kw,kh,F1);R(kx-2,GY-ch-6,2,6,S2);R(kx+c.kw,GY-ch-6,2,6,S2);
+  for(let j=ch+9;j<kh-12;j+=13){if(j>gh-4&&j<gh+15)continue;for(const wx of [kx+6,kx+c.kw-8]){R(wx,GY-j-4,2,4,C.glass);P(wx,GY-j-5,C.glass);P(wx+1,GY-j-5,C.glass);if(!GHOST)WN.push([wx,GY-j-4,2,4]);}}
+  R(sx-3,GY-gh+3,7,18,C.red);R(sx-3,GY-gh+3,1,18,'#7a2420');R(sx-1,GY-gh+8,3,3,C.gold);P(sx,GY-gh+7,C.gold);P(sx,GY-gh+11,C.gold);R(sx-1,GY-gh+20,3,1,F1);     // the royal banner down the face
+  R(kx+3,GY-gh-10,c.kw-6,10,css(mixA([58,52,66],[176,120,62],G.battle?0:dark*.8)));R(kx+3,GY-gh-10,c.kw-6,1,C.dark);
+  deckFolk(sx,2,GY-gh-1);
+  R(kx+2,GY-gh,c.kw-4,2,S2);R(kx+2,GY-gh-1,c.kw-4,1,tone(S1,1.12));
+  for(let i=0;i<=c.kw-6;i+=6){const px=kx+3+i-(i>=c.kw-6?1:0);R(px,GY-gh-10,1,10,S1);P(px+1,GY-gh-10,S1);P(px-1,GY-gh-10,S1);}
+  lt(sx,GY-gh-5,c.kw*.6,.24);
+  for(let i=0;i<c.kw;i+=5)if(hash(i*1.9+L)>.5)R(kx+i,GY-gh+2,1,2+Math.floor(hash(i)*3),'rgba(40,40,50,.2)');
+  deckFolk(sx,3,GY-kh);
+  R(kx-2,GY-kh,c.kw+4,4,S2);for(let i=0;i<c.kw+4;i+=3)P(kx-2+i,GY-kh+4,S3);cren(kx-2,GY-kh,c.kw+4,S1);
+  if(G.dark>.3){torch(kx,GY-kh-3,13);torch(kx+c.kw-1,GY-kh-3,13);}
+  if(L>=4)for(const s of [-1,1]){const tx=s<0?kx-5:kx+c.kw-1;stoneR(tx,GY-kh+8,6,16,S2);R(tx-1,GY-kh+8,8,1,S3);gable(tx-1,GY-kh-8,8,7,C.sl1,C.sl2);slit(tx+2,GY-kh-4);}          // bartizans at the corners
+  if(c.spire){stoneR(sx-7,GY-kh,14,13,S2);cren(sx-8,GY-kh-13,16,S2);disc(sx,GY-kh-7,2,C.glass);P(sx,GY-kh-7,C.gold);P(sx-1,GY-kh-8,'#c0392b');P(sx+1,GY-kh-6,'#c0392b');P(sx+1,GY-kh-8,'#3f5fa0');P(sx-1,GY-kh-6,'#3f5fa0');if(!GHOST)WN.push([sx-1,GY-kh-8,3,3]);
+    gable(sx-7,GY-kh-13,14,13,C.sl1,C.sl2);R(sx,GY-kh-36,1,10,C.beam);flag(sx+1,GY-kh-36,1,C.red,10,6);P(sx+3,GY-kh-34,C.gold);P(sx+4,GY-kh-33,C.gold);}
+  else{R(sx,GY-kh-16,1,16,C.beam);flag(sx+1,GY-kh-16,1,C.red,9,5);P(sx+3,GY-kh-14,C.gold);}
+  smoke(b.x-c.kw/2+6,kh+3,.012);
+  // the great hall and the chapel, either side of the keep
+  if(c.hall){
+    const x0=Math.round(sx-c.cw+13),w=kx-3-x0,bh=c.hall-11;
+    stoneR(x0,GY,w,ch+3,S2);timber(x0,GY-ch-2,w,bh-ch-2,C.daub,C.beam);
+    for(let i=4;i<w-4;i+=7)win(x0+i,GY-bh+3,2,4);
+    gable(x0-2,GY-bh,w+4,11,C.tile1,C.tile2);R(x0+w-6,GY-bh-13,3,8,S3);smoke(b.x-c.cw+13+w-5,bh+14,.03);
+    for(let i=7;i<w-6;i+=11){R(x0+i,GY-bh-5,4,4,C.daub);P(x0+i+1,GY-bh-4,C.glass);R(x0+i-1,GY-bh-6,6,1,C.tile2);}
+  }
+  if(c.chap){
+    const x0=kx+c.kw+3,w=Math.round(sx+c.cw-13)-x0,bh=c.chap-13;
+    stoneR(x0,GY,w,bh,S1);for(let i=4;i<w-4;i+=6){R(x0+i,GY-bh+4,2,6,C.glass);P(x0+i,GY-bh+3,'#3f5fa0');P(x0+i+1,GY-bh+5,C.gold);P(x0+i,GY-bh+7,'#c0392b');if(!GHOST)WN.push([x0+i,GY-bh+4,2,6]);}
+    gable(x0-2,GY-bh,w+4,13,C.sl1,C.sl2);stoneR(x0+w-7,GY-bh,6,8,S2);gable(x0+w-8,GY-bh-8,8,6,C.sl1,C.sl2);R(x0+w-4,GY-bh-19,1,5,C.gold);R(x0+w-5,GY-bh-17,3,1,C.gold);
+  }
+  // corner towers, then the curtain wall with its wall-walk
+  if(c.ct)for(const s of [-1,1])ctower(sx+s*c.cw,12,c.ct,{cone:c.cone,col:S2,roof:C.tile1,roof2:C.tile2,flag:C.red,torch:1});
+  stoneR(sx-c.cw,GY,c.cw*2,ch,S2);R(sx-c.cw,GY-3,c.cw*2,3,S3);
+  for(let i=-c.cw+9;i<c.cw-6;i+=12){if(Math.abs(i)<18)continue;R(sx+i,GY-ch+5,1,4,C.dark);R(sx+i-1,GY-ch+6,3,1,C.dark);}                 // arrow loops
+  for(let k=0;k<20;k++){const s=k%2?1:-1,ix=sx+s*(c.cw-1-hash(k*2.1)*9);P(ix,GY-1-hash(k*3.7)*(8+L*2),k%3?'#4f7c35':'#6c9a44');}        // ivy at the corners
+  deckFolk(sx,0,GY-ch);deckFolk(sx,1,GY-ch);
+  R(sx-c.cw,GY-ch,c.cw*2,1,tone(S1,1.1));cren(sx-c.cw,GY-ch,c.cw*2,S2);
+  if(L>=3)for(const s of [-1,1]){const bx=sx+s*30-2;R(bx,GY-ch+2,5,ch-7,C.red);R(bx,GY-ch+2,1,ch-7,'#7a2420');P(bx+2,GY-ch+5,C.gold);P(bx+2,GY-ch+7,C.gold);P(bx+2,GY-6,S2);}
+  // the gatehouse
+  const gt=c.gt,hall=css(mixA([42,36,48],[190,128,62],G.battle?.15:dark*.8));
+  if(L>=4){
+    for(const s of [-1,1]){const tx=sx+s*13;ctower(tx,10,gt,{cone:L>=5,col:S1,roof:C.tile1,roof2:C.tile2,flag:C.gold,from:9});}
+    stoneR(sx-8,GY,16,gt-8,S2);R(sx-9,GY-gt+8,18,3,S3);cren(sx-8,GY-gt+8,16,S2);
+  }else{stoneR(sx-11,GY,22,gt,S1);R(sx-12,GY-gt,24,4,S2);for(let i=0;i<24;i+=3)P(sx-12+i,GY-gt+4,S3);cren(sx-12,GY-gt,24,S1);slit(sx-8,GY-gt+9);slit(sx+7,GY-gt+9);R(sx,GY-gt-12,1,12,C.beam);flag(sx+1,GY-gt-12,1,C.gold,6,3);}
+  R(sx-5,GY-12,10,12,hall);R(sx-4,GY-13,8,1,hall);R(sx-3,GY-14,6,1,hall);R(sx-5,GY-12,1,12,C.dark);R(sx+4,GY-12,1,12,C.dark);
+  for(let i=-4;i<5;i+=2)R(sx+i,GY-13,1,G.battle?13:4,'#59606e');if(G.battle)R(sx-4,GY-7,8,1,'#59606e');       // the portcullis drops in a raid
+  R(sx-2,GY-21,5,5,C.red);R(sx-1,GY-16,3,1,C.red);P(sx,GY-19,C.gold);P(sx-1,GY-20,C.gold);P(sx+1,GY-20,C.gold);
+  R(sx-7,GY-1,14,1,S3);R(sx-6,GY,12,2,C.wood2);R(sx-6,GY,12,1,C.wood);
+  torch(sx-8,GY-8,16);torch(sx+8,GY-8,16);if(G.dark>.3)pool(sx,28,.42);
+}
+function drawKeep(sx,b){
+  const L=b.level;sx=Math.round(sx);
+  if(L===0)return drawRuin(sx);
+  if(L===1)drawMotte(sx,b);else drawCastle(sx,L,b);
+  gateGuards(sx);
+}
 
 // ---------- drawing: people, horses, engines, and the frame itself
 const SKIN=['#e2aa7c','#c98d62','#9a6a44','#f0c39a'],HAIR=['#4a3524','#2a1c14','#8a6a40','#b9a77c'],SHIRT=['#4f7a8c','#8c5a7a','#5d8a4e','#c98a2e','#a85a3a','#7a6aa8','#b9a77c'];
