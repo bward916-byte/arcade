@@ -1,0 +1,1735 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#11131c">
+<title>Ravenkeep</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IM+Fell+English&family=Pirata+One&display=swap" rel="stylesheet">
+<style>
+/* layout: one full-bleed pixel stage; heraldic HUD strip on top, thumb controls in the bottom corners */
+:root{--ink:#11131c;--parch:#eadcb6;--gold:#e3b548;--blood:#9a2d28;--moss:#56733c;--steel:#aeb6c2;
+  --disp:"Pirata One","UnifrakturCook","Old English Text MT",Georgia,serif;--body:"IM Fell English",Georgia,"Times New Roman",serif;
+  color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+*,*::before,*::after{box-sizing:inherit;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0;touch-action:none}
+[hidden]{display:none!important}
+body{background:var(--ink);color:var(--parch);font-family:var(--body);overflow:hidden;position:relative;overscroll-behavior:none}
+#stage{position:absolute;inset:0;display:flex;justify-content:center;align-items:flex-start;overflow:hidden}
+canvas{display:block;image-rendering:crisp-edges;image-rendering:pixelated;touch-action:none}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible{outline:3px solid var(--parch);outline-offset:3px}
+#hud{position:absolute;top:8px;left:max(16px,env(safe-area-inset-left,0px));right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;font-size:17px;text-shadow:0 2px 0 rgba(17,19,28,.9);pointer-events:none;font-variant-numeric:tabular-nums}
+#purse{display:flex;align-items:center;gap:7px;font-family:var(--disp);font-size:24px}
+.coin{display:inline-block;width:18px;height:18px;border-radius:50%;background:radial-gradient(circle at 34% 30%,#fff3b8 0 11%,transparent 12%),radial-gradient(circle,#e3b548 0 44%,#b98a22 45% 58%,#e3b548 59%);box-shadow:inset -2px -2px 0 #b07f1c,0 0 0 1.5px #8a6412,0 3px 0 1px rgba(17,19,28,.7)}
+.stat{display:flex;align-items:center;gap:5px;white-space:nowrap}
+.stat svg{width:15px;height:15px;fill:none;stroke:var(--parch);stroke-width:2;stroke-linecap:round}
+#sW svg{stroke:#e0655c}
+#sK{gap:4px}
+#kbar{width:54px;height:8px;border:1px solid rgba(234,220,182,.7);background:rgba(17,19,28,.6);border-radius:2px;overflow:hidden}
+#kfill{display:block;height:100%;width:100%;background:var(--blood)}
+#news{flex:0 1 auto;min-width:0;font-size:14px;background:rgba(17,19,28,.66);border:1px solid rgba(234,220,182,.28);padding:2px 9px;border-radius:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:none}
+#news:empty{display:none}
+#news.alarm{background:rgba(154,45,40,.85);border-color:rgba(234,220,182,.6)}
+#day{margin-left:auto;white-space:nowrap;font-family:var(--disp);font-size:21px}
+.hb{pointer-events:auto;font-size:14px;background:linear-gradient(rgba(52,46,60,.92),rgba(17,19,28,.92));border:1px solid rgba(234,220,182,.5);border-radius:4px;padding:3px 10px;white-space:nowrap;box-shadow:0 2px 0 rgba(0,0,0,.35)}
+.bump{animation:bump .28s}
+@keyframes bump{40%{transform:scale(1.35);color:#fff}}
+#hint,#prompt{position:absolute;left:50%;transform:translateX(-50%);width:max-content;max-width:min(92%,36rem);text-align:center;font-size:16px;line-height:1.3;padding:7px 14px;border-radius:4px;pointer-events:none;opacity:0;transition:opacity .35s}
+#hint{top:52px;background:linear-gradient(rgba(44,40,54,.95),rgba(17,19,28,.95));border:1px solid rgba(234,220,182,.34);box-shadow:0 3px 0 rgba(0,0,0,.3)}
+#prompt{bottom:14px;background:rgba(234,220,182,.94);color:#231a12;border:1px solid #6b5230;box-shadow:0 0 0 2px rgba(17,19,28,.8);font-size:15px}
+#prompt b{font-family:var(--disp);font-weight:400;font-size:18px;letter-spacing:.02em}
+#prompt .c{display:inline-block;margin-left:2px;padding:0 6px;border-radius:9px;background:#231a12;color:var(--gold)}
+#hint.on,#prompt.on{opacity:1}
+.touch #prompt{bottom:10px;max-width:calc(100% - 440px)}
+@media (max-aspect-ratio:5/4){.touch #prompt{bottom:200px;max-width:92%}}
+#card{position:absolute;left:0;right:0;top:24%;margin:0;padding:0 16px;text-align:center;font-family:var(--disp);font-weight:400;font-size:clamp(40px,10vw,92px);line-height:1;text-shadow:0 4px 0 var(--blood),0 8px 0 var(--ink);opacity:0;transform:scale(.94);transition:opacity .6s,transform 3s ease-out;pointer-events:none;text-wrap:balance}
+#card.on{opacity:1;transform:none}
+#card small{display:block;font-family:var(--body);font-size:18px;margin-top:14px;text-shadow:0 1px 0 var(--ink),0 0 8px var(--ink),0 0 14px var(--ink)}
+#pad,.tb{position:absolute;display:none;touch-action:none}
+.touch #pad,.touch .tb{display:grid}
+.title #pad,.title .tb,.title #hud,.title #prompt{display:none}
+#pad{left:max(16px,env(safe-area-inset-left,0px));bottom:18px;width:124px;height:124px;border-radius:50%;place-items:center;background:rgba(17,19,28,.42);border:2px solid rgba(234,220,182,.5)}
+#pad svg{position:absolute;top:50%;margin-top:-9px;width:18px;height:18px;fill:var(--parch);opacity:.5;pointer-events:none}
+#pad svg:first-of-type{left:7px}
+#pad svg:last-of-type{right:7px}
+#knob{width:54px;height:54px;border-radius:50%;background:rgba(234,220,182,.88);box-shadow:inset -5px -6px 0 rgba(110,90,50,.5),0 3px 0 rgba(17,19,28,.6);pointer-events:none}
+.tb{place-items:center;padding:0;border-radius:50%;background:rgba(17,19,28,.5);border:2px solid rgba(234,220,182,.8)}
+.tb.on{background:rgba(227,181,72,.35)}
+.tb svg{width:52%;height:52%;fill:none;stroke:var(--parch);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
+#toss{right:max(18px,env(safe-area-inset-right,0px));bottom:26px;width:86px;height:86px;border-color:rgba(227,181,72,.9)}
+#toss .coin{width:38px;height:38px;box-shadow:inset -4px -4px 0 #b07f1c,0 0 0 3px #8a6412}
+#swd{right:calc(max(18px,env(safe-area-inset-right,0px)) + 98px);bottom:18px;width:66px;height:66px}
+#ban{right:calc(max(18px,env(safe-area-inset-right,0px)) + 62px);bottom:100px;width:60px;height:60px}
+#ban.up{background:rgba(154,45,40,.7)}
+#title{position:absolute;inset:0;display:grid;place-content:center;justify-items:center;text-align:center;gap:12px;padding:20px 16px;background:linear-gradient(rgba(17,19,28,.15),rgba(17,19,28,.72))}
+#title h1{margin:0;font-family:var(--disp);font-weight:400;font-size:clamp(54px,14vw,124px);line-height:.95;letter-spacing:.01em;text-shadow:0 4px 0 var(--blood),0 8px 0 var(--ink)}
+#title p{margin:0;font-size:18px;max-width:34rem;text-shadow:0 1px 0 var(--ink),0 0 8px var(--ink);text-wrap:balance}
+#go{font-family:var(--disp);font-size:26px;color:var(--ink);background:var(--gold);border:0;border-bottom:4px solid #a87c1c;border-radius:4px;padding:8px 30px 6px;margin-top:6px}
+#cont{font-size:17px;background:rgba(17,19,28,.66);border:1px solid rgba(234,220,182,.6);border-radius:4px;padding:7px 20px}
+#how{font-size:15px;opacity:.9}
+#map{position:absolute;inset:0;display:grid;place-items:center;background:rgba(9,10,16,.78);padding:14px 16px;z-index:5;overflow:auto}
+#mapin{width:min(100%,46rem);background:#eadcb6;color:#231a12;border:3px solid #6b5230;border-radius:6px;box-shadow:0 0 0 2px #231a12,0 14px 40px rgba(0,0,0,.5);padding:12px 16px 14px}
+#mapin h2{margin:0 0 2px;font-family:var(--disp);font-weight:400;font-size:28px;text-align:center}
+#mapin p{margin:4px 0 0;font-size:15px;text-align:center}
+#lands{list-style:none;margin:10px 0;padding:0;display:grid;gap:6px}
+#lands li{display:grid;grid-template-columns:26px minmax(0,1fr) auto;align-items:center;gap:10px;padding:6px 10px;border:1px solid rgba(107,82,48,.55);border-radius:4px;font-size:14px;line-height:1.25}
+#lands li.won{background:rgba(86,115,60,.2)}
+#lands li.next{background:rgba(154,45,40,.14);border-color:#9a2d28}
+#lands li.far{opacity:.55}
+#lands i{width:24px;height:24px;border-radius:50%;border:3px solid #6b5230;display:grid;place-items:center;font-style:normal;font-size:12px}
+#lands li.won i{background:#56733c;color:#eadcb6}
+#lands li.next i{background:#9a2d28;color:#eadcb6}
+#lands b{font-family:var(--disp);font-weight:400;font-size:19px}
+#lands em{font-style:normal;white-space:nowrap;font-variant-numeric:tabular-nums}
+#mapbtn{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin-top:10px}
+#mapbtn button{font-family:var(--disp);font-size:20px;border-radius:4px;padding:6px 20px 4px;border:0;border-bottom:3px solid rgba(0,0,0,.35)}
+#mgo{background:#9a2d28;color:#eadcb6}
+#mgo:disabled{opacity:.45;cursor:not-allowed}
+#mno{background:#6b5230;color:#eadcb6}
+@media (max-width:560px){#hud{font-size:15px;gap:5px 9px}#purse{font-size:21px}#day{font-size:18px}.hb{font-size:13px;padding:3px 7px}#news{order:9;flex-basis:100%;max-width:max-content}#hint{top:84px;font-size:14px}#kbar{width:40px}}
+@media (prefers-reduced-motion:reduce){.bump{animation:none}#card,#hint,#prompt{transition:none}}
+</style>
+</head>
+<body>
+<div id="stage"><canvas id="game"></canvas></div>
+<div id="hud">
+  <span id="purse" aria-label="Coins"><i class="coin"></i><b id="coins">0</b></span>
+  <span class="stat" id="sK" aria-label="The king's health"><svg viewBox="0 0 24 24"><path d="M3 18h18M4 18 3 7l5 4 4-6 4 6 5-4-1 11"/></svg><i id="kbar"><i id="kfill"></i></i></span>
+  <span class="stat" id="sA" aria-label="Soldiers"><svg viewBox="0 0 24 24"><path d="M19 3 8 14M5 13l6 6M4 20l4-4M19 3h-4M19 3v4"/></svg><b id="army">0</b></span>
+  <span class="stat" id="sW" aria-label="Wounded" hidden><svg viewBox="0 0 24 24"><path d="M12 4v16M4 12h16"/></svg><b id="wound">0</b></span>
+  <span class="stat" id="sF" aria-label="People and housing"><svg viewBox="0 0 24 24"><path d="M3 11 12 4l9 7M6 10v10h12V10"/></svg><b id="folk">0</b></span>
+  <span id="news" role="status"></span>
+  <span id="day">Day 1</span>
+  <button id="mapb" class="hb" type="button">Map</button>
+  <button id="mute" class="hb" type="button">Sound on</button>
+</div>
+<h2 id="card"></h2>
+<div id="hint" role="status"></div>
+<div id="prompt"></div>
+<div id="map" hidden><div id="mapin"><h2 id="maph">The realm</h2><p id="mapsub"></p><ol id="lands"></ol><p id="mapnote"></p><div id="mapbtn"><button id="mgo" type="button">March</button><button id="mno" type="button">Stay</button></div></div></div>
+<div id="pad" aria-label="Thumbstick: ride left or right">
+  <svg viewBox="0 0 24 24"><path d="M16 4 6 12l10 8z"/></svg><i id="knob"></i><svg viewBox="0 0 24 24"><path d="m8 4 10 8-10 8z"/></svg>
+</div>
+<button id="toss" class="tb" type="button" aria-label="Toss coins"><i class="coin"></i></button>
+<button id="swd" class="tb" type="button" aria-label="Swing your sword"><svg viewBox="0 0 24 24"><path d="M20 3 9 14M6 13l5 5M4 20l4-4M20 3h-5M20 3v5"/></svg></button>
+<button id="ban" class="tb" type="button" aria-label="Raise or lower your banner"><svg viewBox="0 0 24 24"><path d="M6 21V3M6 4h12l-3 4 3 4H6"/></svg></button>
+<div id="title">
+  <h1>Ravenkeep</h1>
+  <p id="tag">A ruined keep, a tired horse and a purse of coins. Raise a kingdom before the raiders return.</p>
+  <button id="go" type="button">Ride in</button>
+  <button id="cont" type="button" hidden>Continue</button>
+  <p id="how">Arrows or A and D to ride. Space tosses coins, F swings your sword, B raises your banner.</p>
+</div>
+
+<script>
+(()=>{'use strict';
+// ---------- core: canvas, helpers, tables
+const $=id=>document.getElementById(id);
+const cv=$('game'),stage=$('stage');
+let ctx=cv.getContext('2d'),W=320,H=180,GY=136,G,B={};
+const DAY=96,CX=1600,WORLD=3200,CAMP=1020,BORDER=1530,SPAWN=1130,WALLX=560;
+const clamp=(v,a,b)=>v<a?a:v>b?b:v,rnd=(a,b)=>a+Math.random()*(b-a),sgn=v=>v<0?-1:1;
+const hash=n=>{n=Math.sin(n*127.1+3.7)*43758.5453;return n-Math.floor(n);};
+const rgb=h=>[1,3,5].map(i=>parseInt(h.substr(i,2),16));
+const mixA=(a,b,t)=>a.map((v,i)=>v+(b[i]-v)*t);
+const css=a=>`rgb(${a.map(Math.round).join(',')})`;
+const R=(x,y,w,h,c)=>{if(w<=0||h<=0)return;ctx.fillStyle=c;ctx.fillRect(Math.round(x),Math.round(y),Math.round(w),Math.round(h));};
+const P=(x,y,c)=>{ctx.fillStyle=c;ctx.fillRect(Math.round(x),Math.round(y),1,1);};
+function line(x0,y0,x1,y1,c,t){
+  x0=Math.round(x0);y0=Math.round(y0);x1=Math.round(x1);y1=Math.round(y1);
+  const dx=Math.abs(x1-x0),dy=-Math.abs(y1-y0),sx=x0<x1?1:-1,sy=y0<y1?1:-1;let e=dx+dy,n=0;ctx.fillStyle=c;
+  for(;n<400;n++){ctx.fillRect(x0,y0,t||1,1);if(x0===x1&&y0===y1)break;const e2=2*e;if(e2>=dy){e+=dy;x0+=sx;}if(e2<=dx){e+=dx;y0+=sy;}}
+}
+const toneC={};
+const tone=(h,f)=>{f=Math.round(f*20)/20;return toneC[h+f]||(toneC[h+f]=css(rgb(h).map(v=>clamp(v*f,0,255))));};
+
+// buildings: cost per level, and the keep level each level needs
+const DEF={
+  keep:{n:'Keep',w:40,cost:[5,25,60,120,220],need:[0,0,0,0,0],gives:['a timber hall','a stone keep','a third storey and towers','the great towers','a royal castle']},
+  cottage:{n:'Cottages',w:40,cost:[4,12,26],need:[1,2,3],gives:['room for 16 more','room for 16 more','room for 16 more']},
+  farm:{n:'Farm',w:100,cost:[5,14,30],need:[1,2,3],gives:['4 coins each dawn','9 coins each dawn','16 coins each dawn']},
+  wall:{n:'Gate',w:24,cost:[8,22,50,100],need:[1,2,3,4],gives:['a palisade','a stone gatehouse','a high wall with towers','a fortress gate with boiling oil']},
+  barracks:{n:'Barracks',w:56,cost:[8,20,40,70],need:[1,2,3,4],gives:['militia','swordsmen','pikemen','men-at-arms']},
+  range:{n:'Archery range',w:50,cost:[8,20,40,70],need:[1,2,3,4],gives:['archers','longbowmen','crossbowmen','fire arrows']},
+  market:{n:'Market',w:50,cost:[12,28,60],need:[2,3,4],gives:['6 coins each dawn','14 coins each dawn','26 coins each dawn']},
+  infirm:{n:'Infirmary',w:46,cost:[10,24,50],need:[2,3,4],gives:['faster healing, more survive','faster healing','the fastest healing']},
+  smith:{n:'Blacksmith',w:46,cost:[16,34,60,100],need:[2,3,4,5],gives:['iron blades','mail coats','steel','plate armour']},
+  stable:{n:'Stable',w:56,cost:[24,55],need:[3,4],gives:['hobelars (light horse)','knights']},
+  workshop:{n:'Siege workshop',w:60,cost:[28,60,110],need:[3,4,5],gives:['mangonels','ballistas','trebuchets']},
+  trap:{n:'Spike pit',w:14,cost:[3],need:[1],gives:['a hidden pit']},
+};
+const SITES=[['keep','keep',0],['smith','smith',-89],['barracks','barracks',-168],['range','range',-305],['stable','stable',-422],
+  ['market','market',81],['infirm','infirm',153],['cotA','cottage',215],['cotB','cottage',265],['cotC','cottage',315],['cotD','cottage',365],['works','workshop',440],
+  ['wallW','wall',-WALLX],['wallE','wall',WALLX],['farmW1','farm',-670],['farmW2','farm',-795],['farmE1','farm',670],['farmE2','farm',795],
+  ['trapW1','trap',-600],['trapW2','trap',-880],['trapE1','trap',600],['trapE2','trap',880]];
+const WALL={hp:[0,120,260,480,800],h:[0,15,22,30,38],half:[4,4,7,10,13],slots:[0,3,6,10,14]};
+const KEEP={w:[34,40,48,56,64,72],h:[14,28,48,66,84,102],fl:[0,0,2,3,4,5]};
+const FARMY=[0,4,9,16],MARKY=[0,6,14,26],HEALT=[26,14,9,5];
+// fighters. side 0 is yours, side 1 is the enemy
+const UT={
+  militia:{n:'Militia',side:0,at:'barracks',lv:1,cost:1,hp:7,dmg:2,rate:1,reach:8,spd:30},
+  sword:{n:'Swordsman',side:0,at:'barracks',lv:2,cost:2,hp:13,dmg:3,rate:.9,reach:7,spd:28,armor:1},
+  pike:{n:'Pikeman',side:0,at:'barracks',lv:3,cost:2,hp:11,dmg:3,rate:1.1,reach:12,spd:26,anti:2.5},
+  maa:{n:'Man-at-arms',side:0,at:'barracks',lv:4,cost:4,hp:22,dmg:5,rate:1,reach:8,spd:26,armor:2},
+  archer:{n:'Archer',side:0,at:'range',lv:1,cost:1,hp:5,dmg:2,rate:1.7,range:100,spd:30},
+  longbow:{n:'Longbowman',side:0,at:'range',lv:2,cost:2,hp:6,dmg:3,rate:1.5,range:135,spd:30},
+  crossbow:{n:'Crossbowman',side:0,at:'range',lv:3,cost:3,hp:8,dmg:6,rate:2.8,range:115,spd:28,pierce:1},
+  hobelar:{n:'Hobelar',side:0,at:'stable',lv:1,cost:3,hp:14,dmg:3,rate:.9,reach:9,spd:64,cav:1},
+  knight:{n:'Knight',side:0,at:'stable',lv:2,cost:6,hp:28,dmg:6,rate:.9,reach:10,spd:58,cav:1,armor:2},
+  mangonel:{n:'Mangonel',side:0,at:'workshop',lv:1,cost:14,hp:30,dmg:0,rate:6,range:170,minR:50,area:[5,12,6],sdmg:24,spd:16,eng:1},
+  ballista:{n:'Ballista',side:0,at:'workshop',lv:2,cost:10,hp:22,dmg:14,rate:4,range:185,minR:20,sdmg:5,spd:18,eng:1,pierce:1},
+  trebuchet:{n:'Trebuchet',side:0,at:'workshop',lv:3,cost:30,hp:40,dmg:0,rate:9,range:250,minR:90,area:[9,16,10],sdmg:60,spd:12,eng:1},
+  raider:{n:'Raider',side:1,hp:6,dmg:2,rate:1,reach:7,spd:27,loot:.5},
+  bowman:{n:'Bowman',side:1,hp:4,dmg:2,rate:2,range:95,spd:25,loot:.5},
+  brute:{n:'Brute',side:1,hp:18,dmg:4,rate:1.3,reach:8,spd:22,armor:1,loot:1},
+  rider:{n:'Rider',side:1,hp:13,dmg:4,rate:1,reach:9,spd:60,cav:1,loot:1},
+  ram:{n:'Ram',side:1,hp:70,dmg:0,sdmg:30,rate:2.2,reach:8,spd:14,eng:1,armor:2,loot:3,sonly:1},
+  ecat:{n:'Catapult',side:1,hp:35,dmg:0,rate:6.5,range:185,minR:60,area:[4,9,5],sdmg:24,spd:11,eng:1,loot:3},
+  warlord:{n:'Warlord',side:1,hp:140,dmg:9,rate:.9,reach:11,spd:42,cav:1,armor:2,loot:20,boss:1},
+};
+const TYPES=Object.keys(UT).filter(k=>!UT[k].side);
+const LANDS=[
+  {n:'Thornwood',sub:'An outlaw camp in the forest',bio:'forest',wall:1,size:18,hall:90,cats:0,reward:40,tribute:4},
+  {n:'Greyford',sub:'A river town held by raiders',bio:'river',wall:2,size:40,hall:160,cats:0,reward:80,tribute:7},
+  {n:'Blackmoor',sub:"A robber baron's hold on the moor",bio:'moor',wall:3,size:72,hall:260,cats:1,reward:140,tribute:11},
+  {n:'Ironpass',sub:'A fort in the high snows',bio:'snow',wall:3,size:110,hall:360,cats:3,reward:220,tribute:16},
+  {n:'Dreadmere',sub:"The Warlord's own castle",bio:'ash',wall:4,size:160,hall:520,cats:5,reward:400,tribute:25,boss:1},
+];
+
+// ---------- sprites and the pixel font
+function sprite(rows,pal){
+  const w=Math.max(...rows.map(r=>r.length)),h=rows.length;
+  const mkc=flip=>{const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d');
+    rows.forEach((r,j)=>[...r].forEach((ch,i)=>{if(pal[ch]){x.fillStyle=pal[ch];x.fillRect(flip?w-1-i:i,j,1,1);}}));return c;};
+  return {r:mkc(false),l:mkc(true),w,h};
+}
+const HPAL={h:'#d6d0c2',l:'#efeadf',d:'#aaa493',k:'#8b8474',e:'#16131a',n:'#b8a99a',b:'#9a2d28',c:'#e3b548',S:'#5a3a22'};
+const HPAL2={h:'#2a2730',l:'#3c3944',d:'#1b1920',k:'#0f0e13',e:'#c0392b',n:'#17151a',b:'#5a1f1c',c:'#8a8f98',S:'#17151a'};
+const HROWS=[
+'.....................k.k..','....................khhh..',
+'...................kkhlhh.','..................kkhhhehh',
+'.................kkklhhhhh','................kkklhh.hnn',
+'...lllllSSSSllkkklhhh.....','..lhhhhbbbbbbhhhhhhhh.....',
+'.hhhhhhbcccbbhhhhhhh......','.hhhhhhbbbbbbhhhhhh.......',
+'.hhhhhhhbbbbhhhhhh........','.dhhhhhhhhhhhhhhhd........',
+'..ddddddddddddddd.........'],HORSE=sprite(HROWS,HPAL),HORSE2=sprite(HROWS,HPAL2);
+const KROWS=[
+'..g.g...','..ggg...',
+'..sss...','..sss...',
+'.RAAA...','RRAGAs..',
+'RRAAA...','RRAAA...',
+'.RLL....','..LLL...',
+'...LL...','...LL...',
+'...BB...','...BBB..'],
+  KING=sprite(KROWS,{g:'#f2c14e',s:'#e2aa7c',R:'#9a2d28',A:'#aeb6c2',G:'#e3b548',L:'#59606e',B:'#2a1c14'}),
+  LORD=sprite(['.k...k..','.kkkkk..','..sss...','..rsr...','.RAAA...','RRAAAs..','RRAAA...','RRAAA...','.RLL....','..LLL...','...LL...','...LL...','...BB...','...BBB..'],
+    {k:'#d8d2c2',s:'#c98d62',r:'#c0392b',R:'#3a0f0d',A:'#2a2730',L:'#1b1920',B:'#0f0e13'});
+const PALC={O:'#8a6412',h:'#fff0a8',g:'#e3b548',G:'#c79826'};
+const COIN=[['.OOO.','OhhgO','OhgGO','OgGGO','.OOO.'],['.O.','OhO','OgO','OGO','.O.'],['O','h','g','G','O'],['.O.','OhO','OgO','OGO','.O.']].map(r=>sprite(r,PALC));
+const FONT={};
+{const g='A.#.#.#####.##.#|B##.#.###.#.###.|C.###..#..#...##|D##.#.##.##.###.|E####..##.#..###|F####..##.#..#..|G.###..#.##.#.##|H#.##.#####.##.#|I###.#..#..#.###|J..#..#..##.#.#.|K#.##.###.#.##.#|L#..#..#..#..###|M#.########.##.#|N##.#.##.##.##.#|O.#.#.##.##.#.#.|P##.#.###.#..#..|Q.#.#.##.#.#...#|R##.#.###.#.##.#|S.###...#...###.|T###.#..#..#..#.|U#.##.##.##.####|V#.##.##.##.#.#.|W#.##.########.#|X#.##.#.#.#.##.#|Y#.##.#.#..#..#.|Z###..#.#.#..###|0####.##.##.####|1.#.##..#..#.###|2##...#.#.#..###|3##...#.#...###.|4#.##.####..#..#|5####..##...###.|6.###..####.####|7###..#.#..#..#.|8####.#####.####|9####.####..###.|+....#.###.#....|-......###......|/..#..#.#.#..#..| ...............';
+  for(const e of g.split('|'))FONT[e[0]]=e.slice(1).padEnd(15,'.');}
+const textW=s=>s.length*4-1;
+function text(x,y,s,c,sh){
+  s=String(s).toUpperCase();x=Math.round(x);y=Math.round(y);
+  for(let k=0;k<s.length;k++){const g=FONT[s[k]]||FONT[' '];
+    for(let i=0;i<15;i++)if(g[i]==='#'){const px=x+k*4+i%3,py=y+(i/3|0);if(sh){ctx.fillStyle=sh;ctx.fillRect(px+1,py+1,1,1);}ctx.fillStyle=c;ctx.fillRect(px,py,1,1);}}
+}
+function ctext(x,y,s,c,sh){text(x-textW(String(s))/2,y,s,c,sh);}
+
+// ---------- audio: small synth, every sound rate-limited so a battle of hundreds stays listenable
+let AC=null,master,noiseBuf,muted=false;
+function initAudio(){
+  if(AC)return;
+  try{
+    AC=new (window.AudioContext||window.webkitAudioContext)();
+    master=AC.createGain();master.gain.value=.5;master.connect(AC.destination);
+    noiseBuf=AC.createBuffer(1,AC.sampleRate,AC.sampleRate);const d=noiseBuf.getChannelData(0);
+    for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;
+  }catch(e){AC=null;}
+}
+function tone1(f,d,type,v,f2,delay){
+  if(!AC||muted||v<=0)return;
+  const t=AC.currentTime+(delay||0),o=AC.createOscillator(),g=AC.createGain();
+  o.type=type||'square';o.frequency.setValueAtTime(f,t);if(f2)o.frequency.exponentialRampToValueAtTime(f2,t+d);
+  g.gain.setValueAtTime(v,t);g.gain.exponentialRampToValueAtTime(.001,t+d);
+  o.connect(g);g.connect(master);o.start(t);o.stop(t+d+.02);
+}
+function burst(d,v,hp){
+  if(!AC||muted||v<=0)return;
+  const t=AC.currentTime,s=AC.createBufferSource(),g=AC.createGain(),f=AC.createBiquadFilter();s.buffer=noiseBuf;
+  f.type=hp?'highpass':'lowpass';f.frequency.value=hp||900;
+  g.gain.setValueAtTime(v,t);g.gain.exponentialRampToValueAtTime(.001,t+d);s.connect(f);f.connect(g);g.connect(master);s.start(t,Math.random()*.5);s.stop(t+d+.02);
+}
+const lastS={};
+const lim=(k,gap,fn)=>{const n=performance.now();if(n-(lastS[k]||0)<gap)return;lastS[k]=n;fn();};
+const near=x=>G&&G.king?clamp(1-Math.abs(x-G.king.x)/260,0,1):1;
+const sfx={
+  coin:()=>lim('coin',50,()=>{tone1(1320,.07,'square',.07);tone1(1980,.1,'square',.05,0,.04);}),
+  coins:()=>{for(let i=0;i<5;i++)tone1(1100+i*180,.09,'square',.06,0,i*.06);},
+  paid:()=>{tone1(660,.1,'triangle',.14);tone1(990,.16,'triangle',.12,0,.09);},
+  built:()=>{[392,494,587,784].forEach((f,i)=>tone1(f,.22,'triangle',.13,0,i*.1));},
+  hammer:x=>lim('ham',170,()=>{burst(.04,.12*near(x),1800);tone1(300,.05,'square',.05*near(x));}),
+  clang:x=>lim('clang',70,()=>{const v=near(x);burst(.05,.1*v,2600);tone1(rnd(1500,2300),.07,'square',.03*v);}),
+  arrow:x=>lim('arrow',90,()=>burst(.09,.05*near(x),3200)),
+  thud:x=>lim('thud',160,()=>{const v=near(x);burst(.25,.3*v,0);tone1(90,.3,'sine',.3*v,40);}),
+  crank:x=>lim('crank',300,()=>{const v=near(x);burst(.12,.1*v,600);tone1(140,.14,'sawtooth',.06*v,60);}),
+  hurt:()=>lim('hurt',200,()=>tone1(180,.16,'sawtooth',.12,90)),
+  fall:x=>lim('fall',120,()=>tone1(240,.12,'triangle',.06*near(x),110)),
+  horn:()=>{tone1(147,1.1,'sawtooth',.12,146);tone1(220,1.3,'sawtooth',.1,218,.5);},
+  bell:()=>{for(let i=0;i<3;i++){tone1(520,.9,'triangle',.16,0,i*.6);tone1(1043,.5,'sine',.06,0,i*.6);}},
+  heal:()=>{tone1(784,.16,'sine',.09);tone1(1175,.24,'sine',.08,0,.1);},
+  fire:x=>lim('fire',400,()=>burst(.5,.14*near(x),500)),
+  win:()=>{[392,523,659,784,1047].forEach((f,i)=>tone1(f,.3,'triangle',.14,0,i*.13));},
+  lose:()=>{[330,262,196,147].forEach((f,i)=>tone1(f,.5,'sawtooth',.1,0,i*.25));},
+  no:()=>lim('no',250,()=>tone1(160,.1,'square',.05)),
+};
+// a plucked tune by day, quiet enough to sit under the hooves
+const TUNE=[0,3,5,7,5,3,0,-2,0,3,7,10,7,5,3,5],LOW=[0,0,-5,-5,-7,-7,-2,-2];
+let nextNote=0,noteI=0;
+function updAudio(){
+  if(!AC||muted||G.state!=='play'||G.battle||G.dark>.5)return;
+  const t=AC.currentTime;if(t<nextNote)return;
+  const hz=n=>220*Math.pow(2,n/12);
+  tone1(hz(TUNE[noteI%16]),.5,'triangle',.035);
+  if(noteI%2===0)tone1(hz(LOW[(noteI>>1)%8]-12),.9,'sine',.04);
+  noteI++;nextNote=t+.42+(noteI%16===0?1.7:0);
+}
+
+// ---------- state
+const input={key:0,stick:0,padAxis:0,dpad:0,coin:false,coinT:false,padCoin:false,sword:false,swordT:false,padSword:false,banner:false};
+function mkB(id,type,off){return {id,type,x:CX+off,off,dir:Math.sign(off),w:DEF[type].w,level:0,building:false,prog:0,hp:0,max:0,half:type==='wall'?4:17,hgt:0,own:0,block:type==='wall',sprung:false,burn:0,burnt:0,flash:0,tick:0,oilT:0};}
+const allUnits=()=>G.stay?G.units.concat(G.stay):G.units;
+function kingStats(){const k=G.king,s=B.smith.level;k.max=30+8*s;k.dmg=5+s;k.armor=2+(s>=2?1:0)+(s>=4?1:0);if(k.hp>k.max)k.hp=k.max;}
+function setLevel(b,L){
+  b.level=L;
+  if(b.type==='wall'){b.max=WALL.hp[L];b.hp=b.max;b.half=WALL.half[L];b.hgt=WALL.h[L];}
+  if(b.type==='keep'){b.max=200+120*L;b.hp=b.max;b.half=KEEP.w[L]/2;b.hgt=KEEP.h[L];court();}
+  if(b.type==='trap')b.sprung=false;
+  if(b.type==='smith'||b.type==='range'){for(const u of allUnits())applyStats(u);kingStats();}
+  G.repost=1;
+}
+function applyStats(u){
+  const d=UT[u.type],k=1+.12*(u.rank||0);let hp=d.hp,dmg=d.dmg||0,armor=d.armor||0;
+  if(!d.side){
+    const s=B.smith.level,fa=B.range.level>=4;
+    if(!d.eng){
+      if(d.range)dmg+=(s>=3?1:0)+(fa?1:0);else{dmg+=(s>=1?1:0)+(s>=3?1:0);armor+=d.cav?(s>=4?1:0):(s>=2?1:0);}
+      hp*=1+(s>=2?.25:0)+(s>=4?.25:0);
+    }
+  }else{hp*=G.foeK||1;dmg*=G.foeD||1;}
+  const r=u.max?u.hp/u.max:1;
+  u.max=Math.round(hp*k);u.hp=Math.max(1,Math.round(u.max*r));u.dmg=dmg*k;u.armor=armor;
+  u.rate=d.rate;u.reach=d.reach||0;u.range=d.range||0;u.minR=d.minR||0;u.spd=d.spd;u.cav=d.cav;u.eng=d.eng;u.area=d.area;u.sdmg=d.sdmg||0;
+  u.pierce=d.pierce;u.anti=d.anti;u.sonly=d.sonly;u.boss=d.boss;u.fire=!d.side&&!!d.range&&!d.eng&&B.range.level>=4;
+}
+function mkUnit(type,x,rank){
+  const d=UT[type],u={id:G.nid++,type,side:d.side,x,h:0,rank:rank||0,cd:rnd(0,1),think:rnd(0,.3),tg:null,dir:d.side?-1:1,walk:rnd(0,4),swing:0,hurt:0,
+    row:0,mode:d.side?'attack':'hold',post:null,slot:x,vx:0,run:0,still:0,max:0,hp:0,moving:false};
+  u.row=u.id%5;applyStats(u);u.hp=u.max;return u;
+}
+function villager(x){const f={id:G.nid++,x,dir:1,walk:0,st:'idle',tx:x,wait:rnd(0,2),moving:false,job:null,work:false};G.folk.push(f);return f;}
+function vagrant(s){const hx=CX+s*CAMP+rnd(-22,22);G.vag.push({id:G.nid++,x:hx,home:hx,camp:s,dir:-s,walk:0,wait:rnd(0,3),tx:hx,moving:false});}
+function court(){
+  const L=B.keep.level,fl=KEEP.fl[L],hw=KEEP.w[L]/2-7;G.court=[];
+  if(L<1)return;
+  for(let f=0;f<=fl;f++){const n=f===fl?(L>1?3:1):2+(f%2);
+    for(let i=0;i<n;i++){const x=rnd(-hw,hw);G.court.push({fl:f,x,tx:x,wait:rnd(0,4),dir:1,walk:0,c:(G.court.length*3+f)%6,guard:f===fl,moving:false});}}
+}
+function reset(){
+  G={state:'title',scene:'home',clock:0,t:.1,day:1,coins:24,nid:1,king:null,b:SITES.map(s=>mkB(s[0],s[1],s[2])),
+    folk:[],vag:[],units:[],foes:[],P:[],shots:[],parts:[],fx:[],floats:[],down:[],limp:[],wounded:[],orders:[],court:[],
+    healT:0,stance:'hold',front:1,frontT:0,formT:0,raid:{day:4,side:Math.random()<.5?-1:1,idx:0,both:false},battle:null,raidsWon:0,lands:[0,0,0,0,0],
+    field:null,stay:null,cam:0,shake:0,spoils:0,repost:1,seen:{},ww:WORLD,S:[],tgt:null,part:null,tossT:0,hold:0,lost:0,killed:0,dark:0,foeK:1,foeD:1,done:0,
+    bio:'vale',mapOpen:false,edgeLock:0,timeScale:1,cardT:0,endT:0};
+  B={};for(const b of G.b)B[b.id]=b;
+  G.king={king:1,side:0,id:0,x:CX+60,h:0,vx:0,dir:-1,phase:0,hp:30,max:30,dmg:5,armor:2,cd:0,swing:0,hurt:0,toss:0,down:0,regen:9,cav:1,row:4,moving:false};
+  G.S=[B.wallW,B.wallE,B.keep];
+  for(const s of [-1,1])for(let i=0;i<3;i++)vagrant(s);
+  court();
+}
+const popCap=()=>8+B.keep.level*24+G.b.reduce((n,b)=>n+(b.type==='cottage'?b.level*16:0),0);
+const hurtCount=()=>G.down.length+G.limp.length+G.wounded.length;
+const pop=()=>G.folk.length+G.units.length+(G.stay?G.stay.length:0)+hurtCount();
+const landsWon=()=>G.lands.filter(Boolean).length;
+function income(){
+  let farm=0;for(const b of G.b)if(b.type==='farm'&&!b.burnt&&b.burn<=0)farm+=FARMY[b.level];
+  const tax=5+Math.floor(G.folk.length/3),mk=MARKY[B.market.level],tr=G.lands.reduce((n,w,i)=>n+(w?LANDS[i].tribute:0),0);
+  return {farm,tax,mk,tr,total:farm+tax+mk+tr};
+}
+
+// ---------- save
+const SAVE='ravenkeep-save-1';
+function snap(){
+  const cnt=list=>{const o={};for(const u of list)(o[u.type]=o[u.type]||[0,0,0,0])[u.rank||0]++;return o;};
+  return {v:1,day:G.day,t:G.t,coins:G.coins,b:G.b.map(b=>[b.level,b.sprung?1:0,b.burnt||0,b.type==='wall'&&b.level&&b.hp<=0?1:0]),u:cnt(allUnits()),
+    w:cnt(G.wounded.concat(G.down,G.limp)),folk:G.folk.length,raid:G.raid,lands:G.lands,won:G.raidsWon,seen:G.seen,lost:G.lost,killed:G.killed,done:G.done};
+}
+function save(){if(!G||G.state!=='play'||G.scene!=='home'||G.battle)return;try{localStorage.setItem(SAVE,JSON.stringify(snap()));}catch(e){}}
+function peek(){try{const s=JSON.parse(localStorage.getItem(SAVE));return s&&s.v===1?s:null;}catch(e){return null;}}
+function wipe(){try{localStorage.removeItem(SAVE);}catch(e){}}
+function restore(s){
+  reset();G.day=s.day;G.t=clamp(s.t||.06,0,.55);G.coins=s.coins;G.raid=s.raid;G.lands=s.lands;G.raidsWon=s.won||0;G.seen=s.seen||{};G.lost=s.lost||0;G.killed=s.killed||0;G.done=s.done||0;
+  s.b.forEach((a,i)=>{const b=G.b[i];if(!b)return;setLevel(b,a[0]);b.sprung=!!a[1];b.burnt=a[2]||0;if(a[3])b.hp=0;});
+  for(let i=0;i<s.folk;i++)villager(CX+rnd(-480,480));
+  for(const t in s.u)if(UT[t])s.u[t].forEach((n,r)=>{for(let i=0;i<n;i++)G.units.push(mkUnit(t,CX+rnd(-400,400),r));});
+  for(const t in s.w)if(UT[t])s.w[t].forEach((n,r)=>{for(let i=0;i<n;i++)G.wounded.push({type:t,rank:r});});
+  kingStats();G.king.hp=G.king.max;G.king.x=CX+20;assignPosts();
+  for(const u of G.units){u.x=u.post.x;u.h=u.post.h;}
+  return true;
+}
+
+// ---------- messages and the HUD
+let hintT=0,promptKey='';
+function hint(k,txt,again){
+  if(!again&&G.seen[k])return;G.seen[k]=1;
+  const e=$('hint');e.textContent=txt;e.classList.add('on');hintT=8;
+}
+function card(title,sub,ms){
+  const c=$('card');c.textContent=title;if(sub){const s=document.createElement('small');s.textContent=sub;c.appendChild(s);}
+  c.classList.add('on');G.cardT=(ms||3200)/1000;
+}
+function float(x,h,s,c){G.floats.push({x,h,s:String(s),c:c||'#f2c14e',t:0});}
+const hudLast={};
+function setTxt(id,v,bump){
+  if(hudLast[id]===v)return;const up=hudLast[id]!==undefined&&bump;hudLast[id]=v;const e=$(id);e.textContent=v;
+  if(up){e.classList.remove('bump');void e.offsetWidth;e.classList.add('bump');}
+}
+function newsText(){
+  if(G.scene==='field'){const f=G.field,S=G.S;return f.done?'':`${LANDS[f.i].n}: ${G.foes.length} defenders`+(S[0].hp>0?', wall stands':', wall breached');}
+  if(G.battle)return `Raid: ${G.foes.length+G.battle.q.length} raiders left`;
+  if(landsWon()===5)return 'The realm is at peace';
+  const d=G.raid.day-G.day,side=G.raid.both?'both sides':G.raid.side<0?'the west':'the east';
+  if(d<=0)return `Raid tonight from ${side}`;
+  return `Raid in ${d} ${d>1?'days':'day'} from ${side}`;
+}
+function hud(){
+  setTxt('coins',String(Math.floor(G.coins)),true);
+  setTxt('army',String(G.units.length+(G.stay?G.stay.length:0)));
+  const w=hurtCount();setTxt('wound',String(w));if(hudLast.wh!==!w){hudLast.wh=!w;$('sW').hidden=!w;}
+  setTxt('folk',pop()+' / '+popCap());
+  setTxt('day','Day '+G.day);
+  const n=G.state==='play'?newsText():'';setTxt('news',n);
+  const al=!!G.battle||(G.scene==='home'&&G.raid.day<=G.day&&landsWon()<5);if(hudLast.al!==al){hudLast.al=al;$('news').classList.toggle('alarm',al);}
+  const kf=Math.round(clamp(G.king.hp/G.king.max,0,1)*100);if(hudLast.kf!==kf){hudLast.kf=kf;$('kfill').style.width=kf+'%';}
+  const up=G.stance==='follow';if(hudLast.up!==up){hudLast.up=up;$('ban').classList.toggle('up',up);}
+}
+function showPrompt(html,key){
+  if(key===promptKey)return;promptKey=key;const e=$('prompt');
+  if(!html){e.classList.remove('on');return;}
+  e.innerHTML=html;e.classList.add('on');
+}
+function banner(state,h,tag,btn){
+  G.state=state;$('title').hidden=false;document.body.classList.add('title');
+  $('title').querySelector('h1').textContent=h;$('tag').textContent=tag;$('go').textContent=btn;$('cont').hidden=true;$('how').textContent='';
+  showPrompt('','');
+}
+
+// ---------- the kingdom: time, villagers, building, coins
+function darkness(t){
+  if(t<.06)return .5*(1-t/.06);
+  if(t<.58)return 0;
+  if(t<.70)return (t-.58)/.12;
+  if(t<.94)return 1;
+  return 1-.5*(t-.94)/.06;
+}
+function step(o,tx,speed,dt){
+  const d=tx-o.x;if(Math.abs(d)<1){o.moving=false;return false;}
+  o.dir=d<0?-1:1;o.x+=clamp(d,-speed*dt,speed*dt);o.walk+=dt*speed*.22;o.moving=true;return true;
+}
+const sideName=s=>s<0?'the west':'the east';
+function dawn(){
+  G.day++;
+  const inc=income();G.coins+=inc.total;float(CX,B.keep.hgt+16,'+'+inc.total);sfx.coins();
+  for(const b of G.b)if(b.type==='farm'&&b.burnt>0)b.burnt--;
+  if(!G.battle)for(const b of G.S)if(b.hp>0)b.hp=b.max;
+  const cl=G.b.reduce((n,b)=>n+(b.type==='cottage'?b.level:0),0),free=popCap()-pop();
+  const n=clamp(free,0,cl?2+B.keep.level*2+cl*2:0);
+  for(let i=0;i<n;i++){const s=Math.random()<.5?-1:1,f=villager(CX+s*(WALLX+40+rnd(0,260)));f.tx=CX+rnd(-420,420);f.wait=0;}
+  for(const s of [-1,1])if(G.vag.filter(v=>v.camp===s).length<3&&free-n>0)vagrant(s);
+  if(n)hint('settlers','Word spreads. Settlers walk in each dawn while there is room for them.');
+  if(G.day===2)hint('raidsoon','Raiders come only now and then, and scouts warn you days ahead. Watch the notice at the top.');
+  save();
+}
+function updTime(dt){
+  if(G.scene!=='home')return;
+  const pt=G.t,live=landsWon()<5;G.t+=dt/DAY;
+  if(pt<.45&&G.t>=.45&&G.raid.day<=G.day&&live){sfx.horn();G.repost=1;hint('tonight'+G.day,`Scouts: raiders strike tonight from ${G.raid.both?'both sides':sideName(G.raid.side)}. Your men move to the gates.`,true);}
+  if(pt<.6&&G.t>=.6&&!G.battle&&G.raid.day<=G.day&&live)startRaid();
+  if(G.t>=1){G.t-=1;dawn();}
+}
+
+// ---------- villagers, vagrants, the court
+function enlist(f){
+  const o=f.job,i=G.orders.indexOf(o);if(i>=0)G.orders.splice(i,1);
+  const u=mkUnit(o.type,f.x,0);G.units.push(u);G.repost=1;sfx.paid();
+  for(let k=0;k<5;k++)G.parts.push({x:u.x+rnd(-3,3),h:rnd(4,12),vx:rnd(-8,8),vh:rnd(6,20),life:0,max:.5,col:'#f2e3a0',grav:0});
+  hint('soldier','Your first soldier. They hold the gates on their own. Raise your banner (B) and the army follows you instead.');
+}
+function updFolk(dt){
+  const night=G.t>.7||G.t<.03,danger=!!G.battle;
+  for(let i=G.folk.length-1;i>=0;i--){
+    const f=G.folk[i];let sp=17;f.work=false;
+    if(f.st==='enlist'){sp=42;if(Math.abs(f.x-f.tx)<2){enlist(f);G.folk.splice(i,1);continue;}}
+    else if(f.st==='build'){sp=40;const b=f.job;if(!b.building){f.st='idle';f.job=null;f.wait=0;f.tx=f.x;}else if(Math.abs(f.x-f.tx)<2){f.work=true;f.dir=sgn(b.x-f.x);}}
+    else if(danger){f.tx=CX+((f.id*37)%130-65);sp=38;}
+    else if(Math.abs(f.x-f.tx)<2){
+      f.wait-=dt;
+      if(f.wait<=0){
+        f.wait=rnd(1.5,7);
+        if(night)f.tx=CX+((f.id*53)%640-320);
+        else{const farms=G.b.filter(b=>b.type==='farm'&&b.level&&!b.burnt&&b.burn<=0);
+          f.tx=farms.length&&Math.random()<.3?farms[f.id%farms.length].x+rnd(-44,44):CX+rnd(-500,500);}
+      }else if(!night&&Math.abs(f.x-CX)>WALLX+50)f.work=true;
+    }
+    step(f,f.tx,sp,dt);
+  }
+}
+function updVag(dt){
+  for(const v of G.vag){
+    if(!step(v,v.tx,9,dt)){v.wait-=dt;if(v.wait<=0){v.wait=rnd(2,7);v.tx=v.home+rnd(-16,16);}}
+  }
+}
+function updCourt(dt){
+  const L=B.keep.level,hw=KEEP.w[L]/2-7,fl=KEEP.fl[L];
+  for(const c of G.court){
+    if(Math.abs(c.x-c.tx)<.6){
+      c.moving=false;c.wait-=dt;
+      if(c.wait<=0){
+        c.wait=c.guard?rnd(.5,2):rnd(1,6);
+        if(!c.guard&&fl>1&&Math.abs(c.x)>hw-3&&Math.random()<.5)c.fl=clamp(c.fl+(Math.random()<.5?-1:1),0,fl-1);   // takes the stair
+        c.tx=Math.random()<.3?sgn(rnd(-1,1))*hw:rnd(-hw,hw);
+      }
+    }else{c.dir=sgn(c.tx-c.x);c.x+=c.dir*dt*(c.guard?5:6.5);c.walk+=dt*5;c.moving=true;}
+  }
+}
+function nearestIdle(x){let best=null,bd=1e9;for(const f of G.folk)if(f.st==='idle'){const d=Math.abs(f.x-x);if(d<bd){bd=d;best=f;}}return best;}
+function updOrders(){
+  for(const o of G.orders){if(o.f)continue;const f=nearestIdle(o.b.x);if(!f)break;f.st='enlist';f.job=o;f.tx=o.b.x+rnd(-8,8);o.f=f;}
+}
+function built(b){
+  sfx.built();float(b.x,(b.hgt||20)+14,b.type==='keep'?'KEEP '+b.level:'BUILT','#eadcb6');
+  for(let k=0;k<10;k++)G.parts.push({x:b.x+rnd(-b.w/2,b.w/2),h:rnd(2,18),vx:rnd(-10,10),vh:rnd(4,16),life:0,max:rnd(.5,1),col:'#cdbf9a',grav:0});
+  const t=b.type,L=b.level;
+  if(t==='keep'&&L===1)hint('k1','The keep stands again. Plots are staked out around it: stand on one and toss coins. Cottages bring settlers, farms bring coins.');
+  else if(t==='keep'&&L===2)hint('k2','A stone keep. A market, a blacksmith and an infirmary can now be built, and the roads past your border stones are open: there are lands to conquer.');
+  else if(t==='keep'&&L===3)hint('k3','Stables and a siege workshop are open to you. Stone walls abroad will need engines.');
+  else if(t==='keep'&&L>3)hint('k'+L,'The castle climbs. Its halls fill with courtiers and its roof with guards.');
+  else if(t==='barracks'||t==='range'||t==='stable'||t==='workshop')hint('post'+t+L,`${DEF[t].n}: toss coins at the ${L>1?'new post':'post'} beside it to ${t==='workshop'?'build '+DEF[t].gives[L-1]:'arm villagers as '+DEF[t].gives[L-1]}.`,L>1&&!(t==='range'&&L===4));
+  else if(t==='wall'&&L===1)hint('wall','Archers climb the gate on their own. Everyone else waits behind it until it breaks or you lead them out.');
+  else if(t==='farm'&&L===1)hint('farm','A farm pays each dawn. In a raid, the brazier beside it lets you torch the field under the raiders.');
+  else if(t==='trap')hint('trap','A spike pit, hidden under brush. It springs once, then needs a coin to reset.');
+  else if(t==='infirm')hint('inf','Fallen soldiers who survive are carried here and return to duty one by one.');
+  else if(t==='smith')hint('smith'+L,`The smith now forges ${DEF.smith.gives[L-1]} for every soldier, and for you.`,true);
+  save();
+}
+function updBuild(dt){
+  for(const b of G.b){
+    if(!b.building)continue;let n=0,asg=0;
+    for(const f of G.folk)if(f.st==='build'&&f.job===b){asg++;if(f.work)n++;}
+    if(asg<3){const f=nearestIdle(b.x);if(f){f.st='build';f.job=b;f.tx=b.x+(asg-1)*Math.min(8,b.w/4)+rnd(-2,2);}
+      else if(!asg)hint('nobuild','Nobody is free to build. Win vagrants at the camps beyond the fields with a coin each.',true);}
+    if(n){b.prog+=dt*n/(3+DEF[b.type].cost[b.level]*.12);if(Math.random()<dt*5)sfx.hammer(b.x);}
+    if(b.prog>=1){b.building=false;b.prog=0;setLevel(b,b.level+1);built(b);}
+  }
+}
+
+// ---------- what the king is standing at, and paying for it
+function posts(b){
+  const out=[];let i=0;
+  for(const t of TYPES){const d=UT[t];if(d.at!==b.type)continue;out.push({type:t,x:b.x+b.dir*(b.w/2+10+14*i),open:b.level>=d.lv});i++;}
+  return out;
+}
+const chip=n=>` <span class="c">${n}</span>`;
+function findTarget(){
+  if(G.scene!=='home'||G.king.down>0)return null;
+  const x=G.king.x,KL=B.keep.level;
+  let v=null,vd=22;for(const q of G.vag){const d=Math.abs(q.x-x);if(d<vd){vd=d;v=q;}}
+  if(v)return {k:'vag',key:'vag',x:v.x,mark:17,full:1,v,html:'<b>Vagrant</b> A coin wins a villager'};
+  for(const b of G.b){
+    const d=DEF[b.type];
+    if(b.level>0)for(const p of posts(b))if(p.open&&Math.abs(x-p.x)<6){
+      const u=UT[p.type],idle=G.folk.filter(f=>f.st==='idle').length,q=G.orders.filter(o=>o.type===p.type).length;
+      if(G.orders.length>=60)return {k:'info',key:'full',x:p.x,mark:18,html:`<b>${u.n}</b> The muster roll is full. Wait for villagers to arrive`};
+      return {k:'post',key:'p'+p.type,x:p.x,mark:18,full:u.cost,b,type:p.type,html:`<b>${u.n}</b> ${q?q+' waiting for a free villager':u.eng?'built by one villager':idle+' free villagers'}`};
+    }
+    if(b.type==='farm'&&b.level>0&&!b.burnt&&b.burn<=0&&Math.abs(x-(b.x+b.dir*62))<6)
+      return {k:'torch',key:'t'+b.id,x:b.x+b.dir*62,mark:16,full:2,b,html:'<b>Torch the field</b> Burns raiders in it. Costs two harvests'};
+    const zone=b.type==='farm'?34:b.type==='trap'?7:b.type==='wall'?12:b.type==='keep'?20:Math.min(b.w/2-2,20);
+    if(Math.abs(x-b.x)>zone)continue;
+    const mark=(b.hgt||(b.level?24:8))+10;
+    if(b.building)return {k:'info',key:b.id+'b',x:b.x,mark,html:`<b>${d.n}</b> Under construction`};
+    if(b.type==='wall'&&b.level&&b.hp<=0)return {k:'repair',key:b.id+'r',x:b.x,mark:14,full:Math.ceil(d.cost[b.level-1]*.4),b,html:'<b>Rebuild the gate</b> It lies in ruins'};
+    if(b.type==='trap'&&b.level&&b.sprung)return {k:'rearm',key:b.id+'a',x:b.x,mark:10,full:1,b,html:'<b>Reset the spike pit</b>'};
+    if(b.level>=d.cost.length)return {k:'info',key:b.id+'m',x:b.x,mark,html:`<b>${d.n}</b> ${b.type==='keep'?'A royal castle':b.type==='trap'?'Armed and hidden':'Fully built'}`};
+    const need=d.need[b.level];
+    if(KL<need){
+      if(b.level===0&&KL<need-1)continue;
+      return {k:'info',key:b.id+'l',x:b.x,mark,html:`<b>${d.n}</b> Raise the keep to level ${need} first`};
+    }
+    const name=b.level?`${d.n}, level ${b.level+1}`:b.type==='keep'?'Ruined keep':d.n;
+    return {k:'build',key:b.id+'u'+b.level,x:b.x,mark,full:d.cost[b.level],b,html:`<b>${name}</b> ${b.type==='keep'&&!b.level?'Rebuild it as':b.level?'Adds':'Gives'} ${d.gives[b.level]}`};
+  }
+  return null;
+}
+function coinFx(x0,x1,h1,n){G.fx.push({x0,x1,h0:18,h1,t:0,big:n>1});}
+function refund(){const p=G.part;G.part=null;if(p&&p.amt>0){G.coins+=p.amt;float(G.king.x,30,'+'+p.amt,'#eadcb6');}}
+function paid(tg){
+  const b=tg.b;
+  if(tg.k==='vag'){
+    const i=G.vag.indexOf(tg.v);if(i>=0)G.vag.splice(i,1);
+    const f=villager(tg.v.x);f.tx=CX+rnd(-120,120);f.wait=0;sfx.paid();
+    hint('folk1','A villager. Ride home and toss coins at the ruined keep, and they will rebuild it.');
+  }else if(tg.k==='build'){b.building=true;b.prog=0;sfx.paid();}
+  else if(tg.k==='repair'){b.hp=b.max;G.repost=1;sfx.built();}
+  else if(tg.k==='rearm'){b.sprung=false;sfx.paid();}
+  else if(tg.k==='post'){G.orders.push({type:tg.type,b,f:null});sfx.paid();if(!G.folk.length)hint('nofolk','No villager is free to take up arms. Build cottages for settlers, or win vagrants at the camps.',true);}
+  else if(tg.k==='torch'){b.burn=14;b.tick=0;sfx.fire(b.x);hint('torch','The field is ablaze. Keep your own men out of it.');}
+}
+function tossing(dt){
+  const tg=G.tgt=findTarget(),key=tg?tg.key:'';
+  if(G.part&&G.part.key!==key)refund();
+  const want=input.coin||input.coinT||input.padCoin;
+  G.hold=want?G.hold+dt:0;G.tossT-=dt;
+  if(want&&G.tossT<=0){
+    if(!tg||!tg.full){if(G.hold<=dt*1.01)sfx.no();}
+    else if(G.coins<1){G.tossT=.6;sfx.no();hint('poor','Your purse is empty. Coins arrive each dawn from taxes, farms and markets.',true);}
+    else{
+      const p=G.part||(G.part={key,amt:0}),n=Math.min(tg.full-p.amt,Math.floor(G.coins),G.hold>2.4?12:G.hold>1?4:1);
+      G.coins-=n;p.amt+=n;G.tossT=.13;G.king.toss=.2;sfx.coin();coinFx(G.king.x,tg.x,tg.mark||12,n);
+      if(p.amt>=tg.full){G.part=null;paid(tg);}
+    }
+  }
+  if(!tg)showPrompt('','');
+  else{const left=tg.full?tg.full-(G.part?G.part.amt:0):0;showPrompt(tg.html+(tg.full?chip(left):''),key+'/'+left+tg.html);}
+}
+
+// ---------- the king
+function toggleStance(){
+  if(G.king.down>0)return;
+  if(!G.units.length){hint('noarmy','You have no soldiers yet. Build a barracks, then toss coins at the post beside it.',true);sfx.no();return;}
+  G.stance=G.stance==='hold'?'follow':'hold';G.repost=1;G.formT=0;
+  if(G.stance==='hold'&&G.scene==='field')for(const u of G.units)u.post={x:u.x,h:0};
+  for(const u of G.units)u.mode=G.stance;
+  float(G.king.x,34,G.stance==='follow'?'FOLLOW ME':G.scene==='home'?'TO THE GATES':'HOLD HERE','#eadcb6');tone1(G.stance==='follow'?196:147,.5,'sawtooth',.09,G.stance==='follow'?294:110);
+  if(G.stance==='follow')hint('follow','The army marches with you. Ride through your gate to sortie, or past the border stones to go to war.');
+}
+function updKing(dt){
+  const k=G.king;
+  if(k.hurt>0)k.hurt-=dt;if(k.swing>0)k.swing-=dt;if(k.toss>0)k.toss-=dt;k.cd-=dt;
+  if(k.down>0){k.down-=dt;k.vx=0;if(k.down<=0){k.hp=Math.ceil(k.max/2);k.x=CX+10;}return;}
+  const ax=input.key||input.dpad||(Math.abs(input.stick)>.16?input.stick:0)||input.padAxis,want=clamp(ax,-1,1)*88;
+  const acc=(Math.abs(want)<1||want*k.vx<0)?460:240;
+  k.vx+=clamp(want-k.vx,-acc*dt,acc*dt);
+  const nx=clamp(bound(k,k.x+k.vx*dt),18,G.ww-18);if(Math.abs(nx-(k.x+k.vx*dt))>.01)k.vx=0;k.x=nx;
+  k.moving=Math.abs(k.vx)>4;
+  if(k.moving){k.dir=sgn(k.vx);k.phase+=Math.abs(k.vx)*dt*.085;if(Math.abs(k.vx)>60&&Math.random()<dt*14)G.parts.push({x:k.x-k.dir*8,h:1,vx:-k.dir*rnd(4,14),vh:rnd(4,12),life:0,max:.5,col:'#b9a77c',grav:-20});}
+  if((input.sword||input.swordT||input.padSword)&&k.cd<=0){
+    k.cd=.42;k.swing=.22;let n=0;const pw=k.dmg*(Math.abs(k.vx)>70?1.5:1);
+    for(const f of G.foes){if(f.h>0||n>=3)continue;const d=(f.x-k.x)*k.dir;if(d>-4&&d<17&&!wallBetween(0,k.x,f.x)){hurtU(f,pw,false);n++;}}
+    if(!n)for(const s of G.S)if(s.own===1&&s.hp>0&&Math.abs(s.x-k.x)<s.half+16){handHit(s,pw);n=1;break;}
+    if(n)sfx.clang(k.x);else lim('whoosh',120,()=>burst(.08,.05,2000));
+  }
+  k.regen+=dt;if(k.regen>5&&k.hp<k.max)k.hp=Math.min(k.max,k.hp+dt*1.5);
+}
+function kingDown(){
+  const k=G.king;if(k.down>0)return;
+  sfx.lose();
+  if(G.scene==='field'){k.down=9;k.hp=1;G.field.fail=true;return;}
+  const loss=Math.floor(G.coins*.2);G.coins-=loss;k.down=6;k.hp=1;refund();
+  card('The king is struck down',`He is carried to the keep.${loss?' The raiders snatch '+loss+' coins.':''}`,4200);
+  if(G.stance==='follow'){G.stance='hold';for(const u of G.units)u.mode='hold';G.repost=1;}
+}
+
+// ---------- battle: everything stands on one line, walls block the side that does not own them
+function wallBetween(side,a,b){
+  for(const s of G.S)if(s.hp>0&&s.block&&s.own!==side&&((a<s.x&&b>s.x)||(a>s.x&&b<s.x)))return s;
+  return null;
+}
+function bound(u,nx){
+  for(const s of G.S){
+    if(s.hp<=0||!s.block||s.own===u.side)continue;
+    const f=s.half+2;
+    if(u.x<=s.x&&nx>s.x-f)nx=s.x-f;else if(u.x>s.x&&nx<s.x+f)nx=s.x+f;
+  }
+  return nx;
+}
+const woundP=()=>Math.min(.88,.55+.1*B.infirm.level);
+function hurtU(t,dmg,pierce){
+  if(t.gone||(t.king?t.down>0:t.hp<=0))return;
+  dmg*=pierce?1:1-.14*Math.min(4,t.armor||0);t.hp-=dmg;t.hurt=.13;
+  if(t.king){t.regen=0;sfx.hurt();G.shake=Math.max(G.shake,1.5);if(t.hp<=0){t.hp=0;kingDown();}return;}
+  if(G.field&&t.side)G.field.alert=true;
+  if(t.hp<=0)fell(t);
+}
+function fell(t){
+  t.gone=1;sfx.fall(t.x);
+  const col=t.eng?'#6b5230':t.side?'#5a1f1c':'#8a2a24';
+  for(let i=0;i<(t.eng?10:4);i++)G.parts.push({x:t.x+rnd(-2,2),h:rnd(3,9)+(t.h||0),vx:rnd(-16,16),vh:rnd(4,26),life:0,max:rnd(.4,.8),col,grav:-70});
+  if(t.side){G.killed++;G.spoils+=UT[t.type].loot||0;if(t.boss){card('The Warlord falls','His host breaks and runs.',3600);for(const f of G.foes)if(!f.gone)f.mode='flee';}}
+  else if(!t.eng&&Math.random()<woundP())G.down.push({type:t.type,rank:t.rank,x:t.x,t:0,id:t.id,dir:t.dir});
+  else{G.lost++;if(!t.eng)G.parts.push({x:t.x,h:0,vx:0,vh:0,life:0,max:14,col:'#3a3038',grav:0,body:1,dir:t.dir});}
+}
+function hurtS(s,d){
+  if(s.hp<=0)return;
+  s.hp-=d;s.flash=.15;if(G.field)G.field.alert=true;
+  for(let i=0;i<3;i++)G.parts.push({x:s.x+rnd(-s.half,s.half),h:rnd(2,s.hgt||14),vx:rnd(-14,14),vh:rnd(0,18),life:0,max:.6,col:s.level===1||s.lvl===1?'#7a5a3a':'#9a968c',grav:-80});
+  if(s.hp<=0){s.hp=0;breach(s);}
+}
+function breach(s){
+  G.shake=5;sfx.thud(s.x);
+  for(let i=0;i<26;i++)G.parts.push({x:s.x+rnd(-s.half-4,s.half+4),h:rnd(0,s.hgt||16),vx:rnd(-30,30),vh:rnd(0,40),life:0,max:rnd(.6,1.4),col:i%2?'#8a867c':'#5f5a52',grav:-90});
+  for(const u of G.units.concat(G.foes))if(u.h>0&&Math.abs(u.x-s.x)<s.half+4){u.h=0;u.post=null;hurtU(u,3,true);}
+  G.repost=1;
+  if(s.type==='keep'){sfx.lose();wipe();banner('over','The keep has fallen',`Ravenkeep stood ${G.day} days and threw back ${G.raidsWon} ${G.raidsWon===1?'raid':'raids'}.`,'Ride again');}
+  else if(s.type==='wall')card(`The ${s.dir<0?'west':'east'} gate has fallen`,'Your men close the breach with steel.',3000);
+  else if(s.kind==='hall')fieldWon();
+  else if(s.kind==='ewall')float(s.x,30,'BREACHED','#eadcb6');
+}
+
+// only so many men can get at a gate at once, and hand weapons do little to stone: that is what rams and engines are for
+function handHit(s,d){
+  const rate=s.kind==='hall'?15:s.type==='keep'?(s.level>1?4:6):(s.level||s.lvl)>1?4:12,now=G.clock;
+  s.hb=Math.min(rate*1.5,(s.hb||0)+(now-(s.hbT===undefined?now-1:s.hbT))*rate);s.hbT=now;
+  d=Math.min(d,s.hb);if(d>0){s.hb-=d;hurtS(s,d);}
+}
+// archers on a wall see further; massed ranks behind your own gate loose volleys over it
+const rangeUp=u=>u.h>0?25:(!u.side&&!u.eng&&u.mode==='hold'&&G.scene==='home'?45:0);
+function findS(u,k){
+  let best=null,bd=1e9;
+  for(const s of G.S){
+    if(s.own!==1||s.hp<=0)continue;const d=Math.abs(s.x-u.x);
+    if(wallBetween(0,u.x,s.x-sgn(s.x-u.x)*(s.half+3)))continue;
+    if(u.range?(d<=u.range+s.half||u.mode==='follow'&&Math.abs(s.x-k.x)<u.range+90):(d<150&&(u.mode==='follow'?Math.abs(s.x-k.x)<130:d<40)))if(d<bd){bd=d;best=s;}
+  }
+  return best;
+}
+// ---------- choosing a target
+function think(u){
+  const foes=u.side?G.P:G.foes,k=G.king,home=G.scene==='home';let best=null,bd=1e9;
+  if(u.mode==='flee'){u.tg=null;return;}
+  const siege=u.side===0&&!home&&u.eng&&u.area;      // your stone-throwers go for walls before men
+  if(siege)best=findS(u,k);
+  if(!best&&!u.sonly){
+    if(u.range){
+      const rg=u.range+rangeUp(u),mobile=u.side===1?!(u.mode==='hold'&&!G.field.alert):u.mode==='follow',reach=mobile?rg+130:rg;
+      for(const f of foes){const d=Math.abs(f.x-u.x);if(d<bd&&d<=reach&&d>=u.minR&&(!mobile||u.side||Math.abs(f.x-k.x)<rg+150))if(!(u.area&&f.h>0)){bd=d;best=f;}}
+    }else{
+      for(const f of foes){
+        if(f.h>0)continue;const d=Math.abs(f.x-u.x);if(d>=bd)continue;
+        if(u.side){if(d>(u.mode==='hold'?(G.field.alert?260:120):70))continue;}
+        else if(u.mode==='follow'){if(d>95||Math.abs(f.x-k.x)>230)continue;}
+        else if(home){const w=f.x<CX?B.wallW:B.wallE;if(Math.abs(f.x-CX)>(w.hp>0?WALLX-w.half-3:WALLX+50))continue;}
+        else if(d>50)continue;
+        if(wallBetween(u.side,u.x,f.x))continue;
+        bd=d;best=f;
+      }
+    }
+  }
+  if(!best){
+    // no one to fight: look for something to knock down
+    if(u.side===1&&u.mode==='attack'){
+      const dir=sgn(CX-u.x);let s=null;
+      for(const w of G.S)if(w.own===0&&w.block&&w.hp>0&&(w.x-u.x)*dir>0&&(!s||Math.abs(w.x-u.x)<Math.abs(s.x-u.x)))s=w;
+      best=s||(B.keep.hp>0?B.keep:null);
+      if(best&&u.range&&!u.area)best=null;                // bowmen do not shoot at stone
+    }else if(u.side===0&&!home&&!siege&&(u.eng||!u.range))best=findS(u,k);
+  }
+  u.tg=best;
+}
+function strike(u,t){
+  u.cd=u.rate*rnd(.9,1.1);u.swing=.2;sfx.clang(u.x);
+  if(t.own!==undefined){if(u.sdmg)hurtS(t,u.sdmg);else handHit(t,u.dmg);if(u.type==='ram'){G.shake=Math.max(G.shake,2);sfx.thud(u.x);}}
+  else{let d=u.dmg;if(u.cav&&u.run>.8)d*=2;if(u.anti&&t.cav)d*=u.anti;hurtU(t,d,u.pierce);}
+  u.run=0;
+}
+function shoot(u,t){
+  u.cd=u.rate*rnd(.85,1.15);u.swing=.35;
+  const isS=t.own!==undefined,stone=!!u.area,dx0=Math.abs(t.x-u.x),dur=stone?.9+dx0/170:Math.max(.22,dx0/(u.eng?260:175));
+  const tx=isS?t.x+rnd(-t.half,t.half)*.8:t.x+(t.moving?(t.vx||0)*dur*.7:0)+(stone?rnd(-7,7):0);
+  G.shots.push({x0:u.x+u.dir*2,h0:(u.h||0)+(u.eng?(u.type==='trebuchet'?22:10):7),tx,h1:isS?(t.hgt||12)*.5:(t.h||0)+4,k:0,dur,arc:stone?dx0*.4:dx0*.1,
+    kind:stone?(u.type==='trebuchet'?'rock':'stone'):u.eng?'bolt':'arrow',side:u.side,dmg:u.dmg,pierce:u.pierce,area:u.area,sdmg:u.sdmg,tg:isS?null:t,ts:isS?t:null,fire:u.fire});
+  if(u.eng)sfx.crank(u.x);else sfx.arrow(u.x);
+}
+function land(s){
+  const foes=s.side?G.P:G.foes;
+  if(s.area){
+    G.shake=Math.max(G.shake,s.kind==='rock'?3:1.6);sfx.thud(s.tx);
+    let n=0;for(const f of foes)if(n<s.area[2]&&f.h<1&&Math.abs(f.x-s.tx)<=s.area[1]){hurtU(f,s.area[0],false);n++;}
+    for(const w of G.S)if(w.own!==s.side&&w.hp>0&&Math.abs(w.x-s.tx)<=w.half+s.area[1]){
+      hurtS(w,s.sdmg);
+      for(const f of foes)if(f.h>0&&Math.abs(f.x-w.x)<w.half+3&&Math.random()<.35)hurtU(f,2,true);
+    }
+    for(let i=0;i<9;i++)G.parts.push({x:s.tx+rnd(-4,4),h:1,vx:rnd(-26,26),vh:rnd(10,44),life:0,max:rnd(.4,.9),col:i%2?'#7b6a4c':'#9a968c',grav:-110});
+    return;
+  }
+  if(s.ts){hurtS(s.ts,s.sdmg||1);return;}
+  const t=s.tg;
+  if(t&&!t.gone&&(t.hp>0)&&Math.abs(t.x-s.tx)<10&&Math.random()<(t.h>0?.45:.85))hurtU(t,s.dmg*(s.fire&&t.eng?3:1),s.pierce);
+  else if(Math.random()<.4)G.parts.push({x:s.tx,h:0,vx:0,vh:0,life:0,max:5,col:'#cdbf9a',grav:0,stuck:s.side?-1:1});
+}
+function updShots(dt){
+  for(let i=G.shots.length-1;i>=0;i--){const s=G.shots[i];s.k+=dt/s.dur;if(s.k>=1){land(s);G.shots.splice(i,1);}}
+}
+
+// ---------- where everyone stands
+// lay a list out in ranks, four deep on foot and two deep on horse, marching away from x0
+function ranks(list,x0,dir,set){
+  let off=0,i=0;
+  while(i<list.length){
+    const cav=!!list[i].cav,n=cav?2:4,wd=cav?12:5;
+    for(let r=0;r<n&&i<list.length&&!!list[i].cav===cav;r++,i++)set(list[i],x0+dir*(off+(cav?r*5:r%2*2.5)),cav?1+r*3:r*1.6);
+    off+=wd;
+  }
+  return off;
+}
+function assignPosts(){
+  G.repost=0;if(G.scene!=='home')return;
+  const live=landsWon()<5,hot=G.battle||(G.raid.day<=G.day&&G.t>.44&&live),both=G.battle?G.battle.both:G.raid.both;
+  const fw=!hot||both?.5:(G.battle?G.battle.side:G.raid.side)<0?.8:.2,side=[[],[]],n=[0,0];
+  const U=G.units.slice().sort((a,b)=>a.type<b.type?-1:a.type>b.type?1:a.id-b.id);
+  for(const u of U){const s=n[0]*(1-fw)<=n[1]*fw&&fw>0?0:1;n[s]++;side[s].push(u);}
+  for(let s=0;s<2;s++){
+    const w=s?B.wallE:B.wallW,inw=s?-1:1,top=w.hp>0?WALL.slots[w.level]:0,L=side[s];
+    const arch=L.filter(u=>u.range&&!u.eng),mel=L.filter(u=>!u.range&&!u.cav&&!u.eng),cav=L.filter(u=>u.cav),eng=L.filter(u=>u.eng);
+    arch.sort((a,b)=>b.range-a.range);
+    const up=arch.splice(0,top);up.forEach((u,i)=>{u.post={x:w.x+(i-(up.length-1)/2)*(w.half*2-2)/Math.max(1,top-1),h:w.hgt};});
+    const deep=ranks(mel.splice(0,8).concat(arch,mel,cav),w.x+inw*(w.half+8),inw,(u,x,row)=>{u.post={x,h:0};u.row=row;});
+    eng.forEach((u,i)=>{u.post={x:w.x+inw*(w.half+24+deep+i*24),h:0};});
+  }
+}
+function formation(){
+  const k=G.king,U=G.units;let nd=420,nf=null;
+  for(const f of G.foes){const d=Math.abs(f.x-k.x);if(d<nd){nd=d;nf=f;}}
+  if(!nf&&G.scene==='field')for(const s of G.S)if(s.own===1&&s.hp>0){nf=s;break;}
+  if(nf)G.front=sgn(nf.x-k.x);else if(Math.abs(k.vx)>30)G.front=k.dir;
+  const f=G.front,set=(u,x,row)=>{u.slot=x;u.row=row;};
+  ranks(U.filter(u=>!u.range&&!u.eng).sort((a,b)=>(a.cav?1:0)-(b.cav?1:0)||a.id-b.id),k.x+f*12,f,set);
+  const back=ranks(U.filter(u=>u.range&&!u.eng),k.x-f*10,-f,set);let e=0;
+  for(const u of U)if(u.eng)u.slot=k.x-f*(back+28+(e++)*24);
+}
+
+// ---------- every fighter, every frame
+function act(u,dt){
+  u.cd-=dt;if(u.hurt>0)u.hurt-=dt;if(u.swing>0)u.swing-=dt;
+  u.think-=dt;if(u.think<=0){u.think=.25+rnd(0,.12);think(u);}
+  let t=u.tg;if(t&&(t.gone||t.hp<=0||(t.king&&t.down>0)))t=u.tg=null;
+  let want=null,sp=u.spd;const k=G.king;
+  if(u.mode==='flee'){want=u.x<G.ww/2?-60:G.ww+60;sp*=1.25;}
+  else if(t){
+    const isS=t.own!==undefined,d=Math.abs(t.x-u.x),edge=isS?t.half:0,dir=sgn(t.x-u.x);
+    if(u.range){
+      const rg=u.range+rangeUp(u)+edge;
+      if(d<=rg&&d>=u.minR){u.dir=dir;if(u.cd<=0&&(!u.eng||u.still>.5))shoot(u,t);}
+      else if(d>rg&&(u.side===1||u.mode==='follow'))want=t.x-dir*(rg*.88);
+    }else{
+      const r=u.reach+edge+(t.cav?2:0)+(isS?(u.id*7%13)*1.8:(u.id%5)*1.4);     // a mob spreads out; the back ranks still land blows
+      if(d<=r+1.5){u.dir=dir;if(u.cd<=0)strike(u,t);}
+      else want=t.x-dir*(r-.5);
+    }
+  }else if(u.mode==='attack'){want=CX;if(u.range){const w=wallBetween(1,u.x,CX);if(w)want=w.x-sgn(CX-u.x)*(w.half+30+(u.id%5)*6);}}
+  else if(u.mode==='follow'){want=u.slot;const far=Math.abs(want-u.x);if(far>90||(u.eng&&!G.foes.length))sp*=1.8;if(far<1.5)want=null;}
+  else if(u.post){want=u.post.x;if(Math.abs(want-u.x)<1)want=null;}
+  const ph=u.mode==='hold'&&u.post&&u.post.h&&Math.abs(u.x-u.post.x)<2?u.post.h:0;
+  if(u.h!==ph){u.h+=(ph-u.h)*Math.min(1,dt*9);if(Math.abs(u.h-ph)<.6)u.h=ph;}
+  if(want!==null&&(u.h<1||ph===0)){
+    let nx=bound(u,u.x+clamp(want-u.x,-sp*dt,sp*dt));if(u.mode!=='flee')nx=clamp(nx,6,G.ww-6);const mv=nx-u.x;
+    if(Math.abs(mv)>.001){u.dir=sgn(mv);u.x=nx;u.vx=mv/dt;u.walk+=dt*sp*.2;u.moving=true;u.still=0;u.run+=dt;}
+    else{u.moving=false;u.vx=0;u.still+=dt;}
+  }else{u.moving=false;u.vx=0;u.still+=dt;if(!t)u.run=0;}
+}
+function updUnits(dt){
+  const k=G.king;
+  G.P=k.down>0?G.units.slice():G.units.concat([k]);
+  if(G.scene==='home'&&G.repost)assignPosts();
+  if(G.stance==='follow'){G.formT-=dt;if(G.formT<=0){G.formT=.4;formation();}}
+  for(const u of G.units)act(u,dt);
+  for(const u of G.foes){
+    act(u,dt);
+    if(u.mode==='flee'&&(u.x<-40||u.x>G.ww+40))u.gone=1;
+  }
+  let w=0;for(const u of G.units)if(!u.gone)G.units[w++]=u;if(w<G.units.length){G.units.length=w;G.repost=1;}
+  w=0;for(const u of G.foes)if(!u.gone)G.foes[w++]=u;G.foes.length=w;
+}
+
+// ---------- raids on the kingdom
+function raidSize(i){return Math.min(280,Math.round(5+i*6+i*i*1.5));}
+function raidMix(i,n){
+  const bow=i>=1?Math.round(n*.2):0,brute=i>=2?Math.round(n*Math.min(.4,.12+.025*i)):0,rider=i>=3?Math.round(n*.12):0;
+  const q=[];const add=(t,c)=>{for(let k=0;k<c;k++)q.push(t);};
+  add('raider',n-bow-brute-rider);add('bowman',bow);add('brute',brute);
+  for(let k=q.length-1;k>0;k--){const j=Math.floor(Math.random()*(k+1));[q[k],q[j]]=[q[j],q[k]];}
+  const out=[];
+  for(let k=0;k<rider;k++)out.push('rider');
+  const ram=i>=3?Math.min(5,1+Math.floor((i-3)/2)):0,cat=i>=6?Math.min(5,1+Math.floor((i-6)/2)):0;
+  const mid=q.splice(0,Math.floor(q.length/2));
+  out.push(...mid);for(let k=0;k<ram;k++)out.push('ram');out.push(...q);for(let k=0;k<cat;k++)out.push('ecat');
+  if(i>0&&i%4===3)out.push('warlord');
+  return out;
+}
+function startRaid(){
+  const r=G.raid,n=raidSize(r.idx);
+  G.foeK=1+r.idx*.07;G.foeD=1+r.idx*.05;G.spoils=0;
+  G.battle={side:r.side,both:r.both,q:raidMix(r.idx,n),t:0,sp:0,n,gap:Math.min(.4,26/n),flee:false,k:0};
+  G.repost=1;sfx.bell();sfx.horn();
+  card(r.both?'Raiders on both sides':`Raiders from ${sideName(r.side)}`,`${G.battle.q.length} of them. Hold the gate.`,3400);
+  hint('raid1','Your archers and engines open up on their own. Fight beside your men with your sword (F), or raise your banner to lead a charge.');
+}
+function endRaid(){
+  const bt=G.battle;G.battle=null;G.raidsWon++;
+  const loot=Math.round(G.spoils);G.coins+=loot;G.spoils=0;
+  let up=0;for(const u of G.units)if(!u.eng&&u.rank<3&&Math.random()<.45){u.rank++;applyStats(u);up++;}
+  const w=hurtCount();
+  card('Raid repelled',`${loot} coins in spoils.${w?` ${w} wounded will mend.`:''}${bt.slain?` ${bt.slain} ${bt.slain>1?'villagers were':'villager was'} cut down.`:''}${up?` ${up} soldiers earn a veteran's stripe.`:''}`,4600);sfx.win();
+  if(w)hint('wounded','The wounded limp to the infirmary and return to duty one by one. A better infirmary heals them faster.');
+  const gap=3+(Math.random()<.5?1:0)+(Math.random()<.25?1:0),i=G.raid.idx+1;
+  G.raid={day:(G.t>.5?G.day+1:G.day)+gap-1,side:Math.random()<.5?-1:1,idx:i,both:i>=5&&Math.random()<.4};
+  G.repost=1;if(G.t<.5)save();
+}
+function updBattle(dt){
+  const bt=G.battle;if(!bt)return;
+  bt.t+=dt;bt.sp-=dt;
+  while(bt.q.length&&bt.sp<=0){
+    bt.sp+=bt.gap;const s=bt.both?(bt.k++%2?1:-1):bt.side,type=bt.q.shift();
+    const u=mkUnit(type,CX+s*(SPAWN+rnd(0,70)),0);u.dir=-s;G.foes.push(u);
+  }
+  if(!bt.flee&&bt.t>70&&G.t>.2&&G.t<.6){bt.flee=true;for(const f of G.foes)f.mode='flee';bt.q.length=0;float(G.king.x,36,'THEY FLEE AT DAWN','#eadcb6');}
+  if(!bt.q.length&&!G.foes.length)endRaid();
+  // raiders cut down any villager they catch
+  bt.sp2=(bt.sp2||0)-dt;
+  if(bt.sp2<=0){bt.sp2=.3;
+    for(const f of G.foes){if(f.eng||f.mode==='flee')continue;
+      for(let i=G.folk.length-1;i>=0;i--)if(Math.abs(G.folk[i].x-f.x)<6){const v=G.folk[i];if(v.job&&v.job.f===v)v.job.f=null;G.folk.splice(i,1);bt.slain=(bt.slain||0)+1;
+        G.parts.push({x:v.x,h:0,vx:0,vh:0,life:0,max:10,col:'#6b5a48',grav:0,body:1,dir:1});break;}}
+  }
+}
+// traps, burning fields, boiling oil, the wounded
+function updHazards(dt){
+  for(const b of G.b){
+    if(b.flash>0)b.flash-=dt;
+    if(b.type==='trap'&&b.level&&!b.sprung){
+      for(const f of G.foes)if(f.h<1&&Math.abs(f.x-b.x)<5){
+        b.sprung=true;let n=0;sfx.thud(b.x);
+        for(const q of G.foes)if(n<7&&Math.abs(q.x-b.x)<10){hurtU(q,12,true);n++;}
+        for(let i=0;i<12;i++)G.parts.push({x:b.x+rnd(-7,7),h:1,vx:rnd(-20,20),vh:rnd(10,40),life:0,max:.7,col:i%2?'#56733c':'#6b5230',grav:-100});
+        break;
+      }
+    }else if(b.type==='farm'&&b.burn>0){
+      b.burn-=dt;b.tick-=dt;sfx.fire(b.x);
+      if(Math.random()<dt*40)G.parts.push({x:b.x+rnd(-50,50),h:rnd(0,5),vx:rnd(-4,4),vh:rnd(14,34),life:0,max:rnd(.4,.9),col:Math.random()<.5?'#f2c14e':'#e8703f',grav:10,lit:1});
+      if(Math.random()<dt*10)G.parts.push({x:b.x+rnd(-50,50),h:rnd(8,14),vx:rnd(2,8),vh:rnd(10,22),life:0,max:rnd(1.2,2.4),col:'#4a4650',grav:0,big:1});
+      if(b.tick<=0){b.tick=.5;
+        for(const f of G.foes)if(f.h<1&&Math.abs(f.x-b.x)<52)hurtU(f,2,true);
+        for(const u of G.P)if(u.h<1&&Math.abs(u.x-b.x)<50)hurtU(u,1,true);}
+      if(b.burn<=0){b.burn=0;b.burnt=2;}
+    }else if(b.type==='wall'&&b.level>=4&&b.hp>0){
+      b.oilT-=dt;
+      if(b.oilT<=0){
+        const out=b.x+b.dir*(b.half+6);let n=0;
+        for(const f of G.foes)if(f.h<1&&Math.abs(f.x-out)<11){hurtU(f,4,true);n++;}
+        b.oilT=n?2.5:.4;
+        if(n)for(let i=0;i<10;i++)G.parts.push({x:out+rnd(-6,6),h:b.hgt-4,vx:rnd(-6,6),vh:rnd(-30,-6),life:0,max:.6,col:i%3?'#3a2a18':'#e8703f',grav:-120});
+      }
+    }
+  }
+  // the wounded get up after the fight and limp to the infirmary
+  const hx=B.infirm.level?B.infirm.x:CX;
+  if(!G.battle)for(let i=G.down.length-1;i>=0;i--){const d=G.down[i];d.t+=dt;if(d.t>2.5+(d.id%7)*.5){G.down.splice(i,1);G.limp.push({id:d.id,type:d.type,rank:d.rank,x:d.x,dir:1,walk:0,moving:true});}}
+  for(let i=G.limp.length-1;i>=0;i--){const l=G.limp[i];if(!step(l,hx,11,dt)){G.limp.splice(i,1);G.wounded.push({type:l.type,rank:l.rank});}}
+  if(G.wounded.length){
+    G.healT+=dt;
+    if(G.healT>=HEALT[B.infirm.level]){G.healT=0;const w=G.wounded.shift(),u=mkUnit(w.type,hx,w.rank);u.mode=G.stance;G.units.push(u);G.repost=1;sfx.heal();float(hx,(B.infirm.level?26:B.keep.hgt+8),'+1','#9fd08a');}
+  }else G.healT=0;
+}
+
+// ---------- beyond the border: the map, and war in other lands
+const WALLN=['','a wooden palisade','a stone wall','a high stone wall','a fortress wall'];
+function showMap(mode){
+  if(G.state!=='play'||G.mapOpen)return;
+  G.mapOpen=mode||'view';input.key=input.stick=0;input.coin=input.coinT=input.sword=input.swordT=false;held.clear();
+  const next=G.lands.indexOf(0),ol=$('lands'),go=$('mgo'),no=$('mno'),army=G.units.length+(G.stay?G.stay.length:0);
+  ol.textContent='';
+  LANDS.forEach((L,i)=>{
+    const li=document.createElement('li'),won=G.lands[i];li.className=won?'won':i===next?'next':'far';
+    const m=document.createElement('i');m.textContent=won?'✓':String(i+1);
+    const d=document.createElement('span'),b=document.createElement('b');b.textContent=L.n;d.appendChild(b);
+    d.appendChild(document.createElement('br'));
+    d.appendChild(document.createTextNode(won?'Sworn to Ravenkeep':i===next?`${L.sub}. About ${L.size} defenders behind ${WALLN[L.wall]}.`:L.sub));
+    const e=document.createElement('em');e.textContent=won?`+${L.tribute} a day`:`${L.reward} coins`;
+    li.append(m,d,e);ol.appendChild(li);
+  });
+  go.hidden=false;go.disabled=false;no.textContent='Stay';
+  if(mode==='retreat'){
+    $('maph').textContent='Withdraw?';$('mapsub').textContent=`${LANDS[G.field.i].n} still stands. Your wounded come home with you.`;
+    $('mapnote').textContent='';go.textContent='Withdraw home';no.textContent='Fight on';ol.hidden=true;
+  }else{
+    ol.hidden=false;$('maph').textContent='The realm';
+    $('mapsub').textContent=`Day ${G.day}. ${army} ${army===1?'soldier':'soldiers'} under your banner, ${G.raidsWon} ${G.raidsWon===1?'raid':'raids'} thrown back.`;
+    if(mode==='travel'&&next>=0){
+      go.textContent='March on '+LANDS[next].n;
+      $('mapnote').textContent=G.stance==='follow'&&G.units.length?`Your ${G.units.length} soldiers march with you. The journey takes a day.`:
+        'Your banner is lowered, so you would ride alone. Raise it and the army comes with you.';
+    }else{
+      go.hidden=true;no.textContent='Close';
+      $('mapnote').textContent=next<0?'Every land is sworn to you.':'To go to war, raise your banner and ride past the border stones at either end of your land.';
+    }
+  }
+  $('map').hidden=false;(go.hidden?no:go).focus();
+}
+function hideMap(){
+  if(!G.mapOpen)return;
+  const k=G.king;
+  if(G.scene==='home'&&Math.abs(k.x-CX)>BORDER-24){k.x=CX+sgn(k.x-CX)*(BORDER-26);k.vx=0;}
+  if(G.scene==='field'&&k.x<40){k.x=44;k.vx=0;}
+  G.mapOpen=false;$('map').hidden=true;G.edgeLock=1;
+}
+function mapGo(){
+  const mode=G.mapOpen;hideMap();
+  if(mode==='retreat')leaveField(false,'Withdrawn','You live to fight another day.');
+  else if(mode==='travel'){const i=G.lands.indexOf(0);if(i>=0)startField(i);}
+}
+function startField(i){
+  const L=LANDS[i];refund();showPrompt('','');
+  for(const d of G.down.concat(G.limp))G.wounded.push({type:d.type,rank:d.rank});G.down=[];G.limp=[];
+  if(G.stance==='follow'){G.stay=[];}else{G.stay=G.units;G.units=[];}
+  G.scene='field';G.bio=L.bio;G.ww=2000;G.t=.3;G.foes=[];G.shots=[];G.parts=[];G.fx=[];G.foeK=1+i*.25;G.foeD=1+i*.2;G.spoils=0;
+  G.field={i,alert:false,done:0,fail:false,t:0,endT:0};
+  const wl=L.wall,wall={kind:'ewall',x:1400,half:WALL.half[wl]+2,own:1,block:true,hp:Math.round(WALL.hp[wl]*1.3),lvl:wl,hgt:WALL.h[wl],dir:-1,flash:0};wall.max=wall.hp;
+  const hall={kind:'hall',x:1700,half:24,own:1,block:true,hp:L.hall,max:L.hall,lvl:i,hgt:30+i*7,flash:0,dir:-1};
+  G.S=[wall,hall];
+  const put=(type,x,h)=>{const u=mkUnit(type,x,0);u.mode='hold';u.post={x,h:h||0};u.h=h||0;u.dir=-1;G.foes.push(u);return u;};
+  const n=L.size,bow=Math.round(n*.3),pick=Math.round(n*.22),rid=i?Math.round(n*.08):0,main=n-bow-pick-rid,top=WALL.slots[wl],br=.15+.12*i;
+  for(let k=0;k<bow;k++)k<top?put('bowman',wall.x+(k-(Math.min(top,bow)-1)/2)*(wall.half*2-2)/Math.max(1,top-1),wall.hgt):put('bowman',wall.x+wall.half+10+(k-top)*2.2);
+  for(let k=0;k<pick;k++)put(Math.random()<br?'brute':'raider',900+rnd(-50,50));
+  for(let k=0;k<rid;k++)put('rider',1150+rnd(-30,30));
+  for(let k=0;k<main;k++)put(Math.random()<br+.1?'brute':'raider',wall.x+wall.half+30+rnd(0,190));
+  for(let k=0;k<L.cats;k++)put('ecat',wall.x+60+k*26);
+  if(L.boss)put('warlord',1650);
+  const kg=G.king;kg.x=90;kg.dir=1;kg.vx=0;G.front=1;formation();
+  kg.x=clamp(100-G.units.reduce((m,u)=>Math.min(m,u.slot),90),90,560);G.cam=kg.x-W/2;formation();     // room behind the king for the whole column
+  for(const u of G.units){u.x=Math.max(8,u.slot+rnd(-2,2));u.h=0;u.tg=null;u.mode='follow';}
+  card(L.n,L.sub,3200);sfx.horn();
+  hint('field','Your army marches at a walk, so stay with it. Engines batter the wall and your men storm the breach. Ride back to the left edge to withdraw.');
+}
+function fieldWon(){
+  const f=G.field,L=LANDS[f.i];if(f.done)return;
+  f.done=1;f.endT=5.5;G.lands[f.i]=1;
+  for(const u of G.foes)u.mode='flee';
+  card(`${L.n} is yours`,`${L.reward} coins in plunder, and ${L.tribute} a day in tribute.`,5000);sfx.win();
+}
+function leaveField(win,title,sub){
+  const f=G.field,L=LANDS[f.i];
+  for(const d of G.down)G.wounded.push({type:d.type,rank:d.rank});G.down=[];
+  let up=0;for(const u of G.units)if(!u.eng&&u.rank<3&&Math.random()<(win?.6:.25)){u.rank++;applyStats(u);up++;}
+  G.units=G.units.concat(G.stay||[]);G.stay=null;
+  G.scene='home';G.bio='vale';G.ww=WORLD;G.S=[B.wallW,B.wallE,B.keep];G.foes=[];G.shots=[];G.parts=[];G.fx=[];G.field=null;G.foeK=G.foeD=1;
+  G.stance='hold';const k=G.king;k.down=0;k.x=CX+24;k.vx=0;k.hp=Math.max(k.hp,Math.ceil(k.max/2));
+  for(const u of G.units){u.mode='hold';u.tg=null;u.hp=Math.max(u.hp,Math.ceil(u.max*.6));}
+  if(win)G.coins+=L.reward+Math.round(G.spoils);G.spoils=0;
+  G.t=0;dawn();assignPosts();for(const u of G.units){u.x=u.post.x;u.h=u.post.h;}
+  if(win&&landsWon()===5){G.done=1;card('High King','Every land is sworn to Ravenkeep. The raids are over.',8000);save();}
+  else if(!win)card(title,sub,4200);
+  else if(up)hint('vets'+f.i,`${up} soldiers come home veterans. ${hurtCount()} wounded are in the infirmary.`,true);
+}
+function updField(dt){
+  const f=G.field,k=G.king;f.t+=dt;
+  if(f.fail){leaveField(false,'The king is struck down','The army carries him home.');return;}
+  if(f.done){f.endT-=dt;if(f.endT<=0)leaveField(true);return;}
+  if(k.x<24&&f.t>3&&!G.mapOpen&&G.edgeLock<=0)showMap('retreat');
+}
+
+// ---------- drawing: sky, land and everything built on it
+const BIO={
+  vale:{far:'#6f8fa8',mid:'#5d8a5a',tree:'#2f5a30',g1:'#6c9a44',g2:'#4f7c35',g3:'#3c6229',dirt:'#8a6f48'},
+  forest:{far:'#557a80',mid:'#3f6b4a',tree:'#1f4226',g1:'#55803a',g2:'#3d632d',g3:'#2f4f24',dirt:'#6f5a3c'},
+  river:{far:'#6f95a8',mid:'#5a8a78',tree:'#2f5a40',g1:'#6a9a54',g2:'#4a7a44',g3:'#3a643a',dirt:'#8a7a58'},
+  moor:{far:'#6a6a84',mid:'#6a5a6e',tree:'#3a3040',g1:'#7a784c',g2:'#5a5a3c',g3:'#484a32',dirt:'#5f5140'},
+  snow:{far:'#9fb0c4',mid:'#c8d2dc',tree:'#3f5a54',g1:'#f2f5f8',g2:'#d0d8e0',g3:'#b8c2cc',dirt:'#a89c8c'},
+  ash:{far:'#4a3a40',mid:'#3c2c30',tree:'#1c1418',g1:'#5a4c40',g2:'#3e3530',g3:'#302826',dirt:'#3a2c28'},
+};
+const TINT={moor:[150,150,165],ash:[125,72,60],snow:[205,214,224]};
+const C={daub:'#d8c9a2',beam:'#4a3524',th1:'#b89a55',th2:'#9c7f40',sl1:'#5a6272',sl2:'#4a5160',st1:'#9d998f',st2:'#87837a',st3:'#6f6b64',tile1:'#a8553a',tile2:'#8f4530',
+  wood:'#7a5a3a',wood2:'#6b4d30',dark:'#2a2430',red:'#9a2d28',gold:'#e3b548',cloth:'#e6dcc0',steel:'#aeb6c2',glass:'#2c3344'};
+const SKY=[[0,'#5b6c9c','#f0b48a'],[.07,'#79b4dc','#dcebd2'],[.5,'#79b4dc','#dcebd2'],[.6,'#5a5290','#f2a45e'],[.66,'#33285a','#d9683f'],
+  [.73,'#0a0e24','#232a52'],[.93,'#0a0e24','#232a52'],[1.001,'#5b6c9c','#f0b48a']].map(k=>[k[0],rgb(k[1]),rgb(k[2])]);
+function skyAt(t){let i=0;while(SKY[i+1][0]<=t)i++;const a=SKY[i],b=SKY[i+1],k=(t-a[0])/(b[0]-a[0]);return [mixA(a[1],b[1],k),mixA(a[2],b[2],k)];}
+let CAM=0,LT=[],WN=[],HZ=[220,235,210];
+function glow(x,y,r,col,a){
+  if(a<=0)return;
+  ctx.save();ctx.translate(Math.round(x),Math.round(y));
+  const g=ctx.createRadialGradient(0,0,0,0,0,r);g.addColorStop(0,`rgba(${col},${a})`);g.addColorStop(1,`rgba(${col},0)`);
+  ctx.globalCompositeOperation='lighter';ctx.fillStyle=g;ctx.fillRect(-r,-r,r*2,r*2);ctx.restore();
+}
+const lt=(x,y,r,a,col)=>LT.push([x,y,r,a,col]);
+function disc(x,y,r,c){ctx.fillStyle=c;x=Math.round(x);y=Math.round(y);for(let j=-r;j<=r;j++){const w=Math.round(Math.sqrt(r*r-j*j));ctx.fillRect(x-w,y+j,w*2+1,1);}}
+function flag(x,y,d,col,len,hg){for(let i=0;i<len;i++){const o=Math.round(Math.sin(G.clock*5-i*.9)*(i/len)*1.7);R(x+i*d-(d<0?1:0),y+o,1,hg||4,i%3===2?tone(col,.8):col);}}
+function flame(x,y,n){const f=Math.floor(G.clock*9+x)%3;R(x-1,y-2,3,2,'#e8703f');P(x,y-3-(f?1:0),'#f2c14e');if(n)P(x+(f-1),y-4,'#e8703f');}
+function torch(x,y,r){flame(x,y,0);lt(x,y-2,r||20,.55);}
+function bar(x,y,w,r,col){R(x-w/2-1,y-1,w+2,3,'#16131a');R(x-w/2,y,w*clamp(r,0,1),1,col||'#c0392b');}
+
+function drawSky(){
+  const t=G.scene==='home'?G.t:.3;let [a,b]=skyAt(t);const tint=TINT[G.bio];
+  if(tint){a=mixA(a,tint,.55);b=mixA(b,tint,.45);}
+  HZ=b;const n=16,hh=Math.ceil(GY/n);
+  for(let i=0;i<n;i++)R(0,i*hh,W,hh,css(mixA(a,b,Math.pow(i/(n-1),1.3))));
+  if(G.dark>.25)for(let i=0;i<60;i++)if(hash(i+Math.floor(G.clock*1.5+i*.37))>.1){
+    ctx.fillStyle=`rgba(255,250,230,${((G.dark-.25)*1.2*(.4+hash(i)*.6)).toFixed(2)})`;ctx.fillRect(Math.floor(hash(i*3.1)*W),Math.floor(hash(i*7.7)*GY*.8),1,1);}
+  if(t<.66){const u=t/.64,x=W*(.12+.76*u),y=GY-8-Math.sin(u*Math.PI)*GY*.72;glow(x,y,28,'255,236,170',.5);disc(x,y,5,'#fff2c0');}
+  if(t>.66||t<.04){const u=t>.66?(t-.66)/.38:(t+.34)/.38,x=W*(.15+.7*u),y=GY-10-Math.sin(u*Math.PI)*GY*.66;glow(x,y,22,'200,215,255',.35);disc(x,y,4,'#e8ecf6');R(x-2,y-2,2,2,'#c9d0e0');P(x+1,y+1,'#c9d0e0');}
+  const cc=css(mixA(b,[255,255,255],.55-G.dark*.42)),c2=css(mixA(b,[255,255,255],.3-G.dark*.26));
+  for(let i=0;i<5;i++){
+    const span=W+90,cx=((hash(i*9.3)*span+G.clock*(1.1+i*.3)-CAM*.04)%span+span)%span-45,cy=8+hash(i*5.1)*GY*.36,cw=18+hash(i)*24;
+    R(cx,cy,cw,3,cc);R(cx+4,cy-2,cw-10,2,cc);R(cx+2,cy+3,cw-6,1,c2);
+  }
+}
+function ridge(par,base,amp,scale,col,seed,rough){
+  ctx.fillStyle=col;const off=Math.round(CAM*par);
+  for(let x=0;x<W;x++){
+    const wx=(x+off)/scale+seed,i=Math.floor(wx),f=wx-i,s=f*f*(3-2*f);
+    const h=(hash(i)*(1-s)+hash(i+1)*s)*amp+(rough?hash(Math.floor((x+off)/rough)+91)*3:0);
+    ctx.fillRect(x,Math.round(base-h),1,Math.ceil(GY-base+h)+1);
+  }
+}
+function drawBack(){
+  const bio=BIO[G.bio],hz=c=>(k=>css(mixA(rgb(c),HZ,k)));
+  ridge(.05,GY-14,GY*.4,64,hz(bio.far)(.5),3);
+  if(G.bio==='vale'||G.bio==='snow'||G.bio==='river'){ctx.globalAlpha=.5;ridge(.05,GY-14-GY*.26,GY*.14,64,'#eef2f6',3);ctx.globalAlpha=1;ridge(.05,GY-14,GY*.27,64,hz(bio.far)(.5),3);}
+  ridge(.12,GY-6,GY*.2,44,hz(bio.mid)(.3),17);
+  ridge(.28,GY-1,9,7,hz(bio.tree)(.14),40,2);
+}
+function drawGround(){
+  const bio=BIO[G.bio];
+  R(0,GY-1,W,H-GY+1,bio.g2);R(0,GY-1,W,2,bio.g1);R(0,GY+1,W,6,bio.dirt);R(0,GY+7,W,1,bio.g3);
+  const d1=tone(bio.dirt,1.14),d2=tone(bio.dirt,.84);
+  for(let x=0;x<W;x++){
+    const wx=x+CAM,h1=hash(wx*1.31);
+    if(h1>.8)P(x,GY+1+Math.floor(hash(wx)*6),h1>.9?d1:d2);
+    if(hash(wx*.77+5)>.7)P(x,GY-2,bio.g1);
+    if(hash(wx*2.3+9)>.88)P(x,GY+9+Math.floor(hash(wx*3)*(H-GY-10)),bio.g3);
+    if(hash(wx*1.9+2)>.92)P(x,GY+9+Math.floor(hash(wx*5)*(H-GY-10)),bio.g1);
+  }
+}
+
+// ---------- building blocks
+function gable(x,y,w,h,c,c2){for(let i=0;i<h;i++){const ins=Math.round(i*(w/2)/h);R(x+ins,y-i-1,w-ins*2,1,i%2?c:c2||c);}}
+function timber(x,y,w,h,wall,beam){
+  R(x,y-h,w,h,wall);R(x,y-h,w,1,beam);R(x,y-1,w,1,beam);R(x,y-h,1,h,beam);R(x+w-1,y-h,1,h,beam);
+  for(let i=9;i<w-5;i+=9)R(x+i,y-h,1,h,beam);
+}
+function stoneR(x,y,w,h,c){
+  R(x,y-h,w,h,c);const m=tone(c,.82),l=tone(c,1.1);x=Math.round(x);
+  for(let j=3;j<h;j+=4)for(let i=(j%8<4?1:4);i<w-1;i+=6){P(x+i,y-j,m);if((i+j)%5===0)P(x+i+2,y-j+1,l);}
+  R(x,y-h,1,h,l);R(x+w-1,y-h,1,h,m);
+}
+function win(x,y,w,h){R(x,y,w,h,C.glass);WN.push([x,y,w,h]);}
+function smoke(wx,h,rate){if(Math.random()<rate)G.parts.push({x:wx+rnd(-1,1),h,vx:rnd(1,5),vh:rnd(6,11),life:0,max:rnd(1.6,3),col:'#b8b4ac',grav:0,big:1});}
+function hut(x,w,h,two){
+  timber(x-w/2,GY,w,h,C.daub,C.beam);R(x-1,GY-6,3,6,C.wood2);win(x-w/2+2,GY-h+2,2,2);if(two)win(x+w/2-4,GY-h+2,2,2);
+  gable(x-w/2-1,GY-h,w+2,Math.round(w*.45),C.th1,C.th2);
+}
+function tree(sx,kind,sz,col){
+  const c2=tone(col,1.25),c3=tone(col,.8);
+  if(kind){R(sx,GY-4,1,4,C.beam);for(let i=0;i<sz+3;i++){const w=1+Math.floor((sz+3-i)*.7);R(sx-w+1,GY-5-i*2,w*2-1,2,i%2?col:c3);}if(G.bio==='snow')R(sx-1,GY-5-(sz+2)*2,3,1,'#f2f5f8');}
+  else{R(sx-1,GY-7-sz,2,7+sz,C.beam);disc(sx,GY-11-sz*2,5+sz,c3);disc(sx-1,GY-12-sz*2,4+sz,col);disc(sx-2,GY-14-sz*2,2+sz,c2);}
+}
+const HOMEPROPS=[];
+for(let x=40;x<WORLD-40;x+=14+Math.floor(hash(x)*30)){
+  const d=Math.abs(x-CX);if(d<WALLX+34||(d>604&&d<896)||Math.abs(d-CAMP)<34||Math.abs(d-BORDER)<16)continue;
+  HOMEPROPS.push({x,k:hash(x*3)>.6?1:0,s:Math.floor(hash(x*7)*3),b:hash(x*11)>.82});
+}
+function props(list,col){
+  for(const p of list){const sx=Math.round(p.x-CAM);if(sx<-20||sx>W+20)continue;
+    if(p.b){disc(sx,GY-3,3,tone(col,1.1));disc(sx+3,GY-2,2,col);}else tree(sx,p.k,p.s,col);}
+}
+
+// ---------- the keep, which grows a storey with every level
+function drawCourtier(x,y,c){
+  const col=c.guard?C.steel:['#9a2d28','#3f5fa0','#56733c','#e3b548','#8c5a7a','#d8c9a2'][c.c],f=c.moving&&Math.floor(c.walk)%2;
+  R(x,y-3,2,3,col);P(x+(f?0:1),y,C.dark);R(x,y-5,2,2,c.guard?C.steel:'#e2aa7c');
+  if(c.guard){R(x+(c.dir>0?2:-1),y-8,1,8,C.wood);P(x+(c.dir>0?2:-1),y-9,'#dfe5ee');}
+  else if(c.c===3)P(x,y-6,C.gold);else if(c.c===1)R(x-1,y-2,4,2,col);
+}
+function drawKeep(sx,b){
+  const L=b.level,w=KEEP.w[L],h=KEEP.h[L],x0=Math.round(sx-w/2);
+  if(L===0){
+    stoneR(x0,GY,11,7,C.st2);stoneR(x0+2,GY-7,7,6,C.st1);stoneR(sx+4,GY,13,10,C.st2);stoneR(sx+8,GY-10,6,6,C.st1);stoneR(sx-7,GY,11,3,C.st3);
+    P(x0+3,GY-13,C.st1);P(sx+10,GY-17,C.st1);for(let i=0;i<8;i++)P(x0+hash(i)*w,GY-1-hash(i*3)*9,'#4f7c35');
+    return;
+  }
+  if(L===1){
+    timber(x0,GY,w,14,C.daub,C.beam);R(sx-3,GY-9,6,9,C.wood2);P(sx+1,GY-5,C.gold);win(x0+5,GY-10,3,4);win(x0+w-8,GY-10,3,4);
+    gable(x0-2,GY-14,w+4,14,C.th1,C.th2);R(sx,GY-36,1,9,C.beam);flag(sx+1,GY-36,1,C.red,7,4);
+    for(const c of G.court)drawCourtier(sx+Math.round(c.x),GY,c);
+    return;
+  }
+  const fl=KEEP.fl[L],fh=18,base=12;
+  if(L>=3)for(const s of [-1,1]){
+    const tw=12,th=h+8+(L-3)*5,tx=Math.round(sx+s*(w/2+4)-tw/2);
+    stoneR(tx,GY,tw,th,C.st2);
+    for(let j=14;j<th-4;j+=12){R(tx+5,GY-j-4,2,4,C.dark);WN.push([tx+5,GY-j-4,2,4]);}
+    if(L>=4){gable(tx-2,GY-th,tw+4,11,C.sl1,C.sl2);R(tx+tw/2,GY-th-18,1,7,C.beam);flag(tx+tw/2+1,GY-th-18,1,s<0?C.red:C.gold,6,3);}
+    else for(let i=0;i<tw;i+=4)R(tx+i,GY-th-3,2,3,C.st2);
+  }
+  stoneR(x0,GY,w,h,C.st1);
+  R(sx-5,GY-10,10,10,C.dark);R(sx-4,GY-11,8,1,C.dark);R(sx-3,GY-12,6,1,C.dark);
+  for(let i=-4;i<5;i+=2)R(sx+i,GY-11,1,5,'#59606e');
+  R(sx-7,GY-1,14,1,C.st3);torch(sx-8,GY-7,16);torch(sx+8,GY-7,16);
+  for(let f=0;f<fl;f++){
+    const y0=GY-base-f*fh,gx=x0+4,gw=w-8;
+    R(gx,y0-13,gw,11,'#3a3442');R(gx,y0-13,gw,1,C.dark);
+    for(const c of G.court)if(c.fl===f&&!(G.battle&&!c.guard))drawCourtier(sx+Math.round(c.x),y0-3,c);
+    R(gx-1,y0-2,gw+2,2,C.st2);R(gx-1,y0-3,gw+2,1,tone(C.st1,1.12));
+    for(let i=0;i<=gw;i+=8){R(gx+i-(i>=gw?1:0),y0-13,1,11,C.st1);P(gx+i+1,y0-13,C.st1);P(gx+i-1,y0-13,C.st1);}
+    lt(sx,y0-7,gw*.7,.22);
+  }
+  const ry=GY-h;
+  for(const c of G.court)if(c.fl===fl)drawCourtier(sx+Math.round(c.x),ry,c);
+  for(let i=0;i<w;i+=4)R(x0+i,ry-3,2,3,C.st1);R(x0-1,ry,w+2,1,C.st2);
+  if(L>=5){
+    stoneR(sx-8,ry,16,12,C.st2);win(sx-1,ry-9,2,4);for(let i=0;i<16;i+=4)R(sx-8+i,ry-15,2,3,C.st2);
+    gable(sx-7,ry-12,14,12,C.sl1,C.sl2);R(sx,ry-33,1,10,C.beam);flag(sx+1,ry-33,1,C.red,9,5);P(sx+3,ry-31,C.gold);
+  }else{R(sx,ry-14,1,14,C.beam);flag(sx+1,ry-14,1,C.red,8,4);P(sx+3,ry-12,C.gold);}
+}
+
+// ---------- the town
+function drawCottage(sx,b,L){
+  if(L>=3){timber(sx-15,GY,13,15,C.daub,C.beam);win(sx-12,GY-12,2,2);win(sx-7,GY-12,2,2);R(sx-10,GY-6,3,6,C.wood2);gable(sx-16,GY-15,15,7,C.sl1,C.sl2);}
+  if(L>=2)hut(sx+11,13,8);
+  hut(L>=3?sx+1:sx-3,14,9,L>1);
+  R(sx-19,GY-3,1,3,C.wood);R(sx+19,GY-3,1,3,C.wood);
+  smoke(b.x+(L>=3?1:-3),20,.012);
+}
+function drawFarm(sx,b,L){
+  const x0=sx-50,grow=G.scene==='home'?clamp(G.t/.45,0,1):1,bx=sx+b.dir*62;
+  R(x0,GY-1,100,2,'#6b4d30');
+  if(b.burnt||b.burn>0){for(let i=0;i<100;i+=2)if(hash(b.x+i)>.4)R(x0+i,GY-2,1,1,'#1f1a1c');
+    if(b.burn>0){lt(sx,GY-5,64,.4,'255,150,60');for(let i=1;i<100;i+=3){const fh=2+Math.round((Math.sin(G.clock*11+i*1.7)*.5+.5)*5*Math.min(1,b.burn/3));R(x0+i,GY-1-fh,2,fh,'#e8703f');R(x0+i,GY-1-fh+2,1,Math.max(0,fh-2),'#f2c14e');}}}
+  else for(let i=0;i<100;i+=2){const hh=1+Math.round(grow*(1+L)*(.6+hash(b.x+i)*.4));R(x0+i,GY-1-hh,1,hh,i%4?'#c9a646':'#a88c34');if(grow>.6)P(x0+i,GY-2-hh,'#ecd070');}
+  R(x0-2,GY-5,1,5,C.wood);R(x0+101,GY-5,1,5,C.wood);
+  if(L>=2){R(sx,GY-13,1,11,C.wood);R(sx-3,GY-11,7,1,C.wood);R(sx-1,GY-14,3,3,C.daub);R(sx-2,GY-15,5,1,C.beam);P(sx-3,GY-10,C.th1);P(sx+3,GY-10,C.th1);}
+  if(L>=3){const q=sx-b.dir*36;timber(q-8,GY,16,10,'#9a4a34',C.beam);R(q-2,GY-7,5,7,C.beam);gable(q-9,GY-10,18,8,C.sl1,C.sl2);}
+  R(bx,GY-9,1,9,'#3a3038');R(bx-2,GY-11,5,2,'#3a3038');
+  if(G.battle||G.dark>.3||b.burn>0)torch(bx,GY-11,14);
+}
+function drawBarracks(sx,b,L){
+  const w=56,x0=sx-28,h=L>=3?24:16;
+  timber(x0,GY,w,h,C.daub,C.beam);if(L>=2)stoneR(x0,GY,w,7,C.st1);
+  R(sx-3,GY-10,7,10,C.wood2);P(sx+2,GY-5,C.gold);
+  win(x0+6,GY-h+3,3,4);win(x0+w-10,GY-h+3,3,4);if(L>=3){win(x0+17,GY-h+3,3,4);win(x0+w-21,GY-h+3,3,4);R(x0,GY-13,w,1,C.beam);}
+  gable(x0-2,GY-h,w+4,11,C.tile1,C.tile2);
+  R(sx-2,GY-15,5,5,C.red);R(sx-1,GY-10,3,1,C.red);P(sx,GY-13,C.gold);
+  R(x0+11,GY-8,10,1,C.beam);for(let i=0;i<3;i++){R(x0+12+i*3,GY-13,1,12,C.wood);P(x0+12+i*3,GY-14,'#dfe5ee');}
+  if(L>=4){stoneR(x0+w-13,GY,13,h+14,C.st2);for(let i=0;i<13;i+=4)R(x0+w-13+i,GY-h-17,2,3,C.st2);win(x0+w-8,GY-h-8,2,4);}
+  R(x0-3,GY-h-12,1,h+12,C.beam);flag(x0-2,GY-h-12,1,C.red,8,5);
+}
+function drawRange(sx,b,L){
+  timber(sx-25,GY,18,12,C.daub,C.beam);R(sx-22,GY-9,11,9,C.dark);gable(sx-26,GY-12,20,7,C.th1,C.th2);
+  P(sx-19,GY-7,C.wood);P(sx-18,GY-6,C.wood);P(sx-19,GY-5,C.wood);P(sx-15,GY-7,C.wood);P(sx-14,GY-6,C.wood);P(sx-15,GY-5,C.wood);
+  for(let i=0;i<Math.min(3,1+L);i++){const x=sx+2+i*9;line(x-2,GY,x,GY-5,C.wood);line(x+2,GY,x,GY-5,C.wood);disc(x,GY-8,3,C.cloth);disc(x,GY-8,2,C.red);P(x,GY-8,C.gold);}
+  R(sx-27,GY-24,1,12,C.beam);flag(sx-26,GY-24,1,'#3f6b3d',7,4);
+  if(L>=4){R(sx-5,GY-6,1,6,'#3a3038');R(sx-7,GY-8,5,2,'#3a3038');torch(sx-5,GY-8,16);}
+}
+function drawStable(sx,b,L){
+  const x0=sx-28;timber(x0,GY,56,13,L>1?'#cfc2a0':C.daub,C.beam);
+  for(let i=0;i<4;i++){const x=x0+4+i*13;R(x,GY-10,8,10,C.dark);R(x,GY-4,8,4,C.wood2);if(i<L*2){const hc=['#8b4a2b','#d6d0c2','#3a2e28','#a86039'][i];R(x+2,GY-9,3,4,hc);R(x+4,GY-8,2,2,hc);P(x+3,GY-10,hc);}}
+  gable(x0-2,GY-13,60,8,L>1?C.sl1:C.th1,L>1?C.sl2:C.th2);
+  R(x0-8,GY-4,6,4,'#c9a646');R(x0-7,GY-5,4,1,'#b08f38');
+  if(L>1){R(x0+58,GY-24,1,24,C.beam);flag(x0+59,GY-24,1,C.gold,7,4);}
+}
+function drawSmith(sx,b,L){
+  const x0=sx-23,h=13+L;stoneR(x0+29,GY,8,22+L*2,C.st3);smoke(b.x+10,24+L*2,.05);
+  stoneR(x0,GY,34,h,C.st2);R(x0+5,GY-10,15,10,C.dark);
+  const f=Math.sin(G.clock*9)>.2;R(x0+8,GY-4,9,3,f?'#e8703f':'#d05a30');R(x0+10,GY-5,5,1,'#f2c14e');lt(x0+12,GY-5,26,.5);
+  gable(x0-2,GY-h,38,7,C.sl1,C.sl2);
+  R(x0+40,GY-4,6,2,'#3a3038');R(x0+41,GY-2,3,2,'#3a3038');R(x0+39,GY-5,2,1,'#3a3038');
+  win(x0+24,GY-9,3,3);R(x0+2,GY-h+1,1,5,C.beam);P(x0+1,GY-h+6,C.steel);P(x0+3,GY-h+6,C.steel);P(x0+2,GY-h+7,C.steel);
+  if(L>=2)disc(x0-4,GY-3,3,C.st1);
+  if(L>=3){R(x0-10,GY-9,1,9,C.wood);R(x0-12,GY-8,5,4,C.steel);P(x0-10,GY-10,C.steel);}
+  if(L>=4)stoneR(x0-1,GY,5,h+9,C.st3);
+}
+function drawMarket(sx,b,L){
+  const cols=[C.red,'#3f5fa0','#56733c',C.gold];
+  for(let i=0;i<=L;i++){
+    const x=sx-25+i*(L>2?13:16);R(x,GY-11,1,11,C.wood);R(x+10,GY-11,1,11,C.wood);R(x,GY-5,11,2,C.wood2);
+    for(let j=0;j<11;j++)R(x+j,GY-13,1,3,j%4<2?cols[i]:C.cloth);R(x,GY-10,11,1,tone(cols[i],.75));
+    P(x+2,GY-6,C.gold);P(x+5,GY-6,'#c0392b');P(x+8,GY-6,'#6c9a44');
+  }
+  R(sx+21,GY-4,4,4,C.wood);R(sx+22,GY-6,3,2,C.wood2);
+  if(L>=3){R(sx+28,GY-17,1,17,C.st1);R(sx+26,GY-15,5,1,C.st1);R(sx+26,GY-2,5,2,C.st2);}
+}
+function drawInfirm(sx,b,L){
+  if(L===1){gable(sx-15,GY,30,15,C.cloth,'#d6ccb0');R(sx-2,GY-9,5,9,C.dark);R(sx,GY-22,1,8,C.beam);R(sx+1,GY-22,5,5,'#f2f5f8');R(sx+3,GY-21,1,3,'#c0392b');R(sx+2,GY-20,3,1,'#c0392b');}
+  else{
+    const st=L>=3;st?stoneR(sx-20,GY,40,16,C.st1):timber(sx-20,GY,40,13,C.daub,C.beam);const h=st?16:13;
+    R(sx-3,GY-9,6,9,C.wood2);R(sx-2,GY-10,4,1,C.wood2);win(sx-15,GY-9,3,5);win(sx+12,GY-9,3,5);
+    gable(sx-22,GY-h,44,9,C.sl1,C.sl2);
+    R(sx-2,GY-h+1,5,5,'#f2f5f8');R(sx,GY-h+2,1,3,'#c0392b');R(sx-1,GY-h+3,3,1,'#c0392b');
+    if(st){stoneR(sx+11,GY-h,8,13,C.st2);gable(sx+10,GY-h-13,10,6,C.sl1,C.sl2);R(sx+15,GY-h-23,1,4,C.gold);R(sx+14,GY-h-22,3,1,C.gold);R(sx+14,GY-h-9,2,3,C.dark);}
+  }
+  const n=Math.min(4,G.wounded.length);
+  for(let i=0;i<n;i++){const x=sx+24+i*8-(i>1?64:0);R(x,GY-3,7,1,C.cloth);P(x,GY-2,C.wood);P(x+6,GY-2,C.wood);R(x+1,GY-5,4,2,'#9a8a70');P(x+5,GY-5,'#e2aa7c');}
+}
+function drawWorkshop(sx,b,L){
+  const x0=sx-30;R(x0+2,GY-11,56,11,'#4a3a2a');
+  for(const i of [0,28,57])R(x0+i,GY-16,2,16,C.beam);
+  gable(x0-2,GY-16,64,8,C.th1,C.th2);
+  R(x0+6,GY-5,12,1,C.wood);R(x0+7,GY-4,1,4,C.wood2);R(x0+16,GY-4,1,4,C.wood2);P(x0+9,GY-6,C.steel);
+  R(x0+34,GY-3,18,3,C.wood);R(x0+36,GY-5,14,2,C.wood2);
+  for(let a=0;a<8;a++)P(x0+24+Math.round(Math.cos(a*.785)*3.4),GY-5+Math.round(Math.sin(a*.785)*3.4),C.wood);P(x0+24,GY-5,C.beam);
+  if(L>=2){line(x0-11,GY,x0-6,GY-22,C.wood);line(x0-1,GY,x0-6,GY-22,C.wood);R(x0-6,GY-22,1,9,'#cdbf9a');R(x0-7,GY-13,3,2,C.st2);}
+  if(L>=3){line(x0+34,GY-16,x0+52,GY-28,C.wood2);R(x0+50,GY-30,5,4,C.st3);}
+}
+function drawTrap(sx,b){
+  if(b.sprung){R(sx-6,GY+1,13,4,'#16110e');for(let i=0;i<4;i++)R(sx-5+i*3,GY,1,3,'#cdbf9a');}
+  else{R(sx-6,GY+1,13,3,'#56733c');for(let i=0;i<6;i++)P(sx-6+hash(b.x+i)*12,GY+1+hash(i*3+b.x)*3,i%2?'#6b5230':'#6c9a44');}
+}
+// a gate: palisade, then stone, then towers. Used for your walls and for theirs
+function drawGate(sx,L,o){
+  if(!L)return;
+  const h=WALL.h[L],half=o.half,en=o.enemy,wd=en?'#4a362a':C.wood,wd2=en?'#3a2a22':C.wood2,s1=en?'#6a6670':C.st1,s2=en?'#56525c':C.st2;
+  if(o.dead){for(let i=-half-4;i<=half+4;i+=2){const hh=1+Math.floor(hash(i*3.3+L)*(L>1?7:4));R(sx+i,GY-hh,2,hh,i%4?s2:(L===1?wd2:s1));}return;}
+  if(L===1){
+    for(let i=-half;i<half;i+=2){const hh=h+(Math.abs(i)%4?0:2);R(sx+i,GY-hh,2,hh,(i/2)%2?wd:wd2);P(sx+i,GY-hh-1,wd2);}
+    R(sx-half-1,GY-h+3,half*2+2,1,'#3a2a18');R(sx-half-1,GY-5,half*2+2,1,'#3a2a18');R(sx-half-4,GY-h+1,3,1,wd2);R(sx+half+1,GY-h+1,3,1,wd2);
+  }else{
+    if(L>=3)for(const s of [-1,1]){
+      const tx=sx+s*(half+2)-3,th=h+7+(L-3)*5;stoneR(tx,GY,6,th,s2);R(tx-1,GY-th,8,1,s2);
+      if(L>=4)gable(tx-2,GY-th,10,8,en?'#3a2024':C.tile1,en?'#2a1418':C.tile2);else{R(tx-1,GY-th-2,2,2,s2);R(tx+2,GY-th-2,2,2,s2);R(tx+5,GY-th-2,2,2,s2);}
+      R(tx+2,GY-th+5,2,3,C.dark);
+    }
+    stoneR(sx-half,GY,half*2,h,s1);
+    for(let i=-half;i<half;i+=3)R(sx+i,GY-h-2,2,2,s1);
+    R(sx-3,GY-10,6,10,C.dark);R(sx-2,GY-11,4,1,C.dark);
+    if(o.closed){for(let i=-3;i<3;i+=2)R(sx+i,GY-11,1,11,'#59606e');R(sx-3,GY-6,6,1,'#59606e');}
+    if(L>=4&&!en){R(sx+o.dir*(half-2)-1,GY-h-5,3,3,'#2a2430');P(sx+o.dir*(half-2),GY-h-6,'#e8703f');}
+  }
+  if(o.r<.66)line(sx-2,GY-h+2,sx+1,GY-h+8,C.dark);if(o.r<.33)line(sx+2,GY-h+1,sx-1,GY-9,C.dark);
+  torch(sx-o.dir*(half+1),GY-h+(L>1?6:5),18);
+  const fy=GY-h-(L>=3?16+(L-3)*5:10);R(sx,fy,1,GY-h-fy,C.beam);flag(sx+1,fy,1,en?'#1a161c':C.red,6,4);if(en)P(sx+3,fy+1,'#c0392b');
+  if(o.flash>0){ctx.fillStyle='rgba(255,255,255,.35)';ctx.fillRect(sx-half,GY-h,half*2,h);}
+}
+function scaffold(sx,b){
+  const w=b.type==='farm'?40:b.type==='trap'?12:b.type==='wall'?16:b.w,h=b.type==='keep'?KEEP.h[b.level+1]:b.type==='wall'?WALL.h[b.level+1]+4:b.type==='trap'||b.type==='farm'?7:22;
+  ctx.fillStyle='rgba(157,153,143,.5)';ctx.fillRect(Math.round(sx-w/2+1),Math.round(GY-h*b.prog),w-2,Math.round(h*b.prog));
+  R(sx-w/2-1,GY-h,1,h,C.wood2);R(sx+w/2,GY-h,1,h,C.wood2);for(let j=6;j<=h;j+=7)R(sx-w/2-1,GY-j,w+2,1,C.wood);
+  bar(sx,GY+10,16,b.prog,C.gold);
+}
+const TC={militia:'#8a6a40',sword:'#9a2d28',pike:'#56733c',maa:'#aeb6c2',archer:'#3f6b3d',longbow:'#3f5fa0',crossbow:'#2f3a55',hobelar:'#a86039',knight:'#e3b548',mangonel:'#6b5230',ballista:'#6b5230',trebuchet:'#6b5230'};
+function drawPosts(sx0,b){
+  for(const p of posts(b)){
+    if(!p.open)continue;const sx=Math.round(p.x-CAM),u=UT[p.type];
+    R(sx,GY-10,1,10,C.wood2);R(sx-2,GY-16,5,6,TC[p.type]);R(sx-2,GY-16,5,1,C.cloth);P(sx-2,GY-10,TC[p.type]);P(sx+2,GY-10,TC[p.type]);
+    if(u.eng){P(sx-1,GY-13,C.cloth);P(sx+1,GY-13,C.cloth);P(sx,GY-12,C.cloth);P(sx,GY-14,C.cloth);}
+    else if(u.cav){P(sx-1,GY-14,C.cloth);P(sx-1,GY-13,C.cloth);P(sx+1,GY-14,C.cloth);P(sx+1,GY-13,C.cloth);P(sx,GY-12,C.cloth);}
+    else if(u.range){P(sx,GY-14,C.cloth);P(sx+1,GY-13,C.cloth);P(sx,GY-12,C.cloth);}
+    else R(sx,GY-14,1,3,'#f2f5f8');
+    const q=G.orders.reduce((n,o)=>n+(o.type===p.type?1:0),0);if(q)ctext(sx+1,GY-24,q,'#eadcb6','#16131a');
+  }
+}
+function drawSite(b){
+  const sx=Math.round(b.x-CAM),L=b.level,pad=b.type==='farm'?80:70;if(sx<-pad||sx>W+pad)return;
+  if(b.type==='wall'){drawGate(sx,L,{half:b.half,dir:b.dir,dead:L>0&&b.hp<=0,r:b.max?b.hp/b.max:1,flash:b.flash,closed:G.foes.some(f=>Math.abs(f.x-b.x)<170)});}
+  else if(L>0){
+    ({keep:drawKeep,cottage:drawCottage,farm:drawFarm,barracks:drawBarracks,range:drawRange,stable:drawStable,smith:drawSmith,market:drawMarket,infirm:drawInfirm,workshop:drawWorkshop,trap:drawTrap})[b.type](sx,b,L);
+    drawPosts(sx,b);
+  }else if(b.type==='keep')drawKeep(sx,b);
+  if(b.building)scaffold(sx,b);
+  else if(L===0&&b.type!=='keep'){
+    const need=DEF[b.type].need[0],KL=B.keep.level,w=Math.min(b.w,34)/2;
+    if(KL>=need){R(sx-w,GY-5,1,5,C.wood);R(sx+w,GY-5,1,5,C.wood);for(let i=1;i<w*2;i+=2)P(sx-w+i,GY-4,'#cdbf9a');
+      R(sx,GY-9,1,9,C.wood);R(sx-3,GY-13,7,5,'#eadcb6');R(sx-2,GY-12,5,3,b.type==='trap'?C.dark:b.type==='farm'?'#c9a646':b.type==='wall'?C.st2:b.type==='cottage'?C.th1:C.red);}
+    else if(KL>=need-1)R(sx,GY-4,1,4,'#6b6258');
+  }
+  if(b.max&&b.hp<b.max&&b.hp>0)bar(sx,GY-(b.hgt||10)-(b.type==='keep'?26:14),20,b.hp/b.max,b.hp/b.max>.4?'#6c9a44':'#c0392b');
+}
+function drawHomeScenery(){
+  props(HOMEPROPS,BIO.vale.tree);
+  for(const s of [-1,1]){
+    const cx=Math.round(CX+s*CAMP-CAM);
+    if(cx>-60&&cx<W+60){
+      gable(cx-22,GY,16,10,'#8a7a60','#7a6a52');R(cx-15,GY-6,3,6,C.dark);gable(cx+10,GY,13,8,'#7a6a52','#6b5c48');
+      R(cx-3,GY-1,6,1,'#3a3038');flame(cx,GY-1,1);lt(cx,GY-3,26,.6);R(cx+4,GY-2,5,2,C.wood2);
+    }
+    const bx=Math.round(CX+s*BORDER-CAM);
+    if(bx>-30&&bx<W+30){stoneR(bx-7,GY,5,13,C.st2);stoneR(bx+3,GY,4,9,C.st3);R(bx-12,GY-14,1,14,C.wood2);R(bx-12+(s>0?0:-7),GY-14,8,3,'#eadcb6');P(bx-12+(s>0?8:-8),GY-13,'#eadcb6');}
+  }
+}
+function drawFieldScenery(){
+  const f=G.field,bio=BIO[G.bio],S=G.S,L=LANDS[f.i];
+  for(let x=60;x<1980;x+=13+Math.floor(hash(x+f.i*77)*(G.bio==='forest'?16:44))){
+    if(Math.abs(x-S[0].x)<60||Math.abs(x-S[1].x)<50||(G.bio==='river'&&x>610&&x<690))continue;
+    const sx=Math.round(x-CAM);if(sx<-20||sx>W+20)continue;
+    if(G.bio==='ash'||G.bio==='moor'&&hash(x)>.5){R(sx,GY-9,1,9,'#2a2024');P(sx-1,GY-7,'#2a2024');P(sx+1,GY-9,'#2a2024');P(sx+2,GY-10,'#2a2024');}
+    else tree(sx,G.bio==='snow'||hash(x*3)>.5?1:0,Math.floor(hash(x*7)*3),bio.tree);
+  }
+  if(G.bio==='river'){const sx=Math.round(620-CAM);if(sx>-80&&sx<W+10){R(sx,GY-1,62,H-GY+1,'#4a7a9a');for(let i=0;i<8;i++)R(sx+((i*17+G.clock*6)%58),GY+2+i*((H-GY-4)/8),4,1,'#8fb8d0');R(sx-3,GY,68,2,C.wood);for(let i=0;i<68;i+=8)R(sx-3+i,GY+2,1,4,C.wood2);}}
+  for(let i=0;i<5;i++){const tx=Math.round(850+i*28-CAM);if(tx<-20||tx>W+20)continue;gable(tx-7,GY,14,9,'#4a3a3a','#3a2c2e');R(tx-1,GY-5,2,5,'#16131a');if(i===2){flame(tx+12,GY-1,1);lt(tx+12,GY-3,22,.5);}}
+  for(let x=S[0].x-70;x<S[0].x-14;x+=7){const sx=Math.round(x-CAM);line(sx,GY,sx-4,GY-6,'#4a362a');}
+  for(let i=0;i<4;i++){const tx=Math.round(S[0].x+60+i*44-CAM);if(tx>-20&&tx<W+20)gable(tx-6,GY,12,8,'#4a3a3a','#3a2c2e');}
+  // their wall and their hall
+  const w=S[0],wx=Math.round(w.x-CAM);
+  if(wx>-60&&wx<W+60){drawGate(wx,w.lvl,{half:w.half,dir:-1,enemy:1,dead:w.hp<=0,r:w.hp/w.max,flash:w.flash,closed:true});if(w.hp>0&&w.hp<w.max)bar(wx,GY-w.hgt-14,22,w.hp/w.max);}
+  const hl=S[1],hx=Math.round(hl.x-CAM),h=hl.hgt;
+  if(hx>-70&&hx<W+70){
+    if(hl.hp<=0){for(let i=-24;i<=24;i+=2){const hh=1+Math.floor(hash(i*3.3)*8);R(hx+i,GY-hh,2,hh,i%4?'#56525c':'#3a3038');}smoke(hl.x,10,.2);}
+    else{
+      if(hl.lvl===0){timber(hx-24,GY,48,14,'#6a5640','#2a1c14');gable(hx-26,GY-14,52,16,'#4a3a2a','#3a2c20');}
+      else{
+        if(hl.lvl>=2)for(const s of [-1,1]){stoneR(hx+s*26-5,GY,10,h+8,'#56525c');gable(hx+s*26-7,GY-h-8,14,hl.lvl>=4?14:8,'#3a2024','#2a1418');}
+        stoneR(hx-22,GY,44,h,'#6a6670');for(let i=0;i<44;i+=4)R(hx-22+i,GY-h-3,2,3,'#6a6670');
+        for(let j=14;j<h-4;j+=10)for(const i of [-12,10]){R(hx+i,GY-j-5,3,5,hl.lvl>=3?'#c0392b':C.glass);if(hl.lvl>=3)lt(hx+i+1,GY-j-3,8,.6,'255,80,60');}
+      }
+      R(hx-4,GY-11,8,11,'#16131a');R(hx-3,GY-12,6,1,'#16131a');
+      const fy=GY-h-(hl.lvl?20:30);R(hx,fy,1,16,'#2a1c14');flag(hx+1,fy,1,'#1a161c',9,5);P(hx+4,fy+2,'#c0392b');
+      if(hl.flash>0){ctx.fillStyle='rgba(255,255,255,.3)';ctx.fillRect(hx-22,GY-h,44,h);}
+      if(hl.hp<hl.max)bar(hx,GY-h-34,26,hl.hp/hl.max);
+    }
+  }
+}
+
+// ---------- drawing: people, horses, engines, and the frame itself
+const SKIN=['#e2aa7c','#c98d62','#9a6a44','#f0c39a'],HAIR=['#4a3524','#2a1c14','#8a6a40','#b9a77c'],SHIRT=['#4f7a8c','#8c5a7a','#5d8a4e','#c98a2e','#a85a3a','#7a6aa8','#b9a77c'];
+const LOOK={
+  militia:{t:'#8a6a40',l:'#4a3a2a',hd:'hair',w:'spear'},
+  sword:{t:'#9a2d28',l:'#3b3f55',hd:'helm',w:'sword',sh:'#e3b548'},
+  pike:{t:'#56733c',l:'#3b3f55',hd:'kettle',w:'pike'},
+  maa:{t:'#aeb6c2',l:'#59606e',hd:'great',w:'halberd'},
+  archer:{t:'#3f6b3d',l:'#4a3a2a',hd:'hood',w:'bow'},
+  longbow:{t:'#3f5fa0',l:'#4a3a2a',hd:'hood',w:'longbow'},
+  crossbow:{t:'#2f3a55',l:'#2a2430',hd:'kettle',w:'xbow'},
+  raider:{t:'#3a3340',l:'#1f1b24',hd:'hair',w:'axe'},
+  bowman:{t:'#4a2a2a',l:'#1f1b24',hd:'hood',w:'bow'},
+  brute:{t:'#5a1f1c',l:'#1f1b24',hd:'horn',w:'axe',sh:'#3a3038',big:1},
+};
+const WD='#6b5230',BL='#dfe5ee';
+function drawMan(x,y,u,L,bare){
+  const d=u.dir,f=u.moving?Math.floor(u.walk)%4:0,c=u.hurt>0?'#fff':null,b=L.big?1:0,hy=y-10-b,at=u.swing>0;
+  R(x-1+(f===1?d:0),y-3,1,f===3?2:3,c||L.l);R(x+1+(f===3?d:0),y-3,1,f===1?2:3,c||L.l);
+  R(x-1-b,y-7-b,3+b*2,4+b,c||tone(L.t,.9+(u.id%3)*.1));
+  R(x-1,hy,3,3,c||SKIN[u.id%4]);
+  if(L.hd==='hair')R(x-1,hy,3,1,u.side?'#b0352c':HAIR[u.id%4]);
+  else if(L.hd==='helm')R(x-1,hy,3,2,C.steel);
+  else if(L.hd==='hood'){R(x-1,hy,3,1,L.t);P(x-d,hy+1,L.t);}
+  else if(L.hd==='kettle'){R(x-2,hy,5,1,C.steel);R(x-1,hy-1,3,1,C.steel);}
+  else if(L.hd==='great'){R(x-1,hy,3,3,C.steel);P(x+d,hy+1,C.dark);P(x,hy-1,C.red);}
+  else if(L.hd==='horn'){R(x-1,hy,3,2,'#59606e');P(x-2,hy-1,'#d8d2c2');P(x+2,hy-1,'#d8d2c2');}
+  if(bare){P(x,hy,'#f2f5f8');P(x+1,hy,'#f2f5f8');return;}
+  const hx=x+d*2;
+  switch(L.w){
+    case 'spear':if(at){line(x,y-6,x+d*8,y-6,WD);P(x+d*9,y-6,BL);}else{R(hx,y-13,1,11,WD);P(hx,y-14,BL);}break;
+    case 'pike':if(at){line(x-d*2,y-6,x+d*12,y-7,WD);P(x+d*13,y-7,BL);}else{line(hx,y-3,x+d*5,y-17,WD);P(x+d*5,y-18,BL);}break;
+    case 'sword':if(at)line(hx,y-7,x+d*6,y-8,BL);else line(hx,y-6,x+d*3,y-11,BL);R(x+(d>0?2:-3),y-7,2,3,L.sh);break;
+    case 'halberd':if(at){line(x,y-7,x+d*8,y-7,WD);R(x+d*8-(d<0?1:0),y-9,2,3,BL);}else{R(hx,y-14,1,12,WD);R(hx-(d<0?1:0),y-15,2,3,BL);}break;
+    case 'axe':if(at){line(hx,y-6,x+d*5,y-7,WD);R(x+d*5-(d<0?1:0),y-9,2,3,'#9a9aa6');}else{line(hx,y-5,x+d*3,y-10,WD);R(x+d*3-(d<0?1:0),y-12,2,2,'#9a9aa6');}
+      if(L.sh)R(x+(d>0?2:-4),y-8-b,2,4,L.sh);break;
+    case 'bow':P(hx,y-9,WD);P(x+d*3,y-8,WD);P(x+d*3,y-7,WD);P(x+d*3,y-6,WD);P(hx,y-5,WD);if(at)line(x-d,y-7,x+d*3,y-7,'#cdbf9a');break;
+    case 'longbow':P(hx,y-11,WD);R(x+d*3,y-10,1,7,WD);P(hx,y-3,WD);if(at)line(x-d,y-7,x+d*3,y-7,'#cdbf9a');break;
+    case 'xbow':line(x+d,y-6,x+d*4,y-6,WD);R(x+d*4,y-8,1,5,'#3a2a18');if(!at)P(x+d*5,y-6,BL);break;
+  }
+  for(let i=0;i<(u.rank||0);i++)P(x-1+i,hy-2-(L.hd==='kettle'?1:0),'#f2c14e');
+}
+function drawCav(x,y,u,hc,rc,lance){
+  const d=u.dir,mv=u.moving,c=u.hurt>0?'#fff':null,dk=tone(hc,.7);
+  ctx.fillStyle='rgba(0,0,0,.2)';ctx.fillRect(x-5,y,11,1);
+  for(const [ox,off] of [[-4,0],[-3,2],[2,1],[3,3]]){const lift=mv&&Math.sin(u.walk*1.7+off*1.6)>.2?1:0;R(x+ox*d-(d<0?1:0),y-3,1,3-lift,c||dk);}
+  R(x-5,y-7,10,4,c||hc);R(x+d*4-(d<0?2:0),y-10,2,4,c||hc);R(x+d*5-(d<0?2:0),y-10,3,2,c||hc);P(x+d*4,y-11,dk);
+  R(x-d*5-(d>0?1:0),y-7,1,4,dk);
+  if(lance===2){R(x-4,y-6,8,4,C.red);P(x-2,y-4,C.gold);P(x+2,y-4,C.gold);R(x-4,y-2,8,1,'#7a2420');}
+  R(x-1,y-11,3,5,c||rc);R(x-1,y-14,3,3,lance===2||u.side?C.steel:SKIN[u.id%4]);
+  if(lance===2)P(x,y-15,C.red);else if(u.side){P(x-2,y-15,'#d8d2c2');P(x+2,y-15,'#d8d2c2');}else R(x-1,y-14,3,1,HAIR[u.id%4]);
+  if(u.swing>0||mv){line(x,y-9,x+d*10,y-9-(u.swing>0?0:1),WD);P(x+d*11,y-9-(u.swing>0?0:1),BL);}else{R(x+d*2,y-19,1,11,WD);P(x+d*2,y-20,BL);}
+  for(let i=0;i<(u.rank||0);i++)P(x-1+i,y-17,'#f2c14e');
+}
+// the big horse: the king, and the Warlord on a black one
+function drawBig(sx,y,p,hs,rs,king){
+  const sp=Math.abs(p.vx||0),mv=sp>4,gal=sp>55,d=p.dir,ph=(p.phase||p.walk||0)*2;
+  const bob=gal?(Math.sin(ph*2)>0?1:0):0,top=y-21-bob,stride=mv?(gal?5:3):0,lift=gal?3:2,c1=king?'#9a958a':'#17151a',c2=king?'#c2bcae':'#232028';
+  ctx.fillStyle='rgba(0,0,0,.22)';ctx.fillRect(sx-12,y,24,1);
+  const legs=gal?[[-5,.7,1],[3,Math.PI+.7,1],[-7,0,0],[5,Math.PI,0]]:[[-5,Math.PI,1],[3,Math.PI*1.5,1],[-7,0,0],[5,Math.PI*.5,0]];
+  for(const [rel,off,far] of legs){
+    const a=ph+off,hx=sx+rel*d-(d<0?1:0),hy=y-9-bob,up=mv?Math.max(0,Math.sin(a))*lift:0,fx=hx-Math.cos(a)*stride*d,fy=y-1-up;
+    const kx=(hx+fx)/2+(rel>0?1:-1)*d*(.6+up*.7),ky=(hy+fy)/2,c=far?c1:c2;
+    line(hx,hy,kx,ky,c,2);line(kx,ky,fx,fy,c,2);R(fx,fy,2,1,'#1c1410');
+  }
+  const tx=sx-9*d-(d<0?1:0),ty=top+7,sw=Math.sin(G.clock*2.5)*.8,tc=king?'#8b8474':'#0f0e13';
+  line(tx,ty,tx-(gal?6:2)*d,ty+(gal?2:6)+sw,tc,2);line(tx,ty+1,tx-(gal?4:1)*d,ty+(gal?4:8)+sw,tc,2);
+  ctx.drawImage(d>0?hs.r:hs.l,Math.round(sx)-(d>0?10:15),top);
+  const rt=top-2-(gal&&Math.sin(ph*2-1.2)>0?1:0),x=Math.round(sx);
+  ctx.drawImage(d>0?rs.r:rs.l,x-(d>0?4:3),rt);
+  if(mv)for(let i=1;i<=(gal?5:2);i++)P(x-d*(3+i)-(d<0?1:0),rt+5+(Math.sin(G.clock*16-i*1.3)>0?0:1),king?(i>3?'#7a2420':'#9a2d28'):'#3a0f0d');   // cloak streams behind
+  if(p.swing>0){const k=1-p.swing/.22;line(x+d*3,rt+5,x+d*(8+k*5),rt-3+k*10,'#f2f5f8',2);}
+  else if(king&&p.toss>0){R(x+d*3-(d<0?1:0),rt+2,1,4,'#e2aa7c');}
+  else line(x+d*3,rt+6,x+d*4,rt-2,BL);
+  if(p.hurt>0){ctx.fillStyle='rgba(255,255,255,.5)';ctx.fillRect(x-10,top,20,20);}
+}
+function drawEngine(u,x,y){
+  const d=u.dir,t=u.type,foe=u.side,w1=foe?'#4a362a':C.wood,w2=foe?'#3a2a22':C.wood2,f=clamp(u.swing/.35,0,1),flash=u.hurt>0;
+  ctx.fillStyle='rgba(0,0,0,.2)';ctx.fillRect(x-8,y,17,1);
+  if(t==='ram'){
+    const sw=Math.round(Math.sin(f*Math.PI)*3)*d;
+    R(x-9,y-12,18,3,w2);R(x-8,y-13,16,1,w1);R(x-8,y-9,1,7,w2);R(x+7,y-9,1,7,w2);
+    R(x-10+sw,y-6,19,2,'#2a1c14');R(x+(d>0?8:-11)+sw,y-7,3,4,C.steel);
+    disc(x-5,y-1,1,'#1c1410');disc(x+5,y-1,1,'#1c1410');
+    for(let i=-4;i<5;i+=4){R(x+i,y-3,1,3,'#1f1b24');}
+  }else if(t==='ballista'){
+    line(x-4,y,x,y-5,w2);line(x+4,y,x,y-5,w2);R(x-5,y-7,11,1,w1);R(x+d*5,y-11,1,9,w2);
+    if(!f){line(x+d*5,y-11,x-d*3,y-7,'#cdbf9a');line(x+d*5,y-3,x-d*3,y-7,'#cdbf9a');R(x-d*2-(d<0?6:0),y-8,7,1,BL);}
+  }else if(t==='trebuchet'){
+    line(x-7,y,x,y-18,w2,2);line(x+7,y,x,y-18,w2,2);R(x-8,y-1,17,1,w1);
+    const a=f>0?-1.9+f*1.2:.55,ax=Math.cos(a)*15*-d,ay=Math.sin(a)*15;      // long arm end; rests low behind, swings up over
+    line(x,y-18,x+ax,y-18+ay,w1,2);line(x,y-18,x-ax*.4,y-18-ay*.4,w1,2);
+    R(x-ax*.4-2,y-18-ay*.4,5,5,C.st3);
+    if(!f){line(x+ax,y-18+ay,x+ax+d*3,y-2,'#cdbf9a');P(x+ax+d*3,y-1,C.st1);}
+  }else{
+    R(x-7,y-3,14,2,w1);disc(x-5,y-1,1,'#1c1410');disc(x+5,y-1,1,'#1c1410');R(x+d*2,y-10,1,8,w2);R(x+d*1,y-10,3,1,w2);
+    const a=f>0?-1.3:.35,ax=Math.cos(a)*10*-d,ay=Math.sin(a)*10;
+    line(x+d*2,y-4,x+d*2+ax,y-4+ay-5,w1,1);R(x+d*2+ax-1,y-4+ay-6,3,2,foe?'#2a2024':C.wood2);
+  }
+  if(flash){ctx.fillStyle='rgba(255,255,255,.4)';ctx.fillRect(x-8,y-14,16,14);}
+  if(u.hp<u.max)bar(x,y-(t==='trebuchet'?36:17),12,u.hp/u.max,foe?'#c0392b':'#6c9a44');
+}
+function drawUnit(u,sx,y){
+  y-=Math.round(u.h||0);
+  if(u.eng)return drawEngine(u,sx,y);
+  if(u.boss){drawBig(sx,y+2,u,HORSE2,LORD,false);bar(sx,y-40,24,u.hp/u.max);return;}
+  if(u.cav)return u.side?drawCav(sx,y,u,'#2a2730','#4a2a2a',1):u.type==='knight'?drawCav(sx,y,u,'#d6d0c2',C.steel,2):drawCav(sx,y,u,'#8b4a2b','#8a6a40',1);
+  drawMan(sx,y,u,LOOK[u.type]);
+  if(G.dark>.5&&u.side&&u.id%4===0){P(sx-u.dir*2,y-13,'#f2c14e');P(sx-u.dir*2,y-12,'#e8703f');R(sx-u.dir*2,y-11,1,5,WD);if(u.id%16===0)lt(sx-u.dir*2,y-12,14,.3);}
+  else if(G.dark>.5&&u.id%7===0&&!u.moving){P(sx-u.dir*2,y-12,'#f2c14e');P(sx-u.dir*2,y-11,'#e8703f');R(sx-u.dir*2,y-10,1,4,WD);if(u.id%21===0)lt(sx-u.dir*2,y-11,12,.3);}
+}
+function drawFolk(f,sx,y){
+  const id=f.id,d=f.dir,st=Math.floor(f.walk)%4,mv=f.moving,sh=SHIRT[id%7],skin=SKIN[id%4],a=mv?st&1:0;
+  if(id%3===0){       // a woman in a long dress
+    R(sx-1,y-7,3,3,sh);R(sx-2,y-4,5,4,tone(sh,.82));P(sx-1+a,y,C.dark);P(sx+1-a,y,C.dark);R(sx-1,y-10,3,3,skin);R(sx-1,y-10,3,1,HAIR[id%4]);P(sx-d,y-9,HAIR[id%4]);
+    if(id%2)R(sx-1,y-11,3,1,C.cloth);
+  }else{
+    R(sx-1+(st===1&&mv?d:0),y-3,1,st===3&&mv?2:3,'#4a3a2a');R(sx+1+(st===3&&mv?d:0),y-3,1,st===1&&mv?2:3,'#4a3a2a');
+    R(sx-1,y-7,3,4,sh);R(sx-1,y-10,3,3,skin);
+    if(id%4===1){R(sx-2,y-10,5,1,C.th1);R(sx-1,y-11,3,1,C.th1);}else R(sx-1,y-10,3,1,HAIR[id%4]);
+  }
+  if(f.work){const up=Math.sin(G.clock*7+id)>0;if(f.st==='build'){R(sx+d*2,up?y-11:y-7,1,3,WD);R(sx+d*2-(d<0?1:0),up?y-12:y-5,2,2,'#8a8f98');}else{line(sx+d*2,y-8,sx+d*(up?3:5),up?y-13:y-1,WD);P(sx+d*(up?3:5),up?y-14:y-1,C.steel);}}
+  else if(f.st==='enlist'){P(sx,y-12,'#f2c14e');}
+}
+function drawVag(v,sx,y){
+  const d=v.dir,st=Math.floor(v.walk)%4,mv=v.moving;
+  R(sx-1+(st===1&&mv?d:0),y-3,1,3,'#3f352d');R(sx+1,y-3,1,3,'#3f352d');R(sx-1,y-7,3,4,'#6e5a48');P(sx,y-5,'#8a7460');R(sx-1+d,y-10,3,3,SKIN[v.id%4]);R(sx-1+d,y-11,3,2,'#4b3c30');P(sx-d,y-9,'#4b3c30');
+}
+function drawShot(s){
+  const k=s.k,x=s.x0+(s.tx-s.x0)*k,h=s.h0+(s.h1-s.h0)*k+Math.sin(k*Math.PI)*s.arc,sx=Math.round(x-CAM),y=GY+2-Math.round(h);
+  if(sx<-10||sx>W+10)return;
+  if(s.kind==='arrow'||s.kind==='bolt'){
+    const k2=Math.min(1,k+.04),x2=s.x0+(s.tx-s.x0)*k2,h2=s.h0+(s.h1-s.h0)*k2+Math.sin(k2*Math.PI)*s.arc,dx=x2-x,dy=-(h2-h),m=Math.hypot(dx,dy)||1,len=s.kind==='bolt'?6:4;
+    line(sx,y,sx-dx/m*len,y-dy/m*len,s.side?'#2a1c14':'#eadcb6');
+    if(s.fire){P(sx,y,'#f2c14e');if(LT.length<60)LT.push([sx,y,5,.3]);}
+  }else{const r=s.kind==='rock'?2:1;disc(sx,y,r,s.side?'#3a3038':'#84807a');P(sx-1,y-1,'#b8b4ac');}
+}
+function weather(){
+  const b=G.bio;if(b!=='snow'&&b!=='ash')return;
+  for(let i=0;i<70;i++){
+    const sp=b==='snow'?12+hash(i)*14:-(6+hash(i)*10),x=((hash(i*3.7)*W*2+G.clock*(b==='snow'?-8:5)*(1+hash(i))-CAM*.6)%W+W)%W,y=((hash(i*9.1)*H+G.clock*sp)%H+H)%H;
+    P(x,y,b==='snow'?'#f2f5f8':i%3?'#e8703f':'#f2c14e');
+  }
+}
+
+function draw(){
+  const k=G.king;LT=[];WN=[];
+  // camera
+  const want=clamp((G.state==='play'?k.x+clamp(k.vx*.3,-26,26):CX)-W/2,0,Math.max(0,G.ww-W));
+  G.cam=Math.abs(want-G.cam)>W?want:G.cam+(want-G.cam)*.14;
+  CAM=Math.round(G.cam+(G.shake>0?Math.sin(G.clock*70)*G.shake:0));
+  ctx.setTransform(1,0,0,1,0,0);
+  drawSky();drawBack();drawGround();
+  const home=G.scene==='home';
+  if(home){drawHomeScenery();for(const b of G.b)drawSite(b);}else drawFieldScenery();
+  // everyone on the road, back rows first
+  const list=[],vis=x=>x>CAM-24&&x<CAM+W+24;
+  if(home){
+    for(const f of G.folk)if(vis(f.x))list.push([f.id%5,1,f]);
+    for(const v of G.vag)if(vis(v.x))list.push([v.id%4,2,v]);
+    for(const l of G.limp)if(vis(l.x))list.push([l.id%5,4,l]);
+  }
+  for(const d of G.down)if(vis(d.x))list.push([d.id%5,3,d]);
+  for(const u of G.units)if(vis(u.x))list.push([u.h>0?-1:u.row+.5,0,u]);
+  for(const u of G.foes)if(vis(u.x))list.push([u.h>0?-1:u.row,0,u]);
+  list.sort((a,b)=>a[0]-b[0]);
+  for(const p of G.parts)if(p.body){const sx=Math.round(p.x-CAM);ctx.globalAlpha=clamp((p.max-p.life)/3,0,1);R(sx-3,GY+2,5,2,p.col);P(sx+2*p.dir,GY+2,'#8a7460');ctx.globalAlpha=1;}
+  for(const [row,kind,o] of list){
+    const sx=Math.round(o.x-CAM),y=GY+2+Math.round(Math.max(0,row));
+    if(kind===0)drawUnit(o,sx,y);
+    else if(kind===1)drawFolk(o,sx,y);
+    else if(kind===2)drawVag(o,sx,y);
+    else if(kind===3){const L=LOOK[o.type]||LOOK.militia;R(sx-3,y-2,5,2,UT[o.type].cav?'#8a6a40':L.t);R(sx+2,y-3,2,2,SKIN[o.id%4]);P(sx-4,y-1,L.l);if(Math.sin(G.clock*3+o.id)>.6)P(sx,y-4,'#c0392b');}
+    else{o.swing=0;o.hurt=0;drawMan(sx,y,o,LOOK[o.type]||LOOK.militia,true);}
+  }
+  if(G.state==='play'&&k.down<=0)drawBig(Math.round(k.x-CAM),GY+7,k,HORSE,KING,true);
+  for(const s of G.shots)drawShot(s);
+  for(const p of G.parts){
+    if(p.body||p.lit)continue;const sx=Math.round(p.x-CAM);if(sx<-6||sx>W+6)continue;
+    if(p.stuck){line(sx,GY+2,sx-p.stuck*2,GY-2,p.col);continue;}
+    const y=GY+2-Math.round(p.h);
+    if(p.big){ctx.globalAlpha=.5*(1-p.life/p.max);const r=1+Math.round(p.life*1.6);R(sx-r,y-r,r*2+1,r*2,p.col);ctx.globalAlpha=1;}else P(sx,y,p.col);
+  }
+  for(const f of G.fx){const x=f.x0+(f.x1-f.x0)*f.t,h=f.h0+(f.h1-f.h0)*f.t+Math.sin(f.t*Math.PI)*12,c=COIN[Math.floor(G.clock*14)%4];ctx.drawImage(c.r,Math.round(x-CAM)-(c.w>>1),GY-Math.round(h)-3);if(f.big)ctx.drawImage(c.r,Math.round(x-CAM)-(c.w>>1)+3,GY-Math.round(h)-6);}
+  weather();
+  // night falls over everything, then the fires and windows come back up
+  if(G.dark>.02){
+    ctx.fillStyle=`rgba(8,12,40,${(.5*G.dark).toFixed(3)})`;ctx.fillRect(0,0,W,H);
+    ctx.globalAlpha=Math.min(1,G.dark*1.3);for(const w of WN)R(w[0],w[1],w[2],w[3],'#f2c56a');ctx.globalAlpha=1;
+  }
+  for(const p of G.parts)if(p.lit){const sx=Math.round(p.x-CAM);R(sx,GY+1-Math.round(p.h),1,2,p.col);}
+  const la=G.dark>.02?G.dark:0;
+  for(const l of LT){const a=l[3]*(l[4]?1:Math.max(la,.18));glow(l[0],l[1],l[2],l[4]||'255,170,80',a);}
+  // marker over whatever the coins would go to
+  const tg=G.tgt;
+  if(G.state==='play'&&tg&&!G.mapOpen){
+    const sx=Math.round(tg.x-CAM),y=GY-(tg.mark||12)-8+Math.round(Math.sin(G.clock*5)*1.5),ok=!!tg.full,c=ok?'#f2c14e':'#b8b4ac';
+    R(sx-2,y,5,1,c);R(sx-1,y+1,3,1,c);P(sx,y+2,c);
+    if(ok){const left=tg.full-(G.part?G.part.amt:0),s=String(left),w=textW(s)+7;ctx.drawImage(COIN[0].r,sx-(w>>1),y-7);text(sx-(w>>1)+7,y-7,s,'#fff0a8','#16131a');}
+  }
+  for(const f of G.floats){ctx.globalAlpha=clamp(1.8-f.t,0,1);ctext(Math.round(f.x-CAM),GY-f.h-Math.round(f.t*9),f.s,f.c,'#16131a');ctx.globalAlpha=1;}
+  if(home&&G.state==='play'){
+    // which way to trouble: an arrow at the screen edge when raiders are off screen
+    let l=0,r=0;for(const f of G.foes){if(f.x<CAM)l++;else if(f.x>CAM+W)r++;}
+    const bl=Math.sin(G.clock*6)>0;
+    if(l&&bl){R(3,GY-40,1,7,'#c0392b');R(4,GY-39,1,5,'#c0392b');R(5,GY-38,1,3,'#c0392b');text(8,GY-39,l,'#f2f5f8','#16131a');}
+    if(r&&bl){R(W-4,GY-40,1,7,'#c0392b');R(W-5,GY-39,1,5,'#c0392b');R(W-6,GY-38,1,3,'#c0392b');text(W-9-textW(String(r)),GY-39,r,'#f2f5f8','#16131a');}
+  }
+}
+
+// ---------- the frame: update
+function updParts(dt){
+  const P=G.parts;if(P.length>800)P.splice(0,P.length-800);
+  for(let i=P.length-1;i>=0;i--){
+    const p=P[i];p.life+=dt;if(p.life>=p.max){P.splice(i,1);continue;}
+    if(p.body||p.stuck)continue;
+    p.x+=p.vx*dt;p.h+=p.vh*dt;p.vh+=p.grav*dt;if(p.h<0){p.h=0;p.vh=0;p.vx*=.4;}
+  }
+  for(let i=G.floats.length-1;i>=0;i--){const f=G.floats[i];f.t+=dt;if(f.t>1.8)G.floats.splice(i,1);}
+  for(let i=G.fx.length-1;i>=0;i--){const f=G.fx[i];f.t+=dt/.32;if(f.t>=1)G.fx.splice(i,1);}
+  if(G.shake>0)G.shake=Math.max(0,G.shake-dt*9);
+}
+function update(dt){
+  G.clock+=dt;
+  if(hintT>0){hintT-=dt;if(hintT<=0)$('hint').classList.remove('on');}
+  if(G.cardT>0){G.cardT-=dt;if(G.cardT<=0)$('card').classList.remove('on');}
+  if(G.state!=='play'){updCourt(dt);updVag(dt);updParts(dt);G.dark=darkness(G.t);return;}
+  if(G.mapOpen)return;
+  if(G.edgeLock>0)G.edgeLock-=dt;
+  if(input.banner){input.banner=false;toggleStance();}
+  updTime(dt);updKing(dt);tossing(dt);
+  const k=G.king;
+  if(G.scene==='home'){
+    updFolk(dt);updVag(dt);updCourt(dt);updBuild(dt);
+    G.ordT=(G.ordT||0)-dt;if(G.ordT<=0){G.ordT=.3;updOrders();}
+    updBattle(dt);updHazards(dt);
+    if(Math.abs(k.x-CX)>BORDER&&G.edgeLock<=0){
+      if(G.battle){k.x=CX+sgn(k.x-CX)*BORDER;k.vx=0;hint('noleave','You cannot leave while raiders are in your land.',true);G.edgeLock=3;}
+      else if(B.keep.level<2){k.x=CX+sgn(k.x-CX)*BORDER;k.vx=0;hint('notyet','The border stones. Raise a stone keep (level 2) before you ride to war in other lands.',true);G.edgeLock=4;}
+      else showMap('travel');
+    }
+    if(G.vag.length&&Math.abs(Math.abs(k.x-CX)-CAMP)<90)hint('camp',document.body.classList.contains('touch')?'Vagrants. Tap the coin button beside one and they join you.':'Vagrants. Toss a coin (Space) beside one and they join you.');
+    if(G.clock>75&&!G.folk.length&&!G.units.length&&B.keep.level<1)hint('lost','The vagrant camps lie beyond the fields, a short ride east or west of the ruin.',false);
+  }else updField(dt);
+  if(G.state!=='play')return;
+  updUnits(dt);updShots(dt);updParts(dt);
+  G.dark=G.scene==='home'?darkness(G.t):0;
+}
+
+// ---------- canvas size
+function resize(){
+  const dpr=window.devicePixelRatio||1,sw=stage.clientWidth||320,sh=stage.clientHeight||180,tall=sw/sh<1.25;
+  const ch=tall?Math.min(sh,clamp(sh-210,sw/1.25,sw*1.5)):sh;
+  const sc=tall?Math.max(1,Math.round(sw*dpr/210)):Math.max(1,Math.round(ch*dpr/180),Math.ceil(sw*dpr/520));
+  W=Math.ceil(sw*dpr/sc);H=Math.ceil(ch*dpr/sc);GY=H-clamp(Math.round(H*.2),26,38);
+  cv.width=W;cv.height=H;cv.style.width=W*sc/dpr+'px';cv.style.height=H*sc/dpr+'px';
+  ctx.imageSmoothingEnabled=false;
+}
+
+document.body.classList.add('title');
+reset();addEventListener('resize',resize);resize();
+
+// ---------- input
+const KEYS={ArrowLeft:-1,a:-1,A:-1,ArrowRight:1,d:1,D:1},COINK=[' ','ArrowDown','s','S'],SWORDK=['f','F','x','X','Enter','ArrowUp','w','W'],BANK=['b','B','q','Q','Shift'];
+const held=new Set();
+addEventListener('keydown',e=>{
+  if(G.state!=='play'){if((e.key==='Enter'||e.key===' ')&&document.activeElement.id!=='cont'){e.preventDefault();start();}return;}
+  if(G.mapOpen){if(e.key==='Escape'){e.preventDefault();hideMap();}return;}
+  if(e.key==='m'||e.key==='M'){showMap('view');return;}
+  if(KEYS[e.key]){held.add(e.key);input.key=KEYS[e.key];e.preventDefault();}
+  if(COINK.includes(e.key)){input.coin=true;e.preventDefault();}
+  if(SWORDK.includes(e.key)){input.sword=true;e.preventDefault();}
+  if(BANK.includes(e.key)&&!e.repeat){input.banner=true;e.preventDefault();}
+});
+addEventListener('keyup',e=>{
+  if(KEYS[e.key]){held.delete(e.key);const last=[...held].pop();input.key=last?KEYS[last]:0;}
+  if(COINK.includes(e.key))input.coin=false;
+  if(SWORDK.includes(e.key))input.sword=false;
+});
+addEventListener('blur',()=>{held.clear();input.key=0;input.coin=input.sword=false;});
+const pad=$('pad'),knob=$('knob');let padId=null;
+const padSet=e=>{const r=pad.getBoundingClientRect(),dx=clamp(e.clientX-r.left-r.width/2,-34,34);input.stick=dx/34;knob.style.transform=`translateX(${dx}px)`;};
+pad.addEventListener('pointerdown',e=>{padId=e.pointerId;try{pad.setPointerCapture(padId);}catch(_){}padSet(e);e.preventDefault();});
+pad.addEventListener('pointermove',e=>{if(e.pointerId===padId)padSet(e);});
+for(const ev of ['pointerup','pointercancel'])pad.addEventListener(ev,e=>{if(e.pointerId===padId){padId=null;input.stick=0;knob.style.transform='';}});
+const holdBtn=(id,k)=>{const b=$(id);
+  b.addEventListener('pointerdown',e=>{input[k]=true;b.classList.add('on');e.preventDefault();});
+  for(const ev of ['pointerup','pointercancel','pointerleave'])b.addEventListener(ev,()=>{input[k]=false;b.classList.remove('on');});};
+holdBtn('toss','coinT');holdBtn('swd','swordT');
+$('ban').addEventListener('pointerdown',e=>{input.banner=true;e.preventDefault();});
+addEventListener('contextmenu',e=>e.preventDefault());
+const touchy=()=>{document.body.classList.add('touch');if(G.state==='title')$('how').textContent='Push the stick to ride. The coin pays, the sword strikes, the flag calls your army to you.';};
+if((window.matchMedia&&matchMedia('(pointer:coarse)').matches)||navigator.maxTouchPoints>0)touchy();
+addEventListener('touchstart',touchy,{once:true,passive:true});
+// no text selection, copy bubble or double-tap zoom on the play field; real buttons still get their taps
+const quiet=e=>{const t=e.target.closest?e.target:e.target.parentElement;if(!t||!t.closest('#go,#cont,#mute,#mapb,#map'))e.preventDefault();};
+for(const ev of ['touchstart','touchmove','touchend','gesturestart','selectstart','dblclick'])document.addEventListener(ev,quiet,{passive:false});
+// controller: stick or d-pad rides, A pays, X or B strikes, Y raises the banner, Back opens the map
+let padWas=false,padY=false,padM=false;
+function pollPad(){
+  const gp=navigator.getGamepads?[...navigator.getGamepads()].find(g=>g&&g.connected):null,on=i=>!!(gp&&gp.buttons[i]&&gp.buttons[i].pressed);
+  input.padAxis=gp&&Math.abs(gp.axes[0])>.25?gp.axes[0]:0;input.dpad=(on(15)?1:0)-(on(14)?1:0);input.padCoin=on(0)||on(7);input.padSword=on(1)||on(2)||on(5);
+  const y=on(3);if(y&&!padY&&G.state==='play'&&!G.mapOpen)input.banner=true;padY=y;
+  const m=on(8);if(m&&!padM&&G.state==='play'){if(G.mapOpen)hideMap();else showMap('view');}padM=m;
+  const go=on(0)||on(9);if(go&&!padWas){if(G.state!=='play')start();else if(G.mapOpen&&!$('mgo').hidden&&!$('mgo').disabled)mapGo();}padWas=go;
+}
+addEventListener('gamepadconnected',()=>{if(G.state==='title')$('how').textContent='Controller: stick or d-pad rides, A pays, X strikes, Y raises your banner.';});
+$('mapb').addEventListener('click',()=>{$('mapb').blur();showMap('view');});
+$('mgo').addEventListener('click',mapGo);
+$('mno').addEventListener('click',hideMap);
+$('mute').addEventListener('click',()=>{muted=!muted;$('mute').textContent=muted?'Sound off':'Sound on';$('mute').blur();});
+
+// ---------- start and loop
+function start(keep){
+  if(G.state==='play')return;
+  if(G.state==='over'||G.state==='title'&&keep!==true)reset();
+  initAudio();if(AC&&AC.state==='suspended')AC.resume();
+  G.state='play';input.key=input.stick=0;input.coin=input.coinT=input.sword=input.swordT=input.banner=false;held.clear();
+  $('title').hidden=true;document.body.classList.remove('title');
+  for(const k in hudLast)delete hudLast[k];
+  if(keep!==true)hint('start',document.body.classList.contains('touch')?'Your keep lies in ruins. Vagrants camp beyond the fields on both sides: ride out and find them.':'Ride with the arrow keys or A and D. Your keep lies in ruins. Vagrants camp beyond the fields on both sides: ride out and find them.',true);
+}
+$('go').addEventListener('click',()=>start());
+$('cont').addEventListener('click',()=>{const s=peek();if(s&&restore(s))start(true);});
+document.addEventListener('visibilitychange',()=>{if(document.hidden)save();});addEventListener('pagehide',save);
+{const s=peek();if(s){$('cont').hidden=false;$('cont').textContent='Continue, day '+s.day;}}
+// an open page keeps its kingdom when a new build arrives
+const hot=window.claude&&window.claude.hot;
+try{if(hot&&hot.snapshot)hot.snapshot(()=>G.state==='play'&&G.scene==='home'&&!G.battle?{s:snap()}:{});}catch(e){}
+const boot=d=>{try{if(d&&d.s&&restore(d.s))start(true);}catch(e){}};
+if(hot&&hot.ready)hot.ready(boot);else boot(hot&&hot.data||{});
+window.RK={get G(){return G;},get B(){return B;},update,draw,start,reset,restore,snap,setLevel,mkUnit,villager,assignPosts,startRaid,startField,findTarget,dawn,input,UT,DEF,LANDS,toggleStance,showMap,hideMap,mapGo,income,popCap,raidSize};
+let last=performance.now();
+function frame(now){
+  const dt=Math.min(.05,(now-last)/1000);last=now;
+  pollPad();for(let i=0;i<G.timeScale;i++)update(dt);
+  draw();hud();updAudio();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+})();
+</script>
+</body>
+</html>
