@@ -1,0 +1,3099 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cactus Seed Label Generator — Blythe Cactus Farm</title>
+<style>
+/* ============================================================
+   App chrome (input panel + preview)
+   ============================================================ */
+* { box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  margin: 0; padding: 0; background: #f5f3ef; color: #222;
+}
+.app {
+  display: grid;
+  grid-template-columns: 420px 1fr;
+  height: 100vh;
+}
+.editor {
+  background: #2f3e2e; color: #f5f3ef;
+  padding: 20px; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 14px;
+}
+.editor h1 { margin: 0; font-size: 18px; font-weight: 600; }
+.editor h1 small {
+  display: block; font-weight: 400; opacity: 0.7; font-size: 12px; margin-top: 2px;
+}
+.editor textarea {
+  width: 100%; height: 280px; resize: vertical;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 12px; padding: 10px; border-radius: 4px;
+  border: 1px solid #4a5d49; background: #1f2a1f; color: #e8e5dc;
+}
+.editor .row { display: flex; gap: 8px; flex-wrap: wrap; }
+.editor button {
+  flex: 1; min-width: 120px;
+  padding: 9px 14px; border: none; border-radius: 4px;
+  font-weight: 600; cursor: pointer; font-size: 13px;
+  background: #5a7a59; color: white;
+}
+.editor button:hover { background: #6a8c69; }
+.editor button.secondary { background: #4a4a4a; }
+.editor button.secondary:hover { background: #5a5a5a; }
+.editor button.danger { background: #7a4a4a; }
+.editor button.danger:hover { background: #8c5a5a; }
+.editor .status {
+  font-size: 12px; padding: 8px 10px; border-radius: 4px;
+  background: rgba(255,255,255,0.06); color: #d8d4c8; min-height: 32px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+}
+.editor .missing-box, .editor .name-box {
+  font-size: 12px; padding: 8px 10px; border-radius: 4px; color: #fff;
+}
+.editor .missing-box { background: #7a2e2e; border: 1px solid #c96a6a; }
+.editor .name-box    { background: #6b5a1e; border: 1px solid #c9a94a; }
+.editor .missing-box ul, .editor .name-box ul { margin: 4px 0 0; padding-left: 18px; }
+.editor .missing-box li, .editor .name-box li {
+  margin: 2px 0; font-family: ui-monospace, Menlo, monospace; font-size: 11px;
+}
+.editor details { font-size: 12px; }
+.editor details summary { cursor: pointer; user-select: none; padding: 4px 0; }
+.editor details ul { margin: 4px 0; padding-left: 18px; }
+.editor details li { margin: 3px 0; font-family: ui-monospace, Menlo, monospace; font-size: 11px; }
+.preview {
+  overflow-y: auto; background: #d9d6cc; padding: 24px;
+}
+
+/* ============================================================
+   Order summary (per-batch overrides, above pages)
+   ============================================================ */
+.order-controls {
+  background: white; border: 1px solid #c0bdb0; border-radius: 6px;
+  padding: 12px 16px; margin-bottom: 20px; font-size: 12px;
+}
+.order-controls h2 {
+  margin: 0 0 10px; font-size: 13px; font-weight: 600;
+  color: #444; text-transform: uppercase; letter-spacing: 0.5px;
+}
+.batch-block {
+  margin-bottom: 10px;
+  border: 1px solid #d8d4c8;
+  border-radius: 5px;
+  overflow: hidden;
+  background: white;
+}
+.batch-block:last-child { margin-bottom: 0; }
+.batch-header {
+  background: #eef1ec;
+  padding: 6px 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  border-bottom: 1px solid #d8d4c8;
+  font-size: 12px;
+  flex-wrap: wrap;
+}
+.batch-header .batch-names { flex: 1; min-width: 200px; }
+.batch-header .lbl {
+  font-size: 9.5px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.4px;
+  color: #888; margin-right: 3px;
+}
+.batch-header .val { color: #2f3e2e; font-weight: 600; }
+.batch-header .loc { color: #555; margin-left: 4px; }
+.batch-header .sep { color: #aaa; margin: 0 6px; }
+.batch-header .batch-orders {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 11px; color: #555;
+  white-space: nowrap;
+}
+.item-row {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 12px;
+  padding: 6px 10px;
+  border-top: 1px solid #f0eee5;
+  align-items: center;
+  font-size: 12px;
+}
+.item-row:first-child { border-top: none; }
+.item-row .item-what { color: #555; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.item-row .origin-tag {
+  font-size: 10px; color: #5a7a59;
+  font-family: ui-monospace, Menlo, monospace;
+  margin-left: 4px;
+}
+.item-row .type-pill {
+  display: inline-block;
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: #fff;
+  background: #888;
+}
+.item-row .type-pill.type-seeds   { background: #5a8a4a; }
+.item-row .type-pill.type-cutting { background: #a87a4a; }
+.item-row .type-pill.type-pad     { background: #4a7a8a; }
+.item-row .type-pill.type-aquatic { background: #2f6a8a; }
+.item-row .type-pill.type-plant,
+.item-row .type-pill.type-seedling,
+.item-row .type-pill.type-specimen,
+.item-row .type-pill.type-pair,
+.item-row .type-pill.type-pack    { background: #7a5a8a; }
+.item-row .toggle-wrap {
+  display: flex; align-items: center; gap: 6px; justify-self: end;
+}
+.item-row .toggle-label {
+  font-size: 10px; color: #888;
+  text-transform: uppercase; letter-spacing: 0.4px; font-weight: 600;
+}
+.order-controls .toggle-group {
+  display: flex; gap: 2px; background: #eee; border-radius: 4px; padding: 2px;
+}
+.order-controls .toggle-group button {
+  flex: 1; padding: 4px 8px; border: none; background: transparent;
+  font-size: 11px; cursor: pointer; border-radius: 3px;
+  color: #555;
+}
+.order-controls .toggle-group button.active {
+  background: #5a7a59; color: white; font-weight: 600;
+}
+
+/* ============================================================
+   Printed page — 8.5x11 with two columns
+   ============================================================ */
+.page {
+  background: white; width: 8.5in; min-height: 11in;
+  margin: 0 auto 20px; padding: 0.5in 0.5in 0.4in;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  display: flex; flex-direction: column;
+  page-break-after: always;
+  break-after: page;
+  position: relative;
+}
+.page:last-child { page-break-after: auto; break-after: auto; }
+.page-header {
+  border-bottom: 2px solid #2f3e2e; padding-bottom: 8px; margin-bottom: 12px;
+  display: flex; justify-content: space-between; align-items: baseline;
+}
+.page-header .brand {
+  font-size: 14px; font-weight: 700; color: #2f3e2e;
+}
+.page-header .brand small {
+  font-weight: 400; color: #666; margin-left: 6px;
+}
+.page-header .customer {
+  font-size: 13px; color: #333; text-align: right;
+}
+.page-header .customer .name { font-weight: 600; }
+.page-header .customer .label {
+  font-size: 10px; color: #888; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.4px;
+}
+.page-header .customer .ship-to-line .name {
+  font-weight: 700; font-size: 14px; color: #2f3e2e;
+}
+.page-header .customer .buyer-line {
+  margin-top: 3px;
+}
+.page-header .customer .buyer-line .name {
+  font-weight: 500; font-size: 12px; color: #555;
+}
+.page-header .customer .location {
+  font-size: 11px; color: #555; margin-top: 1px;
+}
+.page-header .customer .order { color: #888; font-size: 11px; margin-top: 3px; }
+.page-body {
+  flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 0.3in;
+}
+.page-footer {
+  margin-top: 10px; padding-top: 6px; border-top: 1px solid #ddd;
+  font-size: 9px; color: #888; text-align: center;
+}
+
+/* ============================================================
+   Seed entry — one product row inside a column
+   ============================================================ */
+.seed-entry {
+  border-bottom: 1px dashed #c0bdb0;
+  padding: 10px 0;
+  break-inside: avoid;
+  page-break-inside: avoid;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+}
+.seed-entry:last-child { border-bottom: none; }
+.seed-scientific {
+  font-style: italic; font-weight: 700; font-size: 13.5px; color: #2f3e2e;
+  line-height: 1.2;
+  margin-bottom: 4px;
+}
+.seed-common {
+  font-size: 10.5px; color: #555; line-height: 1.35;
+  margin-top: 1px;
+}
+.seed-quantity {
+  font-size: 11px; font-weight: 600; color: #5a7a59;
+  background: #eef3ed; padding: 3px 8px; border-radius: 3px;
+  display: inline-block; align-self: flex-start;
+}
+.seed-quantity.is-cutting { color: #7a5a3a; background: #f4ede2; }
+.seed-quantity.is-pad     { color: #4a6f7a; background: #e6eef1; }
+.seed-quantity.is-aquatic { color: #2f5a6a; background: #dfecf1; }
+.seed-quantity.is-pair, .seed-quantity.is-pack,
+.seed-quantity.is-plant, .seed-quantity.is-specimen,
+.seed-quantity.is-seedling { color: #5a4a6a; background: #ece6f1; }
+.seed-germ {
+  font-size: 10.5px; color: #2f3e2e; line-height: 1.3;
+  background: #eef3ed; padding: 4px 8px; border-radius: 3px;
+  display: flex; flex-wrap: wrap; gap: 10px;
+}
+.seed-germ strong { color: #2f3e2e; }
+.seed-germ-method {
+  font-size: 10px; color: #5a4a2a; line-height: 1.3;
+  background: #fbf5e8; padding: 3px 8px; border-radius: 3px;
+  border-left: 2px solid #c4a45a;
+}
+
+.seed-description {
+  font-size: 10px; color: #555; line-height: 1.35;
+  margin-top: 2px;
+}
+.seed-variations {
+  font-size: 10px; color: #666; line-height: 1.3;
+}
+.seed-variations .vk { font-weight: 600; color: #444; }
+.seed-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+.seed-title-text { flex: 1; min-width: 0; }
+.seed-tape-here {
+  flex-shrink: 0;
+  width: 70px;
+  height: 56px;
+  border: 1.5px dashed #c0bdb0;
+  padding: 3px;
+  text-align: center;
+  font-size: 8.5px;
+  color: #888;
+  border-radius: 3px;
+  line-height: 1.15;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fafaf8;
+}
+.seed-order-tag {
+  font-size: 8.5px; color: #888; text-align: right;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  margin-top: 2px;
+}
+
+/* ============================================================
+   Right-column care guide (germination / plant / aquatic)
+   Lives on the first page of each care-group.
+   ============================================================ */
+.is-care-col { padding: 0; }
+.care-guide {
+  font-size: 10px; line-height: 1.4; color: #2a2a2a;
+  background: #faf8f2; border-left: 4px solid #5a7a59;
+  padding: 14px 14px 12px; border-radius: 4px;
+  height: 100%;
+}
+.care-guide-aquatic { border-left-color: #2f5a6a; background: #f3f8fa; }
+.care-guide-plant   { border-left-color: #7a5a3a; background: #faf6f0; }
+.care-guide-title {
+  font-size: 14px; font-weight: 700; margin: 0 0 4px;
+  color: #2f3e2e; line-height: 1.2;
+}
+.care-guide-germination .care-guide-title { color: #2f3e2e; }
+.care-guide-aquatic    .care-guide-title { color: #2f5a6a; }
+.care-guide-plant      .care-guide-title { color: #7a5a3a; }
+.care-guide-intro {
+  font-size: 9.5px; color: #555; margin: 0 0 8px; font-style: italic;
+}
+.care-guide h3 {
+  font-size: 10.5px; font-weight: 700; color: #2f3e2e;
+  margin: 8px 0 3px; padding-bottom: 1px;
+  border-bottom: 1px solid #d8d4c8;
+  text-transform: uppercase; letter-spacing: 0.4px;
+}
+.care-guide ul {
+  margin: 2px 0 0; padding-left: 14px;
+}
+.care-guide li {
+  margin: 1px 0; line-height: 1.35;
+}
+.care-guide strong { color: #2f3e2e; }
+.care-guide em     { color: #555; }
+.care-guide-sub {
+  font-size: 10px; color: #2f3e2e;
+  margin: 6px 0 1px 0;
+  line-height: 1.3;
+}
+.care-guide-note {
+  font-size: 9.5px; color: #555;
+  margin: 5px 0 0 0;
+  line-height: 1.4;
+  font-style: italic;
+}
+.care-guide-note strong { color: #2f3e2e; font-style: normal; }
+.care-guide-foot {
+  margin-top: 10px; padding-top: 6px; border-top: 1px dashed #d0ccc0;
+  font-size: 9px; color: #777; text-align: center; line-height: 1.4;
+}
+
+/* ============================================================
+   Print-specific overrides — what shows up on paper
+   ============================================================ */
+@media print {
+  body { background: white; }
+  .app { display: block; height: auto; }
+  .editor, .order-controls { display: none; }
+  .preview { background: white; padding: 0; }
+  .page {
+    margin: 0; box-shadow: none; width: auto; min-height: auto;
+    padding: 0.5in 0.5in 0.4in;
+  }
+  @page { size: letter; margin: 0; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="editor">
+    <h1>
+      Cactus Seed Label Generator
+      <small>Blythe Cactus Farm · CactusArchive</small>
+    </h1>
+
+    <textarea id="orderText" placeholder="Paste Etsy order text here…"></textarea>
+
+    <div class="row">
+      <button id="btnProcess">Process Orders</button>
+      <button id="btnPrint" class="secondary">Print</button>
+    </div>
+    <div class="row">
+      <button id="btnClear" class="danger">Clear</button>
+      <button id="btnLoadLast" class="secondary">Load Saved</button>
+    </div>
+
+    <div id="status" class="status">Paste an Etsy order text and click Process Orders.</div>
+
+    <div id="missingBox" class="missing-box" style="display:none;"></div>
+    <div id="nameBox" class="name-box" style="display:none;"></div>
+
+    <details id="unmatchedDetails" style="display:none;">
+      <summary id="unmatchedSummary">Unmatched lines (0)</summary>
+      <ul id="unmatchedList"></ul>
+    </details>
+
+    <details>
+      <summary>Catalog stats</summary>
+      <div id="catalogStats" style="padding:6px 0;"></div>
+    </details>
+  </aside>
+
+  <main class="preview" id="preview">
+    <div style="padding:40px; color:#666; text-align:center;">
+      Output will appear here after processing.
+    </div>
+  </main>
+</div>
+
+<script>
+/* ============================================================
+   PRODUCT CATALOG (generated by build_catalog.py — do not hand-edit)
+   ============================================================ */
+// =====================================================================
+// Cactus Seed Label Generator — Product Catalog
+// Generated from listings.csv. Edit by adding/modifying entries below.
+// v5 (2026-10-09): all live Etsy listings match; retitled listings fall back
+// to a scientific-name match (see matchByName).
+// Each entry maps one Etsy listing (or retired listing) to a product.
+// =====================================================================
+
+const products = [
+  {
+    id: "azolla",
+    match: [/Azolla|Fairy Moss|Mosquito Fern/i],
+    scientific: "Azolla",
+    common: "Fairy Moss / Mosquito Fern",
+    productType: "aquatic",
+    careInstructions: "aquatic",
+    synonyms: "Common: Fairy Moss, Mosquito Fern, Water Velvet | Floating aquatic fern — nitrogen fixer",
+    description: "Azolla — Fairy Moss or Mosquito Fern — is a tiny floating aquatic fern native worldwide in still or slow-moving freshwater. Forms dense mats of small fronds that can turn red in full sun. Important nitrogen-fixer due to symbiotic cyanobacteria (Anabaena azollae). Excellent for ponds, aquariums, and aquaponics systems. Provides habitat for beneficial insects while blocking light to inhibit algae growth. Doubles biomass in 3-5 days under good conditions. Approx 75 plants per 1 oz.",
+    status: "active",
+    csvIndex: 0,
+  },
+  {
+    id: "echinopsis_chamaecereus_plant",
+    match: [/Echinopsis chamaecereus\s*[—\-]\s*Orange Peanut Cactus/i],
+    scientific: "Echinopsis chamaecereus",
+    common: "Orange Peanut Cactus (bare root)",
+    productType: "plant",
+    careInstructions: "plant",
+    synonyms: "Syn: Chamaecereus silvestrii | Common: Peanut Cactus — Bare root plant",
+    description: "Echinopsis chamaecereus — the Peanut Cactus — is a charming clumping cactus native to the mountainous regions of Tucumán Province in northwestern Argentina. Its short, finger-like stems sprawl and offset freely, forming dense low mounds that resemble a pile of fuzzy peanuts. In late spring and early summer, mature plants produce an absolute explosion of vivid orange trumpet-shaped flowers. One of the easiest and most rewarding cacti to grow.",
+    status: "active",
+    csvIndex: 1,
+  },
+  {
+    id: "peanut_cactus_cutting_pack",
+    match: [/Echinopsis chamaecereus.*Cutting Pack/i],
+    scientific: "Echinopsis chamaecereus",
+    common: "Peanut Cactus — 4-Color Cutting Pack",
+    productType: "pack",
+    careInstructions: "plant",
+    synonyms: "4-color collection: Westfield Alba (white), Yellow Bird, Orange (typical), Rose Quartz (pink)",
+    description: "A curated 4-color collection of Peanut Cactus (Echinopsis chamaecereus) cuttings: 'Westfield Alba' (white blooms), 'Yellow Bird' (yellow blooms), the typical species (orange blooms), and 'Rose Quartz' (pink blooms). A great way to start a peanut cactus color collection.",
+    status: "active",
+    csvIndex: 2,
+  },
+  {
+    id: "euphorbia_obesa_pair",
+    match: [/Euphorbia obesa.*Seed grown male and female pair/i],
+    scientific: "Euphorbia obesa",
+    common: "Baseball Plant — M/F Pair",
+    productType: "pair",
+    careInstructions: "plant",
+    synonyms: "Common: Baseball Plant Male/Female Pair | Required for seed production (dioecious)",
+    description: "Euphorbia obesa — the Baseball Plant — is one of the most iconic dwarf Euphorbias in cultivation. The plant grows as a perfectly spherical, spineless, ribbed body marked with subtle horizontal bands of red-brown. Native to a tiny range in the Eastern Cape of South Africa, where it is now critically endangered in the wild. Obesa is dioecious: a male and a female plant are required for seed production, so a pair is required to produce viable seed.",
+    status: "active",
+    csvIndex: 4,
+  },
+  {
+    id: "astrophytum_capricorne_var_senilis_specimen",
+    match: [/^Astrophytum capricorne var senilis\s*$/i],
+    scientific: "Astrophytum capricorne var. senilis",
+    common: "Specimen plant",
+    productType: "specimen",
+    careInstructions: "plant",
+    synonyms: "Var: senilis | Specimen plant",
+    description: "Astrophytum capricorne var. senilis — Goat's Horn 'Senile' — characterized by an explosion of long, twisted, hair-like spines that nearly obscure the plant body. This is a specimen plant, not seeds.",
+    status: "active",
+    csvIndex: 6,
+  },
+  {
+    id: "opuntia_debreczyi_pad",
+    match: [/^Opuntia debreczyi\s*$/i],
+    scientific: "Opuntia debreczyi",
+    common: "Potato Cactus — Pad",
+    productType: "pad",
+    careInstructions: "plant",
+    synonyms: "Common: Potato Cactus | Small rounded potato-like pads, extremely cold-hardy",
+    description: "Rare Hungarian-bred Opuntia hybrid. Compact pad-forming cactus with blue-green segments. Medium-sized pads with moderate spination. Yellow flowers followed by edible fruits. Cold-hardy hybrid developed for European climates. Hardy to 0°F or below. Prefers full sun and well-drained soil. Drought-tolerant once established. Good for cold-climate cactus gardens.",
+    status: "active",
+    csvIndex: 7,
+  },
+  {
+    id: "opuntia_cacanapa_ellisiana_pad",
+    match: [/Opuntia cacanapa ellisiana|blue spineless prickly pear/i],
+    scientific: "Opuntia cacanapa 'Ellisiana'",
+    common: "Blue Spineless Prickly Pear — Unrooted Pad",
+    productType: "pad",
+    careInstructions: "plant",
+    synonyms: "Cv. 'Ellisiana' | Common: Blue Spineless Prickly Pear, Texas Spineless | Nearly spineless cultivated form",
+    description: "Opuntia cacanapa 'Ellisiana' — the Blue Spineless Prickly Pear — is a cultivated nearly-spineless form of a Texas/Mexico prickly pear with handsome blue-green pads, soft-yellow spring flowers, and edible reddish fruit. The defining feature is the dramatically reduced spination (still has tiny glochids — wear gloves), making it the safest prickly pear to handle and a favorite for landscape and pasture use. Cold-hardy and fast-growing. Ships as a bare-root unrooted pad — let callous a few days if freshly cut, then set on top of dry sandy/gritty mix and wait for roots to anchor before watering.",
+    status: "active",
+  },
+  {
+    id: "gymnocalycium_bruchii_plant",
+    match: [/^Gymnocalycium bruchii\s*$/i],
+    scientific: "Gymnocalycium bruchii",
+    common: "Dwarf Chin Cactus (bare root)",
+    productType: "plant",
+    careInstructions: "plant",
+    synonyms: "Common: Dwarf Bruch's Chin Cactus | Bare root plant",
+    description: "Gymnocalycium bruchii — Dwarf Bruch's Chin Cactus — small clustering cactus from Argentina forming tight mounds of globular stems. Produces pale pink flowers in spring. One of the most cold-tolerant cacti in cultivation.",
+    status: "active",
+    csvIndex: 8,
+  },
+  {
+    id: "opuntia_fulgida_crested",
+    match: [/Opuntia fulgida.*crested|crested.*boxing glove/i],
+    scientific: "Opuntia fulgida f. cristata",
+    common: "Crested Boxing Glove Cactus",
+    productType: "specimen",
+    careInstructions: "plant",
+    synonyms: "Syn: Cylindropuntia fulgida | Common: Crested Boxing Glove Cactus, Jumping Cholla",
+    description: "Opuntia fulgida (now properly Cylindropuntia fulgida) f. cristata — the Crested Boxing Glove Cactus — is a mutated form of the common Chain Fruit Cholla. Instead of the typical cylindrical jointed stems, the crested form grows as fused, fan-shaped, lumpy 'boxing gloves' of green tissue covered in straw-colored spines. Each plant grows uniquely. A standout among crested cacti.",
+    status: "active",
+    csvIndex: 9,
+  },
+  {
+    id: "opuntia_zebrina_pad",
+    match: [/Opuntia zebrina.*reticulata|Cobra Cactus/i],
+    scientific: "Opuntia zebrina f. reticulata",
+    common: "Cobra Cactus — Single Pad",
+    productType: "pad",
+    careInstructions: "plant",
+    synonyms: "Common: Cobra Cactus, Consolea | Snake-skin textured pads (f. reticulata)",
+    description: "Opuntia zebrina f. reticulata — the Cobra Cactus — is an extraordinary mutated form where the typical smooth pad surface is broken into a raised, netted, snake-skin-like pattern. The reticulated texture catches light beautifully and makes every pad unique. Grows as flat green pads with the characteristic snake-skin reticulation, slowly forming small branching plants.",
+    status: "active",
+    csvIndex: 10,
+  },
+  {
+    id: "stapelia_multi_cutting_pack",
+    match: [/Stapelia Multi Cutting Pack/i, /Stapelia.*Cutting Pack/i],
+    scientific: "Stapelia spp.",
+    common: "Multi Cutting Pack — 5 Species",
+    productType: "pack",
+    careInstructions: "plant",
+    synonyms: "Curated 5-pack of Stapelia and related carrion-flower cuttings",
+    description: "A curated 5-pack of Stapelia and related carrion-flower succulent cuttings from our collection, representing different species and forms. Stapelias are clumping soft-stemmed succulents from southern Africa, famous for their large, often furry, star-shaped flowers that mimic rotting flesh to attract pollinating flies. Each cutting is taken fresh and ready to callous and root.",
+    status: "active",
+    csvIndex: 15,
+  },
+  {
+    id: "westfield_alba",
+    match: [/Echinopsis chamaecereus cv Westfield Alba/i],
+    scientific: "Echinopsis chamaecereus 'Westfield Alba'",
+    common: "White Bloom Peanut Cactus",
+    productType: "cutting",
+    careInstructions: "plant",
+    synonyms: "Cv. 'Westfield Alba' | Common: White Bloom Peanut Cactus",
+    description: "Echinopsis chamaecereus cv. 'Westfield Alba' is a cultivated white-flowering form of the classic orange Peanut Cactus, a rare departure from the species' typical vivid orange blooms. The plant retains the same easy-growing, freely-clumping habit — short fingerlike stems forming dense low mounds — but produces large pure white trumpet flowers in late spring. A standout in any peanut cactus collection.",
+    status: "active",
+    csvIndex: 23,
+  },
+  {
+    id: "yellow_bloom_peanut",
+    match: [/Yellow Bloom Peanut Cactus/i],
+    scientific: "Echinopsis chamaecereus 'Yellow Bird'",
+    common: "Yellow Bloom Peanut Cactus",
+    productType: "cutting",
+    careInstructions: "plant",
+    synonyms: "Cv. 'Yellow Bird' | Common: Yellow Bloom Peanut Cactus",
+    description: "Echinopsis chamaecereus 'Yellow Bird' is a cultivated yellow-flowering form of the Peanut Cactus, an unusual color break from the species' typical vivid orange. The plant retains the same easy-growing, freely-clumping habit — short fingerlike stems forming dense low mounds — but produces large sunny yellow trumpet flowers in late spring.",
+    status: "active",
+    csvIndex: 26,
+  },
+  {
+    id: "pleiospilos_nelii_plant",
+    match: [/Pleiospilos nelii.*Split Rock.*Unique Succulent/i],
+    scientific: "Pleiospilos nelii",
+    common: "Split Rock (live plant)",
+    productType: "plant",
+    careInstructions: "plant",
+    synonyms: "Common: Split Rock, Living Stone | Mesemb specimen from South Africa's Karoo region",
+    description: "Pleiospilos nelii — the Split Rock — is a fascinating mesemb from the arid Karoo region of South Africa. Each plant consists of just 1–2 pairs of fat, fused, stone-like leaves with a deep fissure across the top, perfectly mimicking the granite pebbles among which it grows. Avoid overwatering — Pleiospilos are very prone to rot.",
+    status: "active",
+    csvIndex: 38,
+  },
+  {
+    id: "hildewintera_unrooted_cutting",
+    match: [/Monkey Tail.*Hildewintera Colademononis.*unrooted cutting/i],
+    scientific: "Hildewintera colademononis",
+    common: "Monkey Tail Cactus — Unrooted Cutting",
+    productType: "cutting",
+    careInstructions: "plant",
+    synonyms: "Syn: Cleistocactus colademononis | Common: Monkey Tail Cactus — Unrooted Cutting",
+    description: "Hildewintera colademononis — the Monkey Tail Cactus — endemic to Bolivia's Santa Cruz department, growing epilithically on steep rock faces above the jungle. Trailing pendant stems covered in soft white hair-like spines 4-12cm long. Ships as a fresh unrooted cutting at the length you select, calloused and ready to root. Thrives in hanging baskets. Hardy to 28°F.",
+    status: "active",
+    csvIndex: 39,
+  },
+  {
+    id: "sarcostemma_viminale",
+    match: [/Sarcostemma viminale/i],
+    scientific: "Sarcostemma viminale",
+    common: "Rare Rooted Trailing Succulent",
+    productType: "plant",
+    careInstructions: "plant",
+    synonyms: "Syn: Cynanchum viminale | Common: Caustic Vine, Milk Rope | Trailing succulent",
+    description: "Caustic Bush or Caustic Vine native to South Africa. Not a true cactus but succulent vine in Apocynaceae family. Leafless green cylindrical stems 0.25in diameter forming tangled masses. Small star-shaped cream flowers in clusters. Milky caustic sap - highly toxic. Fast-growing trailing habit excellent for hanging baskets. Prefers bright light. Hardy to 35°F. Drought-tolerant. Handle with extreme care due to toxic sap.",
+    status: "active",
+    csvIndex: 43,
+  },
+  {
+    id: "euphorbia_enopla_plant",
+    match: [/Euphorbia enopla/i],
+    scientific: "Euphorbia enopla",
+    common: "Pincushion Euphorbia",
+    productType: "plant",
+    careInstructions: "plant",
+    synonyms: "Common: Pincushion Euphorbia | Red-tipped spine-like flower stalks",
+    description: "Euphorbia enopla — the Pincushion Euphorbia — is a clumping shrubby cactus-mimic from South Africa, growing as a cluster of upright pencil-thick green stems decorated with red-tipped spine-like flower stalks (cyathophylls). Forms attractive mounding clusters with age, and the contrast of red 'spines' against green stems is striking.",
+    status: "active",
+    csvIndex: 44,
+  },
+  {
+    id: "firestick_cutting",
+    match: [/Firestick.*Cuttings|Euphorbia tirucalli.*Sticks on Fire/i],
+    scientific: "Euphorbia tirucalli 'Sticks on Fire'",
+    common: "Firestick — Cuttings",
+    productType: "cutting",
+    careInstructions: "plant",
+    synonyms: "Common: Firestick, Sticks on Fire, Pencil Cactus — Cutting | Toxic sap, wear gloves",
+    description: "Euphorbia tirucalli 'Sticks on Fire' (Firestick / Pencil Cactus) — fast-growing African shrub of pencil-thick green stems that turn vivid red, orange, and yellow at the tips when stressed by cool weather, drought, or strong sun. Cuttings root readily in dry, well-drained mix. Toxic sap — wear gloves and rinse cuts.",
+    status: "active",
+    csvIndex: 45,
+  },
+  {
+    id: "harrisia_cutting",
+    match: [/Harrisia martinii.*Moonlight.*Cuttings|Harrisia martinii.*Mature Cuttings/i],
+    scientific: "Harrisia martinii",
+    common: "Moonlight Cactus — Mature Cutting",
+    productType: "cutting",
+    careInstructions: "plant",
+    synonyms: "Common: Moonlight Cactus — Mature, Bloom-Ready Cutting",
+    description: "Harrisia martinii — Moonlight Cactus — Argentine columnar cactus with slender branching stems, prized for its enormous fragrant white nocturnal flowers up to 8 inches long. Mature, bloom-ready cuttings root readily and flower the following season once established. Fast-growing.",
+    status: "active",
+    csvIndex: 46,
+  },
+  {
+    id: "stapelia_mutabilis_cutting",
+    match: [/Stapelia mutabilis/i],
+    scientific: "Stapelia mutabilis",
+    common: "Purple Starfish — Cutting",
+    productType: "cutting",
+    careInstructions: "plant",
+    synonyms: "Common: Purple Starfish | Enormous star-shaped carrion flowers",
+    description: "Stapelia mutabilis is a clumping carrion-flower succulent from southern Africa, with soft green four-angled stems. Famous for its enormous (4–6 inch) star-shaped flowers in shades of purple, burgundy, and yellow with wavy hair-fringed petals — and yes, the carrion smell that attracts the flies it has co-evolved with. A bizarre, rewarding, and iconic Stapeliad.",
+    status: "active",
+    csvIndex: 49,
+  },
+  {
+    id: "opuntia_monacantha_variegata",
+    match: [/Opuntia monacantha.*variegata/i],
+    scientific: "Opuntia monacantha f. variegata",
+    common: "Joseph's Coat — Variegated Pad",
+    productType: "pad",
+    careInstructions: "plant",
+    synonyms: "Common: Joseph's Coat | Stunning cream, yellow, and pink variegation",
+    description: "Opuntia monacantha f. variegata — 'Joseph's Coat' — is a stunning variegated form of a tree-like Brazilian prickly pear. Pads emerge with patches and streaks of cream, yellow, and pink against the green base color, and in cool weather the variegated areas can blush deep pink. A spectacular variegated cactus that's surprisingly easy to grow.",
+    status: "active",
+    csvIndex: 50,
+  },
+  {
+    id: "euphorbia_obesa_10_pack",
+    match: [/Euphorbia obesa.*Baseball Plant.*10-?Pack/i],
+    scientific: "Euphorbia obesa",
+    common: "Baseball Plant — 10-Pack",
+    productType: "pack",
+    careInstructions: "plant",
+    synonyms: "Common: Baseball Plant | 10-pack of seed-grown plants",
+    description: "Euphorbia obesa — the Baseball Plant — perfectly spherical, spineless, ribbed succulent from South Africa's Eastern Cape, critically endangered in the wild. This is a 10-pack of seed-grown plants — great for starting a collection, raising pollinators (obesa is dioecious, so a group raises odds of having both sexes), or as gifts.",
+    status: "active",
+    csvIndex: 51,
+  },
+  {
+    id: "harrisia_seed_grown",
+    match: [/Harrisia martinii\s*[-–]\s*Seed grown/i, /Moon Cactus Plant.*Harrisia martinii/i],
+    scientific: "Harrisia martinii",
+    common: "Moonlight Cactus — Seed Grown Plant",
+    productType: "seedling",
+    careInstructions: "plant",
+    synonyms: "Common: Moonlight Cactus | Seed-grown young plant",
+    description: "Harrisia martinii — Moonlight Cactus — Argentine columnar cactus with slender branching stems and enormous fragrant white nocturnal flowers. This is a seed-grown young plant — a head start over starting from seed.",
+    status: "active",
+    csvIndex: 52,
+  },
+  {
+    id: "pachycereus_pringlei_seedling",
+    match: [/Pachycereus pringlei seedling/i],
+    scientific: "Pachycereus pringlei",
+    common: "Giant Mexican Cardon — Seedling",
+    productType: "seedling",
+    careInstructions: "plant",
+    synonyms: "Common: Mexican Cardon | Seed-grown young plant",
+    description: "Pachycereus pringlei — the Mexican Cardon — is the largest cactus species in the world by mass, native to Baja California and Sonora, Mexico. Often confused with the Saguaro, the Cardon grows taller (60+ feet), heavier, and branches from a lower point to form a massive candelabra-like tree at maturity. These are seed-grown young plants getting a head start on their slow journey.",
+    status: "active",
+    csvIndex: 56,
+  },
+  {
+    id: "setiechinopsis_mirabilis_seedling",
+    match: [/Setiechinopsis mirabilis.*[Ss]eedling/i],
+    scientific: "Setiechinopsis mirabilis",
+    common: "Flower of Prayer — Seedling",
+    productType: "seedling",
+    careInstructions: "plant",
+    synonyms: "Common: Flower of Prayer, Apostles' Cactus | Outsized fragrant white flowers",
+    description: "Setiechinopsis mirabilis — the 'Flower of Prayer' or 'Apostles' Cactus' — is a small slender cactus from Argentina, beloved by collectors for its outsized, fragrant white nocturnal flowers on long tubes that can be longer than the plant itself. Mature plants reach only 4–6 inches tall but flower freely once established. Fast and easy from seed.",
+    status: "active",
+    csvIndex: 58,
+  },
+  {
+    id: "euphorbia_flanaganii",
+    match: [/Euphorbia flanaganii/i],
+    scientific: "Euphorbia flanaganii 'Medusa'",
+    common: "Medusa's Head",
+    productType: "plant",
+    careInstructions: "plant",
+    synonyms: "Common: Medusa's Head, Medusa Euphorbia | Dozens of slender 'snake' branches",
+    description: "Medusa's Head native to South Africa's Eastern Cape. Forms dense clusters of snake-like cylindrical stems radiating from central caudex. Stems 6-12in long, 0.5in diameter with prominent tubercles. Small yellow-green cyathia at stem tips. Unique medusa-like appearance. Requires excellent drainage and minimal water. Prefers bright light. Hardy to 30°F briefly. Popular for unusual growth form. Toxic sap - handle with care.",
+    status: "active",
+    csvIndex: 66,
+  },
+  {
+    id: "puna_clavarioides",
+    match: [/Puna clavarioides|Maihueniopsis clavarioides/i],
+    scientific: "Puna clavarioides",
+    common: "Club Puna",
+    productType: "plant",
+    careInstructions: "plant",
+    synonyms: "Syn: Maihueniopsis clavarioides | Common: Club Puna | Coral-like high-altitude species",
+    description: "Puna clavarioides (syn. Maihueniopsis clavarioides) — Club Puna — is a high-altitude Andean cactus from 10000-14000ft elevation in Argentina and Chile. Low-growing cushion-forming cactus with club-shaped segments 1-2in long. Dense white spines. Small yellow flowers. Extremely cold-hardy adapted to harsh mountain conditions. Hardy to -20°F. Requires excellent drainage and cool conditions. Challenging but rewarding species for alpine cactus enthusiasts.",
+    status: "active",
+    csvIndex: 67,
+  },
+  {
+    id: "astrophytum_seedling_group",
+    match: [/Astrophytum seedling group/i],
+    scientific: "Astrophytum spp.",
+    common: "Seedling Group",
+    productType: "seedling",
+    careInstructions: "plant",
+    synonyms: "Curated group of seed-grown Astrophytum | Multiple species and forms",
+    description: "Astrophytum is one of the most beloved genera of small Mexican cacti, including Bishop's Cap (myriostigma), Goat's Horn (capricorne), Monk's Hood (ornatum), and the legendary Star Cactus (asterias). This is a curated group of seed-grown Astrophytum from our collection — a great way to start (or expand) an Astrophytum collection with a mix of forms.",
+    status: "active",
+    csvIndex: 68,
+  },
+  {
+    id: "opuntia_basilaris_pad",
+    match: [/Opuntia basilaris/i],
+    scientific: "Opuntia basilaris",
+    common: "Beavertail Cactus — Pad",
+    productType: "pad",
+    careInstructions: "plant",
+    synonyms: "Common: Beavertail Cactus | Blue-gray to purple pads, brilliant magenta-pink flowers",
+    description: "Opuntia basilaris — the Beavertail Cactus — is a low-growing prickly pear native to the Mojave, Sonoran, and Colorado Deserts of the American Southwest. Pads are large, flat, blue-gray to purple (purpling intensifies in winter and drought), and almost spineless — though tiny irritating glochids are present. Produces brilliant magenta-pink flowers in spring, one of the most striking blooms in the entire prickly pear group.",
+    status: "active",
+    csvIndex: 69,
+  },
+  {
+    id: "hildewintera_specimen",
+    match: [/Monkey Tail.*Hildewintera Colademononis.*\(as shown\)/i],
+    scientific: "Hildewintera colademononis",
+    common: "Monkey Tail Cactus — Specimen (as shown)",
+    productType: "specimen",
+    careInstructions: "plant",
+    synonyms: "Syn: Cleistocactus colademononis | Common: Monkey Tail Cactus — Specimen (as shown)",
+    description: "Hildewintera colademononis — the Monkey Tail Cactus — endemic to Bolivia. This is a specimen plant as photographed in the listing — a one-of-a-kind grown specimen. Trailing pendant stems covered in soft white hair-like spines 4-12cm long. Bright red zygomorphic flowers bloom spring to fall on mature plants. Thrives in hanging baskets.",
+    status: "active",
+    csvIndex: 70,
+  },
+  {
+    id: "tephrocactus_geometricus_seedling",
+    match: [/Tephrocactus geometricus seedling/i],
+    scientific: "Tephrocactus geometricus",
+    common: "Geometric Cactus — Seedling",
+    productType: "seedling",
+    careInstructions: "plant",
+    synonyms: "Syn: Opuntia geometrica | Common: Geometric Cactus | Seed-grown young plant",
+    description: "Argentine high-altitude cactus from 9000-11500ft elevation. Distinctive geometric segments stacked like pine cones. This is a seed-grown young plant getting a head start. Each segment 1-2in diameter with papery white spines. Extremely slow-growing. Requires excellent drainage and cool winter rest.",
+    status: "active",
+    csvIndex: 73,
+  },
+  {
+    id: "echinocereus_seed_grown",
+    match: [/Echinocereus rigidissimus rubrispinus.*[Ss]eed[\s\-]?[Gg]rown/i, /Echinocereus rigidissimus rubrispinus.*Rainbow Hedgehog/i],
+    scientific: "Echinocereus rigidissimus rubrispinus",
+    common: "Red-Spined Rainbow Hedgehog — Seed Grown",
+    productType: "seedling",
+    careInstructions: "plant",
+    synonyms: "Common: Red-Spined Rainbow Hedgehog | Seed-grown plant",
+    description: "Echinocereus rigidissimus rubrispinus — Red-Spined Rainbow Hedgehog — the most intensely colored form of the Rainbow Cactus, with spine bands in deep ruby red to pink. Native to the Chihuahuan Desert. This is a seed-grown plant — already past the most fragile seedling stage.",
+    status: "active",
+    csvIndex: 77,
+  },
+  {
+    id: "euphorbia_obesa_seed_grown",
+    match: [/Euphorbia obesa\s*[-–]?\s*Seed grown in California/i],
+    scientific: "Euphorbia obesa",
+    common: "Baseball Plant — Seed Grown (sex varies)",
+    productType: "seedling",
+    careInstructions: "plant",
+    synonyms: "Common: Baseball Plant | Seed-grown — dioecious, sex selected at order",
+    description: "Euphorbia obesa — the Baseball Plant — perfectly spherical, spineless, ribbed succulent from South Africa's Eastern Cape, critically endangered in the wild. Obesa is dioecious — male and female plants are separate. This is a seed-grown plant; sex can be Unsexed (TBD until flowering), Male, or Female depending on your selection.",
+    status: "active",
+    csvIndex: 78,
+  },
+  {
+    id: "myrtillocactus_strictum_crest",
+    match: [/Myrtillocactus strictum.*[Cc]rest/i],
+    scientific: "Myrtillocactus strictum f. cristata",
+    common: "Elite Crested Cactus",
+    productType: "specimen",
+    careInstructions: "plant",
+    synonyms: "Common: Crested Myrtillocactus | Rare crested form with brain-like fan growth",
+    description: "Myrtillocactus strictum f. cristata is a rare crested form of a Myrtillocactus relative, growing as a fluted, brain-like fan of fused green tissue instead of the typical columnar habit. Each specimen is unique. Crested cacti are prized collector items and grow slowly.",
+    status: "active",
+    csvIndex: 86,
+  },
+  {
+    id: "lenophyllum_guttatum",
+    match: [/Lenophyllum guttatum/i],
+    scientific: "Lenophyllum guttatum",
+    common: "Red Variegate — Variegated Succulent",
+    productType: "plant",
+    careInstructions: "plant",
+    synonyms: "Common: Comma Plant, Red Variegate | Small clumping succulent with red speckling",
+    description: "Lenophyllum guttatum 'Red Variegate' is a small clumping succulent from northeastern Mexico, growing as rosettes of paddle-shaped leaves marked with red speckling and variegation. The variegated form is particularly striking, with cream and pink streaks across the red-spotted leaves. Tiny but charming, and propagates readily from leaf drops.",
+    status: "active",
+    csvIndex: 87,
+  },
+  {
+    id: "teddy_bear_cholla",
+    match: [/[Tt]eddy bear cholla/i],
+    scientific: "Cylindropuntia bigelovii",
+    common: "Teddy Bear Cholla",
+    productType: "specimen",
+    careInstructions: "plant",
+    synonyms: "Common: Teddy Bear Cholla, Jumping Cholla | Dense golden barbed spines",
+    description: "Cylindropuntia bigelovii — the Teddy Bear Cholla — is the iconic 'fuzzy' cholla of the Sonoran and Mojave Deserts, appearing soft and inviting from a distance but armed with dense, barbed, jumping spines that detach with the lightest touch. Grows as a 3–6 foot branching shrub with golden spines that glow when backlit by the desert sun. A landscape and photographic showpiece.",
+    status: "active",
+    csvIndex: 89,
+  },
+  {
+    id: "euphorbia_abdelkuri",
+    match: [/Euphorbia abdelkuri/i],
+    scientific: "Euphorbia abdelkuri",
+    common: "Wax / Socotran Euphorbia",
+    productType: "specimen",
+    careInstructions: "plant",
+    synonyms: "Common: Wax Euphorbia, Socotran Euphorbia | Endemic to Abd al Kuri island, Yemen",
+    description: "Euphorbia abdelkuri is one of the rarest Euphorbias in cultivation — endemic to the tiny island of Abd al Kuri (part of the Socotra archipelago, Yemen) in the Arabian Sea. Grows as columnar, smooth, waxy gray-green stems that look like coral or stacked candles. Slow-growing and prized by serious collectors for its rarity and striking sculptural form. Many cultivated specimens trace back to a small number of original imports.",
+    status: "active",
+    csvIndex: 90,
+  },
+  {
+    id: "tephrocactus_articulatus_segment",
+    match: [/Tephrocactus articulatus.*diadematus.*Pine Cone Cactus(?!.*[Ss]eeds)/i],
+    scientific: "Tephrocactus articulatus var. diadematus",
+    common: "Pine Cone Cactus — Segment",
+    productType: "cutting",
+    careInstructions: "plant",
+    synonyms: "Common: Pine Cone Cactus, Paper Spine Cactus | Segmented joints with papery twisted spines",
+    description: "Tephrocactus articulatus var. diadematus — the Pine Cone Cactus — is one of the most peculiar small cacti in cultivation. The plant grows as a chain of small, segmented globular joints that resemble miniature pine cones, with papery, twisted spines arching out at odd angles. Native to high-altitude regions of northwestern Argentina, this slow-growing oddity is a sculptural favorite among collectors.",
+    status: "active",
+    csvIndex: 92,
+  },
+  {
+    id: "opuntia_quimilo_pad",
+    match: [/Opuntia quimilo/i],
+    scientific: "Opuntia quimilo",
+    common: "Quimilo Prickly Pear — Pad Cutting",
+    productType: "pad",
+    careInstructions: "plant",
+    synonyms: "Common: Quimilo, Quimil | Tree-forming Chaco prickly pear — unrooted pad",
+    description: "Opuntia quimilo — the Quimilo Prickly Pear — is a tree-forming opuntia from the dry Chaco of northern Argentina, Paraguay, and Bolivia. Mature plants reach about 13 feet with a distinct trunk and a crown of massive chalky blue-green pads armed with long pale spines. Salmon-orange to red flowers in late spring and early summer, followed by green fruit that ripens dusty rose. Ships as an unrooted pad — let the cut end callus 7–14 days, then root in dry, fast-draining cactus mix. Hardy to roughly 20°F if kept dry.",
+    status: "active",
+    csvIndex: 94,
+  },
+  {
+    id: "opuntia_ficus_indica_pad",
+    match: [/Opuntia ficus[-\s]?indica/i],
+    scientific: "Opuntia ficus-indica",
+    common: "Indian Fig Prickly Pear — Unrooted Pad",
+    productType: "pad",
+    careInstructions: "plant",
+    synonyms: "Common: Indian Fig, Nopal, Barbary Fig, Tuna Cactus | Edible pads (nopales) and fruit (tunas)",
+    description: "Opuntia ficus-indica — the Indian Fig or Nopal — is the classic prickly pear, believed to have originated in Mexico and cultivated for thousands of years for its edible pads (nopales) and sweet fruit (tunas). Large paddle-shaped green pads on a vigorous, fast-growing plant that becomes tree-like with age. Ships as an unrooted pad — let the cut end callus 3–7 days in dry shade, then stand it upright with the bottom inch buried in well-draining cactus mix. Water lightly after 10–14 days and increase as roots develop. Full sun, minimal water once established, hardy to about 15–20°F in dry soil.",
+    status: "active",
+  },
+  {
+    id: "fouquieria_splendens_seeds",
+    match: [/Ocotillo Fouquieria splendens Seeds|Fouquieria splendens.*Seeds/i, /Ocotillo Seeds/i],
+    scientific: "Fouquieria splendens",
+    common: "Ocotillo",
+    productType: "seeds",
+    careInstructions: "germination",
+    synonyms: "Common: Ocotillo, Coachwhip, Candlewood, Slimwood, Desert Coral, Jacob's Staff",
+    description: "Ocotillo - not a true cactus but a unique desert succulent from family Fouquieriaceae. Native to Chihuahuan, Sonoran, and Mojave deserts of southwestern US (Arizona, New Mexico, Texas, California) and northern Mexico. Distinctive architecture of 10-30 spiny branches 10-20ft tall radiating from central point. Deciduous leaves emerge after rain, photosynthesizing for 6-8 weeks before dropping during drought. Clusters of tubular red-orange flowers at branch tips March-June attract hummingbirds and carpenter bees. Extremely drought-tolerant once established. Hardy to 10°F.",
+    germinationTime: "14-30 days",
+    germinationTemp: "70-80°F",
+    germinationMethod: null,
+    status: "active",
+    csvIndex: 3,
+  },
+  {
+    id: "carnegiea_gigantea_seeds",
+    match: [/Carnegiea gigantea\s*[-–]\s*Giant Saguaro Cactus Seeds(?!.*crested)/i],
+    scientific: "Carnegiea gigantea",
+    common: "Giant Saguaro Cactus",
+    productType: "seeds",
+    careInstructions: "germination",
+    synonyms: "Common: Saguaro Cactus, Giant Saguaro | Iconic symbol of the American Southwest",
+    description: "Iconic Saguaro cactus native to Sonoran Desert of Arizona, California, and Mexico. Slow-growing columnar giant reaching 40-60ft tall over 150+ years. Develops characteristic arms after 75-100 years. White waxy flowers bloom at night May-June, followed by red edible fruits. Extremely drought-tolerant. Protected species. Grows at 600-3600ft elevation. Hardy to 20°F briefly.",
+    germinationTime: "7-30 days",
+    germinationTemp: "75-90°F",
+    germinationMethod: null,
+    status: "active",
+    csvIndex: 5,
+  },
+  {
+    id: "carnegiea_gigantea_crested_seeds",
+    match: [/Carnegiea gigantea crested/i],
+    scientific: "Carnegiea gigantea f. cristata",
+    common: "Crested Saguaro",
+    productType: "seeds",
+    careInstructions: "germination",
+    synonyms: "Common: Crested Saguaro | Extremely rare genetic mutation with fan-shaped crown",
+    description: "Carnegiea gigantea f. cristata — the legendary crested Saguaro. Crested specimens are an extremely rare genetic mutation where the growing tip fans out into a fluted, brain-like crown instead of the typical columnar shape. Only a handful of crested wild saguaros are known across the Sonoran Desert. Seed-grown crests are unpredictable — most seedlings grow normally, but a small percentage may express the crested trait as they mature. A true collector's gamble.",
+    germinationTime: "7-14 days",
+    germinationTemp: "80-85°F",
+    germinationMethod: null,
+    status: "active",
+    csvIndex: 72,
+  },
+  {
+    id: "euphorbia_briar_patch_seeds",
+    match: [/Euphorbia.*Briar Patch.*Seeds/i],
+    scientific: "Euphorbia 'Briar Patch' F2",
+    common: "Tirucalli × Stenoclada Cross",
+    productType: "seeds",
+    careInstructions: "germination",
+    synonyms: "Hybrid: E. tirucalli × E. stenoclada | F2 generation with variable traits",
+    description: "Euphorbia 'Briar Patch' is a hybrid (E. tirucalli × E. stenoclada) bred by combining the fast columnar growth of the Firestick (tirucalli) with the dense thorny branching habit of the Silver Thicket (stenoclada). The F2 generation is segregating — meaning seedlings express a wide range of intermediate forms, with some leaning toward the parent traits and others showing novel combinations. Highly variable and exciting to grow out.",
+    germinationTime: "7-14 days",
+    germinationTemp: "70-80°F",
+    germinationMethod: null,
+    status: "active",
+    csvIndex: 11,
+  },
+  {
+    id: "lithops_seeds",
+    match: [/^Lithops? Seeds/i, /^Lithops\b.*Assorted/i, /^Living Stones?\b/i],
+    scientific: "Lithops spp.",
+    common: "Living Stones — Assorted",
+    productType: "seeds",
+    careInstructions: "germination",
+    synonyms: "Common: Living Stones | Mimicry succulents from southern Africa",
+    description: "Lithops — the 'Living Stones' of southern Africa — are the most famous mimicry succulents in the world, evolved to look like the pebbles among which they grow in the deserts of Namibia and South Africa. Each plant consists of two fused leaves with a fissure across the top, where new growth and the daisy-like white or yellow flower emerges in fall. This is an assorted mix of species and hybrids from our collection — outcomes vary, which is the joy of growing a diverse Lithops group.",
+    germinationTime: "7-14 days",
+    germinationTemp: "65-75°F",
+    germinationMethod: "Surface-sow on fine grit-heavy mix, keep humid for 2-3 weeks, then ease back",
+    status: "active",
+    csvIndex: 12,
+  },
+  {
+    id: "euphorbia_stellata_seeds",
+    match: [/Euphorbia stellata.*Seeds/i],
+    scientific: "Euphorbia stellata",
+    common: "Star-Shaped Euphorbia",
+    productType: "seeds",
+    careInstructions: "germination",
+    synonyms: "Common: Star-Shaped Euphorbia | Caudiciform with star-shaped radiating branches",
+    description: "Euphorbia stellata — the Star-Shaped Euphorbia — is a caudiciform succulent from the Eastern Cape of South Africa. Forms a fat underground caudex with radiating star-shaped branches above ground. Small cyathia emerge from stem tips. Requires minimal water and excellent drainage. Prefers bright light. Hardy to 30°F. Slow-growing but forms attractive clumps.",
+    germinationTime: "7-21 days",
+    germinationTemp: "70-80°F",
+    germinationMethod: null,
+    status: "active",
+    csvIndex: 13,
+  },
+  {
+    id: "mexican_fence_post_seeds",
+    match: [/Mexican Fence Post.*Stenocereus.*marginata.*Seeds/i],
+    scientific: "Stenocereus marginatus",
+    common: "Mexican Fence Post",
+    productType: "seeds",
+    careInstructions: "germination",
+    synonyms: "Syn: Pachycereus marginatus, Stenocereus marginata | Common: Mexican Fence Post, Organ Pipe | Used for living fences",
+    description: "Stenocereus marginatus — the Mexican Fence Post Cactus — is a tall slim columnar cactus from central Mexico, where it has been planted in rows as a living fence for centuries. Stems are evenly ribbed and lined with neat white wool and short spines along the rib edges, giving the cactus a striped appearance. Slow-growing but extremely architectural.",
+    germinationTime: "14-30 days",
+    germinationTemp: "75-85°F",
+    germinationMethod: null,
+    status: "active",
+    csvIndex: 14,
+  },
+  {
+    id: "echinofossulocactus_assorted_seeds",
+    match: [/Echinofossulocactus Species.*Assorted/i],
+    scientific: "Echinofossulocactus spp.",
+    common: "Assorted Species",
+    productType: "seeds",
+    careInstructions: "germination",
+    synonyms: "Syn: Stenocactus | Common: Wave Cactus Mix, Brain Cactus Mix | Assorted species",
+    description: "Echinofossulocactus (Stenocactus) is the genus famous for many thin, deeply wavy ribs giving the plants a brain-like or crumpled look. This is an assorted seed mix from multiple species in our collection — outcomes are variable, which is the appeal for collectors who enjoy growing out a diverse group of related forms.",
+    germinationTime: "7-21 days",
+    germinationTemp: "70-80°F",
+    germinationMethod: null,
+    status: "active",
+    csvIndex: 16,
+  },
+  {
+    id: "echinofossulocactus_crispatus_seeds",
+    match: [/Echinofossulocactus crispatus/i],
+    scientific: "Echinofossulocactus crispatus",
+    common: "Brain Cactus",
+    productType: "seeds",
+    careInstructions: "germination",
+    synonyms: "Syn: Stenocactus crispatus | Common: Brain Cactus, Wave Cactus",
+    description: "Small globular cactus with distinctive wavy, undulating ribs and flattened spines. Native to Mexico's desert regions. Features yellow flowers emerging from crown. Grows slowly reaching 6-8 inches diameter. Prefers well-drained rocky soils and full sun. Cold hardy species tolerating brief freezes.",
+    germinationTime: "7-21 days",
+    germinationTemp: "70-80°F",
+    germinationMethod: null,
+    status: "active",
+    csvIndex: 17,
+  },
+  {
+    id: "helianthocereus_grandiflorus_seeds",
+    match: [/Helianthocereus grandiflorus.*Seeds/i],
+    scientific: "Helianthocereus grandiflorus",
+    common: "Sun Cereus",
+    productType: "seeds",
+    careInstructions: "germination",
+    synonyms: "Syn: Echinopsis, Trichocereus | Common: Sun Cereus | Vivid red-orange daytime flowers",
+    description: "Large-flowered torch cactus from Argentina. Columnar stems 3-6ft tall with 14-18 ribs. Spectacular red flowers 6-8in long bloom in summer. Fast-growing and easy to cultivate. Prefers full sun. Hardy to 20°F. Popular for dramatic blooms.",
+    germinationTime: "7-21 days",
+    germinationTemp: "70-85°F",
+    germinationMethod: null,
+    status: "active",
+    csvIndex: 18,
+  },
+  {
+    id: "echinocereus_rigidissimus_rubrispinus_seeds",
+    match: [/Echinocereus rigidissimus rubrispinus.*Seeds/i, /Rainbow Hedgehog Cactus Seeds/i],
+    scientific: "Echinocereus rigidissimus rubrispinus",
+    common: "Red-Spined Rainbow Hedgehog",
+    productType: "seeds",
+    careInstructions: "germination",
+    synonyms: "Common: Red-Spined Rainbow Hedgehog, Ruby Rainbow Cactus | Most intensely colored form",
+    description: "Echinocereus rigidissimus var. rubrispinus — the Red-Spined Rainbow Hedgehog — is the most intensely colored form of the Rainbow Cactus, with spine bands ranging from deep ruby red to pink, creating a striking banded pattern. Native to the Chihuahuan Desert, it produces spectacular magenta flowers up to 4 inches across. Slow-growing and requiring excellent drainage.",
+    germinationTime: "5-15 days",
+    germinationTemp: "70-85°F",
+    germinationMethod: null,
+    status: "active",
+    csvIndex: 19,
+  },
+  {
+    id: "tephrocactus_geometricus_seeds",
+    match: [/Tephrocactus geometricus.*Seeds/i],
+    scientific: "Tephrocactus geometricus",
+    common: "Geometric Cactus",
+    productType: "seeds",
+    careInstructions: "germination",
+    synonyms: "Syn: Opuntia geometrica | Common: Geometric Cactus | Nearly perfectly spherical segments",
+    description: "Argentine high-altitude cactus from 9000-11500ft elevation. Distinctive geometric segments stacked like pine cones. Each segment 1-2in diameter with papery white spines. White to pale pink flowers. Extremely slow-growing. Requires excellent drainage and cool winter rest. Hardy to 15°F. Endangered in habitat due to overcollection.",
+    germinationTime: "14-30 days",
+    germinationTemp: "70-80°F",
+    germinationMethod: null,
+    status: "active",
+    csvIndex: 20,
+  },
+  {
+    id: "cereus_peruvianus_seeds",
+    match: [/Cereus peruvianus.*Seeds/i],
+    scientific: "Cereus peruvianus",
+    common: "Peruvian Apple Cactus",
+    productType: "seeds",
+    careInstructions: "germination",
+    synonyms: "Syn: Cereus repandus, Cereus uruguayanus, Cereus hildmannianus | Common: Peruvian Apple Cactus, Hedge Cactus",
+    description: "Peruvian Apple Cactus native to South America. Large fast-growing columnar cactus reaching 30ft in habitat. Blue-green stems with prominent ribs. Large white nocturnal flowers followed by edible dragonfruit-like fruits. Widely cultivated for ornamental and fruit production. Hardy to 25°F briefly.",
+    germinationTime: "7-21 days",
+    germinationTemp: "70-85°F",
+    germinationMethod: null,
+    status: "active",
+    csvIndex: 21,
+  },
+  {
+    id: "echinopsis_oxygona_seeds",
+    match: [/Echinopsis oxygona Cactus Seeds(?!.*[Vv]arieg)/i],
+    scientific: "Echinopsis oxygona",
+    common: "Easter Lily Cactus",
+    productType: "seeds",
+    careInstructions: "germination",
+    synonyms: "Common: Easter Lily Cactus | Enormous fragrant pink-to-white nocturnal flowers",
+    description: "South American barrel cactus from Brazil, Uruguay, Argentina. Globular to short cylindrical, 6in diameter. Dark green with 8-14 ribs and brown spines. Spectacular fragrant white to pink flowers 8in long bloom at night. Easy to grow and flowers readily. Offsets freely. Hardy to 20°F. One of easiest Echinopsis to cultivate.",
+    germinationTime: "5-15 days",
+    germinationTemp: "70-80°F",
+    germinationMethod: null,
+    status: "active",
+    csvIndex: 22,
+  },
+  {
+    id: "echinopsis_oxygona_variegata_seeds",
+    match: [/Echinopsis oxygona.*[Vv]arieg.*Seeds/i, /Varieg\w* Easter Lily Cactus Seeds/i],
+    scientific: "Echinopsis oxygona",
+    common: "Easter Lily Cactus — Variegated",
+    productType: "seeds",
+    careInstructions: "germination",
+    synonyms: "Common: Variegated Easter Lily Cactus | Cream-yellow patches on green tissue",
+    description: "Echinopsis oxygona variegata is a sought-after variegated form of the classic Easter Lily Cactus, with cream-to-yellow patches breaking up the green tissue. Seedlings from variegated parents have a chance of expressing variegation as they grow — outcomes vary, which is the collector appeal. Mature plants produce the same enormous fragrant pink-to-white nocturnal flowers as the typical form. Variegation is genetic but variable — not all seedlings will be variegated.",
+    germinationTime: "7-14 days",
+    germinationTemp: "70-80°F",
+    germinationMethod: null,
+    status: "active",
+    csvIndex: 61,
+  },
+  {
+    id: "astrophytum_myriostigma_seeds",
+    match: [/Astrophytum myriostigma Cactus Seeds(?!.*nudum)(?!.*[Vv]arieg)/i],
+    scientific: "Astrophytum myriostigma",
+    common: "Bishop's Cap",
+    productType: "seeds",
+    careInstructions: "germination",
+    synonyms: "Syn: Astrophytum myriostigma var. nudum | Common: Bishop's Cap, Bishop's Hat, Bishop's Miter",
+    description: "Bishop's Cap Cactus native to northeast and central Mexico. Spineless star-shaped body with 5-8 ribs covered in white scales creating distinctive pattern. Reaches 8 inches tall and wide. Yellow flowers bloom at apex in summer. Slow-growing but easy to cultivate. Hardy to 20°F with protection.",
+    germinationTime: "2-10 days",
+    germinationTemp: "70-85°F",
+    germinationMethod: null,
+    status: "active",
+    csvIndex: 24,
+  },
+  {
+    id: "astrophytum_myriostigma_nudum_variegata_seeds",
+    match: [/Astrophytum myriostigma nudum variegata/i, /Varieg\w* Bishop'?s Cap Seeds/i],
+    scientific: "Astrophytum myriostigma 'Nudum' variegata",
+    common: "Variegated Nudum Bishop's Cap",
+    productType: "seeds",
+    careInstructions: "germination",
+    synonyms: "Common: Variegated Nudum Bishop's Cap | Smooth fleck-free body with cream-yellow variegation",
+    description: "Astrophytum myriostigma 'Nudum' variegata is a sought-after variegated form of the classic Bishop's Cap. The 'nudum' designation refers to the smooth, fleck-free body (lacking the typical white woolly dots), and the variegation expresses as cream-to-yellow patches across the green tissue. Seedlings from variegated parent stock have a chance of expressing variegation as they mature — outcomes vary, which is the appeal. Variegation is genetic but variable — not all seedlings will be variegated.",
+    germinationTime: "7-21 days",
+    germinationTemp: "75-85°F",
+    germinationMethod: null,
+    status: "active",
+    csvIndex: 34,
+  },
+  {
+    id: "hildewintera_seeds_typical",
+    match: [/Hildewintera colademononis.*Monkey Tail.*Seeds.*Grown in the California Desert(?!.*Super Furry)/i],
+    scientific: "Hildewintera colademononis",
+    common: "Monkey Tail Cactus",
+    productType: "seeds",
+    careInstructions: "germination",
+    synonyms: "Syn: Cleistocactus colademononis, Cleistocactus winteri subsp. colademononis | Common: Monkey Tail Cactus",
+    description: "Endemic to Bolivia, specifically Santa Cruz department near Samaipata on Cerro el Fraile mountain. Epilithic cactus growing on steep rock faces above jungle. Trailing stems reach 2.5m long with 14-20 ribs covered in soft white hair-like spines 4-12cm long. Bright red zygomorphic flowers 7-8cm long bloom spring to fall. Fast-growing at 1ft/year. Thrives in hanging baskets. Hardy to 28°F.",
+    germinationTime: "7-30 days",
+    germinationTemp: "70-85°F",
+    germinationMethod: null,
+    status: "active",
+    csvIndex: 25,
+  },
+  {
+    id: "hildewintera_seeds_super_furry",
+    match: [/Hildewintera colademononis.*Super Furry Hybrid/i],
+    scientific: "Hildewintera colademononis",
+    common: "Monkey Tail Cactus — Super Furry Hybrid",
+    productType: "seeds",
+    careInstructions: "germination",
+    synonyms: "Hybrid selection bred for exceptionally dense, long white spination | Common: Super Furry Monkey Tail",
+    description: "Super Furry Monkey Tail is a hybrid selection bred for exceptionally dense, long, white spination — even fuzzier than the typical Hildewintera colademononis. The plant retains the pendant, cliff-dwelling habit of its parent, cascading down with even more visual softness. Seedlings from this lot have a chance of expressing the super-furry trait as they mature.",
+    germinationTime: "7-14 days",
+    germinationTemp: "70-85°F",
+    germinationMethod: null,
+    status: "active",
+    csvIndex: 27,
+  },
+  {
+    id: "ferocactus_glaucescens_inermis_seeds",
+    match: [/Ferocactus glaucescens inermis/i],
+    scientific: "Ferocactus glaucescens f. inermis",
+    common: "Spineless Blue Barrel",
+    productType: "seeds",
+    careInstructions: "germination",
+    synonyms: "Common: Spineless Blue Barrel | The 'inermis' form lacks typical spination, showcasing the blue body",
+    description: "Ferocactus glaucescens f. inermis is the spineless form of the Blue Barrel Cactus, native to limestone outcrops in eastern Mexico. The 'inermis' designation means 'unarmed' — these plants lack the usual fierce spination of the typical form, showcasing the gorgeous powder-blue ribbed body. Mature plants produce a ring of pale yellow flowers across the crown in summer. Note: the spineless trait is genetic but variable — most seedlings will be spineless or near-spineless.",
+    germinationTime: "7-14 days",
+    germinationTemp: "70-85°F",
+    germinationMethod: null,
+    status: "active",
+    csvIndex: 28,
+  },
+  {
+    id: "melocactus_matanzanus_seeds",
+    match: [/Melocactus matanzanus/i],
+    scientific: "Melocactus matanzanus",
+    common: "Dwarf Turk's Cap",
+    productType: "seeds",
+    careInstructions: "germination",
+    synonyms: "Common: Dwarf Turk's Cap | Cuban endemic, smallest Melocactus species",
+    description: "Dwarf Turk's Cap endemic to Cuba's Matanzas province. Smallest Melocactus species reaching 3-4in diameter. Distinctive red cephalium (flowering crown) develops at maturity. Pink flowers emerge from cephalium spring through fall. Requires warmth and humidity. Minimum 50°F. Endangered in wild.",
+    germinationTime: "7-21 days",
+    germinationTemp: "75-85°F",
+    germinationMethod: null,
+    status: "active",
+    csvIndex: 29,
+  },
+  {
+    id: "melocactus_pachycanthus_seeds",
+    match: [/Melocactus pachycanthus/i],
+    scientific: "Melocactus pachycanthus",
+    common: "Turk's Cap Cactus",
+    productType: "seeds",
+    careInstructions: "germination",
+    synonyms: "Common: Turk's Cap Cactus | Brazilian species with red-bristled cephalium",
+    description: "Turk's Cap Cactus from Caribbean islands. Globular body 8-12in diameter topped with red cephalium at maturity. Features prominent ribs with stout spines. Small pink flowers emerge from cephalium. Requires warmth and humidity. Minimum 50°F. Challenging but rewarding species.",
+    germinationTime: "7-21 days",
+    germinationTemp: "75-85°F",
+    germinationMethod: null,
+    status: "active",
+    csvIndex: 81,
+  },
+  {
+    id: "myrtillocactus_geometrizans_seeds",
+    match: [/Myrtillocactus geometrizans Cactus Seeds/i],
+    scientific: "Myrtillocactus geometrizans",
+    common: "Blue Myrtle Cactus",
+    productType: "seeds",
+    careInstructions: "germination",
+    synonyms: "Common: Blue Myrtle Cactus, Blue Candle, Bilberry Cactus | Edible blue-purple berries",
+    description: "Blue Candle or Bilberry Cactus native to central and northern Mexico. Tree-like branching cactus reaching 15ft tall. Blue-green stems with 5-6 ribs. Small white flowers followed by edible purple berries. Fast-growing. Prefers full sun. Hardy to 25°F. Popular ornamental and fruit producer.",
+    germinationTime: "7-21 days",
+    germinationTemp: "70-85°F",
+    germinationMethod: null,
+    status: "active",
+    csvIndex: 30,
+  },
+  {
+    id: "harrisia_martinii_seeds",
+    match: [/Harrisia martinii Cactus seeds/i],
+    scientific: "Harrisia martinii",
+    common: "Moonlight Cactus",
+    productType: "seeds",
+    careInstructions: "germination",
+    synonyms: "Common: Moonlight Cactus | Enormous fragrant white nocturnal flowers",
+    description: "Argentine columnar cactus with slender branching stems 6-10ft tall. Features 4-9 ribs with short spines. Large white nocturnal flowers 8in long. Fast-growing species. Prefers full sun and good drainage. Hardy to 25°F. Makes excellent hedge or specimen plant.",
+    germinationTime: "7-21 days",
+    germinationTemp: "70-85°F",
+    germinationMethod: null,
+    status: "active",
+    csvIndex: 31,
+  },
+  {
+    id: "cactus_seed_mix",
+    match: [/Cactus Seed Mix/i],
+    scientific: "Cactus Seed Mix",
+    common: "Monkey Tail, Myrtillocactus, Lithops",
+    productType: "seeds",
+    careInstructions: "germination",
+    synonyms: "Variety Pack | Curated Selection | Multiple Species Included",
+    description: "Curated collection of diverse cactus species selected for variety and compatibility. Mix packs provide an excellent introduction to cactus cultivation with multiple species that share similar care requirements. Each mix includes seeds from different genera offering varied growth habits, forms, and flowering characteristics. All species included are well-suited for beginners and experienced growers.",
+    germinationTime: "5-30 days",
+    germinationTemp: "70-85°F",
+    germinationMethod: null,
+    status: "active",
+    csvIndex: 32,
+  },
+  {
+    id: "pilosocereus_glaucescens_seeds",
+    match: [/Pilosocereus glaucescens Cactus Seeds/i],
+    scientific: "Pilosocereus glaucescens",
+    common: "Blue Torch Cactus",
+    productType: "seeds",
+    careInstructions: "germination",
+    synonyms: "Common: Blue Torch Cactus, Powder Blue Pilosocereus | Electric powder-blue stems",
+    description: "Brazilian columnar cactus from Bahia and Minas Gerais states. Blue-green stems with prominent ribs and golden spines. Reaches 15-20ft tall in habitat. White nocturnal flowers followed by edible red fruits. Thrives in well-drained soil with full sun. Hardy to 28°F. Related to P. pachycladus but with distinct glaucous coloration.",
+    germinationTime: "7-21 days",
+    germinationTemp: "75-85°F",
+    germinationMethod: null,
+    status: "active",
+    csvIndex: 33,
+  },
+  {
+    id: "cereus_forbesii_monstrose_seeds",
+    match: [/Cereus forbesii monstrose/i],
+    scientific: "Cereus forbesii f. monstrose",
+    common: "Ming Thing",
+    productType: "seeds",
+    careInstructions: "germination",
+    synonyms: "Common: Ming Thing, Monstrose Cereus | Mutated form with irregular lumpy growth",
+    description: "Cereus forbesii f. monstrose is a bizarre mutated form of the columnar Cereus, growing as irregular, lumpy, often-twisted blue-green stems with random spination instead of the typical even columnar habit. Each plant grows uniquely. Highly sought by collectors of crested and monstrose cacti. Note: monstrose trait is variable in seedlings; some may grow normally and revert.",
+    germinationTime: "7-21 days",
+    germinationTemp: "70-85°F",
+    germinationMethod: null,
+    status: "active",
+    csvIndex: 35,
+  },
+  {
+    id: "pilosocereus_azureus_seeds",
+    match: [/Pilosocereus azureus/i],
+    scientific: "Pilosocereus azureus",
+    common: "Blue Torch Cactus",
+    productType: "seeds",
+    careInstructions: "germination",
+    synonyms: "Syn: Pilosocereus pachycladus | Common: Blue Torch Cactus, Blue Columnar Cactus",
+    description: "Brazilian columnar cactus also known as Blue Torch Cactus. Striking silvery-blue stems from waxy coating that protects from sun. Golden-yellow spines provide dramatic contrast. Reaches 10-32ft tall in habitat, fast-growing at 1-1.5ft/year. Ribs with prominent areoles. Large white fragrant nocturnal flowers bloom summer. Native to eastern Brazil. Hardy to 25-30°F. Blue color intensifies with more sun exposure.",
+    germinationTime: "7-21 days",
+    germinationTemp: "75-85°F",
+    germinationMethod: null,
+    status: "active",
+    csvIndex: 36,
+  },
+  {
+    id: "cleistocactus_strausii_seeds",
+    match: [/Cleistocactus strausii/i],
+    scientific: "Cleistocactus strausii",
+    common: "Silver Torch Cactus",
+    productType: "seeds",
+    careInstructions: "germination",
+    synonyms: "Common: Silver Torch Cactus, Wooly Torch | Dense silvery-white hair-like spines",
+    description: "Silver Torch Cactus native to Bolivia and Argentina at 8000-10000ft elevation. Columnar stems reach 10ft tall with dense white spines creating silvery appearance. Tubular burgundy-red flowers emerge horizontally from stems in summer. Fast-growing columnar species. Prefers full sun and excellent drainage. Hardy to 15°F. Popular ornamental for striking silver color and unusual flowers.",
+    germinationTime: "7-21 days",
+    germinationTemp: "70-80°F",
+    germinationMethod: null,
+    status: "active",
+    csvIndex: 37,
+  },
+  {
+    id: "peanut_cactus_seed_mix",
+    match: [/Echinopsis chamaecereus.*Peanut Cactus.*Seed Mix/i],
+    scientific: "Echinopsis chamaecereus",
+    common: "Peanut Cactus — Color Seed Mix",
+    productType: "seeds",
+    careInstructions: "germination",
+    synonyms: "Seeds from color-varied parent plants | Orange, yellow, white, pink-flowering forms",
+    description: "A mix of seeds from our collection of color-varied Peanut Cactus (Echinopsis chamaecereus) parent plants — including orange, yellow, white, and pink-flowering forms. Seedlings from a mixed lot like this will produce a range of bloom colors as they mature, making it a fun grow-out project for collectors.",
+    germinationTime: "7-14 days",
+    germinationTemp: "70-80°F",
+    germinationMethod: null,
+    status: "active",
+    csvIndex: 40,
+  },
+  {
+    id: "echinocereus_engelmannii_seeds",
+    match: [/Echinocereus engelmannii/i],
+    scientific: "Echinocereus engelmannii",
+    common: "Strawberry Hedgehog Cactus",
+    productType: "seeds",
+    careInstructions: "germination",
+    synonyms: "Common: Strawberry Hedgehog Cactus, Engelmann's Hedgehog, Calico Cactus, Saints Cactus",
+    description: "Native to Mojave and Sonoran deserts across southwestern US and northern Mexico. Forms clustering stems 4-12 inches tall with 10-14 ribs. Bright magenta tubular flowers bloom April-May, opening during day for several days. Edible red fruits taste like strawberries with deciduous spines. Found from sea level to 8000ft elevation. Hardy to 10°F. Slow-growing in rocky, sandy, or gravelly soils.",
+    germinationTime: "5-15 days",
+    germinationTemp: "70-85°F",
+    germinationMethod: null,
+    status: "active",
+    csvIndex: 41,
+  },
+  {
+    id: "pilosocereus_palmeri_seeds",
+    match: [/Pilosocereus cephalocereus palmeri|Pilosocereus palmeri.*Seeds/i],
+    scientific: "Pilosocereus palmeri",
+    common: "Old Man of Mexico",
+    productType: "seeds",
+    careInstructions: "germination",
+    synonyms: "Syn: Pilosocereus cephalocereus palmeri | Common: Old Man of Mexico, Woolly Torch | Mexican columnar with silky white hairs",
+    description: "Pilosocereus palmeri is a striking columnar cactus from northeastern Mexico, known for its blue-green stems and the long, silky white hairs that develop at the flowering zone of mature plants. Fast-growing for a columnar species and remarkably tolerant of cultivation, it produces large pinkish-white nocturnal flowers followed by edible pink fruit.",
+    germinationTime: "5-14 days",
+    germinationTemp: "75-85°F",
+    germinationMethod: null,
+    status: "active",
+    csvIndex: 42,
+  },
+  {
+    id: "ferocactus_latispinus_seeds",
+    match: [/Ferocactus latispinus/i],
+    scientific: "Ferocactus latispinus",
+    common: "Devil's Tongue Barrel",
+    productType: "seeds",
+    careInstructions: "germination",
+    synonyms: "Common: Devil's Tongue Barrel, Crow's Claw Cactus | Distinctive flattened central spine",
+    description: "Devil's Tongue Barrel native to central Mexico. Globular to short cylindrical reaching 16in tall and 12in wide. Features 15-23 ribs with distinctive flattened red central spine resembling tongue. Red to purple flowers with yellow edges bloom fall-winter. Prefers full sun and excellent drainage. Hardy to 20°F. Popular for dramatic spines.",
+    germinationTime: "7-21 days",
+    germinationTemp: "70-85°F",
+    germinationMethod: null,
+    status: "active",
+    csvIndex: 47,
+  },
+  {
+    id: "ferocactus_wislizeni_seeds",
+    match: [/Ferocactus wislizeni/i],
+    scientific: "Ferocactus wislizeni",
+    common: "Fishhook Barrel",
+    productType: "seeds",
+    careInstructions: "germination",
+    synonyms: "Common: Fishhook Barrel, Arizona Barrel, Candy Barrel, Compass Barrel",
+    description: "Fishhook Barrel Cactus native to Arizona, New Mexico, Texas, and Mexico. Large barrel reaching 6-10ft tall and 2-3ft diameter. Features 20-28 ribs with hooked central spines. Yellow to orange-red flowers crown plant in summer. Edible fruits. Extremely drought-tolerant. Hardy to 10°F. Important desert species and wildlife resource.",
+    germinationTime: "7-21 days",
+    germinationTemp: "70-85°F",
+    germinationMethod: null,
+    status: "active",
+    csvIndex: 48,
+  },
+  {
+    id: "euphorbia_obesa_seeds",
+    match: [/Euphorbia obesa.*Cactus Succulent Seeds|Euphorbia obesa.*High Germination Rate/i],
+    scientific: "Euphorbia obesa",
+    common: "Baseball Plant",
+    productType: "seeds",
+    careInstructions: "germination",
+    synonyms: "Common: Baseball Plant | Critically endangered in wild, perfectly spherical",
+    description: "Baseball Plant native to South Africa's Great Karoo. Perfectly spherical succulent 3-4in diameter resembling baseball. Grey-green with purple-brown bands. Dioecious with separate male/female plants. Critically endangered in wild. Requires very little water and excellent drainage. Prefers bright light. Hardy to 30°F briefly. Highly collectible for unique form.",
+    germinationTime: "7-21 days",
+    germinationTemp: "70-80°F",
+    germinationMethod: null,
+    status: "active",
+    csvIndex: 55,
+  },
+  {
+    id: "astrophytum_ornatum_seeds",
+    match: [/Astrophytum ornatum Cactus Seeds/i],
+    scientific: "Astrophytum ornatum",
+    common: "Ornate Star Cactus",
+    productType: "seeds",
+    careInstructions: "germination",
+    synonyms: "Common: Ornate Star Cactus, Monk's Hood | Largest and most heavily spined Astrophytum",
+    description: "Ornate Star Cactus native to central Mexico. Largest Astrophytum species reaching 3-6ft tall and 12in diameter. Distinctive 8 ribs with white woolly scales forming bands. Long yellow-brown spines. Pale yellow flowers 3in across bloom spring-summer. Fast-growing for an Astrophytum. Prefers full sun and well-drained soil. Hardy to 25°F briefly. Popular ornamental for its striking appearance and relatively easy cultivation.",
+    germinationTime: "3-14 days",
+    germinationTemp: "70-85°F",
+    germinationMethod: null,
+    status: "active",
+    csvIndex: 53,
+  },
+  {
+    id: "astrophytum_capricorne_senilis_seeds",
+    match: [/Astrophytum capricorne senilis Cactus Seeds/i],
+    scientific: "Astrophytum capricorne var. senilis",
+    common: "Senile Goat's Horn",
+    productType: "seeds",
+    careInstructions: "germination",
+    synonyms: "Common: Senile Goat's Horn, Old Man Astrophytum | Dense explosion of twisted hair-like spines",
+    description: "Astrophytum capricorne var. senilis is a striking variety of the Goat's Horn Cactus characterized by an explosion of long, twisted, hair-like spines that nearly obscure the plant body. Native to the Chihuahuan Desert of Mexico, this form is prized for its dense 'old-man' spination and yellow-with-red-throat flowers. A true sculptural showpiece in any collection.",
+    germinationTime: "7-21 days",
+    germinationTemp: "75-85°F",
+    germinationMethod: null,
+    status: "active",
+    csvIndex: 54,
+  },
+  {
+    id: "astrophytum_capricorne_seeds",
+    match: [/Astrophytum capricorne\s*[-––]\s*Cactus Seeds/i],
+    scientific: "Astrophytum capricorne",
+    common: "Goat's Horn Cactus",
+    productType: "seeds",
+    careInstructions: "germination",
+    synonyms: "Syn: Echinocactus capricornis | Common: Goat's Horn Cactus | Vars: crassispinum, minus, niveum, senile, aureum",
+    description: "Goat's Horn Cactus native to Coahuila, northern Mexico in the Chihuahuan Desert. Grows to 20 inches tall by 4 inches wide in ball or oval shape. Grey-green color with 7-9 prominent ribs and very long twisted spines resembling goat horns. Produces large attractive yellow flowers with red centers in summer. Widely distributed and designated least concern by IUCN. Tolerates cold but needs warm sheltered spot. Prefers poor, alkaline, sharply drained soil.",
+    germinationTime: "2-10 days",
+    germinationTemp: "70-85°F",
+    germinationMethod: null,
+    status: "active",
+    csvIndex: 76,
+  },
+  {
+    id: "pachycereus_pringlei_seeds",
+    match: [/Pachycereus pringlei Cactus Seeds/i],
+    scientific: "Pachycereus pringlei",
+    common: "Giant Mexican Cardon",
+    productType: "seeds",
+    careInstructions: "germination",
+    synonyms: "Common: Mexican Cardon, Giant Cardon | World's largest cactus by mass",
+    description: "Pachycereus pringlei — the Mexican Cardon — is the largest cactus species in the world by mass, native to Baja California and Sonora, Mexico. Often confused with the Saguaro, the Cardon grows taller (60+ feet), heavier, and branches from a lower point to form a massive candelabra-like tree at maturity.",
+    germinationTime: "14-30 days",
+    germinationTemp: "75-90°F",
+    germinationMethod: null,
+    status: "active",
+    csvIndex: 57,
+  },
+  {
+    id: "gymnocalycium_curvispinum_seeds",
+    match: [/Gymnocalycium curvispinum Cactus Seeds/i],
+    scientific: "Gymnocalycium curvispinum",
+    common: "Curved-Spine Gymnocalycium",
+    productType: "seeds",
+    careInstructions: "germination",
+    synonyms: "Common: Curved-Spine Gymnocalycium | Pale pink-to-white flowers",
+    description: "Globular cactus from Argentina with distinctive curved spines. Body 4-6in diameter with prominent ribs. White to pale pink flowers. Easy to grow. Prefers partial shade and well-drained soil. Hardy to 20°F. Attractive spine formation makes it popular with collectors.",
+    germinationTime: "3-14 days",
+    germinationTemp: "70-80°F",
+    germinationMethod: null,
+    status: "active",
+    csvIndex: 59,
+  },
+  {
+    id: "echinocereus_morricalii_inermis_seeds",
+    match: [/Echinocereus morricalii inermis/i],
+    scientific: "Echinocereus morricalii f. inermis",
+    common: "Spineless Echinocereus",
+    productType: "seeds",
+    careInstructions: "germination",
+    synonyms: "Common: Spineless Echinocereus | The 'inermis' form lacks typical spination",
+    description: "Echinocereus morricalii f. inermis is the spineless form of a slender, semi-pendant Echinocereus from northeastern Mexico. The 'inermis' designation refers to the lack of typical spination, leaving a smooth, glossy bright green stem that grows in clumps. Mature plants produce small bright magenta-pink flowers along the stems. Spineless trait is genetic but variable.",
+    germinationTime: "7-21 days",
+    germinationTemp: "70-85°F",
+    germinationMethod: null,
+    status: "active",
+    csvIndex: 60,
+  },
+  {
+    id: "echinocactus_grusonii_seeds",
+    match: [/Echinocactus grusonii/i],
+    scientific: "Echinocactus grusonii",
+    common: "Golden Barrel Cactus",
+    productType: "seeds",
+    careInstructions: "germination",
+    synonyms: "Syn: Kroenleinia grusonii | Common: Golden Barrel Cactus, Golden Ball, Mother-in-Law's Cushion",
+    description: "Endemic to east-central Mexico's Rio Moctezuma Valley on volcanic slopes at 1400m elevation. Critically endangered with only 11,000 wild individuals and declining populations due to habitat destruction. Spherical form reaches 3ft diameter after 20+ years. Features 21-35 ribs with sharp golden spines. Yellow flowers crown mature plants in summer. Despite endangered status in wild, widely cultivated worldwide. Hardy to 20°F briefly.",
+    germinationTime: "7-21 days",
+    germinationTemp: "70-85°F",
+    germinationMethod: null,
+    status: "active",
+    csvIndex: 62,
+  },
+  {
+    id: "gymnocalycium_baldianum_seeds",
+    match: [/Gymnocalycium baldianum/i],
+    scientific: "Gymnocalycium baldianum",
+    common: "Dwarf Chin Cactus (White Blooms)",
+    productType: "seeds",
+    careInstructions: "germination",
+    synonyms: "Common: Dwarf Chin Cactus, Spider Cactus | Popular for colorful flowers",
+    description: "Dwarf Chin Cactus native to Argentina. Flattened globular body 3-4in diameter. Features 9-11 ribs with prominent chins. Produces abundant flowers in red, pink, orange, or white. Very easy to grow and flowers young. Prefers partial shade. Hardy to 20°F. Popular for colorful blooms.",
+    germinationTime: "3-14 days",
+    germinationTemp: "70-80°F",
+    germinationMethod: null,
+    status: "active",
+    csvIndex: 63,
+  },
+  {
+    id: "opuntia_humifusa_seeds",
+    match: [/Opuntia humifusa/i],
+    scientific: "Opuntia humifusa",
+    common: "Eastern Prickly Pear",
+    productType: "seeds",
+    careInstructions: "germination",
+    synonyms: "Common: Eastern Prickly Pear, Devil's Tongue | Most cold-hardy prickly pear",
+    description: "Opuntia humifusa is the most cold-hardy prickly pear in cultivation, native across much of the eastern and central United States — from Florida to as far north as Massachusetts and Ontario. Forms low spreading mats of green-blue pads, produces big bright yellow flowers in early summer, and develops edible purple-red fruit (tunas) in fall. Hardy to -25°F or lower when established and dry.",
+    germinationTime: "14-60 days",
+    germinationTemp: "70-85°F",
+    germinationMethod: "Hard seed coat — mechanical scarification (light sanding or nicking) and/or 24-hour warm water soak improves rates",
+    status: "active",
+    csvIndex: 64,
+  },
+  {
+    id: "echinopsis_subdenudata_seeds",
+    match: [/Echinopsis subdenudata/i],
+    scientific: "Echinopsis subdenudata",
+    common: "Domino Cactus",
+    productType: "seeds",
+    careInstructions: "germination",
+    synonyms: "Common: Domino Cactus, Easter Lily Cactus | Mostly spineless with massive white flowers",
+    description: "Domino Cactus or Easter Lily Cactus native to Bolivia and Paraguay. Globular dark green body 4-6in diameter with few spines. Large fragrant white flowers 8in long bloom at night in spring-summer. Easy to grow and flowers young. Prefers partial shade. Hardy to 25°F. Popular for spectacular nocturnal blooms.",
+    germinationTime: "5-15 days",
+    germinationTemp: "70-80°F",
+    germinationMethod: null,
+    status: "active",
+    csvIndex: 65,
+  },
+  {
+    id: "tephrocactus_aoracanthus_seeds",
+    match: [/Tephrocactus aoracanthus.*paediophilus.*Cactus Seeds/i],
+    scientific: "Tephrocactus aoracanthus var. paediophilus",
+    common: "High-altitude Argentine",
+    productType: "seeds",
+    careInstructions: "germination",
+    synonyms: "Var: paediophilus | High-altitude Argentine species",
+    description: "High-altitude Argentinian cactus from 9000-13000ft elevation. Segmented stems with papery white spines. Small white to pink flowers. Extremely slow-growing. Requires excellent drainage and cool conditions. Hardy to 10°F. Challenging but beautiful species.",
+    germinationTime: "14-30 days",
+    germinationTemp: "70-80°F",
+    germinationMethod: null,
+    status: "active",
+    csvIndex: 74,
+  },
+  {
+    id: "pleiospilos_nelii_seeds",
+    match: [/Pleiospilos nelii.*Split Rock.*Seeds/i],
+    scientific: "Pleiospilos nelii",
+    common: "Split Rock",
+    productType: "seeds",
+    careInstructions: "germination",
+    synonyms: "Common: Split Rock, Living Stone | Mesemb from South Africa's Karoo region",
+    description: "Pleiospilos nelii — the Split Rock — is a fascinating mesemb from the arid Karoo region of South Africa. Each plant consists of just 1–2 pairs of fat, fused, stone-like leaves with a deep fissure across the top, perfectly mimicking the granite pebbles among which it grows. New leaves emerge from the fissure as the old pair shrivels and dies back. Produces large daisy-like orange or yellow flowers in fall.",
+    germinationTime: "7-14 days",
+    germinationTemp: "65-75°F",
+    germinationMethod: "Surface-sow on fine grit-heavy mix, keep humid for 2 weeks, then ease back",
+    status: "active",
+    csvIndex: 75,
+  },
+  {
+    id: "snail_vine_seeds",
+    match: [/Snail Vine.*Seeds|Vigna caracalla.*Seeds|Vigna caracalla.*Vine/i],
+    scientific: "Vigna caracalla",
+    common: "Snail Vine / Corkscrew Vine",
+    productType: "seeds",
+    careInstructions: "germination",
+    synonyms: "Common: Snail Vine, Corkscrew Vine | Fragrant tropical climbing vine",
+    description: "Vigna caracalla — the Snail Vine or Corkscrew Vine — is a fast-growing tender perennial vine from tropical South America, famous for its bizarrely beautiful flowers: tightly coiled snail-shell-shaped blooms in purple, lavender, cream, and yellow that emit a strong sweet fragrance, especially in the evening. Climbs 10–20 feet in a single season on trellises, fences, and arbors. Treat as an annual where winters are cold, or overwinter the tuberous root indoors. Hard seed coat — scarify (nick or sand) and soak 24 hours in warm water before sowing for best germination.",
+    germinationTime: "7-21 days",
+    germinationTemp: "70-85°F",
+    germinationMethod: "Hard seed coat — scarify (nick or sand) and soak 24 hours in warm water before sowing",
+    status: "active",
+  },
+  {
+    id: "obregonia_seeds",
+    match: [/Obregonia denegrii.*Seeds|Obregonia.*Artichoke Cactus.*Seeds|Obregonia.*Cactus Seeds/i],
+    scientific: "Obregonia denegrii",
+    common: "Artichoke Cactus",
+    productType: "seeds",
+    careInstructions: "germination",
+    synonyms: "Common: Artichoke Cactus | Critically endangered Mexican endemic, CITES-listed",
+    description: "Obregonia denegrii — the Artichoke Cactus — is one of the most prized and unusual cacti in cultivation, native to a tiny range in Tamaulipas, Mexico, where it grows half-buried in limestone gravel. The plant grows as a flat rosette of triangular tubercles arranged like an artichoke, with a woolly crown that produces small white-to-pink flowers. Extremely slow-growing — expect several years to reach a 1-inch rosette. Critically endangered in the wild due to habitat destruction and poaching; CITES-listed. Cultivated seed propagation is the ethical way to grow this species.",
+    germinationTime: "14-60 days",
+    germinationTemp: "70-80°F",
+    germinationMethod: "Surface-sow on sterile mineral mix, very slow — be patient, germination can stretch out for weeks",
+    status: "active",
+  },
+  {
+    id: "chamaelobivia_yellow_bird_seeds",
+    match: [/Chamaelobivia.*Yellow Bird.*Seeds/i],
+    scientific: "Chamaelobivia 'Yellow Bird'",
+    common: "Hybrid Peanut Cactus",
+    productType: "seeds",
+    careInstructions: "germination",
+    synonyms: "Hybrid: Chamaecereus × Lobivia | Common: Yellow Bird Chamaelobivia | Vibrant yellow flowers",
+    description: "Chamaelobivia 'Yellow Bird' is a hybrid between Chamaecereus (now Echinopsis) and Lobivia, prized for its vibrant sunny-yellow trumpet flowers. The plant inherits the freely-clumping, finger-like stem habit of the peanut cactus alongside the larger, more vivid flowers of Lobivia parentage. Reliably free-flowering once mature.",
+    germinationTime: "7-14 days",
+    germinationTemp: "70-80°F",
+    germinationMethod: null,
+    status: "active",
+    csvIndex: 79,
+  },
+  {
+    id: "neobuxbaumia_polylopha_seeds",
+    match: [/Neobuxbaumia polylopha/i],
+    scientific: "Neobuxbaumia polylopha",
+    common: "Golden Saguaro / Cone Cactus",
+    productType: "seeds",
+    careInstructions: "germination",
+    synonyms: "Common: Golden Saguaro, Cone Cactus | Many fine ribs with golden spination",
+    description: "Mexican columnar cactus reaching 30-50ft tall in habitat. Features numerous ribs (up to 50) with dense spines. White nocturnal flowers. Slow-growing initially then faster with age. Prefers full sun and excellent drainage. Hardy to 28°F. Impressive specimen plant.",
+    germinationTime: "14-30 days",
+    germinationTemp: "75-85°F",
+    germinationMethod: null,
+    status: "active",
+    csvIndex: 80,
+  },
+  {
+    id: "cephalocleistocactus_ritteri_seeds",
+    match: [/Cephalocleistocactus ritteri/i],
+    scientific: "Cephalocleistocactus ritteri",
+    common: "Ritteri Cactus",
+    productType: "seeds",
+    careInstructions: "germination",
+    synonyms: "Common: Ritteri Cactus | Uncommon Bolivian columnar with golden spines",
+    description: "Rare Bolivian columnar cactus from high-altitude regions. Slender stems 3-6ft tall with numerous ribs and dense golden spines. Tubular red flowers emerge from cephalium (woolly crown) at maturity. Slow-growing species requiring excellent drainage. Prefers bright light and cool nights. Hardy to 25°F. Endangered in habitat due to limited range and collection pressure.",
+    germinationTime: "7-21 days",
+    germinationTemp: "70-80°F",
+    germinationMethod: null,
+    status: "active",
+    csvIndex: 82,
+  },
+  {
+    id: "gymnocalycium_bruchii_pavlovskyi_seeds",
+    match: [/Gymnocalycium bruchii pavlovskyi/i],
+    scientific: "Gymnocalycium bruchii var. pavlovskyi",
+    common: "Pavlovsky's Dwarf Chin",
+    productType: "seeds",
+    careInstructions: "germination",
+    synonyms: "Common: Pavlovsky's Dwarf Chin Cactus | Dwarf clumping form",
+    description: "Gymnocalycium bruchii var. pavlovskyi is a dwarf clumping form of the popular Bruch's Gymnocalycium, native to mountainous regions of Argentina. Forms tight clusters of small globular stems with neat radial spination, and produces pale pink flowers in spring. One of the most cold-tolerant cacti in cultivation, hardy to brief freezes when kept dry.",
+    germinationTime: "7-14 days",
+    germinationTemp: "70-80°F",
+    germinationMethod: null,
+    status: "active",
+    csvIndex: 83,
+  },
+  {
+    id: "stenocereus_alamosensis_seeds",
+    match: [/Stenocereus alamosensis/i],
+    scientific: "Stenocereus alamosensis",
+    common: "Octopus Cactus",
+    productType: "seeds",
+    careInstructions: "germination",
+    synonyms: "Syn: Rathbunia alamosensis | Common: Octopus Cactus, Cina, Xasaacoj (Seri)",
+    description: "Mexican species from Sonoran Desert in Sonora and Sinaloa states, growing 0-800m elevation. Shrubby cactus with bluish-green arched stems reaching 2-4m tall, spreading 8-12ft wide. Features 5-8 ribs with whitish spines. Tubular red day-blooming flowers attract hummingbirds. Unique viviparous germination - seeds sprout while still on parent plant, adapting to flood-prone coastal plains. Hardy to 28°F.",
+    germinationTime: "14-30 days",
+    germinationTemp: "75-85°F",
+    germinationMethod: null,
+    status: "active",
+    csvIndex: 85,
+  },
+  {
+    id: "pilosocereus_bradei_seeds",
+    match: [/Pilosocereus bradei/i],
+    scientific: "Pilosocereus bradei",
+    common: "Blue Columnar Cactus",
+    productType: "seeds",
+    careInstructions: "germination",
+    synonyms: "Syn: Cipocereus bradei, Pilocereus bradei, Cephalocereus bradei | Common: Blue Columnar Cactus, Quiabo-da-lapa",
+    description: "Rare Brazilian columnar cactus native to Bahia and Minas Gerais states. Grows on rocky slopes at 400-1200m elevation. Can reach 10m tall with cylindrical stems up to 7cm diameter. Produces fragrant white funnel-shaped flowers 7cm long. Edible red-purple fruits are rich in vitamin C and fiber. Endangered due to habitat loss. Thrives in well-drained soil with full sun exposure. Cold hardy to 25°F.",
+    germinationTime: "7-21 days",
+    germinationTemp: "75-85°F",
+    germinationMethod: null,
+    status: "active",
+    csvIndex: 88,
+  },
+  {
+    id: "notocactus_leninghausii_seeds",
+    match: [/Notocactus leninghausii/i],
+    scientific: "Notocactus leninghausii",
+    common: "Golden Ball Cactus",
+    productType: "seeds",
+    careInstructions: "germination",
+    synonyms: "Syn: Parodia leninghausii, Eriocactus leninghausii | Common: Golden Ball Cactus, Lemon Ball Cactus",
+    description: "Native to Rio Grande do Sul, Brazil at 1000-4000ft elevation in hilly grasslands. Features soft golden-yellow spines creating a glowing appearance. Young plants are globular, becoming columnar with age up to 3ft tall. Large yellow flowers 2in across bloom in spring-summer at crown. Endangered in wild with declining populations. Tolerates light frost when dry. Prefers partial shade when young.",
+    germinationTime: "7-21 days",
+    germinationTemp: "70-80°F",
+    germinationMethod: null,
+    status: "active",
+    csvIndex: 93,
+  },
+  {
+    id: "ferocactus_rectispinus_seeds",
+    match: [/Ferocactus rectispinus/i],
+    scientific: "Ferocactus rectispinus",
+    common: "Long-Spined Barrel Cactus",
+    productType: "seeds",
+    careInstructions: "germination",
+    synonyms: "Syn: Ferocactus emoryi subsp. rectispinus | Common: Long-Spined Barrel Cactus",
+    description: "Ferocactus rectispinus — the Long-Spined Barrel Cactus — is native to central Baja California Sur, Mexico, and carries some of the longest spines of any barrel cactus: straight, unhooked central spines that can reach 9–10 inches on mature plants. Solitary and globular when young, slowly becoming a column up to 5 feet tall or more. Large yellow flowers ring the crown in summer. Loves heat, full sun, and fast-draining mineral soil; keep dry in winter.",
+    germinationTime: "7-21 days",
+    germinationTemp: "70-85°F",
+    germinationMethod: null,
+    status: "active",
+  },
+  {
+    id: "astrophytum_caput_medusae_seeds",
+    match: [/Astrophytum caput[-\s]?medusae|Digitostigma/i],
+    scientific: "Astrophytum caput-medusae",
+    common: "Medusa's Head Cactus",
+    productType: "seeds",
+    careInstructions: "germination",
+    synonyms: "Syn: Digitostigma caput-medusae | Common: Medusa's Head",
+    description: "Astrophytum caput-medusae is one of the strangest cacti ever described. Discovered only in 2001 and first named Digitostigma, it is native to a single area of Nuevo León, Mexico, where it hides among shrubs and grasses in Tamaulipan thornscrub. Instead of ribs it grows a crown of long, thin, finger-like tubercles — up to 7 inches — from a short stem over a thick taproot, flecked with the white speckling Astrophytum is known for. Bright yellow flowers with an orange-red throat open from the tubercle tips, often on young plants. Fast-growing for an Astrophytum; use a deep pot for the taproot.",
+    germinationTime: "3-14 days",
+    germinationTemp: "70-85°F",
+    germinationMethod: null,
+    status: "active",
+  },
+  {
+    id: "setiechinopsis_mirabilis_seeds",
+    match: [/Setiechinopsis mirabilis.*\bSeeds\b/i],
+    scientific: "Setiechinopsis mirabilis",
+    common: "Flower of Prayer",
+    productType: "seeds",
+    careInstructions: "germination",
+    synonyms: "Syn: Echinopsis mirabilis | Common: Flower of Prayer, Apostles' Cactus",
+    description: "Setiechinopsis mirabilis — the 'Flower of Prayer' or 'Apostles' Cactus' — is a small slender cactus from Argentina, beloved by collectors for its outsized, fragrant white nocturnal flowers on long tubes that can be longer than the plant itself. Mature plants reach only 4–6 inches tall, are self-fertile, and can bloom within two years of sowing. Fast and easy from seed.",
+    germinationTime: "5-14 days",
+    germinationTemp: "70-80°F",
+    germinationMethod: null,
+    status: "active",
+  },
+  {
+    id: "dioscorea_elephantipes_seeds",
+    match: [/Dioscorea elephantipes/i],
+    scientific: "Dioscorea elephantipes",
+    common: "Elephant's Foot",
+    productType: "seeds",
+    careInstructions: "germination",
+    synonyms: "Syn: Testudinaria elephantipes | Common: Elephant's Foot, Turtle Back, Hottentot Bread",
+    description: "Dioscorea elephantipes — Elephant's Foot — is a legendary South African caudiciform. It slowly builds a woody above-ground caudex covered in deeply fissured, corky polygonal plates like a tortoise shell, which can exceed 3 feet across in very old plants. Each growing season it sends up a twining vine with glossy heart-shaped leaves, then dies back to the caudex to rest. Typically grows in the cooler months and goes dormant in summer heat — water when in leaf, keep nearly dry when dormant. Very long-lived.",
+    germinationTime: "14-45 days",
+    germinationTemp: "60-75°F",
+    germinationMethod: "Lay winged seed flat on gritty mix, cover about 1/8 inch, keep lightly moist — sprouts best in cooler fall/spring temps, not summer heat",
+    status: "active",
+  },
+  {
+    id: "tephrocactus_aoracanthus_segment_retired",
+    match: [/Tephrocactus aoracanthus.*[Ll]ong spine/i],
+    scientific: "Tephrocactus aoracanthus var. paediophilus",
+    common: "Long Spine Segment (live cutting)",
+    productType: "cutting",
+    careInstructions: "plant",
+    synonyms: "Var: paediophilus | High-altitude Argentine species",
+    description: "High-altitude Argentinian cactus from 9000-13000ft elevation. Segmented stems with papery white spines. Small white to pink flowers. Extremely slow-growing. Requires excellent drainage and cool conditions. Hardy to 10°F. Challenging but beautiful species.",
+    status: "active",
+  },
+  {
+    id: "tephrocactus_articulatus_paper_spine_retired",
+    match: [/Tephrocactus articulatus.*paper spine/i],
+    scientific: "Tephrocactus articulatus",
+    common: "Paper Spine Cactus — Large Form",
+    productType: "cutting",
+    careInstructions: "plant",
+    synonyms: "Common: Pine Cone Cactus, Paper Spine Cactus | Segmented joints with papery twisted spines",
+    description: "Tephrocactus articulatus var. diadematus — the Pine Cone Cactus — is one of the most peculiar small cacti in cultivation. The plant grows as a chain of small, segmented globular joints that resemble miniature pine cones, with papery, twisted spines arching out at odd angles. Native to high-altitude regions of northwestern Argentina, this slow-growing oddity is a sculptural favorite among collectors.",
+    status: "discontinued",
+  },
+  {
+    id: "stapelia_gigantea_retired",
+    match: [/Stapelia gigantea/i],
+    scientific: "Stapelia gigantea",
+    common: "Giant Carrion Flower",
+    productType: "cutting",
+    careInstructions: "plant",
+    synonyms: "Curated 5-pack of Stapelia and related carrion-flower cuttings",
+    description: "A curated 5-pack of Stapelia and related carrion-flower succulent cuttings from our collection, representing different species and forms. Stapelias are clumping soft-stemmed succulents from southern Africa, famous for their large, often furry, star-shaped flowers that mimic rotting flesh to attract pollinating flies. Each cutting is taken fresh and ready to callous and root.",
+    status: "discontinued",
+  },
+  {
+    id: "huernia_retired",
+    match: [/Huernia/i],
+    scientific: "Huernia",
+    common: "Lifesaver Plant",
+    productType: "cutting",
+    careInstructions: "plant",
+    synonyms: "Common: Lifesaver Plant, Dragon Flower | Carrion flower succulent",
+    description: "Huernia is a genus of clumping carrion-flower succulents from East Africa and the Arabian Peninsula. Small fingerlike four- to five-angled stems form dense clumps. Famous for their bizarre, often striped or hairy, star-shaped 'lifesaver' flowers. Tough, easy to grow, easy to propagate from cuttings.",
+    status: "discontinued",
+  },
+  {
+    id: "gymnocalycium_chimera_retired",
+    match: [/Gymnocalycium chimera/i],
+    scientific: "Gymnocalycium chimera",
+    common: "Chimera on own roots",
+    productType: "specimen",
+    careInstructions: "plant",
+    synonyms: "Common: Dwarf Bruch's Chin Cactus | Bare root plant",
+    description: "Gymnocalycium bruchii — Dwarf Bruch's Chin Cactus — small clustering cactus from Argentina forming tight mounds of globular stems. Produces pale pink flowers in spring. One of the most cold-tolerant cacti in cultivation.",
+    status: "discontinued",
+  },
+  {
+    id: "myrtillocactus_booby_retired",
+    match: [/Myrtillocactus geometrizans.*fukurokuryuzinboku|Breast Cactus|Booby Cacti/i],
+    scientific: "Myrtillocactus geometrizans cv. 'Fukurokuryuzinboku'",
+    common: "Breast Cactus / Booby Cacti",
+    productType: "specimen",
+    careInstructions: "plant",
+    synonyms: "Common: Blue Myrtle Cactus, Blue Candle, Bilberry Cactus | Edible blue-purple berries",
+    description: "Blue Candle or Bilberry Cactus native to central and northern Mexico. Tree-like branching cactus reaching 15ft tall. Blue-green stems with 5-6 ribs. Small white flowers followed by edible purple berries. Fast-growing. Prefers full sun. Hardy to 25°F. Popular ornamental and fruit producer.",
+    status: "discontinued",
+  },
+];
+
+/* ============================================================
+   PARSER
+   Pure function: parseOrders(text) -> Order[]
+   Each Order = { orderNumber, customer, lines: OrderLine[] }
+   Each OrderLine = {
+     productId,            // ref into products[]
+     unmatchedTitle,       // when productId is null
+     itemQuantity,         // integer (default 1)
+     variations,           // { Quantity, Number of Seeds, ... }
+     rawTitle              // the matched title line, for debugging
+   }
+   ============================================================ */
+
+const VARIATION_NAMES = [
+  "Number of Seeds",
+  "Number of Cuttings",
+  "Quantity",
+  "Length",
+  "Pack Size",
+  "Size",
+  "Sex",
+];
+
+/* Lines we should ignore — Etsy chrome that has no signal. */
+const IGNORE_PATTERNS = [
+  /^Transaction ID:/i,
+  /^Item total$/i, /^Subtotal$/i, /^Shipping price$/i, /^Sales tax/i,
+  /^Order total$/i, /^Shop coupon$/i, /^Paid via Etsy/i,
+  /^\d+ Item\(s\)$/i, /^Item price$/i,
+  /^[\$€£]\d/, /^-?\$\d/,
+  /^Open$/i, /^Paid$/i, /^Shipped$/i, /^Completed$/i,
+  /^[(]?\d+% off[)]?$/i,
+];
+
+/* Decode common HTML entities that Etsy injects into pasted text.
+   Etsy sometimes renders the same listing title twice: once HTML-encoded
+   (&#39; &amp; &quot;) and once decoded with raw characters. */
+function decodeHtmlEntities(s) {
+  return s
+    .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(parseInt(n, 10)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, h) => String.fromCharCode(parseInt(h, 16)));
+}
+
+/* Strip markdown bold (__Item__) and Etsy formatting noise, decode entities,
+   unwrap markdown links [text](url) → text. */
+function cleanLine(line) {
+  return decodeHtmlEntities(line)
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")    // markdown link → just the text
+    .replace(/^_{2}/, "").replace(/_{2}$/, "")  // __title__
+    .replace(/^\*+\s*/, "")                      // * prefix
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isIgnored(line) {
+  return IGNORE_PATTERNS.some(p => p.test(line));
+}
+
+/* Try to match a line against the catalog. Returns the product entry
+   or null. If multiple products match, prefers the longest pattern
+   match (more specific). */
+function matchProduct(line) {
+  let best = null;
+  let bestLen = 0;
+  for (const p of products) {
+    for (const re of p.match) {
+      const m = line.match(re);
+      if (m && m[0].length > bestLen) {
+        best = p;
+        bestLen = m[0].length;
+      }
+    }
+  }
+  return best;
+}
+
+/* Parse a variation line. Returns [name, value] or null.
+   Handles "Number of Seeds: 10 Seeds", "Number of Seeds10 Seeds",
+   "* Quantity1", "Quantity: 5". */
+function parseVariation(line) {
+  for (const name of VARIATION_NAMES) {
+    // Allow optional ": " or no separator between name and value
+    const re = new RegExp("^" + name.replace(/ /g, "\\s+") + "\\s*:?\\s*(.+)$", "i");
+    const m = line.match(re);
+    if (m) return [name, m[1].trim()];
+  }
+  return null;
+}
+
+/* Detect an order delimiter line. Anchored to start of line so we don't
+   pick up stray hash-numbers inside chrome text.
+   Matches "Receipt #1234567890", "Order #1234567890", "#1234567890$17.44 WHATEVER". */
+function parseOrderDelimiter(line) {
+  const m = line.match(/^\s*(?:(?:Receipt|Order)\s+)?#\s*(\d{6,})/i);
+  if (m) return { orderNumber: m[1] };
+  return null;
+}
+
+/* Etsy shop manager format announces each order with:
+     "Select this order from <Customer Name> on Month DD, YYYY"
+   Sometimes the name slot is empty (Etsy template glitch) and the line
+   reads "Select this order from on May 12, 2026" — in that case the
+   buyer name appears on the very next line on its own.
+
+   Returns:
+     null               — line doesn't match Select-from pattern at all
+     { name: "..." }    — Select-from line with a non-empty buyer name
+     { name: "" }       — Select-from line present but buyer name missing
+                           (caller should treat next name-like line as the buyer) */
+function parseSelectFromLine(line) {
+  const m = line.match(/^\s*Select this order from(?:\s+(.+?))?\s+on\s+[A-Z][a-z]+\s+\d{1,2},?\s+\d{4}\s*$/i);
+  if (!m) return null;
+  return { name: (m[1] || '').trim() };
+}
+
+/* Heuristic fallback for customer name detection. Used only when no
+   "Select this order from <name> on <date>" line is present in the paste. */
+const CHROME_PREFIXES = [
+  // Order status / shipping chrome
+  'open','paid','shipped','completed','in progress','new','will ship','marked as',
+  'view order','order details','items','item','untracked','ship today','ship by',
+  'ship to','ordered ','usps','ups','fedex','standard shipping','first-class',
+  'track package','pre-transit','in transit','canceled','fully refunded','refund',
+  // Filters / sort
+  'sort by','sort ','overdue','today','tomorrow','within','no estimate','destination',
+  'united states','international','has note','marked as gift','personalized','shipping',
+  'eligible','upgrade','reset filters',
+  // Money / counts
+  'quantity','total','subtotal','tax','order total','grand total',
+  // Etsy nav / shop manager
+  'skip to','shop manager','etsy plus','search','dashboard','listings','messages',
+  'orders','etsy search','stats','customer service','policy','marketing','finances',
+  'apps','help','settings','sales channels','etsy','cactusarchive','square',
+  'blythe cactus','want your own','learn more','your account','via etsy',
+  'etsy payments','shop coupon','transaction id','select this order',
+  'completed may','page','of ',
+  // Footer
+  'terms of use','privacy','interest-based','local shops','regions','help center',
+];
+
+function looksLikeCustomerName(line) {
+  if (line.length < 2 || line.length > 80) return false;
+  if (/\d/.test(line)) return false;
+  if (/[\$€£@/|©®™]/.test(line)) return false;
+  const low = line.toLowerCase();
+  for (const prefix of CHROME_PREFIXES) {
+    if (low.startsWith(prefix)) return false;
+  }
+  if (!/[A-Za-zÀ-ÿ]/.test(line)) return false;
+  if (line === line.toUpperCase() && !/\s/.test(line)) return false;
+  const wordCount = line.split(/\s+/).length;
+  if (wordCount > 5) return false;
+  if (!/[A-ZÀ-Þ][a-zà-þ]/.test(line)) return false;
+  return true;
+}
+
+/* More permissive than looksLikeCustomerName — used only inside a
+   recognized "Ship to" block, where Etsy sometimes renders the
+   recipient name lowercase or with non-standard capitalization,
+   and may append shop codes like "TRUNG TRAN EC576". */
+function looksLikeShipToName(line) {
+  if (line.length < 2 || line.length > 80) return false;
+  if (/^\d+$/.test(line)) return false;          // all-digit = order/tracking number
+  if (/[\$€£@/|©®™]/.test(line)) return false;
+  const low = line.toLowerCase();
+  for (const prefix of CHROME_PREFIXES) {
+    if (low.startsWith(prefix)) return false;
+  }
+  if (!/[A-Za-zÀ-ÿ]/.test(line)) return false;
+  const wordCount = line.split(/\s+/).length;
+  if (wordCount > 5) return false;
+  return true;
+}
+
+/* "City, ST" or "City, State Name" — typical second line of an address block. */
+function looksLikeLocation(line) {
+  if (line.length < 3 || line.length > 80) return false;
+  if (!/,/.test(line)) return false;
+  // After the last comma, expect a state-like token (2-letter abbrev or word)
+  const parts = line.split(',');
+  if (parts.length < 2) return false;
+  const tail = parts[parts.length - 1].trim();
+  if (tail.length === 0) return false;
+  if (!/[A-Za-zÀ-ÿ]/.test(tail)) return false;
+  return true;
+}
+
+/* A line that reads like a listing title but matched nothing in the catalog.
+   These are the dangerous misses: the item gets no label. */
+function looksLikeProductTitle(line) {
+  if (line.length < 10 || line.length > 160) return false;
+  if (/^(cactus\s*archive|blythe cactus)/i.test(line)) return false;
+  return /\b(seeds?|seedlings?|cuttings?|unrooted|rooted|pads?|plants?|cactus|cacti|succulents?)\b/i.test(line);
+}
+
+/* ---- Fallback matcher --------------------------------------------------
+   Etsy titles get rewritten ("Ocotillo Seeds | Fouquieria splendens | ...")
+   and stop matching the title patterns above. When that happens, match on
+   what doesn't change: the scientific name plus the kind of product.
+   Returns a product only when exactly one catalog entry fits. */
+const NAME_QUALIFIERS = [/varieg/i, /crest|crist/i, /monstr/i, /furry/i];
+
+function nameTokens(p) {
+  if (!/^[A-Z][a-z]+ [a-z]{4,}/.test(p.scientific)) return [];   // real "Genus species" only
+  return p.scientific.toLowerCase().replace(/[^a-z\s-]/g, " ").split(/\s+/)
+    .filter(w => w.length > 3 && w !== "subsp" && w !== "forma" &&
+                 !NAME_QUALIFIERS.some(q => q.test(w)));
+}
+
+/* Which productTypes a title could be, judged by its wording. */
+function titleTypes(line) {
+  if (/\bpair\b/i.test(line)) return ["pair"];
+  if (/\bseedlings?\b/i.test(line)) return ["seedling"];
+  if (/\bseed[\s-]?grown\b/i.test(line)) return ["seedling", "plant", "specimen"];
+  if (/\bseeds?\b/i.test(line)) return ["seeds"];
+  if (/\bpack\b/i.test(line)) return ["pack"];
+  if (/\bpads?\b/i.test(line)) return ["pad"];
+  if (/\b(cuttings?|segments?|unrooted)\b/i.test(line)) return ["cutting"];
+  if (/\b(plants?|rooted|specimen)\b/i.test(line)) return ["plant", "seedling", "specimen"];
+  return null;
+}
+
+function matchByName(line) {
+  const low = line.toLowerCase();
+  const types = titleTypes(line);
+  let best = [], bestScore = 0;
+  for (const p of products) {
+    if (types && !types.includes(p.productType)) continue;
+    const toks = nameTokens(p);
+    if (toks.length < 2) continue;                       // need genus + species
+    if (!toks.every(t => new RegExp("\\b" + t.slice(0, 7)).test(low))) continue;
+    const label = `${p.id} ${p.scientific} ${p.common}`;
+    if (!NAME_QUALIFIERS.every(q => q.test(line) === q.test(label))) continue;
+    if (toks.length > bestScore) { best = [p]; bestScore = toks.length; }
+    else if (toks.length === bestScore) best.push(p);
+  }
+  if (best.length > 1) {
+    const active = best.filter(p => p.status === "active");
+    if (active.length === 1) best = active;
+  }
+  return best.length === 1 ? best[0] : null;
+}
+
+function isShipToMarker(line) {
+  return /^Ship to\s*:?\s*$/i.test(line);
+}
+
+/* Main parser. */
+function parseOrders(text) {
+  const rawLines = text.split(/\r?\n/);
+  const orders = [];
+  let cur = null;
+  let curLine = null;
+  let pendingCustomer = null;
+  let expectingFallbackBuyer = false;
+  let shipToState = 'none';            // 'none' | 'expecting_name' | 'expecting_location'
+  const unmatched = [];
+  const missingProducts = [];          // listing titles with no catalog entry
+  const nameMatched = [];              // titles matched by scientific name only
+
+  function ensureOrder() {
+    if (!cur) {
+      cur = {
+        orderNumber: null, customer: null, lines: [], candidates: [],
+        shipToName: null, shipToLocation: null,
+      };
+      orders.push(cur);
+    }
+    return cur;
+  }
+
+  function resetSelectFromAndShipTo() {
+    expectingFallbackBuyer = false;
+    shipToState = 'none';
+  }
+
+  for (let i = 0; i < rawLines.length; i++) {
+    const original = rawLines[i];
+    const line = cleanLine(original);
+    if (!line) continue;
+    if (isIgnored(line)) continue;
+
+    // 0. "Ship to" marker — enter ship-to capture state for the current order
+    if (isShipToMarker(line)) {
+      if (cur) shipToState = 'expecting_name';
+      continue;
+    }
+
+    // 0a. If we are expecting a ship-to name on this line, capture it
+    if (shipToState === 'expecting_name') {
+      if (looksLikeShipToName(line)) {
+        if (cur) cur.shipToName = line;
+        shipToState = 'expecting_location';
+        continue;
+      }
+      // Anything else aborts the ship-to capture
+      shipToState = 'none';
+    }
+    if (shipToState === 'expecting_location') {
+      if (looksLikeLocation(line)) {
+        if (cur) cur.shipToLocation = line;
+        shipToState = 'none';
+        continue;
+      }
+      shipToState = 'none';
+    }
+
+    // 1a. Select-from line
+    const sfResult = parseSelectFromLine(line);
+    if (sfResult !== null) {
+      if (sfResult.name) {
+        pendingCustomer = sfResult.name;
+        expectingFallbackBuyer = false;
+      } else {
+        expectingFallbackBuyer = true;
+      }
+      shipToState = 'none';
+      continue;
+    }
+
+    // 1. Order delimiter?
+    const od = parseOrderDelimiter(line);
+    if (od) {
+      cur = {
+        orderNumber: od.orderNumber,
+        customer: pendingCustomer,
+        lines: [],
+        candidates: [],
+        shipToName: null,
+        shipToLocation: null,
+      };
+      orders.push(cur);
+      pendingCustomer = null;
+      resetSelectFromAndShipTo();
+      curLine = null;
+      continue;
+    }
+
+    // 2. Variation line
+    const v = parseVariation(line);
+    if (v) {
+      const [vname, vval] = v;
+      if (vname === "Quantity" && /^\d+$/.test(vval)) {
+        if (curLine) curLine.itemQuantity = parseInt(vval, 10);
+        continue;
+      }
+      if (curLine) {
+        curLine.variations[vname] = vval;
+        continue;
+      }
+      continue;
+    }
+
+    // 3. Standalone integer = item count (Receipt format)
+    if (/^\d+$/.test(line)) {
+      if (curLine && curLine.itemQuantity == null) {
+        curLine.itemQuantity = parseInt(line, 10);
+      }
+      continue;
+    }
+
+    // 4. Catalog match — title pattern first, scientific name as fallback
+    let product = matchProduct(line);
+    if (!product) {
+      product = matchByName(line);
+      if (product) {
+        const note = `${line}  →  ${product.scientific} · ${product.common} (${product.productType})`;
+        if (!nameMatched.includes(note)) nameMatched.push(note);
+      }
+    }
+    if (product) {
+      ensureOrder();
+      const last = cur.lines[cur.lines.length - 1];
+      const lastIsFresh = last && last === curLine && last.itemQuantity == null &&
+                          Object.keys(last.variations).length === 0;
+      if (last && last.productId === product.id && lastIsFresh) {
+        // Etsy displays each listing title twice in shop manager pastes
+        // (often once HTML-entity-encoded, once decoded). Same product as
+        // the immediately previous line = duplicate display, not a separate
+        // purchase. Skip; variations on subsequent lines attach to the
+        // existing curLine.
+        continue;
+      }
+      curLine = {
+        productId: product.id,
+        unmatchedTitle: null,
+        itemQuantity: null,
+        variations: {},
+        rawTitle: line,
+        manualType: null,
+        originOrder: cur.orderNumber,
+      };
+      cur.lines.push(curLine);
+      expectingFallbackBuyer = false;
+      continue;
+    }
+
+    // 4-pre. Buyer name on its own line right after an empty "Select this
+    //     order from on <date>" — Etsy shows it as typed, sometimes lowercase.
+    if (expectingFallbackBuyer && looksLikeShipToName(line)) {
+      pendingCustomer = line;
+      expectingFallbackBuyer = false;
+      continue;
+    }
+
+    // 4a. Looks like a listing title but isn't in the catalog. Record it and
+    //     close the current item so this item's variations / quantity don't
+    //     get attached to the previous item's label.
+    if (looksLikeProductTitle(line)) {
+      if (!missingProducts.includes(line)) missingProducts.push(line);
+      curLine = null;
+      continue;
+    }
+
+    // 5. Customer name candidate
+    if (looksLikeCustomerName(line)) {
+      if (expectingFallbackBuyer) {
+        pendingCustomer = line;
+        expectingFallbackBuyer = false;
+        continue;
+      }
+      if (cur) {
+        cur.candidates.push(line);
+        if (!cur.customer && cur.lines.length === 0) {
+          cur.customer = line;
+        }
+      }
+      continue;
+    }
+
+    // 6. Unmatched
+    if (line.length > 4 && !/^https?:/i.test(line) && !/^(View|Print|Edit|Cancel|Save)$/i.test(line)) {
+      unmatched.push(line);
+    }
+  }
+
+  for (const o of orders) {
+    for (const l of o.lines) {
+      if (l.itemQuantity == null) l.itemQuantity = 1;
+      if (!l.originOrder && o.orderNumber) l.originOrder = o.orderNumber;
+    }
+  }
+
+  const realOrders = orders.filter(o => o.lines.length > 0);
+  return { orders: realOrders, unmatched, missingProducts, nameMatched };
+}
+
+/* Combine orders into customer batches keyed on SHIP-TO (name + location)
+   since the physical destination is what determines whether multiple
+   orders go in one package. Falls back to buyer name when ship-to isn't
+   detected (e.g., receipt-format pastes). */
+function combineOrdersByCustomer(orders) {
+  const byKey = new Map();
+  const result = [];
+  for (const o of orders) {
+    // Build combine key: ship-to address > ship-to name > buyer name > null
+    let key = null;
+    if (o.shipToName && o.shipToLocation) {
+      key = `shipto:${o.shipToName.trim().toLowerCase()}|${o.shipToLocation.trim().toLowerCase()}`;
+    } else if (o.shipToName) {
+      key = `shipto:${o.shipToName.trim().toLowerCase()}`;
+    } else if (o.customer) {
+      key = `buyer:${o.customer.trim().toLowerCase()}`;
+    }
+
+    if (!key) {
+      result.push({
+        customer: null,
+        shipToName: null,
+        shipToLocation: null,
+        orderNumbers: o.orderNumber ? [o.orderNumber] : [],
+        lines: o.lines,
+      });
+      continue;
+    }
+
+    if (!byKey.has(key)) {
+      const merged = {
+        customer: o.customer,
+        shipToName: o.shipToName,
+        shipToLocation: o.shipToLocation,
+        orderNumbers: o.orderNumber ? [o.orderNumber] : [],
+        lines: [...o.lines],
+      };
+      byKey.set(key, merged);
+      result.push(merged);
+    } else {
+      const existing = byKey.get(key);
+      if (o.orderNumber && !existing.orderNumbers.includes(o.orderNumber)) {
+        existing.orderNumbers.push(o.orderNumber);
+      }
+      // Backfill ship-to fields if the existing batch was missing them
+      if (!existing.shipToName && o.shipToName) existing.shipToName = o.shipToName;
+      if (!existing.shipToLocation && o.shipToLocation) existing.shipToLocation = o.shipToLocation;
+      // If buyer names differ across merged orders, keep the first; could
+      // also concatenate, but ship-to is the primary identity here.
+      existing.lines.push(...o.lines);
+    }
+  }
+  return result;
+}
+
+/* ============================================================
+   RENDERER
+   renderLabels(orders) -> DOM tree inside #preview
+   ============================================================ */
+
+const productById = Object.fromEntries(products.map(p => [p.id, p]));
+
+/* Left column: quantity descriptor varies by productType.
+   itemQuantity is the number of *units* the customer bought (usually 1).
+   variations holds Number of Seeds / Length / Size / Sex etc. */
+function formatQuantity(product, line) {
+  const itemQ = line.itemQuantity || 1;
+  const v = line.variations || {};
+
+  // Helper: pluralize unit by count
+  const u = (n, sing, pl) => `${n} ${n === 1 ? sing : pl}`;
+
+  // Effective product type honors manual override
+  const type = line.manualType || product.productType;
+  const care = line.manualType ?
+      (line.manualType === 'seeds' ? 'germination' :
+       line.manualType === 'aquatic' ? 'aquatic' : 'plant')
+      : product.careInstructions;
+
+  // SEEDS
+  if (type === 'seeds') {
+    // Find seed count from Number of Seeds, Quantity (if non-digit), or Size
+    let seedCountText = null;
+    if (v["Number of Seeds"]) seedCountText = v["Number of Seeds"];
+    else if (v["Quantity"] && !/^\d+$/.test(v["Quantity"])) seedCountText = v["Quantity"];
+    else if (v["Size"]) seedCountText = v["Size"];
+
+    if (seedCountText) {
+      // Normalize "10 Seeds" / "Approx 150-200 Seeds" / "1 Seed"
+      const clean = seedCountText.replace(/^Approx\s+/i, "Approx ");
+      if (itemQ > 1) return `Quantity: ${itemQ} × ${clean}`;
+      return `Quantity: ${clean}`;
+    }
+    return `Quantity: ${itemQ} packet${itemQ === 1 ? '' : 's'}`;
+  }
+
+  // AQUATIC
+  if (type === 'aquatic') {
+    if (v["Quantity"]) return `Quantity: ${v["Quantity"]}`;
+    return `Quantity: ${itemQ} portion${itemQ === 1 ? '' : 's'}`;
+  }
+
+  // CUTTINGS — show Number of Cuttings, Length, or Size (whichever present)
+  if (type === 'cutting') {
+    const parts = [];
+    if (v["Number of Cuttings"]) parts.push(`Quantity: ${v["Number of Cuttings"]}`);
+    else if (itemQ > 1) parts.push(`Quantity: ${u(itemQ, "cutting", "cuttings")}`);
+    else parts.push(`Quantity: 1 cutting`);
+    if (v["Length"]) parts.push(`Length: ${v["Length"]}`);
+    if (v["Size"] && !v["Number of Cuttings"]) parts.push(`Size: ${v["Size"]}`);
+    return parts.join(" · ");
+  }
+
+  // PAD (Opuntia pads — may come as Single or in multi-packs)
+  if (type === 'pad') {
+    const parts = [];
+    const packSize = v["Pack Size"];
+    if (packSize && !/^single$/i.test(packSize)) {
+      // Multi-pack: "Quantity: 2 × 3 Pack" (6 pads total)
+      parts.push(`Quantity: ${itemQ} × ${packSize}`);
+    } else {
+      parts.push(`Quantity: ${u(itemQ, "pad", "pads")}`);
+    }
+    if (v["Size"]) parts.push(`Size: ${v["Size"]}`);
+    return parts.join(" · ");
+  }
+
+  // SEEDLING — small seed-grown plant
+  if (type === 'seedling') {
+    const parts = [`Quantity: ${u(itemQ, "seedling", "seedlings")}`];
+    if (v["Sex"]) parts.push(`Sex: ${v["Sex"]}`);
+    if (v["Size"]) parts.push(`Size: ${v["Size"]}`);
+    return parts.join(" · ");
+  }
+
+  // SPECIMEN — WYSIWYG one-of-a-kind
+  if (type === 'specimen') {
+    return `Quantity: ${u(itemQ, "specimen", "specimens")} (as shown)`;
+  }
+
+  // PAIR — Euphorbia obesa M/F
+  if (type === 'pair') return `Quantity: ${itemQ} M/F pair${itemQ === 1 ? '' : 's'}`;
+
+  // PACK — multi-item collection (cutting pack, 10-pack, etc)
+  if (type === 'pack') {
+    return `Quantity: ${u(itemQ, "pack", "packs")}`;
+  }
+
+  // PLANT (bare-root live plant)
+  if (type === 'plant') {
+    const parts = [`Quantity: ${u(itemQ, "plant", "plants")}`];
+    if (v["Sex"]) parts.push(`Sex: ${v["Sex"]}`);
+    if (v["Size"]) parts.push(`Size: ${v["Size"]}`);
+    return parts.join(" · ");
+  }
+
+  return `Quantity: ${itemQ}`;
+}
+
+/* Right column care/germination text. */
+/* The effective care type for a line — honors manual override. */
+function effectiveCareType(line, product) {
+  if (line.manualType === 'seeds') return 'germination';
+  if (line.manualType === 'aquatic') return 'aquatic';
+  if (line.manualType === 'plant') return 'plant';
+  return product ? product.careInstructions : 'plant';
+}
+
+/* Comprehensive per-page care guide. Goes in the right column of the
+   first page of each care-group. */
+function renderCareGuide(careType) {
+  if (careType === 'germination') {
+    return `<div class="care-guide care-guide-germination">
+      <h2 class="care-guide-title">⏱ Germination Instructions</h2>
+      <p class="care-guide-intro">Read all sections before sowing. Species-specific time &amp; temperature appear on each seed label at left.</p>
+
+      <h3>Soil &amp; Container</h3>
+      <ul>
+        <li>Use a <strong>sterilized cactus/succulent mix</strong>. Our recommended blend: 50% ground peat moss or coconut coir + 50% pumice, crushed lava rock, perlite, etc.</li>
+        <li>Note: peat moss can become hydrophobic without a wetting agent; in dry climates, <strong>coconut coir is better</strong> for moisture retention</li>
+        <li>Use shallow pots or trays</li>
+      </ul>
+
+      <h3>Sowing</h3>
+      <ul>
+        <li>Space seeds with expectation of transplanting in <strong>6–8 months</strong></li>
+        <li>Most cactus seeds are <strong>positively photoblastic</strong> — they need light to trigger germination, so surface sowing (or pressing into the substrate without covering) is the default</li>
+        <li><strong>Avoid peat moss as a top dressing</strong></li>
+      </ul>
+
+      <h3>Sowing Depth by Genus</h3>
+      <ul>
+        <li><strong>Surface sow (no cover):</strong> Mammillaria, Rebutia, Lobivia, Gymnocalycium, Parodia, Notocactus, Lophophora, Ariocarpus, most Copiapoa / Eriosyce / Sulcorebutia — tiny dust-like seeds, light-dependent</li>
+        <li><strong>Press in lightly:</strong> Astrophytum (thin grit anchors without blocking light), Echinocactus, Ferocactus, Echinocereus — larger seeds benefit from surface contact</li>
+        <li><strong>Shallow burial OK (1–2× seed diameter):</strong> Opuntia &amp; Cylindropuntia (often need scarification first), Pereskia. Columnar genera (Carnegiea, Pachycereus, Stenocereus) tolerate burial but germinate better on the surface</li>
+      </ul>
+
+      <h3>Moisture</h3>
+      <ul>
+        <li><strong>Do not let them dry out</strong> during germination or the first few weeks after sprouting</li>
+        <li>Keep soil consistently moist using bottom watering, mist spraying, or by covering with clear plastic to hold humidity</li>
+        <li>Keep soil moist during germination and for several months thereafter, then transition to brief drying periods</li>
+      </ul>
+
+      <h3>Light &amp; Temperature</h3>
+      <ul>
+        <li>Provide filtered natural sunlight or grow lights (may promote algae)</li>
+        <li>Maintain soil temps <strong>75–90°F (24–32°C)</strong></li>
+        <li>Over <strong>100°F (38°C) can hinder germination</strong></li>
+      </ul>
+
+      <h3>Air Circulation</h3>
+      <ul>
+        <li>Success depends on moisture, drainage, bright light, warmth, and air circulation</li>
+        <li>Ensure some airflow; in enclosed setups, a small fan is useful</li>
+      </ul>
+
+      <h3>Pest &amp; Fungus Control</h3>
+      <ul>
+        <li>To prevent fungus/mold we use <strong>myclobutanil</strong> fungicide; a small drop added to water</li>
+        <li><strong>Imidacloprid</strong> is an effective systemic pesticide and can treat/prevent fungus gnats</li>
+        <li><strong>Important:</strong> Imidacloprid is toxic to bees and is usually unnecessary outdoors — stop using it once plants are moved outside</li>
+        <li>Watch for pests (especially fungus gnats) and treat immediately. Mold can kill seedlings, so act quickly</li>
+      </ul>
+
+      <p class="care-guide-foot">Questions? Reply to your Etsy order. Thank you for growing with us.<br><em>— Blythe Cactus Farm</em></p>
+    </div>`;
+  }
+
+  if (careType === 'aquatic') {
+    return `<div class="care-guide care-guide-aquatic">
+      <h2 class="care-guide-title">💧 Aquatic Care — Azolla / Fairy Moss</h2>
+
+      <h3>On Arrival</h3>
+      <ul>
+        <li>Unbox and float on dechlorinated freshwater immediately</li>
+        <li>Some browning or compression is normal after transit and resolves within a few days</li>
+        <li><strong>If your Azolla has not recovered within 5 days, please message us through Etsy with photos.</strong> Damage claims must be reported within this window — we can't replace plants reported as DOA weeks after arrival</li>
+      </ul>
+
+      <h3>Placement</h3>
+      <ul>
+        <li>Float on still or slow-moving freshwater — ponds, aquariums, aquaponics, troughs</li>
+        <li>Partial shade if growth becomes excessive</li>
+      </ul>
+
+      <h3>Lighting</h3>
+      <ul>
+        <li>Bright indirect — keeps it green</li>
+        <li>Direct sun — brings out red coloration and accelerates growth</li>
+        <li>Aquariums: standard plant lighting is fine</li>
+      </ul>
+
+      <h3>Water Chemistry</h3>
+      <ul>
+        <li>pH 5.5 – 8.0 (very tolerant)</li>
+        <li>Temperature 50 – 100°F (50–85°F optimal)</li>
+        <li>No CO₂ or fertilizer needed — Azolla fixes its own nitrogen via symbiotic <em>Anabaena</em> cyanobacteria</li>
+      </ul>
+
+      <h3>Growth &amp; Maintenance</h3>
+      <ul>
+        <li>Biomass doubles every 2–5 days in good conditions</li>
+        <li>A single portion will seed a small pond within weeks</li>
+        <li>Skim excess to prevent complete surface coverage (which can cause oxygen starvation below)</li>
+        <li>Skimmed Azolla makes excellent garden mulch, compost, or chicken feed</li>
+      </ul>
+
+      <h3>Quarantine (for aquariums)</h3>
+      <ul>
+        <li>24–48 hours in a separate container with bagged shipping water before adding to a sensitive tank</li>
+        <li>Strain through fine mesh when transferring</li>
+      </ul>
+
+      <h3>Cold Weather</h3>
+      <ul>
+        <li>Tolerates light freezing if the pond surface ices</li>
+        <li>Sub-freezing exposure of thin layers may kill — keep some indoors as backup</li>
+      </ul>
+
+      <h3>Cautions</h3>
+      <ul>
+        <li>Do not release into natural waterways — can become invasive in warm climates</li>
+        <li>Sensitive fish species: longer quarantine</li>
+      </ul>
+
+      <p class="care-guide-foot"><em>— Blythe Cactus Farm</em></p>
+    </div>`;
+  }
+
+  // plant (default)
+  return `<div class="care-guide care-guide-plant">
+    <h2 class="care-guide-title">🌱 Plant &amp; Cutting Care</h2>
+
+    <h3>On Arrival</h3>
+    <ul>
+      <li>Unbox immediately, inspect for damage</li>
+      <li>Mild transit stress is normal — do not water immediately</li>
+    </ul>
+
+    <h3>If Something Looks Off</h3>
+    <ul>
+      <li>Many normal post-shipping conditions look alarming but resolve on their own — <strong>soil-line discoloration, soft callous tissue, and minor shipping stress</strong> are common and not damage</li>
+      <li><strong>Before you cut, scrape, repot, or otherwise intervene</strong>, please message us with a clear photo. Cutting into a healthy plant often creates the very problem you are trying to prevent</li>
+      <li>For any damage claim: <strong>a photo is required within 48 hours of delivery</strong>, and please don't discard the plant before reaching out</li>
+      <li>We'll always make it right when there's a real issue — just message us through Etsy. We actually answer</li>
+    </ul>
+
+    <h3>Unrooted Cuttings</h3>
+    <ul>
+      <li>Set cut-side-down on a dry paper towel, indirect light, room temperature</li>
+      <li>Allow the cut surface to callous for 3–7 days</li>
+      <li>Once calloused, set on top of dry, gritty cactus mix — do not bury</li>
+      <li>Let the cutting find its own depth as roots anchor</li>
+    </ul>
+
+    <h3>Rooted Plants &amp; Specimens</h3>
+    <ul>
+      <li>Pot in well-drained cactus mix (50% perlite + 50% potting mix)</li>
+      <li>Pot size: 1–2 sizes larger than the root mass, with drainage holes</li>
+      <li>One light watering after potting, then wait 1–2 weeks before resuming</li>
+    </ul>
+
+    <h3>Watering</h3>
+    <ul>
+      <li>Cuttings: wait until you see new growth or feel resistance when tugging gently — usually 4–8 weeks</li>
+      <li>Rooted plants: when the mix is fully dry, water deeply and let drain</li>
+      <li>Reduce frequency in winter; most species go dormant</li>
+      <li><strong>Underwater rather than overwater</strong> — rot is the main killer</li>
+    </ul>
+
+    <h3>Light</h3>
+    <ul>
+      <li>Bright light, ideally with some morning direct sun</li>
+      <li>Acclimate gradually to full sun — avoid intense afternoon sun for the first 1–2 weeks</li>
+      <li>Outdoors only after night temperatures stay above 50°F</li>
+    </ul>
+
+    <h3>Temperature</h3>
+    <ul>
+      <li>Most species hardy to mid-20s°F <em>when dry</em></li>
+      <li>Hardy species (Opuntia humifusa, Cylindropuntia): 0°F dry</li>
+      <li>Bring sensitive species indoors if frost is expected</li>
+      <li>Avoid the wet + cold combination — guaranteed rot</li>
+    </ul>
+
+    <h3>Long-Term</h3>
+    <ul>
+      <li>1/4-strength cactus fertilizer monthly during active growth</li>
+      <li>Repot every 2–3 years when rootbound</li>
+      <li>Most species flower in late spring or summer once established</li>
+    </ul>
+
+    <p class="care-guide-foot"><em>— Blythe Cactus Farm</em></p>
+  </div>`;
+}
+
+/* Small per-entry germination/care badge — species-specific data only.
+   The general procedure lives in the right-column care guide. */
+function renderEntryGermBadge(product, line) {
+  const care = effectiveCareType(line, product);
+  if (care !== 'germination') return '';
+  const parts = [];
+  if (product.germinationTime) parts.push(`<span><strong>Time:</strong> ${escapeHtml(product.germinationTime)}</span>`);
+  if (product.germinationTemp) parts.push(`<span><strong>Temp:</strong> ${escapeHtml(product.germinationTemp)}</span>`);
+  if (parts.length === 0 && product.productType === 'seeds') {
+    parts.push(`<span><strong>Time:</strong> 5–30 days at 70–85°F (typical)</span>`);
+  }
+  if (parts.length === 0) return '';
+  let html = `<div class="seed-germ">${parts.join(" · ")}</div>`;
+  if (product.germinationMethod) {
+    html += `<div class="seed-germ-method"><strong>Method:</strong> ${escapeHtml(product.germinationMethod)}</div>`;
+  }
+  return html;
+}
+
+function escapeHtml(s) {
+  if (s == null) return "";
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+/* Variations dump — show all captured variation values on the label
+   per user request to "include as much info as possible". */
+function renderVariations(line) {
+  const v = line.variations || {};
+  const keys = Object.keys(v);
+  if (keys.length === 0) return "";
+  return `<div class="seed-variations">${keys.map(k => `<span class="vk">${escapeHtml(k)}:</span> ${escapeHtml(v[k])}`).join(" · ")}</div>`;
+}
+
+function renderSeedEntry(line, product, opts) {
+  const type = line.manualType || product.productType;
+  const qClass = `is-${type}`;
+  const includeTapeBox = (type === 'seeds');
+  const orderTag = line.originOrder ? `<div class="seed-order-tag">#${escapeHtml(line.originOrder)}</div>` : '';
+
+  return `<div class="seed-entry">
+    <div class="seed-title-row">
+      <div class="seed-title-text">
+        <div class="seed-scientific">${escapeHtml(product.scientific)}</div>
+        ${product.common ? `<div class="seed-common"><strong>${escapeHtml(product.common)}</strong></div>` : ''}
+        ${product.synonyms ? `<div class="seed-common">${escapeHtml(product.synonyms)}</div>` : ''}
+      </div>
+      ${includeTapeBox ? '<div class="seed-tape-here">Tape<br>vial<br>here</div>' : ''}
+    </div>
+    <div class="seed-quantity ${qClass}">${escapeHtml(formatQuantity(product, line))}</div>
+    ${renderEntryGermBadge(product, line)}
+    <div class="seed-description">${escapeHtml(product.description || "")}</div>
+    ${renderVariations(line)}
+    ${orderTag}
+  </div>`;
+}
+
+function renderOrderControls(batches) {
+  if (batches.length === 0) return "";
+  const blocks = [];
+  let totalItems = 0;
+  batches.forEach((b, bi) => {
+    totalItems += b.lines.length;
+    const nums = (b.orderNumbers && b.orderNumbers.length)
+      ? b.orderNumbers.map(n => '#' + n).join(', ')
+      : '—';
+    const orderLabel = (b.orderNumbers && b.orderNumbers.length === 1) ? 'Order' : 'Orders';
+
+    const itemRows = b.lines.map((l, li) => {
+      const product = productById[l.productId];
+      if (!product) return '';
+      const effectiveType = l.manualType || product.productType;
+      const careType = l.manualType ||
+        (product.careInstructions === 'germination' ? 'seeds' :
+         product.careInstructions === 'aquatic' ? 'aquatic' : 'plant');
+      const make = (val, label) => `<button data-o="${bi}" data-l="${li}" data-v="${val}" class="${careType === val ? 'active' : ''}">${label}</button>`;
+      const originTag = (b.orderNumbers && b.orderNumbers.length > 1 && l.originOrder)
+        ? ` <span class="origin-tag">#${escapeHtml(l.originOrder)}</span>`
+        : '';
+      const typePill = `<span class="type-pill type-${escapeHtml(effectiveType)}">${escapeHtml(effectiveType)}</span>`;
+      return `<div class="item-row">
+        <div class="item-what">${typePill} <em>${escapeHtml(product.scientific)}</em>${originTag}</div>
+        <div class="toggle-wrap">
+          <span class="toggle-label">Care guide:</span>
+          <div class="toggle-group" data-toggle="manualType">
+            ${make("seeds", "Seeds")}
+            ${make("plant", "Plant")}
+            ${make("aquatic", "Aquatic")}
+          </div>
+        </div>
+      </div>`;
+    }).join("");
+
+    const shipToPart = b.shipToName
+      ? `<span class="lbl">Ship to:</span> <span class="val">${escapeHtml(b.shipToName)}</span>${b.shipToLocation ? ` <span class="loc">${escapeHtml(b.shipToLocation)}</span>` : ''}`
+      : '';
+    const buyerPart = b.customer
+      ? `<span class="lbl">Buyer:</span> <span class="val">${escapeHtml(b.customer)}</span>`
+      : '';
+    const namesSeparator = (shipToPart && buyerPart) ? ' <span class="sep">·</span> ' : '';
+    const namesLine = (shipToPart || buyerPart)
+      ? `<div class="batch-names">${shipToPart}${namesSeparator}${buyerPart}</div>`
+      : `<div class="batch-names"><em style="color:#888;">(unknown recipient)</em></div>`;
+
+    blocks.push(`<div class="batch-block">
+      <div class="batch-header">
+        ${namesLine}
+        <div class="batch-orders">${orderLabel} ${escapeHtml(nums)}</div>
+      </div>
+      <div class="batch-items">${itemRows}</div>
+    </div>`);
+  });
+
+  return `<div class="order-controls">
+    <h2>Summary — ${totalItems} item${totalItems === 1 ? '' : 's'} across ${batches.length} ship-to batch${batches.length === 1 ? '' : 'es'}</h2>
+    ${blocks.join("")}
+  </div>`;
+}
+
+/* Layout strategy (matches original app):
+   - Group an order's lines by effective care type (germination/plant/aquatic)
+   - For each care group:
+     - First page: up to 3 entries on left column, comprehensive care guide on right
+     - Continuation pages: up to 6 entries spread across both columns (3 per col)
+   - Each page repeats the customer header
+*/
+const FIRST_PAGE_ENTRIES = 3;       // left column only, right is care guide
+const CONTINUATION_ENTRIES = 6;     // both columns, 3 per col
+
+function paginateCareGroup(lines) {
+  const pages = [];
+  if (lines.length === 0) return pages;
+  pages.push(lines.slice(0, FIRST_PAGE_ENTRIES));
+  for (let i = FIRST_PAGE_ENTRIES; i < lines.length; i += CONTINUATION_ENTRIES) {
+    pages.push(lines.slice(i, i + CONTINUATION_ENTRIES));
+  }
+  return pages;
+}
+
+function renderEntriesHtml(lines) {
+  return lines.map(l => {
+    const product = productById[l.productId];
+    if (!product) {
+      return `<div class="seed-entry">
+        <div class="seed-scientific" style="color:#a44;">Unmatched: ${escapeHtml(l.rawTitle || "(no title)")}</div>
+        <div class="seed-common">No catalog entry found. Add a pattern to build_catalog.py.</div>
+      </div>`;
+    }
+    return renderSeedEntry(l, product, {});
+  }).join("");
+}
+
+function renderPage(order, pageLines, careType, isFirstPage, pageIdx, totalPages) {
+  // Printed page only shows the order number(s). Buyer/ship-to names
+  // appear in the on-screen order controls panel above the preview.
+  let orderInfoText = '';
+  if (order.orderNumbers && order.orderNumbers.length > 0) {
+    const label = order.orderNumbers.length === 1 ? 'Order' : 'Orders';
+    const nums = order.orderNumbers.map(n => `#${escapeHtml(n)}`).join(', ');
+    orderInfoText = `${label} ${nums}${totalPages > 1 ? ` · Page ${pageIdx + 1}/${totalPages}` : ''}`;
+  } else if (totalPages > 1) {
+    orderInfoText = `Page ${pageIdx + 1}/${totalPages}`;
+  }
+
+  const customerHtml = orderInfoText
+    ? `<div class="customer"><div class="order">${orderInfoText}</div></div>`
+    : '';
+
+  let leftHtml, rightHtml;
+  if (isFirstPage) {
+    leftHtml = renderEntriesHtml(pageLines);
+    rightHtml = renderCareGuide(careType);
+  } else {
+    const mid = Math.ceil(pageLines.length / 2);
+    leftHtml = renderEntriesHtml(pageLines.slice(0, mid));
+    rightHtml = renderEntriesHtml(pageLines.slice(mid));
+  }
+
+  return `<section class="page">
+    <header class="page-header">
+      <div class="brand">Blythe Cactus Farm <small>· CactusArchive on Etsy</small></div>
+      ${customerHtml}
+    </header>
+    <div class="page-body">
+      <div class="page-col page-col-left">${leftHtml}</div>
+      <div class="page-col page-col-right ${isFirstPage ? 'is-care-col' : ''}">${rightHtml}</div>
+    </div>
+    <footer class="page-footer">Thank you for supporting a small Colorado-River-desert nursery.</footer>
+  </section>`;
+}
+
+function renderPages(batches) {
+  const html = [];
+  batches.forEach(batch => {
+    if (batch.lines.length === 0) return;
+
+    // Group lines by effective care type
+    const groups = { germination: [], plant: [], aquatic: [] };
+    batch.lines.forEach(line => {
+      const product = productById[line.productId];
+      const care = effectiveCareType(line, product);
+      groups[care].push(line);
+    });
+
+    ['germination', 'plant', 'aquatic'].forEach(careType => {
+      const lines = groups[careType];
+      if (lines.length === 0) return;
+      const pages = paginateCareGroup(lines);
+      pages.forEach((pageLines, pageIdx) => {
+        html.push(renderPage(batch, pageLines, careType, pageIdx === 0, pageIdx, pages.length));
+      });
+    });
+  });
+  return html.join("");
+}
+
+function renderAll(state) {
+  const preview = document.getElementById("preview");
+  // state.batches is the combined-by-customer view derived from state.orders
+  if (!state.batches || state.batches.length === 0) {
+    preview.innerHTML = `<div style="padding:40px; color:#666; text-align:center;">
+      No orders parsed. Check the input.
+    </div>`;
+    return;
+  }
+  preview.innerHTML = renderOrderControls(state.batches) + renderPages(state.batches);
+  // Wire up toggle buttons (batch index, line index)
+  preview.querySelectorAll(".toggle-group button").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const bi = parseInt(btn.dataset.o, 10);
+      const li = parseInt(btn.dataset.l, 10);
+      const v = btn.dataset.v;
+      const product = productById[state.batches[bi].lines[li].productId];
+      if (!product) return;
+      const defaultCare = product.careInstructions === 'germination' ? 'seeds' :
+                          product.careInstructions === 'aquatic' ? 'aquatic' : 'plant';
+      state.batches[bi].lines[li].manualType = (v === defaultCare) ? null : v;
+      saveState(state);
+      renderAll(state);
+    });
+  });
+}
+
+/* ============================================================
+   PERSISTENCE — localStorage for current batch
+   ============================================================ */
+const STORAGE_KEY = "cactusBatch_v2";
+
+function saveState(state) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      orders: state.orders,
+      batches: state.batches,
+      unmatched: state.unmatched,
+      missingProducts: state.missingProducts || [],
+      nameMatched: state.nameMatched || [],
+      sourceText: state.sourceText,
+      timestamp: Date.now(),
+    }));
+  } catch (e) {
+    console.warn("Save failed:", e);
+  }
+}
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch (e) {
+    console.warn("Load failed:", e);
+    return null;
+  }
+}
+
+/* ============================================================
+   UI WIRING
+   ============================================================ */
+let state = { orders: [], batches: [], unmatched: [], missingProducts: [], nameMatched: [], sourceText: "" };
+
+function setStatus(msg) {
+  document.getElementById("status").textContent = msg;
+}
+
+function deriveBatches(orders) {
+  return combineOrdersByCustomer(orders);
+}
+
+function renderNoteBox(id, heading, items) {
+  const box = document.getElementById(id);
+  if (!items || items.length === 0) { box.style.display = "none"; return; }
+  box.style.display = "block";
+  box.innerHTML = `<strong>${heading}</strong><ul>` +
+    items.map(l => `<li>${escapeHtml(l)}</li>`).join("") + `</ul>`;
+}
+
+function renderUnmatched() {
+  renderNoteBox("missingBox", "⚠ Not in catalog — NO LABEL printed for:", state.missingProducts);
+  renderNoteBox("nameBox", "Title changed — matched by scientific name, check label:", state.nameMatched);
+  const d = document.getElementById("unmatchedDetails");
+  const s = document.getElementById("unmatchedSummary");
+  const ul = document.getElementById("unmatchedList");
+  if (state.unmatched.length === 0) {
+    d.style.display = "none";
+    return;
+  }
+  d.style.display = "block";
+  s.textContent = `Unmatched lines (${state.unmatched.length})`;
+  ul.innerHTML = state.unmatched.slice(0, 50).map(l => `<li>${escapeHtml(l)}</li>`).join("");
+}
+
+function process() {
+  const text = document.getElementById("orderText").value;
+  const { orders, unmatched, missingProducts, nameMatched } = parseOrders(text);
+  const batches = deriveBatches(orders);
+  state = { orders, batches, unmatched, missingProducts, nameMatched, sourceText: text };
+  saveState(state);
+  const totalItems = orders.reduce((s,o)=>s+o.lines.length,0);
+  const ordersWithCustomers = orders.filter(o => o.customer).length;
+  const ordersWithoutCustomers = orders.length - ordersWithCustomers;
+  const mergedDelta = orders.length - batches.length;
+  let msg = `${orders.length} order${orders.length===1?'':'s'}, ${totalItems} item${totalItems===1?'':'s'}, ${batches.length} customer batch${batches.length===1?'':'es'}.`;
+  if (ordersWithoutCustomers > 0) {
+    msg += ` ⚠ ${ordersWithoutCustomers} order${ordersWithoutCustomers===1?'':'s'} without customer name.`;
+  }
+  if (missingProducts.length > 0) {
+    msg += ` ⚠ ${missingProducts.length} item${missingProducts.length===1?'':'s'} not in catalog.`;
+  }
+  if (mergedDelta > 0) {
+    msg += ` ${mergedDelta} order${mergedDelta===1?'':'s'} merged into existing customer batch${mergedDelta===1?'':'es'}.`;
+  }
+  setStatus(msg);
+  renderUnmatched();
+  renderAll(state);
+}
+
+function clearAll() {
+  document.getElementById("orderText").value = "";
+  state = { orders: [], batches: [], unmatched: [], missingProducts: [], nameMatched: [], sourceText: "" };
+  localStorage.removeItem(STORAGE_KEY);
+  document.getElementById("preview").innerHTML = `<div style="padding:40px; color:#666; text-align:center;">Cleared. Paste a new batch above.</div>`;
+  document.getElementById("unmatchedDetails").style.display = "none";
+  document.getElementById("missingBox").style.display = "none";
+  document.getElementById("nameBox").style.display = "none";
+  setStatus("Cleared.");
+}
+
+function loadSaved() {
+  const saved = loadState();
+  if (!saved) {
+    setStatus("No saved batch found.");
+    return;
+  }
+  document.getElementById("orderText").value = saved.sourceText || "";
+  // Always re-derive batches in case saved data predates this format
+  state = {
+    orders: saved.orders || [],
+    batches: saved.batches || deriveBatches(saved.orders || []),
+    unmatched: saved.unmatched || [],
+    missingProducts: saved.missingProducts || [],
+    nameMatched: saved.nameMatched || [],
+    sourceText: saved.sourceText || "",
+  };
+  setStatus(`Loaded saved batch from ${new Date(saved.timestamp).toLocaleString()} — ${state.orders.length} order${state.orders.length===1?'':'s'}, ${state.batches.length} customer batch${state.batches.length===1?'':'es'}.`);
+  renderUnmatched();
+  renderAll(state);
+}
+
+function renderCatalogStats() {
+  const byType = {};
+  const byCare = {};
+  for (const p of products) {
+    byType[p.productType] = (byType[p.productType] || 0) + 1;
+    byCare[p.careInstructions] = (byCare[p.careInstructions] || 0) + 1;
+  }
+  const retired = products.filter(p => p.status === 'discontinued').length;
+  const lines = [
+    `Total entries: ${products.length}`,
+    `Active: ${products.length - retired}`,
+    `Discontinued (still matchable): ${retired}`,
+    ``,
+    `By productType:`,
+    ...Object.entries(byType).map(([k,v]) => `  ${k}: ${v}`),
+    ``,
+    `By careInstructions:`,
+    ...Object.entries(byCare).map(([k,v]) => `  ${k}: ${v}`),
+  ];
+  document.getElementById("catalogStats").innerHTML =
+    lines.map(l => `<div style="font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#d8d4c8;">${escapeHtml(l)}</div>`).join("");
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  document.getElementById("btnProcess").addEventListener("click", process);
+  document.getElementById("btnPrint").addEventListener("click", () => window.print());
+  document.getElementById("btnClear").addEventListener("click", clearAll);
+  document.getElementById("btnLoadLast").addEventListener("click", loadSaved);
+  renderCatalogStats();
+
+  // Auto-load last batch on open
+  const saved = loadState();
+  if (saved && saved.sourceText) {
+    document.getElementById("orderText").value = saved.sourceText;
+    state = {
+      orders: saved.orders || [],
+      batches: saved.batches || deriveBatches(saved.orders || []),
+      unmatched: saved.unmatched || [],
+      missingProducts: saved.missingProducts || [],
+      nameMatched: saved.nameMatched || [],
+      sourceText: saved.sourceText,
+    };
+    setStatus(`Restored batch from ${new Date(saved.timestamp).toLocaleString()} — ${state.orders.length} order${state.orders.length===1?'':'s'}, ${state.batches.length} customer batch${state.batches.length===1?'':'es'}.`);
+    renderUnmatched();
+    renderAll(state);
+  }
+});
+</script>
+</body>
+</html>
