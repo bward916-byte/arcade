@@ -419,7 +419,7 @@ body {
 // =====================================================================
 // Cactus Seed Label Generator — Product Catalog
 // Generated from listings.csv. Edit by adding/modifying entries below.
-// v5 (2026-10-09): all live Etsy listings match; retitled listings fall back
+// v6 (2026-10-12): all live Etsy listings match; retitled listings fall back
 // to a scientific-name match (see matchByName).
 // Each entry maps one Etsy listing (or retired listing) to a product.
 // =====================================================================
@@ -558,7 +558,7 @@ const products = [
   },
   {
     id: "westfield_alba",
-    match: [/Echinopsis chamaecereus cv Westfield Alba/i],
+    match: [/Echinopsis chamaecereus cv Westfield Alba/i, /White Peanut Cactus \| Westfield Alba/i],
     scientific: "Echinopsis chamaecereus 'Westfield Alba'",
     common: "White Bloom Peanut Cactus",
     productType: "cutting",
@@ -570,7 +570,7 @@ const products = [
   },
   {
     id: "yellow_bloom_peanut",
-    match: [/Yellow Bloom Peanut Cactus/i],
+    match: [/Yellow Bloom Peanut Cactus/i, /Yellow Peanut Cactus \| Echinopsis chamaecereus/i],
     scientific: "Echinopsis chamaecereus 'Yellow Bird'",
     common: "Yellow Bloom Peanut Cactus",
     productType: "cutting",
@@ -594,7 +594,7 @@ const products = [
   },
   {
     id: "hildewintera_unrooted_cutting",
-    match: [/Monkey Tail.*Hildewintera Colademononis.*unrooted cutting/i],
+    match: [/Monkey Tail.*Hildewintera Colademononis.*unrooted cutting/i, /Monkey Tail Cactus Cutting/i],
     scientific: "Hildewintera colademononis",
     common: "Monkey Tail Cactus — Unrooted Cutting",
     productType: "cutting",
@@ -786,7 +786,7 @@ const products = [
   },
   {
     id: "tephrocactus_geometricus_seedling",
-    match: [/Tephrocactus geometricus seedling/i],
+    match: [/Tephrocactus geometricus seedling/i, /Snowman Cactus Seedling/i],
     scientific: "Tephrocactus geometricus",
     common: "Geometric Cactus — Seedling",
     productType: "seedling",
@@ -935,7 +935,7 @@ const products = [
   },
   {
     id: "carnegiea_gigantea_crested_seeds",
-    match: [/Carnegiea gigantea crested/i],
+    match: [/Carnegiea gigantea crested/i, /Crested Saguaro Seeds/i],
     scientific: "Carnegiea gigantea f. cristata",
     common: "Crested Saguaro",
     productType: "seeds",
@@ -1638,7 +1638,7 @@ const products = [
   },
   {
     id: "chamaelobivia_yellow_bird_seeds",
-    match: [/Chamaelobivia.*Yellow Bird.*Seeds/i],
+    match: [/Chamaelobivia.*Yellow Bird.*Seeds/i, /Yellow Bird Peanut Cactus Seeds/i],
     scientific: "Chamaelobivia 'Yellow Bird'",
     common: "Hybrid Peanut Cactus",
     productType: "seeds",
@@ -2075,10 +2075,17 @@ function looksLikeProductTitle(line) {
 const NAME_QUALIFIERS = [/varieg/i, /crest|crist/i, /monstr/i, /furry/i];
 
 function nameTokens(p) {
-  if (!/^[A-Z][a-z]+ [a-z]{4,}/.test(p.scientific)) return [];   // real "Genus species" only
-  return p.scientific.toLowerCase().replace(/[^a-z\s-]/g, " ").split(/\s+/)
+  const g = p.scientific.match(/^([A-Z][a-z]+)(?:\s+([a-z][a-z-]{3,}))?/);
+  if (!g) return null;
+  const req = [g[1].toLowerCase()];                    // genus (+ species): must be in the title
+  if (g[2]) req.push(g[2]);
+  const rest = p.scientific.slice(g[0].length);        // variety / 'Cultivar' words: optional
+  const quoted = (rest.match(/'[^']+'/g) || []).join(" ");
+  const plain = rest.replace(/'[^']+'/g, " ").split(/\s+/).filter(w => /^[a-z]/.test(w)).join(" ");
+  const opt = (quoted + " " + plain).toLowerCase().replace(/[^a-z\s-]/g, " ").split(/\s+/)
     .filter(w => w.length > 3 && w !== "subsp" && w !== "forma" &&
                  !NAME_QUALIFIERS.some(q => q.test(w)));
+  return { req, opt };
 }
 
 /* Which productTypes a title could be, judged by its wording. */
@@ -2096,17 +2103,21 @@ function titleTypes(line) {
 
 function matchByName(line) {
   const low = line.toLowerCase();
+  const has = t => new RegExp("\\b" + t.slice(0, 7)).test(low);
   const types = titleTypes(line);
   let best = [], bestScore = 0;
   for (const p of products) {
     if (types && !types.includes(p.productType)) continue;
-    const toks = nameTokens(p);
-    if (toks.length < 2) continue;                       // need genus + species
-    if (!toks.every(t => new RegExp("\\b" + t.slice(0, 7)).test(low))) continue;
+    const nt = nameTokens(p);
+    if (!nt || !nt.req.every(has)) continue;
+    const hit = nt.opt.filter(has).length;
+    if (nt.req.length + hit < 2) continue;              // a genus alone is not enough
     const label = `${p.id} ${p.scientific} ${p.common}`;
     if (!NAME_QUALIFIERS.every(q => q.test(line) === q.test(label))) continue;
-    if (toks.length > bestScore) { best = [p]; bestScore = toks.length; }
-    else if (toks.length === bestScore) best.push(p);
+    // every matched word counts; variety words the title doesn't mention count against
+    const score = nt.req.length + hit - 0.5 * (nt.opt.length - hit);
+    if (score > bestScore) { best = [p]; bestScore = score; }
+    else if (score === bestScore) best.push(p);
   }
   if (best.length > 1) {
     const active = best.filter(p => p.status === "active");
