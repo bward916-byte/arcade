@@ -37,6 +37,7 @@ a.game:focus-visible{outline:3px solid #fff;outline-offset:2px}
 <script>
 const OWNER='bward916-byte';
 const GAMES=[
+ {repo:'arcade/floor-93',title:'FLOOR 93',tag:'Meridian Tower has ninety-two floors. Pick up cash on Main Street, fly to seven famous landmarks, bring the relics home, and find out who keeps sending the postcards.',genre:'Exploration adventure',orient:'Landscape',c:'#aaffeb',art:'spire'},
  {repo:'arcade/ravenkeep',title:'RAVENKEEP',tag:'Ride into a ruined keep with a purse of coins. Raise a castle storey by storey, muster hundreds of soldiers, hold the gates when raiders come, then march on five rival lands.',genre:'Medieval kingdom builder',orient:'Landscape or portrait',c:'#e3b548',art:'keep'},
  {repo:'dustfall',title:'DUSTFALL',tag:'Ride into a dead Old West town with a purse of coins. Toss them to drifters, rebuild the street, hold off bandits and bring the railroad.',genre:'Town builder',orient:'Portrait or landscape',c:'#f2a65a',art:'west'},
  {repo:'embervale',title:'EMBERVALE',tag:'Three 16-bit chapters: the village road, Frostpeak Pass and the Ember Wastes. Run, double jump, beat three bosses and sharpen your blade.',genre:'Pixel platformer',orient:'Portrait or landscape',c:'#7fd0ff',art:'castle'},
@@ -179,6 +180,16 @@ const ART={
   g.fillStyle='#2f9440';g.fillRect(0,52,w,6);g.fillStyle='#58c653';g.fillRect(0,52,w,2);g.fillStyle='#7a4e28';g.fillRect(0,58,w,h-58);
   g.fillStyle='#ecd9a8';g.fillRect(8,38,22,14);g.fillStyle='#d0432f';g.fillRect(6,32,26,7);g.fillStyle='#ffd66b';g.fillRect(13,42,5,5);
   const hx=38+((t*14)%24),jy=Math.abs(Math.sin(t*5))*6;g.fillStyle='#3b74d8';g.fillRect(hx,44-jy,5,6);g.fillStyle='#f6cf4a';g.fillRect(hx,40-jy,5,4);g.fillStyle='#ffd24a';g.fillRect(58,38+Math.sin(t*3)*2,3,4);},
+ spire(g,w,h,t,r){const sky=g.createLinearGradient(0,0,0,h);sky.addColorStop(0,'#05070f');sky.addColorStop(.7,'#141c40');sky.addColorStop(1,'#2a2a56');g.fillStyle=sky;g.fillRect(0,0,w,h);
+  g.fillStyle='#dfe4ff';for(let i=0;i<26;i++)g.fillRect(r()*w,r()*h*.7,1,1);g.fillStyle='#f4ecd0';g.beginPath();g.arc(w*.84,h*.2,5,0,6.29);g.fill();
+  g.fillStyle='#0c1024';for(let x=0;x<w;x+=9){const bh=10+r()*16;g.fillRect(x,h-8-bh,8,bh);}
+  g.fillStyle='#d8c08a';g.beginPath();g.moveTo(6,h-8);g.lineTo(20,h-30);g.lineTo(34,h-8);g.fill();g.fillStyle='#9a7a4a';g.beginPath();g.moveTo(24,h-8);g.lineTo(20,h-30);g.lineTo(34,h-8);g.fill();
+  g.fillStyle='#1a2140';g.fillRect(50,16,12,h-24);g.fillStyle='#262e56';g.fillRect(50,16,4,h-24);g.beginPath();g.moveTo(50,16);g.lineTo(56,4);g.lineTo(62,16);g.fill();g.fillRect(55,-2,2,8);
+  g.fillStyle='#ffd98a';for(let y=20;y<h-12;y+=5)for(let x=52;x<61;x+=3)if(r()>.35)g.fillRect(x,y,2,3);
+  g.fillStyle='#ff4a3a';g.fillRect(55,-2,2,2);
+  g.strokeStyle='rgba(170,255,235,.5)';g.lineWidth=1;g.beginPath();g.ellipse(56,13,26,5,0,0,6.29);g.stroke();
+  for(let i=0;i<10;i++){const a=i/10*6.283;const x=56+Math.cos(a)*26,y=13+Math.sin(a)*5;g.fillStyle='rgba(170,255,235,.35)';g.beginPath();g.arc(x,y,3,0,6.29);g.fill();g.fillStyle='#eafff8';g.fillRect(x-1,y-1,2,2);}
+  g.fillStyle='#0a0c16';g.fillRect(0,h-8,w,8);g.fillStyle='#ffd98a';for(let x=4;x<w;x+=14)g.fillRect(x,h-6,3,1);},
  generic(g,w,h,t,r){g.fillStyle='#22263a';g.fillRect(0,0,w,h);for(let i=0;i<30;i++){g.fillStyle=`hsl(${r()*360},60%,60%)`;const x=r()*w,y=(r()*h+t*30*(1+r()))%h;g.fillRect(x,y,12,12);}}
 };
 
