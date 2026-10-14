@@ -37,6 +37,7 @@ a.game:focus-visible{outline:3px solid #fff;outline-offset:2px}
 <script>
 const OWNER='bward916-byte';
 const GAMES=[
+ {repo:'arcade/ashwinter',title:'ASHWINTER',tag:'Winter in a besieged city. Fix up a shell-shocked house by day, sneak into guarded buildings by night with a lockpick and a small pack, and keep everyone alive until the ceasefire.',genre:'War survival',orient:'Portrait (phone)',c:'#e9b46a',art:'ruin'},
  {repo:'arcade/dustfall-2',title:'DUSTFALL 2',tag:'The sequel. Ride the line west through high country: build on hills, blast gold out of a cave, and choose your road at every fork in the territory map.',genre:'Town builder',orient:'Landscape or portrait',c:'#ffb86b',art:'west'},
  {repo:'arcade/floor-93',title:'FLOOR 93',tag:'Meridian Tower has ninety-two floors. Pick up cash on Main Street, fly to seven famous landmarks, bring the relics home, and find out who keeps sending the postcards.',genre:'Exploration adventure',orient:'Landscape',c:'#aaffeb',art:'spire'},
  {repo:'arcade/ravenkeep',title:'RAVENKEEP',tag:'Ride into a ruined keep with a purse of coins. Raise a castle storey by storey, muster hundreds of soldiers, hold the gates when raiders come, then march on five rival lands.',genre:'Medieval kingdom builder',orient:'Landscape or portrait',c:'#e3b548',art:'keep'},
@@ -191,6 +192,17 @@ const ART={
   g.strokeStyle='rgba(170,255,235,.5)';g.lineWidth=1;g.beginPath();g.ellipse(56,13,26,5,0,0,6.29);g.stroke();
   for(let i=0;i<10;i++){const a=i/10*6.283;const x=56+Math.cos(a)*26,y=13+Math.sin(a)*5;g.fillStyle='rgba(170,255,235,.35)';g.beginPath();g.arc(x,y,3,0,6.29);g.fill();g.fillStyle='#eafff8';g.fillRect(x-1,y-1,2,2);}
   g.fillStyle='#0a0c16';g.fillRect(0,h-8,w,8);g.fillStyle='#ffd98a';for(let x=4;x<w;x+=14)g.fillRect(x,h-6,3,1);},
+ ruin(g,w,h,t,r){const sky=g.createLinearGradient(0,0,0,h);sky.addColorStop(0,'#2a2f38');sky.addColorStop(.75,'#4a4740');sky.addColorStop(1,'#6a5240');g.fillStyle=sky;g.fillRect(0,0,w,h);
+  g.fillStyle='rgba(255,140,60,.35)';g.beginPath();g.arc(w*.82,h*.62,16,0,6.29);g.fill();
+  g.fillStyle='#22252b';for(let x=0;x<w;x+=11){const bh=8+r()*18;g.fillRect(x,h-10-bh,10,bh);if(r()>.5)g.fillRect(x+3,h-14-bh,3,5)}
+  g.fillStyle='#3a3029';g.fillRect(22,20,52,h-30);g.fillStyle='#4a3a2c';g.beginPath();g.moveTo(18,22);g.lineTo(48,6);g.lineTo(78,22);g.fill();
+  g.fillStyle='#211a14';g.fillRect(25,24,46,14);g.fillRect(25,40,46,14);g.fillRect(25,56,46,h-66);
+  g.fillStyle='#e9b46a';g.fillRect(30,45,9,7);g.fillStyle='rgba(255,190,110,.35)';g.fillRect(25,40,22,14);
+  g.fillStyle='#6a5a4a';for(let i=0;i<6;i++)g.fillRect(54+i*2.5,h-12-i*2.4,3,1.4);
+  g.fillStyle='#c9c2b4';g.fillRect(58,h-22,2,7);g.fillRect(57,h-25,4,3);
+  g.fillStyle='#7a4a2e';g.fillRect(66,30,5,4);g.fillStyle='#14110e';g.fillRect(0,h-10,w,10);
+  g.strokeStyle='rgba(120,120,120,.5)';g.lineWidth=2;g.beginPath();g.moveTo(w*.82,h*.55);g.quadraticCurveTo(w*.86,h*.3,w*.78,h*.08);g.stroke();
+  g.fillStyle='rgba(255,255,255,.6)';for(let i=0;i<22;i++)g.fillRect(r()*w,r()*h,1,1);},
  generic(g,w,h,t,r){g.fillStyle='#22263a';g.fillRect(0,0,w,h);for(let i=0;i<30;i++){g.fillStyle=`hsl(${r()*360},60%,60%)`;const x=r()*w,y=(r()*h+t*30*(1+r()))%h;g.fillRect(x,y,12,12);}}
 };
 
