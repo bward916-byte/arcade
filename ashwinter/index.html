@@ -138,8 +138,8 @@ const RECIPES=[
  {id:'pick',lv:1,cost:{parts:2},note:'opens one lock, then breaks'},
  {id:'bandage',lv:1,cost:{cloth:2},note:'treats a wound'},
  {id:'shovel',lv:1,cost:{wood:2,parts:2},note:'digs through rubble'},
- {id:'meal',lv:1,cost:{raw:1,water:1,wood:1},need:'stove',note:'needs the stove'},
- {id:'boil',give:'water',n:2,lv:1,cost:{dirty:2,wood:1},need:'stove',note:'boil 2 dirty water clean'},
+ {id:'meal',lv:0,cost:{raw:1,water:1,wood:1},need:'stove',note:'needs the stove'},
+ {id:'boil',give:'water',n:2,lv:0,cost:{dirty:2,wood:1},need:'stove',note:'boil 2 dirty water clean'},
  {id:'knife',lv:2,cost:{parts:3,wood:1},note:'silent takedowns'},
  {id:'crowbar',lv:2,cost:{parts:5},note:'pries boards, forces locks'},
  {id:'cutters',lv:3,cost:{parts:7,wood:1},note:'cuts chains and fences'},
@@ -159,7 +159,7 @@ const UPG={
  lights:{n:'Light & power',room:'hall',nec:1,lv:[{d:'One candle. Too dark for real work.'},{cost:{parts:2,cloth:2},d:'Oil lamps: light to work by (workbench level 2)'},{cost:{parts:8,wood:2},d:'Generator: power for tools and radio, uses 1 fuel a day'}]},
  insul:{n:'Insulation',room:'hall',lv:[{d:'Drafty, broken windows'},{cost:{cloth:3,wood:1},d:'Plastic over the windows, +4°'},{cost:{wood:4,parts:2},d:'Patch the walls, +4°'}]},
  def:{n:'Defenses',room:'hall',lv:[{d:'A flimsy front door'},{cost:{wood:4,parts:1},d:'Board the lower windows'},{cost:{wood:3,parts:4},d:'Brace the front door'},{cost:{parts:8,wood:2},d:'Steel shutters'}]},
- bench:{n:'Workbench',room:'hall',lv:[null,{d:'Lockpicks, bandages, shovels'},{cost:{parts:5,wood:3},need:1,d:'Knives and crowbars (needs lamps)'},{cost:{parts:8,wood:4,cloth:2},need:2,d:'Bolt cutters and ammo (needs power)'}]},
+ bench:{n:'Workbench',room:'hall',lv:[{d:'No workbench yet'},{cost:{parts:6,wood:4},day:6,d:'Lockpicks, bandages, shovels'},{cost:{parts:6,wood:3},need:1,day:10,d:'Knives and crowbars (needs lamps)'},{cost:{parts:8,wood:4,cloth:2},need:2,day:14,d:'Bolt cutters and ammo (needs power)'}]},
  stove:{n:'Cooking stove',room:'kitchen',lv:[{d:'Cold hearth'},{cost:{parts:4,wood:3},d:'Cook meals, boil dirty water'}]},
  bed1:{n:'Bed',room:'bedroom',lv:[{d:'Sleeping on the floor'},{cost:{wood:4,cloth:3},d:'One sleeper rests well'}]},
  bed2:{n:'Bed',room:'bedroom',lv:[{d:'Sleeping on the floor'},{cost:{wood:4,cloth:3},d:'One sleeper rests well'}]},
@@ -202,8 +202,8 @@ const indoor=()=>S.out+6+4*S.up.insul+(heatOn()?[0,8,13][S.up.heater]:0);
 const tempWord=t=>t>=10?'Warm enough':t>=3?'Cold':'Freezing';
 function newGame(){
  const pool=NPCS.slice().sort(()=>Math.random()-.5);
- S={day:1,phase:'day',endDay:RI(24,28),stock:{wood:6,parts:5,cloth:2,raw:2,can:2,water:3,dirty:3,pick:1},
-  up:{filter:0,heater:0,lights:0,insul:0,def:0,bench:1,stove:0,bed1:0,bed2:0,radio:0,bed3:0,bed4:0,rain:0,garden:0,well:0,woodpile:0},
+ S={day:1,phase:'day',endDay:RI(24,28),stock:{wood:4,parts:2,cloth:1,can:1,water:2,dirty:2},loose:[{room:'hall',f:0,x:246,items:{shovel:1},kind:'boxes'}],
+  up:{filter:0,heater:0,lights:0,insul:0,def:0,bench:0,stove:0,bed1:0,bed2:0,radio:0,bed3:0,bed4:0,rain:0,garden:0,well:0,woodpile:0},
   rooms:{hall:true},people:[mk('Marko','none')],pool,log:[],locs:{},plan:{},gear:{},loc:'row',gift:0,raid:false,out:outTemp(1),heat:true,power:false};
  log('The shelling drove you into this house. No water, no heat, no power. Fix what you can and hold on until the ceasefire.');
 }
@@ -227,7 +227,7 @@ function whyNotMake(r){
 ACT.make=id=>{const r=RECIPES.find(r=>r.id===id);if(whyNotMake(r))return;const c=recipeCost(r);for(const k in c)add(k,-c[k]);add(r.give||r.id,r.n||1);fxAt(r.need==='stove'?'stove':'bench','build',r.give||r.id);render()};
 const nextLv=id=>UPG[id].lv[S.up[id]+1]||null;
 function whyNotUpg(id){const u=UPG[id],n=nextLv(id);if(!n)return 'Fully built';if(!S.rooms[u.room])return 'Open the '+ROOMS[u.room].n.toLowerCase()+' first';
- if(n.need&&lightLv()<n.need)return n.need===1?'Too dark: build oil lamps':'Needs generator power';if(!afford(n.cost))return 'Not enough';return ''}
+ if(n.need&&lightLv()<n.need)return n.need===1?'Too dark: build oil lamps':'Needs generator power';if(n.day&&S.day<n.day)return 'Day '+n.day;if(!afford(n.cost))return 'Not enough';return ''}
 ACT.upg=id=>{if(whyNotUpg(id))return;const n=nextLv(id);for(const k in n.cost)add(k,-n.cost[k]);S.up[id]++;
  if(id==='lights'&&S.up.lights===2&&S.stock.fuel>0){add('fuel',-1);S.power=true}
  log(UPG[id].n+(S.up[id]>1?' improved.':' built.'));fxAt(id,'build');render()};
@@ -1145,7 +1145,8 @@ function nearBubbles(){const h=selPerson();if(!h||h.climb||h.job)return [];const
 function _nearAll(h){const L=[];const f=h.f,x=h.x,ok=(bx,bf,rad)=>bf===f&&Math.abs(bx-x)<rad;
  for(const id in ST){const s=ST[id];if(!ok(s.x,s.f,s.w/2+34)||!roomOpen(roomAt(s.f,s.x))&&id!=='door')continue;if(id==='gen'&&S.up.lights<2||id==='lights')continue;const u=s.up||id,y=s.y!=null?fy(s.f)+s.y+52:fy(s.f)-s.h-26;
   if(id==='door')L.push({x:s.x+6,y:fy(0)-86,ic:'moon',fn:()=>ACT.plan()});
-  else if(id==='bench')L.push({x:s.x,y,ic:'bench',fn:()=>benchPanel()});
+  else if(id==='bench'&&S.up.bench)L.push({x:s.x,y,ic:'bench',fn:()=>benchPanel()});
+  else if(id==='stove'&&S.up.stove&&!S.up.bench)L.push({x:s.x,y,ic:'meal',fn:()=>benchPanel()});
   else if(id==='pantry')L.push({x:s.x,y:fy(0)-128,ic:'can',fn:()=>stockPanel()});
   else if(id==='radio'&&S.up.radio)L.push({x:s.x,y,ic:'book',fn:()=>journalPanel()});
   else if(UPG[u]){const n=nextLv(u),why=whyNotUpg(u);if(n&&!why)L.push({x:s.x,y,ic:'hammer',fn:()=>work(h,s.x,4+2*S.up[u],u,()=>ACT.upg(u))});else L.push({x:s.x,y,ic:upIcon(u),bad:!!(n&&why),fn:()=>upgPanel(u)})}}
@@ -1230,7 +1231,7 @@ const tile=(k,n,act,ok=true,sub='')=>'<button class="tile"'+(act?' data-act="'+a
 const packBar=(w,cap)=>'<div class="pk">'+Array.from({length:cap},(_,i)=>'<i'+(i<Math.ceil(w)?' class="on"':'')+'></i>').join('')+'</div>';
 const costHtml=c=>Object.keys(c||{}).map(k=>'<span'+((S.stock[k]||0)<c[k]?' class="lack"':'')+'>'+ico(k,18)+c[k]+'</span>').join('');
 const upIcon=id=>/^bed/.test(id)?'bed':id;
-const whyIco=w=>!w||w==='Not enough'||w==='Open'?'':'<span class="wi">'+ico('lock',16)+ico(/lamps|dark|power/.test(w)?'lights':/Workbench/.test(w)?'bench':/stove/.test(w)?'stove':/have one/.test(w)?'hand':'house',18)+'</span>';
+const whyIco=w=>!w||w==='Not enough'||w==='Open'?'':/^Day \d+/.test(w)?'<span class="wi">'+ico('lock',16)+ico('moon',16)+'<b>'+w.slice(4)+'</b></span>':'<span class="wi">'+ico('lock',16)+ico(/lamps|dark|power/.test(w)?'lights':/Workbench/.test(w)?'bench':/stove/.test(w)?'stove':/have one/.test(w)?'hand':'house',18)+'</span>';
 const pips=(n,max)=>'<span class="pips">'+Array.from({length:max},(_,i)=>'<i'+(i<n?' class="on"':'')+'></i>').join('')+'</span>';
 function upgRow(id){const u=UPG[id],lv=S.up[id],n=nextLv(id),why=whyNotUpg(id),cur=u.lv[lv];
  return '<div class="ur'+(u.nec&&!lv?' nec':'')+'">'+ico(upIcon(id),38)+'<div class="col"><b>'+u.n+' '+pips(lv-(u.lv[0]===null?1:0),u.lv.length-1-(u.lv[0]===null?1:0))+'</b>'+
@@ -1289,7 +1290,7 @@ function render(){
 function lootPanel(arr,title){N.paused=true;K.l=K.r=false;LOOTARR=arr;
  panel(()=>{const c={};for(const k of arr)c[k]=(c[k]||0)+1;const pk=N.pack,w=weight(pk);
   box('<h2>'+title+'</h2><div class="tiles">'+(Object.keys(c).map(k=>tile(k,c[k],'ltake:'+k,w+ITEMS[k].w<=N.cap,ITEMS[k].n)).join('')||'<span class="dim">Empty.</span>')+'</div><h2>'+ico('scav',18)+' Pack</h2>'+packBar(w,N.cap)+'<div class="tiles">'+Object.keys(pk).filter(k=>pk[k]).map(k=>tile(k,pk[k],'ldrop:'+k,true,'Drop')).join('')+'</div>')})}
-ACT.ltake=k=>{LOOTARR.splice(LOOTARR.indexOf(k),1);N.pack[k]=(N.pack[k]||0)+1;PANEL()};
+ACT.ltake=k=>{LOOTARR.splice(LOOTARR.indexOf(k),1);N.pack[k]=(N.pack[k]||0)+1;if(PANEL)PANEL()};
 ACT.ldrop=k=>{N.pack[k]--;LOOTARR.push(k);PANEL()};
 
 // ===== compact, no-scroll panels for phones =====
@@ -1306,9 +1307,9 @@ function housePanel(){panel(()=>{
  box(tabs+body)})}
 ACT.upgp=id=>upgPanel(id);
 function benchPanel(){panel(()=>{
- const rt=RECIPES.map(r=>{const c=recipeCost(r),why=whyNotMake(r),k=r.give||r.id,lack=why&&why!=='Not enough';
+ const rt=RECIPES.filter(r=>S.up.bench||r.need==='stove').map(r=>{const c=recipeCost(r),why=whyNotMake(r),k=r.give||r.id,lack=why&&why!=='Not enough';
   return '<button class="tile rc" data-act="make:'+r.id+'"'+(why?' disabled':'')+'>'+ico(r.id==='boil'?'boil':k,28)+lbl(r.id==='boil'?'boil':k)+(S.stock[k]?'<b>'+S.stock[k]+'</b>':'')+'<span class="cost">'+costHtml(c)+'</span>'+(lack?whyIco(why):'')+'</button>'}).join('');
- box(upgRow('bench')+'<div class="tiles">'+rt+'</div>')})}
+ box((S.up.bench?upgRow('bench'):'')+'<div class="tiles">'+rt+'</div>')})}
 function renderPlan(){const sp=scavPerson(),ti=indoor(),why=whyNotGo();
  let h='<div class="wrap plan">';
  h+='<div class="needs" style="padding:0">'+(S.up.radio&&power()?'<span class="nd'+(S.raid?' bad':'')+'">'+ico('radio',18)+(S.raid?ico('skull',16):ico('moon',16))+'</span>':'')+'<span class="nd'+(ti<3?' bad':ti<10?' warn':'')+'">'+ico('temp',18)+ti+'°</span>'+(S.up.heater?'<button class="btn ib'+(heatOn()?' on':'')+'" data-act="heat"'+(S.heat===false&&(S.stock.wood||0)<burnWood()?' disabled':'')+' aria-label="Heater">'+ico('heater',18)+ico('wood',14)+burnWood()+'</button>':'')+'</div>';
@@ -1376,7 +1377,7 @@ function drawStation(c,id,t){
  switch(id){
  case 'door':drawSpr(c,'frontdoor'+(S.up.def>=3?3:S.up.def>=2?2:0),6,0);break;
  case 'heater':if(!lv){ghost('heater1');break}drawSpr(c,'heater'+lv+(heatOn()?'':'_off'),x,yb);if(heatOn()){const fl=.6+.4*Math.sin(t*9)+.2*Math.sin(t*23);c.globalAlpha=.35*fl;c.drawImage(PUFF_F,x-16,yb-(lv===1?30:32),32,32);c.globalAlpha=1}break;
- case 'bench':drawSpr(c,'bench'+Math.min(3,Math.max(1,lv)),x,yb);if(lightLv()===0){drawSpr(c,'candle',x-6,yb-40)}break;
+ case 'bench':if(!lv){ghost('bench1');break}drawSpr(c,'bench'+Math.min(3,Math.max(1,lv)),x,yb);if(lightLv()===0){drawSpr(c,'candle',x-6,yb-40)}break;
  case 'filter':drawSpr(c,lv?'filter'+lv:'filter0',x,yb);if(!lv)ghost('filter1');else{const dp=(t*1.4)%1;ci(c,x,yb-24+dp*12,1.3,'rgba(160,210,240,'+(1-dp)+')')}break;
  case 'pantry':{drawSpr(c,'pantry',x,yb-78);const y0=yb-118,ks=Object.keys(ITEMS).filter(k=>S.stock[k]>0).slice(0,10);c.font='bold 7px sans-serif';c.textAlign='right';ks.forEach((k,i)=>{const ix=x-30+(i%5)*15,iy=y0+8+Math.floor(i/5)*18;dico(c,k,ix,iy,13)});break}
  case 'lights':{const L=lightLv();if(L===0)break;for(const k of Object.keys(SROOM)){if(!roomOpen(k)||k==='roof'||k==='yard')continue;const r=SROOM[k],lx=k==='hall'?x:(r[1]+r[2])/2,ly=fy(r[0])-FH+12;drawSpr(c,L>=2?(S.power?'bulb':'bulb_off'):'lamp',lx,ly+(L>=2?54:62))}break}
@@ -1437,10 +1438,10 @@ async function runDemo(){
  const goTo=async x=>{if(!N)return;const d=x>N.p.x?1:-1,t0=N.t;K.r=d>0;K.l=d<0;await until(()=>!N||(d>0?N.p.x>=x-2:N.p.x<=x+2)||(N&&!N.moving&&N.t-t0>.4),12000);K.l=K.r=false;await sleep(150)};
  const act=async()=>{ok();if(N){hud();doAct()}await sleep(120)};
  const waitBusy=async()=>{await sleep(100);await until(()=>!N||!N.busy,8000);await sleep(200)};
- const takeAll=async()=>{await until(()=>PANEL,4000);await sleep(800);for(;;){const k=LOOTARR&&LOOTARR.find(k=>weight(N.pack)+ITEMS[k].w<=N.cap);if(!k)break;ACT.ltake(k);await sleep(380)}await sleep(700);ACT.closep();await sleep(250)};
+ const takeAll=async()=>{await until(()=>PANEL,4000);await sleep(800);for(;;){if(!PANEL)break;const k=LOOTARR&&LOOTARR.find(k=>weight(N.pack)+ITEMS[k].w<=N.cap);if(!k)break;ACT.ltake(k);await sleep(380)}await sleep(700);ACT.closep();await sleep(250)};
  const view=async(fn,ms)=>{fn();await sleep(ms)};
  DEMO=true;ZOOM=1;document.body.classList.add('demo');$('#cap').hidden=false;closeModal();
- newGame();S.day=6;S.out=-3;S.pool=S.pool.filter(n=>n.name!=='Ines'&&n.name!=='Tomas');S.people.push(mk('Ines','medic'),mk('Tomas','strong'));Object.assign(S.people[1],{wounded:true,fed:20,hp:62});
+ newGame();S.day=6;S.up.bench=1;S.loose=[];S.out=-3;S.pool=S.pool.filter(n=>n.name!=='Ines'&&n.name!=='Tomas');S.people.push(mk('Ines','medic'),mk('Tomas','strong'));Object.assign(S.people[1],{wounded:true,fed:20,hp:62});
  S.stock={wood:26,parts:52,cloth:12,raw:3,can:3,water:2,dirty:6,pick:3,fuel:2,knife:1,pistol:1,ammo:3,smokes:2,bandage:1};
  SH.people={};$('#main').innerHTML='';render();shelterFocus(190);
  cap('Your house. No clean water, no heat, no power, and half the rooms are blocked.');await sleep(3800);
