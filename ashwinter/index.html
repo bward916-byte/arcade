@@ -838,7 +838,8 @@ function grade(c,n){
 const K={l:false,r:false};let cv=null,cx=null,CW=300,CH=300,Z=1,DPR=1,camX=0,camY=0;
 const toWorld=c=>c.setTransform(DPR*Z,0,0,DPR*Z,-camX*DPR*Z,-camY*DPR*Z);
 let ZOOM=1,CURZF=null;
-function fitCv(zf){if(zf)CURZF=zf;const b=$('#cvBox');if(!b||!cv||!CURZF)return;CW=b.clientWidth||300;CH=b.clientHeight||300;DPR=Math.min(2,window.devicePixelRatio||1);const w=Math.round(CW*DPR),h=Math.round(CH*DPR);if(cv.width!==w)cv.width=w;if(cv.height!==h)cv.height=h;Z=CURZF(CW,CH)*ZOOM}
+let CVRO=null;
+function fitCv(zf){if(zf)CURZF=zf;const b=$('#cvBox');if(!b||!cv||!CURZF)return;if(typeof ResizeObserver!=='undefined'&&(!CVRO||CVRO.box!==b)){if(CVRO)CVRO.disconnect();CVRO=new ResizeObserver(()=>fitCv());CVRO.box=b;CVRO.observe(b)}CW=b.clientWidth||300;CH=b.clientHeight||300;DPR=Math.min(2,window.devicePixelRatio||1);const w=Math.round(CW*DPR),h=Math.round(CH*DPR);if(cv.width!==w)cv.width=w;if(cv.height!==h)cv.height=h;Z=CURZF(CW,CH)*ZOOM}
 function setZoom(z){ZOOM=clamp(z,.6,2.8);fitCv()}
 ACT.zoom=d=>setZoom(ZOOM*(+d>0?1.25:.8));
 const zoomBtns='<div class="zm"><button class="btn" data-act="zoom:1" aria-label="Zoom in">+</button><button class="btn" data-act="zoom:-1" aria-label="Zoom out">−</button></div>';
@@ -846,7 +847,7 @@ function canvasInput(o){const P=new Map();let pinch=null,drag=null;cv.style.touc
  cv.onpointerdown=e=>{try{cv.setPointerCapture(e.pointerId)}catch(_){}P.set(e.pointerId,{x:e.clientX,y:e.clientY});if(P.size===2){const [a,b]=[...P.values()];pinch={d:Math.max(20,Math.hypot(a.x-b.x,a.y-b.y)),z:ZOOM};drag=null}else if(P.size===1)drag={x:e.clientX,y:e.clientY,lx:e.clientX,ly:e.clientY,moved:false}};
  cv.onpointermove=e=>{if(!P.has(e.pointerId))return;P.set(e.pointerId,{x:e.clientX,y:e.clientY});if(pinch&&P.size>=2){const [a,b]=[...P.values()];setZoom(pinch.z*Math.hypot(a.x-b.x,a.y-b.y)/pinch.d);return}
   if(drag){if(Math.hypot(e.clientX-drag.x,e.clientY-drag.y)>8)drag.moved=true;if(drag.moved&&o.drag)o.drag(e.clientX-drag.lx,e.clientY-drag.ly);drag.lx=e.clientX;drag.ly=e.clientY}};
- const up=e=>{const had=P.delete(e.pointerId);if(pinch){if(P.size<2)pinch=null;drag=null;return}if(had&&drag&&!drag.moved&&e.type==='pointerup'){const r=cv.getBoundingClientRect();o.tap((e.clientX-r.left)/Z+camX,(e.clientY-r.top)/Z+camY)}drag=null};
+ const up=e=>{const had=P.delete(e.pointerId);if(pinch){if(P.size<2)pinch=null;drag=null;return}if(had&&drag&&!drag.moved&&e.type==='pointerup'){const r=cv.getBoundingClientRect();if(Math.abs(r.height-CH)>1||Math.abs(r.width-CW)>1)fitCv();o.tap((e.clientX-r.left)*(CW/r.width)/Z+camX,(e.clientY-r.top)*(CH/r.height)/Z+camY)}drag=null};
  cv.onpointerup=up;cv.onpointercancel=up;
  cv.onwheel=e=>{e.preventDefault();setZoom(ZOOM*Math.exp(-e.deltaY*(e.ctrlKey?.012:.0015)))}}
 const say=t=>{N.msg=t;N.msgT=2.8};
@@ -1054,7 +1055,7 @@ const roomAt=(f,x)=>{for(const k in SROOM){const r=SROOM[k];if(r[0]===f&&x>=r[1]
 const roomOpen=k=>!!S.rooms[k];
 function shelterLayer(){return buildLayer({key:'shelter',w:SHW,floors:3,theme:'shelter',seed:4242,walls:[[{x:MID,k:'gate'},{x:GAR,k:'gate'}],[{x:MID,k:'gate'}],[{x:MID,k:'gate'}]],
  stairs:[{x:118,f:0,dyn:1},{x:680,f:1}],winAt:SWIN,occ:()=>true,noWin:(f,x)=>Object.values(ST).some(s=>s.f===f&&Math.abs(s.x-x)<48)||(f===0&&x<180),open:[{f:2,x0:0,x1:MID},{f:1,x0:GAR,x1:SHW},{f:2,x0:GAR,x1:SHW}],roofX0:MID,roofX1:GAR,night:false,exit:true})}
-function floorRange(f){const segs=RSEG[f].filter(roomOpen).map(k=>SROOM[k]);if(!segs.length)return null;return[segs[0][1]+34,segs[segs.length-1][2]-20]}
+function floorRange(f){if(!RSEG[f])return null;const segs=RSEG[f].filter(roomOpen).map(k=>SROOM[k]);if(!segs.length)return null;return[segs[0][1]+34,segs[segs.length-1][2]-20]}
 function sPOI(p){const L=[];const add=(f,x,pose,dir,need)=>{if(need&&!need())return;const r=floorRange(f);if(r&&x>=r[0]&&x<=r[1])L.push({f,x,pose,dir})};
  add(0,258,'work',1,()=>true);add(0,180,'warm',1,()=>S.up.heater&&heatOn());add(0,322,'idle',1);add(0,265,'idle',-1);add(0,60,'idle',-1);
  add(0,448,'work',1,()=>S.up.stove);add(0,600,'idle',1);add(1,440,'sit',1,()=>S.up.radio);add(1,560,'idle',1);add(1,300,'idle',-1);
