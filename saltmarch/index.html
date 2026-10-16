@@ -606,8 +606,8 @@ function drawTown(t, now, day) {
   if (dark) { ctx.fillStyle = 'rgba(60,50,45,.55)'; for (let i = 0; i < 5; i++) { ctx.beginPath(); ctx.arc(x - 300 + i * 150 + Math.sin(now + i) * 10, G - 260 - ((now * 25 + i * 40) % 90), 24 + i * 3, 0, 2 * PI); ctx.fill(); } }
   const ph = Math.round(H * .55); ctx.fillStyle = '#3a2a1a'; ctx.fillRect(x - 3, G - ph, 6, ph); ctx.fillStyle = dark ? '#111' : '#b8372c'; ctx.beginPath(); ctx.moveTo(x + 3, G - ph); ctx.lineTo(x + 48 + Math.sin(now * 3) * 4, G - ph + 10); ctx.lineTo(x + 3, G - ph + 24); ctx.fill();
   ctx.fillStyle = 'rgba(8,12,18,.6)'; ctx.fillRect(x - 76, G - ph - 46, 152, 32);
-  ctx.fillStyle = '#ece4d2'; ctx.font = '400 16px Pirata One, serif'; ctx.textAlign = 'center'; ctx.fillText(t.name, x, G - ph - 31);
-  ctx.fillStyle = dark ? '#ff6b5a' : '#ffd27a'; ctx.font = '500 11px IBM Plex Mono, monospace'; ctx.fillText(dark ? '☠ raiders Lv ' + t.raidLv + (t.champion ? ' + champion' : '') : '⚜ ' + Math.floor(t.gold) + ' banked', x, G - ph - 18);
+  ctx.fillStyle = '#ece4d2'; ctx.font = '400 16px Pirata One, serif'; ctx.textAlign = 'center'; const ly = Math.max(G - ph - 31, 128); ctx.fillText(t.name, x, ly);
+  ctx.fillStyle = dark ? '#ff6b5a' : '#ffd27a'; ctx.font = '500 11px IBM Plex Mono, monospace'; ctx.fillText(dark ? '☠ raiders Lv ' + t.raidLv + (t.champion ? ' + champion' : '') : '⚜ ' + Math.floor(t.gold) + ' banked', x, ly + 13);
 }
 // The horse: body, neck and head, and four legs that each swing hip → knee → hoof on a stride cycle (trot or gallop)
 function drawHorse(sx, gy, d, sp, ph, now, gallop) {
@@ -678,10 +678,11 @@ function drawWorldHud() {
   for (const s of SEG) { ctx.fillStyle = s[0] === 'sea' ? '#1f4f80' : '#4e8a48'; ctx.fillRect(mx + s[1] / WORLD * mw, my, (s[2] - s[1]) / WORLD * mw, 8); }
   for (const t of TOWNS) { ctx.fillStyle = t.overrun ? '#ff6b5a' : '#ffd27a'; ctx.fillRect(mx + t.x / WORLD * mw - 2, my - 2, 4, 12); }
   ctx.fillStyle = '#fff'; ctx.fillRect(mx + player.x / WORLD * mw - 1.5, my - 3, 3, 14);
-  ctx.textAlign = 'left'; let ly = 62;
-  for (let i = 0; i < msgs.length; i++) { const m = msgs[i]; ctx.globalAlpha = Math.min(1, 9 - m.t); ctx.fillStyle = m.col; ctx.font = (i ? '500 11px' : '700 12px') + ' IBM Plex Mono, monospace';
-    let line = ''; for (const w of m.s.split(' ')) { const t = line ? line + ' ' + w : w; if (ctx.measureText(t).width > W - 28 && line) { ctx.fillText(line, 14, ly); ly += 15; line = w; } else line = t; }   // wrap to the canvas width
-    ctx.fillText(line, 14, ly); ly += 16; } ctx.globalAlpha = 1;
+  ctx.textAlign = 'left'; const rows = [];
+  for (let i = 0; i < msgs.length; i++) { const m = msgs[i], font = (i ? '500 11px' : '700 12px') + ' IBM Plex Mono, monospace'; ctx.font = font;
+    let line = ''; for (const w of m.s.split(' ')) { const t = line ? line + ' ' + w : w; if (ctx.measureText(t).width > W - 28 && line) { rows.push({ s: line, m, font }); line = w; } else line = t; } rows.push({ s: line, m, font }); }   // wrap to the canvas width
+  if (rows.length) { ctx.fillStyle = 'rgba(8,12,18,.55)'; ctx.fillRect(0, 46, W, 14 + rows.length * 16); }   // backdrop so messages read over the sky
+  rows.forEach((r, i) => { ctx.globalAlpha = Math.min(1, 9 - r.m.t); ctx.fillStyle = r.m.col; ctx.font = r.font; ctx.fillText(r.s, 14, 62 + i * 16); }); ctx.globalAlpha = 1;
 }
 
 // ---------------- Fight (Blade Tempo) ----------------
