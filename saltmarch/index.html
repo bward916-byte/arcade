@@ -1,0 +1,861 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Saltmarch</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pirata+One&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: arena canvas, then a thumb-friendly deck of move buttons; one committed dark night-sea look */
+:root{
+  --bg:#0e141c; --fg:#ece4d2; --muted:#8c9bab; --panel:#1b2530; --line:#2d3a48;
+  --p1:#d9453a; --p2:#3f8fd8; --gold:#e8b547;
+  --display:"Pirata One",Georgia,serif; --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  color-scheme:dark;
+}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--mono);max-width:none;
+  padding-block:6px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:flex;flex-direction:column;gap:8px;box-sizing:border-box;max-width:720px;margin-inline:auto;touch-action:manipulation;-webkit-user-select:none;user-select:none}
+header{display:flex;justify-content:space-between;align-items:center;gap:8px}
+h1{font:400 26px var(--display);margin:0;color:var(--gold);letter-spacing:.02em}
+.mode{display:flex;gap:4px}
+select{font:500 11px var(--mono);color:var(--fg);background:var(--panel);border:1px solid var(--line);border-radius:6px;min-height:32px;padding:0 8px}
+.mode button{min-height:32px;font-size:11px;padding:2px 8px}
+.mode{flex-wrap:wrap;justify-content:flex-end}
+.stage{position:relative}
+canvas{width:100%;height:auto;max-width:100%;display:block;border-radius:8px;border:1px solid var(--line);background:#101a26}
+#banner{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:rgba(8,12,18,.55);border-radius:8px}
+#banner h2{font:400 38px var(--display);margin:0;color:var(--gold);text-shadow:0 2px 12px #000}
+#banner p{margin:0;color:var(--fg);font-size:12px;text-align:center;padding:0 20px}
+#banner button{min-height:44px;padding:0 22px;font-size:14px;background:var(--gold);color:#1a1200;border-color:var(--gold)}
+.tune{display:flex;gap:16px;flex-wrap:wrap;font-size:11px;color:var(--muted)}
+.tune label{display:flex;align-items:center;gap:8px;min-width:0}
+.tune input{accent-color:var(--gold);width:120px}
+.tune span{color:var(--fg);font-variant-numeric:tabular-nums;min-width:4ch}
+.travel{display:flex;gap:6px}
+.travel .big{width:64px}
+.townPanel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 10px;display:grid;gap:6px}
+.tHead{font:400 18px var(--display);color:var(--gold)}
+.tStats{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--muted)}
+.tStats b{color:var(--fg)}
+.townPanel button{min-height:40px}
+.townPanel button:disabled{opacity:.4}
+.slots{display:grid;gap:4px}
+.slot{display:grid;grid-template-columns:70px 1fr auto;gap:8px;align-items:center;font-size:11px;padding:4px 6px;background:#141c26;border-radius:6px}
+.slot .sl{color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-size:10px}
+.slot .sd{color:var(--muted);grid-column:2;font-size:10px}
+.slot button{min-height:32px;padding:0 10px;grid-column:3;grid-row:1/3}
+.sd{color:var(--muted);font-size:11px;font-family:var(--mono)}
+.stack{display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+.stack #bBag{min-height:32px;width:96px;font-size:11px}
+.townPanel{min-height:112px}
+.pad{display:grid;grid-template-columns:132px 1fr 96px;align-items:start;gap:10px;align-items:center;min-height:132px}
+.stick{position:relative;width:132px;height:132px;border-radius:50%;background:radial-gradient(circle at 50% 40%,#2a3848,#141c26 70%);border:1px solid var(--line);touch-action:none;box-shadow:inset 0 2px 8px #000}
+.knob{position:absolute;left:50%;top:50%;width:56px;height:56px;margin:-28px 0 0 -28px;border-radius:50%;background:radial-gradient(circle at 40% 35%,#8c9bab,#3a4a5c 70%);box-shadow:0 3px 8px #000;pointer-events:none}
+.stick.live .knob{background:radial-gradient(circle at 40% 35%,#f0d08a,#a7772a 70%)}
+.atkbtn{width:96px;height:96px;border-radius:50%;font-size:40px;background:radial-gradient(circle at 40% 35%,#c23b2f,#6e1d16 75%);border:2px solid #d9453a;color:var(--fg);touch-action:none;justify-self:end;box-shadow:0 4px 10px #000}
+.atkbtn.hold{background:radial-gradient(circle at 40% 35%,#f0d08a,#a7772a 75%);border-color:var(--gold)}
+.mid{min-width:0;display:flex;flex-direction:column;gap:6px}
+#lastMove{font:400 24px var(--display);color:var(--gold);min-height:28px;letter-spacing:.04em}
+.legend{font-size:10px;color:var(--muted);line-height:1.5}
+.legend b{color:var(--fg);font-weight:500}
+@media(max-width:440px){.pad{grid-template-columns:110px 1fr 80px}.stick{width:110px;height:110px}.atkbtn{width:80px;height:80px;font-size:32px}.legend{display:none}}
+button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+button.on{background:var(--gold);color:#1a1200;border-color:var(--gold)}
+</style>
+
+<header><h1>Saltmarch</h1><div class="mode"><span style="font-size:11px;color:var(--muted)">Prototype: towns · travel · raids · retake · loot</span></div></header>
+<div class="stage">
+  <canvas id="c" width="700" height="420"></canvas>
+  <div id="banner" hidden><h2 id="bannerText">Slain</h2><p id="bannerSub"></p><button id="rematch">Back to the coast</button></div>
+</div>
+<div class="tune"><span>Tap anywhere once for sound</span>
+  <label>Speed <input id="speed" type="range" min="0.5" max="2" step="0.05" value="1"><span id="speedV">1.0×</span></label>
+</div>
+<div id="town" class="townPanel">
+  <div class="tHead" id="tName">On the road</div>
+  <div class="tStats" id="tStats" hidden><span>Gold banked <b id="tGold">0</b></span><span>Income <b id="tInc">0</b></span><span>Market <b id="tMkt">1</b></span><span>Defense <b id="tDef">0</b></span></div>
+  <div class="row" id="tBtns" hidden><button id="bCollect">Collect gold</button><button id="bMarket">Market +1</button><button id="bDef">Defense +1</button><button id="bRetake" class="atk" hidden>Retake the town ⚔</button></div>
+</div>
+<div id="bag" class="townPanel" hidden>
+  <div class="tHead">Captain's kit <span id="hpLine" class="sd"></span></div>
+  <div id="gear" class="slots"></div>
+  <div class="tHead" style="font-size:14px">Bag</div>
+  <div id="bagList" class="slots"></div>
+</div>
+<div class="pad">
+  <div id="stickWrap"><div id="stick1" class="stick"><div class="knob"></div></div></div>
+  <div class="mid">
+    <div class="legend" id="worldTip">Push the stick to ride; push it all the way and the horse breaks into a gallop (keys: A/D, hold to gallop). Your horse waits at the shore; the ship takes you across. Ride into a town to manage it, over crates and chests to open them.<br>
+      Towns bank gold while you're away. Raids come every half minute or so: a town with less defense than the raid is overrun and stops earning until you ride back and retake it by the blade — sometimes past a champion.</div>
+    <div class="legend" id="fightTip" hidden>Tap when a note reaches the ring. <b style="color:#5aa2ff">Blue</b> parry · <b style="color:#e8b547">Gold</b> strike · <b style="color:#ff6b5a">Red ✕</b> feint, don't tap. The hardest foes make the marks wobble; the beat underneath is true.</div>
+  </div>
+  <div class="stack"><button id="bBag">Bag</button><button id="btn1" class="atkbtn">⚔</button></div>
+</div>
+<script>
+// ENGINE-START  (pure JS, no DOM)
+const Motion = (() => {
+  const PI = Math.PI, H = PI / 2;
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const ease = t => t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+  const easeOut = t => 1 - Math.pow(1 - t, 3);
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const seq = (t, ...stages) => { let s = 0; for (const [e, fn] of stages) { if (t < e || e >= 1) return fn(clamp((t - s) / (e - s), 0, 1)); s = e; } };
+  const L = { torso: 28, neck: 3, head: 7, ua: 14, la: 13, th: 16, sh: 16, ft: 7, shoulder: 25, sword: 27 };
+  // Pose fields: limb angles from straight down (+forward); torso/head from straight up (+lean forward);
+  // la elbow bend (+forearm forward), ll knee bend (+shin back), f foot absolute (PI/2 flat), wrist = blade vs forearm,
+  // turn = spin about vertical axis (drawn as squash), rot = whole-body rotation, hx hip shift, lift extra height.
+  const BASE = { hx: 0, lift: 0, rot: 0, turn: 0, torso: 0, head: 0, sword: 0, wrist: 0, pivot: 0,
+    ua1: .12, la1: .25, ua2: -.1, la2: .25, ul1: .02, ll1: .06, f1: H, ul2: -.02, ll2: .06, f2: H };
+  const pose = o => Object.assign({}, BASE, o);
+  function gait(ph, A, bend, lean, armA, armBend) {
+    const s = Math.sin(ph), c = Math.cos(ph), swing = x => Math.max(0, Math.cos(x - .5));
+    return pose({ torso: lean, head: -lean * .5,
+      ul2: A * s, ll2: .08 + bend * swing(ph), f2: H - .35 * Math.max(0, c) + .2 * Math.max(0, -c) * Math.max(0, s),
+      ul1: -A * s, ll1: .08 + bend * swing(ph + PI), f1: H - .35 * Math.max(0, -c) + .2 * Math.max(0, c) * Math.max(0, -s),
+      ua2: -armA * s, la2: armBend + .25 * Math.max(0, -s), ua1: armA * s, la1: armBend + .25 * Math.max(0, s) });
+  }
+  const GUARD = { sword: 1, torso: -.04, head: .02, ua2: 1.1, la2: .3, wrist: .4, ua1: -1.9, la1: -.7, ul2: .55, ll2: .5, f2: H, ul1: -.5, ll1: .12, f1: H };
+  const guard = o => pose(Object.assign({}, GUARD, o));
+  // returns a pose that is GUARD with the given fields eased in by k (0..1)
+  const toward = (target, k) => { const g = guard(), o = {}; for (const key in g) o[key] = lerp(g[key], target[key] !== undefined ? target[key] : g[key], k); return o; };
+
+  const Poses = {
+    idle: (t) => { const b = Math.sin(t * 1.6); return pose({ torso: .02 + .015 * b, head: -.02 * b, ua1: .12 + .03 * b, ua2: -.1 - .03 * b, lift: .4 + .4 * b }); },
+    walk: (t, c) => gait(c.gaitPhase, .42, .9, .04, .3, .35),
+    run:  (t, c) => gait(c.gaitPhase, .75, 1.6, .28, .55, 1.5),
+    crouch: (t) => pose({ torso: .55, head: -.45, ul2: 1.25, ll2: 2.1, ul1: 1.15, ll1: 2.0, ua2: .5, la2: 1.3, ua1: .6, la1: 1.2 }),
+    jumpPrep: () => pose({ torso: .35, head: -.2, ul2: .7, ll2: 1.3, ul1: .6, ll1: 1.2, ua2: -.9, la2: .3, ua1: -.8, la1: .3 }),
+    air: (t, c) => { const up = c.vy < 0; return pose({ torso: .15, head: -.05, ua2: up ? 2.6 : 1.6, la2: .3, ua1: up ? 2.4 : 1.4, la1: .3,
+      ul2: up ? .9 : .4, ll2: up ? 1.6 : .9, f2: up ? .9 : H + .3, ul1: up ? .5 : .2, ll1: up ? 1.2 : .7, f1: up ? .9 : H + .3 }); },
+    land: (t) => { const k = 1 - ease(t); return pose({ torso: .4 * k, head: -.3 * k, ul2: .9 * k, ll2: 1.6 * k, ul1: .8 * k, ll1: 1.5 * k, ua2: -.6 * k + .1, la2: .4, ua1: -.5 * k + .1, la1: .4 }); },
+
+    // ---- Fencing ----
+    guard: (t) => { const b = Math.sin(t * 1.7); return guard({ lift: .6 + .6 * b, hx: 1.2 * Math.sin(t * 1.1), ua2: 1.1 + .04 * b, head: .02 - .03 * b }); },
+    guardStep: (t, c) => { const s = Math.sin(c.gaitPhase), up = Math.max(0, s), dn = Math.max(0, -s);
+      return guard({ ul2: .55 + .18 * s, ll2: .5 + .45 * up, f2: H - .3 * up, ul1: -.5 + .18 * s, ll1: .12 + .45 * dn, f1: H - .3 * dn, lift: 1.5 * Math.abs(s) }); },
+    lunge: (t) => seq(t,
+      [.12, k => toward({ hx: -3, ua2: .85, la2: .8, torso: -.12 }, k)],
+      [.38, k => { k = easeOut(k); return guard({ hx: lerp(-3, 15, k), ua2: lerp(.85, 1.6, k), la2: lerp(.8, 0, k), wrist: lerp(.4, 0, k), torso: lerp(-.12, .32, k), head: -.1 * k,
+        ul2: lerp(.55, 1.05, k), ll2: lerp(.5, .35, k), ul1: lerp(-.5, -1.0, k), ll1: lerp(.12, .04, k), f1: H - .25 * k, ua1: lerp(-1.9, -1.25, k), la1: lerp(-.7, 0, k) }); }],
+      [.6, () => guard({ hx: 15, ua2: 1.6, la2: 0, wrist: 0, torso: .32, head: -.1, ul2: 1.05, ll2: .35, ul1: -1.0, ll1: .04, f1: H - .25, ua1: -1.25, la1: 0 })],
+      [1, k => toward({ hx: 15, ua2: 1.6, la2: 0, wrist: 0, torso: .32, head: -.1, ul2: 1.05, ll2: .35, ul1: -1.0, ll1: .04, f1: H - .25, ua1: -1.25, la1: 0 }, 1 - ease(k))]),
+    parry: (t) => { const k = t < .2 ? easeOut(t / .2) : t < .6 ? 1 : 1 - ease((t - .6) / .4);
+      return toward({ hx: -4, ua2: .85, la2: 1.3, wrist: .95, torso: -.14, head: .08, ul2: .45, ll2: .65, ll1: .27 }, k); },
+    cut: (t) => seq(t,
+      [.3, k => toward({ hx: -3, ua2: 3.1, la2: .85, wrist: -.4, torso: -.25, head: .12, ua1: -1.5 }, ease(k))],
+      [.48, k => { k = easeOut(k); return guard({ hx: lerp(-3, 8, k), ua2: lerp(3.1, 1.05, k), la2: lerp(.85, .05, k), wrist: lerp(-.4, .35, k), torso: lerp(-.25, .45, k), head: lerp(.12, -.2, k),
+        ul2: lerp(.55, 1.0, k), ll2: lerp(.5, .4, k), ul1: lerp(-.5, -.9, k), ll1: lerp(.12, .1, k), f1: H - .3 * k, ua1: lerp(-1.5, -1.0, k) }); }],
+      [1, k => toward({ hx: 8, ua2: 1.05, la2: .05, wrist: .35, torso: .45, head: -.2, ul2: 1.0, ll2: .4, ul1: -.9, ll1: .1, f1: H - .3, ua1: -1.0 }, 1 - ease(k))]),
+    spin: (t) => seq(t,
+      [.22, k => toward({ hx: -4, ua2: -.6, la2: .2, wrist: -.6, torso: -.19, ll2: .9, ll1: .52, lift: -2 }, ease(k))],
+      [.7, k => { const e = easeOut(k), a = Math.min(1, k * 2.5); return guard({ turn: e * 2 * PI, hx: lerp(-4, 8, e), ua2: lerp(-.6, 1.55, a), la2: 0, wrist: lerp(-.6, 0, a),
+        torso: -.1, head: .05, ll2: .9 - .3 * e, ll1: .52 - .3 * e, ua1: -1.4, la1: 0, lift: 2 * Math.sin(k * PI) }); }],
+      [1, k => toward({ hx: 8, ua2: 1.55, la2: 0, wrist: 0, torso: -.1, ll2: .6, ll1: .22, ua1: -1.4, la1: 0 }, 1 - ease(k))]),
+    leap: (t) => seq(t,
+      [.18, k => toward({ torso: .3, ul2: .8, ll2: 1.3, ul1: .5, ll1: 1.1, ua2: .4, ua1: -1, la1: .3 }, ease(k))],
+      [.62, k => { const up = Math.sin(k * PI); return guard({ lift: 46 * up, hx: 14 * k, torso: .1, head: .15, ua2: lerp(.4, 3.2, easeOut(Math.min(1, k * 2))), la2: .7, wrist: -.5,
+        ul2: .9 * up + .2, ll2: 1.5 * up + .3, f2: H - .6 * up, ul1: .4 * up, ll1: 1.2 * up + .2, f1: H - .4 * up, ua1: -1.2, la1: .4 }); }],
+      [.76, k => { k = easeOut(k); return guard({ hx: 14 + 6 * k, torso: lerp(.1, .6, k), head: lerp(.15, -.3, k), ua2: lerp(3.2, 1.15, k), la2: lerp(.7, .05, k), wrist: lerp(-.5, .35, k),
+        ul2: lerp(.2, 1.15, k), ll2: lerp(.3, 1.6, k), ul1: lerp(0, .9, k), ll1: lerp(.2, 1.5, k), ua1: lerp(-1.2, -.6, k), la1: .3 }); }],
+      [1, k => toward({ hx: 20, torso: .6, head: -.3, ua2: 1.15, la2: .05, wrist: .35, ul2: 1.15, ll2: 1.6, ul1: .9, ll1: 1.5, ua1: -.6, la1: .3 }, 1 - ease(k))]),
+    salute: (t) => seq(t,
+      [.3, k => toward({ ua2: .35, la2: 2.3, wrist: .55, head: -.1, ul2: .1, ll2: .1, ul1: -.1, ll1: .1, ua1: -.3, la1: .3 }, ease(k))],
+      [.55, () => guard({ ua2: .35, la2: 2.3, wrist: .55, head: -.1, ul2: .1, ll2: .1, ul1: -.1, ll1: .1, ua1: -.3, la1: .3 })],
+      [.8, k => { k = easeOut(k); return guard({ ua2: lerp(.35, 1.0, k), la2: lerp(2.3, .05, k), wrist: lerp(.55, -.2, k), head: .15 * k, torso: .2 * k, ul2: .1, ll2: .1, ul1: -.1, ll1: .1, ua1: -.3, la1: .3 }); }],
+      [1, k => toward({ ua2: 1.0, la2: .05, wrist: -.2, head: .15, torso: .2, ul2: .1, ll2: .1, ul1: -.1, ll1: .1, ua1: -.3, la1: .3 }, 1 - ease(k))]),
+
+    open: (t) => { const k = t < .3 ? easeOut(t / .3) : t < .7 ? 1 : 1 - ease((t - .7) / .3);   // guard drops: sword lowers and torso opens up
+      return toward({ ua2: .35, la2: .15, wrist: -.35, torso: -.12, head: .12, ua1: -1.2, la1: -.4, ul2: .4, ll2: .35, lift: -1 }, k); },
+    ride: (t, c) => { // in the saddle: sways with the stride, leans into a gallop, looks about and pats the horse when standing
+      const g = c.gallop ? 1 : 0, mv = (c.sp || 0) > 8, ph = c.gaitPhase || 0, sway = mv ? Math.sin(ph * 2) * (g ? .07 : .035) : Math.sin(t * 1.2) * .015, look = c.look || 0, pat = c.pat || 0;
+      return pose({ torso: .12 + .3 * g + sway, head: -.1 - .1 * g - look * .25 + (mv ? -sway * .5 : 0), turn: look * .35,
+        ul2: 1.15 + (mv ? Math.sin(ph * 2) * .04 : 0), ll2: 1.25, f2: H - .3, ul1: 1.05, ll1: 1.15, f1: H - .3,
+        ua2: lerp(.85 + .3 * g + (mv ? Math.sin(ph * 2 + 1) * .08 : 0), 1.5, pat), la2: lerp(.9 + sway, .3, pat), ua1: .75 + .3 * g, la1: 1.0 + (mv ? Math.sin(ph * 2) * .1 : 0), lift: mv ? Math.max(0, Math.sin(ph * 2)) * (g ? 1.2 : .4) : 0 }); },
+    feint: (t) => seq(t,   // half a lunge, then snap back — sells the attack without committing
+      [.28, k => toward({ hx: 8, ua2: 1.45, la2: .1, wrist: .1, torso: .2, ul2: .85, ll2: .4, ul1: -.75, ll1: .06, ua1: -1.5, la1: -.3 }, easeOut(k))],
+      [1, k => toward({ hx: 8, ua2: 1.45, la2: .1, wrist: .1, torso: .2, ul2: .85, ll2: .4, ul1: -.75, ll1: .06, ua1: -1.5, la1: -.3 }, 1 - easeOut(k))]),
+    slash: (t) => seq(t,   // level horizontal cut across the body
+      [.3, k => toward({ hx: -3, ua2: -.55, la2: .6, wrist: -.25, torso: -.2, turn: -.35, head: .1, ll2: .6, ll1: .3 }, ease(k))],
+      [.5, k => { k = easeOut(k); return guard({ hx: lerp(-3, 7, k), ua2: lerp(-.55, 1.55, k), la2: lerp(.6, 0, k), wrist: lerp(-.25, .1, k), torso: lerp(-.2, .3, k), turn: lerp(-.35, .45, k), head: lerp(.1, -.1, k),
+        ul2: lerp(.55, .9, k), ll2: lerp(.6, .4, k), ul1: lerp(-.5, -.8, k), ll1: lerp(.3, .1, k), f1: H - .25 * k, ua1: lerp(-1.9, -1.2, k), la1: lerp(-.7, 0, k) }); }],
+      [1, k => toward({ hx: 7, ua2: 1.55, la2: 0, wrist: .1, torso: .3, turn: .45, head: -.1, ul2: .9, ll2: .4, ul1: -.8, ll1: .1, f1: H - .25, ua1: -1.2, la1: 0 }, 1 - ease(k))]),
+    fleche: (t, c) => seq(t,   // running attack: two quick steps then a flying thrust
+      [.4, k => { const ph = k * 2 * PI * 2, s = Math.sin(ph); return guard({ torso: .35, head: -.1, lift: 2 * Math.abs(s), ua2: .6, la2: .9, wrist: -.2, ua1: -1.4, la1: .2,
+        ul2: .3 + .6 * s, ll2: .3 + .9 * Math.max(0, s), f2: H - .3 * Math.max(0, s), ul1: .3 - .6 * s, ll1: .3 + .9 * Math.max(0, -s), f1: H - .3 * Math.max(0, -s) }); }],
+      [.58, k => { k = easeOut(k); return guard({ hx: 16 * k, lift: 6 * (1 - k), torso: lerp(.35, .4, k), head: -.15, ua2: lerp(.6, 1.65, k), la2: lerp(.9, 0, k), wrist: lerp(-.2, 0, k), ua1: -1.3, la1: 0,
+        ul2: lerp(.3, 1.1, k), ll2: lerp(.3, .3, k), ul1: lerp(.3, -1.05, k), ll1: .05, f1: H - .3 }); }],
+      [1, k => toward({ hx: 16, torso: .4, head: -.15, ua2: 1.65, la2: 0, wrist: 0, ua1: -1.3, la1: 0, ul2: 1.1, ll2: .3, ul1: -1.05, ll1: .05, f1: H - .3 }, 1 - ease(k))]),
+    pommel: (t) => seq(t,   // close in and bash with the hilt
+      [.28, k => toward({ hx: -2, ua2: .45, la2: 2.1, wrist: -1.6, torso: -.08, ua1: -1.2, la1: -.2 }, ease(k))],
+      [.45, k => { k = easeOut(k); return guard({ hx: lerp(-2, 7, k), ua2: lerp(.45, 1.35, k), la2: lerp(2.1, 1.25, k), wrist: -1.6, torso: lerp(-.08, .3, k), head: -.1 * k, ul2: .55 + .3 * k, ul1: -.5 - .3 * k, ll1: .12, f1: H - .2 * k, ua1: -1.2, la1: -.2 }); }],
+      [1, k => toward({ hx: 7, ua2: 1.35, la2: 1.25, wrist: -1.6, torso: .3, head: -.1, ul2: .85, ul1: -.8, f1: H - .2, ua1: -1.2, la1: -.2 }, 1 - ease(k))]),
+
+    // ---- Pirate dodges & bends ----
+    leanBack: (t) => { const k = t < .18 ? easeOut(t / .18) : t < .62 ? 1 : 1 - ease((t - .62) / .38);   // limbo under the blade
+      return toward({ hx: -7, torso: -1.05, head: .4, ul2: .75, ll2: .55, ul1: -.25, ll1: .95, f1: H - .5, ua2: 2.7, la2: .3, wrist: .4, ua1: -1.3, la1: 0 }, k); },
+    hopBack: (t) => { const up = Math.sin(Math.min(1, t) * PI); return guard({ lift: 16 * up, ul2: .55 + .5 * up, ll2: .5 + .9 * up, f2: H - .5 * up, ul1: -.5 + .3 * up, ll1: .12 + .8 * up, f1: H - .4 * up, torso: -.04 - .15 * up, ua2: 1.1 + .2 * up }); },
+    duckCut: (t) => seq(t,   // drop under a high cut and slash the legs
+      [.28, k => toward({ torso: .55, head: -.35, ul2: 1.3, ll2: 2.2, ul1: 1.05, ll1: 1.95, f1: H, ua2: -.9, la2: .4, wrist: -.3, ua1: -.6, la1: .9 }, ease(k))],
+      [.48, k => { k = easeOut(k); return guard({ hx: 9 * k, torso: .55, head: -.35, ul2: lerp(1.3, 1.35, k), ll2: lerp(2.2, 1.5, k), ul1: lerp(1.05, .25, k), ll1: lerp(1.95, 1.8, k), f1: lerp(H, -H - .3, k), ua2: lerp(-.9, 1.6, k), la2: lerp(.4, 0, k), wrist: lerp(-.3, 0, k), ua1: -.6, la1: .9 }); }],
+      [1, k => toward({ hx: 9, torso: .55, head: -.35, ul2: 1.35, ll2: 1.5, ul1: .25, ll1: 1.8, f1: -H - .3, ua2: 1.6, la2: 0, wrist: 0, ua1: -.6, la1: .9 }, 1 - ease(k))]),
+    boot: (t) => seq(t,
+      [.3, k => toward({ torso: -.3, head: .2, ul2: 1.25, ll2: 1.9, f2: H - .5, ul1: -.4, ua2: 1.4, la2: .6, wrist: .2, ua1: -1.4, la1: 0 }, ease(k))],
+      [.5, k => { k = easeOut(k); return guard({ torso: lerp(-.3, -.4, k), head: .25, hx: 3 * k, ul2: lerp(1.25, 1.6, k), ll2: lerp(1.9, .08, k), f2: lerp(H - .5, H + 1.1, k), ul1: -.3, ll1: .12, ua2: 1.4, la2: .6, wrist: .2, ua1: -1.4, la1: 0 }); }],
+      [1, k => toward({ torso: -.4, head: .25, hx: 3, ul2: 1.6, ll2: .08, f2: H + 1.1, ul1: -.3, ua2: 1.4, la2: .6, wrist: .2, ua1: -1.4, la1: 0 }, 1 - ease(k))]),
+
+    // ---- Body ----
+    roll: (t) => pose({ rot: ease(clamp((t - .08) / .84, 0, 1)) * 2 * PI, torso: 1.15, head: .65, ua2: 1.3, la2: 1.9, ua1: 1.2, la1: 1.9, ul2: 1.7, ll2: 2.4, f2: .4, ul1: 1.6, ll1: 2.3, f1: .4, pivot: 1, sword: 1, wrist: -.6 }),
+    clash: (t) => { const k = t < .25 ? easeOut(t / .25) : 1 - ease((t - .25) / .75);   // blades bind, both get shoved back
+      return toward({ hx: -6, torso: -.3, head: .2, ua2: 1.35, la2: .95, wrist: .35, ua1: -1.3, la1: -.2, ul2: .4, ll2: .7, ul1: -.6, ll1: .35, lift: 1 }, k); },
+    hurt: (t) => { const k = Math.sin(Math.min(1, t) * PI); return toward({ hx: -8, torso: -.4, head: .5, ua2: 1.6, la2: 1.0, wrist: .2, ua1: .5, la1: 1.2, ul2: .35, ll2: .7, ul1: -.3, ll1: .6 }, k); },
+    stagger: (t) => { const k = Math.sin(Math.min(1, t) * PI); return toward({ hx: -10, torso: -.55, head: .6, ua2: 2.3, la2: .6, wrist: -.4, ua1: -.8, la1: .4, ul2: .2, ll2: .9, ul1: -.6, ll1: .3, f1: H - .4 }, k); },
+    die: (t) => { const k = ease(Math.min(1, t)); return pose({ sword: 1, wrist: .3, rot: -1.5 * k, torso: .25 * k, head: .3 * k, ua2: .4 + .6 * k, la2: .4, ua1: .3 + .9 * k, la1: .3, ul2: .25 * k, ll2: .45 * k, ul1: -.1 * k, ll1: .2 * k }); },
+    dead: () => Poses.die(1),
+    getup: (t) => Poses.die(1 - ease(Math.min(1, t)))
+  };
+
+  class Character {
+    constructor(o = {}) {
+      Object.assign(this, { x: 0, y: 0, vy: 0, facing: 1, scale: 2.2, grounded: true, time: 0, gaitPhase: 0,
+        walkSpeed: 95, runSpeed: 210, stepSpeed: 70, jumpV: 520, gravity: 1500, minX: -Infinity, maxX: Infinity,
+        state: 'idle', action: null, from: null, blend: 1, blendTime: .12, cur: null, dead: false,
+        input: { move: 0, run: false, crouch: false, guard: false }, onEvent: null }, o);
+    }
+    // One-shot actions. dist/prog = travel; at/fire = event moment; inv = [from,to] untouchable window (fractions)
+    static ACTIONS = {
+      jump:   { dur: .11, pose: 'jumpPrep', end: c => { c.vy = -c.jumpV; c.grounded = false; } },
+      land:   { dur: .16, pose: 'land' },
+      lunge:  { dur: .44, pose: 'lunge', at: .3, fire: c => c.emit('hit', 'lunge'), dmg: 12, reach: 118 },
+      parry:  { dur: .4, pose: 'parry', at: .12, fire: c => c.emit('parry') },
+      cut:    { dur: .72, pose: 'cut', at: .42, fire: c => c.emit('hit', 'cut'), dmg: 15, reach: 95 },
+      spin:   { dur: 1.1, pose: 'spin', at: .5, fire: c => c.emit('hit', 'spin'), dmg: 22, reach: 100, inv: [.25, .5] },
+      leap:   { dur: 1.25, pose: 'leap', at: .7, fire: c => c.emit('hit', 'leap'), dmg: 28, reach: 110, inv: [.2, .55] },
+      salute: { dur: 1.3, pose: 'salute' },
+      feint:  { dur: .45, pose: 'feint' },
+      open:   { dur: 1.0, pose: 'open' },
+      slash:  { dur: .66, pose: 'slash', at: .42, fire: c => c.emit('hit', 'slash'), dmg: 13 },
+      fleche: { dur: .78, pose: 'fleche', at: .5, fire: c => c.emit('hit', 'fleche'), dmg: 16, dist: 85, prog: t => easeOut(Math.min(1, t / .5)) },
+      pommel: { dur: .48, pose: 'pommel', at: .4, fire: c => c.emit('hit', 'pommel'), dmg: 6, push: 48, hand: true },
+      leanBack: { dur: .85, pose: 'leanBack', inv: [.1, .62] },
+      hopBack:  { dur: .4, pose: 'hopBack', dist: -60, inv: [.05, .8] },
+      duckCut:  { dur: .78, pose: 'duckCut', at: .4, fire: c => c.emit('hit', 'duckCut'), dmg: 10, reach: 90, inv: [.1, .4] },
+      boot:   { dur: .55, pose: 'boot', at: .42, fire: c => c.emit('hit', 'boot'), dmg: 5, reach: 75, push: 55 },
+      roll:   { dur: .75, pose: 'roll', dist: 2 * PI * 24 * 2.2, prog: t => ease(clamp((t - .08) / .84, 0, 1)), inv: [.1, .85] },
+      clash:  { dur: .5, pose: 'clash', dist: -14, prog: t => easeOut(Math.min(1, t * 3)) },
+      hurt:   { dur: .5, pose: 'hurt', dist: -22, prog: t => easeOut(Math.min(1, t * 2)) },
+      stagger:{ dur: 1.05, pose: 'stagger', dist: -26, prog: t => easeOut(Math.min(1, t * 2)) },
+      die:    { dur: .7, pose: 'die', end: c => { c.dead = true; } },
+      getup:  { dur: .7, pose: 'getup', end: c => { c.dead = false; } }
+    };
+    emit(e, d) { this.onEvent && this.onEvent(e, d, this); }
+    play(name, force) {
+      const a = Character.ACTIONS[name]; if (!a) return false;
+      if (!force && (this.action || !this.grounded || this.dead)) return false;
+      if (this.dead && name !== 'getup') return false;
+      const v = this.vary || 0, rnd = () => (Math.random() * 2 - 1) * v;   // vary = 0..1 strength of per-play variation
+      this.action = { name, t: 0, fired: false, ...a, dur: a.dur * (1 + rnd() * .16), amp: 1 + rnd() * .18, lean: rnd() * .14, hx: rnd() * 3 };
+      this._setState(a.pose); return true;
+    }
+    invulnerable() { const a = this.action; if (!a || !a.inv) return false; const f = a.t / a.dur; return f >= a.inv[0] && f <= a.inv[1]; }
+    parrying() { const a = this.action; if (!a || a.name !== 'parry') return false; const f = a.t / a.dur; return f >= .08 && f <= .75; }
+    _setState(s) { if (s === this.state) return; this.from = this.cur; this.blend = 0; this.state = s; }
+    update(dt) {
+      dt = Math.min(dt, .05); this.time += dt; const I = this.input;
+      if (!this.grounded) { this.vy += this.gravity * dt; this.y += this.vy * dt; this.x += I.move * this.walkSpeed * 1.2 * dt;
+        if (this.y >= 0) { this.y = 0; this.vy = 0; this.grounded = true; this.action = null; this.play('land'); } }
+      if (this.action) {
+        const a = this.action; a.t += dt;
+        if (a.dist) { const e = a.prog ? a.prog(a.t / a.dur) : a.t / a.dur; this.x += this.facing * a.dist * (e - (a.lastE || 0)); a.lastE = e; }
+        if (a.fire && !a.fired && a.t / a.dur >= a.at) { a.fired = true; a.fire(this); }
+        if (a.t >= a.dur) { this.action = null; a.end && a.end(this); if (!this.grounded) this._setState('air'); }
+      }
+      if (!this.action) {
+        if (!this.grounded) this._setState('air');
+        else if (this.dead) this._setState('dead');
+        else {
+          let s = 'idle', speed = 0, cycle = 0;
+          if (I.guard && !I.crouch && !(I.move && I.run)) {
+            if (I.move) { s = 'guardStep'; speed = this.stepSpeed * I.move * this.facing; cycle = 1.6; } else s = 'guard';
+          } else {
+            if (I.move) this.facing = I.move > 0 ? 1 : -1;
+            if (I.crouch) s = 'crouch';
+            else if (I.move) { s = I.run ? 'run' : 'walk'; speed = I.run ? this.runSpeed : this.walkSpeed;
+              cycle = Math.abs(speed) / (2 * 2 * (L.th + L.sh) * Math.sin(s === 'run' ? .75 : .42) * this.scale); }
+          }
+          if (speed) { this.x += this.facing * speed * dt; this.gaitPhase += dt * 2 * PI * cycle; }
+          this._setState(s);
+        }
+      }
+      this.x = clamp(this.x, this.minX, this.maxX);
+      const tt = this.action ? this.action.t / this.action.dur : this.time;
+      let p = Poses[this.state](tt, this);
+      if (I.guard && !p.sword && this.state !== 'dead') p = Object.assign({}, p, { sword: 1, wrist: -.3 });
+      const a = this.action;
+      if (a && a.amp !== 1 && p.sword && !p.rot) {   // scale the move's excursion from the guard stance, add a personal lean
+        const w = Math.sin(Math.min(1, tt) * PI), o = {};
+        for (const key in p) o[key] = (key in GUARD && typeof p[key] === 'number' && !['sword', 'turn', 'pivot'].includes(key)) ? GUARD[key] + (p[key] - GUARD[key]) * a.amp : p[key];
+        o.torso += a.lean * w; o.hx += a.hx * w; p = o;
+      }
+      this.blend = Math.min(1, this.blend + dt / this.blendTime);
+      if (this.from && this.blend < 1) { const k = ease(this.blend), o = {};
+        for (const key in p) { let a = this.from[key], b = p[key];
+          if (key === 'rot' || key === 'turn') { let d = (b - a) % (2 * PI); if (d > PI) d -= 2 * PI; if (d < -PI) d += 2 * PI; b = a + d; }
+          o[key] = lerp(a, b, k); } p = o; }
+      this.cur = p;
+    }
+    blade(groundY) {   // the sword as a world-space segment [hand, tip], or null
+      const p = this.cur; if (!p || !p.sword) return null; const k = this.skeleton(p), f = this.facing * k.sx;
+      const W = v => [this.x + v[0] * f, groundY + this.y + v[1] + k.dy];
+      return [W(k.armN[2]), W(k.sword)];
+    }
+    skeleton(p = this.cur) {
+      const S = this.scale, d = (a, len) => [Math.sin(a) * len * S, Math.cos(a) * len * S];
+      const add = (A, v) => [A[0] + v[0], A[1] + v[1]];
+      const hips = [p.hx * S, 0];
+      const top = add(hips, d(PI - p.torso, L.torso)), sh = add(hips, d(PI - p.torso, L.shoulder));
+      const neck = add(top, d(PI - p.torso - p.head, L.neck)), headC = add(neck, d(PI - p.torso - p.head, L.head));
+      const limb = (o, a1, a2, l1, l2) => { const m = add(o, d(a1, l1)); return [o, m, add(m, d(a2, l2))]; };
+      const armF = limb(sh, p.ua1, p.ua1 + p.la1, L.ua, L.la), armN = limb(sh, p.ua2, p.ua2 + p.la2, L.ua, L.la);
+      const legF = limb(hips, p.ul1, p.ul1 - p.ll1, L.th, L.sh), legN = limb(hips, p.ul2, p.ul2 - p.ll2, L.th, L.sh);
+      const footF = add(legF[2], d(p.f1, L.ft)), footN = add(legN[2], d(p.f2, L.ft));
+      const sword = p.sword ? add(armN[2], d(p.ua2 + p.la2 + p.wrist, L.sword)) : null;
+      let pts = { hips, top, sh, neck, headC, armF, armN, legF, legN, footF, footN, sword };
+      if (p.rot) {
+        const c = Math.cos(p.rot), s = Math.sin(p.rot), C = p.pivot ? [(hips[0] + top[0]) / 2, (hips[1] + top[1]) / 2] : hips;
+        const R = v => { const x = v[0] - C[0], y = v[1] - C[1]; return [x * c - y * s + C[0], x * s + y * c + C[1]]; };
+        const rec = v => Array.isArray(v[0]) ? v.map(rec) : R(v);
+        for (const k in pts) if (pts[k]) pts[k] = rec(pts[k]);
+      }
+      const all = [pts.footF, pts.footN, pts.legF[2], pts.legN[2], pts.armF[2], pts.armN[2], pts.headC, pts.hips, pts.legF[1], pts.legN[1]];
+      pts.dy = -(Math.max(...all.map(v => v[1])) + 2.5 * S) - p.lift * S;
+      pts.sx = Math.cos(p.turn);
+      return pts;
+    }
+    draw(ctx, cam, groundY, cols) {
+      const p = this.cur; if (!p) return; const k = this.skeleton(p), S = this.scale, f = this.facing * k.sx;
+      const cx = this.x - cam + k.hips[0] * this.facing * (1 - k.sx);
+      const X = v => cx + v[0] * f, Y = v => groundY + this.y + v[1] + k.dy;
+      const seg = (a, b, w, col) => { ctx.strokeStyle = col; ctx.lineWidth = w * S; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(X(a), Y(a)); ctx.lineTo(X(b), Y(b)); ctx.stroke(); };
+      const mix = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+      const arm = (A, sleeve, skin) => { seg(A[0], A[1], 4.6, sleeve); seg(A[1], A[2], 3.8, skin); ctx.fillStyle = skin; ctx.beginPath(); ctx.arc(X(A[2]), Y(A[2]), 2.3 * S, 0, 2 * PI); ctx.fill(); };
+      const leg = (Lg, foot, pants, boot) => { seg(Lg[0], Lg[1], 5.6, pants); seg(Lg[1], mix(Lg[1], Lg[2], .45), 5.2, pants); seg(mix(Lg[1], Lg[2], .4), Lg[2], 5.4, boot); seg(Lg[2], foot, 4.6, boot); };
+      ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.beginPath(); ctx.ellipse(this.x - cam, groundY + 2, 16 * S * (1 - Math.min(.5, (-this.y + p.lift * S) / 400)), 3 * S, 0, 0, 2 * PI); ctx.fill();
+      const front = k.sx >= 0;
+      const far = () => { arm(k.armF, cols.sleeveDark, cols.skinDark); leg(k.legF, k.footF, cols.pantsDark, cols.bootDark); };
+      const near = () => { leg(k.legN, k.footN, cols.pants, cols.boot); arm(k.armN, cols.sleeve, cols.skin);
+        if (k.sword) { seg(k.armN[2], k.sword, 2.4, cols.steel); seg(mix(k.armN[2], k.sword, .02), mix(k.armN[2], k.sword, .14), 3.2, '#c9a24a'); } };
+      front ? far() : near();
+      // torso: shirt, sash, belt
+      seg(k.hips, k.top, 10, cols.shirt);
+      if (cols.stripes) for (let i = .15; i < .95; i += .2) seg(mix(k.hips, k.top, i), mix(k.hips, k.top, i + .08), 10, cols.stripes);
+      seg(mix(k.hips, k.top, .15), mix(k.hips, k.top, .85), 3, cols.sash);
+      seg(mix(k.hips, k.top, .02), mix(k.hips, k.top, .1), 11, cols.belt);
+      // head: skin, eye, beard, headgear oriented to the head's own up-vector
+      const hx = X(k.headC), hy = Y(k.headC), ux = X(k.headC) - X(k.neck), uy = Y(k.headC) - Y(k.neck), ang = Math.atan2(uy, ux) + PI / 2, R = L.head * S;
+      ctx.fillStyle = cols.skin; ctx.beginPath(); ctx.arc(hx, hy, R, 0, 2 * PI); ctx.fill();
+      ctx.save(); ctx.translate(hx, hy); ctx.rotate(ang); ctx.scale(f < 0 ? -1 : 1, 1);
+      ctx.fillStyle = '#1a1512'; ctx.beginPath(); ctx.arc(R * .45, -R * .1, 1.1 * S, 0, 2 * PI); ctx.fill();   // eye
+      if (cols.beard) { ctx.fillStyle = cols.beard; ctx.beginPath(); ctx.arc(0, R * .45, R * .75, .15, PI - .15); ctx.fill(); }
+      ctx.fillStyle = cols.hat;
+      if (cols.headgear === 'bandana') { ctx.beginPath(); ctx.arc(0, 0, R + 1, PI + .35, 2 * PI - .15); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = cols.hat; ctx.lineWidth = 2.2 * S; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(-R * .8, -R * .2); ctx.quadraticCurveTo(-R * 1.9, -R * .1, -R * 2.1, R * .5); ctx.stroke(); }
+      else { ctx.beginPath(); ctx.moveTo(-R * 1.45, -R * .55); ctx.lineTo(R * 1.45, -R * .55); ctx.lineTo(R * .95, -R * 1.25); ctx.lineTo(-R * .55, -R * 1.5); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = cols.hatTrim; ctx.fillRect(-R * 1.1, -R * .72, R * 2.0, .9 * S); }
+      ctx.restore();
+      front ? near() : far();
+    }
+  }
+  return { Character, Poses, L };
+})();
+// ENGINE-END
+
+// ---------------- Saltmarch: towns, travel, raids ----------------
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+let W = cv.width, HGT = cv.height, GROUND = 322; const FG = 262, PI = Math.PI;   // FG: the fight scene's own ground line
+// canvas sizing: fill the width, take most of the screen height, keep the ground line at 80%
+function resize() {
+  if (!cv.clientWidth) return; const dpr = Math.min(2, window.devicePixelRatio || 1), cw = cv.clientWidth, ch = Math.max(340, Math.min(Math.round(window.innerHeight - 236), Math.round(cw * .9)));
+  cv.width = Math.round(cw * dpr); cv.height = Math.round(ch * dpr); cv.style.height = ch + 'px'; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  W = cw; HGT = ch; GROUND = Math.round(ch * .8);
+}
+addEventListener('resize', resize); resize();
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v)), lerp = (a, b, t) => a + (b - a) * t;
+const COLS = {
+  red:  { skin: '#e2b98f', skinDark: '#b58f69', shirt: '#e7e0cf', stripes: '#b8372c', sleeve: '#e7e0cf', sleeveDark: '#b3ad9e', sash: '#b8372c', belt: '#3a2a1c',
+          pants: '#3b3450', pantsDark: '#262137', boot: '#4a2f1f', bootDark: '#2c1b11', steel: '#d6dee6', hat: '#b8372c', headgear: 'bandana', beard: '#5a3a22' },
+  champ:{ skin: '#d8a878', skinDark: '#a87f58', shirt: '#6a1020', stripes: null, sleeve: '#6a1020', sleeveDark: '#3f0a14', sash: '#e8b547', belt: '#2a1d12',
+          pants: '#1d1d24', pantsDark: '#101014', boot: '#111', bootDark: '#000', steel: '#f0d08a', hat: '#0a0a0c', hatTrim: '#e8b547', headgear: 'tricorne', beard: '#1a1210' },
+  foe:  { skin: '#c99a73', skinDark: '#9c7554', shirt: '#1d1d24', stripes: null, sleeve: '#1d1d24', sleeveDark: '#101014', sash: '#8a1f2a', belt: '#2a1d12',
+          pants: '#4a4440', pantsDark: '#2e2a28', boot: '#222', bootDark: '#111', steel: '#d6dee6', hat: '#14181f', hatTrim: '#8a1f2a', headgear: 'tricorne', beard: '#2a2020' }
+};
+const $ = id => document.getElementById(id);
+
+// --- World: a long coast. Segments alternate land and sea; towns sit on land.
+const SEG = [ ['land', 0, 3400], ['sea', 3400, 5200], ['land', 5200, 9400], ['sea', 9400, 11800], ['land', 11800, 15400], ['sea', 15400, 17000], ['land', 17000, 19600] ];
+const WORLD = 19600;
+const TOWNS = [
+  { name: 'Saltmarch', x: 800 }, { name: 'Gull Haven', x: 2650 }, { name: 'Port Royal', x: 6200 }, { name: 'Tortuga Cove', x: 8500 },
+  { name: 'Blackwater', x: 13600 }, { name: 'Kingsreach', x: 18600 }
+].map((t, i) => Object.assign(t, { gold: 0, market: 1, defense: i === 0 ? 1 : 0, overrun: false, raidLv: 0, pop: 12 + i * 6, flagT: 0 }));
+const segAt = x => SEG.find(s => x >= s[1] && x < s[2]) || SEG[SEG.length - 1];
+const townNear = x => TOWNS.find(t => Math.abs(t.x - x) < 480);
+const townDir = t => t.x > player.x ? '▶' : '◀';
+const dist = t => Math.abs(t.x - player.x);
+
+const player = { x: 800, dir: 1, hold: 0, purse: 40, lv: 1, hp: 100, mount: 'horse', vx: 0, gait: 0, t: 0, gear: { weapon: null, armor: null, boots: null }, bag: [] };
+// --- Items: few kinds, four rarities. Rolls: common 60%, uncommon 25%, rare 12%, exotic 3%
+const RARITY = ['common', 'uncommon', 'rare', 'exotic'], RCOL = { common: '#c8c2b4', uncommon: '#8fd38a', rare: '#5aa2ff', exotic: '#e8b547' };
+const ITEMS = {
+  weapon: { names: ['Rusty cutlass', 'Steel cutlass', 'Toledo rapier', "Kraken's Tooth"], stat: [2, 4, 7, 12], desc: v => '+' + v + ' damage' },
+  armor:  { names: ['Leather jerkin', 'Boarding coat', "Captain's coat", 'Sea-serpent hide'], stat: [.1, .2, .3, .45], desc: v => Math.round(v * 100) + '% less damage taken' },
+  boots:  { names: ['Deck shoes', 'Riding boots', 'Corsair boots', 'Seven-league boots'], stat: [.06, .12, .2, .32], desc: v => '+' + Math.round(v * 100) + '% timing window & travel speed' },
+  food:   { names: ['Hardtack', 'Salt pork', 'Rum cask', "Mermaid's draught"], stat: [25, 40, 70, 100], desc: v => 'restores ' + v + ' health' }
+};
+const rollRarity = () => { const r = Math.random(); return r < .6 ? 0 : r < .85 ? 1 : r < .97 ? 2 : 3; };
+function makeItem(slot, tier) { tier = tier === undefined ? rollRarity() : tier; const k = ITEMS[slot]; return { slot, tier, rarity: RARITY[tier], name: k.names[tier], v: k.stat[tier], desc: k.desc(k.stat[tier]) }; }
+const gearStat = slot => player.gear[slot] ? player.gear[slot].v : 0;
+const maxHp = () => 100 + 15 * (player.lv - 1);
+function giveItem(it) { player.bag.push(it); say(`Found ${it.name} (${it.rarity})`, RCOL[it.rarity]); if (it.tier >= 2) buzz([30, 40, 30]); renderBag(); }
+// --- Loot on the road: crates, barrels and chests appear on land; ride over them to open
+let loot = [], nextLoot = 0;
+function spawnLoot() { const land = SEG.filter(s => s[0] === 'land'); const s = land[Math.floor(Math.random() * land.length)]; const x = s[1] + 120 + Math.random() * (s[2] - s[1] - 240);
+  if (TOWNS.some(t => Math.abs(t.x - x) < 520) || Math.abs(x - player.x) < 400) return; loot.push({ x, kind: Math.random() < .15 ? 'chest' : Math.random() < .5 ? 'crate' : 'barrel', t: 0 }); }
+function openLoot(l) { loot = loot.filter(o => o !== l); Sfx.coin();
+  const r = Math.random(), bonus = l.kind === 'chest' ? 1 : 0;
+  if (r < .35) { const g = (8 + Math.floor(Math.random() * 14)) * (1 + bonus * 2); player.purse += g; say(`${l.kind}: ${g} gold`, '#ffd27a'); }
+  else if (r < .65) giveItem(makeItem('food', Math.min(3, rollRarity() + bonus)));
+  else giveItem(makeItem(['weapon', 'armor', 'boots'][Math.floor(Math.random() * 3)], Math.min(3, rollRarity() + bonus)));
+}
+const rider = new Motion.Character({ x: 0, facing: 1, scale: 1.3 });
+let dust = [];
+const HA = { next: 2, act: null, t: 0, dip: 0, toss: 0, ear: 0, stamp: -1, stampT: 0, tail: 0, look: 0, lookT: 0, breath: 0 };   // horse & rider animation state
+function tickAnim(dt, sp, now) {
+  const idle = sp < 10; HA.t += dt; HA.breath = Math.sin(now * (idle ? 1.6 : 4)) * (idle ? 1 : .6);
+  HA.next -= dt;
+  if (HA.next <= 0) { HA.next = idle ? 1.6 + Math.random() * 3 : 2.5 + Math.random() * 4; HA.t = 0;
+    const r = Math.random(); HA.act = idle ? (r < .35 ? 'graze' : r < .55 ? 'stamp' : r < .75 ? 'toss' : r < .9 ? 'swish' : 'look') : (r < .4 ? 'ear' : r < .7 ? 'swish' : r < .85 ? 'toss' : 'look');
+    if (HA.act === 'stamp') { HA.stamp = Math.floor(Math.random() * 4); HA.stampT = 0; } if (HA.act === 'look') { HA.look = Math.random() < .5 ? 1 : -1; HA.lookT = 0; } }
+  const k = v => Math.max(0, Math.min(1, v));
+  HA.dip = lerp(HA.dip, HA.act === 'graze' && HA.t < 2.2 && idle ? 1 : 0, Math.min(1, dt * 3));
+  HA.toss = HA.act === 'toss' && HA.t < .5 ? Math.sin(k(HA.t / .5) * PI) : 0;
+  HA.ear = HA.act === 'ear' && HA.t < .3 ? 1 : (Math.sin(now * 7) > .97 ? 1 : 0);
+  HA.tail = HA.act === 'swish' && HA.t < .9 ? Math.sin(HA.t * 14) * 18 : 0;
+  if (HA.stamp >= 0) { HA.stampT += dt; if (HA.stampT > .55) HA.stamp = -1; }
+  HA.lookT += dt; if (HA.act !== 'look' || HA.lookT > 1.6) HA.look *= Math.max(0, 1 - dt * 3);
+}
+let mode = 'world', cam = 0, clock = 0, nextRaid = 28, msgs = [], over = false, speed = 1, hold = { left: false, right: false }, stickX = 0;
+const say = (s, col) => { msgs.unshift({ s, col: col || '#ece4d2', t: 0 }); msgs = msgs.slice(0, 4); };
+const income = t => t.overrun ? 0 : .5 * t.market * (1 + t.pop / 40);
+
+// --- economy & raids
+function tickWorld(dt) {
+  clock += dt;
+  for (const t of TOWNS) t.gold += income(t) * dt;
+  nextRaid -= dt;
+  if (nextRaid <= 0) { nextRaid = 26 + Math.random() * 22;
+    const targets = TOWNS.filter(t => !t.overrun); if (targets.length) { const t = targets[Math.floor(Math.random() * targets.length)];
+      const strength = 1 + Math.floor(clock / 75) + (Math.random() < .3 ? 1 : 0);
+      if (t.defense >= strength) say(`${t.name} repelled a level ${strength} raid ${townDir(t)}`, '#8fd38a');
+      else { t.overrun = true; t.raidLv = Math.min(7, strength); t.champion = Math.random() < .4; const stolen = Math.floor(t.gold * .6); t.gold -= stolen; say(`${t.name} was overrun by a level ${strength} crew! ${townDir(t)}  (−${stolen} gold)`, '#ff6b5a'); buzz([60, 40, 60]); } } }
+  // loot
+  nextLoot -= dt; if (nextLoot <= 0) { nextLoot = 9 + Math.random() * 8; if (loot.length < 7) spawnLoot(); }
+  for (const l of loot) if (Math.abs(l.x - player.x) < 34 && player.mount === 'horse') openLoot(l);
+  // travel
+  // hold to ride: a short press walks the horse, held longer it breaks into a gallop; the ship gathers way slowly
+  const keyD = (hold.right ? 1 : 0) - (hold.left ? 1 : 0), d = keyD || (Math.abs(stickX) > .25 ? Math.sign(stickX) : 0);
+  const seg = segAt(player.x), was = player.mount; player.mount = seg[0] === 'sea' ? 'ship' : 'horse';
+  if (was !== player.mount) { player.vx *= .4; say(player.mount === 'ship' ? 'Aboard. The ship carries you across.' : 'Ashore. A fresh horse waits at the stable.', '#8c9bab'); }
+  if (d) { player.dir = d; player.hold += dt; } else player.hold = 0;
+  const horse = player.mount === 'horse', gallop = horse && (keyD ? player.hold > .5 : Math.abs(stickX) > .72);
+  const want = d * (horse ? (gallop ? 250 : 95) : 230) * (1 + gearStat('boots'));
+  const rate = (horse ? (!d || want * player.vx < 0 ? 900 : 380) : (d ? 60 : 120)) * dt;
+  player.vx += clamp(want - player.vx, -rate, rate);
+  player.x = clamp(player.x + player.vx * dt, 60, WORLD - 60);
+  const sp = Math.abs(player.vx); player.gait += sp * dt * .032; player.t += dt;
+  tickAnim(dt, sp, player.t);
+  if (horse && sp > 140 && Math.random() < dt * 14) dust.push({ x: player.x - player.dir * 40, y: GROUND - 4, vx: -player.dir * 20, r: 6, t: 0 });
+  if (horse && !d && sp > 120 && Math.random() < dt * 20) dust.push({ x: player.x + player.dir * 30, y: GROUND - 4, vx: player.dir * 30, r: 9, t: 0 });
+  for (const p of dust) { p.t += dt; p.x += p.vx * dt; p.y -= 14 * dt; } dust = dust.filter(p => p.t < .9);
+  cam = lerp(cam, clamp(player.x - W * .45, 0, WORLD - W), Math.min(1, dt * 5));
+  // context panel
+  const t = townNear(player.x); showTown(t);
+  for (const m of msgs) m.t += dt; msgs = msgs.filter(m => m.t < 9);
+}
+let shownTown = null, panelT = 0;
+function showTown(t) {
+  panelT -= 1 / 60; if (t === shownTown && panelT > 0) return; panelT = .25; shownTown = t;
+  const road = !t; $('tStats').hidden = road; $('tBtns').hidden = road;
+  if (road) { const near = TOWNS.slice().sort((a, b) => dist(a) - dist(b))[0]; $('tName').textContent = 'On the road  ·  ' + near.name + ' ' + townDir(near) + ' ' + Math.round(dist(near) / 40) + ' leagues'; return; }
+  $('tName').textContent = t.name + (t.overrun ? '  —  OVERRUN (Lv ' + t.raidLv + ')' + (t.champion ? '  ·  a champion holds it' : '') : '');
+  $('tGold').textContent = Math.floor(t.gold); $('tInc').textContent = income(t).toFixed(1) + '/s'; $('tDef').textContent = t.defense; $('tMkt').textContent = t.market;
+  const mc = 40 * (t.market + 1), dc = 50 * (t.defense + 1);
+  $('bMarket').textContent = 'Market +1 (' + mc + ')'; $('bDef').textContent = 'Defense +1 (' + dc + ')';
+  $('bMarket').disabled = t.overrun || player.purse < mc; $('bDef').disabled = t.overrun || player.purse < dc; $('bCollect').disabled = t.overrun || t.gold < 1;
+  $('bRetake').hidden = !t.overrun; $('bCollect').hidden = $('bMarket').hidden = $('bDef').hidden = t.overrun;
+}
+$('bCollect').addEventListener('click', () => { const t = shownTown; if (!t) return; const g = Math.floor(t.gold); player.purse += g; t.gold -= g; say(`Collected ${g} gold from ${t.name}`, '#ffd27a'); Sfx.coin(); });
+$('bMarket').addEventListener('click', () => { const t = shownTown, c = 40 * (t.market + 1); if (t && player.purse >= c) { player.purse -= c; t.market++; say(`${t.name}: market level ${t.market}`); Sfx.coin(); } });
+$('bDef').addEventListener('click', () => { const t = shownTown, c = 50 * (t.defense + 1); if (t && player.purse >= c) { player.purse -= c; t.defense++; say(`${t.name}: defenses level ${t.defense}`); Sfx.coin(); } });
+$('bRetake').addEventListener('click', () => { const t = shownTown; if (t && t.overrun) fightStart(t, false); });
+// --- equipment screen
+function renderBag() {
+  const g = $('gear'); g.innerHTML = '';
+  for (const slot of ['weapon', 'armor', 'boots']) { const it = player.gear[slot], d = document.createElement('div'); d.className = 'slot';
+    d.innerHTML = `<span class="sl">${slot}</span><b style="color:${it ? RCOL[it.rarity] : '#8c9bab'}">${it ? it.name : '— empty —'}</b><span class="sd">${it ? it.desc : ''}</span>`; g.appendChild(d); }
+  const b = $('bagList'); b.innerHTML = '';
+  if (!player.bag.length) b.innerHTML = '<span class="sd">Nothing in the bag. Crates, barrels and chests lie along the roads.</span>';
+  player.bag.forEach((it, i) => { const row = document.createElement('div'); row.className = 'slot';
+    row.innerHTML = `<span class="sl">${it.slot}</span><b style="color:${RCOL[it.rarity]}">${it.name}</b><span class="sd">${it.desc}</span>`;
+    const btn = document.createElement('button'); btn.textContent = it.slot === 'food' ? 'Eat' : 'Equip';
+    btn.addEventListener('click', () => { player.bag.splice(i, 1);
+      if (it.slot === 'food') { player.hp = Math.min(maxHp(), player.hp + it.v); say(`Ate ${it.name}: +${it.v} health`, '#8fd38a'); }
+      else { if (player.gear[it.slot]) player.bag.push(player.gear[it.slot]); player.gear[it.slot] = it; say(`Equipped ${it.name}`, RCOL[it.rarity]); }
+      Sfx.coin(); renderBag(); });
+    row.appendChild(btn); b.appendChild(row); });
+  $('hpLine').textContent = 'Health ' + Math.floor(player.hp) + ' / ' + maxHp();
+}
+$('bBag').addEventListener('click', () => { $('bag').hidden = !$('bag').hidden; renderBag(); });
+
+// --- drawing the coast
+function drawWorld(now) {
+  ctx.clearRect(0, 0, W, HGT);
+  const day = .5 + .5 * Math.sin(clock / 90); // slow day cycle
+  const sky = ctx.createLinearGradient(0, 0, 0, 230); sky.addColorStop(0, lerp3('#0b1220', '#4e8fd6', day)); sky.addColorStop(1, lerp3('#1f3350', '#bfe0f5', day)); ctx.fillStyle = sky; ctx.fillRect(0, 0, W, GROUND);
+  ctx.fillStyle = 'rgba(255,255,255,.75)'; for (let i = 0; i < 6; i++) { const cx = ((i * 331 - cam * .15) % (W + 300) + W + 300) % (W + 300) - 150, cy = 50 + (i * 37) % 70; ctx.globalAlpha = .5 + .5 * day; ctx.beginPath(); ctx.arc(cx, cy, 22, 0, 2 * PI); ctx.arc(cx + 24, cy - 8, 26, 0, 2 * PI); ctx.arc(cx + 50, cy, 20, 0, 2 * PI); ctx.fill(); } ctx.globalAlpha = 1;
+  ctx.fillStyle = '#ffe9a8'; ctx.globalAlpha = day; ctx.beginPath(); ctx.arc(W * .2 + day * W * .55, 90 - day * 40, 26, 0, 2 * PI); ctx.fill(); ctx.globalAlpha = 1;
+  ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = 1.5; for (let i = 0; i < 4; i++) { const gx = ((i * 271 + now * 18 - cam * .2) % (W + 100) + W + 100) % (W + 100) - 50, gy = 70 + (i * 53) % 90 + Math.sin(now * 2 + i) * 6, f = Math.sin(now * 9 + i) * 4; ctx.beginPath(); ctx.moveTo(gx - 9, gy + f); ctx.quadraticCurveTo(gx - 4, gy - 3, gx, gy); ctx.quadraticCurveTo(gx + 4, gy - 3, gx + 9, gy + f); ctx.stroke(); }   // gulls
+  // distant hills (parallax)
+  ctx.fillStyle = lerp3('#141c2a', '#5f8f55', day); ctx.beginPath(); ctx.moveTo(0, 240); for (let x = 0; x <= W; x += 20) { const wx = x + cam * .3; ctx.lineTo(x, GROUND - 96 + Math.sin(wx / 160) * 18 + Math.sin(wx / 57) * 8); } ctx.lineTo(W, GROUND); ctx.fill();
+  // sea strip behind everything
+  ctx.fillStyle = lerp3('#17304a', '#2d6fa8', day); ctx.fillRect(0, GROUND - 54, W, 56);
+  ctx.strokeStyle = 'rgba(255,255,255,.18)'; ctx.lineWidth = 1.5; for (let i = 0; i < 3; i++) { ctx.beginPath(); for (let x = 0; x <= W; x += 10) { const y = GROUND - 44 + i * 12 + Math.sin((x + cam * .6) / 28 + now * 1.5 + i) * 2; x ? ctx.lineTo(x, y) : ctx.moveTo(x, y); } ctx.stroke(); }
+  // ground per segment
+  for (const s of SEG) { const x0 = s[1] - cam, x1 = s[2] - cam; if (x1 < -50 || x0 > W + 50) continue;
+    if (s[0] === 'land') { const a = Math.max(x0, -2), b = Math.min(x1, W + 2);
+      ctx.fillStyle = lerp3('#2f4a2e', '#6ea35f', day); ctx.fillRect(x0, GROUND - 6, x1 - x0, HGT - GROUND + 6);
+      ctx.fillStyle = lerp3('#6a5a3a', '#c9ad78', day); ctx.fillRect(x0, GROUND - 2, x1 - x0, 46);                                    // the road
+      ctx.fillStyle = 'rgba(0,0,0,.12)'; ctx.fillRect(x0, GROUND + 10, x1 - x0, 4); ctx.fillRect(x0, GROUND + 28, x1 - x0, 4);          // wheel ruts
+      ctx.fillStyle = lerp3('#9a8a5a', '#e2cf96', day); ctx.fillRect(x0, GROUND - 6, 60, HGT - GROUND + 6); ctx.fillRect(x1 - 60, GROUND - 6, 60, HGT - GROUND + 6);   // sand at the shore
+      for (let wx = Math.floor((a + cam) / 23) * 23; wx < b + cam; wx += 23) { const sx = wx - cam, hsh = ((wx * 7919) % 1000) / 1000, gy = GROUND + 50 + hsh * (HGT - GROUND - 56);   // grass tufts and stones
+        if (hsh < .7) { ctx.strokeStyle = lerp3('#3a5a36', '#4e8a48', day); ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(sx, gy + 6); ctx.lineTo(sx + 2, gy - 6); ctx.moveTo(sx + 4, gy + 6); ctx.lineTo(sx + 7, gy - 3); ctx.stroke(); }
+        else { ctx.fillStyle = lerp3('#4a4a44', '#9a9484', day); ctx.beginPath(); ctx.ellipse(sx, gy, 5 + hsh * 6, 3, 0, 0, 2 * PI); ctx.fill(); } }
+      for (let wx = Math.floor((a + cam) / 140) * 140; wx < b + cam; wx += 140) { if (TOWNS.some(t => Math.abs(t.x - wx) < 560)) continue; const sx = wx - cam, hsh = ((wx * 131) % 100) / 100;   // fences, palms and bushes along the road
+        if (hsh < .45) { ctx.fillStyle = '#5a4634'; ctx.fillRect(sx, GROUND - 38, 6, 36); ctx.fillRect(sx - 70, GROUND - 32, 140, 4); ctx.fillRect(sx - 70, GROUND - 18, 140, 4); }
+        else if (hsh < .7) { ctx.strokeStyle = '#6b4b2e'; ctx.lineWidth = 9; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(sx, GROUND - 4); ctx.quadraticCurveTo(sx + 14, GROUND - 90, sx + 26, GROUND - 150); ctx.stroke();
+          ctx.strokeStyle = lerp3('#2f5a30', '#3f8a3c', day); ctx.lineWidth = 7; for (let k = 0; k < 6; k++) { const an = k * 1.05 - .2 + Math.sin(now * 1.2 + k) * .06; ctx.beginPath(); ctx.moveTo(sx + 26, GROUND - 150); ctx.quadraticCurveTo(sx + 26 + Math.cos(an) * 40, GROUND - 170 + Math.sin(an) * 20, sx + 26 + Math.cos(an) * 70, GROUND - 150 + Math.sin(an) * 50 + 20); ctx.stroke(); } }
+        else { ctx.fillStyle = lerp3('#2f5a30', '#4a8a44', day); ctx.beginPath(); ctx.arc(sx, GROUND - 14, 18, 0, 2 * PI); ctx.arc(sx + 20, GROUND - 10, 14, 0, 2 * PI); ctx.arc(sx - 18, GROUND - 8, 12, 0, 2 * PI); ctx.fill(); } }
+      ctx.fillStyle = '#5a4634'; ctx.fillRect(x0 - 150, GROUND + 4, 170, 8); ctx.fillRect(x1 - 20, GROUND + 4, 170, 8);   // docks
+      for (let x = x0 - 140; x < x0 + 20; x += 36) ctx.fillRect(x, GROUND + 12, 8, 40); for (let x = x1 - 10; x < x1 + 150; x += 36) ctx.fillRect(x, GROUND + 12, 8, 40); }
+    else { ctx.fillStyle = lerp3('#12263a', '#2a6aa0', day); ctx.fillRect(x0, GROUND - 2, x1 - x0, HGT - GROUND + 2); ctx.strokeStyle = 'rgba(255,255,255,.2)'; for (let x = Math.max(0, x0); x < Math.min(W, x1); x += 34) { ctx.beginPath(); ctx.moveTo(x, GROUND + 12 + Math.sin(now * 2 + x) * 2); ctx.lineTo(x + 18, GROUND + 12 + Math.sin(now * 2 + x) * 2); ctx.stroke(); } } }
+  for (const l of loot) { const x = l.x - cam; if (x < -40 || x > W + 40) continue; l.t += .016; const b = Math.sin(l.t * 3) * 2;
+    if (l.kind === 'chest') { ctx.fillStyle = '#8a5a2a'; ctx.fillRect(x - 18, GROUND - 28 + b, 36, 22); ctx.fillStyle = '#e8b547'; ctx.fillRect(x - 18, GROUND - 31 + b, 36, 5); ctx.fillRect(x - 3, GROUND - 23 + b, 6, 8); }
+    else if (l.kind === 'crate') { ctx.fillStyle = '#9a7a4a'; ctx.fillRect(x - 15, GROUND - 30 + b, 30, 24); ctx.strokeStyle = '#5a4020'; ctx.lineWidth = 2; ctx.strokeRect(x - 15, GROUND - 30 + b, 30, 24); ctx.beginPath(); ctx.moveTo(x - 15, GROUND - 30 + b); ctx.lineTo(x + 15, GROUND - 6 + b); ctx.stroke(); }
+    else { ctx.fillStyle = '#6b4b2e'; ctx.beginPath(); ctx.ellipse(x, GROUND - 18 + b, 13, 16, 0, 0, 2 * PI); ctx.fill(); ctx.strokeStyle = '#2a2a2a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x - 13, GROUND - 24 + b); ctx.lineTo(x + 13, GROUND - 24 + b); ctx.moveTo(x - 13, GROUND - 12 + b); ctx.lineTo(x + 13, GROUND - 12 + b); ctx.stroke(); } }
+  for (const t of TOWNS) drawTown(t, now, day);
+  drawPlayer(now, day);
+  drawWorldHud();
+}
+function lerp3(a, b, t) { const p = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)], A = p(a), B = p(b); return `rgb(${A.map((v, i) => Math.round(v + (B[i] - v) * t)).join(',')})`; }
+// One frontage, Dustfall-style: a wall in plaster, brick, timber or stone; framed windows with shutters; a tiled roof with a chimney; a door with a lantern;
+// and depending on the seed, a hanging shop sign, a balcony or an awning. `dark` draws it sacked and burning.
+function drawBuilding(bx, w, h, seed, dark, lit, now) {
+  const G = GROUND - 6, r = i => ((seed * 13 + i * 71) % 101) / 101, kind = Math.floor(r(1) * 4), top = G - h;
+  const wall = dark ? ['#3a3034', '#2e2628', '#352b2f', '#30282c'][kind] : ['#d8c9a8', '#8e4e3a', '#e6e0d0', '#8c8578'][kind], trim = dark ? '#1a1518' : ['#6b4a30', '#5a2e22', '#3a2a1a', '#5a554c'][kind];
+  ctx.fillStyle = wall; ctx.fillRect(bx, top, w, h);
+  const sh = ctx.createLinearGradient(0, top, 0, G); sh.addColorStop(0, 'rgba(255,255,255,.08)'); sh.addColorStop(1, 'rgba(0,0,0,.22)'); ctx.fillStyle = sh; ctx.fillRect(bx, top, w, h);
+  ctx.fillStyle = 'rgba(0,0,0,.14)'; ctx.fillRect(bx + w - 10, top, 10, h);                                           // shaded edge
+  ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fillRect(bx - 6, G, w + 12, 6);                                                 // ground shadow
+  if (kind === 1 && !dark) { ctx.fillStyle = 'rgba(0,0,0,.12)'; for (let y = top + 6; y < G; y += 12) for (let x = bx + ((y / 12) & 1) * 14; x < bx + w; x += 28) ctx.fillRect(x, y, 14, 1); }   // brick courses
+  if (kind === 2 && !dark) { ctx.fillStyle = trim; ctx.fillRect(bx, top, 5, h); ctx.fillRect(bx + w - 5, top, 5, h); for (let y = top + 8; y < G; y += 46) ctx.fillRect(bx, y, w, 4); for (let x = bx + w / 3; x < bx + w - 6; x += w / 3) ctx.fillRect(x, top, 4, h); }   // timber frame
+  if (kind === 3 && !dark) { ctx.fillStyle = 'rgba(255,255,255,.08)'; for (let y = top + 10; y < G; y += 18) for (let x = bx + ((y / 18) & 1) * 20; x < bx + w; x += 40) ctx.fillRect(x, y, 22, 8); }   // stone blocks
+  // windows in rows
+  const rows = Math.floor((h - 70) / 48), cols = Math.max(1, Math.floor((w - 20) / 44)), wx0 = bx + (w - cols * 44) / 2 + 8;
+  for (let rr = 0; rr < rows; rr++) for (let c = 0; c < cols; c++) { const x = wx0 + c * 44, y = top + 26 + rr * 48, on = lit && ((rr * 3 + c + seed) % 3 !== 0);
+    ctx.fillStyle = trim; ctx.fillRect(x - 3, y - 3, 30, 36); ctx.fillStyle = dark ? (Math.sin(now * 7 + rr + c + seed) > 0 ? '#ff7a2a' : '#5a1c0a') : on ? '#ffd27a' : '#1e2430'; ctx.fillRect(x, y, 24, 30);
+    if (!dark) { ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(x + 11, y, 2, 30); ctx.fillRect(x, y + 14, 24, 2); ctx.fillStyle = trim; ctx.fillRect(x - 11, y - 1, 7, 32); ctx.fillRect(x + 28, y - 1, 7, 32); ctx.fillRect(x - 5, y + 31, 34, 4); }   // panes, shutters, sill
+    if (on && !dark) { ctx.fillStyle = 'rgba(255,210,122,.14)'; ctx.fillRect(x - 10, y - 8, 44, 46); } }
+  // door, step and lantern
+  const dx = bx + w / 2 - 14; ctx.fillStyle = trim; ctx.fillRect(dx - 4, G - 52, 36, 52); ctx.fillStyle = dark ? '#000' : '#2a1a0f'; ctx.fillRect(dx, G - 48, 28, 48); ctx.fillStyle = '#5a5248'; ctx.fillRect(dx - 8, G - 4, 44, 4);
+  if (!dark) { ctx.fillStyle = '#c9a24a'; ctx.fillRect(dx + 20, G - 26, 3, 3); ctx.fillStyle = lit ? '#ffd27a' : '#3a2a1a'; ctx.fillRect(dx + 36, G - 62, 8, 12); if (lit) { ctx.fillStyle = 'rgba(255,210,122,.18)'; ctx.beginPath(); ctx.arc(dx + 40, G - 56, 30, 0, 2 * PI); ctx.fill(); } }
+  // roof: pitched and tiled, with a chimney
+  const peak = top - 30 - r(2) * 30; ctx.fillStyle = dark ? '#1a1518' : ['#6b3a2a', '#4a3a34', '#7a4a30', '#5a4a44'][kind];
+  ctx.beginPath(); ctx.moveTo(bx - 12, top); ctx.lineTo(bx + w / 2, peak); ctx.lineTo(bx + w + 12, top); ctx.lineTo(bx + w + 12, top + 6); ctx.lineTo(bx - 12, top + 6); ctx.fill();
+  if (!dark) { ctx.strokeStyle = 'rgba(0,0,0,.22)'; ctx.lineWidth = 1.5; for (let k = 1; k < 5; k++) { const yy = lerp(top, peak, k / 5), xa = lerp(bx - 12, bx + w / 2, k / 5), xb = lerp(bx + w + 12, bx + w / 2, k / 5); ctx.beginPath(); ctx.moveTo(xa, yy); ctx.lineTo(xb, yy); ctx.stroke(); } }
+  const cx = bx + w * .72; ctx.fillStyle = dark ? '#111' : '#4a3028'; ctx.fillRect(cx, lerp(top, peak, .55) - 22, 14, 30);
+  if (!dark && r(3) > .4) { ctx.fillStyle = 'rgba(200,200,210,.28)'; for (let k = 0; k < 3; k++) { ctx.beginPath(); ctx.arc(cx + 7 + Math.sin(now * .8 + k) * 6 + k * 3, lerp(top, peak, .55) - 36 - k * 14 - (now * 10 % 14), 6 + k * 3, 0, 2 * PI); ctx.fill(); } }
+  // one feature per house: a hanging sign, a balcony, or an awning
+  const feat = Math.floor(r(4) * 3);
+  if (feat === 0) { const sy = G - 88; ctx.fillStyle = trim; ctx.fillRect(bx + w - 6, sy - 20, 40, 4); ctx.fillStyle = '#2a1a0f'; ctx.fillRect(bx + w + 28, sy - 20, 3, 14); ctx.fillStyle = dark ? '#2a2224' : ['#c2902e', '#2f6fb8', '#b8372c', '#3e7d4a'][seed % 4]; ctx.fillRect(bx + w + 8, sy - 6, 42, 26); ctx.fillStyle = '#f0e6cc'; ctx.font = '700 15px serif'; ctx.textAlign = 'center'; ctx.fillText(['⚓', '🍺', '⚔', '⚜', '🐟', '🪙'][seed % 6], bx + w + 29, sy + 13); }
+  else if (feat === 1 && rows > 1) { const by = top + 26 + 48 - 2; ctx.fillStyle = trim; ctx.fillRect(bx - 6, by, w + 12, 5); for (let x = bx - 4; x < bx + w + 6; x += 9) ctx.fillRect(x, by - 18, 3, 18); ctx.fillRect(bx - 6, by - 20, w + 12, 3); }
+  else { ctx.fillStyle = dark ? '#2a2224' : ['#b8372c', '#3e7d4a', '#2f6fb8', '#c2902e'][seed % 4]; ctx.beginPath(); ctx.moveTo(bx + 4, G - 64); ctx.lineTo(bx + w - 4, G - 64); ctx.lineTo(bx + w + 8, G - 50); ctx.lineTo(bx - 8, G - 50); ctx.fill(); ctx.fillStyle = 'rgba(255,255,255,.25)'; for (let x = bx - 2; x < bx + w; x += 16) ctx.fillRect(x, G - 56, 8, 6); }
+}
+function drawTown(t, now, day) {
+  const x = t.x - cam; if (x < -800 || x > W + 800) return;
+  const rnd = i => ((t.x * 7 + i * 131) % 97) / 97, G = GROUND - 6, lit = day < .5, dark = t.overrun, H = HGT;
+  // back row: a silhouette street behind, for depth
+  ctx.fillStyle = dark ? '#201a1e' : lerp3('#2a2a36', '#8a8074', day); for (let i = 0; i < 9; i++) { const bw = 60 + rnd(i + 30) * 50, bh = 60 + rnd(i + 40) * 70, bxx = x - 460 + i * 108; ctx.fillRect(bxx, G - 110 - bh, bw, bh + 110); ctx.beginPath(); ctx.moveTo(bxx - 6, G - 110 - bh); ctx.lineTo(bxx + bw / 2, G - 150 - bh); ctx.lineTo(bxx + bw + 6, G - 110 - bh); ctx.fill(); }
+  if (t.x > 5000 && t.x < 12000 && !dark) { ctx.fillStyle = '#e8e0cc'; ctx.fillRect(x + 470, G - 230, 20, 230); ctx.fillStyle = '#b8372c'; ctx.fillRect(x + 470, G - 150, 20, 24); ctx.fillStyle = '#ffd27a'; ctx.fillRect(x + 466, G - 244, 28, 14); }   // a lighthouse at the harbour towns
+  const n = 6 + Math.min(5, t.market + t.defense); let bx = x - 470;
+  for (let i = 0; i < n; i++) { const w = 90 + rnd(i) * 70, h = Math.round(H * .34 + rnd(i + 9) * H * .3);
+    if (bx + w > x - 70 && bx < x + 70) bx = x + 80;   // leave the square
+    drawBuilding(bx, w, h, i + Math.floor(t.x / 100), dark, lit, now); bx += w + 18 + rnd(i + 5) * 22; }
+  // the square: well, flagpole, stalls, cannons
+  ctx.fillStyle = '#5a5662'; ctx.beginPath(); ctx.arc(x, G, 24, PI, 2 * PI); ctx.fill(); ctx.fillStyle = '#3a3640'; ctx.fillRect(x - 24, G - 2, 48, 4); ctx.fillStyle = '#4a3a2a'; ctx.fillRect(x - 20, G - 50, 4, 30); ctx.fillRect(x + 16, G - 50, 4, 30); ctx.fillRect(x - 26, G - 56, 52, 6);
+  for (let i = 0; i < Math.min(4, t.market); i++) { const sx = x + 100 + i * 60; ctx.fillStyle = dark ? '#3a3034' : ['#b8372c', '#2f6fb8', '#e8b547', '#3e7d4a'][i]; ctx.fillRect(sx, G - 50, 50, 12); ctx.fillStyle = '#6b4b2e'; ctx.fillRect(sx + 3, G - 38, 4, 38); ctx.fillRect(sx + 43, G - 38, 4, 38); ctx.fillStyle = '#9a7a4a'; ctx.fillRect(sx + 2, G - 22, 46, 6); ctx.fillStyle = ['#e8b547', '#d9453a', '#8fd38a', '#c8c2b4'][i]; for (let k = 0; k < 4; k++) { ctx.beginPath(); ctx.arc(sx + 10 + k * 9, G - 26, 4, 0, 2 * PI); ctx.fill(); } }
+  for (let i = 0; i < t.defense; i++) { const cx = x - 110 - i * 46; ctx.fillStyle = '#4a4a50'; ctx.fillRect(cx - 14, G - 14, 28, 14); ctx.fillStyle = '#222'; ctx.fillRect(cx - 4, G - 30, 28, 9); ctx.fillStyle = '#5a4634'; ctx.beginPath(); ctx.arc(cx - 8, G - 8, 8, 0, 2 * PI); ctx.arc(cx + 8, G - 8, 8, 0, 2 * PI); ctx.fill(); }
+  if (dark) { ctx.fillStyle = 'rgba(60,50,45,.55)'; for (let i = 0; i < 5; i++) { ctx.beginPath(); ctx.arc(x - 300 + i * 150 + Math.sin(now + i) * 10, G - 260 - ((now * 25 + i * 40) % 90), 24 + i * 3, 0, 2 * PI); ctx.fill(); } }
+  const ph = Math.round(H * .55); ctx.fillStyle = '#3a2a1a'; ctx.fillRect(x - 3, G - ph, 6, ph); ctx.fillStyle = dark ? '#111' : '#b8372c'; ctx.beginPath(); ctx.moveTo(x + 3, G - ph); ctx.lineTo(x + 48 + Math.sin(now * 3) * 4, G - ph + 10); ctx.lineTo(x + 3, G - ph + 24); ctx.fill();
+  ctx.fillStyle = 'rgba(8,12,18,.6)'; ctx.fillRect(x - 76, G - ph - 46, 152, 32);
+  ctx.fillStyle = '#ece4d2'; ctx.font = '400 16px Pirata One, serif'; ctx.textAlign = 'center'; ctx.fillText(t.name, x, G - ph - 31);
+  ctx.fillStyle = dark ? '#ff6b5a' : '#ffd27a'; ctx.font = '500 11px IBM Plex Mono, monospace'; ctx.fillText(dark ? '☠ raiders Lv ' + t.raidLv + (t.champion ? ' + champion' : '') : '⚜ ' + Math.floor(t.gold) + ' banked', x, G - ph - 18);
+}
+// The horse: body, neck and head, and four legs that each swing hip → knee → hoof on a stride cycle (trot or gallop)
+function drawHorse(sx, gy, d, sp, ph, now, gallop) {
+  const mv = sp > 8, stride = mv ? (gallop ? 28 : 15) : 0, lift = gallop ? 18 : 10, bob = (gallop ? Math.sin(ph * 2) * 3.5 : mv ? Math.sin(ph * 2) * 1.2 : 0) + HA.breath * .8;
+  const hipY = gy - 74 + bob, body = gy - 92 + bob, coat = '#5a3a26', coat2 = '#472c1b', dark = '#2e1a12';
+  ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.beginPath(); ctx.ellipse(sx, gy + 2, 74, 8, 0, 0, 2 * PI); ctx.fill();
+  const legs = gallop ? [[-34, .7, 1], [34, PI + .7, 1], [-44, 0, 0], [44, PI, 0]] : [[-34, PI, 1], [34, PI * 1.5, 1], [-44, 0, 0], [44, PI * .5, 0]];
+  const leg = ([rel, off, far], li) => { const a = ph + off, hx = sx + rel * d, stampUp = !mv && HA.stamp === li ? Math.sin(Math.min(1, HA.stampT / .55) * PI) * 12 : 0, up = (mv ? Math.max(0, Math.sin(a)) * lift : 0) + stampUp, fx = hx - Math.cos(a) * stride * d - (stampUp ? d * 4 : 0), fy = gy - up;
+    const kx = (hx + fx) / 2 + (rel > 0 ? 1 : -1) * d * (4 + up * .5), ky = (hipY + fy) / 2 + 6;
+    ctx.strokeStyle = far ? coat2 : coat; ctx.lineCap = 'round'; ctx.lineWidth = far ? 11 : 12; ctx.beginPath(); ctx.moveTo(hx, hipY); ctx.lineTo(kx, ky); ctx.stroke();
+    ctx.lineWidth = far ? 7 : 8; ctx.beginPath(); ctx.moveTo(kx, ky); ctx.lineTo(fx, fy - 5); ctx.stroke();
+    ctx.fillStyle = '#1c1410'; ctx.beginPath(); ctx.ellipse(fx, fy - 2, 7, 4, 0, 0, 2 * PI); ctx.fill(); };
+  legs.forEach((l, i) => l[2] && leg(l, i));
+  // barrel, chest and rump
+  ctx.fillStyle = coat; ctx.beginPath(); ctx.ellipse(sx, body, 66, 25 + HA.breath * .6, 0, 0, 2 * PI); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(sx + 50 * d, body - 4, 24, 24, 0, 0, 2 * PI); ctx.fill(); ctx.beginPath(); ctx.ellipse(sx - 48 * d, body - 6, 24, 23, 0, 0, 2 * PI); ctx.fill();
+  ctx.fillStyle = '#6b4a30'; ctx.beginPath(); ctx.ellipse(sx - 6 * d, body - 10, 34, 9, 0, 0, 2 * PI); ctx.fill();
+  const hg = ctx.createLinearGradient(0, body - 25, 0, body + 25); hg.addColorStop(0, 'rgba(255,230,200,.12)'); hg.addColorStop(1, 'rgba(0,0,0,.3)'); ctx.fillStyle = hg; ctx.beginPath(); ctx.ellipse(sx, body, 66, 25, 0, 0, 2 * PI); ctx.fill();
+  // neck rises from the chest to the head; the head is a wedge with a muzzle, ears and an eye
+  const nod = mv ? Math.sin(ph) * (gallop ? 5 : 3) : 0, dipY = HA.dip * 58, dipX = HA.dip * 14, tossY = HA.toss * -10;
+  const nx = sx + 58 * d, ny = body - 16, hx = sx + (92 + dipX) * d, hy = body - 62 + (gallop ? 14 : 0) + nod + dipY + tossY;
+  ctx.strokeStyle = coat; ctx.lineCap = 'round'; ctx.lineWidth = 26; ctx.beginPath(); ctx.moveTo(nx, ny); ctx.lineTo(hx - 4 * d, hy + 6); ctx.stroke();
+  ctx.save(); ctx.translate(hx, hy); ctx.scale(d, 1); ctx.rotate((gallop ? .35 : .6) + HA.dip * .7 - HA.toss * .4 + HA.look * .12);
+  ctx.fillStyle = coat; ctx.beginPath(); ctx.moveTo(-16, -14); ctx.lineTo(14, -12); ctx.lineTo(40, 2); ctx.lineTo(42, 12); ctx.lineTo(28, 18); ctx.lineTo(-6, 16); ctx.lineTo(-18, 4); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = dark; const ef = HA.ear * 8; ctx.beginPath(); ctx.moveTo(-12, -14); ctx.lineTo(-6 - ef, -30 + ef * .5); ctx.lineTo(2, -14); ctx.fill(); ctx.beginPath(); ctx.moveTo(-2, -14); ctx.lineTo(6, -28); ctx.lineTo(12, -13); ctx.fill();   // ears (one flicks)
+  ctx.fillStyle = '#1c1410'; ctx.beginPath(); ctx.ellipse(6, -2, 3.5, 2.5, 0, 0, 2 * PI); ctx.fill(); ctx.fillStyle = '#3a2418'; ctx.beginPath(); ctx.ellipse(36, 10, 3, 2, 0, 0, 2 * PI); ctx.fill();   // eye, nostril
+  ctx.strokeStyle = '#5a4634'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-10, 8); ctx.lineTo(32, 14); ctx.moveTo(20, 0); ctx.lineTo(28, 18); ctx.stroke();   // bridle
+  ctx.restore();
+  ctx.strokeStyle = dark; ctx.lineWidth = 6; ctx.beginPath(); for (let i = 0; i < 6; i++) { const t = i / 5, mx = lerp(nx + 6 * d, hx - 8 * d, t) , my = lerp(ny - 14, hy - 10, t); ctx.moveTo(mx, my); ctx.lineTo(mx - d * (8 + (mv ? Math.sin(now * 18 + i) * 4 : 0)), my + 14); } ctx.stroke();   // mane
+  const tx = sx - 66 * d, sw = Math.sin(now * 2.5) * 6 + HA.tail; ctx.lineWidth = 9; ctx.beginPath(); ctx.moveTo(tx, body - 8); ctx.quadraticCurveTo(tx - 26 * d, body + 2 + sw, tx - (gallop ? 42 : 16) * d, body + (gallop ? 0 : 40) + sw); ctx.stroke();   // tail
+  ctx.fillStyle = '#3a2a1a'; ctx.beginPath(); ctx.ellipse(sx - 4 * d, body - 16, 26, 8, 0, 0, 2 * PI); ctx.fill(); ctx.strokeStyle = '#2a1a10'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(sx - 10 * d, body - 8); ctx.lineTo(sx - 10 * d, body + 22); ctx.stroke();   // saddle + girth
+  ctx.strokeStyle = '#5a4634'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(sx + 14 * d, body - 36); ctx.lineTo(hx + 10 * d, hy + 10); ctx.stroke();   // reins
+  if (!mv && HA.act === 'toss' && HA.t < .4) { ctx.fillStyle = 'rgba(220,220,230,.35)'; ctx.beginPath(); ctx.arc(hx + 44 * d, hy + 14, 6 + HA.t * 30, 0, 2 * PI); ctx.fill(); }   // a snort
+  legs.forEach((l, i) => !l[2] && leg(l, i));
+  return bob;
+}
+function drawPlayer(now, day) {
+  const x = player.x - cam, f = player.dir, sp = Math.abs(player.vx);
+  for (const p of dust) { ctx.fillStyle = `rgba(190,170,140,${.35 * (1 - p.t / .9)})`; ctx.beginPath(); ctx.arc(p.x - cam, p.y, p.r + p.t * 14, 0, 2 * PI); ctx.fill(); }
+  if (player.mount === 'horse') {
+    const gallop = sp > 150, HS = .78; ctx.save(); ctx.translate(x, GROUND); ctx.scale(HS, HS); const bob = drawHorse(0, 0, f, sp, player.gait, now, gallop) * HS; ctx.restore();
+    rider.x = x - 3 * f + (sp > 8 ? Math.sin(player.gait) * 1.5 : 0); rider.facing = f; rider.gallop = gallop; rider.sp = sp; rider.look = HA.look; rider.pat = (!gallop && sp < 10 && HA.act === 'look' && HA.t < 1.2) ? Math.sin(Math.min(1, HA.t / 1.2) * PI) : 0; rider.gaitPhase = player.gait;
+    rider.cur = Motion.Poses.ride(now, rider); rider.draw(ctx, 0, GROUND - 70 * HS + bob, COLS.red);
+  } else {
+    const bob = Math.sin(now * 1.4) * 3, heel = clamp(player.vx / 230, -1, 1) * .05, y = GROUND + 14 + bob, bil = Math.min(1, sp / 120);
+    ctx.save(); ctx.translate(x, y); ctx.rotate(heel * f); ctx.scale(f, 1);
+    ctx.fillStyle = '#2a1c10'; ctx.beginPath(); ctx.moveTo(-130, -30); ctx.lineTo(150, -30); ctx.lineTo(172, -52); ctx.lineTo(142, -30); ctx.lineTo(118, 34); ctx.lineTo(-104, 34); ctx.lineTo(-136, -6); ctx.closePath(); ctx.fill();   // hull
+    ctx.fillStyle = '#4a3422'; ctx.beginPath(); ctx.moveTo(-128, -30); ctx.lineTo(148, -30); ctx.lineTo(134, -16); ctx.lineTo(-116, -16); ctx.closePath(); ctx.fill();   // wale
+    ctx.fillStyle = '#8a6a44'; ctx.fillRect(-120, -36, 262, 7);                                                   // rail
+    ctx.strokeStyle = '#2a1c10'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(140, -34); ctx.lineTo(208, -62); ctx.stroke();   // bowsprit
+    ctx.fillStyle = '#2a1a0a'; ctx.fillRect(-26, -210, 9, 176); ctx.fillRect(70, -170, 7, 136);                    // masts
+    ctx.fillStyle = '#e8d8b8'; ctx.beginPath(); ctx.moveTo(-17, -196); ctx.lineTo(-17 + 10, -196); ctx.quadraticCurveTo(70 + 40 * bil, -140, 26 + 30 * bil, -74); ctx.lineTo(-17, -70); ctx.closePath(); ctx.fill();   // main
+    ctx.beginPath(); ctx.moveTo(77, -160); ctx.quadraticCurveTo(140 + 30 * bil, -120, 110 + 24 * bil, -72); ctx.lineTo(77, -68); ctx.closePath(); ctx.fill();   // fore
+    ctx.beginPath(); ctx.moveTo(-17, -186); ctx.lineTo(196, -58); ctx.lineTo(140 - 10 * bil, -52); ctx.closePath(); ctx.fill();   // jib
+    ctx.fillStyle = '#b8372c'; ctx.beginPath(); ctx.moveTo(-22, -214); ctx.lineTo(-46 - 10 * bil, -209); ctx.lineTo(-22, -204); ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,.4)'; ctx.lineWidth = 1.5; for (let i = -100; i < 120; i += 22) { ctx.beginPath(); ctx.moveTo(i, -14); ctx.lineTo(i - 6, 30); ctx.stroke(); }   // planking
+    ctx.restore();
+    ctx.fillStyle = 'rgba(255,255,255,.45)'; if (sp > 20) { ctx.fillRect(x - f * 160, y + 30, 70 * bil + 20, 4); ctx.fillRect(x + f * 150, y + 28, 36, 3); }
+    rider.x = x + 24 * f; rider.facing = f; rider.y = 0; rider.cur = Motion.Poses.idle(now, rider); rider.draw(ctx, 0, GROUND - 20 + bob, COLS.red);
+  }
+}
+function drawWorldHud() {
+  ctx.fillStyle = 'rgba(8,12,18,.7)'; ctx.fillRect(0, 0, W, 46);
+  ctx.fillStyle = '#ffd27a'; ctx.font = '700 13px IBM Plex Mono, monospace'; ctx.textAlign = 'left'; ctx.fillText('⚜ ' + Math.floor(player.purse), 14, 18);
+  ctx.fillStyle = '#ece4d2'; ctx.font = '500 11px IBM Plex Mono, monospace'; ctx.fillText('Captain Lv ' + player.lv + '   ♥ ' + Math.floor(player.hp) + '/' + maxHp() + '   ' + (player.mount === 'horse' ? '🐎' : '⛵') + '   day ' + (1 + Math.floor(clock / 180)), 100, 18);
+  // minimap: the whole coast in one strip
+  const mx = 14, my = 32, mw = W - 28; ctx.fillStyle = '#0a0f16'; ctx.fillRect(mx, my, mw, 8);
+  for (const s of SEG) { ctx.fillStyle = s[0] === 'sea' ? '#1f4f80' : '#4e8a48'; ctx.fillRect(mx + s[1] / WORLD * mw, my, (s[2] - s[1]) / WORLD * mw, 8); }
+  for (const t of TOWNS) { ctx.fillStyle = t.overrun ? '#ff6b5a' : '#ffd27a'; ctx.fillRect(mx + t.x / WORLD * mw - 2, my - 2, 4, 12); }
+  ctx.fillStyle = '#fff'; ctx.fillRect(mx + player.x / WORLD * mw - 1.5, my - 3, 3, 14);
+  ctx.textAlign = 'left'; for (let i = 0; i < msgs.length; i++) { const m = msgs[i]; ctx.globalAlpha = Math.min(1, 9 - m.t); ctx.fillStyle = m.col; ctx.font = (i ? '500 11px' : '700 12px') + ' IBM Plex Mono, monospace'; ctx.fillText(m.s, 14, 62 + i * 16); } ctx.globalAlpha = 1;
+}
+
+// ---------------- Fight (Blade Tempo) ----------------
+let F = null;
+const fdiff = () => { const L = F.lv, P = player.lv, skill = clamp(1 + .12 * (P - L), .5, 1.6) * (1 + gearStat('boots'));
+  return { lead: clamp(1.9 - .18 * L + .06 * P, .8, 2.2), perfect: .075 * skill, good: .16 * skill, tempo: .75 + .22 * L, feint: L >= 2 ? .1 + .04 * L : 0, multi: L >= 3 ? .15 + .08 * L : 0,
+    wobble: F.champ ? Math.max(0, L - 3) : Math.max(0, L - 4),   // only the hardest foes make the notes wobble
+    enemyDmg: (7 + 7 * L) * (1 - gearStat('armor')) * (F.champ ? 1.15 : 1), playerDmg: 9 + 4 * P + gearStat('weapon'), enemyHp: (50 + 35 * L) * (F.champ ? 1.5 : 1) }; };
+function fightStart(town, champ) {
+  F = { town, champ, lv: Math.min(7, town.raidLv + (champ ? 1 : 0)), notes: [], song: 0, nextT: 1.6, combo: 0, best: 0, judge: null, fx: [], shake: 0, hitstop: 0, over: false };
+  const d = fdiff();
+  F.p1 = new Motion.Character({ x: W / 2 - 88, facing: 1, scale: 2.2 }); F.p1.input.guard = true; F.p1.vary = .6; F.p1.maxHp = maxHp(); F.p1.hp = Math.max(1, player.hp);
+  F.p2 = new Motion.Character({ x: W / 2 + 88, facing: -1, scale: champ ? 2.4 : 2.2 }); F.p2.input.guard = true; F.p2.vary = .6; F.p2.hp = F.p2.maxHp = d.enemyHp;
+  mode = 'fight'; $('town').hidden = true; $('bag').hidden = true; $('stickWrap').hidden = true; $('fightTip').hidden = false; $('banner').hidden = true;
+}
+function fightEnd(won) {
+  F.over = true; const t = F.town; player.hp = won ? F.p1.hp : Math.max(15, Math.floor(maxHp() * .2)); F.won = won;
+  if (won) { F.p2.play('die', true); setTimeout(() => F.p1.play('salute'), 500);
+    if (t.champion && !F.champ) { F.next = 'champion'; $('bannerText').textContent = 'The crew falls'; $('bannerSub').textContent = 'Their champion steps forward (level ' + Math.min(7, t.raidLv + 1) + '). Your wounds stay with you.'; $('rematch').textContent = 'Fight the champion'; }
+    else { t.overrun = false; t.champion = false; const lvUp = player.lv < 7 && t.raidLv >= player.lv - 1; if (lvUp) player.lv++; const bounty = 20 * t.raidLv * (F.champ ? 2 : 1); player.purse += bounty;
+      if (F.champ || Math.random() < .5) giveItem(makeItem(['weapon', 'armor', 'boots', 'food'][Math.floor(Math.random() * 4)], Math.min(3, rollRarity() + (F.champ ? 1 : 0))));
+      $('bannerText').textContent = t.name + ' retaken'; $('bannerSub').textContent = (lvUp ? 'Captain level ' + player.lv + '.  ' : '') + 'Bounty +' + bounty + ' gold.'; $('rematch').textContent = 'Back to the coast'; } }
+  else { F.p1.play('die', true); setTimeout(() => F.p2.play('salute'), 500); const lost = Math.floor(player.purse * .3); player.purse -= lost;
+    $('bannerText').textContent = 'Driven off'; $('bannerSub').textContent = 'That level ' + F.lv + (F.champ ? ' champion' : ' crew') + ' is beyond you at level ' + player.lv + '. Lost ' + lost + ' gold. Eat, gear up, retake weaker towns first.'; $('rematch').textContent = 'Back to the coast'; }
+  setTimeout(() => { $('banner').hidden = false; }, 900);
+}
+function fightTap() {
+  if (F.over) return; const d = fdiff(), P1 = F.p1, P2 = F.p2;
+  let bestN = null, bestD = 9; for (const n of F.notes) { if (n.done) continue; const dt = Math.abs(F.song - n.t); if (dt < bestD) { bestD = dt; bestN = n; } }
+  if (!bestN || bestD > d.good) { P1.play('feint'); return; }
+  const n = bestN, perfect = Math.abs(F.song - n.t) <= d.perfect; n.done = true;
+  if (n.kind === 'parry') { n.result = perfect ? 'PERFECT' : 'GOOD'; P1.play('parry', true); F.combo++;
+    F.fx.push({ type: 'spark', x: P1.x + 95, y: FG - 75, t: 0, big: perfect }); Sfx.clang(perfect ? 1 : .6); buzz(perfect ? 35 : 15); F.hitstop = perfect ? .08 : .04; F.shake = 3;
+    if (perfect) setTimeout(() => { if (!F.over) { P1.play('lunge', true); landPlayer(1); } }, 230 / speed); }
+  else if (n.kind === 'attack') { n.result = perfect ? 'PERFECT' : 'GOOD'; F.combo++; P1.play(perfect ? (Math.random() < .5 ? 'spin' : 'leap') : (Math.random() < .5 ? 'lunge' : 'cut'), true); landPlayer(perfect ? 1.6 : 1); }
+  else { n.result = 'FOOLED'; F.combo = 0; P1.play('stagger', true); setTimeout(() => { if (!F.over) { P2.play('lunge', true); landEnemy(.8); } }, 350 / speed); }
+  F.best = Math.max(F.best, F.combo); showJudge(n.result);
+}
+function landPlayer(mult) { const a = F.p1.action; if (!a) return; const d = fdiff();
+  a.fire = () => { const dmg = Math.round(d.playerDmg * mult * (1 + Math.min(1, F.combo * .08))); F.p2.hp = Math.max(0, F.p2.hp - dmg);
+    F.fx.push({ type: 'slash', x: F.p2.x - 20, y: FG - 70, t: 0, big: mult > 1.2 }); F.fx.push({ type: 'text', x: F.p2.x, y: FG - 100, t: 0, s: '-' + dmg, col: '#ffd27a' });
+    Sfx.thud(mult / 1.6); buzz(20); F.shake = mult > 1.2 ? 7 : 3; F.hitstop = .05; if (F.p2.hp <= 0) fightEnd(true); else F.p2.play('hurt', true); }; }
+function landEnemy(mult) { const a = F.p2.action; if (!a) return; const d = fdiff();
+  a.fire = () => { const dmg = Math.round(d.enemyDmg * mult); F.p1.hp = Math.max(0, F.p1.hp - dmg);
+    F.fx.push({ type: 'slash', x: F.p1.x + 20, y: FG - 70, t: 0, big: dmg >= 25 }); F.fx.push({ type: 'text', x: F.p1.x, y: FG - 100, t: 0, s: '-' + dmg, col: '#ff6b5a' });
+    Sfx.thud(.8); buzz([40, 30, 40]); F.shake = 7; F.hitstop = .07; if (F.p1.hp <= 0) fightEnd(false); else F.p1.play('hurt', true); }; }
+function showJudge(s) { F.judge = { s, t: 0, col: s === 'PERFECT' ? '#fff1c2' : s === 'GOOD' ? '#8fd38a' : s === 'MISS' ? '#ff6b5a' : '#e8b547' }; }
+const ENEMY_ATK = ['lunge', 'cut', 'slash', 'fleche'];
+function tickFight(dt) {
+  if (F.hitstop > 0) { F.hitstop -= dt / speed; dt = 0; }
+  const d = fdiff(), P2 = F.p2;
+  if (!F.over) { F.song += dt;
+    while (F.nextT < F.song + d.lead + .5) { const r = Math.random(), kind = r < d.feint ? 'feint' : r < d.feint + .5 ? 'parry' : 'attack'; F.notes.push({ t: F.nextT, kind });
+      if (kind === 'parry' && Math.random() < d.multi) { F.notes.push({ t: F.nextT + .38, kind: 'parry' }); F.nextT += .38; } F.nextT += (.85 + Math.random() * .7) / d.tempo; }
+    for (const n of F.notes) {
+      if (!n.started && F.song >= n.t - .9) { n.started = true; if (n.kind === 'parry') { n.move = ENEMY_ATK[Math.floor(Math.random() * (F.lv >= 3 ? 4 : 2))]; const a = Motion.Character.ACTIONS[n.move]; n.lead = a.at * a.dur; } else if (n.kind === 'feint') { n.move = 'feint'; n.lead = .13; } else { n.move = 'open'; n.lead = .3; } }
+      if (n.started && !n.fired && F.song >= n.t - n.lead) { n.fired = true; if (!P2.action || !['hurt', 'die'].includes(P2.action.name)) P2.play(n.move, true); if (n.kind === 'parry') landEnemy(1); }
+      if (!n.done && F.song > n.t + d.good) { n.done = true; if (n.kind === 'feint') { n.result = 'HELD'; showJudge('HELD'); } else { n.result = 'MISS'; F.combo = 0; showJudge('MISS'); } }
+      if (n.kind === 'parry' && n.done && n.result !== 'MISS' && P2.action && P2.action.fire && !P2.action.fired) P2.action.fire = null;
+    }
+    F.notes = F.notes.filter(n => F.song - n.t < 1.5);
+  }
+  F.p1.update(dt); F.p2.update(dt);
+}
+function drawFight(now, dt) {
+  ctx.clearRect(0, 0, W, HGT);
+  ctx.save(); if (F.shake > 0) { ctx.translate((Math.random() - .5) * F.shake, (Math.random() - .5) * F.shake); F.shake *= .8; if (F.shake < .3) F.shake = 0; }
+  ctx.fillStyle = '#0b1220'; ctx.fillRect(0, 0, W, GROUND - FG + 2); ctx.translate(0, GROUND - FG); ctx.save(); ctx.translate((W - 700) / 2, 0); scene = F.town.x > 12000 ? 'cave' : F.town.x > 5000 ? 'docks' : 'town'; drawScene(now);
+  for (const c of (F.p1.y < F.p2.y ? [F.p2, F.p1] : [F.p1, F.p2])) c.draw(ctx, 0, FG, c === F.p1 ? COLS.red : F.champ ? COLS.champ : COLS.foe);
+  fx = F.fx; drawFx(dt); F.fx = fx;
+  ctx.restore(); ctx.restore();
+  // lane
+  const d = fdiff(), RING_X = 110, LANE_Y = HGT - 22, pps = (W - RING_X - 20) / d.lead;
+  ctx.fillStyle = 'rgba(8,12,18,.8)'; ctx.fillRect(0, LANE_Y - 22, W, 44);
+  ctx.strokeStyle = 'rgba(232,181,71,.35)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(RING_X, LANE_Y, d.good * pps, 0, 2 * PI); ctx.stroke();
+  ctx.strokeStyle = '#e8b547'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(RING_X, LANE_Y, Math.max(10, d.perfect * pps), 0, 2 * PI); ctx.stroke();
+  for (const n of F.notes) { let x = RING_X + (n.t - F.song) * pps, y = LANE_Y; if (x > W + 20 || x < RING_X - 40) continue;
+    if (d.wobble && !n.done) { const w = d.wobble, ph = F.song * (6 + w * 2) + n.t * 5; x += Math.sin(ph) * 7 * w; y += Math.cos(ph * 1.3) * 5 * w; }   // the mark drifts; the true beat does not
+    ctx.globalAlpha = n.done ? .25 : 1; ctx.fillStyle = n.kind === 'parry' ? '#5aa2ff' : n.kind === 'attack' ? '#e8b547' : '#ff6b5a'; ctx.beginPath(); ctx.arc(x, y, 11, 0, 2 * PI); ctx.fill();
+    ctx.fillStyle = '#0e141c'; ctx.font = '700 12px IBM Plex Mono, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(n.kind === 'parry' ? '⛉' : n.kind === 'attack' ? '⚔' : '✕', x, y + 1); ctx.globalAlpha = 1; }
+  ctx.textBaseline = 'alphabetic';
+  if (F.judge) { F.judge.t += dt / speed; const k = F.judge.t / .6; if (k < 1) { ctx.globalAlpha = 1 - k; ctx.fillStyle = F.judge.col; ctx.font = '700 16px IBM Plex Mono, monospace'; ctx.textAlign = 'left'; ctx.fillText(F.judge.s + (F.combo > 1 ? ' ×' + F.combo : ''), RING_X + 36, LANE_Y - 26 - k * 14); ctx.globalAlpha = 1; } }
+  const bar = (x, hp, max, col, right) => { const w = 250; ctx.fillStyle = '#0a0f16'; ctx.fillRect(x, 14, w, 12); ctx.fillStyle = col; const ww = w * hp / max; ctx.fillRect(right ? x + w - ww : x, 14, ww, 12); ctx.strokeStyle = '#e8b547'; ctx.lineWidth = 1; ctx.strokeRect(x + .5, 14.5, w, 12); };
+  bar(20, F.p1.hp, F.p1.maxHp, '#d9453a', false); bar(W - 270, F.p2.hp, F.p2.maxHp, '#3f8fd8', true);
+  ctx.fillStyle = '#ece4d2'; ctx.font = '500 11px IBM Plex Mono, monospace'; ctx.textAlign = 'left'; ctx.fillText('CAPTAIN  Lv ' + player.lv, 20, 40); ctx.textAlign = 'right'; ctx.fillText((F.champ ? 'CHAMPION  Lv ' : 'RAIDERS  Lv ') + F.lv + '  ·  ' + F.town.name + (d.wobble ? '  ·  ~wobble~' : ''), W - 20, 40);
+}
+
+// ---------------- loop & input ----------------
+let scene = 'town', fx = [];
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(.05, (now - last) / 1000) * speed; last = now;
+  if (mode === 'world') { tickWorld(dt); drawWorld(now / 1000); }
+  else { tickFight(dt); drawFight(now / 1000, dt); }
+  requestAnimationFrame(frame);
+}
+const SKY = { deck: ['#0b1220', '#1f3350'], field: ['#4e8fd6', '#bfe0f5'], docks: ['#2a1d3a', '#d47a4a'], town: ['#1a1830', '#5b3f66'], cave: ['#07080b', '#141a22'] };
+function drawScene(t) {
+  ctx.clearRect(0, 0, W, cv.height);
+  const sky = ctx.createLinearGradient(0, 0, 0, 230); sky.addColorStop(0, SKY[scene][0]); sky.addColorStop(1, SKY[scene][1]); ctx.fillStyle = sky; ctx.fillRect(0, 0, W, 240);
+  const stars = () => { ctx.fillStyle = '#e9e2c8'; for (let i = 0; i < 40; i++) { ctx.globalAlpha = .3 + .4 * ((i * 7) % 5) / 5; ctx.fillRect((i * 97) % W, (i * 53) % 120, 1.5, 1.5); } ctx.globalAlpha = 1; };
+  const sea = (y0, col, lineCol) => { ctx.fillStyle = col; ctx.fillRect(0, y0, W, 240 - y0); ctx.strokeStyle = lineCol; ctx.lineWidth = 1.5;
+    for (let i = 0; i < 6; i++) { ctx.beginPath(); for (let x = 0; x <= W; x += 10) { const y = y0 + 8 + i * 9 + Math.sin(x / 28 + t * 1.5 + i) * 2; x ? ctx.lineTo(x, y) : ctx.moveTo(x, y); } ctx.stroke(); } };
+  const planks = (col, line) => { ctx.fillStyle = col; ctx.fillRect(0, GROUND - 6, W, cv.height - GROUND + 6); ctx.strokeStyle = line; ctx.lineWidth = 2;
+    for (let y = GROUND - 6; y < cv.height; y += 14) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+    for (let i = 0; i < 24; i++) { const y = GROUND - 6 + 14 * (i % 5), x = (i * 131) % W; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + 14); ctx.stroke(); } };
+  const moon = (x, y) => { ctx.fillStyle = '#e9e2c8'; ctx.beginPath(); ctx.arc(x, y, 20, 0, 2 * PI); ctx.fill(); ctx.fillStyle = SKY[scene][0]; ctx.beginPath(); ctx.arc(x + 10, y - 6, 18, 0, 2 * PI); ctx.fill(); };
+  if (scene === 'deck') { stars(); moon(590, 48); sea(170, '#17304a', '#2d5078');
+    ctx.fillStyle = '#4a3522'; ctx.fillRect(0, 214, W, 6); for (let x = 20; x < W; x += 48) ctx.fillRect(x, 218, 6, 24); ctx.fillRect(0, 238, W, 4);
+    ctx.fillStyle = '#3a2a1a'; ctx.fillRect(330, 0, 14, 240); ctx.fillRect(250, 60, 180, 6);   // mast + yard
+    planks('#6b4b2e', '#4e361f'); }
+  else if (scene === 'field') {
+    ctx.fillStyle = '#ffe9a8'; ctx.beginPath(); ctx.arc(120, 50, 26, 0, 2 * PI); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.85)'; for (const [x, y, r] of [[420, 55, 22], [455, 48, 28], [495, 58, 20], [600, 95, 16], [625, 90, 20]]) { ctx.beginPath(); ctx.arc(x + Math.sin(t * .2) * 6, y, r, 0, 2 * PI); ctx.fill(); }
+    ctx.fillStyle = '#5f8f55'; ctx.beginPath(); ctx.moveTo(0, 215); for (let x = 0; x <= W; x += 20) ctx.lineTo(x, 190 + Math.sin(x / 90) * 14 + Math.sin(x / 37) * 6); ctx.lineTo(W, 240); ctx.lineTo(0, 240); ctx.fill();
+    ctx.fillStyle = '#3f2a18'; ctx.fillRect(588, 150, 14, 80); ctx.fillStyle = '#3f7a3c'; for (const [x, y, r] of [[595, 135, 38], [570, 150, 28], [622, 152, 30]]) { ctx.beginPath(); ctx.arc(x, y, r, 0, 2 * PI); ctx.fill(); }
+    ctx.fillStyle = '#6ea35f'; ctx.fillRect(0, GROUND - 6, W, cv.height - GROUND + 6); ctx.fillStyle = '#4e8a48'; ctx.fillRect(0, GROUND - 6, W, 5);
+    ctx.strokeStyle = '#4e8a48'; ctx.lineWidth = 2; for (let i = 0; i < 90; i++) { const x = (i * 37) % W, y = GROUND + (i * 13) % 50; ctx.beginPath(); ctx.moveTo(x, y + 6); ctx.lineTo(x + 3, y - 4); ctx.stroke(); } }
+  else if (scene === 'docks') { stars(); ctx.fillStyle = '#f0b27a'; ctx.beginPath(); ctx.arc(560, 130, 30, 0, 2 * PI); ctx.fill(); sea(150, '#2c2c4c', '#4a4a78');
+    ctx.fillStyle = '#1a1424'; ctx.beginPath(); ctx.moveTo(0, 200); ctx.lineTo(40, 110); ctx.lineTo(60, 60); ctx.lineTo(66, 60); ctx.lineTo(70, 110); ctx.lineTo(230, 120); ctx.lineTo(240, 200); ctx.closePath(); ctx.fill();   // moored hull
+    ctx.fillRect(100, 20, 5, 110); ctx.fillStyle = '#e8d8b8'; ctx.beginPath(); ctx.moveTo(105, 30); ctx.lineTo(190, 100); ctx.lineTo(105, 100); ctx.fill();
+    ctx.fillStyle = '#3a2c20'; for (let x = 60; x < W; x += 110) { ctx.fillRect(x, 190, 10, 60); ctx.fillStyle = '#5a4634'; ctx.fillRect(x - 2, 186, 14, 6); ctx.fillStyle = '#3a2c20'; }
+    ctx.fillStyle = '#ffd98a'; ctx.beginPath(); ctx.arc(430, 150, 6 + Math.sin(t * 8) * .6, 0, 2 * PI); ctx.fill(); ctx.fillStyle = '#2a1e14'; ctx.fillRect(427, 156, 6, 40);
+    planks('#5a4634', '#3d2e21'); ctx.fillStyle = '#2b2440'; for (let x = 0; x < W; x += 40) ctx.fillRect(x + 20, GROUND + 50, 8, 8); }
+  else if (scene === 'town') { stars(); moon(80, 50);
+    const bld = (x, w, h, col, lit) => { ctx.fillStyle = col; ctx.fillRect(x, 240 - h, w, h); ctx.fillStyle = '#2a1f22'; ctx.beginPath(); ctx.moveTo(x - 6, 240 - h); ctx.lineTo(x + w / 2, 240 - h - 26); ctx.lineTo(x + w + 6, 240 - h); ctx.fill();
+      for (let r = 0; r < Math.floor(h / 36); r++) for (let c = 0; c < Math.floor(w / 30); c++) { const on = ((r * 3 + c + lit) % 4) === 0; ctx.fillStyle = on ? '#ffd27a' : '#1b1820'; ctx.fillRect(x + 10 + c * 30, 240 - h + 14 + r * 36, 12, 16); } };
+    bld(0, 120, 160, '#6b5a4a', 0); bld(130, 90, 120, '#8a7a66', 1); bld(230, 140, 190, '#5a4a40', 2); bld(380, 100, 140, '#7a6655', 3); bld(490, 130, 170, '#665548', 1); bld(630, 90, 130, '#8a7a66', 2);
+    ctx.fillStyle = '#3a2a1a'; ctx.fillRect(300, 110, 4, 30); ctx.fillStyle = '#c2902e'; ctx.fillRect(296, 136, 34, 20); ctx.fillStyle = '#2a1a0a'; ctx.font = '700 9px serif'; ctx.textAlign = 'left'; ctx.fillText('INN', 303, 149);
+    ctx.fillStyle = '#ffd27a'; ctx.beginPath(); ctx.arc(468, 170, 5, 0, 2 * PI); ctx.fill(); ctx.fillStyle = '#1c1a22'; ctx.fillRect(466, 176, 4, 64);
+    ctx.fillStyle = '#4a4650'; ctx.fillRect(0, GROUND - 6, W, cv.height - GROUND + 6);
+    ctx.fillStyle = '#5a5662'; for (let y = 0; y < 5; y++) for (let x = 0; x < 20; x++) { ctx.beginPath(); ctx.ellipse(x * 38 + (y % 2) * 19, GROUND + 2 + y * 13, 16, 5, 0, 0, 2 * PI); ctx.fill(); } }
+  else { // cave
+    ctx.fillStyle = '#1c232c'; ctx.beginPath(); ctx.moveTo(0, 0); for (let x = 0; x <= W; x += 30) ctx.lineTo(x, 40 + Math.abs(Math.sin(x * .13)) * 70 + Math.sin(x * .05) * 20); ctx.lineTo(W, 0); ctx.fill();
+    ctx.fillStyle = '#121820'; for (let x = 15; x < W; x += 45) { const h = 30 + ((x * 7) % 50); ctx.beginPath(); ctx.moveTo(x - 8, 0); ctx.lineTo(x + 8, 0); ctx.lineTo(x, h + 40); ctx.fill(); }
+    const fl = 1 + Math.sin(t * 9) * .08 + Math.sin(t * 23) * .04; const glow = ctx.createRadialGradient(560, 150, 10, 560, 150, 220 * fl); glow.addColorStop(0, 'rgba(255,170,60,.55)'); glow.addColorStop(1, 'rgba(255,120,30,0)'); ctx.fillStyle = glow; ctx.fillRect(0, 0, W, 320);
+    ctx.fillStyle = '#3a2a1a'; ctx.fillRect(556, 150, 8, 60); ctx.fillStyle = '#ffb347'; ctx.beginPath(); ctx.ellipse(560, 142, 7 * fl, 13 * fl, 0, 0, 2 * PI); ctx.fill(); ctx.fillStyle = '#fff0b0'; ctx.beginPath(); ctx.ellipse(560, 146, 3, 6, 0, 0, 2 * PI); ctx.fill();
+    ctx.fillStyle = '#2a3038'; ctx.fillRect(0, GROUND - 6, W, cv.height - GROUND + 6); ctx.fillStyle = '#343c46'; for (let i = 0; i < 30; i++) { ctx.beginPath(); ctx.ellipse((i * 83) % W, GROUND + 6 + (i * 17) % 48, 14 + (i % 4) * 4, 4, 0, 0, 2 * PI); ctx.fill(); }
+    ctx.fillStyle = '#1e2630'; for (const [x, w, h] of [[30, 60, 40], [640, 50, 55], [120, 30, 25]]) { ctx.beginPath(); ctx.moveTo(x, GROUND); ctx.lineTo(x + w / 2, GROUND - h); ctx.lineTo(x + w, GROUND); ctx.fill(); } }
+  ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(0, GROUND - 6, W, 4);
+}
+function drawFx(dt) {
+  for (const f of fx) { f.t += dt; const k = f.t / (f.type === 'text' ? .7 : .25); if (k > 1) continue;
+    if (f.type === 'slash') { ctx.strokeStyle = `rgba(255,235,200,${1 - k})`; ctx.lineWidth = f.big ? 5 : 3; ctx.beginPath(); ctx.arc(f.x, f.y, (f.big ? 30 : 18) * (1 + k * 2.5), -.8, .9); ctx.stroke(); }
+    else if (f.type === 'spark') { ctx.strokeStyle = f.big ? `rgba(255,241,194,${1 - k})` : `rgba(232,181,71,${1 - k})`; ctx.lineWidth = f.big ? 3 : 2; for (let i = 0; i < (f.big ? 11 : 7); i++) { const a = i * (f.big ? .57 : .9) + .3, r = 8 + k * (f.big ? 70 : 40); ctx.beginPath(); ctx.moveTo(f.x + Math.cos(a) * 6, f.y + Math.sin(a) * 6); ctx.lineTo(f.x + Math.cos(a) * r, f.y + Math.sin(a) * r); ctx.stroke(); } }
+    else { ctx.fillStyle = f.col; ctx.globalAlpha = 1 - k; ctx.font = '700 15px IBM Plex Mono, monospace'; ctx.textAlign = 'center'; ctx.fillText(f.s, f.x, f.y - k * 30); ctx.globalAlpha = 1; } }
+  fx = fx.filter(f => f.t < .7);
+}
+// Sound (starts after the first tap/key, as browsers require) and vibration
+const Sfx = (() => { let ac = null;
+  const ctx0 = () => { try { if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)(); if (ac.state === 'suspended') ac.resume(); } catch (e) { ac = null; } return ac; };
+  const tone = (f, dur, gain, type) => { const a = ctx0(); if (!a) return; const o = a.createOscillator(), g = a.createGain(); o.type = type || 'sine'; o.frequency.value = f; g.gain.setValueAtTime(gain, a.currentTime); g.gain.exponentialRampToValueAtTime(.001, a.currentTime + dur); o.connect(g).connect(a.destination); o.start(); o.stop(a.currentTime + dur); };
+  const noise = (dur, gain, hp) => { const a = ctx0(); if (!a) return; const n = a.sampleRate * dur, b = a.createBuffer(1, n, a.sampleRate), d = b.getChannelData(0); for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n); const src = a.createBufferSource(); src.buffer = b; const f = a.createBiquadFilter(); f.type = hp ? 'highpass' : 'lowpass'; f.frequency.value = hp ? 2500 : 500; const g = a.createGain(); g.gain.value = gain; src.connect(f).connect(g).connect(a.destination); src.start(); };
+  return { unlock: ctx0,
+    clang: v => { noise(.12, .25 * v, true); tone(2900 + Math.random() * 300, .35, .12 * v, 'triangle'); tone(4300 + Math.random() * 500, .25, .08 * v, 'sine'); tone(1200, .18, .08 * v, 'square'); },
+    thud:  v => { noise(.14, .35, false); tone(140, .18, .25 * (.5 + v), 'sine'); } }; })();
+const buzz = p => { try { navigator.vibrate && navigator.vibrate(p); } catch (e) {} };
+Sfx.coin = () => { try { const a = Sfx.unlock(); if (!a) return; const o = a.createOscillator(), g = a.createGain(); o.type = 'triangle'; o.frequency.setValueAtTime(1300, a.currentTime); o.frequency.setValueAtTime(1800, a.currentTime + .06); g.gain.setValueAtTime(.12, a.currentTime); g.gain.exponentialRampToValueAtTime(.001, a.currentTime + .25); o.connect(g).connect(a.destination); o.start(); o.stop(a.currentTime + .25); } catch (e) {} };
+addEventListener('pointerdown', () => Sfx.unlock(), { passive: true }); addEventListener('keydown', () => Sfx.unlock());
+// stick: push a little to walk, all the way to gallop
+const stickEl = $('stick1'), knob = stickEl.querySelector('.knob'); let stickId = null;
+const stickSet = e => { const r = stickEl.getBoundingClientRect(), R = r.width / 2; let dx = (e.clientX - r.left - R) / R, dy = (e.clientY - r.top - R) / R; const m = Math.hypot(dx, dy); if (m > 1) { dx /= m; dy /= m; }
+  stickX = dx; knob.style.transform = `translate(${dx * R * .6}px,${dy * R * .25}px)`; };
+stickEl.addEventListener('pointerdown', e => { if (stickId !== null) return; stickId = e.pointerId; stickEl.setPointerCapture(e.pointerId); stickEl.classList.add('live'); stickSet(e); });
+stickEl.addEventListener('pointermove', e => { if (e.pointerId === stickId) stickSet(e); });
+const stickEnd = e => { if (e.pointerId !== stickId) return; stickId = null; stickEl.classList.remove('live'); stickX = 0; knob.style.transform = ''; };
+stickEl.addEventListener('pointerup', stickEnd); stickEl.addEventListener('pointercancel', stickEnd);
+const act = () => { if (mode === 'fight') fightTap(); };
+const btn = $('btn1'); btn.addEventListener('pointerdown', e => { e.preventDefault(); btn.classList.add('hold'); act(); });
+const btnUp = () => btn.classList.remove('hold'); btn.addEventListener('pointerup', btnUp); btn.addEventListener('pointercancel', btnUp); btn.addEventListener('pointerleave', btnUp);
+cv.addEventListener('pointerdown', e => { e.preventDefault(); act(); });
+addEventListener('keydown', e => { const k = e.key.toLowerCase(); if (k === 'a' || k === 'arrowleft') hold.left = true; if (k === 'd' || k === 'arrowright') hold.right = true; if (k === ' ' && !e.repeat) { e.preventDefault(); act(); } });
+addEventListener('keyup', e => { const k = e.key.toLowerCase(); if (k === 'a' || k === 'arrowleft') hold.left = false; if (k === 'd' || k === 'arrowright') hold.right = false; });
+$('rematch').addEventListener('click', () => { $('banner').hidden = true; if (F && F.next === 'champion') { fightStart(F.town, true); return; } $('fightTip').hidden = true; $('stickWrap').hidden = false; mode = 'world'; F = null; renderBag(); });
+$('speed').addEventListener('input', e => { speed = +e.target.value; $('speedV').textContent = speed.toFixed(1) + '×'; });
+player.bag.push(makeItem('food', 0)); player.bag.push(makeItem('food', 0)); renderBag();
+say('Ride ▶ to Gull Haven. Towns bank gold until you collect it. Build defenses before the raids come.', '#ffd27a');
+requestAnimationFrame(frame);
+</script>
+
+</body></html>
