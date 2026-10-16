@@ -374,8 +374,9 @@ let W = cv.width, HGT = cv.height, GROUND = 322; const FG = 262, PI = Math.PI;  
 // canvas sizing: fill the width, take most of the screen height, keep the ground line at 80%
 function resize() {
   if (!cv.clientWidth) return; const dpr = Math.min(2, window.devicePixelRatio || 1), cw = cv.clientWidth, ch = Math.max(340, Math.min(Math.round(window.innerHeight - 236), Math.round(cw * .9)));
-  cv.width = Math.round(cw * dpr); cv.height = Math.round(ch * dpr); cv.style.height = ch + 'px'; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  W = cw; HGT = ch; GROUND = Math.round(ch * .8);
+  const Z = .85;   // zoom out 15%: draw a wider slice of the world into the same pixels
+  cv.width = Math.round(cw * dpr); cv.height = Math.round(ch * dpr); cv.style.height = ch + 'px'; ctx.setTransform(dpr * Z, 0, 0, dpr * Z, 0, 0);
+  W = Math.round(cw / Z); HGT = Math.round(ch / Z); GROUND = Math.round(HGT * .8);
 }
 addEventListener('resize', resize); resize();
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v)), lerp = (a, b, t) => a + (b - a) * t;
@@ -677,7 +678,10 @@ function drawWorldHud() {
   for (const s of SEG) { ctx.fillStyle = s[0] === 'sea' ? '#1f4f80' : '#4e8a48'; ctx.fillRect(mx + s[1] / WORLD * mw, my, (s[2] - s[1]) / WORLD * mw, 8); }
   for (const t of TOWNS) { ctx.fillStyle = t.overrun ? '#ff6b5a' : '#ffd27a'; ctx.fillRect(mx + t.x / WORLD * mw - 2, my - 2, 4, 12); }
   ctx.fillStyle = '#fff'; ctx.fillRect(mx + player.x / WORLD * mw - 1.5, my - 3, 3, 14);
-  ctx.textAlign = 'left'; for (let i = 0; i < msgs.length; i++) { const m = msgs[i]; ctx.globalAlpha = Math.min(1, 9 - m.t); ctx.fillStyle = m.col; ctx.font = (i ? '500 11px' : '700 12px') + ' IBM Plex Mono, monospace'; ctx.fillText(m.s, 14, 62 + i * 16); } ctx.globalAlpha = 1;
+  ctx.textAlign = 'left'; let ly = 62;
+  for (let i = 0; i < msgs.length; i++) { const m = msgs[i]; ctx.globalAlpha = Math.min(1, 9 - m.t); ctx.fillStyle = m.col; ctx.font = (i ? '500 11px' : '700 12px') + ' IBM Plex Mono, monospace';
+    let line = ''; for (const w of m.s.split(' ')) { const t = line ? line + ' ' + w : w; if (ctx.measureText(t).width > W - 28 && line) { ctx.fillText(line, 14, ly); ly += 15; line = w; } else line = t; }   // wrap to the canvas width
+    ctx.fillText(line, 14, ly); ly += 16; } ctx.globalAlpha = 1;
 }
 
 // ---------------- Fight (Blade Tempo) ----------------
