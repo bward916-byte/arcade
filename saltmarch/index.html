@@ -66,8 +66,16 @@ canvas{width:100%;height:100%;max-width:100%;display:block;border-radius:8px;bor
 #ghost{position:fixed;width:48px;height:48px;pointer-events:none;z-index:9;filter:drop-shadow(0 4px 8px #000)}
 #itemInfo{min-height:28px;font-size:11px;line-height:1.3}
 @media(max-width:440px){#bag{grid-template-columns:140px 1fr;gap:6px;padding:6px}.doll{transform:scale(.82);transform-origin:left center}.grid{grid-template-columns:repeat(auto-fill,50px);grid-auto-rows:50px}.cell{width:50px;height:50px}.cell canvas{inset:3px;width:40px;height:40px}}
-.townPanel{min-height:96px}
-.pad{display:grid;grid-template-columns:132px 1fr 96px;gap:10px;align-items:center}
+.townPanel{height:104px;box-sizing:border-box;overflow:hidden}
+#tName{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#tStats,#tBtns{visibility:visible}
+#tStats[hidden],#tBtns[hidden]{display:flex!important;visibility:hidden}
+.pad{position:absolute;inset:0;pointer-events:none}
+.pad>*{pointer-events:auto}
+#stickWrap{position:absolute;left:10px;bottom:10px}
+.stack{position:absolute;right:10px;bottom:10px;align-items:flex-end}
+.rnd{width:46px;height:46px;border-radius:50%;font-size:20px;padding:0;background:radial-gradient(circle at 40% 35%,#3a4a5c,#141c26 75%);border:1px solid var(--line);box-shadow:0 3px 8px #000}
+.rnd:disabled{opacity:.35}
 .stick{position:relative;width:132px;height:132px;border-radius:50%;background:radial-gradient(circle at 50% 40%,#2a3848,#141c26 70%);border:1px solid var(--line);touch-action:none;box-shadow:inset 0 2px 8px #000}
 .knob{position:absolute;left:50%;top:50%;width:56px;height:56px;margin:-28px 0 0 -28px;border-radius:50%;background:radial-gradient(circle at 40% 35%,#8c9bab,#3a4a5c 70%);box-shadow:0 3px 8px #000;pointer-events:none}
 .stick.live .knob{background:radial-gradient(circle at 40% 35%,#f0d08a,#a7772a 70%)}
@@ -77,7 +85,7 @@ canvas{width:100%;height:100%;max-width:100%;display:block;border-radius:8px;bor
 #lastMove{font:400 24px var(--display);color:var(--gold);min-height:28px;letter-spacing:.04em}
 .legend{font-size:10px;color:var(--muted);line-height:1.5}
 .legend b{color:var(--fg);font-weight:500}
-@media(max-width:440px){.pad{grid-template-columns:110px 1fr 80px}.stick{width:110px;height:110px}.atkbtn{width:80px;height:80px;font-size:32px}.legend{display:none}}
+@media(max-width:440px){.stick{width:104px;height:104px}.knob{width:44px;height:44px;margin:-22px 0 0 -22px}.atkbtn{width:72px;height:72px;font-size:30px}}
 button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 button.on{background:var(--gold);color:#1a1200;border-color:var(--gold)}
 </style>
@@ -85,6 +93,11 @@ button.on{background:var(--gold);color:#1a1200;border-color:var(--gold)}
 <header><h1>Saltmarch</h1><div class="tune"><label>Speed <input id="speed" type="range" min="0.5" max="2" step="0.05" value="1"><span id="speedV">1.0×</span></label></div></header>
 <div class="stage">
   <canvas id="c" width="700" height="420"></canvas>
+  <div class="pad">
+    <div id="stickWrap"><div id="stick1" class="stick"><div class="knob"></div></div></div>
+    <div class="stack"><button id="bBag" class="rnd">🎒</button><button id="bMount" class="rnd">🐎</button><button id="btn1" class="atkbtn">⚔</button></div>
+    <div class="legend" id="worldTip" hidden></div><div class="legend" id="fightTip" hidden></div>
+  </div>
   <div id="bag" hidden>
     <div class="doll"><canvas id="pc" width="170" height="250"></canvas>
       <div class="eq" data-slot="weapon" style="left:4px;top:118px"><span class="eqL">Blade</span></div>
@@ -102,17 +115,8 @@ button.on{background:var(--gold);color:#1a1200;border-color:var(--gold)}
 </div>
 <div id="town" class="townPanel">
   <div class="tHead" id="tName">On the road</div>
-  <div class="tStats" id="tStats" hidden><span>Gold banked <b id="tGold">0</b></span><span>Income <b id="tInc">0</b></span><span>Market <b id="tMkt">1</b></span><span>Defense <b id="tDef">0</b></span></div>
-  <div class="row" id="tBtns" hidden><button id="bCollect">Collect gold</button><button id="bMarket">Market +1</button><button id="bDef">Defense +1</button><button id="bRetake" class="atk" hidden>Retake the town ⚔</button></div>
-</div>
-<div class="pad">
-  <div id="stickWrap"><div id="stick1" class="stick"><div class="knob"></div></div></div>
-  <div class="mid">
-    <div class="legend" id="worldTip">Push the stick to ride; push it all the way and the horse breaks into a gallop (keys: A/D, hold to gallop). Your horse waits at the shore; the ship takes you across. Ride into a town to manage it, over crates and chests to open them.<br>
-      Towns bank gold while you're away. Raids come every half minute or so: a town with less defense than the raid is overrun and stops earning until you ride back and retake it by the blade — sometimes past a champion.</div>
-    <div class="legend" id="fightTip" hidden>Tap when a note reaches the ring. <b style="color:#5aa2ff">Blue</b> parry · <b style="color:#e8b547">Gold</b> strike · <b style="color:#ff6b5a">Red ✕</b> feint, don't tap. The hardest foes make the marks wobble; the beat underneath is true.</div>
-  </div>
-  <div class="stack"><button id="bBag">Inventory</button><button id="btn1" class="atkbtn">⚔</button></div>
+  <div class="tStats" id="tStats"><span>Gold banked <b id="tGold">0</b></span><span>Income <b id="tInc">0</b></span><span>Market <b id="tMkt">1</b></span><span>Defense <b id="tDef">0</b></span></div>
+  <div class="row" id="tBtns"><button id="bCollect">Collect gold</button><button id="bMarket">Market +1</button><button id="bDef">Defense +1</button><button id="bRetake" class="atk" hidden>Retake the town ⚔</button></div>
 </div>
 <script>
 // ENGINE-START  (pure JS, no DOM)
@@ -427,7 +431,7 @@ const townNear = x => TOWNS.find(t => Math.abs(t.x - x) < 480);
 const townDir = t => t.x > player.x ? '▶' : '◀';
 const dist = t => Math.abs(t.x - player.x);
 
-const player = { x: 800, dir: 1, hold: 0, purse: 40, lv: 1, hp: 100, mount: 'horse', vx: 0, gait: 0, t: 0, gear: { weapon: null, armor: null, boots: null }, bag: [] };
+const player = { x: 800, dir: 1, hold: 0, onFoot: false, horseX: 800, purse: 40, lv: 1, hp: 100, mount: 'horse', vx: 0, gait: 0, t: 0, gear: { weapon: null, armor: null, boots: null }, bag: [] };
 // --- Items: few kinds, four rarities. Rolls: common 60%, uncommon 25%, rare 12%, exotic 3%
 const RARITY = ['common', 'uncommon', 'rare', 'exotic'], RCOL = { common: '#c8c2b4', uncommon: '#8fd38a', rare: '#5aa2ff', exotic: '#e8b547' };
 const ITEMS = {
@@ -484,16 +488,18 @@ function tickWorld(dt) {
       else { t.overrun = true; t.raidLv = Math.min(7, strength); t.champion = Math.random() < .4; const stolen = Math.floor(t.gold * .6); t.gold -= stolen; say(`${t.name} was overrun by a level ${strength} crew! ${townDir(t)}  (−${stolen} gold)`, '#ff6b5a'); buzz([60, 40, 60]); } } }
   // loot
   nextLoot -= dt; if (nextLoot <= 0) { nextLoot = 9 + Math.random() * 8; if (loot.length < 7) spawnLoot(); }
-  for (const l of loot) if (Math.abs(l.x - player.x) < 34 && player.mount === 'horse') openLoot(l);
+  for (const l of loot) if (Math.abs(l.x - player.x) < 34 && player.mount !== 'ship') openLoot(l);
   // travel
   // hold to ride: a short press walks the horse, held longer it breaks into a gallop; the ship gathers way slowly
   const keyD = (hold.right ? 1 : 0) - (hold.left ? 1 : 0), d = keyD || (Math.abs(stickX) > .25 ? Math.sign(stickX) : 0);
-  const seg = segAt(player.x), was = player.mount; player.mount = seg[0] === 'sea' ? 'ship' : 'horse';
-  if (was !== player.mount) { player.vx *= .4; say(player.mount === 'ship' ? 'Aboard. The ship carries you across.' : 'Ashore. A fresh horse waits at the stable.', '#8c9bab'); }
+  const seg = segAt(player.x), was = player.mount; player.mount = seg[0] === 'sea' ? 'ship' : player.onFoot ? 'foot' : 'horse';
+  if (was === 'ship' && player.mount !== 'ship') { player.onFoot = false; player.mount = 'horse'; player.horseX = player.x; }   // a fresh horse waits at the shore
+  if (was !== player.mount && (was === 'ship' || player.mount === 'ship')) { player.vx *= .4; say(player.mount === 'ship' ? 'Aboard. The ship carries you across.' : 'Ashore. A fresh horse waits at the stable.', '#8c9bab'); }
   if (d) { player.dir = d; player.hold += dt; } else player.hold = 0;
-  const horse = player.mount === 'horse', gallop = horse && (keyD ? player.hold > .5 : Math.abs(stickX) > .72);
-  const want = d * (horse ? (gallop ? 250 : 95) : 230) * (1 + gearStat('boots'));
-  const rate = (horse ? (!d || want * player.vx < 0 ? 900 : 380) : (d ? 60 : 120)) * dt;
+  const horse = player.mount === 'horse', foot = player.mount === 'foot', gallop = horse && (keyD ? player.hold > .5 : Math.abs(stickX) > .72);
+  const want = d * (horse ? (gallop ? 250 : 95) : foot ? 62 : 230) * (1 + gearStat('boots'));
+  const rate = (horse ? (!d || want * player.vx < 0 ? 900 : 380) : foot ? 700 : (d ? 60 : 120)) * dt;
+  const mb = $('bMount'); mb.textContent = horse ? '🚶' : '🐎'; mb.title = horse ? 'Dismount' : 'Mount'; mb.disabled = player.mount === 'ship' || (foot && Math.abs(player.x - player.horseX) > 70);
   player.vx += clamp(want - player.vx, -rate, rate);
   player.x = clamp(player.x + player.vx * dt, 60, WORLD - 60);
   const sp = Math.abs(player.vx); player.gait += sp * dt * .032; player.t += dt;
@@ -597,6 +603,9 @@ addEventListener('pointerup', e => { if (!drag || e.pointerId !== drag.id) retur
 $('bag').addEventListener('dblclick', e => { const cell = e.target.closest('.cell'); if (cell && player.bag[cell.dataset.i]) useItem(player.bag[cell.dataset.i]); });
 $('bBag').addEventListener('click', () => { $('bag').hidden = !$('bag').hidden; renderBag(); });
 $('bClose').addEventListener('click', () => { $('bag').hidden = true; });
+$('bMount').addEventListener('click', () => { if (mode !== 'world' || player.mount === 'ship') return;
+  if (player.mount === 'horse') { player.onFoot = true; player.horseX = player.x; player.vx = 0; say('You swing down from the saddle.', '#8c9bab'); }
+  else if (Math.abs(player.x - player.horseX) <= 70) { player.onFoot = false; player.x = player.horseX; player.vx = 0; say('Back in the saddle.', '#8c9bab'); } });
 const pcv = $('pc'), pctx = pcv.getContext('2d');
 function drawPirate(now) { drawFrontPirate(pctx, now); }
 
@@ -742,8 +751,11 @@ function drawHorse(sx, gy, d, sp, ph, now, gallop) {
 function drawPlayer(now, day) {
   const x = player.x - cam, f = player.dir, sp = Math.abs(player.vx);
   for (const p of dust) { ctx.fillStyle = `rgba(190,170,140,${.35 * (1 - p.t / .9)})`; ctx.beginPath(); ctx.arc(p.x - cam, p.y, p.r + p.t * 14, 0, 2 * PI); ctx.fill(); }
-  ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.beginPath(); ctx.ellipse(x, GROUND + (player.mount === 'horse' ? 4 : 30), player.mount === 'horse' ? 48 : 150, player.mount === 'horse' ? 7 : 10, 0, 0, 2 * PI); ctx.fill();   // cast shadow
-  if (player.mount === 'horse') {
+  ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.beginPath(); ctx.ellipse(x, GROUND + (player.mount === 'ship' ? 30 : 4), player.mount === 'ship' ? 150 : player.mount === 'foot' ? 16 : 48, player.mount === 'ship' ? 10 : player.mount === 'foot' ? 4 : 7, 0, 0, 2 * PI); ctx.fill();   // cast shadow
+  if (player.mount === 'foot') {
+    const hx = player.horseX - cam; if (hx > -120 && hx < W + 120) { ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.beginPath(); ctx.ellipse(hx, GROUND + 4, 48, 7, 0, 0, 2 * PI); ctx.fill(); ctx.save(); ctx.translate(hx, GROUND); ctx.scale(.78, .78); drawHorse(0, 0, player.x < player.horseX ? -1 : 1, 0, 0, now, false); ctx.restore(); }   // the horse waits where you left it
+    rider.x = x; rider.facing = f; rider.y = 0; rider.gaitPhase = player.gait * 1.6; rider.cur = sp > 6 ? Motion.Poses.walk(now, rider) : Motion.Poses.idle(now, rider); rider.draw(ctx, 0, GROUND + 2, COLS.red);
+  } else if (player.mount === 'horse') {
     const gallop = sp > 150, HS = .78; ctx.save(); ctx.translate(x, GROUND); ctx.scale(HS, HS); const bob = drawHorse(0, 0, f, sp, player.gait, now, gallop) * HS; ctx.restore();
     rider.x = x - 3 * f + (sp > 8 ? Math.sin(player.gait) * 1.5 : 0); rider.facing = f; rider.gallop = gallop; rider.sp = sp; rider.look = HA.look; rider.pat = (!gallop && sp < 10 && HA.act === 'look' && HA.t < 1.2) ? Math.sin(Math.min(1, HA.t / 1.2) * PI) : 0; rider.gaitPhase = player.gait;
     rider.cur = Motion.Poses.ride(now, rider); rider.draw(ctx, 0, GROUND - 70 * HS + bob, COLS.red);
@@ -795,7 +807,7 @@ function fightStart(town, champ) {
   const d = fdiff();
   F.p1 = new Motion.Character({ x: W / 2 - 88, facing: 1, scale: 2.2 }); F.p1.input.guard = true; F.p1.vary = .6; F.p1.maxHp = maxHp(); F.p1.hp = Math.max(1, player.hp);
   F.p2 = new Motion.Character({ x: W / 2 + 88, facing: -1, scale: champ ? 2.4 : 2.2 }); F.p2.input.guard = true; F.p2.vary = .6; F.p2.hp = F.p2.maxHp = d.enemyHp;
-  mode = 'fight'; $('town').hidden = true; $('bag').hidden = true; $('stickWrap').hidden = true; $('fightTip').hidden = false; $('banner').hidden = true;
+  mode = 'fight'; $('tName').textContent = 'Duel'; $('tStats').hidden = true; $('tBtns').hidden = true; $('bag').hidden = true; $('stickWrap').hidden = true; $('bMount').hidden = true; $('bBag').hidden = true; $('fightTip').hidden = false; $('banner').hidden = true;
 }
 function fightEnd(won) {
   F.over = true; const t = F.town; player.hp = won ? F.p1.hp : Math.max(15, Math.floor(maxHp() * .2)); F.won = won;
@@ -956,7 +968,7 @@ const btnUp = () => btn.classList.remove('hold'); btn.addEventListener('pointeru
 cv.addEventListener('pointerdown', e => { e.preventDefault(); act(); });
 addEventListener('keydown', e => { const k = e.key.toLowerCase(); if (k === 'a' || k === 'arrowleft') hold.left = true; if (k === 'd' || k === 'arrowright') hold.right = true; if (k === ' ' && !e.repeat) { e.preventDefault(); act(); } });
 addEventListener('keyup', e => { const k = e.key.toLowerCase(); if (k === 'a' || k === 'arrowleft') hold.left = false; if (k === 'd' || k === 'arrowright') hold.right = false; });
-$('rematch').addEventListener('click', () => { $('banner').hidden = true; if (F && F.next === 'champion') { fightStart(F.town, true); return; } $('fightTip').hidden = true; $('stickWrap').hidden = false; mode = 'world'; F = null; renderBag(); });
+$('rematch').addEventListener('click', () => { $('banner').hidden = true; if (F && F.next === 'champion') { fightStart(F.town, true); return; } $('fightTip').hidden = true; $('stickWrap').hidden = false; $('bMount').hidden = false; $('bBag').hidden = false; mode = 'world'; F = null; renderBag(); });
 $('speed').addEventListener('input', e => { speed = +e.target.value; $('speedV').textContent = speed.toFixed(1) + '×'; });
 player.bag.push(makeItem('food', 0)); player.bag.push(makeItem('food', 0)); renderBag();
 say('Ride ▶ to Gull Haven. Towns bank gold until you collect it. Build defenses before the raids come.', '#ffd27a');
