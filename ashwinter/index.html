@@ -12,6 +12,8 @@
 }
 [hidden]{display:none!important}
 html,body{height:100%;touch-action:pan-x pan-y;overscroll-behavior:none}
+@supports(height:100dvh){html,body,#app{height:100dvh}}
+@media(max-height:460px){.tname b{font-size:30px}.tname{top:7%}.pad{padding-top:4px;padding-bottom:4px}.pad .btn{min-height:40px}#top{padding-block:4px}.needs{padding-block:3px}}
 body{background:var(--ink);color:var(--paper);font:400 15px/1.45 var(--body);-webkit-tap-highlight-color:transparent}
 #app{height:100%;display:flex;flex-direction:column}
 #top{display:flex;gap:12px;align-items:baseline;padding:8px 16px;border-bottom:1px solid var(--line);font-family:var(--display)}
@@ -112,6 +114,8 @@ h3{font:400 12px var(--display);color:var(--dim);letter-spacing:.14em;text-trans
 .who{display:flex;gap:6px;flex-wrap:wrap} .wp{flex:1;min-width:72px;background:var(--slate);border:2px solid var(--line);border-radius:4px;padding:6px 4px;display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--paper);font:500 12px var(--body);cursor:pointer} .wp .port{width:44px} .wp em{font-style:normal;font-size:10.5px;color:var(--dim);display:flex;align-items:center;gap:3px} .wp.on{border-color:var(--lamp);background:#3a3122} .wp.on em{color:var(--lamp)}
 .btn.lb{display:inline-flex;align-items:center;gap:8px;font:600 14px var(--body)} .btn.lb i{font-style:normal} .btn.grow{flex:1;justify-content:center} .tile.gr.on{border-color:var(--lamp)} .loc2 .row{flex-wrap:nowrap} .loc2 .row svg{width:10px;height:10px} .tile.gr b{color:var(--paper)}
 #modalBox{padding:12px} .ur{padding:6px 8px;gap:8px}
+.tname{position:absolute;left:0;right:0;top:9%;text-align:center;pointer-events:none;opacity:0;transition:opacity .4s} .tname b{display:block;font:400 clamp(34px,9vw,64px) var(--display);letter-spacing:.18em;color:#f0e2c0;text-shadow:0 2px 18px rgba(0,0,0,.9),0 0 40px rgba(226,160,63,.35)} .tname i{display:block;margin:10px auto 0;width:120px;height:1px;background:rgba(240,226,192,.5)}
+.tpad{justify-content:center;gap:10px} .tpad .btn.lb{min-width:0;padding:10px 16px}
 </style>
 <div id="app">
   <header id="top"><b>ASHWINTER</b><span id="dayLbl"></span><span class="sp"></span><span id="phaseLbl"></span></header>
@@ -230,6 +234,7 @@ function whyNotMake(r){
  if(!afford(recipeCost(r)))return 'Not enough';return ''}
 ACT.make=id=>{const r=RECIPES.find(r=>r.id===id);if(whyNotMake(r))return;const c=recipeCost(r);for(const k in c)add(k,-c[k]);add(r.give||r.id,r.n||1);fxAt(r.need==='stove'?'stove':'bench','build',r.give||r.id);render()};
 const nextLv=id=>UPG[id].lv[S.up[id]+1]||null;
+const lackTxt=cost=>Object.keys(cost||{}).filter(k=>(S.stock[k]||0)<cost[k]).map(k=>(cost[k]-(S.stock[k]||0))+' '+ITEMS[k].n.toLowerCase()).join(', ');
 function whyNotUpg(id){const u=UPG[id],n=nextLv(id);if(!n)return 'Fully built';if(!S.rooms[u.room])return 'Open the '+ROOMS[u.room].n.toLowerCase()+' first';
  if(n.need&&lightLv()<n.need)return n.need===1?'Too dark: build oil lamps':'Needs generator power';if(n.day&&S.day<n.day)return 'Day '+n.day;if(!afford(n.cost))return 'Not enough';return ''}
 ACT.upg=id=>{if(whyNotUpg(id))return;SND.pick();const n=nextLv(id);for(const k in n.cost)add(k,-n.cost[k]);S.up[id]++;
@@ -253,8 +258,8 @@ const weight=pk=>Object.keys(pk).reduce((s,k)=>s+pk[k]*ITEMS[k].w,0);
 ACT.gear=(k,d)=>{const n=(S.gear[k]||0)+ +d;if(n<0||n>(S.stock[k]||0))return;S.gear[k]=n;if(weight(S.gear)>capOf(scavPerson()))S.gear[k]=n-1;render()};
 function whyNotGo(){const p=scavPerson();if(!p)return '';const L=LOCS.find(l=>l.id===S.loc);if(S.day<L.day)return 'Too far for now';if(L.entry&&!S.gear[L.entry])return 'Pack '+ITEMS[L.entry].n.toLowerCase()+' for the fence';return ''}
 ACT.go=()=>{if(whyNotGo())return;const p=scavPerson();{const home=alive().filter(q=>S.plan[q.id]!=='scav');for(const q of home)S.plan[q.id]='sleep';if(home.length>=2){const g=home.slice().sort((a,b)=>b.rest-a.rest)[0];S.plan[g.id]='guard'}}if(p)startScav(p);else afterNight([])};
-ACT.newgame=()=>{newGame();closeModal();save();render()};
-ACT.cont=()=>{S=load();closeModal();render()};
+ACT.newgame=()=>{TT.run=(TT.run||0)+1;newGame();closeModal();save();render()};
+ACT.cont=()=>{TT.run=(TT.run||0)+1;S=load();if(S.phase==='scav'||S.phase==='title')S.phase='day';closeModal();render()};
 
 // ---------- night at home, then the next morning ----------
 function afterNight(lines){
@@ -825,7 +830,7 @@ function bloom(c,amt){// cheap glow: downscale the frame, keep the bright part, 
  c.save();c.setTransform(1,0,0,1,0,0);c.globalCompositeOperation='lighter';c.globalAlpha=amt;c.filter='blur('+Math.round(6*DPR)+'px)';c.drawImage(BLM,0,0,sw,sh,-8,-8,W+16,H+16);c.restore();c.filter='none'}
 function postFx(c,t,vig){bloom(c,vig>.5?.55:.4);c.setTransform(DPR,0,0,DPR,0,0);const v=c.createRadialGradient(CW/2,CH*.5,Math.min(CW,CH)*.3,CW/2,CH*.5,Math.max(CW,CH)*.78);v.addColorStop(0,'rgba(0,0,0,0)');v.addColorStop(1,'rgba(0,0,0,'+(vig||.6)+')');c.fillStyle=v;c.fillRect(0,0,CW,CH);
  c.globalAlpha=.07;c.globalCompositeOperation='overlay';c.save();c.translate(-Math.random()*128,-Math.random()*128);c.fillStyle=grainPat(c);c.fillRect(0,0,CW+256,CH+256);c.restore();c.globalAlpha=1;c.globalCompositeOperation='source-over'}
-function bubble(c,x,y,k,t,bad){const b=Math.sin(t*4)*2;ci(c,x,y+b,12.5,'rgba(14,17,22,.92)');c.strokeStyle=bad?'#c2503f':'#e2a03f';c.lineWidth=1.6;c.beginPath();c.arc(x,y+b,12.5,0,7);c.stroke();dico(c,k,x,y+b,16);if(bad){ci(c,x+9,y+b-9,5,'#c2503f');ln(c,[x+6.5,y+b-11.5,x+11.5,y+b-6.5],'#fff',1.4)}}
+function bubble(c,x,y,k,t,bad,txt){const b=Math.sin(t*4)*2;if(txt){c.font='10px Barlow,sans-serif';c.textAlign='center';const w=c.measureText(txt).width+10;rr(c,x-w/2,y+b+14,w,14,'rgba(14,17,22,.85)',3);c.fillStyle=bad?'#e07a6a':'#f0e2c0';c.textBaseline='middle';c.fillText(txt,x,y+b+21);c.textBaseline='alphabetic'}ci(c,x,y+b,12.5,'rgba(14,17,22,.92)');c.strokeStyle=bad?'#c2503f':'#e2a03f';c.lineWidth=1.6;c.beginPath();c.arc(x,y+b,12.5,0,7);c.stroke();dico(c,k,x,y+b,16);if(bad){ci(c,x+9,y+b-9,5,'#c2503f');ln(c,[x+6.5,y+b-11.5,x+11.5,y+b-6.5],'#fff',1.4)}}
 function label(c,txt,x,y,col){c.font='11px "Special Elite",monospace';c.textAlign='center';c.lineWidth=3.5;c.strokeStyle='rgba(8,10,13,.85)';c.strokeText(txt,x,y);c.fillStyle=col||'#f0e2c0';c.fillText(txt,x,y)}
 
 // ===== extra atmosphere =====
@@ -1142,7 +1147,7 @@ function fxAt(target,kind,k){if(!$('#shel'))return;const p=sPos(target);if(!p)re
 function shelterFocus(x){SH.tx=x}
 function startShelter(){
  $('#main').innerHTML='<div class="scav" id="shel"><div class="needs" id="needs"></div><div id="cvBox"><canvas id="cv"></canvas>'+zoomBtns+'</div><div class="pad"><button class="btn ic" data-act="house" aria-label="House">'+ico('house',26)+'</button><span class="hint"></span>'+sndBtn()+'<button class="btn pri ic" data-act="plan" aria-label="Nightfall">'+ico('moon',26)+'</button></div></div>';
- cv=$('#cv');cx=cv.getContext('2d');const f=()=>fitCv((w,h)=>Math.min(h/520,Math.max(w/900,w/340)));f();onresize=f;
+ cv=$('#cv');cx=cv.getContext('2d');const f=()=>fitCv((w,h)=>Math.min(h/360,Math.max(w/900,w/340)));f();onresize=f;
  needsBar();
  canvasInput({tap:(x,y)=>{if(!DEMO)shClick(x,y)},drag:(dx,dy)=>{SH.cam-=dx/Z;SH.cy=(SH.cy||0)-dy/Z;SH.tx=null}});
  const id=++SH.run;let last=0;
@@ -1159,18 +1164,18 @@ function selPerson(){const id=SH.sel&&person(SH.sel)&&person(SH.sel).alive?SH.se
 function nearBubbles(){const h=selPerson();if(!h||h.climb||h.job)return [];const all=_nearAll(h);if(!all.length)return all;let b=all[0];for(const o of all)if(Math.abs(o.x-h.x)<Math.abs(b.x-h.x))b=o;return [b]}
 function _nearAll(h){const L=[];const f=h.f,x=h.x,ok=(bx,bf,rad)=>bf===f&&Math.abs(bx-x)<rad;
  for(const id in ST){const s=ST[id];if(!ok(s.x,s.f,s.w/2+34)||!roomOpen(roomAt(s.f,s.x))&&id!=='door')continue;if(id==='gen'&&S.up.lights<2||id==='lights')continue;const u=s.up||id,y=s.y!=null?fy(s.f)+s.y+52:fy(s.f)-s.h-26;
-  if(id==='door')L.push({x:s.x+6,y:fy(0)-86,ic:'moon',fn:()=>ACT.plan()});
-  else if(id==='bench'&&S.up.bench)L.push({x:s.x,y,ic:'bench',fn:()=>benchPanel()});
-  else if(id==='stove'&&S.up.stove&&!S.up.bench)L.push({x:s.x,y,ic:'meal',fn:()=>benchPanel()});
-  else if(id==='filter'&&S.up.filter&&(S.stock.dirty||0)>0)L.push({x:s.x,y,ic:'water',fn:()=>work(h,s.x,2.2,'water',()=>{const n=Math.min(S.stock.dirty||0,S.up.filter*2);add('dirty',-n);add('water',n);POPS.push({x:s.x,y:fy(0)-70,k:'water',n,t:0});save();render()})});
-  else if(id==='radio'&&S.up.radio)L.push({x:s.x,y,ic:'book',fn:()=>journalPanel()});
-  else if(UPG[u]){const n=nextLv(u),why=whyNotUpg(u);if(n&&!why)L.push({x:s.x,y,ic:'hammer',fn:()=>work(h,s.x,4+2*S.up[u],u,()=>ACT.upg(u))});else L.push({x:s.x,y,ic:upIcon(u),bad:!!(n&&why),fn:()=>upgPanel(u)})}}
- for(const k in SGATE){const g=SGATE[k];if(!roomOpen(k)&&roomOpen(ROOMS[k].req)&&ok(g.x,g.f,60)){const why=whyNotClear(k);L.push({x:g.x,y:fy(g.f)-108,ic:ROOMS[k].need.tool||'hammer',bad:!!why,fn:()=>why?roomPanel(k):work(h,g.x+(h.x<g.x?-26:26),6,ROOMS[k].need.tool||'hammer',()=>ACT.clear(k))})}}
- if(!roomOpen('bedroom')&&ok(118,0,70)){const why=whyNotClear('bedroom');L.push({x:118,y:fy(0)-100,ic:'stairs',bad:!!why,fn:()=>why?roomPanel('bedroom'):work(h,100,6,'hammer',()=>ACT.clear('bedroom'))})}
- if(!roomOpen('loft')&&roomOpen('study')&&ok(680,1,70)){const why=whyNotClear('loft');L.push({x:680,y:fy(1)-100,ic:'crowbar',bad:!!why,fn:()=>why?roomPanel('loft'):work(h,650,6,'crowbar',()=>ACT.clear('loft'))})}
- for(let f=0;f<3;f++)for(const wx of SWIN[f])if(ok(wx,f,40)&&roomOpen(roomAt(f,wx))){const u=f===0?'def':'insul',n=nextLv(u),why=whyNotUpg(u);if(n)L.push({x:wx,y:fy(f)-112,ic:n&&!why?'hammer':upIcon(u),bad:!!why,fn:()=>why?upgPanel(u):work(h,wx,4+2*S.up[u],'hammer',()=>ACT.upg(u))})}
- for(const p of (S.loose||[]))if(roomOpen(p.room)&&ok(p.x,p.f,44))L.push({x:p.x,y:fy(p.f)-46,ic:'hand',fn:()=>work(h,p.x,1.4,'hand',()=>pickPile(p),'crouch')});
- for(const p of alive()){const o=SH.people[p.id];if(!o||o===h)continue;if(ok(o.x,o.f,30))L.push({x:o.x,y:(o.y!=null?o.y:fy(o.f))-72,ic:'heart',fn:()=>survivorPanel(p.id)})}
+  if(id==='door')L.push({x:s.x+6,y:fy(0)-86,ic:'moon',l:'Nightfall',fn:()=>ACT.plan()});
+  else if(id==='bench'&&S.up.bench)L.push({x:s.x,y,ic:'bench',l:'Craft',fn:()=>benchPanel()});
+  else if(id==='stove'&&S.up.stove&&!S.up.bench)L.push({x:s.x,y,ic:'meal',l:'Cook',fn:()=>benchPanel()});
+  else if(id==='filter'&&S.up.filter&&(S.stock.dirty||0)>0)L.push({x:s.x,y,ic:'water',l:'Clean water',fn:()=>work(h,s.x,2.2,'water',()=>{const n=Math.min(S.stock.dirty||0,S.up.filter*2);add('dirty',-n);add('water',n);POPS.push({x:s.x,y:fy(0)-70,k:'water',n,t:0});save();render()})});
+  else if(id==='radio'&&S.up.radio)L.push({x:s.x,y,ic:'book',l:'Journal',fn:()=>journalPanel()});
+  else if(UPG[u]){const n=nextLv(u),why=whyNotUpg(u);if(n&&!why)L.push({x:s.x,y,ic:'hammer',l:(S.up[u]?'Improve ':'Build ')+UPG[u].n.toLowerCase(),fn:()=>work(h,s.x,4+2*S.up[u],u,()=>ACT.upg(u))});else L.push({x:s.x,y,ic:upIcon(u),bad:!!(n&&why),l:n?(why==='Not enough'?'Need '+lackTxt(n.cost):why):UPG[u].n,fn:()=>upgPanel(u)})}}
+ for(const k in SGATE){const g=SGATE[k];if(!roomOpen(k)&&roomOpen(ROOMS[k].req)&&ok(g.x,g.f,60)){const why=whyNotClear(k);L.push({x:g.x,y:fy(g.f)-108,ic:ROOMS[k].need.tool||'hammer',bad:!!why,l:why?(why==='Not enough'?'Need '+lackTxt(ROOMS[k].need.cost):why):'Open '+ROOMS[k].n.toLowerCase(),fn:()=>why?roomPanel(k):work(h,g.x+(h.x<g.x?-26:26),6,ROOMS[k].need.tool||'hammer',()=>ACT.clear(k))})}}
+ if(!roomOpen('bedroom')&&ok(118,0,70)){const why=whyNotClear('bedroom');L.push({x:118,y:fy(0)-100,ic:'stairs',bad:!!why,l:why?(why==='Not enough'?'Need '+lackTxt(ROOMS.bedroom.need.cost):why):'Fix stairs',fn:()=>why?roomPanel('bedroom'):work(h,100,6,'hammer',()=>ACT.clear('bedroom'))})}
+ if(!roomOpen('loft')&&roomOpen('study')&&ok(680,1,70)){const why=whyNotClear('loft');L.push({x:680,y:fy(1)-100,ic:'crowbar',bad:!!why,l:why||'Pry open',fn:()=>why?roomPanel('loft'):work(h,650,6,'crowbar',()=>ACT.clear('loft'))})}
+ for(let f=0;f<3;f++)for(const wx of SWIN[f])if(ok(wx,f,40)&&roomOpen(roomAt(f,wx))){const u=f===0?'def':'insul',n=nextLv(u),why=whyNotUpg(u);if(n)L.push({x:wx,y:fy(f)-112,ic:n&&!why?'hammer':upIcon(u),bad:!!why,l:why?(why==='Not enough'?'Need '+lackTxt(n.cost):why):(f===0?'Board the door':'Seal window'),fn:()=>why?upgPanel(u):work(h,wx,4+2*S.up[u],'hammer',()=>ACT.upg(u))})}
+ for(const p of (S.loose||[]))if(roomOpen(p.room)&&ok(p.x,p.f,44))L.push({x:p.x,y:fy(p.f)-46,ic:'hand',l:'Pick up',fn:()=>work(h,p.x,1.4,'hand',()=>pickPile(p),'crouch')});
+ for(const p of alive()){const o=SH.people[p.id];if(!o||o===h)continue;if(ok(o.x,o.f,30))L.push({x:o.x,y:(o.y!=null?o.y:fy(o.f))-72,ic:'heart',l:p.name,fn:()=>survivorPanel(p.id)})}
  return L}
 function shClick(wx,wy){
  sndResume();const fl=Math.floor((12-wy)/FH);SH.tap={x:wx,y:wy,t:SH.t};SND.tap();
@@ -1221,12 +1226,12 @@ function drawShelter(){
  if(indoor()<10)for(const p of alive()){const h=SH.people[p.id];if(h&&h.pose!=='lie')breath(c,h.x,(h.y!=null?h.y:fy(h.f))-16,h.dir,t,hsh(p.name.length*1.7))}
  for(const p of alive()){const h=SH.people[p.id];if(!h)continue;const y=(h.y!=null?h.y:fy(h.f))-(h.pose==='lie'&&!h.mv?(h.bed?40:22):70);if(p.id===SH.sel&&!h.job)label(c,p.name,h.x,y);
   const st=[];if(p.wounded)st.push('wound');if(p.sick)st.push('sick');if(p.fed<25)st.push('hungry');if(p.rest<20)st.push('tired');if(indoor()<3)st.push('cold');
-  st.forEach((k,i)=>{const ix=h.x+(i-(st.length-1)/2)*17,iy=y-17+Math.sin(t*3+i)*1.5;ci(c,ix,iy,8.5,'rgba(14,17,22,.9)');dico(c,k,ix,iy,12)})}
+  st.forEach((k,i)=>{const ix=h.x+(i-(st.length-1)/2)*17,iy=y-17+Math.sin(t*3+i)*1.5;ci(c,ix,iy,8.5,'rgba(14,17,22,.9)');dico(c,k,ix,iy,12)});if(st.length){const w={wound:'Wounded',sick:'Sick',hungry:'Hungry',tired:'Tired',cold:'Cold'};label(c,st.map(k=>w[k]).join(' · '),h.x,y+16,'#e07a6a')}}
  // locked areas: show what opens them
  const need=(k,x,y)=>{const r=ROOMS[k],tool=r.need.tool,ok=!whyNotClear(k);bubble(c,x,y,tool||(r.gate==='stairs'?'stairs':'hammer'),t,!ok&&roomOpen(r.req))};
  for(const p of (S.loose||[])){if(!roomOpen(p.room))continue;const yb=fy(p.f);drawSpr(c,p.kind,p.x,yb,{sc:.7})||rr(c,p.x-12,yb-14,24,14,'#7a5a3a',2);glint(c,p.x+6,yb-16,t,p.x*.01)}
  for(let i=POPS.length-1;i>=0;i--){const q=POPS[i];q.t+=1/60;if(q.t>2.2){POPS.splice(i,1);continue}if(q.t<0)continue;const a=Math.min(1,q.t*4)*Math.min(1,(2.2-q.t)*2),y=q.y-q.t*22;c.globalAlpha=a;ci(c,q.x,y,13,'rgba(14,17,22,.9)');dico(c,q.k,q.x,y,18);c.globalAlpha=1;c.globalAlpha=a;label(c,'+'+q.n,q.x+16,y+12,'#e2a03f');c.globalAlpha=1}
- for(const b of nearBubbles())bubble(c,b.x,b.y,b.ic,t,!!b.bad);
+ for(const b of nearBubbles())bubble(c,b.x,b.y,b.ic,t,!!b.bad,b.l);
  for(const id in SH.people){const h=SH.people[id],j=h.job;if(!j||h.path.length)continue;const y=fy(h.f)-84;ci(c,h.x,y,13,'rgba(14,17,22,.92)');dico(c,j.ic,h.x,y,15);c.lineCap='butt';c.strokeStyle='rgba(255,255,255,.15)';c.lineWidth=3.5;c.beginPath();c.arc(h.x,y,13,0,7);c.stroke();c.strokeStyle='#e2a03f';c.beginPath();c.arc(h.x,y,13,-1.57,-1.57+6.283*j.t/j.T);c.stroke()}
  if(SH.tap){const k=(t-SH.tap.t)/.45;if(k<1){c.strokeStyle='rgba(226,160,63,'+(1-k)+')';c.lineWidth=2;c.beginPath();c.ellipse(SH.tap.x,SH.tap.y,6+k*22,(6+k*22)*.45,0,0,7);c.stroke()}else SH.tap=null}
  if(0)for(const id of ['filter','heater','lights'])if(!S.up[id]){const s=ST[id],y=s.y!=null?fy(s.f)+s.y+50:fy(s.f)-s.h-22;ci(c,s.x+14,y-8,6,'#c2503f');c.fillStyle='#fff';c.font='bold 9px sans-serif';c.textAlign='center';c.fillText('!',s.x+14,y-4.8)}
@@ -1301,6 +1306,7 @@ function renderPlan(){const sp=scavPerson(),ti=indoor();
  return h+'<div class="row">'+btn(ico(sp?'exit':'moon',26),'go',!why,'pri big ic')+btn(ico('house',24),'back',true,'big ic')+(why?'<span class="wi">'+ico('lock',18)+ico(/cutters/.test(why)?'cutters':'house',22)+'</span>':'')+'</div></div>'}
 function render(){
  if(!S)return;$('#dayLbl').textContent='Day '+S.day;$('#phaseLbl').textContent=S.phase==='plan'?'dusk':S.phase==='scav'?'night':'';
+ if(S.phase==='title')return;
  if(S.phase==='scav'){ambient('night');return}
  ambient(S.phase==='plan'?null:'day');
  if(S.phase==='plan'){$('#main').innerHTML=renderPlan();return}
@@ -1478,11 +1484,38 @@ function art(k){if(!ART[k]){const e=mkCv(640,220),c=e.getContext('2d');c.scale(2
  const v=c.createRadialGradient(W/2,H/2,40,W/2,H/2,200);v.addColorStop(0,'rgba(0,0,0,0)');v.addColorStop(1,'rgba(0,0,0,.6)');c.fillStyle=v;c.fillRect(0,0,W,H);
  ART[k]=e.toDataURL()}return '<img class="art" alt="" src="'+ART[k]+'">'}
 function title(){
- const sv=load();newGame();render();
- const o=[['New game','newgame']];if(sv)o.unshift(['Continue day '+sv.day,'cont']);o.push(['Watch demo','demo']);
- const row=(k,t)=>'<div class="how">'+ico(k,26)+'<span>'+t+'</span></div>';
- modal(art('title')+'<h1>ASHWINTER</h1>'+row('filter','No water, no heat, no power. Fix the water filter, the heater and the lights first.')+row('rubble','Rooms are blocked. A shovel, lockpick, crowbar or bolt cutters opens each one.')+row('moon','At night, each person sleeps, guards, or goes out to scavenge.')+row('hide','Guards carry lights. Sneak, hide, and be back by 05:00.')+row('scav','Your pack is small. Tools take space that loot could use.')+'<p class="dim small">Tap where to walk. Tap an icon to use it: a shovel icon means you need a shovel, red means you still need one. Pinch or +/− to zoom.</p>',o)}
-const start=d=>{if(d&&d.S&&!d.DEMO){S=d.S;if(S.phase==='scav')S.phase='day';render()}else title()};
+ const sv=load();newGame();S.phase='title';
+ $('#main').innerHTML='<div class="scav" id="ttl"><div id="cvBox"><canvas id="cv"></canvas><div class="tname"><b>ASHWINTER</b><i></i></div></div><div class="pad tpad">'+(sv?'<button class="btn pri lb big" data-act="cont" aria-label="Continue">'+ico('house',26)+'<i>Day '+sv.day+'</i></button>':'')+'<button class="btn lb big'+(sv?'':' pri')+'" data-act="newgame" aria-label="New game"><i>New game</i></button><button class="btn lb big" data-act="demo" aria-label="Watch demo">'+ico('book',26)+'<i>Demo</i></button>'+sndBtn()+'</div></div>';
+ cv=$('#cv');cx=cv.getContext('2d');const f=()=>fitCv((w,h)=>Math.min(h/420,Math.max(w/700,w/360)));f();onresize=f;
+ if(!TT.props)TT.props=streetProps(911,1400).filter(p=>p.x<320||p.x>560);TT.t=0;TT.run=(TT.run||0)+1;const id=TT.run;let last=0;
+ const loop=ts=>{if(id!==TT.run||!$('#ttl'))return;const dt=Math.min(.05,last?(ts-last)/1000:0);last=ts;TT.t+=dt;fxTick(dt);titleDraw(dt);requestAnimationFrame(loop)};requestAnimationFrame(loop)}
+const TT={t:0};
+function titleDraw(dt){
+ const c=cx,t=TT.t,UW=CW/Z,UH=CH/Z,hx=440;
+ // fixed shot on the house with a slow drift; a survivor walks in from the left and goes inside
+ camX=clamp(hx-UW*.5+Math.sin(t*.11)*18,-80,1400-UW+80);camY=-UH+40;
+ const cyc=16,ph=(t%cyc)/cyc,x0=hx-UW*.55-80,wx=x0+(hx-4-x0)*clamp(ph/.68,0,1),inside=ph>.68,fade=inside?clamp(1-(ph-.68)/.08,0,1):1;
+ c.setTransform(DPR,0,0,DPR,0,0);drawBackdrop(c,CW,CH,(0-camY)*Z,camX,t,'night',Z);
+ toWorld(c);drawGround(c,camX-20,UW+40,true);drawStreet(c,TT.props,true);groundFog(c,camX,UW,t,true);
+ // the house: brick facade, gable, chimney with smoke, one lit window, open lit doorway
+ texFill(c,'tex_brick2',hx-130,-160,260,160,.45)||rr(c,hx-130,-160,260,160,'#2a2320');rr(c,hx-130,-160,260,160,'rgba(0,0,0,.3)');
+ pg(c,[hx-140,-160,hx,-250,hx+140,-160],'#1a1512');texFill(c,'tex_shingle',hx-140,-250,280,90,.5);c.save();c.beginPath();c.moveTo(hx-140,-160);c.lineTo(hx,-250);c.lineTo(hx+140,-160);c.closePath();c.clip();c.fillStyle='rgba(0,0,0,.45)';c.fillRect(hx-140,-250,280,90);c.restore();
+ rr(c,hx+70,-236,16,50,'#2b2320');chimneySmoke(c,hx+78,-236,t,true);
+ for(let i=0;i<3;i++){const wx_=hx-100+i*80;rr(c,wx_,-130,38,44,'#0b0e14');rr(c,wx_-3,-133,44,3,'#3a3230');if(i===1){rr(c,wx_,-130,38,44,'rgba(255,190,110,.5)');rr(c,wx_+17,-130,3,44,'#2a2420');rr(c,wx_,-110,38,3,'#2a2420')}}
+ rr(c,hx-14,-88,36,88,'#140f0c');const dg=c.createLinearGradient(hx,-88,hx,0);dg.addColorStop(0,'rgba(255,205,130,.85)');dg.addColorStop(1,'rgba(255,205,130,.35)');c.fillStyle=dg;c.fillRect(hx-14,-88,36,88);
+ // light spill onto the snow
+ const sp=c.createRadialGradient(hx+4,0,4,hx+4,0,120);sp.addColorStop(0,'rgba(255,200,120,.35)');sp.addColorStop(1,'rgba(255,200,120,0)');c.fillStyle=sp;c.save();c.scale(1,.25);c.fillRect(hx-120,-480,240,480);c.restore();
+ drawSpr(c,'firebarrel',hx-210,0);drawSpr(c,'sandbags',hx+170,0);drawSpr(c,'carwreck',hx-350,0);
+ // flames and embers from the barrel
+ for(let i=0;i<5;i++){const k=(t*1.3+i/5)%1,r=5+k*10;c.globalAlpha=(1-k)*.55;c.drawImage(PUFF_F,hx-210-r+Math.sin(t*7+i)*3,-36-k*34-r,r*2,r*2)}c.globalAlpha=1;if(chance(dt*6))FXL.push({x:hx-210+R(-6,6),y:-40,vx:R(-12,12),vy:R(-60,-25),life:0,max:R(.8,1.6),kind:'star',s:2});
+ if(!inside||fade>0){c.globalAlpha=fade;drawPerson(c,wx,0,{look:'Marko',dir:1,walk:t*9.4,moving:!inside,t,pack:true,lx:hx-210});c.globalAlpha=1;if(!inside)breath(c,wx,0,1,t,.3)}
+ const lights=[{x:hx-210,y:-36,r:200,a:.92,glow:'255,130,50',ga:.3,flick:1,t},{x:hx+4,y:-50,r:180,a:.95,glow:'255,200,120',ga:.22,flick:1,t},{x:hx-20,y:-108,r:90,a:.6,glow:'255,190,110',ga:.12},{x:wx,y:-40,r:70,a:.3*fade}];
+ lightPass(c,'rgba(4,6,12,.74)',lights,[],null,[{x:camX-50,y:-700,w:UW+100,h:720}],'rgba(4,6,12,.3)');
+ toWorld(c);fxDraw(c);
+ c.setTransform(DPR,0,0,DPR,0,0);drawFlakes(c,CW,CH,t,true,true);grade(c,true);postFx(c,t,.5);
+ const k=clamp((t-.6)/1.6,0,1);const el=$('#ttl .tname');if(el)el.style.opacity=k;
+ c.fillStyle='#000';c.fillRect(0,0,CW,CH*.06);c.fillRect(0,CH*.94,CW,CH*.06)}
+const start=d=>{if(d&&d.S&&!d.DEMO){S=d.S;if(S.phase==='scav'||S.phase==='title')S.phase='day';render()}else title()};
 try{window.claude&&window.claude.hot&&window.claude.hot.snapshot&&window.claude.hot.snapshot(()=>({S,DEMO}))}catch(e){}
 
 // ===== demo: the real game, played by a script =====
