@@ -234,6 +234,7 @@ function whyNotMake(r){
  if(!afford(recipeCost(r)))return 'Not enough';return ''}
 ACT.make=id=>{const r=RECIPES.find(r=>r.id===id);if(whyNotMake(r))return;const c=recipeCost(r);for(const k in c)add(k,-c[k]);add(r.give||r.id,r.n||1);fxAt(r.need==='stove'?'stove':'bench','build',r.give||r.id);render()};
 const nextLv=id=>UPG[id].lv[S.up[id]+1]||null;
+const upShown=id=>{const n=nextLv(id);return !(n&&n.day&&S.day<n.day&&!S.up[id])};
 const lackTxt=cost=>Object.keys(cost||{}).filter(k=>(S.stock[k]||0)<cost[k]).map(k=>(cost[k]-(S.stock[k]||0))+' '+ITEMS[k].n.toLowerCase()).join(', ');
 function whyNotUpg(id){const u=UPG[id],n=nextLv(id);if(!n)return 'Fully built';if(!S.rooms[u.room])return 'Open the '+ROOMS[u.room].n.toLowerCase()+' first';
  if(n.need&&lightLv()<n.need)return n.need===1?'Too dark: build oil lamps':'Needs generator power';if(n.day&&S.day<n.day)return 'Day '+n.day;if(!afford(n.cost))return 'Not enough';return ''}
@@ -280,7 +281,7 @@ function afterNight(lines){
    lines.push('Raiders broke in'+(home.length?'':' while the house stood empty')+'. They took '+(lost.join(', ')||'nothing worth carrying')+'.');
    if(home.length&&chance(.5)){const v=pick(home);v.wounded=true;v.hp-=20;lines.push(v.name+' was beaten and wounded.')}}}
  // morning
- S.day++;
+ S.day++;if(UPG.bench.lv[1].day===S.day&&!S.up.bench){lines.push('Marko cleared a corner of the hall. With some parts and wood it could be a workbench.');S.loose=S.loose||[]}
  const am=[];
  if(S.up.lights>=2){if(S.stock.fuel>0){add('fuel',-1);S.power=true}else{if(S.power)am.push('The generator ran dry.');S.power=false}}
  const rw=[0,2,4][S.up.rain]+[0,3,5][S.up.well||0],gf=[0,1,2][S.up.garden],wd=[0,1,2][S.up.woodpile||0];if(rw)add('dirty',rw);if(gf)add('raw',gf);if(wd)add('wood',wd);
@@ -1163,7 +1164,7 @@ function badges(){const L=[];for(const id in ST){const u=ST[id].up||id;if(!UPG[u
 function selPerson(){const id=SH.sel&&person(SH.sel)&&person(SH.sel).alive?SH.sel:alive()[0].id;SH.sel=id;return SH.people[id]}
 function nearBubbles(){const h=selPerson();if(!h||h.climb||h.job)return [];const all=_nearAll(h);if(!all.length)return all;let b=all[0];for(const o of all)if(Math.abs(o.x-h.x)<Math.abs(b.x-h.x))b=o;return [b]}
 function _nearAll(h){const L=[];const f=h.f,x=h.x,ok=(bx,bf,rad)=>bf===f&&Math.abs(bx-x)<rad;
- for(const id in ST){const s=ST[id];if(!ok(s.x,s.f,s.w/2+34)||!roomOpen(roomAt(s.f,s.x))&&id!=='door')continue;if(id==='gen'&&S.up.lights<2||id==='lights')continue;const u=s.up||id,y=s.y!=null?fy(s.f)+s.y+52:fy(s.f)-s.h-26;
+ for(const id in ST){const s=ST[id];if(!ok(s.x,s.f,s.w/2+34)||!roomOpen(roomAt(s.f,s.x))&&id!=='door')continue;if(UPG[s.up||id]&&!upShown(s.up||id))continue;if(id==='gen'&&S.up.lights<2||id==='lights')continue;const u=s.up||id,y=s.y!=null?fy(s.f)+s.y+52:fy(s.f)-s.h-26;
   if(id==='door')L.push({x:s.x+6,y:fy(0)-86,ic:'moon',l:'Nightfall',fn:()=>ACT.plan()});
   else if(id==='bench'&&S.up.bench)L.push({x:s.x,y,ic:'bench',l:'Craft',fn:()=>benchPanel()});
   else if(id==='stove'&&S.up.stove&&!S.up.bench)L.push({x:s.x,y,ic:'meal',l:'Cook',fn:()=>benchPanel()});
@@ -1265,7 +1266,7 @@ ACT.house=()=>housePanel();
 function housePanel(){panel(()=>{const rooms=Object.keys(ROOMS).filter(k=>k!=='hall');
  box('<h2>'+ico('house',20)+' The house</h2><h3>Fix these first</h3>'+['filter','heater','lights'].map(upgRow).join('')+
  '<h3>Closed rooms</h3>'+(rooms.filter(k=>!S.rooms[k]).map(roomRow).join('')||'<p class="dim small">Every room is open.</p>')+
- '<h3>Improvements</h3>'+['insul','def','bench','stove','bed1','bed2','radio','bed3','bed4','rain','garden','well','woodpile'].filter(id=>S.rooms[UPG[id].room]&&!(/bed[24]/.test(id)&&!S.up[id==='bed2'?'bed1':'bed3'])).map(upgRow).join('')+
+ '<h3>Improvements</h3>'+['insul','def','bench','stove','bed1','bed2','radio','bed3','bed4','rain','garden','well','woodpile'].filter(id=>S.rooms[UPG[id].room]&&upShown(id)&&!(/bed[24]/.test(id)&&!S.up[id==='bed2'?'bed1':'bed3'])).map(upgRow).join('')+
  '<h3>Journal</h3><div class="log">'+S.log.map(l=>'<div>'+l+'</div>').join('')+'</div>')})}
 function upgPanel(id){panel(()=>{let extra='';
  if(id==='heater'&&S.up.heater)extra='<div class="ur"><span class="col"><b>Tonight</b><small>'+(heatOn()?'Burning '+burnWood()+' wood.':'Not lit.')+' Inside: '+indoor()+'°, outside '+S.out+'°</small></span>'+btn(S.heat===false?'Light it':'Let it go out','heat',S.heat===false?(S.stock.wood||0)>=burnWood():true)+'</div>';
@@ -1326,7 +1327,7 @@ function housePanel(){panel(()=>{
  const tabs='<div class="row tabs">'+tabBtn('needs','filter')+tabBtn('rooms','house')+tabBtn('build','hammer')+tabBtn('log','book')+'</div>';let body='';
  if(HTAB==='needs')body=['filter','heater','lights'].map(upgRow).join('');
  else if(HTAB==='rooms'){const rs=Object.keys(ROOMS).filter(k=>k!=='hall'&&!S.rooms[k]);body=rs.length?rs.map(roomRow).join(''):'<div class="tiles">'+ico('house',34)+'<span class="okk done">✓</span></div>'}
- else if(HTAB==='build'){body='<div class="tiles">'+['insul','def','bench','stove','bed1','bed2','radio','bed3','bed4','rain','garden','well','woodpile'].filter(id=>S.rooms[UPG[id].room]&&!(/bed[24]/.test(id)&&!S.up[id==='bed2'?'bed1':'bed3'])).map(id=>{const u=UPG[id],lv=S.up[id],z=u.lv[0]===null?1:0,n=nextLv(id),why=whyNotUpg(id);return utile(id,upIcon(id),lv-z,u.lv.length-1-z,n&&!why,'upgp:'+id,n&&why&&why!=='Not enough')}).join('')+'</div>'}
+ else if(HTAB==='build'){body='<div class="tiles">'+['insul','def','bench','stove','bed1','bed2','radio','bed3','bed4','rain','garden','well','woodpile'].filter(id=>S.rooms[UPG[id].room]&&upShown(id)&&!(/bed[24]/.test(id)&&!S.up[id==='bed2'?'bed1':'bed3'])).map(id=>{const u=UPG[id],lv=S.up[id],z=u.lv[0]===null?1:0,n=nextLv(id),why=whyNotUpg(id);return utile(id,upIcon(id),lv-z,u.lv.length-1-z,n&&!why,'upgp:'+id,n&&why&&why!=='Not enough')}).join('')+'</div>'}
  else body='<div class="log">'+S.log.slice(0,5).map(l=>'<div>'+l+'</div>').join('')+'</div>';
  box(tabs+body)})}
 ACT.upgp=id=>upgPanel(id);
@@ -1444,7 +1445,7 @@ function drawStation(c,id,t){
  switch(id){
  case 'door':drawSpr(c,'frontdoor'+(S.up.def>=3?3:S.up.def>=2?2:0),6,0);break;
  case 'heater':if(!lv){ghost('heater1');break}drawSpr(c,'heater'+lv+(heatOn()?'':'_off'),x,yb);if(heatOn()){const fl=.6+.4*Math.sin(t*9)+.2*Math.sin(t*23);c.globalAlpha=.35*fl;c.drawImage(PUFF_F,x-16,yb-(lv===1?30:32),32,32);c.globalAlpha=1}break;
- case 'bench':if(!lv){ghost('bench1');break}drawSpr(c,'bench'+Math.min(3,Math.max(1,lv)),x,yb);if(lightLv()===0){drawSpr(c,'candle',x-6,yb-40)}break;
+ case 'bench':if(!lv){if(upShown('bench'))ghost('bench1');break}drawSpr(c,'bench'+Math.min(3,Math.max(1,lv)),x,yb);if(lightLv()===0){drawSpr(c,'candle',x-6,yb-40)}break;
  case 'filter':drawSpr(c,lv?'filter'+lv:'filter0',x,yb);if(!lv)ghost('filter1');else{const dp=(t*1.4)%1;ci(c,x,yb-24+dp*12,1.3,'rgba(160,210,240,'+(1-dp)+')')}break;
  case 'pantry':{drawSpr(c,'pantry',x,yb-78);const y0=yb-118,ks=Object.keys(ITEMS).filter(k=>S.stock[k]>0).slice(0,10);c.font='bold 7px sans-serif';c.textAlign='right';ks.forEach((k,i)=>{const ix=x-30+(i%5)*15,iy=y0+8+Math.floor(i/5)*18;dico(c,k,ix,iy,13)});break}
  case 'lights':{const L=lightLv();if(L===0)break;for(const k of Object.keys(SROOM)){if(!roomOpen(k)||k==='roof'||k==='yard')continue;const r=SROOM[k],lx=k==='hall'?x:(r[1]+r[2])/2,ly=fy(r[0])-FH+12;drawSpr(c,L>=2?(S.power?'bulb':'bulb_off'):'lamp',lx,ly+(L>=2?54:62))}break}
