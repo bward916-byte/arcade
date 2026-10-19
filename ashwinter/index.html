@@ -76,6 +76,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-acti
 .pad .btn{touch-action:none;min-height:50px;font-size:15px}
 .pad .mv{width:58px;font-size:20px} .pad .act{flex:1;border-color:var(--lamp);color:var(--lamp)}
 .hint{flex:1;color:var(--dim);font:400 13px var(--display)}
+.who2{display:flex;gap:6px;justify-content:center} .wq{padding:0;border:2px solid var(--line);border-radius:4px;background:var(--slate);width:40px;height:48px;overflow:hidden;cursor:pointer;opacity:.6} .wq .port{width:36px;display:block} .wq.on{border-color:var(--lamp);opacity:1;box-shadow:0 0 0 1px rgba(226,160,63,.4)}
 #cap{display:flex;gap:10px;align-items:center;padding:8px 16px;background:var(--lamp);color:var(--ink);font:400 15px/1.3 var(--display);position:relative;z-index:10;min-height:54px}
 #cap span{flex:1;min-width:0} #cap .btn{color:var(--ink);border-color:var(--ink);flex:none}
 .demo #main,.demo #modal{pointer-events:none} .demo #modal{align-items:flex-end;padding-top:130px}
@@ -1147,7 +1148,7 @@ function fxAt(target,kind,k){if(!$('#shel'))return;const p=sPos(target);if(!p)re
  else if(kind==='clear'){fxBurst(p[0],p[1]+20,'dust',22);fxBurst(p[0],p[1],'chunk',16);shake(.35)}}
 function shelterFocus(x){SH.tx=x}
 function startShelter(){
- $('#main').innerHTML='<div class="scav" id="shel"><div class="needs" id="needs"></div><div id="cvBox"><canvas id="cv"></canvas>'+zoomBtns+'</div><div class="pad"><button class="btn ic" data-act="house" aria-label="House">'+ico('house',26)+'</button><span class="hint"></span>'+sndBtn()+'<button class="btn pri ic" data-act="plan" aria-label="Nightfall">'+ico('moon',26)+'</button></div></div>';
+ $('#main').innerHTML='<div class="scav" id="shel"><div class="needs" id="needs"></div><div id="cvBox"><canvas id="cv"></canvas>'+zoomBtns+'</div><div class="pad"><button class="btn ic" data-act="house" aria-label="House">'+ico('house',26)+'</button><span class="hint" id="who"></span>'+sndBtn()+'<button class="btn pri ic" data-act="plan" aria-label="Nightfall">'+ico('moon',26)+'</button></div></div>';
  cv=$('#cv');cx=cv.getContext('2d');const f=()=>fitCv((w,h)=>Math.min(h/360,Math.max(w/900,w/340)));f();onresize=f;
  needsBar();
  canvasInput({tap:(x,y)=>{if(!DEMO)shClick(x,y)},drag:(dx,dy)=>{SH.cam-=dx/Z;SH.cy=(SH.cy||0)-dy/Z;SH.tx=null}});
@@ -1155,7 +1156,9 @@ function startShelter(){
  const loop=ts=>{if(id!==SH.run||!S||S.phase!=='day'||!$('#shel'))return;const dt=Math.min(.05,last?(ts-last)/1000:0);last=ts;SH.t+=dt;shUpdate(dt);fxTick(dt);
   if(WAR.shake>.5&&chance(dt*8)){const k=pick(Object.keys(SROOM).filter(roomOpen)),r=SROOM[k];fxBurst(R(r[1]+30,r[2]-30),fy(r[0])-FH+16,'fall',3,{vy:10,vx:0})}
   drawShelter();requestAnimationFrame(loop)};requestAnimationFrame(loop)}
-function needsBar(){const e=$('#needs');if(!e)return;const ti=indoor(),L=lightLv();
+function whoBar(){const e=$('#who');if(!e)return;selPerson();e.innerHTML='<div class="who2">'+alive().map(p=>'<button class="wq'+(p.id===SH.sel?' on':'')+'" data-act="sel:'+p.id+'" aria-label="'+p.name+'">'+portrait(p.name,34)+'</button>').join('')+'</div>'}
+ACT.sel=id=>{if(SH.sel===id)survivorPanel(id);else{SH.sel=id;SH.tx=null;whoBar()}};
+function needsBar(){whoBar();const e=$('#needs');if(!e)return;const ti=indoor(),L=lightLv();
  e.innerHTML='<span class="nd'+((S.stock.water||0)<alive().length?' bad':'')+'">'+ico('water',18)+(S.stock.water||0)+'<small>'+ico('dirty',14)+(S.stock.dirty||0)+'</small></span>'+
  '<span class="nd'+(ti<3?' bad':ti<10?' warn':'')+'">'+ico('temp',18)+ti+'°</span>'+
  '<span class="nd'+(L===0?' warn':'')+'">'+ico('lights',18)+pips(L,2)+(S.up.lights>=2?ico('fuel',14)+(S.stock.fuel||0):'')+'</span>'+
@@ -1181,7 +1184,7 @@ function _nearAll(h){const L=[];const f=h.f,x=h.x,ok=(bx,bf,rad)=>bf===f&&Math.a
 function shClick(wx,wy){
  sndResume();const fl=Math.floor((12-wy)/FH);SH.tap={x:wx,y:wy,t:SH.t};SND.tap();
  for(const b of nearBubbles())if(Math.hypot(b.x-wx,b.y-wy)<17){b.fn();return}
- for(const p of alive()){const h=SH.people[p.id];if(!h)continue;const y=h.y!=null?h.y:fy(h.f);if(Math.abs(h.x-wx)<15&&wy<y+4&&wy>y-60){if(SH.sel===p.id)survivorPanel(p.id);SH.sel=p.id;return}}
+ 
  let r=floorRange(fl),tx=wx;if(!r){if(fl<0||fl>2)return;r=[34,YARD-20]}
  const rm=roomAt(fl,wx);if(rm&&!roomOpen(rm)){const g=SGATE[rm];if(g&&g.f===fl)tx=g.x+(wx>g.x?-30:30);else if(fl===(selPerson()||{}).f)return}
  const h=selPerson();if(!h||h.climb)return;tx=clamp(tx,r[0],r[1]);h.job=null;h.goal={f:fl,x:tx,pose:'idle',dir:tx>h.x?1:-1};h.bed=null;h.path=route(h,fl,tx);h.pose='walk';h.wait=R(7,14);h.mark=1}
