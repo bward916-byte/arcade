@@ -76,6 +76,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-acti
 .pad .btn{touch-action:none;min-height:50px;font-size:15px}
 .pad .mv{width:58px;font-size:20px} .pad .act{flex:1;border-color:var(--lamp);color:var(--lamp)}
 .hint{flex:1;color:var(--dim);font:400 13px var(--display)}
+.cl{display:inline-block;width:28px;height:6px;background:var(--raise);border-radius:3px;overflow:hidden;vertical-align:middle;margin-right:4px} .cl b{display:block;height:100%;background:linear-gradient(90deg,#e2a03f,#c2503f)}
 .who2{display:flex;gap:6px;justify-content:center} .wq{padding:0;border:2px solid var(--line);border-radius:4px;background:var(--slate);width:40px;height:48px;overflow:hidden;cursor:pointer;opacity:.6} .wq .port{width:36px;display:block} .wq.on{border-color:var(--lamp);opacity:1;box-shadow:0 0 0 1px rgba(226,160,63,.4)}
 #cap{display:flex;gap:10px;align-items:center;padding:8px 16px;background:var(--lamp);color:var(--ink);font:400 15px/1.3 var(--display);position:relative;z-index:10;min-height:54px}
 #cap span{flex:1;min-width:0} #cap .btn{color:var(--ink);border-color:var(--ink);flex:none}
@@ -211,7 +212,7 @@ const indoor=()=>S.out+6+4*S.up.insul+(heatOn()?[0,8,13][S.up.heater]:0);
 const tempWord=t=>t>=10?'Warm enough':t>=3?'Cold':'Freezing';
 function newGame(){
  const pool=NPCS.slice().sort(()=>Math.random()-.5);
- S={day:1,phase:'day',endDay:RI(24,28),stock:{wood:4,parts:2,cloth:1,can:1,water:2,dirty:2},loose:[{room:'hall',f:0,x:246,items:{shovel:1},kind:'boxes'}],
+ S={day:1,phase:'day',endDay:RI(24,28),clock:0,stock:{wood:4,parts:2,cloth:1,can:1,water:2,dirty:2},loose:[{room:'hall',f:0,x:246,items:{shovel:1},kind:'boxes'}],
   up:{filter:0,heater:0,lights:0,insul:0,def:0,bench:0,stove:0,bed1:0,bed2:0,radio:0,bed3:0,bed4:0,rain:0,garden:0,well:0,woodpile:0},
   rooms:{hall:true},people:[mk('Marko','none')],pool,log:[],locs:{},plan:{},gear:{},loc:'row',gift:0,raid:false,out:outTemp(1),heat:true,power:false};
  log('The shelling drove you into this house. No water, no heat, no power. Fix what you can and hold on until the ceasefire.');
@@ -299,7 +300,7 @@ function afterNight(lines){
   if(p.hp<=0){p.alive=false;lines.push(p.name+' did not wake up.');log(p.name+' died.')}}
  lines.push(...am);
  S.out=outTemp(S.day)+RI(-2,2);S.raid=S.day>=3&&chance(Math.min(.45,.1+S.day*.015));
- S.plan={};S.phase='day';
+ S.plan={};S.phase='day';S.clock=0;
  if(!alive().length){wipe();return modal(art('dead')+'<h2>The house is silent</h2><p>'+lines.join(' ')+'</p><p>No one is left. You lasted '+(S.day-1)+' days.</p>',[['Start again','newgame']])}
  if(S.day>S.endDay){wipe();return modal(art('win')+'<h2>Ceasefire</h2><p>The guns stop on the morning of day '+S.day+'. '+alive().map(p=>p.name).join(', ')+' walk out into the daylight.</p>',[['Play again','newgame']])}
  if(!lines.length)lines.push('A quiet night.');
@@ -1086,7 +1087,9 @@ function sPOI(p){const L=[];const add=(f,x,pose,dir,need)=>{if(need&&!need())ret
  return L}
 function goTo(h,f,x){const r=floorRange(f);if(!r)return;x=clamp(x,r[0],r[1]);h.job=null;h.goal={f,x,pose:'idle',dir:x>h.x?1:-1};h.bed=null;h.path=route(h,f,x);h.pose='walk';h.wait=R(7,14);h.mark=1}
 function work(h,x,T,ic,fn,pose){const ws=x+(h.x<x?-18:18);goTo(h,h.f,ws);h.job={t:0,T,ic,fn,dir:ws<x?1:-1,pose:pose||'work'}}
-function route(h,tf,tx){const P=[];let f=h.f;
+function route(h,tf,tx){const P=_route(h,tf,tx);// never path into a closed room: clamp every stop to the open part of its floor
+ for(const q of P){if(q.climb)continue;const r=floorRange(q.f);if(r)q.x=clamp(q.x,r[0],r[1])}return P}
+function _route(h,tf,tx){const P=[];let f=h.f;
  while(f!==tf){const up=tf>f,s=SSTAIR[up?f:f-1];if(!s||!roomOpen(s.room)){P.push({f,x:up?s.x-40:s.x+40});return P}P.push({f,x:up?s.x-48:s.x+48},{climb:s,up});f+=up?1:-1}
  P.push({f,x:tx});return P}
 function shUpdate(dt){
@@ -1149,20 +1152,24 @@ function fxAt(target,kind,k){if(!$('#shel'))return;const p=sPos(target);if(!p)re
 function shelterFocus(x){SH.tx=x}
 function startShelter(){
  $('#main').innerHTML='<div class="scav" id="shel"><div class="needs" id="needs"></div><div id="cvBox"><canvas id="cv"></canvas>'+zoomBtns+'</div><div class="pad"><button class="btn ic" data-act="house" aria-label="House">'+ico('house',26)+'</button><span class="hint" id="who"></span>'+sndBtn()+'<button class="btn pri ic" data-act="plan" aria-label="Nightfall">'+ico('moon',26)+'</button></div></div>';
- cv=$('#cv');cx=cv.getContext('2d');const f=()=>fitCv((w,h)=>Math.min(h/360,Math.max(w/900,w/340)));f();onresize=f;
+ cv=$('#cv');cx=cv.getContext('2d');const f=()=>fitCv((w,h)=>Math.min(h/300,Math.max(w/900,w/280)));f();onresize=f;
  needsBar();
  canvasInput({tap:(x,y)=>{if(!DEMO)shClick(x,y)},drag:(dx,dy)=>{SH.cam-=dx/Z;SH.cy=(SH.cy||0)-dy/Z;SH.tx=null}});
  const id=++SH.run;let last=0;
- const loop=ts=>{if(id!==SH.run||!S||S.phase!=='day'||!$('#shel'))return;const dt=Math.min(.05,last?(ts-last)/1000:0);last=ts;SH.t+=dt;shUpdate(dt);fxTick(dt);
+ const loop=ts=>{if(id!==SH.run||!S||S.phase!=='day'||!$('#shel'))return;const dt=Math.min(.05,last?(ts-last)/1000:0);last=ts;SH.t+=dt;
+  if(!DEMO&&$('#modal').hidden&&!PANEL){S.clock=(S.clock||0)+dt*(720/240);if(S.clock>=720){S.clock=720;save();ACT.plan();return}if(Math.floor(S.clock/2)!==Math.floor((S.clock-dt*3)/2))clockBar()}shUpdate(dt);fxTick(dt);
   if(WAR.shake>.5&&chance(dt*8)){const k=pick(Object.keys(SROOM).filter(roomOpen)),r=SROOM[k];fxBurst(R(r[1]+30,r[2]-30),fy(r[0])-FH+16,'fall',3,{vy:10,vx:0})}
   drawShelter();requestAnimationFrame(loop)};requestAnimationFrame(loop)}
 function whoBar(){const e=$('#who');if(!e)return;selPerson();e.innerHTML='<div class="who2">'+alive().map(p=>'<button class="wq'+(p.id===SH.sel?' on':'')+'" data-act="sel:'+p.id+'" aria-label="'+p.name+'">'+portrait(p.name,34)+'</button>').join('')+'</div>'}
 ACT.sel=id=>{if(SH.sel===id)survivorPanel(id);else{SH.sel=id;SH.tx=null;whoBar()}};
+function dayK(){return clamp((S.clock||0)/720,0,1)}
+function clockTxt(){const m=480+Math.round(S.clock||0),h=Math.floor(m/60),mm=m%60;return (h<10?'0':'')+h+':'+(mm<10?'0':'')+mm}
+function clockBar(){const e=$('#clk2');if(e){const k=dayK();e.className='nd'+(k>.85?' bad':k>.7?' warn':'');e.innerHTML=ico(k>.8?'moon':'temp',0).replace(/<img[^>]*>/,'')+'<i class="cl"><b style="width:'+(k*100)+'%"></b></i>'+clockTxt()}}
 function needsBar(){whoBar();const e=$('#needs');if(!e)return;const ti=indoor(),L=lightLv();
- e.innerHTML='<span class="nd'+((S.stock.water||0)<alive().length?' bad':'')+'">'+ico('water',18)+(S.stock.water||0)+'<small>'+ico('dirty',14)+(S.stock.dirty||0)+'</small></span>'+
+ e.innerHTML='<span class="nd" id="clk2"></span><span class="nd'+((S.stock.water||0)<alive().length?' bad':'')+'">'+ico('water',18)+(S.stock.water||0)+'<small>'+ico('dirty',14)+(S.stock.dirty||0)+'</small></span>'+
  '<span class="nd'+(ti<3?' bad':ti<10?' warn':'')+'">'+ico('temp',18)+ti+'°</span>'+
  '<span class="nd'+(L===0?' warn':'')+'">'+ico('lights',18)+pips(L,2)+(S.up.lights>=2?ico('fuel',14)+(S.stock.fuel||0):'')+'</span>'+
- '<span class="nd">'+ico('can',18)+((S.stock.can||0)+(S.stock.meal||0)+(S.stock.raw||0))+'</span>';e.onclick=()=>stockPanel();e.style.cursor='pointer'}
+ '<span class="nd">'+ico('can',18)+((S.stock.can||0)+(S.stock.meal||0)+(S.stock.raw||0))+'</span>';clockBar();e.onclick=()=>stockPanel();e.style.cursor='pointer'}
 function badges(){const L=[];for(const id in ST){const u=ST[id].up||id;if(!UPG[u]||id==='gen'||!roomOpen(roomAt(ST[id].f,ST[id].x)))continue;if(nextLv(u)&&!whyNotUpg(u)&&(S.up[u]||['filter','heater','lights','stove','bed1','bed3','radio','rain','garden'].includes(u))){const s_=ST[id];L.push({id:u,x:s_.x,y:s_.y!=null?fy(s_.f)+s_.y+52:fy(s_.f)-s_.h-26})}}return L}
 function selPerson(){const id=SH.sel&&person(SH.sel)&&person(SH.sel).alive?SH.sel:alive()[0].id;SH.sel=id;return SH.people[id]}
 function nearBubbles(){const h=selPerson();if(!h||h.climb||h.job)return [];const all=_nearAll(h);if(!all.length)return all;let b=all[0];for(const o of all)if(Math.abs(o.x-h.x)<Math.abs(b.x-h.x))b=o;return [b]}
@@ -1193,7 +1200,7 @@ function drawShelter(){
  if(UW<SHW+60){const hs=SH.people[SH.sel];if(hs&&SH.tx==null)SH.cam=lerp(SH.cam,hs.x-UW/2,.05);else if(SH.tx!=null)SH.cam=lerp(SH.cam,SH.tx-UW/2,.06)}SH.cam=UW>=YARD+200?(YARD-UW)/2:clamp(SH.cam,lo,hi);camX=SH.cam;
  camY=UH>=560?-209-UH/2:clamp(62-UH+(SH.cy||0),-500,62-UH);if(UH>=560)SH.cy=0;else SH.cy=camY-(62-UH);
  if(WAR.shake>0){camX+=R(-1,1)*WAR.shake*4/Z;camY+=R(-1,1)*WAR.shake*4/Z}
- c.setTransform(DPR,0,0,DPR,0,0);drawBackdrop(c,CW,CH,(0-camY)*Z,camX,t,'day',Z);drawFlakes(c,CW,CH,t,false);
+ c.setTransform(DPR,0,0,DPR,0,0);drawBackdrop(c,CW,CH,(0-camY)*Z,camX,t,'day',Z);{const k=dayK();if(k>.55){const a=(k-.55)/.45;c.fillStyle='rgba(120,60,30,'+(a*.28)+')';c.globalCompositeOperation='multiply';c.fillRect(0,0,CW,CH);c.fillStyle='rgba(10,14,30,'+(a*a*.5)+')';c.fillRect(0,0,CW,CH);c.globalCompositeOperation='source-over'}}drawFlakes(c,CW,CH,t,false);
  toWorld(c);drawGround(c,camX-20,UW+40,false);if(!SH.props)SH.props=streetProps(77,YARD+40).filter(p=>p.x<0||p.x>YARD+40);drawStreet(c,SH.props,false);groundFog(c,camX,UW,t,false);blitLayer(c,lay);
  drawSpr(c,'fence',YARD-5,0);if(!S.up.well)drawSpr(c,'well',1190,0,{alpha:.5});chimneySmoke(c,654,-462,t,heatOn());
  // stairs
