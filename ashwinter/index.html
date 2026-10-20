@@ -156,11 +156,11 @@ const RECIPES=[
  {id:'ammo',lv:3,cost:{parts:2},note:'one pistol round'}];
 const ROOMS={
  hall:{n:'Hall'},
- kitchen:{n:'Kitchen',b:'Rubble',req:'hall',gate:'rubble',need:{tool:'shovel'},stash:{can:2,wood:3,raw:1},msg:'The kitchen is clear. Someone left supplies under the sink.'},
- bedroom:{n:'Bedroom',b:'Stairs',req:'hall',gate:'stairs',need:{cost:{wood:4,parts:2}},stash:{cloth:2,bandage:1},msg:'The stairs hold. Upstairs: a bedroom and an old first-aid tin.'},
- study:{n:'Study',b:'Locked door',req:'bedroom',gate:'lock',need:{tool:'pick',use:true},stash:{meds:1,parts:3,pick:1},msg:'The study lock gives. Medicine in the desk drawer.'},
- loft:{n:'Loft',b:'Boarded hatch',req:'study',gate:'boards',need:{tool:'crowbar'},stash:{wood:3,cloth:2,fuel:1},msg:'You pry open the attic hatch. Dry wood, blankets and a can of fuel.'},
- garage:{n:'Garage',b:'Boarded door',req:'kitchen',gate:'boards',need:{tool:'crowbar'},stash:{parts:4,fuel:1,wood:2},msg:'The garage door comes off its runners. A dead car, a workbench, and a jerry can.'},
+ kitchen:{n:'Kitchen',b:'Rubble',req:'hall',gate:'rubble',need:{tool:'shovel',hand:45,fast:6},stash:{can:2,wood:3,raw:1},msg:'The kitchen is clear. Someone left supplies under the sink.'},
+ bedroom:{n:'Bedroom',b:'Stairs',req:'hall',gate:'stairs',need:{cost:{wood:2},hand:14,fast:14},stash:{cloth:2,bandage:1},msg:'The stairs hold. Upstairs: a bedroom and an old first-aid tin.'},
+ study:{n:'Study',b:'Locked door',req:'bedroom',gate:'lock',need:{tool:'pick',use:true,alt:'crowbar',hand:40,fast:5},stash:{meds:1,parts:3,pick:1},msg:'The study lock gives. Medicine in the desk drawer.'},
+ loft:{n:'Loft',b:'Boarded hatch',req:'study',gate:'boards',need:{tool:'crowbar',hand:35,fast:6},stash:{wood:3,cloth:2,fuel:1},msg:'You pry open the attic hatch. Dry wood, blankets and a can of fuel.'},
+ garage:{n:'Garage',b:'Boarded door',req:'kitchen',gate:'boards',need:{tool:'crowbar',hand:35,fast:6},stash:{parts:4,fuel:1,wood:2},msg:'The garage door comes off its runners. A dead car, a workbench, and a jerry can.'},
  yard:{n:'Yard',b:'Chained gate',req:'garage',gate:'chain',need:{tool:'cutters'},stash:{wood:4,dirty:4},msg:'The yard gate swings open. An old well, a woodpile, and room to grow things.'},
  roof:{n:'Rooftop',b:'Chained hatch',req:'loft',gate:'chain',need:{tool:'cutters'},stash:{dirty:3,smokes:2},msg:'The rooftop door swings free. Rain barrels, half full.'}};
 const UPG={
@@ -212,7 +212,7 @@ const indoor=()=>S.out+6+4*S.up.insul+(heatOn()?[0,8,13][S.up.heater]:0);
 const tempWord=t=>t>=10?'Warm enough':t>=3?'Cold':'Freezing';
 function newGame(){
  const pool=NPCS.slice().sort(()=>Math.random()-.5);
- S={day:1,phase:'day',endDay:RI(24,28),clock:0,stock:{wood:4,parts:2,cloth:1,can:1,water:2,dirty:2},loose:[{room:'hall',f:0,x:246,items:{shovel:1},kind:'boxes'}],
+ S={day:1,phase:'day',endDay:RI(24,28),clock:0,stock:{wood:2,parts:1,can:1,water:2,dirty:1},loose:[{room:'hall',f:0,x:246,items:{cloth:1,wood:2},kind:'boxes'},{room:'hall',f:0,x:60,items:{dirty:2},kind:'sacks'},{room:'kitchen',f:0,x:470,items:{can:2,raw:1},kind:'boxes'},{room:'kitchen',f:0,x:640,items:{shovel:1,wood:2},kind:'sacks'},{room:'bedroom',f:1,x:300,items:{cloth:2,bandage:1},kind:'boxes'},{room:'bedroom',f:1,x:180,items:{parts:2},kind:'sacks'},{room:'study',f:1,x:520,items:{meds:1,parts:3,pick:1},kind:'boxes'},{room:'study',f:1,x:700,items:{smokes:2},kind:'sacks'},{room:'loft',f:2,x:520,items:{wood:3,cloth:2},kind:'boxes'},{room:'loft',f:2,x:700,items:{fuel:1,parts:2},kind:'sacks'},{room:'garage',f:0,x:820,items:{parts:4,fuel:1},kind:'boxes'},{room:'garage',f:0,x:1010,items:{wood:2,crowbar:1},kind:'sacks'},{room:'yard',f:0,x:1120,items:{wood:4},kind:'boxes'},{room:'yard',f:0,x:1300,items:{dirty:4},kind:'sacks'},{room:'roof',f:2,x:200,items:{dirty:3,smokes:2},kind:'sacks'}],
   up:{filter:0,heater:0,lights:0,insul:0,def:0,bench:0,stove:0,bed1:0,bed2:0,radio:0,bed3:0,bed4:0,rain:0,garden:0,well:0,woodpile:0},
   rooms:{hall:true},people:[mk('Marko','none')],pool,log:[],locs:{},plan:{},gear:{},loc:'row',gift:0,raid:false,out:outTemp(1),heat:true,power:false};
  log('The shelling drove you into this house. No water, no heat, no power. Fix what you can and hold on until the ceasefire.');
@@ -243,10 +243,12 @@ function whyNotUpg(id){const u=UPG[id],n=nextLv(id);if(!n)return 'Fully built';i
 ACT.upg=id=>{if(whyNotUpg(id))return;SND.pick();const n=nextLv(id);for(const k in n.cost)add(k,-n.cost[k]);S.up[id]++;
  if(id==='lights'&&S.up.lights===2&&S.stock.fuel>0){add('fuel',-1);S.power=true}
  log(UPG[id].n+(S.up[id]>1?' improved.':' built.'));fxAt(id,'build');render()};
+const hasTool=id=>{const n=ROOMS[id].need;return !!(n.tool&&(S.stock[n.tool]||(n.alt&&S.stock[n.alt])))};
+const clearTime=id=>{const n=ROOMS[id].need;return hasTool(id)?(n.fast||6):(n.hand||6)};
 function whyNotClear(id){const r=ROOMS[id];if(S.rooms[id])return 'Open';if(!S.rooms[r.req])return 'Reach it first';
- if(r.need.tool&&!S.stock[r.need.tool])return 'Needs '+ITEMS[r.need.tool].n.toLowerCase();if(r.need.cost&&!afford(r.need.cost))return 'Not enough';return ''}
-ACT.clear=id=>{if(whyNotClear(id))return;SND.door();const r=ROOMS[id];if(r.need.use)add(r.need.tool,-1);if(r.need.cost)for(const k in r.need.cost)add(k,-r.need.cost[k]);
- S.rooms[id]=true;{const L=S.loose||(S.loose=[]),R=(typeof SROOM!=='undefined')&&SROOM[id],ks=Object.keys(r.stash||{});if(R&&ks.length){const n=Math.min(2,ks.length),span=R[2]-R[1];for(let i=0;i<n;i++){const it={};ks.forEach((k,j)=>{if(j%n===i)it[k]=r.stash[k]});L.push({room:id,f:R[0],x:Math.round(R[1]+span*(i===0?.62:.3)),items:it,kind:i?'sacks':'boxes'})}}else for(const k in r.stash)add(k,r.stash[k])}log(r.msg);fxAt('room:'+id,'clear');PANEL=null;
+ if(r.need.tool&&!hasTool(id)&&!r.need.hand)return 'Needs '+ITEMS[r.need.tool].n.toLowerCase();if(r.need.cost&&!afford(r.need.cost))return 'Not enough';return ''}
+ACT.clear=id=>{if(whyNotClear(id))return;SND.door();const r=ROOMS[id];if(r.need.use&&S.stock[r.need.tool])add(r.need.tool,-1);if(r.need.cost)for(const k in r.need.cost)add(k,-r.need.cost[k]);
+ S.rooms[id]=true;log(r.msg);fxAt('room:'+id,'clear');PANEL=null;
  render()};
 function pickPile(p){const L=S.loose||[],i=L.indexOf(p);if(i<0)return;SND.pick();L.splice(i,1);const ks=Object.keys(p.items);ks.forEach((k,j)=>{add(k,p.items[k]);POPS.push({x:p.x+(j-(ks.length-1)/2)*30,y:fy(p.f)-60,k,n:p.items[k],t:-j*.25})});save();render()}
 const POPS=[];
@@ -725,6 +727,8 @@ function buildLayer(B){
  const yTop=fy(B.floors);
  for(const [a,b] of [[-18,0],[W,W+18]]){c.save();c.beginPath();c.rect(a,yTop,b-a,-yTop+14);c.clip();texFill(c,'tex_brick',a,yTop,b-a,14-yTop,.4)||bricks(c,a,yTop,b,14,'#6e4636');const g=c.createLinearGradient(a,0,b,0);g.addColorStop(0,'rgba(0,0,0,.35)');g.addColorStop(.5,'rgba(0,0,0,0)');g.addColorStop(1,'rgba(0,0,0,.45)');c.fillStyle=g;c.fillRect(a,yTop,b-a,-yTop+14);
   c.globalCompositeOperation='destination-out';for(let i=0;i<3;i++){const y=yTop+30+r()*(-yTop-90),ox=a<0?a:b;c.beginPath();c.moveTo(ox,y);for(let k=0;k<6;k++)c.lineTo(ox+(a<0?1:-1)*(4+r()*10),y+k*5+r()*4);c.lineTo(ox,y+30);c.fill()}c.restore()}
+ if(!B.night){for(const w of out.windows){c.fillStyle='rgba(235,238,242,.85)';c.beginPath();c.moveTo(w.x-w.w/2-6,w.y+w.h+6);c.quadraticCurveTo(w.x,w.y+w.h-2,w.x+w.w/2+6,w.y+w.h+6);c.closePath();c.fill()}}
+ for(const [a,b] of [[-40,-18],[W+18,W+40]]){c.fillStyle='rgba(225,230,236,.9)';c.beginPath();c.moveTo(a,14);c.quadraticCurveTo((a+b)/2,-10,b,14);c.closePath();c.fill()}
  if(B.exit){c.save();c.globalCompositeOperation='destination-out';c.fillRect(-19,-86,20,86);c.restore();rr(c,-20,-90,22,4,'#3a2a1c')}
  roof(c,B,yTop,r,isOpen);
  c.setTransform(1,0,0,1,0,0);c.globalCompositeOperation='source-atop';c.globalAlpha=.06;c.fillStyle=grainPat(c);c.fillRect(0,0,e.width,e.height);c.globalAlpha=1;c.globalCompositeOperation='source-over';
@@ -1157,7 +1161,7 @@ function startShelter(){
  canvasInput({tap:(x,y)=>{if(!DEMO)shClick(x,y)},drag:(dx,dy)=>{SH.cam-=dx/Z;SH.cy=(SH.cy||0)-dy/Z;SH.tx=null}});
  const id=++SH.run;let last=0;
  const loop=ts=>{if(id!==SH.run||!S||S.phase!=='day'||!$('#shel'))return;const dt=Math.min(.05,last?(ts-last)/1000:0);last=ts;SH.t+=dt;
-  if(!DEMO&&$('#modal').hidden&&!PANEL){S.clock=(S.clock||0)+dt*(720/240);if(S.clock>=720){S.clock=720;save();ACT.plan();return}if(Math.floor(S.clock/2)!==Math.floor((S.clock-dt*3)/2))clockBar()}shUpdate(dt);fxTick(dt);
+  if(!DEMO&&$('#modal').hidden&&!PANEL){S.clock=(S.clock||0)+dt*(720/150);if(S.clock>=720){S.clock=720;save();ACT.plan();return}if(Math.floor(S.clock/2)!==Math.floor((S.clock-dt*3)/2))clockBar()}shUpdate(dt);fxTick(dt);
   if(WAR.shake>.5&&chance(dt*8)){const k=pick(Object.keys(SROOM).filter(roomOpen)),r=SROOM[k];fxBurst(R(r[1]+30,r[2]-30),fy(r[0])-FH+16,'fall',3,{vy:10,vx:0})}
   drawShelter();requestAnimationFrame(loop)};requestAnimationFrame(loop)}
 function whoBar(){const e=$('#who');if(!e)return;selPerson();e.innerHTML='<div class="who2">'+alive().map(p=>'<button class="wq'+(p.id===SH.sel?' on':'')+'" data-act="sel:'+p.id+'" aria-label="'+p.name+'">'+portrait(p.name,34)+'</button>').join('')+'</div>'}
@@ -1181,9 +1185,9 @@ function _nearAll(h){const L=[];const f=h.f,x=h.x,ok=(bx,bf,rad)=>bf===f&&Math.a
   else if(id==='filter'&&S.up.filter&&(S.stock.dirty||0)>0)L.push({x:s.x,y,ic:'water',l:'Clean water',fn:()=>work(h,s.x,2.2,'water',()=>{const n=Math.min(S.stock.dirty||0,S.up.filter*2);add('dirty',-n);add('water',n);POPS.push({x:s.x,y:fy(0)-70,k:'water',n,t:0});save();render()})});
   else if(id==='radio'&&S.up.radio)L.push({x:s.x,y,ic:'book',l:'Journal',fn:()=>journalPanel()});
   else if(UPG[u]){const n=nextLv(u),why=whyNotUpg(u);if(n&&!why)L.push({x:s.x,y,ic:'hammer',l:(S.up[u]?'Improve ':'Build ')+UPG[u].n.toLowerCase(),fn:()=>work(h,s.x,4+2*S.up[u],u,()=>ACT.upg(u))});else L.push({x:s.x,y,ic:upIcon(u),bad:!!(n&&why),l:n?(why==='Not enough'?'Need '+lackTxt(n.cost):why):UPG[u].n,fn:()=>upgPanel(u)})}}
- for(const k in SGATE){const g=SGATE[k];if(!roomOpen(k)&&roomOpen(ROOMS[k].req)&&ok(g.x,g.f,60)){const why=whyNotClear(k);L.push({x:g.x,y:fy(g.f)-108,ic:ROOMS[k].need.tool||'hammer',bad:!!why,l:why?(why==='Not enough'?'Need '+lackTxt(ROOMS[k].need.cost):why):'Open '+ROOMS[k].n.toLowerCase(),fn:()=>why?roomPanel(k):work(h,g.x+(h.x<g.x?-26:26),6,ROOMS[k].need.tool||'hammer',()=>ACT.clear(k))})}}
- if(!roomOpen('bedroom')&&ok(118,0,70)){const why=whyNotClear('bedroom');L.push({x:118,y:fy(0)-100,ic:'stairs',bad:!!why,l:why?(why==='Not enough'?'Need '+lackTxt(ROOMS.bedroom.need.cost):why):'Fix stairs',fn:()=>why?roomPanel('bedroom'):work(h,100,6,'hammer',()=>ACT.clear('bedroom'))})}
- if(!roomOpen('loft')&&roomOpen('study')&&ok(680,1,70)){const why=whyNotClear('loft');L.push({x:680,y:fy(1)-100,ic:'crowbar',bad:!!why,l:why||'Pry open',fn:()=>why?roomPanel('loft'):work(h,650,6,'crowbar',()=>ACT.clear('loft'))})}
+ for(const k in SGATE){const g=SGATE[k];if(!roomOpen(k)&&roomOpen(ROOMS[k].req)&&ok(g.x,g.f,60)){const why=whyNotClear(k);const ht=hasTool(k),ic=ht?(S.stock[ROOMS[k].need.tool]?ROOMS[k].need.tool:ROOMS[k].need.alt):'hand';L.push({x:g.x,y:fy(g.f)-108,ic:why?(ROOMS[k].need.tool||'hammer'):ic,bad:!!why,l:why?(why==='Not enough'?'Need '+lackTxt(ROOMS[k].need.cost):why):(ht?'Open '+ROOMS[k].n.toLowerCase():{rubble:'Dig by hand',lock:'Force the door',boards:'Tear boards off'}[ROOMS[k].gate]+' ('+clearTime(k)+'s)'),fn:()=>why?roomPanel(k):work(h,g.x+(h.x<g.x?-26:26),clearTime(k),ic,()=>ACT.clear(k))})}}
+ if(!roomOpen('bedroom')&&ok(118,0,70)){const why=whyNotClear('bedroom');L.push({x:118,y:fy(0)-100,ic:'stairs',bad:!!why,l:why?(why==='Not enough'?'Need '+lackTxt(ROOMS.bedroom.need.cost):why):'Fix stairs',fn:()=>why?roomPanel('bedroom'):work(h,100,clearTime('bedroom'),'hammer',()=>ACT.clear('bedroom'))})}
+ if(!roomOpen('loft')&&roomOpen('study')&&ok(680,1,70)){const why=whyNotClear('loft');L.push({x:680,y:fy(1)-100,ic:hasTool('loft')?'crowbar':'hand',bad:!!why,l:why||(hasTool('loft')?'Pry open':'Tear boards off ('+clearTime('loft')+'s)'),fn:()=>why?roomPanel('loft'):work(h,650,clearTime('loft'),hasTool('loft')?'crowbar':'hand',()=>ACT.clear('loft'))})}
  for(let f=0;f<3;f++)for(const wx of SWIN[f])if(ok(wx,f,40)&&roomOpen(roomAt(f,wx))){const u=f===0?'def':'insul',n=nextLv(u),why=whyNotUpg(u);if(n)L.push({x:wx,y:fy(f)-112,ic:n&&!why?'hammer':upIcon(u),bad:!!why,l:why?(why==='Not enough'?'Need '+lackTxt(n.cost):why):(f===0?'Board the door':'Seal window'),fn:()=>why?upgPanel(u):work(h,wx,4+2*S.up[u],'hammer',()=>ACT.upg(u))})}
  for(const p of (S.loose||[]))if(roomOpen(p.room)&&ok(p.x,p.f,44))L.push({x:p.x,y:fy(p.f)-46,ic:'hand',l:'Pick up',fn:()=>work(h,p.x,1.4,'hand',()=>pickPile(p),'crouch')});
  for(const p of alive()){const o=SH.people[p.id];if(!o||o===h)continue;if(ok(o.x,o.f,30))L.push({x:o.x,y:(o.y!=null?o.y:fy(o.f))-72,ic:'heart',l:p.name,fn:()=>survivorPanel(p.id)})}
@@ -1269,9 +1273,9 @@ const pips=(n,max)=>'<span class="pips">'+Array.from({length:max},(_,i)=>'<i'+(i
 function upgRow(id){const u=UPG[id],lv=S.up[id],n=nextLv(id),why=whyNotUpg(id),cur=u.lv[lv];
  return '<div class="ur'+(u.nec&&!lv?' nec':'')+'">'+ico(upIcon(id),38)+'<div class="col"><b>'+u.n+' '+pips(lv-(u.lv[0]===null?1:0),u.lv.length-1-(u.lv[0]===null?1:0))+'</b>'+
  (n?'<span class="cost">'+costHtml(n.cost)+whyIco(why)+'</span>':'')+'</div>'+(n?(why?'':'<button class="btn act" data-act="upg:'+id+'" aria-label="'+(lv?'Improve':'Build')+'">'+ico('hammer',34)+'</button>'):'<span class="okk done">✓</span>')+'</div>'}
-function roomRow(k){const r=ROOMS[k],why=whyNotClear(k),G=r.gate;
- const need=r.need.tool?'<span class="cost"><span'+(S.stock[r.need.tool]?'':' class="lack"')+'>'+ico(r.need.tool,18)+ITEMS[r.need.tool].n+(r.need.use?' (used up)':'')+'</span></span>':'<span class="cost">'+costHtml(r.need.cost)+'</span>';
- return '<div class="ur">'+ico({rubble:'rubble',stairs:'stairs',lock:'lock',boards:'boards',chain:'chain'}[G],38)+'<div class="col"><b>'+(r.b||r.n)+'</b>'+need.replace(ITEMS[r.need.tool||'wood'].n,'').replace(' (used up)','')+(why==='Reach it first'?whyIco(why):'')+'</div>'+(why?'':'<button class="btn act" data-act="clear:'+k+'" aria-label="Open">'+ico(r.need.tool||'hammer',34)+'</button>')+'</div>'}
+function roomRow(k){const r=ROOMS[k],why=whyNotClear(k),G=r.gate,ht=hasTool(k);
+ const need=r.need.tool?'<span class="cost"><span'+(ht?'':' class="lack"')+'>'+ico(r.need.tool,18)+(r.need.hand?'<small>'+(ht?r.need.fast:r.need.hand)+'s</small>':'')+'</span></span>':'<span class="cost">'+costHtml(r.need.cost)+'<small>'+(r.need.hand||6)+'s</small></span>';
+ return '<div class="ur">'+ico({rubble:'rubble',stairs:'stairs',lock:'lock',boards:'boards',chain:'chain'}[G],38)+'<div class="col"><b>'+(r.b||r.n)+'</b>'+need+(why==='Reach it first'?whyIco(why):'')+'</div>'+(why?'':'<button class="btn act" data-act="clear:'+k+'" aria-label="Open">'+ico(ht?r.need.tool:(r.need.tool?'hand':'hammer'),34)+'</button>')+'</div>'}
 ACT.house=()=>housePanel();
 function housePanel(){panel(()=>{const rooms=Object.keys(ROOMS).filter(k=>k!=='hall');
  box('<h2>'+ico('house',20)+' The house</h2><h3>Fix these first</h3>'+['filter','heater','lights'].map(upgRow).join('')+
@@ -1409,10 +1413,11 @@ function drawSpr(c,name,x,yb,o){const m=MAN&&MAN.props[name];if(!m||!SPR_OK)retu
 function drawPerson(c,x,y,o){
  const lk=o.look||'Marko',im=IMG[lk],fr=FRAME_IDX[lk];
  if(!SPR_OK||!im||!im.width||!fr)return _vecPerson(c,x,y,o);
- const t=o.t||0,s=(o.sc||1)*1.2;let f='idle';
- if(o.sit)f='sit';else if(o.work)f='work'+Math.floor(t*8.5)%6;else if(o.warm)f=(t*.9%1<.5)?'warm0':'warm1';
- else if(o.fidget){const k=(t*.5)%4;f=k<2.6?'idle':'fid'+Math.min(3,Math.floor((k-2.6)/.35))}else if(o.dance)f='dan'+Math.floor(t*2.6)%4;
- else if(o.moving){const ph=((o.walk||0)%(Math.PI*2)+Math.PI*2)%(Math.PI*2),k=ph/(Math.PI*2);f=o.crouch?'sneak'+Math.floor(k*10)%10:o.run?'run'+Math.floor(k*12)%12:'walk'+Math.floor(k*16)%16}
+ const t=o.t||0,s=(o.sc||1)*1.2;let f='idle',f2=null,mix=0;
+ const cyc=(pre,n,k)=>{const u=k*n,i=Math.floor(u)%n;f=pre+i;f2=pre+((i+1)%n);mix=u-Math.floor(u)};
+ if(o.sit)f='sit';else if(o.work)cyc('work',6,(t*8.5/6)%1);else if(o.warm)f=(t*.9%1<.5)?'warm0':'warm1';
+ else if(o.fidget){const k=(t*.5)%4;f=k<2.6?'idle':'fid'+Math.min(3,Math.floor((k-2.6)/.35))}else if(o.dance)cyc('dan',4,(t*2.6/4)%1);
+ else if(o.moving){const ph=((o.walk||0)%(Math.PI*2)+Math.PI*2)%(Math.PI*2),k=ph/(Math.PI*2);if(o.crouch)cyc('sneak',10,k);else if(o.run)cyc('run',12,k);else cyc('walk',16,k)}
  else if(o.crouch)f='crouch';
  if(fr[f]==null)f='idle';
  const cw=MAN.cw,fh=MAN.fh,w=cw*SPU*s,h=fh*SPU*s;
@@ -1422,7 +1427,9 @@ function drawPerson(c,x,y,o){
  if(o.lie){c.translate(26*s,-5*s);c.rotate(-Math.PI/2);c.scale(o.dir||1,1)}else c.scale(o.dir||1,1);
  // idle: slow breathing (tiny vertical stretch) and weight shift
  const still=!o.moving&&!o.sit&&!o.lie&&!o.work&&!o.dance;if(still){const br=Math.sin(t*1.9);c.translate(Math.sin(t*.37)*.35*s,0);c.scale(1,1+.007*br)}
- c.drawImage(im,fr[f]*cw,0,cw,fh,-w/2,4.5*s-h,w,h);c.restore()}
+ const drawF=(fi,a)=>{c.globalAlpha=a;c.drawImage(im,fr[fi]*cw,0,cw,fh,-w/2,4.5*s-h,w,h)};
+ if(o.lx!=null&&!o.lie){const side=Math.sign(o.lx-x)*(o.dir||1),ga0=c.globalAlpha;c.save();c.globalCompositeOperation='lighter';c.translate(side*1.6,-.6);c.filter='brightness(1.3) sepia(.6)';drawF(f,ga0*.09);c.restore();c.filter='none';c.globalAlpha=ga0}
+ if(f2&&fr[f2]!=null&&mix>.08&&mix<.92){const ga=c.globalAlpha;c.drawImage(im,fr[f]*cw,0,cw,fh,-w/2,4.5*s-h,w,h);c.globalAlpha=ga*mix;c.drawImage(im,fr[f2]*cw,0,cw,fh,-w/2,4.5*s-h,w,h);c.globalAlpha=ga}else c.drawImage(im,fr[f]*cw,0,cw,fh,-w/2,4.5*s-h,w,h);c.restore()}
 // ---- props in the night buildings ----
 const CABN={hosp:'medcab',mil:'locker',ind:'locker_steel',site:'locker_steel'},HIDEN={hosp:'curtain'};
 function cshadow(c,x,yb,w,a){const g=c.createRadialGradient(x,yb,1,x,yb,w);g.addColorStop(0,'rgba(0,0,0,'+(a||.45)+')');g.addColorStop(1,'rgba(0,0,0,0)');c.save();c.translate(x,yb);c.scale(1,.16);c.translate(-x,-yb);c.fillStyle=g;c.fillRect(x-w,yb-w,w*2,w*2);c.restore()}
