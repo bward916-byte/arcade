@@ -117,6 +117,8 @@ h3{font:400 12px var(--display);color:var(--dim);letter-spacing:.14em;text-trans
 .btn.lb{display:inline-flex;align-items:center;gap:8px;font:600 14px var(--body)} .btn.lb i{font-style:normal} .btn.grow{flex:1;justify-content:center} .tile.gr.on{border-color:var(--lamp)} .loc2 .row{flex-wrap:nowrap} .loc2 .row svg{width:10px;height:10px} .tile.gr b{color:var(--paper)}
 #modalBox{padding:12px} .ur{padding:6px 8px;gap:8px}
 .card{position:relative;margin:-12px -12px 0;overflow:hidden;border-bottom:1px solid var(--lamp)} .card .prev{display:block;width:100%;aspect-ratio:56/30;object-fit:cover} .cardt{position:absolute;left:0;right:0;bottom:0;padding:10px 14px;background:linear-gradient(transparent,rgba(8,10,13,.85));display:flex;align-items:flex-end;justify-content:space-between} .cardt b{font:400 22px var(--display);color:#f0e2c0;letter-spacing:.06em;text-shadow:0 2px 8px #000} .lvl{display:flex;gap:4px} .lvl i{width:14px;height:6px;background:rgba(255,255,255,.18);border-radius:2px} .lvl i.on{background:var(--lamp)}
+.card.nh{margin:0;border:1px solid var(--line);border-radius:4px} .card.nh .prev{aspect-ratio:56/20}
+.locs3{display:grid;grid-template-columns:repeat(3,1fr);gap:6px} @media(min-width:700px){.locs3{grid-template-columns:repeat(5,1fr)}} .loc3{position:relative;padding:0;border:2px solid var(--line);border-radius:4px;overflow:hidden;background:#000;cursor:pointer;aspect-ratio:16/9} .loc3>img{display:block;width:100%;height:100%;object-fit:cover;filter:saturate(.8)} .loc3 .lt img{width:11px;height:11px} .loc3 .lt{position:absolute;left:0;right:0;bottom:0;padding:4px 6px;background:linear-gradient(transparent,rgba(8,10,13,.9));display:flex;flex-direction:column;gap:2px;text-align:left} .loc3 .lt b{font:400 11px var(--display);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#f0e2c0;letter-spacing:.04em;text-shadow:0 1px 4px #000} .loc3 .lt span{display:flex;align-items:center;gap:2px;font-size:10px;color:var(--dim)} .loc3.on{border-color:var(--lamp);box-shadow:0 0 0 1px rgba(226,160,63,.5)} .loc3:disabled{opacity:.45;cursor:default} .loc3:disabled img{filter:grayscale(.8)}
 .urow{display:flex;align-items:center;gap:12px;padding:4px 2px} .urow .col{flex:1;gap:6px} .urow .cost{font-size:15px} .btn.act.big{padding:6px}
 .tname{position:absolute;left:0;right:0;top:9%;text-align:center;pointer-events:none;opacity:0;transition:opacity .4s} .tname b{display:block;font:400 clamp(34px,9vw,64px) var(--display);letter-spacing:.18em;color:#f0e2c0;text-shadow:0 2px 18px rgba(0,0,0,.9),0 0 40px rgba(226,160,63,.35)} .tname i{display:block;margin:10px auto 0;width:120px;height:1px;background:rgba(240,226,192,.5)}
 .tpad{justify-content:center;gap:10px} .tpad .btn.lb{min-width:0;padding:10px 16px}
@@ -136,8 +138,8 @@ const FH=120,fy=f=>-f*FH;
 function srand(s){s=s>>>0||1;return()=>{s=s+0x6D2B79F5|0;let t=Math.imul(s^s>>>15,1|s);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
 const hsh=n=>{const x=Math.sin(n*127.1+3.7)*43758.5453;return x-Math.floor(x)};
 
-const ITEMS={wood:{n:'Wood',w:2,v:1},parts:{n:'Parts',w:1,v:2},cloth:{n:'Cloth',w:1,v:1},raw:{n:'Raw food',w:1,v:2},can:{n:'Canned food',w:1,v:4},
- water:{n:'Clean water',w:1,v:2},dirty:{n:'Dirty water',w:1,v:1},fuel:{n:'Fuel',w:2,v:6},meal:{n:'Hot meal',w:1,v:5},meds:{n:'Medicine',w:1,v:6},bandage:{n:'Bandage',w:1,v:4},
+const ITEMS={wood:{n:'Wood',w:2,v:1},parts:{n:'Parts',w:1,v:2},cloth:{n:'Cloth',w:1,v:1},can:{n:'Canned food',w:1,v:4},
+ water:{n:'Water',w:1,v:2},fuel:{n:'Fuel',w:2,v:6},meal:{n:'Hot meal',w:1,v:5},meds:{n:'Medicine',w:1,v:6},bandage:{n:'Bandage',w:1,v:4},
  pick:{n:'Lockpick',w:.5,v:3},shovel:{n:'Shovel',w:2,v:6},crowbar:{n:'Crowbar',w:2,v:8},cutters:{n:'Bolt cutters',w:2,v:10},
  knife:{n:'Knife',w:1,v:6},pistol:{n:'Pistol',w:2,v:14},ammo:{n:'Ammo',w:.5,v:3},smokes:{n:'Cigarettes',w:.5,v:3}};
 const TOOLS=['shovel','crowbar','cutters'];
@@ -150,50 +152,51 @@ const RECIPES=[
  {id:'pick',lv:1,cost:{parts:2},note:'opens one lock, then breaks'},
  {id:'bandage',lv:1,cost:{cloth:2},note:'treats a wound'},
  {id:'shovel',lv:1,cost:{wood:2,parts:2},note:'digs through rubble'},
- {id:'meal',lv:0,cost:{raw:1,water:1,wood:1},need:'stove',note:'needs the stove'},
- {id:'boil',give:'water',n:2,lv:0,cost:{dirty:2,wood:1},need:'stove',note:'boil 2 dirty water clean'},
+ {id:'meal',lv:0,cost:{can:1,wood:1},need:'stove',note:'a hot meal from a can'},
  {id:'knife',lv:2,cost:{parts:3,wood:1},note:'silent takedowns'},
  {id:'crowbar',lv:2,cost:{parts:5},note:'pries boards, forces locks'},
- {id:'cutters',lv:3,cost:{parts:7,wood:1},note:'cuts chains and fences'},
  {id:'ammo',lv:3,cost:{parts:2},note:'one pistol round'}];
 const ROOMS={
  hall:{n:'Hall'},
- kitchen:{n:'Kitchen',b:'Rubble',req:'hall',gate:'rubble',need:{tool:'shovel',hand:45,fast:6},stash:{can:2,wood:3,raw:1},msg:'The kitchen is clear. Someone left supplies under the sink.'},
+ kitchen:{n:'Kitchen',b:'Rubble',req:'hall',gate:'rubble',need:{tool:'shovel',hand:45,fast:6},stash:{can:2,wood:3},msg:'The kitchen is clear. Someone left supplies under the sink.'},
  bedroom:{n:'Bedroom',b:'Stairs',req:'hall',gate:'stairs',need:{cost:{wood:2},hand:14,fast:14},stash:{cloth:2,bandage:1},msg:'The stairs hold. Upstairs: a bedroom and an old first-aid tin.'},
  study:{n:'Study',b:'Locked door',req:'bedroom',gate:'lock',need:{tool:'pick',use:true,alt:'crowbar',hand:40,fast:5},stash:{meds:1,parts:3,pick:1},msg:'The study lock gives. Medicine in the desk drawer.'},
  loft:{n:'Loft',b:'Boarded hatch',req:'study',gate:'boards',need:{tool:'crowbar',hand:35,fast:6},stash:{wood:3,cloth:2,fuel:1},msg:'You pry open the attic hatch. Dry wood, blankets and a can of fuel.'},
  garage:{n:'Garage',b:'Boarded door',req:'kitchen',gate:'boards',need:{tool:'crowbar',hand:35,fast:6},stash:{parts:4,fuel:1,wood:2},msg:'The garage door comes off its runners. A dead car, a workbench, and a jerry can.'},
- yard:{n:'Yard',b:'Chained gate',req:'garage',gate:'chain',need:{tool:'cutters'},stash:{wood:4,dirty:4},msg:'The yard gate swings open. An old well, a woodpile, and room to grow things.'},
- roof:{n:'Rooftop',b:'Chained hatch',req:'loft',gate:'chain',need:{tool:'cutters'},stash:{dirty:3,smokes:2},msg:'The rooftop door swings free. Rain barrels, half full.'}};
+ yard:{n:'Yard',b:'Chained gate',req:'garage',gate:'chain',need:{tool:'cutters'},stash:{wood:4,water:4},msg:'The yard gate swings open. An old well, a woodpile, and room to grow things.'},
+ roof:{n:'Rooftop',b:'Chained hatch',req:'loft',gate:'chain',need:{tool:'cutters'},stash:{water:3,smokes:2},msg:'The rooftop door swings free. Rain barrels, half full.'}};
 const UPG={
- filter:{n:'Water filter',room:'hall',nec:1,lv:[{d:'Broken. Dirty water makes people sick.'},{cost:{parts:2,cloth:1},d:'Tap it to turn 2 dirty water clean'},{cost:{parts:4,cloth:2,wood:1},d:'Tap it to turn 4 dirty water clean'}]},
  heater:{n:'Heater',room:'hall',nec:1,lv:[{d:'Nothing. The house is as cold as outside.'},{cost:{parts:3,wood:2},d:'Barrel stove: burns 2 wood a night, +8°'},{cost:{parts:6},d:'Iron heater: burns 1 wood a night, +13°'}]},
  lights:{n:'Light & power',room:'hall',nec:1,lv:[{d:'One candle. Too dark for real work.'},{cost:{parts:2,cloth:2},d:'Oil lamps: light to work by (workbench level 2)'},{cost:{parts:8,wood:2},d:'Generator: power for tools and radio, uses 1 fuel a day'}]},
  insul:{n:'Insulation',room:'hall',lv:[{d:'Drafty, broken windows'},{cost:{cloth:3,wood:1},d:'Plastic over the windows, +4°'},{cost:{wood:4,parts:2},d:'Patch the walls, +4°'}]},
  def:{n:'Defenses',room:'hall',lv:[{d:'A flimsy front door'},{cost:{wood:4,parts:1},d:'Board the lower windows'},{cost:{wood:3,parts:4},d:'Brace the front door'},{cost:{parts:8,wood:2},d:'Steel shutters'}]},
  bench:{n:'Workbench',room:'hall',lv:[{d:'No workbench yet'},{cost:{parts:6,wood:4},day:6,d:'Lockpicks, bandages, shovels'},{cost:{parts:6,wood:3},need:1,day:10,d:'Knives and crowbars (needs lamps)'},{cost:{parts:8,wood:4,cloth:2},need:2,day:14,d:'Bolt cutters and ammo (needs power)'}]},
- stove:{n:'Cooking stove',room:'kitchen',lv:[{d:'Cold hearth'},{cost:{parts:4,wood:3},d:'Cook meals, boil dirty water'}]},
+ stove:{n:'Cooking stove',room:'kitchen',lv:[{d:'Cold hearth'},{cost:{parts:4,wood:3},d:'Turns a can into a hot meal'}]},
  bed1:{n:'Bed',room:'bedroom',lv:[{d:'Sleeping on the floor'},{cost:{wood:4,cloth:3},d:'One sleeper rests well'}]},
  bed2:{n:'Bed',room:'bedroom',lv:[{d:'Sleeping on the floor'},{cost:{wood:4,cloth:3},d:'One sleeper rests well'}]},
  radio:{n:'Radio',room:'study',lv:[{d:'No radio'},{cost:{parts:4,cloth:1},d:'Warns of raids (needs power)'}]},
  bed3:{n:'Bed',room:'loft',lv:[{d:'Sleeping on the floor'},{cost:{wood:4,cloth:3},d:'One sleeper rests well'}]},
  bed4:{n:'Bed',room:'loft',lv:[{d:'Sleeping on the floor'},{cost:{wood:4,cloth:3},d:'One sleeper rests well'}]},
- rain:{n:'Rain collector',room:'roof',lv:[{d:'Nothing'},{cost:{parts:3,cloth:2,wood:1},d:'+2 dirty water each morning'},{cost:{parts:3,cloth:2},d:'+4 dirty water each morning'}]},
- well:{n:'Well',room:'yard',lv:[{d:'Dry and fouled'},{cost:{parts:3,wood:2},d:'+3 dirty water each morning'},{cost:{parts:4,cloth:2},d:'+5 dirty water each morning'}]},
- woodpile:{n:'Woodpile',room:'yard',lv:[{d:'Nothing'},{cost:{parts:2},d:'Axe and block: +1 wood each morning'},{cost:{parts:4,wood:2},d:'Saw bench: +2 wood each morning'}]},
- garden:{n:'Planter',room:'roof',lv:[{d:'Nothing'},{cost:{wood:3,dirty:2,cloth:1},d:'+1 raw food each morning'},{cost:{wood:2,dirty:2,parts:2},d:'+2 raw food each morning'}]}};
+ rain:{n:'Rain collector',room:'roof',lv:[{d:'Nothing'},{cost:{parts:3,cloth:2,wood:1},d:'+2 water each morning'},{cost:{parts:3,cloth:2},d:'+4 water each morning'}]},
+ well:{n:'Well',room:'yard',lv:[{d:'Dry and fouled'},{cost:{parts:3,wood:2},d:'+3 water each morning'},{cost:{parts:4,cloth:2},d:'+5 water each morning'}]},
+ woodpile:{n:'Woodpile',room:'yard',lv:[{d:'Nothing'},{cost:{parts:2},d:'Axe and block: +1 wood each morning'},{cost:{parts:4,wood:2},d:'Saw bench: +2 wood each morning'}]}};
 const TRAITS={none:'',quiet:'Quiet feet',strong:'Strong back',medic:'Medic',fast:'Fast runner',cook:'Cook',guard:'Light sleeper'};
 const NPCS=[{name:'Mira',trait:'quiet',bio:'A former pickpocket who moves without a sound.'},{name:'Tomas',trait:'strong',bio:'A dock worker who can carry more than anyone.'},{name:'Ines',trait:'medic',bio:'A nurse. Her treatment works twice as well.'},{name:'Dov',trait:'fast',bio:'A courier who outruns most trouble.'},{name:'Lena',trait:'cook',bio:'She ran a canteen and cooks without firewood.'},{name:'Pavel',trait:'guard',bio:'A night watchman who counts double on guard.'}];
 const LOCS=[
- {id:'row',n:'Shelled Row House',day:1,danger:0,theme:'home',w:1100,floors:2,stairs:[{x:820,jam:'rubble'}],gates:[[],[{x:480,k:'lock'}]],crates:7,cabs:3,hides:1,guards:[],loot:'home'},
+ {id:'row',n:'Row House',day:1,danger:0,theme:'home',w:1100,floors:2,stairs:[{x:820,jam:'rubble'}],gates:[[],[{x:480,k:'lock'}]],crates:7,cabs:3,hides:1,guards:[],loot:'home'},
  {id:'grocer',n:'Corner Grocery',day:1,danger:1,theme:'shop',w:1300,floors:2,stairs:[{x:420}],gates:[[{x:860,k:'boards'}],[{x:860,k:'lock'}]],crates:8,cabs:4,hides:2,guards:['looter'],loot:'food'},
- {id:'flats',n:'Apartment Block',day:3,danger:1,theme:'home',w:1500,floors:3,stairs:[{x:300},{x:1250}],gates:[[{x:700,k:'lock'}],[{x:620,k:'lock'},{x:1000,k:'lock'}],[{x:760,k:'boards'}]],crates:9,cabs:7,hides:3,guards:['looter'],loot:'home'},
- {id:'hosp',n:'St. Agnes Hospital',day:5,danger:2,theme:'hosp',w:1700,floors:3,stairs:[{x:520},{x:1400,jam:'rubble'}],gates:[[{x:1000,k:'lock'}],[{x:260,k:'boards'}],[{x:820,k:'lock'}]],crates:8,cabs:7,hides:4,guards:['soldier','soldier'],loot:'med'},
+ {id:'flats',n:'Apartments',day:3,danger:1,theme:'home',w:1500,floors:3,stairs:[{x:300},{x:1250}],gates:[[{x:700,k:'lock'}],[{x:620,k:'lock'},{x:1000,k:'lock'}],[{x:760,k:'boards'}]],crates:9,cabs:7,hides:3,guards:['looter'],loot:'home'},
+ {id:'hosp',n:'Hospital',day:5,danger:2,theme:'hosp',w:1700,floors:3,stairs:[{x:520},{x:1400,jam:'rubble'}],gates:[[{x:1000,k:'lock'}],[{x:260,k:'boards'}],[{x:820,k:'lock'}]],crates:8,cabs:7,hides:4,guards:['soldier','soldier'],loot:'med'},
  {id:'depot',n:'Rail Depot',day:6,danger:2,theme:'ind',entry:'cutters',w:2000,floors:2,stairs:[{x:420}],gates:[[{x:760,k:'chain'},{x:1450,k:'lock'}],[{x:1050,k:'boards'}]],crates:13,cabs:5,hides:5,guards:['looter','soldier','soldier'],loot:'parts'},
- {id:'site',n:'Construction Site',day:8,danger:3,theme:'site',w:2600,floors:4,stairs:[{x:700},{x:1900,jam:'rubble'},{x:1100}],gates:[[{x:1250,k:'chain'},{x:2000,k:'boards'}],[{x:600,k:'lock'},{x:1700,k:'rubble'}],[{x:900,k:'boards'}],[{x:1500,k:'chain'}]],crates:16,cabs:6,hides:6,guards:['soldier','soldier','looter','soldier'],loot:'site'},
- {id:'post',n:'Army Checkpoint',day:10,danger:3,theme:'mil',w:1900,floors:3,stairs:[{x:520},{x:300,jam:'rubble'}],gates:[[{x:950,k:'chain'}],[{x:1150,k:'lock'}],[{x:1000,k:'boards'}]],crates:10,cabs:8,hides:5,guards:['soldier','soldier','soldier','soldier'],loot:'army'}];
-const LOOT={home:['wood','wood','cloth','cloth','parts','raw','dirty','smokes'],food:['raw','raw','can','dirty','water','wood','smokes'],med:['cloth','bandage','meds','water','parts','cloth'],parts:['parts','parts','wood','wood','cloth','fuel'],army:['can','can','ammo','parts','bandage','water','fuel'],site:['parts','parts','wood','wood','wood','cloth','fuel','dirty']};
-const RICH={home:['can','meds','pick','pick','smokes','parts','shovel','water'],food:['can','can','can','smokes','meds','pick','water'],med:['meds','meds','bandage','bandage','can','pick'],parts:['parts','parts','fuel','fuel','crowbar','cutters','pick','knife'],army:['pistol','ammo','ammo','can','meds','knife','cutters','fuel'],site:['parts','parts','fuel','fuel','cutters','crowbar','shovel','can','pick']};
+ {id:'site',n:'Building Site',day:8,danger:3,theme:'site',w:2600,floors:4,stairs:[{x:700},{x:1900,jam:'rubble'},{x:1100}],gates:[[{x:1250,k:'chain'},{x:2000,k:'boards'}],[{x:600,k:'lock'},{x:1700,k:'rubble'}],[{x:900,k:'boards'}],[{x:1500,k:'chain'}]],crates:16,cabs:6,hides:6,guards:['soldier','soldier','looter','soldier'],loot:'site'},
+ {id:'school',n:'Primary School',day:4,danger:1,theme:'hosp',w:1600,floors:2,stairs:[{x:380},{x:1300}],gates:[[{x:900,k:'boards'}],[{x:700,k:'lock'}]],crates:9,cabs:5,hides:3,guards:['looter'],loot:'school'},
+ {id:'bus',n:'Bus Garage',day:7,danger:2,theme:'ind',w:2200,floors:1,stairs:[],gates:[[{x:700,k:'boards'},{x:1500,k:'chain'}]],crates:12,cabs:4,hides:5,guards:['looter','soldier'],loot:'parts'},
+ {id:'air',n:'Airport',day:12,danger:3,theme:'shop',w:3000,floors:2,stairs:[{x:600},{x:2400}],gates:[[{x:1200,k:'lock'},{x:2000,k:'chain'}],[{x:1500,k:'boards'}]],crates:18,cabs:9,hides:6,guards:['soldier','soldier','looter','soldier'],loot:'air'},
+ {id:'grave',n:'Cemetery',day:5,danger:1,theme:'home',w:2000,floors:1,bld:[1360,1900],trees:[260,760,1140],graves:[180,330,470,600,880,1010],stairs:[],gates:[[{x:1372,k:'lock'}]],crates:3,cabs:3,hides:2,guards:['looter'],loot:'grave',fixed:{cutters:1}},
+ {id:'post',n:'Checkpoint',day:10,danger:3,theme:'mil',w:1900,floors:3,stairs:[{x:520},{x:300,jam:'rubble'}],gates:[[{x:950,k:'chain'}],[{x:1150,k:'lock'}],[{x:1000,k:'boards'}]],crates:10,cabs:8,hides:5,guards:['soldier','soldier','soldier','soldier'],loot:'army'}];
+LOCS.sort((a,b)=>a.day-b.day);
+const LOOT={home:['wood','wood','cloth','cloth','parts','can','water','smokes'],food:['can','can','can','water','water','smokes','wood'],med:['cloth','bandage','meds','water','parts','bandage'],parts:['parts','parts','wood','wood','cloth','fuel'],army:['can','can','ammo','parts','bandage','water','fuel'],site:['parts','parts','wood','wood','wood','cloth','fuel','water'],school:['can','cloth','bandage','parts','smokes','water','wood'],grave:['cloth','parts','smokes','can','wood','meds'],air:['can','can','water','meds','fuel','parts','smokes','bandage']};
+const RICH={home:['can','meds','pick','pick','smokes','parts','shovel','water'],food:['can','can','can','smokes','meds','pick','water'],med:['meds','meds','bandage','bandage','can','pick'],parts:['parts','parts','fuel','fuel','crowbar','pick','knife'],army:['pistol','ammo','ammo','can','meds','knife','fuel'],site:['parts','parts','fuel','fuel','crowbar','shovel','can','pick'],school:['can','can','meds','bandage','pick','knife','smokes'],grave:['meds','pick','knife','smokes','parts','can'],air:['can','meds','meds','pistol','ammo','fuel','pick','smokes']};
 
 // ---------- state ----------
 let S=null,N=null,DEMO=false;
@@ -214,8 +217,8 @@ const indoor=()=>S.out+6+4*S.up.insul+(heatOn()?[0,8,13][S.up.heater]:0);
 const tempWord=t=>t>=10?'Warm enough':t>=3?'Cold':'Freezing';
 function newGame(){
  const pool=NPCS.slice().sort(()=>Math.random()-.5);
- S={day:1,phase:'day',endDay:RI(24,28),clock:0,stock:{wood:2,parts:1,can:1,water:2,dirty:1},loose:[{room:'hall',f:0,x:246,items:{cloth:1,wood:2},kind:'boxes'},{room:'hall',f:0,x:60,items:{dirty:2},kind:'sacks'},{room:'kitchen',f:0,x:470,items:{can:2,raw:1},kind:'boxes'},{room:'kitchen',f:0,x:640,items:{shovel:1,wood:2},kind:'sacks'},{room:'bedroom',f:1,x:300,items:{cloth:2,bandage:1},kind:'boxes'},{room:'bedroom',f:1,x:180,items:{parts:2},kind:'sacks'},{room:'study',f:1,x:520,items:{meds:1,parts:3,pick:1},kind:'boxes'},{room:'study',f:1,x:700,items:{smokes:2},kind:'sacks'},{room:'loft',f:2,x:520,items:{wood:3,cloth:2},kind:'boxes'},{room:'loft',f:2,x:700,items:{fuel:1,parts:2},kind:'sacks'},{room:'garage',f:0,x:820,items:{parts:4,fuel:1},kind:'boxes'},{room:'garage',f:0,x:1010,items:{wood:2,crowbar:1},kind:'sacks'},{room:'yard',f:0,x:1120,items:{wood:4},kind:'boxes'},{room:'yard',f:0,x:1300,items:{dirty:4},kind:'sacks'},{room:'roof',f:2,x:200,items:{dirty:3,smokes:2},kind:'sacks'}],
-  up:{filter:0,heater:0,lights:0,insul:0,def:0,bench:0,stove:0,bed1:0,bed2:0,radio:0,bed3:0,bed4:0,rain:0,garden:0,well:0,woodpile:0},
+ S={day:1,phase:'day',endDay:RI(24,28),clock:0,stock:{wood:2,parts:1,can:1,water:2},loose:[{room:'hall',f:0,x:246,items:{cloth:1,wood:2},kind:'boxes'},{room:'hall',f:0,x:60,items:{water:2},kind:'sacks'},{room:'kitchen',f:0,x:470,items:{can:2},kind:'boxes'},{room:'kitchen',f:0,x:640,items:{shovel:1,wood:2},kind:'sacks'},{room:'bedroom',f:1,x:300,items:{cloth:2,bandage:1},kind:'boxes'},{room:'bedroom',f:1,x:180,items:{parts:2},kind:'sacks'},{room:'study',f:1,x:520,items:{meds:1,parts:3,pick:1},kind:'boxes'},{room:'study',f:1,x:700,items:{smokes:2},kind:'sacks'},{room:'loft',f:2,x:520,items:{wood:3,cloth:2},kind:'boxes'},{room:'loft',f:2,x:700,items:{fuel:1,parts:2},kind:'sacks'},{room:'garage',f:0,x:820,items:{parts:4,fuel:1},kind:'boxes'},{room:'garage',f:0,x:1010,items:{wood:2,crowbar:1},kind:'sacks'},{room:'yard',f:0,x:1120,items:{wood:4},kind:'boxes'},{room:'yard',f:0,x:1300,items:{water:4},kind:'sacks'},{room:'roof',f:2,x:200,items:{water:3,smokes:2},kind:'sacks'}],
+  up:{heater:0,lights:0,insul:0,def:0,bench:0,stove:0,bed1:0,bed2:0,radio:0,bed3:0,bed4:0,rain:0,well:0,woodpile:0},
   rooms:{hall:true},people:[mk('Marko','none')],pool,log:[],locs:{},plan:{},gear:{},loc:'row',gift:0,raid:false,out:outTemp(1),heat:true,power:false};
  log('The shelling drove you into this house. No water, no heat, no power. Fix what you can and hold on until the ceasefire.');
 }
@@ -226,7 +229,7 @@ function wipe(){try{localStorage.removeItem(SAVE)}catch(e){}}
 // ===== sim: day actions, night resolution, events =====
 const ACT={};
 const person=id=>S.people.find(p=>p.id===id);
-ACT.eat=(id,k)=>{const p=person(id);if(!S.stock[k])return;add(k,-1);p.fed=Math.min(100,p.fed+{meal:60,can:40,raw:25}[k]);fxAt('p:'+id,'icon',k);render()};
+ACT.eat=(id,k)=>{const p=person(id);if(!S.stock[k])return;add(k,-1);p.fed=Math.min(100,p.fed+{meal:60,can:40}[k]);fxAt('p:'+id,'icon',k);render()};
 ACT.heal=(id,k)=>{const p=person(id);if(!S.stock[k])return;add(k,-1);if(k==='bandage')p.wounded=false;else p.sick=false;p.hp=Math.min(100,p.hp+(has('medic')?20:10));fxAt('p:'+id,'icon',k);render()};
 const recipeCost=r=>{const c=Object.assign({},r.cost);if((r.id==='meal'||r.id==='boil')&&has('cook'))delete c.wood;return c};
 function benchLv(){return Math.min(S.up.bench,1+Math.min(lightLv(),2))}
@@ -260,7 +263,7 @@ ACT.back=()=>{S.phase='day';render()};
 ACT.role=(id,r)=>{if(r==='scav')for(const k in S.plan)if(S.plan[k]==='scav')S.plan[k]='sleep';S.plan[id]=r;S.gear={};render()};
 ACT.loc=id=>{S.loc=id;render()};
 const scavPerson=()=>alive().find(p=>S.plan[p.id]==='scav');
-const capOf=p=>p.trait==='strong'?16:12;
+const CAPS={Marko:12,Tomas:18,Mira:9,Ines:11,Dov:10,Lena:13,Pavel:14};const capOf=p=>CAPS[p.name]||12;
 const weight=pk=>Object.keys(pk).reduce((s,k)=>s+pk[k]*ITEMS[k].w,0);
 ACT.gear=(k,d)=>{const n=(S.gear[k]||0)+ +d;if(n<0||n>(S.stock[k]||0))return;S.gear[k]=n;if(weight(S.gear)>capOf(scavPerson()))S.gear[k]=n-1;render()};
 function whyNotGo(){const p=scavPerson();if(!p)return '';const L=LOCS.find(l=>l.id===S.loc);if(S.day<L.day)return 'Too far for now';if(L.entry&&!S.gear[L.entry])return 'Pack '+ITEMS[L.entry].n.toLowerCase()+' for the fence';return ''}
@@ -290,13 +293,11 @@ function afterNight(lines){
  S.day++;if(UPG.bench.lv[1].day===S.day&&!S.up.bench){lines.push('Marko cleared a corner of the hall. With some parts and wood it could be a workbench.');S.loose=S.loose||[]}
  const am=[];
  if(S.up.lights>=2){if(S.stock.fuel>0){add('fuel',-1);S.power=true}else{if(S.power)am.push('The generator ran dry.');S.power=false}}
- const rw=[0,2,4][S.up.rain]+[0,3,5][S.up.well||0],gf=[0,1,2][S.up.garden],wd=[0,1,2][S.up.woodpile||0];if(rw)add('dirty',rw);if(gf)add('raw',gf);if(wd)add('wood',wd);
- const fl=Math.min(S.stock.dirty||0,[0,2,4][S.up.filter]);if(fl){add('dirty',-fl);add('water',fl)}
- if(rw||fl)am.push((rw?'The barrels caught '+rw+' water. ':'')+(fl?'The filter cleaned '+fl+'.':''));
+ const rw=[0,2,4][S.up.rain]+[0,3,5][S.up.well||0],wd=[0,1,2][S.up.woodpile||0];if(rw)add('water',rw);if(wd)add('wood',wd);
+ if(rw)am.push('The barrels caught '+rw+' water.');
  for(const p of alive()){
   p.fed=Math.max(0,p.fed-26);
   if(S.stock.water>0)add('water',-1);
-  else if(S.stock.dirty>0){add('dirty',-1);if(!p.sick&&chance(.4)){p.sick=true;lines.push(p.name+' drank dirty water and fell sick.')}}
   else{p.hp-=12;lines.push(p.name+' had nothing to drink.')}
   if(p.fed<=0){p.hp-=22;lines.push(p.name+' is starving.')}else if(p.fed<20){p.hp-=10;lines.push(p.name+' is very hungry.')}
   if(p.wounded)p.hp-=8;if(p.sick)p.hp-=7;if(p.rest<15)p.hp-=5;
@@ -321,10 +322,10 @@ const EVENTS=[
  {k:'boy',w:2,can:()=>!S.gift,make(){return{t:'A boy from across the yard asks for food for his mother. He has nothing to trade.',o:[['Give a can',()=>{add('can',-1);S.gift=S.day+2;return 'He holds it with both hands and runs.'},S.stock.can>0],['Give raw food',()=>{add('raw',-1);S.gift=S.day+2;return 'He thanks you and runs.'},S.stock.raw>0],['Say no',()=>'He leaves without a word.']]}}},
  {k:'shell',w:2,can:()=>S.day>3,make(){return{t:'Shells walk down the street at noon. The whole house shakes.',o:[['Take cover',()=>{shake(1);if(chance([.65,.5,.35,.2][S.up.def])){const v=pick(alive());v.wounded=true;v.hp-=18;return 'Glass and plaster come down. '+v.name+' is wounded.'}return 'Dust falls from the ceiling. Everyone is unhurt.'}]]}}},
  {k:'cold',w:2,can:()=>S.day>2,make(){return{t:'The radio crackles about a cold front. Tonight will be brutal.',o:[['Brace for it',()=>{S.out-=7;return 'Tonight: '+S.out+'° outside, '+indoor()+'° in the house'+(S.up.heater?' with the heater lit.':'. You have no heater.')}]]}}},
- {k:'rats',w:1,can:()=>S.stock.raw>1,make(){return{t:'Rats got into the stores overnight.',o:[['Salvage what is left',()=>{const n=Math.ceil(S.stock.raw/2);add('raw',-n);return n+' raw food is ruined.'}]]}}},
+ {k:'rats',w:1,can:()=>S.stock.can>2,make(){return{t:'Rats got into the stores overnight and chewed through the labels.',o:[['Salvage what is left',()=>{add('can',-1);return 'One can is lost.'}]]}}},
  {k:'sick',w:1,can:()=>S.day>4,make(){const v=pick(alive());return{t:v.name+' has been coughing since morning.',o:[['Let them rest',()=>{v.sick=true;return v.name+' is sick. Medicine would help.'}]]}}},
  {k:'door',w:1,can:()=>S.day>5,make(){return{t:'A deserter begs to hide in your house until dark. Patrols are looking for him.',o:[['Hide him',()=>{if(chance(.3)){const n=Math.min(2,S.stock.can||0);add('can',-n);return 'A patrol searches the house. They miss him, but take '+n+' cans.'}add('pistol');add('ammo',2);return 'At dusk he leaves his pistol and two rounds on the table and slips out.'}],['Refuse',()=>'He curses you and limps away.']]}}},
- {k:'main',w:2,can:()=>true,make(){return{t:'A shell cracked the water main up the street. Neighbours are filling buckets.',o:[['Fill buckets',()=>{add('dirty',4);return 'You haul back 4 dirty water. It needs filtering or boiling.'}]]}}},
+ {k:'main',w:2,can:()=>true,make(){return{t:'A shell cracked the water main up the street. Neighbours are filling buckets.',o:[['Fill buckets',()=>{add('water',3);return 'You haul back 3 water.'}]]}}},
  {k:'find',w:2,can:()=>true,make(){const k=pick(['wood','cloth','parts']);return{t:'Searching the yard at first light turns up something useful.',o:[['Bring it in',()=>{add(k,3);return 'You gain 3 '+ITEMS[k].n.toLowerCase()+'.'}]]}}}];
 function rollEvent(){
  if(S.gift&&S.day>=S.gift){S.gift=0;return{k:'boy',t:'The boy from across the yard is back, dragging a sack.',o:[['Open it',()=>{add('can',3);add('wood',2);return 'His mother sent 3 cans and 2 wood. "For the food," he says.'}]]}}
@@ -733,15 +734,23 @@ function buildLayer(B){
  for(const [a,b] of [[-40,-18],[W+18,W+40]]){c.fillStyle='rgba(225,230,236,.9)';c.beginPath();c.moveTo(a,14);c.quadraticCurveTo((a+b)/2,-10,b,14);c.closePath();c.fill()}
  if(B.exit){c.save();c.globalCompositeOperation='destination-out';c.fillRect(-19,-86,20,86);c.restore();rr(c,-20,-90,22,4,'#3a2a1c')}
  roof(c,B,yTop,r,isOpen);
+ if(B.bld)outdoors(c,B,r,x0,top,bot);
  c.setTransform(1,0,0,1,0,0);c.globalCompositeOperation='source-atop';c.globalAlpha=.06;c.fillStyle=grainPat(c);c.fillRect(0,0,e.width,e.height);c.globalAlpha=1;c.globalCompositeOperation='source-over';
  LAYERS[B.key]=out;return out}
+// a small building standing in open ground: wipe the layer outside it, then dress the grounds
+function outdoors(c,B,r,x0,top,bot){const [a,b]=B.bld,W=B.w;c.save();c.globalCompositeOperation='destination-out';c.fillRect(x0-10,top,a-18-(x0-10),bot-top);c.fillRect(b+18,top,W+100-b,bot-top);c.restore();
+ for(const [p,q] of [[a-18,a],[b,b+18]]){texFill(c,'tex_brick',p,-FH*B.floors,18,FH*B.floors+14,.4)||rr(c,p,-FH*B.floors,18,FH*B.floors+14,'#6e4636');c.fillStyle='rgba(0,0,0,.35)';c.fillRect(p,-FH*B.floors,18,FH*B.floors+14)}
+ // iron railings, bare trees, headstones
+ for(let x=20;x<W;x+=116){if(x>a-80&&x<b+60)continue;drawSpr(c,'fence',x,-6,{sc:.8,alpha:.7})}
+ for(const t of (B.trees||[])){c.strokeStyle='#15110e';c.lineWidth=7;c.beginPath();c.moveTo(t,0);c.lineTo(t+4,-70);c.lineTo(t+2,-120);c.stroke();c.lineWidth=3;for(let i=0;i<5;i++){c.beginPath();c.moveTo(t+3,-50-i*14);c.lineTo(t+3+(i%2?1:-1)*(26+r()*18),-74-i*16-r()*14);c.stroke()}}
+ for(const g of (B.graves||[])){const k=hsh(g*.37);c.fillStyle='#2a2d33';if(k<.5){rr(c,g-11,-34,22,34,'#4a4e55',5);rr(c,g-13,-3,26,4,'#3a3d43')}else{rr(c,g-3,-40,6,40,'#4a4e55');rr(c,g-12,-30,24,6,'#4a4e55');rr(c,g-14,-3,28,4,'#3a3d43')}c.fillStyle='rgba(0,0,0,.25)';c.fillRect(g-11,-34,4,31);c.fillStyle='rgba(110,130,90,.4)';c.fillRect(g-8,-14,6,8)}}
 function openRoom(c,a,b,yc,yb,r){c.save();for(let x=a;x<b;x+=13){const h=18+hsh(x*.7)*30;texFill(c,'tex_brick',x,yb-h,Math.min(b,x+13)-x,h,.4)||bricks(c,x,yb-h,Math.min(b,x+13),yb,'#6e4636')}
  c.fillStyle='rgba(0,0,0,.3)';c.fillRect(a,yb-8,b-a,8);c.restore()}
 function roof(c,B,yTop,r,isOpen){const W=B.w;
  if(B.theme==='site'){rr(c,-20,yTop-10,W+40,10,'#4a443d');for(let x=40;x<W;x+=180){ln(c,[x,yTop-10,x,yTop-120],'#3a3a3a',3);ln(c,[x-20,yTop-120,x+20,yTop-120],'#3a3a3a',2)}
   const cx_=W*.62;ln(c,[cx_,yTop-10,cx_,yTop-420],'#5a4a28',6);for(let y=yTop-30;y>yTop-410;y-=28)ln(c,[cx_-10,y,cx_+10,y-28],'#5a4a28',1.5);ln(c,[cx_-260,yTop-400,cx_+140,yTop-400],'#5a4a28',5);ln(c,[cx_-260,yTop-400,cx_-250,yTop-370],'#5a4a28',2);ln(c,[cx_-120,yTop-400,cx_-120,yTop-260],'#2a2a2a',1);rr(c,cx_-128,yTop-262,16,10,'#8a4a38');ln(c,[cx_+140,yTop-400,cx_,yTop-440,cx_-260,yTop-400],'#5a4a28',1.5);return}
  if(B.theme==='home'||B.theme==='hosp'||B.theme==='shelter'){
-  const segs=B.theme==='shelter'?[[B.roofX0||0,B.roofX1||W]]:[[0,W]];
+  const segs=[[B.roofX0||0,B.roofX1||W]];
   for(const [a,b] of segs){const pk=Math.min(110,(b-a)*.32),mx=(a+b)/2;
    c.save();c.beginPath();c.moveTo(a-24,yTop+2);c.lineTo(mx,yTop-pk);c.lineTo(b+24,yTop+2);c.closePath();c.clip();
    rr(c,a-24,yTop-pk,b-a+48,pk+4,'#4a2f28');texFill(c,'tex_shingle',a-24,yTop-pk,b-a+48,pk+4,.5);c.fillStyle='rgba(0,0,0,.25)';for(let y=yTop-pk;y<yTop;y+=7)for(let x=a-24+((y/7)%2?5:0);x<b+24;x+=10)c.fillRect(x,y,9,1.5);
@@ -888,18 +897,20 @@ function genLoc(L){
  const between=(f,a,b)=>L.gates[f].filter(g=>g.x>Math.min(a,b)&&g.x<Math.max(a,b)).length;
  const fd=[0];L.stairs.forEach((s,i)=>fd[i+1]=fd[i]+between(i,entry[i],s.x-34)+(s.jam?1:0));
  const depth=(f,x)=>fd[f]+between(f,entry[f],x);
- let slots=[];for(let f=0;f<L.floors;f++)for(let x=130;x<L.w-70;x+=76){const xx=x+RI(-8,8);
+ let slots=[];const sx0=L.bld?L.bld[0]+60:130,sx1=L.bld?L.bld[1]-40:L.w-70;for(let f=0;f<L.floors;f++)for(let x=sx0;x<sx1;x+=76){const xx=x+RI(-8,8);
   if(L.gates[f].some(g=>Math.abs(g.x-xx)<56))continue;
   if(L.stairs.some((s,i)=>(i===f&&xx>s.x-84&&xx<s.x+66)||(i+1===f&&xx>s.x+6&&xx<s.x+84)))continue;slots.push({f,x:xx})}
  slots.sort(()=>Math.random()-.5);const take=()=>slots.pop(),roll=(t,n)=>Array.from({length:n},()=>pick(t));
  for(let i=0;i<L.hides;i++){const s=take();if(s)o.push({t:'hide',f:s.f,x:s.x})}
  for(let i=0;i<L.cabs;i++){const s=take();if(!s)break;const d=depth(s.f,s.x),lk=chance(.3);o.push({t:'cab',f:s.f,x:s.x,locked:lk,loot:(d>0||lk)?roll(RICH[L.loot],RI(2,3)):roll(LOOT[L.loot],RI(1,3))})}
+ if(L.fixed){const cb=o.filter(q=>q.t==='cab');const tgt=cb[cb.length-1];if(tgt)for(const k in L.fixed)for(let i=0;i<L.fixed[k];i++)tgt.loot.unshift(k)}
+ for(const gx of (L.graves||[]))o.push({t:'grave',f:0,x:gx,loot:roll(chance(.35)?RICH[L.loot]:LOOT[L.loot],RI(1,2))});
  for(let i=0;i<L.crates;i++){const s=take();if(!s)break;const d=depth(s.f,s.x);o.push({t:'crate',f:s.f,x:s.x,loot:d>0?roll(RICH[L.loot],1).concat(roll(LOOT[L.loot],RI(1,2))):roll(LOOT[L.loot],RI(1,3))})}
- const guards=L.guards.map((type,i)=>{const f=type==='soldier'?(L.floors-1-i%L.floors+L.floors)%L.floors:(i%L.floors);let x=RI(380,L.w-150);while(L.gates[f].some(g=>Math.abs(g.x-x)<40))x+=50;return{type,f,x,hx:x,dir:chance(.5)?1:-1,dead:false,loot:type==='soldier'?['ammo',pick(['can','ammo','bandage','fuel'])]:[pick(['smokes','raw','parts','pick'])]}});
+ const guards=L.guards.map((type,i)=>{const f=type==='soldier'?(L.floors-1-i%L.floors+L.floors)%L.floors:(i%L.floors);let x=L.bld?RI(200,L.bld[0]-120):RI(380,L.w-150);while(L.gates[f].some(g=>Math.abs(g.x-x)<40))x+=50;return{type,f,x,hx:x,dir:chance(.5)?1:-1,dead:false,loot:type==='soldier'?['ammo',pick(['can','ammo','bandage','fuel'])]:[pick(['smokes','raw','parts','pick'])]}});
  return{seed,objs:o,guards}}
 function seg(f,x){let lo=20,hi=N.L.w-20;for(const o of N.objs)if(o.t==='gate'&&!o.open&&o.f===f){if(o.x<=x&&o.x>lo)lo=o.x;if(o.x>x&&o.x<hi)hi=o.x}return[lo,hi]}
 function toggleSneak(){if(!N)return;N.p.sneak=!N.p.sneak;const b=$('#bS');if(b)b.classList.toggle('on',N.p.sneak)}
-function nearIcon(o){if(!o)return 'knife';if(o.t==='exit')return 'exit';if(o.t==='up'||o.t==='down'){const u=stairUp(o.sid);return u.jam&&!u.jamOpen?GATE[u.jam].tool:o.t}if(o.t==='hide')return 'hide';if(o.t==='gate')return GATE[o.k].tool;if(o.locked)return 'pick';return 'hand'}
+function nearIcon(o){if(!o)return 'knife';if(o.t==='grave')return o.seen?'hand':'shovel';if(o.t==='exit')return 'exit';if(o.t==='up'||o.t==='down'){const u=stairUp(o.sid);return u.jam&&!u.jamOpen?GATE[u.jam].tool:o.t}if(o.t==='hide')return 'hide';if(o.t==='gate')return GATE[o.k].tool;if(o.locked)return 'pick';return 'hand'}
 function busy(l,t,fn){N.busy={l,t,T:t,fn,k:nearIcon(N.near)}}
 function kill(g){fxBurst(g.x,fy(g.f)-30,'chunk',6,{col:'#9a2a22',s:2.4});g.dead=true;g.state='dead';fxBurst(g.x,fy(g.f)-20,'dust',4)}
 function hurt(d,t){SND.hurt();fxBurst(N.p.x,fy(N.p.f)-30,'chunk',7,{col:'#9a2a22',s:2.4});N.hp-=d;N.busy=null;N.hit=.3;say(t);shake(.4);if(chance(.4))N.wound=true;if(N.hp<=0)N.over='dead'}
@@ -930,6 +941,7 @@ function context(){
  else if(o.t==='up'||o.t==='down'){const u=stairUp(o.sid);if(u.jam&&!u.jamOpen)c=gateAct(u,u.jam,true);else c={l:o.t==='up'?'Climb stairs':'Go downstairs',fn:()=>busy('On the stairs',.7,()=>{const ot=N.objs.find(q=>q.sid===o.sid&&q!==o);p.f=ot.f;p.x=ot.x;p.hidden=false})}}
  else if(o.t==='gate')c=gateAct(o,o.k,false);
  else if(o.t==='hide')c={l:p.hidden?'Come out':'Hide',fn:()=>{p.hidden=!p.hidden;if(p.hidden)p.x=o.x}};
+ else if(o.t==='grave'){if(o.seen)c={l:o.loot.length?'Open':'Empty',fn:()=>lootPanel(o.loot,'Grave')};else if(pk.shovel)c={l:'Dig',fn:()=>busy('Digging',4,()=>{o.seen=true;lootPanel(o.loot,'Grave')})};else c={l:'Needs a shovel to dig',miss:'shovel'}}
  else if(o.locked){if(pk.pick>0)c={l:'Pick the lock',fn:()=>busy('Picking the lock',2,()=>{pk.pick--;o.locked=false;say('Click.')})};else if(pk.crowbar)c={l:'Force it (loud)',fn:()=>{noise(p.x,p.f,480);busy('Forcing it',2.5,()=>{o.locked=false;say('It pops open.')})}};else c={l:'Locked: need a lockpick',miss:'pick'}}
  else c={l:o.seen?(o.loot.length?'Open':'Empty'):'Search',fn:()=>busy('Searching',o.seen?.15:1.1,()=>{o.seen=true;lootPanel(o.loot,o.t==='cab'?'Cabinet':'Crate')})};
  N.miss=c.miss||null;return c}
@@ -995,7 +1007,7 @@ function startScav(who){
  const r=srand(d.seed),walls=[];
  for(let f=0;f<L.floors;f++){walls[f]=L.gates[f].map(g=>({x:g.x,k:'gate'}));let x=200;
   while(true){x+=260+r()*260;if(x>L.w-160)break;if(walls[f].some(w=>Math.abs(w.x-x)<140)||L.stairs.some((s,i)=>(i===f&&Math.abs(s.x-x)<110)||(i+1===f&&Math.abs(s.x+40-x)<80))||d.objs.some(o=>o.f===f&&Math.abs(o.x-x)<44))continue;walls[f].push({x,k:'door'})}}
- const layer=buildLayer({key:'loc:'+L.id+':'+d.seed,w:L.w,floors:L.floors,theme:L.theme,seed:d.seed,walls,stairs:L.stairs.map((s,i)=>({x:s.x,f:i})),occ:(f,a,b)=>d.objs.some(o=>o.f===f&&o.t!=='down'&&o.x>a-26&&o.x<b+26)||d.guards.some(g=>g.f===f&&Math.abs(g.hx-(a+b)/2)<10),night:true,exit:true});
+ const layer=buildLayer({key:'loc:'+L.id+':'+d.seed,w:L.w,floors:L.floors,theme:L.theme,seed:d.seed,walls,stairs:L.stairs.map((s,i)=>({x:s.x,f:i})),occ:(f,a,b)=>d.objs.some(o=>o.f===f&&o.t!=='down'&&o.x>a-26&&o.x<b+26)||d.guards.some(g=>g.f===f&&Math.abs(g.hx-(a+b)/2)<10),night:true,exit:true,bld:L.bld,graves:L.graves,trees:L.trees,roofX0:L.bld?L.bld[0]:0,roofX1:L.bld?L.bld[1]:L.w,noWin:L.bld?((f,x)=>x<L.bld[0]+30||x>L.bld[1]-30):null});
  N={L,who,objs:d.objs,guards:d.guards,pack,layer,props:streetProps(d.seed,L.w),cap:capOf(who),hp:who.hp,t:0,dur:240,p:{x:90,f:0,dir:1,hidden:false,sneak:false,walk:0},stealth:who.trait==='quiet'?.72:1,spd:(who.trait==='fast'?1.2:1)*(who.rest<25?.82:1),shots:[],msg:'',msgT:0,noiseT:0,hit:0,flash:0,shotT:0};
  S.phase='scav';FXL=[];render();
  $('#main').innerHTML='<div class="scav"><div class="hud">'+ico('moon',18)+'<span id="clk"></span>'+ico('heart',18)+'<span class="hp"><b id="hpB"></b></span>'+ico('scav',18)+'<span class="hp"><b id="pkB" style="background:var(--moss)"></b></span><span id="tools"></span></div><div id="cvBox"><canvas id="cv"></canvas>'+zoomBtns+'</div><div class="pad">'+sndBtn()+'<button class="btn ic" id="bS" aria-label="Sneak">'+ico('hide',26)+'</button><span class="hint" id="pHint"></span><button class="btn ic" id="bF" hidden aria-label="Shoot">'+ico('pistol',26)+'</button></div></div>';
@@ -1025,7 +1037,8 @@ function scavDraw(){
   else if(o.t==='gate')drawGate(c,o.k,o.open,o.x,yb,t);
   else if(o.t==='hide')drawHide(c,o.x,yb,L.theme,p.hidden&&p.f===o.f&&Math.abs(p.x-o.x)<4);
   else if(o.t==='cab')drawCab(c,o.x,yb,o.seen&&!o.loot.length,o.locked,L.theme);
-  else if(o.t==='crate')drawCrate(c,o.x,yb,o.seen&&!o.loot.length,L.theme)}
+  else if(o.t==='crate')drawCrate(c,o.x,yb,o.seen&&!o.loot.length,L.theme)
+  else if(o.t==='grave'){if(o.seen){rr(c,o.x-16,yb-2,32,3,'#1a1612');rr(c,o.x-14,yb-6,28,6,'#241d16');rr(c,o.x+20,yb-10,14,10,'#3a2f24',3)}else rr(c,o.x-14,yb-5,28,5,'#3a3326',2)}}
  fxDraw(c);
  for(const g of N.guards){const sol=g.type==='soldier',y=fy(g.f);if(g.dead){drawPerson(c,g.x,y,{look:g.type,lie:1,dir:g.dir});continue}
   drawPerson(c,g.x,y,{look:g.type,dir:g.dir,walk:g.walk,moving:g.mv,run:g.run,t,gun:sol,pipe:!sol&&g.state==='alert',light:!sol&&g.state!=='alert'})}
@@ -1039,11 +1052,11 @@ function scavDraw(){
  const fl=flareLight(),bl=blastLight();
  const shafts=lay.windows.filter(w=>w.x>camX-80&&w.x<camX+UW+80).map(w=>({x:w.x,y:w.y,w:w.w,h:w.h,f:w.f,a:Math.min(1,.3+fl*.4+bl*.5),dx:40}));
  lights.push({x:p.x,y:fy(p.f)-40,r:95,a:.32});
- lightPass(c,'rgba(4,6,12,'+(.8-fl*.25)+')',lights,shafts,null,[{x:-18,y:fy(L.floors),w:L.w+36,h:L.floors*FH+14}],'rgba(4,6,12,'+(.3-fl*.15)+')');
+ lightPass(c,'rgba(4,6,12,'+(.8-fl*.25)+')',lights,shafts,null,[L.bld?{x:L.bld[0]-18,y:fy(L.floors),w:L.bld[1]-L.bld[0]+36,h:L.floors*FH+14}:{x:-18,y:fy(L.floors),w:L.w+36,h:L.floors*FH+14}],'rgba(4,6,12,'+(.3-fl*.15)+')');
  toWorld(c);
  motes(c,shafts,t);
  for(let f=0;f<L.floors;f++){const wx=80+hsh(f*3.1+L.w)*(L.w-160),wy=fy(f)-FH+12;c.strokeStyle='#0a0a0a';c.lineWidth=1.2;c.beginPath();c.moveTo(wx-10,wy);c.quadraticCurveTo(wx-6,wy+12,wx+Math.sin(t*1.7+f)*2,wy+15);c.stroke()}
- for(const o of N.objs)if((o.t==='crate'||o.t==='cab')&&!o.seen&&!o.locked)glint(c,o.x+6,fy(o.f)-(o.t==='crate'?20:40),t,hsh(o.x));
+ for(const o of N.objs)if((o.t==='crate'||o.t==='cab'||o.t==='grave')&&!o.seen&&!o.locked)glint(c,o.x+6,fy(o.f)-(o.t==='crate'?20:40),t,hsh(o.x));
  if(!p.hidden)breath(c,p.x,fy(p.f)-(p.sneak?8:16),p.dir,t,.1);for(const g of N.guards)if(!g.dead)breath(c,g.x,fy(g.f)-16,g.dir,t,hsh(g.hx));
  for(const g of N.guards){if(g.dead||(g.state==='patrol'&&g.see<.05))continue;const a=g.state==='alert',y=fy(g.f)-72;ci(c,g.x,y,9.5,a?'#c2503f':'#e2a03f');c.fillStyle='#12151a';c.font='bold 14px sans-serif';c.textAlign='center';c.fillText(a?'!':'?',g.x,y+5);rr(c,g.x-14,y+12,28,3,'rgba(0,0,0,.6)');rr(c,g.x-14,y+12,28*g.see,3,a?'#c2503f':'#e2a03f')}
  if(N.tap){const k=(t-N.tap.t)/.45;if(k<1){c.strokeStyle='rgba(226,160,63,'+(1-k)+')';c.lineWidth=2;c.beginPath();c.ellipse(N.tap.x,N.tap.y,6+k*22,(6+k*22)*.45,0,0,7);c.stroke()}else N.tap=null}
@@ -1056,6 +1069,7 @@ function scavDraw(){
   else if(o.t==='gate'&&!o.open){k=GATE[o.k].tool;bad=o.k==='lock'?!(pk.pick>0||pk.crowbar):!pk[k];by=y-(o.k==='lock'?86:100)}
   else if(o.t==='up'||o.t==='down'){const u=stairUp(o.sid);if(u.jam&&!u.jamOpen){k=GATE[u.jam].tool;bad=!pk[k]}else k=o.t;by=y-96}
   else if(o.t==='hide'){k='hide';by=y-96}
+  else if(o.t==='grave'){if(o.seen&&!o.loot.length)continue;k=o.seen?'hand':'shovel';bad=!o.seen&&!pk.shovel;by=y-50}
   else if(o.t==='cab'||o.t==='crate'){if(o.seen&&!o.loot.length)continue;if(o.locked){k='pick';bad=!(pk.pick>0||pk.crowbar)}else k='hand';by=y-(o.t==='crate'?42:76)}
   if(!k)continue;if(near&&N.miss){k=N.miss;bad=true}
   if(near)bubble(c,o.x,by,k,t,bad);else{ci(c,o.x,by,10,'rgba(14,17,22,.85)');c.strokeStyle=bad?'#c2503f':'rgba(226,160,63,.7)';c.lineWidth=1.3;c.beginPath();c.arc(o.x,by,10,0,7);c.stroke();dico(c,k,o.x,by,13);if(bad)ln(c,[o.x-6,by+6,o.x+6,by-6],'#c2503f',1.8)}
@@ -1074,9 +1088,9 @@ const SHW=1060,MID=380,GAR=760,YARD=1340;
 const SROOM={hall:[0,0,MID],kitchen:[0,MID,GAR],garage:[0,GAR,SHW],yard:[0,SHW,YARD],bedroom:[1,0,MID],study:[1,MID,GAR],roof:[2,0,MID],loft:[2,MID,GAR]};
 const SSTAIR=[{f:0,x:118,room:'bedroom'},{f:1,x:680,room:'loft'}];
 const SGATE={kitchen:{f:0,x:MID},garage:{f:0,x:GAR},yard:{f:0,x:SHW},study:{f:1,x:MID},roof:{f:2,x:MID}};
-const ST={door:{f:0,x:26,w:40,h:90,up:'def'},heater:{f:0,x:205,w:40,h:64},bench:{f:0,x:285,w:64,h:52},filter:{f:0,x:350,w:34,h:72},
+const ST={door:{f:0,x:26,w:40,h:90,up:'def'},heater:{f:0,x:205,w:40,h:64},bench:{f:0,x:285,w:64,h:52},
  lights:{f:0,x:240,w:30,h:40,y:-FH+12},stove:{f:0,x:470,w:50,h:60},gen:{f:0,x:980,w:50,h:46,up:'lights'},well:{f:0,x:1190,w:56,h:84},woodpile:{f:0,x:1290,w:50,h:36},bed1:{f:1,x:250,w:68,h:34},bed2:{f:1,x:330,w:68,h:34},radio:{f:1,x:455,w:60,h:56},
- bed3:{f:2,x:480,w:68,h:34},bed4:{f:2,x:560,w:68,h:34},rain:{f:2,x:110,w:60,h:70},garden:{f:2,x:250,w:70,h:40}};
+ bed3:{f:2,x:480,w:68,h:34},bed4:{f:2,x:560,w:68,h:34},rain:{f:2,x:110,w:60,h:70},};
 const SWIN=[[265,575],[160,560],[640]];
 const RSEG={0:['hall','kitchen','garage','yard'],1:['bedroom','study'],2:['roof','loft']};
 const SH={cam:-30,tx:null,t:0,run:0,drag:null,people:{}};
@@ -1088,7 +1102,7 @@ function floorRange(f){if(!RSEG[f])return null;const segs=RSEG[f].filter(roomOpe
 function sPOI(p){const L=[];const add=(f,x,pose,dir,need)=>{if(need&&!need())return;const r=floorRange(f);if(r&&x>=r[0]&&x<=r[1])L.push({f,x,pose,dir})};
  add(0,258,'fidget',1,()=>true);add(0,180,'warm',1,()=>S.up.heater&&heatOn());add(0,322,'idle',1);add(0,265,'dance',-1);add(0,60,'idle',-1);
  add(0,448,'fidget',1,()=>S.up.stove);add(0,600,'dance',1);add(1,440,'sit',1,()=>S.up.radio);add(1,560,'fidget',1);add(1,300,'idle',-1);
- add(2,140,'idle',-1,()=>S.up.rain);add(2,250,'fidget',1,()=>S.up.garden);add(2,620,'dance',1);add(0,520,'idle',-1,()=>roomOpen('kitchen'));add(0,900,'fidget',1,()=>roomOpen('garage'));add(0,1240,'dance',1,()=>roomOpen('yard'));
+ add(2,140,'idle',-1,()=>S.up.rain);add(2,620,'dance',1);add(0,520,'idle',-1,()=>roomOpen('kitchen'));add(0,900,'fidget',1,()=>roomOpen('garage'));add(0,1240,'dance',1,()=>roomOpen('yard'));
  if(p.rest<45||p.sick||p.wounded||p.hp<35){const bs=['bed1','bed2','bed3','bed4'].filter(b=>S.up[b]&&floorRange(ST[b].f));const taken=Object.values(SH.people).filter(h=>h.bed).map(h=>h.bed);const b=bs.find(b=>!taken.includes(b));if(b)return[{f:ST[b].f,x:ST[b].x,pose:'lie',dir:1,bed:b}];return[{f:0,x:70,pose:'lie',dir:1}]}
  return L}
 function goTo(h,f,x){const r=floorRange(f);if(!r)return;x=clamp(x,r[0],r[1]);h.job=null;h.goal={f,x,pose:'idle',dir:x>h.x?1:-1};h.bed=null;h.path=route(h,f,x);h.pose='walk';h.wait=R(7,14);h.mark=1}
@@ -1172,11 +1186,11 @@ function dayK(){return clamp((S.clock||0)/720,0,1)}
 function clockTxt(){const m=480+Math.round(S.clock||0),h=Math.floor(m/60),mm=m%60;return (h<10?'0':'')+h+':'+(mm<10?'0':'')+mm}
 function clockBar(){const e=$('#clk2');if(e){const k=dayK();e.className='nd'+(k>.85?' bad':k>.7?' warn':'');e.innerHTML=ico(k>.8?'moon':'temp',0).replace(/<img[^>]*>/,'')+'<i class="cl"><b style="width:'+(k*100)+'%"></b></i>'+clockTxt()}}
 function needsBar(){whoBar();const e=$('#needs');if(!e)return;const ti=indoor(),L=lightLv();
- e.innerHTML='<span class="nd" id="clk2"></span><span class="nd'+((S.stock.water||0)<alive().length?' bad':'')+'">'+ico('water',18)+(S.stock.water||0)+'<small>'+ico('dirty',14)+(S.stock.dirty||0)+'</small></span>'+
+ e.innerHTML='<span class="nd" id="clk2"></span><span class="nd'+((S.stock.water||0)<alive().length?' bad':'')+'">'+ico('water',18)+(S.stock.water||0)+'</span>'+
  '<span class="nd'+(ti<3?' bad':ti<10?' warn':'')+'">'+ico('temp',18)+ti+'°</span>'+
  '<span class="nd'+(L===0?' warn':'')+'">'+ico('lights',18)+pips(L,2)+(S.up.lights>=2?ico('fuel',14)+(S.stock.fuel||0):'')+'</span>'+
- '<span class="nd">'+ico('can',18)+((S.stock.can||0)+(S.stock.meal||0)+(S.stock.raw||0))+'</span>';clockBar();e.onclick=()=>stockPanel();e.style.cursor='pointer'}
-function badges(){const L=[];for(const id in ST){const u=ST[id].up||id;if(!UPG[u]||id==='gen'||!roomOpen(roomAt(ST[id].f,ST[id].x)))continue;if(nextLv(u)&&!whyNotUpg(u)&&(S.up[u]||['filter','heater','lights','stove','bed1','bed3','radio','rain','garden'].includes(u))){const s_=ST[id];L.push({id:u,x:s_.x,y:s_.y!=null?fy(s_.f)+s_.y+52:fy(s_.f)-s_.h-26})}}return L}
+ '<span class="nd">'+ico('can',18)+((S.stock.can||0)+(S.stock.meal||0))+'</span>';clockBar();e.onclick=()=>stockPanel();e.style.cursor='pointer'}
+function badges(){const L=[];for(const id in ST){const u=ST[id].up||id;if(!UPG[u]||id==='gen'||!roomOpen(roomAt(ST[id].f,ST[id].x)))continue;if(nextLv(u)&&!whyNotUpg(u)&&(S.up[u]||['filter','heater','lights','stove','bed1','bed3','radio','rain'].includes(u))){const s_=ST[id];L.push({id:u,x:s_.x,y:s_.y!=null?fy(s_.f)+s_.y+52:fy(s_.f)-s_.h-26})}}return L}
 function selPerson(){const id=SH.sel&&person(SH.sel)&&person(SH.sel).alive?SH.sel:alive()[0].id;SH.sel=id;return SH.people[id]}
 function nearBubbles(){const h=selPerson();if(!h||h.climb||h.job)return [];const all=_nearAll(h);if(!all.length)return all;let b=all[0];for(const o of all)if(Math.abs(o.x-h.x)<Math.abs(b.x-h.x))b=o;return [b]}
 function _nearAll(h){const L=[];const f=h.f,x=h.x,ok=(bx,bf,rad)=>bf===f&&Math.abs(bx-x)<rad;
@@ -1184,7 +1198,6 @@ function _nearAll(h){const L=[];const f=h.f,x=h.x,ok=(bx,bf,rad)=>bf===f&&Math.a
   if(id==='door')L.push({x:s.x+6,y:fy(0)-86,ic:'moon',l:'Nightfall',fn:()=>ACT.plan()});
   else if(id==='bench'&&S.up.bench)L.push({x:s.x,y,ic:'bench',l:'Craft',fn:()=>benchPanel()});
   else if(id==='stove'&&S.up.stove&&!S.up.bench)L.push({x:s.x,y,ic:'meal',l:'Cook',fn:()=>benchPanel()});
-  else if(id==='filter'&&S.up.filter&&(S.stock.dirty||0)>0)L.push({x:s.x,y,ic:'water',l:'Clean water',fn:()=>work(h,s.x,2.2,'water',()=>{const n=Math.min(S.stock.dirty||0,S.up.filter*2);add('dirty',-n);add('water',n);POPS.push({x:s.x,y:fy(0)-70,k:'water',n,t:0});save();render()})});
   else if(id==='radio'&&S.up.radio)L.push({x:s.x,y,ic:'book',l:'Journal',fn:()=>journalPanel()});
   else if(UPG[u]){const n=nextLv(u),why=whyNotUpg(u);if(n&&!why)L.push({x:s.x,y,ic:'hammer',l:(S.up[u]?'Improve ':'Build ')+UPG[u].n.toLowerCase(),fn:()=>work(h,s.x,4+2*S.up[u],u,()=>ACT.upg(u))});else L.push({x:s.x,y,ic:upIcon(u),bad:!!(n&&why),l:n?(why==='Not enough'?'Need '+lackTxt(n.cost):why):UPG[u].n,fn:()=>upgPanel(u)})}}
  for(const k in SGATE){const g=SGATE[k];if(!roomOpen(k)&&roomOpen(ROOMS[k].req)&&ok(g.x,g.f,60)){const why=whyNotClear(k);const ht=hasTool(k),ic=ht?(S.stock[ROOMS[k].need.tool]?ROOMS[k].need.tool:ROOMS[k].need.alt):'hand';L.push({x:g.x,y:fy(g.f)-108,ic:why?(ROOMS[k].need.tool||'hammer'):ic,bad:!!why,l:why?(why==='Not enough'?'Need '+lackTxt(ROOMS[k].need.cost):why):(ht?'Open '+ROOMS[k].n.toLowerCase():{rubble:'Dig by hand',lock:'Force the door',boards:'Tear boards off'}[ROOMS[k].gate]+' ('+clearTime(k)+'s)'),fn:()=>why?roomPanel(k):work(h,g.x+(h.x<g.x?-26:26),clearTime(k),ic,()=>ACT.clear(k))})}}
@@ -1216,7 +1229,7 @@ function drawShelter(){
  SWIN.forEach((xs,f)=>xs.forEach(x=>{const y=fy(f)-100;if(S.up.insul>=1&&roomOpen(roomAt(f,x))){c.fillStyle='rgba(220,235,245,.28)';c.fillRect(x-22,y-4,44,56);ln(c,[x-18,y,x-10,y+50],'rgba(255,255,255,.3)',1);ln(c,[x+8,y,x+14,y+50],'rgba(255,255,255,.2)',1)}
   if(f===0&&S.up.def>=1){if(S.up.def>=3){rr(c,x-24,y-6,48,58,'#5d6670',1);for(let i=0;i<9;i++)rr(c,x-24,y-4+i*6.4,48,1.4,'#3e454c')}else for(let i=0;i<3;i++){c.save();c.translate(x,y+8+i*16);c.rotate([.12,-.1,.08][i]);rr(c,-26,-4,52,8,['#8a6844','#7a5a3a','#9a7650'][i]);ci(c,-22,0,1,'#222');ci(c,22,0,1,'#222');c.restore()}}}));
  if(S.up.insul>=2)for(const [x,y] of [[60,-70],[520,-52],[300,-190],[600,-205]])if(roomOpen(roomAt(Math.floor(-y/FH),x))){rr(c,x-12,y-8,24,16,'#8a7d68',2);ln(c,[x-12,y-8,x+12,y+8],'rgba(0,0,0,.15)',1)}
- for(const id of ['door','heater','filter','bench','stove','gen','radio','bed1','bed2','bed3','bed4','rain','garden','well','woodpile','lights'])drawStation(c,id,t);
+ for(const id of ['door','heater','bench','stove','gen','radio','bed1','bed2','bed3','bed4','rain','well','woodpile','lights'])drawStation(c,id,t);
  // people
  for(const p of alive()){const h=SH.people[p.id];if(!h)continue;if(h.mark&&h.path.length){const g=h.goal,k=.6+.4*Math.sin(t*6);c.strokeStyle='rgba(226,160,63,'+k+')';c.lineWidth=2;c.beginPath();c.ellipse(g.x,fy(g.f)-2,14,4,0,0,7);c.stroke()}else h.mark=0;
   if(p.id===SH.sel){const y0=h.y!=null?h.y:fy(h.f);c.strokeStyle='rgba(226,160,63,.8)';c.lineWidth=1.6;c.beginPath();c.ellipse(h.x,y0,16,5,0,0,7);c.stroke()}}
@@ -1280,9 +1293,9 @@ function roomRow(k){const r=ROOMS[k],why=whyNotClear(k),G=r.gate,ht=hasTool(k);
  return '<div class="ur">'+ico({rubble:'rubble',stairs:'stairs',lock:'lock',boards:'boards',chain:'chain'}[G],38)+'<div class="col"><b>'+(r.b||r.n)+'</b>'+need+(why==='Reach it first'?whyIco(why):'')+'</div>'+(why?'':'<button class="btn act" data-act="clear:'+k+'" aria-label="Open">'+ico(ht?r.need.tool:(r.need.tool?'hand':'hammer'),34)+'</button>')+'</div>'}
 ACT.house=()=>{};
 function housePanel(){panel(()=>{const rooms=Object.keys(ROOMS).filter(k=>k!=='hall');
- box('<h2>'+ico('house',20)+' The house</h2><h3>Fix these first</h3>'+['filter','heater','lights'].map(upgRow).join('')+
+ box('<h2>'+ico('house',20)+' The house</h2><h3>Fix these first</h3>'+['heater','lights'].map(upgRow).join('')+
  '<h3>Closed rooms</h3>'+(rooms.filter(k=>!S.rooms[k]).map(roomRow).join('')||'<p class="dim small">Every room is open.</p>')+
- '<h3>Improvements</h3>'+['insul','def','bench','stove','bed1','bed2','radio','bed3','bed4','rain','garden','well','woodpile'].filter(id=>S.rooms[UPG[id].room]&&upShown(id)&&!(/bed[24]/.test(id)&&!S.up[id==='bed2'?'bed1':'bed3'])).map(upgRow).join('')+
+ '<h3>Improvements</h3>'+['insul','def','bench','stove','bed1','bed2','radio','bed3','bed4','rain','well','woodpile'].filter(id=>S.rooms[UPG[id].room]&&upShown(id)&&!(/bed[24]/.test(id)&&!S.up[id==='bed2'?'bed1':'bed3'])).map(upgRow).join('')+
  '<h3>Journal</h3><div class="log">'+S.log.map(l=>'<div>'+l+'</div>').join('')+'</div>')})}
 // rendered preview of an item at its next level, lit like the house
 const PREV={};function preview(id,lv){const key=id+':'+lv;if(PREV[key])return PREV[key];const e=mkCv(560,300),c=e.getContext('2d');
@@ -1294,16 +1307,21 @@ const PREV={};function preview(id,lv){const key=id+':'+lv;if(PREV[key])return PR
  if(!(n&&drawSpr(c,n,0,0)))dico(c,upIcon(id),0,-30,48);c.restore();
  const v=c.createRadialGradient(280,150,120,280,150,360);v.addColorStop(0,'rgba(0,0,0,0)');v.addColorStop(1,'rgba(0,0,0,.65)');c.fillStyle=v;c.fillRect(0,0,560,300);
  return PREV[key]=e.toDataURL('image/jpeg',.82)}
+let DUSK=null;function duskArt(){if(DUSK)return DUSK;const e=mkCv(560,200),c=e.getContext('2d');const g=c.createLinearGradient(0,0,0,200);g.addColorStop(0,'#141a2c');g.addColorStop(.6,'#3a2a3a');g.addColorStop(1,'#7a4a2e');c.fillStyle=g;c.fillRect(0,0,560,200);
+ for(let i=0;i<40;i++){c.fillStyle='rgba(230,230,240,'+(.2+hsh(i)*.5)+')';c.fillRect(hsh(i+.3)*560,hsh(i+.7)*110,1.4,1.4)}
+ const r=srand(44);for(let x=0;x<560;x+=18){const h=30+r()*70;c.fillStyle='#0d1018';c.fillRect(x,160-h,16,h+40);c.fillStyle='rgba(255,190,110,.5)';for(let y=160-h+8;y<150;y+=14)if(r()<.25)c.fillRect(x+4+Math.floor(r()*2)*6,y,3,4)}
+ c.fillStyle='#1a1512';c.fillRect(200,100,160,70);c.beginPath();c.moveTo(190,100);c.lineTo(280,50);c.lineTo(370,100);c.fill();c.fillStyle='rgba(255,200,120,.85)';c.fillRect(262,130,36,40);c.fillRect(225,112,22,20);
+ const sp=c.createRadialGradient(280,150,5,280,150,90);sp.addColorStop(0,'rgba(255,190,110,.35)');sp.addColorStop(1,'rgba(255,190,110,0)');c.fillStyle=sp;c.fillRect(150,60,260,140);c.fillStyle='#0a0b0f';c.fillRect(0,168,560,32);
+ c.fillStyle=grainPat(c);c.globalAlpha=.07;c.globalCompositeOperation='overlay';c.fillRect(0,0,560,200);c.globalAlpha=1;c.globalCompositeOperation='source-over';return DUSK=e.toDataURL('image/jpeg',.8)}
 function upgPanel(id){panel(()=>{let extra='';const u=UPG[id],lv=S.up[id],n=nextLv(id),why=whyNotUpg(id),z=u.lv[0]===null?1:0,max=u.lv.length-1-z;
  if(id==='heater'&&S.up.heater)extra='<div class="ur"><span class="col"><b>Tonight</b><small>'+(heatOn()?'Burning '+burnWood()+' wood.':'Not lit.')+' Inside: '+indoor()+'°, outside '+S.out+'°</small></span>'+btn(S.heat===false?'Light it':'Let it go out','heat',S.heat===false?(S.stock.wood||0)>=burnWood():true)+'</div>';
  if(id==='lights'&&S.up.lights>=2)extra='<p class="small dim">Generator: '+(S.power?'running today':'out of fuel, using lamps')+'. Fuel left: '+(S.stock.fuel||0)+'. Fuel turns up at the Rail Depot and the Army Checkpoint.</p>';
- if(id==='filter')extra='<div class="ur"><span class="cost"><span>'+ico('dirty',22)+(S.stock.dirty||0)+'</span><span>→</span><span>'+ico('water',22)+(S.stock.water||0)+'</span></span></div>';
  const head='<div class="card"><img class="prev" alt="" src="'+preview(id,n?lv+1:lv)+'"><div class="cardt"><b>'+u.n+'</b><span class="lvl">'+Array.from({length:max},(_,i)=>'<i'+(i<lv-z?' class="on"':'')+'></i>').join('')+'</span></div></div>';
  const body=n?'<div class="urow"><div class="col"><small class="dim">'+(n.d||'')+'</small><span class="cost">'+costHtml(n.cost)+(why&&why!=='Not enough'?whyIco(why):'')+'</span></div>'+(why?'':'<button class="btn act big" data-act="upg:'+id+'" aria-label="Build">'+ico('hammer',40)+'</button>')+'</div>':'<div class="urow"><small class="dim">'+(u.lv[lv]&&u.lv[lv].d||'')+'</small><span class="okk done">✓</span></div>';
  box(head+body+extra)})}
 function roomPanel(k){panel(()=>box('<h2>'+ico({rubble:'rubble',stairs:'stairs',lock:'lock',boards:'boards',chain:'chain'}[ROOMS[k].gate],20)+' '+(ROOMS[k].b||ROOMS[k].n)+'</h2>'+(S.rooms[ROOMS[k].req]?roomRow(k):'<p class="dim">You can\'t reach it yet. Open the '+ROOMS[ROOMS[k].req].n.toLowerCase()+' first.</p>')))}
 function survivorPanel(id){panel(()=>{const p=person(id);let t='',st='';
- for(const k of ['meal','can','raw'])if(S.stock[k])t+=tile(k,S.stock[k],'eat:'+id+':'+k,p.fed<90);
+ for(const k of ['meal','can'])if(S.stock[k])t+=tile(k,S.stock[k],'eat:'+id+':'+k,p.fed<90);
  if(p.wounded){t+=tile('bandage',S.stock.bandage||0,'heal:'+id+':bandage',S.stock.bandage>0);st+=ico('wound',22)}
  if(p.sick){t+=tile('meds',S.stock.meds||0,'heal:'+id+':meds',S.stock.meds>0);st+=ico('sick',22)}
  if(p.fed<25)st+=ico('hungry',22);if(p.rest<20)st+=ico('tired',22);if(indoor()<3)st+=ico('cold',22);
@@ -1353,9 +1371,9 @@ const tabBtn=(k,ic)=>'<button class="btn ic'+(HTAB===k?' on':'')+'" data-act="ht
 const utile=(id,ic,lv,max,ok,act,bad)=>'<button class="tile ut'+(bad?' bad':'')+'" data-act="'+act+'">'+ico(ic,28)+lbl(ic)+pips(lv,max)+(ok?'<i class="go">'+ico('hammer',14)+'</i>':'')+'</button>';
 function housePanel(){panel(()=>{
  const tabs='<div class="row tabs">'+tabBtn('needs','filter')+tabBtn('rooms','house')+tabBtn('build','hammer')+tabBtn('log','book')+'</div>';let body='';
- if(HTAB==='needs')body=['filter','heater','lights'].map(upgRow).join('');
+ if(HTAB==='needs')body=['heater','lights'].map(upgRow).join('');
  else if(HTAB==='rooms'){const rs=Object.keys(ROOMS).filter(k=>k!=='hall'&&!S.rooms[k]);body=rs.length?rs.map(roomRow).join(''):'<div class="tiles">'+ico('house',34)+'<span class="okk done">✓</span></div>'}
- else if(HTAB==='build'){body='<div class="tiles">'+['insul','def','bench','stove','bed1','bed2','radio','bed3','bed4','rain','garden','well','woodpile'].filter(id=>S.rooms[UPG[id].room]&&upShown(id)&&!(/bed[24]/.test(id)&&!S.up[id==='bed2'?'bed1':'bed3'])).map(id=>{const u=UPG[id],lv=S.up[id],z=u.lv[0]===null?1:0,n=nextLv(id),why=whyNotUpg(id);return utile(id,upIcon(id),lv-z,u.lv.length-1-z,n&&!why,'upgp:'+id,n&&why&&why!=='Not enough')}).join('')+'</div>'}
+ else if(HTAB==='build'){body='<div class="tiles">'+['insul','def','bench','stove','bed1','bed2','radio','bed3','bed4','rain','well','woodpile'].filter(id=>S.rooms[UPG[id].room]&&upShown(id)&&!(/bed[24]/.test(id)&&!S.up[id==='bed2'?'bed1':'bed3'])).map(id=>{const u=UPG[id],lv=S.up[id],z=u.lv[0]===null?1:0,n=nextLv(id),why=whyNotUpg(id);return utile(id,upIcon(id),lv-z,u.lv.length-1-z,n&&!why,'upgp:'+id,n&&why&&why!=='Not enough')}).join('')+'</div>'}
  else body='<div class="log">'+S.log.slice(0,5).map(l=>'<div>'+l+'</div>').join('')+'</div>';
  box(tabs+body)})}
 ACT.upgp=id=>upgPanel(id);
@@ -1366,11 +1384,11 @@ function benchPanel(){panel(()=>{
 function renderPlan(){const sp=scavPerson(),why=whyNotGo();
  let h='<div class="wrap plan">';
  // 1. who goes out tonight? tap a portrait; tap again for nobody
- h+='<div class="step"><b>'+ico('moon',18)+' Night '+S.day+'</b><small>Who goes out? Tap one. Everyone else sleeps.</small></div>';
+ h+=(sp?'<div class="step"><b>'+ico('moon',18)+' Night '+S.day+'</b></div>':'<div class="card nh"><img class="prev" alt="" src="'+duskArt()+'"><div class="cardt"><b>Night '+S.day+'</b></div></div>')+'<div class="step"><small>Who goes out? Tap one. Everyone else sleeps.</small></div>';
  h+='<div class="who">'+alive().map(p=>{const out=S.plan[p.id]==='scav';return '<button class="wp'+(out?' on':'')+'" data-act="pick:'+p.id+'">'+portrait(p.name,52)+'<span>'+p.name+'</span><em>'+(out?ico('exit',14)+' goes out':ico('bed',14)+' sleeps')+'</em></button>'}).join('')+'</div>';
  if(sp){
   // 2. where?
-  h+='<div class="step"><small>Where?</small></div><div class="locs2">'+LOCS.map(L=>{const open=S.day>=L.day,need=locNeeds(L);return '<button class="loc2'+(S.loc===L.id?' on':'')+'" data-act="loc:'+L.id+'"'+(open?'':' disabled')+'>'+thumb(L)+'<span class="row nw">'+(L.danger?ico('skull',12).repeat(L.danger):'')+(open?'':ico('lock',12))+(need.length?need.map(k=>'<i class="'+(S.stock[k]?'':'miss')+'">'+ico(k,14)+'</i>').join(''):'')+'</span></button>'}).join('')+'</div>';
+  h+='<div class="step"><small>Where?</small></div><div class="locs3">'+LOCS.map(L=>{const open=S.day>=L.day,need=locNeeds(L);return '<button class="loc3'+(S.loc===L.id?' on':'')+'" data-act="loc:'+L.id+'"'+(open?'':' disabled')+'>'+thumb(L)+'<span class="lt"><b>'+L.n+'</b><span>'+(L.danger?ico('skull',12).repeat(L.danger):'<i class="dim">quiet</i>')+(open?'':ico('lock',12)+' day '+L.day)+'</span></span></button>'}).join('')+'</div>';
   // 3. what to bring
   const gt=GEAR.filter(k=>S.stock[k]);if(gt.length)h+='<div class="step"><small>Bring? Tap to pack.</small></div><div class="row nw gear">'+ico('scav',20)+packBar(weight(S.gear),capOf(sp))+'</div><div class="tiles">'+gt.map(k=>'<button class="tile xs gr'+(S.gear[k]?' on':'')+'" data-act="gear:'+k+':1">'+ico(k,22)+lbl(k)+'<b>'+(S.gear[k]||0)+'</b></button>').join('')+'</div>'}
  const go=sp?ico('exit',24)+'<i>Go out</i>':ico('moon',24)+'<i>Sleep till morning</i>';
@@ -1568,16 +1586,15 @@ async function runDemo(){
  const view=async(fn,ms)=>{fn();await sleep(ms)};
  DEMO=true;ZOOM=1;document.body.classList.add('demo');$('#cap').hidden=false;closeModal();
  newGame();S.day=6;S.up.bench=1;S.loose=[];S.out=-3;S.pool=S.pool.filter(n=>n.name!=='Ines'&&n.name!=='Tomas');S.people.push(mk('Ines','medic'),mk('Tomas','strong'));Object.assign(S.people[1],{wounded:true,fed:20,hp:62});
- S.stock={wood:26,parts:52,cloth:12,raw:3,can:3,water:2,dirty:6,pick:3,fuel:2,knife:1,pistol:1,ammo:3,smokes:2,bandage:1};
+ S.stock={wood:26,parts:52,cloth:12,can:6,water:4,pick:3,fuel:2,knife:1,pistol:1,ammo:3,smokes:2,bandage:1};
  SH.people={};$('#main').innerHTML='';render();shelterFocus(190);
  cap('Your house. No clean water, no heat, no power, and half the rooms are blocked.');await sleep(3800);
- cap('Fix the necessities first. A water filter turns dirty water clean.');await view(()=>upgPanel('filter'),1800);ACT.upg('filter');await sleep(1300);ACT.closep();
- cap('A heater. It burns wood every night to keep everyone from freezing.');await view(()=>upgPanel('heater'),1600);ACT.upg('heater');await sleep(1300);ACT.closep();
+  cap('A heater. It burns wood every night to keep everyone from freezing.');await view(()=>upgPanel('heater'),1600);ACT.upg('heater');await sleep(1300);ACT.closep();
  cap('No electricity. Oil lamps give you light to work by.');await view(()=>upgPanel('lights'),1600);ACT.upg('lights');await sleep(1600);ACT.closep();
  cap('Rubble blocks the kitchen. You need a shovel.');shelterFocus(380);await view(()=>roomPanel('kitchen'),2600);ACT.closep();
  cap('Craft one at the workbench.');shelterFocus(285);await view(()=>benchPanel(),1800);ACT.make('shovel');await sleep(1400);ACT.closep();
  cap('Dig out the kitchen. Whatever was left inside is yours.');shelterFocus(380);await view(()=>roomPanel('kitchen'),1200);ACT.clear('kitchen');for(const q of (S.loose||[]).filter(q=>q.room==='kitchen'))pickPile(q);await sleep(2600);await sleep(800);
- cap('Build a stove: hot meals, and a way to boil dirty water.');shelterFocus(470);ACT.upg('stove');await sleep(2400);
+ cap('Build a stove: a can becomes a hot meal.');shelterFocus(470);ACT.upg('stove');await sleep(2400);
  cap('Rebuild the collapsed stairs to reach the bedroom.');shelterFocus(118);await view(()=>roomPanel('bedroom'),1600);ACT.clear('bedroom');for(const q of (S.loose||[]).filter(q=>q.room==='bedroom'))pickPile(q);await sleep(2200);await sleep(600);
  cap('Beds help people recover.');shelterFocus(290);ACT.upg('bed1');await sleep(1100);ACT.upg('bed2');await sleep(1500);
  cap('The study door is locked. A lockpick opens it, then breaks.');shelterFocus(380);await view(()=>roomPanel('study'),1400);ACT.clear('study');for(const q of (S.loose||[]).filter(q=>q.room==='study'))pickPile(q);await sleep(2200);await sleep(500);
@@ -1593,7 +1610,7 @@ async function runDemo(){
  cap('Each building shows which tools its locked areas need.');show('.locs');await sleep(1600);ACT.loc('hosp');show('.locs');await sleep(2200);
  cap('Pack tools. Every tool takes room that loot could use.');for(const k of ['pick','pick','shovel','crowbar','knife','pistol','ammo','ammo']){ACT.gear(k,'1');show('.pk');await sleep(320)}await sleep(1400);
  LOCS.push(DEMO_LOC);S.loc='demo';
- S.locs.demo={seed:777,objs:[{t:'exit',x:40,f:0},{t:'crate',x:190,f:0,loot:['cloth','dirty']},{t:'gate',k:'rubble',x:330,f:0,open:false},{t:'hide',x:470,f:0},{t:'crate',x:590,f:0,loot:['bandage']},{t:'gate',k:'lock',x:720,f:0,open:false},{t:'cab',x:840,f:0,locked:false,loot:['meds','meds','can']},
+ S.locs.demo={seed:777,objs:[{t:'exit',x:40,f:0},{t:'crate',x:190,f:0,loot:['cloth','water']},{t:'gate',k:'rubble',x:330,f:0,open:false},{t:'hide',x:470,f:0},{t:'crate',x:590,f:0,loot:['bandage']},{t:'gate',k:'lock',x:720,f:0,open:false},{t:'cab',x:840,f:0,locked:false,loot:['meds','meds','can']},
   {t:'up',x:966,f:0,to:1,sid:0,sx:1000,jam:'boards',jamOpen:false},{t:'down',x:1040,f:1,to:0,sid:0,sx:1000},{t:'crate',x:900,f:1,loot:['fuel','parts']},{t:'cab',x:380,f:1,locked:false,loot:['meds','pick']}],
   guards:[{type:'looter',f:0,x:620,hx:620,dir:1,dead:false,loot:['smokes','pick']},{type:'soldier',f:1,x:700,hx:700,dir:-1,dead:false,loot:['ammo','fuel']}]};
  ACT.go();const A=N.guards[0],B=N.guards[1],ob=N.objs;Object.assign(A,{pause:999,dir:1,keen:.4});Object.assign(B,{pause:999,dir:-1,keen:.4});
@@ -1609,7 +1626,7 @@ async function runDemo(){
  cap('A soldier. They shoot on sight, and the pistol is a last resort.');B.dir=-1;Object.assign(B,{pause:0});alertG(B);await sleep(1100);for(let i=0;i<3&&!B.dead;i++){N.p.dir=1;shoot();await sleep(650)}if(!B.dead)kill(B);await sleep(900);
  await goTo(900);await act();await waitBusy();await takeAll();
  cap('Get home before 05:00.');await goTo(1040);await act();await waitBusy();await goTo(52);await act();await until(()=>!N,3000);
- cap('Dawn: the heater kept the house warm, the filter cleaned water, and the haul came home.');await sleep(5200);
+ cap('Dawn: the heater kept the house warm and the haul came home.');await sleep(5200);
  if(!$('#modal').hidden&&typeof MFN[0]==='function')MFN[0]();await sleep(2600);
  cap('Then the next day begins. Hold on until the ceasefire.');await sleep(3200);ACT.demostop()}
 ['gesturestart','gesturechange'].forEach(t=>document.addEventListener(t,e=>e.preventDefault(),{passive:false}));
