@@ -1443,6 +1443,11 @@ const DSC={door:.72,door_open:.72,frontdoor0:.72,frontdoor2:.72,frontdoor3:.72,e
 function drawSpr(c,name,x,yb,o){const m=MAN&&MAN.props[name];if(!m||!SPR_OK)return false;o=Object.assign({},o||{});if(DSC[name])o.sc=(o.sc||1)*DSC[name];const s=m.s*(o.sc||1);
  c.save();if(o.alpha!=null)c.globalAlpha*=o.alpha;c.translate(x,yb);if(o.flip)c.scale(-1,1);if(o.rot)c.rotate(o.rot);
  c.drawImage(IMG.props,m.x,m.y,m.w,m.h,m.ox*(o.sc||1),m.oy*(o.sc||1),m.w*s,m.h*s);c.restore();return true}
+// outline of a prop's real shape, for things not yet built: the sprite's alpha, dilated, in a pale ink
+const SIL={};function silhouette(n){if(SIL[n]!==undefined)return SIL[n];const m=MAN&&MAN.props[n];if(!m||!IMG.props||!IMG.props.width)return null;const P=3,w=m.w+P*2,h=m.h+P*2,e=mkCv(w,h),g=e.getContext('2d');
+ for(let a=0;a<Math.PI*2;a+=Math.PI/6)g.drawImage(IMG.props,m.x,m.y,m.w,m.h,P+Math.cos(a)*P,P+Math.sin(a)*P,m.w,m.h);
+ g.globalCompositeOperation='destination-out';g.drawImage(IMG.props,m.x,m.y,m.w,m.h,P,P,m.w,m.h);
+ g.globalCompositeOperation='source-in';g.fillStyle='#f0e2c0';g.fillRect(0,0,w,h);return SIL[n]=e}
 function drawPerson(c,x,y,o){
  const lk=o.look||'Marko',im=IMG[lk],fr=FRAME_IDX[lk];
  if(!SPR_OK||!im||!im.width||!fr)return _vecPerson(c,x,y,o);
@@ -1491,7 +1496,7 @@ function wallDecor(c,theme,x,yb,r){if(theme==='home'||theme==='shelter'){const k
 function drawStation(c,id,t){
  if(!SPR_OK)return _vecStation(c,id,t);
  const s=ST[id],x=s.x,yb=fy(s.f),lv=S.up[id]||0,room=roomAt(s.f,x),open=roomOpen(room);if(!open&&id!=='door')return;
- const ghost=n=>{const m=MAN&&MAN.props[n];drawSpr(c,n,x,yb,{alpha:.34});if(m){const w=m.w*m.s,hh=m.h*m.s,gx=x+m.ox,gy=yb+m.oy;c.save();c.setLineDash([4,3]);c.lineDashOffset=-t*8;c.strokeStyle='rgba(240,226,192,.55)';c.lineWidth=1.2;c.strokeRect(gx-3,gy-3,w+6,hh+6);c.setLineDash([]);c.restore();c.globalAlpha=.75;ci(c,gx+w+2,gy-2,7,'rgba(14,17,22,.9)');dico(c,'plus',gx+w+2,gy-2,11);c.globalAlpha=1}};
+ const ghost=n=>{const m=MAN&&MAN.props[n];if(!m){return}const sil=silhouette(n);if(sil){const w=m.w*m.s,hh=m.h*m.s,gx=x+m.ox-3,gy=yb+m.oy-3;c.globalAlpha=.55+.15*Math.sin(t*2.5);c.drawImage(sil,gx,gy,w+6,hh+6);c.globalAlpha=1}drawSpr(c,n,x,yb,{alpha:.28})};
  switch(id){
  case 'door':drawSpr(c,'frontdoor'+(S.up.def>=3?3:S.up.def>=2?2:0),6,0);break;
  case 'heater':if(!lv){ghost('heater1');break}drawSpr(c,'heater'+lv+(heatOn()?'':'_off'),x,yb);if(heatOn()){const fl=.6+.4*Math.sin(t*9)+.2*Math.sin(t*23);c.globalAlpha=.35*fl;c.drawImage(PUFF_F,x-16,yb-(lv===1?30:32),32,32);c.globalAlpha=1}break;
