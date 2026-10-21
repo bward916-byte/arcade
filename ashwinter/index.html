@@ -1,6 +1,4 @@
-<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no"><meta name="theme-color" content="#0f1216"><style>html,body{margin:0;padding:0;background:#0f1216}</style>
-<title>Ashwinter</title>
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>html,body{margin:0;background:#0f1216}</style></head><body><title>Ashwinter</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Barlow:wght@400;500;600&display=swap">
 <style>
 /* Layout: the screen is a lit, drawn cross-section. The house by day with a war outside, guarded buildings by night. Panels are icon rows and tiles. Single committed dark look. */
@@ -228,7 +226,7 @@ function load(){try{const s=JSON.parse(localStorage.getItem(SAVE));return s&&s.u
 function wipe(){try{localStorage.removeItem(SAVE)}catch(e){}}
 
 // ===== sim: day actions, night resolution, events =====
-const ACT={};
+const ACT={};ACT.stock=()=>stockPanel();
 const person=id=>S.people.find(p=>p.id===id);
 ACT.eat=(id,k)=>{const p=person(id);if(!S.stock[k])return;add(k,-1);p.fed=Math.min(100,p.fed+{meal:60,can:40}[k]);fxAt('p:'+id,'icon',k);render()};
 ACT.heal=(id,k)=>{const p=person(id);if(!S.stock[k])return;add(k,-1);if(k==='bandage')p.wounded=false;else p.sick=false;p.hp=Math.min(100,p.hp+(has('medic')?20:10));fxAt('p:'+id,'icon',k);render()};
@@ -319,8 +317,8 @@ function afterNight(lines){
 // ---------- events ----------
 const EVENTS=[
  {k:'door',w:3,can:()=>alive().length<4&&S.pool.length>0,make(){const n=S.pool[0];return{t:'A knock at dusk. '+n.name+' stands in the doorway with an empty bag. '+n.bio+' They ask to stay.',o:[['Let them in',()=>{S.pool.shift();S.people.push(mk(n.name,n.trait));return n.name+' joins the house. One more mouth, one more pair of hands.'}],['Turn them away',()=>{S.pool.push(S.pool.shift());return 'You bolt the door. The footsteps fade.'}]]}}},
- {k:'trade',w:3,can:()=>true,make(){const o=[];for(let i=0;i<3;i++){const g=pick(['can','meds','bandage','pick','ammo','water','fuel','fuel','parts','shovel','crowbar']);let w=pick(['smokes','parts','wood','cloth','raw','dirty','can']);if(w===g)w='cloth';const q=Math.ceil(ITEMS[g].v*1.3/ITEMS[w].v);o.push(['Give '+q+' '+ITEMS[w].n.toLowerCase()+' for 1 '+ITEMS[g].n.toLowerCase(),()=>{add(w,-q);add(g);return 'The trader counts it twice, nods, and hands it over.'},(S.stock[w]||0)>=q])}o.push(['Send the trader off',()=>'He shrugs and moves on to the next house.']);return{t:'A trader taps on the shutter, coat heavy with goods.',o}}},
- {k:'boy',w:2,can:()=>!S.gift,make(){return{t:'A boy from across the yard asks for food for his mother. He has nothing to trade.',o:[['Give a can',()=>{add('can',-1);S.gift=S.day+2;return 'He holds it with both hands and runs.'},S.stock.can>0],['Give raw food',()=>{add('raw',-1);S.gift=S.day+2;return 'He thanks you and runs.'},S.stock.raw>0],['Say no',()=>'He leaves without a word.']]}}},
+ {k:'trade',w:3,can:()=>true,make(){const o=[];for(let i=0;i<3;i++){const g=pick(['can','meds','bandage','pick','ammo','water','fuel','fuel','parts','shovel','crowbar']);let w=pick(['smokes','parts','wood','cloth','wire','steel','can']);if(w===g)w='cloth';const q=Math.ceil(ITEMS[g].v*1.3/ITEMS[w].v);o.push(['Give '+q+' '+ITEMS[w].n.toLowerCase()+' for 1 '+ITEMS[g].n.toLowerCase(),()=>{add(w,-q);add(g);return 'The trader counts it twice, nods, and hands it over.'},(S.stock[w]||0)>=q])}o.push(['Send the trader off',()=>'He shrugs and moves on to the next house.']);return{t:'A trader taps on the shutter, coat heavy with goods.',o}}},
+ {k:'boy',w:2,can:()=>!S.gift,make(){return{t:'A boy from across the yard asks for food for his mother. He has nothing to trade.',o:[['Give a can',()=>{add('can',-1);S.gift=S.day+2;return 'He holds it with both hands and runs.'},S.stock.can>0],['Give a meal',()=>{add('meal',-1);S.gift=S.day+2;return 'He thanks you and runs.'},S.stock.meal>0],['Say no',()=>'He leaves without a word.']]}}},
  {k:'shell',w:2,can:()=>S.day>3,make(){return{t:'Shells walk down the street at noon. The whole house shakes.',o:[['Take cover',()=>{shake(1);if(chance([.65,.5,.35,.2][S.up.def])){const v=pick(alive());v.wounded=true;v.hp-=18;return 'Glass and plaster come down. '+v.name+' is wounded.'}return 'Dust falls from the ceiling. Everyone is unhurt.'}]]}}},
  {k:'cold',w:2,can:()=>S.day>2,make(){return{t:'The radio crackles about a cold front. Tonight will be brutal.',o:[['Brace for it',()=>{S.out-=7;return 'Tonight: '+S.out+'° outside, '+indoor()+'° in the house'+(S.up.heater?' with the heater lit.':'. You have no heater.')}]]}}},
  {k:'rats',w:1,can:()=>S.stock.can>2,make(){return{t:'Rats got into the stores overnight and chewed through the labels.',o:[['Salvage what is left',()=>{add('can',-1);return 'One can is lost.'}]]}}},
@@ -409,6 +407,7 @@ const IC={
  hand(c){rr(c,9,13,14,14,'#d9c7a8',4);for(let i=0;i<4;i++)rr(c,9+i*3.6,4+(i===1?0:i===0?3:i===2?1:4),3,12,'#d9c7a8',1.5);rr(c,4,14,5,9,'#d9c7a8',2);rr(c,10,24,12,5,'#b9a98a',2);},
  up(c){pg(c,[16,4,27,17,20,17,20,28,12,28,12,17,5,17],'#d9d4c7');},
  down(c){pg(c,[16,28,27,15,20,15,20,4,12,4,12,15,5,15],'#d9d4c7');},
+ sneak(c){ci(c,10,9,3.2,'#d9d4c7');ci(c,22,15,3.2,'#d9d4c7');pg(c,[6,13,14,13,13,24,7,24],'#d9d4c7');pg(c,[18,19,26,19,25,30,19,30],'#d9d4c7');ci(c,8,27,1.6,'#d9d4c7');ci(c,20,33,1.6,'#d9d4c7');},
  hide(c){pg(c,[2,16,16,7,30,16,16,25],'#d9d4c7');ci(c,16,16,5,'#12151a');ln(c,[5,27,27,5],'#c2503f',3);},
  exit(c){rr(c,6,4,14,24,'#8a5a33',1);ci(c,17,16,1.5,'#e2a03f');pg(c,[21,11,30,16,21,21],'#e2a03f');},
  book(c){rr(c,5,6,22,21,'#6b4a2e',2);rr(c,8,6,19,19,'#e9e1cf',1);ln(c,[11,11,23,11],'#8d96a3',1.5);ln(c,[11,15,23,15],'#8d96a3',1.5);ln(c,[11,19,19,19],'#8d96a3',1.5);},
@@ -1018,7 +1017,7 @@ function startScav(who){
  const layer=buildLayer({key:'loc:'+L.id+':'+d.seed,w:L.w,floors:L.floors,theme:L.theme,seed:d.seed,walls,stairs:L.stairs.map((s,i)=>({x:s.x,f:i})),occ:(f,a,b)=>d.objs.some(o=>o.f===f&&o.t!=='down'&&o.x>a-26&&o.x<b+26)||d.guards.some(g=>g.f===f&&Math.abs(g.hx-(a+b)/2)<10),night:true,exit:true,bld:L.bld,graves:L.graves,trees:L.trees,roofX0:L.bld?L.bld[0]:0,roofX1:L.bld?L.bld[1]:L.w,noWin:L.bld?((f,x)=>x<L.bld[0]+30||x>L.bld[1]-30):null});
  N={L,who,objs:d.objs,guards:d.guards,pack,layer,props:streetProps(d.seed,L.w),cap:capOf(who),hp:who.hp,t:0,dur:240,p:{x:90,f:0,dir:1,hidden:false,sneak:false,walk:0},stealth:who.trait==='quiet'?.72:1,spd:(who.trait==='fast'?1.2:1)*(who.rest<25?.82:1),shots:[],msg:'',msgT:0,noiseT:0,hit:0,flash:0,shotT:0};
  S.phase='scav';FXL=[];render();
- $('#main').innerHTML='<div class="scav"><div class="hud">'+ico('moon',18)+'<span id="clk"></span>'+ico('heart',18)+'<span class="hp"><b id="hpB"></b></span>'+ico('scav',18)+'<span class="hp"><b id="pkB" style="background:var(--moss)"></b></span><span id="tools"></span></div><div id="cvBox"><canvas id="cv"></canvas>'+zoomBtns+'</div><div class="pad">'+sndBtn()+'<button class="btn ic" id="bS" aria-label="Sneak">'+ico('hide',26)+'</button><span class="hint" id="pHint"></span><button class="btn ic" id="bF" hidden aria-label="Shoot">'+ico('pistol',26)+'</button></div></div>';
+ $('#main').innerHTML='<div class="scav"><div class="hud">'+ico('moon',18)+'<span id="clk"></span>'+ico('heart',18)+'<span class="hp"><b id="hpB"></b></span>'+ico('scav',18)+'<span class="hp"><b id="pkB" style="background:var(--moss)"></b></span><span id="tools"></span></div><div id="cvBox"><canvas id="cv"></canvas>'+zoomBtns+'</div><div class="pad">'+sndBtn()+'<button class="btn ic" id="bS" aria-label="Sneak">'+ico('sneak',24)+'<small style="margin-left:6px;font:500 11px var(--display);letter-spacing:.08em">SNEAK</small></button><span class="hint" id="pHint"></span><button class="btn ic" id="bF" hidden aria-label="Shoot">'+ico('pistol',26)+'</button></div></div>';
  cv=$('#cv');cx=cv.getContext('2d');const f=()=>fitCv((w,h)=>Math.max(w/900,Math.min(h/440,w/430)));f();onresize=f;canvasInput({tap:scavTap});
  $('#bS').onclick=toggleSneak;$('#bF').onclick=shoot;K.l=K.r=false;
  N.msgT=0;requestAnimationFrame(loop)}
@@ -1080,7 +1079,7 @@ function scavDraw(){
   else if(o.t==='grave'){if(o.seen&&!o.loot.length)continue;k=o.seen?'hand':'shovel';bad=!o.seen&&!pk.shovel;by=y-50}
   else if(o.t==='cab'||o.t==='crate'){if(o.seen&&!o.loot.length)continue;if(o.locked){k='pick';bad=!(pk.pick>0||pk.crowbar)}else k='hand';by=y-(o.t==='crate'?42:76)}
   if(!k)continue;if(near&&N.miss){k=N.miss;bad=true}
-  if(near)bubble(c,o.x,by,k,t,bad);else{ci(c,o.x,by,10,'rgba(14,17,22,.85)');c.strokeStyle=bad?'#c2503f':'rgba(226,160,63,.7)';c.lineWidth=1.3;c.beginPath();c.arc(o.x,by,10,0,7);c.stroke();dico(c,k,o.x,by,13);if(bad)ln(c,[o.x-6,by+6,o.x+6,by-6],'#c2503f',1.8)}
+  if(near){const NL={hide:'Hide',hand:'Search',pick:'Pick lock',crowbar:'Pry',shovel:'Dig',cutters:'Cut chain',knife:'Attack',up:'Stairs',down:'Stairs',exit:'Leave'};bubble(c,o.x,by,k,t,bad,o.t==='hide'&&p.hidden?'Come out':NL[k]||'')}else{ci(c,o.x,by,10,'rgba(14,17,22,.85)');c.strokeStyle=bad?'#c2503f':'rgba(226,160,63,.7)';c.lineWidth=1.3;c.beginPath();c.arc(o.x,by,10,0,7);c.stroke();dico(c,k,o.x,by,13);if(bad)ln(c,[o.x-6,by+6,o.x+6,by-6],'#c2503f',1.8)}
   N.bubbles.push({x:o.x,y:by,o})}
  for(const g of N.guards){if(g.f!==p.f||Math.abs(g.x-p.x)>44)continue;const by=fy(g.f)-(g.dead?28:70);
   if(g.dead){if(!g.loot.length)continue;bubble(c,g.x,by,'hand',t,false)}else{const beh=g.state!=='alert'&&Math.sign(p.x-g.x)!==g.dir,wpn=pk.knife||pk.crowbar;if(!beh&&g.state!=='alert')continue;bubble(c,g.x,by,'knife',t,!wpn)}
@@ -1197,7 +1196,7 @@ function needsBar(){whoBar();const e=$('#needs');if(!e)return;const ti=indoor(),
  e.innerHTML='<span class="nd" id="clk2"></span><span class="nd'+((S.stock.water||0)<alive().length?' bad':'')+'">'+ico('water',18)+(S.stock.water||0)+'</span>'+
  '<span class="nd'+(ti<3?' bad':ti<10?' warn':'')+'">'+ico('temp',18)+ti+'°</span>'+
  '<span class="nd'+(L===0?' warn':'')+'">'+ico('lights',18)+pips(L,2)+(S.up.lights>=2?ico('fuel',14)+(S.stock.fuel||0):'')+'</span>'+
- '<span class="nd">'+ico('can',18)+((S.stock.can||0)+(S.stock.meal||0))+'</span>';clockBar();e.onclick=()=>stockPanel();e.style.cursor='pointer'}
+ '<span class="nd" data-act="stock" style="cursor:pointer">'+ico('can',18)+((S.stock.can||0)+(S.stock.meal||0))+'</span>';clockBar();e.onclick=null}
 function badges(){const L=[];for(const id in ST){const u=ST[id].up||id;if(!UPG[u]||id==='gen'||!roomOpen(roomAt(ST[id].f,ST[id].x)))continue;if(nextLv(u)&&!whyNotUpg(u)&&(S.up[u]||['filter','heater','lights','stove','bed1','bed3','radio','rain'].includes(u))){const s_=ST[id];L.push({id:u,x:s_.x,y:s_.y!=null?fy(s_.f)+s_.y+52:fy(s_.f)-s_.h-26})}}return L}
 function selPerson(){const id=SH.sel&&person(SH.sel)&&person(SH.sel).alive?SH.sel:alive()[0].id;SH.sel=id;return SH.people[id]}
 function nearBubbles(){const h=selPerson();if(!h||h.climb||h.job)return [];const all=_nearAll(h);if(!all.length)return all;let b=all[0];for(const o of all)if(Math.abs(o.x-h.x)<Math.abs(b.x-h.x))b=o;return [b]}
@@ -1543,7 +1542,7 @@ function art(k){if(!ART[k]){const e=mkCv(640,220),c=e.getContext('2d');c.scale(2
  if(k==='shell'){rr(c,40,40,110,54,'#4a3a32');for(let i=0;i<4;i++)rr(c,52+i*24,52,12,16,'#1b2129');pg(c,[114,40,122,48,118,56,132,62,146,54,150,40],'#14100e');WAR.ex=[{x:90,y:gy,t:.25,s:.6},{x:230,y:gy-4,t:.7,s:.8},{x:300,y:gy,t:2.5,s:.6}];drawExplosions(c,W,gy,false,.9);WAR.ex=saved.ex;drawStreet(c,[{k:'bags',x:220,flip:0},{k:'hedge',x:280,flip:1}].map(p=>p),false)}
  if(k==='cold'){inside();rr(c,110,14,100,70,'#1b2438');c.save();c.beginPath();c.rect(110,14,100,70);c.clip();drawBackdrop(c,W,H,gy,60,4,'night',.5);for(let i=0;i<80;i++)ci(c,110+hsh(i)*100,14+hsh(i+.5)*70,.8+hsh(i+.2),'rgba(240,240,250,.8)');c.restore();rr(c,158,14,4,70,'#3a2a1c');rr(c,110,46,100,4,'#3a2a1c');
   const fr=c.createRadialGradient(160,49,20,160,49,62);fr.addColorStop(0,'rgba(220,235,250,0)');fr.addColorStop(1,'rgba(220,235,250,.7)');c.fillStyle=fr;c.fillRect(110,14,100,70);dico(c,'cold',280,30,30);dico(c,'temp',40,30,30)}
- if(k==='rats'){inside();for(let r=0;r<3;r++)rr(c,30,30+r*28,260,4,'#6a5540');dico(c,'raw',80,20,20);dico(c,'can',220,48,20);for(const p of [[120,54],[200,82],[60,82],[250,26]]){c.fillStyle='#59626e';c.beginPath();c.ellipse(p[0],p[1],11,5.5,0,0,7);c.fill();ci(c,p[0]+10,p[1]-2,4,'#59626e');ci(c,p[0]+12,p[1]-3,.8,'#c2503f');ln(c,[p[0]-10,p[1],p[0]-24,p[1]-5],'#8d96a3',1.2)}}
+ if(k==='rats'){inside();for(let r=0;r<3;r++)rr(c,30,30+r*28,260,4,'#6a5540');dico(c,'can',80,20,20);dico(c,'can',220,48,20);for(const p of [[120,54],[200,82],[60,82],[250,26]]){c.fillStyle='#59626e';c.beginPath();c.ellipse(p[0],p[1],11,5.5,0,0,7);c.fill();ci(c,p[0]+10,p[1]-2,4,'#59626e');ci(c,p[0]+12,p[1]-3,.8,'#c2503f');ln(c,[p[0]-10,p[1],p[0]-24,p[1]-5],'#8d96a3',1.2)}}
  if(k==='sick'){inside();rr(c,90,78,150,8,'#6a4a34');rr(c,84,56,8,40,'#4a3424');rr(c,236,66,8,30,'#4a3424');rr(c,96,66,140,12,'#d9d4c7',5);drawPerson(c,160,74,{look:'Ines',lie:1,dir:-1,sc:1.2});rr(c,140,62,94,14,'#7d97b3',6);dico(c,'sick',270,32,26);const cg=c.createRadialGradient(60,60,2,60,60,90);cg.addColorStop(0,'rgba(255,170,80,.3)');cg.addColorStop(1,'rgba(255,170,80,0)');c.fillStyle=cg;c.fillRect(0,0,W,H)}
  if(k==='main'){drawStreet(c,[{k:'lamp',x:250,flip:0},{k:'crater',x:140,flip:0}],false);for(let i=0;i<30;i++){const tt=i/30;ci(c,140+tt*20-10,88-Math.sin(tt*Math.PI)*36,2.2,'rgba(140,190,220,.8)')}drawPerson(c,90,96,{look:'Marko',sc:1.1,dir:1,crouch:1});rr(c,108,86,10,10,'#7d8791',2);rr(c,190,86,10,10,'#7d8791',2)}
  if(k==='find'){drawCrate(c,170,94,false,'home');drawPerson(c,140,96,{look:'Marko',sc:1.1,crouch:1});dico(c,'parts',200,70,18);dico(c,'wood',220,82,18)}
@@ -1653,5 +1652,4 @@ async function runDemo(){
 loadAssets().then(()=>{if(window.claude&&window.claude.hot&&window.claude.hot.ready)window.claude.hot.ready(start);else start((window.claude&&window.claude.hot&&window.claude.hot.data)||{})});
 
 </script>
-
-</html>
+</body></html>
