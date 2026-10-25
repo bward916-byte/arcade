@@ -518,11 +518,16 @@ const Motion = (() => {
     // ear, behind and level with the eye
     ctx.fillStyle = mid; ctx.beginPath(); ctx.ellipse(-R * .62, -R * .02, R * .13, R * .22, -.15, 0, 2 * PI); ctx.fill();
     ctx.strokeStyle = 'rgba(0,0,0,.3)'; ctx.lineWidth = .7 * S; ctx.beginPath(); ctx.ellipse(-R * .6, R * .0, R * .07, R * .13, -.15, 0, 2 * PI); ctx.stroke();
-    // cropped hair: a cap that follows the skull, hairline above the brow, a sideburn down past the ear
-    ctx.fillStyle = hair; ctx.beginPath(); ctx.moveTo(-R * .96, -R * .15); ctx.bezierCurveTo(-R * 1.02, -R * 1.32, R * .55, -R * 1.38, R * .86, -R * .62);
-    ctx.quadraticCurveTo(R * .7, -R * .66, R * .56, -R * .82); ctx.quadraticCurveTo(R * .15, -R * .98, -R * .35, -R * .85); ctx.quadraticCurveTo(-R * .7, -R * .7, -R * .78, -R * .25); ctx.lineTo(-R * .72, R * .05); ctx.lineTo(-R * .92, R * .1); ctx.closePath(); ctx.fill();
-    ctx.beginPath(); ctx.moveTo(-R * .82, -R * .2); ctx.lineTo(-R * .68, -R * .2); ctx.lineTo(-R * .62, R * .28); ctx.lineTo(-R * .76, R * .32); ctx.closePath(); ctx.fill();   // sideburn
-    ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.beginPath(); ctx.ellipse(-R * .1, -R * 1.0, R * .45, R * .12, .15, 0, 2 * PI); ctx.fill();   // sheen on the crown
+    // short, full hair: sits proud of the skull with a low hairline, tousled on top, a sideburn past the ear
+    ctx.fillStyle = hair; ctx.beginPath(); ctx.moveTo(-R * 1.02, -R * .05);
+    ctx.bezierCurveTo(-R * 1.2, -R * 1.25, -R * .3, -R * 1.62, R * .35, -R * 1.42);   // back and crown, with volume
+    ctx.quadraticCurveTo(R * .72, -R * 1.28, R * .9, -R * .72);                           // front of the crown down to the hairline
+    ctx.quadraticCurveTo(R * .62, -R * .78, R * .3, -R * .86); ctx.quadraticCurveTo(-R * .2, -R * .95, -R * .6, -R * .72);   // hairline across the forehead
+    ctx.quadraticCurveTo(-R * .8, -R * .55, -R * .78, -R * .25); ctx.lineTo(-R * .72, R * .05); ctx.lineTo(-R * 1.0, R * .12); ctx.closePath(); ctx.fill();
+    for (let i = 0; i < 5; i++) { const x = -R * .6 + i * R * .32, y = -R * (1.25 + .12 * ((i * 3) % 3)); ctx.beginPath(); ctx.moveTo(x - R * .12, y + R * .15); ctx.quadraticCurveTo(x + R * .05, y - R * .22, x + R * .22, y + R * .05); ctx.lineTo(x + R * .1, y + R * .18); ctx.closePath(); ctx.fill(); }   // tufts
+    ctx.beginPath(); ctx.moveTo(-R * .84, -R * .2); ctx.lineTo(-R * .66, -R * .22); ctx.lineTo(-R * .6, R * .3); ctx.lineTo(-R * .78, R * .34); ctx.closePath(); ctx.fill();   // sideburn
+    ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.beginPath(); ctx.moveTo(-R * .95, -R * .3); ctx.quadraticCurveTo(-R * .9, -R * 1.0, -R * .3, -R * 1.2); ctx.quadraticCurveTo(-R * .6, -R * .95, -R * .75, -R * .4); ctx.closePath(); ctx.fill();   // shade at the back
+    ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.beginPath(); ctx.ellipse(-R * .05, -R * 1.22, R * .45, R * .1, .1, 0, 2 * PI); ctx.fill();   // sheen on the crown
     // blood on the face when he has been in the thick of it
     if (ch.gore > 0) { ctx.fillStyle = 'rgba(110,8,12,' + (.5 + ch.gore * .4) + ')'; for (let i = 0; i < 7; i++) { const a = i * 1.7 + 2, r = R * (.3 + ((i * 3) % 5) / 8); ctx.beginPath(); ctx.ellipse(R * .5 + Math.cos(a) * r, R * .1 + Math.sin(a) * r * .9, (1 + (i % 3) * .5) * S * ch.gore, .8 * S, a, 0, 2 * PI); ctx.fill(); } }
   }
