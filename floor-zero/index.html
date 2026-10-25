@@ -687,6 +687,8 @@ const FZ = (() => {
     kungfu:  ['palm', 'frontKick', 'roundhouse', 'sweep', 'knee', 'spinKick'],
   };
   const FINISHER = { fencing: ['aerialSlash', 'plunge', 'flipChop'], brawler: ['uppercut', 'charge'], kungfu: ['spinKick', 'roundhouse'] };
+  const DOWN = { fencing: ['cut', 'smash', 'flipChop', 'cut'], brawler: ['cross', 'hook', 'tackle', 'cross'], kungfu: ['palm', 'roundhouse', 'frontKick', 'palm'] };   // target below you on the stairs
+  const UP = { fencing: ['riser', 'lunge', 'riser', 'spin'], brawler: ['uppercut', 'jab', 'uppercut', 'knee'], kungfu: ['frontKick', 'palm', 'knee', 'spinKick'] };   // target above you
   const OPENER = { fencing: ['fleche', 'jumpKick'], brawler: ['charge', 'tackle'], kungfu: ['jumpKick', 'spinKick'] };   // used when the run carries straight into a zombie
   const DODGE_STAND = { fencing: ['backflip', 'leanBack', 'hopBack'], brawler: ['slip', 'bob', 'backflip'], kungfu: ['sidestep', 'backflip', 'leanBack'] };
   const DODGE_MOVE = { fencing: ['roll', 'roll', 'sidestep'], brawler: ['roll', 'sidestep'], kungfu: ['roll', 'sidestep'] };
@@ -800,12 +802,13 @@ const FZ = (() => {
 
   // ---------- combat ----------
   const sameFloor = (a, b) => Math.abs(a.h - b.h) < .45;
+  const inReachH = (a, b) => Math.abs(a.h - b.h) < .3;   // on the stairs you have to be close in height too, not just along x
   function targetsOf(c) { return c.isPlayer || c.ally ? G.zeds : [G.player, ...G.party]; }
   function strike(att, move) {
     const a = A[move]; if (!a) return; const reach = (a.reach || 95) * (att.scale / 1.9) + (att.armed ? 30 : 0);
     let hitAny = false;
     for (const d of targetsOf(att)) {
-      if (!d.alive || d.dead || !sameFloor(att, d)) continue; const dx = d.x - att.x; if (dx * att.facing < -10 || Math.abs(dx) > reach + 24) continue;
+      if (!d.alive || d.dead || !sameFloor(att, d) || !inReachH(att, d)) continue; const dx = d.x - att.x; if (dx * att.facing < -10 || Math.abs(dx) > reach + 24) continue;
       if (d.invulnerable && d.invulnerable()) { if (d.isPlayer) float(d.x, gy(d) - 120, 'DODGED', '#9ad2ff'); continue; }
       const base = att.isPlayer ? (a.dmg || 8) * WEAPONS[att.weapon].dmg * (1 + G.upgrades.dmg * .25) : att.ally ? (a.dmg || 8) * 1.4 : att.dmg;
       const dmg = Math.round(base * mrnd(.85, 1.2) * (att.action && att.action.fin ? 2.2 : 1)); if (d.headless) continue;
@@ -836,10 +839,21 @@ const FZ = (() => {
     float(d.x, fy - 150, d.kind === 'bloater' ? 'DOWN' : 'DEAD', '#8fd38a');
   }
 
+  function aimSlope(c) {
+    if (!c.isPlayer && !c.ally) return; const a = c.action, m = a && A[a.name]; if (!c.cur) return;
+    let want = 0;
+    if (m && m.dmg && !c.cur.rot) { const t = G.zeds.filter(z => z.alive && sameFloor(z, c) && (z.x - c.x) * c.facing > -10 && Math.abs(z.x - c.x) < 170).sort((x, y) => Math.abs(x.x - c.x) - Math.abs(y.x - c.x))[0];
+      if (t) want = clamp((c.h - t.h) * 2.6, -.6, .6); }   // lower target → lean forward and down
+    c.aim = lerp(c.aim || 0, want, .25);
+    if (Math.abs(c.aim) > .01 && !c.cur.rot) { c.cur = Object.assign({}, c.cur, { rot: c.aim, pivot: 0, torso: c.cur.torso + c.aim * .4 }); }
+  }
   function playerAttack(p) {
     if (p.action || !p.grounded) return false;
     const pool = STYLES[p.style]; const near = G.zeds.find(z => z.alive && sameFloor(z, p) && Math.abs(z.x - p.x) < 150 && z.hp < 18);
-    let m, fin = false; if (near && mrnd() < .6) { m = pick(FINISHER[p.style]); fin = true; }
+    const tgt = G.zeds.filter(z => z.alive && sameFloor(z, p) && (z.x - p.x) * p.facing > -10 && Math.abs(z.x - p.x) < 170).sort((a, b) => Math.abs(a.x - p.x) - Math.abs(b.x - p.x))[0]; const dh = tgt ? tgt.h - p.h : 0;
+    let m, fin = false; if (near && mrnd() < .6 && Math.abs(dh) < .12) { m = pick(FINISHER[p.style]); fin = true; }
+    else if (dh < -.1) { m = DOWN[p.style][p.combo % 4]; p.combo++; }
+    else if (dh > .1) { m = UP[p.style][p.combo % 4]; p.combo++; }
     else if (p.combo === 0 && p.wasRunning > 0 && mrnd() < .7) { m = pick(OPENER[p.style]); p.combo++; }
     else { m = pool[p.combo % pool.length]; p.combo++; if (p.combo >= pool.length) p.combo = 0; }
     p.comboT = .9;
@@ -953,7 +967,7 @@ const FZ = (() => {
     if (G.flare) for (const z of active) if (z.alive && !z.action && z.fl === G.flare.fl) { const dx = G.flare.x - z.x; z.input.move = Math.abs(dx) > 40 ? Math.sign(dx) : 0; }
     if (G.noise > 55 && active.filter(z => z.alive && z.fl === p.fl).length < 11 && mrnd() < dt * .9) { const fl = G.floor, side = fl.stairX - fl.dir * (FLOOR_W - SHAFT - 60); const z = newZed(mrnd() < .3 ? 'runner' : 'zed', side, p.fl); z.aware = true; G.zeds.push(z); float(side, gy(p) - 160, '…more', '#ff6b5a'); }
     const movers = [p, ...G.party, ...active];
-    for (const c of movers) { c.update(dt); const was = c.fl; surface(c); if (c.isPlayer && c.fl !== was) onFloorChange(c.fl); }
+    for (const c of movers) { c.update(dt); aimSlope(c); const was = c.fl; surface(c); if (c.isPlayer && c.fl !== was) onFloorChange(c.fl); }
     separate(movers);
     for (let i = G.zeds.length - 1; i >= 0; i--) { const z = G.zeds[i]; if (!z.alive) { z.gone = (z.gone || 0) + dt; if (z.gone > 8) G.zeds.splice(i, 1); } }
     // camera: follow him down, keep the floor below in view
