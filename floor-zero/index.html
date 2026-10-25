@@ -646,15 +646,33 @@ const FZ = (() => {
   Poses.shamble = (t, c) => { const p = Poses.walk(t, c); p.torso += .32; p.head += .25; p.ua1 = 1.45 + .15 * Math.sin(t * 3); p.la1 = .35; p.ua2 = 1.3 + .15 * Math.cos(t * 2.7); p.la2 = .45; p.ll1 += .15; p.ll2 += .15; p.lift -= .6; return p; };
   Poses.lurch = (t, c) => { const p = Poses.run(t, c); p.torso += .2; p.head += .3; p.ua1 = 1.2; p.la1 = .6; p.ua2 = 1.0; p.la2 = .7; return p; };
   Poses.zidle = (t) => { const b = Math.sin(t * 1.1); return Object.assign(Poses.idle(t), { torso: .3 + .03 * b, head: .3 - .05 * b, ua1: 1.2 + .05 * b, la1: .4, ua2: 1.1 - .05 * b, la2: .5, ll1: .2, ll2: .25 }); };
-  // two more ways to die: fold forward onto your face, or get knocked flat on your back
-  const clampN = (v, a, b) => Math.max(a, Math.min(b, v)), easeN = t => t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-  Poses.crumple = (t) => { const k1 = easeN(clampN(t / .45, 0, 1)), k2 = easeN(clampN((t - .4) / .6, 0, 1)); return Object.assign(Poses.idle(0), { torso: .5 * k1 + .9 * k2, head: .35 * k1 + .3 * k2, ua1: .6 * k1 + .9 * k2, la1: .8 * k1, ua2: .4 * k1 + 1.1 * k2, la2: .9 * k1, ul1: 1.1 * k1 - .3 * k2, ll1: 2.2 * k1 - .4 * k2, ul2: .8 * k1 - .2 * k2, ll2: 2.0 * k1 - .6 * k2, f1: 1.2, f2: 1.2, rot: 1.42 * k2, pivot: 0, sword: 0 }); };
-  Poses.deadFront = () => Poses.crumple(1);
-  Poses.flyBack = (t) => { const k = easeN(clampN(t, 0, 1)); return Object.assign(Poses.idle(0), { rot: -1.55 * k, torso: -.35 * (1 - k) + .1 * k, head: -.3 * (1 - k) + .4 * k, ua1: 2.3 * k + .3, la1: .4, ua2: 2.0 * k + .2, la2: .5, ul1: .9 * (1 - k) + .35 * k, ll1: .9 * (1 - k) + .2 * k, ul2: 1.2 * (1 - k) + .15 * k, ll2: 1.1 * (1 - k) + .3 * k, sword: 0 }); };
-  Poses.deadBack = () => Poses.flyBack(1);
-  A.dieFwd = { dur: .9, pose: 'crumple', end: c => { c.dead = true; } };
-  A.dieKneel = { dur: 1.5, pose: 'crumple', end: c => { c.dead = true; } };
-  A.dieBack = { dur: .7, pose: 'flyBack', dist: -70, prog: t => 1 - Math.pow(1 - Math.min(1, t * 1.4), 2), end: c => { c.dead = true; } };
+  // ---------- six ways to end up on the floor. Every resting pose is flat (|rot| = 90°) with the limbs lying along the floor, not reaching for the ceiling ----------
+  const clampN = (v, a, b) => Math.max(a, Math.min(b, v)), easeN = t => t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2, PZ = o => Object.assign(Poses.idle(0), { sword: 0, lift: 0, hx: 0 }, o);
+  const DEAD = {
+    back1: PZ({ rot: -H, torso: .04, head: -.3, ua2: -2.9, la2: -.1, ua1: .3, la1: .15, ul2: 1.0, ll2: 2.1, ul1: -.08, ll1: .05, f1: H + .6, f2: H - .2 }),        // on his back, one arm flung over the head, one knee tented
+    back2: PZ({ rot: -H, torso: -.04, head: .25, ua2: 1.4, la2: -2.3, ua1: -.55, la1: -.1, ul2: .25, ll2: .4, ul1: -.15, ll1: .08, f1: H + .5, f2: H + .3 }),       // on his back, hand on the chest, the other arm out
+    front1: PZ({ rot: H, torso: -.06, head: -.25, ua2: 3.0, la2: -.3, ua1: 2.7, la1: .5, ul2: .12, ll2: .2, ul1: -.1, ll1: .05, f1: H + .3, f2: H + .2 }),          // face down, arms stretched out past the head
+    front2: PZ({ rot: H, torso: -.1, head: -.35, ua2: .35, la2: .25, ua1: 2.6, la1: 1.0, ul2: .3, ll2: .25, ul1: -.2, ll1: .1, f1: H, f2: H + .4 }),                // face down, one arm under him, the other bent up by his face
+    curl: PZ({ rot: -H, torso: .12, head: .55, ua2: 1.5, la2: 1.9, ua1: 1.3, la1: 2.0, ul2: 1.5, ll2: 2.4, ul1: 1.25, ll1: 2.2, f1: H + .3, f2: H + .3 }),          // on his back, knees drawn up, hands clutched to the gut
+    slump: PZ({ rot: 0, torso: .4, head: .9, ua2: .25, la2: .15, ua1: -.15, la1: .1, ul2: 1.5, ll2: .15, ul1: 1.35, ll1: .35, f1: H - .3, f2: H - .2, hx: -3 }),   // sat down against the wall, chin on chest, legs out
+  };
+  const STAND = PZ({}), KNEEL = PZ({ torso: .5, head: .35, ua1: .6, la1: .8, ua2: .4, la2: .9, ul1: 1.1, ll1: 2.2, ul2: .8, ll2: 2.0, f1: 1.2, f2: 1.2, lift: -14 });
+  const mixP = (A, B, k) => { const o = {}; for (const key in B) o[key] = lerp(A[key] !== undefined ? A[key] : 0, B[key], k); return o; };
+  const topple = (A, B, t, over = .08) => { const k = easeN(clampN(t, 0, 1)); const o = mixP(A, B, k); o.rot = B.rot * (k < .8 ? easeN(k / .8) * (1 + over) : (1 + over) - over * (k - .8) / .2); return o; };   // the body over-rotates a touch and settles
+  Poses.die = (t) => topple(STAND, DEAD.back1, Math.min(1, t * 1.1));                                                                                      // knocked straight back
+  Poses.flyBack = (t) => { const o = topple(STAND, DEAD.back2, Math.min(1, t), .12); const k = clampN(t, 0, 1); o.lift += 18 * Math.sin(Math.min(1, k * 1.3) * PI); return o; };   // launched, lands flat
+  Poses.crumple = (t) => t < .4 ? mixP(STAND, KNEEL, easeN(t / .4)) : topple(KNEEL, DEAD.front1, (t - .4) / .6, .05);                                       // knees go, then face first
+  Poses.crumple2 = (t) => t < .35 ? mixP(STAND, KNEEL, easeN(t / .35)) : topple(KNEEL, DEAD.front2, (t - .35) / .65, .05);
+  Poses.curlFall = (t) => t < .55 ? topple(STAND, DEAD.back1, t / .55) : mixP(DEAD.back1, DEAD.curl, easeN((t - .55) / .45));                                // falls back, then draws in
+  Poses.slumpFall = (t) => { const HIT = PZ({ torso: -.15, head: -.2, ua2: .6, la2: .4, ua1: .4, la1: .3, ul1: .5, ll1: 1.0, ul2: .3, ll2: .8, lift: -8, hx: -2 }); return t < .3 ? mixP(STAND, HIT, easeN(t / .3)) : mixP(HIT, DEAD.slump, easeN((t - .3) / .7)); };   // back to the wall, slides down
+  Poses.dead = () => DEAD.back1; Poses.deadBack = () => DEAD.back2; Poses.deadFront = () => DEAD.front1; Poses.deadFront2 = () => DEAD.front2; Poses.deadCurl = () => DEAD.curl; Poses.deadSlump = () => DEAD.slump;
+  Poses.getup = (t) => mixP(DEAD.back1, STAND, easeN(Math.min(1, t)));
+  A.die.dur = .8; A.getup.dur = .9;
+  A.dieFwd = { dur: 1.0, pose: 'crumple', end: c => { c.dead = true; } };
+  A.dieFwd2 = { dur: 1.0, pose: 'crumple2', end: c => { c.dead = true; } };
+  A.dieKneel = { dur: 1.3, pose: 'slumpFall', end: c => { c.dead = true; } };
+  A.dieCurl = { dur: 1.5, pose: 'curlFall', end: c => { c.dead = true; } };
+  A.dieBack = { dur: .8, pose: 'flyBack', dist: -70, prog: t => 1 - Math.pow(1 - Math.min(1, t * 1.4), 2), end: c => { c.dead = true; } };
   A.bite = { dur: .55, pose: 'cross', at: .45, fire: c => c.emit('hit', 'bite'), dmg: 10, hand: true, reach: 58, unarmed: true };
   A.grab = { dur: .85, pose: 'tackle', at: .6, fire: c => c.emit('hit', 'grab'), dmg: 14, hand: true, reach: 70, dist: 90, prog: t => t < .3 ? 0 : t > .6 ? 1 : (t - .3) / .3, unarmed: true };
   A.slam = { dur: .9, pose: 'uppercut', at: .5, fire: c => c.emit('hit', 'slam'), dmg: 26, hand: true, reach: 80, push: 90, unarmed: true };
@@ -904,8 +922,8 @@ const FZ = (() => {
   function kill(d, att) {
     d.alive = false; if (d.src) d.src.dead = true; d.hp = 0; const fy = gy(d);
     const mv = att && att.action && A[att.action.name] || {}; const heavy = (mv.push || 0) >= 50 || mv.launch || mv.kick || (att && att.kind === 'bloater');
-    const how = d.isPlayer ? 'die' : heavy || mrnd() < .25 ? 'dieBack' : mrnd() < .3 ? 'dieKneel' : mrnd() < .5 ? 'dieFwd' : 'die';
-    d.deadPose = how === 'dieBack' ? 'deadBack' : how === 'dieFwd' || how === 'dieKneel' ? 'deadFront' : null; if (att && how !== 'die') d.facing = Math.sign(att.x - d.x) || d.facing; d.play(how, true); if (how === 'dieBack') { d.action.dist = -70 * (mv.push ? 1.6 : 1); }
+    const how = d.isPlayer ? 'die' : heavy || mrnd() < .2 ? 'dieBack' : pick(['die', 'dieFwd', 'dieFwd2', 'dieCurl', 'dieKneel', 'dieFwd']);
+    d.deadPose = { dieBack: 'deadBack', dieFwd: 'deadFront', dieFwd2: 'deadFront2', dieCurl: 'deadCurl', dieKneel: 'deadSlump' }[how] || null; if (att && how !== 'die') d.facing = Math.sign(att.x - d.x) || d.facing; d.play(how, true); if (how === 'dieBack') { d.action.dist = -70 * (mv.push ? 1.6 : 1); }
     if (d.isPlayer) { G.mode = 'dead'; G.deaths = (G.deaths || 0) + 1; G.msgT = 0; G.slow = 1.2; return; }
     if (d.ally) { say(d.name + ' is gone.', 3); G.party = G.party.filter(s => s !== d); return; }
     G.fx.pools.push({ x: d.x, y: fy, r: 4, max: d.kind === 'bloater' ? 90 : mrnd(40, 65) });
