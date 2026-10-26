@@ -840,7 +840,7 @@ const FZ = (() => {
 
   // ---------- game state ----------
   const G = {
-    mode: 'title', t: 0, floor: null, floors: {}, player: null, party: [], zeds: [], fx: { blood: [], stains: [], texts: [], dust: [], smoke: [], wall: [], pools: [], gibs: [], screen: [] }, msg: '', msgT: 0, noise: 0, shake: 0, flash: 0, slow: 0, hitstop: 0,
+    mode: 'title', t: 0, floor: null, floors: {}, player: null, party: [], zeds: [], fx: { blood: [], stains: [], texts: [], dust: [], smoke: [], wall: [], pools: [], gibs: [], screen: [], prints: [] }, msg: '', msgT: 0, noise: 0, shake: 0, flash: 0, slow: 0, hitstop: 0,
     cam: { x: 600, y: 0, zoom: .75 }, intro: null, panel: null, deaths: 0, notesRead: [], ending: null, upgrades: { dmg: 0, hp: 0, stealth: 0 }, flares: 0, bandages: 1, hasSample: false, valveShut: false,
     input: { move: 0, run: false, atk: false, dodge: false, use: false, atkTap: false, dodgeTap: false, useTap: false },
   };
@@ -869,7 +869,7 @@ const FZ = (() => {
   function saveWorld() { const st = W.state || (W.state = {}); for (const k of SWAP) st[k] = G[k]; }
   function loadWorld(i) { W = WORLDS[i]; const st = W.state; for (const k of SWAP) G[k] = st[k]; G.world = W; }
   function freshState(w) { return { floors: {}, zeds: [], party: [], player: null, floor: null, noise: 0, flares: 1, bandages: 1, upgrades: { dmg: 0, hp: 0, stealth: 0 }, notesRead: [], hasSample: false, valveShut: false, flare: null, reached: {}, done: false, kills: 0, deaths: 0,
-    fx: { blood: [], stains: [], texts: [], dust: [], smoke: [], wall: [], pools: [], gibs: [], screen: [] }, cam: { x: 420, y: 0, zoom: .74 } }; }
+    fx: { blood: [], stains: [], texts: [], dust: [], smoke: [], wall: [], pools: [], gibs: [], screen: [], prints: [] }, cam: { x: 420, y: 0, zoom: .74 } }; }
   function nextWorld() { for (let k = 1; k <= 3; k++) { const w = WORLDS[(W.id + k) % 3]; if (!w.state.done) return w.id; } return -1; }
   function onFloorChange(n) {
     const fl = floorAt(n); G.floor = fl; G.noise = Math.min(G.noise, 25);
@@ -1062,6 +1062,8 @@ const FZ = (() => {
     for (const z of active) zedThink(z, dt); for (const s of G.party) allyThink(s, dt);
     if (G.flare) for (const z of active) if (z.alive && !z.action && z.fl === G.flare.fl) { const dx = G.flare.x - z.x; z.input.move = Math.abs(dx) > 40 ? Math.sign(dx) : 0; }
     if (G.noise > 50 && active.filter(z => z.alive && z.fl === p.fl).length < 14 && mrnd() < dt * 1.4) { const fl = G.floor, side = fl.stairX - fl.dir * (FLOOR_W - SHAFT - 60); const z = newZed(mrnd() < .3 ? 'runner' : 'zed', side, p.fl); z.aware = true; G.zeds.push(z); float(side, gy(p) - 160, '…more', '#ff6b5a'); }
+    { const fy = gy(p); for (const pl of G.fx.pools) if (Math.abs(pl.y - fy) < 2 && Math.abs(pl.x - p.x) < pl.r * .9 && pl.r > 20) p.bloodyFeet = 1;
+      if (p.bloodyFeet > 0 && p.input.move) { p.stepT = (p.stepT || 0) + dt; if (p.stepT > (p.input.run ? .16 : .26)) { p.stepT = 0; p.stepSide = !p.stepSide; G.fx.prints.push({ x: p.x + (p.stepSide ? 6 : -6) * p.facing, y: fy, dir: p.facing, a: p.bloodyFeet }); p.bloodyFeet -= .09; if (G.fx.prints.length > 200) G.fx.prints.shift(); } } }
     const movers = [p, ...G.party, ...active];
     for (const c of movers) { c.update(dt); aimSlope(c); const was = c.fl; surface(c); if (c.isPlayer && c.fl !== was) onFloorChange(c.fl); }
     separate(movers);
@@ -1111,6 +1113,10 @@ if (typeof window !== 'undefined') (() => {
   const mr = (a, b) => a + Math.random() * (b - a);
   const isTouch = matchMedia('(pointer:coarse)').matches;
 
+  // ---------- texture tiles: grain for the screen, grime for the walls (made once) ----------
+  const GRAIN = (() => { const c = document.createElement('canvas'); c.width = c.height = 256; const x = c.getContext('2d'); const img = x.createImageData(256, 256); for (let i = 0; i < img.data.length; i += 4) { const v = 110 + Math.random() * 90 | 0; img.data[i] = img.data[i + 1] = img.data[i + 2] = v; img.data[i + 3] = 255; } x.putImageData(img, 0, 0); return c; })();
+  const GRIME = (() => { const c = document.createElement('canvas'); c.width = 512; c.height = 256; const x = c.getContext('2d'); for (let i = 0; i < 900; i++) { x.fillStyle = 'rgba(0,0,0,' + (Math.random() * .07) + ')'; const w = 2 + Math.random() * 40, h = 2 + Math.random() * 14; x.fillRect(Math.random() * 512, Math.random() * 256, w, h); } for (let i = 0; i < 300; i++) { x.fillStyle = 'rgba(255,255,255,' + (Math.random() * .04) + ')'; x.fillRect(Math.random() * 512, Math.random() * 256, 1 + Math.random() * 20, 1 + Math.random() * 3); } for (let i = 0; i < 40; i++) { const sx = Math.random() * 512, sy = Math.random() * 60; x.fillStyle = 'rgba(0,0,0,' + (.03 + Math.random() * .05) + ')'; x.fillRect(sx, sy, 2 + Math.random() * 3, 40 + Math.random() * 160); } return x.createPattern ? c : c; })();
+  const grimePat = ctx.createPattern(GRIME, 'repeat'), grainPat = ctx.createPattern(GRAIN, 'repeat');
   // ---------- props ----------
   function prop(p, z, lights) {
     const x = p.x, s = p.s, y = GROUND; ctx.save(); ctx.translate(x, y); ctx.scale(s, s); ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.beginPath(); ctx.ellipse(0, 4, p.type === 'car' ? 100 : p.type === 'bed' || p.type === 'couch' ? 80 : 40, 7, 0, 0, 2 * PI); ctx.fill();
@@ -1217,6 +1223,9 @@ if (typeof window !== 'undefined') (() => {
     const z = fl.zone; if (fl.roof) return drawRoof(fl); const dark = fl.lights === 'dark', flick = fl.lights === 'flicker' && (Math.sin(G.t * 23) > .6 || Math.sin(G.t * 7.3) > .9);
     const dim = dark ? .35 : flick ? .6 : 1;
     const wg = ctx.createLinearGradient(0, 0, 0, GROUND); wg.addColorStop(0, shade(z.wall, -.25)); wg.addColorStop(1, z.wall); ctx.fillStyle = wg; ctx.fillRect(-200, 0, FLOOR_W + 400, GROUND);
+    { const vx0 = G.cam.x - 500 / G.cam.zoom, vx1 = G.cam.x + 500 / G.cam.zoom; ctx.save(); ctx.translate((fl.n * 97) % 512, 0); ctx.fillStyle = grimePat; ctx.fillRect(vx0 - 512, 0, vx1 - vx0 + 1024, GROUND); ctx.restore(); }   // grime and streaks on the wall
+    ctx.fillStyle = 'rgba(0,0,0,.08)'; ctx.fillRect(-200, GROUND - 130, FLOOR_W + 400, 40); ctx.fillStyle = 'rgba(0,0,0,.1)'; for (let i = 0; i < 40; i++) { const sx = (fl.n * 313 + i * 211) % FLOOR_W; ctx.fillRect(sx, GROUND - 120 + (i * 7) % 30, 18 + (i * 13) % 40, 1.5); }   // hand-height scuffing
+    ctx.fillStyle = 'rgba(0,0,0,.18)'; for (let i = 0; i < 60; i++) { const sx = (fl.n * 131 + i * 173) % FLOOR_W; ctx.fillRect(sx, GROUND - 3 + (i % 3), 6 + (i * 7) % 24, 1); }   // scuffs along the floor line
     const fg = ctx.createLinearGradient(0, GROUND, 0, GROUND + 30); fg.addColorStop(0, z.floor); fg.addColorStop(1, shade(z.floor, -.6)); ctx.fillStyle = fg; const hole = fl.n > 1 ? [fl.dir > 0 ? fl.stairX : -200, fl.dir > 0 ? FLOOR_W + 400 : fl.stairX] : null;
     if (hole) { ctx.fillRect(-200, GROUND, hole[0] + 200, 30); ctx.fillRect(hole[1], GROUND, FLOOR_W + 400 - hole[1], 30); } else ctx.fillRect(-200, GROUND, FLOOR_W + 400, 30);   // the slab, with the stair opening cut out
     ctx.strokeStyle = 'rgba(0,0,0,.18)'; ctx.lineWidth = 1; for (let x = -200; x < FLOOR_W + 400; x += 70) { if (hole && x > hole[0] && x < hole[1]) continue; ctx.beginPath(); ctx.moveTo(x, GROUND); ctx.lineTo(x - 8, GROUND + 30); ctx.stroke(); }
@@ -1266,7 +1275,10 @@ if (typeof window !== 'undefined') (() => {
       else if (it.kind === 'bench') { ctx.fillStyle = '#6a4a2a'; ctx.fillRect(ix - 70, GROUND - 60, 140, 12); ctx.fillRect(ix - 60, GROUND - 48, 10, 48); ctx.fillRect(ix + 50, GROUND - 48, 10, 48); ctx.fillStyle = '#c9a24a'; ctx.fillRect(ix - 20, GROUND - 76, 40, 16); ctx.fillStyle = '#ffd27a'; ctx.font = 'bold 10px system-ui'; ctx.fillText('BENCH', ix, GROUND - 82); } }
     if (G.flare && G.flare.fl === fl.n) { const fx = G.flare.x; ctx.fillStyle = 'rgba(255,90,40,.25)'; ctx.beginPath(); ctx.arc(fx, GROUND - 10, 140 + Math.sin(G.t * 20) * 10, 0, 2 * PI); ctx.fill(); ctx.fillStyle = '#fff0c0'; ctx.beginPath(); ctx.arc(fx, GROUND - 10, 6, 0, 2 * PI); ctx.fill(); }
     if (dark || flick) { ctx.fillStyle = 'rgba(0,0,10,' + (1 - dim) * .8 + ')'; ctx.fillRect(-200, 0, FLOOR_W + 400, GROUND + 30); }
+    const grade = GRADE[z.name] || GRADE.default; ctx.fillStyle = grade; ctx.fillRect(-200, 0, FLOOR_W + 400, GROUND + 30);   // colour grade per zone
+    const cg2 = ctx.createLinearGradient(0, 0, 0, 90); cg2.addColorStop(0, 'rgba(0,0,0,.35)'); cg2.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = cg2; ctx.fillRect(-200, 0, FLOOR_W + 400, 90);   // ceiling falls into shadow
   }
+  const GRADE = { 'MEDICAL / LAB': 'rgba(120,200,210,.07)', WARDS: 'rgba(120,200,210,.07)', SURGERY: 'rgba(100,190,170,.08)', EMERGENCY: 'rgba(140,200,220,.06)', PHARMACY: 'rgba(210,190,140,.06)', HOTEL: 'rgba(230,160,90,.07)', SUITES: 'rgba(230,160,90,.07)', CASINO: 'rgba(220,90,160,.07)', 'MALL / GARAGE': 'rgba(120,140,130,.08)', 'GARAGE / LOBBY': 'rgba(120,140,130,.08)', OFFICES: 'rgba(120,150,210,.05)', CONFERENCE: 'rgba(120,150,210,.05)', RESIDENTIAL: 'rgba(150,200,120,.05)', LOBBY: 'rgba(230,190,110,.07)', default: 'rgba(0,0,0,0)' };
   function drawShaft(fl) {   // floor-local coords. Flight 1 runs from the hall door out to the end wall and down half a storey; the landing turns; flight 2 comes back under it to the floor below
     if (fl.n <= 1) return; const sx = fl.stairX, d = fl.dir, wallX = sx + d * SHAFT, lo = GROUND + FH, mid = GROUND + FH / 2, land0 = sx + d * RAMP;
     const L = Math.min(sx, wallX), R = Math.max(sx, wallX);
@@ -1297,7 +1309,12 @@ if (typeof window !== 'undefined') (() => {
     for (let i = 1; i < tr.length; i++) { const p = tr[i - 1].s, q = tr[i].s, al = (1 - tr[i].t / .16) * .55 * (i / tr.length);
       ctx.fillStyle = 'rgba(' + col + ',' + al + ')'; ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.lineTo(p[2], p[3]); ctx.lineTo(q[2], q[3]); ctx.lineTo(q[0], q[1]); ctx.closePath(); ctx.fill(); }
   }
-  function drawChar(c) { ctx.save(); ctx.globalAlpha = c.alive ? 1 : Math.max(.2, 1 - (c.gone || 0) / 6); const gY = gy(c); if (c.isPlayer || c.ally) drawTrail(c, gY); c.draw(ctx, 0, gY, c.cols);
+  function drawChar(c) { ctx.save(); ctx.globalAlpha = c.alive ? 1 : Math.max(.2, 1 - (c.gone || 0) / 6); const gY = gy(c); if (c.isPlayer || c.ally) drawTrail(c, gY);
+    if (c.alive && c.cur && G.cam.zoom > .5 && Math.abs(c.x - G.cam.x) < 760 / G.cam.zoom) { const k = c.skeleton(c.cur), f = c.facing * k.sx, cx = c.x + k.hips[0] * c.facing * (1 - k.sx), S = c.scale; const P = v => [cx + v[0] * f, gY + c.y + v[1] + k.dy];
+      ctx.save(); ctx.globalAlpha *= .2; ctx.translate(c.x, gY); ctx.transform(1, 0, -.45, .92, 0, 0); ctx.translate(-c.x, -gY); ctx.strokeStyle = '#000'; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      const seg = (pts, w) => { ctx.lineWidth = w * S; ctx.beginPath(); pts.forEach((v, i) => { const q = P(v); i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]); }); ctx.stroke(); };
+      seg([k.hips, k.top, k.neck], 11); seg(k.legF, 7); seg(k.legN, 7); seg(k.armF, 5.5); seg(k.armN, 5.5); if (k.sword) seg([k.armN[2], k.sword], 3); const h = P(k.headC); ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(h[0], h[1], 7.5 * S, 0, 2 * PI); ctx.fill(); ctx.restore(); }   // shadow thrown up the wall by the lights: a silhouette built from the skeleton, cheap enough for everyone
+    c.draw(ctx, 0, gY, c.cols);
     if (c.isPlayer && c.gore > 0 && c.armed) { const b = c.blade(gY); if (b) { ctx.strokeStyle = 'rgba(110,8,12,' + c.gore * .9 + ')'; ctx.lineWidth = 2.2 * c.scale; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(b[0][0] + (b[1][0] - b[0][0]) * .3, b[0][1] + (b[1][1] - b[0][1]) * .3); ctx.lineTo(b[1][0], b[1][1]); ctx.stroke(); } }
     ctx.restore();
     if (c.alive && !c.isPlayer) { const hp = c.hp / c.maxHp; const y = gy(c) - 130 * (c.scale / 1.9); ctx.fillStyle = '#000a'; ctx.fillRect(c.x - 20, y, 40, 4); ctx.fillStyle = c.ally ? '#8fd38a' : '#ff6b5a'; ctx.fillRect(c.x - 20, y, 40 * hp, 4); if (c.ally) { ctx.fillStyle = '#8fd38a'; ctx.font = 'bold 11px system-ui'; ctx.textAlign = 'center'; ctx.fillText(c.name, c.x, y - 4); } } }
@@ -1513,6 +1530,7 @@ if (typeof window !== 'undefined') (() => {
     ctx.fillStyle = '#07080c'; ctx.fillRect(G.cam.x - 2000, G.cam.y - 2000, 4000, 4000);
     for (let n = nLo; n <= nHi; n++) { const fl = floorAt(n); ctx.save(); ctx.translate(0, groundY(n - 1) - GROUND); drawFloor(fl); drawShaft(fl); drawWaitingSurvivor(fl); ctx.restore(); }
     for (const w of G.fx.wall) { ctx.fillStyle = 'rgba(110,8,12,.85)'; ctx.beginPath(); ctx.arc(w.x, w.y, w.r, 0, 2 * PI); ctx.fill(); const d = Math.min(w.drip, (w.t || 0) * 25); ctx.fillRect(w.x - 1, w.y, 2, d); ctx.beginPath(); ctx.arc(w.x, w.y + d, 1.6, 0, 2 * PI); ctx.fill(); }
+    for (const pr of G.fx.prints) { ctx.fillStyle = 'rgba(95,6,10,' + (.7 * pr.a) + ')'; ctx.save(); ctx.translate(pr.x, pr.y + 3); ctx.scale(pr.dir, 1); ctx.beginPath(); ctx.ellipse(0, 0, 7, 2.6, 0, 0, 2 * PI); ctx.fill(); ctx.beginPath(); ctx.ellipse(8, -.5, 3, 2, 0, 0, 2 * PI); ctx.fill(); ctx.restore(); }
     for (const pl of G.fx.pools) { ctx.fillStyle = 'rgba(95,6,10,.85)'; ctx.beginPath(); ctx.ellipse(pl.x, pl.y + 5, pl.r, pl.r * .28, 0, 0, 2 * PI); ctx.fill(); ctx.fillStyle = 'rgba(160,20,24,.4)'; ctx.beginPath(); ctx.ellipse(pl.x - pl.r * .2, pl.y + 3, pl.r * .5, pl.r * .12, 0, 0, 2 * PI); ctx.fill(); }
     const vis = c => c.h >= botH - 1.5 && c.h <= topH + .5;
     const order = [...G.zeds.filter(z => !z.alive && vis(z)), ...G.zeds.filter(z => z.alive && vis(z)).sort((a, b) => b.h - a.h), ...G.party, G.player];
@@ -1522,6 +1540,8 @@ if (typeof window !== 'undefined') (() => {
     drawFx(); if (G.mode === 'play') drawPrompt();
     if (G.slow > 0) { ctx.fillStyle = 'rgba(20,10,40,.25)'; ctx.fillRect(G.cam.x - 2000, G.cam.y - 2000, 4000, 4000); }
     ctx.restore();
+    { const vg = ctx.createRadialGradient(W / 2, HGT / 2, 220, W / 2, HGT / 2, 640); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.45)'); ctx.fillStyle = vg; ctx.fillRect(0, 0, W, HGT);
+      ctx.save(); ctx.globalAlpha = .07; ctx.translate(-(Math.random() * 256 | 0), -(Math.random() * 256 | 0)); ctx.fillStyle = grainPat; ctx.fillRect(0, 0, W + 256, HGT + 256); ctx.restore(); }   // vignette + film grain
     if (G.flash > 0) { ctx.fillStyle = 'rgba(255,60,40,' + G.flash * 1.5 + ')'; ctx.fillRect(0, 0, W, HGT); }
     for (const sp of G.fx.screen) { const a = Math.max(0, 1 - sp.t / 2.2) * .8; ctx.fillStyle = 'rgba(120,8,12,' + a + ')'; const sx = sp.x * W, sy = sp.y * HGT; for (let i = 0; i < 7; i++) { const ang = i * .9 + sp.s, r = (18 + (i * 13) % 20) * sp.s; ctx.beginPath(); ctx.ellipse(sx + Math.cos(ang) * r, sy + Math.sin(ang) * r, 9 * sp.s, 14 * sp.s, ang, 0, 2 * PI); ctx.fill(); } ctx.beginPath(); ctx.arc(sx, sy, 22 * sp.s, 0, 2 * PI); ctx.fill(); ctx.fillRect(sx - 2, sy, 4, Math.min(140, sp.t * 90) * sp.s); }
     if (G.player && G.player.hp < 35 && G.mode === 'play' && G.player.alive) { const v = ctx.createRadialGradient(W / 2, HGT / 2, 200, W / 2, HGT / 2, 560); v.addColorStop(0, 'rgba(120,0,0,0)'); v.addColorStop(1, 'rgba(120,0,0,' + (.35 + .2 * Math.sin(G.t * 5)) + ')'); ctx.fillStyle = v; ctx.fillRect(0, 0, W, HGT); }
