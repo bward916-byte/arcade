@@ -113,7 +113,7 @@ body.touch #keys{display:none}
 <h1>Saltwake</h1>
 <p>Start with a longboat and four hands. Scavenge, trade and fight your way up to a sloop, then a brig. Go ashore on foot for water, timber and whatever the cave is hiding.</p>
 <div class="ctas"><button class="cta" id="btnNew" type="button">Set sail</button><button class="cta alt" id="btnCont" type="button" hidden>Continue voyage</button></div>
-<div class="how"><span><kbd>Arrows</kbd>point and sail, or walk</span><span><kbd>Space</kbd>fire, land or jump</span><span><kbd>Q E</kbd>port and starboard guns</span><span><kbd>J</kbd>slash</span><span><kbd>W</kbd>climb</span></div>
+<div class="how"><span><kbd>Arrows</kbd>point and sail, or walk</span><span><kbd>Space</kbd>fire, land or jump</span><span><kbd>Q E</kbd>port and starboard guns</span><span><kbd>J</kbd>slash</span><span><kbd>W</kbd>climb</span><span><kbd>M</kbd>sea chart</span><span><kbd>N</kbd>sound</span></div>
 <div class="how"><span>Touch pad and controllers work too. Best in landscape.</span></div>
 </div>
 <div id="over" class="screen" hidden>
@@ -151,11 +151,11 @@ const G = {
   mode: 'title', t: 0,
   gold: 60, hull: 30, hullMax: 30, crew: 4, crewMax: 4, tier: 0, plank: 0, holdUp: 0,
   food: 70, water: 45, timber: 0, cargo: 0, hold: 4, guns: 0,
-  hp: 5, kills: 0, sold: 0, thirstT: 0,
+  hp: 5, kills: 0, sold: 0, thirstT: 0, bounty: 0,
   isleDone: { chest: false, items: {}, foes: {} }, portChest: false,
 };
 function saveGame() {
-  try { localStorage.setItem('saltwake2', JSON.stringify({ tier: G.tier, plank: G.plank, holdUp: G.holdUp, crewMax: G.crewMax, hold: G.hold, gold: G.gold, hull: G.hull, hullMax: G.hullMax, crew: G.crew, food: G.food, water: G.water, timber: G.timber, cargo: G.cargo, guns: G.guns, kills: G.kills, sold: G.sold, portChest: G.portChest })); } catch (e) { /* storage unavailable */ }
+  try { localStorage.setItem('saltwake2', JSON.stringify({ tier: G.tier, plank: G.plank, holdUp: G.holdUp, crewMax: G.crewMax, hold: G.hold, gold: G.gold, hull: G.hull, hullMax: G.hullMax, crew: G.crew, food: G.food, water: G.water, timber: G.timber, cargo: G.cargo, guns: G.guns, kills: G.kills, sold: G.sold, portChest: G.portChest, bounty: G.bounty })); } catch (e) { /* storage unavailable */ }
 }
 function loadGame() {
   try { const s = JSON.parse(localStorage.getItem('saltwake2') || 'null'); if (s) Object.assign(G, s); return !!s; } catch (e) { return false; }
@@ -163,8 +163,8 @@ function loadGame() {
 
 // ---- input: one abstract pad shared by keyboard, touch and gamepad
 const Pad = { x: 0, y: 0, held: {}, hit: {}, _keys: {}, _latch: {}, _tx: 0, _ty: 0, _tb: {}, _tl: {}, _prev: {}, _py: 0 };
-const KEYMAP = { A: ['Space', 'Enter', 'KeyF'], X: ['KeyQ', 'KeyJ'], B: ['KeyE', 'KeyK'], esc: ['Escape'] };
-addEventListener('keydown', e => { if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault(); Pad._keys[e.code] = true; Pad._latch[e.code] = true; });
+const KEYMAP = { A: ['Space', 'Enter', 'KeyF'], X: ['KeyQ', 'KeyJ'], B: ['KeyE', 'KeyK'], esc: ['Escape'], map: ['KeyM', 'Tab'], mute: ['KeyN'] };
+addEventListener('keydown', e => { if (['Space', 'Tab', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault(); Pad._keys[e.code] = true; Pad._latch[e.code] = true; });
 addEventListener('keyup', e => { Pad._keys[e.code] = false; });
 addEventListener('blur', () => { Pad._keys = {}; });
 function pollPad() {
@@ -174,7 +174,7 @@ function pollPad() {
   const held = { A: false, X: false, B: false, esc: false };
   for (const b in KEYMAP) held[b] = KEYMAP[b].some(c => k[c]);
   x += Pad._tx; y += Pad._ty;
-  for (const b in Pad._tb) if (Pad._tb[b] || Pad._tl[b]) held[b] = true; Pad._tl = {};
+  for (const b in Pad._tb) if (Pad._tb[b]) held[b] = true; for (const b in Pad._tl) if (Pad._tl[b]) held[b] = true; Pad._tl = {};
   const gps = navigator.getGamepads ? navigator.getGamepads() : [];
   for (const gp of gps) {
     if (!gp) continue;
@@ -248,6 +248,49 @@ function makeCloudTex() { const N = 256, c = document.createElement('canvas'); c
     const o = (j * N + i) * 4; im.data[o] = 0; im.data[o + 1] = 14; im.data[o + 2] = 28; im.data[o + 3] = 255 * sh * 0.26; }
   x.putImageData(im, 0, 0); return c; }
 
+// ==== 02b_sfx.js
+// ---- procedural sound: no samples, one AudioContext unlocked on first input
+const Sfx = {
+  ac: null, muted: false, amb: null, ambGain: null, stormGain: null, lastT: {},
+  init() { if (this.ac) return; try { this.ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return; }
+    const ac = this.ac; this.master = ac.createGain(); this.master.gain.value = 0.9; this.master.connect(ac.destination);
+    this.noise = ac.createBuffer(1, ac.sampleRate * 2, ac.sampleRate); const d = this.noise.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    // sea ambience: low rumble of filtered noise with a slow swell
+    const src = ac.createBufferSource(); src.buffer = this.noise; src.loop = true; const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 380;
+    this.ambGain = ac.createGain(); this.ambGain.gain.value = 0; src.connect(lp); lp.connect(this.ambGain); this.ambGain.connect(this.master); src.start();
+    const lfo = ac.createOscillator(), lg = ac.createGain(); lfo.frequency.value = 0.11; lg.gain.value = 120; lfo.connect(lg); lg.connect(lp.frequency); lfo.start();
+    // storm layer: wind hiss
+    const ws = ac.createBufferSource(); ws.buffer = this.noise; ws.loop = true; const bp = ac.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 900; bp.Q.value = 0.7;
+    this.stormGain = ac.createGain(); this.stormGain.gain.value = 0; ws.connect(bp); bp.connect(this.stormGain); this.stormGain.connect(this.master); ws.start();
+    const wl = ac.createOscillator(), wg = ac.createGain(); wl.frequency.value = 0.23; wg.gain.value = 500; wl.connect(wg); wg.connect(bp.frequency); wl.start();
+  },
+  unlock() { this.init(); if (this.ac && this.ac.state === 'suspended') this.ac.resume(); },
+  ambience(sea, storm) { if (!this.ac) return; const t = this.ac.currentTime; this.ambGain.gain.setTargetAtTime(this.muted ? 0 : sea ? 0.35 + storm * 0.3 : 0.08, t, 0.5); this.stormGain.gain.setTargetAtTime(this.muted ? 0 : sea ? storm * 0.5 : 0, t, 0.8); },
+  toggle() { this.unlock(); this.muted = !this.muted; if (this.master) this.master.gain.setTargetAtTime(this.muted ? 0 : 0.9, this.ac.currentTime, 0.05); return this.muted; },
+  ok(name, gap) { if (!this.ac || this.muted) return false; const t = this.ac.currentTime; if (this.lastT[name] && t - this.lastT[name] < (gap || 0.04)) return false; this.lastT[name] = t; return true; },
+  burst(freq, q, dur, vol, type) { const ac = this.ac, s = ac.createBufferSource(); s.buffer = this.noise; const f = ac.createBiquadFilter(); f.type = type || 'lowpass'; f.frequency.value = freq; f.Q.value = q || 1;
+    const g = ac.createGain(); const t = ac.currentTime; g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur); s.connect(f); f.connect(g); g.connect(this.master); s.start(t); s.stop(t + dur + 0.05); return f; },
+  tone(freq, dur, vol, type, slide) { const ac = this.ac, o = ac.createOscillator(), g = ac.createGain(), t = ac.currentTime; o.type = type || 'sine'; o.frequency.setValueAtTime(freq, t); if (slide) o.frequency.exponentialRampToValueAtTime(slide, t + dur);
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur); o.connect(g); g.connect(this.master); o.start(t); o.stop(t + dur + 0.05); },
+  // the events
+  cannon(dist) { if (!this.ok('cannon', 0.03)) return; const v = clamp(1 - (dist || 0) / 320, 0.08, 1); this.burst(220 + rand(-40, 40), 0.8, 0.5, 0.9 * v); this.tone(70, 0.35, 0.5 * v, 'sine', 30); },
+  swivel() { if (!this.ok('swivel')) return; this.burst(900, 1, 0.22, 0.5); this.tone(140, 0.15, 0.3, 'triangle', 50); },
+  hit(dist) { if (!this.ok('hit', 0.05)) return; const v = clamp(1 - (dist || 0) / 320, 0.15, 1); this.burst(1800, 1.5, 0.18, 0.7 * v, 'bandpass'); this.burst(300, 0.7, 0.3, 0.5 * v); },
+  splash(dist) { if (!this.ok('splash', 0.08)) return; const v = clamp(1 - (dist || 0) / 260, 0.05, 0.6); const f = this.burst(2600, 0.5, 0.45, v, 'highpass'); f.frequency.exponentialRampToValueAtTime(600, this.ac.currentTime + 0.4); },
+  pickup() { if (!this.ok('pickup')) return; this.tone(660, 0.12, 0.25, 'triangle'); setTimeout(() => this.ac && this.tone(990, 0.25, 0.25, 'triangle'), 90); },
+  gold() { if (!this.ok('gold')) return; [880, 1175, 1320, 1760].forEach((f, i) => setTimeout(() => this.ac && this.tone(f, 0.3, 0.18, 'sine'), i * 70)); },
+  sink() { if (!this.ok('sink', 0.5)) return; this.burst(160, 1.2, 2.2, 0.9); this.tone(90, 2, 0.4, 'sawtooth', 35); },
+  crunch() { if (!this.ok('crunch', 0.3)) return; this.burst(500, 0.8, 0.45, 0.8); this.burst(2200, 2, 0.12, 0.5, 'bandpass'); },
+  clash() { if (!this.ok('clash', 0.06)) return; this.burst(3200 + rand(-800, 800), 6, 0.14, 0.45, 'bandpass'); this.tone(rand(1400, 2200), 0.1, 0.12, 'square'); },
+  thunder() { if (!this.ok('thunder', 1)) return; this.burst(120, 1.5, 2.8, 1.0); setTimeout(() => this.ac && this.burst(90, 1, 2, 0.6), 220); },
+  jump() { if (!this.ok('jump')) return; this.tone(300, 0.14, 0.15, 'triangle', 520); },
+  slash() { if (!this.ok('slash')) return; this.burst(2500, 1.2, 0.12, 0.35, 'bandpass'); },
+  hurt() { if (!this.ok('hurt', 0.2)) return; this.tone(220, 0.25, 0.3, 'square', 110); this.burst(600, 1, 0.2, 0.4); },
+  ui() { if (!this.ok('ui')) return; this.tone(520, 0.08, 0.12, 'triangle'); },
+  land() { if (!this.ok('land', 0.3)) return; this.burst(400, 0.6, 0.6, 0.5); this.tone(180, 0.4, 0.2, 'sine', 120); },
+};
+addEventListener('keydown', () => Sfx.unlock()); addEventListener('pointerdown', () => Sfx.unlock()); addEventListener('touchstart', () => Sfx.unlock(), { passive: true });
+
 // ==== 03_sea.js
 // ---- the sea: top-down 2D with pre-rendered ships (48 headings from a tilted camera).
 // World metres: x right, y down the screen (north up). Screen y is squashed by K, heights rise by HK.
@@ -258,8 +301,10 @@ const TIERS = [
   { id: 'brig', name: 'Brig', td: 'player', scale: 1, len: 34, beam: 8.6, hull: 130, hold: 20, crew: 20, speed: 14, turn: 0.62, guns: 5, dmg: 7, reload: 3.4, zoom: 2.9, price: 900 },
 ];
 const FOES = {
-  sloop: { name: 'Privateer sloop', td: 'red', scale: 0.7, len: 24, beam: 6, hull: 55, speed: 12, turn: 0.8, guns: 3, dmg: 5, reload: 4.6, loot: 2, gold: 40 },
-  brig: { name: 'Navy brig', td: 'navy', scale: 1, len: 34, beam: 8.6, hull: 120, speed: 11, turn: 0.55, guns: 5, dmg: 6, reload: 5.2, loot: 4, gold: 90 },
+  sloop: { name: 'Privateer sloop', td: 'red', scale: 0.7, len: 24, beam: 6, hull: 55, speed: 12, turn: 0.8, guns: 3, dmg: 5, reload: 4.6, loot: 2, gold: 40, crew: 10 },
+  brig: { name: 'Navy brig', td: 'navy', scale: 1, len: 34, beam: 8.6, hull: 120, speed: 11, turn: 0.55, guns: 5, dmg: 6, reload: 5.2, loot: 4, gold: 90, crew: 18 },
+  merchant: { name: 'Merchantman', td: 'navy', scale: 0.85, len: 29, beam: 7.5, hull: 70, speed: 9, turn: 0.5, guns: 1, dmg: 4, reload: 6, loot: 6, gold: 30, crew: 7, flee: true },
+  corsair: { name: 'The Red Corsair', td: 'red', scale: 1, len: 34, beam: 8.6, hull: 170, speed: 13.5, turn: 0.7, guns: 5, dmg: 7, reload: 4.2, loot: 6, gold: 250, crew: 26, bounty: true },
 };
 const ISLES = [
   { key: 'isleP', name: 'Gallows Cay', kind: 'port', x: -300, y: 320 },
@@ -273,15 +318,15 @@ const WORLD_R = 680;
 
 const SEA_FS = `
 precision highp float;
-uniform vec2 uRes; uniform vec2 uCam; uniform float uS; uniform float uK; uniform float uT; uniform vec4 uIsl[5]; uniform vec3 uRock[10];
+uniform vec2 uRes; uniform vec2 uCam; uniform float uS; uniform float uK; uniform float uT; uniform vec4 uIsl[5]; uniform vec3 uRock[10]; uniform float uNight; uniform float uStorm;
 float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
 float noise(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*f*(f*(f*6.0-15.0)+10.0);
   return mix(mix(hash(i),hash(i+vec2(1,0)),f.x), mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x), f.y); }
-#define WV(dx,dy,k,a,w) { vec2 d = normalize(vec2(dx,dy)); float f = 1.0 - smoothstep(0.25, 0.9, k*fp); float ph = dot(d,p)*k + uT*w; hs += a*sin(ph)*f; g += d*(a*k*cos(ph)*f); }
+#define WV(dx,dy,k,a,w) { vec2 d = normalize(vec2(dx,dy)); float f = (1.0 - smoothstep(0.25, 0.9, k*fp))*wa; float ph = dot(d,p)*k + uT*w*ws; hs += a*sin(ph)*f; g += d*(a*k*cos(ph)*f); }
 void main(){
   vec2 fc = vec2(gl_FragCoord.x, uRes.y - gl_FragCoord.y);
   vec2 p = uCam + vec2((fc.x - uRes.x*0.5)/uS, (fc.y - uRes.y*0.5)/(uS*uK));
-  float fp = 1.0/uS, hs = 0.0; vec2 g = vec2(0.0);
+  float fp = 1.0/uS, hs = 0.0, wa = 1.0 + uStorm*1.3, ws = 1.0 + uStorm*0.6; vec2 g = vec2(0.0);
   WV(1.0,0.35, 0.045,1.2,0.9) WV(0.6,1.0, 0.07,0.8,1.1) WV(-0.4,1.0, 0.12,0.45,1.5) WV(1.0,-0.6, 0.19,0.28,1.9)
   WV(0.2,1.0, 0.31,0.15,2.4) WV(-0.8,0.5, 0.47,0.09,3.0) WV(0.9,0.7, 0.71,0.055,3.7) WV(-0.3,-1.0, 1.05,0.035,4.6) WV(0.5,-0.9, 1.6,0.02,5.5)
   vec2 q2 = p*0.14 + uT*vec2(0.1,0.05); float n0 = noise(q2);
@@ -303,11 +348,15 @@ void main(){
   float band = 0.5 + 0.5*sin(uT*1.1 - dmin*30.0 + noise(p*0.05)*4.0);
   float fm = shore*smoothstep(0.45, 0.95, band*0.6 + noise(p*0.3 + uT*0.3)*0.55) + rk*0.55*(0.6 + 0.4*sin(uT*1.6));
   col = mix(col, vec3(0.95,0.98,0.98), clamp(fm, 0.0, 1.0)*0.8);
+  float cap2 = smoothstep(1.6, 2.6, hs)*uStorm; col = mix(col, vec3(0.85,0.9,0.92), cap2*0.5);
+  float lum = dot(col, vec3(0.3,0.59,0.11)); col = mix(col, vec3(lum)*vec3(0.75,0.8,0.85), uStorm*0.55);
+  col = mix(col, col*vec3(0.12,0.17,0.3) + vec3(0.0,0.01,0.04), uNight*0.9);
   gl_FragColor = vec4(col, 1.0);
 }`;
 
 const Sea = {
   ships: [], balls: [], loot: [], parts: null, t: 0, time: 0, S: 7, camX: 0, camY: 0, shake: 0, spawnT: 40, fortT: 3, fortHp: 80, hintT: 0, near: null, rings: [],
+  day: 0.3, storm: 0, stormT: 60, stormOn: false, flash: 0, boltT: 0, rain: [], chart: false, board: null, boardFx: 0,
   init(glCanvas, fxCanvas) { GL.init(glCanvas); this.ctx = fxCanvas.getContext('2d'); this.fx = fxCanvas; loadSeaImages(); makePuffs();
     this.prog = GL.prog(SEA_FS); this.cloudTex = makeCloudTex();
     for (const il of ISLES) { const m = META[il.key]; il.R = m.R; il.w = m.w; il.m = m; }
@@ -319,13 +368,16 @@ const Sea = {
   resize(w, h) { this.dpr = Math.min(2, devicePixelRatio || 1); for (const c of [GL.gl.canvas, this.fx]) { c.width = Math.round(w * this.dpr); c.height = Math.round(h * this.dpr); } this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0); },
   reset() { this.ships = []; this.balls = []; this.loot = []; this.parts = new Parts(); this.fortHp = 80; this.spawnT = 40;
     const r = this.rings[0]; this.P = this.add({ player: true, x: r.x, y: r.y, th: Math.atan2(r.x - r.isle.x, -(r.y - r.isle.y)) });
-    this.add({ kind: 'sloop', x: 120, y: -60, th: 1 }); this.add({ kind: 'sloop', x: 360, y: 60, th: 3 });
+    this.add({ kind: 'sloop', x: 120, y: -60, th: 1 }); this.add({ kind: 'sloop', x: 360, y: 60, th: 3 }); this.add({ kind: 'merchant', x: -80, y: 420, th: 1.4 });
+    this.storm = 0; this.stormOn = false; this.stormT = rand(50, 90); this.chart = false; this.board = null; if (G.bounty === 1) this.spawnBounty();
     for (const p of [[-140, 180], [-40, 330], [150, 120], [380, 380], [-250, -20], [250, -60]]) this.dropLoot(p[0], p[1]);
     this.camX = this.P.x; this.camY = this.P.y; },
   tier() { return TIERS[G.tier]; },
   applyTier() { const T = TIERS[G.tier]; G.hullMax = T.hull + G.plank * 25; G.hull = G.hullMax; G.hold = T.hold + G.holdUp * 6; G.crewMax = T.crew; G.crew = Math.min(G.crewMax, Math.max(G.crew, Math.ceil(T.crew / 2))); if (this.P) this.P.T = T; },
   add(o) { const T = o.player ? TIERS[G.tier] : FOES[o.kind];
-    const s = Object.assign({ v: 0, w: 0, trail: [], trailT: 0, rp: 0, rs: 0, sink: 0, hull: T.hull, hullMax: T.hull, T, wp: null, state: 'patrol', bob: Math.random() * 9 }, o); this.ships.push(s); return s; },
+    const s = Object.assign({ v: 0, w: 0, trail: [], trailT: 0, rp: 0, rs: 0, sink: 0, hull: T.hull, hullMax: T.hull, T, wp: null, state: 'patrol', bob: Math.random() * 9, crew: T.crew || 4 }, o); this.ships.push(s); return s; },
+  spawnBounty() { if (this.ships.some(s => s.T.bounty)) return; for (let t = 0; t < 40; t++) { const a = Math.random() * TAU, x = Math.cos(a) * 560, y = Math.sin(a) * 560; if (Math.hypot(x - this.P.x, y - this.P.y) > 400 && this.clear(x, y, 50)) { this.add({ kind: 'corsair', x, y, th: a + Math.PI }); return; } } },
+  pdist(x, y) { return Math.hypot(x - this.P.x, y - this.P.y); },
   dropLoot(x, y) { this.loot.push({ x, y, ph: Math.random() * 9 }); },
   clear(x, y, pad) { for (const il of ISLES) if (Math.hypot(x - il.x, y - il.y) < il.R * 1.2 + pad) return false; for (const r of this.rocks) if (Math.hypot(x - r.x, y - r.y) < r.r + pad) return false; return true; },
   isleD(il, x, y) { const qx = x - il.x, qy = y - il.y; return Math.hypot(qx, qy) / il.R * (1 + 0.1 * Math.sin(3 * Math.atan2(qy, qx) + il.w)); },
@@ -340,8 +392,8 @@ const Sea = {
       const ax = Math.sin(ang), ay = -Math.cos(ang), sp = 85, tt = clamp(best / sp, 0.4, 1.0);
       this.balls.push({ x: s.x + fx * 4.5, y: s.y + fy * 4.5, z: 1.5, vx: ax * sp, vy: ay * sp, vz: 0.5 * GRAV * tt - 1.5 / tt, owner: s, dmg: T.dmg, delay: 0 });
       for (let k = 0; k < 5; k++) this.parts.add(P('smoke', s.x + fx * 6, s.y + fy * 6, 1.5, ax * rand(3, 9), ay * rand(3, 9), rand(0.5, 2), rand(1, 2), 1.5, rand(4, 6), 0.6, -0.5, 1.2));
-      this.parts.add(P('fire', s.x + fx * 6, s.y + fy * 6, 1.5, 0, 0, 0, 0.14, 4, 1, 1)); if (s.player) this.shake = 0.25; return; }
-    const key = side > 0 ? 'rs' : 'rp'; if (s[key] > 0) return; s[key] = this.reloadOf(s);
+      this.parts.add(P('fire', s.x + fx * 6, s.y + fy * 6, 1.5, 0, 0, 0, 0.14, 4, 1, 1)); if (s.player) this.shake = 0.25; Sfx.swivel(); return; }
+    const key = side > 0 ? 'rs' : 'rp'; if (s[key] > 0) return; s[key] = this.reloadOf(s); Sfx.cannon(s.player ? 0 : this.pdist(s.x, s.y));
     const sx = Math.cos(s.th) * side, sy = Math.sin(s.th) * side, n = this.gunsPerSide(s), L = T.len;
     for (let i = 0; i < n; i++) { const lon = lerp(-0.28, 0.2, n > 1 ? i / (n - 1) : 0.5) * L, px = s.x + fx * lon + sx * T.beam * 0.55, py = s.y + fy * lon + sy * T.beam * 0.55, sp = 75 + rand(-4, 4);
       this.balls.push({ x: px, y: py, z: 3, vx: sx * sp + fx * s.v * 0.6 + rand(-2, 2), vy: sy * sp + fy * s.v * 0.6 + rand(-2, 2), vz: 13 + rand(-1, 1), owner: s, dmg: T.dmg, delay: i * 0.07 });
@@ -349,24 +401,46 @@ const Sea = {
       this.parts.add(P('fire', px + sx * 2.5, py + sy * 2.5, 3, sx * 10, sy * 10, 0, 0.18, 8, 2.5, 1)); this.parts.add(P('ring', px + sx * 3, py + sy * 3, 0, sx * 6, sy * 6, 0, 0.8, 1, 6, 0.4, 0, 0, K)); }
     if (s.player) this.shake = 0.5;
   },
-  hit(s, dmg, x, y, z) { s.flash = 0.12;
+  hit(s, dmg, x, y, z) { s.flash = 0.12; Sfx.hit(s.player ? 0 : this.pdist(s.x, s.y));
     for (let k = 0; k < 7; k++) this.parts.add(Object.assign(P('chip', x, y, z, rand(-9, 9), rand(-9, 9), rand(5, 13), rand(0.9, 1.6), 0.45, 0.35, 1, 24, 0.3), { spin: rand(-14, 14) }));
     for (let k = 0; k < 8; k++) this.parts.add(P('fire', x, y, z, rand(-6, 6), rand(-6, 6), rand(3, 10), rand(0.3, 0.7), 1.2, 0.4, 1, 20, 0.5));
     for (let k = 0; k < 3; k++) this.parts.add(P('dark', x, y, z + 1, rand(-2, 2), rand(-2, 2), rand(1, 4), rand(1, 2), 2, 6, 0.6, -1, 0.8));
     if (s.player) { G.hull = Math.max(0, G.hull - dmg); s.hull = G.hull; this.shake = 0.9; if (Math.random() < 0.15 && G.crew > 1) { G.crew--; toast('A hand is lost to the shot. Crew ' + G.crew); } }
     else s.hull -= dmg;
-    if (s.hull <= 0 && !s.sink) { s.sink = 0.001; if (!s.player) { G.kills++; G.gold += s.T.gold; toast(s.T.name + ' is going down. +' + s.T.gold + ' gold'); } } },
+    if (s.hull <= 0 && !s.sink) this.sinkShip(s, 'is going down.'); },
+  sinkShip(s, how, mult) { if (s.sink) return; s.sink = 0.001; Sfx.sink(); if (s.player) return; const gold = Math.round(s.T.gold * (mult || 1)); G.kills++; G.gold += gold; toast(s.T.name + ' ' + how + ' +' + gold + ' gold');
+    if (s.T.bounty) { G.bounty = 2; setTimeout(() => toast('The Red Corsair is finished. Your name is made on this sea.', 5000), 2600); } },
   bump(s, ox, oy, rad, hard) { const dx = s.x - ox, dy = s.y - oy, d = Math.hypot(dx, dy), min = rad + s.T.len * 0.3; if (d >= min || d < 0.01) return;
     const nx = dx / d, ny = dy / d; s.x = ox + nx * min; s.y = oy + ny * min; let vx = Math.sin(s.th) * s.v, vy = -Math.cos(s.th) * s.v; const vn = vx * nx + vy * ny;
     if (vn < 0) { vx -= 1.6 * vn * nx; vy -= 1.6 * vn * ny; s.th += angDiff(Math.atan2(vx, -vy), s.th) * 0.75; s.v = Math.hypot(vx, vy) * 0.7; s.w = 0;
-      if (hard && vn < -4) { this.hit(s, -vn * 0.6, s.x - nx * 4, s.y - ny * 4, 1); if (s.player) toast('Struck! Hull ' + Math.round(G.hull) + ' / ' + G.hullMax, 1500);
+      if (hard && vn < -4) { this.hit(s, -vn * 0.6, s.x - nx * 4, s.y - ny * 4, 1); if (s.player) { Sfx.crunch(); toast('Struck! Hull ' + Math.round(G.hull) + ' / ' + G.hullMax, 1500); }
         for (let k = 0; k < 10; k++) this.parts.add(P('spray', s.x - nx * 6, s.y - ny * 6, 0.5, rand(-4, 4), rand(-4, 4), rand(4, 9), rand(0.4, 0.9), 1.4, 0.6, 0.9, 20, 0)); } } },
 
-  update(dt) { this.t += dt; this.time = this.t; const Pl = this.P, play = G.mode === 'sea';
+  night() { const n = 0.5 - 0.5 * Math.cos(this.day * TAU); return smooth((n - 0.55) / 0.3); },
+  dusk() { const n = 0.5 - 0.5 * Math.cos(this.day * TAU); return smooth(1 - Math.abs(n - 0.6) / 0.16); },
+  weather(dt, play) {
+    this.day = (this.day + dt / 420) % 1;
+    this.stormT -= dt; if (this.stormT <= 0) { this.stormOn = !this.stormOn; this.stormT = this.stormOn ? rand(35, 55) : rand(80, 130); if (this.stormOn && play) toast('The sky blackens. A squall is coming.', 3500); }
+    this.storm += clamp((this.stormOn ? 1 : 0) - this.storm, -dt / 8, dt / 8);
+    if (this.storm > 0.3) { this.boltT -= dt; if (this.boltT <= 0) { this.boltT = rand(5, 14) / this.storm; this.flash = 1; Sfx.thunder(); } } this.flash = Math.max(0, this.flash - dt * 3);
+    const want = Math.round(this.storm * 140); while (this.rain.length < want) this.rain.push({ x: Math.random(), y: Math.random(), l: rand(0.6, 1.4) }); if (this.rain.length > want) this.rain.length = want;
+    for (const r of this.rain) { r.y += dt * 1.6 * r.l; r.x += dt * 0.25; if (r.y > 1.05) { r.y = -0.05; r.x = Math.random(); } if (r.x > 1.05) r.x -= 1.1; }
+    Sfx.ambience(play || G.mode === 'title', this.storm);
+  },
+  doBoard(e) { const theirs = e.crew, p = G.crew / (G.crew + theirs * 0.8), win = Math.random() < p; this.boardFx = 1.6; this.boardAt = e; e.boardCd = 14; this.shake = 0.6;
+    if (win) { const lost = Math.min(G.crew - 1, Math.round(rand(0, 1.6))); G.crew -= lost; const take = Math.min(G.hold - G.cargo, e.T.loot); G.cargo += take; e.noLoot = true;
+      setTimeout(() => { this.sinkShip(e, 'is taken and scuttled.', 1.5); toast((take ? take + ' cargo hauled across. ' : 'The hold is full, nothing fits. ') + (lost ? lost + ' hand' + (lost > 1 ? 's' : '') + ' lost in the melee.' : 'Not a hand lost.'), 4200); Sfx.gold(); }, 1500); }
+    else { const lost = Math.min(G.crew - 1, Math.round(rand(1, 2.6))); G.crew -= lost; G.hull = Math.max(1, G.hull - 6); toast('Repelled! ' + lost + ' hand' + (lost > 1 ? 's' : '') + ' cut down at the rail. Crew ' + G.crew, 4200); } },
+  update(dt) { const Pl = this.P, play = G.mode === 'sea';
+    if (play && Pad.hit.map) { this.chart = !this.chart; Sfx.ui(); } if (this.chart && play) { if (Pad.hit.esc || Pad.hit.A) this.chart = false; return; }
+    this.t += dt; this.time = this.t; this.weather(dt, play);
+    if (this.boardFx > 0) { this.boardFx -= dt; const e = this.boardAt; if (e && Math.random() < dt * 18) { Sfx.clash(); const mx = (Pl.x + e.x) / 2 + rand(-4, 4), my = (Pl.y + e.y) / 2 + rand(-3, 3);
+        for (let k = 0; k < 3; k++) this.parts.add(P('ember', mx, my, 4, rand(-4, 4), rand(-4, 4), rand(3, 7), rand(0.3, 0.6), 0.3, 0.15, 1, 3, 0.4)); } }
     if (play && !Pl.sink) { const T = Pl.T, m = Math.hypot(Pad.x, Pad.y);
       let want = Pl.th, thr = 0.35; if (m > 0.2) { want = Math.atan2(Pad.x, -Pad.y); thr = Math.min(1, m); }
       const err = angDiff(want, Pl.th), wT = clamp(err * 2.4, -T.turn, T.turn); Pl.w += clamp(wT - Pl.w, -T.turn * 3 * dt, T.turn * 3 * dt); Pl.th += Pl.w * dt;
-      const vt = T.speed * thr * (1 - 0.5 * Math.min(1, Math.abs(err) / 1.4)) * (0.6 + 0.4 * G.crew / G.crewMax); Pl.v += clamp(vt - Pl.v, -6 * dt, 4 * dt);
+      const vt = T.speed * thr * (1 - 0.5 * Math.min(1, Math.abs(err) / 1.4)) * (0.6 + 0.4 * G.crew / G.crewMax) * (1 - 0.22 * this.storm); Pl.v += clamp(vt - Pl.v, -6 * dt, 4 * dt);
+      if (this.board && Pad.hit.A && !this.near && this.boardFx <= 0) { this.doBoard(this.board); Pad.hit.A = false; }
       const firing = Pad.hit.X || Pad.hit.B || (Pad.hit.A && !this.near);
       if (firing) { if (!T.guns) this.fire(Pl, 0); else {
           let side = Pad.hit.X ? -1 : Pad.hit.B ? 1 : 0;
@@ -381,10 +455,12 @@ const Sea = {
     for (const e of this.ships) { if (e.player || e.sink) continue; const T = e.T, dx = Pl.x - e.x, dy = Pl.y - e.y, dist = Math.hypot(dx, dy), bearing = Math.atan2(dx, -dy); let want, vm;
       const safe = Math.hypot(Pl.x - this.rings[0].x, Pl.y - this.rings[0].y) < 120;
       if (e.state === 'patrol') { if (!e.wp || Math.hypot(e.wp[0] - e.x, e.wp[1] - e.y) < 40) { for (let t = 0; t < 20; t++) { const a = Math.random() * TAU, r = Math.random() * 520; e.wp = [Math.cos(a) * r, Math.sin(a) * r]; if (this.clear(e.wp[0], e.wp[1], 40)) break; } }
-        want = Math.atan2(e.wp[0] - e.x, -(e.wp[1] - e.y)); vm = T.speed * 0.5; if (play && !Pl.sink && !safe && dist < 230) e.state = 'engage'; }
-      else { if (dist > 380 || Pl.sink || !play || safe) e.state = 'patrol';
-        if (dist > 90) { want = bearing; vm = T.speed; } else { const a = bearing + Math.PI / 2, b = bearing - Math.PI / 2; want = Math.abs(angDiff(a, e.th)) < Math.abs(angDiff(b, e.th)) ? a : b; vm = T.speed * 0.6; }
+        want = Math.atan2(e.wp[0] - e.x, -(e.wp[1] - e.y)); vm = T.speed * (T.flee ? 0.7 : 0.5); if (play && !Pl.sink && !safe && dist < (T.bounty ? 340 : 230)) e.state = 'engage'; }
+      else { if (dist > (T.bounty ? 520 : 380) || Pl.sink || !play || safe) e.state = 'patrol';
+        if (T.flee) { want = bearing + Math.PI; vm = T.speed; }
+        else if (dist > 90) { want = bearing; vm = T.speed; } else { const a = bearing + Math.PI / 2, b = bearing - Math.PI / 2; want = Math.abs(angDiff(a, e.th)) < Math.abs(angDiff(b, e.th)) ? a : b; vm = T.speed * 0.6; }
         const rel = angDiff(bearing, e.th); if (dist < 100 && Math.abs(Math.abs(rel) - Math.PI / 2) < 0.45) this.fire(e, rel > 0 ? 1 : -1); }
+      e.boardCd = Math.max(0, (e.boardCd || 0) - dt);
       let ax = Math.sin(want), ay = -Math.cos(want);
       const avoid = (ox, oy, rad) => { const qx = e.x - ox, qy = e.y - oy, d = Math.hypot(qx, qy), w = clamp(1 - (d - rad) / 60, 0, 1); if (w > 0) { ax += qx / d * w * 2.5; ay += qy / d * w * 2.5; } };
       for (const il of ISLES) avoid(il.x, il.y, il.R * 1.2); for (const r of this.rocks) avoid(r.x, r.y, r.r + 8);
@@ -416,7 +492,7 @@ const Sea = {
         if (Math.random() < dt * 12) this.parts.add(P('foam', s.x + rand(-1, 1) * T.len * 0.4, s.y + rand(-1, 1) * T.len * 0.2, 0, 0, 0, 0, rand(1.5, 3), 1, 5, 0.7, 0, 0, 0.6));
         if (Math.random() < dt * 10) this.parts.add(P('dark', s.x, s.y, 4, rand(-1, 1), rand(-1, 1), rand(4, 8), rand(2, 4), 3, 12, 0.6, -1, 0.3));
         if (s.sink > 4.5) { this.ships.splice(i, 1); if (s.player) return Game.over('Your ' + T.name.toLowerCase() + ' is lost to the sea.');
-          for (let k = 0; k < T.loot; k++) this.dropLoot(s.x + rand(-12, 12), s.y + rand(-12, 12)); continue; } }
+          if (!s.noLoot) for (let k = 0; k < T.loot; k++) this.dropLoot(s.x + rand(-12, 12), s.y + rand(-12, 12)); continue; } }
       if (s.v > 1.2) { const n = s.v * dt * 1.8 * Math.sqrt(T.scale); let c = n; while (c > 0) { if (c < 1 && Math.random() > c) break; c--;
           const side = Math.random() < 0.5 ? -1 : 1, w = rand(0.2, 0.6) * T.beam, sx = Math.cos(s.th), sy = Math.sin(s.th), back = T.len * 0.45;
           this.parts.add(P('foam', s.x - fx * back + sx * side * w, s.y - fy * back + sy * side * w, 0, sx * side * rand(0.5, 2), sy * side * rand(0.5, 2), 0, rand(2.5, 5), T.beam * 0.25, T.beam * 0.8 + 2, 0.55, 0, 0.2, 0.6)); } } }
@@ -431,18 +507,22 @@ const Sea = {
         for (let k = 0; k < 8; k++) this.parts.add(P('smoke', b.x, b.y, b.z, rand(-5, 5), rand(-5, 5), rand(2, 8), rand(0.8, 1.5), 1.5, 5, 0.9, 14, 0.4));
         if (this.fortHp <= 0) { toast('The fort falls silent. +120 gold'); G.gold += 120; } }
       if (!dead) for (const il of ISLES) if (this.isleD(il, b.x, b.y) < 0.95 && b.z < 4) { dead = true; for (let k = 0; k < 5; k++) this.parts.add(P('smoke', b.x, b.y, 1, rand(-3, 3), rand(-3, 3), rand(2, 6), rand(0.6, 1.1), 1.5, 4, 0.8, 14, 0.5)); break; }
-      if (!dead && b.z < 0) { dead = true; this.parts.add(P('ring', b.x, b.y, 0, 0, 0, 0, 1.4, 0.5, 6, 0.7, 0, 0, K)); this.parts.add(P('ring', b.x, b.y, 0, 0, 0, 0, 1.9, 0.3, 9, 0.4, 0, 0, K));
+      if (!dead && b.z < 0) { dead = true; Sfx.splash(this.pdist(b.x, b.y)); this.parts.add(P('ring', b.x, b.y, 0, 0, 0, 0, 1.4, 0.5, 6, 0.7, 0, 0, K)); this.parts.add(P('ring', b.x, b.y, 0, 0, 0, 0, 1.9, 0.3, 9, 0.4, 0, 0, K));
         for (let k = 0; k < 10; k++) this.parts.add(P('spray', b.x, b.y, 0.3, rand(-2.5, 2.5), rand(-2.5, 2.5), rand(6, 15), rand(0.6, 1.1), 1.1, 0.5, 0.9, 30, 0.2)); this.parts.add(P('foam', b.x, b.y, 0, 0, 0, 0, 2, 1, 6, 0.6, 0, 0, 0.6)); }
       if (dead) this.balls.splice(i, 1); }
     // flotsam
     for (let i = this.loot.length - 1; i >= 0; i--) { const l = this.loot[i]; if (play && !Pl.sink && Math.hypot(l.x - Pl.x, l.y - Pl.y) < Pl.T.len * 0.5 + 4) {
-        if (G.cargo < G.hold) { G.cargo++; this.loot.splice(i, 1); toast('Cargo hauled aboard. Hold ' + G.cargo + ' / ' + G.hold, 1500); } else if ((this.hintT -= dt) < 0) { this.hintT = 4; toast('The hold is full. Sell at Gallows Cay.'); } } }
-    if (play) { this.spawnT -= dt; if (this.spawnT <= 0) { this.spawnT = 32; if (this.ships.filter(s => !s.player).length < 2 + (G.tier >= 1 ? 1 : 0)) { for (let t = 0; t < 30; t++) { const a = Math.random() * TAU, x = Math.cos(a) * 600, y = Math.sin(a) * 600;
-          if (Math.hypot(x - Pl.x, y - Pl.y) > 350 && this.clear(x, y, 50)) { this.add({ kind: G.tier >= 1 && G.kills >= 2 && Math.random() < 0.4 ? 'brig' : 'sloop', x, y, th: a + Math.PI }); break; } } } } }
+        if (G.cargo < G.hold) { G.cargo++; this.loot.splice(i, 1); Sfx.pickup(); toast('Cargo hauled aboard. Hold ' + G.cargo + ' / ' + G.hold, 1500); } else if ((this.hintT -= dt) < 0) { this.hintT = 4; toast('The hold is full. Sell at Gallows Cay.'); } } }
+    if (play) { this.spawnT -= dt; if (this.spawnT <= 0) { this.spawnT = 32; const foes = this.ships.filter(s => !s.player && !s.sink), nm = foes.filter(s => s.T.flee).length, nw = foes.length - nm - (foes.some(s => s.T.bounty) ? 1 : 0);
+        let kind = null; if (nm < 1 && Math.random() < 0.6) kind = 'merchant'; else if (nw < 2 + (G.tier >= 1 ? 1 : 0)) kind = G.tier >= 1 && G.kills >= 2 && Math.random() < 0.4 ? 'brig' : 'sloop';
+        if (kind) for (let t = 0; t < 30; t++) { const a = Math.random() * TAU, x = Math.cos(a) * 600, y = Math.sin(a) * 600;
+          if (Math.hypot(x - Pl.x, y - Pl.y) > 350 && this.clear(x, y, 50)) { this.add({ kind, x, y, th: a + Math.PI }); break; } } }
+      if (G.bounty === 1) this.spawnBounty(); }
     this.parts.update(dt);
-    // landing rings
-    this.near = null; if (play && !Pl.sink) for (const r of this.rings) if (Math.hypot(r.x - Pl.x, r.y - Pl.y) < 32) this.near = r;
-    if (this.near && Pad.hit.A) { if (Pl.v > 9) toast('Too fast to land. Ease off first.', 1500); else { Pl.v = 0; Pl.w = 0; Game.enter(this.near.isle.kind === 'port' ? 'port' : 'island'); } }
+    // landing rings, and a crippled ship alongside to board
+    this.near = null; this.board = null; if (play && !Pl.sink) { for (const r of this.rings) if (Math.hypot(r.x - Pl.x, r.y - Pl.y) < 32) this.near = r;
+      if (!this.near && Pl.v < 7) for (const e of this.ships) { if (e.player || e.sink || e.boardCd > 0 || e.hull > e.hullMax * 0.4) continue; if (Math.hypot(e.x - Pl.x, e.y - Pl.y) < (e.T.len + Pl.T.len) * 0.5 + 5) this.board = e; } }
+    if (this.near && Pad.hit.A) { if (Pl.v > 9) toast('Too fast to land. Ease off first.', 1500); else { Pl.v = 0; Pl.w = 0; Sfx.land(); Game.enter(this.near.isle.kind === 'port' ? 'port' : 'island'); } }
     // camera: zoom follows ship size, leads ahead of the bow
     const zt = G.mode === 'title' ? 3.4 : Pl.T.zoom; this.S = lerp(this.S, zt * clamp(Math.max(innerWidth, innerHeight * 1.5) / 1280, 0.65, 1.2), Math.min(1, dt * 1.5));
     const lead = Pl.v * 1.6; let tx = Pl.x + Math.sin(Pl.th) * lead, ty = Pl.y - Math.cos(Pl.th) * lead;
@@ -456,7 +536,7 @@ const Sea = {
   render() { const ctx = this.ctx, dpr = this.dpr, W = innerWidth, H = innerHeight, S = this.S, proj = this.proj;
     const isl = []; for (const il of ISLES) isl.push(il.x, il.y, il.R, il.w); const rk = []; for (const r of this.rocks) rk.push(r.x, r.y, r.r);
     GL.draw(this.prog, (U, gl) => { gl.uniform2f(U('uRes'), W * dpr, H * dpr); gl.uniform2f(U('uCam'), this.camX, this.camY); gl.uniform1f(U('uS'), S * dpr); gl.uniform1f(U('uK'), K); gl.uniform1f(U('uT'), this.t);
-      gl.uniform4fv(U('uIsl[0]'), isl); gl.uniform3fv(U('uRock[0]'), rk); });
+      gl.uniform4fv(U('uIsl[0]'), isl); gl.uniform3fv(U('uRock[0]'), rk); gl.uniform1f(U('uNight'), this.night()); gl.uniform1f(U('uStorm'), this.storm); });
     ctx.clearRect(0, 0, W, H);
     // landing rings on the water
     if (G.mode === 'sea') for (const r of this.rings) { const q = proj(r.x, r.y, 0), rr = 16 * S * (1 + 0.05 * Math.sin(this.t * 3));
@@ -474,8 +554,9 @@ const Sea = {
     this.parts.draw(ctx, proj);
     for (const b of this.balls) { if (b.delay > 0) continue; const q = proj(b.x, b.y, b.z), q0 = proj(b.x, b.y, 0); ctx.fillStyle = 'rgba(0,20,30,.3)'; ctx.beginPath(); ctx.arc(q0.sx, q0.sy, Math.max(1.5, 0.5 * S), 0, TAU); ctx.fill();
       ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(q.sx, q.sy, Math.max(1.6, 0.55 * S), 0, TAU); ctx.fill(); }
-    this.drawGulls(ctx); this.drawClouds(ctx);
+    if (this.storm < 0.6) this.drawGulls(ctx); this.drawClouds(ctx); this.drawWeather(ctx, W, H);
     if (G.mode !== 'sea') return;
+    if (this.board) { const e = this.board, q = proj(e.x, e.y, e.T.len * 0.75 * e.T.scale + 22); label(ctx, 'Board ' + e.T.name + ' · ' + e.crew + ' hands', q.sx, q.sy, true); }
     const Pl = this.P; if (!Pl.sink && this.gunsPerSide(Pl)) for (const side of [-1, 1]) { const rdy = (side > 0 ? Pl.rs : Pl.rp) <= 0;
       ctx.strokeStyle = rdy ? 'rgba(255,255,255,.28)' : 'rgba(255,255,255,.09)'; ctx.lineWidth = 1.5; ctx.setLineDash([5, 6]); ctx.beginPath();
       for (let i = 0; i <= 16; i++) { const a = Pl.th + side * Math.PI / 2 + (-0.5 + i / 16) * 0.9, p2 = proj(Pl.x + Math.sin(a) * 100, Pl.y - Math.cos(a) * 100, 0); i ? ctx.lineTo(p2.sx, p2.sy) : ctx.moveTo(p2.sx, p2.sy); } ctx.stroke(); ctx.setLineDash([]); }
@@ -484,11 +565,38 @@ const Sea = {
     for (const il of ISLES) if (il.name) { const q = proj(il.x, il.y + il.R * 1.05, 0); if (q.sy > 0 && q.sy < H) label(ctx, il.name, q.sx, q.sy + 16); }
     // edge markers for the two landings
     for (const r of this.rings) { const q = proj(r.x, r.y, 0); if (q.sx > 0 && q.sx < W && q.sy > 0 && q.sy < H) continue; const d = Math.round(Math.hypot(r.x - Pl.x, r.y - Pl.y));
-      label(ctx, r.isle.name + ' · ' + d + ' m', clamp(q.sx, 110, W - 110), clamp(q.sy, 96, H - 150), true); }
+      const mi = this.mini, top = mi && q.sx > mi.x - mi.r - 120 ? mi.y + mi.r + 22 : 96; label(ctx, r.isle.name + ' · ' + d + ' m', clamp(q.sx, 110, W - 110), clamp(q.sy, top, H - 150), true); }
+    const small = Math.min(W, H) < 500, mr = small ? 40 : 58; this.mini = { x: W - mr - (small ? 12 : 18), y: (small ? 44 : 78) + mr, r: mr }; this.drawChart(ctx, this.mini.x, this.mini.y, mr, false);
+    if (this.chart) { ctx.fillStyle = 'rgba(5,10,14,.55)'; ctx.fillRect(0, 0, W, H); const R = Math.min(W, H) * 0.4; this.drawChart(ctx, W / 2, H / 2 + 8, R, true);
+      ctx.font = '600 15px "Barlow Semi Condensed", sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#f2ecdc'; ctx.fillText('Sea chart · ' + (UI.touch ? 'tap the chart' : 'M') + ' to close', W / 2, H / 2 - R - 14); }
   },
+  drawWeather(ctx, W, H) { const n = this.night(), d = this.dusk(), st = this.storm;
+    if (d > 0.01) { ctx.fillStyle = 'rgba(255,120,40,' + (d * 0.13).toFixed(3) + ')'; ctx.fillRect(0, 0, W, H); }
+    if (st > 0.01) { ctx.fillStyle = 'rgba(40,52,64,' + (st * 0.3).toFixed(3) + ')'; ctx.fillRect(0, 0, W, H);
+      ctx.strokeStyle = 'rgba(205,222,235,' + (0.18 + st * 0.2).toFixed(2) + ')'; ctx.lineWidth = 1; ctx.beginPath();
+      for (const r of this.rain) { const x = r.x * W, y = r.y * H, l = 9 + r.l * 10; ctx.moveTo(x, y); ctx.lineTo(x - l * 0.25, y + l); } ctx.stroke(); }
+    if (n > 0.01) { ctx.fillStyle = 'rgba(4,8,34,' + (n * 0.42).toFixed(3) + ')'; ctx.fillRect(0, 0, W, H); }
+    if (this.flash > 0.02) { ctx.fillStyle = 'rgba(225,235,255,' + (this.flash * this.flash * 0.55).toFixed(3) + ')'; ctx.fillRect(0, 0, W, H); } },
+  drawChart(ctx, cx, cy, R, full) { const k = R / WORLD_R, Pl = this.P, X = x => cx + x * k, Y = y => cy + y * k;
+    ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, R, 0, TAU); ctx.fillStyle = full ? 'rgba(58,46,30,.96)' : 'rgba(30,26,20,.62)'; ctx.fill(); ctx.strokeStyle = 'rgba(242,236,220,' + (full ? 0.5 : 0.35) + ')'; ctx.lineWidth = full ? 2 : 1; ctx.stroke(); ctx.clip();
+    if (full) { ctx.strokeStyle = 'rgba(242,236,220,.08)'; ctx.lineWidth = 1; for (let r = 170; r < WORLD_R; r += 170) { ctx.beginPath(); ctx.arc(cx, cy, r * k, 0, TAU); ctx.stroke(); } ctx.beginPath(); ctx.moveTo(cx - R, cy); ctx.lineTo(cx + R, cy); ctx.moveTo(cx, cy - R); ctx.lineTo(cx, cy + R); ctx.stroke(); }
+    for (const il of ISLES) { ctx.fillStyle = il.kind === 'fort' ? '#8b8b86' : il.kind === 'bare' ? '#b7a98a' : '#c9b47f'; ctx.beginPath(); ctx.arc(X(il.x), Y(il.y), Math.max(2, il.R * k), 0, TAU); ctx.fill();
+      if (full && il.name) { ctx.font = '600 ' + Math.max(11, R * 0.045) + 'px "Barlow Semi Condensed", sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#f2ecdc'; ctx.fillText(il.name, X(il.x), Y(il.y) + il.R * k + R * 0.05); } }
+    ctx.fillStyle = '#6f6a62'; for (const r of this.rocks) { ctx.beginPath(); ctx.arc(X(r.x), Y(r.y), full ? 3 : 1.5, 0, TAU); ctx.fill(); }
+    ctx.strokeStyle = '#ffe39a'; ctx.lineWidth = full ? 2 : 1; for (const r of this.rings) { ctx.beginPath(); ctx.arc(X(r.x), Y(r.y), full ? 6 : 3, 0, TAU); ctx.stroke(); }
+    if (this.fortHp > 0) { ctx.fillStyle = '#ff9a7a'; ctx.fillRect(X(this.fort.x + 4) - 3, Y(this.fort.y + 4) - 3, 6, 6); }
+    if (full) { ctx.fillStyle = '#d9c9a0'; for (const l of this.loot) { ctx.beginPath(); ctx.arc(X(l.x), Y(l.y), 2, 0, TAU); ctx.fill(); } }
+    const tri = (x, y, th, s, col) => { ctx.save(); ctx.translate(X(x), Y(y)); ctx.rotate(th); ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(0, -s); ctx.lineTo(s * 0.7, s); ctx.lineTo(0, s * 0.5); ctx.lineTo(-s * 0.7, s); ctx.closePath(); ctx.fill(); ctx.restore(); };
+    for (const s of this.ships) { if (s.sink) continue; if (s.player) continue; const near = full || Math.hypot(s.x - Pl.x, s.y - Pl.y) < 330 || s.T.bounty; if (!near) continue;
+      tri(s.x, s.y, s.th, full ? 7 : 4, s.T.flee ? '#ffd86b' : s.T.bounty ? '#ff5a4a' : '#ff9a7a'); if (full && s.T.bounty) { ctx.font = '600 12px "Barlow Semi Condensed", sans-serif'; ctx.fillStyle = '#ff8a7a'; ctx.textAlign = 'center'; ctx.fillText('Red Corsair', X(s.x), Y(s.y) - 11); } }
+    tri(Pl.x, Pl.y, Pl.th, full ? 8 : 5, '#ffffff');
+    if (!full) { ctx.font = '700 10px "Barlow Semi Condensed", sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(242,236,220,.7)'; ctx.fillText('N', cx, cy - R + 11); }
+    ctx.restore(); },
   drawShip(ctx, s) { const T = s.T, sheet = SEAIMG['td_' + T.td], m = META[T.td === 'boat' ? 'boat' : 'ship'], N = 48, fs = m.size, step = TAU / N; if (!sheet || !sheet.width) return;
     const raw = Math.round(s.th / step), fi = ((raw % N) + N) % N, col = fi % 8, row = Math.floor(fi / 8), resid = s.th - raw * step;
     const sink = Math.min(1, s.sink / 4.5), q = this.proj(s.x, s.y, -sink * 6 + Math.sin(this.t * 1.3 + s.bob) * 0.25), k = this.S / m.px_per_m * T.scale;
+    const nt = this.night(); if (nt > 0.05 && !s.sink && (s.player || s.T.bounty)) { const r = T.len * 1.1 * this.S, g = ctx.createRadialGradient(q.sx, q.sy, 0, q.sx, q.sy, r); g.addColorStop(0, 'rgba(255,190,90,' + (0.22 * nt).toFixed(3) + ')'); g.addColorStop(1, 'rgba(255,160,60,0)');
+      ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(q.sx, q.sy, r, r * K, 0, 0, TAU); ctx.fill(); ctx.restore(); }
     ctx.save(); ctx.translate(q.sx, q.sy); ctx.rotate(resid * 0.85); ctx.globalAlpha = 1 - sink * sink;
     ctx.drawImage(sheet, col * fs, row * fs, fs, fs, -m.anchor[0] * k, -m.anchor[1] * k, fs * k, fs * k);
     if (s.flash > 0) { ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = s.flash * 3; ctx.drawImage(sheet, col * fs, row * fs, fs, fs, -m.anchor[0] * k, -m.anchor[1] * k, fs * k, fs * k); }
@@ -588,7 +696,7 @@ const Land = {
       const want = p.hurtT > 0.15 ? p.vx : ctl.x * 5.4; p.vx += clamp(want - p.vx, -(p.ground ? 46 : 22) * dt, (p.ground ? 46 : 22) * dt);
       if (Math.abs(ctl.x) > 0.2 && p.slashT <= 0) p.face = ctl.x > 0 ? 1 : -1;
       p.coyote = p.ground ? 0.1 : Math.max(0, p.coyote - dt);
-      if (ctl.hit.A) { if (ctl.held.down && p.ground) p.drop = 0.3; else if (p.coyote > 0) { p.vz = 10.8; p.ground = false; p.coyote = 0; } }
+      if (ctl.hit.A) { if (ctl.held.down && p.ground) p.drop = 0.3; else if (p.coyote > 0) { p.vz = 10.8; p.ground = false; p.coyote = 0; Sfx.jump(); } }
       p.vz -= 27 * dt;
       // horizontal
       let nx = clamp(p.x + p.vx * dt, lv.minX, lv.maxX); const hit = this.blocked(nx, p.z, 1.7);
@@ -604,7 +712,7 @@ const Land = {
       p.z = nz; if (p.ground) p.walk += Math.abs(p.vx) * dt * 1.9;
       // slash
       p.slashT = Math.max(0, p.slashT - dt);
-      if (ctl.hit.X && p.slashT <= 0) { p.slashT = 0.36; p.hitDone = false; }
+      if (ctl.hit.X && p.slashT <= 0) { p.slashT = 0.36; p.hitDone = false; Sfx.slash(); }
       if (p.slashT > 0.1 && p.slashT < 0.26 && !p.hitDone) { p.hitDone = true; this.fx.push({ k: 'arc', x: p.x, z: p.z, face: p.face, t: 0, life: 0.16 });
         for (const f of this.foes) { if (f.state === 'dead') continue; const dx = (f.x - p.x) * p.face; if (dx > -0.3 && dx < 1.75 && Math.abs(f.z - p.z) < 1.3) { f.hp--; f.vx = p.face * 5; f.state = f.hp <= 0 ? 'dead' : 'hurt'; f.t = 0;
             if (f.hp <= 0) { G.isleDone.foes[f.id] = true; G.gold += 15; this.text(f.x, f.z + 2, '+15 gold', '#ffe2a0'); } } } }
@@ -631,7 +739,7 @@ const Land = {
     const vw = this.W / PPM, tx = lv.w <= vw ? lv.x0 - (vw - lv.w) / 2 : clamp(p.x + p.face * 1.2 - vw / 2, lv.x0, lv.x0 + lv.w - vw);
     this.camX = lerp(this.camX, tx, Math.min(1, dt * 5));
   },
-  hurt(n, dir) { const p = this.p; G.hp -= n; p.inv = 1.0; p.hurtT = 0.4; p.vx = dir * 6; p.vz = 5; p.ground = false; p.climb = null;
+  hurt(n, dir) { const p = this.p; G.hp -= n; Sfx.hurt(); p.inv = 1.0; p.hurtT = 0.4; p.vx = dir * 6; p.vz = 5; p.ground = false; p.climb = null;
     if (G.hp <= 0) { const lost = Math.round(G.gold * 0.2); G.gold -= lost; toast('You come to by the longboat' + (lost ? ', ' + lost + ' gold lighter.' : '.')); G.hp = 5; p.x = this.lv.start[0]; p.z = this.lv.start[1]; p.vx = p.vz = 0; } },
   act(a) {
     const p = this.p;
@@ -701,7 +809,7 @@ const UI = {
     let prompt = '', key = this.touch ? '' : 'Space';
     if (sea) { const P = Sea.P;
       $('place').textContent = 'Open water';
-      $('goal').textContent = G.tier === 0 && G.gold >= 300 ? 'You can afford a sloop. Dock at Gallows Cay.' : G.water < 30 ? 'Water is low. Land at Driftwood Isle to the north-east.' : G.hull < G.hullMax * 0.45 ? 'The hull is failing. Make for Gallows Cay.' : G.cargo > 0 ? 'Cargo aboard. Sell it at Gallows Cay.' : (G.tier === 0 ? 'A longboat can outrun a ship, not outgun one. Scavenge flotsam.' : 'Hunt a sail, or scavenge the isles.');
+      $('goal').textContent = G.bounty === 1 ? 'The Red Corsair is out there. Check the chart.' : G.tier === 0 && G.gold >= 300 ? 'You can afford a sloop. Dock at Gallows Cay.' : G.water < 30 ? 'Water is low. Land at Driftwood Isle to the north-east.' : G.hull < G.hullMax * 0.45 ? 'The hull is failing. Make for Gallows Cay.' : G.cargo > 0 ? 'Cargo aboard. Sell it at Gallows Cay.' : (G.tier === 0 ? 'A longboat can outrun a ship, not outgun one. Scavenge flotsam.' : 'Hunt a sail, or scavenge the isles.');
       $('hullV').textContent = Math.round(G.hull) + ' / ' + G.hullMax; this.bar('hullB', G.hull / G.hullMax * 100, G.hull < G.hullMax * 0.4);
       $('crewV').textContent = G.crew + ' / ' + G.crewMax; this.bar('crewB', G.crew / G.crewMax * 100, G.crew < G.crewMax * 0.4);
       $('foodV').textContent = Math.round(G.food) + '%'; this.bar('foodB', G.food, G.food < 25);
@@ -710,9 +818,9 @@ const UI = {
       if (!P.T.guns) { $('rp').textContent = P.rp > 0 ? 'Swivel gun ' + P.rp.toFixed(1) + 's' : 'Swivel gun ready'; $('rp').classList.toggle('rdy', P.rp <= 0); $('rs').hidden = true; }
       else { $('rs').hidden = false; $('rp').textContent = P.rp > 0 ? 'Port ' + P.rp.toFixed(1) + 's' : 'Port ready'; $('rp').classList.toggle('rdy', P.rp <= 0);
       $('rs').textContent = P.rs > 0 ? 'Stbd ' + P.rs.toFixed(1) + 's' : 'Stbd ready'; $('rs').classList.toggle('rdy', P.rs <= 0); }
-      if (Sea.near) prompt = (Sea.near.isle.kind === 'port' ? 'Dock at ' : 'Land at ') + Sea.near.isle.name;
+      if (Sea.near) prompt = (Sea.near.isle.kind === 'port' ? 'Dock at ' : 'Land at ') + Sea.near.isle.name; else if (Sea.board) prompt = 'Board the ' + Sea.board.T.name.toLowerCase() + ' · ' + G.crew + ' hands against ' + Sea.board.crew;
       $('keys').innerHTML = '<span><kbd>Arrows</kbd>Point and sail</span><span><kbd>Space</kbd>' + (Sea.near ? 'Land' : 'Fire') + '</span>' + (P.T.guns ? '<span><kbd>Q E</kbd>Port or starboard</span>' : '');
-      $('btnA').textContent = Sea.near ? 'Land' : 'Fire'; $('btnX').textContent = 'Port'; $('btnB').textContent = 'Stbd'; $('btnA').classList.remove('dim'); $('btnB').classList.remove('dim'); $('btnX').hidden = $('btnB').hidden = !P.T.guns;
+      $('btnA').textContent = Sea.near ? 'Land' : Sea.board ? 'Board' : 'Fire'; $('btnX').textContent = 'Port'; $('btnB').textContent = 'Stbd'; $('btnA').classList.remove('dim'); $('btnB').classList.remove('dim'); $('btnX').hidden = $('btnB').hidden = !P.T.guns;
     } else {
       $('place').textContent = G.mode === 'port' ? 'Gallows Cay' : 'Driftwood Isle';
       $('goal').textContent = G.mode === 'port' ? 'Sell plunder, repair, restock. Cast off from the pier.' : (G.water < 99 ? 'Climb to the spring and fill the casks.' : 'Casks are full. Salvage what you can, then row back.');
@@ -722,7 +830,7 @@ const UI = {
       $('keys').innerHTML = '<span><kbd>A D</kbd>Move</span><span><kbd>Space</kbd>Jump</span><span><kbd>J</kbd>Slash</span><span><kbd>W</kbd>Climb</span>';
       $('btnA').textContent = 'Jump'; $('btnX').textContent = 'Slash'; $('btnB').textContent = 'Use'; $('btnA').classList.remove('dim'); $('btnB').classList.toggle('dim', !Land.zone);
     }
-    const pr = $('prompt'); pr.hidden = !prompt; if (prompt) pr.innerHTML = (key ? '<kbd>' + key + '</kbd>' : '') + '<span></span>', pr.lastChild.textContent = prompt;
+    if (sea && Sea.chart) prompt = ''; const pr = $('prompt'); pr.hidden = !prompt; if (prompt) pr.innerHTML = (key ? '<kbd>' + key + '</kbd>' : '') + '<span></span>', pr.lastChild.textContent = prompt;
     if (this.panelOpen) { const bs = [...$('panel').querySelectorAll('button:not([disabled])')];
       if (Pad.hit.down) this.sel++; if (Pad.hit.up) this.sel--; this.sel = (this.sel + bs.length) % Math.max(1, bs.length);
       bs.forEach((b, i) => b.classList.toggle('sel', i === this.sel)); if (Pad.hit.A && bs[this.sel]) bs[this.sel].click(); if (Pad.hit.esc) this.closePanel(); }
@@ -751,10 +859,11 @@ const UI = {
     this.panel('Shipwright & provisioner', T.name + ' · purse ' + G.gold + ' gold', rows);
   },
   openTavern() {
-    const rumors = ['They say the fort islet keeps a strongbox. Guns will open it.', 'A navy brig hunts whoever sinks a privateer.', 'Rocks will hole a fast ship. Reef the sails near them.', 'The spring on Driftwood Isle never runs dry.'];
+    const rumors = ['Merchantmen run rather than fight. Cripple one and board it for the whole hold.', 'A squall slows every ship. Fight in it only if you must.', 'Ships with few hands left lose a boarding. Hire at the tavern first.', 'They say the fort islet keeps a strongbox. Guns will open it.', 'A navy brig hunts whoever sinks a privateer.', 'Rocks will hole a fast ship. Reef the sails near them.', 'The spring on Driftwood Isle never runs dry.'];
     this.panel('The tavern', 'Crew ' + G.crew + ' / ' + G.crewMax + ' · Purse ' + G.gold + ' gold', [
       ['Hire a hand', '40 gold', () => { G.gold -= 40; G.crew++; this.openTavern(); }, G.crew >= G.crewMax || G.gold < 40],
       ['Buy a round and listen', '10 gold', () => { G.gold -= 10; toast(rumors[Math.floor(Math.random() * rumors.length)], 4200); this.openTavern(); }, G.gold < 10],
+      [G.bounty === 2 ? 'The Red Corsair · bounty paid' : 'Take the bounty on the Red Corsair', G.bounty === 2 ? 'done' : G.bounty === 1 ? 'posted' : '250 gold', () => { G.bounty = 1; toast('The Corsair is marked on your chart. A brig and a full crew are advised.', 5000); this.openTavern(); }, G.bounty !== 0 || G.tier < 1],
     ]);
   },
 };
@@ -780,15 +889,16 @@ const Game = {
   revive() { G.gold = Math.floor(G.gold / 2); G.cargo = 0; G.hull = Math.round(G.hullMax * 0.6); G.crew = Math.max(G.crew, Math.ceil(G.crewMax / 2)); G.food = Math.max(G.food, 70); G.water = Math.max(G.water, 70); G.thirstT = 0; Sea.reset(); G.mode = 'sea'; this.show(); toast('Fished out and patched up at Gallows Cay. Half your gold is gone.', 4200); },
   resize() { const w = innerWidth, h = innerHeight; Sea.resize(w, h); Land.resize(w, h); },
   frame(t) {
-    const dt = Math.min(0.05, (t - this.last) / 1000 || 0.016); this.last = t; G.t += dt; pollPad();
+    const dt = Math.min(0.05, (t - this.last) / 1000 || 0.016); this.last = t; G.t += dt; pollPad(); if (Pad.hit.mute) toast(Sfx.toggle() ? 'Sound off' : 'Sound on', 1200);
     if (G.mode === "title" && Pad.hit.A) this.start(this.had); else if (G.mode === 'over' && Pad.hit.A) this.revive();
     if (G.mode === 'island' || G.mode === 'port') { Land.update(dt); Land.render(); } else { Sea.update(dt); Sea.render(); }
     UI.update(dt); requestAnimationFrame(tt => this.frame(tt));
   },
   boot(data) {
     const had = this.had = loadGame(); if (data && data.G) Object.assign(G, data.G);
-    Sea.init($('sea'), $('seafx')); Land.init($('land')); UI.init(); this.resize(); addEventListener('resize', () => this.resize());
-    $('btnNew').addEventListener('click', () => { Object.assign(G, { gold: 60, tier: 0, plank: 0, holdUp: 0, hull: 30, hullMax: 30, crew: 4, crewMax: 4, food: 70, water: 45, timber: 0, cargo: 0, hold: 4, guns: 0, kills: 0, sold: 0, portChest: false }); Sea.reset(); this.start(false); });
+    Sea.init($('sea'), $('seafx')); Land.init($('land')); UI.init();
+    $('seafx').addEventListener('pointerdown', e => { if (G.mode !== 'sea') return; const m = Sea.mini; if (Sea.chart || (m && Math.hypot(e.clientX - m.x, e.clientY - m.y) < m.r + 10)) { Pad._tl.map = true; e.preventDefault(); } }); this.resize(); addEventListener('resize', () => this.resize());
+    $('btnNew').addEventListener('click', () => { Object.assign(G, { gold: 60, tier: 0, plank: 0, holdUp: 0, hull: 30, hullMax: 30, crew: 4, crewMax: 4, food: 70, water: 45, timber: 0, cargo: 0, hold: 4, guns: 0, kills: 0, sold: 0, portChest: false, bounty: 0 }); Sea.reset(); this.start(false); });
     $('btnCont').hidden = !had; $('btnCont').addEventListener('click', () => this.start(true));
     $('btnRevive').addEventListener('click', () => this.revive());
     G.mode = 'title'; this.show(); requestAnimationFrame(tt => this.frame(tt));
