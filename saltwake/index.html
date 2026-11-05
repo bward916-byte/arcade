@@ -17,7 +17,7 @@ body{background:var(--ink);color:var(--parch);font-family:var(--body);overflow:h
 [hidden]{display:none!important}
 #app{position:relative;height:100%;overflow:hidden}
 canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
-#land.fade,#landfx.fade{opacity:0;transition:opacity .6s}#land.in,#landfx.in{opacity:1}#landfx{pointer-events:none}
+#land.fade,#landfx.fade{opacity:0;transition:opacity .6s}#land.in,#landfx.in{opacity:1}#landfx{touch-action:none}
 #hud{position:absolute;inset:0;pointer-events:none;text-shadow:0 1px 3px rgba(0,0,0,.95);font-size:clamp(13px,1.6vw,16px)}
 #hud::before{content:"";position:absolute;inset:0;background:linear-gradient(to bottom,rgba(5,10,14,.45),rgba(5,10,14,0) 18%,rgba(5,10,14,0) 76%,rgba(5,10,14,.5))}
 #tl{position:absolute;left:var(--pad);top:var(--pad);max-width:min(340px,46vw);display:flex;flex-direction:column;gap:2px}
@@ -113,7 +113,7 @@ body.touch #keys{display:none}
 <div id="title" class="screen">
 <h1>Saltwake</h1>
 <p>Start with a longboat and four hands. Scavenge, trade and fight your way up to a sloop, then a brig. Go ashore on foot for water, timber and whatever the cave is hiding.</p>
-<div class="ctas"><button class="cta" id="btnNew" type="button">Set sail</button><button class="cta alt" id="btnCont" type="button" hidden>Continue voyage</button></div>
+<div class="ctas"><button class="cta" id="btnNew" type="button">Set sail</button><button class="cta alt" id="btnCont" type="button" hidden>Continue voyage</button><button class="cta alt" id="btnExped" type="button">Treasure expedition · preview</button></div>
 <div class="how"><span><kbd>Arrows</kbd>point and sail, or walk</span><span><kbd>Space</kbd>fire, land or jump</span><span><kbd>Q E</kbd>port and starboard guns</span><span><kbd>J</kbd>slash</span><span><kbd>W</kbd>climb</span><span><kbd>M</kbd>sea chart</span><span><kbd>N</kbd>sound</span></div>
 <div class="how"><span>Touch pad and controllers work too. Best in landscape.</span></div>
 </div>
@@ -166,6 +166,8 @@ const Motion = (() => {
         ul2: lerp(.55, 1.0, k), ll2: lerp(.5, .4, k), ul1: lerp(-.5, -.9, k), ll1: lerp(.12, .1, k), f1: H - .3 * k, ua1: lerp(-1.5, -1.0, k) }); }],
       [1, k => { k = ease(k); return guard({ hx: lerp(8, 0, k), ua2: lerp(1.05, 1.1, k), la2: lerp(.05, .3, k), wrist: lerp(.35, .4, k), torso: lerp(.45, -.04, k), head: lerp(-.2, .02, k),
         ul2: lerp(1.0, .55, k), ll2: lerp(.4, .5, k), ul1: lerp(-.9, -.5, k), ll1: lerp(.1, .12, k), f1: lerp(H - .3, H, k), ua1: lerp(-1.0, -1.9, k) }); }]),
+    parry: t => { const k = t < .2 ? easeOut(t / .2) : t < .6 ? 1 : 1 - ease((t - .6) / .4); return guard({ hx: -4 * k, ua2: lerp(1.1, .85, k), la2: lerp(.3, 1.3, k), wrist: lerp(.4, .95, k), torso: -.04 - .1 * k, head: .08 * k, ul2: .55 - .1 * k, ll2: .5 + .15 * k, ll1: .12 + .15 * k }); },
+    guard: t => { const b = Math.sin(t * 2.2); return guard({ lift: .6 + .6 * b, hx: 1.2 * Math.sin(t * 1.1), ua2: 1.1 + .04 * b, head: .02 - .03 * b }); },
     hurt: t => { const k = Math.sin(Math.min(1, t) * PI); return pose({ hx: -7 * k, torso: -.35 * k, head: .45 * k, ua2: .9 * k, la2: 1.4 * k, ua1: .7 * k, la1: 1.2 * k, ul2: .35 * k, ll2: .6 * k, ul1: -.3 * k, ll1: .5 * k }); },
     die: t => { const k = ease(Math.min(1, t)); return pose({ rot: -1.5 * k, torso: .25 * k, head: .3 * k, ua2: .4 + .6 * k, la2: .4, ua1: .3 + .9 * k, la1: .3, ul2: .25 * k, ll2: .45 * k, ul1: -.1 * k, ll1: .2 * k }); },
     sit: () => pose({ torso: .1, head: -.1, ul2: 1.5, ll2: 1.5, ul1: 1.5, ll1: 1.5, f2: H, f1: H, ua2: .6, la2: 1.0, ua1: .6, la1: 1.0 }),
@@ -251,7 +253,7 @@ function pollPad() {
     if (Math.abs(gp.axes[1]) > 0.25) y += gp.axes[1];
     const bt = i => gp.buttons[i] && gp.buttons[i].pressed;
     if (bt(14)) x -= 1; if (bt(15)) x += 1; if (bt(12)) y -= 1; if (bt(13)) y += 1;
-    if (bt(0)) held.A = true; if (bt(2) || bt(4)) held.X = true; if (bt(1) || bt(5)) held.B = true; if (bt(9)) held.esc = true;
+    if (bt(0)) held.A = true; if (bt(2) || bt(4)) held.X = true; if (bt(1) || bt(5)) held.B = true; if (bt(9)) held.esc = true; if (bt(8)) held.map = true;
   }
   Pad.x = clamp(x, -1, 1); Pad.y = clamp(y, -1, 1);
   const up = Pad.y < -0.55, down = Pad.y > 0.55;
@@ -500,13 +502,20 @@ const Sea = {
     if (win) { const lost = Math.min(G.crew - 1, Math.round(rand(0, 1.6))); G.crew -= lost; const take = Math.min(G.hold - G.cargo, e.T.loot); G.cargo += take; e.noLoot = true;
       setTimeout(() => { this.sinkShip(e, 'is taken and scuttled.', 1.5); toast((take ? take + ' cargo hauled across. ' : 'The hold is full, nothing fits. ') + (lost ? lost + ' hand' + (lost > 1 ? 's' : '') + ' lost in the melee.' : 'Not a hand lost.'), 4200); Sfx.gold(); }, 1500); }
     else { const lost = Math.min(G.crew - 1, Math.round(rand(1, 2.6))); G.crew -= lost; G.hull = Math.max(1, G.hull - 6); toast('Repelled! ' + lost + ' hand' + (lost > 1 ? 's' : '') + ' cut down at the rail. Crew ' + G.crew, 4200); } },
+  tapAt(cx, cy) { if (G.mode !== 'sea' || this.chart) return; const S = this.S, x = this.camX + (cx - innerWidth / 2) / S, y = this.camY + (cy - innerHeight / 2) / (S * K); let foe = null, best = 28;
+    for (const e of this.ships) { if (e.player || e.sink) continue; const d = Math.hypot(e.x - x, e.y - y); if (d < best) { best = d; foe = e; } }
+    if (foe) { this.tapFoe = foe; this.tapGo = null; } else { this.tapGo = [x, y]; this.tapFoe = null; } },
   update(dt) { const Pl = this.P, play = G.mode === 'sea';
     if (play && Pad.hit.map) { this.chart = !this.chart; Sfx.ui(); } if (this.chart && play) { if (Pad.hit.esc || Pad.hit.A) this.chart = false; return; }
     this.t += dt; this.time = this.t; this.weather(dt, play);
     if (this.boardFx > 0) { this.boardFx -= dt; const e = this.boardAt; if (e && Math.random() < dt * 18) { Sfx.clash(); const mx = (Pl.x + e.x) / 2 + rand(-4, 4), my = (Pl.y + e.y) / 2 + rand(-3, 3);
         for (let k = 0; k < 3; k++) this.parts.add(P('ember', mx, my, 4, rand(-4, 4), rand(-4, 4), rand(3, 7), rand(0.3, 0.6), 0.3, 0.15, 1, 3, 0.4)); } }
     if (play && !Pl.sink) { const T = Pl.T, m = Math.hypot(Pad.x, Pad.y);
-      let want = Pl.th, thr = 0.35; if (m > 0.2) { want = Math.atan2(Pad.x, -Pad.y); thr = Math.min(1, m); }
+      let want = Pl.th, thr = 0.35; if (m > 0.2) { want = Math.atan2(Pad.x, -Pad.y); thr = Math.min(1, m); this.tapGo = null; this.tapFoe = null; }
+      else if (this.tapGo) { const dx = this.tapGo[0] - Pl.x, dy = this.tapGo[1] - Pl.y, d = Math.hypot(dx, dy); if (d < 12 && !this.near) this.tapGo = null; else { want = Math.atan2(dx, -dy); thr = clamp(d / 40, 0.4, 1); if (this.rings.some(r => Math.hypot(r.x - this.tapGo[0], r.y - this.tapGo[1]) < 30) && d < 50) thr = 0.2; } }
+      else if (this.tapFoe) { const e = this.tapFoe; if (e.sink || !this.ships.includes(e)) this.tapFoe = null; else { const dx = e.x - Pl.x, dy = e.y - Pl.y, d = Math.hypot(dx, dy), b = Math.atan2(dx, -dy);
+          if (T.guns) { const a1 = b + Math.PI / 2, a2 = b - Math.PI / 2; want = d > 70 ? b : (Math.abs(angDiff(a1, Pl.th)) < Math.abs(angDiff(a2, Pl.th)) ? a1 : a2); thr = d > 70 ? 1 : 0.6; const rel = angDiff(b, Pl.th); if (d < 100 && Math.abs(Math.abs(rel) - Math.PI / 2) < 0.5) this.fire(Pl, rel > 0 ? 1 : -1); }
+          else { want = b; thr = d > 40 ? 1 : 0.5; if (d < 80 && Math.abs(angDiff(b, Pl.th)) < 1.2) this.fire(Pl, 0); } } }
       const err = angDiff(want, Pl.th), wT = clamp(err * 2.4, -T.turn, T.turn); Pl.w += clamp(wT - Pl.w, -T.turn * 3 * dt, T.turn * 3 * dt); Pl.th += Pl.w * dt;
       const vt = T.speed * thr * (1 - 0.5 * Math.min(1, Math.abs(err) / 1.4)) * (0.6 + 0.4 * G.crew / G.crewMax) * (1 - 0.22 * this.storm); Pl.v += clamp(vt - Pl.v, -6 * dt, 4 * dt);
       if (this.board && Pad.hit.A && !this.near && this.boardFx <= 0) { this.doBoard(this.board); Pad.hit.A = false; }
@@ -591,7 +600,7 @@ const Sea = {
     // landing rings, and a crippled ship alongside to board
     this.near = null; this.board = null; if (play && !Pl.sink) { for (const r of this.rings) if (Math.hypot(r.x - Pl.x, r.y - Pl.y) < 32) this.near = r;
       if (!this.near && Pl.v < 7) for (const e of this.ships) { if (e.player || e.sink || e.boardCd > 0 || e.hull > e.hullMax * 0.4) continue; if (Math.hypot(e.x - Pl.x, e.y - Pl.y) < (e.T.len + Pl.T.len) * 0.5 + 5) this.board = e; } }
-    if (this.near && Pad.hit.A) { if (Pl.v > 9) toast('Too fast to land. Ease off first.', 1500); else { Pl.v = 0; Pl.w = 0; Sfx.land(); Game.enter(this.near.isle.kind === 'port' ? 'port' : 'island'); } }
+    if (this.near && (Pad.hit.A || (this.tapGo && Pl.v <= 9 && Math.hypot(this.tapGo[0] - this.near.x, this.tapGo[1] - this.near.y) < 30))) { this.tapGo = null; if (Pl.v > 9) toast('Too fast to land. Ease off first.', 1500); else { Pl.v = 0; Pl.w = 0; Sfx.land(); Game.enter(this.near.isle.kind === 'port' ? 'port' : 'island'); } }
     // camera: zoom follows ship size, leads ahead of the bow
     const zt = G.mode === 'title' ? 3.4 : Pl.T.zoom; this.S = lerp(this.S, zt * clamp(Math.max(innerWidth, innerHeight * 1.5) / 1280, 0.65, 1.2), Math.min(1, dt * 1.5));
     const lead = Pl.v * 1.6; let tx = Pl.x + Math.sin(Pl.th) * lead, ty = Pl.y - Math.cos(Pl.th) * lead;
@@ -625,6 +634,8 @@ const Sea = {
       ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(q.sx, q.sy, Math.max(1.6, 0.55 * S), 0, TAU); ctx.fill(); }
     if (this.storm < 0.6) this.drawGulls(ctx); this.drawClouds(ctx); this.drawWeather(ctx, W, H);
     if (G.mode !== 'sea') return;
+    if (this.tapGo) { const q = proj(this.tapGo[0], this.tapGo[1], 0), r = (8 + 3 * Math.sin(this.t * 6)) ; ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(q.sx, q.sy, r, r * K, 0, 0, TAU); ctx.stroke(); }
+    if (this.tapFoe && !this.tapFoe.sink) { const e = this.tapFoe, q = proj(e.x, e.y, 0), r = e.T.len * 0.6 * S; ctx.strokeStyle = 'rgba(255,120,90,.8)'; ctx.lineWidth = 2; ctx.setLineDash([6, 5]); ctx.beginPath(); ctx.ellipse(q.sx, q.sy, r, r * K, 0, 0, TAU); ctx.stroke(); ctx.setLineDash([]); }
     if (this.board) { const e = this.board, q = proj(e.x, e.y, e.T.len * 0.75 * e.T.scale + 22); label(ctx, 'Board ' + e.T.name + ' · ' + e.crew + ' hands', q.sx, q.sy, true); }
     const Pl = this.P; if (!Pl.sink && this.gunsPerSide(Pl)) for (const side of [-1, 1]) { const rdy = (side > 0 ? Pl.rs : Pl.rp) <= 0;
       ctx.strokeStyle = rdy ? 'rgba(255,255,255,.28)' : 'rgba(255,255,255,.09)'; ctx.lineWidth = 1.5; ctx.setLineDash([5, 6]); ctx.beginPath();
@@ -690,168 +701,100 @@ const Sea = {
 };
 
 // ==== 04_land.js
-// ---- land: 2D side-scrolling platformer over pre-rendered backdrops. Units are metres; x right, z up.
-const PPM = 71.1111, FW = 224, FH = 192, AX = 112, AY = 174.2;
+// ---- land: top-down walking on a 3D scene, same camera pitch as the sea. Metres; x east, z south (toward the camera), y up.
 const LEVELS = {
-  island: {
-    img: 'island', x0: -7.2, w: 36, ztop: 9.9125, minX: -6.3, maxX: 27.5, start: [-5.4, 1], dusk: false,
-    floor: x => clamp(0.33 * (x + 6.8), 0.12, 0.72),
-    solids: [[-3.25, -2.45, 0, 1.5], [-2.2, -0.9, 0, 1.6], [-0.9, 3.2, 0, 2.6], [4.0, 4.9, 0, 1.15], [7.0, 9.8, 3.3, 5.6], [9.8, 17.5, 0, 5.6], [17.5, 19.5, 0, 3.6], [19.5, 21.2, 0, 2.0], [27.9, 40, 0, 4.6]],
-    oneway: [[3.2, 5.6, 2.6], [5.6, 7.0, 2.6]],
-    ladders: [{ x: 6.75, z0: 2.6, z1: 5.6, exitX: 7.45 }],
-    items: [['timber', -4.4, 0.72], ['coco', 2.5, 2.6], ['coco', 15.2, 5.6], ['timber', 16.6, 5.6], ['coco', 22.4, 0.72], ['timber', 24.3, 0.72], ['timber', 26.3, 0.72]],
-    foes: [[1.4, 2.6, -0.5, 2.9], [24.5, 0.72, 21.8, 27.2]],
-    chest: [8.5, 0.72],
-    glows: [[7.42, 2.4, 1.6, '255,150,60']], falls: [10.7, 11.7, 5.7, 9.95],
-    zones: [
-      { x0: -6.4, x1: -5.0, z0: 0, z1: 2, label: 'Row back to the ship', act: 'leave' },
-      { x0: 10.1, x1: 12.4, z0: 5.4, z1: 7, label: 'Fill the water casks', act: 'water' },
-    ],
-  },
-  port: {
-    img: 'port', x0: -7.3, w: 30, ztop: 11.3125, minX: -7.0, maxX: 22.3, start: [-5.6, 1.75], dusk: true,
-    floor: x => x < -4.1 ? 1.75 : 1.9,
-    solids: [[-3.45, -2.55, 0, 3.55], [-2.5, -1.6, 0, 2.8], [3.1, 4.1, 0, 2.9], [3.3, 4.1, 0, 3.7], [3.35, 3.95, 0, 4.3], [12.45, 13.35, 0, 2.8], [15.1, 16.1, 0, 2.9], [16.15, 17.05, 0, 2.8], [15.5, 16.3, 0, 3.7], [20.55, 21.45, 0, 2.8]],
-    oneway: [[-2.9, 2.9, 4.65], [4.3, 12.9, 6.16]],
-    ladders: [], items: [], foes: [], chest: [9.9, 6.16],
-    glows: [[-5.9, 4.35, 1.3, '255,170,80'], [-2.9, 4.6, 1.3, '255,170,80'], [1.5, 3.1, 1.0, '255,160,70'], [13.1, 4.6, 1.3, '255,170,80'], [21.3, 4.6, 1.3, '255,170,80']],
-    zones: [
-      { x0: -7.1, x1: -6.2, z0: 0, z1: 4, label: 'Cast off', act: 'leave' },
-      { x0: -0.9, x1: 1.9, z0: 1.5, z1: 3.2, label: 'Trade with the shipwright', act: 'trade' },
-      { x0: 7.9, x1: 9.3, z0: 1.5, z1: 3.2, label: 'Enter the tavern', act: 'tavern' },
-    ],
-  },
+  port: { kind: 'port', bounds: [-23, 23, -1.0, 7.4], start: [-6.2, 0.4], dusk: true,
+    h: () => 1.9, water: (x, z) => (x < -4.1 && Math.abs(z) > 1.45) || z > 7.4 || x < -23,
+    rects: [[-3.3, 3.1, -8, -1.2], [4.1, 13.1, -8, -1.3], [13.9, 22.6, -8, -1.3]], circles: [[5.5, 0.9, 0.5], [19.2, 0.7, 0.5], [16.4, 4.6, 0.6], [-1.6, 5.8, 0.45]],
+    zones: [{ x: -7.4, z: 0, r: 1.5, label: 'Cast off', act: 'leave' }, { x: 0.5, z: -0.5, r: 1.3, label: 'Trade with the shipwright', act: 'trade' }, { x: 8.6, z: -0.6, r: 1.3, label: 'Enter the tavern', act: 'tavern' }],
+    chest: [21.2, 2.2], items: [], foes: [], palms: [[-2.6, 6.6, 4.5], [11, 6.4, 5], [23, 1, 4]] },
+  island: { kind: 'island', bounds: [-6, 27, -9.5, 3.4], start: [-4.6, 0.4], dusk: false,
+    h: (x, z) => 0.35 + 4.4 * smooth((x - 1) / 9) * smooth((-z - 0.5) / 4.5) + 0.25 * vnoise(x * 0.5, z * 0.5, 4),
+    water: (x, z) => z > 3.4 || x < -6 || (x < -3.8 && z < -1.5) || z < -9.5,
+    rects: [], circles: [[-1.5, -4, 0.4], [3, 1.6, 0.4], [7, -7.5, 0.4], [14, 1.4, 0.4], [18.5, -8.2, 0.4], [23.5, -2, 0.4], [9.5, -1.5, 0.35], [21, 1.6, 0.4], [13.5, -6.5, 1.1]],
+    zones: [{ x: -5.0, z: 0.4, r: 1.5, label: 'Row back to the ship', act: 'leave' }, { x: 13.5, z: -6.5, r: 2.0, label: 'Fill the water casks', act: 'water' }],
+    chest: [25, -7.5], items: [['timber', -2.2, 2.2], ['coco', 3.4, 0.4], ['coco', 15.5, -0.3], ['timber', 10.5, -5.5], ['coco', 19.5, -6.5], ['timber', 23, 0.8], ['timber', 6.5, -3.8]],
+    foes: [[6, -1, 3.5], [22.5, -7.5, 3]], palms: [[-1.5, -4, 4.5], [3, 1.6, 4], [7, -7.5, 5], [14, 1.4, 4.2], [18.5, -8.2, 5.5], [23.5, -2, 4.8], [9.5, -1.5, 3.6], [21, 1.6, 4.4]] },
 };
 
 const Land = {
-  img: {}, W: 1280, lv: null, key: '', p: null, foes: [], items: [], fx: [], t: 0, camX: 0, zone: null, chestOpen: false,
-  init(canvas, fxCanvas) { this.cv = canvas; Land3.init(canvas, fxCanvas); if (!Land3.ready) this.ctx = canvas.getContext('2d');
-    for (const k in ASSETS) { const im = new Image(); im.src = ASSETS[k]; this.img[k] = im; }
-    this.img.cap.onload = () => { this.img.capDusk = this.tint(this.img.cap); }; },
-  tint(im) { const c = document.createElement('canvas'); c.width = im.width; c.height = im.height; const x = c.getContext('2d');
-    x.drawImage(im, 0, 0); x.globalCompositeOperation = 'multiply'; x.fillStyle = 'rgb(150,112,104)'; x.fillRect(0, 0, c.width, c.height);
-    x.globalCompositeOperation = 'destination-in'; x.drawImage(im, 0, 0); return c; },
-  resize(w, h) { if (Land3.ready) return Land3.resize(w, h); this.W = Math.round(clamp(720 * w / h, 640, 2000)); this.cv.width = this.W; this.cv.height = 720; },
+  lv: null, key: '', p: null, foes: [], items: [], fx: [], t: 0, zone: null, chestOpen: false, tapTarget: null, tapAct: null, duel: null,
+  init(canvas, fxCanvas) { Land3.init(canvas, fxCanvas); },
+  resize(w, h) { Land3.resize(w, h); },
   enter(key) {
-    const lv = this.lv = LEVELS[key]; this.key = key; this.t = 0; this.fx = [];
-    this.p = { x: lv.start[0], z: lv.start[1], vx: 0, vz: 0, face: 1, ground: true, climb: null, slashT: 0, hitDone: false, hurtT: 0, inv: 0, walk: 0, drop: 0, coyote: 0 };
+    const lv = this.lv = LEVELS[key]; this.key = key; this.t = 0; this.fx = []; this.tapTarget = null; this.tapAct = null;
+    this.duel = null; this.p = { x: lv.start[0], z: lv.start[1], y: lv.h(lv.start[0], lv.start[1]), vx: 0, vz: 0, head: 0, speed: 0, slashT: 0, parryT: 0, hitDone: false, hurtT: 0, inv: 0, walk: 0 };
     this.items = lv.items.map((it, i) => ({ type: it[0], x: it[1], z: it[2], id: key + i, taken: !!G.isleDone.items[key + i] }));
-    this.foes = lv.foes.map((f, i) => ({ x: f[0], z: f[1], x0: f[2], x1: f[3], id: key + 'f' + i, hp: 3, face: -1, state: G.isleDone.foes[key + 'f' + i] ? 'dead' : 'walk', t: 0, walk: 0, cd: 0, vx: 0 }));
-    this.chestOpen = key === 'port' ? G.portChest : G.isleDone.chest;
-    G.hp = 5; this.camX = lv.x0; this.zone = null;
-    if (Land3.ready) { Land3.build(key, lv); Land3.startCine('in'); }
+    this.foes = lv.foes.map((f, i) => ({ x: f[0], z: f[1], hx: f[0], hz: f[1], rad: f[2], id: key + 'f' + i, hp: 3, head: 0, state: G.isleDone.foes[key + 'f' + i] ? 'dead' : 'walk', t: 0, walk: 0, cd: 0, wp: null, kx: 0, kz: 0 }));
+    this.chestOpen = key === 'port' ? G.portChest : G.isleDone.chest; G.hp = 5; this.zone = null;
+    Land3.build(key, lv); Land3.startCine('in');
   },
-  leaving() { return !!(Land3.ready && Land3.cine); },
-  ground(x, z, halfw) { // highest surface at or below z
-    const lv = this.lv; let g = lv.floor(x);
-    for (const s of lv.solids) if (x + halfw > s[0] && x - halfw < s[1] && s[3] <= z + 0.001 && s[3] > g) g = s[3];
-    return g;
-  },
-  blocked(x, z, h) { for (const s of this.lv.solids) if (x + 0.26 > s[0] && x - 0.26 < s[1] && z < s[3] - 0.02 && z + h > s[2] + 0.02) return s; return null; },
+  leaving() { return !!Land3.cine; },
+  free(x, z, r) { const lv = this.lv; if (x < lv.bounds[0] || x > lv.bounds[1] || z < lv.bounds[2] || z > lv.bounds[3] || lv.water(x, z)) return false;
+    for (const q of lv.rects) if (x + r > q[0] && x - r < q[1] && z + r > q[2] && z - r < q[3]) return false;
+    for (const c of lv.circles) if (Math.hypot(x - c[0], z - c[1]) < c[2] + r) return false; return true; },
+  move(o, dx, dz, r) { const x0 = o.x, z0 = o.z; if (this.free(o.x + dx, o.z, r)) o.x += dx; if (this.free(o.x, o.z + dz, r)) o.z += dz;
+    if (o.x === x0 && o.z === z0) for (const a of [1.1, -1.1, 1.8, -1.8]) { const c = Math.cos(a), sn = Math.sin(a), nx = dx * c - dz * sn, nz = dx * sn + dz * c; if (this.free(o.x + nx, o.z + nz, r)) { o.x += nx; o.z += nz; break; } } },
   text(x, z, s, col) { this.fx.push({ k: 'txt', x, z, s, col: col || '#f2ecdc', t: 0, life: 1.3 }); },
+  tap(x, z) { if (this.leaving() || UI.panelOpen) return; const lv = this.lv; this.tapAct = null;
+    for (const zn of lv.zones) if (Math.hypot(x - zn.x, z - zn.z) < zn.r + 1.0) { this.tapAct = zn; x = zn.x; z = zn.z; break; }
+    if (!this.tapAct && !this.chestOpen && Math.hypot(x - lv.chest[0], z - lv.chest[1]) < 1.8) { this.tapAct = { label: 'Open the chest', act: 'chest', x: lv.chest[0], z: lv.chest[1], r: 1.1 }; x = lv.chest[0]; z = lv.chest[1]; }
+    const f = this.foes.find(f => f.state !== 'dead' && Math.hypot(x - f.x, z - f.z) < 1.6); if (f) { this.tapAct = { act: 'attack', foe: f }; }
+    this.tapTarget = [x, z]; },
 
   update(dt) {
     const lv = this.lv, p = this.p; this.t += dt; dt = Math.min(dt, 1 / 30);
-    p.inv = Math.max(0, p.inv - dt); p.hurtT = Math.max(0, p.hurtT - dt); p.drop = Math.max(0, p.drop - dt);
+    p.inv = Math.max(0, p.inv - dt); p.hurtT = Math.max(0, p.hurtT - dt); p.slashT = Math.max(0, p.slashT - dt); p.parryT = Math.max(0, p.parryT - dt);
     const ctl = UI.panelOpen || this.leaving() ? { x: 0, y: 0, hit: {}, held: {} } : Pad;
-    // ladders
-    if (p.climb) { const L = p.climb; p.vx = p.vz = 0; p.x = L.x; p.z += -ctl.y * 3.1 * dt; p.walk += Math.abs(ctl.y) * dt * 6;
-      if (p.z >= L.z1 - 0.05) { p.z = L.z1; p.x = L.exitX; p.climb = null; p.ground = true; }
-      else if (p.z <= L.z0) { p.z = L.z0; p.climb = null; }
-      else if (ctl.hit.A) { p.climb = null; p.vz = 6; p.vx = ctl.x * 4; }
-    } else {
-      for (const L of lv.ladders) { if (ctl.held.up && Math.abs(p.x - L.x) < 0.5 && p.z >= L.z0 - 0.1 && p.z < L.z1 - 0.4) p.climb = L;
-        if (ctl.held.down && p.ground && Math.abs(p.z - L.z1) < 0.1 && Math.abs(p.x - L.exitX) < 0.8) { p.climb = L; p.z = L.z1 - 0.45; } }
-    }
-    if (!p.climb) {
-      const want = p.hurtT > 0.15 ? p.vx : ctl.x * 5.4; p.vx += clamp(want - p.vx, -(p.ground ? 46 : 22) * dt, (p.ground ? 46 : 22) * dt);
-      if (Math.abs(ctl.x) > 0.2 && p.slashT <= 0) p.face = ctl.x > 0 ? 1 : -1;
-      p.coyote = p.ground ? 0.1 : Math.max(0, p.coyote - dt);
-      if (ctl.hit.A) { if (ctl.held.down && p.ground) p.drop = 0.3; else if (p.coyote > 0) { p.vz = 10.8; p.ground = false; p.coyote = 0; Sfx.jump(); } }
-      p.vz -= 27 * dt;
-      // horizontal
-      let nx = clamp(p.x + p.vx * dt, lv.minX, lv.maxX); const hit = this.blocked(nx, p.z, 1.7);
-      if (hit) { if (p.ground && hit[3] - p.z <= 0.36) p.z = hit[3]; else { nx = p.vx > 0 ? hit[0] - 0.261 : hit[1] + 0.261; p.vx = 0; } }
-      const fl = lv.floor(nx); if (fl > p.z && fl - p.z < 0.4) p.z = fl;
-      p.x = nx;
-      // vertical
-      let nz = p.z + p.vz * dt; p.ground = false;
-      if (p.vz <= 0) { let g = this.ground(p.x, p.z, 0.27);
-        if (p.drop <= 0) for (const o of lv.oneway) if (p.x > o[0] - 0.1 && p.x < o[1] + 0.1 && o[2] <= p.z + 0.001 && o[2] > g) g = o[2];
-        if (nz <= g) { if (p.vz < -9) this.fx.push({ k: 'dust', x: p.x, z: g, t: 0, life: 0.35 }); nz = g; p.vz = 0; p.ground = true; } }
-      else { const c = this.blocked(p.x, nz, 1.7); if (c && c[2] >= p.z + 1.6) { nz = c[2] - 1.72; p.vz = 0; } }
-      p.z = nz; if (p.ground) p.walk += Math.abs(p.vx) * dt * 1.9;
-      // slash
-      p.slashT = Math.max(0, p.slashT - dt);
-      if (ctl.hit.X && p.slashT <= 0) { p.slashT = 0.36; p.hitDone = false; Sfx.slash(); }
-      if (p.slashT > 0.1 && p.slashT < 0.26 && !p.hitDone) { p.hitDone = true; this.fx.push({ k: 'arc', x: p.x, z: p.z, face: p.face, t: 0, life: 0.16 });
-        for (const f of this.foes) { if (f.state === 'dead') continue; const dx = (f.x - p.x) * p.face; if (dx > -0.3 && dx < 1.75 && Math.abs(f.z - p.z) < 1.3) { f.hp--; f.vx = p.face * 5; f.state = f.hp <= 0 ? 'dead' : 'hurt'; f.t = 0;
-            if (f.hp <= 0) { G.isleDone.foes[f.id] = true; G.gold += 15; this.text(f.x, f.z + 2, '+15 gold', '#ffe2a0'); } } } }
-    }
-    // foes
-    for (const f of this.foes) { f.t += dt; f.cd = Math.max(0, f.cd - dt); if (f.state === 'dead') continue;
-      f.x = clamp(f.x + f.vx * dt, f.x0, f.x1); f.vx *= Math.max(0, 1 - 8 * dt);
-      const dx = p.x - f.x, same = Math.abs(p.z - f.z) < 0.8, near = same && Math.abs(dx) < 6.5 && p.x > f.x0 - 1.2 && p.x < f.x1 + 1.2;
-      if (f.state === 'hurt') { if (f.t > 0.3) { f.state = 'walk'; f.t = 0; } continue; }
-      if (f.state === 'windup') { if (f.t > 0.38) { f.state = 'slash'; f.t = 0; if (Math.abs(dx) < 1.65 && same && p.inv <= 0 && dx * f.face > -0.3) this.hurt(1, f.face); } continue; }
-      if (f.state === 'slash') { if (f.t > 0.28) { f.state = 'walk'; f.t = 0; f.cd = 0.7; } continue; }
-      if (near) { f.face = dx > 0 ? 1 : -1; if (Math.abs(dx) < 1.3) { if (f.cd <= 0) { f.state = 'windup'; f.t = 0; } } else { f.x = clamp(f.x + f.face * 2.7 * dt, f.x0, f.x1); f.walk += dt * 5.5; } }
-      else { f.x += f.face * 1.3 * dt; f.walk += dt * 2.8; if (f.x <= f.x0) { f.x = f.x0; f.face = 1; } if (f.x >= f.x1) { f.x = f.x1; f.face = -1; } }
-    }
-    // pickups
-    for (const it of this.items) { if (it.taken || Math.abs(it.x - p.x) > 0.75 || Math.abs(it.z - p.z) > 1.2) continue; it.taken = true; G.isleDone.items[it.id] = true;
-      if (it.type === 'timber') { G.timber++; this.text(it.x, it.z + 1.4, '+1 timber'); } else { G.food = Math.min(100, G.food + 18); this.text(it.x, it.z + 1.4, '+food'); } }
+    // steering: stick, or walk to the tapped point
+    let mx = ctl.x, mz = ctl.y; if (Math.hypot(mx, mz) > 0.2) this.tapTarget = null;
+    else if (this.tapTarget) { const dx = this.tapTarget[0] - p.x, dz = this.tapTarget[1] - p.z, d = Math.hypot(dx, dz), stop = this.tapAct ? (this.tapAct.act === 'attack' ? 1.3 : this.tapAct.r ? this.tapAct.r * 0.9 : 0.6) : 0.25;
+      if (d > stop) { let ux = dx / d, uz = dz / d; const probe = (ax, az) => this.free(p.x + ax * 0.9, p.z + az * 0.9, 0.35) && this.free(p.x + ax * 0.45, p.z + az * 0.45, 0.35);
+        if (!probe(ux, uz)) for (const a of [0.5, -0.5, 1.0, -1.0, 1.5, -1.5, 2.2, -2.2]) { const c = Math.cos(a), sn = Math.sin(a), rx = ux * c - uz * sn, rz = ux * sn + uz * c; if (probe(rx, rz)) { ux = rx; uz = rz; break; } }
+        const k = Math.min(1, d / 1.5); mx = ux * k; mz = uz * k; } else { const a = this.tapAct; this.tapTarget = null; this.tapAct = null; if (a) { if (a.act === 'attack') { p.head = Math.atan2(a.foe.x - p.x, a.foe.z - p.z); this.slash(); } else this.act(a.act); } } }
+    const m = Math.hypot(mx, mz), stunned = p.hurtT > 0.15 || p.slashT > 0.2;
+    if (m > 0.2 && !stunned) { p.head = Math.atan2(mx, mz); p.speed = lerp(p.speed, 4.8 * Math.min(1, m), Math.min(1, dt * 10)); } else p.speed = lerp(p.speed, 0, Math.min(1, dt * 12));
+    if (p.hurtT > 0.15) { this.move(p, p.vx * dt, p.vz * dt, 0.35); p.vx *= 0.9; p.vz *= 0.9; }
+    else if (p.speed > 0.05) this.move(p, Math.sin(p.head) * p.speed * dt, Math.cos(p.head) * p.speed * dt, 0.35);
+    p.y = lerp(p.y, lv.h(p.x, p.z), Math.min(1, dt * 12)); p.walk += p.speed * dt * 1.9;
     // interactions
-    this.zone = null;
-    for (const zn of lv.zones) if (p.x > zn.x0 && p.x < zn.x1 && p.z >= zn.z0 && p.z <= zn.z1) this.zone = zn;
-    if (!this.chestOpen && Math.abs(p.x - lv.chest[0]) < 1.1 && Math.abs(p.z - lv.chest[1]) < 1) this.zone = { label: 'Open the chest', act: 'chest' };
-    if (this.zone && ctl.hit.B) this.act(this.zone.act);
+    this.zone = null; for (const zn of lv.zones) if (Math.hypot(p.x - zn.x, p.z - zn.z) < zn.r) this.zone = zn;
+    if (!this.chestOpen && Math.hypot(p.x - lv.chest[0], p.z - lv.chest[1]) < 1.3) this.zone = { label: 'Open the chest', act: 'chest' };
+    if (ctl.hit.A || ctl.hit.B || ctl.hit.X) { if (this.zone && !ctl.hit.X && !this.duel) this.act(this.zone.act); else if (ctl.hit.X && this.duel) this.parry(); else this.slash(); }
+    // a duel: the nearest hostile within reach pulls the camera round to the side until it is settled
+    if (this.duel && (this.duel.state === 'dead' || Math.hypot(this.duel.x - p.x, this.duel.z - p.z) > 9)) this.duel = null;
+    if (!this.duel) for (const f of this.foes) if (f.state !== 'dead' && Math.hypot(f.x - p.x, f.z - p.z) < 4.5) { this.duel = f; toast('En garde. Space slashes, Q parries.', 2500); break; }
+    if (this.duel && p.speed < 0.3 && p.slashT <= 0 && p.hurtT <= 0) p.head = Math.atan2(this.duel.x - p.x, this.duel.z - p.z);
+    if (p.slashT > 0.1 && p.slashT < 0.26 && !p.hitDone) { p.hitDone = true; this.fx.push({ k: 'arc', x: p.x, z: p.z, head: p.head, t: 0, life: 0.16 });
+      for (const f of this.foes) { if (f.state === 'dead') continue; const dx = f.x - p.x, dz = f.z - p.z, d = Math.hypot(dx, dz); if (d < 1.9 && (dx * Math.sin(p.head) + dz * Math.cos(p.head)) / d > 0.2) { f.hp--; f.kx = dx / d * 6; f.kz = dz / d * 6; f.state = f.hp <= 0 ? 'dead' : 'hurt'; f.t = 0; Sfx.hit(0);
+          if (f.hp <= 0) { G.isleDone.foes[f.id] = true; G.gold += 15; this.text(f.x, f.z, '+15 gold', '#ffe2a0'); } } } }
+    // foes: wander near home, chase, swing
+    for (const f of this.foes) { f.t += dt; f.cd = Math.max(0, f.cd - dt); if (f.state === 'dead') continue;
+      if (Math.hypot(f.kx, f.kz) > 0.1) { this.move(f, f.kx * dt, f.kz * dt, 0.35); f.kx *= Math.max(0, 1 - 8 * dt); f.kz *= Math.max(0, 1 - 8 * dt); }
+      const dx = p.x - f.x, dz = p.z - f.z, d = Math.hypot(dx, dz), near = d < 7 && Math.hypot(p.x - f.hx, p.z - f.hz) < f.rad + 5;
+      if (f.state === 'hurt') { if (f.t > 0.3) { f.state = 'walk'; f.t = 0; } continue; }
+      if (f.state === 'windup') { if (f.t > 0.38) { f.state = 'slash'; f.t = 0; if (d < 1.7 && p.parryT > 0.1 && p.parryT < 0.45) { Sfx.clash(); f.state = 'hurt'; f.t = -0.4; f.kx = -dx / d * 4; f.kz = -dz / d * 4; this.text(p.x, p.z, 'Parried!', '#cfe6ff'); } else if (d < 1.7 && p.inv <= 0) this.hurt(1, dx / d, dz / d); } continue; }
+      if (f.state === 'slash') { if (f.t > 0.28) { f.state = 'walk'; f.t = 0; f.cd = 0.8; } continue; }
+      if (near) { f.head = Math.atan2(dx, dz); if (d < 1.4) { if (f.cd <= 0) { f.state = 'windup'; f.t = 0; } } else { this.move(f, Math.sin(f.head) * 2.8 * dt, Math.cos(f.head) * 2.8 * dt, 0.35); f.walk += dt * 5.5; } }
+      else { if (!f.wp || Math.hypot(f.wp[0] - f.x, f.wp[1] - f.z) < 0.4) { const a = Math.random() * TAU, r = Math.random() * f.rad; f.wp = [f.hx + Math.cos(a) * r, f.hz + Math.sin(a) * r]; }
+        f.head = Math.atan2(f.wp[0] - f.x, f.wp[1] - f.z); this.move(f, Math.sin(f.head) * 1.2 * dt, Math.cos(f.head) * 1.2 * dt, 0.35); f.walk += dt * 2.8; } }
+    for (const it of this.items) { if (it.taken || Math.hypot(it.x - p.x, it.z - p.z) > 0.8) continue; it.taken = true; G.isleDone.items[it.id] = true; Sfx.pickup();
+      if (it.type === 'timber') { G.timber++; this.text(it.x, it.z, '+1 timber'); } else { G.food = Math.min(100, G.food + 18); this.text(it.x, it.z, '+food'); } }
     for (let i = this.fx.length - 1; i >= 0; i--) { this.fx[i].t += dt; if (this.fx[i].t > this.fx[i].life) this.fx.splice(i, 1); }
-    const vw = this.W / PPM, tx = lv.w <= vw ? lv.x0 - (vw - lv.w) / 2 : clamp(p.x + p.face * 1.2 - vw / 2, lv.x0, lv.x0 + lv.w - vw);
-    this.camX = lerp(this.camX, tx, Math.min(1, dt * 5));
-    if (Land3.ready) Land3.update(dt);
+    Land3.update(dt);
   },
-  hurt(n, dir) { const p = this.p; G.hp -= n; Sfx.hurt(); p.inv = 1.0; p.hurtT = 0.4; p.vx = dir * 6; p.vz = 5; p.ground = false; p.climb = null;
-    if (G.hp <= 0) { const lost = Math.round(G.gold * 0.2); G.gold -= lost; toast('You come to by the longboat' + (lost ? ', ' + lost + ' gold lighter.' : '.')); G.hp = 5; p.x = this.lv.start[0]; p.z = this.lv.start[1]; p.vx = p.vz = 0; } },
+  slash() { const p = this.p; if (p.slashT > 0 || p.parryT > 0) return; p.slashT = 0.36; p.hitDone = false; Sfx.slash(); },
+  parry() { const p = this.p; if (p.slashT > 0 || p.parryT > 0) return; p.parryT = 0.5; Sfx.ui(); },
+  hurt(n, nx, nz) { const p = this.p; G.hp -= n; Sfx.hurt(); p.inv = 1.0; p.hurtT = 0.4; p.vx = nx * 6; p.vz = nz * 6; this.tapTarget = null;
+    if (G.hp <= 0) { const lost = Math.round(G.gold * 0.2); G.gold -= lost; toast('You come to by the boat' + (lost ? ', ' + lost + ' gold lighter.' : '.')); G.hp = 5; p.x = this.lv.start[0]; p.z = this.lv.start[1]; p.vx = p.vz = 0; } },
   act(a) {
     const p = this.p;
-    if (a === 'chest') { this.chestOpen = true; const g = this.key === 'port' ? 50 : 90; G.gold += g; this.text(p.x, p.z + 2.2, '+' + g + ' gold', '#ffe2a0');
+    if (a === 'chest') { if (this.chestOpen) return; this.chestOpen = true; const g = this.key === 'port' ? 50 : 90; G.gold += g; Sfx.gold(); this.text(p.x, p.z, '+' + g + ' gold', '#ffe2a0');
       if (this.key === 'port') { G.portChest = true; toast('A rumor note: a wreck lies on the far cove of Driftwood Isle.', 4200); } else G.isleDone.chest = true; }
-    else if (a === 'water') { if (G.water >= 99.5) toast('The casks are already full.', 1500); else { G.water = 100; this.text(p.x, p.z + 2.2, 'Casks filled'); } }
-    else if (a === 'trade') UI.openTrade(); else if (a === 'tavern') UI.openTavern(); else if (a === 'leave') { if (Land3.ready) Land3.startCine('out'); else Game.enter('sea'); }
+    else if (a === 'water') { if (G.water >= 99.5) toast('The casks are already full.', 1500); else { G.water = 100; Sfx.pickup(); this.text(p.x, p.z, 'Casks filled'); } }
+    else if (a === 'trade') UI.openTrade(); else if (a === 'tavern') UI.openTavern(); else if (a === 'leave') Land3.startCine('out');
   },
-
-  frame(sheet, idx, x, z, face, off) {
-    const c = this.ctx, sx = (x - this.camX) * PPM, sy = (this.lv.ztop - z) * PPM;
-    if (sx < -200 || sx > this.W + 200 || !sheet || !sheet.width) return;
-    c.save(); c.translate(Math.round(sx), Math.round(sy)); c.scale(face, 1); c.drawImage(sheet, idx * FW, 0, FW, FH, -AX - (off || 0), -AY, FW, FH); c.restore();
-  },
-  render() { if (Land3.ready) return Land3.render();
-    const c = this.ctx, lv = this.lv, p = this.p, W = this.W; if (!lv) return; const bg = this.img[lv.img];
-    c.fillStyle = '#0b1217'; c.fillRect(0, 0, W, 720);
-    if (bg && bg.width) { const s = bg.height / 720; c.drawImage(bg, (this.camX - lv.x0) * PPM * s, 0, W * s, bg.height, 0, 0, W, 720); }
-    const X = x => (x - this.camX) * PPM, Z = z => (lv.ztop - z) * PPM;
-    if (lv.falls) { const f = lv.falls; c.save(); c.globalAlpha = 0.5; c.strokeStyle = '#ffffff'; c.lineWidth = 2;
-      for (let i = 0; i < 16; i++) { const fx = f[0] + (i * 0.618 % 1) * (f[1] - f[0]), ph = (this.t * (1.3 + (i % 5) * 0.2) + i * 0.37) % 1, z0 = lerp(f[3], f[2], ph); c.beginPath(); c.moveTo(X(fx), Z(z0)); c.lineTo(X(fx), Z(Math.max(f[2], z0 - 0.5))); c.stroke(); }
-      c.restore(); }
-    c.save(); c.globalCompositeOperation = 'lighter';
-    for (const g of lv.glows) { const r = g[2] * PPM * (1 + 0.08 * Math.sin(this.t * 11 + g[0]) + 0.05 * Math.sin(this.t * 23)), gr = c.createRadialGradient(X(g[0]), Z(g[1]), 0, X(g[0]), Z(g[1]), r);
-      gr.addColorStop(0, 'rgba(' + g[3] + ',0.34)'); gr.addColorStop(1, 'rgba(' + g[3] + ',0)'); c.fillStyle = gr; c.fillRect(X(g[0]) - r, Z(g[1]) - r, r * 2, r * 2); }
-    c.restore();
-    const cap = lv.dusk && this.img.capDusk ? this.img.capDusk : this.img.cap;
-    this.frame(this.img.items, this.chestOpen ? 3 : 2, lv.chest[0], lv.chest[1], 1);
-    for (const it of this.items) if (!it.taken) this.frame(this.img.items, it.type === 'timber' ? 0 : 1, it.x, it.z, 1);
-    for (const f of this.foes) { let idx = 0, off = 0;
-      if (f.state === 'dead') { idx = 13; off = 60; } else if (f.state === 'hurt') idx = 12; else if (f.state === 'windup') idx = 9; else if (f.state === 'slash') idx = f.t < 0.1 ? 10 : 11; else idx = 1 + Math.floor(f.walk) % 8;
-      this.frame(this.img.foe, idx, f.x, f.z, f.face, off);
-      if (f.state !== 'dead' && f.hp < 3) { c.fillStyle = 'rgba(8,14,18,.7)'; c.fillRect(X(f.x) - 22, Z(f.z + 2.15), 44, 6); c.fillStyle = '#ffb08a'; c.fillRect(X(f.x) - 21, Z(f.z + 2.15) + 1, 42 * f.hp / 3, 4); } }
-    let idx = 0; if (p.climb) idx = 15 + Math.floor(p.walk) % 2; else if (p.hurtT > 0) idx = 12; else if (p.slashT > 0) idx = p.slashT > 0.26 ? 9 : p.slashT > 0.12 ? 10 : 11; else if (!p.ground) idx = p.vz > 0 ? 13 : 14; else if (Math.abs(p.vx) > 0.4) idx = 1 + Math.floor(p.walk) % 8;
-    if (p.inv <= 0 || Math.floor(this.t * 14) % 2) this.frame(cap, idx, p.x, p.z, p.climb ? 1 : p.face);
-    for (const e of this.fx) { const k = e.t / e.life;
-      if (e.k === 'txt') { c.font = '600 22px "Barlow Semi Condensed", sans-serif'; c.textAlign = 'center'; c.globalAlpha = 1 - k * k; c.fillStyle = 'rgba(0,0,0,.7)'; c.fillText(e.s, X(e.x) + 1, Z(e.z + k * 0.8) + 2); c.fillStyle = e.col; c.fillText(e.s, X(e.x), Z(e.z + k * 0.8)); c.globalAlpha = 1; }
-      else if (e.k === 'arc') { c.save(); c.translate(X(e.x), Z(e.z + 1.15)); c.scale(e.face, 1); c.globalAlpha = 0.75 * (1 - k); c.strokeStyle = '#ffffff'; c.lineWidth = 5; c.lineCap = 'round'; c.beginPath(); c.arc(8, 0, 100, -1.15 + k * 0.5, 0.75 + k * 0.5); c.stroke(); c.restore(); }
-      else if (e.k === 'dust') { c.globalAlpha = 0.35 * (1 - k); c.fillStyle = lv.dusk ? '#8a7a6a' : '#e9dcbd'; for (const s of [-1, 1]) { c.beginPath(); c.ellipse(X(e.x) + s * (10 + k * 34), Z(e.z) - 6 - k * 8, 14 + k * 10, 7 + k * 5, 0, 0, TAU); c.fill(); } c.globalAlpha = 1; } }
-  },
+  render() { Land3.render(); },
 };
 
 // ==== 04b_land3d.js
@@ -867,6 +810,7 @@ const Land3 = {
     this.sun = new THREE.DirectionalLight(0xfff1d6, 2.2); this.sun.castShadow = true; const sc = this.sun.shadow; sc.mapSize.set(2048, 2048); sc.camera.near = 1; sc.camera.far = 90; sc.camera.left = sc.camera.bottom = -26; sc.camera.right = sc.camera.top = 26; sc.bias = -0.0008;
     this.scene.add(this.sun); this.scene.add(this.sun.target); this.hemi = new THREE.HemisphereLight(0xbfd8ee, 0x4a6a3a, 0.9); this.scene.add(this.hemi);
     this.makeMaterials(); this.water = this.makeWater(); this.scene.add(this.water);
+    fxCanvas.addEventListener('pointerdown', e => { Sfx.unlock(); if (G.mode === 'exped') Exped.tap(e.clientX, e.clientY); else if (G.mode === 'island' || G.mode === 'port') this.tapAt(e.clientX, e.clientY); else return; e.preventDefault(); });
   },
   resize(w, h) { if (!this.ready) return; this.r.setSize(w, h, false); this.cam.aspect = w / h; this.cam.updateProjectionMatrix(); this.fx.width = w; this.fx.height = h; },
   // --- procedural textures
@@ -919,15 +863,13 @@ const Land3 = {
     for (let i = 0; i < pos.count; i++) { const x = pos.getX(i), y = pos.getY(i), zz = pos.getZ(i); if (Math.abs(y - h / 2) < 0.01 && Math.abs(x) < w / 2 - 0.01) continue; // keep the top flat for walking
       pos.setXYZ(i, x + (rng() - .5) * .35, y + (rng() - .5) * .3, zz + (rng() - .5) * .5); } g.computeVertexNormals();
     const m = new THREE.Mesh(g, [this.mat.rock, this.mat.rock, this.mat.moss, this.mat.rock, this.mat.rock, this.mat.rock]); m.position.set((x0 + x1) / 2, (y0 + y1) / 2, z); m.castShadow = m.receiveShadow = true; this.group.add(m); return m; },
-  terrain(lv, key) {
-    const W = 120, D = 70, g = new THREE.PlaneGeometry(W, D, 160, 70); g.rotateX(-Math.PI / 2); const pos = g.attributes.position, col = [];
-    const port = key === 'port';
-    for (let i = 0; i < pos.count; i++) { const x = pos.getX(i) + lv.x0 + lv.w / 2 - 4, z = pos.getZ(i); let y, c; pos.setX(i, x);
-      const land = port ? smooth((x + 4.1) / 0.6) : smooth((x + 6.6) / 1.2); const prof = lv.floor(x);
-      if (port) { const quay = z > 1.5 ? -1.4 : prof; y = land * quay + (1 - land) * -1.4; c = z > 1.5 ? [0.42, 0.4, 0.36] : [0.62, 0.58, 0.5]; if (z < -1.5) { y += smooth((-z - 1.5) / 20) * 2.5 + vnoise(x * .2, z * .2, 1) * .3; } }
-      else { const beach = smooth((z - 1.2) / 5), back = smooth((-z - 2) / 14); y = prof * (1 - beach) + (-1.6) * beach + back * (3.5 + vnoise(x * .15, z * .15, 2) * 1.5) + vnoise(x * .5, z * .5, 3) * .08; y = land * y + (1 - land) * -1.6;
-        const gr = clamp(back * 1.6 + (y - 0.9) * 0.4, 0, 1); c = [lerp(0.86, 0.35, gr), lerp(0.78, 0.55, gr), lerp(0.6, 0.25, gr)]; }
-      pos.setY(i, y); col.push(c[0], c[1], c[2]); }
+  terrain(lv) {
+    const port = lv.kind === 'port', b = lv.bounds, W = 110, D = 70, cx = (b[0] + b[1]) / 2, g = new THREE.PlaneGeometry(W, D, 140, 90); g.rotateX(-Math.PI / 2); const pos = g.attributes.position, col = [];
+    for (let i = 0; i < pos.count; i++) { const x = pos.getX(i) + cx, z = pos.getZ(i); let y, c;
+      if (port) { const onQuay = x > -4.1 && z < 7.4 && z > -40; y = onQuay ? 1.9 : -1.6; if (z < -1.0 && x > -4.1) y = 1.9 + smooth((-z - 9) / 10) * 3 + vnoise(x * .2, z * .2, 1) * .25 * smooth((-z - 9) / 6); c = onQuay ? [0.62, 0.58, 0.5] : [0.4, 0.4, 0.38]; if (z < -9) c = [0.33, 0.42, 0.24]; }
+      else { const w = lv.water(x, z) ? smooth(Math.max(z - 3.4, -6 - x, (x < -3.8 ? -1.5 - z : -9), -9.5 - z) / 2.5) : 0; y = lv.h(x, z) * (1 - w) + (-1.8) * w;
+        const gr = clamp((y - 1.2) * 0.5, 0, 1); c = [lerp(0.86, 0.36, gr), lerp(0.78, 0.56, gr), lerp(0.6, 0.26, gr)]; }
+      pos.setX(i, x); pos.setY(i, y); col.push(c[0], c[1], c[2]); }
     g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.computeVertexNormals();
     const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ vertexColors: true, map: port ? this.tex.stone : this.tex.sand, roughness: 1 })); m.receiveShadow = true; this.group.add(m);
   },
@@ -998,75 +940,184 @@ const Land3 = {
         if (sword) { sword.visible = !!p.sword; sword.rotation.z = p.wrist; } } };
     this.group.add(root); return R; },
   // --- scene assembly
-  build(key, lv) { if (!this.ready) return; if (this.group) this.scene.remove(this.group); this.group = new THREE.Group(); this.scene.add(this.group); this.rigs = []; this.lanterns = []; this.t = 0;
-    const port = key === 'port'; this.scene.background = new THREE.Color(port ? 0x2a2440 : 0x9ccbe8); this.scene.fog = new THREE.Fog(port ? 0x2a2440 : 0xa8d0e6, 40, 120);
-    this.sun.position.set(port ? -20 : 18, port ? 12 : 30, port ? 6 : 14); this.sun.intensity = port ? 0.5 : 2.2; this.sun.color.set(port ? 0xffb080 : 0xfff1d6); this.hemi.intensity = port ? 0.35 : 0.9; this.hemi.color.set(port ? 0x6a5a8a : 0xbfd8ee); this.waterMat.uniforms.uNight.value = port ? 0.55 : 0;
-    this.terrain(lv, key);
-    for (const s of lv.solids) { if (port) { const [x0, x1, y0, y1] = s; if (x1 - x0 < 1.2 && y1 < 4.6) { let y = y0; let n = 0; while (y < y1 - 0.05) { const h = Math.min(0.9, y1 - y); this.box(x1 - x0 - 0.05, h - 0.03, 0.9, this.mat.crate, (x0 + x1) / 2 + (n % 2) * 0.04, y + h / 2, (n % 2) * 0.1 - 0.05); y += h; n++; } } } else this.rockBox(s[0], s[1], s[2] - 0.5, s[3], 3.4, -0.4); }
-    for (const o of lv.oneway) { const deck = this.box(o[1] - o[0], 0.14, 1.6, this.mat.deck, (o[0] + o[1]) / 2, o[2] - 0.07, -0.3); for (let x = o[0] + 0.4; x < o[1]; x += 1.2) this.box(0.06, 0.9, 0.06, this.mat.wood, x, o[2] + 0.45, 0.45, false); this.box(o[1] - o[0], 0.06, 0.06, this.mat.wood, (o[0] + o[1]) / 2, o[2] + 0.9, 0.45, false);
-      if (!port) for (let x = o[0] + 0.6; x < o[1]; x += 1.6) this.box(0.12, o[2], 0.12, this.mat.wood, x, o[2] / 2, -0.9, false); }
-    for (const L of lv.ladders) { const h = L.z1 - L.z0; for (const s of [-1, 1]) this.box(0.08, h + 0.6, 0.08, this.mat.wood, L.x + s * 0.25, L.z0 + h / 2 + 0.2, -0.55, false); for (let y = L.z0 + 0.3; y < L.z1 + 0.3; y += 0.32) this.box(0.6, 0.05, 0.05, this.mat.wood, L.x, y, -0.55, false); }
+  // --- scene assembly (top-down layouts)
+  build(key, lv) { if (!this.ready) return; if (this.group) this.scene.remove(this.group); this.group = new THREE.Group(); this.scene.add(this.group); this.t = 0;
+    const port = key === 'port'; this.scene.background = new THREE.Color(port ? 0x2a2440 : 0x9ccbe8); this.scene.fog = new THREE.Fog(port ? 0x1a1630 : 0xa8d0e6, 30, 90);
+    this.sunDir = port ? [-14, 16, 8] : [14, 30, 12]; this.sun.intensity = port ? 0.55 : 2.2; this.sun.color.set(port ? 0xffb080 : 0xfff1d6); this.hemi.intensity = port ? 0.4 : 0.9; this.hemi.color.set(port ? 0x6a5a8a : 0xbfd8ee); this.waterMat.uniforms.uNight.value = port ? 0.55 : 0;
+    this.terrain(lv);
+    for (const pm of lv.palms) this.palm(pm[0], lv.h(pm[0], pm[1]) - 0.1, pm[1], pm[2]);
     if (port) {
-      this.pier(-24, -4.1, 1.75, 0, 3.2); this.box(1.5, 1.9, 24, this.mat.stone, -3.4, 0.95, -10); // quay wall end
-      this.house(-3.2, 3.0, 1.9, 2.75, -7.5, -1.3, 'tile', 0.5); this.box(6.4, 0.2, 2.2, this.mat.deck, 0, 4.55, -0.3, false); // shipwright with a roof terrace
-      this.house(4.2, 13.0, 1.9, 4.1, -8, -1.4, 'thatch', 8.6); this.house(14, 22.5, 1.9, 3.4, -8, -1.4, 'tile', 18.2); this.house(-1, 9, 6.3, 3.2, -9, -2.2, 'thatch');
-      for (let i = 0; i < 4; i++) this.palm(-2 + i * 8.5 + rand(-1, 1), 1.9, -10 - rand(0, 3), 4 + rand(0, 2));
-      for (const gl of lv.glows) { this.lantern(gl[0], gl[1] + 0.3, -1.0, true); }
-      const sign = this.box(1.4, 0.5, 0.06, this.mat.wood, 0.5, 4.0, -1.2, false); const sign2 = this.box(1.4, 0.5, 0.06, this.mat.wood, 8.6, 4.4, -1.3, false);
-      const bb = this.box(0.7, 0.9, 0.7, this.mat.wood, 5.5, 2.35, 0.6); bb.geometry = new THREE.CylinderGeometry(0.35, 0.3, 0.9, 10); this.box(0.7, 0.9, 0.7, this.mat.wood, 19.2, 2.35, 0.5).geometry = new THREE.CylinderGeometry(0.35, 0.3, 0.9, 10);
-      this.shipG = this.ship(G.tier); const d = this.shipG.userData; this.shipG.position.set(-6.5 - d.L / 2, 0, -(1.6 + d.B / 2 + 0.9)); this.group.add(this.shipG);
-      const A = new THREE.Vector3(-8.6, d.H + 0.95, this.shipG.position.z + d.B / 2), Bp = new THREE.Vector3(-6.4, 1.8, -0.5), v = Bp.clone().sub(A);
+      this.pier(-24, -4.1, 1.75, 0, 3.0); this.box(0.4, 1.0, 9.6, this.mat.stone, -4.0, 2.4, 0, false).position.z = -0.1; for (const z of [-3.5, 3.5]) this.box(0.4, 1.0, 5.6, this.mat.stone, -4.0, 2.4, z, false); // pier gap in the quay wall
+      this.box(47, 0.6, 0.5, this.mat.stone, 0, 2.1, 7.5, false);
+      this.house(-3.3, 3.1, 1.9, 2.9, -7.5, -1.2, 'tile', 0.5); this.house(4.1, 13.1, 1.9, 4.0, -8, -1.3, 'thatch', 8.6); this.house(13.9, 22.6, 1.9, 3.4, -8, -1.3, 'tile', 18.2); this.house(-1, 9, 6.3, 3.0, -9.5, -3, 'thatch');
+      for (const gl of [[0.5, -1.0], [8.6, -1.1], [18.2, -1.1], [-5.5, 0.9], [13.5, -1.1]]) this.lantern(gl[0], 4.1, gl[1], true);
+      for (const c of lv.circles) { const m = this.box(1, 1, 1, this.mat.wood, c[0], 1.9 + 0.45, c[1]); m.geometry = new THREE.CylinderGeometry(c[2], c[2] * 0.9, 0.9, 10); }
+      for (const [x, z] of [[-1.5, 3.2], [-0.6, 3.2], [-1.05, 4.1], [15.4, 3.6], [16.3, 3.6]]) this.box(0.85, 0.85, 0.85, this.mat.crate, x, 2.35, z);
+      this.shipG = this.ship(G.tier); const d = this.shipG.userData; this.shipG.position.set(-6.8 - d.L / 2, 0, -(1.5 + d.B / 2 + 0.9)); this.group.add(this.shipG);
+      const A = new THREE.Vector3(-8.0, d.H + 0.95, this.shipG.position.z + d.B / 2), Bp = new THREE.Vector3(-7.4, 1.8, -0.4), v = Bp.clone().sub(A);
       this.gang = this.box(v.length(), 0.08, 0.8, this.mat.deck, (A.x + Bp.x) / 2, (A.y + Bp.y) / 2, (A.z + Bp.z) / 2); this.gang.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), v.normalize());
     } else {
-      for (let i = 0; i < 9; i++) this.palm(rand(-2, 27), lv.floor(0) + 0.5, -3 - rand(0, 9), 3.5 + rand(0, 3)); for (let i = 0; i < 4; i++) this.palm(rand(3, 25), lv.floor(0) + 0.3, 2.5 + rand(0, 1.5), 3 + rand(0, 2));
-      this.rockBox(6.5, 20, 5.6, 11, 9, -5.5); this.rockBox(-1, 6.2, 2.6, 8.5, 7, -6); this.rockBox(19, 29, 3, 7.5, 7, -6);
-      const f = lv.falls; this.falls = new THREE.Mesh(new THREE.PlaneGeometry(f[1] - f[0], f[3] - f[2], 1, 1), this.mat.falls); this.falls.position.set((f[0] + f[1]) / 2, (f[2] + f[3]) / 2, -0.9); this.group.add(this.falls);
-      const pool = new THREE.Mesh(new THREE.CircleGeometry(1.4, 16), new THREE.MeshStandardMaterial({ color: 0x3a8ab0, roughness: .2, transparent: true, opacity: .8 })); pool.rotation.x = -Math.PI / 2; pool.position.set(11.2, 5.63, -0.3); this.group.add(pool);
-      this.shipG = this.ship(G.tier); this.shipG.position.set(-10.5, -0.2, -3.0); this.shipG.rotation.y = 0.25; this.shipG.rotation.z = 0.06; this.group.add(this.shipG);
+      const sp = lv.zones[1]; const pool = new THREE.Mesh(new THREE.CircleGeometry(1.5, 18), new THREE.MeshStandardMaterial({ color: 0x3a8ab0, roughness: .15, transparent: true, opacity: .85 })); pool.rotation.x = -Math.PI / 2; pool.position.set(sp.x, lv.h(sp.x, sp.z) + 0.06, sp.z); this.group.add(pool);
+      for (let i = 0; i < 10; i++) { const a = i / 10 * TAU, rx = sp.x + Math.cos(a) * rand(1.5, 1.9), rz = sp.z + Math.sin(a) * rand(1.5, 1.9), r = new THREE.Mesh(new THREE.DodecahedronGeometry(rand(0.25, 0.45), 0), this.mat.rock); r.position.set(rx, lv.h(rx, rz) + 0.1, rz); r.castShadow = true; this.group.add(r); }
+      for (let i = 0; i < 16; i++) { const rx = rand(-5, 26), rz = rand(-9, 3); if (lv.water(rx, rz)) continue; const r = new THREE.Mesh(new THREE.DodecahedronGeometry(rand(0.15, 0.4), 0), this.mat.rock); r.position.set(rx, lv.h(rx, rz), rz); r.castShadow = true; this.group.add(r); }
+      this.shipG = this.ship(G.tier); this.shipG.position.set(-9.6, -0.3, 0.4); this.shipG.rotation.y = 0.15; this.group.add(this.shipG);
     }
-    const chest = new THREE.Group(); chest.position.set(lv.chest[0], lv.chest[1], 0); const cb = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.5, 0.55), this.mat.wood); cb.position.y = 0.25; cb.castShadow = true; chest.add(cb); const lid = new THREE.Group(); lid.position.set(0, 0.5, -0.27); const lm = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.22, 0.55), this.mat.wood); lm.position.set(0, 0.11, 0.27); lid.add(lm); const gold = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.1, 0.4), this.mat.gold); gold.position.y = 0.52; chest.add(gold); chest.add(lid); this.chest = { g: chest, lid }; this.group.add(chest);
+    const chest = new THREE.Group(); chest.position.set(lv.chest[0], lv.h(lv.chest[0], lv.chest[1]), lv.chest[1]); const cb = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.5, 0.55), this.mat.wood); cb.position.y = 0.25; cb.castShadow = true; chest.add(cb); const lid = new THREE.Group(); lid.position.set(0, 0.5, -0.27); const lm = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.22, 0.55), this.mat.wood); lm.position.set(0, 0.11, 0.27); lid.add(lm); const gold = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.1, 0.4), this.mat.gold); gold.position.y = 0.52; chest.add(gold); chest.add(lid); this.chest = { g: chest, lid }; this.group.add(chest);
     this.itemMeshes = Land.items.map(it => { let m; if (it.type === 'timber') { m = new THREE.Group(); for (let k = 0; k < 3; k++) { const b = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.14, 0.14), this.mat.wood); b.position.set(0, 0.08 + (k === 2 ? 0.14 : 0), k === 2 ? 0 : (k - 0.5) * 0.16); b.rotation.y = k * 0.1; b.castShadow = true; m.add(b); } }
-      else { m = new THREE.Mesh(new THREE.SphereGeometry(0.17, 10, 8), this.mat.coco); m.position.y = 0.17; m.castShadow = true; } m.position.x = it.x; m.position.y += it.z; this.group.add(m); return m; });
+      else { m = new THREE.Mesh(new THREE.SphereGeometry(0.17, 10, 8), this.mat.coco); m.position.y = 0.17; m.castShadow = true; } m.position.x = it.x; m.position.z = it.z; m.position.y += lv.h(it.x, it.z); this.group.add(m); return m; });
     this.player = this.rig({ skin: 0xe2b58c, shirt: 0xeadfc4, pants: 0x3d3a4a, boot: 0x2a2320, hat: 0x1e1a1a }, { sword: true }); this.player.poser = new Motion.Poser();
     this.foeRigs = Land.foes.map(() => { const r = this.rig({ skin: 0xc99a74, shirt: 0x5a2a28, pants: 0x4a4038, boot: 0x241e1a, hat: 'bandana', band: 0xb02a22 }, { sword: true }); r.poser = new Motion.Poser(); return r; });
-    this.camX = lv.start[0]; this.camY = lv.start[1] + 1.5; this.fxList = [];
+    this.camX = lv.start[0]; this.camZ = lv.start[1]; this.camY = lv.h(lv.start[0], lv.start[1]); this.dist = 46; this.el = 55 * Math.PI / 180; this.az = 0;
   },
-  // the dock sweep: camera comes down from the chart view while the figure walks off the ship
+  // landing: the figure walks off the ship while the camera eases down from the chart height; casting off is the reverse
   startCine(dir) { const s = this.shipG; if (!s) return; const d = s.userData, deckY = s.position.y + d.H + 0.05, lv = Land.lv;
-    const path = Land.key === 'port' ? [[s.position.x + 0.5, deckY, s.position.z + 1.0], [-8.6, deckY, s.position.z + d.B / 2 + 0.2], [-6.6, 1.75, -0.4], [lv.start[0], lv.start[1], 0]]
-      : [[s.position.x + 1.5, deckY + 0.2, s.position.z + 0.6], [s.position.x + 3.6, deckY, s.position.z + 1.4], [-6.6, 0.2, 0.2], [lv.start[0], lv.start[1], 0]];
-    if (dir === 'out') path.reverse(); this.cine = { dir, t: 0, dur: 4.2, path }; },
-  pathAt(path, k) { const n = path.length - 1, i = Math.min(n - 1, Math.floor(k * n)), f = k * n - i, a = path[i], b = path[i + 1]; return [lerp(a[0], b[0], f), lerp(a[1], b[1], f), lerp(a[2], b[2], f), b[0] >= a[0] ? 1 : -1]; },
+    const path = Land.key === 'port' ? [[s.position.x + 1.0, deckY, s.position.z + 0.6], [-8.0, deckY, s.position.z + d.B / 2 + 0.1], [-7.4, 1.9, -0.3], [lv.start[0], 1.9, lv.start[1]]]
+      : [[s.position.x + 1.2, deckY + 0.15, s.position.z - 0.3], [s.position.x + 3.2, deckY, s.position.z + 1.2], [-6.3, 0.3, 0.6], [lv.start[0], lv.h(lv.start[0], lv.start[1]), lv.start[1]]];
+    if (dir === 'out') path.reverse(); this.cine = { dir, t: 0, dur: 4.0, path }; },
+  pathAt(path, k) { const n = path.length - 1, i = Math.min(n - 1, Math.floor(k * n)), f = k * n - i, a = path[i], b = path[i + 1]; return [lerp(a[0], b[0], f), lerp(a[1], b[1], f), lerp(a[2], b[2], f), Math.atan2(b[0] - a[0], b[2] - a[2])]; },
+  tapAt(cx, cy) { if (!this.group || !Land.p) return; const v = new THREE.Vector3(cx / this.fx.width * 2 - 1, -(cy / this.fx.height) * 2 + 1, 0.5).unproject(this.cam), o = this.cam.position, dir = v.sub(o).normalize(), y = Land.p.y; if (Math.abs(dir.y) < 1e-4) return;
+    const t = (y - o.y) / dir.y; if (t < 0) return; Land.tap(o.x + dir.x * t, o.z + dir.z * t); },
   update(dt) { if (!this.ready || !this.group) return; this.t += dt; const lv = Land.lv, p = Land.p; this.waterMat.uniforms.uT.value = this.t;
-    for (const c of this.group.children) if (c === this.shipG) { c.position.y = (Land.key === 'port' ? 0 : -0.2) + Math.sin(this.t * 0.9) * 0.06; c.rotation.z = (Land.key === 'port' ? 0 : 0.06) + Math.sin(this.t * 0.7) * 0.012; }
-    if (this.shipG) for (const m of this.shipG.children) if (m.userData.sail) m.rotation.z = Math.sin(this.t * 1.3 + m.position.y) * 0.02;
-    for (const c of this.group.children) if (c.children && c.children[0] && c.children[c.children.length - 1].userData.leaf) for (const l of c.children) if (l.userData.leaf) l.rotation.z = -0.1 + Math.sin(this.t * 1.7 + l.rotation.y * 3) * 0.05;
-    if (this.falls) this.falls.position.y = (lv.falls[2] + lv.falls[3]) / 2 + Math.sin(this.t * 9) * 0.03;
+    if (this.shipG) { const s = this.shipG; s.position.y = (Land.key === 'port' ? 0 : -0.3) + Math.sin(this.t * 0.9) * 0.05; s.rotation.z = Math.sin(this.t * 0.7) * 0.012; for (const m of s.children) if (m.userData.sail) m.rotation.z = Math.sin(this.t * 1.3 + m.position.y) * 0.02; }
+    for (const c of this.group.children) if (c.children && c.children.length && c.children[c.children.length - 1].userData.leaf) for (const l of c.children) if (l.userData.leaf) l.rotation.z = -0.1 + Math.sin(this.t * 1.7 + l.rotation.y * 3) * 0.05;
     if (this.chest) this.chest.lid.rotation.x = lerp(this.chest.lid.rotation.x, Land.chestOpen ? -1.9 : 0, Math.min(1, dt * 4));
-    this.itemMeshes.forEach((m, i) => { m.visible = !Land.items[i].taken; });
-    // player figure
-    const P = this.player, po = P.poser; let px = p.x, py = p.z, pz = 0, face = p.face, st = 'idle', tt = Land.t;
-    if (this.cine) { const c = this.cine; c.t += dt; const k = Motion.ease(clamp(c.t / c.dur, 0, 1)), at = this.pathAt(c.path, k); px = at[0]; py = at[1]; pz = at[2]; face = at[3]; st = k < 0.999 ? 'walk' : 'idle'; po.gaitPhase += dt * 7;
+    this.itemMeshes.forEach((m, i) => { m.visible = !Land.items[i].taken; m.rotation.y = this.t * 0.6; });
+    const P = this.player, po = P.poser; let px = p.x, py = p.y, pz = p.z, head = p.head, st = 'idle', tt = Land.t;
+    if (this.cine) { const c = this.cine; c.t += dt; const k = Motion.ease(clamp(c.t / c.dur, 0, 1)), at = this.pathAt(c.path, k); px = at[0]; py = at[1]; pz = at[2]; head = at[3]; st = k < 0.999 ? 'walk' : 'idle'; po.gaitPhase += dt * 7;
       if (c.t >= c.dur + 0.3) { this.cine = null; if (c.dir === 'out') Game.enter('sea'); } }
-    else { po.vy = p.vz; if (p.climb) { st = 'climb'; po.gaitPhase = p.walk * 1.4; face = 1; } else if (p.hurtT > 0) { st = 'hurt'; tt = (0.4 - p.hurtT) / 0.4; } else if (p.slashT > 0) { st = 'cut'; tt = (0.36 - p.slashT) / 0.36; } else if (!p.ground) st = 'air'; else if (Math.abs(p.vx) > 3) { st = 'run'; po.gaitPhase = p.walk * 1.25; } else if (Math.abs(p.vx) > 0.3) { st = 'walk'; po.gaitPhase = p.walk * 1.4; } }
-    po.set(st); P.apply(po.update(dt, tt), face, px, py, pz); P.group.visible = p.inv <= 0 || Math.floor(Land.t * 14) % 2 === 0;
+    else { if (p.hurtT > 0) { st = 'hurt'; tt = (0.4 - p.hurtT) / 0.4; } else if (p.slashT > 0) { st = 'cut'; tt = (0.36 - p.slashT) / 0.36; } else if (p.parryT > 0) { st = 'parry'; tt = (0.5 - p.parryT) / 0.5; } else if (p.speed > 3) { st = 'run'; po.gaitPhase = p.walk * 1.25; } else if (p.speed > 0.3) { st = 'walk'; po.gaitPhase = p.walk * 1.4; } else if (Land.duel) st = 'guard'; }
+    po.set(st); P.apply(po.update(dt, tt), head, px, py, pz); P.group.visible = p.inv <= 0 || Math.floor(Land.t * 14) % 2 === 0;
     Land.foes.forEach((f, i) => { const R = this.foeRigs[i], q = R.poser; let s = 'walk', t2 = f.t; if (f.state === 'dead') { s = 'die'; t2 = Math.min(1, f.t * 1.4); } else if (f.state === 'hurt') s = 'hurt'; else if (f.state === 'windup') { s = 'cut'; t2 = f.t / 0.38 * 0.3; } else if (f.state === 'slash') { s = 'cut'; t2 = 0.3 + f.t / 0.28 * 0.5; } else q.gaitPhase = f.walk * 1.4;
-      q.set(s); R.apply(q.update(dt, t2), f.face, f.x, f.z, 0); });
-    // camera
-    const vw = 2 * 13 * Math.tan(this.cam.fov / 2 * Math.PI / 180) * this.cam.aspect; let tx = clamp((this.cine ? px : p.x + p.face * 1.0), lv.x0 + vw * 0.45 - 1, lv.x0 + lv.w - vw * 0.45 + 1), ty = (this.cine ? py : p.z) + 1.4;
-    if (this.cine) tx = px; this.camX = lerp(this.camX, tx, Math.min(1, dt * 4)); this.camY = lerp(this.camY, ty, Math.min(1, dt * 3));
-    let cx = this.camX, cy = this.camY + 1.6, cz = 13, lx = this.camX, ly = this.camY, lz = 0;
-    if (this.cine) { const c = this.cine, k = c.dir === 'in' ? 1 - smooth(c.t / (c.dur * 0.75)) : smooth((c.t - c.dur * 0.25) / (c.dur * 0.75)); const s = this.shipG.position; // k=1 is the top view over the ship
-      const a = k * Math.PI / 2 * 0.98, r = lerp(13, 34, k); cx = lerp(cx, s.x + 2, k); cy = lerp(cy, 0, k) + Math.sin(a) * r; cz = Math.cos(a) * r + lerp(0, s.z, k); lx = lerp(lx, s.x + 2, k); ly = lerp(ly, 0, k); lz = lerp(0, s.z, k); }
-    this.cam.position.set(cx, cy, cz); this.cam.lookAt(lx, ly, lz); this.cam.up.set(0, 1, 0);
-    this.sun.target.position.set(this.camX, 0, 0); this.sun.position.set(this.camX + (Land.key === 'port' ? -20 : 18), Land.key === 'port' ? 12 : 30, Land.key === 'port' ? 6 : 14); this.waterMat.uniforms.uCam.value.copy(this.cam.position);
+      q.set(s); R.apply(q.update(dt, t2), f.head, f.x, lv.h(f.x, f.z), f.z); });
+    // camera: same pitch as the sea chart, following the figure; the landing sweep eases the distance down from chart height
+    const lead = this.cine ? 0 : 1.2; this.camX = lerp(this.camX, px + Math.sin(head) * lead * Math.min(1, p.speed), Math.min(1, dt * 3)); this.camZ = lerp(this.camZ, pz + Math.cos(head) * lead * Math.min(1, p.speed), Math.min(1, dt * 3)); this.camY = lerp(this.camY, py, Math.min(1, dt * 3));
+    const small = Math.min(this.fx.width, this.fx.height) < 500; let want = small ? 15 : 19; if (this.cine) { const c = this.cine, k = c.dir === 'in' ? 1 - smooth(c.t / (c.dur * 0.8)) : smooth((c.t - c.dur * 0.2) / (c.dur * 0.8)); want = lerp(want, 46, k); }
+    const D = Land.duel; let el = 55 * Math.PI / 180, az = 0; if (D && !this.cine) { want = small ? 7.5 : 8.5; el = 11 * Math.PI / 180; const a = Math.atan2(D.x - p.x, D.z - p.z); az = a + Math.PI / 2 * (Math.sin(a) >= 0 ? 1 : -1); if (Math.sin(az) < -0.2 && Math.cos(az) < 0) az += Math.PI; // stand off to the side, biased toward the screen side
+      this.camX = lerp(this.camX, (p.x + D.x) / 2, Math.min(1, dt * 3)); this.camZ = lerp(this.camZ, (p.z + D.z) / 2, Math.min(1, dt * 3)); this.camY = lerp(this.camY, (p.y + lv.h(D.x, D.z)) / 2 + 0.9, Math.min(1, dt * 3)); }
+    this.el = lerp(this.el === undefined ? el : this.el, el, Math.min(1, dt * 2.5)); this.az = lerp(this.az === undefined ? az : this.az, az, Math.min(1, dt * 2.5)); this.dist = lerp(this.dist, want, Math.min(1, dt * 2.5));
+    this.cam.position.set(this.camX + Math.sin(this.az) * Math.cos(this.el) * this.dist, this.camY + Math.sin(this.el) * this.dist, this.camZ + Math.cos(this.az) * Math.cos(this.el) * this.dist); this.cam.lookAt(this.camX, this.camY, this.camZ);
+    for (const c of this.group.children) if (c.children && c.children.length && c.children[c.children.length - 1].userData.leaf) c.visible = !D || Math.hypot(c.position.x - this.cam.position.x, c.position.z - this.cam.position.z) > 4.5;
+    this.sun.target.position.set(this.camX, 0, this.camZ); this.sun.position.set(this.camX + this.sunDir[0], this.sunDir[1], this.camZ + this.sunDir[2]); this.waterMat.uniforms.uCam.value.copy(this.cam.position);
   },
   proj(x, y, z) { const v = new THREE.Vector3(x, y, z || 0).project(this.cam); return { sx: (v.x + 1) / 2 * this.fx.width, sy: (1 - v.y) / 2 * this.fx.height }; },
-  render() { if (!this.ready || !this.group) return; this.r.render(this.scene, this.cam); const c = this.fctx, W = this.fx.width, H = this.fx.height; c.clearRect(0, 0, W, H);
+  render() { if (!this.ready || !this.group) return; this.r.render(this.scene, this.cam); const c = this.fctx, W = this.fx.width, H = this.fx.height, lv = Land.lv; c.clearRect(0, 0, W, H);
     for (const e of Land.fx) { const k = e.t / e.life;
-      if (e.k === 'txt') { const q = this.proj(e.x, e.z + k * 0.8); c.font = '600 22px "Barlow Semi Condensed", sans-serif'; c.textAlign = 'center'; c.globalAlpha = 1 - k * k; c.fillStyle = 'rgba(0,0,0,.7)'; c.fillText(e.s, q.sx + 1, q.sy + 2); c.fillStyle = e.col; c.fillText(e.s, q.sx, q.sy); c.globalAlpha = 1; }
-      else if (e.k === 'arc') { const q = this.proj(e.x, e.z + 1.15), r = this.proj(e.x + 1.4, e.z + 1.15).sx - q.sx; c.save(); c.translate(q.sx, q.sy); c.scale(e.face, 1); c.globalAlpha = 0.75 * (1 - k); c.strokeStyle = '#ffffff'; c.lineWidth = 5; c.lineCap = 'round'; c.beginPath(); c.arc(r * 0.1, 0, r, -1.15 + k * 0.5, 0.75 + k * 0.5); c.stroke(); c.restore(); } }
-    for (const f of Land.foes) if (f.state !== 'dead' && f.hp < 3) { const q = this.proj(f.x, f.z + 2.15); c.fillStyle = 'rgba(8,14,18,.7)'; c.fillRect(q.sx - 22, q.sy, 44, 6); c.fillStyle = '#ffb08a'; c.fillRect(q.sx - 21, q.sy + 1, 42 * f.hp / 3, 4); }
+      if (e.k === 'txt') { const q = this.proj(e.x, lv.h(e.x, e.z) + 2 + k * 0.8, e.z); c.font = '600 22px "Barlow Semi Condensed", sans-serif'; c.textAlign = 'center'; c.globalAlpha = 1 - k * k; c.fillStyle = 'rgba(0,0,0,.7)'; c.fillText(e.s, q.sx + 1, q.sy + 2); c.fillStyle = e.col; c.fillText(e.s, q.sx, q.sy); c.globalAlpha = 1; }
+      else if (e.k === 'arc') { const y = lv.h(e.x, e.z) + 1.1; c.globalAlpha = 0.8 * (1 - k); c.strokeStyle = '#ffffff'; c.lineWidth = 4; c.lineCap = 'round'; c.beginPath(); for (let i = 0; i <= 12; i++) { const a = e.head + (-0.9 + i / 12 * 1.8) + k * 0.4, q = this.proj(e.x + Math.sin(a) * 1.5, y, e.z + Math.cos(a) * 1.5); i ? c.lineTo(q.sx, q.sy) : c.moveTo(q.sx, q.sy); } c.stroke(); c.globalAlpha = 1; } }
+    for (const f of Land.foes) if (f.state !== 'dead' && f.hp < 3) { const q = this.proj(f.x, lv.h(f.x, f.z) + 2.1, f.z); c.fillStyle = 'rgba(8,14,18,.7)'; c.fillRect(q.sx - 22, q.sy, 44, 6); c.fillStyle = '#ffb08a'; c.fillRect(q.sx - 21, q.sy + 1, 42 * f.hp / 3, 4); }
+    if (!this.cine && Land.zone && Land.zone.x !== undefined) { const z = Land.zone, q = this.proj(z.x, lv.h(z.x, z.z) + 0.2, z.z), r = 0.9 * W / this.dist / 1.2; c.strokeStyle = 'rgba(255,236,170,.6)'; c.lineWidth = 2; c.setLineDash([6, 5]); c.beginPath(); c.ellipse(q.sx, q.sy, r, r * 0.57, 0, 0, TAU); c.stroke(); c.setLineDash([]); }
+    if (Land.tapTarget && !this.cine) { const tg = Land.tapTarget, q = this.proj(tg[0], lv.h(tg[0], tg[1]) + 0.05, tg[1]), r = 8 + 3 * Math.sin(this.t * 6); c.strokeStyle = 'rgba(255,255,255,.7)'; c.lineWidth = 2; c.beginPath(); c.ellipse(q.sx, q.sy, r, r * 0.57, 0, 0, TAU); c.stroke(); }
+  },
+};
+
+// ==== 04c_exped.js
+// ---- the expedition: a 3D side-view trek east across the island, beach -> dunes -> scrub -> jungle, to a buried chest
+const Exped = {
+  LEN: 268, p: null, foes: [], fx: [], t: 0, dig: 0, done: false, preview: false, tapDir: 0, tapT: 0, tapJump: false, target: null, duel: null, camX: 0, camY: 0,
+  biome(x) { return x < 28 ? 'beach' : x < 112 ? 'dunes' : x < 150 ? 'scrub' : 'jungle'; },
+  h(x) { const d = smooth((x - 24) / 10) * (1 - smooth((x - 108) / 10)), dunes = d * (2.4 * Math.sin(x * 0.11) + 1.2 * Math.sin(x * 0.27 + 1) + 0.6 * Math.sin(x * 0.53)), j = smooth((x - 150) / 20);
+    return 0.4 + dunes + 2.5 * d + j * (1.5 + 0.8 * Math.sin(x * 0.09)) + (x > 196 && x < 199 ? -1.6 : 0); },
+  obstacles: [[60, 61.2, 0, 1.0], [96, 97.5, 0, 1.4], [168, 169.6, 0, 1.1], [184, 186, 0, 1.6], [214, 215.2, 0, 1.2], [238, 240, 0, 1.5]], // boxes on the ground: [x0,x1,base,height]
+  foeSpots: [174, 229],
+  enter(preview) { this.preview = !!preview; this.t = 0; this.fx = []; this.dig = 0; this.done = false; this.tapDir = 0; this.target = null; this.duel = null;
+    this.p = { x: 4, y: this.h(4), vy: 0, ground: true, face: 1, speed: 0, walk: 0, slashT: 0, parryT: 0, hitDone: false, hurtT: 0, inv: 0, coyote: 0 };
+    this.foes = this.foeSpots.map((x, i) => ({ x, y: this.h(x), hx: x, id: 'e' + i, hp: 3, face: -1, state: 'walk', t: 0, walk: 0, cd: 0, kx: 0 }));
+    G.hp = 5; this.build(); this.camX = 4; this.camY = this.h(4); },
+  top(x) { let g = this.h(x); for (const o of this.obstacles) if (x > o[0] - 0.3 && x < o[1] + 0.3) g = Math.max(g, this.h((o[0] + o[1]) / 2) + o[2] + o[3]); return g; },
+  wall(x, y) { for (const o of this.obstacles) { const base = this.h((o[0] + o[1]) / 2) + o[2]; if (x > o[0] - 0.3 && x < o[1] + 0.3 && y < base + o[3] - 0.3 && y > base - 1.5) return o; } return null; },
+  build() { const L3 = Land3; if (!L3.ready) return; if (L3.group) L3.scene.remove(L3.group); L3.group = new THREE.Group(); L3.scene.add(L3.group); L3.t = 0;
+    L3.scene.background = new THREE.Color(0x9ccbe8); L3.scene.fog = new THREE.Fog(0xb8d8ea, 40, 140); L3.sunDir = [10, 28, 16]; L3.sun.intensity = 2.3; L3.sun.color.set(0xfff1d6); L3.hemi.intensity = 0.9; L3.hemi.color.set(0xbfd8ee); L3.waterMat.uniforms.uNight.value = 0;
+    // terrain strip: h(x) along the path, dropping to the sea in front, rising to hills behind; colours by biome
+    const W = this.LEN + 60, D = 60, g = new THREE.PlaneGeometry(W, D, 330, 60); g.rotateX(-Math.PI / 2); const pos = g.attributes.position, col = [];
+    for (let i = 0; i < pos.count; i++) { const x = pos.getX(i) + this.LEN / 2 - 10, z = pos.getZ(i); const front = smooth((z - 4) / 6), back = smooth((-z - 3) / 12);
+      let y = this.h(x) * (1 - front) + (-2) * front + back * (6 + 3 * vnoise(x * 0.06, z * 0.1, 5)) + 0.15 * vnoise(x * 0.8, z * 0.8, 6) * (1 - front);
+      const b = this.biome(x), jg = smooth((x - 140) / 25), sc = smooth((x - 105) / 12) * (1 - jg); let c = [0.88, 0.8, 0.6]; if (b !== 'beach') c = [lerp(0.9, 0.78, Math.min(1, (x - 28) / 20)), lerp(0.82, 0.68, Math.min(1, (x - 28) / 20)), lerp(0.62, 0.42, Math.min(1, (x - 28) / 20))];
+      c = [lerp(c[0], 0.55, sc), lerp(c[1], 0.58, sc), lerp(c[2], 0.3, sc)]; c = [lerp(c[0], 0.2, jg), lerp(c[1], 0.38, jg), lerp(c[2], 0.14, jg)]; if (x > 196 && x < 199 && z > -2 && z < 4) c = [0.25, 0.45, 0.5];
+      pos.setX(i, x); pos.setY(i, y); col.push(c[0], c[1], c[2]); }
+    g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.computeVertexNormals();
+    const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ vertexColors: true, map: L3.tex.sand, roughness: 1 })); m.receiveShadow = true; L3.group.add(m);
+    const stream = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 8), new THREE.MeshStandardMaterial({ color: 0x2f7f9a, roughness: .15, transparent: true, opacity: .85 })); stream.rotation.x = -Math.PI / 2; stream.position.set(197.5, this.h(198) + 0.5, 1); L3.group.add(stream);
+    const rng = mulberry(11), R = (a, b) => a + rng() * (b - a);
+    // beach + dunes: palms near the start, dry grass, bleached bones, a wrecked boat rib
+    for (let i = 0; i < 5; i++) { const x = R(-6, 26), z = R(-9, -2); L3.palm(x, this.h(x) + 0.3, z, R(3.5, 5.5)); }
+    for (let i = 0; i < 90; i++) { const x = R(30, 150), z = R(-8, 3.5); if (rng() < 0.5 && x < 112) continue; const t = new THREE.Mesh(new THREE.ConeGeometry(0.25, R(0.5, 1.1), 5), new THREE.MeshStandardMaterial({ color: x < 112 ? 0xb8a860 : 0x6f8a3a, roughness: 1 })); t.position.set(x, this.h(x) + 0.2 * (z > 4 ? 0 : 1), z); t.castShadow = true; L3.group.add(t); }
+    for (let i = 0; i < 7; i++) { const x = R(40, 105), z = R(-3, 3); const bn = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, R(0.8, 1.6), 6), new THREE.MeshStandardMaterial({ color: 0xeee8d8, roughness: .9 })); bn.rotation.z = R(0.9, 1.6); bn.rotation.y = R(0, 3); bn.position.set(x, this.h(x) + 0.08, z); L3.group.add(bn); }
+    for (let i = 0; i < 6; i++) { const rib = new THREE.Mesh(new THREE.TorusGeometry(1.6, 0.08, 6, 14, Math.PI), L3.mat.hullDark); rib.position.set(76 + i * 0.9, this.h(76 + i * 0.9) - 0.6, -2.5); rib.rotation.y = Math.PI / 2 + 0.2; L3.group.add(rib); }
+    // obstacles: rocks and fallen logs you climb or jump
+    for (const o of this.obstacles) { const cx = (o[0] + o[1]) / 2, base = this.h(cx) + o[2], w = o[1] - o[0]; if (w > 1.5) { const log = new THREE.Mesh(new THREE.CylinderGeometry(o[3] / 2, o[3] / 2, 4.5, 10), L3.mat.wood); log.rotation.x = Math.PI / 2; log.position.set(cx, base + o[3] / 2, 0); log.castShadow = log.receiveShadow = true; L3.group.add(log); }
+      else { const r = new THREE.Mesh(new THREE.DodecahedronGeometry(o[3] * 0.62, 1), L3.mat.rock); r.scale.set(w / (o[3] * 1.1), 1, 1.3); r.position.set(cx, base + o[3] * 0.45, 0); r.castShadow = r.receiveShadow = true; L3.group.add(r); } }
+    // scrub: a few acacia-ish trees; jungle: dense trunks, canopies, ferns and vines in rows behind and in front
+    const tree = (x, z, h, canopyCol, big) => { const y = this.h(x) + (z > 4 ? -1 : 0), tr = new THREE.Mesh(new THREE.CylinderGeometry(0.12 + big * 0.1, 0.22 + big * 0.15, h, 7), L3.mat.trunk); tr.position.set(x, y + h / 2, z); tr.castShadow = true; L3.group.add(tr);
+      for (let k = 0; k < 2 + big; k++) { const c = new THREE.Mesh(new THREE.SphereGeometry(R(1.2, 2.2) + big * 0.8, 8, 6), new THREE.MeshStandardMaterial({ color: canopyCol, roughness: .9 })); c.position.set(x + R(-1, 1), y + h - R(0, 1.5), z + R(-1, 1)); c.scale.y = 0.7; c.castShadow = true; L3.group.add(c); } };
+    for (let i = 0; i < 10; i++) { const x = R(112, 150), z = R(-10, -3); tree(x, z, R(2.5, 4), 0x6f8f3a, 0); }
+    for (let i = 0; i < 70; i++) { const x = R(150, this.LEN + 20), z = rng() < 0.75 ? R(-14, -2.5) : R(4.5, 8); tree(x, z, R(4, 8), [0x2f6b2a, 0x3d7f30, 0x4a8a3a][i % 3], rng() < 0.3 ? 1 : 0); }
+    for (let i = 0; i < 24; i++) { const x = R(150, this.LEN + 20), z = R(-6, -1.5); L3.palm(x, this.h(x), z, R(4, 7)); }
+    for (let i = 0; i < 80; i++) { const x = R(148, this.LEN + 20), z = R(-4, 3.5); const f = new THREE.Mesh(new THREE.ConeGeometry(R(0.3, 0.6), R(0.5, 1.0), 5), new THREE.MeshStandardMaterial({ color: 0x3f8a3a, roughness: 1 })); f.position.set(x, this.h(x) + 0.25, z); f.rotation.z = R(-0.3, 0.3); L3.group.add(f); }
+    for (let i = 0; i < 30; i++) { const x = R(152, this.LEN + 15), v = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, R(3, 6), 4), L3.mat.rope); v.position.set(x, this.h(x) + 5.5, R(-3, -1)); v.rotation.z = R(-0.15, 0.15); L3.group.add(v); }
+    // the X: two crossed stone slabs
+    const X = this.LEN - 10; for (const a of [0.6, -0.6]) { const s = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.12, 0.45), new THREE.MeshStandardMaterial({ color: 0xcfc6b0, roughness: .9 })); s.position.set(X, this.h(X) + 0.06, 0); s.rotation.y = a; L3.group.add(s); }
+    const chest = new THREE.Group(); chest.position.set(X, this.h(X) - 0.9, 0); const cb = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.5, 0.55), L3.mat.wood); cb.position.y = 0.25; cb.castShadow = true; chest.add(cb); const lid = new THREE.Group(); lid.position.set(0, 0.5, -0.27); const lm = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.22, 0.55), L3.mat.wood); lm.position.set(0, 0.11, 0.27); lid.add(lm); const gold = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.1, 0.4), L3.mat.gold); gold.position.y = 0.52; chest.add(gold); chest.add(lid); chest.visible = false; this.chest = { g: chest, lid }; L3.group.add(chest);
+    this.player = L3.rig({ skin: 0xe2b58c, shirt: 0xeadfc4, pants: 0x3d3a4a, boot: 0x2a2320, hat: 0x1e1a1a }, { sword: true }); this.player.poser = new Motion.Poser();
+    this.foeRigs = this.foes.map(() => { const r = L3.rig({ skin: 0xc99a74, shirt: 0x2f4a28, pants: 0x4a4038, boot: 0x241e1a, hat: 'bandana', band: 0x2a7a3a }, { sword: true }); r.poser = new Motion.Poser(); return r; });
+    L3.dist = 14; L3.el = 11 * Math.PI / 180; L3.az = 0; L3.player = this.player; L3.foeRigs = this.foeRigs; L3.itemMeshes = []; L3.chest = null; L3.shipG = null; L3.cine = null; },
+  tap(cx, cy) { const q = Land3.proj(this.p.x, this.p.y + 1.0, 0); for (const f of this.foes) { if (f.state === 'dead') continue; const fq = Land3.proj(f.x, f.y + 1, 0); if (Math.hypot(fq.sx - cx, fq.sy - cy) < 50) { this.target = f; return; } }
+    this.target = null; if (cy < q.sy - 70 && Math.abs(cx - q.sx) < 120) { this.tapJump = true; return; } this.tapDir = cx > q.sx ? 1 : -1; this.tapT = 0.7; },
+  text(x, y, s, col) { this.fx.push({ k: 'txt', x, y, s, col: col || '#f2ecdc', t: 0, life: 1.3 }); },
+  update(dt) { dt = Math.min(dt, 1 / 30); this.t += dt; const p = this.p, ctl = UI.panelOpen ? { x: 0, y: 0, hit: {}, held: {} } : Pad;
+    p.inv = Math.max(0, p.inv - dt); p.hurtT = Math.max(0, p.hurtT - dt); p.slashT = Math.max(0, p.slashT - dt); p.parryT = Math.max(0, p.parryT - dt); this.tapT = Math.max(0, this.tapT - dt);
+    let mv = ctl.x; if (Math.abs(mv) > 0.2) { this.tapDir = 0; this.target = null; } else if (this.target) { const d = this.target.x - p.x; mv = Math.abs(d) > 1.5 ? Math.sign(d) : 0; if (this.target.state === 'dead') this.target = null; else if (!mv && p.slashT <= 0 && p.parryT <= 0) { p.face = Math.sign(d) || p.face; this.slash(); } } else if (this.tapT > 0) mv = this.tapDir;
+    const jump = ctl.hit.A && !this.zoneAt() || this.tapJump; this.tapJump = false;
+    if (!this.done) { const want = p.hurtT > 0.15 ? p.speed : mv * 5.2; p.speed += clamp(want - p.speed, -(p.ground ? 40 : 18) * dt, (p.ground ? 40 : 18) * dt); if (Math.abs(mv) > 0.2 && p.slashT <= 0) p.face = mv > 0 ? 1 : -1;
+      p.coyote = p.ground ? 0.1 : Math.max(0, p.coyote - dt); if (jump && p.coyote > 0 && p.slashT <= 0) { p.vy = 10; p.ground = false; p.coyote = 0; Sfx.jump(); } }
+    p.vy -= 24 * dt; let nx = clamp(p.x + p.speed * dt, 0, this.LEN + 2); const w = this.wall(nx, p.y); if (w) { nx = p.speed > 0 ? w[0] - 0.31 : w[1] + 0.31; p.speed = 0; } p.x = nx;
+    let ny = p.y + p.vy * dt; p.ground = false; const g = this.top(p.x); if (p.vy <= 0 && ny <= g) { ny = g; p.vy = 0; p.ground = true; } else if (p.vy <= 0 && ny <= this.h(p.x)) { ny = this.h(p.x); p.vy = 0; p.ground = true; } p.y = ny;
+    if (p.ground) p.walk += Math.abs(p.speed) * dt * 1.9;
+    if (p.x > 196.2 && p.x < 198.8 && p.y < this.h(195) - 0.8 && p.inv <= 0) { this.hurt(1, p.face > 0 ? -1 : 1); p.x = p.face > 0 ? 195.3 : 199.7; p.y = this.h(p.x); p.vy = 0; toast('Into the stream. Jump it from the bank.', 2000); }
+    // fight
+    if ((ctl.hit.X || ctl.hit.B) && this.duel) { if (ctl.hit.X) this.parry(); else this.slash(); } else if (ctl.hit.X || ctl.hit.B) this.slash();
+    if (ctl.hit.A && this.zoneAt()) this.use();
+    if (p.slashT > 0.1 && p.slashT < 0.26 && !p.hitDone) { p.hitDone = true; this.fx.push({ k: 'arc', x: p.x, y: p.y, face: p.face, t: 0, life: 0.16 });
+      for (const f of this.foes) { if (f.state === 'dead') continue; const dx = (f.x - p.x) * p.face; if (dx > -0.3 && dx < 1.9 && Math.abs(f.y - p.y) < 1.4) { f.hp--; f.kx = p.face * 6; f.state = f.hp <= 0 ? 'dead' : 'hurt'; f.t = 0; Sfx.hit(0); if (f.hp <= 0) { G.gold += 25; this.text(f.x, f.y + 2, '+25 gold', '#ffe2a0'); } } } }
+    this.duel = null; for (const f of this.foes) { f.t += dt; f.cd = Math.max(0, f.cd - dt); if (f.state === 'dead') continue; f.x = clamp(f.x + f.kx * dt, f.hx - 9, f.hx + 9); f.kx *= Math.max(0, 1 - 8 * dt); f.y = this.top(f.x);
+      const dx = p.x - f.x, near = Math.abs(dx) < 8 && Math.abs(p.y - f.y) < 3; if (near) this.duel = f;
+      if (f.state === 'hurt') { if (f.t > 0.3) { f.state = 'walk'; f.t = 0; } continue; }
+      if (f.state === 'windup') { if (f.t > 0.38) { f.state = 'slash'; f.t = 0; if (Math.abs(dx) < 1.7 && dx * f.face > -0.3) { if (p.parryT > 0.1 && p.parryT < 0.45) { Sfx.clash(); f.state = 'hurt'; f.t = -0.4; f.kx = -f.face * 4; this.text(p.x, p.y + 2, 'Parried!', '#cfe6ff'); } else if (p.inv <= 0) this.hurt(1, f.face); } } continue; }
+      if (f.state === 'slash') { if (f.t > 0.28) { f.state = 'walk'; f.t = 0; f.cd = 0.8; } continue; }
+      if (near) { f.face = dx > 0 ? 1 : -1; if (Math.abs(dx) < 1.4) { if (f.cd <= 0) { f.state = 'windup'; f.t = 0; } } else { f.x += f.face * 2.6 * dt; f.walk += dt * 5.5; } }
+      else { f.x += f.face * 1.1 * dt; f.walk += dt * 2.8; if (f.x < f.hx - 4) f.face = 1; if (f.x > f.hx + 4) f.face = -1; } }
+    for (let i = this.fx.length - 1; i >= 0; i--) { this.fx[i].t += dt; if (this.fx[i].t > this.fx[i].life) this.fx.splice(i, 1); }
+    if (this.done) { this.doneT = (this.doneT || 0) + dt; if (this.doneT > 4) { this.done = false; if (this.preview) { G.mode = 'title'; Game.show(); } else Game.enter('sea'); } }
+    this.render3(dt);
+  },
+  zoneAt() { const X = this.LEN - 10; return !this.done && Math.abs(this.p.x - X) < 1.6 ? { label: this.dig < 3 ? 'Dig here' : 'Open the chest' } : null; },
+  use() { const X = this.LEN - 10; if (this.dig < 3) { this.dig++; Sfx.crunch(); for (let k = 0; k < 10; k++) this.fx.push({ k: 'dirt', x: X + rand(-0.6, 0.6), y: this.h(X) + 0.2, vx: rand(-2, 2), vy: rand(2, 5), t: 0, life: 0.7 });
+      if (this.dig === 3) { this.chest.g.visible = true; toast('Steel rings on wood. There it is.', 2500); } else toast(this.dig === 1 ? 'Sand and roots. Keep digging.' : 'Something hard under the blade.', 1800); return; }
+    if (!this.done) { this.done = true; this.doneT = 0; G.gold += 300; Sfx.gold(); this.text(X, this.h(X) + 2.2, '+300 gold', '#ffe2a0'); toast('A chest of Spanish gold. The crew will drink well tonight.', 4000); } },
+  slash() { const p = this.p; if (p.slashT > 0 || p.parryT > 0) return; p.slashT = 0.36; p.hitDone = false; Sfx.slash(); },
+  parry() { const p = this.p; if (p.slashT > 0 || p.parryT > 0) return; p.parryT = 0.5; Sfx.ui(); },
+  hurt(n, dir) { const p = this.p; G.hp -= n; Sfx.hurt(); p.inv = 1.0; p.hurtT = 0.4; p.speed = dir * 5; p.vy = 4; p.ground = false; this.target = null;
+    if (G.hp <= 0) { G.hp = 5; p.x = Math.max(4, p.x - 20); p.y = this.h(p.x); p.speed = 0; toast('You come to further back down the trail.', 2500); } },
+  render3(dt) { const L3 = Land3, p = this.p, P = this.player, po = P.poser; let st = 'idle', tt = this.t; po.vy = p.vy;
+    if (p.hurtT > 0) { st = 'hurt'; tt = (0.4 - p.hurtT) / 0.4; } else if (p.slashT > 0) { st = 'cut'; tt = (0.36 - p.slashT) / 0.36; } else if (p.parryT > 0) { st = 'parry'; tt = (0.5 - p.parryT) / 0.5; } else if (!p.ground) st = 'air'; else if (Math.abs(p.speed) > 3) { st = 'run'; po.gaitPhase = p.walk * 1.25; } else if (Math.abs(p.speed) > 0.3) { st = 'walk'; po.gaitPhase = p.walk * 1.4; } else if (this.duel) st = 'guard';
+    po.set(st); P.apply(po.update(dt, tt), p.face > 0 ? Math.PI / 2 : -Math.PI / 2, p.x, p.y, 0); P.group.visible = p.inv <= 0 || Math.floor(this.t * 14) % 2 === 0;
+    this.foes.forEach((f, i) => { const R = this.foeRigs[i], q = R.poser; let s = 'walk', t2 = f.t; if (f.state === 'dead') { s = 'die'; t2 = Math.min(1, f.t * 1.4); } else if (f.state === 'hurt') s = 'hurt'; else if (f.state === 'windup') { s = 'cut'; t2 = f.t / 0.38 * 0.3; } else if (f.state === 'slash') { s = 'cut'; t2 = 0.3 + f.t / 0.28 * 0.5; } else q.gaitPhase = f.walk * 1.4;
+      q.set(s); R.apply(q.update(dt, t2), f.face > 0 ? Math.PI / 2 : -Math.PI / 2, f.x, f.y, 0); });
+    if (this.chest) { this.chest.g.position.y = lerp(this.chest.g.position.y, this.h(this.LEN - 10) + (this.dig >= 3 ? 0.05 : -0.9), Math.min(1, dt * 2)); this.chest.lid.rotation.x = lerp(this.chest.lid.rotation.x, this.done ? -1.9 : 0, Math.min(1, dt * 4)); }
+    for (const c of L3.group.children) if (c.children && c.children.length && c.children[c.children.length - 1].userData.leaf) for (const l of c.children) if (l.userData.leaf) l.rotation.z = -0.1 + Math.sin(this.t * 1.7 + l.rotation.y * 3) * 0.05;
+    const small = Math.min(L3.fx.width, L3.fx.height) < 500, lead = this.duel ? (this.duel.x - p.x) / 2 : p.face * 2.2; this.camX = lerp(this.camX, p.x + lead, Math.min(1, dt * 3)); this.camY = lerp(this.camY, p.y + 1.3, Math.min(1, dt * 3));
+    L3.dist = lerp(L3.dist, small ? 11 : 13.5, Math.min(1, dt * 2)); const EL = 10 * Math.PI / 180; L3.cam.position.set(this.camX, this.camY + Math.sin(EL) * L3.dist, Math.cos(EL) * L3.dist); L3.cam.lookAt(this.camX, this.camY, 0);
+    L3.sun.target.position.set(this.camX, 0, 0); L3.sun.position.set(this.camX + 10, 28, 16); L3.waterMat.uniforms.uT.value = this.t; L3.waterMat.uniforms.uCam.value.copy(L3.cam.position); L3.water.position.set(this.camX, -1.2, 20);
+    for (const c of L3.group.children) if (c.isMesh && c.geometry.type === 'SphereGeometry' && c.position.z > 3.5) c.visible = Math.abs(c.position.x - this.camX) > 3.5; // canopies in front step aside near the camera
+  },
+  render() { const L3 = Land3; if (!L3.ready) return; L3.r.render(L3.scene, L3.cam); const c = L3.fctx, W = L3.fx.width, H = L3.fx.height; c.clearRect(0, 0, W, H);
+    for (const e of this.fx) { const k = e.t / e.life;
+      if (e.k === 'txt') { const q = L3.proj(e.x, e.y + k * 0.8, 0); c.font = '600 22px "Barlow Semi Condensed", sans-serif'; c.textAlign = 'center'; c.globalAlpha = 1 - k * k; c.fillStyle = 'rgba(0,0,0,.7)'; c.fillText(e.s, q.sx + 1, q.sy + 2); c.fillStyle = e.col; c.fillText(e.s, q.sx, q.sy); c.globalAlpha = 1; }
+      else if (e.k === 'arc') { const q = L3.proj(e.x, e.y + 1.15, 0), r = L3.proj(e.x + 1.4, e.y + 1.15, 0).sx - q.sx; c.save(); c.translate(q.sx, q.sy); c.scale(e.face, 1); c.globalAlpha = 0.75 * (1 - k); c.strokeStyle = '#ffffff'; c.lineWidth = 5; c.lineCap = 'round'; c.beginPath(); c.arc(r * 0.1, 0, r, -1.15 + k * 0.5, 0.75 + k * 0.5); c.stroke(); c.restore(); }
+      else if (e.k === 'dirt') { const q = L3.proj(e.x + e.vx * e.t, e.y + e.vy * e.t - 6 * e.t * e.t, 0); c.globalAlpha = 1 - k; c.fillStyle = '#6b4a2b'; c.fillRect(q.sx - 3, q.sy - 3, 6, 6); c.globalAlpha = 1; } }
+    for (const f of this.foes) if (f.state !== 'dead' && f.hp < 3) { const q = L3.proj(f.x, f.y + 2.15, 0); c.fillStyle = 'rgba(8,14,18,.7)'; c.fillRect(q.sx - 22, q.sy, 44, 6); c.fillStyle = '#ffb08a'; c.fillRect(q.sx - 21, q.sy + 1, 42 * f.hp / 3, 4); }
+    // trail marker: how far east
+    const k = clamp(this.p.x / (this.LEN - 10), 0, 1), bx = W / 2 - 110, by = 58; c.fillStyle = 'rgba(8,14,18,.55)'; c.fillRect(bx, by, 220, 6); for (const [f, col] of [[28 / 258, '#d9c48a'], [112 / 258, '#b8a860'], [150 / 258, '#6f8a3a'], [1, '#2f6b2a']]) { c.fillStyle = col; c.fillRect(bx + 220 * f - 2, by - 2, 2, 10); }
+    c.fillStyle = '#f2ecdc'; c.beginPath(); c.arc(bx + 220 * k, by + 3, 5, 0, TAU); c.fill(); c.font = '600 12px "Barlow Semi Condensed", sans-serif'; c.textAlign = 'center'; c.fillText(['Beach', 'Dunes', 'Scrub', 'Jungle'][['beach', 'dunes', 'scrub', 'jungle'].indexOf(this.biome(this.p.x))], W / 2, by + 24);
   },
 };
 
@@ -1089,7 +1140,7 @@ const UI = {
   },
   bar(id, v, warn) { const b = $(id); b.firstChild.style.width = clamp(v, 0, 100) + '%'; b.classList.toggle('warn', !!warn); },
   update(dt) {
-    const sea = G.mode === 'sea', land = G.mode === 'island' || G.mode === 'port';
+    const sea = G.mode === 'sea', land = G.mode === 'island' || G.mode === 'port' || G.mode === 'exped', ex = G.mode === 'exped';
     $('hud').hidden = !(sea || land); $('touch').hidden = !(sea || land) || !this.touch;
     if (!(sea || land)) return;
     $('seaBars').hidden = !sea; $('landBars').hidden = !land; $('bc').hidden = !sea;
@@ -1110,13 +1161,17 @@ const UI = {
       $('keys').innerHTML = '<span><kbd>Arrows</kbd>Point and sail</span><span><kbd>Space</kbd>' + (Sea.near ? 'Land' : 'Fire') + '</span>' + (P.T.guns ? '<span><kbd>Q E</kbd>Port or starboard</span>' : '');
       $('btnA').textContent = Sea.near ? 'Land' : Sea.board ? 'Board' : 'Fire'; $('btnX').textContent = 'Port'; $('btnB').textContent = 'Stbd'; $('btnA').classList.remove('dim'); $('btnB').classList.remove('dim'); $('btnX').hidden = $('btnB').hidden = !P.T.guns;
     } else {
-      $('place').textContent = G.mode === 'port' ? 'Gallows Cay' : 'Driftwood Isle';
-      $('goal').textContent = G.mode === 'port' ? 'Sell plunder, repair, restock. Cast off from the pier.' : (G.water < 99 ? 'Climb to the spring and fill the casks.' : 'Casks are full. Salvage what you can, then row back.');
+      $('place').textContent = ex ? 'Expedition' : G.mode === 'port' ? 'Gallows Cay' : 'Driftwood Isle';
+      $('goal').textContent = ex ? (Exped.dig >= 3 ? 'Open it.' : Exped.p.x > Exped.LEN - 20 ? 'The X is close. Dig.' : 'Head east through the dunes into the jungle. The map says X.') : G.mode === 'port' ? 'Sell plunder, repair, restock. Cast off from the pier.' : (G.water < 99 ? 'Climb to the spring and fill the casks.' : 'Casks are full. Salvage what you can, then row back.');
       let h = ''; for (let i = 0; i < 5; i++) h += '<i class="' + (i < G.hp ? 'f' : '') + '"></i>'; if ($('hearts').dataset.v !== String(G.hp)) { $('hearts').innerHTML = h; $('hearts').dataset.v = G.hp; }
       $('lfood').textContent = 'Food ' + Math.round(G.food) + '%'; $('lwater').textContent = 'Water ' + Math.round(G.water) + '%';
-      if (Land.zone && !this.panelOpen) { prompt = Land.zone.label; key = this.touch ? '' : 'E'; }
-      $('keys').innerHTML = '<span><kbd>A D</kbd>Move</span><span><kbd>Space</kbd>Jump</span><span><kbd>J</kbd>Slash</span><span><kbd>W</kbd>Climb</span>';
-      $('btnA').textContent = 'Jump'; $('btnX').textContent = 'Slash'; $('btnB').textContent = 'Use'; $('btnX').hidden = $('btnB').hidden = false; $('btnA').classList.remove('dim'); $('btnB').classList.toggle('dim', !Land.zone);
+      if (ex) { const z = Exped.zoneAt(); if (z) { prompt = z.label; key = this.touch ? '' : 'Space'; }
+        $('keys').innerHTML = '<span><kbd>Arrows</kbd>Walk</span><span><kbd>Space</kbd>' + (z ? 'Use' : 'Jump') + '</span><span><kbd>E</kbd>Slash</span>' + (Exped.duel ? '<span><kbd>Q</kbd>Parry</span>' : '<span><kbd>Click</kbd>Walk, jump or fight</span>');
+        $('btnA').textContent = z ? 'Use' : 'Jump'; $('btnX').textContent = 'Parry'; $('btnX').hidden = !Exped.duel; $('btnB').textContent = 'Slash'; $('btnB').hidden = false; $('btnA').classList.remove('dim'); }
+      else {
+      if (Land.zone && !this.panelOpen && !Land.duel) { prompt = Land.zone.label; key = this.touch ? '' : 'Space'; }
+      $('keys').innerHTML = '<span><kbd>Arrows</kbd>Walk</span><span><kbd>Space</kbd>' + (Land.duel ? 'Slash' : Land.zone ? 'Use' : 'Slash') + '</span>' + (Land.duel ? '<span><kbd>Q</kbd>Parry</span>' : '<span><kbd>Click</kbd>Walk there</span>');
+      $('btnA').textContent = Land.duel ? 'Slash' : Land.zone ? 'Use' : 'Slash'; $('btnX').textContent = 'Parry'; $('btnX').hidden = !Land.duel; $('btnB').hidden = true; $('btnA').classList.remove('dim'); }
     }
     if (sea && Sea.chart) prompt = ''; const pr = $('prompt'); pr.hidden = !prompt; if (prompt) pr.innerHTML = (key ? '<kbd>' + key + '</kbd>' : '') + '<span></span>', pr.lastChild.textContent = prompt;
     if (this.panelOpen) { const bs = [...$('panel').querySelectorAll('button:not([disabled])')];
@@ -1161,6 +1216,7 @@ const UI = {
 const Game = {
   pending: null, ring: null, last: 0,
   enter(mode) { if (this.pending) return; this.pending = mode; const land = mode === 'island' || mode === 'port';
+    if (mode === 'exped') { $('fade').classList.add('on'); setTimeout(() => { UI.closePanel(); G.mode = 'exped'; Exped.enter(this.previewExped); this.show(); $('land').classList.add('in'); $('landfx').classList.add('in'); $('fade').classList.remove('on'); this.pending = null; }, 430); return; }
     if (Land3.ready && land) { this.apply(mode); requestAnimationFrame(() => { $('land').classList.add('in'); $('landfx').classList.add('in'); }); setTimeout(() => { this.pending = null; }, 700); return; }
     if (Land3.ready && mode === 'sea') { $('land').classList.remove('in'); $('landfx').classList.remove('in'); setTimeout(() => { this.apply(mode); this.pending = null; }, 650); return; }
     $('fade').classList.add('on'); setTimeout(() => { this.apply(mode); $('fade').classList.remove('on'); this.pending = null; }, 430); },
@@ -1174,7 +1230,7 @@ const Game = {
       G.mode = 'sea'; }
     this.show();
   },
-  show() { const land = G.mode === 'island' || G.mode === 'port'; $('sea').hidden = land; $('seafx').hidden = land; $('land').hidden = !land; $('landfx').hidden = !land; $('labels').hidden = G.mode !== 'sea'; $('title').hidden = G.mode !== 'title'; $('over').hidden = G.mode !== 'over'; },
+  show() { const land = G.mode === 'island' || G.mode === 'port' || G.mode === 'exped'; $('sea').hidden = land; $('seafx').hidden = land; $('land').hidden = !land; $('landfx').hidden = !land; $('labels').hidden = G.mode !== 'sea'; $('title').hidden = G.mode !== 'title'; $('over').hidden = G.mode !== 'over'; },
   start(cont) { if (!cont) { try { localStorage.removeItem('saltwake2'); } catch (e) { /* ignore */ } } Sea.P.T = TIERS[G.tier]; G.mode = 'sea'; this.show(); toast(UI.touch ? 'Push the stick where you want to sail. Land at a gold ring.' : 'Point the arrow keys where you want to sail. Space fires, or lands at a gold ring.', 4500); },
   over(msg) { if (G.mode === 'over') return; G.mode = 'over'; $('overMsg').textContent = msg; this.show(); },
   revive() { G.gold = Math.floor(G.gold / 2); G.cargo = 0; G.hull = Math.round(G.hullMax * 0.6); G.crew = Math.max(G.crew, Math.ceil(G.crewMax / 2)); G.food = Math.max(G.food, 70); G.water = Math.max(G.water, 70); G.thirstT = 0; Sea.reset(); G.mode = 'sea'; this.show(); toast('Fished out and patched up at Gallows Cay. Half your gold is gone.', 4200); },
@@ -1182,18 +1238,19 @@ const Game = {
   frame(t) {
     const dt = Math.min(0.05, (t - this.last) / 1000 || 0.016); this.last = t; G.t += dt; pollPad(); if (Pad.hit.mute) toast(Sfx.toggle() ? 'Sound off' : 'Sound on', 1200);
     if (G.mode === "title" && Pad.hit.A) this.start(this.had); else if (G.mode === 'over' && Pad.hit.A) this.revive();
-    if (G.mode === 'island' || G.mode === 'port') { Land.update(dt); Land.render(); } else { Sea.update(dt); Sea.render(); }
+    if (G.mode === 'exped') { Exped.update(dt); Exped.render(); } else if (G.mode === 'island' || G.mode === 'port') { Land.update(dt); Land.render(); } else { Sea.update(dt); Sea.render(); }
     UI.update(dt); requestAnimationFrame(tt => this.frame(tt));
   },
   boot(data) {
     const had = this.had = loadGame(); if (data && data.G) Object.assign(G, data.G);
     Sea.init($('sea'), $('seafx')); Land.init($('land'), $('landfx')); UI.init();
-    $('seafx').addEventListener('pointerdown', e => { if (G.mode !== 'sea') return; const m = Sea.mini; if (Sea.chart || (m && Math.hypot(e.clientX - m.x, e.clientY - m.y) < m.r + 10)) { Pad._tl.map = true; e.preventDefault(); } }); this.resize(); addEventListener('resize', () => this.resize());
+    $('seafx').addEventListener('pointerdown', e => { if (G.mode !== 'sea') return; const m = Sea.mini; if (Sea.chart || (m && Math.hypot(e.clientX - m.x, e.clientY - m.y) < m.r + 10)) { Pad._tl.map = true; e.preventDefault(); return; } Sea.tapAt(e.clientX, e.clientY); e.preventDefault(); }); this.resize(); addEventListener('resize', () => this.resize());
     $('btnNew').addEventListener('click', () => { Object.assign(G, { gold: 60, tier: 0, plank: 0, holdUp: 0, hull: 30, hullMax: 30, crew: 4, crewMax: 4, food: 70, water: 45, timber: 0, cargo: 0, hold: 4, guns: 0, kills: 0, sold: 0, portChest: false, bounty: 0 }); Sea.reset(); this.start(false); });
     $('btnCont').hidden = !had; $('btnCont').addEventListener('click', () => this.start(true));
     $('btnRevive').addEventListener('click', () => this.revive());
+    $('btnExped').addEventListener('click', () => { this.previewExped = true; this.enter('exped'); });
     G.mode = 'title'; this.show(); requestAnimationFrame(tt => this.frame(tt));
-    window.__game = { G, Sea, Land, UI, Game, Pad, sim(sec) { for (let t = 0; t < sec; t += 1 / 30) { Pad.hit = {}; if (G.mode === 'island' || G.mode === 'port') Land.update(1 / 30); else Sea.update(1 / 30); } } };
+    window.__game = { G, Sea, Land, Exped, UI, Game, Pad, sim(sec) { for (let t = 0; t < sec; t += 1 / 30) { Pad.hit = {}; if (G.mode === 'exped') Exped.update(1 / 30); else if (G.mode === 'island' || G.mode === 'port') Land.update(1 / 30); else Sea.update(1 / 30); } } };
   },
 };
 if (window.claude && window.claude.hot && window.claude.hot.snapshot) window.claude.hot.snapshot(() => ({ G: { tier: G.tier, plank: G.plank, holdUp: G.holdUp, crewMax: G.crewMax, gold: G.gold, hull: G.hull, hullMax: G.hullMax, crew: G.crew, food: G.food, water: G.water, timber: G.timber, cargo: G.cargo, hold: G.hold, guns: G.guns, kills: G.kills } }));
