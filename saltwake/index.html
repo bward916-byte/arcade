@@ -915,29 +915,51 @@ const Land3 = {
   lantern(x, y, z, light) { const l = new THREE.Mesh(new THREE.SphereGeometry(0.14, 8, 6), this.mat.lantern); l.position.set(x, y, z); this.group.add(l); this.box(0.22, 0.32, 0.22, this.mat.iron, x, y, z, false).material = new THREE.MeshStandardMaterial({ color: 0x222, transparent: true, opacity: 0.35 });
     if (light) { const pl = new THREE.PointLight(0xffb060, 1.4, 9, 2); pl.position.set(x, y, z + 0.3); this.group.add(pl); } },
   // --- rig: a jointed figure. Angles follow the Motion pose semantics; U scales pose units to metres.
-  rig(cols, opts) { const U = 1.75 / 80, M = Motion.L, o = opts || {}, mat = c => new THREE.MeshStandardMaterial({ color: c, roughness: .8 });
-    const skin = mat(cols.skin), shirt = mat(cols.shirt), pants = mat(cols.pants), boot = mat(cols.boot), hat = mat(cols.hat);
-    const bone = (len, r0, r1, m, parent, px, py, pz) => { const j = new THREE.Group(); j.position.set(px || 0, py || 0, pz || 0); const mesh = new THREE.Mesh(new THREE.CylinderGeometry(r0, r1, len * U, 8), m); mesh.position.y = -len * U / 2; mesh.castShadow = true; j.add(mesh);
-      const cap = new THREE.Mesh(new THREE.SphereGeometry(r0, 8, 6), m); j.add(cap); parent.add(j); return j; };
+  // --- rig: a jointed figure with real clothes. Angles follow the Motion pose semantics; U scales pose units to metres.
+  rig(cols, opts) { const U = 1.75 / 80, M = Motion.L, o = opts || {}, mat = (c, r, m) => new THREE.MeshStandardMaterial({ color: c, roughness: r === undefined ? .85 : r, metalness: m || 0 });
+    const skin = mat(cols.skin, .6), shirt = mat(cols.shirt, .9), pants = mat(cols.pants, .95), boot = mat(cols.boot, .5), hat = mat(cols.hat, .7), vest = mat(cols.vest || 0x4a3220, .8), sash = mat(cols.sash || 0x8a2424, .9), hair = mat(cols.hair || 0x2a1a10, .9), dark = mat(0x111111, .4);
+    const sh = m => { m.castShadow = true; m.receiveShadow = true; return m; };
+    const lathe = (pts, m, segs) => sh(new THREE.Mesh(new THREE.LatheGeometry(pts.map(q => new THREE.Vector2(q[0], q[1])), segs || 14), m));
+    const limb = (len, r0, r1, m, parent, px, py, pz, extra) => { const j = new THREE.Group(); j.position.set(px || 0, py || 0, pz || 0); const L = len * U;
+      j.add(sh(new THREE.Mesh(new THREE.SphereGeometry(r0, 10, 8), m))); const seg = sh(new THREE.Mesh(new THREE.CylinderGeometry(r0 * 0.96, r1, L, 10), m)); seg.position.y = -L / 2; j.add(seg); if (extra) extra(j, L); parent.add(j); return j; };
     const root = new THREE.Group(), body = new THREE.Group(); root.add(body); const hips = new THREE.Group(); body.add(hips);
-    const pelvis = new THREE.Mesh(new THREE.SphereGeometry(0.17, 10, 8), pants); pelvis.scale.set(1.1, 0.7, 0.8); pelvis.castShadow = true; hips.add(pelvis);
-    const torso = new THREE.Group(); hips.add(torso); const tm = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.15, M.torso * U, 10), shirt); tm.position.y = M.torso * U / 2; tm.castShadow = true; torso.add(tm);
-    const belt = new THREE.Mesh(new THREE.CylinderGeometry(0.165, 0.165, 0.08, 10), boot); belt.position.y = 0.08; torso.add(belt);
-    const neck = new THREE.Group(); neck.position.y = M.torso * U; torso.add(neck); const head = new THREE.Group(); neck.add(head);
-    const hm = new THREE.Mesh(new THREE.SphereGeometry(M.head * U, 12, 10), skin); hm.position.y = (M.neck + M.head) * U; hm.castShadow = true; head.add(hm);
-    if (cols.hat === 'bandana') { const bd = new THREE.Mesh(new THREE.SphereGeometry(M.head * U + 0.01, 12, 6, 0, TAU, 0, 1.1), mat(cols.band || 0xa02020)); bd.position.y = (M.neck + M.head) * U; head.add(bd); }
-    else { const brim = new THREE.Mesh(new THREE.CylinderGeometry(M.head * U * 1.55, M.head * U * 1.55, 0.03, 12), hat); brim.position.y = (M.neck + M.head) * U + 0.07; head.add(brim); const crown = new THREE.Mesh(new THREE.ConeGeometry(M.head * U * 1.0, 0.2, 10), hat); crown.position.y = (M.neck + M.head) * U + 0.16; head.add(crown); }
-    const nose = new THREE.Mesh(new THREE.SphereGeometry(0.03, 6, 6), skin); nose.position.set(M.head * U * 0.95, (M.neck + M.head) * U, 0); head.add(nose);
+    hips.add(lathe([[0, -0.08], [0.17, -0.06], [0.19, 0.02], [0.16, 0.08], [0, 0.1]], pants)); // pelvis
+    const torso = new THREE.Group(); hips.add(torso); const T = M.torso * U;
+    torso.add(lathe([[0.15, 0.05], [0.155, T * 0.3], [0.19, T * 0.72], [0.21, T * 0.9], [0.14, T], [0, T]], shirt)); // shirt
+    torso.add(lathe([[0.165, T * 0.2], [0.17, T * 0.45], [0.2, T * 0.72], [0.215, T * 0.88], [0.16, T * 0.95], [0.1, T * 0.95], [0.1, T * 0.2]], vest)); // waistcoat
+    const sashM = sh(new THREE.Mesh(new THREE.CylinderGeometry(0.175, 0.17, 0.09, 14), sash)); sashM.position.y = 0.1; torso.add(sashM);
+    const buckle = sh(new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.06, 0.02), mat(0xc9a53a, .35, .8))); buckle.position.set(0.17, 0.1, 0); torso.add(buckle);
+    const neck = new THREE.Group(); neck.position.y = T; torso.add(neck); const nk = sh(new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.07, M.neck * U + 0.05, 8), skin)); nk.position.y = M.neck * U / 2; neck.add(nk);
+    const head = new THREE.Group(); neck.add(head); const HY = (M.neck + M.head) * U, HR = M.head * U;
+    const hm = sh(new THREE.Mesh(new THREE.SphereGeometry(HR, 16, 12), skin)); hm.scale.set(1, 1.12, 0.95); hm.position.y = HY; head.add(hm);
+    for (const s of [-1, 1]) { const eye = new THREE.Mesh(new THREE.SphereGeometry(0.018, 6, 6), dark); eye.position.set(HR * 0.86, HY + 0.02, s * 0.055); head.add(eye); const brow = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.012, 0.05), hair); brow.position.set(HR * 0.9, HY + 0.055, s * 0.055); head.add(brow); }
+    const nose = sh(new THREE.Mesh(new THREE.ConeGeometry(0.02, 0.05, 6), skin)); nose.rotation.z = -Math.PI / 2; nose.position.set(HR * 0.98, HY - 0.005, 0); head.add(nose);
+    const beard = sh(new THREE.Mesh(new THREE.SphereGeometry(HR * 0.95, 12, 8, 0, TAU, Math.PI * 0.55, Math.PI * 0.4), hair)); beard.position.y = HY + 0.01; beard.scale.set(1.02, 1.0, 0.9); if (cols.beard !== false) head.add(beard);
+    const hairM = sh(new THREE.Mesh(new THREE.SphereGeometry(HR * 1.04, 14, 10, 0, TAU, 0, Math.PI * 0.5), hair)); hairM.position.y = HY; hairM.scale.set(0.95, 1.05, 1.0); head.add(hairM);
+    const tail = sh(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.015, 0.22, 6), hair)); tail.position.set(-HR * 0.9, HY - 0.08, 0); tail.rotation.z = 0.35; head.add(tail); // queue of hair
+    if (cols.hat === 'bandana') { const bd = sh(new THREE.Mesh(new THREE.SphereGeometry(HR * 1.07, 14, 8, 0, TAU, 0, 1.0), mat(cols.band || 0xa02020, .9))); bd.position.y = HY; head.add(bd); const knot = sh(new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.12, 0.04), mat(cols.band || 0xa02020, .9))); knot.position.set(-HR * 0.95, HY - 0.02, 0.04); knot.rotation.z = 0.5; head.add(knot);
+      if (cols.patch) { const pt = new THREE.Mesh(new THREE.SphereGeometry(0.03, 6, 6), dark); pt.position.set(HR * 0.85, HY + 0.02, -0.055); head.add(pt); } }
+    else { const brim = sh(new THREE.Mesh(new THREE.CylinderGeometry(HR * 1.9, HR * 1.9, 0.025, 3), hat)); brim.rotation.y = Math.PI / 6; brim.position.y = HY + HR * 0.55; head.add(brim); // tricorne: a three-sided brim
+      const crown = sh(new THREE.Mesh(new THREE.CylinderGeometry(HR * 0.8, HR * 0.95, HR * 0.9, 12), hat)); crown.position.y = HY + HR * 0.55 + HR * 0.45; head.add(crown);
+      const band = new THREE.Mesh(new THREE.CylinderGeometry(HR * 0.97, HR * 0.97, 0.03, 12), mat(0xc9a53a, .4, .7)); band.position.y = HY + HR * 0.6; head.add(band); }
     const shY = M.shoulder * U, arms = [], legs = [];
-    for (const s of [-1, 1]) { const ua = bone(M.ua, 0.075, 0.065, shirt, torso, 0, shY, s * 0.21); const la = bone(M.la, 0.06, 0.05, skin, ua, 0, -M.ua * U, 0); const hand = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), skin); hand.position.y = -M.la * U; la.add(hand); arms.push({ ua, la, hand });
-      const ul = bone(M.th, 0.1, 0.085, pants, hips, 0, 0, s * 0.11); const ll = bone(M.sh, 0.08, 0.06, boot, ul, 0, -M.th * U, 0); const ft = new THREE.Group(); ft.position.y = -M.sh * U; ll.add(ft); const fm = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.07, 0.11), boot); fm.position.y = -M.ft * U / 2; fm.scale.set(1, M.ft * U / 0.07, 1); fm.castShadow = true; ft.add(fm); legs.push({ ul, ll, ft }); }
-    let sword = null; if (o.sword) { sword = new THREE.Group(); sword.position.y = -M.la * U; arms[1].la.add(sword); const bl = new THREE.Mesh(new THREE.BoxGeometry(0.035, M.sword * U, 0.012), new THREE.MeshStandardMaterial({ color: 0xcfd6dd, metalness: .8, roughness: .3 })); bl.position.y = -M.sword * U / 2; sword.add(bl); const gd = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.03, 0.05), new THREE.MeshStandardMaterial({ color: 0xb08a3a, metalness: .7, roughness: .4 })); sword.add(gd); sword.visible = false; }
+    for (const s of [-1, 1]) {
+      const ua = limb(M.ua, 0.075, 0.062, shirt, torso, 0, shY, s * 0.215, (j, L) => { const cuff = sh(new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.035, 10), vest)); cuff.position.y = -L * 0.92; j.add(cuff); });
+      const la = limb(M.la, 0.058, 0.045, skin, ua, 0, -M.ua * U, 0, (j, L) => { const hand = sh(new THREE.Mesh(new THREE.SphereGeometry(0.055, 8, 6), skin)); hand.scale.set(1.1, 1.3, 0.7); hand.position.y = -L - 0.02; j.add(hand); });
+      arms.push({ ua, la });
+      const ul = limb(M.th, 0.1, 0.08, pants, hips, 0, 0, s * 0.11);
+      const ll = limb(M.sh, 0.075, 0.06, pants, ul, 0, -M.th * U, 0, (j, L) => { const cuff = sh(new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.078, L * 0.55, 10), boot)); cuff.position.y = -L * 0.72; j.add(cuff); const fold = sh(new THREE.Mesh(new THREE.CylinderGeometry(0.095, 0.09, 0.05, 10), mat(cols.boot, .55))); fold.position.y = -L * 0.45; j.add(fold); });
+      const ft = new THREE.Group(); ft.position.y = -M.sh * U; ll.add(ft); const fm = sh(new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.06, 0.1), boot)); fm.position.y = -M.ft * U / 2; fm.scale.set(1, M.ft * U / 0.06, 1); ft.add(fm);
+      const toe = sh(new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), boot)); toe.scale.set(1.2, 0.6, 1); toe.position.set(0.0, -M.ft * U, 0); ft.add(toe); legs.push({ ul, ll, ft }); }
+    let sword = null; if (o.sword) { sword = new THREE.Group(); sword.position.y = -M.la * U; arms[1].la.add(sword); const bl = sh(new THREE.Mesh(new THREE.BoxGeometry(0.03, M.sword * U, 0.008), mat(0xd8dee6, .25, .9))); bl.position.y = -M.sword * U / 2; sword.add(bl);
+      const gd = sh(new THREE.Mesh(new THREE.TorusGeometry(0.05, 0.012, 6, 12, Math.PI), mat(0xb08a3a, .4, .8))); gd.rotation.z = Math.PI; gd.position.y = -0.01; sword.add(gd); const grip = sh(new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.018, 0.1, 8), mat(0x3a2a1a, .9))); grip.position.y = 0.05; sword.add(grip); sword.visible = false;
+      const scab = sh(new THREE.Mesh(new THREE.BoxGeometry(0.035, M.sword * U * 0.95, 0.014), mat(0x2a1c12, .8))); scab.position.set(-0.12, -0.2, -0.17); scab.rotation.z = 0.35; hips.add(scab); sword.userData.scab = scab; }
     const R = { group: root, body, hips, torso, head, arms, legs, sword, U,
-      apply(p, facing, x, y, z) { const hr = Motion.hipRise(p) * U; root.position.set(x, y, z || 0); root.rotation.y = (facing < 0 ? Math.PI : 0) + p.turn;
+      apply(p, facing, x, y, z) { const hr = Motion.hipRise(p) * U; root.position.set(x, y, z || 0); root.rotation.y = (typeof facing === 'object' ? facing.yaw : (facing < 0 ? Math.PI : 0)) + p.turn;
         body.position.set(p.hx * U, hr, 0); body.rotation.z = -p.rot; torso.rotation.z = -p.torso; head.rotation.z = -p.head;
         const A = [[p.ua1, p.la1], [p.ua2, p.la2]], Lg = [[p.ul1, p.ll1, p.f1], [p.ul2, p.ll2, p.f2]];
         for (let i = 0; i < 2; i++) { arms[i].ua.rotation.z = A[i][0] + p.torso; arms[i].la.rotation.z = A[i][1]; legs[i].ul.rotation.z = Lg[i][0]; legs[i].ll.rotation.z = -Lg[i][1]; legs[i].ft.rotation.z = Lg[i][2] - (Lg[i][0] - Lg[i][1]); }
-        if (sword) { sword.visible = !!p.sword; sword.rotation.z = p.wrist; } } };
+        if (sword) { sword.visible = !!p.sword; sword.rotation.z = p.wrist; sword.userData.scab.visible = !p.sword; } } };
     this.group.add(root); return R; },
   // --- scene assembly
   // --- scene assembly (top-down layouts)
@@ -965,8 +987,8 @@ const Land3 = {
     const chest = new THREE.Group(); chest.position.set(lv.chest[0], lv.h(lv.chest[0], lv.chest[1]), lv.chest[1]); const cb = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.5, 0.55), this.mat.wood); cb.position.y = 0.25; cb.castShadow = true; chest.add(cb); const lid = new THREE.Group(); lid.position.set(0, 0.5, -0.27); const lm = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.22, 0.55), this.mat.wood); lm.position.set(0, 0.11, 0.27); lid.add(lm); const gold = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.1, 0.4), this.mat.gold); gold.position.y = 0.52; chest.add(gold); chest.add(lid); this.chest = { g: chest, lid }; this.group.add(chest);
     this.itemMeshes = Land.items.map(it => { let m; if (it.type === 'timber') { m = new THREE.Group(); for (let k = 0; k < 3; k++) { const b = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.14, 0.14), this.mat.wood); b.position.set(0, 0.08 + (k === 2 ? 0.14 : 0), k === 2 ? 0 : (k - 0.5) * 0.16); b.rotation.y = k * 0.1; b.castShadow = true; m.add(b); } }
       else { m = new THREE.Mesh(new THREE.SphereGeometry(0.17, 10, 8), this.mat.coco); m.position.y = 0.17; m.castShadow = true; } m.position.x = it.x; m.position.z = it.z; m.position.y += lv.h(it.x, it.z); this.group.add(m); return m; });
-    this.player = this.rig({ skin: 0xe2b58c, shirt: 0xeadfc4, pants: 0x3d3a4a, boot: 0x2a2320, hat: 0x1e1a1a }, { sword: true }); this.player.poser = new Motion.Poser();
-    this.foeRigs = Land.foes.map(() => { const r = this.rig({ skin: 0xc99a74, shirt: 0x5a2a28, pants: 0x4a4038, boot: 0x241e1a, hat: 'bandana', band: 0xb02a22 }, { sword: true }); r.poser = new Motion.Poser(); return r; });
+    this.player = this.rig({ skin: 0xe2b58c, shirt: 0xeadfc4, pants: 0x3d3a4a, boot: 0x2a2320, hat: 0x1e1a1a, vest: 0x5a3a22, sash: 0x8a2424, hair: 0x2a1a10 }, { sword: true }); this.player.poser = new Motion.Poser();
+    this.foeRigs = Land.foes.map((f, i) => { const r = this.rig({ skin: 0xc99a74, shirt: 0x5a2a28, pants: 0x4a4038, boot: 0x241e1a, hat: 'bandana', band: 0xb02a22, vest: 0x2a2420, sash: 0x3a3a3a, patch: i % 2 === 0 }, { sword: true }); r.poser = new Motion.Poser(); return r; });
     this.camX = lv.start[0]; this.camZ = lv.start[1]; this.camY = lv.h(lv.start[0], lv.start[1]); this.dist = 46; this.el = 55 * Math.PI / 180; this.az = 0;
   },
   // landing: the figure walks off the ship while the camera eases down from the chart height; casting off is the reverse
@@ -986,9 +1008,9 @@ const Land3 = {
     if (this.cine) { const c = this.cine; c.t += dt; const k = Motion.ease(clamp(c.t / c.dur, 0, 1)), at = this.pathAt(c.path, k); px = at[0]; py = at[1]; pz = at[2]; head = at[3]; st = k < 0.999 ? 'walk' : 'idle'; po.gaitPhase += dt * 7;
       if (c.t >= c.dur + 0.3) { this.cine = null; if (c.dir === 'out') Game.enter('sea'); } }
     else { if (p.hurtT > 0) { st = 'hurt'; tt = (0.4 - p.hurtT) / 0.4; } else if (p.slashT > 0) { st = 'cut'; tt = (0.36 - p.slashT) / 0.36; } else if (p.parryT > 0) { st = 'parry'; tt = (0.5 - p.parryT) / 0.5; } else if (p.speed > 3) { st = 'run'; po.gaitPhase = p.walk * 1.25; } else if (p.speed > 0.3) { st = 'walk'; po.gaitPhase = p.walk * 1.4; } else if (Land.duel) st = 'guard'; }
-    po.set(st); P.apply(po.update(dt, tt), head, px, py, pz); P.group.visible = p.inv <= 0 || Math.floor(Land.t * 14) % 2 === 0;
+    po.set(st); P.apply(po.update(dt, tt), { yaw: head - Math.PI / 2 }, px, py, pz); P.group.visible = p.inv <= 0 || Math.floor(Land.t * 14) % 2 === 0;
     Land.foes.forEach((f, i) => { const R = this.foeRigs[i], q = R.poser; let s = 'walk', t2 = f.t; if (f.state === 'dead') { s = 'die'; t2 = Math.min(1, f.t * 1.4); } else if (f.state === 'hurt') s = 'hurt'; else if (f.state === 'windup') { s = 'cut'; t2 = f.t / 0.38 * 0.3; } else if (f.state === 'slash') { s = 'cut'; t2 = 0.3 + f.t / 0.28 * 0.5; } else q.gaitPhase = f.walk * 1.4;
-      q.set(s); R.apply(q.update(dt, t2), f.head, f.x, lv.h(f.x, f.z), f.z); });
+      q.set(s); R.apply(q.update(dt, t2), { yaw: f.head - Math.PI / 2 }, f.x, lv.h(f.x, f.z), f.z); });
     // camera: same pitch as the sea chart, following the figure; the landing sweep eases the distance down from chart height
     const lead = this.cine ? 0 : 1.2; this.camX = lerp(this.camX, px + Math.sin(head) * lead * Math.min(1, p.speed), Math.min(1, dt * 3)); this.camZ = lerp(this.camZ, pz + Math.cos(head) * lead * Math.min(1, p.speed), Math.min(1, dt * 3)); this.camY = lerp(this.camY, py, Math.min(1, dt * 3));
     const small = Math.min(this.fx.width, this.fx.height) < 500; let want = small ? 15 : 19; if (this.cine) { const c = this.cine, k = c.dir === 'in' ? 1 - smooth(c.t / (c.dur * 0.8)) : smooth((c.t - c.dur * 0.2) / (c.dur * 0.8)); want = lerp(want, 46, k); }
@@ -1033,6 +1055,7 @@ const Exped = {
       let y = this.h(x) * (1 - front) + (-2) * front + back * (6 + 3 * vnoise(x * 0.06, z * 0.1, 5)) + 0.15 * vnoise(x * 0.8, z * 0.8, 6) * (1 - front);
       const b = this.biome(x), jg = smooth((x - 140) / 25), sc = smooth((x - 105) / 12) * (1 - jg); let c = [0.88, 0.8, 0.6]; if (b !== 'beach') c = [lerp(0.9, 0.78, Math.min(1, (x - 28) / 20)), lerp(0.82, 0.68, Math.min(1, (x - 28) / 20)), lerp(0.62, 0.42, Math.min(1, (x - 28) / 20))];
       c = [lerp(c[0], 0.55, sc), lerp(c[1], 0.58, sc), lerp(c[2], 0.3, sc)]; c = [lerp(c[0], 0.2, jg), lerp(c[1], 0.38, jg), lerp(c[2], 0.14, jg)]; if (x > 196 && x < 199 && z > -2 && z < 4) c = [0.25, 0.45, 0.5];
+      const trail = (1 - smooth((Math.abs(z + 0.4 * Math.sin(x * 0.15)) - 0.9) / 0.9)) * (1 - front); c = [c[0] * (1 - 0.18 * trail), c[1] * (1 - 0.2 * trail), c[2] * (1 - 0.22 * trail)];
       pos.setX(i, x); pos.setY(i, y); col.push(c[0], c[1], c[2]); }
     g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.computeVertexNormals();
     const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ vertexColors: true, map: L3.tex.sand, roughness: 1 })); m.receiveShadow = true; L3.group.add(m);
@@ -1040,8 +1063,8 @@ const Exped = {
     const rng = mulberry(11), R = (a, b) => a + rng() * (b - a);
     // beach + dunes: palms near the start, dry grass, bleached bones, a wrecked boat rib
     for (let i = 0; i < 5; i++) { const x = R(-6, 26), z = R(-9, -2); L3.palm(x, this.h(x) + 0.3, z, R(3.5, 5.5)); }
-    for (let i = 0; i < 90; i++) { const x = R(30, 150), z = R(-8, 3.5); if (rng() < 0.5 && x < 112) continue; const t = new THREE.Mesh(new THREE.ConeGeometry(0.25, R(0.5, 1.1), 5), new THREE.MeshStandardMaterial({ color: x < 112 ? 0xb8a860 : 0x6f8a3a, roughness: 1 })); t.position.set(x, this.h(x) + 0.2 * (z > 4 ? 0 : 1), z); t.castShadow = true; L3.group.add(t); }
-    for (let i = 0; i < 7; i++) { const x = R(40, 105), z = R(-3, 3); const bn = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, R(0.8, 1.6), 6), new THREE.MeshStandardMaterial({ color: 0xeee8d8, roughness: .9 })); bn.rotation.z = R(0.9, 1.6); bn.rotation.y = R(0, 3); bn.position.set(x, this.h(x) + 0.08, z); L3.group.add(bn); }
+    for (let i = 0; i < 90; i++) { const x = R(30, 150), z = R(-8, 3.5); if ((rng() < 0.5 && x < 112) || Math.abs(z) < 1.2) continue; const t = new THREE.Mesh(new THREE.ConeGeometry(0.25, R(0.5, 1.1), 5), new THREE.MeshStandardMaterial({ color: x < 112 ? 0xb8a860 : 0x6f8a3a, roughness: 1 })); t.position.set(x, this.h(x) + 0.2 * (z > 4 ? 0 : 1), z); t.castShadow = true; L3.group.add(t); }
+    for (let i = 0; i < 7; i++) { const x = R(40, 105), z = R(1.2, 3); const bn = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, R(0.8, 1.6), 6), new THREE.MeshStandardMaterial({ color: 0xeee8d8, roughness: .9 })); bn.rotation.z = R(0.9, 1.6); bn.rotation.y = R(0, 3); bn.position.set(x, this.h(x) + 0.08, z); L3.group.add(bn); }
     for (let i = 0; i < 6; i++) { const rib = new THREE.Mesh(new THREE.TorusGeometry(1.6, 0.08, 6, 14, Math.PI), L3.mat.hullDark); rib.position.set(76 + i * 0.9, this.h(76 + i * 0.9) - 0.6, -2.5); rib.rotation.y = Math.PI / 2 + 0.2; L3.group.add(rib); }
     // obstacles: rocks and fallen logs you climb or jump
     for (const o of this.obstacles) { const cx = (o[0] + o[1]) / 2, base = this.h(cx) + o[2], w = o[1] - o[0]; if (w > 1.5) { const log = new THREE.Mesh(new THREE.CylinderGeometry(o[3] / 2, o[3] / 2, 4.5, 10), L3.mat.wood); log.rotation.x = Math.PI / 2; log.position.set(cx, base + o[3] / 2, 0); log.castShadow = log.receiveShadow = true; L3.group.add(log); }
@@ -1052,16 +1075,16 @@ const Exped = {
     for (let i = 0; i < 10; i++) { const x = R(112, 150), z = R(-10, -3); tree(x, z, R(2.5, 4), 0x6f8f3a, 0); }
     for (let i = 0; i < 70; i++) { const x = R(150, this.LEN + 20), z = rng() < 0.75 ? R(-14, -2.5) : R(4.5, 8); tree(x, z, R(4, 8), [0x2f6b2a, 0x3d7f30, 0x4a8a3a][i % 3], rng() < 0.3 ? 1 : 0); }
     for (let i = 0; i < 24; i++) { const x = R(150, this.LEN + 20), z = R(-6, -1.5); L3.palm(x, this.h(x), z, R(4, 7)); }
-    for (let i = 0; i < 80; i++) { const x = R(148, this.LEN + 20), z = R(-4, 3.5); const f = new THREE.Mesh(new THREE.ConeGeometry(R(0.3, 0.6), R(0.5, 1.0), 5), new THREE.MeshStandardMaterial({ color: 0x3f8a3a, roughness: 1 })); f.position.set(x, this.h(x) + 0.25, z); f.rotation.z = R(-0.3, 0.3); L3.group.add(f); }
+    for (let i = 0; i < 80; i++) { const x = R(148, this.LEN + 20), z = R(-4, 3.5); if (Math.abs(z) < 1.1) continue; const f = new THREE.Mesh(new THREE.ConeGeometry(R(0.3, 0.6), R(0.5, 1.0), 5), new THREE.MeshStandardMaterial({ color: 0x3f8a3a, roughness: 1 })); f.position.set(x, this.h(x) + 0.25, z); f.rotation.z = R(-0.3, 0.3); L3.group.add(f); }
     for (let i = 0; i < 30; i++) { const x = R(152, this.LEN + 15), v = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, R(3, 6), 4), L3.mat.rope); v.position.set(x, this.h(x) + 5.5, R(-3, -1)); v.rotation.z = R(-0.15, 0.15); L3.group.add(v); }
     // the X: two crossed stone slabs
     const X = this.LEN - 10; for (const a of [0.6, -0.6]) { const s = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.12, 0.45), new THREE.MeshStandardMaterial({ color: 0xcfc6b0, roughness: .9 })); s.position.set(X, this.h(X) + 0.06, 0); s.rotation.y = a; L3.group.add(s); }
     const chest = new THREE.Group(); chest.position.set(X, this.h(X) - 0.9, 0); const cb = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.5, 0.55), L3.mat.wood); cb.position.y = 0.25; cb.castShadow = true; chest.add(cb); const lid = new THREE.Group(); lid.position.set(0, 0.5, -0.27); const lm = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.22, 0.55), L3.mat.wood); lm.position.set(0, 0.11, 0.27); lid.add(lm); const gold = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.1, 0.4), L3.mat.gold); gold.position.y = 0.52; chest.add(gold); chest.add(lid); chest.visible = false; this.chest = { g: chest, lid }; L3.group.add(chest);
-    this.player = L3.rig({ skin: 0xe2b58c, shirt: 0xeadfc4, pants: 0x3d3a4a, boot: 0x2a2320, hat: 0x1e1a1a }, { sword: true }); this.player.poser = new Motion.Poser();
-    this.foeRigs = this.foes.map(() => { const r = L3.rig({ skin: 0xc99a74, shirt: 0x2f4a28, pants: 0x4a4038, boot: 0x241e1a, hat: 'bandana', band: 0x2a7a3a }, { sword: true }); r.poser = new Motion.Poser(); return r; });
+    this.player = L3.rig({ skin: 0xe2b58c, shirt: 0xeadfc4, pants: 0x3d3a4a, boot: 0x2a2320, hat: 0x1e1a1a, vest: 0x5a3a22, sash: 0x8a2424 }, { sword: true }); this.player.poser = new Motion.Poser();
+    this.foeRigs = this.foes.map((f, i) => { const r = L3.rig({ skin: 0xc99a74, shirt: 0x2f4a28, pants: 0x4a4038, boot: 0x241e1a, hat: 'bandana', band: 0x2a7a3a, vest: 0x2a2420, sash: 0x3a3a3a, patch: i === 1 }, { sword: true }); r.poser = new Motion.Poser(); return r; });
     L3.dist = 14; L3.el = 11 * Math.PI / 180; L3.az = 0; L3.player = this.player; L3.foeRigs = this.foeRigs; L3.itemMeshes = []; L3.chest = null; L3.shipG = null; L3.cine = null; },
   tap(cx, cy) { const q = Land3.proj(this.p.x, this.p.y + 1.0, 0); for (const f of this.foes) { if (f.state === 'dead') continue; const fq = Land3.proj(f.x, f.y + 1, 0); if (Math.hypot(fq.sx - cx, fq.sy - cy) < 50) { this.target = f; return; } }
-    this.target = null; if (cy < q.sy - 70 && Math.abs(cx - q.sx) < 120) { this.tapJump = true; return; } this.tapDir = cx > q.sx ? 1 : -1; this.tapT = 0.7; },
+    this.target = null; const W = Land3.fx.width, H = Land3.fx.height; if (cy < H * 0.3) { this.tapJump = true; return; } if (this.duel) { this.tapDir = cx > q.sx ? 1 : -1; this.tapT = 0.7; return; } this.tapDir = cy < H * 0.62 ? this.p.face : -this.p.face; this.tapT = 0.7; },
   text(x, y, s, col) { this.fx.push({ k: 'txt', x, y, s, col: col || '#f2ecdc', t: 0, life: 1.3 }); },
   update(dt) { dt = Math.min(dt, 1 / 30); this.t += dt; const p = this.p, ctl = UI.panelOpen ? { x: 0, y: 0, hit: {}, held: {} } : Pad;
     p.inv = Math.max(0, p.inv - dt); p.hurtT = Math.max(0, p.hurtT - dt); p.slashT = Math.max(0, p.slashT - dt); p.parryT = Math.max(0, p.parryT - dt); this.tapT = Math.max(0, this.tapT - dt);
@@ -1104,20 +1127,34 @@ const Exped = {
       q.set(s); R.apply(q.update(dt, t2), f.face > 0 ? Math.PI / 2 : -Math.PI / 2, f.x, f.y, 0); });
     if (this.chest) { this.chest.g.position.y = lerp(this.chest.g.position.y, this.h(this.LEN - 10) + (this.dig >= 3 ? 0.05 : -0.9), Math.min(1, dt * 2)); this.chest.lid.rotation.x = lerp(this.chest.lid.rotation.x, this.done ? -1.9 : 0, Math.min(1, dt * 4)); }
     for (const c of L3.group.children) if (c.children && c.children.length && c.children[c.children.length - 1].userData.leaf) for (const l of c.children) if (l.userData.leaf) l.rotation.z = -0.1 + Math.sin(this.t * 1.7 + l.rotation.y * 3) * 0.05;
-    const small = Math.min(L3.fx.width, L3.fx.height) < 500, lead = this.duel ? (this.duel.x - p.x) / 2 : p.face * 2.2; this.camX = lerp(this.camX, p.x + lead, Math.min(1, dt * 3)); this.camY = lerp(this.camY, p.y + 1.3, Math.min(1, dt * 3));
-    L3.dist = lerp(L3.dist, small ? 11 : 13.5, Math.min(1, dt * 2)); const EL = 10 * Math.PI / 180; L3.cam.position.set(this.camX, this.camY + Math.sin(EL) * L3.dist, Math.cos(EL) * L3.dist); L3.cam.lookAt(this.camX, this.camY, 0);
+    const small = Math.min(L3.fx.width, L3.fx.height) < 500, D = this.duel;
+    // third person: the camera sits behind and above the figure looking down the trail; a duel swings it round to the side
+    const lookX = D ? (p.x + D.x) / 2 : p.x + p.face * 3, lookY = D ? (p.y + D.y) / 2 + 1.0 : p.y + 1.1; this.camX = lerp(this.camX, lookX, Math.min(1, dt * 3)); this.camY = lerp(this.camY, lookY, Math.min(1, dt * 3));
+    const wantAz = D ? 0 : (p.face > 0 ? -Math.PI / 2 : Math.PI / 2), wantEl = D ? 10 * Math.PI / 180 : 16 * Math.PI / 180, wantD = D ? (small ? 10 : 12.5) : (small ? 6.5 : 7.5);
+    let da = wantAz - (this.az === undefined ? wantAz : this.az); da = ((da + Math.PI) % TAU + TAU) % TAU - Math.PI; this.az = (this.az === undefined ? wantAz : this.az) + da * Math.min(1, dt * 2.2); this.el = lerp(this.el === undefined ? wantEl : this.el, wantEl, Math.min(1, dt * 2.2)); L3.dist = lerp(L3.dist, wantD, Math.min(1, dt * 2));
+    L3.cam.position.set(this.camX + Math.sin(this.az) * Math.cos(this.el) * L3.dist, this.camY + Math.sin(this.el) * L3.dist, Math.cos(this.az) * Math.cos(this.el) * L3.dist); L3.cam.lookAt(this.camX, this.camY, 0);
     L3.sun.target.position.set(this.camX, 0, 0); L3.sun.position.set(this.camX + 10, 28, 16); L3.waterMat.uniforms.uT.value = this.t; L3.waterMat.uniforms.uCam.value.copy(L3.cam.position); L3.water.position.set(this.camX, -1.2, 20);
-    for (const c of L3.group.children) if (c.isMesh && c.geometry.type === 'SphereGeometry' && c.position.z > 3.5) c.visible = Math.abs(c.position.x - this.camX) > 3.5; // canopies in front step aside near the camera
+    for (const c of L3.group.children) if ((c.isMesh && c.geometry.type === 'SphereGeometry') || (c.children && c.children.length && c.children[c.children.length - 1].userData.leaf)) c.visible = Math.hypot(c.position.x - L3.cam.position.x, c.position.z - L3.cam.position.z) > 3.5; // canopies and palms step aside near the camera
   },
+  // minimap: the island's spine from the landing to the X, biome bands, the ground profile, foes and the figure
+  drawMap(c, W, H) { const small = Math.min(W, H) < 500, mw = small ? 180 : 260, mh = small ? 52 : 70, mx = W / 2 - mw / 2, my = small ? 8 : 52, L = this.LEN, X = x => mx + 8 + (mw - 16) * x / L;
+    c.save(); c.fillStyle = 'rgba(58,46,30,.9)'; c.strokeStyle = 'rgba(242,236,220,.45)'; c.lineWidth = 1.5; c.beginPath(); c.rect(mx, my, mw, mh); c.fill(); c.stroke();
+    for (const [x0, x1, col] of [[0, 28, '#d9c48a'], [28, 112, '#c9b06a'], [112, 150, '#8a9a4a'], [150, L, '#3f7a34']]) { c.fillStyle = col; c.fillRect(X(x0), my + 6, X(x1) - X(x0), mh - 12); }
+    c.strokeStyle = 'rgba(40,30,18,.6)'; c.lineWidth = 1.5; c.beginPath(); for (let x = 0; x <= L; x += 2) { const y = my + mh - 10 - this.h(x) * (mh - 22) / 9; x ? c.lineTo(X(x), y) : c.moveTo(X(x), y); } c.stroke();
+    c.fillStyle = 'rgba(40,120,150,.9)'; c.fillRect(X(196), my + 6, Math.max(2, X(199) - X(196)), mh - 12);
+    for (const f of this.foes) if (f.state !== 'dead' && f.x < this.p.x + 60) { c.fillStyle = '#ff6a5a'; c.beginPath(); c.arc(X(f.x), my + mh / 2, 3, 0, TAU); c.fill(); }
+    if (this.p.x > L - 90 || this.dig > 0) { c.strokeStyle = '#ffd86b'; c.lineWidth = 2; const tx = X(L - 10), ty = my + mh / 2; c.beginPath(); c.moveTo(tx - 4, ty - 4); c.lineTo(tx + 4, ty + 4); c.moveTo(tx + 4, ty - 4); c.lineTo(tx - 4, ty + 4); c.stroke(); }
+    else { c.fillStyle = 'rgba(242,236,220,.6)'; c.font = '700 11px "Barlow Semi Condensed", sans-serif'; c.textAlign = 'center'; c.fillText('?', X(L - 10), my + mh / 2 + 4); }
+    const px = X(this.p.x), py = my + mh / 2; c.fillStyle = '#ffffff'; c.beginPath(); c.moveTo(px + 5 * this.p.face, py); c.lineTo(px - 4 * this.p.face, py - 4); c.lineTo(px - 4 * this.p.face, py + 4); c.closePath(); c.fill();
+    c.fillStyle = 'rgba(242,236,220,.8)'; c.font = '600 10px "Barlow Semi Condensed", sans-serif'; c.textAlign = 'left'; c.fillText('W', mx + 4, my + mh - 4); c.textAlign = 'right'; c.fillText('E', mx + mw - 4, my + mh - 4);
+    c.textAlign = 'center'; c.fillText(['Beach', 'Dunes', 'Scrub', 'Jungle'][['beach', 'dunes', 'scrub', 'jungle'].indexOf(this.biome(this.p.x))], mx + mw / 2, my + mh + 13); c.restore(); },
   render() { const L3 = Land3; if (!L3.ready) return; L3.r.render(L3.scene, L3.cam); const c = L3.fctx, W = L3.fx.width, H = L3.fx.height; c.clearRect(0, 0, W, H);
     for (const e of this.fx) { const k = e.t / e.life;
       if (e.k === 'txt') { const q = L3.proj(e.x, e.y + k * 0.8, 0); c.font = '600 22px "Barlow Semi Condensed", sans-serif'; c.textAlign = 'center'; c.globalAlpha = 1 - k * k; c.fillStyle = 'rgba(0,0,0,.7)'; c.fillText(e.s, q.sx + 1, q.sy + 2); c.fillStyle = e.col; c.fillText(e.s, q.sx, q.sy); c.globalAlpha = 1; }
       else if (e.k === 'arc') { const q = L3.proj(e.x, e.y + 1.15, 0), r = L3.proj(e.x + 1.4, e.y + 1.15, 0).sx - q.sx; c.save(); c.translate(q.sx, q.sy); c.scale(e.face, 1); c.globalAlpha = 0.75 * (1 - k); c.strokeStyle = '#ffffff'; c.lineWidth = 5; c.lineCap = 'round'; c.beginPath(); c.arc(r * 0.1, 0, r, -1.15 + k * 0.5, 0.75 + k * 0.5); c.stroke(); c.restore(); }
       else if (e.k === 'dirt') { const q = L3.proj(e.x + e.vx * e.t, e.y + e.vy * e.t - 6 * e.t * e.t, 0); c.globalAlpha = 1 - k; c.fillStyle = '#6b4a2b'; c.fillRect(q.sx - 3, q.sy - 3, 6, 6); c.globalAlpha = 1; } }
     for (const f of this.foes) if (f.state !== 'dead' && f.hp < 3) { const q = L3.proj(f.x, f.y + 2.15, 0); c.fillStyle = 'rgba(8,14,18,.7)'; c.fillRect(q.sx - 22, q.sy, 44, 6); c.fillStyle = '#ffb08a'; c.fillRect(q.sx - 21, q.sy + 1, 42 * f.hp / 3, 4); }
-    // trail marker: how far east
-    const k = clamp(this.p.x / (this.LEN - 10), 0, 1), bx = W / 2 - 110, by = 58; c.fillStyle = 'rgba(8,14,18,.55)'; c.fillRect(bx, by, 220, 6); for (const [f, col] of [[28 / 258, '#d9c48a'], [112 / 258, '#b8a860'], [150 / 258, '#6f8a3a'], [1, '#2f6b2a']]) { c.fillStyle = col; c.fillRect(bx + 220 * f - 2, by - 2, 2, 10); }
-    c.fillStyle = '#f2ecdc'; c.beginPath(); c.arc(bx + 220 * k, by + 3, 5, 0, TAU); c.fill(); c.font = '600 12px "Barlow Semi Condensed", sans-serif'; c.textAlign = 'center'; c.fillText(['Beach', 'Dunes', 'Scrub', 'Jungle'][['beach', 'dunes', 'scrub', 'jungle'].indexOf(this.biome(this.p.x))], W / 2, by + 24);
+    this.drawMap(c, W, H);
   },
 };
 
@@ -1166,7 +1203,7 @@ const UI = {
       let h = ''; for (let i = 0; i < 5; i++) h += '<i class="' + (i < G.hp ? 'f' : '') + '"></i>'; if ($('hearts').dataset.v !== String(G.hp)) { $('hearts').innerHTML = h; $('hearts').dataset.v = G.hp; }
       $('lfood').textContent = 'Food ' + Math.round(G.food) + '%'; $('lwater').textContent = 'Water ' + Math.round(G.water) + '%';
       if (ex) { const z = Exped.zoneAt(); if (z) { prompt = z.label; key = this.touch ? '' : 'Space'; }
-        $('keys').innerHTML = '<span><kbd>Arrows</kbd>Walk</span><span><kbd>Space</kbd>' + (z ? 'Use' : 'Jump') + '</span><span><kbd>E</kbd>Slash</span>' + (Exped.duel ? '<span><kbd>Q</kbd>Parry</span>' : '<span><kbd>Click</kbd>Walk, jump or fight</span>');
+        $('keys').innerHTML = '<span><kbd>Arrows</kbd>Walk</span><span><kbd>Space</kbd>' + (z ? 'Use' : 'Jump') + '</span><span><kbd>E</kbd>Slash</span>' + (Exped.duel ? '<span><kbd>Q</kbd>Parry</span>' : '<span><kbd>Click</kbd>Upper half walks on, lower half turns back, top jumps</span>');
         $('btnA').textContent = z ? 'Use' : 'Jump'; $('btnX').textContent = 'Parry'; $('btnX').hidden = !Exped.duel; $('btnB').textContent = 'Slash'; $('btnB').hidden = false; $('btnA').classList.remove('dim'); }
       else {
       if (Land.zone && !this.panelOpen && !Land.duel) { prompt = Land.zone.label; key = this.touch ? '' : 'Space'; }
