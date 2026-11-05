@@ -1051,7 +1051,7 @@ const Exped = {
   wall(x, z, y) { for (const o of this.obstacles) { const base = this.h((o[0] + o[1]) / 2) + o[2]; if (x > o[0] - 0.3 && x < o[1] + 0.3 && Math.abs(z) < o[4] + 0.3 && y < base + o[3] - 0.3 && y > base - 1.5) return o; } for (const c of this.circles) if (Math.hypot(x - c[0], z - c[1]) < c[2] + 0.3) return c; return null; },
   free(x, z, y) { return x >= 0 && x <= this.LEN + 2 && z >= this.ZMIN && z <= this.ZMAX && !this.wall(x, z, y); },
   build() { const L3 = Land3; if (!L3.ready) return; if (L3.group) L3.scene.remove(L3.group); L3.group = new THREE.Group(); L3.scene.add(L3.group); L3.t = 0;
-    L3.scene.background = new THREE.Color(0x9ccbe8); L3.scene.fog = new THREE.Fog(0xb8d8ea, 40, 140); L3.sunDir = [10, 28, 16]; L3.sun.intensity = 2.3; L3.sun.color.set(0xfff1d6); L3.hemi.intensity = 0.9; L3.hemi.color.set(0xbfd8ee); L3.waterMat.uniforms.uNight.value = 0;
+    L3.scene.background = new THREE.Color(0x9ccbe8); L3.scene.fog = new THREE.Fog(0xb8d8ea, 60, 220); L3.cam.far = 400; L3.cam.updateProjectionMatrix(); L3.sunDir = [10, 28, 16]; L3.sun.intensity = 2.3; L3.sun.color.set(0xfff1d6); L3.hemi.intensity = 0.9; L3.hemi.color.set(0xbfd8ee); L3.waterMat.uniforms.uNight.value = 0;
     // terrain strip: h(x) along the path, dropping to the sea in front, rising to hills behind; colours by biome
     const W = this.LEN + 60, D = 60, g = new THREE.PlaneGeometry(W, D, 330, 60); g.rotateX(-Math.PI / 2); const pos = g.attributes.position, col = [];
     for (let i = 0; i < pos.count; i++) { const x = pos.getX(i) + this.LEN / 2 - 10, z = pos.getZ(i); const front = smooth((z - 4) / 6), back = smooth((-z - 3) / 12);
@@ -1143,16 +1143,16 @@ const Exped = {
     const small = Math.min(L3.fx.width, L3.fx.height) < 500, D = this.duel;
     // third person: the camera sits behind and above the figure looking down the trail; a duel swings it round to the side
     // the camera keeps looking east down the trail from behind and above (sailing height); a duel eases it round to the side
-    const lookX = D ? (p.x + D.x) / 2 : p.x + 2.5, lookY = D ? (p.y + D.y) / 2 + 1.0 : p.y + 0.8, lookZ = D ? (p.z + D.z) / 2 : p.z; this.camX = lerp(this.camX, lookX, Math.min(1, dt * 2)); this.camY = lerp(this.camY, lookY, Math.min(1, dt * 1.5)); this.camZ = lerp(this.camZ === undefined ? lookZ : this.camZ, lookZ, Math.min(1, dt * 2));
+    const lookX = D ? (p.x + D.x) / 2 : p.x + 6, lookY = D ? (p.y + D.y) / 2 + 1.0 : p.y + 0.6, lookZ = D ? (p.z + D.z) / 2 : p.z; this.camX = lerp(this.camX, lookX, Math.min(1, dt * 2)); this.camY = lerp(this.camY, lookY, Math.min(1, dt * 1.5)); this.camZ = lerp(this.camZ === undefined ? lookZ : this.camZ, lookZ, Math.min(1, dt * 2));
     let wantAz = -Math.PI / 2; if (D) { const a = Math.atan2(D.x - p.x, D.z - p.z); wantAz = a + Math.PI / 2; if (Math.cos(wantAz) < 0) wantAz += Math.PI; } // a duel is watched side-on, from the sea side
-    const wantEl = D ? 14 * Math.PI / 180 : 38 * Math.PI / 180, wantD = D ? (small ? 11 : 13) : (small ? 12 : 15);
+    const wantEl = D ? 14 * Math.PI / 180 : 10.5 * Math.PI / 180, wantD = D ? (small ? 11 : 13) : (small ? 12 : 12.5);
     let da = wantAz - (this.az === undefined ? wantAz : this.az); da = ((da + Math.PI) % TAU + TAU) % TAU - Math.PI; this.az = (this.az === undefined ? wantAz : this.az) + da * Math.min(1, dt * 1.5); this.el = lerp(this.el === undefined ? wantEl : this.el, wantEl, Math.min(1, dt * 1.5)); L3.dist = lerp(L3.dist, wantD, Math.min(1, dt * 1.5));
     L3.cam.position.set(this.camX + Math.sin(this.az) * Math.cos(this.el) * L3.dist, this.camY + Math.sin(this.el) * L3.dist, this.camZ + Math.cos(this.az) * Math.cos(this.el) * L3.dist); L3.cam.lookAt(this.camX, this.camY, this.camZ);
     L3.sun.target.position.set(this.camX, 0, 0); L3.sun.position.set(this.camX + 10, 28, 16); L3.waterMat.uniforms.uT.value = this.t; L3.waterMat.uniforms.uCam.value.copy(L3.cam.position); L3.water.position.set(this.camX, -1.2, 20); if (this.tapTarget) this.tapMark = this.tapTarget;
-    for (const c of L3.group.children) if ((c.isMesh && c.geometry.type === 'SphereGeometry') || (c.children && c.children.length && c.children[c.children.length - 1].userData.leaf)) c.visible = Math.hypot(c.position.x - L3.cam.position.x, c.position.z - L3.cam.position.z) > 3.5; // canopies and palms step aside near the camera
+    for (const c of L3.group.children) if ((c.isMesh && c.geometry.type === 'SphereGeometry') || (c.children && c.children.length && c.children[c.children.length - 1].userData.leaf)) c.visible = Math.hypot(c.position.x - L3.cam.position.x, c.position.z - L3.cam.position.z) > 4.5 && !(c.position.x < p.x - 1 && Math.abs(c.position.z - p.z) < 2.5 && c.position.x > L3.cam.position.x - 1); // canopies and palms step aside near the camera
   },
   // minimap: the island's spine from the landing to the X, biome bands, the ground profile, foes and the figure
-  drawMap(c, W, H) { const small = Math.min(W, H) < 500, mw = small ? 180 : 260, mh = small ? 52 : 70, mx = W / 2 - mw / 2, my = small ? 8 : 52, L = this.LEN, X = x => mx + 8 + (mw - 16) * x / L;
+  drawMap(c, W, H) { const small = Math.min(W, H) < 500, mw = small ? 170 : 260, mh = small ? 46 : 70, mx = small ? W - mw - 12 : W / 2 - mw / 2, my = small ? 66 : 52, L = this.LEN, X = x => mx + 8 + (mw - 16) * x / L;
     c.save(); c.fillStyle = 'rgba(58,46,30,.9)'; c.strokeStyle = 'rgba(242,236,220,.45)'; c.lineWidth = 1.5; c.beginPath(); c.rect(mx, my, mw, mh); c.fill(); c.stroke();
     for (const [x0, x1, col] of [[0, 28, '#d9c48a'], [28, 112, '#c9b06a'], [112, 150, '#8a9a4a'], [150, L, '#3f7a34']]) { c.fillStyle = col; c.fillRect(X(x0), my + 6, X(x1) - X(x0), mh - 12); }
     c.strokeStyle = 'rgba(40,30,18,.6)'; c.lineWidth = 1.5; c.beginPath(); for (let x = 0; x <= L; x += 2) { const y = my + mh - 10 - this.h(x) * (mh - 22) / 9; x ? c.lineTo(X(x), y) : c.moveTo(X(x), y); } c.stroke();
