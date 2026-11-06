@@ -66,6 +66,11 @@ body.touch #keys{display:none}
 #panel button:disabled{opacity:.45;cursor:default}
 #panel button.sel,#panel button:hover:not(:disabled),#panel button:focus-visible{border-color:var(--parch);background:rgba(242,236,220,.16);outline:none}
 .screen{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding-inline:16px;text-align:center;background:radial-gradient(ellipse at center,rgba(5,10,14,.35),rgba(5,10,14,.82));text-shadow:0 2px 6px rgba(0,0,0,.9)}
+ #intro{position:absolute;inset:0;z-index:5;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding:0 24px 9vh;pointer-events:auto;background:linear-gradient(to bottom,rgba(6,8,12,.55),rgba(6,8,12,0) 30%,rgba(6,8,12,0) 60%,rgba(6,8,12,.75))}
+#introCap{font-family:var(--display);font-size:clamp(20px,3.2vw,34px);color:#f2ecdc;text-align:center;max-width:30em;line-height:1.25;opacity:0;text-shadow:0 2px 8px rgba(0,0,0,.8)}
+#introCap.show{animation:capIn 1.2s ease-out forwards}@keyframes capIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+body.intro #hud,body.intro #touch{visibility:hidden}
+#introSkip{margin-top:14px;font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:rgba(242,236,220,.55)}
 .screen h1{font-family:var(--display);font-weight:400;font-size:clamp(46px,10vw,104px);letter-spacing:.06em;margin:0;line-height:1}
 .screen p{margin:0;max-width:34em;font-size:clamp(15px,2vw,19px);color:var(--dim)}
 .screen .ctas{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:8px}
@@ -112,7 +117,7 @@ body.touch #keys{display:none}
 <div id="panel" hidden></div>
 <div id="title" class="screen">
 <h1>Saltwake</h1>
-<p>Start with a longboat and four hands. Scavenge, trade and fight your way up to a sloop, then a brig. Go ashore on foot for water, timber and whatever the cave is hiding.</p>
+<p>A boy, a short cutlass, a longboat and four loyal hands. Scavenge, trade and fight your way up to a sloop, then a brig, and grow into the captain your father was.</p>
 <div class="ctas"><button class="cta" id="btnNew" type="button">Set sail</button><button class="cta alt" id="btnCont" type="button" hidden>Continue voyage</button><button class="cta alt" id="btnExped" type="button">Treasure expedition · preview</button></div>
 <div class="how"><span><kbd>Arrows</kbd>point and sail, or walk</span><span><kbd>Space</kbd>fire, land or jump</span><span><kbd>Q E</kbd>port and starboard guns</span><span><kbd>J</kbd>slash</span><span><kbd>W</kbd>climb</span><span><kbd>M</kbd>sea chart</span><span><kbd>N</kbd>sound</span></div>
 <div class="how"><span>Touch pad and controllers work too. Best in landscape.</span></div>
@@ -122,6 +127,7 @@ body.touch #keys{display:none}
 <p id="overMsg"></p>
 <div class="ctas"><button class="cta" id="btnRevive" type="button">Wake at Gallows Cay</button></div>
 </div>
+<div id="intro" hidden><div id="introCap"></div><div id="introSkip">tap to skip</div></div>
 <div id="fade"></div>
 </div>
 <script>/**
@@ -727,9 +733,9 @@ const Land = {
     this.items = lv.items.map((it, i) => ({ type: it[0], x: it[1], z: it[2], id: key + i, taken: !!G.isleDone.items[key + i] }));
     this.foes = lv.foes.map((f, i) => ({ x: f[0], z: f[1], hx: f[0], hz: f[1], rad: f[2], id: key + 'f' + i, hp: 3, head: 0, state: G.isleDone.foes[key + 'f' + i] ? 'dead' : 'walk', t: 0, walk: 0, cd: 0, wp: null, kx: 0, kz: 0 }));
     this.chestOpen = key === 'port' ? G.portChest : G.isleDone.chest; G.hp = 5; this.zone = null;
-    Land3.build(key, lv); Land3.startCine('in');
+    Land3.build(key, lv); if (Game.intro) { this.p.x = -14; this.p.z = 0.2; this.p.head = Math.PI / 2; Land3.camX = this.p.x; Land3.camZ = this.p.z; } else Land3.startCine('in');
   },
-  leaving() { return !!Land3.cine; },
+  leaving() { return !!Land3.cine || !!Game.intro; },
   free(x, z, r) { const lv = this.lv; if (x < lv.bounds[0] || x > lv.bounds[1] || z < lv.bounds[2] || z > lv.bounds[3] || lv.water(x, z)) return false;
     for (const q of lv.rects) if (x + r > q[0] && x - r < q[1] && z + r > q[2] && z - r < q[3]) return false;
     for (const c of lv.circles) if (Math.hypot(x - c[0], z - c[1]) < c[2] + r) return false; return true; },
@@ -916,7 +922,7 @@ const Land3 = {
     if (light) { const pl = new THREE.PointLight(0xffb060, 1.4, 9, 2); pl.position.set(x, y, z + 0.3); this.group.add(pl); } },
   // --- rig: a jointed figure. Angles follow the Motion pose semantics; U scales pose units to metres.
   // --- rig: a jointed figure with real clothes. Angles follow the Motion pose semantics; U scales pose units to metres.
-  rig(cols, opts) { const U = 1.75 / 80, M = Motion.L, o = opts || {}, mat = (c, r, m) => new THREE.MeshStandardMaterial({ color: c, roughness: r === undefined ? .85 : r, metalness: m || 0 });
+  rig(cols, opts) { const o = opts || {}, grow = o.grow === undefined ? 1 : o.grow, U = (1.75 / 80) * lerp(0.78, 1, grow), M = Motion.L, mat = (c, r, m) => new THREE.MeshStandardMaterial({ color: c, roughness: r === undefined ? .85 : r, metalness: m || 0 });
     const skin = mat(cols.skin, .6), shirt = mat(cols.shirt, .9), pants = mat(cols.pants, .95), boot = mat(cols.boot, .5), hat = mat(cols.hat === 'bandana' ? 0x222222 : cols.hat, .7), vest = mat(cols.vest || 0x4a3220, .8), sash = mat(cols.sash || 0x8a2424, .9), hair = mat(cols.hair || 0x2a1a10, .9), dark = mat(0x111111, .4);
     const sh = m => { m.castShadow = true; m.receiveShadow = true; return m; };
     const lathe = (pts, m, segs) => sh(new THREE.Mesh(new THREE.LatheGeometry(pts.map(q => new THREE.Vector2(q[0], q[1])), segs || 14), m));
@@ -934,10 +940,10 @@ const Land3 = {
     const hm = sh(new THREE.Mesh(new THREE.SphereGeometry(HR, 16, 12), skin)); hm.scale.set(1, 1.12, 0.95); hm.position.y = HY; head.add(hm);
     for (const s of [-1, 1]) { const eye = new THREE.Mesh(new THREE.SphereGeometry(0.018, 6, 6), dark); eye.position.set(HR * 0.86, HY + 0.02, s * 0.055); head.add(eye); const brow = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.012, 0.05), hair); brow.position.set(HR * 0.9, HY + 0.055, s * 0.055); head.add(brow); }
     const nose = sh(new THREE.Mesh(new THREE.ConeGeometry(0.02, 0.05, 6), skin)); nose.rotation.z = -Math.PI / 2; nose.position.set(HR * 0.98, HY - 0.005, 0); head.add(nose);
-    const beard = sh(new THREE.Mesh(new THREE.SphereGeometry(HR * 0.95, 12, 8, 0, TAU, Math.PI * 0.55, Math.PI * 0.4), hair)); beard.position.y = HY + 0.01; beard.scale.set(1.02, 1.0, 0.9); if (cols.beard !== false) head.add(beard);
+    const beard = sh(new THREE.Mesh(new THREE.SphereGeometry(HR * 0.95, 12, 8, 0, TAU, Math.PI * 0.55, Math.PI * 0.4), hair)); beard.position.y = HY + 0.01; beard.scale.set(1.02, 1.0, 0.9); if (cols.beard !== false && grow > 0.7) head.add(beard); if (grow < 0.7) { const fr = sh(new THREE.Mesh(new THREE.SphereGeometry(0.012, 5, 5), mat(0xb07a5a, .9))); fr.position.set(HR * 0.9, HY - 0.02, 0.03); head.add(fr); }
     const hairM = sh(new THREE.Mesh(new THREE.SphereGeometry(HR * 1.04, 14, 10, 0, TAU, 0, Math.PI * 0.5), hair)); hairM.position.y = HY; hairM.scale.set(0.95, 1.05, 1.0); head.add(hairM);
     const tail = sh(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.015, 0.22, 6), hair)); tail.position.set(-HR * 0.9, HY - 0.08, 0); tail.rotation.z = 0.35; head.add(tail); // queue of hair
-    if (cols.hat === 'bandana') { const bd = sh(new THREE.Mesh(new THREE.SphereGeometry(HR * 1.07, 14, 8, 0, TAU, 0, 1.0), mat(cols.band || 0xa02020, .9))); bd.position.y = HY; head.add(bd); const knot = sh(new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.12, 0.04), mat(cols.band || 0xa02020, .9))); knot.position.set(-HR * 0.95, HY - 0.02, 0.04); knot.rotation.z = 0.5; head.add(knot);
+    if (cols.hat === 'bandana' || (o.player && grow < 0.4)) { if (o.player && grow < 0.4) cols = Object.assign({}, cols, { band: 0x8a2424 }); const bd = sh(new THREE.Mesh(new THREE.SphereGeometry(HR * 1.07, 14, 8, 0, TAU, 0, 1.0), mat(cols.band || 0xa02020, .9))); bd.position.y = HY; head.add(bd); const knot = sh(new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.12, 0.04), mat(cols.band || 0xa02020, .9))); knot.position.set(-HR * 0.95, HY - 0.02, 0.04); knot.rotation.z = 0.5; head.add(knot);
       if (cols.patch) { const pt = new THREE.Mesh(new THREE.SphereGeometry(0.03, 6, 6), dark); pt.position.set(HR * 0.85, HY + 0.02, -0.055); head.add(pt); } }
     else { const brim = sh(new THREE.Mesh(new THREE.CylinderGeometry(HR * 1.9, HR * 1.9, 0.025, 3), hat)); brim.rotation.y = Math.PI / 6; brim.position.y = HY + HR * 0.55; head.add(brim); // tricorne: a three-sided brim
       const crown = sh(new THREE.Mesh(new THREE.CylinderGeometry(HR * 0.8, HR * 0.95, HR * 0.9, 12), hat)); crown.position.y = HY + HR * 0.55 + HR * 0.45; head.add(crown);
@@ -951,9 +957,9 @@ const Land3 = {
       const ll = limb(M.sh, 0.075, 0.06, pants, ul, 0, -M.th * U, 0, (j, L) => { const cuff = sh(new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.078, L * 0.55, 10), boot)); cuff.position.y = -L * 0.72; j.add(cuff); const fold = sh(new THREE.Mesh(new THREE.CylinderGeometry(0.095, 0.09, 0.05, 10), mat(cols.boot, .55))); fold.position.y = -L * 0.45; j.add(fold); });
       const ft = new THREE.Group(); ft.position.y = -M.sh * U; ll.add(ft); const fm = sh(new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.06, 0.1), boot)); fm.position.y = -M.ft * U / 2; fm.scale.set(1, M.ft * U / 0.06, 1); ft.add(fm);
       const toe = sh(new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), boot)); toe.scale.set(1.2, 0.6, 1); toe.position.set(0.0, -M.ft * U, 0); ft.add(toe); legs.push({ ul, ll, ft }); }
-    let sword = null; if (o.sword) { sword = new THREE.Group(); sword.position.y = -M.la * U; arms[1].la.add(sword); const bl = sh(new THREE.Mesh(new THREE.BoxGeometry(0.03, M.sword * U, 0.008), mat(0xd8dee6, .25, .9))); bl.position.y = -M.sword * U / 2; sword.add(bl);
+    let sword = null; if (o.sword) { const SL = M.sword * U * (o.swordK === undefined ? 1 : o.swordK); sword = new THREE.Group(); sword.position.y = -M.la * U; arms[1].la.add(sword); const bl = sh(new THREE.Mesh(new THREE.BoxGeometry(0.03, SL, 0.008), mat(0xd8dee6, .25, .9))); bl.position.y = -SL / 2; sword.add(bl);
       const gd = sh(new THREE.Mesh(new THREE.TorusGeometry(0.05, 0.012, 6, 12, Math.PI), mat(0xb08a3a, .4, .8))); gd.rotation.z = Math.PI; gd.position.y = -0.01; sword.add(gd); const grip = sh(new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.018, 0.1, 8), mat(0x3a2a1a, .9))); grip.position.y = 0.05; sword.add(grip); sword.visible = false;
-      const scab = sh(new THREE.Mesh(new THREE.BoxGeometry(0.035, M.sword * U * 0.95, 0.014), mat(0x2a1c12, .8))); scab.position.set(-0.12, -0.2, -0.17); scab.rotation.z = 0.35; hips.add(scab); sword.userData.scab = scab; }
+      const scab = sh(new THREE.Mesh(new THREE.BoxGeometry(0.035, SL * 0.95, 0.014), mat(0x2a1c12, .8))); scab.position.set(-0.12, -0.2, -0.17); scab.rotation.z = 0.35; hips.add(scab); sword.userData.scab = scab; }
     const R = { group: root, body, hips, torso, head, arms, legs, sword, U,
       apply(p, facing, x, y, z) { const hr = Motion.hipRise(p) * U; root.position.set(x, y, z || 0); root.rotation.y = (typeof facing === 'object' ? facing.yaw : (facing < 0 ? Math.PI : 0)) + p.turn;
         body.position.set(p.hx * U, hr, 0); body.rotation.z = -p.rot; torso.rotation.z = -p.torso; head.rotation.z = -p.head;
@@ -987,7 +993,7 @@ const Land3 = {
     const chest = new THREE.Group(); chest.position.set(lv.chest[0], lv.h(lv.chest[0], lv.chest[1]), lv.chest[1]); const cb = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.5, 0.55), this.mat.wood); cb.position.y = 0.25; cb.castShadow = true; chest.add(cb); const lid = new THREE.Group(); lid.position.set(0, 0.5, -0.27); const lm = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.22, 0.55), this.mat.wood); lm.position.set(0, 0.11, 0.27); lid.add(lm); const gold = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.1, 0.4), this.mat.gold); gold.position.y = 0.52; chest.add(gold); chest.add(lid); this.chest = { g: chest, lid }; this.group.add(chest);
     this.itemMeshes = Land.items.map(it => { let m; if (it.type === 'timber') { m = new THREE.Group(); for (let k = 0; k < 3; k++) { const b = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.14, 0.14), this.mat.wood); b.position.set(0, 0.08 + (k === 2 ? 0.14 : 0), k === 2 ? 0 : (k - 0.5) * 0.16); b.rotation.y = k * 0.1; b.castShadow = true; m.add(b); } }
       else { m = new THREE.Mesh(new THREE.SphereGeometry(0.17, 10, 8), this.mat.coco); m.position.y = 0.17; m.castShadow = true; } m.position.x = it.x; m.position.z = it.z; m.position.y += lv.h(it.x, it.z); this.group.add(m); return m; });
-    this.player = this.rig({ skin: 0xe2b58c, shirt: 0xeadfc4, pants: 0x3d3a4a, boot: 0x2a2320, hat: 0x1e1a1a, vest: 0x5a3a22, sash: 0x8a2424, hair: 0x2a1a10 }, { sword: true }); this.player.poser = new Motion.Poser();
+    this.player = this.rig({ skin: 0xe2b58c, shirt: 0xeadfc4, pants: 0x3d3a4a, boot: 0x2a2320, hat: 0x1e1a1a, vest: 0x5a3a22, sash: 0x8a2424, hair: 0x2a1a10 }, { sword: true, player: true, grow: G.tier / 2, swordK: 0.55 + 0.225 * G.tier }); this.player.poser = new Motion.Poser();
     this.foeRigs = Land.foes.map((f, i) => { const r = this.rig({ skin: 0xc99a74, shirt: 0x5a2a28, pants: 0x4a4038, boot: 0x241e1a, hat: 'bandana', band: 0xb02a22, vest: 0x2a2420, sash: 0x3a3a3a, patch: i % 2 === 0 }, { sword: true }); r.poser = new Motion.Poser(); return r; });
     this.camX = lv.start[0]; this.camZ = lv.start[1]; this.camY = lv.h(lv.start[0], lv.start[1]); this.dist = 46; this.el = 55 * Math.PI / 180; this.az = 0;
   },
@@ -1013,7 +1019,7 @@ const Land3 = {
       q.set(s); R.apply(q.update(dt, t2), { yaw: f.head - Math.PI / 2 }, f.x, lv.h(f.x, f.z), f.z); });
     // camera: same pitch as the sea chart, following the figure; the landing sweep eases the distance down from chart height
     const lead = this.cine ? 0 : 1.2; this.camX = lerp(this.camX, px + Math.sin(head) * lead * Math.min(1, p.speed), Math.min(1, dt * 3)); this.camZ = lerp(this.camZ, pz + Math.cos(head) * lead * Math.min(1, p.speed), Math.min(1, dt * 3)); this.camY = lerp(this.camY, py, Math.min(1, dt * 3));
-    const small = Math.min(this.fx.width, this.fx.height) < 500; let want = small ? 15 : 19; if (this.cine) { const c = this.cine, k = c.dir === 'in' ? 1 - smooth(c.t / (c.dur * 0.8)) : smooth((c.t - c.dur * 0.2) / (c.dur * 0.8)); want = lerp(want, 46, k); }
+    const small = Math.min(this.fx.width, this.fx.height) < 500; let want = small ? 15 : 19; if (Game.intro) { want = lerp(44, want, smooth(Game.intro.t / 9)); } else if (this.cine) { const c = this.cine, k = c.dir === 'in' ? 1 - smooth(c.t / (c.dur * 0.8)) : smooth((c.t - c.dur * 0.2) / (c.dur * 0.8)); want = lerp(want, 46, k); }
     const D = Land.duel; let el = 55 * Math.PI / 180, az = 0; if (D && !this.cine) { want = small ? 7.5 : 8.5; el = 11 * Math.PI / 180; const a = Math.atan2(D.x - p.x, D.z - p.z); az = a + Math.PI / 2 * (Math.sin(a) >= 0 ? 1 : -1); if (Math.sin(az) < -0.2 && Math.cos(az) < 0) az += Math.PI; // stand off to the side, biased toward the screen side
       this.camX = lerp(this.camX, (p.x + D.x) / 2, Math.min(1, dt * 3)); this.camZ = lerp(this.camZ, (p.z + D.z) / 2, Math.min(1, dt * 3)); this.camY = lerp(this.camY, (p.y + lv.h(D.x, D.z)) / 2 + 0.9, Math.min(1, dt * 3)); }
     this.el = lerp(this.el === undefined ? el : this.el, el, Math.min(1, dt * 2.5)); this.az = lerp(this.az === undefined ? az : this.az, az, Math.min(1, dt * 2.5)); this.dist = lerp(this.dist, want, Math.min(1, dt * 2.5));
@@ -1107,7 +1113,7 @@ const Exped = {
     // the X: two crossed stone slabs in a clearing off the trail
     const [X, XZ] = this.X; for (const a of [0.6, -0.6]) { const s = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.12, 0.45), mat(0xcfc6b0)); s.position.set(X, this.ground(X, XZ) + 0.06, XZ); s.rotation.y = a; L3.group.add(s); }
     const chest = new THREE.Group(); chest.position.set(X, this.ground(X, XZ) - 0.9, XZ); const cb = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.5, 0.55), L3.mat.wood); cb.position.y = 0.25; cb.castShadow = true; chest.add(cb); const lid = new THREE.Group(); lid.position.set(0, 0.5, -0.27); const lm = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.22, 0.55), L3.mat.wood); lm.position.set(0, 0.11, 0.27); lid.add(lm); const gold = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.1, 0.4), L3.mat.gold); gold.position.y = 0.52; chest.add(gold); chest.add(lid); chest.visible = false; this.chest = { g: chest, lid }; L3.group.add(chest);
-    this.player = L3.rig({ skin: 0xe2b58c, shirt: 0xeadfc4, pants: 0x3d3a4a, boot: 0x2a2320, hat: 0x1e1a1a, vest: 0x5a3a22, sash: 0x8a2424 }, { sword: true }); this.player.poser = new Motion.Poser();
+    this.player = L3.rig({ skin: 0xe2b58c, shirt: 0xeadfc4, pants: 0x3d3a4a, boot: 0x2a2320, hat: 0x1e1a1a, vest: 0x5a3a22, sash: 0x8a2424 }, { sword: true, player: true, grow: this.preview ? 1 : G.tier / 2, swordK: this.preview ? 1 : 0.55 + 0.225 * G.tier }); this.player.poser = new Motion.Poser();
     this.foeRigs = this.foes.map((f, i) => { const r = L3.rig({ skin: 0xc99a74, shirt: 0x2f4a28, pants: 0x4a4038, boot: 0x241e1a, hat: 'bandana', band: 0x2a7a3a, vest: 0x2a2420, sash: 0x3a3a3a, patch: i % 2 === 1 }, { sword: true }); r.poser = new Motion.Poser(); return r; });
     L3.dist = 14; L3.el = 11 * Math.PI / 180; L3.az = 0; L3.player = this.player; L3.foeRigs = this.foeRigs; L3.itemMeshes = []; L3.chest = null; L3.shipG = null; L3.cine = null; },
   tap(cx, cy) { for (const f of this.foes) { if (f.state === 'dead') continue; const fq = Land3.proj(f.x, f.y + 1, f.z); if (Math.hypot(fq.sx - cx, fq.sy - cy) < 50) { this.target = f; this.tapTarget = null; return; } }
@@ -1408,7 +1414,13 @@ const Game = {
     this.show();
   },
   show() { const land = G.mode === 'island' || G.mode === 'port' || G.mode === 'exped'; $('sea').hidden = land; $('seafx').hidden = land; $('land').hidden = !land; $('landfx').hidden = !land; $('labels').hidden = G.mode !== 'sea'; $('title').hidden = G.mode !== 'title'; $('over').hidden = G.mode !== 'over'; },
-  start(cont) { if (!cont) { try { localStorage.removeItem('saltwake2'); } catch (e) { /* ignore */ } } Sea.P.T = TIERS[G.tier]; G.mode = 'sea'; this.show(); toast(UI.touch ? 'Push the stick where you want to sail. Land at a gold ring.' : 'Point the arrow keys where you want to sail. Space fires, or lands at a gold ring.', 4500); },
+  start(cont) { if (!cont) { try { localStorage.removeItem('saltwake2'); } catch (e) { /* ignore */ } } Sea.P.T = TIERS[G.tier];
+    if (cont || !Land3.ready) { G.mode = 'sea'; this.show(); toast(UI.touch ? 'Push the stick where you want to sail. Land at a gold ring.' : 'Point the arrow keys where you want to sail. Space fires, or lands at a gold ring.', 4500); return; }
+    this.intro = { t: 0, i: -1 }; this.ring = Sea.rings[0]; G.mode = 'port'; Land.enter('port'); this.show(); $('land').classList.add('in'); $('landfx').classList.add('in'); $('intro').hidden = false; document.body.classList.add('intro'); },
+  INTRO: [[0.6, 'Gallows Cay, 1721.'], [4.2, 'Your father\'s sloop went down off the fort last winter. The navy called it justice.'], [8.6, 'He left you a cutlass too short for your arm, a longboat, and four hands who still answer to his name.'], [13.2, 'You are fourteen. The sea does not care.']],
+  tickIntro(dt) { const I = this.intro; I.t += dt; const el = $('intro'), cap = $('introCap'); let i = -1; for (let k = 0; k < this.INTRO.length; k++) if (I.t >= this.INTRO[k][0]) i = k;
+    if (i !== I.i) { I.i = i; cap.textContent = i >= 0 ? this.INTRO[i][1] : ''; cap.classList.remove('show'); void cap.offsetWidth; cap.classList.add('show'); }
+    if (I.t > 17.5 || Pad.hit.A || Pad.hit.esc || I.skip) { this.intro = null; el.hidden = true; document.body.classList.remove('intro'); saveGame(); toast(UI.touch ? 'Walk to the pier end and tap it to cast off.' : 'Walk to the pier end and cast off. Space uses things.', 5000); } },
   over(msg) { if (G.mode === 'over') return; G.mode = 'over'; $('overMsg').textContent = msg; this.show(); },
   revive() { G.gold = Math.floor(G.gold / 2); G.cargo = 0; G.hull = Math.round(G.hullMax * 0.6); G.crew = Math.max(G.crew, Math.ceil(G.crewMax / 2)); G.food = Math.max(G.food, 70); G.water = Math.max(G.water, 70); G.thirstT = 0; Sea.reset(); G.mode = 'sea'; this.show(); toast('Fished out and patched up at Gallows Cay. Half your gold is gone.', 4200); },
   resize() { const w = innerWidth, h = innerHeight; Sea.resize(w, h); Land.resize(w, h); },
@@ -1416,6 +1428,7 @@ const Game = {
   tick(t) {
     const dt = Math.min(0.05, (t - this.last) / 1000 || 0.016); this.last = t; G.t += dt; pollPad(); if (Pad.hit.mute) toast(Sfx.toggle() ? 'Sound off' : 'Sound on', 1200);
     if (G.mode === "title" && Pad.hit.A) this.start(this.had); else if (G.mode === 'over' && Pad.hit.A) this.revive();
+    if (this.intro) this.tickIntro(dt);
     if (G.mode === 'exped') { Exped.update(dt); Exped.render(); } else if (G.mode === 'island' || G.mode === 'port') { Land.update(dt); Land.render(); } else { Sea.update(dt); Sea.render(); }
     UI.update(dt);
   },
@@ -1427,6 +1440,7 @@ const Game = {
     $('btnCont').hidden = !had; $('btnCont').addEventListener('click', () => this.start(true));
     $('btnRevive').addEventListener('click', () => this.revive());
     $('btnExped').addEventListener('click', () => { this.previewExped = true; this.enter('exped'); });
+    $('intro').addEventListener('pointerdown', () => { if (this.intro) this.intro.skip = true; });
     G.mode = 'title'; this.show(); requestAnimationFrame(tt => this.frame(tt));
     window.__game = { G, Sea, Land, Exped, UI, Game, Pad, sim(sec) { for (let t = 0; t < sec; t += 1 / 30) { Pad.hit = {}; if (G.mode === 'exped') Exped.update(1 / 30); else if (G.mode === 'island' || G.mode === 'port') Land.update(1 / 30); else Sea.update(1 / 30); } } };
   },
