@@ -69,7 +69,7 @@ body.touch #keys{display:none}
  #intro{position:absolute;inset:0;z-index:5;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding:0 24px 9vh;pointer-events:auto;background:linear-gradient(to bottom,rgba(6,8,12,.55),rgba(6,8,12,0) 30%,rgba(6,8,12,0) 60%,rgba(6,8,12,.75))}
 #introCap{font-family:var(--display);font-size:clamp(20px,3.2vw,34px);color:#f2ecdc;text-align:center;max-width:30em;line-height:1.25;opacity:0;text-shadow:0 2px 8px rgba(0,0,0,.8)}
 #introCap.show{animation:capIn 1.2s ease-out forwards}@keyframes capIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
-body.intro #hud,body.intro #touch{visibility:hidden}
+body.intro #hud,body.intro #touch,body.demo #touch{visibility:hidden}body.demo #intro{pointer-events:none;background:linear-gradient(to bottom,rgba(6,8,12,0) 70%,rgba(6,8,12,.7))}
 #introSkip{margin-top:14px;font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:rgba(242,236,220,.55)}
 .screen h1{font-family:var(--display);font-weight:400;font-size:clamp(46px,10vw,104px);letter-spacing:.06em;margin:0;line-height:1}
 .screen p{margin:0;max-width:34em;font-size:clamp(15px,2vw,19px);color:var(--dim)}
@@ -118,7 +118,7 @@ body.intro #hud,body.intro #touch{visibility:hidden}
 <div id="title" class="screen">
 <h1>Saltwake</h1>
 <p>A boy, a short cutlass, a longboat and four loyal hands. Scavenge, trade and fight your way up to a sloop, then a brig, and grow into the captain your father was.</p>
-<div class="ctas"><button class="cta" id="btnNew" type="button">Set sail</button><button class="cta alt" id="btnCont" type="button" hidden>Continue voyage</button><button class="cta alt" id="btnExped" type="button">Treasure expedition · preview</button></div>
+<div class="ctas"><button class="cta" id="btnNew" type="button">Set sail</button><button class="cta alt" id="btnCont" type="button" hidden>Continue voyage</button><button class="cta alt" id="btnDemo" type="button">Watch the demo</button><button class="cta alt" id="btnExped" type="button">Treasure expedition · preview</button></div>
 <div class="how"><span><kbd>Arrows</kbd>point and sail, or walk</span><span><kbd>Space</kbd>fire, land or jump</span><span><kbd>Q E</kbd>port and starboard guns</span><span><kbd>J</kbd>slash</span><span><kbd>W</kbd>climb</span><span><kbd>M</kbd>sea chart</span><span><kbd>N</kbd>sound</span></div>
 <div class="how"><span>Touch pad and controllers work too. Best in landscape.</span></div>
 </div>
@@ -228,11 +228,11 @@ const G = {
   mode: 'title', t: 0,
   gold: 60, hull: 30, hullMax: 30, crew: 4, crewMax: 4, tier: 0, plank: 0, holdUp: 0,
   food: 70, water: 45, timber: 0, cargo: 0, hold: 4, guns: 0,
-  hp: 5, kills: 0, sold: 0, thirstT: 0, bounty: 0,
+  hp: 5, kills: 0, sold: 0, thirstT: 0, bounty: 0, map: 0,
   isleDone: { chest: false, items: {}, foes: {} }, portChest: false,
 };
 function saveGame() {
-  try { localStorage.setItem('saltwake2', JSON.stringify({ tier: G.tier, plank: G.plank, holdUp: G.holdUp, crewMax: G.crewMax, hold: G.hold, gold: G.gold, hull: G.hull, hullMax: G.hullMax, crew: G.crew, food: G.food, water: G.water, timber: G.timber, cargo: G.cargo, guns: G.guns, kills: G.kills, sold: G.sold, portChest: G.portChest, bounty: G.bounty })); } catch (e) { /* storage unavailable */ }
+  try { localStorage.setItem('saltwake2', JSON.stringify({ tier: G.tier, plank: G.plank, holdUp: G.holdUp, crewMax: G.crewMax, hold: G.hold, gold: G.gold, hull: G.hull, hullMax: G.hullMax, crew: G.crew, food: G.food, water: G.water, timber: G.timber, cargo: G.cargo, guns: G.guns, kills: G.kills, sold: G.sold, portChest: G.portChest, bounty: G.bounty, map: G.map })); } catch (e) { /* storage unavailable */ }
 }
 function loadGame() {
   try { const s = JSON.parse(localStorage.getItem('saltwake2') || 'null'); if (s) Object.assign(G, s); return !!s; } catch (e) { return false; }
@@ -360,6 +360,7 @@ const Sfx = {
   crunch() { if (!this.ok('crunch', 0.3)) return; this.burst(500, 0.8, 0.45, 0.8); this.burst(2200, 2, 0.12, 0.5, 'bandpass'); },
   clash() { if (!this.ok('clash', 0.06)) return; this.burst(3200 + rand(-800, 800), 6, 0.14, 0.45, 'bandpass'); this.tone(rand(1400, 2200), 0.1, 0.12, 'square'); },
   thunder() { if (!this.ok('thunder', 1)) return; this.burst(120, 1.5, 2.8, 1.0); setTimeout(() => this.ac && this.burst(90, 1, 2, 0.6), 220); },
+  chirp() { if (!this.ok('chirp', 0.3)) return; const n = 2 + Math.floor(Math.random() * 3), f0 = rand(1800, 3200); for (let i = 0; i < n; i++) setTimeout(() => this.ac && this.tone(f0 * (1 + Math.random() * 0.3), 0.09, 0.05, 'sine', f0 * 1.4), i * 120); },
   jump() { if (!this.ok('jump')) return; this.tone(300, 0.14, 0.15, 'triangle', 520); },
   slash() { if (!this.ok('slash')) return; this.burst(2500, 1.2, 0.12, 0.35, 'bandpass'); },
   hurt() { if (!this.ok('hurt', 0.2)) return; this.tone(220, 0.25, 0.3, 'square', 110); this.burst(600, 1, 0.2, 0.4); },
@@ -433,7 +434,7 @@ void main(){
 
 const Sea = {
   ships: [], balls: [], loot: [], parts: null, t: 0, time: 0, S: 7, camX: 0, camY: 0, shake: 0, spawnT: 40, fortT: 3, fortHp: 80, hintT: 0, near: null, rings: [],
-  day: 0.3, storm: 0, stormT: 60, stormOn: false, flash: 0, boltT: 0, rain: [], chart: false, board: null, boardFx: 0,
+  day: 0.3, storm: 0, stormT: 60, stormOn: false, flash: 0, boltT: 0, rain: [], chart: false, board: null, boardFx: 0, wind: 0.8, windT: 0,
   init(glCanvas, fxCanvas) { GL.init(glCanvas); this.ctx = fxCanvas.getContext('2d'); this.fx = fxCanvas; loadSeaImages(); makePuffs();
     this.prog = GL.prog(SEA_FS); this.cloudTex = makeCloudTex();
     for (const il of ISLES) { const m = META[il.key]; il.R = m.R; il.w = m.w; il.m = m; }
@@ -496,7 +497,7 @@ const Sea = {
   night() { const n = 0.5 - 0.5 * Math.cos(this.day * TAU); return smooth((n - 0.55) / 0.3); },
   dusk() { const n = 0.5 - 0.5 * Math.cos(this.day * TAU); return smooth(1 - Math.abs(n - 0.6) / 0.16); },
   weather(dt, play) {
-    this.day = (this.day + dt / 420) % 1;
+    this.day = (this.day + dt / 420) % 1; this.wind += angDiff(this.windTarget === undefined ? this.wind : this.windTarget, this.wind) * Math.min(1, dt * 0.05); this.windT -= dt; if (this.windT <= 0) { this.windT = rand(40, 90); this.windTarget = this.wind + rand(-1.2, 1.2); }
     this.stormT -= dt; if (this.stormT <= 0) { this.stormOn = !this.stormOn; this.stormT = this.stormOn ? rand(35, 55) : rand(80, 130); if (this.stormOn && play) toast('The sky blackens. A squall is coming.', 3500); }
     this.storm += clamp((this.stormOn ? 1 : 0) - this.storm, -dt / 8, dt / 8);
     if (this.storm > 0.3) { this.boltT -= dt; if (this.boltT <= 0) { this.boltT = rand(5, 14) / this.storm; this.flash = 1; Sfx.thunder(); } } this.flash = Math.max(0, this.flash - dt * 3);
@@ -511,6 +512,8 @@ const Sea = {
   tapAt(cx, cy) { if (G.mode !== 'sea' || this.chart) return; const S = this.S, x = this.camX + (cx - innerWidth / 2) / S, y = this.camY + (cy - innerHeight / 2) / (S * K); let foe = null, best = 28;
     for (const e of this.ships) { if (e.player || e.sink) continue; const d = Math.hypot(e.x - x, e.y - y); if (d < best) { best = d; foe = e; } }
     if (foe) { this.tapFoe = foe; this.tapGo = null; } else { this.tapGo = [x, y]; this.tapFoe = null; } },
+  // sail power from the wind: dead astern 1.15, beam 1.0, close-hauled 0.8, in irons 0.55; rowed boats ignore it
+  sailK(s) { if (!s.T.guns) return 1; const rel = Math.abs(angDiff(this.wind, s.th)); return rel < 0.45 ? 0.55 : lerp(0.8, 1.15, smooth((rel - 0.45) / 2.3)); },
   update(dt) { const Pl = this.P, play = G.mode === 'sea';
     if (play && Pad.hit.map) { this.chart = !this.chart; Sfx.ui(); } if (this.chart && play) { if (Pad.hit.esc || Pad.hit.A) this.chart = false; return; }
     this.t += dt; this.time = this.t; this.weather(dt, play);
@@ -523,7 +526,7 @@ const Sea = {
           if (T.guns) { const a1 = b + Math.PI / 2, a2 = b - Math.PI / 2; want = d > 70 ? b : (Math.abs(angDiff(a1, Pl.th)) < Math.abs(angDiff(a2, Pl.th)) ? a1 : a2); thr = d > 70 ? 1 : 0.6; const rel = angDiff(b, Pl.th); if (d < 100 && Math.abs(Math.abs(rel) - Math.PI / 2) < 0.5) this.fire(Pl, rel > 0 ? 1 : -1); }
           else { want = b; thr = d > 40 ? 1 : 0.5; if (d < 80 && Math.abs(angDiff(b, Pl.th)) < 1.2) this.fire(Pl, 0); } } }
       const err = angDiff(want, Pl.th), wT = clamp(err * 2.4, -T.turn, T.turn); Pl.w += clamp(wT - Pl.w, -T.turn * 3 * dt, T.turn * 3 * dt); Pl.th += Pl.w * dt;
-      const vt = T.speed * thr * (1 - 0.5 * Math.min(1, Math.abs(err) / 1.4)) * (0.6 + 0.4 * G.crew / G.crewMax) * (1 - 0.22 * this.storm); Pl.v += clamp(vt - Pl.v, -6 * dt, 4 * dt);
+      const vt = T.speed * thr * (1 - 0.5 * Math.min(1, Math.abs(err) / 1.4)) * (0.6 + 0.4 * G.crew / G.crewMax) * (1 - 0.22 * this.storm) * this.sailK(Pl); Pl.v += clamp(vt - Pl.v, -6 * dt, 4 * dt);
       if (this.board && Pad.hit.A && !this.near && this.boardFx <= 0) { this.doBoard(this.board); Pad.hit.A = false; }
       const firing = Pad.hit.X || Pad.hit.B || (Pad.hit.A && !this.near);
       if (firing) { if (!T.guns) this.fire(Pl, 0); else {
@@ -549,7 +552,7 @@ const Sea = {
       const avoid = (ox, oy, rad) => { const qx = e.x - ox, qy = e.y - oy, d = Math.hypot(qx, qy), w = clamp(1 - (d - rad) / 60, 0, 1); if (w > 0) { ax += qx / d * w * 2.5; ay += qy / d * w * 2.5; } };
       for (const il of ISLES) avoid(il.x, il.y, il.R * 1.2); for (const r of this.rocks) avoid(r.x, r.y, r.r + 8);
       const hr = Math.hypot(e.x, e.y); if (hr > WORLD_R - 60) { ax -= e.x / hr * 2; ay -= e.y / hr * 2; }
-      want = Math.atan2(ax, -ay); const ew = clamp(angDiff(want, e.th) * 2, -T.turn, T.turn); e.w += clamp(ew - e.w, -T.turn * 2 * dt, T.turn * 2 * dt); e.th += e.w * dt; e.v += clamp(vm - e.v, -5 * dt, 3 * dt); }
+      want = Math.atan2(ax, -ay); const ew = clamp(angDiff(want, e.th) * 2, -T.turn, T.turn); e.w += clamp(ew - e.w, -T.turn * 2 * dt, T.turn * 2 * dt); e.th += e.w * dt; e.v += clamp(vm * this.sailK(e) - e.v, -5 * dt, 3 * dt); }
     // the fort lobs shot at anything of yours in range
     if (this.fortHp > 0 && play && !Pl.sink) { const f = this.fort, fx = f.x + 4, fy = f.y + 4, D = Math.hypot(Pl.x - fx, Pl.y - fy); this.fortT -= dt;
       if (D < 220 && this.fortT <= 0) { this.fortT = 3.8; const tt = clamp(D / 70, 1, 2.8), tx = Pl.x + Math.sin(Pl.th) * Pl.v * tt + rand(-12, 12), ty = Pl.y - Math.cos(Pl.th) * Pl.v * tt + rand(-12, 12);
@@ -677,6 +680,7 @@ const Sea = {
       tri(s.x, s.y, s.th, full ? 7 : 4, s.T.flee ? '#ffd86b' : s.T.bounty ? '#ff5a4a' : '#ff9a7a'); if (full && s.T.bounty) { ctx.font = '600 12px "Barlow Semi Condensed", sans-serif'; ctx.fillStyle = '#ff8a7a'; ctx.textAlign = 'center'; ctx.fillText('Red Corsair', X(s.x), Y(s.y) - 11); } }
     tri(Pl.x, Pl.y, Pl.th, full ? 8 : 5, '#ffffff');
     if (!full) { ctx.font = '700 10px "Barlow Semi Condensed", sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(242,236,220,.7)'; ctx.fillText('N', cx, cy - R + 11); }
+    { const wa = this.wind, wr = full ? R - 16 : R - 9; ctx.save(); ctx.translate(cx + Math.sin(wa + Math.PI) * wr, cy - Math.cos(wa + Math.PI) * wr); ctx.rotate(wa); ctx.fillStyle = '#9fe0ff'; ctx.beginPath(); ctx.moveTo(0, 7); ctx.lineTo(4, -4); ctx.lineTo(0, -1); ctx.lineTo(-4, -4); ctx.closePath(); ctx.fill(); ctx.restore(); if (full) { ctx.font = '600 12px "Barlow Semi Condensed", sans-serif'; ctx.fillStyle = '#9fe0ff'; ctx.textAlign = 'center'; ctx.fillText('wind', cx + Math.sin(wa + Math.PI) * (wr - 16), cy - Math.cos(wa + Math.PI) * (wr - 16) + 4); } }
     ctx.restore(); },
   drawShip(ctx, s) { const T = s.T, sheet = SEAIMG['td_' + T.td], m = META[T.td === 'boat' ? 'boat' : 'ship'], N = 48, fs = m.size, step = TAU / N; if (!sheet || !sheet.width) return;
     const raw = Math.round(s.th / step), fi = ((raw % N) + N) % N, col = fi % 8, row = Math.floor(fi / 8), resid = s.th - raw * step;
@@ -718,7 +722,7 @@ const LEVELS = {
     h: (x, z) => 0.35 + 4.4 * smooth((x - 1) / 9) * smooth((-z - 0.5) / 4.5) + 0.25 * vnoise(x * 0.5, z * 0.5, 4),
     water: (x, z) => z > 3.4 || x < -6 || (x < -3.8 && z < -1.5) || z < -9.5,
     rects: [], circles: [[-1.5, -4, 0.4], [3, 1.6, 0.4], [7, -7.5, 0.4], [14, 1.4, 0.4], [18.5, -8.2, 0.4], [23.5, -2, 0.4], [9.5, -1.5, 0.35], [21, 1.6, 0.4], [13.5, -6.5, 1.1]],
-    zones: [{ x: -5.0, z: 0.4, r: 1.5, label: 'Row back to the ship', act: 'leave' }, { x: 13.5, z: -6.5, r: 2.0, label: 'Fill the water casks', act: 'water' }],
+    zones: [{ x: -5.0, z: 0.4, r: 1.5, label: 'Row back to the ship', act: 'leave' }, { x: 26, z: -3, r: 1.8, label: 'Follow the map inland', act: 'exped', need: 'map' }, { x: 13.5, z: -6.5, r: 2.0, label: 'Fill the water casks', act: 'water' }],
     chest: [25, -7.5], items: [['timber', -2.2, 2.2], ['coco', 3.4, 0.4], ['coco', 15.5, -0.3], ['timber', 10.5, -5.5], ['coco', 19.5, -6.5], ['timber', 23, 0.8], ['timber', 6.5, -3.8]],
     foes: [[6, -1, 3.5], [22.5, -7.5, 3]], palms: [[-1.5, -4, 4.5], [3, 1.6, 4], [7, -7.5, 5], [14, 1.4, 4.2], [18.5, -8.2, 5.5], [23.5, -2, 4.8], [9.5, -1.5, 3.6], [21, 1.6, 4.4]] },
 };
@@ -743,7 +747,7 @@ const Land = {
     if (o.x === x0 && o.z === z0) for (const a of [1.1, -1.1, 1.8, -1.8]) { const c = Math.cos(a), sn = Math.sin(a), nx = dx * c - dz * sn, nz = dx * sn + dz * c; if (this.free(o.x + nx, o.z + nz, r)) { o.x += nx; o.z += nz; break; } } },
   text(x, z, s, col) { this.fx.push({ k: 'txt', x, z, s, col: col || '#f2ecdc', t: 0, life: 1.3 }); },
   tap(x, z) { if (this.leaving() || UI.panelOpen) return; const lv = this.lv; this.tapAct = null;
-    for (const zn of lv.zones) if (Math.hypot(x - zn.x, z - zn.z) < zn.r + 1.0) { this.tapAct = zn; x = zn.x; z = zn.z; break; }
+    for (const zn of lv.zones) if (Math.hypot(x - zn.x, z - zn.z) < zn.r + 1.0 && (!zn.need || G[zn.need] === 1)) { this.tapAct = zn; x = zn.x; z = zn.z; break; }
     if (!this.tapAct && !this.chestOpen && Math.hypot(x - lv.chest[0], z - lv.chest[1]) < 1.8) { this.tapAct = { label: 'Open the chest', act: 'chest', x: lv.chest[0], z: lv.chest[1], r: 1.1 }; x = lv.chest[0]; z = lv.chest[1]; }
     const f = this.foes.find(f => f.state !== 'dead' && Math.hypot(x - f.x, z - f.z) < 1.6); if (f) { this.tapAct = { act: 'attack', foe: f }; }
     this.tapTarget = [x, z]; },
@@ -764,7 +768,7 @@ const Land = {
     else if (p.speed > 0.05) this.move(p, Math.sin(p.head) * p.speed * dt, Math.cos(p.head) * p.speed * dt, 0.35);
     p.y = lerp(p.y, lv.h(p.x, p.z), Math.min(1, dt * 12)); p.walk += p.speed * dt * 1.9;
     // interactions
-    this.zone = null; for (const zn of lv.zones) if (Math.hypot(p.x - zn.x, p.z - zn.z) < zn.r) this.zone = zn;
+    this.zone = null; for (const zn of lv.zones) if (Math.hypot(p.x - zn.x, p.z - zn.z) < zn.r && (!zn.need || G[zn.need] === 1)) this.zone = zn;
     if (!this.chestOpen && Math.hypot(p.x - lv.chest[0], p.z - lv.chest[1]) < 1.3) this.zone = { label: 'Open the chest', act: 'chest' };
     if (ctl.hit.A || ctl.hit.B || ctl.hit.X) { if (this.zone && !ctl.hit.X && !this.duel) this.act(this.zone.act); else if (ctl.hit.X && this.duel) this.parry(); else this.slash(); }
     // a duel: the nearest hostile within reach pulls the camera round to the side until it is settled
@@ -798,7 +802,7 @@ const Land = {
     if (a === 'chest') { if (this.chestOpen) return; this.chestOpen = true; const g = this.key === 'port' ? 50 : 90; G.gold += g; Sfx.gold(); this.text(p.x, p.z, '+' + g + ' gold', '#ffe2a0');
       if (this.key === 'port') { G.portChest = true; toast('A rumor note: a wreck lies on the far cove of Driftwood Isle.', 4200); } else G.isleDone.chest = true; }
     else if (a === 'water') { if (G.water >= 99.5) toast('The casks are already full.', 1500); else { G.water = 100; Sfx.pickup(); this.text(p.x, p.z, 'Casks filled'); } }
-    else if (a === 'trade') UI.openTrade(); else if (a === 'tavern') UI.openTavern(); else if (a === 'leave') Land3.startCine('out');
+    else if (a === 'trade') UI.openTrade(); else if (a === 'tavern') UI.openTavern(); else if (a === 'leave') Land3.startCine('out'); else if (a === 'exped') { Game.previewExped = false; Game.enter('exped'); }
   },
   render() { Land3.render(); },
 };
@@ -998,6 +1002,16 @@ const Land3 = {
       else { m = new THREE.Mesh(new THREE.SphereGeometry(0.17, 10, 8), this.mat.coco); m.position.y = 0.17; m.castShadow = true; } m.position.x = it.x; m.position.z = it.z; m.position.y += lv.h(it.x, it.z); this.group.add(m); return m; });
     this.player = this.rig({ skin: 0xe2b58c, shirt: 0xeadfc4, pants: 0x3d3a4a, boot: 0x2a2320, hat: 0x1e1a1a, vest: 0x5a3a22, sash: 0x8a2424, hair: 0x2a1a10 }, { sword: true, player: true, grow: G.tier / 2, swordK: 0.55 + 0.225 * G.tier }); this.player.poser = new Motion.Poser();
     this.foeRigs = Land.foes.map((f, i) => { const r = this.rig({ skin: 0xc99a74, shirt: 0x5a2a28, pants: 0x4a4038, boot: 0x241e1a, hat: 'bandana', band: 0xb02a22, vest: 0x2a2420, sash: 0x3a3a3a, patch: i % 2 === 0 }, { sword: true }); r.poser = new Motion.Poser(); return r; });
+    // life: townsfolk on the quay, a dog by the tavern, gulls; grass, ferns and flowers on the island
+    Flora.init(); this.folk = []; this.gullList = Flora.gulls(this.group, port ? 5 : 8, port ? 6 : 10, port ? 2 : 0, port ? 9 : 7);
+    if (port) { const looks = [{ skin: 0xd9a784, shirt: 0x6a7a9a, pants: 0x4a3a2a, boot: 0x2a2320, hat: 0x3a2a1a, vest: 0x3a3a3a, sash: 0x5a5a5a, hair: 0x4a3020 }, { skin: 0x8a5a3a, shirt: 0xb8a070, pants: 0x3a3a4a, boot: 0x2a2320, hat: 'bandana', band: 0x3a6a8a, vest: 0x5a4a30, sash: 0x3a3a3a, hair: 0x1a1a1a }, { skin: 0xe8c8a8, shirt: 0x8a3a3a, pants: 0x2a2a3a, boot: 0x2a2320, hat: 0x5a3a1a, vest: 0x2a2420, sash: 0x8a7a40, hair: 0x6a4a2a, beard: false }];
+      [[2, 3.5, 9, 4.5], [12, 2.0, 20, 5.5], [-1, 1.0, 3, 4]].forEach((w, i) => { const r = this.rig(looks[i], {}); r.poser = new Motion.Poser(); this.folk.push({ r, x: w[0] + 2, z: (w[1] + w[3]) / 2, box: w, wp: null, head: 0, walk: 0, rest: rand(0, 4) }); });
+      const dog = new THREE.Group(), dm = new THREE.MeshStandardMaterial({ color: 0x8a6a3a, roughness: .9 }); const body = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 6), dm); body.scale.set(1.8, 0.9, 0.9); body.position.y = 0.32; dog.add(body); const hd = new THREE.Mesh(new THREE.SphereGeometry(0.14, 8, 6), dm); hd.position.set(0.42, 0.42, 0); dog.add(hd); for (const [x, z] of [[0.25, 0.1], [0.25, -0.1], [-0.25, 0.1], [-0.25, -0.1]]) { const lg = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.03, 0.3, 6), dm); lg.position.set(x, 0.15, z); dog.add(lg); } const tl = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.035, 0.3, 6), dm); tl.position.set(-0.42, 0.42, 0); tl.rotation.z = -0.9; dog.add(tl); dog.position.set(10.2, 1.9, 0.5); dog.rotation.y = -0.6; dog.traverse(m => { if (m.isMesh) m.castShadow = true; }); this.group.add(dog); this.dog = { g: dog, tail: tl }; }
+    else { const L = [], F = [], FL = [], rng = mulberry(5), R = (a, b) => a + rng() * (b - a), tc = new THREE.Color();
+      for (let i = 0; i < 1600; i++) { const x = R(-5, 27), z = R(-9.5, 3.2); if (lv.water(x, z)) continue; const y = lv.h(x, z), gr = clamp((y - 1.0) * 0.6, 0, 1); if (rng() > 0.25 + gr * 0.7) continue; tc.set(0xc9b56a).lerp(new THREE.Color(0x7fb052), gr).offsetHSL(R(-0.02, 0.02), 0, R(-0.06, 0.06)); L.push({ x, y: y - 0.02, z, s: R(0.6, 1.1), ry: R(0, TAU), c: tc.getHex() }); }
+      for (let i = 0; i < 160; i++) { const x = R(-2, 27), z = R(-9.5, 2); if (lv.water(x, z) || lv.h(x, z) < 1.5) continue; F.push({ x, y: lv.h(x, z) - 0.03, z, s: R(0.6, 1.1), ry: R(0, TAU), c: 0x8fc060 }); }
+      for (let i = 0; i < 60; i++) { const x = R(-2, 27), z = R(-9.5, 2); if (lv.water(x, z) || lv.h(x, z) < 1.5) continue; FL.push({ x, y: lv.h(x, z) + R(0.2, 0.4), z, s: R(0.05, 0.08), c: [0xff5a6a, 0xffd34a, 0xffffff, 0xff8ad0][i % 4] }); }
+      Flora.inst(this.group, Flora.geo.grass, Flora.mat.grass, L); Flora.inst(this.group, Flora.geo.fern, Flora.mat.fern, F); Flora.inst(this.group, new THREE.IcosahedronGeometry(1, 0), Flora.mat.flower, FL); this.dog = null; }
     this.camX = lv.start[0]; this.camZ = lv.start[1]; this.camY = lv.h(lv.start[0], lv.start[1]); this.dist = 46; this.el = 55 * Math.PI / 180; this.az = 0;
   },
   // landing: the figure walks off the ship while the camera eases down from the chart height; casting off is the reverse
@@ -1018,6 +1032,9 @@ const Land3 = {
       if (c.t >= c.dur + 0.3) { this.cine = null; if (c.dir === 'out') Game.enter('sea'); } }
     else { if (p.hurtT > 0) { st = 'hurt'; tt = (0.4 - p.hurtT) / 0.4; } else if (p.slashT > 0) { st = 'cut'; tt = (0.36 - p.slashT) / 0.36; } else if (p.parryT > 0) { st = 'parry'; tt = (0.5 - p.parryT) / 0.5; } else if (p.speed > 3) { st = 'run'; po.gaitPhase = p.walk * 1.25; } else if (p.speed > 0.3) { st = 'walk'; po.gaitPhase = p.walk * 1.4; } else if (Land.duel) st = 'guard'; }
     po.set(st); P.apply(po.update(dt, tt), { yaw: head - Math.PI / 2 }, px, py, pz); P.group.visible = p.inv <= 0 || Math.floor(Land.t * 14) % 2 === 0;
+    Flora.uTime.value = this.t; Flora.uPlayer.value.set(p.x, p.y, p.z); if (this.gullList) Flora.tickGulls(this.gullList, this.t); if (this.dog) this.dog.tail.rotation.z = -0.9 + Math.sin(this.t * 9) * 0.4;
+    for (const f of this.folk) { const b = f.box; if (f.rest > 0) { f.rest -= dt; } else { if (!f.wp || Math.hypot(f.wp[0] - f.x, f.wp[1] - f.z) < 0.3) { f.wp = [rand(b[0], b[2]), rand(b[1], b[3])]; f.rest = rand(1, 5); } else { f.head = Math.atan2(f.wp[0] - f.x, f.wp[1] - f.z); const nx = f.x + Math.sin(f.head) * 1.0 * dt, nz = f.z + Math.cos(f.head) * 1.0 * dt; if (Land.free(nx, nz, 0.35) && Math.hypot(nx - p.x, nz - p.z) > 0.9) { f.x = nx; f.z = nz; f.walk += dt * 1.9; } else f.rest = 0.6; } }
+      f.r.poser.set(f.rest > 0 ? 'idle' : 'walk'); f.r.poser.gaitPhase = f.walk * 1.4; f.r.apply(f.r.poser.update(dt, Land.t + f.x), { yaw: f.head - Math.PI / 2 }, f.x, lv.h(f.x, f.z), f.z); }
     Land.foes.forEach((f, i) => { const R = this.foeRigs[i], q = R.poser; let s = 'walk', t2 = f.t; if (f.state === 'dead') { s = 'die'; t2 = Math.min(1, f.t * 1.4); } else if (f.state === 'hurt') s = 'hurt'; else if (f.state === 'windup') { s = 'cut'; t2 = f.t / 0.38 * 0.3; } else if (f.state === 'slash') { s = 'cut'; t2 = 0.3 + f.t / 0.28 * 0.5; } else q.gaitPhase = f.walk * 1.4;
       q.set(s); R.apply(q.update(dt, t2), { yaw: f.head - Math.PI / 2 }, f.x, lv.h(f.x, f.z), f.z); });
     // camera: same pitch as the sea chart, following the figure; the landing sweep eases the distance down from chart height
@@ -1059,6 +1076,8 @@ const Exped = {
   enter(preview) { this.preview = !!preview; this.t = 0; this.fx = []; this.dig = 0; this.done = false; this.tapDir = 0; this.target = null; this.duel = null; this.tapTarget = null;
     this.p = { x: 4, z: 2, y: this.ground(4, 2), vy: 0, ground: true, face: 1, head: Math.PI / 2, speed: 0, vx: 0, vz: 0, walk: 0, slashT: 0, parryT: 0, hitDone: false, hurtT: 0, inv: 0, coyote: 0 };
     this.foes = this.foeSpots.map(([x, z], i) => ({ x, z, y: this.ground(x, z), hx: x, hz: z, id: 'e' + i, hp: 3, face: -1, head: -Math.PI / 2, state: 'walk', t: 0, walk: 0, cd: 0, kx: 0, kz: 0, wp: null }));
+    this.items = [[22, 4, 'coco'], [48, -12, 'coco'], [70, -3, 'timber'], [95, 5, 'coco'], [128, -18, 'coco'], [141, -2, 'timber'], [160, 3, 'coco'], [190, -20, 'timber'], [220, -1, 'coco'], [250, -22, 'coco']].map((it, i) => ({ x: it[0], z: it[1], type: it[2], taken: false }));
+    this.boar = { x: 125, z: -14, hx: 125, hz: -14, head: 0, state: 'graze', t: 0, cd: 0, hp: 2, walk: 0 }; this.chirpT = 2; this.camp = [118, 2];
     G.hp = 5; this.build(); this.camX = 4; this.camZ = 2; this.camY = this.p.y; },
   // logs are jumpable boxes [x, z, halfX, halfZ, height]; rocks and trunks are solid circles [x, z, r]
   top(x, z) { let g = this.ground(x, z); for (const o of this.logs) if (Math.abs(x - o[0]) < o[2] + 0.2 && Math.abs(z - o[1]) < o[3] + 0.2) g = Math.max(g, this.ground(o[0], o[1]) + o[4]); return g; },
@@ -1113,6 +1132,16 @@ const Exped = {
       for (let i = 0; i < 260; i++) { const x = R(120, this.LEN + 10), z = R(this.ZMIN, 5); if (Math.abs(z - this.pathZ(x)) < 1) continue; FL.push({ x, y: this.ground(x, z) + R(0.25, 0.5), z, s: R(0.05, 0.09), c: [0xff5a6a, 0xffd34a, 0xffffff, 0xff8ad0, 0xff7a3a][i % 5] }); }
       Flora.inst(L3.group, Flora.geo.fern, Flora.mat.fern, F); Flora.inst(L3.group, new THREE.IcosahedronGeometry(1, 0), Flora.mat.flower, FL); }
     this.motes = Flora.motes(L3.group, 260, 140, this.LEN + 10, this.ZMIN, 6, 0.5, 6, 0xfff2b0, 0.07); this.gullList = Flora.gulls(L3.group, 7, 40, 10, 9);
+    this.parrots = Flora.gulls(L3.group, 6, 200, -8, 7); this.parrots.forEach((g, i) => g.traverse(m => { if (m.isMesh) m.material = new THREE.MeshStandardMaterial({ color: [0xe03030, 0x30a030, 0x3060e0][i % 3], roughness: .8 }); }));
+    this.itemMeshes = this.items.map(it => { let m; if (it.type === 'timber') { m = new THREE.Group(); for (let k = 0; k < 3; k++) { const b = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.14, 0.14), L3.mat.wood); b.position.set(0, 0.08 + (k === 2 ? 0.14 : 0), k === 2 ? 0 : (k - 0.5) * 0.16); b.rotation.y = k * 0.1; b.castShadow = true; m.add(b); } }
+      else { m = new THREE.Mesh(new THREE.SphereGeometry(0.17, 10, 8), L3.mat.coco); m.position.y = 0.17; m.castShadow = true; } m.position.x = it.x; m.position.z = it.z; m.position.y += this.ground(it.x, it.z); L3.group.add(m); return m; });
+    { const [cx, cz] = this.camp, cy = this.ground(cx, cz); for (let k = 0; k < 7; k++) { const a = k / 7 * TAU, st = new THREE.Mesh(Flora.geo.rocks[k % 5], Flora.mat.rock); st.scale.setScalar(0.22); st.position.set(cx + Math.cos(a) * 0.55, cy + 0.06, cz + Math.sin(a) * 0.55); L3.group.add(st); }
+      for (let k = 0; k < 4; k++) { const lg = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.7, 6), L3.mat.wood); lg.position.set(cx, cy + 0.12, cz); lg.rotation.z = 1.2; lg.rotation.y = k * 0.8; L3.group.add(lg); }
+      this.fire = new THREE.PointLight(0xff9040, 0, 7, 2); this.fire.position.set(cx, cy + 0.6, cz); L3.group.add(this.fire); this.flame = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.6, 7), new THREE.MeshBasicMaterial({ color: 0xffb040, transparent: true, opacity: 0.85 })); this.flame.position.set(cx, cy + 0.4, cz); L3.group.add(this.flame);
+      const stump = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.34, 0.45, 9), L3.mat.wood); stump.position.set(cx + 1.3, cy + 0.22, cz + 0.6); stump.castShadow = true; L3.group.add(stump); solid(cx + 1.3, cz + 0.6, 0.35); }
+    { const bm = new THREE.MeshStandardMaterial({ color: 0x4a3a2a, roughness: .95 }), g = new THREE.Group(); const body = new THREE.Mesh(new THREE.SphereGeometry(0.45, 10, 8), bm); body.scale.set(1.6, 1, 1); body.position.y = 0.55; g.add(body); const hd = new THREE.Mesh(new THREE.SphereGeometry(0.28, 8, 6), bm); hd.scale.set(1.3, 1, 0.9); hd.position.set(0.8, 0.5, 0); g.add(hd);
+      for (const sd of [-1, 1]) { const tk = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.22, 5), new THREE.MeshStandardMaterial({ color: 0xeeeedd })); tk.position.set(1.05, 0.42, sd * 0.12); tk.rotation.z = -1.2; g.add(tk); } for (const [x, z] of [[0.45, 0.2], [0.45, -0.2], [-0.45, 0.2], [-0.45, -0.2]]) { const lg = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.05, 0.5, 6), bm); lg.position.set(x, 0.25, z); g.add(lg); }
+      g.traverse(m => { if (m.isMesh) m.castShadow = true; }); L3.group.add(g); this.boarG = g; }
     // the X: two crossed stone slabs in a clearing off the trail
     const [X, XZ] = this.X; for (const a of [0.6, -0.6]) { const s = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.12, 0.45), mat(0xcfc6b0)); s.position.set(X, this.ground(X, XZ) + 0.06, XZ); s.rotation.y = a; L3.group.add(s); }
     const chest = new THREE.Group(); chest.position.set(X, this.ground(X, XZ) - 0.9, XZ); const cb = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.5, 0.55), L3.mat.wood); cb.position.y = 0.25; cb.castShadow = true; chest.add(cb); const lid = new THREE.Group(); lid.position.set(0, 0.5, -0.27); const lm = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.22, 0.55), L3.mat.wood); lm.position.set(0, 0.11, 0.27); lid.add(lm); const gold = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.1, 0.4), L3.mat.gold); gold.position.y = 0.52; chest.add(gold); chest.add(lid); chest.visible = false; this.chest = { g: chest, lid }; L3.group.add(chest);
@@ -1154,14 +1183,23 @@ const Exped = {
       if (f.state === 'slash') { if (f.t > 0.28) { f.state = 'walk'; f.t = 0; f.cd = 0.8; } continue; }
       if (near) { f.head = Math.atan2(dx, dz); f.face = dx >= 0 ? 1 : -1; if (d < 1.4) { if (f.cd <= 0) { f.state = 'windup'; f.t = 0; } } else { fmove(f, Math.sin(f.head) * 2.6 * dt, Math.cos(f.head) * 2.6 * dt); f.walk += dt * 5.5; } }
       else { if (!f.wp || Math.hypot(f.wp[0] - f.x, f.wp[1] - f.z) < 0.5) f.wp = [f.hx + rand(-6, 6), clamp(f.hz + rand(-5, 5), this.ZMIN + 0.5, this.ZMAX - 2)]; f.head = Math.atan2(f.wp[0] - f.x, f.wp[1] - f.z); f.face = Math.sin(f.head) >= 0 ? 1 : -1; fmove(f, Math.sin(f.head) * 1.1 * dt, Math.cos(f.head) * 1.1 * dt); f.walk += dt * 2.8; } }
+    for (const it of this.items) { if (it.taken || Math.hypot(it.x - p.x, it.z - p.z) > 0.9) continue; it.taken = true; Sfx.pickup(); if (it.type === 'timber') { G.timber++; this.fx.push({ k: 'txt', x: it.x, y: p.y + 1.6, z: it.z, s: '+1 timber', col: '#f2ecdc', t: 0, life: 1.3 }); } else { G.food = Math.min(100, G.food + 12); this.fx.push({ k: 'txt', x: it.x, y: p.y + 1.6, z: it.z, s: '+food', col: '#f2ecdc', t: 0, life: 1.3 }); } }
+    if (Math.hypot(this.camp[0] - p.x, this.camp[1] - p.z) < 2.2 && p.speed < 0.3 && this.t > (this.restT || 0)) { this.restT = this.t + 25; if (G.hp < 5) { G.hp = 5; toast('You sit a while by the fire. The cuts close.', 3000); } }
+    // the boar: grazes until you come near, then charges in a straight line and wheels round for another go
+    { const b = this.boar; b.t += dt; b.cd = Math.max(0, b.cd - dt); if (b.hp > 0) { const dx = p.x - b.x, dz = p.z - b.z, d = Math.hypot(dx, dz);
+        if (b.state === 'graze') { if (d < 9 && b.cd <= 0) { b.state = 'charge'; b.head = Math.atan2(dx, dz); b.t = 0; Sfx.hurt(); } else if (Math.random() < dt * 0.3) b.head = Math.atan2(b.hx + rand(-5, 5) - b.x, b.hz + rand(-4, 4) - b.z); else if (Math.random() < dt * 0.5) { const nx = b.x + Math.sin(b.head) * 0.8 * dt * 30, nz = b.z + Math.cos(b.head) * 0.8 * dt * 30; if (this.free(nx, nz, b.y)) { b.x = nx; b.z = nz; } } }
+        else { const nx = b.x + Math.sin(b.head) * 9 * dt, nz = b.z + Math.cos(b.head) * 9 * dt; if (this.free(nx, nz, 0)) { b.x = nx; b.z = nz; } else b.t = 9; b.walk += dt * 9; if (d < 1.1 && p.inv <= 0) { this.hurt(1, dx / d, dz / d); b.t = 9; } if (b.t > 2.2) { b.state = 'graze'; b.cd = 3; }
+          if (p.slashT > 0.1 && p.slashT < 0.26 && d < 1.8) { b.hp--; Sfx.hit(0); b.state = 'graze'; b.cd = 4; b.head += Math.PI; if (b.hp <= 0) { G.food = Math.min(100, G.food + 40); this.fx.push({ k: 'txt', x: b.x, y: p.y + 1.6, z: b.z, s: 'Boar down · +food', col: '#ffe2a0', t: 0, life: 1.6 }); } } }
+        b.y = this.ground(b.x, b.z); } }
+    if (p.x > 140) { this.chirpT -= dt; if (this.chirpT <= 0) { this.chirpT = rand(1.5, 5); Sfx.chirp(); } }
     for (let i = this.fx.length - 1; i >= 0; i--) { this.fx[i].t += dt; if (this.fx[i].t > this.fx[i].life) this.fx.splice(i, 1); }
-    if (this.done) { this.doneT = (this.doneT || 0) + dt; if (this.doneT > 4) { this.done = false; if (this.preview) { G.mode = 'title'; Game.show(); } else Game.enter('sea'); } }
+    if (this.done) { this.doneT = (this.doneT || 0) + dt; if (this.doneT > 4) { this.done = false; if (this.preview) { G.mode = 'title'; Game.show(); } else { G.map = 2; saveGame(); Game.enter('island'); } } }
     this.render3(dt);
   },
   zoneAt() { return !this.done && Math.hypot(this.p.x - this.X[0], this.p.z - this.X[1]) < 1.8 ? { label: this.dig < 3 ? 'Dig here' : 'Open the chest' } : null; },
   use() { const [X, XZ] = this.X; if (this.dig < 3) { this.dig++; Sfx.crunch(); for (let k = 0; k < 10; k++) this.fx.push({ k: 'dirt', x: X + rand(-0.6, 0.6), y: this.ground(X, XZ) + 0.2, z: XZ, vx: rand(-2, 2), vy: rand(2, 5), t: 0, life: 0.7 });
       if (this.dig === 3) { this.chest.g.visible = true; toast('Steel rings on wood. There it is.', 2500); } else toast(this.dig === 1 ? 'Sand and roots. Keep digging.' : 'Something hard under the blade.', 1800); return; }
-    if (!this.done) { this.done = true; this.doneT = 0; G.gold += 300; Sfx.gold(); this.fx.push({ k: 'txt', x: X, y: this.ground(X, XZ) + 2.2, z: XZ, s: '+300 gold', col: '#ffe2a0', t: 0, life: 1.3 }); toast('A chest of Spanish gold. The crew will drink well tonight.', 4000); } },
+    if (!this.done) { this.done = true; this.doneT = 0; G.gold += this.preview ? 300 : 400; Sfx.gold(); this.fx.push({ k: 'txt', x: X, y: this.ground(X, XZ) + 2.2, z: XZ, s: '+300 gold', col: '#ffe2a0', t: 0, life: 1.3 }); toast('A chest of Spanish gold. The crew will drink well tonight.', 4000); } },
   slash() { const p = this.p; if (p.slashT > 0 || p.parryT > 0) return; p.slashT = 0.36; p.hitDone = false; Sfx.slash(); },
   parry() { const p = this.p; if (p.slashT > 0 || p.parryT > 0) return; p.parryT = 0.5; Sfx.ui(); },
   hurt(n, nx, nz) { const p = this.p; G.hp -= n; Sfx.hurt(); p.inv = 1.0; p.hurtT = 0.4; p.speed = 0; p.vx = nx * 5; p.vz = (nz || 0) * 5; p.vy = 4; p.ground = false; this.target = null; this.tapTarget = null;
@@ -1182,6 +1220,9 @@ const Exped = {
     let da = wantAz - (this.az === undefined ? wantAz : this.az); da = ((da + Math.PI) % TAU + TAU) % TAU - Math.PI; this.az = (this.az === undefined ? wantAz : this.az) + da * Math.min(1, dt * 1.5); this.el = lerp(this.el === undefined ? wantEl : this.el, wantEl, Math.min(1, dt * 1.5)); L3.dist = lerp(L3.dist, wantD, Math.min(1, dt * 1.5));
     L3.cam.position.set(this.camX + Math.sin(this.az) * Math.cos(this.el) * L3.dist, this.camY + Math.sin(this.el) * L3.dist, this.camZ + Math.cos(this.az) * Math.cos(this.el) * L3.dist); L3.cam.lookAt(this.camX, this.camY, this.camZ);
     L3.sun.target.position.set(p.x + 8, 0, p.z); L3.sun.position.set(p.x + 8 - 14, 26, p.z - 12); L3.waterMat.uniforms.uT.value = this.t; L3.waterMat.uniforms.uCam.value.copy(L3.cam.position); L3.water.position.set(this.camX, this.SEA, this.camZ); if (this.tapTarget) this.tapMark = this.tapTarget;
+    this.itemMeshes.forEach((m, i) => { m.visible = !this.items[i].taken; m.rotation.y = this.t * 0.6; }); if (this.parrots) Flora.tickGulls(this.parrots, this.t * 1.4);
+    { const b = this.boar, g = this.boarG; if (b.hp > 0) { g.position.set(b.x, b.y, b.z); g.rotation.y = b.head - Math.PI / 2; g.rotation.z = b.state === 'charge' ? Math.sin(b.walk * 2) * 0.08 : 0; } else { g.rotation.z = Math.PI / 2; g.position.y = b.y + 0.3; } }
+    if (this.fire) { this.fire.intensity = 1.6 + Math.sin(this.t * 11) * 0.4 + Math.sin(this.t * 23) * 0.2; this.flame.scale.set(1, 0.9 + Math.sin(this.t * 13) * 0.15, 1); this.flame.rotation.y = this.t * 2; }
     Flora.uTime.value = this.t; Flora.uPlayer.value.set(p.x, p.y, p.z); if (this.skyM) this.skyM.position.copy(L3.cam.position); if (this.motes) Flora.tickMotes(this.motes, this.t); if (this.gullList) Flora.tickGulls(this.gullList, this.t);
     if (this.foamTex) { this.foamTex.offset.x = this.t * 0.04; this.foam.material.opacity = 0.55 + 0.3 * Math.sin(this.t * 0.9); }
     for (const c of L3.group.children) if (c.children && c.children.length && c.children[c.children.length - 1].userData.leaf) c.visible = Math.hypot(c.position.x - L3.cam.position.x, c.position.z - L3.cam.position.z) > 4.5 && !(c.position.x < p.x - 1 && Math.abs(c.position.z - p.z) < 2.5 && c.position.x > L3.cam.position.x - 1); // palms and palms step aside near the camera
@@ -1194,6 +1235,8 @@ const Exped = {
     c.fillStyle = '#d9c48a'; c.fillRect(X(-1), Z(4), X(L + 4) - X(-1), Z(8.5) - Z(4)); c.fillStyle = 'rgba(30,70,90,1)'; c.fillRect(X(this.SX[0]), Z(z0), X(this.SX[1]) - X(this.SX[0]), mh);
     c.strokeStyle = 'rgba(80,55,30,.55)'; c.setLineDash([3, 3]); c.lineWidth = 1; c.beginPath(); for (let x = 0; x <= L; x += 3) { const y = Z(this.pathZ(x)); x ? c.lineTo(X(x), y) : c.moveTo(X(x), y); } c.stroke(); c.setLineDash([]);
     for (const f of this.foes) if (f.state !== 'dead' && Math.abs(f.x - this.p.x) < 60) { c.fillStyle = '#ff6a5a'; c.beginPath(); c.arc(X(f.x), Z(f.z), 3, 0, TAU); c.fill(); }
+    if (this.boar.hp > 0 && Math.abs(this.boar.x - this.p.x) < 60) { c.fillStyle = '#c08a4a'; c.beginPath(); c.arc(X(this.boar.x), Z(this.boar.z), 3, 0, TAU); c.fill(); }
+    c.fillStyle = '#ffb060'; c.beginPath(); c.arc(X(this.camp[0]), Z(this.camp[1]), 2.5, 0, TAU); c.fill();
     const tx = X(this.X[0]), ty = Z(this.X[1]); if (this.p.x > L - 90 || this.dig > 0) { c.strokeStyle = '#ffd86b'; c.lineWidth = 2; c.beginPath(); c.moveTo(tx - 4, ty - 4); c.lineTo(tx + 4, ty + 4); c.moveTo(tx + 4, ty - 4); c.lineTo(tx - 4, ty + 4); c.stroke(); }
     else { c.fillStyle = 'rgba(242,236,220,.75)'; c.font = '700 11px "Barlow Semi Condensed", sans-serif'; c.textAlign = 'center'; c.fillText('?', tx, ty + 4); }
     const p = this.p, ax = Math.sin(p.head), az = Math.cos(p.head), sx = (mw - 8) / (L + 8), sz = (mh - 8) / (z1 - z0), dl = Math.hypot(ax * sx, az * sz) || 1, ux = ax * sx / dl, uz = az * sz / dl, px = X(p.x), py = Z(p.z);
@@ -1334,12 +1377,12 @@ const UI = {
     let prompt = '', key = this.touch ? '' : 'Space';
     if (sea) { const P = Sea.P;
       $('place').textContent = 'Open water';
-      $('goal').textContent = G.bounty === 1 ? 'The Red Corsair is out there. Check the chart.' : G.tier === 0 && G.gold >= 300 ? 'You can afford a sloop. Dock at Gallows Cay.' : G.water < 30 ? 'Water is low. Land at Driftwood Isle to the north-east.' : G.hull < G.hullMax * 0.45 ? 'The hull is failing. Make for Gallows Cay.' : G.cargo > 0 ? 'Cargo aboard. Sell it at Gallows Cay.' : (G.tier === 0 ? 'A longboat can outrun a ship, not outgun one. Scavenge flotsam.' : 'Hunt a sail, or scavenge the isles.');
+      $('goal').textContent = G.map === 1 ? 'The map points to Driftwood Isle. Land and head inland.' : G.bounty === 1 ? 'The Red Corsair is out there. Check the chart.' : G.tier === 0 && G.gold >= 300 ? 'You can afford a sloop. Dock at Gallows Cay.' : G.water < 30 ? 'Water is low. Land at Driftwood Isle to the north-east.' : G.hull < G.hullMax * 0.45 ? 'The hull is failing. Make for Gallows Cay.' : G.cargo > 0 ? 'Cargo aboard. Sell it at Gallows Cay.' : (G.tier === 0 ? 'A longboat can outrun a ship, not outgun one. Scavenge flotsam.' : 'Hunt a sail, or scavenge the isles.');
       $('hullV').textContent = Math.round(G.hull) + ' / ' + G.hullMax; this.bar('hullB', G.hull / G.hullMax * 100, G.hull < G.hullMax * 0.4);
       $('crewV').textContent = G.crew + ' / ' + G.crewMax; this.bar('crewB', G.crew / G.crewMax * 100, G.crew < G.crewMax * 0.4);
       $('foodV').textContent = Math.round(G.food) + '%'; this.bar('foodB', G.food, G.food < 25);
       $('waterV').textContent = Math.round(G.water) + '%' + (G.water < 25 ? ' · low' : ''); this.bar('waterB', G.water, G.water < 25);
-      $('sail').textContent = P.T.name + ' · ' + (P.v * 0.5).toFixed(1) + ' kn';
+      { const k = Sea.sailK(P); $('sail').textContent = P.T.name + ' · ' + (P.v * 0.5).toFixed(1) + ' kn' + (P.T.guns ? (k < 0.6 ? ' · in irons' : k < 0.85 ? ' · close-hauled' : k > 1.08 ? ' · running' : '') : ''); }
       if (!P.T.guns) { $('rp').textContent = P.rp > 0 ? 'Swivel gun ' + P.rp.toFixed(1) + 's' : 'Swivel gun ready'; $('rp').classList.toggle('rdy', P.rp <= 0); $('rs').hidden = true; }
       else { $('rs').hidden = false; $('rp').textContent = P.rp > 0 ? 'Port ' + P.rp.toFixed(1) + 's' : 'Port ready'; $('rp').classList.toggle('rdy', P.rp <= 0);
       $('rs').textContent = P.rs > 0 ? 'Stbd ' + P.rs.toFixed(1) + 's' : 'Stbd ready'; $('rs').classList.toggle('rdy', P.rs <= 0); }
@@ -1392,10 +1435,53 @@ const UI = {
     this.panel('The tavern', 'Crew ' + G.crew + ' / ' + G.crewMax + ' · Purse ' + G.gold + ' gold', [
       ['Hire a hand', '40 gold', () => { G.gold -= 40; G.crew++; this.openTavern(); }, G.crew >= G.crewMax || G.gold < 40],
       ['Buy a round and listen', '10 gold', () => { G.gold -= 10; toast(rumors[Math.floor(Math.random() * rumors.length)], 4200); this.openTavern(); }, G.gold < 10],
+      [G.map === 2 ? 'The treasure map · dug up' : G.map === 1 ? 'The treasure map · in your coat' : 'Buy a dead man\'s treasure map', G.map ? '' : '120 gold', () => { G.gold -= 120; G.map = 1; toast('Driftwood Isle, it says. Land there and follow it inland.', 5000); this.openTavern(); }, G.map !== 0 || G.gold < 120],
       [G.bounty === 2 ? 'The Red Corsair · bounty paid' : 'Take the bounty on the Red Corsair', G.bounty === 2 ? 'done' : G.bounty === 1 ? 'posted' : '250 gold', () => { G.bounty = 1; toast('The Corsair is marked on your chart. A brig and a full crew are advised.', 5000); this.openTavern(); }, G.bounty !== 0 || G.tier < 1],
     ]);
   },
 };
+
+// ==== 05b_demo.js
+// ---- Demo: the game plays itself through every part, with captions. Any key or tap ends it.
+const Demo = {
+  on: false, i: -1, t: 0, step: null,
+  cap(s) { const el = $('introCap'); if (el.textContent === s) return; el.textContent = s; el.classList.remove('show'); void el.offsetWidth; el.classList.add('show'); },
+  start() { this.on = true; this.i = -1; this.t = 0; $('introSkip').textContent = 'demo · tap or press any key to stop'; $('intro').hidden = false; document.body.classList.add('demo');
+    try { localStorage.removeItem('saltwake2'); } catch (e) { /* ignore */ }
+    Object.assign(G, { gold: 60, tier: 0, plank: 0, holdUp: 0, hull: 30, hullMax: 30, crew: 4, crewMax: 4, food: 70, water: 45, timber: 0, cargo: 0, hold: 4, guns: 0, kills: 0, sold: 0, portChest: false, bounty: 0, map: 0, hp: 5, isleDone: { chest: false, items: {}, foes: {} } });
+    Sea.reset(); Game.start(false); this.next(); },
+  end() { this.on = false; $('intro').hidden = true; $('introSkip').textContent = 'tap to skip'; document.body.classList.remove('demo', 'intro'); Game.intro = null; UI.closePanel(); Land3.cine = null; G.mode = 'title'; Game.show(); },
+  next() { this.i++; this.t = 0; this.step = this.STEPS[this.i] || null; if (!this.step) return this.end(); this.cap(this.step.cap || ''); if (this.step.init) this.step.init(); },
+  tick(dt) { if (!this.on || !this.step) return; $('intro').hidden = false; const s = this.step; if (s.mode && G.mode !== s.mode) { if (G.mode === 'over') Game.revive(); this.wait = (this.wait || 0) + dt; if (this.wait > 30) this.next(); return; } this.wait = 0; this.t += dt; let done = false; try { done = s.run(dt, this.t); } catch (e) { console.error(e); done = true; } if (done || this.t > (s.max || 40)) this.next(); },
+  // helpers
+  walkLand(x, z) { const L = Land; if (!L.tapTarget || Math.hypot(L.tapTarget[0] - x, L.tapTarget[1] - z) > 0.5) L.tap(x, z); return Math.hypot(L.p.x - x, L.p.z - z) < 1.2; },
+  fightLand() { const L = Land, f = L.duel; G.hp = Math.max(G.hp, 3); if (!f) return true; if (f.state === 'windup' && f.t > 0.2 && L.p.parryT <= 0 && L.p.slashT <= 0) Pad.hit.X = true; else if (!L.tapAct || L.tapAct.foe !== f) L.tap(f.x, f.z); return false; },
+  STEPS: [
+    { cap: 'Gallows Cay. A boy, a short cutlass and his father\'s longboat.', run: (dt, t) => { if (Game.intro && t > 7) Game.intro.skip = true; return !Game.intro && G.mode === 'port' && t > 7.5; }, max: 20 },
+    { cap: 'Walk to the pier end and cast off.', mode: 'port', run: () => Demo.walkLand(-7.4, 0) && (Land.act('leave'), true), max: 25 },
+    { cap: 'The sea. Point and sail; the wind decides how fast.', mode: 'sea', init: () => { G.tier = 1; G.gold = 400; Sea.applyTier(); G.hull = G.hullMax; Sea.P.T = TIERS[1]; Sea.P.hull = G.hull; }, run: (dt, t) => { const P = Sea.P; if (!Demo.aim) Demo.aim = [P.x + Math.sin(P.th) * 160, P.y - Math.cos(P.th) * 160]; Sea.tapGo = Demo.aim; return t > 9; }, max: 14 },
+    { cap: 'A privateer sloop. Close in and give her the broadside.', mode: 'sea', init: () => { const P = Sea.P; const e = Sea.add({ kind: 'sloop', x: P.x + 140, y: P.y - 60, th: 2 }); Demo.foe = e; Sea.tapGo = null; }, run: () => { const e = Demo.foe; if (!e || e.sink) return true; Sea.tapFoe = e; G.hull = Math.max(G.hull, G.hullMax * 0.6); Sea.P.hull = G.hull; return false; }, max: 75 },
+    { cap: 'Haul the flotsam aboard. Cargo sells at Gallows Cay.', mode: 'sea', run: (dt, t) => { const P = Sea.P, l = Sea.loot.slice().sort((a, b) => Math.hypot(a.x - P.x, a.y - P.y) - Math.hypot(b.x - P.x, b.y - P.y))[0]; if (!l || G.cargo >= G.hold) return t > 2; Sea.tapGo = [l.x, l.y]; return false; }, max: 30 },
+    { cap: 'Back to port. Sell, repair, hire hands — and buy a dead man\'s map.', mode: 'sea', run: () => { const r = Sea.rings[0]; Sea.tapGo = [r.x, r.y]; G.hull = Math.max(G.hull, 10); Sea.P.hull = G.hull; return !!Game.pending; }, max: 90 },
+    { cap: 'The shipwright takes the plunder and patches the hull.', mode: 'port', run: (dt, t) => { if (Land3.cine) return false; if (Demo.walkLand(0.5, -0.5)) { if (!UI.panelOpen && t < 6) { UI.openTrade(); Demo.pt = t; } if (UI.panelOpen && t - Demo.pt > 3) { UI.closePanel(); G.cargo = 0; G.gold += 180; G.hull = G.hullMax; return true; } } return false; }, max: 30 },
+    { cap: 'The tavern: rumours, crew for hire, and a treasure map.', mode: 'port', run: (dt, t) => { if (Demo.walkLand(8.6, -0.6)) { if (!UI.panelOpen && !Demo.tv) { UI.openTavern(); Demo.tv = t; } if (Demo.tv && t - Demo.tv > 3) { UI.closePanel(); G.map = 1; G.crew = G.crewMax; return true; } } return false; }, max: 30 },
+    { cap: 'Cast off for Driftwood Isle.', mode: 'port', run: () => Demo.walkLand(-7.4, 0) && (Land.act('leave'), true), max: 30 },
+    { cap: 'A squall blows up. Every ship slows; the waves get up.', mode: 'sea', init: () => { Sea.stormOn = true; Sea.stormT = 40; }, run: () => { const r = Sea.rings[1]; Sea.tapGo = [r.x, r.y]; G.hull = Math.max(G.hull, 10); Sea.P.hull = G.hull; return !!Game.pending; }, max: 120 },
+    { cap: 'Driftwood Isle. Fill the casks at the spring, salvage timber.', mode: 'island', init: () => { Sea.stormOn = false; }, run: (dt, t) => { if (Land3.cine) return false; if (G.water > 99) return t > 2; Demo.walkLand(13.5, -6.5); return false; }, max: 40 },
+    { cap: 'Trouble. Duels play out side-on: slash, and parry on the beat.', mode: 'island', run: (dt, t) => { const f = Land.foes[0]; if (f.state === 'dead') return true; if (!Land.duel) { Land.tap(f.x, f.z); return false; } return Demo.fightLand(); }, max: 60 },
+    { cap: 'The map points inland. Beach, dunes, scrub, then the jungle.', mode: 'island', run: () => Demo.walkLand(26, -3) && (Land.act('exped'), true), max: 40 },
+    { cap: 'Third person on foot. Jump the logs; keep an eye on the minimap.', mode: 'exped', run: (dt, t) => Demo.trek(dt, 150), max: 110 },
+    { cap: 'Into the jungle. Parrots, a boar, and men who guard the clearing.', mode: 'exped', run: (dt) => Demo.trek(dt, 256), max: 140 },
+    { cap: 'X marks it. Dig.', mode: 'exped', run: (dt, t) => { const E = Exped; if (E.done) return true; if (!E.zoneAt()) { E.tapTarget = [E.X[0], E.X[1]]; return false; } if (t - (Demo.digT || 0) > 1.2) { Demo.digT = t; Pad.hit.A = true; } return false; }, max: 40 },
+    { cap: 'Spanish gold, and a name on the sea. Your voyage starts now.', run: (dt, t) => t > 5, max: 8 },
+  ],
+  // walk the expedition east to x, jumping logs and the stream, fighting what engages
+  trek(dt, toX) { const E = Exped, p = E.p; G.hp = Math.max(G.hp, 3); if (p.x >= toX) return true;
+    if (E.duel) { const f = E.duel; if (f.state === 'windup' && f.t > 0.2 && p.parryT <= 0 && p.slashT <= 0) Pad.hit.X = true; else E.target = f; return false; }
+    const w = E.wall(p.x + 0.9, p.z, p.y + 0.5); if (w && w.length === 5 && p.ground) Pad.hit.A = true; if (p.x > E.SX[0] - 1.2 && p.x < E.SX[0] && p.ground) Pad.hit.A = true;
+    const nx = Math.min(toX, p.x + 14), nz = E.pathZ(nx); if (!E.tapTarget || Math.hypot(E.tapTarget[0] - nx, E.tapTarget[1] - nz) > 6) E.tapTarget = [nx, nz]; return false; },
+};
+addEventListener('keydown', () => { if (Demo.on) Demo.end(); }); addEventListener('pointerdown', e => { if (Demo.on && !e.target.closest('#title')) Demo.end(); });
 
 // ==== 06_main.js
 // ---- game flow: title, mode switches, main loop
@@ -1408,7 +1494,7 @@ const Game = {
     $('fade').classList.add('on'); setTimeout(() => { this.apply(mode); $('fade').classList.remove('on'); this.pending = null; }, 430); },
   apply(mode) {
     UI.closePanel();
-    if (mode === 'island' || mode === 'port') { this.ring = Sea.near || this.ring || Sea.rings[mode === 'port' ? 0 : 1]; Land.enter(mode); G.mode = mode;
+    if (mode === 'island' || mode === 'port') { const back = G.mode === 'exped'; this.ring = Sea.near || this.ring || Sea.rings[mode === 'port' ? 0 : 1]; Land.enter(mode); G.mode = mode; if (back) { Land3.cine = null; Land.p.x = 24; Land.p.z = -2; Land3.camX = 24; Land3.camZ = -2; toast('Back at the beach with the chest on your back. Row it home.', 4000); return this.show(); }
       if (mode === 'port') { G.isleDone = { chest: false, items: {}, foes: {} }; saveGame(); toast('Gallows Cay. No flag asks questions here.'); } else toast('Driftwood Isle. The spring is up the cliff.'); }
     else { if (G.mode === 'island' || G.mode === 'port') {
         if (G.timber > 0 && G.hull < G.hullMax) { const use = Math.min(G.timber, Math.ceil((G.hullMax - G.hull) / 12)); G.hull = Math.min(G.hullMax, G.hull + use * 12); G.timber -= use; toast('Timber patched the hull to ' + Math.round(G.hull) + '%'); }
@@ -1429,8 +1515,9 @@ const Game = {
   resize() { const w = innerWidth, h = innerHeight; Sea.resize(w, h); Land.resize(w, h); },
   frame(t) { try { this.tick(t); } catch (e) { if (!this.errT || t - this.errT > 5000) { this.errT = t; console.error(e); } } requestAnimationFrame(tt => this.frame(tt)); },
   tick(t) {
-    const dt = Math.min(0.05, (t - this.last) / 1000 || 0.016); this.last = t; G.t += dt; pollPad(); if (Pad.hit.mute) toast(Sfx.toggle() ? 'Sound off' : 'Sound on', 1200);
-    if (G.mode === "title" && Pad.hit.A) this.start(this.had); else if (G.mode === 'over' && Pad.hit.A) this.revive();
+    const dt = Math.min(0.05, (t - this.last) / 1000 || 0.016); this.last = t; G.t += dt; pollPad(); if (Demo.on) { Pad.x = Pad.y = 0; Pad.hit = {}; } if (Pad.hit.mute) toast(Sfx.toggle() ? 'Sound off' : 'Sound on', 1200);
+    if (G.mode === "title" && Pad.hit.A && !Demo.on) this.start(this.had); else if (G.mode === 'over' && Pad.hit.A) this.revive();
+    if (Demo.on) Demo.tick(dt);
     if (this.intro) this.tickIntro(dt);
     if (G.mode === 'exped') { Exped.update(dt); Exped.render(); } else if (G.mode === 'island' || G.mode === 'port') { Land.update(dt); Land.render(); } else { Sea.update(dt); Sea.render(); }
     UI.update(dt);
@@ -1439,13 +1526,14 @@ const Game = {
     const had = this.had = loadGame(); if (data && data.G) Object.assign(G, data.G);
     Sea.init($('sea'), $('seafx')); Land.init($('land'), $('landfx')); UI.init();
     $('seafx').addEventListener('pointerdown', e => { if (G.mode !== 'sea') return; const m = Sea.mini; if (Sea.chart || (m && Math.hypot(e.clientX - m.x, e.clientY - m.y) < m.r + 10)) { Pad._tl.map = true; e.preventDefault(); return; } Sea.tapAt(e.clientX, e.clientY); e.preventDefault(); }); this.resize(); addEventListener('resize', () => this.resize());
-    $('btnNew').addEventListener('click', () => { Object.assign(G, { gold: 60, tier: 0, plank: 0, holdUp: 0, hull: 30, hullMax: 30, crew: 4, crewMax: 4, food: 70, water: 45, timber: 0, cargo: 0, hold: 4, guns: 0, kills: 0, sold: 0, portChest: false, bounty: 0 }); Sea.reset(); this.start(false); });
+    $('btnNew').addEventListener('click', () => { Object.assign(G, { gold: 60, tier: 0, plank: 0, holdUp: 0, hull: 30, hullMax: 30, crew: 4, crewMax: 4, food: 70, water: 45, timber: 0, cargo: 0, hold: 4, guns: 0, kills: 0, sold: 0, portChest: false, bounty: 0, map: 0 }); Sea.reset(); this.start(false); });
     $('btnCont').hidden = !had; $('btnCont').addEventListener('click', () => this.start(true));
     $('btnRevive').addEventListener('click', () => this.revive());
     $('btnExped').addEventListener('click', () => { this.previewExped = true; this.enter('exped'); });
-    $('intro').addEventListener('pointerdown', () => { if (this.intro) this.intro.skip = true; });
+    $('intro').addEventListener('pointerdown', () => { if (this.intro && !Demo.on) this.intro.skip = true; });
+    $('btnDemo').addEventListener('click', e => { e.stopPropagation(); setTimeout(() => Demo.start(), 50); });
     G.mode = 'title'; this.show(); requestAnimationFrame(tt => this.frame(tt));
-    window.__game = { G, Sea, Land, Exped, UI, Game, Pad, sim(sec) { for (let t = 0; t < sec; t += 1 / 30) { Pad.hit = {}; if (G.mode === 'exped') Exped.update(1 / 30); else if (G.mode === 'island' || G.mode === 'port') Land.update(1 / 30); else Sea.update(1 / 30); } } };
+    window.__game = { G, Sea, Land, Exped, UI, Game, Pad, Demo, sim(sec) { for (let t = 0; t < sec; t += 1 / 30) { Pad.hit = {}; if (G.mode === 'exped') Exped.update(1 / 30); else if (G.mode === 'island' || G.mode === 'port') Land.update(1 / 30); else Sea.update(1 / 30); } } };
   },
 };
 if (window.claude && window.claude.hot && window.claude.hot.snapshot) window.claude.hot.snapshot(() => ({ G: { tier: G.tier, plank: G.plank, holdUp: G.holdUp, crewMax: G.crewMax, gold: G.gold, hull: G.hull, hullMax: G.hullMax, crew: G.crew, food: G.food, water: G.water, timber: G.timber, cargo: G.cargo, hold: G.hold, guns: G.guns, kills: G.kills } }));
