@@ -1036,55 +1036,63 @@ const Land3 = {
 // ---- the expedition: a 3D side-view trek east across the island, beach -> dunes -> scrub -> jungle, to a buried chest
 const Exped = {
   LEN: 268, p: null, foes: [], fx: [], t: 0, dig: 0, done: false, preview: false, tapDir: 0, tapT: 0, tapJump: false, target: null, duel: null, camX: 0, camY: 0,
+  ZMIN: -28, ZMAX: 10, SEA: -0.3, SX: [196, 199], X: [258, -14], circles: [], logs: [],
+  foeSpots: [[150, -10], [178, -3], [226, -17], [244, 3]],
   biome(x) { return x < 28 ? 'beach' : x < 112 ? 'dunes' : x < 150 ? 'scrub' : 'jungle'; },
-  h(x) { const d = smooth((x - 24) / 10) * (1 - smooth((x - 108) / 10)), dunes = d * (2.4 * Math.sin(x * 0.11) + 1.2 * Math.sin(x * 0.27 + 1) + 0.6 * Math.sin(x * 0.53)), j = smooth((x - 150) / 20);
-    return 0.4 + dunes + 2.5 * d + j * (1.5 + 0.8 * Math.sin(x * 0.09)) + (x > 196 && x < 199 ? -1.6 : 0); },
-  obstacles: [[60, 61.2, 0, 1.0, 0.9], [96, 97.5, 0, 1.4, 0.9], [168, 169.6, 0, 1.1, 0.9], [184, 186, 0, 1.6, 2.3], [214, 215.2, 0, 1.2, 0.9], [238, 240, 0, 1.5, 2.3]], // on the ground: [x0,x1,base,height,halfDepth]
-  circles: [], ZMIN: -6.5, ZMAX: 3.2,
-  ground(x, z) { const front = smooth((z - 4) / 6), back = smooth((-z - 3) / 12); return this.h(x) * (1 - front) + (-2) * front + back * (6 + 3 * vnoise(x * 0.06, z * 0.1, 5)) + 0.15 * vnoise(x * 0.8, z * 0.8, 6) * (1 - front); },
-  foeSpots: [174, 229],
-  enter(preview) { this.preview = !!preview; this.t = 0; this.fx = []; this.dig = 0; this.done = false; this.tapDir = 0; this.target = null; this.duel = null;
-    this.p = { x: 4, z: 0, y: this.h(4), vy: 0, ground: true, face: 1, head: Math.PI / 2, speed: 0, vx: 0, vz: 0, walk: 0, slashT: 0, parryT: 0, hitDone: false, hurtT: 0, inv: 0, coyote: 0 };
-    this.foes = this.foeSpots.map((x, i) => ({ x, z: 0, y: this.h(x), hx: x, hz: 0, id: 'e' + i, hp: 3, face: -1, head: -Math.PI / 2, state: 'walk', t: 0, walk: 0, cd: 0, kx: 0, kz: 0, wp: null })); this.tapTarget = null;
-    G.hp = 5; this.build(); this.camX = 4; this.camY = this.h(4); },
-  top(x, z) { let g = this.ground(x, z); for (const o of this.obstacles) if (x > o[0] - 0.3 && x < o[1] + 0.3 && Math.abs(z) < o[4] + 0.2) g = Math.max(g, this.h((o[0] + o[1]) / 2) + o[2] + o[3]); return g; },
-  wall(x, z, y) { for (const o of this.obstacles) { const base = this.h((o[0] + o[1]) / 2) + o[2]; if (x > o[0] - 0.3 && x < o[1] + 0.3 && Math.abs(z) < o[4] + 0.3 && y < base + o[3] - 0.3 && y > base - 1.5) return o; } for (const c of this.circles) if (Math.hypot(x - c[0], z - c[1]) < c[2] + 0.3) return c; return null; },
+  pathZ(x) { return -4 + 4 * Math.sin(x * 0.028) - 6 * smooth((x - 200) / 50); },
+  // gentle open ground: under a metre of roll, a beach that slopes into the sea to the south and west, hills only beyond the north edge
+  land(x, z) { const d = smooth((x - 24) / 10) * (1 - smooth((x - 108) / 10)), j = smooth((x - 145) / 15);
+    let y = 0.45 + 0.35 * vnoise(x * 0.05, z * 0.05, 4) + d * 0.25 * Math.sin(x * 0.16 + z * 0.12) + j * 0.3 + 0.06 * vnoise(x * 0.7, z * 0.7, 6);
+    const sx = this.SX, ch = smooth((x - sx[0]) / 0.5) * (1 - smooth((x - sx[1] + 0.5) / 0.5)); y -= ch * 1.5;
+    y += smooth((-z - 30) / 10) * (5 + 3 * vnoise(x * 0.05, z * 0.1, 5)); return y; },
+  ground(x, z) { const shore = Math.max(smooth((z - 7) / 9), smooth((-x - 1) / 9)); return lerp(this.land(x, z), -1.8, shore); },
+  h(x) { return this.ground(x, this.pathZ(x)); },
+  enter(preview) { this.preview = !!preview; this.t = 0; this.fx = []; this.dig = 0; this.done = false; this.tapDir = 0; this.target = null; this.duel = null; this.tapTarget = null;
+    this.p = { x: 4, z: 2, y: this.ground(4, 2), vy: 0, ground: true, face: 1, head: Math.PI / 2, speed: 0, vx: 0, vz: 0, walk: 0, slashT: 0, parryT: 0, hitDone: false, hurtT: 0, inv: 0, coyote: 0 };
+    this.foes = this.foeSpots.map(([x, z], i) => ({ x, z, y: this.ground(x, z), hx: x, hz: z, id: 'e' + i, hp: 3, face: -1, head: -Math.PI / 2, state: 'walk', t: 0, walk: 0, cd: 0, kx: 0, kz: 0, wp: null }));
+    G.hp = 5; this.build(); this.camX = 4; this.camZ = 2; this.camY = this.p.y; },
+  // logs are jumpable boxes [x, z, halfX, halfZ, height]; rocks and trunks are solid circles [x, z, r]
+  top(x, z) { let g = this.ground(x, z); for (const o of this.logs) if (Math.abs(x - o[0]) < o[2] + 0.2 && Math.abs(z - o[1]) < o[3] + 0.2) g = Math.max(g, this.ground(o[0], o[1]) + o[4]); return g; },
+  wall(x, z, y) { for (const o of this.logs) { const base = this.ground(o[0], o[1]); if (Math.abs(x - o[0]) < o[2] + 0.3 && Math.abs(z - o[1]) < o[3] + 0.3 && y < base + o[4] - 0.3 && y > base - 1.5) return o; }
+    for (const c of this.circles) if (Math.abs(x - c[0]) < c[2] + 0.3 && Math.hypot(x - c[0], z - c[1]) < c[2] + 0.3) return c; return null; },
   free(x, z, y) { return x >= 0 && x <= this.LEN + 2 && z >= this.ZMIN && z <= this.ZMAX && !this.wall(x, z, y); },
   build() { const L3 = Land3; if (!L3.ready) return; if (L3.group) L3.scene.remove(L3.group); L3.group = new THREE.Group(); L3.scene.add(L3.group); L3.t = 0;
     L3.scene.background = new THREE.Color(0x9ccbe8); L3.scene.fog = new THREE.Fog(0xb8d8ea, 60, 220); L3.cam.far = 400; L3.cam.updateProjectionMatrix(); L3.sunDir = [10, 28, 16]; L3.sun.intensity = 2.3; L3.sun.color.set(0xfff1d6); L3.hemi.intensity = 0.9; L3.hemi.color.set(0xbfd8ee); L3.waterMat.uniforms.uNight.value = 0;
-    // terrain strip: h(x) along the path, dropping to the sea in front, rising to hills behind; colours by biome
-    const W = this.LEN + 60, D = 60, g = new THREE.PlaneGeometry(W, D, 330, 60); g.rotateX(-Math.PI / 2); const pos = g.attributes.position, col = [];
-    for (let i = 0; i < pos.count; i++) { const x = pos.getX(i) + this.LEN / 2 - 10, z = pos.getZ(i); const front = smooth((z - 4) / 6), back = smooth((-z - 3) / 12);
-      let y = this.h(x) * (1 - front) + (-2) * front + back * (6 + 3 * vnoise(x * 0.06, z * 0.1, 5)) + 0.15 * vnoise(x * 0.8, z * 0.8, 6) * (1 - front);
-      const b = this.biome(x), jg = smooth((x - 140) / 25), sc = smooth((x - 105) / 12) * (1 - jg); let c = [0.88, 0.8, 0.6]; if (b !== 'beach') c = [lerp(0.9, 0.78, Math.min(1, (x - 28) / 20)), lerp(0.82, 0.68, Math.min(1, (x - 28) / 20)), lerp(0.62, 0.42, Math.min(1, (x - 28) / 20))];
-      c = [lerp(c[0], 0.55, sc), lerp(c[1], 0.58, sc), lerp(c[2], 0.3, sc)]; c = [lerp(c[0], 0.2, jg), lerp(c[1], 0.38, jg), lerp(c[2], 0.14, jg)]; if (x > 196 && x < 199 && z > -2 && z < 4) c = [0.25, 0.45, 0.5];
-      const trail = (1 - smooth((Math.abs(z + 0.4 * Math.sin(x * 0.15)) - 0.9) / 0.9)) * (1 - front); c = [c[0] * (1 - 0.18 * trail), c[1] * (1 - 0.2 * trail), c[2] * (1 - 0.22 * trail)];
-      pos.setX(i, x); pos.setY(i, y); col.push(c[0], c[1], c[2]); }
+    const W = this.LEN + 80, D = 90, g = new THREE.PlaneGeometry(W, D, 340, 110); g.rotateX(-Math.PI / 2); const pos = g.attributes.position, col = [];
+    for (let i = 0; i < pos.count; i++) { const x = pos.getX(i) + this.LEN / 2, z = pos.getZ(i) - 12, y = this.ground(x, z);
+      const jg = smooth((x - 140 + 8 * vnoise(z * 0.08, 1, 7)) / 20), sc = smooth((x - 105 + 6 * vnoise(z * 0.08, 2, 7)) / 12) * (1 - jg), dn = smooth((x - 26) / 14);
+      let c = [lerp(0.9, 0.82, dn), lerp(0.83, 0.71, dn), lerp(0.64, 0.46, dn)]; c = [lerp(c[0], 0.55, sc), lerp(c[1], 0.58, sc), lerp(c[2], 0.3, sc)]; c = [lerp(c[0], 0.22, jg), lerp(c[1], 0.4, jg), lerp(c[2], 0.15, jg)];
+      const beach = Math.max(smooth((z - 4) / 3), smooth((-x + 2) / 3)); c = [lerp(c[0], 0.9, beach), lerp(c[1], 0.83, beach), lerp(c[2], 0.64, beach)];
+      const wet = smooth((0.25 - Math.abs(y - this.SEA)) / 0.25); c = [lerp(c[0], 0.66, wet), lerp(c[1], 0.6, wet), lerp(c[2], 0.46, wet)];
+      const trail = (1 - smooth((Math.abs(z - this.pathZ(x)) - 0.8) / 0.8)) * (1 - beach); c = [c[0] * (1 - 0.16 * trail), c[1] * (1 - 0.18 * trail), c[2] * (1 - 0.2 * trail)];
+      pos.setX(i, x); pos.setZ(i, z); pos.setY(i, y); col.push(c[0], c[1], c[2]); }
     g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.computeVertexNormals();
     const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ vertexColors: true, map: L3.tex.sand, roughness: 1 })); m.receiveShadow = true; L3.group.add(m);
-    const stream = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 8), new THREE.MeshStandardMaterial({ color: 0x2f7f9a, roughness: .15, transparent: true, opacity: .85 })); stream.rotation.x = -Math.PI / 2; stream.position.set(197.5, this.h(198) + 0.5, 1); L3.group.add(stream);
-    const rng = mulberry(11), R = (a, b) => a + rng() * (b - a); this.circles = []; const circ = (x, z, r) => { if (z > this.ZMIN - 0.5 && z < this.ZMAX + 0.5) this.circles.push([x, z, r]); };
-    // beach + dunes: palms near the start, dry grass, bleached bones, a wrecked boat rib
-    for (let i = 0; i < 5; i++) { const x = R(-6, 26), z = R(-9, -2); L3.palm(x, this.ground(x, z) + 0.3, z, R(3.5, 5.5)); circ(x, z, 0.3); }
-    for (let i = 0; i < 90; i++) { const x = R(30, 150), z = R(-8, 3.5); if ((rng() < 0.5 && x < 112) || Math.abs(z) < 1.2) continue; const t = new THREE.Mesh(new THREE.ConeGeometry(0.25, R(0.5, 1.1), 5), new THREE.MeshStandardMaterial({ color: x < 112 ? 0xb8a860 : 0x6f8a3a, roughness: 1 })); t.position.set(x, this.ground(x, z) + 0.2, z); t.castShadow = true; L3.group.add(t); }
-    for (let i = 0; i < 7; i++) { const x = R(40, 105), z = R(1.2, 3); const bn = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, R(0.8, 1.6), 6), new THREE.MeshStandardMaterial({ color: 0xeee8d8, roughness: .9 })); bn.rotation.z = R(0.9, 1.6); bn.rotation.y = R(0, 3); bn.position.set(x, this.ground(x, z) + 0.08, z); L3.group.add(bn); }
-    for (let i = 0; i < 6; i++) { const rib = new THREE.Mesh(new THREE.TorusGeometry(1.6, 0.08, 6, 14, Math.PI), L3.mat.hullDark); rib.position.set(76 + i * 0.9, this.h(76 + i * 0.9) - 0.6, -2.5); rib.rotation.y = Math.PI / 2 + 0.2; L3.group.add(rib); }
-    // obstacles: rocks and fallen logs you climb or jump
-    for (const o of this.obstacles) { const cx = (o[0] + o[1]) / 2, base = this.h(cx) + o[2], w = o[1] - o[0]; if (w > 1.5) { const log = new THREE.Mesh(new THREE.CylinderGeometry(o[3] / 2, o[3] / 2, 4.5, 10), L3.mat.wood); log.rotation.x = Math.PI / 2; log.position.set(cx, base + o[3] / 2, 0); log.castShadow = log.receiveShadow = true; L3.group.add(log); }
-      else { const r = new THREE.Mesh(new THREE.DodecahedronGeometry(o[3] * 0.62, 1), L3.mat.rock); r.scale.set(w / (o[3] * 1.1), 1, 1.3); r.position.set(cx, base + o[3] * 0.45, 0); r.castShadow = r.receiveShadow = true; L3.group.add(r); } }
-    // scrub: a few acacia-ish trees; jungle: dense trunks, canopies, ferns and vines in rows behind and in front
-    const tree = (x, z, h, canopyCol, big) => { circ(x, z, 0.3 + big * 0.15); const y = this.ground(x, z) + (z > 4 ? -0.5 : 0), tr = new THREE.Mesh(new THREE.CylinderGeometry(0.12 + big * 0.1, 0.22 + big * 0.15, h, 7), L3.mat.trunk); tr.position.set(x, y + h / 2, z); tr.castShadow = true; L3.group.add(tr);
-      for (let k = 0; k < 2 + big; k++) { const c = new THREE.Mesh(new THREE.SphereGeometry(R(1.2, 2.2) + big * 0.8, 8, 6), new THREE.MeshStandardMaterial({ color: canopyCol, roughness: .9 })); c.position.set(x + R(-1, 1), y + h - R(0, 1.5), z + R(-1, 1)); c.scale.y = 0.7; c.castShadow = true; L3.group.add(c); } };
-    for (let i = 0; i < 10; i++) { const x = R(112, 150), z = R(-8, -2); tree(x, z, R(2.5, 4), 0x6f8f3a, 0); }
-    for (let i = 0; i < 70; i++) { const x = R(150, this.LEN + 20), z = rng() < 0.75 ? R(-12, -2) : R(4.5, 8); if (Math.abs(x - this.LEN + 10) < 4) continue; tree(x, z, R(4, 8), [0x2f6b2a, 0x3d7f30, 0x4a8a3a][i % 3], rng() < 0.3 ? 1 : 0); }
-    for (let i = 0; i < 24; i++) { const x = R(150, this.LEN + 20), z = R(-6, -1.5); L3.palm(x, this.ground(x, z), z, R(4, 7)); circ(x, z, 0.3); }
-    for (let i = 0; i < 80; i++) { const x = R(148, this.LEN + 20), z = R(-4, 3.5); if (Math.abs(z) < 1.1) continue; const f = new THREE.Mesh(new THREE.ConeGeometry(R(0.3, 0.6), R(0.5, 1.0), 5), new THREE.MeshStandardMaterial({ color: 0x3f8a3a, roughness: 1 })); f.position.set(x, this.ground(x, z) + 0.25, z); f.rotation.z = R(-0.3, 0.3); L3.group.add(f); }
-    for (let i = 0; i < 30; i++) { const x = R(152, this.LEN + 15), v = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, R(3, 6), 4), L3.mat.rope); v.position.set(x, this.h(x) + 5.5, R(-3, -1)); v.rotation.z = R(-0.15, 0.15); L3.group.add(v); }
-    // the X: two crossed stone slabs
-    const X = this.LEN - 10; for (const a of [0.6, -0.6]) { const s = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.12, 0.45), new THREE.MeshStandardMaterial({ color: 0xcfc6b0, roughness: .9 })); s.position.set(X, this.h(X) + 0.06, 0); s.rotation.y = a; L3.group.add(s); }
-    const chest = new THREE.Group(); chest.position.set(X, this.h(X) - 0.9, 0); const cb = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.5, 0.55), L3.mat.wood); cb.position.y = 0.25; cb.castShadow = true; chest.add(cb); const lid = new THREE.Group(); lid.position.set(0, 0.5, -0.27); const lm = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.22, 0.55), L3.mat.wood); lm.position.set(0, 0.11, 0.27); lid.add(lm); const gold = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.1, 0.4), L3.mat.gold); gold.position.y = 0.52; chest.add(gold); chest.add(lid); chest.visible = false; this.chest = { g: chest, lid }; L3.group.add(chest);
+    const rng = mulberry(11), R = (a, b) => a + rng() * (b - a); this.circles = []; this.logs = []; const placed = [];
+    const spot = (x0, x1, z0, z1, gap) => { for (let t = 0; t < 30; t++) { const x = R(x0, x1), z = R(z0, z1); if (Math.abs(z - this.pathZ(x)) < 1.6 || (x > this.SX[0] - 2 && x < this.SX[1] + 2) || Math.hypot(x - this.X[0], z - this.X[1]) < 4 || Math.hypot(x - 4, z - 2) < 4) continue; if (placed.some(q => Math.hypot(q[0] - x, q[1] - z) < gap)) continue; placed.push([x, z]); return [x, z]; } return null; };
+    const solid = (x, z, r) => this.circles.push([x, z, r]);
+    const mat = c => new THREE.MeshStandardMaterial({ color: c, roughness: 1 });
+    // beach: palms along the shore and a beached rowboat; dunes: grass tufts, bones, a wreck's ribs, scattered rocks
+    for (let i = 0; i < 26; i++) { const q = spot(-2, 150, -2, 9, 4); if (!q) continue; L3.palm(q[0], this.ground(q[0], q[1]) - 0.1, q[1], R(3.5, 6)); solid(q[0], q[1], 0.3); }
+    for (let i = 0; i < 160; i++) { const x = R(20, 160), z = R(this.ZMIN, 7); if (Math.abs(z - this.pathZ(x)) < 1) continue; const t = new THREE.Mesh(new THREE.ConeGeometry(0.25, R(0.5, 1.0), 5), mat(x < 112 ? 0xb8a860 : 0x6f8a3a)); t.position.set(x, this.ground(x, z) + 0.2, z); L3.group.add(t); }
+    for (let i = 0; i < 10; i++) { const x = R(40, 105), z = R(-20, 6); const bn = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, R(0.8, 1.6), 6), mat(0xeee8d8)); bn.rotation.z = R(0.9, 1.6); bn.rotation.y = R(0, 3); bn.position.set(x, this.ground(x, z) + 0.08, z); L3.group.add(bn); }
+    for (let i = 0; i < 6; i++) { const rx = 76 + i * 0.9, rz = 5; const rib = new THREE.Mesh(new THREE.TorusGeometry(1.6, 0.08, 6, 14, Math.PI), L3.mat.hullDark); rib.position.set(rx, this.ground(rx, rz) - 0.6, rz); rib.rotation.y = Math.PI / 2 + 0.2; L3.group.add(rib); }
+    const boat = L3.ship(0); boat.position.set(2, this.SEA - 0.25, 11.5); boat.rotation.y = -0.3; boat.scale.setScalar(0.8); L3.group.add(boat);
+    for (let i = 0; i < 40; i++) { const q = spot(20, this.LEN, this.ZMIN + 1, 7, 5); if (!q) continue; const r = R(0.4, 1.1), rk = new THREE.Mesh(new THREE.DodecahedronGeometry(r, 1), L3.mat.rock); rk.scale.set(1, R(0.6, 1), R(0.8, 1.2)); rk.position.set(q[0], this.ground(q[0], q[1]) + r * 0.35, q[1]); rk.castShadow = rk.receiveShadow = true; L3.group.add(rk); solid(q[0], q[1], r * 0.85); }
+    // fallen logs across the trail: jump them or walk round
+    for (const lx of [60, 96, 168, 186, 214, 238]) { const lz = this.pathZ(lx), len = R(3.5, 5), r = R(0.45, 0.7), log = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, 10), L3.mat.wood); log.rotation.x = Math.PI / 2; log.position.set(lx, this.ground(lx, lz) + r, lz); log.castShadow = log.receiveShadow = true; L3.group.add(log); this.logs.push([lx, lz, r, len / 2, r * 2]); }
+    // scrub and jungle trees spread across the whole width, thicker to the north
+    const tree = (x, z, h, canopyCol, big) => { solid(x, z, 0.3 + big * 0.15); const y = this.ground(x, z), tr = new THREE.Mesh(new THREE.CylinderGeometry(0.12 + big * 0.1, 0.22 + big * 0.15, h, 7), L3.mat.trunk); tr.position.set(x, y + h / 2, z); tr.castShadow = true; L3.group.add(tr);
+      for (let k = 0; k < 2 + big; k++) { const c = new THREE.Mesh(new THREE.SphereGeometry(R(1.2, 2.2) + big * 0.8, 8, 6), mat(canopyCol)); c.position.set(x + R(-1, 1), y + h - R(0, 1.5), z + R(-1, 1)); c.scale.y = 0.7; c.castShadow = true; L3.group.add(c); } };
+    for (let i = 0; i < 18; i++) { const q = spot(110, 150, this.ZMIN, 5, 5); if (q) tree(q[0], q[1], R(2.5, 4), 0x6f8f3a, 0); }
+    for (let i = 0; i < 110; i++) { const q = spot(148, this.LEN + 10, this.ZMIN, 6, 3.6); if (q) tree(q[0], q[1], R(4, 8), [0x2f6b2a, 0x3d7f30, 0x4a8a3a][i % 3], rng() < 0.3 ? 1 : 0); }
+    for (let i = 0; i < 20; i++) { const q = spot(150, this.LEN + 10, this.ZMIN, 6, 3.6); if (q) { L3.palm(q[0], this.ground(q[0], q[1]), q[1], R(4, 7)); solid(q[0], q[1], 0.3); } }
+    for (let i = 0; i < 160; i++) { const x = R(148, this.LEN + 10), z = R(this.ZMIN, 7); if (Math.abs(z - this.pathZ(x)) < 1) continue; const f = new THREE.Mesh(new THREE.ConeGeometry(R(0.3, 0.6), R(0.5, 1.0), 5), mat(0x3f8a3a)); f.position.set(x, this.ground(x, z) + 0.25, z); f.rotation.z = R(-0.3, 0.3); L3.group.add(f); }
+    // the X: two crossed stone slabs in a clearing off the trail
+    const [X, XZ] = this.X; for (const a of [0.6, -0.6]) { const s = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.12, 0.45), mat(0xcfc6b0)); s.position.set(X, this.ground(X, XZ) + 0.06, XZ); s.rotation.y = a; L3.group.add(s); }
+    const chest = new THREE.Group(); chest.position.set(X, this.ground(X, XZ) - 0.9, XZ); const cb = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.5, 0.55), L3.mat.wood); cb.position.y = 0.25; cb.castShadow = true; chest.add(cb); const lid = new THREE.Group(); lid.position.set(0, 0.5, -0.27); const lm = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.22, 0.55), L3.mat.wood); lm.position.set(0, 0.11, 0.27); lid.add(lm); const gold = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.1, 0.4), L3.mat.gold); gold.position.y = 0.52; chest.add(gold); chest.add(lid); chest.visible = false; this.chest = { g: chest, lid }; L3.group.add(chest);
     this.player = L3.rig({ skin: 0xe2b58c, shirt: 0xeadfc4, pants: 0x3d3a4a, boot: 0x2a2320, hat: 0x1e1a1a, vest: 0x5a3a22, sash: 0x8a2424 }, { sword: true }); this.player.poser = new Motion.Poser();
-    this.foeRigs = this.foes.map((f, i) => { const r = L3.rig({ skin: 0xc99a74, shirt: 0x2f4a28, pants: 0x4a4038, boot: 0x241e1a, hat: 'bandana', band: 0x2a7a3a, vest: 0x2a2420, sash: 0x3a3a3a, patch: i === 1 }, { sword: true }); r.poser = new Motion.Poser(); return r; });
+    this.foeRigs = this.foes.map((f, i) => { const r = L3.rig({ skin: 0xc99a74, shirt: 0x2f4a28, pants: 0x4a4038, boot: 0x241e1a, hat: 'bandana', band: 0x2a7a3a, vest: 0x2a2420, sash: 0x3a3a3a, patch: i % 2 === 1 }, { sword: true }); r.poser = new Motion.Poser(); return r; });
     L3.dist = 14; L3.el = 11 * Math.PI / 180; L3.az = 0; L3.player = this.player; L3.foeRigs = this.foeRigs; L3.itemMeshes = []; L3.chest = null; L3.shipG = null; L3.cine = null; },
   tap(cx, cy) { for (const f of this.foes) { if (f.state === 'dead') continue; const fq = Land3.proj(f.x, f.y + 1, f.z); if (Math.hypot(fq.sx - cx, fq.sy - cy) < 50) { this.target = f; this.tapTarget = null; return; } }
     this.target = null; const L3 = Land3, v = new THREE.Vector3(cx / L3.fx.width * 2 - 1, -(cy / L3.fx.height) * 2 + 1, 0.5).unproject(L3.cam), o = L3.cam.position, d = v.sub(o).normalize(); if (Math.abs(d.y) < 1e-4) return;
@@ -1107,7 +1115,7 @@ const Exped = {
     p.vy -= 24 * dt; const nx = p.x + p.vx * dt, nz = p.z + p.vz * dt; if (this.free(nx, p.z, p.y)) p.x = nx; else p.speed *= 0.5; if (this.free(p.x, nz, p.y)) p.z = nz; else p.speed *= 0.5;
     let ny = p.y + p.vy * dt; p.ground = false; const g = this.top(p.x, p.z); if (p.vy <= 0 && ny <= g) { ny = g; p.vy = 0; p.ground = true; } p.y = ny;
     if (p.ground) p.walk += p.speed * dt * 1.9;
-    if (p.x > 196.2 && p.x < 198.8 && p.y < this.ground(195, p.z) - 0.8 && p.inv <= 0) { this.hurt(1, p.x < 197.5 ? -1 : 1); p.x = p.x < 197.5 ? 195.3 : 199.7; p.y = this.ground(p.x, p.z); p.vy = 0; toast('Into the stream. Jump it from the bank.', 2000); }
+    if (p.x > this.SX[0] + 0.2 && p.x < this.SX[1] - 0.2 && p.y < this.SEA - 0.05 && p.inv <= 0) { const w = p.x < (this.SX[0] + this.SX[1]) / 2; this.hurt(1, w ? -1 : 1); p.x = w ? this.SX[0] - 0.7 : this.SX[1] + 0.7; p.y = this.ground(p.x, p.z); p.vy = 0; toast('Into the stream. Jump it from the bank.', 2000); }
     // fight
     if ((ctl.hit.X || ctl.hit.B) && this.duel) { if (ctl.hit.X) this.parry(); else this.slash(); } else if (ctl.hit.X || ctl.hit.B) this.slash();
     if (ctl.hit.A && this.zoneAt()) this.use();
@@ -1120,25 +1128,25 @@ const Exped = {
       if (f.state === 'windup') { if (f.t > 0.38) { f.state = 'slash'; f.t = 0; if (d < 1.7) { if (p.parryT > 0.1 && p.parryT < 0.45) { Sfx.clash(); f.state = 'hurt'; f.t = -0.4; f.kx = -dx / d * 4; f.kz = -dz / d * 4; this.fx.push({ k: 'txt', x: p.x, y: p.y + 2, z: p.z, s: 'Parried!', col: '#cfe6ff', t: 0, life: 1.3 }); } else if (p.inv <= 0) this.hurt(1, dx / d, dz / d); } } continue; }
       if (f.state === 'slash') { if (f.t > 0.28) { f.state = 'walk'; f.t = 0; f.cd = 0.8; } continue; }
       if (near) { f.head = Math.atan2(dx, dz); f.face = dx >= 0 ? 1 : -1; if (d < 1.4) { if (f.cd <= 0) { f.state = 'windup'; f.t = 0; } } else { fmove(f, Math.sin(f.head) * 2.6 * dt, Math.cos(f.head) * 2.6 * dt); f.walk += dt * 5.5; } }
-      else { if (!f.wp || Math.hypot(f.wp[0] - f.x, f.wp[1] - f.z) < 0.5) f.wp = [f.hx + rand(-4, 4), clamp(f.hz + rand(-2.5, 2.5), this.ZMIN + 0.5, this.ZMAX - 0.5)]; f.head = Math.atan2(f.wp[0] - f.x, f.wp[1] - f.z); f.face = Math.sin(f.head) >= 0 ? 1 : -1; fmove(f, Math.sin(f.head) * 1.1 * dt, Math.cos(f.head) * 1.1 * dt); f.walk += dt * 2.8; } }
+      else { if (!f.wp || Math.hypot(f.wp[0] - f.x, f.wp[1] - f.z) < 0.5) f.wp = [f.hx + rand(-6, 6), clamp(f.hz + rand(-5, 5), this.ZMIN + 0.5, this.ZMAX - 2)]; f.head = Math.atan2(f.wp[0] - f.x, f.wp[1] - f.z); f.face = Math.sin(f.head) >= 0 ? 1 : -1; fmove(f, Math.sin(f.head) * 1.1 * dt, Math.cos(f.head) * 1.1 * dt); f.walk += dt * 2.8; } }
     for (let i = this.fx.length - 1; i >= 0; i--) { this.fx[i].t += dt; if (this.fx[i].t > this.fx[i].life) this.fx.splice(i, 1); }
     if (this.done) { this.doneT = (this.doneT || 0) + dt; if (this.doneT > 4) { this.done = false; if (this.preview) { G.mode = 'title'; Game.show(); } else Game.enter('sea'); } }
     this.render3(dt);
   },
-  zoneAt() { const X = this.LEN - 10; return !this.done && Math.hypot(this.p.x - X, this.p.z) < 1.8 ? { label: this.dig < 3 ? 'Dig here' : 'Open the chest' } : null; },
-  use() { const X = this.LEN - 10; if (this.dig < 3) { this.dig++; Sfx.crunch(); for (let k = 0; k < 10; k++) this.fx.push({ k: 'dirt', x: X + rand(-0.6, 0.6), y: this.h(X) + 0.2, vx: rand(-2, 2), vy: rand(2, 5), t: 0, life: 0.7 });
+  zoneAt() { return !this.done && Math.hypot(this.p.x - this.X[0], this.p.z - this.X[1]) < 1.8 ? { label: this.dig < 3 ? 'Dig here' : 'Open the chest' } : null; },
+  use() { const [X, XZ] = this.X; if (this.dig < 3) { this.dig++; Sfx.crunch(); for (let k = 0; k < 10; k++) this.fx.push({ k: 'dirt', x: X + rand(-0.6, 0.6), y: this.ground(X, XZ) + 0.2, z: XZ, vx: rand(-2, 2), vy: rand(2, 5), t: 0, life: 0.7 });
       if (this.dig === 3) { this.chest.g.visible = true; toast('Steel rings on wood. There it is.', 2500); } else toast(this.dig === 1 ? 'Sand and roots. Keep digging.' : 'Something hard under the blade.', 1800); return; }
-    if (!this.done) { this.done = true; this.doneT = 0; G.gold += 300; Sfx.gold(); this.text(X, this.h(X) + 2.2, '+300 gold', '#ffe2a0'); toast('A chest of Spanish gold. The crew will drink well tonight.', 4000); } },
+    if (!this.done) { this.done = true; this.doneT = 0; G.gold += 300; Sfx.gold(); this.fx.push({ k: 'txt', x: X, y: this.ground(X, XZ) + 2.2, z: XZ, s: '+300 gold', col: '#ffe2a0', t: 0, life: 1.3 }); toast('A chest of Spanish gold. The crew will drink well tonight.', 4000); } },
   slash() { const p = this.p; if (p.slashT > 0 || p.parryT > 0) return; p.slashT = 0.36; p.hitDone = false; Sfx.slash(); },
   parry() { const p = this.p; if (p.slashT > 0 || p.parryT > 0) return; p.parryT = 0.5; Sfx.ui(); },
   hurt(n, nx, nz) { const p = this.p; G.hp -= n; Sfx.hurt(); p.inv = 1.0; p.hurtT = 0.4; p.speed = 0; p.vx = nx * 5; p.vz = (nz || 0) * 5; p.vy = 4; p.ground = false; this.target = null; this.tapTarget = null;
-    if (G.hp <= 0) { G.hp = 5; p.x = Math.max(4, p.x - 20); p.z = 0; p.y = this.h(p.x); p.vx = p.vz = 0; toast('You come to further back down the trail.', 2500); } },
+    if (G.hp <= 0) { G.hp = 5; p.x = Math.max(4, p.x - 20); p.z = this.pathZ(p.x); p.y = this.ground(p.x, p.z); p.vx = p.vz = 0; toast('You come to further back down the trail.', 2500); } },
   render3(dt) { const L3 = Land3, p = this.p, P = this.player, po = P.poser; let st = 'idle', tt = this.t; po.vy = p.vy;
     if (p.hurtT > 0) { st = 'hurt'; tt = (0.4 - p.hurtT) / 0.4; } else if (p.slashT > 0) { st = 'cut'; tt = (0.36 - p.slashT) / 0.36; } else if (p.parryT > 0) { st = 'parry'; tt = (0.5 - p.parryT) / 0.5; } else if (!p.ground) st = 'air'; else if (p.speed > 3) { st = 'run'; po.gaitPhase = p.walk * 1.25; } else if (p.speed > 0.3) { st = 'walk'; po.gaitPhase = p.walk * 1.4; } else if (this.duel) st = 'guard';
     po.set(st); P.apply(po.update(dt, tt), { yaw: p.head - Math.PI / 2 }, p.x, p.y, p.z); P.group.visible = p.inv <= 0 || Math.floor(this.t * 14) % 2 === 0;
     this.foes.forEach((f, i) => { const R = this.foeRigs[i], q = R.poser; let s = 'walk', t2 = f.t; if (f.state === 'dead') { s = 'die'; t2 = Math.min(1, f.t * 1.4); } else if (f.state === 'hurt') s = 'hurt'; else if (f.state === 'windup') { s = 'cut'; t2 = f.t / 0.38 * 0.3; } else if (f.state === 'slash') { s = 'cut'; t2 = 0.3 + f.t / 0.28 * 0.5; } else q.gaitPhase = f.walk * 1.4;
       q.set(s); R.apply(q.update(dt, t2), { yaw: f.head - Math.PI / 2 }, f.x, f.y, f.z); });
-    if (this.chest) { this.chest.g.position.y = lerp(this.chest.g.position.y, this.h(this.LEN - 10) + (this.dig >= 3 ? 0.05 : -0.9), Math.min(1, dt * 2)); this.chest.lid.rotation.x = lerp(this.chest.lid.rotation.x, this.done ? -1.9 : 0, Math.min(1, dt * 4)); }
+    if (this.chest) { this.chest.g.position.y = lerp(this.chest.g.position.y, this.ground(this.X[0], this.X[1]) + (this.dig >= 3 ? 0.05 : -0.9), Math.min(1, dt * 2)); this.chest.lid.rotation.x = lerp(this.chest.lid.rotation.x, this.done ? -1.9 : 0, Math.min(1, dt * 4)); }
     for (const c of L3.group.children) if (c.children && c.children.length && c.children[c.children.length - 1].userData.leaf) for (const l of c.children) if (l.userData.leaf) l.rotation.z = -0.1 + Math.sin(this.t * 1.7 + l.rotation.y * 3) * 0.05;
     const small = Math.min(L3.fx.width, L3.fx.height) < 500, D = this.duel;
     // third person: the camera sits behind and above the figure looking down the trail; a duel swings it round to the side
@@ -1148,21 +1156,22 @@ const Exped = {
     const wantEl = D ? 14 * Math.PI / 180 : 10.5 * Math.PI / 180, wantD = D ? (small ? 11 : 13) : (small ? 12 : 12.5);
     let da = wantAz - (this.az === undefined ? wantAz : this.az); da = ((da + Math.PI) % TAU + TAU) % TAU - Math.PI; this.az = (this.az === undefined ? wantAz : this.az) + da * Math.min(1, dt * 1.5); this.el = lerp(this.el === undefined ? wantEl : this.el, wantEl, Math.min(1, dt * 1.5)); L3.dist = lerp(L3.dist, wantD, Math.min(1, dt * 1.5));
     L3.cam.position.set(this.camX + Math.sin(this.az) * Math.cos(this.el) * L3.dist, this.camY + Math.sin(this.el) * L3.dist, this.camZ + Math.cos(this.az) * Math.cos(this.el) * L3.dist); L3.cam.lookAt(this.camX, this.camY, this.camZ);
-    L3.sun.target.position.set(this.camX, 0, 0); L3.sun.position.set(this.camX + 10, 28, 16); L3.waterMat.uniforms.uT.value = this.t; L3.waterMat.uniforms.uCam.value.copy(L3.cam.position); L3.water.position.set(this.camX, -1.2, 20); if (this.tapTarget) this.tapMark = this.tapTarget;
+    L3.sun.target.position.set(this.camX, 0, 0); L3.sun.position.set(this.camX + 10, 28, 16); L3.waterMat.uniforms.uT.value = this.t; L3.waterMat.uniforms.uCam.value.copy(L3.cam.position); L3.water.position.set(this.camX, this.SEA, this.camZ); if (this.tapTarget) this.tapMark = this.tapTarget;
     for (const c of L3.group.children) if ((c.isMesh && c.geometry.type === 'SphereGeometry') || (c.children && c.children.length && c.children[c.children.length - 1].userData.leaf)) c.visible = Math.hypot(c.position.x - L3.cam.position.x, c.position.z - L3.cam.position.z) > 4.5 && !(c.position.x < p.x - 1 && Math.abs(c.position.z - p.z) < 2.5 && c.position.x > L3.cam.position.x - 1); // canopies and palms step aside near the camera
   },
   // minimap: the island's spine from the landing to the X, biome bands, the ground profile, foes and the figure
-  drawMap(c, W, H) { const small = Math.min(W, H) < 500, mw = small ? 170 : 260, mh = small ? 46 : 70, mx = small ? W - mw - 12 : W / 2 - mw / 2, my = small ? 66 : 52, L = this.LEN, X = x => mx + 8 + (mw - 16) * x / L;
-    c.save(); c.fillStyle = 'rgba(58,46,30,.9)'; c.strokeStyle = 'rgba(242,236,220,.45)'; c.lineWidth = 1.5; c.beginPath(); c.rect(mx, my, mw, mh); c.fill(); c.stroke();
-    for (const [x0, x1, col] of [[0, 28, '#d9c48a'], [28, 112, '#c9b06a'], [112, 150, '#8a9a4a'], [150, L, '#3f7a34']]) { c.fillStyle = col; c.fillRect(X(x0), my + 6, X(x1) - X(x0), mh - 12); }
-    c.strokeStyle = 'rgba(40,30,18,.6)'; c.lineWidth = 1.5; c.beginPath(); for (let x = 0; x <= L; x += 2) { const y = my + mh - 10 - this.h(x) * (mh - 22) / 9; x ? c.lineTo(X(x), y) : c.moveTo(X(x), y); } c.stroke();
-    c.fillStyle = 'rgba(40,120,150,.9)'; c.fillRect(X(196), my + 6, Math.max(2, X(199) - X(196)), mh - 12);
-    for (const f of this.foes) if (f.state !== 'dead' && f.x < this.p.x + 60) { c.fillStyle = '#ff6a5a'; c.beginPath(); c.arc(X(f.x), my + mh / 2, 3, 0, TAU); c.fill(); }
-    if (this.p.x > L - 90 || this.dig > 0) { c.strokeStyle = '#ffd86b'; c.lineWidth = 2; const tx = X(L - 10), ty = my + mh / 2; c.beginPath(); c.moveTo(tx - 4, ty - 4); c.lineTo(tx + 4, ty + 4); c.moveTo(tx + 4, ty - 4); c.lineTo(tx - 4, ty + 4); c.stroke(); }
-    else { c.fillStyle = 'rgba(242,236,220,.6)'; c.font = '700 11px "Barlow Semi Condensed", sans-serif'; c.textAlign = 'center'; c.fillText('?', X(L - 10), my + mh / 2 + 4); }
-    const px = X(this.p.x), py = my + mh / 2; c.fillStyle = '#ffffff'; c.beginPath(); c.moveTo(px + 5 * this.p.face, py); c.lineTo(px - 4 * this.p.face, py - 4); c.lineTo(px - 4 * this.p.face, py + 4); c.closePath(); c.fill();
-    c.fillStyle = 'rgba(242,236,220,.8)'; c.font = '600 10px "Barlow Semi Condensed", sans-serif'; c.textAlign = 'left'; c.fillText('W', mx + 4, my + mh - 4); c.textAlign = 'right'; c.fillText('E', mx + mw - 4, my + mh - 4);
-    c.textAlign = 'center'; c.fillText(['Beach', 'Dunes', 'Scrub', 'Jungle'][['beach', 'dunes', 'scrub', 'jungle'].indexOf(this.biome(this.p.x))], mx + mw / 2, my + mh + 13); c.restore(); },
+  drawMap(c, W, H) { const small = Math.min(W, H) < 500, mw = small ? 200 : 300, mh = small ? 54 : 74, mx = small ? W - mw - 12 : W / 2 - mw / 2, my = small ? 66 : 52, L = this.LEN, z0 = this.ZMIN - 2, z1 = 16;
+    const X = x => mx + 4 + (mw - 8) * (x + 4) / (L + 8), Z = z => my + 4 + (mh - 8) * (z - z0) / (z1 - z0);
+    c.save(); c.fillStyle = 'rgba(30,70,90,.92)'; c.strokeStyle = 'rgba(242,236,220,.45)'; c.lineWidth = 1.5; c.beginPath(); c.rect(mx, my, mw, mh); c.fill(); c.stroke(); c.beginPath(); c.rect(mx, my, mw, mh); c.clip();
+    for (const [x0, x1, col] of [[-1, 28, '#d9c48a'], [28, 112, '#c9b06a'], [112, 150, '#8a9a4a'], [150, L + 4, '#3f7a34']]) { c.fillStyle = col; c.fillRect(X(x0), Z(z0), X(x1) - X(x0), Z(8) - Z(z0)); }
+    c.fillStyle = '#d9c48a'; c.fillRect(X(-1), Z(4), X(L + 4) - X(-1), Z(8.5) - Z(4)); c.fillStyle = 'rgba(30,70,90,1)'; c.fillRect(X(this.SX[0]), Z(z0), X(this.SX[1]) - X(this.SX[0]), mh);
+    c.strokeStyle = 'rgba(80,55,30,.55)'; c.setLineDash([3, 3]); c.lineWidth = 1; c.beginPath(); for (let x = 0; x <= L; x += 3) { const y = Z(this.pathZ(x)); x ? c.lineTo(X(x), y) : c.moveTo(X(x), y); } c.stroke(); c.setLineDash([]);
+    for (const f of this.foes) if (f.state !== 'dead' && Math.abs(f.x - this.p.x) < 60) { c.fillStyle = '#ff6a5a'; c.beginPath(); c.arc(X(f.x), Z(f.z), 3, 0, TAU); c.fill(); }
+    const tx = X(this.X[0]), ty = Z(this.X[1]); if (this.p.x > L - 90 || this.dig > 0) { c.strokeStyle = '#ffd86b'; c.lineWidth = 2; c.beginPath(); c.moveTo(tx - 4, ty - 4); c.lineTo(tx + 4, ty + 4); c.moveTo(tx + 4, ty - 4); c.lineTo(tx - 4, ty + 4); c.stroke(); }
+    else { c.fillStyle = 'rgba(242,236,220,.75)'; c.font = '700 11px "Barlow Semi Condensed", sans-serif'; c.textAlign = 'center'; c.fillText('?', tx, ty + 4); }
+    const p = this.p, ax = Math.sin(p.head), az = Math.cos(p.head), sx = (mw - 8) / (L + 8), sz = (mh - 8) / (z1 - z0), dl = Math.hypot(ax * sx, az * sz) || 1, ux = ax * sx / dl, uz = az * sz / dl, px = X(p.x), py = Z(p.z);
+    c.fillStyle = '#ffffff'; c.beginPath(); c.moveTo(px + ux * 6, py + uz * 6); c.lineTo(px - ux * 4 - uz * 4, py - uz * 4 + ux * 4); c.lineTo(px - ux * 4 + uz * 4, py - uz * 4 - ux * 4); c.closePath(); c.fill(); c.restore();
+    c.fillStyle = 'rgba(242,236,220,.85)'; c.font = '600 11px "Barlow Semi Condensed", sans-serif'; c.textAlign = 'center'; c.fillText(['Beach', 'Dunes', 'Scrub', 'Jungle'][['beach', 'dunes', 'scrub', 'jungle'].indexOf(this.biome(this.p.x))], mx + mw / 2, my + mh + 13); },
   render() { const L3 = Land3; if (!L3.ready) return; L3.r.render(L3.scene, L3.cam); const c = L3.fctx, W = L3.fx.width, H = L3.fx.height; c.clearRect(0, 0, W, H);
     for (const e of this.fx) { const k = e.t / e.life;
       if (e.k === 'txt') { const q = L3.proj(e.x, e.y + k * 0.8, e.z || 0); c.font = '600 22px "Barlow Semi Condensed", sans-serif'; c.textAlign = 'center'; c.globalAlpha = 1 - k * k; c.fillStyle = 'rgba(0,0,0,.7)'; c.fillText(e.s, q.sx + 1, q.sy + 2); c.fillStyle = e.col; c.fillText(e.s, q.sx, q.sy); c.globalAlpha = 1; }
