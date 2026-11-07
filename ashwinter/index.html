@@ -17,6 +17,1443 @@ canvas{display:block;position:fixed;inset:0}
 <body>
 <canvas id="c"></canvas>
 <script>
+(function(root){
+'use strict';
+
+/* ---- Everything worth tuning lives here. World units: the character is ~64 tall. ---- */
+const CFG = {
+  // body
+  thigh:13.65, shin:14, ankleH:2.1, torso:17.5, neck:1.4, headR:3.4, upperArm:9.6, foreArm:11.5,
+  footBack:2.3, footBall:3.6, footToe:6.4,      // sole points measured from under the ankle
+  // pace
+  walkSpeed:50, runSpeed:96, accel:420, decel:560, stopDecel:300, stopLead:1.8, stopExtra:7,   // stopping: how hard he brakes, and how far past his hips the last foot lands   // input 1 = walk, 2 = flat-out run; anything between is a jog
+  cadenceUp:2.15, cadenceDown:2.4,            // treads per second on stairs (sets stair pace from tread width)
+  // stepping
+  stepMin:8, stepMax:22,                     // step length at a crawl / at full walk
+  swingSlow:0.40, swingFast:0.34, swingRun:0.22, swingStair:0.34, swingSettle:0.20,   // seconds a foot spends in the air
+  liftSlow:2.4, liftFast:4.6, liftRun:7.5, liftStair:2.6,    // how high the heel rises behind in early swing
+  loadDip:1.3, strikeJolt:16, doubleSupport:0.11,   // both feet down for about a tenth of a second each step at a walk                 // the knee gives a little as each heel lands, and the body feels it
+  stepRun:27, crouchRun:2.2,                  // stride and knee bend at a full run
+  // posture
+  crouchIdle:0.12, crouchWalk:0.3,             // how far below "legs locked straight" the hips ride
+  heelOff:0.6, heelStrike:0.25, toeFirstUp:0.12, toeFirstDown:0.35,    // foot pitch, radians
+  leanSpeed:0.07, leanAccel:0.06, leanClimb:0.17, leanDescend:-0.03,
+  armSwing:0.03,
+  // jumping
+  jumpV:165, jumpFromSpeed:0.22, jumpCut:0.45, gravity:520, jumpRun:78, jumpPrep:0.07, squatJump:7,
+  // crawling, rolling, throwing, reading, dancing
+  crawlSpeed:20, crawlAccel:110, crawlStride:9,
+  rollDist:50, rollDistRun:84, rollTime:0.6,
+  throwVx:215, throwVy:-115,
+  readSlow:0.55, danceBeat:2,
+  // what counts as a step rather than a cliff or a wall
+  maxStepUp:13, maxStepDown:15,
+  // vines, ledges, walls
+  grabR:16, gripMin:14, hangCM:20, vineDamp:0.12, vinePump:3.4, shinny:34, releaseKick:34,
+  swingG:3.1,
+  rightK:14, rightC:3.2, legSwingK:30, legSwingC:4.5,   // after letting go: how the body's spin and the legs' swing play out in the air                                        // a vine swings like a short rope, not a long slow pendulum
+  pickReach:10, pickSquat:19, pickHinge:1.05,        // how far ahead a thing on the ground is picked from, and how low he goes
+  variety:1,                                         // 0 = identical every time; 1 = a person
+  climbSpeed:26, mantleTime:0.5, flipSpin:1.5, vineArc:1.3, vineTop:250
+};
+
+const clamp=(v,a,b)=>v<a?a:(v>b?b:v);
+const lerp=(a,b,t)=>a+(b-a)*t;
+/* ---- Variety: no two steps, jumps or reaches are quite the same ----
+   Each character has a seed. vary() and jitter() give a fresh random nudge per event (a step, a jump, a throw);
+   wobble() is smooth drift over time (posture, pace, gaze). CFG.variety scales all of it; 0 makes him a metronome. */
+function mulberry32(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+function vary(w,amt){ return 1+(w.rand()*2-1)*amt*CFG.variety; }
+function jitter(w,amt){ return (w.rand()*2-1)*amt*CFG.variety; }
+function wobble(w,ch,t){ const i=Math.floor(t), f=t-i;
+  const h=k=>{ const x=Math.sin(k*127.1+ch*311.7+w.seed*0.0137)*43758.5453; return (x-Math.floor(x))*2-1; };
+  return lerp(h(i),h(i+1),f*f*(3-2*f))*CFG.variety; }
+const ss=t=>{t=clamp(t,0,1);return t*t*(3-2*t);};
+const LEG=CFG.thigh+CFG.shin, LMAX=LEG*0.992;
+
+/* ---------------- World: nothing but level surfaces. A stair is a run of narrow ones. ---------------- */
+function buildWorld(){
+  const s=[]; let x=0,y=0;
+  const flat=len=>{ s.push({x0:x,x1:x+len,y:y,w:len}); x+=len; };
+  // n risers; rise>0 climbs, rise<0 descends. The flat that follows is the last tread.
+  const stairs=(n,tread,rise)=>{ for(let i=0;i<n;i++){ y-=rise; if(i<n-1){ s.push({x0:x,x1:x+tread,y:y,w:tread}); x+=tread; } } };
+
+  const drop=h=>{ y+=h; }, rise=h=>{ y-=h; };          // a face too tall to step: a cliff going down, a wall going up
+  const vines=[], vine=(vx,vy,len)=>vines.push({ax:vx,ay:vy,len:len,th:0.12*(vines.length%2?1:-1),om:0,held:false});
+  const marks={}, ivy=[];                              // ivy: the faces that can be climbed
+
+  flat(240);
+  stairs(8,12,7);      flat(96);        // ordinary stairs to a landing
+  stairs(6,12,7);      flat(230);       // second flight to the terrace
+  stairs(10,12,-7);    flat(210);       // down again
+  stairs(5,26,5);      flat(170);       // broad, shallow garden steps
+  stairs(8,10,8.5);    flat(180);       // steep, narrow tower steps
+  stairs(14,12,-7);    flat(150);       // long descent
+  stairs(4,26,-5.75);  flat(320);       // broad steps down to the start level
+
+  marks.block=x+60;                     // a head-high block: leap at it, catch the lip, pull up
+  flat(120); rise(72); flat(150); drop(72); flat(120);
+  vine(marks.block+228,y-150,118);
+
+  marks.ravine=x;                       // the ravine: three vines across, ivy down both walls
+  const rim=y;
+  flat(20); ivy.push(x); drop(96); flat(300); ivy.push(x); rise(96); flat(60);
+  marks.ravineEnd=x;
+  for(let i=0;i<3;i++) vine(marks.ravine+56+i*98,rim-190,186);
+
+  ivy.push(x); rise(58); flat(210);      // ivy wall up to the last terrace
+  marks.wall=x;
+  ivy.push(x); drop(58); flat(90); vine(x-40,y-196,150);
+  flat(260);
+
+  const world={ s:s, x0:26, x1:x-26, vines:vines, marks:marks,
+    indexAt(px){ let lo=0,hi=s.length-1; if(px<=s[0].x0)return 0; if(px>=s[hi].x1)return hi;
+      while(lo<hi){ const m=(lo+hi)>>1; if(px>=s[m].x1)lo=m+1; else hi=m; } return lo; },
+    yAt(px){ return s[this.indexAt(px)].y; } };
+
+  // every face too tall to walk is an edge: hang from its lip, and climb the ones with ivy on them
+  // things lying about that can be picked up
+  world.itemsInit=[{x:95,kind:'stone'},{x:2058,kind:'stone'},{x:2160,kind:'apple'},{x:2440,kind:'apple'},{x:2830,kind:'stone'},{x:3400,kind:'stone'}];
+  world.items=[]; resetWorld(world);
+  world.edges=[];
+  for(let i=1;i<s.length;i++){ const d=s[i].y-s[i-1].y; if(Math.abs(d)<=CFG.maxStepUp) continue;
+    world.edges.push({x:s[i].x0, y:Math.min(s[i].y,s[i-1].y), floor:Math.max(s[i].y,s[i-1].y), hi:d<0?1:-1, climb:false}); }
+  for(const e of world.edges) e.climb=ivy.some(ix=>Math.abs(ix-e.x)<1);
+  return world;
+}
+
+/* Where may an ankle sit on surface i so the whole boot fits? (dir = which way the toe points) */
+const ITEM_R={stone:1.3,apple:2.1};
+function resetWorld(world){                                           // put every loose thing back where it started
+  world.items.length=0;
+  for(const d of world.itemsInit){ const r=ITEM_R[d.kind]; world.items.push({x:d.x,y:world.yAt(d.x)-r,vx:0,vy:0,a:0,rest:true,held:false,kind:d.kind,r:r,init:true}); }
+  for(const v of world.vines||[]){ v.pts=null; v.th=0; v.om=0; v.held=false; }
+}
+function footRange(world,i,dir){
+  const f=world.s[i]; let a,b;
+  if(dir>0){ a=f.x0+CFG.footBack+0.5; b=f.x1-CFG.footToe-0.5; }
+  else     { a=f.x0+CFG.footToe+0.5;  b=f.x1-CFG.footBack-0.5; }
+  if(a>b){ a=b=(a+b)/2; }
+  return [a,b];
+}
+
+/* Ankle position for a planted foot: heel-up pitch pivots on the ball, toe-up pitch pivots on the heel. */
+function ankleFor(px,py,pitch,face){
+  const c=Math.cos(pitch), sn=Math.sin(pitch);
+  if(pitch>=0){ const bx=px+face*CFG.footBall;
+    return [bx+face*(-CFG.footBall*c+CFG.ankleH*sn), py-CFG.footBall*sn-CFG.ankleH*c]; }
+  const hx=px-face*CFG.footBack;
+  return [hx+face*(CFG.footBack*c+CFG.ankleH*sn), py+CFG.footBack*sn-CFG.ankleH*c];
+}
+
+function createWalker(world,x,seed){
+  const si=world.indexAt(x), gy=world.s[si].y;
+  const mk=px=>({px:px,py:gy,si:si,face:1,planted:true,pitch:0,heel:0,landPitch:0,ax:px,ay:gy-CFG.ankleH,
+                 settle:false,back:0,lx:0,ly:0,t:0,T:1,sx:0,sy:0,sp:0,tx:px,ty:gy,tsi:si,tax:px,tay:gy-CFG.ankleH,tp:0,lift:0,prof:'flat'});
+  const hy=gy-(CFG.ankleH+LEG-CFG.crouchIdle);
+  const w={x:x,y:hy,des:hy,by:hy,bv:0,vx:0,dir:1,facing:1,feet:[mk(x-1.6),mk(x+1.6)],arm:[0,0],lean:0,
+           kneeF:1,legA:0,legL:26,exert:0,breathP:0,idleT:0,shift:0,gaze:0,grade:0,stair:0,tread:999,S:CFG.stepMin,thr:2.5,time:0,steps:0,events:[],scarf:[],
+           mode:'walk',label:'standing',stopX:null,stopV:6,hp:100,ko:false,hitV:0,hitVy:0,freeze:0,foe:null,ai:null,airRot:0,airOm:0,airLeg:0,airLegV:0,strideVar:1,armVar:1,elbowVar:0,armB:[0.22,0.22],squat:0,sway:0,headAdd:0,vy:0,landHold:0,landSquat:0,
+           jump:null,act:null,reading:false,readT:0,dancing:false,danceT:0,crawl:null,roll:null,fade:null,last:null,trick:null,shots:world.items,carry:null,pick:null,pickShift:0,load:0,
+           vine:null,grip:0,hang:null,mantle:null,wall:null,flip:null,grabCd:0,climbHeld:false,downHeld:false,limbT:0};
+  w.seed=seed==null?(Math.random()*1e9|0):seed; w.rand=mulberry32(w.seed);
+  for(let i=0;i<6;i++){ const p={x:x-2-i*1.5,y:hy-CFG.torso+i*2.5}; p.ox=p.x; p.oy=p.y; w.scarf.push(p); }
+  return w;
+}
+
+const destX=f=>f.planted?f.px:f.tx;
+/* How hard the player pushes sets the pace: 0..1 walks, 1..2 runs. */
+function paceFor(a){ const m=Math.abs(a); return Math.sign(a)*(m<=1?m*CFG.walkSpeed:lerp(CFG.walkSpeed,CFG.runSpeed,m-1)); }
+const walkF=sp=>clamp(sp/CFG.walkSpeed,0,1), runF=sp=>clamp((sp-CFG.walkSpeed)/(CFG.runSpeed-CFG.walkSpeed),0,1);
+const strideFor=sp=>lerp(CFG.stepMin,CFG.stepMax,walkF(sp))+runF(sp)*(CFG.stepRun-CFG.stepMax);
+const swingFor=sp=>lerp(CFG.swingSlow,CFG.swingFast,walkF(sp))-runF(sp)*(CFG.swingFast-CFG.swingRun);
+
+/* Where should the swinging foot come down? Predict where the hips will be at landing and reach half a step past that. */
+function pickTarget(w,world,o,goalV,Trem){
+  const dir=w.dir, rate=(Math.abs(goalV)<Math.abs(w.vx)?CFG.decel:CFG.accel)*Trem;
+  const dv=clamp(goalV-w.vx,-rate,rate), vLand=w.vx+dv, vAvg=w.vx+dv*0.5;
+  const sfL=walkF(Math.abs(vLand)), S=strideFor(Math.abs(vLand))*(w.strideVar||1); w._rf=runF(Math.abs(vLand));
+  let xf=w.x+vAvg*Trem+dir*S*0.5;
+  const j=o.si; let i=world.indexAt(xf);
+  if((i-j)*dir>1) i=j+dir;                              // never skip a tread
+  if((i-j)*dir<0) i=j;
+  if(i===j && world.s[j].w<20) i=j+dir;                 // narrow tread: one foot each
+  i=clamp(i,0,world.s.length-1);
+  if(w.stopX!=null) xf=dir>0?Math.min(xf,w.stopX+CFG.stopLead):Math.max(xf,w.stopX-CFG.stopLead);   // stopping: land beside where the hips will rest
+  const dy=world.s[i].y-world.s[j].y;                    // a face too tall to step: stay on this surface
+  if(dy<-CFG.maxStepUp||dy>CFG.maxStepDown) i=j;
+  if(i===j && (xf-o.px)*dir<4) xf=o.px+dir*4;           // always land ahead of the other foot
+  const r=footRange(world,i,dir);
+  return {i:i,tx:clamp(xf,r[0],r[1]),sf:sfL};
+}
+
+/* Point a foot at a landing spot, starting from wherever it is right now. */
+function aim(w,world,f,i,tx,T,settle,sf){
+  const ty=world.s[i].y, dy=ty-f.py;
+  f.prof = dy<-0.5?'up':(dy>0.5?'down':'flat');
+  if(f.prof!=='flat' && !settle) T=Math.max(T,CFG.swingStair*(f.planted?1:0.6));
+  f.tp = settle?0:(f.prof==='up'?CFG.toeFirstUp:(f.prof==='down'?CFG.toeFirstDown:-CFG.heelStrike*sf));
+  f.lift = f.prof==='flat'?(settle?2.2:lerp(CFG.liftSlow,CFG.liftFast,sf)+(settle?0:(w._rf||0))*(CFG.liftRun-CFG.liftFast)):CFG.liftStair+(w._rf||0)*3;
+  if(!f.planted) f.lift*=0.5;                           // re-aimed in mid-air: no need to arc again
+  f.face=w.facing;                                      // a boot turns around when it next leaves the ground
+  const a=ankleFor(tx,ty,f.tp,f.face);
+  f.planted=false; f.settle=settle; f.t=0; f.T=T; f.sx=f.ax; f.sy=f.ay; f.sp=f.pitch;
+  f.tx=tx; f.ty=ty; f.tsi=i; f.tax=a[0]; f.tay=a[1];
+  // climbing with the toe already against a riser (it happens after a turn): draw the foot back first
+  const sf0=world.s[f.si], edge=f.face>0?sf0.x1:sf0.x0;
+  f.back = f.prof==='up' ? Math.max(0,(f.ax+f.face*(CFG.footToe+0.5)-edge)*f.face) : 0;
+}
+
+function startStep(w,world,f,o,settle,goalV){
+  if(settle){
+    const r=footRange(world,o.si,w.facing);
+    aim(w,world,f,o.si,clamp(o.px-w.facing*3,r[0],r[1]),CFG.swingSettle,true,0);
+  }else{
+    w.strideVar=vary(w,0.07);
+    const T0=swingFor(Math.abs(w.vx))*vary(w,0.06);
+    const tg=pickTarget(w,world,o,goalV,T0);
+    aim(w,world,f,tg.i,tg.tx,T0,false,tg.sf);
+    f.lift*=vary(w,0.2); f.tp+=jitter(w,0.06);
+    w.armVar=vary(w,0.2); w.elbowVar=jitter(w,0.14);
+  }
+}
+
+function swingPose(f){
+  const t=f.t; let ux,uy;
+  if(f.prof==='up'){        ux=ss((t-0.2)/0.8);   uy=ss(t/0.5);  }       // rise first, then reach
+  else if(f.prof==='down'){ ux=ss(t/0.78);        uy=ss((t-0.3)/0.7); }  // reach first, then lower
+  else { ux=Math.pow(ss(t),1.25); uy=ux; }                           // flat: the foot trails back at first, then reaches out to land
+  f.ax=lerp(f.sx,f.tax,ux)-f.face*f.back*ss(t/0.15)*(1-ss((t-0.3)/0.4));
+  // flat ground: the heel kicks up early (the knee folds most just after toe-off), then the shin swings through low and the leg straightens to land
+  const arc = f.prof==='flat' ? Math.sin(Math.PI*Math.pow(t,0.6)) : Math.sin(Math.PI*Math.pow(t,0.85));
+  f.ay=lerp(f.sy,f.tay,uy)-f.lift*arc;
+  f.pitch = f.prof==='up' ? lerp(f.sp,f.tp,ss((t-0.25)/0.5))    // keep the toe tucked until it is above the nosing
+                          : lerp(f.sp,f.tp,ss(t*1.15));
+}
+
+/* =====================  WALKING (feet drive everything)  ===================== */
+function stepWalk(w,world,input,dt,o){
+  if(input){ w.dir=Math.sign(input); if(w.dir!==w.facing){ startFade(w,0.16); w.facing=w.kneeF=w.dir; } w.dancing=false; }   // a turn swings the limbs across
+  const f0=w.feet[0], f1=w.feet[1], S_=world.s;
+
+  // --- read the ground: are we on stairs, and which way do they go?
+  const tread=Math.min(S_[world.indexAt(w.x)].w, S_[world.indexAt(w.x+w.dir*12)].w, S_[f0.si].w, S_[f1.si].w);
+  const gradeNow=(world.yAt(w.x-w.dir*12)-world.yAt(w.x+w.dir*12))/24;      // + climbing, - descending
+  w.grade+=(gradeNow-w.grade)*(1-Math.exp(-6*dt));
+  const onStair=tread<40;
+  w.stair+=((onStair?1:0)-w.stair)*(1-Math.exp(-7*dt));
+  w.tread=tread;
+  const push=Math.abs(input), hurry=clamp(push-1,0,1);                       // pushing past a walk: taking stairs two at a time... well, faster
+  let vlim=Math.abs(paceFor(input))*(w.reading?CFG.readSlow:1)*(1+0.035*wobble(w,8,w.time*0.45));   // nobody holds an exact pace
+  if(onStair) vlim=Math.min(vlim,tread*(w.grade>0?CFG.cadenceUp:CFG.cadenceDown)*(1+0.6*hurry)*Math.max(Math.min(push,1),0.35));
+
+  // --- hips, horizontally
+  let goal=Math.sign(input)*vlim;
+  if(input) w.stopX=null;
+  else{
+    // Stopping: pick the spot a body at this speed comes to rest, and brake smoothly to exactly there.
+    // The feet are placed around that spot, so the hips never have to creep over to them afterwards.
+    if(w.stopX==null){
+      const dv=Math.sign(w.vx)||w.dir, nat=w.vx*w.vx/(2*CFG.stopDecel);
+      const front=Math.max((destX(f0)-w.x)*dv,(destX(f1)-w.x)*dv)-CFG.stopLead;     // finish the step already under way and stop over that foot
+      w.stopX=w.x+dv*clamp(Math.max(nat,Math.min(front,nat+CFG.stopExtra)),0,32);   // but never drift far past where the brakes would stop him
+      w.stopV=Math.max(Math.abs(w.vx),6); }
+    const d=w.stopX+w.shift+w.pickShift-w.x;
+    goal=Math.abs(d)<0.03?0:Math.sign(d)*Math.min(Math.sqrt(2*CFG.stopDecel*Math.abs(d)),6*Math.abs(d)+2,w.stopV);   // brake, never speed up; ease in gently at the end
+  }
+  const speedingUp=Math.abs(goal)>Math.abs(w.vx)&&goal*w.vx>=0;
+  const a=speedingUp?CFG.accel:CFG.decel, vPrev=w.vx;
+  w.vx+=clamp(goal-w.vx,-a*dt,a*dt);
+  if(!f0.planted||!f1.planted){                                              // mid-step, hips may not outrun the feet
+    const maxD=Math.max(w.thr+3,10);
+    for(const f of w.feet){ const d=destX(f)-w.x; if(d*w.vx<0){ const over=Math.abs(d)-maxD; if(over>0){ const cap=CFG.runSpeed*clamp(1-over/7,0.12,1); w.vx=clamp(w.vx,-cap,cap); } } }
+  }
+  const wasX=w.x; w.x+=(w.vx+w.hitV)*dt;
+  if(w.x<world.x0){w.x=world.x0; if(w.vx<0)w.vx=0;} if(w.x>world.x1){w.x=world.x1; if(w.vx>0)w.vx=0;}
+  for(const e of world.edges){
+    if((wasX-e.x)*e.hi<0){                                                   // on the low side: the face is a wall
+      if((w.x-e.x)*e.hi>-9){ w.x=e.x-e.hi*9; w.vx=0; if(w.stopX!=null&&(w.stopX-w.x)*e.hi>0) w.stopX=w.x; }
+    }else if((w.x-e.x)*e.hi<3 && w.vx*e.hi<0){ toAir(w); return; }            // walked off the lip: fall
+  }
+
+  const sp=Math.abs(w.vx), sf=walkF(sp), rf=runF(sp);
+  w.S=strideFor(sp);
+  let thrRef=w.S*0.5; if(onStair) thrRef=Math.min(thrRef,tread*0.6);
+  const together=f0.planted&&f1.planted&&Math.abs(f0.px-f1.px)<6;
+  w.thr=together?2.5:thrRef;
+
+  // --- feet in the air
+  for(const f of w.feet) if(!f.planted){
+    f.t+=dt/f.T;
+    if(f.t>=1){ f.planted=true; f.px=f.tx; f.py=f.ty; f.si=f.tsi; f.landPitch=f.tp; f.heel=0; w.steps++;
+      if(!f.settle){ w.load=1; w.bv+=CFG.strikeJolt*(0.3+sf); }                      // heel strike: the knee takes the load, the body jolts
+      w.events.push({type:'step',x:f.px,y:f.py,speed:sp,stone:S_[f.si].w<40,prof:f.prof}); }
+    else{
+      if(!f.settle && f.t<0.75){                       // keep correcting the landing spot while there's time
+        const ot=f===f0?f1:f0, tg=pickTarget(w,world,ot,goal,(1-f.t)*f.T);
+        const rate=(w.stopX!=null?150:90)*dt;
+        if(tg.i===f.tsi){ const d=clamp(tg.tx-f.tx,-rate,rate); f.tx+=d; f.tax+=d; }
+        else aim(w,world,f,tg.i,tg.tx,Math.max(0.2,(1-f.t)*f.T),false,tg.sf);
+      }
+      swingPose(f);
+    }
+  }
+  // --- decide whether a foot should leave the ground
+  if(f0.planted&&f1.planted){
+    const frontX=w.dir>0?Math.max(f0.px,f1.px):Math.min(f0.px,f1.px);
+    const braking=w.stopX!=null&&Math.abs(w.vx)>5&&(w.stopX+w.dir*CFG.stopLead-frontX)*w.dir>3;   // the rest point is past both feet: another braking step
+    if((input!==0||braking) && w.vx*w.dir>0.5){
+      const b0=(w.x-f0.px)*w.dir, b1=(w.x-f1.px)*w.dir;
+      // lift the rear foot once it trails far enough, or early if the front foot won't stay ahead for a whole swing
+      // Lift the back foot a fixed moment after the front one lands (the double-support beat), so left and right
+      // take turns evenly. Waiting for the back foot to trail a set distance instead lets the two feet drift into a limp.
+      const lead=-Math.min(b0,b1), Tds=CFG.doubleSupport*(1-0.7*rf);
+      const due = together ? Math.max(b0,b1)>w.thr : (lead<w.S*0.5-sp*Tds || Math.max(b0,b1)>w.thr*1.6);
+      if(due){ if(b0>=b1) startStep(w,world,f0,f1,false,goal); else startStep(w,world,f1,f0,false,goal); }
+    }else if(!input && sp<14 && w.stopX!=null){
+      // nearly stopped: set the feet either side of where the hips rest, the worse one first
+      const F=w.facing, rest=w.stopX+w.shift, front=f0.px*F>=f1.px*F?f0:f1, rear=front===f0?f1:f0;
+      const plan=[[front,rest+F*1.6],[rear,rest-F*1.6]].map(([f,ix])=>{
+        let i=world.indexAt(ix); if(Math.abs(world.s[i].y-f.py)>CFG.maxStepUp) i=f.si;
+        const r=footRange(world,i,F); return {f:f,i:i,tx:clamp(ix,r[0],r[1]),err:Math.abs(f.px-ix)}; });
+      plan.sort((a,b)=>b.err-a.err);
+      const m=plan[0]; if(m.err>2.6&&Math.abs(m.tx-m.f.px)>1) aim(w,world,m.f,m.i,m.tx,CFG.swingSettle,true,0);
+    }
+  }
+  // --- feet on the ground: heel peels up as the hips pass ahead (o.tap lets a dance lift a heel too)
+  const hRef=Math.max(thrRef,4);
+  for(let i=0;i<2;i++){ const f=w.feet[i]; if(!f.planted)continue;
+    const behind=(w.x-f.px)*w.dir;
+    const hT=(f.face===w.dir?ss((behind-0.4*hRef)/(0.8*hRef))*CFG.heelOff:0)+o.tap[i];
+    f.heel+=(hT-f.heel)*(1-Math.exp(-25*dt));
+    f.landPitch*=Math.exp(-16*dt);
+    f.pitch=f.heel+f.landPitch;
+    const an=ankleFor(f.px,f.py,f.pitch,f.face); f.ax=an[0]; f.ay=an[1];
+  }
+
+  // --- hips, vertically: ride above the supporting foot, but never further than a leg can reach.
+  //     w.squat is extra knee bend asked for by a jump wind-up, a landing, or a dance.
+  w.squat+=(o.squat-w.squat)*(1-Math.exp(-(o.squat>w.squat?30:9)*dt));
+  let ref=Infinity; for(const f of w.feet) if(f.planted) ref=Math.min(ref,f.py);
+  if(ref===Infinity) ref=Math.min(f0.ty,f1.ty);
+  for(const f of w.feet) if(!f.planted && f.ty>ref) ref+=(f.ty-ref)*ss(f.t)*0.7;   // start sinking early toward a lower landing
+  w.load*=Math.exp(-7*dt);
+  const crouch=lerp(CFG.crouchIdle,CFG.crouchWalk,sf)+rf*CFG.crouchRun+w.stair*0.6+w.squat+CFG.loadDip*w.load*sf;
+  w.des+=(ref-(CFG.ankleH+LEG-crouch)-w.des)*(1-Math.exp(-(o.squat>0.5?26:10)*dt));
+  let target=w.des;
+  for(const f of w.feet){ if(!f.planted) continue; const dx=Math.min(Math.abs(f.ax-w.x),LMAX-3); target=Math.max(target,f.ay-Math.sqrt(LMAX*LMAX-dx*dx)); }
+  // a swinging leg only starts to pull the hips toward it as it comes in to land; until then it bends to stay in reach
+  for(const f of w.feet){ if(f.planted) continue;
+    const dx2=Math.min(Math.abs(f.ax-w.x),LMAX-3), need=f.ay-Math.sqrt(LMAX*LMAX-dx2*dx2);
+    if(need>target) target=lerp(target,need,Math.max(1-ss(f.t/0.3),ss((f.t-0.35)/0.6))); }   // lets go of the hips gradually at lift-off, takes them again at landing
+  if(target>w.y) w.y+=Math.min(target-w.y,Math.max(2.2,(target-w.y)*0.5)); else w.y+=(target-w.y)*(1-Math.exp(-(onStair?10:26)*dt));
+  for(const f of w.feet){ const dx=f.ax-w.x, dy=f.ay-w.y, d=Math.hypot(dx,dy); if(d>LMAX){ f.ax=w.x+dx/d*LMAX; f.ay=w.y+dy/d*LMAX; } }
+
+  upper(w,dt,o,sf,clamp((w.vx-vPrev)/dt/CFG.accel,-1,1));
+  w.label = w.dancing?'dancing':(sp<3&&together ? (w.reading?'reading':'standing') : (onStair&&Math.abs(w.grade)>0.05 ? (w.grade>0?'climbing stairs':'descending stairs') : (sp<3?'standing':(w.reading?'reading on the move':(sp>100?'running':(sp>66?'jogging':(sp<30?'strolling':'walking')))))));
+
+  // --- a jump winds up inside the walk (so the knees bend properly), then leaves the ground
+  if(w.jump){ w.jump.t+=dt; if(w.jump.t>=CFG.jumpPrep) launch(w,input); }
+}
+
+/* Spring, lean, head, arm targets. Shared by walking and flight. */
+function upper(w,dt,o,sf,accN){
+  const F=w.facing;
+  w.bv+=((w.y-w.by)*480-w.bv*26)*dt; w.by+=w.bv*dt;
+  let leanT=(w.vx/CFG.walkSpeed)*CFG.leanSpeed+accN*CFG.leanAccel+F*o.lean+0.022*wobble(w,1,w.time*0.6);
+  if(w.mode==='walk') leanT+=F*w.stair*(w.grade>0.05?CFG.leanClimb:(w.grade<-0.05?CFG.leanDescend:0));
+  w.lean+=(leanT-w.lean)*(1-Math.exp(-o.leanRate*dt));
+  w.headAdd+=(o.head-w.headAdd)*(1-Math.exp(-9*dt));
+  // where he looks: at the treads on stairs, at the ground when dropping, up at a vine or ledge ahead, around when idle
+  let gz = w.mode==='air' ? (w.vy>60?0.34:-0.1) : (w.stair>0.3?(w.grade<-0.05?0.32:0.16):0.05*sf);
+  for(const v of w.world.vines){ const dx=(v.ax-w.x)*F; if(dx>0&&dx<95&&v.ay+v.len<w.y+20){ gz=-0.3; break; } }
+  for(const e of w.world.edges){ const dx=(e.x-w.x)*F; if(dx>0&&dx<45&&e.y<w.y-20&&e.hi===F&&w.mode==='walk'){ gz=-0.36; break; } }
+  if(w.pick) gz=0.4;
+  if(w.idleT>2) gz+=0.22*Math.sin(w.idleT*0.43)*Math.sin(w.idleT*0.17+1)+0.14*wobble(w,5,w.idleT*0.5)-0.05*w.exert;
+  w.gaze+=(gz-w.gaze)*(1-Math.exp(-5*dt));
+  w.sway+=(o.sway-w.sway)*(1-Math.exp(-16*dt));
+  const r=1-Math.exp(-o.rate*dt);
+  for(let i=0;i<2;i++){
+    const rel=(w.feet[i].ax-w.x)*F;
+    const rf=runF(Math.abs(w.vx));
+    let ta=w.mode==='air'?0:clamp(-rel*CFG.armSwing*(1+0.6*rf)*w.armVar,-0.55-0.35*rf,0.55+0.35*rf)*(0.35+0.65*sf), tb=0.22+Math.max(0,ta)*0.9+sf*0.25+rf*1.2+w.elbowVar;
+    const oa=o.arm[i]; if(oa){ ta=lerp(ta,oa.a,oa.k); tb=lerp(tb,oa.b,oa.k); }
+    w.arm[i]+=(ta-w.arm[i])*r; w.armB[i]+=(tb-w.armB[i])*r;
+  }
+}
+
+/* =====================  OVERLAYS: what the arms, head and knees are asked to do on top of walking  =====================
+   Arm targets are {a: shoulder angle from hanging (forward +), b: elbow bend, k: how much to override the walk swing}. */
+function overlay(w,dt){
+  const o={arm:[null,null],lean:0,leanRate:7,head:0,squat:0,sway:0,rate:12,tap:[0,0],prop:null};
+  // standing about: after a moment he settles his weight onto one leg, then the other; the free heel lifts a little
+  const still=w.mode==='walk'&&Math.abs(w.vx)<3&&!w.act&&!w.dancing&&!w.jump&&!w.pick&&w.landHold<=0;
+  w.idleT=still?w.idleT+dt:0;
+  const amp=ss((w.idleT-1.2)/1.8);
+  w.shift=amp*2.4*clamp(0.7*Math.sin((w.idleT-1.2)*0.75)+0.5*wobble(w,4,w.idleT*0.33),-1,1);
+  if(amp>0){ const mid=(w.feet[0].px+w.feet[1].px)/2, sd=Math.sign(w.shift);
+    for(let i=0;i<2;i++) if((w.feet[i].px-mid)*sd<-0.5) o.tap[i]=0.2*Math.abs(w.shift)/2.4; }
+  // out of breath: a slight hunch while he recovers
+  if(still) o.lean=0.10*w.exert;
+  const set=(i,a,b,k)=>{ o.arm[i]={a:a,b:b,k:k==null?1:k}; };
+  if(w.landHold>0){ w.landHold-=dt; o.squat=w.landSquat; }
+  const bend=pickBend(w);
+  w.pickShift=-w.facing*3*bend;                                         // hips sit back to balance the reach
+  if(bend>0){ o.squat=CFG.pickSquat*bend*(w.pick.sq||1); o.lean=CFG.pickHinge*bend*(w.pick.hg||1); o.leanRate=12; o.head=0.5*bend; o.rate=16; }
+  else if(w.carry&&!w.act) set(1,0.5,1.55,0.9);                         // carrying: held in front at the waist
+  if(w.reading){ w.readT+=dt; const pg=w.readT%3.6, flip=pg<0.5?Math.sin(pg/0.5*Math.PI):0;       // now and then, turn a page
+    set(0,0.70,1.52); set(1,0.78+flip*0.28,1.45-flip*0.55); o.head=0.36; o.prop='book'; }
+  if(w.dancing){ w.danceT+=dt; const p=w.danceT*CFG.danceBeat, s1=Math.sin(Math.PI*p), s2=Math.sin(2*Math.PI*p);
+    const big=1+0.25*wobble(w,6,w.danceT*0.6);
+    o.squat=(2.2+2.6*(0.5-0.5*Math.cos(2*Math.PI*p)))*big; o.sway=3.2*s1*big; o.lean=-0.10*s1*big; o.head=0.12*s2;
+    set(1,1.7+0.95*s1,1.3+0.45*s2); set(0,1.7-0.95*s1,1.3-0.45*s2);
+    o.tap=[Math.max(0,s2)*0.42,Math.max(0,-s2)*0.42]; o.rate=18; }
+  if(w.jump){ set(0,-0.7,0.25); set(1,-0.85,0.25); o.lean=0.13; o.squat=Math.max(o.squat,CFG.squatJump); o.rate=24; o.prop=null; }
+  if(w.mode==='air'){ const up=w.vy<0, fwd=Math.abs(w.vx)>20;
+    if(up){ set(0,2.2,0.2); set(1,2.55,0.15); } else { set(0,1.0,0.55); set(1,1.35,0.5); }
+    o.lean=fwd?(up?0.14:-0.06):0; o.rate=16; o.prop=null; }
+  const A=w.act;
+  if(A){ A.t+=dt;
+    if(A.name==='throw'){
+      if(A.t<0.24){ set(1,-1.75,-1.2); set(0,0.95,0.3); o.lean=-0.17; o.rate=17; o.leanRate=14; o.prop=w.carry?null:'stone'; }
+      else if(A.t<0.36){ set(1,2.0,0.1); set(0,-0.5,0.5); o.lean=0.30; o.rate=40; o.leanRate=26; if(A.t<0.30&&!w.carry) o.prop='stone'; }
+      else { set(1,0.8,0.4); set(0,-0.2,0.4); o.lean=0.10; o.rate=11; }
+      if(A.t>=0.30&&!A.done){ A.done=true; const h=w.last?w.last.arms[1]:{hx:w.x,hy:w.y-20}, F=w.facing;
+        let it=w.carry;
+        if(it){ w.carry=null; it.held=false; }
+        else{ it={kind:'stone',r:ITEM_R.stone,a:0}; w.shots.push(it);
+          if(w.shots.length>40){ const k=w.shots.findIndex(q=>!q.init&&q.rest); if(k>=0) w.shots.splice(k,1); } }
+        Object.assign(it,{x:h.hx+F*1.5,y:h.hy-1,vx:F*CFG.throwVx*vary(w,0.08)+w.vx*0.6,vy:CFG.throwVy*vary(w,0.1),rest:false});
+        w.events.push({type:'throw'}); }
+      if(A.t>0.66) w.act=null;
+    }else if(A.name==='clap'){
+      const f=A.f||3.4, u=A.t-0.16, s=u<0?1:0.5+0.5*Math.cos(2*Math.PI*f*u);           // s: how far apart the hands are
+      set(1,1.02+s*0.32,1.35-s*0.28); set(0,1.02-s*0.30,1.35+s*0.10); o.rate=30; o.squat=Math.max(o.squat,0.9*(1-s)); o.head=-0.05; o.prop=null;
+      if(u>=(A.n+0.5)/f){ A.n++; w.events.push({type:'clap'}); }
+      if(A.n>=(A.max||4)&&u>=(A.max||4)/f+0.05) w.act=null;
+    }
+  }
+  if(w.ext){ const E=w.ext; if(E.arm) for(let i=0;i<2;i++) if(E.arm[i]) o.arm[i]=E.arm[i]; if(E.lean!=null) o.lean=E.lean; if(E.squat!=null) o.squat=Math.max(o.squat,E.squat); if(E.head!=null) o.head=E.head; if(E.rate) o.rate=E.rate; if(E.leanRate) o.leanRate=E.leanRate; if(E.tap) o.tap=E.tap; }
+  return o;
+}
+
+/* =====================  PICKING UP, CARRYING, PUTTING DOWN  =====================
+   He walks up until the thing is a forearm's reach past his lead foot, looking at it.
+   Then he bends at the knees and hips together, sits his hips back to keep balance,
+   puts his free hand on his knee, and reaches down with the other. Standing up reverses it. */
+function nearestItem(w,world){
+  let best=null; const g=world.yAt(w.x);
+  for(const it of w.shots){ if(!it.rest||it.held) continue;
+    const dx=it.x-w.x; if(Math.abs(dx)>46||Math.abs(it.y+it.r-g)>4) continue;
+    const F=Math.sign(dx)||w.facing, stand=it.x-F*CFG.pickReach;
+    if(Math.abs(world.yAt(stand)-world.yAt(it.x))>1) continue;           // must be able to stand on the same level
+    if(!best||Math.abs(dx)<Math.abs(best.x-w.x)) best=it; }
+  return best;
+}
+function dropCarry(w){ const it=w.carry; if(!it) return; w.carry=null; it.held=false; it.rest=false; it.vx=w.vx*0.5; it.vy=w.vy||0; }
+function pickDrive(w,world,input,dt){                                  // returns the input to use while a pick or put-down is under way
+  const p=w.pick; p.t+=dt;
+  if(p.phase==='approach'){
+    const F=Math.sign(p.item.x-w.x)||w.facing, d=(p.item.x-F*CFG.pickReach)-w.x;
+    if(Math.abs(d)<1.4&&Math.abs(w.vx)<7){
+      if(F!==w.facing){ startFade(w,0.16); w.facing=w.dir=w.kneeF=F; }
+      p.phase='reach'; p.t=0; return 0; }
+    if(p.t>3.5||!p.item.rest){ w.pick=null; return 0; }                   // gave up, or it rolled away
+    return Math.sign(d)*Math.max(0.3,Math.min(1,Math.abs(d)/12));
+  }
+  if(p.phase==='reach'&&p.t>=0.46){
+    if(p.put){ const it=p.item; w.carry=null; it.held=false; it.rest=true; it.x=p.gx; it.y=p.gy; }
+    else{ const it=p.item; it.held=true; it.rest=false; w.carry=it; }
+    p.phase='rise'; p.t=0; w.events.push({type:'pat',x:p.gx}); }
+  else if(p.phase==='rise'&&p.t>=0.48) w.pick=null;
+  return 0;
+}
+function pickBend(w){                                                 // 0 standing .. 1 all the way down
+  const p=w.pick; if(!p||p.phase==='approach') return 0;
+  return p.phase==='reach' ? ss(p.t/0.4) : 1-ss(p.t/0.46);
+}
+/* After the body is posed: the reaching hand goes to the thing, the other to the knee. */
+function pickArms(w,P,world){
+  const p=w.pick, F=w.facing;
+  if(p&&p.phase!=='approach'){
+    const k = p.phase==='reach' ? ss((p.t-0.06)/0.38) : 1-ss((p.t-0.04)/0.4);
+    const tx=p.gx, ty=p.gy-(p.put?0:0.8);
+    const A=P.arms[1], hx=lerp(A.hx,tx,k), hy=lerp(A.hy,ty,k);
+    // the reaching shoulder drops toward the thing, the last couple of units of reach
+    const dx=hx-P.sh.x, dy=hy-P.sh.y, d=Math.hypot(dx,dy)||1, give=Math.min(3.2,Math.max(0,d-(CFG.upperArm+CFG.foreArm-0.3)))*k;
+    const sx=P.sh.x+dx/d*give, sy=P.sh.y+dy/d*give, e=solve2(sx,sy,hx,hy,CFG.upperArm,CFG.foreArm,-F);
+    P.reachSh={x:sx,y:sy};
+    P.arms[1]={ex:e.kx,ey:e.ky,hx:e.ax,hy:e.ay};
+    const K=P.legs[0], B=P.arms[0], k2=pickBend(w)*0.85, e2=solve2(P.sh.x,P.sh.y,lerp(B.hx,K.kx+F*1.5,k2),lerp(B.hy,K.ky-1.2,k2),CFG.upperArm,CFG.foreArm,-F);
+    P.arms[0]={ex:e2.kx,ey:e2.ky,hx:e2.ax,hy:e2.ay};
+  }
+  if(w.carry){ const H=P.arms[1]; w.carry.x=H.hx+F*1.1; w.carry.y=H.hy+0.9; }
+}
+
+/* =====================  JUMPING  ===================== */
+function launch(w,input){
+  const short=w.jump&&w.jump.cut;
+  w.mode='air'; w.jump=null; w.vy=-(CFG.jumpV+CFG.jumpFromSpeed*Math.abs(w.vx))*(short?0.62:1)*vary(w,0.05); w.squat=0;
+  w.airRot=0; w.airOm=jitter(w,0.45); w.airLeg=0; w.airLegV=jitter(w,1.2);   // no take-off is perfectly square   // a run carries into a bigger jump
+  if(Math.abs(input)>0.3) w.vx=w.dir*Math.max(Math.abs(w.vx),CFG.jumpRun*(0.55+0.45*Math.min(Math.abs(input),1)));   // a held direction makes it a leap
+  for(const f of w.feet){ f.planted=false; f.lx=f.ax-w.x; f.ly=f.ay-w.y; f.face=w.facing; }
+  w.events.push({type:'jump',x:w.x,y:Math.max(w.feet[0].py,w.feet[1].py)});
+}
+function stepAir(w,world,input,dt,o){
+  const F=w.facing, up=w.vy<0;
+  w.grabCd-=dt;
+  w.vy+=CFG.gravity*dt; w.vx+=clamp(input,-1,1)*45*dt;
+  w.airOm+=(-CFG.rightK*w.airRot-CFG.rightC*w.airOm)*dt; w.airRot+=w.airOm*dt;             // body spin, pulled back upright
+  w.airLegV+=(-CFG.legSwingK*w.airLeg-CFG.legSwingC*w.airLegV)*dt; w.airLeg+=w.airLegV*dt;   // legs swinging through and back
+  let nx=clamp(w.x+w.vx*dt,world.x0,world.x1); const ny=w.y+w.vy*dt;
+  // anything to catch hold of? a vine within arm's reach, a ledge lip, an ivy face
+  const hit=nearestGrip(world,nx+F*2,ny-20,w.grabCd);
+  if(hit){ w.x=nx; w.y=ny; grabVine(w,hit); return; }
+  const le=ledgeCatch(w,world,ny); if(le){ grabLedge(w,le); return; }
+  const wl=wallCatch(w,world,nx,ny); if(wl){ w.y=ny; grabWall(w,wl); return; }
+  if(w.flip){ w.flip.th+=F*2*Math.PI*CFG.flipSpin*dt; w.x=nx; w.y=ny; w.label='flipping';
+    for(const f of w.feet){ f.ax=w.x+f.lx; f.ay=w.y+f.ly; }
+    if(w.vy>0 && w.y+13>=world.yAt(w.x)){ w.y=world.yAt(w.x)-13;
+      if(Math.abs(w.vx)>25&&canRoll(w,world)){ w.flip=null; w.mode='walk'; startRoll(w,world); }
+      else { w.flip=null; for(const f of w.feet){ f.ly=world.yAt(w.x)-w.y-CFG.ankleH; f.ay=w.y+f.ly; } land(w,world); } }
+    return; }
+  // legs: tuck on the way up, reach for the ground on the way down (further with the foot that is over lower ground)
+  const g=[world.yAt(nx+w.feet[0].lx),world.yAt(nx+w.feet[1].lx)], gHi=Math.min(g[0],g[1]), dMax=Math.min(Math.max(g[0],g[1])-gHi,10);
+  const lyLow=Math.min(28.4,26.5+dMax), reach=clamp(Math.abs(w.vx)*0.06,0,4.5);
+  for(let i=0;i<2;i++){ const f=w.feet[i], lead=i===1;
+    const tx0=F*(up?(lead?5:-5.5):(lead?3+reach:-2.5+reach*0.5)), ty0=up?(lead?20:23):lyLow-(dMax-Math.min(g[i]-gHi,10));
+    const R=w.airRot-F*w.airLeg*(lead?1:0.8), c=Math.cos(R), sn=Math.sin(R);          // legs turn with the body and swing on their own
+    const tx=tx0*c-ty0*sn, ty=tx0*sn+ty0*c;
+    f.lx+=(tx-f.lx)*(1-Math.exp(-11*dt)); f.ly+=(ty-f.ly)*(1-Math.exp(-(up?10:17)*dt));
+    const d=Math.hypot(f.lx,f.ly); if(d>LMAX-0.6){ f.lx*=(LMAX-0.6)/d; f.ly*=(LMAX-0.6)/d; }
+    f.pitch+=((up?0.55:0.12)-f.pitch)*(1-Math.exp(-12*dt)); }
+  // a riser taller than we can clear stops us dead
+  const sgn=Math.sign(w.vx)||F, probe=nx+sgn*(Math.max(Math.abs(w.feet[0].lx),Math.abs(w.feet[1].lx))+CFG.footToe+1);
+  const sole=ny+Math.max(w.feet[0].ly,w.feet[1].ly)+CFG.ankleH;
+  if(world.yAt(probe)<sole-4){ nx=w.x; w.vx=0; }
+  w.x=nx; w.y=ny;
+  for(const f of w.feet){ f.ax=w.x+f.lx; f.ay=w.y+f.ly; }
+  upper(w,dt,o,walkF(Math.abs(w.vx)),0);
+  w.label='in the air';
+  if(w.vy>0){ let pen=-Infinity, gb=world.yAt(w.x); for(const f of w.feet){ const gf=world.yAt(f.ax); if(gf<gb-CFG.maxStepUp) continue; pen=Math.max(pen,f.ay+CFG.ankleH-gf); }   // a foot still over the ledge he left doesn't count
+    if(pen>=0){ w.y-=pen; for(const f of w.feet) f.ay-=pen; land(w,world); } }
+}
+function land(w,world){ w.stopX=null;
+  const hard=w.vy>250&&Math.abs(w.vx)>25&&canRoll(w,world);
+  w.mode='walk'; w.des=w.y; w.landSquat=clamp(w.vy/24,3,9.5)*vary(w,0.15); w.landHold=0.10;
+  w.events.push({type:'land',x:w.x,y:world.yAt(w.x),speed:w.vy,stone:world.s[world.indexAt(w.x)].w<40}); w.vy=0;
+  for(const f of w.feet){ const si=world.indexAt(f.ax), r=footRange(world,si,w.facing);     // each boot gets a few frames to find a legal spot
+    f.py=world.s[si].y; aim(w,world,f,si,clamp(f.ax,r[0],r[1]),0.07,true,0); }
+  if(hard) startRoll(w,world);                                                             // a long drop rolls out
+}
+
+/* =====================  CRAWLING: two hands and two knees, each planted until the body has moved past it  ===================== */
+function crawlLimbs(w,world){
+  const F=w.facing, mk=(rest,off)=>{ const x=w.x+F*(rest+off); return {rest:rest,x:x,y:world.yAt(x),planted:true,t:0,sx:0,sy:0,tx:x,ty:0}; };
+  w.crawl={hands:[mk(20.5,2.4),mk(20.5,-2.4)],knees:[mk(1.5,-2.4),mk(1.5,2.4)],pitch:w.crawl?w.crawl.pitch:0.4};
+}
+function enterCrawl(w,world){ startFade(w,0.40); w.mode='crawl'; w.reading=w.dancing=false; w.act=null; w.jump=null; w.vx*=0.3; crawlLimbs(w,world); w.events.push({type:'pat'}); }
+function standUp(w,world){ w.stopX=null;
+  startFade(w,0.45); w.mode='walk'; w.crawl=null; w.roll=null;
+  const si=world.indexAt(w.x), r=footRange(world,si,w.facing);
+  w.feet.forEach((f,i)=>{ f.planted=true; f.settle=false; f.si=si; f.py=world.s[si].y; f.px=clamp(w.x+(i?1.6:-1.6),r[0],r[1]); f.face=w.facing; f.heel=f.landPitch=f.pitch=0;
+    const a=ankleFor(f.px,f.py,0,f.face); f.ax=a[0]; f.ay=a[1]; });
+  w.des=w.y; w.by=w.y; w.bv=0; w.kneeF=w.facing; w.squat=0;
+}
+function stepCrawl(w,world,input,dt){
+  if(input&&Math.sign(input)!==w.facing){ startFade(w,0.32); w.facing=w.dir=Math.sign(input); crawlLimbs(w,world); }   // shuffle round
+  const F=w.facing, c=w.crawl;
+  const slow=Math.min(world.s[world.indexAt(w.x)].w,world.s[world.indexAt(w.x+F*20)].w)<40?0.7:1;
+  w.vx+=clamp(clamp(input,-1,1)*CFG.crawlSpeed*slow-w.vx,-CFG.crawlAccel*dt,CFG.crawlAccel*dt);
+  w.x=clamp(w.x+w.vx*dt,world.x0,world.x1);
+  for(const set of [c.hands,c.knees]) for(let i=0;i<2;i++){ const L=set[i], other=set[1-i];
+    if(!L.planted){ L.t+=dt/0.26; const u=ss(L.t); L.x=lerp(L.sx,L.tx,u); L.y=lerp(L.sy,L.ty,u)-(set===c.hands?3:1.6)*Math.sin(Math.PI*clamp(L.t,0,1));
+      if(L.t>=1){ L.planted=true; L.x=L.tx; L.y=L.ty; if(set===c.hands) w.events.push({type:'pat'}); } }
+    else if(other.planted && (w.x+F*L.rest-L.x)*F>CFG.crawlStride/2 && Math.abs(w.vx)>1){
+      let tx=w.x+F*(L.rest+CFG.crawlStride/2*vary(w,0.12))+w.vx*0.26; const s=world.s[world.indexAt(tx)];
+      tx=s.w<5?(s.x0+s.x1)/2:clamp(tx,s.x0+2.4,s.x1-2.4);
+      L.planted=false; L.t=0; L.sx=L.x; L.sy=L.y; L.tx=tx; L.ty=s.y; } }
+  // hips hang between the knees, shoulders between the hands; the spine takes whatever slope that gives
+  let hy=-Infinity; for(const K of c.knees){ const dx=Math.min(Math.abs(K.x-w.x),12); hy=Math.max(hy,K.y-1.8-Math.sqrt(CFG.thigh*CFG.thigh-dx*dx)); }
+  w.y+=(hy-w.y)*(1-Math.exp(-11*dt));
+  const shY=(c.hands[0].y+c.hands[1].y)/2-17.3, pT=Math.acos(clamp((w.y-shY)/CFG.torso,-0.4,0.97));
+  c.pitch+=(pT-c.pitch)*(1-Math.exp(-10*dt));
+  const hip={x:w.x,y:w.y}, tx=F*Math.sin(c.pitch), ty=-Math.cos(c.pitch);
+  const neck={x:hip.x+tx*CFG.torso,y:hip.y+ty*CFG.torso}, sh={x:neck.x-tx*2.4,y:neck.y-ty*2.4};
+  const ha=F*(c.pitch-0.8), hl=CFG.neck+CFG.headR, head={x:neck.x+Math.sin(ha)*hl,y:neck.y-Math.cos(ha)*hl,a:F*0.3};
+  const legs=[],arms=[];
+  for(let i=0;i<2;i++){
+    const K=c.knees[i], k=bone(hip.x,hip.y,K.x,K.y-1.8,CFG.thigh), bx=k[0]-F*CFG.shin, a=bone(k[0],k[1],bx,world.yAt(bx)-2,CFG.shin);
+    legs.push({kx:k[0],ky:k[1],ax:a[0],ay:a[1],pitch:2.6,face:F});                    // boot laid back, sole up
+    const H=c.hands[i], e=solve2(sh.x,sh.y,H.x,H.y-1.4,CFG.upperArm,CFG.foreArm,-F);
+    arms.push({ex:e.kx,ey:e.ky,hx:e.ax,hy:e.ay});
+  }
+  w.lean=F*c.pitch; w.label='crawling';
+  return {hip:hip,neck:neck,head:head,sh:sh,legs:legs,arms:arms,face:F,prop:null};
+}
+
+/* =====================  TUMBLE ROLL: one tucked shape turned through a full circle, kept resting on the ground  ===================== */
+const TUCK=(function(){
+  const hip=[-8,4], P=(p,ang,len)=>[p[0]+Math.sin(ang)*len,p[1]+Math.cos(ang)*len];      // ang measured from straight down, forward +
+  const neck=P(hip,Math.PI-1.3,CFG.torso), sh=[neck[0]-(neck[0]-hip[0])/CFG.torso*2.4,neck[1]-(neck[1]-hip[1])/CFG.torso*2.4];
+  const head=P(neck,Math.PI-2.75,CFG.neck+CFG.headR), knee=P(hip,2.05,CFG.thigh), ankle=P(knee,-0.75,CFG.shin);
+  const elbow=P(sh,-0.1,CFG.upperArm), hand=P(elbow,1.5,CFG.foreArm);
+  const T={hip:hip,neck:neck,sh:sh,head:head,knee:knee,ankle:ankle,elbow:elbow,hand:hand}, pad={hip:5.6,neck:5.2,sh:0,head:CFG.headR+0.6,knee:2.8,ankle:4,elbow:2.2,hand:2.2};
+  let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9; for(const n in T){ x0=Math.min(x0,T[n][0]-pad[n]); x1=Math.max(x1,T[n][0]+pad[n]); y0=Math.min(y0,T[n][1]-pad[n]); y1=Math.max(y1,T[n][1]+pad[n]); }
+  for(const n in T){ T[n][0]-=(x0+x1)/2; T[n][1]-=(y0+y1)/2; }                          // turn about the middle of the ball
+  T.pad=pad; return T;
+})();
+function canRoll(w,world){ const g=world.yAt(w.x), reach=lerp(CFG.rollDist,CFG.rollDistRun,clamp(Math.abs(w.vx)/CFG.runSpeed,0,1)); for(let k=8;k<=reach+10;k+=6) if(world.yAt(w.x+w.facing*k)<g-3) return false; return true; }
+function startRoll(w,world){ startFade(w,0.15); w.mode='roll'; w.dancing=false; w.act=null; w.jump=null; w.roll={t:0,cy:null,dist:lerp(CFG.rollDist,CFG.rollDistRun,clamp(Math.abs(w.vx)/CFG.runSpeed,0,1))}; w.events.push({type:'roll',x:w.x,y:world.yAt(w.x)}); }
+function stepRoll(w,world,input,dt){
+  const r=w.roll, F=w.facing, T=r.T||(r.T=CFG.rollTime*vary(w,0.07)); r.t+=dt; const s=clamp(r.t/T,0,1);
+  w.vx=F*r.dist/T*(1.2-0.4*s); w.x=clamp(w.x+w.vx*dt,world.x0,world.x1);
+  const th=F*2*Math.PI*lerp(s,ss(s),0.35);
+  const j0=tuckPose(w,w.x,0,th,F).J; let cy=Infinity;
+  for(const n in j0) cy=Math.min(cy,world.yAt(j0[n].x)-j0[n].y-TUCK.pad[n]);
+  r.cy = r.cy==null ? cy : (cy<r.cy?cy:r.cy+(cy-r.cy)*(1-Math.exp(-22*dt)));           // never sink into the ground; settle down gently
+  const P=tuckPose(w,w.x,r.cy,th,F), a={x:P.legs[0].ax,y:P.legs[0].ay};
+  w.y=P.hip.y; w.lean=th; w.label='rolling';
+  if(s>=1){ const hx=P.hip.x; standUp(w,world); w.x=clamp(hx,world.x0,world.x1);               // come up into a crouch and let the walk stand us up
+    const si=world.indexAt(w.x), rg=footRange(world,si,F);
+    w.feet.forEach((f,i)=>{ f.si=si; f.py=world.s[si].y; f.px=clamp(a.x+(i?0.8:-0.8),rg[0],rg[1]); const an=ankleFor(f.px,f.py,0,F); f.ax=an[0]; f.ay=an[1]; });
+    w.vx=F*Math.min(Math.abs(w.vx),input*F>0.1?44:18); w.lean=F*0.5; if(w.fade){ w.fade.dur=0.24; w.fade.x0=w.x; } w.events.push({type:'land',x:w.x,y:world.s[si].y,speed:60,stone:world.s[si].w<40}); }
+  return P;
+}
+
+/* =====================  REACH POSE: a body placed by where its hands and feet are  ===================== */
+function reachPose(w,hip,torsoAng,hands,ankles,headTilt,elbowS,kneeS){
+  const F=w.facing;
+  const neck={x:hip.x+Math.sin(torsoAng)*CFG.torso, y:hip.y-Math.cos(torsoAng)*CFG.torso};
+  const tx=(neck.x-hip.x)/CFG.torso, ty=(neck.y-hip.y)/CFG.torso;
+  const sh={x:neck.x-tx*2.4, y:neck.y-ty*2.4};
+  const ha=torsoAng+F*headTilt, hl=CFG.neck+CFG.headR;
+  const head={x:neck.x+Math.sin(ha)*hl, y:neck.y-Math.cos(ha)*hl, a:ha};
+  const legs=[],arms=[];
+  for(let i=0;i<2;i++){
+    const A=ankles[i], L=solve2(hip.x,hip.y,A.x,A.y,CFG.thigh,CFG.shin,A.knee?-kneeS:kneeS);
+    L.pitch=A.pitch||0; L.face=A.face||F; legs.push(L);
+    const H=hands[i], e=solve2(sh.x,sh.y,H.x,H.y,CFG.upperArm,CFG.foreArm,H.elbow?-elbowS:elbowS);
+    arms.push({ex:e.kx,ey:e.ky,hx:e.ax,hy:e.ay});
+  }
+  return {hip:hip,neck:neck,head:head,sh:sh,legs:legs,arms:arms,face:F,prop:null};
+}
+
+/* =====================  VINES  ===================== */
+/* A vine is a chain of short links. The swing itself is still the simple pendulum below;
+   the chain is what you see: taut from the anchor to the hands, the tail below them free to trail and whip. */
+const RN=16;
+function ropeInit(v){ v.seg=v.len/RN; v.pts=[]; v.wind=v.ax*0.013;
+  for(let i=0;i<=RN;i++){ const L=v.seg*i, x=v.ax+Math.sin(v.th)*L, y=v.ay+Math.cos(v.th)*L; v.pts.push({x:x,y:y,ox:x,oy:y}); } }
+function stepVines(world,dt,heldBy,time){
+  for(const v of world.vines){
+    if(!v.pts) ropeInit(v);
+    const P=v.pts, held=v===heldBy; v.held=held;
+    const wind=(Math.sin(time*0.6+v.wind)*7+Math.sin(time*1.7+v.wind*3)*3)*dt*dt;
+    for(let i=1;i<=RN;i++){ const p=P[i], vx=(p.x-p.ox)*0.992, vy=(p.y-p.oy)*0.992;
+      p.ox=p.x; p.oy=p.y; p.x+=vx+wind*i/RN; p.y+=vy+CFG.gravity*dt*dt; }
+    let k=0, g=null;
+    const pin=()=>{ for(let i=1;i<=k;i++){ const u=i/k; P[i].x=v.ax+(g.x-v.ax)*u; P[i].y=v.ay+(g.y-v.ay)*u; } };
+    if(held){ g=gripAt(v,v.hold); k=clamp(Math.round(v.hold/v.seg),1,RN); pin(); }
+    for(let it=0;it<10;it++){
+      for(let i=1;i<=RN;i++){ const A=P[i-1], B=P[i]; let dx=B.x-A.x, dy=B.y-A.y; const d=Math.hypot(dx,dy)||1e-6, e=(d-v.seg)/d;
+        if(i-1===0||i-1<=k){ B.x-=dx*e; B.y-=dy*e; } else { A.x+=dx*e*0.5; A.y+=dy*e*0.5; B.x-=dx*e*0.5; B.y-=dy*e*0.5; } }
+      if(held) pin();
+    }
+    for(let i=1;i<=RN;i++){ const q=P[i], gy=world.yAt(q.x)-0.8; if(q.y>gy){ q.y=gy; q.ox=q.x+(q.ox-q.x)*0.4; } }   // the tail lies on the ground
+    if(!held){ const m=P[Math.round(RN*0.6)]; v.th=Math.atan2(m.x-v.ax,m.y-v.ay); v.om=0; }
+  }
+}
+function gripAt(v,L){ return {x:v.ax+Math.sin(v.th)*L, y:v.ay+Math.cos(v.th)*L}; }
+function nearestGrip(world,hx,hy,cd){                    // the closest point on any rope, as it actually hangs
+  if(cd>0) return null; let best=null;
+  for(const v of world.vines){ if(!v.pts) continue;
+    for(let i=1;i<=RN;i++){ const A=v.pts[i-1], B=v.pts[i], dx=B.x-A.x, dy=B.y-A.y;
+      const u=clamp(((hx-A.x)*dx+(hy-A.y)*dy)/(dx*dx+dy*dy||1),0,1), along=(i-1+u)*v.seg;
+      if(along<CFG.gripMin) continue;
+      const px=A.x+dx*u, py=A.y+dy*u, d=Math.hypot(hx-px,hy-py);
+      if(d<CFG.grabR&&(!best||d<best.d)) best={v:v,L:along,d:d,x:px,y:py}; } }
+  return best;
+}
+function grabVine(w,hit){
+  const v=hit.v, Le=hit.L+CFG.hangCM;
+  if(hit.x!=null) v.th=Math.atan2(hit.x-v.ax,hit.y-v.ay);                    // the swing starts where the rope really is
+  v.om=(w.vx*Math.cos(v.th)-w.vy*Math.sin(v.th))/Le;                    // carry the speed we arrived with into the swing
+  startFade(w,0.16); w.mode='vine'; w.vine=v; w.grip=hit.L; w.flip=null; w.jump=null; w.act=null; w.events.push({type:'grab'});
+}
+function stepVine(w,world,input,dt){
+  const v=w.vine; v.held=true; v.hold=w.grip;
+  const Le=w.grip+CFG.hangCM;
+  const k=CFG.swingG*CFG.gravity/Le;
+  v.om+=(-k*Math.sin(v.th)-CFG.vineDamp*v.om+CFG.vinePump*clamp(input,-1,1))*dt;                       // hold the way you are going to pump the swing
+  const hi=k*(1-Math.cos(CFG.vineArc)), here=k*(1-Math.cos(v.th));                         // no pumping past a quarter turn, and no unwinding over the top
+  if(0.5*v.om*v.om+here>hi) v.om=Math.sign(v.om)*Math.sqrt(Math.max(0,2*(hi-here)));
+  v.om=clamp(v.om,-CFG.vineTop/Le,CFG.vineTop/Le);
+  v.th+=v.om*dt;
+  if(w.climbHeld||w.downHeld) w.grip=clamp(w.grip+(w.climbHeld?-1:1)*CFG.shinny*(0.4+0.6*w.vertAmt)*dt,CFG.gripMin,v.len);
+  if(Math.sign(v.om*Math.cos(v.th))) { const d=Math.sign(v.om); if(d&&d!==w.facing&&Math.abs(v.om)>0.25){ startFade(w,0.18); w.facing=w.dir=d; } }
+  const g=gripAt(v,w.grip), F=w.facing;
+  // the body hangs along gravity plus the swing's own outward pull, not along the rope: upright at the ends, in line at the bottom
+  const cf=v.om*v.om*Le, ax=cf*Math.sin(v.th), ay=CFG.swingG*CFG.gravity+cf*Math.cos(v.th), an=Math.hypot(ax,ay)||1;
+  const bx=ax/an, by=ay/an, bodyA=Math.atan2(-bx,by);
+  w.x=g.x+bx*36; w.y=g.y+by*36;
+  w.vx=Le*v.om*Math.cos(v.th); w.vy=-Le*v.om*Math.sin(v.th);
+  // the pump: knees tucked under at the back of the arc, legs thrown out in front at the top of the forward swing
+  let swing=clamp(v.th*F*1.25+v.om*F*0.30+0.12*wobble(w,7,w.time*1.1),-0.75,1.1), reach=lerp(19,31,ss((swing+0.75)/1.75));
+  if(w.climbHeld){ swing=-0.12; reach=18; }                                               // shinnying: knees gripping the rope
+  w.legA+=(swing-w.legA)*(1-Math.exp(-14*dt)); w.legL+=(reach-w.legL)*(1-Math.exp(-11*dt));
+  const ank=[0,1].map(i=>{ const a2=F*(w.legA+(i?0.19:-0.16)), c=Math.cos(a2), sn=Math.sin(a2),   // the legs are never quite together
+      dx=bx*c+by*sn, dy=by*c-bx*sn, L=w.legL+(i?1.6:-1.2);
+    return {x:w.x+dx*L+F*(i?2:-2), y:w.y+dy*L, pitch:0.1+w.legA*0.55}; });
+  const hands=[{x:g.x+F*1.2,y:g.y+1.2},{x:g.x-F*0.6,y:g.y-0.4}];
+  w.bodyOm=w._pb==null?0:(bodyA-w._pb)/dt; w._pb=bodyA;                      // how fast the body is turning, and the legs swinging,
+  w.legV=w._pl==null?0:(w.legA-w._pl)/dt; w._pl=w.legA;                      // to carry into the air on release
+  w.lean=bodyA;
+  w.label='swinging'+(w.climbHeld?' (climbing the vine)':'');
+  return reachPose(w,{x:w.x,y:w.y},bodyA,hands,ank,0.12,-F,F);
+}
+function letGo(w,kick){
+  const v=w.vine, Le=w.grip+CFG.hangCM;
+  w.vx=Le*v.om*Math.cos(v.th); w.vy=-Le*v.om*Math.sin(v.th)-(kick?CFG.releaseKick:0);
+  // the swing doesn't stop when the hands open: the body keeps turning the way it was going, the legs keep swinging,
+  // and he has to fight both back upright before he lands
+  const F=w.facing;
+  w.airRot=w.lean; w.airOm=-v.om*0.85*vary(w,0.15)+jitter(w,0.35);           // the whole body was turning with the rope
+  w.airLeg=w.legA||0; w.airLegV=(w.legV||0)*0.6+v.om*F*0.9*vary(w,0.2);      // and the legs carry on the way they were swinging
+  w.lean=0; w._pb=w._pl=null;
+  v.held=false; w.vine=null; w.grabCd=0.3; toAir(w);
+}
+function toAir(w){ startFade(w,0.14); w.mode='air'; w.jump=null;
+  for(const f of w.feet){ f.planted=false; f.lx=clamp(f.ax-w.x,-14,14); f.ly=clamp(f.ay-w.y,-8,30); f.face=w.facing; } }
+
+/* =====================  LEDGES: catch the lip, hang, pull up  ===================== */
+function hangHip(e){ return {x:e.x-e.hi*5, y:e.y+34}; }
+function ledgeCatch(w,world,ny){
+  if(w.grabCd>0||w.vy<-40) return null;
+  for(const e of world.edges){ const h=hangHip(e);
+    if(Math.abs(w.x-h.x)<11 && ny>h.y-16 && ny<h.y+13 && (w.x-e.x)*e.hi<0) return e; }
+  return null;
+}
+function grabLedge(w,e){ startFade(w,0.2); w.mode='hang'; w.hang=e; w.limbT=0; w.flip=null; w.vy=w.vx=0; w.facing=w.dir=e.hi; w.events.push({type:'grab'}); }
+function stepHang(w,world,input,dt){
+  const e=w.hang, F=e.hi, h=hangHip(e);
+  w.limbT+=dt; const br=Math.sin(w.limbT*1.6)*0.5;
+  w.x+=(h.x-w.x)*(1-Math.exp(-14*dt)); w.y+=(h.y+br-w.y)*(1-Math.exp(-14*dt)); w.vx=w.vy=0;
+  if(w.downHeld||input*F<-0.5){ w.grabCd=0.28; w.hang=null; toAir(w); return w.last; }        // let go and drop
+  if(w.climbHeld||input*F>0.5) startMantle(w,e);                                              // pull up
+  const hands=[{x:e.x-F*1.6,y:e.y+1.2},{x:e.x-F*3.4,y:e.y+1.6}];
+  const ank=[{x:w.x-F*1.5,y:w.y+28,pitch:0.5},{x:w.x+F*3,y:w.y+26,pitch:0.4}];
+  w.lean=0; w.label='hanging on';
+  return reachPose(w,{x:w.x,y:w.y},0,hands,ank,-0.18,-F,F);
+}
+function startMantle(w,e){ w.mode='mantle'; w.hang=null; w.wall=null; w.mantle={e:e,t:0,x0:w.x,y0:w.y}; w.facing=w.dir=e.hi; }
+function stepMantle(w,world,dt){
+  const m=w.mantle, e=m.e, F=e.hi, t=clamp(m.t+=dt/CFG.mantleTime,0,1);
+  const topY=e.y-(CFG.ankleH+LEG-CFG.crouchWalk-3);
+  const pull=ss(clamp(t/0.5,0,1)), rise=ss(clamp((t-0.45)/0.55,0,1)), fwd=ss(clamp((t-0.5)/0.5,0,1));
+  w.x=lerp(m.x0,e.x+F*11,fwd); w.y=lerp(lerp(m.y0,e.y+18,pull),topY,rise); w.vx=w.vy=0;   // chest to the lip, then stand up over it
+  const mix=(A,B,u)=>({x:lerp(A.x,B.x,u),y:lerp(A.y,B.y,u)});
+  const slip=ss(clamp((t-0.62)/0.38,0,1));
+  const hands=[mix({x:e.x-F*1.6,y:e.y+1.2},{x:w.x+F*5.5,y:w.y-3},slip),
+               mix({x:e.x-F*3.6,y:e.y+1.6},{x:w.x-F*2,y:w.y+1},slip)];
+  const tuck=ss(clamp(t/0.45,0,1)), plantA=ss(clamp((t-0.4)/0.35,0,1)), plantB=ss(clamp((t-0.62)/0.38,0,1));
+  const ank=[mix(mix({x:m.x0-F*2,y:m.y0+28},{x:e.x-F*6,y:e.y+15},tuck),{x:e.x+F*7,y:e.y-CFG.ankleH},plantA),
+             mix({x:m.x0+F*2,y:m.y0+26},{x:e.x+F*16,y:e.y-CFG.ankleH},plantB)];
+  ank[0].pitch=lerp(0.4,0.05,plantA); ank[1].pitch=lerp(0.4,0.05,plantB); ank[0].knee=1;
+  w.lean=F*(0.15+0.5*fwd*(1-fwd)*2); w.label='pulling up';
+  const P=reachPose(w,{x:w.x,y:w.y},w.lean,hands,ank,0.1,-F,F);
+  if(t>=1){ startFade(w,0.2); w.mantle=null; standUp(w,world); w.events.push({type:'land',x:w.x,y:world.yAt(w.x),speed:40,stone:true}); }
+  return P;
+}
+
+/* =====================  IVY WALLS: four limbs on the face, hand over hand  ===================== */
+function wallCatch(w,world,nx,ny){
+  if(w.grabCd>0) return null;
+  for(const e of world.edges){ if(!e.climb) continue;
+    const face=-e.hi;                                                   // we cling to the low side of the face
+    if(Math.abs(nx-(e.x+face*9))<10 && ny>e.y+12 && ny<e.floor-16) return e; }
+  return null;
+}
+function grabWall(w,e){ startFade(w,0.2); w.mode='wall'; w.wall=e; w.flip=null; w.vine=null; w.vx=w.vy=0; w.facing=w.dir=e.hi; w.events.push({type:'pat'}); }
+function stepWall(w,world,input,dt){
+  const e=w.wall, F=e.hi, face=-F;
+  const v=(w.climbHeld||input*F>0.5?-1:(w.downHeld||input*F<-0.5?1:0))*CFG.climbSpeed*(0.45+0.55*Math.max(w.vertAmt,Math.min(Math.abs(input),1)));
+  w.y=clamp(w.y+v*dt,e.y+8,e.floor-CFG.ankleH-8); w.x+=(e.x+face*9-w.x)*(1-Math.exp(-12*dt));
+  w.vx=0; w.vy=v; w.limbT+=Math.abs(v)*dt*0.16*(1+0.3*wobble(w,9,w.time*0.9));
+  if(v<0&&w.y<=e.y+10){ startMantle(w,e); return w.last; }                                    // topped out
+  if(v>0&&w.y>=e.floor-CFG.ankleH-9){ w.grabCd=0.25; w.wall=null; toAir(w); return w.last; }   // reached the bottom
+  const ph=Math.sin(w.limbT), hands=[0,1].map(i=>({x:e.x+face*2.6,y:w.y-19+(i?ph:-ph)*5.5}));
+  const ank=[0,1].map(i=>({x:e.x+face*4.5,y:w.y+15-(i?ph:-ph)*5,pitch:-0.5}));
+  w.lean=0; w.label = v?'climbing the ivy':'on the wall';
+  return reachPose(w,{x:w.x,y:w.y},0,hands,ank,-F*0.1,-F,F);
+}
+
+/* =====================  AIR FLIP: the roll's tuck, turned in mid-air  ===================== */
+function tuckPose(w,cx,cy,th,F){
+  const J={}; for(const n in TUCK){ if(n==='pad')continue; const p=TUCK[n], lx=F*p[0];
+    J[n]={x:cx+lx*Math.cos(th)-p[1]*Math.sin(th), y:cy+lx*Math.sin(th)+p[1]*Math.cos(th)}; }
+  const wrap=a=>Math.atan2(Math.sin(a),Math.cos(a));
+  J.head.a=wrap(th+F*0.9);
+  const legs=[0,1].map(()=>({kx:J.knee.x,ky:J.knee.y,ax:J.ankle.x,ay:J.ankle.y,pitch:wrap(0.35+th),face:F}));
+  const arms=[0,1].map(()=>({ex:J.elbow.x,ey:J.elbow.y,hx:J.hand.x,hy:J.hand.y}));
+  return {hip:J.hip,neck:J.neck,head:J.head,sh:J.sh,legs:legs,arms:arms,face:F,prop:null,J:J};
+}
+
+/* =====================  ACROBATICS: keyframed tricks  =====================
+   Every trick is a short list of keyframes in the body's own frame (forward = +, down = +):
+     t    seconds from the start of the trick
+     x    hips' travel so far, forward positive
+     rot  body angle: 0 upright, + tipping forward, -2π one full backward rotation
+     l    legs [far, near]: [angle from the torso line, forward +; knee fold]
+     a    arms [far, near]: [angle from the torso line, forward +; elbow fold]
+     sup  what holds him up until the next frame: feet, hands, back, or air (a ballistic arc)
+   The pose is interpolated, the limbs are built out of the joint angles, and the hips are set so
+   whatever is meant to be on the ground is on the ground. In the air the hips fly an arc that ends
+   exactly where the next grounded frame needs them. */
+const K=(t,x,rot,l,a,sup,o)=>Object.assign({t:t,x:x,rot:rot,l:l,a:a,sup:sup,head:0,toe:0},o||{});
+const STAND=[[0,0.05],[0,0.05]], SIDES=[[0.05,0.25],[0.05,0.25]], GUARD=[[0.55,2.05],[0.95,1.7]], STANCE_L=[[-0.35,0.45],[0.35,0.4]], UP=[[3.0,0.05],[3.05,0.05]], BACK=[[-1.15,0.25],[-1.15,0.25]];
+const TP=2*Math.PI;
+const TRICKS={
+  bow:[ K(0,0,0,STAND,SIDES,'feet'), K(0.45,0,0.62,[[0.62,0.05],[0.62,0.05]],SIDES,'feet',{head:0.2}), K(0.9,0,0.62,[[0.62,0.05],[0.62,0.05]],SIDES,'feet',{head:0.2}), K(1.35,0,0,STAND,SIDES,'feet') ],   // legs stay under him: hips fold as far as the body tips
+  stance:[ K(0,0,0,STAND,SIDES,'feet'), K(0.3,0,0.06,STANCE_L,GUARD,'feet'), K(0.7,0,0.06,STANCE_L,GUARD,'feet') ],
+  punch:[ K(0,0,0.06,STANCE_L,GUARD,'feet'),
+          K(0.12,3,0.14,STANCE_L,[[0.55,2.05],[1.55,0.08]],'feet'),  K(0.26,3,0.1,STANCE_L,GUARD,'feet'),
+          K(0.38,5,0.24,[[-0.2,0.35],[0.4,0.45]],[[1.6,0.05],[0.95,1.7]],'feet'),
+          K(0.55,4,0.06,STANCE_L,GUARD,'feet'), K(0.7,4,0.06,STANCE_L,GUARD,'feet') ],
+  fkick:[ K(0,0,0.06,STANCE_L,GUARD,'feet'),
+          K(0.22,0,-0.05,[[1.35,2.2],[0.1,0.3]],GUARD,'feet'),
+          K(0.36,0,-0.22,[[1.55,0.1],[0.05,0.35]],[[0.3,1.8],[0.9,1.4]],'feet',{toe:0.5}),
+          K(0.5,0,-0.1,[[1.3,2.1],[0.1,0.3]],GUARD,'feet'),
+          K(0.78,0,0.06,STANCE_L,GUARD,'feet') ],
+  rkick:[ K(0,0,0.06,STANCE_L,GUARD,'feet'),
+          K(0.2,0,-0.2,[[1.5,2.3],[0.05,0.35]],GUARD,'feet'),
+          K(0.36,0,-0.6,[[2.5,0.1],[0.3,0.4]],[[-0.4,1.6],[0.8,1.9]],'feet',{toe:0.5,head:0.4}),
+          K(0.52,0,-0.3,[[1.5,2.2],[0.1,0.35]],GUARD,'feet'),
+          K(0.8,0,0.06,STANCE_L,GUARD,'feet') ],
+  sweep:[ K(0,0,0.06,STANCE_L,GUARD,'feet'),
+          K(0.25,0,0.5,[[1.25,2.3],[1.25,2.3]],[[0.9,1.2],[1.3,0.3]],'feet'),
+          K(0.42,2,0.55,[[1.3,2.35],[1.35,0.05]],[[1.0,1.0],[1.5,0.2]],'feet'),
+          K(0.62,2,0.45,[[1.25,2.3],[1.25,2.3]],[[0.9,1.2],[1.3,0.3]],'feet'),
+          K(0.9,2,0.06,STANCE_L,GUARD,'feet') ],
+  // Standing back tuck: arms swing up, jump UP (only a little back), hips rise, knees to chest at the top, open, land with the arms forward
+  backflip:[ K(0,0,0,STAND,SIDES,'feet'),
+             K(0.16,0,0.2,[[0.6,1.0],[0.6,1.0]],[[-0.6,0.15],[-0.6,0.15]],'feet'),
+             K(0.3,0,0.3,[[1.1,1.8],[1.1,1.8]],[[-1.3,0.1],[-1.3,0.1]],'feet'),
+             K(0.42,0,-0.1,[[0.1,0.05],[0.1,0.05]],UP,'air',{toe:0.4}),
+             K(0.62,-3,-1.3,[[2.0,2.4],[2.0,2.4]],[[2.2,1.6],[2.2,1.6]],'air',{head:-0.4}),
+             K(0.8,-6,-3.2,[[2.5,2.8],[2.5,2.8]],[[2.0,1.9],[2.0,1.9]],'air',{head:-0.5}),
+             K(0.98,-9,-5.0,[[1.2,0.9],[1.2,0.9]],[[1.2,0.3],[1.2,0.3]],'air',{toe:0.3}),
+             K(1.1,-11,-TP+0.1,[[0.75,1.4],[0.75,1.4]],[[0.9,0.3],[0.9,0.3]],'feet'),
+             K(1.45,-11,-TP,STAND,SIDES,'feet') ],
+  // Back handspring: sit (thighs level, arms swung back), jump BACK not up, arch with the arms by the ears, hands under the
+  // shoulders, then hollow and snap the feet down under the hips. It travels about a body length backward.
+  bhs:[ K(0,0,0,STAND,UP,'feet'),
+        K(0.22,-3,0.05,[[1.5,1.5],[1.5,1.5]],[[-1.2,0.1],[-1.2,0.1]],'feet'),
+        K(0.34,-8,-0.55,[[0.35,0.1],[0.35,0.1]],[[3.1,0.05],[3.1,0.05]],'air',{toe:0.4}),
+        K(0.5,-26,-1.7,[[-0.35,0.05],[-0.35,0.05]],[[3.25,0.05],[3.25,0.05]],'air',{toe:0.4}),
+        K(0.6,-38,-2.75,[[-0.4,0.05],[-0.4,0.05]],[[3.25,0.05],[3.25,0.05]],'hands',{toe:0.4}),
+        K(0.7,-44,-3.3,[[0.5,0.05],[0.5,0.05]],[[3.2,0.05],[3.2,0.05]],'hands',{toe:0.4}),
+        K(0.8,-50,-4.2,[[1.4,0.2],[1.4,0.2]],[[3.1,0.05],[3.1,0.05]],'air',{toe:0.4}),
+        K(0.9,-58,-TP+0.1,[[0.6,0.9],[0.6,0.9]],[[2.8,0.1],[2.8,0.1]],'feet'),
+        K(1.1,-58,-TP,STAND,[[2.9,0.1],[2.9,0.1]],'feet') ],
+  // --- fighting ---
+  hook:[ K(0,0,0.06,STANCE_L,GUARD,'feet'), K(0.08,1,-0.05,STANCE_L,[[0.55,2.05],[0.6,1.9]],'feet'),
+         K(0.2,3,0.3,[[-0.3,0.4],[0.45,0.4]],[[0.55,2.05],[1.75,1.05]],'feet'), K(0.34,3,0.15,STANCE_L,GUARD,'feet'), K(0.5,3,0.06,STANCE_L,GUARD,'feet') ],
+  upper:[ K(0,0,0.06,STANCE_L,GUARD,'feet'), K(0.1,1,0.25,[[0.15,0.9],[0.5,0.9]],[[0.55,2.05],[0.1,1.7]],'feet'),
+          K(0.22,3,-0.1,[[-0.2,0.3],[0.4,0.35]],[[0.55,2.05],[2.1,1.6]],'feet'), K(0.38,3,0.06,STANCE_L,GUARD,'feet'), K(0.52,3,0.06,STANCE_L,GUARD,'feet') ],
+  elbow:[ K(0,0,0.06,STANCE_L,GUARD,'feet'), K(0.06,1,-0.1,STANCE_L,[[0.55,2.05],[1.3,2.6]],'feet'),
+          K(0.17,4,0.35,[[-0.3,0.4],[0.45,0.4]],[[0.55,2.05],[1.9,2.6]],'feet'), K(0.32,4,0.1,STANCE_L,GUARD,'feet'), K(0.46,4,0.06,STANCE_L,GUARD,'feet') ],
+  knee:[ K(0,0,0.06,STANCE_L,GUARD,'feet'), K(0.08,0,0.1,STANCE_L,[[1.1,1.6],[1.4,1.4]],'feet'),
+         K(0.2,2,0.3,[[1.7,2.6],[0.1,0.3]],[[0.9,1.8],[1.2,1.6]],'feet'), K(0.34,2,0.15,[[1.0,2.0],[0.1,0.3]],GUARD,'feet'), K(0.55,2,0.06,STANCE_L,GUARD,'feet') ],
+  bkick:[ K(0,0,0.06,STANCE_L,GUARD,'feet'), K(0.14,0,0.5,[[1.2,2.3],[0.2,0.4]],[[0.5,1.8],[0.9,1.6]],'feet',{head:-0.3}),
+          K(0.34,4,0.95,[[1.75,0.05],[0.1,0.35]],[[0.2,1.4],[0.4,1.4]],'feet',{head:-0.4,toe:-0.3}),
+          K(0.5,4,0.5,[[1.2,2.2],[0.2,0.4]],GUARD,'feet'), K(0.8,4,0.06,STANCE_L,GUARD,'feet') ],
+  block:[ K(0,0,0.06,STANCE_L,GUARD,'feet'), K(0.08,-1,0.1,[[-0.3,0.5],[0.3,0.5]],[[0.9,2.4],[1.25,2.3]],'feet',{head:0.2}),
+          K(0.5,-1,0.1,[[-0.3,0.5],[0.3,0.5]],[[0.9,2.4],[1.25,2.3]],'feet',{head:0.2}), K(0.68,-1,0.06,STANCE_L,GUARD,'feet') ],
+  dodge:[ K(0,0,0.06,STANCE_L,GUARD,'feet'), K(0.12,-6,-0.45,[[0.2,0.9],[0.8,0.5]],GUARD,'feet',{head:-0.2}),
+          K(0.34,-6,-0.4,[[0.2,0.9],[0.8,0.5]],GUARD,'feet',{head:-0.2}), K(0.55,-4,0.06,STANCE_L,GUARD,'feet') ],
+  // --- taking a hit ---
+  hitHigh:[ K(0,0,0.06,STANCE_L,GUARD,'feet'), K(0.07,-3,-0.35,[[-0.2,0.5],[0.5,0.4]],[[0.3,1.6],[0.7,1.2]],'feet',{head:-0.55}),
+            K(0.22,-6,-0.25,[[-0.3,0.55],[0.55,0.45]],[[0.4,1.7],[0.8,1.3]],'feet',{head:-0.3}), K(0.45,-6,0.06,STANCE_L,GUARD,'feet') ],
+  hitLow:[ K(0,0,0.06,STANCE_L,GUARD,'feet'), K(0.08,-3,0.55,[[0.5,0.9],[0.9,0.8]],[[0.9,2.0],[0.7,2.2]],'feet',{head:-0.2}),
+           K(0.26,-5,0.45,[[0.5,0.9],[0.9,0.8]],[[0.9,2.0],[0.7,2.2]],'feet',{head:-0.1}), K(0.5,-5,0.06,STANCE_L,GUARD,'feet') ],
+  hitBlock:[ K(0,0,0.1,[[-0.3,0.5],[0.3,0.5]],[[0.9,2.4],[1.25,2.3]],'feet'), K(0.08,-4,-0.2,[[-0.3,0.6],[0.4,0.5]],[[0.7,2.2],[1.0,2.0]],'feet'), K(0.3,-4,0.06,STANCE_L,GUARD,'feet') ],
+  knockdown:[ K(0,0,0.06,STANCE_L,GUARD,'feet'), K(0.08,-4,-0.45,[[0.3,0.4],[0.9,0.5]],[[0.9,1.2],[1.4,0.9]],'air',{head:-0.5}),
+              K(0.3,-22,-1.25,[[0.9,0.8],[1.3,0.9]],[[2.3,0.8],[2.6,0.6]],'air',{head:-0.5}),
+              K(0.42,-30,-1.5,[[0.7,0.3],[0.5,0.2]],[[2.0,0.5],[1.8,0.3]],'back',{head:-0.2}),
+              K(0.9,-30,-1.5,[[0.5,0.2],[0.4,0.15]],[[1.9,0.5],[1.7,0.3]],'back',{head:-0.2}),
+              K(1.7,-30,-1.5,[[0.5,0.2],[0.4,0.15]],[[1.9,0.5],[1.7,0.3]],'back',{head:-0.2}) ],
+  kolie:[ K(0,0,-1.5,[[0.5,0.2],[0.4,0.15]],[[1.9,0.5],[1.7,0.3]],'back',{head:-0.2}), K(3.2,0,-1.5,[[0.5,0.2],[0.4,0.15]],[[1.9,0.5],[1.7,0.3]],'back',{head:-0.2}) ],
+  getup:[ K(0,0,-1.5,[[0.5,0.2],[0.4,0.15]],[[1.9,0.5],[1.7,0.3]],'back',{head:-0.2}),
+          K(0.4,2,-0.9,[[1.2,1.0],[1.3,1.0]],[[-0.3,0.3],[-0.5,0.3]],'back',{head:0.1}),
+          K(0.8,8,0.6,[[1.7,2.4],[1.1,0.9]],[[1.0,0.4],[0.9,1.3]],'feet',{head:0.2}),
+          K(1.2,10,0.2,[[0.5,0.7],[0.8,0.9]],[[0.6,0.5],[0.9,1.4]],'feet'),
+          K(1.5,10,0.06,STANCE_L,GUARD,'feet') ],
+  fhs:[ K(0,0,0,STAND,SIDES,'feet'),
+        K(0.2,6,0.9,[[1.05,0.6],[-0.5,0.25]],[[2.7,0.1],[2.7,0.1]],'feet'),
+        K(0.36,16,2.35,[[1.85,0.3],[0.15,0.15]],[[3.15,0.05],[3.15,0.05]],'hands',{head:-0.4,toe:0.4}),
+        K(0.52,22,3.1,[[-0.15,0.05],[-0.15,0.05]],[[3.15,0.05],[3.15,0.05]],'hands',{head:-0.5,toe:0.4}),
+        K(0.64,30,3.95,[[-0.35,0.15],[-0.35,0.15]],[[3.1,0.05],[3.1,0.05]],'air',{head:-0.2,toe:0.4}),
+        K(0.74,37,5.5,[[0.35,0.7],[0.35,0.7]],[[2.6,0.15],[2.6,0.15]],'air',{toe:0.3}),
+        K(0.82,42,TP-0.12,[[-0.2,1.2],[-0.2,1.2]],[[2.2,0.3],[2.2,0.3]],'feet'),
+        K(1.05,44,TP,STAND,[[0.6,0.3],[0.6,0.3]],'feet') ],
+  kipup:[ K(0,0,0,STAND,SIDES,'feet'),
+          K(0.35,-4,-0.9,[[0.9,1.6],[0.9,1.6]],[[-0.5,0.3],[-0.5,0.3]],'air'),
+          K(0.62,-12,-1.55,[[1.9,1.2],[1.9,1.2]],[[2.6,1.7],[2.6,1.7]],'back',{head:-0.3}),
+          K(1.1,-12,-1.55,[[1.9,1.2],[1.9,1.2]],[[2.6,1.7],[2.6,1.7]],'back',{head:-0.3}),
+          K(1.25,-10,-1.2,[[1.3,0.05],[1.3,0.05]],[[2.9,0.2],[2.9,0.2]],'air',{toe:0.4}),
+          K(1.42,-4,-0.25,[[0.85,1.2],[0.85,1.2]],[[0.6,0.4],[0.6,0.4]],'feet'),
+          K(1.75,-4,0,STAND,SIDES,'feet') ],
+  dive:[ K(0,0,0.15,[[0.4,0.4],[-0.3,0.3]],[[-0.8,0.2],[-0.8,0.2]],'feet'),
+         K(0.18,6,0.55,[[0.9,1.4],[0.9,1.4]],[[-1.0,0.15],[-1.0,0.15]],'feet'),
+         K(0.3,12,0.9,[[-0.4,0.1],[-0.4,0.1]],[[3.0,0.05],[3.0,0.05]],'air',{toe:0.4}),
+         K(0.62,40,1.5,[[-0.5,0.1],[-0.5,0.1]],[[3.1,0.05],[3.1,0.05]],'hands',{head:-0.6,toe:0.4}) ]
+};
+TRICKS.roundoff=TRICKS.fhs;
+const TRICK_NAMES={kolie:'Knocked out',getup:'Getting up',knockdown:'Knocked down',hitHigh:'Hit',hitLow:'Hit',hitBlock:'Guard broken',bow:'Bow',stance:'Fighting stance',punch:'Jab, cross',hook:'Hook',upper:'Uppercut',elbow:'Elbow',knee:'Knee',bkick:'Back kick',block:'Block',dodge:'Slip back',fkick:'Front kick',rkick:'High roundhouse',sweep:'Leg sweep',fhs:'Front handspring',roundoff:'Round-off',bhs:'Back handspring',backflip:'Backflip',kipup:'Fall back, kip-up',dive:'Dive roll'};
+const ROUTINE=['bow','stance','punch','hook','upper','fkick','rkick','knee','bkick','sweep','fhs','roundoff','bhs','bhs','backflip','kipup','dive','bow'];
+const TURNS={roundoff:true}, ROLL_AFTER={dive:true};
+
+function rotF(x,y,a){ const c=Math.cos(a), s=Math.sin(a); return [x*c-y*s, x*s+y*c]; }      // rotate a local vector; + tips the top forward
+function lerpKF(A,B,u,out){
+  const L=(p,q)=>p+(q-p)*u;
+  out.rot=L(A.rot,B.rot); out.x=L(A.x,B.x); out.head=L(A.head,B.head); out.toe=L(A.toe,B.toe);
+  for(let i=0;i<2;i++){ out.l[i][0]=L(A.l[i][0],B.l[i][0]); out.l[i][1]=L(A.l[i][1],B.l[i][1]); out.a[i][0]=L(A.a[i][0],B.a[i][0]); out.a[i][1]=L(A.a[i][1],B.a[i][1]); }
+  return out;
+}
+/* Build the body from joint angles, hips at (0,0) in the local frame. */
+function fkLocal(kf){
+  const rot=kf.rot, up=rotF(0,-1,rot), down=[-up[0],-up[1]];
+  const neck=[up[0]*CFG.torso,up[1]*CFG.torso], sh=[neck[0]-up[0]*2.4,neck[1]-up[1]*2.4];
+  const hd=rotF(0,-1,rot+kf.head), hl=CFG.neck+CFG.headR, head=[neck[0]+hd[0]*hl,neck[1]+hd[1]*hl];
+  const legs=[],arms=[];
+  for(let i=0;i<2;i++){
+    const th=rotF(down[0],down[1],-kf.l[i][0]), knee=[th[0]*CFG.thigh,th[1]*CFG.thigh];        // leg raised forward
+    const sd=rotF(th[0],th[1],kf.l[i][1]), ank=[knee[0]+sd[0]*CFG.shin,knee[1]+sd[1]*CFG.shin];  // knee folds back
+    legs.push({k:knee,a:ank,pitch:rot-kf.l[i][0]+kf.l[i][1]+kf.toe});                            // boot square to the shin
+    const ud=rotF(down[0],down[1],-kf.a[i][0]), el=[sh[0]+ud[0]*CFG.upperArm,sh[1]+ud[1]*CFG.upperArm];
+    const fd=rotF(ud[0],ud[1],-kf.a[i][1]), hand=[el[0]+fd[0]*CFG.foreArm,el[1]+fd[1]*CFG.foreArm]; // elbow folds forward
+    arms.push({e:el,h:hand});
+  }
+  return {neck:neck,sh:sh,head:head,headA:rot+kf.head,legs:legs,arms:arms};
+}
+/* How far below the hips the supporting part sits, so the hips can be set to put it on the ground. */
+function supportDrop(fk,sup){
+  if(sup==='feet') return Math.max(fk.legs[0].a[1],fk.legs[1].a[1])+CFG.ankleH;
+  if(sup==='hands') return Math.max(fk.arms[0].h[1],fk.arms[1].h[1])+1.4;
+  if(sup==='back') return Math.max(fk.neck[1],fk.sh[1],4.5)+5.2;
+  return 0;
+}
+function fkToPose(w,fk,hx,hy){
+  const F=w.facing, W=p=>({x:hx+F*p[0],y:hy+p[1]});
+  const legs=fk.legs.map(L=>{ const k=W(L.k), a=W(L.a); return {kx:k.x,ky:k.y,ax:a.x,ay:a.y,pitch:L.pitch,face:F}; });
+  const arms=fk.arms.map(A=>{ const e=W(A.e), h=W(A.h); return {ex:e.x,ey:e.y,hx:h.x,hy:h.y}; });
+  const head=W(fk.head); head.a=F*fk.headA;
+  return {hip:{x:hx,y:hy},neck:W(fk.neck),sh:W(fk.sh),head:head,legs:legs,arms:arms,face:F,prop:null};
+}
+/* Room needed for a run of tricks: flat ground across the whole travel. */
+function trickExtent(seq){ let x=0,lo=0,hi=0,F=1; for(const n of seq){ const kf=TRICKS[n]; for(const k of kf){ lo=Math.min(lo,x+F*k.x); hi=Math.max(hi,x+F*k.x); } x+=F*kf[kf.length-1].x; if(TURNS[n]) F=-F; } return [lo-8,hi+8]; }
+function canTrick(w,world,seq){ const [lo,hi]=trickExtent(seq), g=world.yAt(w.x), F=w.facing;
+  for(let k=Math.min(F*lo,F*hi);k<=Math.max(F*lo,F*hi);k+=4) if(Math.abs(world.yAt(clamp(w.x+k,world.x0,world.x1))-g)>0.5) return false;
+  return w.x+Math.min(F*lo,F*hi)>world.x0&&w.x+Math.max(F*lo,F*hi)<world.x1; }
+function startTricks(w,world,seq){
+  if(w.mode!=='walk'||w.jump||w.pick||w.act||w.hp<=0||!canTrick(w,world,seq)) return false;
+  if(w.carry) dropCarry(w); w.dancing=w.reading=false; w.stopX=null;
+  startFade(w,0.18); w.mode='trick';
+  w.trick={seq:seq.slice(),i:-1,cur:{rot:0,x:0,head:0,toe:0,l:[[0,0],[0,0]],a:[[0,0],[0,0]]}};
+  nextTrick(w,world); return true;
+}
+function nextTrick(w,world){
+  const T=w.trick; T.i++;
+  if(T.i>=T.seq.length){ finishTricks(w,world); return; }
+  T.name=T.seq[T.i]; T.kf=TRICKS[T.name]; T.t=0; T.x0=w.x; T.g=world.yAt(w.x); T.seg=-1; T.landed=[];
+  T.speed=vary(w,0.06);                                                          // no two tries quite the same tempo
+}
+function finishTricks(w,world){ const F=w.facing; w.trick=null; standUp(w,world); w.lean=0; w.facing=w.dir=w.kneeF=F;
+  if(w.ko){ w.ko=false; w.events.push({type:'fightOver',loser:w}); if(w.foe){ w.foe.foe=null; w.foe.ai=null; } w.foe=null; w.ai=null; } w.events.push({type:'land',x:w.x,y:world.yAt(w.x),speed:30,stone:world.s[world.indexAt(w.x)].w<40}); }
+function stepTrick(w,world,dt){
+  const T=w.trick, kf=T.kf, F=w.facing; T.t+=dt*T.speed;
+  let i=0; while(i<kf.length-2&&T.t>=kf[i+1].t) i++;
+  const A=kf[i], B=kf[i+1], u=clamp((T.t-A.t)/(B.t-A.t),0,1);
+  if(T.seg!==i){ T.seg=i; T.xs=w.x;
+    if(A.sup==='air'&&(i===0||kf[i-1].sup!=='air')){                                 // leaving the ground: one arc to wherever the next grounded frame needs the hips
+      let j=i+1; while(j<kf.length-1&&kf[j].sup==='air') j++;
+      const y0=w.y-T.g, y1=-supportDrop(fkLocal(kf[j]),kf[j].sup), Tt=(kf[j].t-A.t)/T.speed;
+      T.arc={t0:A.t,y0:y0,vy0:(y1-y0-0.5*CFG.gravity*Tt*Tt)/Tt};
+      w.events.push({type:'jump',x:w.x,y:T.g}); }
+    if(A.sup!=='air'&&i>0&&kf[i-1].sup==='air') w.events.push({type:'land',x:w.x,y:T.g,speed:120,stone:world.s[world.indexAt(w.x)].w<40});
+  }
+  const cur=lerpKF(A,B,ss(u),T.cur), fk=fkLocal(cur);
+  T.x0=clamp(T.x0+w.hitV*dt,world.x0+8,world.x1-8);                              // knocked back: the whole move slides
+  const hx=T.x0+F*cur.x; let hy;
+  if(A.sup==='air'){ const tt=(T.t-T.arc.t0)/T.speed; hy=T.g+T.arc.y0+T.arc.vy0*tt+0.5*CFG.gravity*tt*tt; }
+  else hy=T.g-supportDrop(fk,A.sup);
+  w.x=hx; w.y=hy; w.vx=0; w.lean=F*cur.rot; w.label=T.name;
+  const P=fkToPose(w,fk,hx,hy); w.last=P;
+  if(w.foe) checkHits(w,P,world);
+  for(let k=0;k<2;k++){ w.feet[k].ax=P.legs[k].ax; w.feet[k].ay=P.legs[k].ay; w.feet[k].pitch=P.legs[k].pitch; w.feet[k].planted=A.sup==='feet'; }
+  if(T.t>=kf[kf.length-1].t){
+    if(TURNS[T.name]){ w.facing=w.dir=w.kneeF=-F; }
+    if(ROLL_AFTER[T.name]){ w.trick=null; standUp(w,world); w.vx=w.facing*70; if(canRoll(w,world)) startRoll(w,world); return w.last; }
+    nextTrick(w,world);
+  }
+  return P;
+}
+
+/* =====================  FIGHTING: strikes that connect, bodies that react  =====================
+   A strike keyframe list carries HITS: which limb, when it is live, how hard, and where it lands (high or low).
+   While a strike is live, the limb's tip is tested against the opponent's body; on contact the opponent takes
+   the hit (knockback, a reaction, health), the striker feels it too (a little recoil), and both freeze for a
+   few frames so the impact registers. A block turns a hit into a shove. Enough hits, or a sweep, and he goes down. */
+const HITS={
+  punch:  [{limb:'hand',i:1,t0:0.06,t1:0.16,power:7,kb:70,high:true},{limb:'hand',i:0,t0:0.32,t1:0.42,power:9,kb:85,high:true}],
+  hook:   [{limb:'hand',i:1,t0:0.14,t1:0.26,power:11,kb:95,high:true}],
+  upper:  [{limb:'hand',i:1,t0:0.16,t1:0.28,power:12,kb:60,high:true,lift:true}],
+  elbow:  [{limb:'hand',i:1,t0:0.12,t1:0.22,power:9,kb:70,high:true}],
+  fkick:  [{limb:'foot',i:0,t0:0.26,t1:0.4,power:12,kb:130,high:false}],
+  rkick:  [{limb:'foot',i:0,t0:0.26,t1:0.42,power:15,kb:120,high:true}],
+  knee:   [{limb:'foot',i:0,t0:0.14,t1:0.26,power:10,kb:60,high:false,knee:true}],
+  sweep:  [{limb:'foot',i:1,t0:0.3,t1:0.46,power:6,kb:40,high:false,sweep:true}],
+  bkick:  [{limb:'foot',i:0,t0:0.3,t1:0.44,power:16,kb:160,high:false}]
+};
+const REACTS={hitHigh:1,hitLow:1,hitBlock:1,knockdown:1,getup:1};
+function bodyHit(def,px,py,high){                                   // is a point inside the defender's torso or head?
+  const P=def.last; if(!P) return false;
+  const hx=P.hip.x,hy=P.hip.y,nx=P.neck.x,ny=P.neck.y, dx=nx-hx,dy=ny-hy, L2=dx*dx+dy*dy||1;
+  const u=clamp(((px-hx)*dx+(py-hy)*dy)/L2,0,1), cx=hx+dx*u, cy=hy+dy*u;
+  if(Math.hypot(px-cx,py-cy)<7.5) return true;
+  if(Math.hypot(px-P.head.x,py-P.head.y)<CFG.headR+2.5) return true;
+  if(high) return false;
+  for(const L of P.legs){ const ddx=L.ax-L.kx, ddy=L.ay-L.ky, l2=ddx*ddx+ddy*ddy||1;   // low blows and sweeps find the legs
+    const v=clamp(((px-L.kx)*ddx+(py-L.ky)*ddy)/l2,0,1); if(Math.hypot(px-(L.kx+ddx*v),py-(L.ky+ddy*v))<6) return true; }
+  return false;
+}
+function limbTip(P,h){ return h.limb==='hand'?{x:P.arms[h.i].hx,y:P.arms[h.i].hy}:(h.knee?{x:P.legs[h.i].kx,y:P.legs[h.i].ky}:{x:P.legs[h.i].ax,y:P.legs[h.i].ay}); }
+function isBlocking(def,dirFromAtt){ return def.mode==='trick'&&def.trick.name==='block'&&def.facing===-dirFromAtt; }
+function landHit(att,def,h,world){
+  const dir=att.facing, blocked=isBlocking(def,dir);
+  att.freeze=def.freeze=blocked?0.04:0.07;                            // hit-stop: the frame holds for an instant
+  att.hitV-=dir*h.kb*(blocked?0.45:0.18);                             // the striker feels it too
+  att.events.push({type:blocked?'block':'hit',x:(att.x+def.x)/2,y:def.y-10,power:h.power});
+  def.foeSeen=true;
+  if(blocked){ def.hitV+=dir*h.kb*0.35; def.guardHits=(def.guardHits||0)+1; if(def.guardHits>=3){ def.guardHits=0; forceTrick(def,world,'hitBlock',dir); } return; }
+  def.hp=Math.max(0,def.hp-h.power*vary(att,0.15)); def.hitV+=dir*h.kb;
+  if(h.lift) def.hitVy=-90;
+  const down = def.hp<=0 || h.sweep || def.mode!=='walk'&&def.mode!=='trick';
+  forceTrick(def,world,down?'knockdown':(h.high?'hitHigh':'hitLow'),dir);
+}
+function forceTrick(w,world,name,dir){                                 // a reaction interrupts whatever he was doing
+  if(w.mode==='trick'&&w.trick&&(w.trick.name==='knockdown'||w.trick.name==='getup')&&name!=='knockdown') return;
+  if(w.mode==='vine'){ w.vine.held=false; w.vine=null; } if(w.mode==='hang') w.hang=null; if(w.mode==='wall') w.wall=null; if(w.mode==='mantle') w.mantle=null;
+  if(w.mode!=='walk'&&w.mode!=='trick'){ if(w.mode==='air'){ w.flip=null; } standUp(w,world); }
+  if(w.carry) dropCarry(w); w.dancing=w.reading=false; w.act=null; w.jump=null; w.pick=null; w.stopX=null;
+  w.facing=w.dir=w.kneeF=-dir;                                         // he takes it facing the blow
+  startFade(w,0.08); w.mode='trick';
+  const ko=name==='knockdown'&&w.hp<=0;
+  if(ko){ w.ko=true; if(w.foe&&w.foe.ai) w.foe.ai.on=false; if(w.ai) w.ai.on=false; }
+  w.trick={seq:name==='knockdown'?(ko?['knockdown','kolie','getup']:['knockdown','getup']):[name],i:-1,cur:{rot:0,x:0,head:0,toe:0,l:[[0,0],[0,0]],a:[[0,0],[0,0]]},react:true};
+  nextTrick(w,world);
+}
+function checkHits(att,P,world){
+  const T=att.trick, hs=HITS[T.name], def=att.foe; if(!hs||!def||T.react) return;
+  for(let k=0;k<hs.length;k++){ const h=hs[k]; if(T.landed[k]||T.t<h.t0||T.t>h.t1) continue;
+    if(def.mode==='trick'&&/knockdown|kolie|getup/.test(def.trick.name)) continue;      // no hitting a man when he's down
+    const tip=limbTip(P,h); if(bodyHit(def,tip.x,tip.y,h.high)){ T.landed[k]=true; landHit(att,def,h,world); } }
+}
+
+/* ---------- the AI: get in range, pick a shot, guard, keep moving ---------- */
+function fightAI(w,world,dt){
+  const f=w.foe, ai=w.ai; if(!f||!ai) return {in:0};
+  ai.t-=dt;
+  const dx=f.x-w.x, d=Math.abs(dx), dir=Math.sign(dx)||w.facing;
+  const foeDown=f.mode==='trick'&&f.trick&&(f.trick.name==='knockdown'||f.trick.name==='getup');
+  const foeStriking=f.mode==='trick'&&f.trick&&HITS[f.trick.name]&&!f.trick.react;
+  const busy=w.mode!=='walk';
+  if(!ai.on){ if(w.hp>0&&!ai.bowed&&f.mode==='trick'&&f.trick&&f.trick.name==='kolie'&&f.trick.t>1.2){ ai.bowed=true; return {cmd:'bow'}; } return {in:0}; }   // the winner takes a bow
+  if(w.hp<=0) return {in:0};
+  if(!busy&&w.facing!==dir&&d>6){ w.facing=w.dir=w.kneeF=dir; startFade(w,0.12); }     // square up
+  if(busy) return {in:0};
+  if(ai.t>0) return {in:ai.move*dir};
+  ai.t=0.12+w.rand()*0.3; ai.move=0;
+  if(foeDown){ if(d<40) ai.move=-0.6; return {in:ai.move*dir}; }                        // give him room to get up
+  const r=w.rand();
+  if(foeStriking&&d<34&&r<ai.guard){ return {cmd:'block'}; }
+  if(foeStriking&&d<34&&r<ai.guard+0.15){ ai.move=-1.2; ai.t=0.3; return {in:ai.move*dir}; }   // step out of it
+  if(d>36){ ai.move=r<0.15?1.6:0.9; ai.t=0.25; return {in:ai.move*dir}; }
+  if(d<19){ ai.move=-0.7; return {in:ai.move*dir}; }
+  if(r<ai.aggr){ const pool=d<22?['punch','hook','upper','elbow','knee','sweep']:['fkick','rkick','bkick','punch']; return {cmd:pool[Math.floor(w.rand()*pool.length)]}; }
+  if(r<ai.aggr+0.2){ ai.move=(w.rand()<0.5?1:-1)*0.5; ai.t=0.25; }                   // shuffle
+  return {in:ai.move*dir};
+}
+function setFight(a,b,aiA,aiB){
+  a.foe=b; b.foe=a; a.hp=b.hp=100; a.hitV=b.hitV=0;
+  a.ai=aiA?{on:true,t:0,move:0,aggr:aiA.aggr||0.5,guard:aiA.guard||0.35}:null;
+  b.ai=aiB?{on:true,t:0,move:0,aggr:aiB.aggr||0.5,guard:aiB.guard||0.35}:null;
+}
+
+/* =====================  POSE PLUMBING  ===================== */
+function bone(ax,ay,bx,by,len){ let dx=bx-ax, dy=by-ay, d=Math.hypot(dx,dy); if(d<1e-6){dx=0;dy=1;d=1;} return [ax+dx/d*len,ay+dy/d*len]; }
+
+/* Two-bone limb from (hx,hy) reaching for (ax,ay); sign picks which way the middle joint folds. */
+function solve2(hx,hy,ax,ay,l1,l2,sign){
+  let dx=ax-hx, dy=ay-hy, d=Math.hypot(dx,dy); if(d<1e-6){dx=0;dy=1;d=1;}
+  const dc=clamp(d,Math.abs(l1-l2)+0.01,l1+l2-0.01), ux=dx/d, uy=dy/d;
+  const a=(l1*l1-l2*l2+dc*dc)/(2*dc), h=Math.sqrt(Math.max(l1*l1-a*a,0));
+  return {kx:hx+ux*a+sign*uy*h, ky:hy+uy*a-sign*ux*h, ax:hx+ux*dc, ay:hy+uy*dc};
+}
+
+function poseOf(w,o){
+  const sf=clamp(Math.abs(w.vx)/CFG.walkSpeed,0,1), F=w.facing;
+  const off=clamp(w.by-w.y,-1.6,1.6), breath=Math.sin(w.breathP)*(0.3+1.2*w.exert)*(1-0.7*sf);   // heavier, faster breathing when he's worked hard
+  const hip={x:w.x+w.sway,y:w.y};
+  const R=w.airRot, L=w.lean+R;
+  const neck={x:hip.x+Math.sin(L)*CFG.torso, y:hip.y-Math.cos(L)*CFG.torso+off-breath};
+  const ha=w.lean*0.35+R*0.85+F*(w.headAdd+w.gaze)+0.03*wobble(w,2,w.time*1.3), hl=CFG.neck+CFG.headR;
+  const head={x:neck.x+Math.sin(ha)*hl, y:neck.y-Math.cos(ha)*hl, a:ha};
+  const tx=(neck.x-hip.x)/CFG.torso, ty=(neck.y-hip.y)/CFG.torso;
+  const sh={x:neck.x-tx*2.4, y:neck.y-ty*2.4};
+  const legs=[],arms=[];
+  for(let i=0;i<2;i++){
+    const f=w.feet[i]; const L=solve2(hip.x,hip.y,f.ax,f.ay,CFG.thigh,CFG.shin,w.kneeF); L.pitch=f.pitch; L.face=f.face; legs.push(L);
+    const th=w.lean*0.6+R+F*w.arm[i], th2=th+F*w.armB[i];
+    const ex=sh.x+Math.sin(th)*CFG.upperArm, ey=sh.y+Math.cos(th)*CFG.upperArm;
+    arms.push({ex:ex,ey:ey,hx:ex+Math.sin(th2)*CFG.foreArm,hy:ey+Math.cos(th2)*CFG.foreArm});
+  }
+  return {hip:hip,neck:neck,head:head,sh:sh,legs:legs,arms:arms,face:F,prop:o?o.prop:null};
+}
+
+/* Cross-fade between two poses bone by bone, so limbs swing across instead of stretching. */
+function startFade(w,dur){ if(w.last) w.fade={from:w.last,t:0,dur:dur,x0:w.x}; }
+function blendPose(A,B,t,dx){
+  const L=(a,b)=>a+(b-a)*t;
+  const child=(pa,ca,pb,cb,pn)=>{ const ox=L(ca.x-pa.x,cb.x-pb.x), oy=L(ca.y-pa.y,cb.y-pb.y), len=L(Math.hypot(ca.x-pa.x,ca.y-pa.y),Math.hypot(cb.x-pb.x,cb.y-pb.y)), d=Math.hypot(ox,oy)||1e-6;
+    return {x:pn.x+ox/d*len,y:pn.y+oy/d*len}; };
+  const hip={x:L(A.hip.x+dx,B.hip.x),y:L(A.hip.y,B.hip.y)};
+  const neck=child(A.hip,A.neck,B.hip,B.neck,hip), sh=child(A.neck,A.sh,B.neck,B.sh,neck), head=child(A.neck,A.head,B.neck,B.head,neck);
+  head.a=L(A.head.a,B.head.a);
+  const legs=[],arms=[];
+  for(let i=0;i<2;i++){
+    const la=A.legs[i], lb=B.legs[i], k=child(A.hip,{x:la.kx,y:la.ky},B.hip,{x:lb.kx,y:lb.ky},hip), a=child({x:la.kx,y:la.ky},{x:la.ax,y:la.ay},{x:lb.kx,y:lb.ky},{x:lb.ax,y:lb.ay},k);
+    legs.push({kx:k.x,ky:k.y,ax:a.x,ay:a.y,pitch:L(la.pitch,lb.pitch),face:lb.face});
+    const aa=A.arms[i], ab=B.arms[i], e=child(A.sh,{x:aa.ex,y:aa.ey},B.sh,{x:ab.ex,y:ab.ey},sh), h=child({x:aa.ex,y:aa.ey},{x:aa.hx,y:aa.hy},{x:ab.ex,y:ab.ey},{x:ab.hx,y:ab.hy},e);
+    arms.push({ex:e.x,ey:e.y,hx:h.x,hy:h.y});
+  }
+  return {hip:hip,neck:neck,head:head,sh:sh,legs:legs,arms:arms,face:B.face,prop:B.prop};
+}
+
+/* =====================  COMMANDS and the one update everything goes through  ===================== */
+function command(w,world,name){
+  if(w.mode==='roll'||w.mode==='mantle'||w.mode==='trick') return false;
+  if(w.pick&&w.pick.phase!=='approach') return false;                   // committed until he's back up
+  if(w.pick&&name!=='pick') w.pick=null;                                // anything else calls off the walk over
+  if(w.mode==='vine'){ if(name==='jump'){ letGo(w,true); return true; } if(name==='crawl'){ letGo(w,false); return true; }
+    if(name==='throw'&&!w.act){ w.act={name:'throw',t:0,done:false}; return true; } return false; }
+  if(w.mode==='hang'){ if(name==='jump'||name==='climb'){ startMantle(w,w.hang); return true; }
+    if(name==='crawl'||name==='roll'){ w.hang=null; w.grabCd=0.28; toAir(w); return true; } return false; }
+  if(w.mode==='wall'){ if(name==='jump'){ const F=w.wall.hi; w.wall=null; w.grabCd=0.3; toAir(w); w.vx=-F*70; w.vy=-CFG.jumpV*0.7; return true; }
+    if(name==='crawl'){ w.wall=null; w.grabCd=0.25; toAir(w); return true; } return false; }
+  if(w.mode==='crawl'){ if(name==='crawl'||name==='jump'){ standUp(w,world); return true; } return false; }
+  if(w.mode==='air'){
+    if(name==='jumpEnd'){ if(w.vy<0) w.vy*=CFG.jumpCut; return true; }                   // let go early: a shorter jump
+    if(name==='roll'&&!w.flip){ w.flip={th:0}; w.events.push({type:'roll'}); return true; }
+    if(name==='throw'&&!w.act){ w.act={name:'throw',t:0,done:false}; return true; }
+    if(name==='climb'){ const h=nearestGrip(world,w.x+w.facing*2,w.y-20,w.grabCd); if(h){ grabVine(w,h); return true; } }
+    return false; }
+  switch(name){
+    case 'jump':  if(w.jump) return false; w.jump={t:0}; w.dancing=false; return true;
+    case 'jumpEnd': if(w.jump){ w.jump.cut=true; return true; } return false;           // a quick tap is a hop
+    case 'roll':  if(w.jump||!canRoll(w,world)) return false; startRoll(w,world); return true;
+    case 'crawl': if(w.jump) return false; enterCrawl(w,world); return true;
+    case 'throw': if(w.act) return false; w.act={name:'throw',t:0,done:false}; w.dancing=false; return true;
+    case 'clap':  if(w.act) return false; if(w.carry) dropCarry(w); w.act={name:'clap',t:0,n:0,max:CFG.variety?3+Math.floor(w.rand()*3):4,f:3.4*vary(w,0.1)}; return true;
+    case 'climb': {                                                   // reach for whatever is in front of us
+      const e=world.edges.find(q=>q.climb&&Math.abs(w.x-(q.x-q.hi*9))<26&&w.y>q.y+12&&w.y<q.floor);
+      if(e){ w.x=e.x-e.hi*9; grabWall(w,e); return true; }
+      const h=nearestGrip(world,w.x+w.facing*2,w.y-22,0); if(h){ grabVine(w,h); return true; }
+      return false; }
+    case 'pick': {
+      if(w.pick||w.jump) return false;
+      if(w.carry){ const F=w.facing, gx=w.x+F*(CFG.pickReach+3); if(Math.abs(world.yAt(gx)-world.yAt(w.x))>1) return false;
+        w.pick={item:w.carry,phase:'reach',t:0,put:true,gx:gx,gy:world.yAt(gx)-w.carry.r}; w.dancing=w.reading=false; return true; }
+      const it=nearestItem(w,world); if(!it) return false;
+      w.pick={item:it,phase:'approach',t:0,gx:it.x,gy:it.y,sq:vary(w,0.05),hg:vary(w,0.05)}; w.dancing=w.reading=false; w.act=null; return true; }
+    case 'read':  if(w.carry) dropCarry(w); w.reading=!w.reading; w.readT=0.6; w.dancing=false; return true;
+    case 'routine':    return startTricks(w,world,ROUTINE);
+    case 'backflip':   return startTricks(w,world,['backflip']);
+    case 'handspring': return startTricks(w,world,['bhs']);
+    case 'fhandspring':return startTricks(w,world,['fhs']);
+    case 'kick':       w.kickN=(w.kickN||0)+1; return startTricks(w,world,[w.kickN%2?'fkick':'rkick']);
+    case 'fkick': case 'rkick': case 'hook': case 'upper': case 'elbow': case 'knee': case 'bkick': case 'sweep': case 'block': case 'dodge': return startTricks(w,world,[name]);
+    case 'punch':      return startTricks(w,world,['stance','punch']);
+    case 'kipup':      return startTricks(w,world,['kipup']);
+    case 'dive':       return startTricks(w,world,['dive']);
+    case 'dance': if(w.carry) dropCarry(w); w.dancing=!w.dancing; w.danceT=0; w.reading=false; return true;
+  }
+  return false;
+}
+
+function updateWalker(w,world,input,dt,vert){
+  if(w.freeze>0){ w.freeze-=dt; return w.last; }                        // hit-stop
+  if(w.ai&&w.ai.on&&w.foe){ const a=fightAI(w,world,dt); if(a.cmd) command(w,world,a.cmd); input=a.in||0; }
+  w.hitV*=Math.exp(-6*dt); if(Math.abs(w.hitV)<1) w.hitV=0;
+  if(w.foe&&w.foe.mode!=='air'&&(w.mode==='walk'||w.mode==='trick'&&w.trick&&!/knockdown|kolie|getup|bhs|backflip|fhs/.test(w.trick.name))){   // two bodies can't share a spot
+    const d=w.foe.x-w.x; if(Math.abs(d)<17&&Math.abs(w.foe.y-w.y)<24){ const push=Math.sign(d||w.facing)*(17-Math.abs(d))*0.5; w.x-=push; if(w.trick) w.trick.x0-=push; } }
+  w.time+=dt; w.world=world;
+  const work = w.mode==='walk' ? clamp(Math.abs(w.vx)/CFG.walkSpeed,0,1)*(0.3+0.45*w.stair)+(w.dancing?0.55:0)
+             : w.mode==='air'||w.mode==='roll' ? 0.7 : w.mode==='crawl' ? 0.45 : 1;   // hanging, climbing and swinging are hard
+  w.exert+=(work-w.exert)*(1-Math.exp(-(work>w.exert?0.45:0.08)*dt));
+  w.breathP+=dt*(1.6+2.8*w.exert)*(1+0.25*wobble(w,3,w.time*0.25));
+  input=Math.abs(input)<0.06?0:clamp(input,-2,2);
+  vert=Math.abs(vert||0)<0.3?0:clamp(vert,-1,1); w.vertAmt=Math.abs(vert);
+  w.climbHeld=vert<0; w.downHeld=vert>0;
+  if(w.mode!=='air') w.grabCd-=dt;
+  stepVines(world,dt,w.vine,w.time);
+  if(w.mode!=='walk') w.stopX=null;                                    // a rest point only means anything while on his feet
+  if(w.mode!=='air'){ const k=Math.exp(-9*dt); w.airRot*=k; w.airLeg*=k; w.airOm=w.airLegV=0; }   // on landing, the last of the spin is absorbed
+  let P;
+  if(w.mode==='crawl') P=stepCrawl(w,world,input,dt);
+  else if(w.mode==='roll') P=stepRoll(w,world,input,dt);
+  else if(w.mode==='vine') P=stepVine(w,world,input,dt);
+  else if(w.mode==='hang') P=stepHang(w,world,input,dt);
+  else if(w.mode==='mantle') P=stepMantle(w,world,dt);
+  else if(w.mode==='wall') P=stepWall(w,world,input,dt);
+  else if(w.mode==='trick') P=stepTrick(w,world,dt);
+  else{ if(w.pick&&w.mode==='walk') input=pickDrive(w,world,input,dt);
+    const o=overlay(w,dt); if(w.mode==='air') stepAir(w,world,input,dt,o); else stepWalk(w,world,input,dt,o);
+    P = w.flip ? tuckPose(w,w.x,w.y,w.flip.th,w.facing) : poseOf(w,o);
+    if(w.mode==='walk'||w.mode==='air') pickArms(w,P,world); }
+  if(w.carry&&!(w.mode==='walk'||w.mode==='air')) dropCarry(w);          // needs both hands for this
+  if(w.pick) w.label = w.pick.phase==='approach' ? 'going to pick it up' : (w.pick.put?'putting it down':'picking it up');
+  else if(w.carry&&w.mode==='walk') w.label+=' (carrying)';
+  if(!P) P=w.last;
+  if(w.fade){ const f=w.fade; f.t+=dt;
+    if(f.t>=f.dur) w.fade=null;
+    else{ P=blendPose(f.from,P,ss(f.t/f.dur),w.x-f.x0);
+      // limbs swinging across mustn't dip through the floor: slide the joint along the ground at full bone length instead
+      const fix=(px,py,o,kx,ky,len,pad)=>{ const fy=world.yAt(o[kx])-pad; if(o[ky]<=fy) return; const dy=fy-py;
+        if(Math.abs(dy)<len){ o[kx]=px+(o[kx]>=px?1:-1)*Math.sqrt(len*len-dy*dy); o[ky]=fy; } };
+      for(const L of P.legs){ const ox=L.ax-L.kx, oy=L.ay-L.ky; fix(P.hip.x,P.hip.y,L,'kx','ky',CFG.thigh,1.8); L.ax=L.kx+ox; L.ay=L.ky+oy; fix(L.kx,L.ky,L,'ax','ay',CFG.shin,2.2); }
+      for(const A of P.arms){ const ox=A.hx-A.ex, oy=A.hy-A.ey; fix(P.sh.x,P.sh.y,A,'ex','ey',CFG.upperArm,1.5); A.hx=A.ex+ox; A.hy=A.ey+oy; fix(A.ex,A.ey,A,'hx','hy',CFG.foreArm,1.4); } } }
+  w.last=P;
+
+  // --- thrown stones
+  for(let i=w.shots.length-1;i>=0;i--){ const s=w.shots[i];
+    if(s.rest||s.held) continue;
+    const R=s.r||1.3;
+    s.vy+=CFG.gravity*dt; let nx=s.x+s.vx*dt, ny=s.y+s.vy*dt; const g=world.yAt(nx)-R; s.a+=s.vx*dt*0.12;
+    if(nx<world.x0-20||nx>world.x1+20){ s.vx*=-0.3; nx=s.x; }
+    if(ny>g){ if(s.y>g+R+0.2){ s.vx*=-0.3; nx=s.x; ny=Math.min(ny,world.yAt(nx)-R); }            // struck a riser
+      else{ ny=g; if(Math.abs(s.vy)>40) w.events.push({type:'thud',speed:Math.abs(s.vy)}); s.vy*=-0.36; s.vx*=0.55; if(Math.abs(s.vy)<22){ s.vy=0; if(Math.abs(s.vx)<8) s.rest=true; } } }
+    s.x=nx; s.y=ny; }
+
+  // --- scarf: a short rope pinned behind the neck
+  const sc=w.scarf, F=w.facing;
+  sc[0].x=P.neck.x-(P.neck.y<P.hip.y-8?F*2.6:0); sc[0].y=P.neck.y+0.6;
+  for(let i=1;i<sc.length;i++){ const p=sc[i], vx=(p.x-p.ox)*0.975, vy=(p.y-p.oy)*0.975; p.ox=p.x; p.oy=p.y;
+    p.x+=vx+(-F*60-w.vx*3+Math.sin(w.time*5.3+i*1.3)*70)*dt*dt; p.y+=vy+520*dt*dt; }
+  for(let k=0;k<3;k++) for(let i=1;i<sc.length;i++){ const a2=sc[i-1], b=sc[i]; let dx=b.x-a2.x, dy=b.y-a2.y; const d=Math.hypot(dx,dy)||1e-6, e=(d-2.6)/d; b.x-=dx*e; b.y-=dy*e; }
+  return P;
+}
+
+/* =====================  THE DEMO REEL  =====================
+   Every move, played at real speed. Each clip starts a fresh character, plays his lead-up out of sight
+   ("pre", simulated seconds), then shows the part worth seeing ("show", seconds on screen).
+   c: commands at simulated times; go: the stick (in, up), an optional caption for the moment (cap),
+   and anything that has to wait for him to get somewhere. */
+const DEMO_SPEED=1;
+function demoScenes(world){
+  const M=world.marks, C=(h,n)=>command(h,world,n);
+  const pace=t=>t<1.3?{in:0.45,cap:'Stroll'}:t<2.3?{in:1,cap:'Walk'}:t<3.2?{in:1.5,cap:'Jog'}:t<4.2?{in:2,cap:'Run'}:{in:0,cap:'Stop from a run'};
+  return [
+    {n:'Stroll',                     x:1945, pre:0.4,  show:5.0, go:t=>pace(t)},
+    {n:'Walk, turn round, stop',     x:2020, pre:0.5,  show:1.9, go:t=>({in:t<1.1?1:(t<1.8?-1:0),cap:t<1.1?'Walk':(t<1.8?'Turn round':'Stop')})},
+    {n:'Up the stairs',              x:215,  pre:0.9,  show:1.2, go:()=>({in:1})},
+    {n:'Running up the stairs',      x:215,  pre:0.6,  show:1.0, go:()=>({in:2})},
+    {n:'Down the stairs',            x:690,  pre:0.7,  show:1.2, go:()=>({in:1})},
+    {n:'Standing about',             x:2050, pre:2.6,  show:1.4},
+    {n:'Hop, then a full jump',      x:2050, pre:0.05, show:1.5, c:[[0.06,'jump'],[0.1,'jumpEnd'],[0.72,'jump']],
+       go:t=>({cap:t<0.6?'Hop (tap)':'Full jump (hold)'})},
+    {n:'Running leap',               x:1960, pre:0.9,  show:1.1, c:[[1.0,'jump']], go:()=>({in:2})},
+    {n:'Crawl',                      x:2000, pre:0.4,  show:1.3, c:[[0.02,'crawl']], go:t=>({in:t>0.35?1:0})},
+    {n:'Tumble roll',                x:2000, pre:0.4,  show:1.2, c:[[0.55,'roll']], go:()=>({in:1.3})},
+    {n:'Pick up a stone',            x:2025, pre:0.05, show:3.3, c:[[0.02,'pick']], go:(t,h,m)=>{
+       if(h.carry&&!h.pick){ if(m.t0==null) m.t0=t; if(t-m.t0<0.9) return {in:1,cap:'Carry it'};
+         if(!m.put){ m.put=1; C(h,'pick'); } }
+       return {cap:m.put?'Set it down':(h.pick&&h.pick.phase==='approach'?'Go to it':'Pick up a stone')}; }},
+    {n:'Pick up an apple, throw it', x:2130, pre:0.05, show:2.2, c:[[0.02,'pick']], go:(t,h,m)=>{
+       if(h.carry&&!h.pick&&!m.thrown){ m.thrown=1; C(h,'throw'); } return {}; }},
+    {n:'Reading on the move',        x:2000, pre:0.7,  show:1.1, c:[[0.02,'read']], go:t=>({in:t>0.3?1:0})},
+    {n:'Clap',                       x:2050, pre:0.05, show:1.15, c:[[0.06,'clap']]},
+    {n:'Dance',                      x:2050, pre:0.4,  show:1.3, c:[[0.02,'dance']]},
+    {n:'Air flip',                   x:2000, pre:0.55, show:1.2, c:[[0.62,'jump'],[0.76,'roll']], go:()=>({in:2})},
+    {n:'Catch a ledge, hang, pull up', x:2340, pre:0.62, show:1.8, go:(t,h)=>{
+       if(h.mode==='walk'&&h.x>2362&&h.y>-60&&Math.abs(h.vx)<3&&t>0.3) C(h,'jump');
+       if(h.mode==='hang') return {in:h.limbT>0.45?1:0};
+       return {in:h.y<-84?0:1.4}; }},
+    {n:'Vine to vine',               x:2560, pre:2.3,  show:2.2, go:(t,h)=>{
+       if(h.mode==='walk'&&h.x>M.ravine+8&&h.x<M.ravine+22) C(h,'jump');
+       if(h.mode==='vine'&&h.vine.th*h.facing>0.45&&h.vine.om*h.facing>0.85) C(h,'jump');
+       return {in:1}; }},
+    {n:'Fall, roll out',             x:2400, pre:0.45, show:1.2, go:t=>({in:t<1.1?-1.5:0})},
+    {n:'Climb the ivy',              x:2945, pre:0.2,  show:1.4, c:[[0.02,'climb']], go:()=>({up:-1})},
+    {n:'Shinny up a vine',           x:3292, pre:0.3,  show:1.1, c:[[0.02,'climb']], go:t=>({up:t>0.1?-1:0})},
+    {n:'Gymnastics routine',         x:2000, pre:0.02, show:14.6, c:[[0.02,'routine']], go:(t,h)=>({cap:TRICK_NAMES[h.label]||'Gymnastics routine'})},
+    {n:'Sparring match',             x:2040, pre:0.02, show:75, fight:true, go:(t,h)=>{ const f=h.foe, ko=h.hp<=0?'Red wins':(f&&f.hp<=0?'Blue wins':null); return {cap:ko||(t<1?'Sparring: Blue v Red':(TRICK_NAMES[h.label]||'Blue: '+h.label)), done:!!ko&&h.mode==='walk'&&(!f||f.mode==='walk')}; }}
+  ];
+}
+/* One simulated tick of a demo clip: fires due commands and returns the stick. */
+function demoTick(d,h){
+  const sc=d.sc, t=d.st;
+  while(sc.c&&d.ci<sc.c.length&&t>=sc.c[d.ci][0]) command(h,d.world,sc.c[d.ci++][1]);
+  const a=(sc.go&&sc.go(t,h,d.mem))||{}; d.st+=1/120; d.cap=a.cap||sc.n; if(a.done) d.done=true; return a;
+}
+
+root.WalkEngine={setFight:setFight,HITS:HITS,TRICK_NAMES:TRICK_NAMES,TRICKS:TRICKS,ROUTINE:ROUTINE,demoScenes:demoScenes,demoTick:demoTick,DEMO_SPEED:DEMO_SPEED,resetWorld:resetWorld,CFG:CFG,LEG:LEG,buildWorld:buildWorld,createWalker:createWalker,updateWalker:updateWalker,command:command,poseOf:poseOf,footRange:footRange};
+})(typeof globalThis!=='undefined'?globalThis:this);
+
+</script>
+<script>
+// ===== rig: foot-planting walker (WalkEngine) driving Blender cut-out puppets =====
+// Engine runs in its own units; RS px per engine unit. Rebuild actors keep x/y/fy in px.
+const RS = 1.5, RK = 13.65 / 56;           // RK: engine units per part pixel (thigh = 13.65 units = 56 px)
+const RIGP = { img: null, ready: false, parts: null };
+function rigInit(src, parts) { RIGP.parts = parts; if (HEADLESS) return; const im = new Image(); im.onload = () => { RIGP.ready = true; }; im.src = src; RIGP.img = im; }
+const _WE = () => WalkEngine;
+function mkWorld(segs, x0, x1) {
+  const s = segs; const w = { s, x0, x1, vines: [], items: [], itemsInit: [], edges: [], marks: {},
+    indexAt(px) { let lo = 0, hi = s.length - 1; if (px <= s[0].x0) return 0; if (px >= s[hi].x1) return hi; while (lo < hi) { const m = (lo + hi) >> 1; if (px >= s[m].x1) lo = m + 1; else hi = m; } return lo; },
+    yAt(px) { return s[this.indexAt(px)].y; } };
+  for (let i = 1; i < s.length; i++) { const d = s[i].y - s[i - 1].y; if (Math.abs(d) <= _WE().CFG.maxStepUp) continue; w.edges.push({ x: s[i].x0, y: Math.min(s[i].y, s[i - 1].y), floor: Math.max(s[i].y, s[i - 1].y), hi: d < 0 ? 1 : -1, climb: false }); }
+  return w;
+}
+function flatWorld(y, x0, x1) { return mkWorld([{ x0: x0 - 300, x1: x1 + 300, y, w: x1 - x0 + 600 }], x0, x1); }
+// a flight climbing to the right from (xa,ya) to (xb,yb) in n risers (engine units)
+function flightWorld(xa, ya, xb, yb, n, x0, x1) {
+  const tr = (xb - xa) / n, rise = (ya - yb) / n, s = []; let x = xa, y = ya; s.push({ x0: x0 - 300, x1: x, y, w: x - x0 + 300 });
+  for (let i = 0; i < n; i++) { y -= rise; if (i < n - 1) { s.push({ x0: x, x1: x + tr, y, w: tr }); x += tr; } }
+  s.push({ x0: x, x1: x1 + 300, y, w: x1 + 300 - x }); return mkWorld(s, x0, x1);
+}
+const STAIR_N = 14;
+function engFlat(world, f) { world._eng = world._eng || {}; const k = 'f' + f; return world._eng[k] || (world._eng[k] = flatWorld(world.fy2y(f) / RS, world.x0 / RS, world.x1 / RS)); }
+function engStair(world, s) { world._eng = world._eng || {}; const k = 's' + s.x + ':' + s.a; return world._eng[k] || (world._eng[k] = flightWorld((s.x - STAIR_W) / RS, world.fy2y(s.a) / RS, (s.x + STAIR_W) / RS, world.fy2y(s.b) / RS, STAIR_N, world.x0 / RS, world.x1 / RS)); }
+// street: ground plus each obstacle as a short flight up, a top, and a flight down
+function engStreet(obstacles, gy, x0, x1) {
+  const segs = []; let x = x0 / RS - 300; const g = gy / RS;
+  const push = (xa, xb, y) => { if (xb > xa) segs.push({ x0: xa, x1: xb, y, w: xb - xa }); };
+  for (const o of obstacles.slice().sort((a, b) => a.x - b.x)) {
+    const l = (o.x - o.w / 2) / RS, r = (o.x + o.w / 2) / RS, h = o.h / RS, n = Math.max(2, Math.ceil(h / 7)), tr = (RAMP / RS) / n, rise = h / n;
+    push(x, l - RAMP / RS, g);
+    for (let i = 0; i < n; i++) push(l - RAMP / RS + i * tr, l - RAMP / RS + (i + 1) * tr, g - (i + 1) * rise);
+    push(l, r, g - h);
+    for (let i = 0; i < n; i++) push(r + i * tr, r + (i + 1) * tr, g - h + (i + 1) * rise);
+    x = r + RAMP / RS;
+  }
+  push(x, x1 / RS + 300, g);
+  // merge adjacent equal-height pieces
+  const m = []; for (const s of segs) { const p = m[m.length - 1]; if (p && Math.abs(p.y - s.y) < 1e-6 && Math.abs(p.x1 - s.x0) < 1e-6) { p.x1 = s.x1; p.w = p.x1 - p.x0; } else m.push(Object.assign({}, s)); }
+  return mkWorld(m, x0 / RS, x1 / RS);
+}
+function strHash(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+// walker per actor; x in engine units. Keeps the walker when the new world agrees on the ground under him.
+function rigOf(a, ew, x) {
+  const w = a.wk;
+  if (w && a.wkW !== ew && Math.abs(w.x - x) < 24 && Math.abs(ew.yAt(w.x) - a.wkW.yAt(w.x)) < .5) { w.world = ew; a.wkW = ew; return w; }
+  if (!w || a.wkW !== ew || Math.abs(w.x - x) > 24) { const nw = _WE().createWalker(ew, x, strHash(String(a.name || a.id || 'z'))); nw.ext = null; if (w) { nw.facing = nw.dir = nw.kneeF = w.facing; } a.wk = nw; a.wkW = ew; }
+  return a.wk;
+}
+// drive toward tx (engine units); loose = pass through without braking
+function rigTo(a, ew, tx, spd, dt, ext, loose) {
+  dt = Math.max(dt || 0, 1e-3); const w = rigOf(a, ew, a.wk && a.wkW === ew ? a.wk.x : a.x / RS); w.ext = ext || null;
+  const d = tx - w.x, brake = w.vx * w.vx / (2 * _WE().CFG.stopDecel) + 2.5; let inp = 0;
+  if (loose ? Math.abs(d) > 3 : Math.abs(d) > brake) inp = Math.sign(d) * spd;
+  _WE().updateWalker(w, ew, inp, dt, 0); if (!inp && !loose && w.stopX != null && Math.abs(w.stopX - tx) < 30) w.stopX = tx;
+  w.events.length = 0; a.wkT = _T;
+  return loose ? Math.abs(w.x - tx) < 4 : (!inp && Math.abs(w.x - tx) < 2 && Math.abs(w.vx) < 3);
+}
+function rigInput(a, ew, inp, dt, ext) { dt = Math.max(dt || 0, 1e-3); const w = rigOf(a, ew, a.x / RS); w.ext = ext || null; _WE().updateWalker(w, ew, inp, dt, 0); if (w.x < ew.x0) { w.x = ew.x0; w.vx = 0; } if (w.x > ew.x1) { w.x = ew.x1; w.vx = 0; } w.events.length = 0; a.wkT = _T; return w; }
+function rigIdle(a, ew, dt, ext) { dt = Math.max(dt || 0, 1e-3); const w = rigOf(a, ew, a.x / RS); w.ext = ext || null; _WE().updateWalker(w, ew, 0, dt, 0); if (w.stopX != null && Math.abs(w.stopX - w.x) < 30) w.stopX = w.x; w.events.length = 0; a.wkT = _T; return w; }
+function rigFace(a, dir) { const w = a.wk; if (w && dir && w.facing !== dir) { w.facing = w.dir = w.kneeF = dir; } }
+function rigDance(a, on) { const w = a.wk; if (w && !!w.dancing !== !!on) _WE().command(w, w.world, 'dance'); }
+function rigRead(a, on) { const w = a.wk; if (w && !!w.reading !== !!on) _WE().command(w, w.world, 'read'); }
+function rigClap(a) { const w = a.wk; if (w && !w.act) _WE().command(w, w.world, 'clap'); }
+const SNEAK_EXT = { squat: 4.5, lean: .22, arm: [{ a: .55, b: 1.25, k: .9 }, { a: .5, b: 1.3, k: .9 }], rate: 10 };
+const ES = (t, p) => Math.sin(t * p);
+// idle repertoire: small behaviours layered on the walker (arm {a: upper-arm angle forward, b: elbow bend})
+function idleExt(pose, t) {
+  const e = Math.min(1, t / .8);
+  switch (pose) {
+    case 'cross': return { arm: [{ a: .62, b: 2.35, k: e }, { a: .55, b: 2.3, k: e }], head: .05 };
+    case 'rub': { const s = ES(t, 9) * .1; return { arm: [{ a: .55 + s, b: 1.95, k: e }, { a: .6 - s, b: 1.9, k: e }], head: .3, lean: .06 }; }
+    case 'stretch': { const k = t < 2.4 ? e : Math.max(0, 1 - (t - 2.4) / .7); return { arm: [{ a: -.75, b: .35, k }, { a: -.7, b: .3, k }], lean: -.14 * k, head: -.3 * k }; }
+    case 'hips': return { arm: [{ a: -.3, b: 2.05, k: e }, { a: -.32, b: 2.1, k: e }], lean: -.03 };
+    case 'look': { const s = Math.sin(t * .9) + .4 * Math.sin(t * 2.3); return { head: s * .28 }; }
+    default: return null;
+  }
+}
+// working / fighting poses as overlays on a standing walker
+function poseExt(pose, t, extra, a) {
+  const s = Math.sin, k = extra ? clamp(extra.k || 0, 0, 1) : 0;
+  switch (pose) {
+    case 'sneak': return SNEAK_EXT;
+    case 'search': return { squat: 11, lean: .5, arm: [{ a: 1.15 + s(t * 3) * .15, b: .25 }, { a: 1.0 - s(t * 3) * .15, b: .3 }], head: .35, rate: 10 };
+    case 'dig': { const q = s(t * 5); return { lean: .45 + q * .1, squat: 4 + q * 2.5, arm: [{ a: .95 + q * .25, b: .35 }, { a: 1.25 + q * .25, b: .2 }], head: .3, rate: 16 }; }
+    case 'hammer': { const q = (s(t * 7) + 1) / 2; return { arm: [{ a: .35, b: 1.1 }, { a: -.2 + q * 1.5, b: .55 - q * .3 }], lean: .08 + q * .07, rate: 22 }; }
+    case 'cook': { const q = s(t * 4); return { arm: [{ a: .9, b: 1.4 + q * .15 }, { a: .75, b: 1.5 }], lean: .1, head: .25, rate: 12 }; }
+    case 'eat': { const q = (s(t * 4) + 1) / 2; return { arm: [{ a: .3, b: 1.2 }, { a: .7 + q * .3, b: 2.45 }], head: .12 }; }
+    case 'guard': return { arm: [{ a: .6, b: 1.3 }, { a: .45, b: 1.4 }], lean: .04 };
+    case 'attack': return { arm: [{ a: .5, b: .9 }, { a: -1.5 + k * 2.6, b: .3 }], lean: .12 + k * .25, rate: 28 };
+    case 'shove': return { arm: [{ a: .4 + k * 1.1, b: 1.2 - k * 1.1 }, { a: .4 + k * 1.1, b: 1.2 - k * 1.1 }], lean: .15 + k * .2, rate: 24 };
+    case 'hurt': return { arm: [{ a: .7, b: .7 }, { a: .9, b: .6 }], lean: -.3, head: -.2, rate: 24 };
+    case 'zombie': { const q = s(t * 1.1); return { lean: .33 + q * .04, head: .3, arm: [{ a: 1.25 + q * .1, b: .25 }, { a: 1.05 - q * .1, b: .3 }], squat: 2.5, rate: 6 }; }
+    case 'zombieIdle': { const q = s(t * 1.3); return { lean: .25, head: .32 + q * .08, arm: [{ a: .5 + q * .1, b: .35 }, { a: .35, b: .3 }], squat: 2 }; }
+    case 'zombieAttack': return { lean: .3 + k * .3, head: .4, arm: [{ a: .6 + k * .9, b: .3 }, { a: .45 + k * 1.1, b: .25 }], rate: 26 };
+    case 'idle': return a && a.idlePose ? idleExt(a.idlePose, a.idleT || 0) : null;
+    default: return null;
+  }
+}
+// a hand-made lying pose on the floor (engine units; y = ground), head toward -dir
+function lyingPose(x, y, dir) {
+  const C = _WE().CFG, F = -dir; const hip = { x, y: y - 5 }, neck = { x: x + F * C.torso, y: y - 5.5 };
+  const head = { x: neck.x + F * (C.neck + C.headR), y: neck.y - .5, a: F * Math.PI / 2 }; const sh = { x: neck.x - F * 2.4, y: neck.y + .3 };
+  const legs = [0, 1].map(i => ({ kx: x - F * C.thigh * .98, ky: y - 4 + i * 1.5, ax: x - F * (C.thigh + C.shin) * .97, ay: y - 3 + i * 1.5, pitch: F > 0 ? -1.3 : 1.3, face: F }));
+  const arms = [0, 1].map(i => ({ ex: sh.x + F * 2, ey: sh.y + 5 - i * 2, hx: sh.x + F * 8, hy: sh.y + 4 - i * 3 }));
+  return { hip, neck, head, sh, legs, arms, face: F, prop: null };
+}
+// ---- puppet ----
+const PFIX = { head: .45 };
+function drawPart(c, lk, g, ax, ay, bx, by, F) {
+  const P = RIGP.parts[lk] && RIGP.parts[lk][g]; if (!P) return;
+  const pa = Math.atan2(P.by - P.ay, P.bx - P.ax), wa = Math.atan2(by - ay, F * (bx - ax)) + (PFIX[g] || 0);
+  const bl = Math.hypot(P.bx - P.ax, P.by - P.ay) * RK, wl = Math.hypot(bx - ax, by - ay), st = bl > 0 ? clamp(wl / bl, .85, 1.15) : 1;
+  c.save(); c.translate(ax, ay); c.scale(F, 1); c.rotate(wa - pa); c.rotate(pa); c.scale(st, 1); c.rotate(-pa); c.scale(RK, RK);
+  c.drawImage(RIGP.img, P.x, P.y, P.w, P.h, -P.ax, -P.ay, P.w, P.h); c.restore();
+}
+function drawRig(c, P, lk, world, o) {
+  o = o || {}; const F = P.face || 1, C = _WE().CFG;
+  if (world && !o.noShadow) for (const L of P.legs) { const gy = world.yAt(L.ax), h = Math.max(0, gy - (L.ay + C.ankleH)); if (h > 26) continue; c.fillStyle = 'rgba(0,0,0,' + Math.max(.06, .3 - h * .01).toFixed(3) + ')'; c.beginPath(); c.ellipse(L.ax + F * 2, gy + .6, Math.max(3, 8 - h * .18), 2, 0, 0, 7); c.fill(); }
+  const toe = L => { const cs = Math.cos(L.pitch), sn = Math.sin(L.pitch), f = L.face || F; return [L.ax + f * (C.footToe * cs - C.ankleH * sn), L.ay + C.footToe * sn + C.ankleH * cs]; };
+  const leg = (i, b) => { const L = P.legs[i]; drawPart(c, lk, 'thigh' + b, P.hip.x, P.hip.y, L.kx, L.ky, F); drawPart(c, lk, 'shin' + b, L.kx, L.ky, L.ax, L.ay, F); const t = toe(L); drawPart(c, lk, 'boot' + b, L.ax, L.ay, t[0], t[1], L.face || F); };
+  const arm = (i, b) => { const A = P.arms[i]; drawPart(c, lk, 'armU' + b, P.sh.x, P.sh.y, A.ex, A.ey, F); drawPart(c, lk, 'armL' + b, A.ex, A.ey, A.hx, A.hy, F); };
+  if (o.alpha != null) c.globalAlpha = o.alpha;
+  arm(0, 'b'); leg(0, 'b'); leg(1, '');
+  drawPart(c, lk, 'torso', P.hip.x, P.hip.y, P.neck.x, P.neck.y, F);
+  { const hl = C.neck + C.headR, hx = P.neck.x + Math.sin(P.head.a) * hl, hy = P.neck.y - Math.cos(P.head.a) * hl; drawPart(c, lk, 'head', P.neck.x, P.neck.y, hx, hy, F); }
+  arm(1, '');
+  if (o.prop === 'book' || P.prop === 'book') { const A = P.arms[1], B = P.arms[0]; c.save(); c.translate((A.hx + B.hx) / 2, (A.hy + B.hy) / 2 - .5); c.rotate(F * .35); c.fillStyle = '#cfc3a6'; c.fillRect(-4.2, -2.6, 8.4, 5.2); c.fillStyle = '#6b5a44'; c.fillRect(-.4, -2.6, .8, 5.2); c.restore(); }
+  c.globalAlpha = 1;
+}
+const LOOK_OF = { Dale: 'Tomas', Noor: 'Mira', Teo: 'Marko', Ines: 'Ines', Marcus: 'Dov' };
+const ZLOOKS = ['looter', 'Pavel', 'Lena', 'Tomas', 'Marko'];
+function lookOf(a) { if (a.look) return a.look; if (a.zombie) return a.look = ZLOOKS[strHash(String(a.x | 0) + (a.coat || '')) % ZLOOKS.length]; return a.look = LOOK_OF[a.name] || 'Marko'; }
+// the actor's engine world for standing still (home / site / street / title)
+function engFor(a) {
+  if (a.street || (TR.active && (a === TR.player || TR.zombies.includes(a)))) return TR.ew;
+  const w = typeof CUR_W !== 'undefined' && CUR_W; if (w && a.fy != null) return engFlat(w, Math.round(a.fy));
+  a._tw = a._tw || flatWorld(a.y / RS, -1e5, 1e5); return a._tw;
+}
+
+</script>
+<script>
 // ---- 00_core.js ----
 'use strict';
 // ===== ASHWINTER core =====
@@ -375,7 +1812,9 @@ const EVENTS = [
 
 // ---- 20_world.js ----
 // ===== world: rooms, stairs, hotspots, navigation (shared by shelter and scavenge sites) =====
-const STAIR_W = 55;
+const STAIR_W = 100;
+let CUR_W = null, LASTTAP = { t: -9, x: 0, y: 0 };
+function isDoubleTap(wx, wy) { const now = performance.now() / 1000, d = now - LASTTAP.t < .45 && Math.hypot(wx - LASTTAP.x, wy - LASTTAP.y) < 70; LASTTAP = { t: now, x: wx, y: wy }; return d; }
 class World {
   constructor(def) {
     this.x0 = def.x0; this.x1 = def.x1; this.nFloors = def.nFloors; this.groundY = def.groundY === undefined ? GROUND_Y : def.groundY;
@@ -418,12 +1857,19 @@ class World {
 
 // ---- actor motion along waypoints ----
 function moveActor(a, dt, speed) {
-  if (!a.path || !a.path.length) { a.moving = false; return true; }
-  const w = a.path[0]; const dx = w.x - a.x, dfy = w.fy - a.fy;
-  const onStairs = Math.abs(dfy) > 0.001; const sp = speed * (onStairs ? .75 : 1);
-  const len = Math.hypot(dx, dfy * FLOOR_H); const step = sp * dt;
-  if (len <= step) { a.x = w.x; a.fy = w.fy; a.path.shift(); if (!a.path.length) { a.moving = false; a.f = Math.round(a.fy); return true; } return false; }
-  a.x += dx / len * step; a.fy += dfy / len * step; a.facing = dx < 0 ? -1 : 1; a.moving = true; a.walkPhase += dt * sp * .045; a.f = Math.round(a.fy);
+  if (!a.path || !a.path.length) { a.moving = false; a.onStair = null; return true; }
+  const W = CUR_W; if (!W) return true;
+  const wp = a.path[0]; let ew;
+  if (Math.abs(wp.fy - Math.round(a.fy)) > .001 || a.onStair) {
+    if (!a.onStair) { const f = Math.round(a.fy), st = W.stairs.find(q => (q.a === f && q.b === wp.fy) || (q.b === f && q.a === wp.fy)); if (!st) { a.path = null; a.moving = false; return true; } a.onStair = st; }
+    ew = engStair(W, a.onStair);
+  } else ew = engFlat(W, Math.round(a.fy));
+  const last = a.path.length === 1, spd = speed / (WalkEngine.CFG.walkSpeed * RS);
+  let done = false; for (let left = dt; left > 1e-4; left -= .05) done = rigTo(a, ew, wp.x / RS, spd, Math.min(left, .05), poseExt(a.pose, _T, a.poseExtra, a), !last);
+  const w = a.wk; a.x = w.x * RS;
+  if (a.onStair) { const st = a.onStair, lo = Math.min(st.a, st.b), y = ew.yAt(w.x) * RS; a.fy = lo + (W.fy2y(lo) - y) / FLOOR_H; } else a.fy = Math.round(a.fy);
+  a.f = Math.round(a.fy); a.moving = Math.abs(w.vx) > 3; a.facing = w.facing; a.walkPhase += dt * Math.abs(w.vx) * RS * .045;
+  if (done) { a.path.shift(); if (a.onStair && Math.abs(a.fy - wp.fy) < .03) { a.fy = wp.fy; a.f = wp.fy; a.onStair = null; } if (!a.path.length) { a.moving = false; a.run = false; a.f = Math.round(a.fy); return true; } }
   return false;
 }
 
@@ -514,6 +1960,7 @@ function drawHairPortrait(x, y, r, a, facing) {
   }
 }
 function drawPerson(a, pose, t, extra) {
+  if (RIGP.ready && !a.noRig) { drawPersonRig(a, pose, t, extra); return; }
   const facing = a.facing || 1; const S = a.scale || 1; const o = posePerson(pose, a.walkPhase, t, extra);
   const X = a.x, Y = a.y;
   if (pose === 'dead') { drawCorpse(a); return; }
@@ -555,6 +2002,29 @@ function drawPerson(a, pose, t, extra) {
   // speech / emote
   if (a.say && a.sayT > 0) { const sx = X, sy = Y - 95 * S; ctx.fillStyle = 'rgba(20,20,22,.85)'; rr(sx - 16, sy - 16, 32, 32, 8); ctx.fill(); drawIcon(a.say, sx, sy, 20); }
 }
+function drawPersonRig(a, pose, t, extra) {
+  const X = a.x, Y = a.y, S = a.scale || 1;
+  let ew = a.wk && a.wkT === _T ? a.wkW : engFor(a);
+  if (a.wkT !== _T) {
+    const dt = clamp(_T - (a.wkT == null ? _T : a.wkT), 0, .05);
+    if (pose === 'idle' && !a.zombie && CUR_W && CUR_W === G.world && G.phase === 'day') { a.idleT = (a.idleT || 0) + dt; if (!a.idlePose || a.idleT > a.idleDur) { a.idlePose = pick(['idle', 'idle', 'look', 'look', 'cross', 'rub', 'hips', 'stretch', 'read']); a.idleT = 0; a.idleDur = a.idlePose === 'read' ? rnd(9, 16) : rnd(4, 9); } }
+    else a.idlePose = null;
+    rigIdle(a, ew, dt, poseExt(pose, t, extra, a)); rigFace(a, a.facing || 1); rigRead(a, a.idlePose === 'read');
+  }
+  const w = a.wk; if (!w || !w.last) return;
+  const lying = pose === 'dead' || pose === 'sleep';
+  const P = lying ? lyingPose(X / RS, Y / RS, a.facing || 1) : w.last;
+  if (pose === 'dead') { ctx.fillStyle = 'rgba(70,10,10,.45)'; ctx.beginPath(); ctx.ellipse(X - (a.facing || 1) * 10, Y + 1, 30, 6, 0, 0, TAU); ctx.fill(); }
+  ctx.save(); ctx.scale(RS * S, RS * S); if (S !== 1) ctx.translate(X / (RS * S) - X / RS, Y / (RS * S) - Y / RS);
+  if (a.zombie && 'filter' in ctx) ctx.filter = 'saturate(.2) brightness(.62) hue-rotate(75deg) contrast(1.15)';
+  if (a.hurtT > 0) ctx.translate(rnd(-1.3, 1.3), 0);
+  drawRig(ctx, P, lookOf(a), ew, { prop: a.idlePose === 'read' ? 'book' : null });
+  ctx.restore();
+  // tool in the near hand
+  const tool = poseTool(pose, extra, a); if (tool && !lying) { const A = P.arms[1]; const th = Math.atan2(A.hy - A.ey, A.hx - A.ex); const F = a.facing || 1; const ang = (tool === 'shovel' ? th - Math.PI / 2 : th + Math.PI / 2) * F; drawTool(tool, A.hx * RS, A.hy * RS, ang, F); }
+  if (a.say && a.sayT > 0) { const sx = X, sy = Y - 95 * S; ctx.fillStyle = 'rgba(20,20,22,.85)'; rr(sx - 16, sy - 16, 32, 32, 8); ctx.fill(); drawIcon(a.say, sx, sy, 20); }
+}
+function poseTool(pose, extra, a) { switch (pose) { case 'dig': return 'shovel'; case 'hammer': return 'hammer'; case 'cook': return 'spoon'; case 'guard': case 'attack': return extra && extra.weapon; default: return null; } }
 function boot(ft, facing, k) { ctx.fillStyle = shade('#3a3029', k); ctx.beginPath(); ctx.ellipse(ft[0] + 2 * facing, ft[1] + 1, 6, 3.2, 0, 0, TAU); ctx.fill(); }
 function drawTool(tool, x, y, ang, facing) {
   ctx.save(); ctx.translate(x, y); ctx.rotate(ang * facing); ctx.lineCap = 'round';
@@ -726,10 +2196,12 @@ function drawRoof(world, topY, sky) {
   ctx.fillStyle = '#2a2320'; for (let y = topY - 10; y > topY - 150; y -= 18) { ctx.fillRect(x0 + (topY - y) * (x1 - x0) / 300, y, (x1 - x0) - (topY - y) * (x1 - x0) / 150, 2); }
 }
 function drawStairs(world, s) {
-  const ya = world.fy2y(s.a), yb = world.fy2y(s.b); const x0 = s.x - STAIR_W, x1 = s.x + STAIR_W; const n = 9;
-  ctx.fillStyle = '#4a3b2e';
-  for (let i = 0; i < n; i++) { const t0 = i / n, t1 = (i + 1) / n; const sx = lerp(x0, x1, t0), sy = lerp(ya, yb, t0), ex = lerp(x0, x1, t1); ctx.fillStyle = i % 2 ? '#4a3b2e' : '#52412f'; ctx.fillRect(sx, sy - 14 * 0, ex - sx + 1, 14); ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(sx, sy, ex - sx + 1, 4); }
-  ctx.strokeStyle = '#2b2622'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x0, ya - 40); ctx.lineTo(x1, yb - 40); ctx.stroke(); for (let i = 0; i <= 4; i++) { const t = i / 4; ctx.beginPath(); ctx.moveTo(lerp(x0, x1, t), lerp(ya, yb, t)); ctx.lineTo(lerp(x0, x1, t), lerp(ya, yb, t) - 40); ctx.stroke(); }
+  const ya = world.fy2y(s.a), yb = world.fy2y(s.b); const x0 = s.x - STAIR_W, x1 = s.x + STAIR_W; const n = STAIR_N, tr = (x1 - x0) / n, rise = (ya - yb) / n;
+  // stringer / carriage under the flight
+  ctx.fillStyle = '#2b221a'; ctx.beginPath(); ctx.moveTo(x0, ya); ctx.lineTo(x1, yb); ctx.lineTo(x1, yb + 22); ctx.lineTo(x0 + 30, ya); ctx.closePath(); ctx.fill();
+  for (let i = 0; i < n; i++) { const sx = x0 + i * tr, sy = ya - (i + 1) * rise; ctx.fillStyle = i % 2 ? '#4a3b2e' : '#52412f'; ctx.fillRect(sx, sy, tr + 1, rise); ctx.fillStyle = '#7a6248'; ctx.fillRect(sx - 1.5, sy, tr + 3, 2.6); ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(sx, sy + rise - 2.5, tr + 1, 2.5); }
+  ctx.strokeStyle = '#2b2622'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x0 + 4, ya - 44); ctx.lineTo(x1 + 4, yb - 44); ctx.stroke(); ctx.lineWidth = 2;
+  for (let i = 0; i <= 6; i++) { const t = i / 6, px = lerp(x0 + 4, x1 + 4, t), py = lerp(ya, yb, t); ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px, py - 44); ctx.stroke(); }
 }
 function drawBarricade(world, b, sky, night) {
   const fy = world.fy2y(b.f);
@@ -840,7 +2312,7 @@ function makeSite(loc, day) {
       rooms.push(room);
     }
     { const fr = rooms.filter(o => o.f === f); if (fr.every(o => o.locked)) { delete fr[Math.floor(fr.length / 2)].locked; lockedLeft++; } }
-    if (f < nF - 1) { const mid = rooms.filter(o => o.f === f && !o.locked); const rm = mid[Math.floor(r() * mid.length)]; const sx = clamp(rm.x0 + 80 + r() * (rm.x1 - rm.x0 - 160), x0 + 120, x1 - 120); stairs.push({ x: sx, a: f, b: f + 1 }); }
+    if (f < nF - 1) { const mid = rooms.filter(o => o.f === f && !o.locked); const rm = mid[Math.floor(r() * mid.length)]; const rw = rm.x1 - rm.x0, sx = rw > 2 * STAIR_W + 60 ? rm.x0 + STAIR_W + 30 + r() * (rw - 2 * STAIR_W - 60) : (rm.x0 + rm.x1) / 2; stairs.push({ x: sx, a: f, b: f + 1 }); }
   }
   // ensure stairs land in unlocked room on upper floor
   for (const s of stairs) { const up = rooms.find(o => o.f === s.b && s.x + STAIR_W >= o.x0 && s.x + STAIR_W <= o.x1); if (up && up.locked) { delete up.locked; } }
@@ -899,8 +2371,8 @@ function scTapWorld(wx, wy) {
   // nearest floor by y
   let bf = 0, bd = 1e9; for (let f = 0; f < w.nFloors; f++) { const d = Math.abs(w.fy2y(f) - 40 - wy); if (d < bd) { bd = d; bf = f; } }
   if (p.hidden) { p.hidden = false; p.visible = true; }
-  p.task = null;
-  const path = w.path(p.x, p.f, wx, bf); if (path) { p.path = path; AUDIO.sfx('tap'); } else scMsg('lock', 1);
+  p.task = null; const dbl = isDoubleTap(wx, wy);
+  const path = w.path(p.x, p.f, wx, bf); if (path) { p.path = path; p.run = dbl; if (dbl) SC.sneak = false; AUDIO.sfx('tap'); } else scMsg('lock', 1);
 }
 function scUseSpot(s) {
   const p = SC.player, w = SC.world; if (SC.done) return;
@@ -927,15 +2399,15 @@ function scAttack() {
 function killZombie(z) { z.alive = false; z.pose = 'dead'; SC.kills++; AUDIO.sfx('groan'); }
 
 function scUpdate(dt) {
-  const p = SC.player, w = SC.world; _T += dt;
+  const p = SC.player, w = SC.world; _T += dt; CUR_W = w;
   if (SC.done) return;
   G.nightT -= dt; if (SC.msgT > 0) SC.msgT -= dt;
   if (G.nightT <= 0) { endScavenge(true); return; }
   // movement
   const chasing = SC.zombies.some(z => z.alive && z.state === 'chase');
-  const speed = SC.sneak ? 42 : (chasing ? 112 : 78);
+  const speed = SC.sneak ? 42 : (chasing || p.run ? 112 : 78);
   if (p.attackT > 0) { p.attackT -= dt; if (p.attackKind !== 'shoot' && p.attackT < .25 && !p.attackHit) { p.attackHit = true; const wep = scWeapon(); const dmg = wep === 'bat' ? 2 : wep === 'knife' ? 1 : 0; for (const z of SC.zombies) if (z.alive && z.f === p.f && Math.abs(z.x - p.x) < 48 && (z.x - p.x) * p.facing > -10) { z.hp -= dmg * (p.trait === 'strong' ? 2 : 1); z.hurtT = .3; z.x += p.facing * (wep === 'bat' ? 40 : 28); z.attackT = 0; z.state = 'chase'; if (z.hp <= 0) killZombie(z); else AUDIO.sfx('groan'); } } }
-  else if (p.path && p.path.length) { moveActor(p, dt, speed); p.pose = SC.sneak ? 'sneak' : (chasing ? 'run' : 'walk'); if (!SC.sneak && !p.hidden) { SC.noiseT += dt; if (SC.noiseT > .6) { SC.noiseT = 0; scNoise(p.x, p.f, chasing ? 260 : 150); } } }
+  else if (p.path && p.path.length) { moveActor(p, dt, speed); p.pose = SC.sneak ? 'sneak' : (chasing || p.run ? 'run' : 'walk'); if (!SC.sneak && !p.hidden) { SC.noiseT += dt; if (SC.noiseT > .6) { SC.noiseT = 0; scNoise(p.x, p.f, chasing || p.run ? 260 : 150); } } }
   else {
     p.moving = false;
     if (p.task) {
@@ -1027,8 +2499,9 @@ function startTravel(surv) {
     if (Object.values(LOC_DIST).some(lx => Math.abs(lx - x) < 220)) continue;
     const k = kinds[Math.floor(r() * kinds.length)]; TR.obstacles.push({ x, w: k[1], h: k[2], t: k[0] });
   }
+  TR.ew = engStreet(TR.obstacles, GROUND_Y, 0, ST_END + 400); p.wk = null; p.wkW = null;
   // zombies: denser further out
-  for (let x = 500; x < ST_END; x += 180 + r() * 300) { if (r() < .35 + x / ST_END * .45) { const z = makeZombie(x, 0, r); z.street = true; TR.zombies.push(z); } }
+  for (let x = 500; x < ST_END; x += 180 + r() * 300) { if (r() < .35 + x / ST_END * .45) { const z = makeZombie(x, 0, r); z.street = true; z.y = GROUND_Y; TR.zombies.push(z); } }
   // decor
   for (let x = -300; x < ST_END + 600; x += 90 + r() * 200) TR.decor.push({ x, t: r() < .25 ? 'lamp' : r() < .5 ? 'wall' : r() < .75 ? 'fence' : 'junk', h: 60 + r() * 140, w: 60 + r() * 160, s: r() });
   G.nightT = NIGHT_TOTAL; G.phase = 'travel'; cam.lock = true; cam.bounds = { x0: -400, x1: ST_END + 400, y0: -400, y1: GROUND_Y + 300 };
@@ -1065,11 +2538,8 @@ function trUpdate(dt) {
     dir = 0;
   }
   const slope = slopeAt(TR.x); const onSlope = Math.abs(slope) > .3;
-  if (dir && TR.attackT <= 0) {
-    const sp = speed * (onSlope ? .55 : 1); TR.x = clamp(TR.x + dir * sp * dt, 20, ST_END + 300);
-    p.facing = dir; p.walkPhase += dt * sp * (onSlope ? .07 : .045);
-  }
-  TR.py = heightAt(TR.x); TR.grounded = true;
+  { const inp = (dir && TR.attackT <= 0) ? dir * speed / (WalkEngine.CFG.walkSpeed * RS) : 0; const w = rigInput(p, TR.ew, inp, dt, null); TR.x = clamp(w.x * RS, 20, ST_END + 300); if (inp) p.facing = dir; }
+  TR.py = GROUND_Y - TR.ew.yAt(TR.x / RS) * RS; TR.grounded = true;
   p.x = TR.x; p.y = GROUND_Y - TR.py;
   p.pose = dir ? (onSlope ? 'climb' : 'run') : 'idle'; p.poseExtra = null;
   if (TR.attackT > 0) { p.pose = TR.attackKind === 'shove' ? 'shove' : 'attack'; p.poseExtra = { k: 1 - TR.attackT / .45, weapon: trWeapon() }; }
@@ -1084,8 +2554,8 @@ function trUpdate(dt) {
       z.pose = 'zombie'; z.facing = dx < 0 ? -1 : 1;
       if (d > 600) { z.lostT += dt; if (z.lostT > 4) { z.state = 'idle'; z.alert = 0; } }
       if (d < 30 && Math.abs(heightAt(z.x) - TR.py) < 30) { z.attackT += dt; z.pose = 'zombieAttack'; z.poseExtra = { k: (z.attackT % 1) / .5 }; if (z.attackT >= 1) { z.attackT = 0; p.health -= 11; p.hurtT = .3; p.wounded = true; AUDIO.sfx('hurt'); if (Math.random() < .25 && !p.infected) { p.infected = true; trMsg('infected', 2); } if (p.health <= 0) { p.health = 0; trLost(false); return; } } }
-      else { const zs = Math.abs(slopeAt(z.x)) > .3 ? 30 : 58; z.x += Math.sign(dx) * zs * dt; z.walkPhase += dt * zs * .045; z.attackT = 0; }
-    } else if (z.state === 'wander') { z.pose = 'zombie'; const nz = z.x + z.facing * 20 * dt; if (heightAt(nz) <= 4 && nz > 300) z.x = nz; else z.facing *= -1; z.walkPhase += dt * .9; if (z.t > 4) { z.state = 'idle'; z.t = 0; } }
+      else { rigTo(z, TR.ew, TR.x / RS, 58 / (WalkEngine.CFG.walkSpeed * RS), dt, poseExt('zombie', z.t), true); z.x = z.wk.x * RS; z.attackT = 0; }
+    } else if (z.state === 'wander') { z.pose = 'zombie'; const nz = z.x + z.facing * 20 * dt; if (heightAt(nz) <= 4 && nz > 300) { rigInput(z, TR.ew, z.facing * .32, dt, poseExt('zombie', z.t)); z.x = z.wk.x * RS; } else z.facing *= -1; if (z.t > 4) { z.state = 'idle'; z.t = 0; } }
     else { z.pose = 'zombieIdle'; if (z.t > 2 + Math.random() * 4) { z.t = 0; z.state = 'wander'; z.facing = Math.random() < .5 ? -1 : 1; } }
     z.py = heightAt(z.x);
   }
@@ -1511,7 +2981,8 @@ function drawTitle() {
   const r = mulberry(3); ctx.fillStyle = '#0c0c10'; let x = -50; while (x < W + 100) { const w = 40 + r() * 100, h = 80 + r() * 260; ctx.fillRect(x, H - h, w, h); x += w + r() * 30; }
   ctx.fillStyle = 'rgba(255,120,40,.12)'; circ(W * .3, H * .9, 260); ctx.fill();
   // walkers
-  for (let i = 0; i < 6; i++) { const z = { x: W * .15 + i * W * .14 + Math.sin(_T * .5 + i) * 6, y: H - 10, fy: 0, facing: i % 2 ? 1 : -1, walkPhase: _T * 2 + i, zombie: true, coat: '#2a2826', scale: 1.1 }; drawPerson(z, 'zombie', _T); }
+  if (!UI.titleZ) { UI.titleZ = []; for (let i = 0; i < 6; i++) UI.titleZ.push({ x: W * .15 + i * W * .14, y: H - 10, facing: i % 2 ? 1 : -1, walkPhase: i, zombie: true, coat: ['#2a2826', '#3a3030', '#2a3a30'][i % 3], scale: 1.1, t: i * 1.7, name: 'tz' + i }); }
+  for (const z of UI.titleZ) { z.t += 1 / 60; z._tw = z._tw || flatWorld(z.y / RS, -1e5, 1e5); const ww = rigInput(z, z._tw, z.facing * .3, 1 / 60, poseExt('zombie', z.t)); z.x = ww.x * RS; if (z.x < W * .05) z.facing = 1; if (z.x > W * .95) z.facing = -1; z.wkT = _T; drawPerson(z, 'zombie', _T); }
   txt('ASHWINTER', W / 2, H * .3, Math.min(96, W / 7), INK, 'center', '700'); txt('the dead walk the district', W / 2, H * .3 + Math.min(70, W / 10), 20, DIM, 'center', '400');
   const has = !!loadSave();
   textButton(W / 2 - 110, H * .58, 220, 50, 'NEW GAME', () => newGame(), { primary: !has, icon: 'play' });
@@ -1554,8 +3025,8 @@ function continueGame() {
 function homeTapWorld(wx, wy) {
   const s = G.survivors[G.sel]; if (!s || !s.alive) return; const w = G.world;
   let bf = 0, bd = 1e9; for (let f = 0; f < w.nFloors; f++) { const d = Math.abs(w.fy2y(f) - 40 - wy); if (d < bd) { bd = d; bf = f; } }
-  const path = w.path(s.x, s.f, wx, bf); if (!path) { homeMsg('locked', 'lock', RED); return; }
-  s.task = null; s.path = path; AUDIO.sfx('tap');
+  const dbl = isDoubleTap(wx, wy); const path = w.path(s.x, s.f, wx, bf); if (!path) { homeMsg('locked', 'lock', RED); return; }
+  s.task = null; s.path = path; s.run = dbl; AUDIO.sfx('tap');
 }
 function homeUseSpot(spot) {
   const s = G.survivors[G.sel]; if (!s || !s.alive) return; const w = G.world; const info = spotInfo(spot); if (!info) return;
@@ -1583,7 +3054,7 @@ function giveLoot(spot, s) {
 
 // ---------- day: update ----------
 function updateHome(dt) {
-  const w = G.world; _T += dt;
+  const w = G.world; _T += dt; CUR_W = w;
   const speed = UI.ff ? 3 : 1; const gdt = dt * speed;
   G.hour += gdt * 14 / DAY_LEN;
   for (const s of G.survivors) {
@@ -1596,7 +3067,7 @@ function updateHome(dt) {
     if (s.hunger < 30 || s.health < 40) s.morale = clamp(s.morale - gdt * 10 / DAY_LEN, 0, 100);
     if (s.health <= 0) { s.alive = false; s.pose = 'dead'; homeMsg(s.name + ' died', 'dead', RED); AUDIO.sfx('bad'); for (const o of G.survivors) o.morale = clamp(o.morale - 20, 0, 100); continue; }
     s.poseExtra = null;
-    if (s.path && s.path.length) { moveActor(s, gdt, 70 * (s.trait === 'runner' ? 1.2 : 1)); s.pose = 'walk'; continue; }
+    if (s.path && s.path.length) { moveActor(s, gdt, (s.run ? 125 : 70) * (s.trait === 'runner' ? 1.2 : 1)); s.pose = s.run ? 'run' : 'walk'; continue; }
     s.moving = false;
     if (s.eatT > 0) { s.pose = 'eat'; continue; }
     const tk = s.task;
@@ -1754,6 +3225,7 @@ function init() {
 }
 if (!HEADLESS) window.addEventListener('load', init);
 
+rigInit('data:image/webp;base64,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', {"Tomas":{"torso":{"x":0,"y":0,"w":68,"h":117,"ax":39.48,"ay":83.55,"bx":42.09,"by":7.51},"thigh":{"x":466,"y":0,"w":27,"h":83,"ax":13.48,"ay":13.55,"bx":13.48,"by":73.0},"thighb":{"x":495,"y":0,"w":27,"h":83,"ax":13.48,"ay":13.55,"bx":13.48,"by":73.0},"shin":{"x":1055,"y":0,"w":19,"h":77,"ax":9.48,"ay":9.0,"bx":9.48,"by":69.84},"shinb":{"x":1076,"y":0,"w":19,"h":77,"ax":9.48,"ay":9.0,"bx":9.48,"by":69.84},"armL":{"x":1417,"y":0,"w":16,"h":60,"ax":7.78,"ay":7.9,"bx":7.78,"by":56.97},"armLb":{"x":1435,"y":0,"w":16,"h":60,"ax":7.78,"ay":7.9,"bx":7.78,"by":56.97},"armU":{"x":1453,"y":0,"w":19,"h":59,"ax":9.78,"ay":9.42,"bx":9.78,"by":50.9},"armUb":{"x":1474,"y":0,"w":19,"h":59,"ax":9.78,"ay":9.42,"bx":9.78,"by":50.9},"head":{"x":240,"y":119,"w":38,"h":47,"ax":18.09,"ay":49.51,"bx":19.39,"by":28.77},"boot":{"x":700,"y":119,"w":41,"h":20,"ax":11.48,"ay":7.84,"bx":37.57,"by":17.62},"bootb":{"x":743,"y":119,"w":41,"h":20,"ax":11.48,"ay":7.84,"bx":37.57,"by":17.62}},"Marko":{"torso":{"x":70,"y":0,"w":64,"h":110,"ax":37.48,"ay":78.87,"bx":40.09,"by":7.13},"thigh":{"x":524,"y":0,"w":25,"h":78,"ax":12.48,"ay":12.87,"bx":12.48,"by":68.96},"thighb":{"x":551,"y":0,"w":25,"h":78,"ax":12.48,"ay":12.87,"bx":12.48,"by":68.96},"shin":{"x":1097,"y":0,"w":18,"h":73,"ax":9.48,"ay":8.96,"bx":9.48,"by":66.35},"shinb":{"x":1117,"y":0,"w":18,"h":73,"ax":9.48,"ay":8.96,"bx":9.48,"by":66.35},"armL":{"x":1609,"y":0,"w":15,"h":57,"ax":7.78,"ay":7.78,"bx":7.78,"by":54.74},"armLb":{"x":1626,"y":0,"w":15,"h":57,"ax":7.78,"ay":7.78,"bx":7.78,"by":54.74},"armU":{"x":1883,"y":0,"w":18,"h":56,"ax":8.78,"ay":8.65,"bx":8.78,"by":47.78},"armUb":{"x":1903,"y":0,"w":18,"h":56,"ax":8.78,"ay":8.65,"bx":8.78,"by":47.78},"head":{"x":362,"y":119,"w":38,"h":38,"ax":19.09,"ay":40.13,"bx":20.39,"by":20.57},"boot":{"x":528,"y":119,"w":41,"h":20,"ax":11.48,"ay":7.35,"bx":37.57,"by":17.13},"bootb":{"x":571,"y":119,"w":41,"h":20,"ax":11.48,"ay":7.35,"bx":37.57,"by":17.13}},"Mira":{"torso":{"x":136,"y":0,"w":64,"h":110,"ax":37.48,"ay":78.87,"bx":40.09,"by":7.13},"thigh":{"x":578,"y":0,"w":25,"h":78,"ax":12.48,"ay":12.87,"bx":12.48,"by":68.96},"thighb":{"x":605,"y":0,"w":25,"h":78,"ax":12.48,"ay":12.87,"bx":12.48,"by":68.96},"shin":{"x":1137,"y":0,"w":18,"h":73,"ax":9.48,"ay":8.96,"bx":9.48,"by":66.35},"shinb":{"x":1157,"y":0,"w":18,"h":73,"ax":9.48,"ay":8.96,"bx":9.48,"by":66.35},"armL":{"x":1643,"y":0,"w":15,"h":57,"ax":7.78,"ay":7.78,"bx":7.78,"by":54.74},"armLb":{"x":1660,"y":0,"w":15,"h":57,"ax":7.78,"ay":7.78,"bx":7.78,"by":54.74},"head":{"x":1923,"y":0,"w":38,"h":56,"ax":19.09,"ay":40.13,"bx":20.39,"by":20.57},"armU":{"x":1963,"y":0,"w":18,"h":56,"ax":8.78,"ay":8.65,"bx":8.78,"by":47.78},"armUb":{"x":1983,"y":0,"w":18,"h":56,"ax":8.78,"ay":8.65,"bx":8.78,"by":47.78},"boot":{"x":614,"y":119,"w":41,"h":20,"ax":11.48,"ay":7.35,"bx":37.57,"by":17.13},"bootb":{"x":657,"y":119,"w":41,"h":20,"ax":11.48,"ay":7.35,"bx":37.57,"by":17.13}},"Ines":{"torso":{"x":202,"y":0,"w":64,"h":110,"ax":37.48,"ay":78.87,"bx":40.09,"by":7.13},"thigh":{"x":632,"y":0,"w":25,"h":78,"ax":12.48,"ay":12.87,"bx":12.48,"by":68.96},"thighb":{"x":659,"y":0,"w":25,"h":78,"ax":12.48,"ay":12.87,"bx":12.48,"by":68.96},"shin":{"x":1177,"y":0,"w":18,"h":73,"ax":9.48,"ay":8.96,"bx":9.48,"by":66.35},"shinb":{"x":1197,"y":0,"w":18,"h":73,"ax":9.48,"ay":8.96,"bx":9.48,"by":66.35},"armL":{"x":1677,"y":0,"w":15,"h":57,"ax":7.78,"ay":7.78,"bx":7.78,"by":54.74},"armLb":{"x":1694,"y":0,"w":15,"h":57,"ax":7.78,"ay":7.78,"bx":7.78,"by":54.74},"armU":{"x":2003,"y":0,"w":18,"h":56,"ax":8.78,"ay":8.65,"bx":8.78,"by":47.78},"armUb":{"x":2023,"y":0,"w":18,"h":56,"ax":8.78,"ay":8.65,"bx":8.78,"by":47.78},"head":{"x":402,"y":119,"w":39,"h":38,"ax":20.09,"ay":40.13,"bx":21.39,"by":20.57},"boot":{"x":786,"y":119,"w":41,"h":20,"ax":11.48,"ay":7.35,"bx":37.57,"by":17.13},"bootb":{"x":829,"y":119,"w":41,"h":20,"ax":11.48,"ay":7.35,"bx":37.57,"by":17.13}},"Dov":{"torso":{"x":268,"y":0,"w":64,"h":110,"ax":37.48,"ay":78.87,"bx":40.09,"by":7.13},"thigh":{"x":686,"y":0,"w":25,"h":78,"ax":12.48,"ay":12.87,"bx":12.48,"by":68.96},"thighb":{"x":713,"y":0,"w":25,"h":78,"ax":12.48,"ay":12.87,"bx":12.48,"by":68.96},"shin":{"x":1217,"y":0,"w":18,"h":73,"ax":9.48,"ay":8.96,"bx":9.48,"by":66.35},"shinb":{"x":1237,"y":0,"w":18,"h":73,"ax":9.48,"ay":8.96,"bx":9.48,"by":66.35},"armL":{"x":1711,"y":0,"w":15,"h":57,"ax":7.78,"ay":7.78,"bx":7.78,"by":54.74},"armLb":{"x":1728,"y":0,"w":15,"h":57,"ax":7.78,"ay":7.78,"bx":7.78,"by":54.74},"armU":{"x":0,"y":119,"w":18,"h":56,"ax":8.78,"ay":8.65,"bx":8.78,"by":47.78},"armUb":{"x":20,"y":119,"w":18,"h":56,"ax":8.78,"ay":8.65,"bx":8.78,"by":47.78},"head":{"x":483,"y":119,"w":43,"h":36,"ax":15.09,"ay":38.13,"bx":16.39,"by":18.57},"boot":{"x":872,"y":119,"w":41,"h":20,"ax":11.48,"ay":7.35,"bx":37.57,"by":17.13},"bootb":{"x":915,"y":119,"w":41,"h":20,"ax":11.48,"ay":7.35,"bx":37.57,"by":17.13}},"Lena":{"torso":{"x":334,"y":0,"w":64,"h":110,"ax":37.48,"ay":78.87,"bx":40.09,"by":7.13},"thigh":{"x":740,"y":0,"w":25,"h":78,"ax":12.48,"ay":12.87,"bx":12.48,"by":68.96},"thighb":{"x":767,"y":0,"w":25,"h":78,"ax":12.48,"ay":12.87,"bx":12.48,"by":68.96},"shin":{"x":1257,"y":0,"w":18,"h":73,"ax":9.48,"ay":8.96,"bx":9.48,"by":66.35},"shinb":{"x":1277,"y":0,"w":18,"h":73,"ax":9.48,"ay":8.96,"bx":9.48,"by":66.35},"armL":{"x":1745,"y":0,"w":15,"h":57,"ax":7.78,"ay":7.78,"bx":7.78,"by":54.74},"armLb":{"x":1762,"y":0,"w":15,"h":57,"ax":7.78,"ay":7.78,"bx":7.78,"by":54.74},"head":{"x":40,"y":119,"w":38,"h":56,"ax":19.09,"ay":40.13,"bx":20.39,"by":20.57},"armU":{"x":80,"y":119,"w":18,"h":56,"ax":8.78,"ay":8.65,"bx":8.78,"by":47.78},"armUb":{"x":100,"y":119,"w":18,"h":56,"ax":8.78,"ay":8.65,"bx":8.78,"by":47.78},"boot":{"x":958,"y":119,"w":41,"h":20,"ax":11.48,"ay":7.35,"bx":37.57,"by":17.13},"bootb":{"x":1001,"y":119,"w":41,"h":20,"ax":11.48,"ay":7.35,"bx":37.57,"by":17.13}},"Pavel":{"torso":{"x":400,"y":0,"w":64,"h":110,"ax":37.48,"ay":78.87,"bx":40.09,"by":7.13},"thigh":{"x":794,"y":0,"w":25,"h":78,"ax":12.48,"ay":12.87,"bx":12.48,"by":68.96},"thighb":{"x":821,"y":0,"w":25,"h":78,"ax":12.48,"ay":12.87,"bx":12.48,"by":68.96},"shin":{"x":1297,"y":0,"w":18,"h":73,"ax":9.48,"ay":8.96,"bx":9.48,"by":66.35},"shinb":{"x":1317,"y":0,"w":18,"h":73,"ax":9.48,"ay":8.96,"bx":9.48,"by":66.35},"armL":{"x":1779,"y":0,"w":15,"h":57,"ax":7.78,"ay":7.78,"bx":7.78,"by":54.74},"armLb":{"x":1796,"y":0,"w":15,"h":57,"ax":7.78,"ay":7.78,"bx":7.78,"by":54.74},"armU":{"x":120,"y":119,"w":18,"h":56,"ax":8.78,"ay":8.65,"bx":8.78,"by":47.78},"armUb":{"x":140,"y":119,"w":18,"h":56,"ax":8.78,"ay":8.65,"bx":8.78,"by":47.78},"head":{"x":443,"y":119,"w":38,"h":38,"ax":19.09,"ay":40.13,"bx":20.39,"by":20.57},"boot":{"x":1044,"y":119,"w":41,"h":20,"ax":11.48,"ay":7.35,"bx":37.57,"by":17.13},"bootb":{"x":1087,"y":119,"w":41,"h":20,"ax":11.48,"ay":7.35,"bx":37.57,"by":17.13}},"soldier":{"torso":{"x":848,"y":0,"w":49,"h":78,"ax":23.48,"ay":78.87,"bx":26.09,"by":7.13},"thigh":{"x":899,"y":0,"w":25,"h":78,"ax":12.48,"ay":12.87,"bx":12.48,"by":68.96},"thighb":{"x":926,"y":0,"w":25,"h":78,"ax":12.48,"ay":12.87,"bx":12.48,"by":68.96},"shin":{"x":1337,"y":0,"w":18,"h":73,"ax":9.48,"ay":8.96,"bx":9.48,"by":66.35},"shinb":{"x":1357,"y":0,"w":18,"h":73,"ax":9.48,"ay":8.96,"bx":9.48,"by":66.35},"armL":{"x":1495,"y":0,"w":112,"h":59,"ax":32.78,"ay":7.78,"bx":32.78,"by":54.74},"armLb":{"x":1813,"y":0,"w":15,"h":57,"ax":7.78,"ay":7.78,"bx":7.78,"by":54.74},"armU":{"x":160,"y":119,"w":18,"h":56,"ax":8.78,"ay":8.65,"bx":8.78,"by":47.78},"armUb":{"x":180,"y":119,"w":18,"h":56,"ax":8.78,"ay":8.65,"bx":8.78,"by":47.78},"head":{"x":280,"y":119,"w":38,"h":40,"ax":19.09,"ay":40.13,"bx":20.39,"by":20.57},"boot":{"x":1130,"y":119,"w":41,"h":20,"ax":11.48,"ay":7.35,"bx":37.57,"by":17.13},"bootb":{"x":1173,"y":119,"w":41,"h":20,"ax":11.48,"ay":7.35,"bx":37.57,"by":17.13}},"looter":{"torso":{"x":953,"y":0,"w":46,"h":78,"ax":22.48,"ay":78.87,"bx":25.09,"by":7.13},"thigh":{"x":1001,"y":0,"w":25,"h":78,"ax":12.48,"ay":12.87,"bx":12.48,"by":68.96},"thighb":{"x":1028,"y":0,"w":25,"h":78,"ax":12.48,"ay":12.87,"bx":12.48,"by":68.96},"shin":{"x":1377,"y":0,"w":18,"h":73,"ax":9.48,"ay":8.96,"bx":9.48,"by":66.35},"shinb":{"x":1397,"y":0,"w":18,"h":73,"ax":9.48,"ay":8.96,"bx":9.48,"by":66.35},"armL":{"x":1830,"y":0,"w":34,"h":57,"ax":7.78,"ay":7.78,"bx":7.78,"by":54.74},"armLb":{"x":1866,"y":0,"w":15,"h":57,"ax":7.78,"ay":7.78,"bx":7.78,"by":54.74},"armU":{"x":200,"y":119,"w":18,"h":56,"ax":8.78,"ay":8.65,"bx":8.78,"by":47.78},"armUb":{"x":220,"y":119,"w":18,"h":56,"ax":8.78,"ay":8.65,"bx":8.78,"by":47.78},"head":{"x":320,"y":119,"w":40,"h":39,"ax":21.09,"ay":40.13,"bx":22.39,"by":20.57},"boot":{"x":1216,"y":119,"w":41,"h":20,"ax":11.48,"ay":7.35,"bx":37.57,"by":17.13},"bootb":{"x":1259,"y":119,"w":41,"h":20,"ax":11.48,"ay":7.35,"bx":37.57,"by":17.13}}});
 </script>
 </body>
 </html>
