@@ -1313,6 +1313,56 @@ root.WalkEngine={setFight:setFight,HITS:HITS,TRICK_NAMES:TRICK_NAMES,TRICKS:TRIC
 
 </script>
 <script>
+// ===== demo reel: a scripted tour through every part of the game, run on the real systems =====
+const DEMO = { on: false, i: -1, t: 0, scene: null, cap: '', keep: null };
+const look = (x, y, z) => { cam.tx = x; cam.ty = y; cam.tz = z; cam.z = lerp(cam.z, z, .06); cam.x = lerp(cam.x, x, .08); cam.y = lerp(cam.y, y, .08); clampCam(); };
+const follow = (a, z, dy = -40) => { if (a) look(a.x, (a.y != null ? a.y : G.world.fy2y(a.fy)) + dy, z); };
+const SCENES = [
+  { cap: 'Day in the shelter: tap a face, then a spot — they search, dig and cook', dur: 9,
+    setup() { newGame(); UI.modal = null; G.msgT = 0; G.inv.shovel = 1; const w = G.world, [d, n, t] = G.survivors; G.sel = 0; homeUseSpot(w.spotById('sofa')); G.sel = 1; homeUseSpot(w.spotById('cab1')); G.sel = 2; homeUseSpot(w.spotById('fridge')); G.sel = 0; cam.lock = true; },
+    tick(t) { const w = G.world; look(560 + t * 22, w.fy2y(1) - 70, 1.3); } },
+  { cap: 'Real stairs: every step is planted, up and down', dur: 9,
+    setup() { const d = G.survivors[0]; d.task = null; d.path = G.world.path(d.x, d.f, 1240, 0); G.sel = 0; },
+    tick(t) { const d = G.survivors[0]; follow(d, 1.7, -30); } },
+  { cap: 'Double-tap to run — fast, but everyone hears it', dur: 5,
+    setup() { const t = G.survivors[2]; t.task = null; t.path = G.world.path(t.x, t.f, 1200, 1); t.run = true; G.sel = 2; },
+    tick(t) { follow(G.survivors[2], 1.5, -30); } },
+  { cap: 'Workbench: scrap and parts become a stove, beds, a radio, barricades', dur: 7,
+    setup() { Object.assign(G.inv, { scrap: 9, parts: 4, wood: 10, cloth: 4 }); const n = G.survivors[1]; n.task = null; const b = G.world.spotById('bench'); n.path = G.world.path(n.x, n.f, b.x, b.f); n.task = { spot: b, kind: 'craft', recipe: RECIPES[0], t: 0, dur: 4 }; G.sel = 1; },
+    tick(t) { if (t > 4.5) G.built.stove = true; follow(G.survivors[1], 1.4, -40); } },
+  { cap: 'Nightfall: who goes out, who stands guard, who sleeps', dur: 4,
+    setup() { G.hour = 20; G.phase = 'plan'; G.plan = { Dale: 'scav', Noor: 'guard', Teo: 'sleep' }; G.planLoc = LOCATIONS[0]; UI.modal = { kind: 'plan' }; look(700, G.world.fy2y(1) - 60, .9); },
+    tick() {} },
+  { cap: 'The street: climb the wrecks, outrun the dead, be home by five', dur: 11,
+    setup() { UI.modal = null; beginNight(); IN.ptrs.set(99, { x: 150, y: H - 60 }); const z = TR.zombies[0]; if (z) { z.x = TR.x - 160; z.state = 'chase'; z.alert = 2; z.wk = null; } },
+    tick(t) { if (t > 9.5) IN.ptrs.delete(99); const z = TR.zombies.find(q => q.alive && q.state === 'chase'); if (z && Math.abs(z.x - TR.x) < 40 && TR.attackT <= 0) trAttack(); } },
+  { cap: 'Inside: search quietly — the dead follow noise', dur: 9,
+    setup() { IN.ptrs.delete(99); trEnter(LOCATIONS[0]); UI.modal = null; SC.sneak = true; const w = SC.world, p = SC.player; const sp = w.spots.filter(s => s.type === 'search' && s.f === 0).sort((a, b) => Math.abs(a.x - p.x) - Math.abs(b.x - p.x)); DEMO.keep = sp; if (sp[0]) scUseSpot(sp[0]); for (const z of SC.zombies) { z.alert = 0; z.state = 'idle'; } },
+    tick(t) { const p = SC.player; if (UI.modal && UI.modal.kind === 'loot') { if (t > 5.5) { UI.modal = null; } } if (t > 5.6 && !p.task && !p.path && DEMO.keep[1] && !DEMO.k2) { DEMO.k2 = true; scUseSpot(DEMO.keep[1]); } } },
+  { cap: 'Or fight: a crowbar, a knife, or bare hands if it comes to that', dur: 8,
+    setup() { UI.modal = null; const p = SC.player; p.task = null; p.path = null; SC.sneak = false; SC.pack.push({ id: 'crowbar', n: 1 }); const z = SC.zombies.find(q => q.alive) || null; if (z) { z.f = p.f; z.x = p.x + 260; z.wk = null; z.state = 'chase'; z.alert = 2; z.hp = 2; } DEMO.keep = z; },
+    tick(t) { const p = SC.player, z = DEMO.keep; if (z && z.alive && Math.abs(z.x - p.x) < 70 && p.attackT <= 0) { p.facing = z.x < p.x ? -1 : 1; scAttack(); } } },
+  { cap: 'Dawn: what came home, who got hurt, how many days are left', dur: 5,
+    setup() { UI.modal = null; SC.done = true; SC.result = { died: false, timeout: false, pack: SC.pack, kills: SC.kills, loc: SC.loc }; leaveSite(); trHome(); finishScavenge(); G.phase = 'dawn'; UI.modal = { kind: 'dawn' }; look(700, G.world.fy2y(1) - 60, .9); },
+    tick() {} },
+  { cap: 'Twenty days until the convoy. Keep them alive.', dur: 4, setup() { UI.modal = null; G.phase = 'day'; G.hour = 7; cam.lock = true; homeCam(); }, tick() {} },
+];
+function demoStart() { DEMO.on = true; DEMO.i = -1; DEMO.t = 0; DEMO.k2 = false; demoNext(); }
+function demoNext() {
+  DEMO.i++; DEMO.t = 0; DEMO.k2 = false; if (DEMO.i >= SCENES.length) { demoStop(); return; }
+  DEMO.scene = SCENES[DEMO.i]; DEMO.cap = DEMO.scene.cap; try { DEMO.scene.setup(); } catch (e) { console.warn('demo', e); demoNext(); }
+}
+function demoStop() { DEMO.on = false; DEMO.scene = null; IN.ptrs.delete(99); UI.modal = null; cam.lock = false; TR.active = false; SC.active = false; G.phase = 'title'; }
+function demoTick(dt) { if (!DEMO.on || !DEMO.scene) return; DEMO.t += dt; try { DEMO.scene.tick(DEMO.t); } catch (e) { console.warn('demo', e); } if (DEMO.t >= DEMO.scene.dur) demoNext(); }
+function drawDemoBar() {
+  if (!DEMO.on) return; const h = 54; ctx.fillStyle = 'rgba(10,10,12,.78)'; ctx.fillRect(0, H - h, W, h);
+  ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.fillRect(0, H - h, W, 2); ctx.fillStyle = GOLD; ctx.fillRect(0, H - h, W * ((DEMO.i + Math.min(1, DEMO.t / DEMO.scene.dur)) / SCENES.length), 2);
+  txt(DEMO.cap, 16, H - h / 2 + 1, Math.min(18, W / 36), INK, 'left', '500'); txt('DEMO ' + (DEMO.i + 1) + '/' + SCENES.length, W - 120, H - h / 2 + 1, 13, DIM, 'right', '400');
+  textButton(W - 104, H - h / 2 - 17, 90, 34, 'EXIT', () => demoStop(), {});
+}
+
+</script>
+<script>
 // ===== rig: foot-planting walker (WalkEngine) driving Blender cut-out puppets =====
 // Engine runs in its own units; RS px per engine unit. Rebuild actors keep x/y/fy in px.
 const RS = 1.5, RK = 13.65 / 56;           // RK: engine units per part pixel (thigh = 13.65 units = 56 px)
@@ -1357,8 +1407,8 @@ function strHash(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h
 // walker per actor; x in engine units. Keeps the walker when the new world agrees on the ground under him.
 function rigOf(a, ew, x) {
   const w = a.wk;
-  if (w && a.wkW !== ew && Math.abs(w.x - x) < 24 && Math.abs(ew.yAt(w.x) - a.wkW.yAt(w.x)) < .5) { w.world = ew; a.wkW = ew; return w; }
-  if (!w || a.wkW !== ew || Math.abs(w.x - x) > 24) { const nw = _WE().createWalker(ew, x, strHash(String(a.name || a.id || 'z'))); nw.ext = null; if (w) { nw.facing = nw.dir = nw.kneeF = w.facing; } a.wk = nw; a.wkW = ew; }
+  // a walker carries ground caches, so a new world always gets a fresh walker (facing and speed carried over)
+  if (!w || a.wkW !== ew || Math.abs(w.x - x) > 24) { const nw = _WE().createWalker(ew, x, strHash(String(a.name || a.id || 'z'))); nw.ext = null; if (w) { nw.facing = nw.dir = nw.kneeF = w.facing; nw.vx = w.vx * .6; } a.wk = nw; a.wkW = ew; }
   return a.wk;
 }
 // drive toward tx (engine units); loose = pass through without braking
@@ -1865,9 +1915,9 @@ function moveActor(a, dt, speed) {
     ew = engStair(W, a.onStair);
   } else ew = engFlat(W, Math.round(a.fy));
   const last = a.path.length === 1, spd = speed / (WalkEngine.CFG.walkSpeed * RS);
-  let done = false; for (let left = dt; left > 1e-4; left -= .05) done = rigTo(a, ew, wp.x / RS, spd, Math.min(left, .05), poseExt(a.pose, _T, a.poseExtra, a), !last);
+  let done = false; const steps = Math.max(1, Math.ceil(dt / .05)), sdt = Math.max(dt / steps, 1e-3); for (let i = 0; i < steps; i++) done = rigTo(a, ew, wp.x / RS, spd, sdt, poseExt(a.pose, _T, a.poseExtra, a), !last);
   const w = a.wk; a.x = w.x * RS;
-  if (a.onStair) { const st = a.onStair, lo = Math.min(st.a, st.b), y = ew.yAt(w.x) * RS; a.fy = lo + (W.fy2y(lo) - y) / FLOOR_H; } else a.fy = Math.round(a.fy);
+  if (a.onStair) { const st = a.onStair, lo = Math.min(st.a, st.b), y = ew.yAt(w.x) * RS; a.fy = clamp(lo + (W.fy2y(lo) - y) / FLOOR_H, lo, lo + 1); } else a.fy = Math.round(a.fy);
   a.f = Math.round(a.fy); a.moving = Math.abs(w.vx) > 3; a.facing = w.facing; a.walkPhase += dt * Math.abs(w.vx) * RS * .045;
   if (done) { a.path.shift(); if (a.onStair && Math.abs(a.fy - wp.fy) < .03) { a.fy = wp.fy; a.f = wp.fy; a.onStair = null; } if (!a.path.length) { a.moving = false; a.run = false; a.f = Math.round(a.fy); return true; } }
   return false;
@@ -2676,6 +2726,7 @@ function handleTaps() {
     if (UI.modal) { if (['loot', 'craft', 'map', 'survivor', 'inv', 'help'].includes(UI.modal.kind)) UI.modal = null; continue; }
     if (UI.invOpen || UI.survOpen >= 0 || UI.help) { UI.invOpen = false; UI.survOpen = -1; UI.help = false; continue; }
     const wx = s2wx(t.x), wy = s2wy(t.y);
+    if (DEMO.on) continue;
     if (G.phase === 'day') homeTapWorld(wx, wy); else if (G.phase === 'scav') scTapWorld(wx, wy);
   }
 }
@@ -2987,6 +3038,7 @@ function drawTitle() {
   const has = !!loadSave();
   textButton(W / 2 - 110, H * .58, 220, 50, 'NEW GAME', () => newGame(), { primary: !has, icon: 'play' });
   if (has) textButton(W / 2 - 110, H * .58 + 64, 220, 50, 'CONTINUE', () => continueGame(), { primary: true, icon: 'home' });
+  textButton(W / 2 - 110, H * .58 + (has ? 128 : 64), 220, 50, 'WATCH DEMO', () => demoStart(), { icon: 'play' });
   txt('3 survivors · 1 house · 20 days until the convoy · be home by 5', W / 2, H - 30, 14, DIM, 'center', '400');
 }
 function drawEnd(win) {
@@ -3010,6 +3062,7 @@ function newGame() {
 }
 function homeCam() { const w = G.world; fitCam({ x0: w.x0 - 120, x1: w.x1 + 120, y0: w.fy2y(2) - FLOOR_H - 170, y1: w.groundY + 240 }); cam.y = cam.ty = cam.y + 50 / cam.z; clampCam(); }
 function save() {
+  if (DEMO.on) return;
   if (HEADLESS) return;
   try { localStorage.setItem(SAVE_KEY, JSON.stringify({ day: G.day, inv: G.inv, built: G.built, flags: G.flags, collectorWater: G.collectorWater, shelter: serializeShelter(G.world), survivors: G.survivors.map(s => ({ name: s.name, hunger: s.hunger, fatigue: s.fatigue, health: s.health, morale: s.morale, wounded: s.wounded, infected: s.infected, alive: s.alive })) })); } catch (e) { }
 }
@@ -3190,6 +3243,7 @@ function frame(now) {
   requestAnimationFrame(frame);
   const dt = Math.min(.05, (now - lastT) / 1000 || 0); lastT = now;
   UI.hits = [];
+  if (DEMO.on) demoTick(dt);
   switch (G.phase) {
     case 'title': _T += dt; drawTitle(); break;
     case 'day': case 'plan': case 'dawn': case 'event': case 'win': case 'lose': {
@@ -3215,6 +3269,7 @@ function frame(now) {
       break;
     }
   }
+  drawDemoBar();
   handleTaps();
   // orientation hint
   if (H > W && G.phase !== 'title') { ctx.fillStyle = 'rgba(0,0,0,.6)'; rr(W / 2 - 110, H - 40, 220, 30, 8); ctx.fill(); txt('rotate your phone ↻', W / 2, H - 25, 14, INK); }
