@@ -82,7 +82,7 @@ function shade(c, k) { // darken/lighten hex color
 function rgba(c, a) { const n = parseInt(c.slice(1), 16); return `rgba(${n >> 16},${n >> 8 & 255},${n & 255},${a})`; }
 
 // ---- input ----
-const IN = { taps: [], ptrs: new Map(), dragging: false, pinchD: 0, downT: 0, downX: 0, downY: 0, moved: 0, lastTapT: 0 };
+const IN = { taps: [], downs: [], ptrs: new Map(), dragging: false, pinchD: 0, downT: 0, downX: 0, downY: 0, moved: 0, lastTapT: 0 };
 function initInput() {
   if (HEADLESS) return;
   const el = canvas;
@@ -90,6 +90,7 @@ function initInput() {
   el.addEventListener('pointerdown', e => {
     el.setPointerCapture(e.pointerId);
     IN.ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY });
+    IN.downs.push({ x: e.clientX, y: e.clientY });
     if (IN.ptrs.size === 1) { IN.downT = performance.now(); IN.downX = e.clientX; IN.downY = e.clientY; IN.moved = 0; IN.dragging = false; }
     if (IN.ptrs.size === 2) { const [a, b] = [...IN.ptrs.values()]; IN.pinchD = dist(a.x, a.y, b.x, b.y); }
     AUDIO.unlock();
@@ -99,10 +100,10 @@ function initInput() {
     const dx = e.clientX - p.x, dy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY;
     IN.moved += Math.abs(dx) + Math.abs(dy);
     if (IN.ptrs.size === 1) {
-      if (IN.moved > 8 && !UI.modal) { IN.dragging = true; cam.tx -= dx / cam.z; cam.x = cam.tx; cam.ty -= dy / cam.z; cam.y = cam.ty; clampCam(); }
+      if (IN.moved > 8 && !UI.modal && !cam.lock) { IN.dragging = true; cam.tx -= dx / cam.z; cam.x = cam.tx; cam.ty -= dy / cam.z; cam.y = cam.ty; clampCam(); }
     } else if (IN.ptrs.size === 2) {
       const [a, b] = [...IN.ptrs.values()]; const d = dist(a.x, a.y, b.x, b.y);
-      if (IN.pinchD > 0 && !UI.modal) { const k = d / IN.pinchD; zoomAt((a.x + b.x) / 2, (a.y + b.y) / 2, cam.z * k); }
+      if (IN.pinchD > 0 && !UI.modal && !cam.lock) { const k = d / IN.pinchD; zoomAt((a.x + b.x) / 2, (a.y + b.y) / 2, cam.z * k); }
       IN.pinchD = d; IN.dragging = true;
     }
   });
@@ -601,7 +602,7 @@ const SKY = [ // hour, top, bottom, light(0..1)
   [5, '#1a1b26', '#3a2f33', .15], [7, '#5a4a4e', '#9a7a66', .55], [10, '#6f7680', '#a8a9a4', .95], [15, '#737a84', '#b0aea6', 1], [18, '#5f5460', '#b07a5a', .7], [20, '#262330', '#4a3540', .25], [23, '#0d0f18', '#1c1a24', .08], [29, '#0d0f18', '#1c1a24', .08]
 ];
 function skyAt(hour) {
-  let h = hour; if (h < 5) h += 24;
+  let h = hour; if (h < 5) h += 24; if (h > 29) h = 29;
   for (let i = 0; i < SKY.length - 1; i++) { const a = SKY[i], b = SKY[i + 1]; if (h >= a[0] && h <= b[0]) { const t = (h - a[0]) / (b[0] - a[0]); return { top: mix(a[1], b[1], t), bot: mix(a[2], b[2], t), light: lerp(a[3], b[3], t) }; } }
   return { top: SKY[0][1], bot: SKY[0][2], light: SKY[0][3] };
 }
@@ -817,7 +818,8 @@ function drawLighting(world, sky, lights) {
 // ---- 50_scavenge.js ----
 // ===== scavenge mode: site generation, zombies, stealth, loot, backpack =====
 const STACK = { wood: 4, scrap: 4, parts: 4, cloth: 4, water: 3, canned: 3, raw: 3, meal: 2, bandage: 3, meds: 3, fuel: 2, books: 3, ammo: 6 };
-const NIGHT_LEN = 170;
+const NIGHT_TOTAL = 330; // real seconds 20:00 → 05:00
+const nightHour = () => 20 + (1 - G.nightT / NIGHT_TOTAL) * 9;
 const SC = { active: false };
 
 function hashStr(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
@@ -878,16 +880,10 @@ function packCount(pack, id) { return pack.filter(s => s.id === id).reduce((a, s
 function packRemove(pack, id, n = 1) { for (let i = pack.length - 1; i >= 0 && n > 0; i--) if (pack[i].id === id) { const t = Math.min(pack[i].n, n); pack[i].n -= t; n -= t; if (pack[i].n <= 0) pack.splice(i, 1); } }
 
 // ---- start / end ----
-function startScavenge(loc, surv) {
+function startScavenge(loc, surv, pack, cap) {
   const { world, zombies } = makeSite(loc, G.day);
   const p = surv; p.x = world.x0 + 40; p.fy = 0; p.f = 0; p.facing = 1; p.path = null; p.moving = false; p.task = null; p.hidden = false; p.visible = true; p.attackT = 0; p.pose = 'idle'; p.hasPack = true;
-  const cap = (p.slots || 10) + (G.inv.backpack ? 2 : 0);
-  const pack = [];
-  // loadout: best weapon, lockpick, crowbar from home stock
-  const weapon = ['pistol', 'bat', 'knife'].find(w => G.inv[w] > 0);
-  for (const t of [weapon, 'lockpick', 'crowbar']) if (t && G.inv[t] > 0) { G.inv[t]--; packAdd(pack, cap, t, 1); }
-  if (weapon === 'pistol' && G.inv.ammo > 0) { const n = Math.min(6, G.inv.ammo); G.inv.ammo -= n; packAdd(pack, cap, 'ammo', n); }
-  Object.assign(SC, { active: true, world, zombies, player: p, loc, pack, cap, timer: NIGHT_LEN, sneak: false, seen: 0, lootSpot: null, noiseT: 0, done: false, result: null, msg: null, msgT: 0, kills: 0, lights: [] });
+  Object.assign(SC, { active: true, world, zombies, player: p, loc, pack, cap, sneak: false, seen: 0, lootSpot: null, noiseT: 0, done: false, result: null, msg: null, msgT: 0, kills: 0, lights: [] });
   FX.float = []; initFx();
   fitCam({ x0: world.x0 - 60, x1: world.x1 + 60, y0: world.fy2y(world.nFloors - 1) - FLOOR_H - 60, y1: world.groundY + 230 });
   cam.z = cam.tz = clamp(Math.max(cam.z, H / 420), cam.minZ, cam.maxZ); cam.x = cam.tx = p.x + 200; cam.y = cam.ty = world.groundY - 80; clampCam();
@@ -932,8 +928,8 @@ function killZombie(z) { z.alive = false; z.pose = 'dead'; SC.kills++; AUDIO.sfx
 function scUpdate(dt) {
   const p = SC.player, w = SC.world; _T += dt;
   if (SC.done) return;
-  SC.timer -= dt; if (SC.msgT > 0) SC.msgT -= dt;
-  if (SC.timer <= 0) { endScavenge(true); return; }
+  G.nightT -= dt; if (SC.msgT > 0) SC.msgT -= dt;
+  if (G.nightT <= 0) { endScavenge(true); return; }
   // movement
   const chasing = SC.zombies.some(z => z.alive && z.state === 'chase');
   const speed = SC.sneak ? 42 : (chasing ? 112 : 78);
@@ -946,7 +942,7 @@ function scUpdate(dt) {
       if (tk.hide) { p.hidden = true; p.visible = false; p.x = tk.hide.x; p.task = null; AUDIO.sfx('open'); }
       else {
         const s = tk.spot; tk.t += dt;
-        if (s.type === 'exit') { p.task = null; UI.modal = { kind: 'leave' }; }
+        if (s.type === 'exit') { p.task = null; leaveSite(); return; }
         else if (s.type === 'search') { p.pose = 'search'; if (tk.t >= s.dur) { p.task = null; s.left = 0; SC.lootSpot = s; UI.modal = { kind: 'loot', spot: s }; AUDIO.sfx('open'); } }
         else if (s.type === 'door') {
           const havePick = packCount(SC.pack, 'lockpick') > 0, haveBar = packCount(SC.pack, 'crowbar') > 0;
@@ -1003,10 +999,190 @@ function scUpdate(dt) {
 }
 function endScavenge(timeout, died) {
   if (SC.done) return; SC.done = true; const p = SC.player;
-  let wounded = false;
-  if (timeout && SC.zombies.some(z => z.alive && z.state === 'chase')) { p.health -= 20; p.wounded = true; wounded = true; if (p.health <= 0) { p.health = 0; died = true; } }
-  SC.result = { timeout, died, wounded, pack: SC.pack, kills: SC.kills, loc: SC.loc };
+  if (timeout) { died = true; p.health = 0; }
+  SC.result = { timeout, died, pack: SC.pack, kills: SC.kills, loc: SC.loc };
   UI.modal = { kind: 'scavEnd' };
+}
+function leaveSite() { const p = SC.player; TR.kills += SC.kills; SC.active = false; p.hidden = false; p.visible = true; p.task = null; p.path = null; p.fy = 0; p.f = 0; G.phase = 'travel'; TR.x = TR.locX[SC.loc.id]; TR.py = 0; TR.vy = 0; p.x = TR.x; p.facing = 1; cam.lock = true; AUDIO.sfx('open'); }
+
+// ---- 55_travel.js ----
+// ===== travel: the night street, a 2D platformer run between the house and the district's buildings =====
+const TR = { active: false, player: null, pack: [], cap: 10, x: 0, py: 0, vy: 0, zombies: [], obstacles: [], locX: {}, kills: 0, attackT: 0, hurtT: 0, msg: null, msgT: 0, decor: [], done: false, result: null };
+const ST_END = 7200; // street length
+const LOC_DIST = { market: 700, flats: 1500, hardware: 2300, pharmacy: 3200, school: 4100, station: 5000, police: 5900, hospital: 6800 };
+const GRAV = 900, JUMP_V = 330;
+
+function startTravel(surv) {
+  const p = surv; const r = mulberry(G.day * 131 + 7);
+  const cap = (p.slots || 10) + (G.inv.backpack ? 2 : 0); const pack = [];
+  const weapon = ['pistol', 'bat', 'knife'].find(w => G.inv[w] > 0);
+  for (const t of [weapon, 'lockpick', 'crowbar']) if (t && G.inv[t] > 0) { G.inv[t]--; packAdd(pack, cap, t, 1); }
+  if (weapon === 'pistol' && G.inv.ammo > 0) { const n = Math.min(6, G.inv.ammo); G.inv.ammo -= n; packAdd(pack, cap, 'ammo', n); }
+  p.x = 80; p.fy = 0; p.f = 0; p.facing = 1; p.path = null; p.task = null; p.hidden = false; p.visible = true; p.hasPack = true; p.attackT = 0; p.pose = 'idle';
+  Object.assign(TR, { active: true, player: p, pack, cap, x: 80, py: 0, vy: 0, zombies: [], obstacles: [], locX: Object.assign({}, LOC_DIST), kills: 0, attackT: 0, hurtT: 0, msg: 'run', msgT: 3, decor: [], done: false, result: null, grounded: true });
+  // obstacles between locations
+  const kinds = [['car', 120, 48], ['rubble', 140, 40], ['barrier', 60, 54], ['crates', 70, 36], ['bus', 260, 52]];
+  for (let x = 420; x < ST_END - 200; x += 260 + r() * 420) {
+    if (Object.values(LOC_DIST).some(lx => Math.abs(lx - x) < 220)) continue;
+    const k = kinds[Math.floor(r() * kinds.length)]; TR.obstacles.push({ x, w: k[1], h: k[2], t: k[0] });
+  }
+  // zombies: denser further out
+  for (let x = 500; x < ST_END; x += 180 + r() * 300) { if (r() < .35 + x / ST_END * .45) { const z = makeZombie(x, 0, r); z.street = true; TR.zombies.push(z); } }
+  // decor
+  for (let x = -300; x < ST_END + 600; x += 90 + r() * 200) TR.decor.push({ x, t: r() < .25 ? 'lamp' : r() < .5 ? 'wall' : r() < .75 ? 'fence' : 'junk', h: 60 + r() * 140, w: 60 + r() * 160, s: r() });
+  G.nightT = NIGHT_TOTAL; G.phase = 'travel'; cam.lock = true; cam.bounds = { x0: -400, x1: ST_END + 400, y0: -400, y1: GROUND_Y + 300 };
+  cam.z = cam.tz = clamp(H / 400, cam.minZ, cam.maxZ); cam.x = cam.tx = p.x + 160; cam.y = cam.ty = GROUND_Y - 110; initFx();
+}
+function trMsg(icon, t = 2) { TR.msg = icon; TR.msgT = t; }
+function trWeapon() { return ['pistol', 'bat', 'knife'].find(w => packCount(TR.pack, w) > 0) || null; }
+function supportAt(x) { let s = 0; for (const o of TR.obstacles) if (x > o.x - o.w / 2 - 6 && x < o.x + o.w / 2 + 6) s = Math.max(s, o.h); return s; }
+function trAttack() {
+  const p = TR.player; if (TR.attackT > 0 || TR.done) return; const wep = trWeapon();
+  if (wep === 'pistol') {
+    if (packCount(TR.pack, 'ammo') <= 0) { trMsg('ammo', 1.2); return; }
+    const t = TR.zombies.filter(z => z.alive && Math.abs(z.x - TR.x) < 320).sort((a, b) => Math.abs(a.x - TR.x) - Math.abs(b.x - TR.x))[0]; if (!t) return;
+    packRemove(TR.pack, 'ammo', 1); p.facing = t.x < TR.x ? -1 : 1; TR.attackT = .35; TR.attackKind = 'shoot'; AUDIO.sfx('shot'); FX.flash = .25;
+    for (const z of TR.zombies) if (z.alive && Math.abs(z.x - TR.x) < 700) z.state = 'chase';
+    t.hp -= 3; t.hurtT = .3; if (t.hp <= 0) { t.alive = false; t.pose = 'dead'; TR.kills++; AUDIO.sfx('groan'); }
+    return;
+  }
+  TR.attackT = .45; TR.attackKind = wep ? 'swing' : 'shove'; TR.attackHit = false; AUDIO.sfx(wep ? 'hammer' : 'dig');
+}
+function trUpdate(dt) {
+  if (TR.done) return; const p = TR.player; _T += dt;
+  G.nightT -= dt; if (TR.msgT > 0) TR.msgT -= dt;
+  if (G.nightT <= 0) { trLost(true); return; }
+  // input: held pads
+  let dir = 0, jump = false;
+  for (const q of IN.ptrs.values()) { if (q.y > H - 130) { if (q.x < 110) dir = -1; else if (q.x < 220) dir = 1; } }
+  while (IN.downs.length) { const d = IN.downs.shift(); if (d.x > W - 130 && d.y > H - 130 && d.x < W - 20) jump = true; }
+  const chasing = TR.zombies.some(z => z.alive && z.state === 'chase');
+  const speed = 120 * (p.trait === 'runner' ? 1.15 : 1);
+  if (TR.attackT > 0) {
+    TR.attackT -= dt;
+    if (TR.attackKind !== 'shoot' && TR.attackT < .25 && !TR.attackHit) { TR.attackHit = true; const wep = trWeapon(); const dmg = wep === 'bat' ? 2 : wep === 'knife' ? 1 : 0; for (const z of TR.zombies) if (z.alive && Math.abs(z.x - TR.x) < 50 && (z.x - TR.x) * p.facing > -10) { z.hp -= dmg * (p.trait === 'strong' ? 2 : 1); z.hurtT = .3; z.x += p.facing * (wep === 'bat' ? 45 : 30); z.attackT = 0; z.state = 'chase'; if (z.hp <= 0) { z.alive = false; z.pose = 'dead'; TR.kills++; } AUDIO.sfx('groan'); } }
+    dir = 0;
+  } else if (dir) {
+    const nx = clamp(TR.x + dir * speed * dt, 20, ST_END + 300); const sup = supportAt(nx);
+    if (sup <= TR.py + 2 || sup <= 0) TR.x = nx; else if (TR.grounded && supportAt(TR.x) >= sup - 2) TR.x = nx; // walk along equal-height tops
+    p.facing = dir; p.walkPhase += dt * speed * .045;
+  }
+  // vertical
+  if (jump && TR.grounded) { TR.vy = JUMP_V; TR.grounded = false; AUDIO.sfx('tap'); }
+  TR.vy -= GRAV * dt; TR.py += TR.vy * dt; const sup = supportAt(TR.x);
+  if (TR.py <= sup && TR.vy <= 0) { TR.py = sup; TR.vy = 0; TR.grounded = true; } else TR.grounded = false;
+  p.x = TR.x; p.y = GROUND_Y - TR.py;
+  p.pose = !TR.grounded ? 'run' : dir ? 'run' : 'idle'; p.poseExtra = null;
+  if (TR.attackT > 0) { p.pose = TR.attackKind === 'shove' ? 'shove' : 'attack'; p.poseExtra = { k: 1 - TR.attackT / .45, weapon: trWeapon() }; }
+  if (p.hurtT > 0) p.hurtT -= dt;
+  // zombies (1D)
+  for (const z of TR.zombies) {
+    if (!z.alive) { z.pose = 'dead'; continue; } z.t += dt; if (z.hurtT > 0) z.hurtT -= dt;
+    const dx = TR.x - z.x, d = Math.abs(dx);
+    if (d < (chasing ? 260 : 170)) z.alert += dt * 1.5; else z.alert -= dt * .5; z.alert = clamp(z.alert, 0, 1.2);
+    if (z.alert >= 1 && z.state !== 'chase') { z.state = 'chase'; z.lostT = 0; AUDIO.sfx('groan'); }
+    if (z.state === 'chase') {
+      z.pose = 'zombie'; z.facing = dx < 0 ? -1 : 1;
+      if (d > 600) { z.lostT += dt; if (z.lostT > 4) { z.state = 'idle'; z.alert = 0; } }
+      if (d < 30 && TR.py < 45) { z.attackT += dt; z.pose = 'zombieAttack'; z.poseExtra = { k: (z.attackT % 1) / .5 }; if (z.attackT >= 1) { z.attackT = 0; p.health -= 11; p.hurtT = .3; p.wounded = true; AUDIO.sfx('hurt'); if (Math.random() < .25 && !p.infected) { p.infected = true; trMsg('infected', 2); } if (p.health <= 0) { p.health = 0; trLost(false); return; } } }
+      else { const zs = 58; const nz = z.x + Math.sign(dx) * zs * dt; const s2 = supportAt(nz); if (s2 <= 4) z.x = nz; z.walkPhase += dt * zs * .045; z.attackT = 0; }
+    } else if (z.state === 'wander') { z.pose = 'zombie'; const nz = z.x + z.facing * 20 * dt; if (supportAt(nz) <= 4 && nz > 300) z.x = nz; else z.facing *= -1; z.walkPhase += dt * .9; if (z.t > 4) { z.state = 'idle'; z.t = 0; } }
+    else { z.pose = 'zombieIdle'; if (z.t > 2 + Math.random() * 4) { z.t = 0; z.state = 'wander'; z.facing = Math.random() < .5 ? -1 : 1; } }
+    z.y = GROUND_Y;
+  }
+  // camera
+  cam.tx = TR.x + p.facing * 140; cam.x = lerp(cam.x, cam.tx, Math.min(1, dt * 3.5)); cam.y = cam.ty = GROUND_Y - 110;
+}
+function trLost(timeout) { TR.done = true; TR.result = { died: true, timeout, pack: TR.pack, kills: TR.kills, loc: null }; SC.result = TR.result; UI.modal = { kind: 'scavEnd' }; AUDIO.sfx('bad'); }
+function trEnter(loc) { const p = TR.player; p.hasPack = true; G.phase = 'scav'; cam.lock = false; startScavenge(loc, p, TR.pack, TR.cap); }
+function trHome() { TR.done = true; TR.result = { died: false, timeout: false, pack: TR.pack, kills: TR.kills, loc: null }; SC.result = TR.result; UI.modal = { kind: 'scavEnd' }; AUDIO.sfx('done'); }
+
+// ---------- street rendering ----------
+function drawStreet(dt) {
+  const hour = nightHour(); const sky = skyAt(hour > 24 ? hour - 24 : hour); const night = true;
+  const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, sky.top); g.addColorStop(1, sky.bot); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  const r0 = mulberry(7); ctx.fillStyle = 'rgba(255,255,255,.6)'; for (let i = 0; i < 60; i++) { ctx.globalAlpha = .3 + r0() * .5; ctx.fillRect(r0() * W, r0() * H * .5, 1.2, 1.2); } ctx.globalAlpha = 1;
+  const mx = W * .78, my = H * .18; ctx.fillStyle = '#d8dce6'; circ(mx, my, 14); ctx.fill(); ctx.fillStyle = sky.top; circ(mx - 6, my - 4, 12); ctx.fill();
+  ctx.save(); ctx.translate(W / 2, H / 2); ctx.scale(cam.z, cam.z); ctx.translate(-cam.x, -cam.y);
+  const gy = GROUND_Y; const fake = { groundY: gy, x0: 1e9, x1: 1e9, nFloors: 1, fy2y: f => gy };
+  drawSkyline(fake, sky, night, gy);
+  // mid buildings (facades) along the street
+  const r = mulberry(11); const x0v = cam.x - W / cam.z, x1v = cam.x + W / cam.z;
+  for (const d of TR.decor) {
+    if (d.x < x0v - 300 || d.x > x1v + 300) continue;
+    if (d.t === 'wall') { ctx.fillStyle = '#2a2724'; ctx.fillRect(d.x, gy + 14 - d.h, d.w, d.h); ctx.fillStyle = 'rgba(0,0,0,.35)'; for (let wy = gy + 14 - d.h + 24; wy < gy; wy += 34) for (let wx = d.x + 12; wx < d.x + d.w - 16; wx += 30) ctx.fillRect(wx, wy, 14, 20); if (d.s < .3) { ctx.fillStyle = 'rgba(255,150,60,.5)'; ctx.fillRect(d.x + 12 + Math.floor(d.s * 10) * 30 % (d.w - 30), gy - 40, 14, 20); } }
+    else if (d.t === 'fence') { ctx.fillStyle = '#3a3733'; for (let fx = d.x; fx < d.x + d.w; fx += 14) ctx.fillRect(fx, gy + 14 - 50, 6, 50); ctx.fillRect(d.x, gy - 30, d.w, 4); }
+    else if (d.t === 'lamp') { ctx.fillStyle = '#3a3a3a'; ctx.fillRect(d.x, gy - 180, 6, 194); ctx.fillRect(d.x, gy - 184, 34, 6); if (d.s < .5) { ctx.fillStyle = 'rgba(255,200,120,.07)'; ctx.beginPath(); ctx.moveTo(d.x + 30, gy - 180); ctx.lineTo(d.x - 60, gy + 14); ctx.lineTo(d.x + 120, gy + 14); ctx.fill(); } }
+    else { ctx.fillStyle = '#2f2b28'; ctx.fillRect(d.x, gy + 14 - 18, 30 + d.s * 30, 18); }
+  }
+  // ground
+  ctx.fillStyle = mix('#3a3733', '#15161a', .8); ctx.fillRect(x0v - 500, gy + 14, x1v - x0v + 1000, 1200); ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fillRect(x0v - 500, gy + 14, x1v - x0v + 1000, 6);
+  ctx.fillStyle = 'rgba(255,255,255,.08)'; for (let x = Math.floor(x0v / 160) * 160; x < x1v + 160; x += 160) ctx.fillRect(x, gy + 54, 70, 4);
+  // house at 0
+  drawHouseFacade(0, gy);
+  // location facades
+  for (const l of LOCATIONS) { const lx = TR.locX[l.id]; if (lx < x0v - 400 || lx > x1v + 400) continue; drawFacade(l, lx, gy); }
+  // obstacles
+  for (const o of TR.obstacles) { if (o.x < x0v - 200 || o.x > x1v + 200) continue; drawObstacle(o, gy); }
+  // actors
+  const list = [...TR.zombies.filter(z => z.x > x0v - 100 && z.x < x1v + 100), TR.player];
+  for (const a of list) { a.y = a === TR.player ? GROUND_Y - TR.py : GROUND_Y; drawPerson(a, a.pose || 'idle', _T, a.poseExtra); }
+  drawFx(fake, hour, night, dt);
+  // lighting
+  const L = [{ x: TR.x + TR.player.facing * 80, y: GROUND_Y - TR.py - 50, r: 260, c: '255,230,180', a: .55 }, { x: TR.x, y: GROUND_Y - TR.py - 40, r: 130, c: '255,230,180', a: .3 }];
+  for (const l of LOCATIONS) { const lx = TR.locX[l.id]; if (Math.abs(lx - cam.x) < 1200) L.push({ x: lx, y: gy - 120, r: 150, c: '200,120,80', a: .25 }); }
+  L.push({ x: 0, y: gy - 100, r: 200, c: '255,190,110', a: .35 });
+  drawLighting(Object.assign(fake, { x0: x0v - 600, x1: x1v + 600 }), sky, L);
+  ctx.restore();
+  const vg = ctx.createRadialGradient(W / 2, H / 2, H * .35, W / 2, H / 2, H * .95); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.55)'); ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+  if (FX.flash > 0) { ctx.fillStyle = `rgba(255,220,200,${FX.flash})`; ctx.fillRect(0, 0, W, H); FX.flash = Math.max(0, FX.flash - dt * 3); }
+}
+function drawHouseFacade(x, gy) {
+  ctx.fillStyle = '#3a3330'; ctx.fillRect(x - 260, gy - 290, 320, 304); ctx.fillStyle = '#2a2320'; ctx.beginPath(); ctx.moveTo(x - 290, gy - 290); ctx.lineTo(x - 100, gy - 420); ctx.lineTo(x + 90, gy - 290); ctx.fill();
+  ctx.fillStyle = '#1c1916'; ctx.fillRect(x - 26, gy - 110, 54, 124); ctx.fillStyle = '#4a3a2c'; ctx.fillRect(x - 22, gy - 106, 46, 120); ctx.fillStyle = '#c9b26a'; circ(x + 14, gy - 50, 3); ctx.fill();
+  for (const [wx, wy] of [[-200, -230], [-110, -230], [-200, -110], [-110, -110]]) { ctx.fillStyle = '#1a1d26'; ctx.fillRect(x + wx, gy + wy, 50, 60); ctx.fillStyle = 'rgba(255,190,110,.25)'; ctx.fillRect(x + wx + 4, gy + wy + 4, 42, 52); ctx.fillStyle = '#7a5c3c'; ctx.fillRect(x + wx - 6, gy + wy + 20, 62, 9); ctx.fillRect(x + wx - 6, gy + wy + 40, 62, 9); }
+}
+function drawFacade(l, x, gy) {
+  const r = mulberry(hashStr(l.id)); const w = 300 + l.floors * 40, h = 120 + l.floors * 90;
+  ctx.fillStyle = ['#3a3836', '#3d3330', '#333a3a', '#383530'][Math.floor(r() * 4)]; ctx.fillRect(x - w / 2, gy + 14 - h, w, h);
+  ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(x - w / 2, gy + 14 - h, 8, h); ctx.fillStyle = 'rgba(255,255,255,.05)'; ctx.fillRect(x - w / 2, gy + 14 - h, w, 6);
+  for (let fy = gy - 60; fy > gy + 14 - h + 30; fy -= 80) for (let wx = x - w / 2 + 24; wx < x + w / 2 - 40; wx += 56) { if (Math.abs(wx + 18 - x) < 50 && fy > gy - 100) continue; ctx.fillStyle = r() < .3 ? '#1a1d26' : '#14151a'; ctx.fillRect(wx, fy - 40, 36, 46); if (r() < .4) { ctx.fillStyle = '#7a5c3c'; ctx.fillRect(wx - 4, fy - 30, 44, 7); } }
+  // door + sign
+  ctx.fillStyle = '#1c1916'; ctx.fillRect(x - 30, gy - 104, 60, 118); ctx.fillStyle = '#2b2622'; ctx.fillRect(x - 26, gy - 100, 52, 114); ctx.fillStyle = 'rgba(200,120,80,.25)'; ctx.fillRect(x - 22, gy - 96, 44, 50);
+  ctx.fillStyle = '#2a2a2e'; rr(x - 90, gy - 150, 180, 34, 4); ctx.fill(); ctx.strokeStyle = '#4a4d52'; ctx.lineWidth = 2; rr(x - 90, gy - 150, 180, 34, 4); ctx.stroke();
+  txt(l.name.toUpperCase(), x, gy - 133, 15, '#b8a888'); for (let i = 0; i < 5; i++) drawIcon('zombie', x - 60 + i * 30, gy - 170, 14, i < l.danger ? RED : '#3a3d42');
+}
+function drawObstacle(o, gy) {
+  const x = o.x, y = gy + 14;
+  switch (o.t) {
+    case 'car': ctx.fillStyle = '#4a3d3a'; rr(x - 60, y - 36, 120, 30, 8); ctx.fill(); ctx.fillStyle = '#3b3130'; rr(x - 32, y - 52, 70, 24, 8); ctx.fill(); ctx.fillStyle = '#222'; circ(x - 38, y - 6, 11); ctx.fill(); circ(x + 38, y - 6, 11); ctx.fill(); break;
+    case 'bus': ctx.fillStyle = '#5a5248'; rr(x - 130, y - 54, 260, 50, 10); ctx.fill(); ctx.fillStyle = '#1a1d26'; for (let i = -110; i < 110; i += 44) ctx.fillRect(x + i, y - 46, 32, 20); ctx.fillStyle = '#222'; circ(x - 80, y - 6, 12); ctx.fill(); circ(x + 80, y - 6, 12); ctx.fill(); break;
+    case 'rubble': { const r = mulberry(o.x); for (let i = 0; i < 14; i++) { const rx = x + (r() - .5) * 130, ry = y - r() * 36; const s = 10 + r() * 18; ctx.fillStyle = ['#5a5048', '#6a6058', '#4a4038'][Math.floor(r() * 3)]; ctx.save(); ctx.translate(rx, ry); ctx.rotate(r() * 3); ctx.fillRect(-s / 2, -s / 3, s, s * .66); ctx.restore(); } break; }
+    case 'barrier': ctx.fillStyle = '#8a8a80'; ctx.fillRect(x - 30, y - 54, 60, 54); ctx.fillStyle = '#b53a30'; for (let i = 0; i < 3; i++) ctx.fillRect(x - 30 + i * 20, y - 54, 10, 54); break;
+    case 'crates': ctx.fillStyle = '#7a6040'; ctx.fillRect(x - 35, y - 36, 34, 36); ctx.fillRect(x + 1, y - 36, 34, 36); ctx.strokeStyle = 'rgba(0,0,0,.35)'; ctx.lineWidth = 2; ctx.strokeRect(x - 35, y - 36, 34, 36); ctx.strokeRect(x + 1, y - 36, 34, 36); break;
+  }
+}
+function drawTravelHud(dt) {
+  const p = TR.player;
+  // door bubbles (proximity)
+  if (!TR.done) {
+    if (Math.abs(TR.x) < 150) { const sx = w2sx(0), sy = w2sy(GROUND_Y - 150); spotBubble(sx, sy, 'home', { hl: true, size: 50 }); UI.btn(sx - 30, sy - 30, 60, 60, () => trHome()); }
+    for (const l of LOCATIONS) { const lx = TR.locX[l.id]; if (Math.abs(TR.x - lx) < 150) { const sx = w2sx(lx), sy = w2sy(GROUND_Y - 200); spotBubble(sx, sy, 'exit', { hl: true, size: 50 }); UI.btn(sx - 30, sy - 30, 60, 60, () => trEnter(l)); } }
+    for (const z of TR.zombies) if (z.alive && z.state === 'chase') { const sx = w2sx(z.x), sy = w2sy(GROUND_Y - 100); if (sx > -30 && sx < W + 30) drawIcon('alert', sx, sy, 22, RED); }
+  }
+  const cx = W / 2; ctx.fillStyle = 'rgba(14,15,18,.75)'; rr(cx - 170, 8, 340, 62, 10); ctx.fill(); drawNightClock(cx - 60, 33);
+  const next = LOCATIONS.map(l => ({ l, d: TR.locX[l.id] - TR.x })).filter(o => o.d > 0).sort((a, b) => a.d - b.d)[0];
+  txt(TR.x < 150 ? 'home' : next ? next.l.name + '  →  ' + Math.round(next.d / 10) + 'm' : 'end of the district', cx - 60, 56, 13, DIM);
+  ctx.fillStyle = TR.zombies.some(z => z.alive && z.state === 'chase') ? RED : GREEN; circ(cx + 100, 33, 16); ctx.fill(); drawIcon('eye', cx + 100, 33, 22, '#111');
+  // pads
+  ctx.fillStyle = 'rgba(30,32,36,.75)'; rr(20, H - 120, 90, 100, 14); ctx.fill(); rr(120, H - 120, 90, 100, 14); ctx.fill(); drawIcon('back', 65, H - 70, 36); drawIcon('arrow', 165, H - 70, 36);
+  UI.btn(20, H - 120, 190, 100, () => { });
+  ctx.fillStyle = 'rgba(30,32,36,.75)'; rr(W - 130, H - 120, 110, 100, 14); ctx.fill(); txt('JUMP', W - 75, H - 70, 22, INK); UI.btn(W - 130, H - 120, 110, 100, () => { });
+  const wep = trWeapon(); const near = TR.zombies.some(z => z.alive && Math.abs(z.x - TR.x) < (wep === 'pistol' ? 320 : 70));
+  if (near && !TR.done) iconButton(W - 200, H - 70, 70, wep || 'shove', () => trAttack(), { bg: '#3a2020', edge: RED, badge: wep === 'pistol' ? packCount(TR.pack, 'ammo') : undefined });
+  iconButton(W - 50, 100, 56, 'backpack', () => { UI.modal = UI.modal && UI.modal.kind === 'inv' ? null : { kind: 'inv' }; }, { badge: TR.pack.length + '/' + TR.cap, active: UI.modal && UI.modal.kind === 'inv' });
+  bar(W - 170, 20, 150, 10, p.health / 100, needColor(p.health)); drawIcon('hurt', W - 184, 25, 16, RED);
+  if (TR.msgT > 0 && TR.msg) { ctx.fillStyle = 'rgba(14,15,18,.85)'; rr(cx - 40, 78, 80, 50, 10); ctx.fill(); drawIcon(TR.msg, cx, 103, 30); }
 }
 
 // ---- 60_ui.js ----
@@ -1072,14 +1248,17 @@ function drawHomeHud(dt) {
   const w = G.world;
   // hotspot bubbles
   if (G.phase === 'day') {
+    const me = G.survivors[G.sel]; const near = (x, f) => me && me.alive && Math.abs(me.x - x) < 150 && Math.abs(me.fy - f) < .5;
     for (const s of w.spots) {
       const info = spotInfo(s); if (!info) continue;
+      if (!near(s.x, s.f) && !G.survivors.some(v => v.alive && v.task && v.task.spot === s)) continue;
       const sx = w2sx(s.x), sy = w2sy(w.fy2y(s.f) - 95); if (sx < -40 || sx > W + 40 || sy < -40 || sy > H + 40) continue;
       const worker = G.survivors.find(v => v.alive && v.task && v.task.spot === s && !(v.path && v.path.length));
       spotBubble(sx, sy, info.icon, { disabled: info.disabled, badgeIcon: info.badgeIcon, badge: info.badge, progress: worker ? clamp(worker.task.t / worker.task.dur, 0, 1) : undefined });
       UI.btn(sx - 26, sy - 26, 52, 52, () => homeUseSpot(s));
     }
     for (const b of w.barricades) {
+      if (!near(b.x, b.f) && !G.survivors.some(v => v.alive && v.task && v.task.bar === b)) continue;
       const info = barricadeInfo(b); const sx = w2sx(b.x), sy = w2sy(w.fy2y(b.f) - (b.kind === 'win' ? 150 : 140));
       const worker = G.survivors.find(v => v.alive && v.task && v.task.bar === b && !(v.path && v.path.length));
       spotBubble(sx, sy, info.icon, { size: 38, disabled: info.disabled, badge: info.badge, color: info.color, progress: worker ? clamp(worker.task.t / worker.task.dur, 0, 1) : undefined });
@@ -1088,7 +1267,7 @@ function drawHomeHud(dt) {
       UI.btn(sx - 22, sy - 22, 44, 44, () => homeUseBarricade(b));
     }
     // selected survivor marker
-    const sel = G.survivors[G.sel]; if (sel && sel.alive) { const sx = w2sx(sel.x), sy = w2sy(w.fy2y(sel.fy) - 92 * (sel.scale || 1)); ctx.fillStyle = GOLD; ctx.beginPath(); ctx.moveTo(sx, sy + 6); ctx.lineTo(sx - 7, sy - 6); ctx.lineTo(sx + 7, sy - 6); ctx.closePath(); ctx.fill(); }
+    const sel = G.survivors[G.sel]; if (sel && sel.alive) { const sx = w2sx(sel.x), sy = w2sy(w.fy2y(sel.fy) + 2); ctx.strokeStyle = GOLD; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.ellipse(sx, sy, 20 * cam.z, 6 * cam.z, 0, 0, TAU); ctx.stroke(); }
   }
   // ---- top bar ----
   const cx = W / 2;
@@ -1175,7 +1354,7 @@ function eat(s, k) {
 }
 function drawHelp() {
   const w = Math.min(W - 40, 560), h = Math.min(H - 40, 330), x = (W - w) / 2, y = (H - h) / 2; panel(x, y, w, h, 'ASHWINTER');
-  const rows = [['dot', 'Tap a face to pick a survivor'], ['search', 'Tap an icon to send them to work'], ['board', 'Board windows & doors before dark'], ['moon', 'At night: sleep, guard, or scavenge'], ['sneak', 'Out there, sneak. Hide in closets.'], ['radio', 'Build the radio. Survive to day 20.']];
+  const rows = [['dot', 'Tap a face, walk near things to see what they offer'], ['search', 'Tap an icon to work it'], ['board', 'Board windows & doors before dark'], ['knife', 'Craft a weapon, then one can go out at night'], ['run', 'The street is a run: jump wrecks, enter buildings, sneak inside'], ['moon', 'Be back through the front door by 5:00 or be lost']];
   rows.forEach(([ic, t], i) => { const ry = y + 72 + i * 40; drawIcon(ic, x + 40, ry, 26, GOLD); txt(t, x + 66, ry, 17, INK, 'left'); });
 }
 
@@ -1189,15 +1368,17 @@ function drawPlan() {
     drawPortrait(s, x + 40, ry, 24); txt(s.name, x + 80, ry - 10, 17, INK, 'left'); statusIcons(s).slice(0, 4).forEach((ic, j) => drawIcon(ic, x + 86 + j * 18, ry + 12, 15, ic === 'infected' ? GREEN : RED));
     const jobs = [['sleep', 'sleep'], ['guard', 'guard'], ['backpack', 'scav']];
     jobs.forEach(([ic, job], j) => {
-      const bx = x + w - 190 + j * 60; const on = P[s.name] === job; const can = job !== 'scav' || (s.health > 25 && !Object.entries(P).some(([n, v]) => v === 'scav' && n !== s.name));
-      iconButton(bx, ry, 46, ic, can ? () => { P[s.name] = job; AUDIO.sfx('tap'); } : null, { active: on, bg: on ? '#3a3320' : undefined, disabled: !can });
+      const bx = x + w - 190 + j * 60; const on = P[s.name] === job; const armed = ['pistol', 'bat', 'knife'].some(k => G.inv[k] > 0);
+      const can = job !== 'scav' || (armed && s.health > 25 && !Object.entries(P).some(([n, v]) => v === 'scav' && n !== s.name));
+      iconButton(bx, ry, 46, ic, can ? () => { P[s.name] = job; AUDIO.sfx('tap'); } : () => { if (job === 'scav' && !armed) homeMsg('craft a weapon first', 'knife', RED); }, { active: on, bg: on ? '#3a3320' : undefined, disabled: !can, badge: job === 'scav' && !armed ? '!' : undefined, badgeColor: RED });
     });
   });
   const scavName = Object.keys(P).find(n => P[n] === 'scav');
   const by = y + h - 50;
-  if (scavName) textButton(x + 20, by, 200, 40, G.planLoc ? LOCATIONS.find(l => l.id === G.planLoc).name : 'Choose place', () => { UI.modal = { kind: 'map' }; }, { icon: 'pin' });
-  else txt('no one scavenges tonight', x + 30, by + 20, 15, DIM, 'left');
-  textButton(x + w - 150, by, 130, 40, 'GO', () => { if (scavName && !G.planLoc) { UI.modal = { kind: 'map' }; return; } beginNight(); }, { primary: true, icon: 'arrow' });
+  if (scavName) { drawIcon('run', x + 34, by + 20, 22, GOLD); txt(scavName + ' goes out · back by 5:00', x + 52, by + 20, 15, INK, 'left'); }
+  else txt('no one goes out tonight', x + 30, by + 20, 15, DIM, 'left');
+  textButton(x + w - 150, by, 130, 40, 'GO', () => { beginNight(); }, { primary: true, icon: 'arrow' });
+  if (G.msgT > 0) { G.msgT -= 1 / 60; ctx.fillStyle = 'rgba(14,15,18,.9)'; rr(W / 2 - 110, y - 50, 220, 40, 10); ctx.fill(); drawIcon(G.msgIcon, W / 2 - 80, y - 30, 22, G.msgColor); txt(G.msg, W / 2 + 12, y - 30, 14, G.msgColor); }
 }
 function drawMap() {
   const w = Math.min(W - 20, 700), h = Math.min(H - 20, 440), x = (W - w) / 2, y = (H - h) / 2; panel(x, y, w, h, 'THE DISTRICT');
@@ -1251,21 +1432,22 @@ function drawScavHud(dt) {
       else if (s.type === 'door' && !s.room.open) { icon = 'lock'; opts.badgeIcon = s.tool; opts.disabled = !(packCount(SC.pack, 'lockpick') || packCount(SC.pack, 'crowbar')); }
       else if (s.type === 'exit') { icon = 'exit'; opts.hl = true; }
       if (!icon) continue;
+      if (!(Math.abs(p.x - s.x) < 150 && Math.abs(p.fy - s.f) < .5) && !(p.task && p.task.spot === s)) continue;
       const sx = w2sx(s.x), sy = w2sy(w.fy2y(s.f) - 95); if (sx < -40 || sx > W + 40 || sy < -40 || sy > H + 40) continue;
       const working = p.task && p.task.spot === s && !(p.path && p.path.length) && s.type === 'search';
       spotBubble(sx, sy, icon, Object.assign(opts, { progress: working ? clamp(p.task.t / s.dur, 0, 1) : undefined }));
       UI.btn(sx - 26, sy - 26, 52, 52, () => scUseSpot(s));
     }
-    for (const h of w.hides) { const sx = w2sx(h.x), sy = w2sy(w.fy2y(h.f) - 125); spotBubble(sx, sy, 'hide', { size: 36, color: '#9ab' }); UI.btn(sx - 22, sy - 22, 44, 44, () => scUseHide(h)); }
+    for (const h of w.hides) { if (!(Math.abs(p.x - h.x) < 150 && Math.abs(p.fy - h.f) < .5)) continue; const sx = w2sx(h.x), sy = w2sy(w.fy2y(h.f) - 125); spotBubble(sx, sy, 'hide', { size: 36, color: '#9ab' }); UI.btn(sx - 22, sy - 22, 44, 44, () => scUseHide(h)); }
     // zombie state markers
     for (const z of SC.zombies) { if (!z.alive) continue; if (z.state === 'chase' || z.state === 'look' || z.alert > .3) { const sx = w2sx(z.x), sy = w2sy(w.fy2y(z.fy) - 100); drawIcon(z.state === 'chase' ? 'alert' : 'eye', sx, sy, 22, z.state === 'chase' ? RED : GOLD); } }
   }
   // top: timer + eye
   const cx = W / 2; ctx.fillStyle = 'rgba(14,15,18,.75)'; rr(cx - 170, 8, 340, 62, 10); ctx.fill();
-  drawIcon('moon', cx - 140, 33, 22, '#aab'); bar(cx - 118, 27, 190, 12, SC.timer / NIGHT_LEN, SC.timer < 30 ? RED : '#8a93a8');
+  drawNightClock(cx - 60, 33);
   const seenCol = SC.seen ? RED : (p.hidden ? '#8ab' : SC.zombies.some(z => z.alive && z.alert > .3) ? GOLD : GREEN);
   ctx.fillStyle = seenCol; circ(cx + 100, 33, 16); ctx.fill(); drawIcon(p.hidden ? 'eyeOff' : 'eye', cx + 100, 33, 22, '#111');
-  txt(SC.loc.name, cx - 23, 56, 13, DIM);
+  txt(SC.loc.name, cx - 60, 56, 13, DIM);
   // sneak toggle (bottom-left), big
   iconButton(60, H - 60, 76, 'sneak', () => { SC.sneak = !SC.sneak; AUDIO.sfx('tap'); }, { active: SC.sneak, bg: SC.sneak ? '#20302a' : undefined });
   // fight button
@@ -1278,16 +1460,18 @@ function drawScavHud(dt) {
   // message
   if (SC.msgT > 0 && SC.msg) { ctx.fillStyle = 'rgba(14,15,18,.85)'; rr(cx - 40, 70, 80, 50, 10); ctx.fill(); drawIcon(SC.msg, cx, 95, 30); }
 }
+function drawNightClock(x, y) { const h = nightHour(); const late = G.nightT < 60; drawIcon('moon', x - 80, y, 22, '#aab'); bar(x - 58, y - 6, 110, 12, G.nightT / NIGHT_TOTAL, late ? RED : '#8a93a8'); const hh = Math.floor(h) % 24, mm = Math.floor((h % 1) * 60); txt(hh + ':' + (mm < 10 ? '0' : '') + mm, x + 90, y, 18, late ? RED : INK); }
 function drawPackGrid(x, y, cols, pack, cap, onTap) {
   const size = 54; const rows = Math.ceil(cap / cols);
   for (let i = 0; i < cap; i++) { const ix = x + (i % cols) * (size + 6), iy = y + Math.floor(i / cols) * (size + 6); ctx.fillStyle = '#1b1d20'; rr(ix, iy, size, size, 8); ctx.fill(); ctx.strokeStyle = '#33363b'; ctx.lineWidth = 1.5; rr(ix, iy, size, size, 8); ctx.stroke(); const s = pack[i]; if (s) { drawIcon(s.id, ix + size / 2, iy + size / 2 - 3, 30); if (s.n > 1) txt(s.n, ix + size - 6, iy + size - 10, 13, INK, 'right'); if (onTap) UI.btn(ix, iy, size, size, () => onTap(i)); } }
   return rows * (size + 6);
 }
 function drawScavInv() {
-  const cols = 6; const w = cols * 60 + 30, h = Math.ceil(SC.cap / cols) * 60 + 70, x = W - w - 20, y = H - h - 100;
+  const S = G.phase === 'travel' ? TR : SC;
+  const cols = 6; const w = cols * 60 + 30, h = Math.ceil(S.cap / cols) * 60 + 70, x = W - w - 20, y = H - h - 100;
   ctx.fillStyle = PANEL_BG; rr(x, y, w, h, 10); ctx.fill(); ctx.strokeStyle = PANEL_EDGE; ctx.lineWidth = 2; rr(x, y, w, h, 10); ctx.stroke(); UI.btn(x, y, w, h, () => { });
   txt('BACKPACK · tap to drop', x + w / 2, y + 20, 15, DIM);
-  drawPackGrid(x + 15, y + 40, cols, SC.pack, SC.cap, i => { SC.pack.splice(i, 1); AUDIO.sfx('tap'); });
+  drawPackGrid(x + 15, y + 40, cols, S.pack, S.cap, i => { S.pack.splice(i, 1); AUDIO.sfx('tap'); });
 }
 function drawLoot() {
   const s = UI.modal.spot; const w = Math.min(W - 20, 560), h = Math.min(H - 20, 330), x = (W - w) / 2, y = (H - h) / 2; panel(x, y, w, h, 'FOUND');
@@ -1311,8 +1495,8 @@ function drawLeave() {
 }
 function drawScavEnd() {
   const r = SC.result; const w = Math.min(W - 30, 520), h = 300, x = (W - w) / 2, y = (H - h) / 2; panel(x, y, w, h, r.died ? 'LOST' : r.timeout ? 'DAWN CAME' : 'BACK HOME');
-  if (r.died) { drawIcon('dead', x + w / 2, y + 110, 60, RED); txt(SC.player.name + ' did not come back', x + w / 2, y + 170, 18, INK); }
-  else { txt(r.kills + ' put down' + (r.wounded ? ' · wounded on the way back' : ''), x + w / 2, y + 66, 15, r.wounded ? RED : DIM); drawPackGrid(x + (w - Math.min(SC.cap, 7) * 60) / 2, y + 90, 7, r.pack, SC.cap, null); }
+  if (r.died) { drawIcon('dead', x + w / 2, y + 110, 60, RED); txt(r.timeout ? TR.player.name + ' was still out at dawn · lost' : TR.player.name + ' did not come back', x + w / 2, y + 170, 18, INK); }
+  else { txt(r.kills + ' put down', x + w / 2, y + 66, 15, DIM); drawPackGrid(x + (w - Math.min(TR.cap, 7) * 60) / 2, y + 90, 7, r.pack, TR.cap, null); }
   textButton(x + w / 2 - 60, y + h - 50, 120, 40, 'OK', () => { finishScavenge(); }, { primary: true });
 }
 
@@ -1328,7 +1512,7 @@ function drawTitle() {
   const has = !!loadSave();
   textButton(W / 2 - 110, H * .58, 220, 50, 'NEW GAME', () => newGame(), { primary: !has, icon: 'play' });
   if (has) textButton(W / 2 - 110, H * .58 + 64, 220, 50, 'CONTINUE', () => continueGame(), { primary: true, icon: 'home' });
-  txt('3 survivors · 1 house · 20 days until the convoy', W / 2, H - 30, 14, DIM, 'center', '400');
+  txt('3 survivors · 1 house · 20 days until the convoy · be home by 5', W / 2, H - 30, 14, DIM, 'center', '400');
 }
 function drawEnd(win) {
   ctx.fillStyle = 'rgba(0,0,0,.75)'; ctx.fillRect(0, 0, W, H);
@@ -1343,7 +1527,7 @@ function drawEnd(win) {
 // ===== game state, day loop, night resolution, save =====
 const DAY_LEN = 210; // real seconds for 06:00 → 20:00
 const SAVE_KEY = 'ashwinter2';
-let G = { phase: 'title', day: 1, hour: 6, inv: {}, survivors: [], world: null, built: {}, flags: {}, collectorWater: 0, sel: 0, plan: {}, planLoc: null, report: [], event: null, msg: '', msgT: 0 };
+let G = { nightT: 0, phase: 'title', day: 1, hour: 6, inv: {}, survivors: [], world: null, built: {}, flags: {}, collectorWater: 0, sel: 0, plan: {}, planLoc: null, report: [], event: null, msg: '', msgT: 0 };
 
 function newGame() {
   G = { phase: 'day', day: 1, hour: 6, inv: { wood: 2, water: 2, canned: 1 }, survivors: SURVIVOR_TEMPLATES.slice(0, 3).map((t, i) => makeSurvivor(t, i)), world: makeShelter(), built: {}, flags: {}, collectorWater: 0, sel: 0, plan: {}, planLoc: null, report: [], event: null, msg: '', msgT: 0 };
@@ -1454,21 +1638,20 @@ function homeLights() {
 // ---------- night ----------
 function beginNight() {
   UI.modal = null; const scavName = Object.keys(G.plan).find(n => G.plan[n] === 'scav');
-  if (scavName && G.planLoc) { const s = G.survivors.find(v => v.name === scavName); G.phase = 'scav'; startScavenge(LOCATIONS.find(l => l.id === G.planLoc), s); }
+  if (scavName) { const s = G.survivors.find(v => v.name === scavName); startTravel(s); }
   else { resolveNight(null); }
 }
 function finishScavenge() {
-  const r = SC.result; const p = SC.player; const w = G.world;
+  const r = TR.result; const p = TR.player; const w = G.world; cam.lock = false; TR.active = false; SC.active = false;
   UI.modal = null; p.hasPack = false; p.visible = true; p.hidden = false; p.task = null; p.path = null; p.x = 140; p.fy = 1; p.f = 1;
   if (r.died) { p.alive = false; p.health = 0; }
   else { for (const s of r.pack) G.inv[s.id] = (G.inv[s.id] || 0) + s.n; if (r.kills) p.morale = clamp(p.morale + r.kills * 2, 0, 100); }
-  G.flags['v_' + r.loc.id] = true;
   resolveNight(r);
 }
 function resolveNight(scav) {
   const rep = []; const w = G.world; const alive = G.survivors.filter(s => s.alive);
   const line = (icon, text, color) => rep.push({ icon, text, color });
-  if (scav) { if (scav.died) line('dead', scav.loc.name + ': ' + SC.player.name + ' was lost', RED); else line('backpack', scav.loc.name + ': ' + scav.pack.reduce((a, s) => a + s.n, 0) + ' items brought home' + (scav.wounded ? ' · wounded' : ''), scav.wounded ? GOLD : GREEN); }
+  if (scav) { if (scav.died) line('dead', TR.player.name + (scav.timeout ? ' never made it back before dawn' : ' was lost out there'), RED); else line('backpack', TR.player.name + ' brought home ' + scav.pack.reduce((a, s) => a + s.n, 0) + ' items · ' + scav.kills + ' put down', GREEN); }
   const guards = alive.filter(s => G.plan[s.name] === 'guard'), sleepers = alive.filter(s => G.plan[s.name] === 'sleep');
   const beds = 1 + (G.built.bed ? 1 : 0);
   sleepers.forEach((s, i) => { s.fatigue = clamp(s.fatigue + (i < beds ? 70 : 45), 0, 100); if (i < beds) s.morale = clamp(s.morale + 3, 0, 100); });
@@ -1543,9 +1726,15 @@ function frame(now) {
       if (G.phase === 'win') drawEnd(true); if (G.phase === 'lose') drawEnd(false);
       break;
     }
+    case 'travel': {
+      if (!UI.modal) trUpdate(dt); else _T += dt;
+      drawStreet(dt); drawTravelHud(dt);
+      if (UI.modal) { switch (UI.modal.kind) { case 'scavEnd': drawScavEnd(); break; case 'inv': drawScavInv(); break; } }
+      break;
+    }
     case 'scav': {
       if (!UI.modal) scUpdate(dt); else _T += dt;
-      const actors = [SC.player, ...SC.zombies]; drawScene(SC.world, 21.5, actors, { t: _T, dt, lights: SC.lights });
+      const actors = [SC.player, ...SC.zombies]; drawScene(SC.world, Math.min(23.5, nightHour()), actors, { t: _T, dt, lights: SC.lights });
       drawScavHud(dt);
       if (UI.modal) { switch (UI.modal.kind) { case 'loot': drawLoot(); break; case 'leave': drawLeave(); break; case 'scavEnd': drawScavEnd(); break; case 'inv': drawScavInv(); break; } }
       break;
