@@ -53,7 +53,7 @@ const CFG = {
   swingG:3.1,
   rightK:14, rightC:3.2, legSwingK:30, legSwingC:4.5,   // after letting go: how the body's spin and the legs' swing play out in the air                                        // a vine swings like a short rope, not a long slow pendulum
   pickReach:10, pickSquat:19, pickHinge:1.05,        // how far ahead a thing on the ground is picked from, and how low he goes
-  variety:1,                                         // 0 = identical every time; 1 = a person
+  variety:1.35,                                         // 0 = identical every time; 1 = a person
   climbSpeed:26, mantleTime:0.5, flipSpin:1.5, vineArc:1.3, vineTop:250
 };
 
@@ -147,7 +147,7 @@ function ankleFor(px,py,pitch,face){
 }
 
 function createWalker(world,x,seed){
-  const si=world.indexAt(x), gy=world.s[si].y;
+  const si=world.indexAt(x), gy=world.yAt(x);
   const mk=px=>({px:px,py:gy,si:si,face:1,planted:true,pitch:0,heel:0,landPitch:0,ax:px,ay:gy-CFG.ankleH,
                  settle:false,back:0,lx:0,ly:0,t:0,T:1,sx:0,sy:0,sp:0,tx:px,ty:gy,tsi:si,tax:px,tay:gy-CFG.ankleH,tp:0,lift:0,prof:'flat'});
   const hy=gy-(CFG.ankleH+LEG-CFG.crouchIdle);
@@ -180,7 +180,7 @@ function pickTarget(w,world,o,goalV,Trem){
   if(i===j && world.s[j].w<20) i=j+dir;                 // narrow tread: one foot each
   i=clamp(i,0,world.s.length-1);
   if(w.stopX!=null) xf=dir>0?Math.min(xf,w.stopX+CFG.stopLead):Math.max(xf,w.stopX-CFG.stopLead);   // stopping: land beside where the hips will rest
-  const dy=world.s[i].y-world.s[j].y;                    // a face too tall to step: stay on this surface
+  const dy=world.yAt(xf)-o.py;                           // a face too tall to step: stay on this surface
   if(dy<-CFG.maxStepUp||dy>CFG.maxStepDown) i=j;
   if(i===j && (xf-o.px)*dir<4) xf=o.px+dir*4;           // always land ahead of the other foot
   const r=footRange(world,i,dir);
@@ -189,8 +189,8 @@ function pickTarget(w,world,o,goalV,Trem){
 
 /* Point a foot at a landing spot, starting from wherever it is right now. */
 function aim(w,world,f,i,tx,T,settle,sf){
-  const ty=world.s[i].y, dy=ty-f.py;
-  f.prof = dy<-0.5?'up':(dy>0.5?'down':'flat');
+  const ty=world.yAt(tx), dy=ty-f.py, sl=world.gAt?world.gAt(tx):0;
+  f.prof = (dy<-0.5&&!sl)?'up':((dy>0.5&&!sl)?'down':'flat');
   if(f.prof!=='flat' && !settle) T=Math.max(T,CFG.swingStair*(f.planted?1:0.6));
   f.tp = settle?0:(f.prof==='up'?CFG.toeFirstUp:(f.prof==='down'?CFG.toeFirstDown:-CFG.heelStrike*sf));
   f.lift = f.prof==='flat'?(settle?2.2:lerp(CFG.liftSlow,CFG.liftFast,sf)+(settle?0:(w._rf||0))*(CFG.liftRun-CFG.liftFast)):CFG.liftStair+(w._rf||0)*3;
@@ -285,7 +285,7 @@ function stepWalk(w,world,input,dt,o){
   // --- feet in the air
   for(const f of w.feet) if(!f.planted){
     f.t+=dt/f.T;
-    if(f.t>=1){ f.planted=true; f.px=f.tx; f.py=f.ty; f.si=f.tsi; f.landPitch=f.tp; f.heel=0; w.steps++;
+    if(f.t>=1){ f.planted=true; f.px=f.tx; f.py=f.ty; f.si=f.tsi; f.landPitch=f.tp; f.heel=0; f.slp=Math.atan((world.gAt?world.gAt(f.tx):0)*f.face); w.steps++;
       if(!f.settle){ w.load=1; w.bv+=CFG.strikeJolt*(0.3+sf); }                      // heel strike: the knee takes the load, the body jolts
       w.events.push({type:'step',x:f.px,y:f.py,speed:sp,stone:S_[f.si].w<40,prof:f.prof}); }
     else{
@@ -314,7 +314,7 @@ function stepWalk(w,world,input,dt,o){
       // nearly stopped: set the feet either side of where the hips rest, the worse one first
       const F=w.facing, rest=w.stopX+w.shift, front=f0.px*F>=f1.px*F?f0:f1, rear=front===f0?f1:f0;
       const plan=[[front,rest+F*1.6],[rear,rest-F*1.6]].map(([f,ix])=>{
-        let i=world.indexAt(ix); if(Math.abs(world.s[i].y-f.py)>CFG.maxStepUp) i=f.si;
+        let i=world.indexAt(ix); if(Math.abs(world.yAt(ix)-f.py)>CFG.maxStepUp) i=f.si;
         const r=footRange(world,i,F); return {f:f,i:i,tx:clamp(ix,r[0],r[1]),err:Math.abs(f.px-ix)}; });
       plan.sort((a,b)=>b.err-a.err);
       const m=plan[0]; if(m.err>2.6&&Math.abs(m.tx-m.f.px)>1) aim(w,world,m.f,m.i,m.tx,CFG.swingSettle,true,0);
@@ -327,7 +327,7 @@ function stepWalk(w,world,input,dt,o){
     const hT=(f.face===w.dir?ss((behind-0.4*hRef)/(0.8*hRef))*CFG.heelOff:0)+o.tap[i];
     f.heel+=(hT-f.heel)*(1-Math.exp(-25*dt));
     f.landPitch*=Math.exp(-16*dt);
-    f.pitch=f.heel+f.landPitch;
+    f.pitch=f.heel+f.landPitch+(f.planted?(f.slp||0):(f.slp||0)*(1-f.t));
     const an=ankleFor(f.px,f.py,f.pitch,f.face); f.ax=an[0]; f.ay=an[1];
   }
 
@@ -543,7 +543,7 @@ function land(w,world){ w.stopX=null;
   w.mode='walk'; w.des=w.y; w.landSquat=clamp(w.vy/24,3,9.5)*vary(w,0.15); w.landHold=0.10;
   w.events.push({type:'land',x:w.x,y:world.yAt(w.x),speed:w.vy,stone:world.s[world.indexAt(w.x)].w<40}); w.vy=0;
   for(const f of w.feet){ const si=world.indexAt(f.ax), r=footRange(world,si,w.facing);     // each boot gets a few frames to find a legal spot
-    f.py=world.s[si].y; aim(w,world,f,si,clamp(f.ax,r[0],r[1]),0.07,true,0); }
+    f.py=world.yAt(clamp(f.ax,r[0],r[1])); aim(w,world,f,si,clamp(f.ax,r[0],r[1]),0.07,true,0); }
   if(hard) startRoll(w,world);                                                             // a long drop rolls out
 }
 
@@ -556,7 +556,7 @@ function enterCrawl(w,world){ startFade(w,0.40); w.mode='crawl'; w.reading=w.dan
 function standUp(w,world){ w.stopX=null;
   startFade(w,0.45); w.mode='walk'; w.crawl=null; w.roll=null;
   const si=world.indexAt(w.x), r=footRange(world,si,w.facing);
-  w.feet.forEach((f,i)=>{ f.planted=true; f.settle=false; f.si=si; f.py=world.s[si].y; f.px=clamp(w.x+(i?1.6:-1.6),r[0],r[1]); f.face=w.facing; f.heel=f.landPitch=f.pitch=0;
+  w.feet.forEach((f,i)=>{ f.planted=true; f.settle=false; f.si=si; f.px=clamp(w.x+(i?1.6:-1.6),r[0],r[1]); f.py=world.yAt(f.px); f.face=w.facing; f.heel=f.landPitch=f.pitch=0;
     const a=ankleFor(f.px,f.py,0,f.face); f.ax=a[0]; f.ay=a[1]; });
   w.des=w.y; w.by=w.y; w.bv=0; w.kneeF=w.facing; w.squat=0;
 }
@@ -616,7 +616,7 @@ function stepRoll(w,world,input,dt){
   w.y=P.hip.y; w.lean=th; w.label='rolling';
   if(s>=1){ const hx=P.hip.x; standUp(w,world); w.x=clamp(hx,world.x0,world.x1);               // come up into a crouch and let the walk stand us up
     const si=world.indexAt(w.x), rg=footRange(world,si,F);
-    w.feet.forEach((f,i)=>{ f.si=si; f.py=world.s[si].y; f.px=clamp(a.x+(i?0.8:-0.8),rg[0],rg[1]); const an=ankleFor(f.px,f.py,0,F); f.ax=an[0]; f.ay=an[1]; });
+    w.feet.forEach((f,i)=>{ f.si=si; f.px=clamp(a.x+(i?0.8:-0.8),rg[0],rg[1]); f.py=world.yAt(f.px); const an=ankleFor(f.px,f.py,0,F); f.ax=an[0]; f.ay=an[1]; });
     w.vx=F*Math.min(Math.abs(w.vx),input*F>0.1?44:18); w.lean=F*0.5; if(w.fade){ w.fade.dur=0.24; w.fade.x0=w.x; } w.events.push({type:'land',x:w.x,y:world.s[si].y,speed:60,stone:world.s[si].w<40}); }
   return P;
 }
@@ -1372,9 +1372,9 @@ const _WE = () => WalkEngine;
 function mkWorld(segs, x0, x1) {
   const s = segs; const w = { s, x0, x1, vines: [], items: [], itemsInit: [], edges: [], marks: {},
     indexAt(px) { let lo = 0, hi = s.length - 1; if (px <= s[0].x0) return 0; if (px >= s[hi].x1) return hi; while (lo < hi) { const m = (lo + hi) >> 1; if (px >= s[m].x1) lo = m + 1; else hi = m; } return lo; },
-    yAt(px) { return s[this.indexAt(px)].y; } };
-  for (let i = 1; i < s.length; i++) { const d = s[i].y - s[i - 1].y; if (Math.abs(d) <= _WE().CFG.maxStepUp) continue; w.edges.push({ x: s[i].x0, y: Math.min(s[i].y, s[i - 1].y), floor: Math.max(s[i].y, s[i - 1].y), hi: d < 0 ? 1 : -1, climb: false }); }
-  return w;
+    yAt(px) { const g = s[this.indexAt(px)]; return g.y1 == null ? g.y : g.y + (g.y1 - g.y) * clamp((px - g.x0) / (g.x1 - g.x0), 0, 1); },
+    gAt(px) { const g = s[this.indexAt(px)]; return g.y1 == null ? 0 : (g.y1 - g.y) / (g.x1 - g.x0); } };
+  return w;   // no ledges anywhere: a walker only ever walks to an edge
 }
 function flatWorld(y, x0, x1) { return mkWorld([{ x0: x0 - 300, x1: x1 + 300, y, w: x1 - x0 + 600 }], x0, x1); }
 // a flight climbing to the right from (xa,ya) to (xb,yb) in n risers (engine units)
@@ -1391,16 +1391,16 @@ function engStreet(obstacles, gy, x0, x1) {
   const segs = []; let x = x0 / RS - 300; const g = gy / RS;
   const push = (xa, xb, y) => { if (xb > xa) segs.push({ x0: xa, x1: xb, y, w: xb - xa }); };
   for (const o of obstacles.slice().sort((a, b) => a.x - b.x)) {
-    const l = (o.x - o.w / 2) / RS, r = (o.x + o.w / 2) / RS, h = o.h / RS, n = Math.max(2, Math.ceil(h / 7)), tr = (RAMP / RS) / n, rise = h / n;
-    push(x, l - RAMP / RS, g);
-    for (let i = 0; i < n; i++) push(l - RAMP / RS + i * tr, l - RAMP / RS + (i + 1) * tr, g - (i + 1) * rise);
+    const l = (o.x - o.w / 2) / RS, r = (o.x + o.w / 2) / RS, h = o.h / RS, rw = RAMP / RS;
+    push(x, l - rw, g);
+    segs.push({ x0: l - rw, x1: l, y: g, y1: g - h, w: rw });   // ramp up
     push(l, r, g - h);
-    for (let i = 0; i < n; i++) push(r + i * tr, r + (i + 1) * tr, g - h + (i + 1) * rise);
-    x = r + RAMP / RS;
+    segs.push({ x0: r, x1: r + rw, y: g - h, y1: g, w: rw });   // ramp down
+    x = r + rw;
   }
   push(x, x1 / RS + 300, g);
   // merge adjacent equal-height pieces
-  const m = []; for (const s of segs) { const p = m[m.length - 1]; if (p && Math.abs(p.y - s.y) < 1e-6 && Math.abs(p.x1 - s.x0) < 1e-6) { p.x1 = s.x1; p.w = p.x1 - p.x0; } else m.push(Object.assign({}, s)); }
+  const m = []; for (const s of segs) { const p = m[m.length - 1]; if (p && p.y1 == null && s.y1 == null && Math.abs(p.y - s.y) < 1e-6 && Math.abs(p.x1 - s.x0) < 1e-6) { p.x1 = s.x1; p.w = p.x1 - p.x0; } else m.push(Object.assign({}, s)); }
   return mkWorld(m, x0 / RS, x1 / RS);
 }
 function strHash(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
@@ -1412,16 +1412,18 @@ function rigOf(a, ew, x) {
   return a.wk;
 }
 // drive toward tx (engine units); loose = pass through without braking
+function styleOf(a) { if (a.style) return a.style; const r = mulberry(strHash(String(a.name || a.id || 'q')) % 100000); if (a.zombie) return a.style = { lean: .18 + r() * .3, head: .1 + r() * .35, armA: [.3 + r() * 1.1, .2 + r() * 1.2], armB: [.1 + r() * .5, .1 + r() * .5], lurch: r() * .09, limp: r() < .5 ? .5 + r() : 0, pace: .55 + r() * .55, sway: r() * .5 }; return a.style = { lean: -.03 + r() * .08, head: -.06 + r() * .12, pace: .9 + r() * .2, bounce: r() * .06, swing: .8 + r() * .5 }; }
+function withStyle(a, ext) { const st = styleOf(a); if (a.zombie) return ext; const o = Object.assign({}, ext || {}); if (o.lean == null) o.lean = st.lean; if (o.head == null) o.head = st.head; return o; }
 function rigTo(a, ew, tx, spd, dt, ext, loose) {
-  dt = Math.max(dt || 0, 1e-3); const w = rigOf(a, ew, a.wk && a.wkW === ew ? a.wk.x : a.x / RS); w.ext = ext || null;
+  dt = Math.max(dt || 0, 1e-3); const w = rigOf(a, ew, a.wk && a.wkW === ew ? a.wk.x : a.x / RS); w.ext = withStyle(a, ext); spd *= styleOf(a).pace || 1;
   const d = tx - w.x, brake = w.vx * w.vx / (2 * _WE().CFG.stopDecel) + 2.5; let inp = 0;
   if (loose ? Math.abs(d) > 3 : Math.abs(d) > brake) inp = Math.sign(d) * spd;
   _WE().updateWalker(w, ew, inp, dt, 0); if (!inp && !loose && w.stopX != null && Math.abs(w.stopX - tx) < 30) w.stopX = tx;
   w.events.length = 0; a.wkT = _T;
   return loose ? Math.abs(w.x - tx) < 4 : (!inp && Math.abs(w.x - tx) < 2 && Math.abs(w.vx) < 3);
 }
-function rigInput(a, ew, inp, dt, ext) { dt = Math.max(dt || 0, 1e-3); const w = rigOf(a, ew, a.x / RS); w.ext = ext || null; _WE().updateWalker(w, ew, inp, dt, 0); if (w.x < ew.x0) { w.x = ew.x0; w.vx = 0; } if (w.x > ew.x1) { w.x = ew.x1; w.vx = 0; } w.events.length = 0; a.wkT = _T; return w; }
-function rigIdle(a, ew, dt, ext) { dt = Math.max(dt || 0, 1e-3); const w = rigOf(a, ew, a.x / RS); w.ext = ext || null; _WE().updateWalker(w, ew, 0, dt, 0); if (w.stopX != null && Math.abs(w.stopX - w.x) < 30) w.stopX = w.x; w.events.length = 0; a.wkT = _T; return w; }
+function rigInput(a, ew, inp, dt, ext) { dt = Math.max(dt || 0, 1e-3); const w = rigOf(a, ew, a.x / RS); w.ext = withStyle(a, ext); inp *= styleOf(a).pace || 1; _WE().updateWalker(w, ew, inp, dt, 0); if (w.x < ew.x0) { w.x = ew.x0; w.vx = 0; } if (w.x > ew.x1) { w.x = ew.x1; w.vx = 0; } w.events.length = 0; a.wkT = _T; return w; }
+function rigIdle(a, ew, dt, ext) { dt = Math.max(dt || 0, 1e-3); const w = rigOf(a, ew, a.x / RS); w.ext = withStyle(a, ext); _WE().updateWalker(w, ew, 0, dt, 0); if (w.stopX != null && Math.abs(w.stopX - w.x) < 30) w.stopX = w.x; w.events.length = 0; a.wkT = _T; return w; }
 function rigFace(a, dir) { const w = a.wk; if (w && dir && w.facing !== dir) { w.facing = w.dir = w.kneeF = dir; } }
 function rigDance(a, on) { const w = a.wk; if (w && !!w.dancing !== !!on) _WE().command(w, w.world, 'dance'); }
 function rigRead(a, on) { const w = a.wk; if (w && !!w.reading !== !!on) _WE().command(w, w.world, 'read'); }
@@ -1454,9 +1456,9 @@ function poseExt(pose, t, extra, a) {
     case 'attack': return { arm: [{ a: .5, b: .9 }, { a: -1.5 + k * 2.6, b: .3 }], lean: .12 + k * .25, rate: 28 };
     case 'shove': return { arm: [{ a: .4 + k * 1.1, b: 1.2 - k * 1.1 }, { a: .4 + k * 1.1, b: 1.2 - k * 1.1 }], lean: .15 + k * .2, rate: 24 };
     case 'hurt': return { arm: [{ a: .7, b: .7 }, { a: .9, b: .6 }], lean: -.3, head: -.2, rate: 24 };
-    case 'zombie': { const q = s(t * 1.1); return { lean: .33 + q * .04, head: .3, arm: [{ a: 1.25 + q * .1, b: .25 }, { a: 1.05 - q * .1, b: .3 }], squat: 2.5, rate: 6 }; }
-    case 'zombieIdle': { const q = s(t * 1.3); return { lean: .25, head: .32 + q * .08, arm: [{ a: .5 + q * .1, b: .35 }, { a: .35, b: .3 }], squat: 2 }; }
-    case 'zombieAttack': return { lean: .3 + k * .3, head: .4, arm: [{ a: .6 + k * .9, b: .3 }, { a: .45 + k * 1.1, b: .25 }], rate: 26 };
+    case 'zombie': { const z = styleOf(a || {}); const q = s(t * 1.1), st = a && a.wk ? a.wk.steps || 0 : 0, lurch = z.limp ? (st % 2 ? z.limp * 2.2 : 0) : 0; return { lean: z.lean + .12 + q * .04 + z.lurch * s(t * 2.3), head: z.head + .12, arm: [{ a: z.armA[0] + q * .08, b: z.armB[0] }, { a: z.armA[1] - q * .08, b: z.armB[1] }], squat: 2 + lurch, rate: 5 }; }
+    case 'zombieIdle': { const z = styleOf(a || {}); const q = s(t * 1.3); return { lean: z.lean, head: z.head + q * .08 + .1, arm: [{ a: z.armA[0] * .5 + q * .1, b: z.armB[0] }, { a: z.armA[1] * .4, b: z.armB[1] }], squat: 2 }; }
+    case 'zombieAttack': { const z = styleOf(a || {}); return { lean: z.lean + .1 + k * .3, head: .4, arm: [{ a: .6 + k * .9, b: .3 }, { a: .45 + k * 1.1, b: .25 }], rate: 26 }; }
     case 'idle': return a && a.idlePose ? idleExt(a.idlePose, a.idleT || 0) : null;
     default: return null;
   }
@@ -2206,6 +2208,8 @@ function drawScene(world, hour, actors, opts = {}) {
   for (const h of world.hides) drawHide(world, h);
   // fx: motes, floaters
   drawFx(world, hour, night, opts.dt || 0);
+  // locked rooms: shuttered and dark until someone gets the door open
+  for (const r of world.rooms) if (!r.open) { const fy = world.fy2y(r.f), ceil = fy - FLOOR_H + 14; ctx.fillStyle = 'rgba(8,8,10,.86)'; ctx.fillRect(r.x0 + 6, ceil, r.x1 - r.x0 - 12, fy - ceil); ctx.fillStyle = 'rgba(255,255,255,.04)'; for (let y = ceil + 10; y < fy - 10; y += 18) ctx.fillRect(r.x0 + 6, y, r.x1 - r.x0 - 12, 2); }
   // night lighting
   if (sky.light < .9) drawLighting(world, sky, opts.lights || []);
   ctx.restore();
@@ -2604,8 +2608,8 @@ function trUpdate(dt) {
       z.pose = 'zombie'; z.facing = dx < 0 ? -1 : 1;
       if (d > 600) { z.lostT += dt; if (z.lostT > 4) { z.state = 'idle'; z.alert = 0; } }
       if (d < 30 && Math.abs(heightAt(z.x) - TR.py) < 30) { z.attackT += dt; z.pose = 'zombieAttack'; z.poseExtra = { k: (z.attackT % 1) / .5 }; if (z.attackT >= 1) { z.attackT = 0; p.health -= 11; p.hurtT = .3; p.wounded = true; AUDIO.sfx('hurt'); if (Math.random() < .25 && !p.infected) { p.infected = true; trMsg('infected', 2); } if (p.health <= 0) { p.health = 0; trLost(false); return; } } }
-      else { rigTo(z, TR.ew, TR.x / RS, 58 / (WalkEngine.CFG.walkSpeed * RS), dt, poseExt('zombie', z.t), true); z.x = z.wk.x * RS; z.attackT = 0; }
-    } else if (z.state === 'wander') { z.pose = 'zombie'; const nz = z.x + z.facing * 20 * dt; if (heightAt(nz) <= 4 && nz > 300) { rigInput(z, TR.ew, z.facing * .32, dt, poseExt('zombie', z.t)); z.x = z.wk.x * RS; } else z.facing *= -1; if (z.t > 4) { z.state = 'idle'; z.t = 0; } }
+      else { rigTo(z, TR.ew, TR.x / RS, 58 / (WalkEngine.CFG.walkSpeed * RS), dt, poseExt('zombie', z.t, null, z), true); z.x = z.wk.x * RS; z.attackT = 0; }
+    } else if (z.state === 'wander') { z.pose = 'zombie'; const nz = z.x + z.facing * 20 * dt; if (heightAt(nz) <= 4 && nz > 300) { rigInput(z, TR.ew, z.facing * .32, dt, poseExt('zombie', z.t, null, z)); z.x = z.wk.x * RS; } else z.facing *= -1; if (z.t > 4) { z.state = 'idle'; z.t = 0; } }
     else { z.pose = 'zombieIdle'; if (z.t > 2 + Math.random() * 4) { z.t = 0; z.state = 'wander'; z.facing = Math.random() < .5 ? -1 : 1; } }
     z.py = heightAt(z.x);
   }
@@ -2631,7 +2635,7 @@ function drawStreet(dt) {
     if (d.x < x0v - 300 || d.x > x1v + 300) continue;
     if (d.t === 'wall') { ctx.fillStyle = '#2a2724'; ctx.fillRect(d.x, gy + 14 - d.h, d.w, d.h); ctx.fillStyle = 'rgba(0,0,0,.35)'; for (let wy = gy + 14 - d.h + 24; wy < gy; wy += 34) for (let wx = d.x + 12; wx < d.x + d.w - 16; wx += 30) ctx.fillRect(wx, wy, 14, 20); if (d.s < .3) { ctx.fillStyle = 'rgba(255,150,60,.5)'; ctx.fillRect(d.x + 12 + Math.floor(d.s * 10) * 30 % (d.w - 30), gy - 40, 14, 20); } }
     else if (d.t === 'fence') { ctx.fillStyle = '#3a3733'; for (let fx = d.x; fx < d.x + d.w; fx += 14) ctx.fillRect(fx, gy + 14 - 50, 6, 50); ctx.fillRect(d.x, gy - 30, d.w, 4); }
-    else if (d.t === 'lamp') { ctx.fillStyle = '#3a3a3a'; ctx.fillRect(d.x, gy - 180, 6, 194); ctx.fillRect(d.x, gy - 184, 34, 6); if (d.s < .5) { ctx.fillStyle = 'rgba(255,200,120,.07)'; ctx.beginPath(); ctx.moveTo(d.x + 30, gy - 180); ctx.lineTo(d.x - 60, gy + 14); ctx.lineTo(d.x + 120, gy + 14); ctx.fill(); } }
+    else if (d.t === 'lamp') { ctx.fillStyle = '#3a3a3a'; ctx.fillRect(d.x, gy - 180, 6, 194); ctx.fillRect(d.x, gy - 184, 34, 6); if (d.s < .5) { const fl = d.s < .18 ? .55 + .45 * Math.abs(Math.sin(_T * 23 + d.x)) * (Math.sin(_T * 3.1 + d.x) > -.7 ? 1 : 0) : 1; ctx.fillStyle = `rgba(255,214,150,${.9 * fl})`; ctx.fillRect(d.x + 22, gy - 180, 12, 5); d.fl = fl; ctx.fillStyle = 'rgba(255,200,120,.07)'; ctx.beginPath(); ctx.moveTo(d.x + 30, gy - 180); ctx.lineTo(d.x - 60, gy + 14); ctx.lineTo(d.x + 120, gy + 14); ctx.fill(); } }
     else { ctx.fillStyle = '#2f2b28'; ctx.fillRect(d.x, gy + 14 - 18, 30 + d.s * 30, 18); }
   }
   // ground
@@ -2651,6 +2655,7 @@ function drawStreet(dt) {
   const L = [{ x: TR.x + TR.player.facing * 80, y: GROUND_Y - TR.py - 50, r: 260, c: '255,230,180', a: .55 }, { x: TR.x, y: GROUND_Y - TR.py - 40, r: 130, c: '255,230,180', a: .3 }];
   for (const l of LOCATIONS) { const lx = TR.locX[l.id]; if (Math.abs(lx - cam.x) < 1200) L.push({ x: lx, y: gy - 120, r: 150, c: '200,120,80', a: .25 }); }
   L.push({ x: 0, y: gy - 100, r: 200, c: '255,190,110', a: .35 });
+  for (const d of TR.decor) if (d.t === 'lamp' && d.s < .5 && Math.abs(d.x - cam.x) < 1400) L.push({ x: d.x + 28, y: gy - 150, r: 230, c: '255,215,150', a: .5 * (d.fl == null ? 1 : d.fl) });
   drawLighting(Object.assign(fake, { x0: x0v - 600, x1: x1v + 600 }), sky, L);
   ctx.restore();
   const vg = ctx.createRadialGradient(W / 2, H / 2, H * .35, W / 2, H / 2, H * .95); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.55)'); ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
@@ -3033,7 +3038,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(255,120,40,.12)'; circ(W * .3, H * .9, 260); ctx.fill();
   // walkers
   if (!UI.titleZ) { UI.titleZ = []; for (let i = 0; i < 6; i++) UI.titleZ.push({ x: W * .15 + i * W * .14, y: H - 10, facing: i % 2 ? 1 : -1, walkPhase: i, zombie: true, coat: ['#2a2826', '#3a3030', '#2a3a30'][i % 3], scale: 1.1, t: i * 1.7, name: 'tz' + i }); }
-  for (const z of UI.titleZ) { z.t += 1 / 60; z._tw = z._tw || flatWorld(z.y / RS, -1e5, 1e5); const ww = rigInput(z, z._tw, z.facing * .3, 1 / 60, poseExt('zombie', z.t)); z.x = ww.x * RS; if (z.x < W * .05) z.facing = 1; if (z.x > W * .95) z.facing = -1; z.wkT = _T; drawPerson(z, 'zombie', _T); }
+  for (const z of UI.titleZ) { z.t += 1 / 60; z._tw = z._tw || flatWorld(z.y / RS, -1e5, 1e5); const ww = rigInput(z, z._tw, z.facing * .3, 1 / 60, poseExt('zombie', z.t, null, z)); z.x = ww.x * RS; if (z.x < W * .05) z.facing = 1; if (z.x > W * .95) z.facing = -1; z.wkT = _T; drawPerson(z, 'zombie', _T); }
   txt('ASHWINTER', W / 2, H * .3, Math.min(96, W / 7), INK, 'center', '700'); txt('the dead walk the district', W / 2, H * .3 + Math.min(70, W / 10), 20, DIM, 'center', '400');
   const has = !!loadSave();
   textButton(W / 2 - 110, H * .58, 220, 50, 'NEW GAME', () => newGame(), { primary: !has, icon: 'play' });
