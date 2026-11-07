@@ -1736,14 +1736,14 @@ const REPAIR_COST = { wood: 2 };
 // shelter: 3 floors. floor 0 = cellar (y 0), 1 = ground, 2 = upper.  y increases downward; floor index increases upward.
 const FLOOR_H = 150, HOUSE_X0 = 60, HOUSE_X1 = 1340, GROUND_Y = 420; // ground floor floor-line
 const floorY = f => GROUND_Y - (f - 1) * FLOOR_H; // floor-line y for floor f
-const STAIRS = [{ x: 1180, a: 0, b: 1 }, { x: 240, a: 1, b: 2 }];
+const STAIRS = [{ x: 820, a: 0, b: 1 }, { x: 240, a: 1, b: 2 }];
 // rooms: floor, x0, x1, name, wall color, locked (needs tool), key hotspots
 const ROOMS = [
   { f: 0, x0: 700, x1: 1340, name: 'cellar', col: '#4b4a47' },
   { f: 0, x0: 60, x1: 700, name: 'storeroom', col: '#44443f', locked: 'crowbar' },
   { f: 1, x0: 60, x1: 520, name: 'living', col: '#7a6a55' },
-  { f: 1, x0: 520, x1: 900, name: 'kitchen', col: '#6f7a6a' },
-  { f: 1, x0: 900, x1: 1340, name: 'garage', col: '#5c5e60', locked: 'lockpick' },
+  { f: 1, x0: 520, x1: 960, name: 'kitchen', col: '#6f7a6a' },
+  { f: 1, x0: 960, x1: 1340, name: 'garage', col: '#5c5e60', locked: 'lockpick' },
   { f: 2, x0: 60, x1: 460, name: 'bedroom', col: '#6a5a6b' },
   { f: 2, x0: 460, x1: 760, name: 'bath', col: '#5d7272' },
   { f: 2, x0: 760, x1: 1340, name: 'study', col: '#705a4a', locked: 'crowbar' }
@@ -1765,7 +1765,7 @@ const SHELTER_SPOTS = [
   { id: 'rubble2', f: 2, x: 900, type: 'dig', uses: 4, loot: [['wood', 3], ['scrap', 1], ['parts', 1]] },
   { id: 'desk', f: 2, x: 1180, type: 'search', uses: 2, loot: [['books', 2], ['parts', 1], ['lockpick', 1]] },
   { id: 'rubble3', f: 0, x: 1000, type: 'dig', uses: 5, loot: [['wood', 2], ['scrap', 2], ['parts', 1]] },
-  { id: 'crates', f: 0, x: 800, type: 'search', uses: 3, loot: [['canned', 1], ['fuel', 1], ['cloth', 1]] },
+  { id: 'crates', f: 0, x: 1120, type: 'search', uses: 3, loot: [['canned', 1], ['fuel', 1], ['cloth', 1]] },
   { id: 'storeshelf', f: 0, x: 400, type: 'search', uses: 4, loot: [['canned', 2], ['water', 2], ['fuel', 1], ['parts', 1]] },
   { id: 'rubble4', f: 0, x: 200, type: 'dig', uses: 4, loot: [['wood', 3], ['scrap', 3]] },
   // built / fixed stations
@@ -1881,8 +1881,8 @@ function makeShelter(saved) {
   const add = (f, x, t, o) => props.push(Object.assign({ f, x, t }, o || {}));
   add(1, 300, 'sofa'); add(1, 180, 'table'); add(1, 460, 'shelf', { h: 60 }); add(1, 600, 'cabinet'); add(1, 820, 'fridge'); add(1, 720, 'counter'); add(1, 1060, 'rubble', { id: 'rubble1' }); add(1, 1200, 'garshelf'); add(1, 980, 'car');
   add(2, 130, 'dresser'); add(2, 340, 'bedframe'); add(2, 600, 'medcab'); add(2, 680, 'tub'); add(2, 900, 'rubble', { id: 'rubble2' }); add(2, 1180, 'desk'); add(2, 1050, 'bookcase');
-  add(0, 1000, 'rubble', { id: 'rubble3' }); add(0, 800, 'crates'); add(0, 1240, 'bench'); add(0, 400, 'storeshelf'); add(0, 200, 'rubble', { id: 'rubble4' }); add(0, 560, 'boiler');
-  add(1, 530, 'pipe'); add(0, 900, 'pipe'); add(2, 500, 'sink');
+  add(0, 1000, 'rubble', { id: 'rubble3' }); add(0, 1120, 'crates'); add(0, 1240, 'bench'); add(0, 400, 'storeshelf'); add(0, 200, 'rubble', { id: 'rubble4' }); add(0, 560, 'boiler');
+  add(1, 530, 'pipe'); add(0, 1180, 'pipe'); add(2, 500, 'sink');
   const stairs = [{ x: 820, a: 0, b: 1 }, { x: 240, a: 1, b: 2 }];
   const barricades = BARRICADES.map(b => Object.assign({ level: 0, hp: 0 }, b));
   const w = new World({ x0: HOUSE_X0, x1: HOUSE_X1, nFloors: 3, rooms: ROOMS, stairs, spots, barricades, props });
