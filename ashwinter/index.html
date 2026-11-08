@@ -215,7 +215,7 @@ const Motion = (() => {
     if (onStair) { const two = 2 * tread <= LEG * (w.grade < 0 ? 1.35 : 1.05) && hurry > .3 ? 2 : 1;   // steps per second tops out near 3; two treads a step when they are small enough (easier going down)
       vlim = Math.min(vlim, tread * two * (w.grade > 0 ? CFG.cadenceUp * (1 + .5 * hurry) : CFG.cadenceDown * (1 + .4 * hurry)) * Math.max(Math.min(push, 1), .35));
     }
-    if (Math.abs(w.grade) > .05) vlim = Math.min(vlim, (w.grade > 0 ? 12 + 20 * hurry : 18 + 22 * hurry) / Math.abs(w.grade));   // legs can only climb or drop so fast (u/s vertical) — stairs or ramps
+    if (Math.abs(w.grade) > .05) vlim = Math.min(vlim, (w.grade > 0 ? 22 + 22 * hurry : 26 + 24 * hurry) / Math.abs(w.grade));   // legs can only climb or drop so fast (u/s vertical) — stairs or ramps
     let goal = Math.sign(input) * vlim;
     if (input) w.stopX = null;
     else {
@@ -992,7 +992,7 @@ function drawDemoBar() {
 <script>
 // ===== Ashwinter ↔ Motion Rig: every person and zombie is a Motion.Character on a per-floor terrain =====
 // Motion frame: x in px, heights up from a base line (the lowest floor, or the street). Game frame: y down.
-const MS = 1.05, STAIR_N = 14;                                              // px per rig unit (a person ≈ 80 px)
+const MS = 1.05, STAIR_N = 18;                                              // px per rig unit (a person ≈ 80 px)
 const RIGP = { ready: true };                                  // (kept for callers)
 const _CFG = () => Motion.CFG;
 function baseOf(world) { return world.fy2y(0); }
@@ -1443,7 +1443,7 @@ const EVENTS = [
 
 // ---- 20_world.js ----
 // ===== world: rooms, stairs, hotspots, navigation (shared by shelter and scavenge sites) =====
-const STAIR_W = 100;
+const STAIR_W = 120;
 let CUR_W = null, LASTTAP = { t: -9, x: 0, y: 0 };
 function isDoubleTap(wx, wy) { const now = performance.now() / 1000, d = now - LASTTAP.t < .45 && Math.hypot(wx - LASTTAP.x, wy - LASTTAP.y) < 70; LASTTAP = { t: now, x: wx, y: wy }; return d; }
 class World {
