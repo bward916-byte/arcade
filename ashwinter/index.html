@@ -1475,9 +1475,11 @@ class World {
     const up = tf > f; let best = null, bd = 1e9;
     for (const s of this.stairsFor(f)) {
       const other = s.a === f ? s.b : s.a; if ((other > f) !== up) continue;
-      const foot = up ? s.x - STAIR_W : s.x + STAIR_W, head = up ? s.x + STAIR_W : s.x - STAIR_W;
-      if (!this.passable(x, foot, f)) continue;
-      const rest = this.path(head, other, tx, tf, depth + 1); if (!rest) continue;
+      const fe = up ? s.x - STAIR_W : s.x + STAIR_W, he = up ? s.x + STAIR_W : s.x - STAIR_W, o = up ? 16 : -16;   // flight edges
+      if (!this.passable(x, fe, f)) continue;
+      const rest = this.path(he, other, tx, tf, depth + 1); if (!rest) continue;
+      // land a step past each edge (when that spot is open) so the walker is fully off the flight before the waypoint counts
+      const foot = this.passable(fe, fe - o, f) ? fe - o : fe, head = this.passable(he, he + o, other) ? he + o : he;
       const d = Math.abs(x - foot) + Math.abs(head - tx) + Math.abs(other - tf) * 200;
       if (d < bd) { bd = d; best = [{ x: foot, fy: f }, { x: head, fy: other }, ...rest]; }
     }
@@ -1500,7 +1502,7 @@ function moveActor(a, dt, speed) {
   let done = false; const steps = Math.max(1, Math.ceil(dt / .05)), sdt = Math.max(dt / steps, 1e-3); for (let i = 0; i < steps; i++) done = rigTo(a, tr, wp.x, spd, sdt, ext, !last);
   a.x = c.x; a.fy = clamp(c.y / FLOOR_H, 0, W.nFloors - 1);
   a.f = Math.round(a.fy); a.moving = Math.abs(c.w.vx) > 3; a.facing = c.facing; a.walkPhase += dt * Math.abs(c.w.vx) * c.k * .045;
-  if (done) { a.path.shift(); if (a.onStair && Math.abs(a.fy - wp.fy) < .03) { a.fy = wp.fy; a.f = wp.fy; a.onStair = null; } if (!a.path.length) { a.moving = false; a.run = false; a.f = Math.round(a.fy); return true; } }
+  if (done) { a.path.shift(); if (a.onStair && Math.abs(a.fy - wp.fy) < .12) { a.fy = wp.fy; a.f = wp.fy; a.onStair = null; } if (!a.path.length) { a.moving = false; a.run = false; a.f = Math.round(a.fy); return true; } }
   return false;
 }
 
