@@ -1051,10 +1051,14 @@ function mcOf(a, t) {
   return a.mc;
 }
 function setMove(c, m, a) {   // m = speed in walker units (1 = walk, 2 = run), signed
-  const pace = (a && (a.zt ? a.zt.pace : a.st && a.st.pace)) || 1; m *= pace;
+  let pace = (a && (a.zt ? a.zt.pace : a.st && a.st.pace)) || 1; if (a && !a.zombie) { const md = moodOf(a); if (md) pace *= md.pace; } m *= pace;
   const am = Math.abs(m); if (am <= 1) { c.input.run = false; c.input.move = m; } else { c.input.run = true; c.input.move = Math.sign(m) * Math.min(1, am / 2); }
 }
-function extFor(a, ext) { const o = ext ? Object.assign({}, ext) : {}; if (a.st && !a.zombie) { if (o.lean == null) o.lean = a.st.lean; if (o.head == null) o.head = a.st.head; } return o; }
+// how a survivor feels shows in how he carries himself: sad → head down and slumped, tired → heavy and slow, hurt → bent, favouring the belly, hungry → a little sunk
+function moodOf(a) { if (a.zombie || a.morale == null) return null; const t = _T | 0; if (a._mood && a._moodT === t) return a._mood;
+  const sad = clamp((45 - a.morale) / 45, 0, 1), tired = clamp((40 - a.fatigue) / 40, 0, 1), hurt = clamp((50 - a.health) / 50, 0, 1) + (a.infected ? .35 : 0), hungry = clamp((35 - a.hunger) / 35, 0, 1);
+  a._moodT = t; return a._mood = { lean: .10 * sad + .07 * tired + .12 * hurt, head: -.24 * sad - .16 * tired - .06 * hurt, squat: 1.1 * tired + 2 * hurt + .5 * hungry, pace: clamp(1 - .1 * tired - .18 * hurt - .07 * hungry - .05 * sad, .6, 1), arm: hurt > .55 ? { a: .95, b: 1.45, k: .9 } : null, rate: .55 * sad + .6 * tired + .8 * hurt }; }
+function extFor(a, ext) { const o = ext ? Object.assign({}, ext) : {}; if (a.st && !a.zombie) { const m = moodOf(a) || { lean: 0, head: 0, squat: 0 }; if (o.lean == null) o.lean = a.st.lean + m.lean; if (o.head == null) o.head = a.st.head + m.head; if (m.squat) o.squat = (o.squat || 0) + m.squat; if (m.arm && !o.arm) o.arm = [null, m.arm]; if (m.rate && o.rate == null) o.rate = 12 - 6 * Math.min(1, m.rate); } return o; }
 // drive toward tx (px). loose: pass through without braking. Returns true when there.
 function rigTo(a, t, tx, spd, dt, ext, loose) {
   const c = mcOf(a, t), w = c.w, k = c.k; c.hold = null; w.ext = extFor(a, ext);
@@ -1075,11 +1079,12 @@ const SNEAK_EXT = { squat: 4.5, lean: .22, arm: [{ a: .55, b: 1.25, k: .9 }, { a
 // the actor's terrain when standing about (home / site / street / title)
 function engFor(a) {
   if (a.street || (TR.active && (a === TR.player || TR.zombies.includes(a)))) return TR.ew;
-  const w = typeof CUR_W !== 'undefined' && CUR_W; if (w && a.fy != null) return engFlat(w, Math.round(a.fy));
+  const w = typeof CUR_W !== 'undefined' && CUR_W; if (w && a.onStair) return engStair(w, a.onStair);   // paused mid-flight: stay on the stairs
+  if (w && a.fy != null) return engFlat(w, Math.round(a.fy));
   a._tw = a._tw || flatWorld(a.y, -1e5, 1e5); return a._tw;
 }
 // hand position (px, game frame) and forearm angle, for tools
-function handOf(a) { const c = a.mc, k = c.skeleton(c.cur), dy = c.curDy != null ? c.curDy : k.dy, f = c.facing * k.sx; const P = k.armN[2], E = k.armN[1];
+function handOf(a) { const c = a.mc; if (!c || !c.cur) return null; const k = c.skeleton(c.cur), dy = c.curDy != null ? c.curDy : k.dy, f = c.facing * k.sx; const P = k.armN[2], E = k.armN[1];
   return { x: c.x + P[0] * f, y: a.mcT.base - c.y + P[1] + dy, th: Math.atan2(P[1] - E[1], (P[0] - E[0]) * c.facing) }; }
 
 </script>
@@ -1654,8 +1659,8 @@ function drawPersonRig(a, pose, t, extra) {
   a._lt = _T;
   if (pose === 'dead') { ctx.fillStyle = 'rgba(70,10,10,.45)'; ctx.beginPath(); ctx.ellipse(X - (a.facing || 1) * 10, tr.base - c.y + 1, 30, 6, 0, 0, TAU); ctx.fill(); }
   ctx.save(); if (a.hurtT > 0) ctx.translate(rnd(-1.3, 1.3), 0); c.draw(ctx, 0, tr.base, null, false); ctx.restore();
-  const tool = poseTool(pose, extra, a); if (tool && !c.dead) { const h = handOf(a); const F = a.facing || 1; const ang = (tool === 'shovel' ? h.th - Math.PI / 2 : h.th + Math.PI / 2) * F; drawTool(tool, h.x, h.y, ang, F); }
-  if (a.idlePose === 'read') { const h = handOf(a); ctx.save(); ctx.translate(h.x, h.y - 2); ctx.rotate((a.facing || 1) * .35); ctx.fillStyle = '#cfc3a6'; ctx.fillRect(-7, -4.5, 14, 9); ctx.fillStyle = '#6b5a44'; ctx.fillRect(-.7, -4.5, 1.4, 9); ctx.restore(); }
+  const tool = poseTool(pose, extra, a); if (tool && !c.dead && handOf(a)) { const h = handOf(a); const F = a.facing || 1; const ang = (tool === 'shovel' ? h.th - Math.PI / 2 : h.th + Math.PI / 2) * F; drawTool(tool, h.x, h.y, ang, F); }
+  if (a.idlePose === 'read') { const h = handOf(a); if (h) { ctx.save(); ctx.translate(h.x, h.y - 2); ctx.rotate((a.facing || 1) * .35); ctx.fillStyle = '#cfc3a6'; ctx.fillRect(-7, -4.5, 14, 9); ctx.fillStyle = '#6b5a44'; ctx.fillRect(-.7, -4.5, 1.4, 9); ctx.restore(); } }
   if (a.say && a.sayT > 0) { const sx = X, sy = tr.base - c.y - 100 * (a.scale || 1); ctx.fillStyle = 'rgba(20,20,22,.85)'; rr(sx - 16, sy - 16, 32, 32, 8); ctx.fill(); drawIcon(a.say, sx, sy, 20); }
 }
 function poseTool(pose, extra, a) { switch (pose) { case 'dig': return 'shovel'; case 'hammer': return 'hammer'; case 'cook': return 'spoon'; case 'guard': case 'attack': return extra && extra.weapon; default: return null; } }
