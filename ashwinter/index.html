@@ -1598,11 +1598,12 @@ function initInput() {
   });
   const up = e => {
     const p = IN.ptrs.get(e.pointerId); IN.ptrs.delete(e.pointerId); if (!p) return;
-    if (IN.ptrs.size === 0 && !IN.dragging && IN.moved < 12 && performance.now() - IN.downT < 500) IN.taps.push({ x: e.clientX, y: e.clientY });
+    if (UI.drag) { IN.drop = { x: e.clientX, y: e.clientY }; }
+    else if (IN.ptrs.size === 0 && !IN.dragging && IN.moved < 12 && performance.now() - IN.downT < 500) IN.taps.push({ x: e.clientX, y: e.clientY });
     if (IN.ptrs.size === 0) IN.dragging = false;
   };
   el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
-  el.addEventListener('wheel', e => { e.preventDefault(); if (!UI.modal) zoomAt(e.clientX, e.clientY, cam.z * (e.deltaY < 0 ? 1.1 : 0.9)); }, { passive: false });
+  el.addEventListener('wheel', e => { e.preventDefault(); if (!UI.modal) zoomAt(e.clientX, e.clientY, cam.z * (e.deltaY < 0 ? 1.1 : 0.9)); else if (UI.modal.kind === 'loot') UI.modal.scroll = Math.max(0, (UI.modal.scroll || 0) + e.deltaY); }, { passive: false });
   window.addEventListener('keydown', e => { if (e.key === 'Escape') UI.escape(); });
 }
 function zoomAt(sx, sy, nz) {
@@ -2719,7 +2720,7 @@ function drawTravelHud(dt) {
 const UI = {
   hits: [], modal: null, help: false, invOpen: false, survOpen: -1, ff: false,
   btn(x, y, w, h, fn) { this.hits.push({ x, y, w, h, fn }); },
-  escape() { if (this.modal && this.modal.kind !== 'plan' && this.modal.kind !== 'dawn' && this.modal.kind !== 'event' && this.modal.kind !== 'scavEnd' && this.modal.kind !== 'leave') this.modal = null; this.invOpen = false; this.survOpen = -1; this.help = false; }
+  escape() { UI.drag = null; if (this.modal && this.modal.kind !== 'plan' && this.modal.kind !== 'dawn' && this.modal.kind !== 'event' && this.modal.kind !== 'scavEnd' && this.modal.kind !== 'leave') this.modal = null; this.invOpen = false; this.survOpen = -1; this.help = false; }
 };
 const PANEL_BG = 'rgba(18,19,22,.94)', PANEL_EDGE = '#3a3d42', INK = '#e6e1d6', DIM = '#8d8a82', RED = '#c9513f', GREEN = '#7fb069', GOLD = '#d9b35a';
 
@@ -3003,19 +3004,62 @@ function drawScavInv() {
   txt('BACKPACK · tap to drop', x + w / 2, y + 20, 15, DIM);
   drawPackGrid(x + 15, y + 40, cols, S.pack, S.cap, i => { S.pack.splice(i, 1); AUDIO.sfx('tap'); });
 }
+// ---- loot dialog: found items on the left, your pack on the right. Tap or drag; Take all; Arrange. ----
+// At home the pack is the house store: unlimited, scrollable.
+function lootPackView(M) {
+  if (!M.home) return { slots: SC.pack, cap: SC.cap, add: (id, n) => packAdd(SC.pack, SC.cap, id, n), take: i => { const st = SC.pack[i]; SC.pack.splice(i, 1); return st; }, swap: (a, b) => { const t = SC.pack[a]; SC.pack[a] = SC.pack[b]; SC.pack[b] = t; if (!SC.pack[a]) SC.pack.splice(a, 1); if (!SC.pack[b]) SC.pack.splice(b, 1); } };
+  const ids = ITEM_ORDER.filter(k => G.inv[k] > 0); const slots = ids.map(k => ({ id: k, n: G.inv[k] }));
+  return { slots, cap: Infinity, add: (id, n) => { G.inv[id] = (G.inv[id] || 0) + n; return n; }, take: i => { const st = slots[i]; G.inv[st.id] = 0; return { id: st.id, n: st.n }; }, swap: () => { } };
+}
 function drawLoot() {
-  const s = UI.modal.spot; const w = Math.min(W - 20, 560), h = Math.min(H - 20, 330), x = (W - w) / 2, y = (H - h) / 2; panel(x, y, w, h, 'FOUND');
-  // left: items; right: pack
-  const lx = x + 20; let ly = y + 70;
-  if (!s.lootList.length) txt('nothing left', lx + 90, ly, 16, DIM);
-  s.lootList.forEach((it, i) => {
-    const iy = y + 60 + i * 44; ctx.fillStyle = '#25272b'; rr(lx, iy, 200, 38, 8); ctx.fill(); drawIcon(it.id, lx + 22, iy + 19, 26); txt(ITEMS[it.id].n, lx + 44, iy + 19, 15, INK, 'left'); txt('×' + it.n, lx + 190, iy + 19, 15, INK, 'right');
-    UI.btn(lx, iy, 200, 38, () => { const got = packAdd(SC.pack, SC.cap, it.id, it.n); it.n -= got; if (got) AUDIO.sfx('pick'); else scMsg('backpack', 1); if (it.n <= 0) s.lootList.splice(i, 1); });
-  });
-  textButton(lx, y + h - 50, 200, 38, 'Take all', () => { for (let i = s.lootList.length - 1; i >= 0; i--) { const it = s.lootList[i]; const got = packAdd(SC.pack, SC.cap, it.id, it.n); it.n -= got; if (it.n <= 0) s.lootList.splice(i, 1); } AUDIO.sfx('pick'); }, { primary: true, icon: 'backpack' });
-  drawPackGrid(x + 240, y + 60, 5, SC.pack, SC.cap, i => { SC.pack.splice(i, 1); });
-  txt(SC.pack.length + '/' + SC.cap, x + w - 30, y + 26, 16, DIM, 'right');
-  iconButton(x + w - 28, y + 26, 36, 'close', () => { UI.modal = null; });
+  const M = UI.modal, sp = M.spot, found = sp.lootList; const home = !!M.home;
+  const w = Math.min(W - 16, 540), h = Math.min(H - 16, 312), x = (W - w) / 2, y = (H - h) / 2; panel(x, y, w, h, 'FOUND');
+  const PV = lootPackView(M);
+  const L = { x: x + 12, y: y + 48, w: 186, h: h - 108 }, R = { x: x + 210, y: y + 48, w: w - 222, h: h - 108 }; if (w < 420) { L.w = 150; R.x = x + 170; R.w = w - 182; } const size = 50, gap = 5, cols = Math.max(3, Math.floor((R.w - 8) / (size + gap)));
+  // panes
+  ctx.fillStyle = 'rgba(0,0,0,.25)'; rr(L.x, L.y, L.w, L.h, 8); ctx.fill(); rr(R.x, R.y, R.w, R.h, 8); ctx.fill();
+  txt(home ? 'STORE · unlimited' : 'PACK ' + PV.slots.length + '/' + PV.cap, R.x + 4, y + 36, 12, DIM, 'left'); if (!home && !found.length) txt('empty', L.x + L.w / 2, L.y + L.h / 2, 15, DIM);
+  // hit regions
+  const items = []; // {x,y,w,h, from:'found'|'pack', idx}
+  found.forEach((it, i) => { const iy = L.y + 6 + i * 42; if (iy + 38 > L.y + L.h) return; items.push({ x: L.x + 6, y: iy, w: L.w - 12, h: 38, from: 'found', idx: i });
+    const ghost = UI.drag && UI.drag.from === 'found' && UI.drag.idx === i; ctx.globalAlpha = ghost ? .35 : 1; ctx.fillStyle = '#25272b'; rr(L.x + 6, iy, L.w - 12, 38, 8); ctx.fill(); drawIcon(it.id, L.x + 26, iy + 19, 26); txt(ITEMS[it.id].n, L.x + 46, iy + 19, 14, INK, 'left'); txt('×' + it.n, L.x + L.w - 14, iy + 19, 14, INK, 'right'); ctx.globalAlpha = 1; });
+  // pack grid (scrollable)
+  const rows = home ? Math.ceil((PV.slots.length + 1) / cols) : Math.ceil(PV.cap / cols); const gridH = rows * (size + gap); const maxScroll = Math.max(0, gridH - (R.h - 8));
+  M.scroll = clamp(M.scroll || 0, 0, maxScroll);
+  ctx.save(); ctx.beginPath(); rr(R.x, R.y, R.w, R.h, 8); ctx.clip();
+  const nSlots = home ? PV.slots.length + 1 : PV.cap;
+  for (let i = 0; i < nSlots; i++) { const ix = R.x + 6 + (i % cols) * (size + gap), iy = R.y + 6 + Math.floor(i / cols) * (size + gap) - M.scroll; if (iy + size < R.y || iy > R.y + R.h) continue;
+    ctx.fillStyle = '#1b1d20'; rr(ix, iy, size, size, 8); ctx.fill(); ctx.strokeStyle = '#33363b'; ctx.lineWidth = 1.5; rr(ix, iy, size, size, 8); ctx.stroke();
+    const st = PV.slots[i]; if (st) { const ghost = UI.drag && UI.drag.from === 'pack' && UI.drag.idx === i; ctx.globalAlpha = ghost ? .35 : 1; drawIcon(st.id, ix + size / 2, iy + size / 2 - 3, 28); if (st.n > 1) txt(st.n, ix + size - 5, iy + size - 9, 12, INK, 'right'); ctx.globalAlpha = 1; }
+    items.push({ x: ix, y: iy, w: size, h: size, from: 'pack', idx: i, empty: !st }); }
+  ctx.restore();
+  if (maxScroll > 0) { const th = Math.max(20, R.h * (R.h / gridH)); ctx.fillStyle = 'rgba(255,255,255,.2)'; rr(R.x + R.w - 5, R.y + 4 + (R.h - 8 - th) * (M.scroll / maxScroll), 3, th, 2); ctx.fill(); }
+  // drop target highlight
+  if (UI.drag) { const p = [...IN.ptrs.values()][0]; if (p) { UI.drag.x = p.x; UI.drag.y = p.y; } const over = UI.drag.from === 'found' ? R : L; ctx.strokeStyle = GOLD; ctx.lineWidth = 2; rr(over.x, over.y, over.w, over.h, 8); ctx.stroke(); }
+  const inRect = (r, px, py) => px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + r.h;
+  // --- interaction ---
+  const moveToPack = (i, all) => { const it = found[i]; if (!it) return; const got = PV.add(it.id, it.n); it.n -= got; if (got) AUDIO.sfx('pick'); else if (!all) scMsg('backpack', 1); if (it.n <= 0) found.splice(i, 1); };
+  const moveToFound = (i) => { const st = PV.take(i); if (!st) return; const e = found.find(q => q.id === st.id); if (e) e.n += st.n; else found.push({ id: st.id, n: st.n }); AUDIO.sfx('tap'); };
+  // start a drag: one pointer, pressed on an item, moved a little
+  if (!UI.drag && IN.ptrs.size === 1 && IN.moved > 7) { const hit = items.find(r => !r.empty && inRect(r, IN.downX, IN.downY)); if (hit) { const st = hit.from === 'found' ? found[hit.idx] : PV.slots[hit.idx]; if (st) UI.drag = { from: hit.from, idx: hit.idx, id: st.id, n: st.n, x: IN.downX, y: IN.downY }; else if (inRect(R, IN.downX, IN.downY)) M.scrollDrag = true; } else if (inRect(R, IN.downX, IN.downY) && maxScroll > 0) M.scrollDrag = true; }
+  if (M.scrollDrag) { const p = [...IN.ptrs.values()][0]; if (p) { if (M.lastY != null) M.scroll = clamp(M.scroll - (p.y - M.lastY), 0, maxScroll); M.lastY = p.y; } else { M.scrollDrag = false; M.lastY = null; } }
+  if (IN.drop && UI.drag) { const d = UI.drag, dp = IN.drop; IN.drop = null; UI.drag = null;
+    if (d.from === 'found' && inRect(R, dp.x, dp.y)) { const slot = items.find(r => r.from === 'pack' && inRect(r, dp.x, dp.y)); if (!home && slot && slot.empty && slot.idx <= PV.slots.length) { const it = found[d.idx]; const max = STACK[it.id] || 1, t = Math.min(max, it.n); PV.slots.splice(Math.min(slot.idx, PV.slots.length), 0, { id: it.id, n: t }); it.n -= t; if (it.n <= 0) found.splice(d.idx, 1); AUDIO.sfx('pick'); } else moveToPack(d.idx); }
+    else if (d.from === 'pack' && inRect(L, dp.x, dp.y)) moveToFound(d.idx);
+    else if (d.from === 'pack' && !home && inRect(R, dp.x, dp.y)) { const slot = items.find(r => r.from === 'pack' && inRect(r, dp.x, dp.y)); if (slot && slot.idx !== d.idx) { if (slot.empty) { const st = PV.slots.splice(d.idx, 1)[0]; PV.slots.splice(Math.min(slot.idx, PV.slots.length), 0, st); } else PV.swap(d.idx, slot.idx); AUDIO.sfx('tap'); } }
+  } else if (IN.drop) IN.drop = null;
+  if (!IN.ptrs.size) { M.scrollDrag = false; M.lastY = null; }
+  // taps (only when not dragging)
+  if (!UI.drag) for (const r of items) { if (r.from === 'found') UI.btn(r.x, r.y, r.w, r.h, () => moveToPack(r.idx)); else if (!r.empty && r.y >= R.y && r.y + r.h <= R.y + R.h) UI.btn(r.x, r.y, r.w, r.h, () => moveToFound(r.idx)); }
+  UI.btn(x, y, w, h, () => { }); // swallow taps on the panel
+  // buttons
+  const by = y + h - 50;
+  textButton(x + 12, by, 128, 38, 'Take all', () => { for (let i = found.length - 1; i >= 0; i--) moveToPack(i, true); if (found.length) scMsg('backpack', 1); }, { primary: true, icon: 'backpack' });
+  textButton(x + 150, by, 118, 38, 'Arrange', () => { if (home) return; const merged = []; for (const st of SC.pack) { const max = STACK[st.id] || 1; let left = st.n; for (const m of merged) if (m.id === st.id && m.n < max && left > 0) { const t = Math.min(max - m.n, left); m.n += t; left -= t; } while (left > 0) { const t = Math.min(max, left); merged.push({ id: st.id, n: t }); left -= t; } } merged.sort((a, b) => ITEM_ORDER.indexOf(a.id) - ITEM_ORDER.indexOf(b.id) || b.n - a.n); SC.pack.length = 0; SC.pack.push(...merged); AUDIO.sfx('tap'); }, { icon: 'craft', disabled: home });
+  if (w > 460) txt(home ? 'drag or tap' : 'drag or tap · rearrange', x + w - 14, by + 19, 12, DIM, 'right');
+  iconButton(x + w - 26, y + 24, 34, 'close', () => { UI.modal = null; UI.drag = null; });
+  // drag ghost
+  if (UI.drag) { ctx.save(); ctx.globalAlpha = .9; ctx.fillStyle = '#2b2e33'; rr(UI.drag.x - 26, UI.drag.y - 26, 52, 52, 10); ctx.fill(); drawIcon(UI.drag.id, UI.drag.x, UI.drag.y - 3, 30); if (UI.drag.n > 1) txt(UI.drag.n, UI.drag.x + 20, UI.drag.y + 17, 12, INK, 'right'); ctx.restore(); }
 }
 function drawLeave() {
   const w = 300, h = 150, x = (W - w) / 2, y = (H - h) / 2; panel(x, y, w, h, 'LEAVE?');
@@ -3105,9 +3149,9 @@ function homeUseBarricade(b) {
   s.path = path; s.task = { bar: b, kind, t: 0, dur: kind === 'repair' ? 6 : 9 }; AUDIO.sfx('tap');
 }
 function giveLoot(spot, s) {
-  const [id, n] = pick(spot.loot); const got = Math.max(1, Math.round(n * rnd(.6, 1.2)));
-  if (ITEMS[id].tool && G.inv[id] > 0) { G.inv.scrap = (G.inv.scrap || 0) + 1; floatIcon(s.x, G.world.fy2y(s.fy) - 60, 'scrap', 1); return; }
-  G.inv[id] = (G.inv[id] || 0) + (ITEMS[id].tool ? 1 : got); floatIcon(s.x, G.world.fy2y(s.fy) - 60, id, ITEMS[id].tool ? 1 : got); AUDIO.sfx('pick');
+  const list = []; const picks = 1 + (Math.random() < .5 ? 1 : 0);
+  for (let i = 0; i < picks; i++) { const [id, n] = pick(spot.loot); let got = Math.max(1, Math.round(n * rnd(.6, 1.2))); if (ITEMS[id].tool) { if (G.inv[id] > 0) { list.push({ id: 'scrap', n: 1 }); continue; } got = 1; } const e = list.find(q => q.id === id); if (e) e.n += got; else list.push({ id, n: got }); }
+  spot.lootList = list; AUDIO.sfx('open'); UI.modal = { kind: 'loot', spot, home: true, scroll: 0 };
 }
 
 // ---------- day: update ----------
@@ -3256,7 +3300,7 @@ function frame(now) {
       const hour = G.phase === 'plan' ? 20 : G.phase === 'dawn' || G.phase === 'event' ? 6.5 : G.hour;
       drawScene(G.world, hour, G.survivors, { t: _T, dt, lights: G.phase === 'plan' ? homeLights() : (G.hour > 17 ? homeLights() : []) });
       if (G.phase === 'day' || G.phase === 'plan') drawHomeHud(dt);
-      if (UI.modal) { switch (UI.modal.kind) { case 'plan': drawPlan(); break; case 'map': drawMap(); break; case 'dawn': drawDawn(); break; case 'event': drawEvent(); break; case 'craft': drawCraft(); break; } }
+      if (UI.modal) { switch (UI.modal.kind) { case 'loot': drawLoot(); break; case 'plan': drawPlan(); break; case 'map': drawMap(); break; case 'dawn': drawDawn(); break; case 'event': drawEvent(); break; case 'craft': drawCraft(); break; } }
       if (G.phase === 'win') drawEnd(true); if (G.phase === 'lose') drawEnd(false);
       break;
     }
