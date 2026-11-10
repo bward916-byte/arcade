@@ -2463,7 +2463,7 @@ function drawHomeHud(dt) {
   txt('DAY ' + G.day, cx - 90, 33, 24, INK);
   // clock arc
   const hr = G.hour; ring(cx + 10, 33, 16, clamp((hr - 6) / 14, 0, 1), hr > 17 ? '#c9793f' : GOLD); drawIcon(hr >= 19 ? 'moon' : 'sun', cx + 10, 33, 16, hr >= 19 ? '#aab' : GOLD);
-  txt(Math.floor(hr) + ':' + (Math.floor(hr * 2) % 2 ? '30' : '00'), cx + 60, 33, 18, DIM);
+  { const mm = Math.floor((hr % 1) * 60); txt(Math.floor(hr) + ':' + (mm < 10 ? '0' : '') + mm, cx + 60, 33, 18, DIM); }
   iconButton(cx + 118, 33, 36, 'ff', () => { UI.ff = !UI.ff; }, { active: UI.ff });
   // goal
   ctx.fillStyle = 'rgba(14,15,18,.75)'; rr(W - 130, 8, 122, 50, 10); ctx.fill(); drawIcon('radio', W - 108, 33, 24, G.built.radio ? GREEN : DIM); txt('→ 20', W - 60, 33, 20, G.flags.heardRadio ? INK : DIM);
@@ -2682,7 +2682,7 @@ function drawLoot() {
   const L = { x: x + 12, y: y + 48, w: 186, h: h - 108 }, R = { x: x + 210, y: y + 48, w: w - 222, h: h - 108 }; if (w < 420) { L.w = 150; R.x = x + 170; R.w = w - 182; } const size = 50, gap = 5, cols = Math.max(3, Math.floor((R.w - 8) / (size + gap)));
   // panes
   ctx.fillStyle = 'rgba(0,0,0,.25)'; rr(L.x, L.y, L.w, L.h, 8); ctx.fill(); rr(R.x, R.y, R.w, R.h, 8); ctx.fill();
-  txt(home ? 'STORE · unlimited' : 'PACK ' + PV.slots.length + '/' + PV.cap, R.x + R.w - 8, R.y - 6, 11, DIM, 'right'); if (!home && !found.length) txt('empty', L.x + L.w / 2, L.y + L.h / 2, 15, DIM);
+  { const selSt = M.sel && PV.slots.find(q => q.id === M.sel); if (!selSt) M.sel = null; if (selSt) txt(ITEMS[selSt.id].n + ' ×' + selSt.n, R.x + R.w - 8, R.y - 7, 13, GOLD, 'right'); else if (!home) txt('PACK ' + PV.slots.length + '/' + PV.cap, R.x + R.w - 8, R.y - 6, 11, DIM, 'right'); } if (!home && !found.length) txt('empty', L.x + L.w / 2, L.y + L.h / 2, 15, DIM);
   // hit regions
   const items = []; // {x,y,w,h, from:'found'|'pack', idx}
   found.forEach((it, i) => { const iy = L.y + 6 + i * 42; if (iy + 38 > L.y + L.h) return; items.push({ x: L.x + 6, y: iy, w: L.w - 12, h: 38, from: 'found', idx: i });
@@ -2693,8 +2693,8 @@ function drawLoot() {
   ctx.save(); ctx.beginPath(); rr(R.x, R.y, R.w, R.h, 8); ctx.clip();
   const nSlots = home ? PV.slots.length + 1 : PV.cap;
   for (let i = 0; i < nSlots; i++) { const ix = R.x + 6 + (i % cols) * (size + gap), iy = R.y + 6 + Math.floor(i / cols) * (size + gap) - M.scroll; if (iy + size < R.y || iy > R.y + R.h) continue;
-    ctx.fillStyle = '#1b1d20'; rr(ix, iy, size, size, 8); ctx.fill(); ctx.strokeStyle = '#33363b'; ctx.lineWidth = 1.5; rr(ix, iy, size, size, 8); ctx.stroke();
-    const st = PV.slots[i]; if (st) { const ghost = UI.drag && UI.drag.from === 'pack' && UI.drag.idx === i; ctx.globalAlpha = ghost ? .35 : 1; drawIcon(st.id, ix + size / 2, iy + size / 2 - 3, 28); if (st.n > 1) txt(st.n, ix + size - 5, iy + size - 9, 12, INK, 'right'); ctx.globalAlpha = 1; }
+    const st = PV.slots[i], isSel = st && M.sel === st.id; ctx.fillStyle = '#1b1d20'; rr(ix, iy, size, size, 8); ctx.fill(); ctx.strokeStyle = isSel ? GOLD : '#33363b'; ctx.lineWidth = isSel ? 2 : 1.5; rr(ix, iy, size, size, 8); ctx.stroke();
+    if (st) { const ghost = UI.drag && UI.drag.from === 'pack' && UI.drag.idx === i; ctx.globalAlpha = ghost ? .35 : 1; drawIcon(st.id, ix + size / 2, iy + size / 2 - 3, 28); if (st.n > 1) txt(st.n, ix + size - 5, iy + size - 9, 12, INK, 'right'); ctx.globalAlpha = 1; }
     items.push({ x: ix, y: iy, w: size, h: size, from: 'pack', idx: i, empty: !st }); }
   ctx.restore();
   if (maxScroll > 0) { const th = Math.max(20, R.h * (R.h / gridH)); ctx.fillStyle = 'rgba(255,255,255,.2)'; rr(R.x + R.w - 5, R.y + 4 + (R.h - 8 - th) * (M.scroll / maxScroll), 3, th, 2); ctx.fill(); }
@@ -2713,14 +2713,14 @@ function drawLoot() {
     else if (d.from === 'pack' && !home && inRect(R, dp.x, dp.y)) { const slot = items.find(r => r.from === 'pack' && inRect(r, dp.x, dp.y)); if (slot && slot.idx !== d.idx) { if (slot.empty) { const st = PV.slots.splice(d.idx, 1)[0]; PV.slots.splice(Math.min(slot.idx, PV.slots.length), 0, st); } else PV.swap(d.idx, slot.idx); AUDIO.sfx('tap'); } }
   } else if (IN.drop) IN.drop = null;
   if (!IN.ptrs.size) { M.scrollDrag = false; M.lastY = null; }
+  UI.btn(x, y, w, h, () => { }); // swallow taps on the panel (registered first, so the items and buttons on it win)
   // taps (only when not dragging)
-  if (!UI.drag) for (const r of items) { if (r.from === 'found') UI.btn(r.x, r.y, r.w, r.h, () => moveToPack(r.idx)); else if (!r.empty && r.y >= R.y && r.y + r.h <= R.y + R.h) UI.btn(r.x, r.y, r.w, r.h, () => moveToFound(r.idx)); }
-  UI.btn(x, y, w, h, () => { }); // swallow taps on the panel
+  if (!UI.drag) for (const r of items) { if (r.from === 'found') UI.btn(r.x, r.y, r.w, r.h, () => moveToPack(r.idx)); else if (!r.empty && r.y >= R.y && r.y + r.h <= R.y + R.h) UI.btn(r.x, r.y, r.w, r.h, () => { const st = PV.slots[r.idx]; if (st) { M.sel = M.sel === st.id ? null : st.id; AUDIO.sfx('tap'); } }); }   // tap names the item; drag it left to put it back
   // buttons
   const by = y + h - 50;
-  textButton(x + 12, by, 128, 38, 'Take all', () => { for (let i = found.length - 1; i >= 0; i--) moveToPack(i, true); if (found.length) scMsg('backpack', 1); }, { primary: true, icon: 'backpack' });
+  textButton(x + 12, by, 128, 38, 'Take all', () => { for (let i = found.length - 1; i >= 0; i--) moveToPack(i, true); if (found.length) scMsg('backpack', 1); else { UI.modal = null; UI.drag = null; } }, { primary: true, icon: 'backpack' });   // everything taken: done here
   textButton(x + 150, by, 118, 38, 'Arrange', () => { if (home) return; const merged = []; for (const st of SC.pack) { const max = STACK[st.id] || 1; let left = st.n; for (const m of merged) if (m.id === st.id && m.n < max && left > 0) { const t = Math.min(max - m.n, left); m.n += t; left -= t; } while (left > 0) { const t = Math.min(max, left); merged.push({ id: st.id, n: t }); left -= t; } } merged.sort((a, b) => ITEM_ORDER.indexOf(a.id) - ITEM_ORDER.indexOf(b.id) || b.n - a.n); SC.pack.length = 0; SC.pack.push(...merged); AUDIO.sfx('tap'); }, { icon: 'craft', disabled: home });
-  if (w > 460) txt(home ? 'drag or tap' : 'drag or tap · rearrange', x + w - 14, by + 19, 12, DIM, 'right');
+  if (w > 460) txt('tap to take · drag to move', x + w - 14, by + 19, 12, DIM, 'right');
   iconButton(x + w - 26, y + 24, 34, 'close', () => { UI.modal = null; UI.drag = null; });
   // drag ghost
   if (UI.drag) { ctx.save(); ctx.globalAlpha = .9; ctx.fillStyle = '#2b2e33'; rr(UI.drag.x - 26, UI.drag.y - 26, 52, 52, 10); ctx.fill(); drawIcon(UI.drag.id, UI.drag.x, UI.drag.y - 3, 30); if (UI.drag.n > 1) txt(UI.drag.n, UI.drag.x + 20, UI.drag.y + 17, 12, INK, 'right'); ctx.restore(); }
