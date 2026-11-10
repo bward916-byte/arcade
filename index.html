@@ -37,6 +37,7 @@ a.game:focus-visible{outline:3px solid #fff;outline-offset:2px}
 <script>
 const OWNER='bward916-byte';
 const GAMES=[
+ {repo:'arcade/roofline',title:'ROOFLINE',tag:'Rooftops, rain and security drones. Swipe to stack quad flips, wall-run straight up towers, corkscrew-dash through signs and meteor-slam the roof — just land every flip.',genre:'Swipe parkour',orient:'Landscape',c:'#ff3b30',art:'roof'},
  {repo:'arcade/long-dusk',title:'LONG DUSK',tag:'The sun went out. Carry the last ember down the mountain in a side-view ASCII world: through the Hollow Wood, across the Drowned Fen, into the Sunken Keep to relight the Beacon.',genre:'ASCII side-view RPG',orient:'Portrait or landscape',c:'#ff9a4a',art:'ember'},
  {repo:'arcade/emberfall',title:'EMBERFALL',tag:'The Hearth of Vael went dark a hundred winters ago. Carry the last lantern through an ASCII night, light three beacons on the old hills, and face the Hollow King in his crypt.',genre:'ASCII RPG',orient:'Landscape',c:'#ffb447',art:'ember'},
  {repo:'arcade/floor-zero',title:'FLOOR ZERO',tag:'Three friends, three towers, one city gone wrong. Play Cole, Maya and Jo in turns, fighting down 83, 48 and 60 floors of zombies to the street — and to each other.',genre:'Zombie action descent',orient:'Landscape',c:'#ff6b5a',art:'spire'},
@@ -227,6 +228,19 @@ const ART={
   for(let i=0;i<26;i++){const k=(r()+t*(.05+r()*.06))%1,x=r()*w+Math.sin(t+i)*6,y=h*(1.05-k*1.1);g.fillStyle='rgba(255,'+(140+r()*100|0)+',60,'+Math.sin(k*Math.PI).toFixed(2)+')';g.fillText(r()<.5?'*':'.',x,y);}
   g.fillStyle='#000';g.beginPath();g.arc(lx-w*.06,h*.42,h*.07,0,7);g.fill();g.beginPath();g.moveTo(lx-w*.1,h*.48);g.lineTo(lx-w*.02,h*.48);g.lineTo(lx,h*.95);g.lineTo(lx-w*.12,h*.95);g.fill();
   g.fillStyle='#fff6d6';g.fillText('@',lx+w*.04,h*.58);g.font='900 '+Math.round(h*.16)+'px Georgia,serif';const gr=g.createLinearGradient(0,h*.1,0,h*.26);gr.addColorStop(0,'#fff6d6');gr.addColorStop(1,'#d2401a');g.fillStyle=gr;g.fillText('EMBERFALL',w*.5,h*.18);},
+ roof(g,w,h,t,r){const sky=g.createLinearGradient(0,0,0,h);sky.addColorStop(0,'#0a0f22');sky.addColorStop(1,'#3a2c55');g.fillStyle=sky;g.fillRect(0,0,w,h);
+  g.fillStyle='#f3ead6';g.beginPath();g.arc(w*.82,h*.2,7,0,7);g.fill();
+  g.fillStyle='#1a2140';for(let x=0;x<w;x+=9+r()*8){const bh=h*(.3+r()*.4);g.fillRect(x,h-bh,8+r()*6,bh);}
+  g.fillStyle='rgba(255,214,140,.45)';for(let i=0;i<40;i++)g.fillRect(r()*w,h*.4+r()*h*.5,1.5,2);
+  g.fillStyle='#1b2234';g.fillRect(0,h*.8,w*.42,h*.2);g.fillRect(w*.62,h*.72,w*.38,h*.28);g.strokeStyle='#6c7da0';g.lineWidth=1;g.beginPath();g.moveTo(0,h*.8);g.lineTo(w*.42,h*.8);g.moveTo(w*.62,h*.72);g.lineTo(w,h*.72);g.stroke();
+  g.strokeStyle='rgba(170,190,230,.25)';g.beginPath();for(let i=0;i<30;i++){const x=r()*w,y=r()*h;g.moveTo(x,y);g.lineTo(x-2,y+6);}g.stroke();
+  const cx=w*.5,cy=h*.42;g.save();g.translate(cx,cy);g.rotate(.9);
+  g.strokeStyle='#c41e24';g.lineWidth=2.5;g.beginPath();g.moveTo(-2,-6);g.quadraticCurveTo(-14,-14,-26,-6);g.stroke();
+  g.fillStyle='#262a33';g.beginPath();g.ellipse(0,-2,5,8,0,0,7);g.fill();g.beginPath();g.arc(2,-12,4.5,0,7);g.fill();g.fillStyle='#b3191f';g.fillRect(3,-11,3,3);
+  g.strokeStyle='#1b1e25';g.lineWidth=3.5;g.lineCap='round';g.beginPath();g.moveTo(0,4);g.lineTo(8,6);g.lineTo(4,13);g.moveTo(0,4);g.lineTo(6,2);g.lineTo(2,10);g.stroke();
+  g.strokeStyle='#cfd2d8';g.lineWidth=2;g.beginPath();g.moveTo(4,13);g.lineTo(8,14);g.moveTo(2,10);g.lineTo(6,11);g.stroke();g.restore();
+  g.strokeStyle='rgba(255,207,90,.6)';g.lineWidth=1.5;g.beginPath();g.arc(cx,cy,17,2.2,4.6);g.stroke();
+  g.fillStyle='#2a2f3b';g.beginPath();g.ellipse(w*.84,h*.46,6,3.5,0,0,7);g.fill();g.fillStyle='#ff3b3b';g.beginPath();g.arc(w*.86,h*.47,1.4,0,7);g.fill();},
  generic(g,w,h,t,r){g.fillStyle='#22263a';g.fillRect(0,0,w,h);for(let i=0;i<30;i++){g.fillStyle=`hsl(${r()*360},60%,60%)`;const x=r()*w,y=(r()*h+t*30*(1+r()))%h;g.fillRect(x,y,12,12);}}
 };
 
