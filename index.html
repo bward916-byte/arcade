@@ -37,6 +37,7 @@ a.game:focus-visible{outline:3px solid #fff;outline-offset:2px}
 <script>
 const OWNER='bward916-byte';
 const GAMES=[
+ {repo:'arcade/emberfall',title:'EMBERFALL',tag:'The Hearth of Vael went dark a hundred winters ago. Carry the last lantern through an ASCII night, light three beacons on the old hills, and face the Hollow King in his crypt.',genre:'ASCII RPG',orient:'Landscape',c:'#ffb447',art:'ember'},
  {repo:'arcade/floor-zero',title:'FLOOR ZERO',tag:'Three friends, three towers, one city gone wrong. Play Cole, Maya and Jo in turns, fighting down 83, 48 and 60 floors of zombies to the street — and to each other.',genre:'Zombie action descent',orient:'Landscape',c:'#ff6b5a',art:'spire'},
  {repo:'arcade/saltmarch',title:'SALTMARCH',tag:'Six towns on one long coast. Ride the shore and sail the crossings, bank each town\'s gold, build its defenses, and when raiders overrun one, ride back and retake it by the blade.',genre:'Pirate town management',orient:'Landscape',c:'#d9c27a',art:'sea'},
  {repo:'arcade/saltwake',title:'SALTWAKE',tag:'Start with a longboat and four hands. Scavenge flotsam, trade broadsides with privateers, buy your way up to a brig, and go ashore on foot for water, timber and treasure.',genre:'Pirate survival',orient:'Landscape',c:'#7fd3e0',art:'sea'},
@@ -220,6 +221,11 @@ const ART={
   g.fillStyle='#7a4a2e';g.fillRect(66,30,5,4);g.fillStyle='#14110e';g.fillRect(0,h-10,w,10);
   g.strokeStyle='rgba(120,120,120,.5)';g.lineWidth=2;g.beginPath();g.moveTo(w*.82,h*.55);g.quadraticCurveTo(w*.86,h*.3,w*.78,h*.08);g.stroke();
   g.fillStyle='rgba(255,255,255,.6)';for(let i=0;i<22;i++)g.fillRect(r()*w,r()*h,1,1);},
+ ember(g,w,h,t,r){g.fillStyle='#050302';g.fillRect(0,0,w,h);const fs=11,cw=fs*.6;g.font='bold '+fs+'px "Courier New",monospace';g.textAlign='center';g.textBaseline='middle';const lx=w*.5,ly=h*.6,fl=.9+Math.sin(t*11)*.06+Math.sin(t*17)*.04,R=Math.min(w,h)*.75*fl,ramp=' .,:;-=+*#%@';
+  for(let y=fs/2;y<h;y+=fs)for(let x=cw/2;x<w;x+=cw){const d=Math.hypot(x-lx,(y-ly)*1.2)/R,f=Math.max(0,1-d);if(f<.04)continue;const n=.75+.25*Math.sin(x*.21+y*.13+t*2.3);const v=f*f*n;g.fillStyle='rgb('+(255*Math.min(1,v*1.6)|0)+','+(170*v|0)+','+(70*v*v|0)+')';g.fillText(ramp[Math.min(11,1+(v*11)|0)],x,y);}
+  for(let i=0;i<26;i++){const k=(r()+t*(.05+r()*.06))%1,x=r()*w+Math.sin(t+i)*6,y=h*(1.05-k*1.1);g.fillStyle='rgba(255,'+(140+r()*100|0)+',60,'+Math.sin(k*Math.PI).toFixed(2)+')';g.fillText(r()<.5?'*':'.',x,y);}
+  g.fillStyle='#000';g.beginPath();g.arc(lx-w*.06,h*.42,h*.07,0,7);g.fill();g.beginPath();g.moveTo(lx-w*.1,h*.48);g.lineTo(lx-w*.02,h*.48);g.lineTo(lx,h*.95);g.lineTo(lx-w*.12,h*.95);g.fill();
+  g.fillStyle='#fff6d6';g.fillText('@',lx+w*.04,h*.58);g.font='900 '+Math.round(h*.16)+'px Georgia,serif';const gr=g.createLinearGradient(0,h*.1,0,h*.26);gr.addColorStop(0,'#fff6d6');gr.addColorStop(1,'#d2401a');g.fillStyle=gr;g.fillText('EMBERFALL',w*.5,h*.18);},
  generic(g,w,h,t,r){g.fillStyle='#22263a';g.fillRect(0,0,w,h);for(let i=0;i<30;i++){g.fillStyle=`hsl(${r()*360},60%,60%)`;const x=r()*w,y=(r()*h+t*30*(1+r()))%h;g.fillRect(x,y,12,12);}}
 };
 
