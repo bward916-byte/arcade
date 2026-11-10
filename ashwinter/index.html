@@ -86,6 +86,7 @@ const Motion = (() => {
   // Units: the walker's own ("u"; a leg is 30u). A character converts with k = px per u.
   const CFG = {
     thigh: 15, shin: 15, ankleH: 2.34, footBack: 2.5, footBall: 4, footToe: 6.5,
+    stride: true,                                               // legs driven by the Stride cycle (hips lead, feet follow)
     walkSpeed: 56, runSpeed: 120, accel: 420, decel: 560, stopDecel: 300, stopLead: 1.8, stopExtra: 7,
     cadenceUp: 2.15, cadenceDown: 2.4,
     stepMin: 10, stepMax: 29, swingSlow: .40, swingFast: .34, swingRun: .22, swingStair: .34, swingSettle: .20,
@@ -113,6 +114,9 @@ const Motion = (() => {
       indexAt(px) { let lo = 0, hi = s.length - 1; if (px <= s[0].x0) return 0; if (px >= s[hi].x1) return hi;
         while (lo < hi) { const m = (lo + hi) >> 1; if (px >= s[m].x1) lo = m + 1; else hi = m; } return lo; },
       yAt(px) { return sy(s[this.indexAt(px)], px); } };
+    { const fl = world.flights = []; const narrow = q => !q.g && q.w <= .8 * (CFG.thigh + CFG.shin);          // flights of stairs: runs of narrow level treads stepping the same way
+      for (let i = 1; i < s.length - 1; i++) { if (!narrow(s[i])) continue; let j = i; const up = s[i].y < s[i - 1].y; while (j + 1 < s.length && narrow(s[j + 1]) && (s[j + 1].y < s[j].y) === up && Math.abs(s[j + 1].y - s[j].y) > .3) j++;
+        if (j > i) fl.push({ x0: s[i].x0, x1: s[j].x1, w: (s[j].x1 - s[i].x0) / (j - i + 1), r: Math.abs(s[i + 1].y - s[i].y), up }); i = j; } }
     for (let i = 1; i < s.length; i++) { const d = s[i].y - sy(s[i - 1], s[i].x0); if (Math.abs(d) <= CFG.maxStepUp) continue;
       world.edges.push({ x: s[i].x0, y: Math.min(s[i].y, s[i - 1].y), floor: Math.max(s[i].y, s[i - 1].y), hi: d < 0 ? 1 : -1 }); }
     return world;
@@ -199,6 +203,70 @@ const Motion = (() => {
     f.ay = lerp(f.sy, f.tay, uy) - f.lift * arc;
     f.pitch = f.prof === 'up' ? lerp(f.sp, f.tp, ss((t - .25) / .5)) : lerp(f.sp, f.tp, ss(t * 1.15));
   }
+  // ===== Stride: the hips lead and the feet follow =====
+  // The hips ride a smoothed ground line at standing height; the legs run a stride cycle driven by distance travelled.
+  // A planted foot is locked where it landed and lifts when the cycle says so, so it can never trail far behind;
+  // landings snap so the whole foot sits on one tread; a foot that can't reach peels its heel; the hips dip only as far as a planted foot needs.
+  function strideFeet(w, world, input, dt, o, moved, rf) {
+    const L = LEG, LR = LMAX, ANK = CFG.ankleH, HEEL = CFG.footBack, TOE = CFG.footToe, dir = w.dir;
+    const g = x => world.yAt(x);
+    const sg = x => { let t = 0; for (let k = -4; k <= 4; k++) t += g(x + k * L * .11); return t / 9; };
+    const stairAt = x => { for (const f of world.flights) if (x >= f.x0 - 2 && x <= f.x1 + 2) return f; return null; };
+    const minGround = (a, b) => { if (a > b) { const t = a; a = b; b = t; } let m = Infinity; for (let x = a; x <= b; x += .8) m = Math.min(m, g(x)); return Math.min(m, g(b)); };
+    const straddles = x => { const h = x - dir * HEEL, t = x + dir * TOE, gh = g(h), gt = g(t); for (let k = 1; k < 6; k++) if (Math.abs(g(h + (t - h) * k / 6) - (gh + (gt - gh) * k / 6)) > .8) return true; return false; };
+    const snap = x => { if (!straddles(x)) return x; for (let q = .5; q <= 13; q += .5) { if (!straddles(x + dir * q)) return x + dir * q; if (!straddles(x - dir * q)) return x - dir * q; } return x; };
+    const footSpot = x => { for (const f of world.flights) if (x >= f.x0 && x < f.x1) { const k = Math.floor((x - f.x0) / f.w); return f.x0 + f.w * (k + .5) - dir * (TOE - HEEL) / 2; } return snap(x); };
+    const groundAng = x => { const k = (g(x + 2.5) - g(x - 2.5)) / 5; return Math.abs(k) > .9 ? 0 : Math.atan(k); };
+    const rot = (x, y, a) => { const c = Math.cos(a), sn = Math.sin(a); return [x * c - y * sn, x * sn + y * c]; };
+    const plantPose = (x, th) => { const a = groundAng(x), rho = a + dir * th, t0 = rot(dir * TOE, 0, a), T = [x + t0[0], g(x) + t0[1]], k = rot(dir * TOE, ANK, rho); return { A: [T[0] - k[0], T[1] - k[1]], rho }; };
+    const run = w._run = (w._run || 0) + clamp(rf - (w._run || 0), -dt * 2.2, dt * 2.2);
+    const swingPose = f => { const e = f.e, end = plantPose(f.tx, 0), A1 = end.A, y0 = f.y0, y1 = A1[1];
+      const top = minGround(f.x0 - HEEL, f.tx + dir * TOE) - ANK - 1.5, c = Math.min(y0, y1, top) - lerp(.07 * L, .11 * L, run), u = 1 - e, up = y0 - y1 > 2;
+      let ax = lerp(f.x0, A1[0], ss(up ? (e - .12) / .88 : e)), ay = u * u * u * y0 + 3 * u * u * e * c + 3 * u * e * e * c + e * e * e * y1;
+      if (!f.timed) { const k = run * Math.sin(PI * clamp(e / .7, 0, 1)); ay -= k * .3 * L; ax -= dir * k * .08 * L; }
+      const mid = end.rho - dir * .25, rho = e < .7 ? lerp(f.r0, mid, ss(e / .7)) : lerp(mid, end.rho, ss((e - .7) / .3));
+      ay = Math.min(ay, minGround(ax - dir * HEEL, ax + dir * (TOE + 1.5)) - ANK - .5);
+      for (const lx of [-HEEL, TOE]) { const v = rot(dir * lx, ANK, rho); ay = Math.min(ay, g(ax + v[0]) - v[1] - .25); }
+      return { A: [ax, ay], rho }; };
+    const poseOf = f => f.planted ? plantPose(f.px, f.th || 0) : swingPose(f);
+    const lift = (f, s0, tx, timed, dur) => { const p = poseOf(f); f.planted = false; f.x0 = p.A[0]; f.y0 = p.A[1]; f.r0 = p.rho; f.s0 = clamp(s0, 0, .95); f.e = 0; f.tx = tx; f.timed = !!timed; f.t = 0; f.dur = dur || 0; };
+    const land = f => { f.planted = true; f.px = f.tx; f.th = 0; f.timed = false; f.py = g(f.px); f.si = world.indexAt(f.px); w.steps++; w.events.push({ type: 'step', x: f.px, y: f.py, speed: Math.abs(w.vx), prof: 'flat' }); };
+    const F = w.feet, timedActive = () => F.some(f => !f.planted && f.timed);
+    const standSpots = () => { const fr = dir * F[0].px >= dir * F[1].px ? 0 : 1, sp = []; sp[fr] = snap(w.x + dir * .07 * L); sp[1 - fr] = snap(w.x - dir * .09 * L); return sp; };
+    // first frame on this cycle, or the walker was put somewhere else (a turn, a new floor): plant both feet under the body
+    if (!w._st || w._st.dir !== dir || Math.abs(w._st.x - w.x) > L) { w._st = { mode: 'stand', p: 0, dir, x: w.x, t: 0 }; F.forEach((f, i) => { f.planted = true; f.th = 0; f.timed = false; f.px = snap(w.x + dir * (i ? -.09 : .07) * L); f.tx = f.px; f.py = g(f.px); f.si = world.indexAt(f.px); }); w.y = sg(w.x) - (.97 * L + ANK) + w.squat; }
+    const ST = w._st; ST.t += dt; ST.x = w.x;
+    const v = Math.abs(w.vx), going = input !== 0 || v > .6 * L, st = stairAt(w.x + dir * 4), gr = Math.abs(w.grade);
+    const beta = lerp(.62, .36, run), ahead = lerp(.5, .36, run);
+    let S; if (st) S = 2 * st.w * ((run > .5 && v > 2.4 * L && 2 * st.w <= .95 * L && 2 * st.r <= .5 * L) ? 2 : 1);
+    else { const vv = Math.max(v, .5), f = lerp(.55 + .26 * vv / L, 1.32 + .06 * vv / L, run); S = vv / f / (1 + .8 * gr); }
+    S = Math.max(S, .35 * L) * (w.strideVar || 1); w.S = S;
+    if (ST.mode === 'stand' && going && !timedActive()) { ST.mode = 'go'; const b = dir * F[0].px < dir * F[1].px ? 0 : 1; ST.p = ((Math.max(beta, .5) + 1e-4 - b * .5) % 1 + 1) % 1; }   // the trailing foot steps first
+    if (ST.mode === 'go' && !input && v < .6 * L) { ST.mode = 'stand'; const sp = standSpots(); F.forEach((f, i) => { if (!f.planted) lift(f, 0, sp[i], true, .14 + .2 * (1 - f.e)); }); }
+    if (ST.mode === 'go') {
+      let rate = 1; const sa = stairAt(w.x + dir * S * .6) || st;                   // on (or nearing) stairs: pace the cycle so each midstance lands over a tread
+      if (sa) { const c0 = sa.x0 + sa.w / 2 - dir * (TOE - HEEL) / 2, err = (((ST.p - ahead * beta - dir * (w.x - c0) / S) % .5) + .75) % .5 - .25; rate = 1 - clamp(err * 3, -.45, .45); }
+      ST.p = (ST.p + rate * moved / S) % 1;
+      F.forEach((f, i) => { const q = (ST.p + i * .5) % 1, inStance = q < beta, s = (q - beta) / (1 - beta), predict = () => footSpot(w.x + dir * (S * (1 - q) + ahead * beta * S));
+        if (f.planted && !inStance) lift(f, s, predict()); else if (!f.planted && inStance) land(f);
+        if (f.planted) f.th = lerp(.55, .95, run) * ss((q / beta - .5) / .5); else { f.e = clamp((s - f.s0) / (1 - f.s0), 0, 1); if (f.e < .5) f.tx = predict(); } });
+    } else {
+      F.forEach(f => { if (f.planted) f.th = (f.th || 0) * Math.exp(-dt * 10); else { f.t += dt; f.e = clamp(f.t / (f.dur || .2), 0, 1); if (f.e >= 1) land(f); } });
+      if (!timedActive()) { const sp = standSpots(); let wi = -1, wd = .16 * L; F.forEach((f, i) => { const d = Math.abs(f.px - sp[i]); if (d > wd) { wd = d; wi = i; } }); if (wi >= 0) lift(F[wi], 0, sp[wi], true, .3); }   // settle: step a foot under the body
+    }
+    // hips: ride the smoothed ground; dip only as far as a planted foot needs
+    w.squat += (o.squat - w.squat) * (1 - Math.exp(-(o.squat > w.squat ? 30 : 9) * dt));
+    let ty = sg(w.x) - (lerp(.97 * L, .9 * L, run) + ANK) + w.squat;
+    if (ST.mode === 'go') ty += run * .05 * L * Math.cos(4 * PI * (ST.p - ahead * beta)); else ty += Math.sin(ST.t * 1.7) * .2;
+    F.forEach(f => { if (f.planted || f.e < .45) return; const A = plantPose(f.tx, 0).A, dx = A[0] - w.x; if (Math.abs(dx) < LR) { const cy = A[1] - Math.sqrt(LR * LR - dx * dx); if (cy > ty) ty = lerp(ty, cy, ss((f.e - .45) / .55)); } });
+    w.y += (ty - w.y) * Math.min(1, dt * 14);
+    F.forEach(f => { if (!f.planted) return; let A = plantPose(f.px, f.th).A; const behind = dir * (A[0] - w.x) < 0;
+      while (behind && Math.hypot(A[0] - w.x, A[1] - w.y) > LR && f.th < 1) { f.th += .04; A = plantPose(f.px, f.th).A; }          // peel the heel first
+      const dx = A[0] - w.x; if (Math.abs(dx) < LR) { const cy = A[1] - Math.sqrt(LR * LR - dx * dx); if (w.y < cy) w.y = cy; } });   // then the hips dip
+    w.des = w.y;
+    F.forEach(f => { const p = poseOf(f); f.ax = p.A[0]; f.ay = p.A[1]; f.pitch = dir * p.rho; f.face = dir; if (!f.planted) { f.t = f.e; } const dx = f.ax - w.x, dy = f.ay - w.y, d = Math.hypot(dx, dy); if (d > LMAX) { f.ax = w.x + dx / d * LMAX; f.ay = w.y + dy / d * LMAX; } });
+    return ST.mode === 'stand' && !timedActive();
+  }
   function stepWalk(w, world, input, dt, o) {
     if (input) { w.dir = Math.sign(input); if (w.dir !== w.facing) { w.facing = w.kneeF = w.dir; w.onTurn && w.onTurn(); } }
     const f0 = w.feet[0], f1 = w.feet[1], S_ = world.s;
@@ -230,7 +298,7 @@ const Motion = (() => {
     const speedingUp = Math.abs(goal) > Math.abs(w.vx) && goal * w.vx >= 0;
     const a = speedingUp ? lerp(CFG.accel, CFG.accel * .45, runF(Math.abs(goal))) : CFG.decel, vPrev = w.vx;   // a run is built up over a few strides
     w.vx += clamp(goal - w.vx, -a * dt, a * dt);
-    if (!f0.planted || !f1.planted) { const maxD = Math.max((w.thr + 3) * (1 + .8 * w.hurry), 10, w.hurry * (onStair ? Math.min(tread * 1.3, LMAX * .95) : LMAX * .95));   // on stairs the hips lead the planted foot by about a tread, no more
+    if (!CFG.stride && (!f0.planted || !f1.planted)) { const maxD = Math.max((w.thr + 3) * (1 + .8 * w.hurry), 10, w.hurry * (onStair ? Math.min(tread * 1.3, LMAX * .95) : LMAX * .95));   // on stairs the hips lead the planted foot by about a tread, no more
       for (const f of w.feet) { const d = destX(f) - w.x; if (d * w.vx < 0) { const over = Math.abs(d) - maxD; if (over > 0) { const cap = (onStair ? vlim : CFG.runSpeed) * clamp(1 - over / 7, lerp(.12, .6, w.hurry), 1); w.vx = clamp(w.vx, -cap, cap); } } } }
     const wasX = w.x; w.x += (w.vx + w.hitV) * dt;
     if (w.x < world.x0) { w.x = world.x0; if (w.vx < 0) w.vx = 0; } if (w.x > world.x1) { w.x = world.x1; if (w.vx > 0) w.vx = 0; }
@@ -239,6 +307,10 @@ const Motion = (() => {
       else if ((w.x - e.x) * e.hi < 3 && w.vx * e.hi < 0) { w.onFall && w.onFall(); return; }
     }
     const sp = Math.abs(w.vx), sf = walkF(sp), rf = runF(sp);
+    if (CFG.stride) { const still = strideFeet(w, world, input, dt, o, Math.abs(w.x - wasX), rf); w.load *= Math.exp(-7 * dt);
+      upper(w, dt, o, sf, dt > 1e-6 ? clamp((w.vx - vPrev) / dt / CFG.accel, -1, 1) : 0);
+      w.label = sp < 3 && still ? 'standing' : (onStair && Math.abs(w.grade) > .05 ? (w.grade > 0 ? (w.hurry > .5 ? 'running up stairs' : 'climbing stairs') : (w.hurry > .5 ? 'running down stairs' : 'descending stairs')) : (sp < 3 ? 'standing' : (sp > 100 ? 'running' : (sp > 66 ? 'jogging' : (sp < 30 ? 'strolling' : 'walking')))));
+      return; }
     w.S = strideFor(sp);
     let thrRef = w.S * .5; if (onStair) thrRef = Math.min(thrRef, tread * .6);
     const together = f0.planted && f1.planted && Math.abs(f0.px - f1.px) < 6;
@@ -450,8 +522,11 @@ const Motion = (() => {
       [1, k => { const e = k * k; return pose({ rot: -H * e, torso: lerp(.25, -.05, e), head: lerp(.35, -.1, e), ul2: lerp(.3, .08, e), ll2: lerp(.9, .15, e), ul1: lerp(.2, .02, e), ll1: lerp(.8, .1, e),
         f2: H + .3 * e, f1: H + .3 * e, ua2: lerp(.1, .05, e), la2: .08, ua1: lerp(.1, -.05, e), la1: .08 }); }]),   // over backwards, toes up, arms at the sides
     dead: () => Poses.die(1),
-    sleep: () => pose({ rot: -H, torso: -.1, head: .25, ul2: .55, ll2: .9, ul1: .35, ll1: .7, f2: H + .2, f1: H + .2, ua2: .9, la2: 1.6, ua1: .2, la1: .3 }),   // on the side, knees drawn up
-    search: (t) => { const q = Math.sin(t * 3); return pose({ torso: 1.0, head: -.5, ul2: .55, ll2: 1.3, ul1: .45, ll1: 1.2, ua2: 1.3 + .15 * q, la2: .2, ua1: 1.1 - .15 * q, la1: .3 }); },
+    sleep: (t) => { const b = .015 * Math.sin((t || 0) * 1.3); return pose({ rot: -H, torso: -.04 + b, head: .12, ul2: .2, ll2: .38, ul1: .06, ll1: .12, f2: H + .5, f1: H + .6, ua2: .55, la2: 1.5, ua1: .12, la1: .2 }); },   // flat on the back, one knee a little raised, a hand on the chest, breathing   // on the side, knees drawn up
+    search: (t) => { const q = Math.sin(t * 3.4), r = Math.sin(t * 2.1 + 1); return pose({ torso: .2, head: .12, ul2: .14, ll2: .2, ul1: -.12, ll1: .14, ua2: 1.05 + .16 * q, la2: .55 - .3 * q, ua1: .85 - .16 * q, la1: .75 + .3 * r }); },   // standing at it, hands working at waist height
+    searchLow: (t) => { const q = Math.sin(t * 3.4), r = Math.sin(t * 2.1 + 1); return pose({ torso: .5, head: .05, ul2: 1.45, ll2: 2.25, ul1: 1.15, ll1: 2.3, f2: H, f1: H - .5, tf1: .5, ua2: .7 + .18 * q, la2: .45 - .25 * q, ua1: .5 - .18 * q, la1: .6 + .25 * r }); },   // crouched in front of something low
+    searchHigh: (t) => { const q = Math.sin(t * 3.4), r = Math.sin(t * 2.1 + 1); return pose({ torso: .06, head: -.25, ul2: .1, ll2: .12, ul1: -.1, ll1: .1, ua2: 1.9 + .2 * q, la2: .5 - .3 * q, ua1: 1.6 - .2 * q, la1: .7 + .3 * r }); },   // reaching up to a shelf
+    nail: (t) => { const q = (Math.sin(t * 7) + 1) / 2; return pose({ torso: .1, head: 0, ul2: .22, ll2: .22, ul1: -.18, ll1: .18, ua2: 1.15 - .15 * q, la2: .35 + 1.25 * q, ua1: 1.25, la1: .3 }); },   // hammering straight ahead at chest height, the other hand on the board
     dig: (t) => { const q = Math.sin(t * 5), k = (q + 1) / 2; return pose({ torso: .45 + .12 * q, head: -.2, ul2: .5, ll2: .55 + .25 * k, ul1: -.25, ll1: .25 + .25 * k, ua2: .9 + .3 * q, la2: .3, ua1: 1.3 + .3 * q, la1: .15 }); },
     hammer: (t) => { const q = (Math.sin(t * 7) + 1) / 2; return pose({ torso: .1 + .08 * q, head: -.15, ul2: .25, ll2: .25, ul1: -.2, ll1: .2, ua2: -.3 + 1.6 * q, la2: .9 - .5 * q, ua1: .5, la1: 1.1 }); },
     cook: (t) => { const q = Math.sin(t * 4); return pose({ torso: .12, head: .2, ul2: .15, ll2: .15, ul1: -.1, ll1: .1, ua2: .95, la2: 1.4 + .15 * q, ua1: .75, la1: 1.5 }); },
@@ -987,7 +1062,7 @@ function demoNext() {
   DEMO.scene = SCENES[DEMO.i]; DEMO.cap = DEMO.scene.cap; try { DEMO.scene.setup(); } catch (e) { console.warn('demo', e); demoNext(); }
 }
 function demoStop() { DEMO.on = false; DEMO.scene = null; IN.ptrs.delete(99); UI.modal = null; cam.lock = false; TR.active = false; SC.active = false; G.phase = 'title'; }
-function demoTick(dt) { if (!DEMO.on || !DEMO.scene) return; DEMO.t += dt;
+function demoTick(dt) { if (!DEMO.on || !DEMO.scene) return; DEMO.t += dt; if (G.flags && G.flags.placing) { G.built[G.flags.placing] = true; G.flags.placing = null; }
   if (UI.modal && UI.modal.kind === 'loot' && G.phase === 'day') { DEMO.lootT = (DEMO.lootT || 0) + dt; if (DEMO.lootT > 2.2) { for (const it of UI.modal.spot.lootList) G.inv[it.id] = (G.inv[it.id] || 0) + it.n; UI.modal.spot.lootList.length = 0; UI.modal = null; DEMO.lootT = 0; } } try { DEMO.scene.tick(DEMO.t); } catch (e) { console.warn('demo', e); } if (DEMO.t >= DEMO.scene.dur) demoNext(); }
 function drawDemoBar() {
   if (!DEMO.on) return; const h = 54; ctx.fillStyle = 'rgba(10,10,12,.78)'; ctx.fillRect(0, H - h, W, h);
@@ -1198,7 +1273,7 @@ function initInput() {
     if (IN.ptrs.size === 0) IN.dragging = false;
   };
   el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
-  el.addEventListener('wheel', e => { e.preventDefault(); if (!UI.modal) zoomAt(e.clientX, e.clientY, cam.z * (e.deltaY < 0 ? 1.1 : 0.9)); else if (UI.modal.kind === 'loot') UI.modal.scroll = Math.max(0, (UI.modal.scroll || 0) + e.deltaY); }, { passive: false });
+  el.addEventListener('wheel', e => { e.preventDefault(); if (!UI.modal) zoomAt(e.clientX, e.clientY, cam.z * (e.deltaY < 0 ? 1.1 : 0.9)); else if (UI.modal.kind === 'loot' || UI.modal.kind === 'craft') UI.modal.scroll = Math.max(0, (UI.modal.scroll || 0) + e.deltaY); }, { passive: false });
   window.addEventListener('keydown', e => { if (e.key === 'Escape') UI.escape(); });
 }
 function zoomAt(sx, sy, nz) {
@@ -1664,15 +1739,22 @@ function drawPerson(a, pose, t, extra) {
   // speech / emote
   if (a.say && a.sayT > 0) { const sx = X, sy = Y - 95 * S; ctx.fillStyle = 'rgba(20,20,22,.85)'; rr(sx - 16, sy - 16, 32, 32, 8); ctx.fill(); drawIcon(a.say, sx, sy, 20); }
 }
-const HOLD_OF = { search: 'search', dig: 'dig', hammer: 'hammer', cook: 'cook', eat: 'eat', guard: 'hold', attack: 'swing', shove: 'shove', zombieIdle: 'zombieIdle', zombieAttack: 'zombieAttack', zombie: 'zombieIdle', sleep: 'sleep', sit: 'sit', warm: 'warm' };
+const SPOT_H = { sofa: 'low', crates: 'low', dresser: 'low', garshelf: 'high', storeshelf: 'high', medcab: 'high' };
+const HOLD_OF = { nail: 'nail', situp: 'sit', search: 'search', dig: 'dig', hammer: 'hammer', cook: 'cook', eat: 'eat', guard: 'hold', attack: 'swing', shove: 'shove', zombieIdle: 'zombieIdle', zombieAttack: 'zombieAttack', zombie: 'zombieIdle', sleep: 'sleep', sit: 'sit', warm: 'warm' };
 function drawPersonRig(a, pose, t, extra) {
   const X = a.x, Y = a.y;
+  // beds: sit on the edge, swing up onto the mattress, and the same in reverse to get out
+  { const ddt = clamp(_T - (a._lt == null ? _T : a._lt), 0, .05), bedSpot = pose === 'sleep' && a.task && a.task.kind === 'bed' ? a.task.spot : null, inBed = !!bedSpot || (pose === 'sleep' && a.bedAt);
+    if (inBed) a.bedH = bedSpot ? (bedSpot.id === 'bed' ? 40 : 32) : a.bedAt;
+    a.bedIn = inBed ? Math.min(1, (a.bedIn || 0) + ddt / .8) : Math.max(0, (a.bedIn || 0) - ddt / .7);
+    const lying = inBed && a.bedIn >= 1, tgt = lying ? a.bedH : a.bedIn > 0 ? a.bedH * .42 : 0; a.bedLift = (a.bedLift || 0) + (tgt - (a.bedLift || 0)) * Math.min(1, ddt * 9);
+    if (a.bedIn > 0 && !lying && a.mcT_ !== _T) { pose = 'situp'; if (inBed) a.facing = 1; } if (a.bedIn <= 0 && !inBed) { if (a.bedLift < .5) a.bedLift = 0; } }
   const tr = a.mc && a.mcT_ === _T ? a.mcT : engFor(a); const c = mcOf(a, tr);
   if (a.mcT_ !== _T) {                                         // not moved this frame: stand, work, or lie where he is
     const dt = clamp(_T - (a._lt == null ? _T : a._lt), 0, .05);
     let hold = null, ext = null;
     if (pose === 'idle' && !a.zombie && CUR_W && CUR_W === G.world && G.phase === 'day') { a.idleT = (a.idleT || 0) + dt; if (!a.idlePose || a.idleT > a.idleDur) { a.idlePose = pick(['idle', 'idle', 'look', 'look', 'cross', 'rub', 'hips', 'stretch', 'read']); a.idleT = 0; a.idleDur = a.idlePose === 'read' ? rnd(9, 16) : rnd(4, 9); } hold = a.idlePose === 'idle' ? null : a.idlePose; }
-    else { a.idlePose = null; hold = HOLD_OF[pose] || null; }
+    else { a.idlePose = null; hold = HOLD_OF[pose] || null; if (pose === 'search' && a.task && a.task.spot) { const hh = a.task.spot.hgt || SPOT_H[a.task.spot.id]; if (hh === 'low') hold = 'searchLow'; else if (hh === 'high') hold = 'searchHigh'; } }
     if (pose === 'attack' || pose === 'shove' || pose === 'zombieAttack') c.poseK = extra ? clamp(extra.k || 0, 0, 1) : 0;
     if (a.zombie && pose === 'zombie') ext = zombieExt(a, t);
     if (pose === 'dead') { hold = null; if (!c.dead && !(c.action && c.action.name === 'die')) { if (!c.play('die')) { c.action = null; c.dead = true; c._setState('dead'); } } }
@@ -1683,7 +1765,7 @@ function drawPersonRig(a, pose, t, extra) {
   a._lt = _T;
   if (pose === 'dead') { ctx.fillStyle = 'rgba(70,10,10,.45)'; ctx.beginPath(); ctx.ellipse(X - (a.facing || 1) * 10, tr.base - c.y + 1, 30, 6, 0, 0, TAU); ctx.fill(); }
   { const lk = c.look; if (lk && !a.zombie) { if (lk.bag0 === undefined) lk.bag0 = lk.bag; lk.bag = a.hasPack ? 'backpack' : lk.bag0; lk.bagFull = a.hasPack ? clamp(SC.active ? SC.pack.length / SC.cap : TR.pack ? TR.pack.length / (TR.cap || 10) : 0, 0, 1) : 0; } }   // a pack that fills out as it fills up
-  ctx.save(); if (a.hurtT > 0) ctx.translate(rnd(-1.3, 1.3), 0); c.draw(ctx, 0, tr.base, null, false); ctx.restore();
+  ctx.save(); if (a.hurtT > 0) ctx.translate(rnd(-1.3, 1.3), 0); if (a.bedLift) ctx.translate(0, -a.bedLift); c.draw(ctx, 0, tr.base, null, false); ctx.restore();
   const tool = poseTool(pose, extra, a); if (tool && !c.dead && handOf(a)) { const h = handOf(a); const F = a.facing || 1; const ang = (tool === 'shovel' ? h.th - Math.PI / 2 : h.th + Math.PI / 2) * F; drawTool(tool, h.x, h.y, ang, F); }
   if (!a.zombie && !c.dead && c.cur) { const k = c.skeleton(c.cur), dy = c.curDy != null ? c.curDy : k.dy, f = c.facing * k.sx, bx = v => c.x + v[0] * f, by = v => tr.base - c.y + v[1] + dy, sc = c.k || 1;
     if (a.wounded) { const A = k.armN[0], B = k.armN[1]; ctx.strokeStyle = '#e4dccb'; ctx.lineWidth = 4.6 * sc; ctx.lineCap = 'butt'; ctx.beginPath(); ctx.moveTo(lerp(bx(A), bx(B), .38), lerp(by(A), by(B), .38)); ctx.lineTo(lerp(bx(A), bx(B), .72), lerp(by(A), by(B), .72)); ctx.stroke(); ctx.fillStyle = 'rgba(150,30,30,.8)'; circ(lerp(bx(A), bx(B), .55), lerp(by(A), by(B), .55), 1.3 * sc); ctx.fill(); ctx.lineCap = 'round'; }   // a bandaged arm
@@ -1692,7 +1774,7 @@ function drawPersonRig(a, pose, t, extra) {
   if (a.idlePose === 'read') { const h = handOf(a); if (h) { ctx.save(); ctx.translate(h.x, h.y - 2); ctx.rotate((a.facing || 1) * .35); ctx.fillStyle = '#cfc3a6'; ctx.fillRect(-7, -4.5, 14, 9); ctx.fillStyle = '#6b5a44'; ctx.fillRect(-.7, -4.5, 1.4, 9); ctx.restore(); } }
   if (a.say && a.sayT > 0) { const sx = X, sy = tr.base - c.y - 100 * (a.scale || 1); ctx.fillStyle = 'rgba(20,20,22,.85)'; rr(sx - 16, sy - 16, 32, 32, 8); ctx.fill(); drawIcon(a.say, sx, sy, 20); }
 }
-function poseTool(pose, extra, a) { switch (pose) { case 'dig': return G.inv.shovel ? 'shovel' : null; case 'hammer': return 'hammer'; case 'cook': return 'spoon'; case 'guard': case 'attack': return extra && extra.weapon; default: return null; } }
+function poseTool(pose, extra, a) { switch (pose) { case 'dig': return G.inv.shovel ? 'shovel' : null; case 'hammer': case 'nail': return 'hammer'; case 'cook': return 'spoon'; case 'guard': case 'attack': return extra && extra.weapon; default: return null; } }
 function boot(ft, facing, k) { ctx.fillStyle = shade('#3a3029', k); ctx.beginPath(); ctx.ellipse(ft[0] + 2 * facing, ft[1] + 1, 6, 3.2, 0, 0, TAU); ctx.fill(); }
 function drawTool(tool, x, y, ang, facing) {
   ctx.save(); ctx.translate(x, y); ctx.rotate(ang * facing); ctx.lineCap = 'round';
@@ -2387,7 +2469,7 @@ function handleTaps() {
     const t = IN.taps.shift(); let hit = null;
     for (let i = UI.hits.length - 1; i >= 0; i--) { const h = UI.hits[i]; if (t.x >= h.x && t.x <= h.x + h.w && t.y >= h.y && t.y <= h.y + h.h) { hit = h; break; } }
     if (hit) { hit.fn(t); continue; }
-    if (UI.modal) { if (['loot', 'craft', 'map', 'survivor', 'inv', 'help'].includes(UI.modal.kind)) UI.modal = null; continue; }
+    if (UI.modal) { if (['loot', 'craft', 'map', 'survivor', 'inv', 'help', 'confirm'].includes(UI.modal.kind)) UI.modal = null; continue; }
     if (UI.invOpen || UI.survOpen >= 0 || UI.help) { UI.invOpen = false; UI.survOpen = -1; UI.help = false; continue; }
     const wx = s2wx(t.x), wy = s2wy(t.y);
     if (DEMO.on) continue;
@@ -2444,7 +2526,7 @@ function drawHomeHud(dt) {
       const sx = w2sx(s.x), sy = w2sy(w.fy2y(s.f) - 95); if (sx < -40 || sx > W + 40 || sy < -40 || sy > H + 40) continue;
       const worker = G.survivors.find(v => v.alive && v.task && v.task.spot === s && !(v.path && v.path.length));
       spotBubble(sx, sy, info.icon, { disabled: info.disabled, badgeIcon: info.badgeIcon, badge: info.badge, progress: worker ? clamp(worker.task.t / worker.task.dur, 0, 1) : undefined });
-      UI.btn(sx - 26, sy - 26, 52, 52, () => homeUseSpot(s));
+      UI.btn(sx - 26, sy - 26, 52, 52, () => askSpot(s));
     }
     for (const b of w.barricades) {
       if (!near(b.x, b.f) && !G.survivors.some(v => v.alive && v.task && v.task.bar === b)) continue;
@@ -2453,10 +2535,10 @@ function drawHomeHud(dt) {
       spotBubble(sx, sy, info.icon, { size: 38, disabled: info.disabled, badge: info.badge, color: info.color, progress: worker ? clamp(worker.task.t / worker.task.dur, 0, 1) : undefined });
       // hp pips
       for (let i = 0; i < 3; i++) { ctx.fillStyle = i < b.level ? (b.hp / (b.level * 30) < .5 ? GOLD : GREEN) : '#333'; ctx.fillRect(sx - 14 + i * 10, sy + 26, 8, 4); }
-      UI.btn(sx - 22, sy - 22, 44, 44, () => homeUseBarricade(b));
+      UI.btn(sx - 22, sy - 22, 44, 44, () => askBarricade(b));
     }
     // selected survivor marker
-    const sel = G.survivors[G.sel]; if (sel && sel.alive) { const sx = w2sx(sel.x), sy = w2sy(w.fy2y(sel.fy) + 2); ctx.strokeStyle = GOLD; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.ellipse(sx, sy, 20 * cam.z, 6 * cam.z, 0, 0, TAU); ctx.stroke(); }
+    const sel = G.survivors[G.sel]; if (sel && sel.alive) { const sx = w2sx(sel.x), sy = w2sy(w.fy2y(sel.fy) + 2); ctx.strokeStyle = 'rgba(217,179,90,.38)'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.ellipse(sx, sy, 15 * cam.z, 4 * cam.z, 0, 0, TAU); ctx.stroke(); }
   }
   // ---- top bar ----
   const cx = W / 2;
@@ -2469,6 +2551,8 @@ function drawHomeHud(dt) {
   // goal
   ctx.fillStyle = 'rgba(14,15,18,.75)'; rr(W - 130, 8, 122, 50, 10); ctx.fill(); drawIcon('radio', W - 108, 33, 24, G.built.radio ? GREEN : DIM); txt('→ 20', W - 60, 33, 20, G.flags.heardRadio ? INK : DIM);
   iconButton(32, 33, 40, null, () => { UI.help = !UI.help; }, { active: UI.help, label: '?' });
+  if (G.phase === 'day') { ctx.font = '600 12px Oswald, Impact, sans-serif'; ctx.fillStyle = UI.test ? '#5a4a2a' : 'rgba(14,15,18,.75)'; rr(10, 64, 58, 28, 8); ctx.fill(); ctx.strokeStyle = UI.test ? GOLD : '#3a3d42'; ctx.lineWidth = 1.5; rr(10, 64, 58, 28, 8); ctx.stroke(); txt('TEST', 39, 79, 13, UI.test ? GOLD : DIM); UI.btn(10, 64, 58, 28, () => { UI.test = !UI.test; homeMsg(UI.test ? 'test mode · no waiting' : 'test mode off', 'ff', GOLD); });
+    if (UI.test) { ctx.fillStyle = 'rgba(14,15,18,.75)'; rr(74, 64, 58, 28, 8); ctx.fill(); ctx.strokeStyle = '#3a3d42'; rr(74, 64, 58, 28, 8); ctx.stroke(); txt('+1 HR', 103, 79, 13, INK); UI.btn(74, 64, 58, 28, () => { G.hour = Math.min(19.95, G.hour + 1); }); } }
   { const T = Math.round(indoorTemp(G.phase === 'plan' ? 20 : G.hour)), cold = T < 6, bx = 62, bw = G.built.stove ? 150 : 86; if (cx - 150 > bx + bw + 6) { ctx.fillStyle = 'rgba(14,15,18,.75)'; rr(bx, 8, bw, 50, 10); ctx.fill();
     drawIcon(weatherNow() === 'clear' ? 'cold' : 'cold', bx + 22, 33, 22, cold ? '#9cc7e6' : DIM); txt((T > 0 ? '' : T < 0 ? '−' : '') + Math.abs(T) + '°', bx + 58, 33, 19, T < 0 ? '#9cc7e6' : cold ? '#c5d8e6' : INK);
     if (G.built.stove) { const f = fireLeft(); drawIcon('fire', bx + 100, 33, 22, f > 0 ? '#f08a3a' : '#555'); txt(f > 0 ? Math.ceil(f) + 'h' : '–', bx + 128, 33, 16, f > 0 ? INK : DIM); } } }
@@ -2492,6 +2576,7 @@ function drawHomeHud(dt) {
   if (UI.invOpen) drawInventory();
   if (UI.survOpen >= 0) drawSurvivorPanel(G.survivors[UI.survOpen]);
   if (UI.help) drawHelp();
+  if (G.flags.placing && G.phase === 'day' && !UI.modal) { const rc = RECIPES.find(r => r.id === G.flags.placing), bw = Math.min(W - 24, 430); ctx.fillStyle = 'rgba(14,15,18,.9)'; rr(cx - bw / 2, 66, bw, 46, 10); ctx.fill(); ctx.strokeStyle = GOLD; ctx.lineWidth = 1.5; rr(cx - bw / 2, 66, bw, 46, 10); ctx.stroke(); drawIcon(rc.icon, cx - bw / 2 + 28, 89, 28, GOLD); txt('Tap the floor where it should go', cx - bw / 2 + 52, 89, 15, INK, 'left'); G.msgT = 0; }
   // messages
   if (G.msgT > 0) { G.msgT -= dt; ctx.fillStyle = 'rgba(14,15,18,.85)'; rr(cx - 110, 70, 220, 44, 10); ctx.fill(); if (G.msgIcon) drawIcon(G.msgIcon, cx - 80, 92, 26, G.msgColor); txt(G.msg, cx + (G.msgIcon ? 14 : 0), 92, 16, G.msgColor || INK); }
 }
@@ -2601,16 +2686,36 @@ function drawEvent() {
   drawIcon(ev.icon, x + 50, y + 60, 44, GOLD); txt(ev.text, x + 90, y + 60, 17, INK, 'left');
   ev.choices.forEach((c, i) => { textButton(x + 30 + i * ((w - 60) / 2 + 8), y + 118, (w - 60) / 2 - 8, 44, c.label, () => { applyEvent(ev, c); }, { icon: c.icon, primary: i === 0 }); });
 }
+const RECIPE_INFO = { stove: ['Stove', 'Heat for the house and somewhere to cook. Burns wood or fuel.'], collector: ['Rain collector', 'Fills with water when it rains or snows.'], bed: ['Second bed', 'One more survivor sleeps properly each night.'], radio: ['Radio', 'Lifts spirits once a day. Listen for the evacuation.'], trap: ['Door trap', 'Stops one of the dead in every raid.'],
+  shovel: ['Shovel', 'Clears debris nine times faster.'], crowbar: ['Crowbar', 'Forces locked doors and never breaks. Noisy outside.'], lockpick: ['Lockpick', 'Opens locked doors quietly. Can snap.'], knife: ['Knife', 'A light weapon for the scavenger or the guard.'], bat: ['Bat', 'Hits harder than a knife and knocks them back.'], bandage: ['Bandage', 'Treats a wound and restores health.'], backpack: ['Backpack', 'Two more slots when scavenging.'] };
 function drawCraft() {
-  const s = G.survivors[UI.modal.who]; const w = Math.min(W - 20, 640), h = Math.min(H - 20, 420), x = (W - w) / 2, y = (H - h) / 2; panel(x, y, w, h, 'WORKBENCH');
-  const cols = w > 560 ? 4 : 3; const cw = (w - 40) / cols;
-  RECIPES.forEach((rc, i) => {
-    const cx = x + 20 + (i % cols) * cw, cy = y + 58 + Math.floor(i / cols) * 104; const done = rc.build && G.built[rc.id]; const ok = !done && canAfford(rc.cost);
-    ctx.fillStyle = done ? '#1f2a1f' : ok ? '#2b2d31' : '#221f1f'; rr(cx, cy, cw - 10, 96, 8); ctx.fill(); ctx.strokeStyle = done ? GREEN : ok ? '#4a4d52' : '#3a2a2a'; ctx.lineWidth = 1.5; rr(cx, cy, cw - 10, 96, 8); ctx.stroke();
-    drawIcon(rc.icon, cx + 28, cy + 30, 36, done ? GREEN : ok ? undefined : DIM); if (rc.build) drawIcon('home', cx + cw - 30, cy + 18, 16, DIM); else txt('×1', cx + cw - 22, cy + 18, 12, DIM);
-    if (done) drawIcon('check', cx + cw - 30, cy + 70, 20, GREEN); else costRow(cx + 10, cy + 72, rc.cost, 18);
-    if (ok) UI.btn(cx, cy, cw - 10, 96, () => { pay(rc.cost); s.task = { spot: s.task ? s.task.spot : G.world.spotById('bench'), kind: 'craft', recipe: rc, t: 0, dur: rc.dur * (s.trait === 'handy' ? .6 : 1) }; UI.modal = null; AUDIO.sfx('tap'); });
-  });
+  const M = UI.modal, s = G.survivors[M.who]; const w = Math.min(W - 16, 680), h = Math.min(H - 16, 440), x = (W - w) / 2, y = (H - h) / 2; panel(x, y, w, h, 'WORKBENCH');
+  txt(s.name + (s.trait === 'handy' ? ' · works fast' : ''), x + 16, y + 26, 12, DIM, 'left');
+  const A = { x: x + 10, y: y + 50, w: w - 20, h: h - 60 }, CH = 62, rows = [];
+  rows.push({ head: 'FOR THE HOUSE · you choose where each one goes' }); RECIPES.filter(r => r.build).forEach(r => rows.push({ rc: r })); rows.push({ head: 'TOOLS AND GEAR' }); RECIPES.filter(r => !r.build).forEach(r => rows.push({ rc: r }));
+  let total = 0; for (const r of rows) { r.y = total; total += r.head ? 24 : CH + 6; }
+  const maxScroll = Math.max(0, total - A.h + 4); M.scroll = clamp(M.scroll || 0, 0, maxScroll);
+  const inA = (px, py) => px >= A.x && px <= A.x + A.w && py >= A.y && py <= A.y + A.h;
+  if (IN.ptrs.size === 1 && IN.moved > 7 && inA(IN.downX, IN.downY)) M.scrollDrag = true;
+  if (M.scrollDrag) { const p = [...IN.ptrs.values()][0]; if (p) { if (M.lastY != null) M.scroll = clamp(M.scroll - (p.y - M.lastY), 0, maxScroll); M.lastY = p.y; } else { M.scrollDrag = false; M.lastY = null; } }
+  UI.btn(x, y, w, h, () => { });
+  ctx.save(); ctx.beginPath(); ctx.rect(A.x, A.y, A.w, A.h); ctx.clip();
+  for (const r of rows) { const ry = A.y + r.y - M.scroll; if (ry > A.y + A.h || ry + CH < A.y) continue;
+    if (r.head) { txt(r.head, A.x + 6, ry + 13, 11, GOLD, 'left'); continue; }
+    const rc = r.rc, inf = RECIPE_INFO[rc.id] || [rc.id, ''], done = rc.build && (G.built[rc.id] || G.flags.placing === rc.id), ok = !done && canAfford(rc.cost), cw = A.w - 8, cx0 = A.x + 2;
+    ctx.fillStyle = done ? '#1c261c' : ok ? '#2b2d31' : '#211f1f'; rr(cx0, ry, cw, CH, 9); ctx.fill(); ctx.strokeStyle = done ? '#3d5a3a' : ok ? GOLD : '#34302f'; ctx.lineWidth = ok ? 1.5 : 1; rr(cx0, ry, cw, CH, 9); ctx.stroke();
+    ctx.fillStyle = 'rgba(0,0,0,.25)'; rr(cx0 + 8, ry + 8, 46, 46, 8); ctx.fill(); drawIcon(rc.icon, cx0 + 31, ry + 31, 32, done ? GREEN : ok ? undefined : DIM);
+    const rightW = 168, tx0 = cx0 + 64, tw = cw - 64 - rightW - 8;
+    txt(inf[0], tx0, ry + 20, 16, done ? GREEN : ok ? INK : '#a9a59c', 'left');
+    { ctx.font = '500 12px Oswald, Impact, sans-serif'; let d = inf[1]; while (d.length > 8 && ctx.measureText(d).width > tw) d = d.slice(0, -2); if (d !== inf[1]) d = d.replace(/\s+\S*$/, '') + '…'; txt(d, tx0, ry + 41, 12, DIM, 'left', '500'); }
+    const rx = cx0 + cw - rightW;
+    if (done) { drawIcon('check', rx + 20, ry + 31, 22, GREEN); txt(G.flags.placing === rc.id ? 'ready to place' : 'built', rx + 38, ry + 31, 14, GREEN, 'left'); }
+    else { costRow(rx + 8, ry + 21, rc.cost, 19); drawIcon('clock', rx + 10, ry + 45, 13, DIM); txt(Math.round(rc.dur * (s.trait === 'handy' ? .6 : 1)) + 's', rx + 21, ry + 46, 12, DIM, 'left');
+      ctx.fillStyle = ok ? '#5a4a2a' : '#2a2828'; rr(rx + rightW - 76, ry + 34, 66, 22, 6); ctx.fill(); txt(ok ? (rc.build ? 'BUILD' : 'MAKE') : 'NEED MORE', rx + rightW - 43, ry + 46, ok ? 12 : 10, ok ? GOLD : '#7a6a66'); }
+    if (ok && !M.scrollDrag && ry >= A.y - 8 && ry + CH <= A.y + A.h + 8) UI.btn(cx0, Math.max(ry, A.y), cw, CH, () => { pay(rc.cost); s.task = { spot: s.task ? s.task.spot : G.world.spotById('bench'), kind: 'craft', recipe: rc, t: 0, dur: rc.dur * (s.trait === 'handy' ? .6 : 1) }; UI.modal = null; AUDIO.sfx('tap'); });
+  }
+  ctx.restore();
+  if (maxScroll > 0) { const th = Math.max(24, A.h * (A.h / total)); ctx.fillStyle = 'rgba(255,255,255,.22)'; rr(A.x + A.w - 4, A.y + 2 + (A.h - 4 - th) * (M.scroll / maxScroll), 3, th, 2); ctx.fill(); }
   iconButton(x + w - 28, y + 26, 36, 'close', () => { UI.modal = null; });
 }
 
@@ -2680,18 +2785,18 @@ const RARITY = { wood: 0, scrap: 0, cloth: 0, water: 0, canned: 0, raw: 0, parts
 const RARITY_NAME = ['COMMON', 'UNCOMMON', 'RARE'], RARITY_COL = ['#8d8a82', '#7fb0d9', '#d9b35a'];
 function drawLoot() {
   const M = UI.modal, sp = M.spot, found = sp.lootList; const home = !!M.home;
-  const w = Math.min(W - 16, 560), h = Math.min(H - 16, 330), x = (W - w) / 2, y = (H - h) / 2; panel(x, y, w, h, 'FOUND');
-  const PV = lootPackView(M);
-  const L = { x: x + 12, y: y + 48, w: Math.floor((w - 36) * .42), h: h - 108 }, R = { x: 0, y: y + 48, w: 0, h: h - 108 }; R.x = L.x + L.w + 12; R.w = x + w - 12 - R.x;
+  const w = Math.min(W - 16, 560), h = Math.min(H - 16, 330), x = (W - w) / 2, y = (H - h) / 2; panel(x, y, w, h, home ? 'SUPPLIES' : 'LOOT');
+  const PV = lootPackView(M); if (!UI.drag) found.sort((p, q) => (RARITY[q.id] || 0) - (RARITY[p.id] || 0) || ITEM_ORDER.indexOf(p.id) - ITEM_ORDER.indexOf(q.id));
+  const L = { x: x + 12, y: y + 66, w: Math.floor((w - 36) * .42), h: h - 126 }, R = { x: 0, y: y + 66, w: 0, h: h - 126 }; R.x = L.x + L.w + 12; R.w = x + w - 12 - R.x;
   const close = () => { UI.modal = null; UI.drag = null; };
   ctx.fillStyle = 'rgba(0,0,0,.25)'; rr(L.x, L.y, L.w, L.h, 8); ctx.fill(); rr(R.x, R.y, R.w, R.h, 8); ctx.fill();
-  if (!found.length) txt('empty', L.x + L.w / 2, L.y + L.h / 2, 15, DIM);
+  txt('FOUND HERE', L.x + 4, L.y - 9, 12, GOLD, 'left'); txt(home ? 'ALREADY IN THE HOUSE' : 'IN YOUR PACK', R.x + 4, R.y - 9, 12, GOLD, 'left'); if (!found.length) txt('nothing left', L.x + L.w / 2, L.y + L.h / 2, 14, DIM);
   const items = []; // {x,y,w,h, from:'found'|'pack', idx}
   const row = (it, rx, ry, rw, ghost) => { ctx.globalAlpha = ghost ? .35 : 1; ctx.fillStyle = '#25272b'; rr(rx, ry, rw, 34, 8); ctx.fill(); drawIcon(it.id, rx + 19, ry + 17, 24); txt(ITEMS[it.id].n, rx + 37, ry + 17, 13, INK, 'left'); txt('×' + it.n, rx + rw - 8, ry + 17, 13, INK, 'right'); ctx.globalAlpha = 1; };
   found.forEach((it, i) => { const iy = L.y + 6 + i * 38; if (iy + 34 > L.y + L.h) return; items.push({ x: L.x + 6, y: iy, w: L.w - 12, h: 34, from: 'found', idx: i }); row(it, L.x + 6, iy, L.w - 12, UI.drag && UI.drag.from === 'found' && UI.drag.idx === i); });
   // right side: the same labelled rows, grouped by rarity (scrollable)
   const cols = R.w >= 300 ? 2 : 1, cw = (R.w - 12 - (cols - 1) * 6) / cols, lay = []; let cy = 6;
-  for (let g = 0; g < 3; g++) { const idxs = PV.slots.map((st, i) => i).filter(i => (RARITY[PV.slots[i].id] || 0) === g).sort((p, q) => ITEM_ORDER.indexOf(PV.slots[p].id) - ITEM_ORDER.indexOf(PV.slots[q].id)); if (!idxs.length) continue;
+  for (let g = 2; g >= 0; g--) { const idxs = PV.slots.map((st, i) => i).filter(i => (RARITY[PV.slots[i].id] || 0) === g).sort((p, q) => ITEM_ORDER.indexOf(PV.slots[p].id) - ITEM_ORDER.indexOf(PV.slots[q].id)); if (!idxs.length) continue;
     lay.push({ head: g, y: cy }); cy += 18; idxs.forEach((i, n) => lay.push({ idx: i, x: 6 + (n % cols) * (cw + 6), y: cy + Math.floor(n / cols) * 38 })); cy += Math.ceil(idxs.length / cols) * 38 + 4; }
   const maxScroll = Math.max(0, cy - (R.h - 4)); M.scroll = clamp(M.scroll || 0, 0, maxScroll);
   ctx.save(); ctx.beginPath(); rr(R.x, R.y, R.w, R.h, 8); ctx.clip();
@@ -2790,21 +2895,69 @@ function clearSave() { if (!HEADLESS) try { localStorage.removeItem(SAVE_KEY); }
 function continueGame() {
   const d = loadSave(); if (!d) return newGame();
   G = { phase: 'day', day: d.day, hour: 6, inv: d.inv, built: d.built, flags: d.flags, collectorWater: d.collectorWater || 0, world: makeShelter(d.shelter), survivors: d.survivors.map((s, i) => Object.assign(makeSurvivor(SURVIVOR_TEMPLATES.find(t => t.name === s.name), i), s)), sel: 0, plan: {}, planLoc: null, report: [], event: null, msg: '', msgT: 0 };
-  G.sel = Math.max(0, G.survivors.findIndex(s => s.alive)); UI.modal = null; initFx(); homeCam();
+  G.sel = Math.max(0, G.survivors.findIndex(s => s.alive)); UI.modal = null; applyPlacements(); initFx(); homeCam();
 }
 
 // ---------- day: input ----------
 function homeTapWorld(wx, wy) {
   const s = G.survivors[G.sel]; if (!s || !s.alive) return; const w = G.world;
   let bf = 0, bd = 1e9; for (let f = 0; f < w.nFloors; f++) { const d = Math.abs(w.fy2y(f) - 40 - wy); if (d < bd) { bd = d; bf = f; } }
+  if (G.flags.placing) { placeAt(wx, bf); return; }
   const dbl = isDoubleTap(wx, wy); const path = w.path(s.x, s.f, wx, bf); if (!path) { if (w.blockedByDebris(s.x, s.f, wx, bf)) homeMsg('debris in the way', 'shovel', RED); else homeMsg('locked', 'lock', RED); return; }
   s.task = null; s.path = path; s.run = dbl; AUDIO.sfx('tap');
+}
+// ----- "are you sure": every action is spelled out (who, what, cost, how long) before it is committed -----
+const SPOT_NAME = { sofa: 'sofa', cab1: 'kitchen cabinet', fridge: 'fridge', garshelf: 'garage shelves', dresser: 'dresser', medcab: 'medicine cabinet', desk: 'desk', crates: 'crates', storeshelf: 'storeroom shelves' };
+function askSpot(spot) {
+  const s = G.survivors[G.sel]; if (!s || !s.alive) return; const info = spotInfo(spot); if (!info) return;
+  if (info.disabled || spot.type === 'bench' || UI.test) { homeUseSpot(spot); return; }
+  let text = '', cost = null, secs = { fire: 3, search: 6, dig: G.inv.shovel ? 5 : 45, door: 5, bed: 20, radio: 8, collector: 3, stove: COOK.dur }[spot.type] || 5, note = '';
+  switch (spot.type) {
+    case 'search': text = 'Search the ' + (SPOT_NAME[spot.id] || 'place'); note = spot.left + ' left to go through'; break;
+    case 'dig': text = 'Clear the debris'; note = G.inv.shovel ? 'with the shovel · ' + spot.left + ' loads' : 'by hand, very slow · ' + spot.left + ' loads'; break;
+    case 'door': text = 'Force the ' + spot.room.name + ' door'; note = G.inv.crowbar ? 'with the crowbar' : 'with a lockpick · it may snap'; break;
+    case 'stove': text = 'Cook ' + COOK.give.meal + ' meals'; cost = COOK.cost; break;
+    case 'fire': { const wood = (G.inv.wood || 0) >= 2; text = 'Feed the stove'; cost = wood ? { wood: 2 } : { fuel: 1 }; note = '+' + (wood ? 4 : 6) + ' hours of heat'; break; }
+    case 'collector': text = 'Collect ' + G.collectorWater + ' water'; break;
+    case 'bed': text = 'Lie down and rest'; note = 'restores energy'; break;
+    case 'radio': text = 'Listen to the radio'; note = 'lifts everyone a little'; break;
+    default: text = 'Do this';
+  }
+  UI.modal = { kind: 'confirm', icon: info.icon, who: s.name, text, note, cost, secs, yes: () => homeUseSpot(spot) }; AUDIO.sfx('tap');
+}
+function askBarricade(b) {
+  const s = G.survivors[G.sel]; if (!s || !s.alive) return; const info = barricadeInfo(b);
+  if (info.disabled || UI.test) { homeUseBarricade(b); return; }
+  const rep = info.icon === 'repair', what = b.kind === 'door' ? 'door' : 'window';
+  UI.modal = { kind: 'confirm', icon: info.icon, who: s.name, text: rep ? 'Repair the boards on the ' + what : 'Board up the ' + what, note: rep ? 'back to full strength' : 'level ' + (b.level + 1) + ' of 3', cost: rep ? REPAIR_COST : BOARD_COST, secs: rep ? 5 : 7, yes: () => homeUseBarricade(b) }; AUDIO.sfx('tap');
+}
+function drawConfirm() {
+  const M = UI.modal, w = Math.min(W - 24, 400), h = 172, x = (W - w) / 2, y = Math.min(H - h - 12, H / 2 - h / 2 + 40); panel(x, y, w, h);
+  ctx.fillStyle = '#25272b'; circ(x + 44, y + 50, 26); ctx.fill(); drawIcon(M.icon, x + 44, y + 50, 30);
+  txt(M.who.toUpperCase(), x + 84, y + 30, 12, GOLD, 'left'); txt(M.text, x + 84, y + 50, 18, INK, 'left'); if (M.note) txt(M.note, x + 84, y + 71, 13, DIM, 'left');
+  let cx = x + 22; if (M.cost) { txt('USES', cx, y + 100, 11, DIM, 'left'); cx = costRow(cx + 46, y + 99, M.cost, 20) + 10; }
+  drawIcon('clock', x + w - 70, y + 99, 16, DIM); txt('~' + Math.round(M.secs * (UI.ff ? 1 / 3 : 1)) + 's', x + w - 56, y + 100, 13, DIM, 'left');
+  const bw = (w - 44) / 2;
+  textButton(x + 16, y + h - 52, bw, 40, 'Do it', () => { const f = M.yes; UI.modal = null; f(); }, { icon: 'check', primary: true });
+  textButton(x + 28 + bw, y + h - 52, bw, 40, 'Cancel', () => { UI.modal = null; }, { icon: 'close' });
+}
+// ----- placing what you build: choose the room and the spot yourself -----
+const PLACEABLE = { stove: ['stove', 'fire'], collector: ['collector'], bed: ['bed2'], radio: ['radio'] };
+function setPlacement(id, x, f) { const w = G.world, ids = PLACEABLE[id]; if (!ids) return; const room = w.roomAt(x, f); const lo = room ? room.x0 + 46 : x, hi = room ? room.x1 - 46 : x;
+  ids.forEach((sid, i) => { const sp = w.spotById(sid); if (sp) { sp.x = clamp(x + i * 56, lo, hi + (i ? 30 : 0)); sp.f = f; } }); }
+function applyPlacements() { const p = G.flags && G.flags.pos; if (p) for (const id in p) setPlacement(id, p[id].x, p[id].f); }
+function placeAt(wx, f) {
+  const id = G.flags.placing, w = G.world, room = w.roomAt(wx, f);
+  if (!room || !room.open) { homeMsg('not there · pick an open room', 'lock', RED); return; }
+  if (w.spots.some(d => d.type === 'dig' && d.left > 0 && d.f === f && Math.abs(d.x - wx) < RUB_W + 30)) { homeMsg('debris in the way', 'shovel', RED); return; }
+  const x = clamp(wx, room.x0 + 46, room.x1 - 46); setPlacement(id, x, f); G.flags.pos = G.flags.pos || {}; G.flags.pos[id] = { x, f }; G.built[id] = true; G.flags.placing = null; homeMsg('placed', RECIPES.find(r => r.id === id).icon, GOLD); AUDIO.sfx('done'); save();
 }
 function homeUseSpot(spot) {
   const s = G.survivors[G.sel]; if (!s || !s.alive) return; const w = G.world; const info = spotInfo(spot); if (!info) return;
   if (info.disabled) { if (spot.type === 'door') homeMsg('need ' + ITEMS[spot.tool].n.toLowerCase(), spot.tool, RED); else if (spot.type === 'stove') homeMsg('2 raw + water + fuel', 'cook', RED); else if (spot.type === 'fire') homeMsg(fireLeft() > 12 ? 'stove is full' : 'need 2 wood or 1 fuel', 'fire', RED); else if (spot.type === 'collector') homeMsg('empty · wait for rain', 'water', RED); else if (spot.type === 'radio') homeMsg('already listened today', 'radio', RED); return; }
   let path;
   if (spot.type === 'dig') { const side = Math.sign(s.x - spot.x) || -1, off = RUB_W + 10; path = w.path(s.x, s.f, spot.x + side * off, spot.f) || w.path(s.x, s.f, spot.x - side * off, spot.f); }   // work from whichever side of the pile can be reached
+  else if (spot.type === 'search') { const side = Math.sign(s.x - spot.x) || -1; path = w.path(s.x, s.f, spot.x + side * 20, spot.f) || w.path(s.x, s.f, spot.x - side * 20, spot.f) || w.path(s.x, s.f, spot.x, spot.f); }
   else path = w.path(s.x, s.f, spot.x + (spot.type === 'door' ? -spot.dir * 30 : 0), spot.f);
   if (!path) { if (w.blockedByDebris(s.x, s.f, spot.x, spot.f)) homeMsg('debris in the way', 'shovel', RED); else homeMsg('locked', 'lock', RED); return; }
   // another survivor already working there?
@@ -2845,14 +2998,14 @@ function updateHome(dt) {
     if (s.hunger < 30 || s.health < 40) s.morale = clamp(s.morale - gdt * 10 / DAY_LEN, 0, 100);
     if (s.health <= 0) { s.alive = false; s.pose = 'dead'; homeMsg(s.name + ' died', 'dead', RED); AUDIO.sfx('bad'); for (const o of G.survivors) o.morale = clamp(o.morale - 20, 0, 100); continue; }
     s.poseExtra = null;
-    if (s.path && s.path.length) { moveActor(s, gdt, (s.run ? 125 : 70) * (s.trait === 'runner' ? 1.2 : 1)); s.pose = s.run ? 'run' : 'walk'; continue; }
+    if (s.path && s.path.length) { if (s.pose === 'sleep' || s.pose === 'situp') { if (s.pose === 'sleep') s.upT = .75; s.pose = 'situp'; s.upT -= dt; if (s.upT > 0) continue; } moveActor(s, gdt * (UI.test ? 2.5 : 1), (s.run ? 125 : 70) * (s.trait === 'runner' ? 1.2 : 1)); s.pose = s.run ? 'run' : 'walk'; continue; }
     s.moving = false;
     if (s.eatT > 0) { s.pose = 'eat'; continue; }
     const tk = s.task;
     if (!tk) { s.pose = 'idle'; continue; }
-    tk.t += gdt * (tk.kind === 'dig' || tk.kind === 'board' || tk.kind === 'repair' ? (s.trait === 'handy' ? 1.4 : 1) : 1);
+    tk.t += gdt * (tk.kind === 'dig' || tk.kind === 'board' || tk.kind === 'repair' ? (s.trait === 'handy' ? 1.4 : 1) : 1) * (UI.test && tk.kind !== 'bench' ? 40 : 1);   // TEST: no long waits
     switch (tk.kind) {
-      case 'search': s.pose = 'search'; break;
+      case 'search': s.pose = 'search'; if (Math.abs(tk.spot.x - s.x) > 4) { s.facing = Math.sign(tk.spot.x - s.x); if (s.mc) s.mc.facing = s.facing; } break;
       case 'dig': s.pose = 'dig'; if (Math.abs(tk.spot.x - s.x) > 6) { s.facing = Math.sign(tk.spot.x - s.x); if (s.mc) s.mc.facing = s.facing; } tk.dur = G.inv.shovel ? 5 : 45; if (Math.floor(tk.t * 1.6) !== Math.floor((tk.t - gdt) * 1.6)) AUDIO.sfx('dig'); break;
       case 'door': s.pose = G.inv.crowbar ? 'hammer' : 'cook'; break;
       case 'bed': s.pose = 'sleep'; s.fatigue = clamp(s.fatigue + gdt * 1.6, 0, 100); break;
@@ -2861,7 +3014,7 @@ function updateHome(dt) {
       case 'stove': s.pose = 'cook'; tk.spot.active = true; break;
       case 'fire': s.pose = 'search'; break;
       case 'craft': s.pose = 'hammer'; if (Math.floor(tk.t * 2.3) !== Math.floor((tk.t - gdt) * 2.3)) AUDIO.sfx('hammer'); break;
-      case 'board': case 'repair': s.pose = 'hammer'; s.facing = -1; if (Math.floor(tk.t * 2.3) !== Math.floor((tk.t - gdt) * 2.3)) AUDIO.sfx('hammer'); break;
+      case 'board': case 'repair': s.pose = 'nail'; s.facing = -1; if (Math.floor(tk.t * 2.3) !== Math.floor((tk.t - gdt) * 2.3)) AUDIO.sfx('hammer'); break;
       case 'bench': s.pose = 'idle'; if (!UI.modal) { UI.modal = { kind: 'craft', who: G.survivors.indexOf(s) }; s.task = null; } break;
       case 'exit': s.task = null; break;
     }
@@ -2875,7 +3028,7 @@ function updateHome(dt) {
         case 'collector': { const n = G.collectorWater; G.collectorWater = 0; G.inv.water = (G.inv.water || 0) + n; floatIcon(s.x, w.fy2y(s.fy) - 60, 'water', n); s.task = null; AUDIO.sfx('pick'); break; }
         case 'fire': { const useWood = (G.inv.wood || 0) >= 2; if (useWood) G.inv.wood -= 2; else if ((G.inv.fuel || 0) >= 1) G.inv.fuel -= 1; else { s.task = null; break; } G.flags.fire = Math.min(16, fireLeft() + (useWood ? 4 : 6)); floatIcon(s.x, w.fy2y(s.fy) - 60, 'fire', useWood ? 4 : 6); s.task = null; AUDIO.sfx('done'); break; }
         case 'stove': { const n = COOK.give.meal + (s.quirk === 'cook' ? 1 : 0); sp.active = false; G.inv.meal = (G.inv.meal || 0) + n; floatIcon(s.x, w.fy2y(s.fy) - 60, 'meal', n); s.task = null; AUDIO.sfx('done'); break; }
-        case 'craft': { const rc = tk.recipe; if (rc.build) { G.built[rc.id] = true; homeMsg(ITEMS[rc.give] ? '' : rc.id + ' built', rc.icon, GOLD); } else { G.inv[rc.give] = (G.inv[rc.give] || 0) + 1; floatIcon(s.x, w.fy2y(s.fy) - 60, rc.give, 1); } s.task = null; AUDIO.sfx('done'); break; }
+        case 'craft': { const rc = tk.recipe; if (rc.build && PLACEABLE[rc.id]) { G.flags.placing = rc.id; } else if (rc.build) { G.built[rc.id] = true; homeMsg(ITEMS[rc.give] ? '' : rc.id + ' built', rc.icon, GOLD); } else { G.inv[rc.give] = (G.inv[rc.give] || 0) + 1; floatIcon(s.x, w.fy2y(s.fy) - 60, rc.give, 1); } s.task = null; AUDIO.sfx('done'); break; }
         case 'board': tk.bar.level++; tk.bar.hp = tk.bar.level * 30; s.task = null; AUDIO.sfx('done'); break;
         case 'repair': tk.bar.hp = tk.bar.level * 30; s.task = null; AUDIO.sfx('done'); break;
       }
@@ -2889,7 +3042,7 @@ function lanternsLit(hour) { return skyAt(hour).light < .8; }
 function homeLights(hour) {
   const w = G.world, L = [], h = hour == null ? G.hour : hour;
   if (lanternsLit(h)) for (const l of LANTERNS) { const r = w.roomAt(l.x, l.f); if (!r || !r.open) continue; const fl = .9 + .1 * Math.sin(_T * 9 + l.x) * Math.sin(_T * 5.3 + l.f); L.push({ x: l.x, y: w.fy2y(l.f) - 84, r: 190, a: .66 * fl, c: '255,185,110' }); }
-  if (G.built.stove && fireLeft() > 0) { const fl = .85 + .15 * Math.sin(_T * 11) * Math.sin(_T * 7.1); L.push({ x: 700, y: w.fy2y(1) - 34, r: 260, a: .72 * fl, c: '255,130,50' }); }
+  if (G.built.stove && fireLeft() > 0) { const fl = .85 + .15 * Math.sin(_T * 11) * Math.sin(_T * 7.1), sv = w.spotById('stove'); L.push({ x: sv.x, y: w.fy2y(sv.f) - 34, r: 260, a: .72 * fl, c: '255,130,50' }); }
   return L;
 }
 function drawLanterns(world, hour) {
@@ -2955,7 +3108,7 @@ function resolveNight(scav) {
   homeCam(); save();
   if (raid && !DEMO.on && !HEADLESS) startRaid(raid);
 }
-function placeForDawn() { for (const s of G.survivors) { s.task = null; s.path = null; s.pose = 'idle'; s.poseExtra = null; s.onStair = null; if (s.alive) { s.x = 200 + G.survivors.indexOf(s) * 100; s.fy = 1; s.f = 1; s.facing = 1; } }
+function placeForDawn() { for (const s of G.survivors) { s.bedAt = 0; s.bedIn = 0; s.bedLift = 0; s.task = null; s.path = null; s.pose = 'idle'; s.poseExtra = null; s.onStair = null; if (s.alive) { s.x = 200 + G.survivors.indexOf(s) * 100; s.fy = 1; s.f = 1; s.facing = 1; } }
   G.sel = Math.max(0, G.survivors.findIndex(s => s.alive)); }
 // ----- the raid, watched: the dead come out of the dark to the weakest board; whoever is on guard meets them there -----
 function startRaid(info) {
@@ -2964,7 +3117,7 @@ function startRaid(info) {
   const open1 = w.rooms.filter(r => r.f === 1 && r.open), inner = side < 0 ? Math.min(...open1.map(r => r.x0)) + 80 : Math.max(...open1.map(r => r.x1)) - 60;
   info.guards.forEach((g, i) => { if (!g.alive) return; g.x = inner - side * i * 46; g.fy = g.f = 1; g.facing = side; g.pose = 'guard'; g.mc = null; g.onStair = null; });
   const beds = [{ x: 340, f: 2 }].concat(G.built.bed ? [{ x: 190, f: 1 }] : []).concat([{ x: 420, f: 2 }, { x: 600, f: 2 }, { x: 560, f: 1 }]);
-  info.sleepers.forEach((sl, i) => { if (!sl.alive) return; const bd = beds[i % beds.length]; sl.x = bd.x; sl.fy = sl.f = bd.f; sl.pose = 'sleep'; sl.mc = null; });
+  const nBeds = 1 + (G.built.bed ? 1 : 0); info.sleepers.forEach((sl, i) => { if (!sl.alive) return; const bd = beds[i % beds.length]; sl.x = bd.x; sl.fy = sl.f = bd.f; sl.pose = 'sleep'; sl.mc = null; sl.bedAt = i < nBeds ? (i === 0 ? 40 : 32) : 0; sl.bedIn = 1; sl.bedLift = sl.bedAt; });
   G.raid = { t: 0, dur: 8.5 + info.strength * 1.1, zs, info, side, edge, inner, bang: 0, shake: 0 }; G.phase = 'raid'; UI.modal = null; homeCam();
   { const cxw = (inner + edge + side * 160) / 2, span = Math.abs(edge + side * 300 - inner) + 260; cam.z = cam.tz = clamp(W / span, cam.minZ, 1.5); cam.x = cam.tx = cxw; cam.y = cam.ty = w.fy2y(1) - 70; }
 }
@@ -3036,7 +3189,7 @@ function frame(now) {
       drawScene(G.world, hour, actors, { t: _T, dt, lights });
       if (G.phase === 'raid') drawRaidHud();
       if (G.phase === 'day' || G.phase === 'plan') drawHomeHud(dt);
-      if (UI.modal) { switch (UI.modal.kind) { case 'loot': drawLoot(); break; case 'plan': drawPlan(); break; case 'map': drawMap(); break; case 'dawn': drawDawn(); break; case 'event': drawEvent(); break; case 'craft': drawCraft(); break; } }
+      if (UI.modal) { switch (UI.modal.kind) { case 'loot': drawLoot(); break; case 'plan': drawPlan(); break; case 'map': drawMap(); break; case 'dawn': drawDawn(); break; case 'event': drawEvent(); break; case 'craft': drawCraft(); break; case 'confirm': drawConfirm(); break; } }
       if (G.phase === 'win') drawEnd(true); if (G.phase === 'lose') drawEnd(false);
       break;
     }
