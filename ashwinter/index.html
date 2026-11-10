@@ -948,7 +948,7 @@ const SCENES = [
     setup() { newGame(); UI.modal = null; G.msgT = 0; G.inv.shovel = 1; const w = G.world, [d, n, t] = G.survivors; G.sel = 0; homeUseSpot(w.spotById('sofa')); G.sel = 1; homeUseSpot(w.spotById('cab1')); G.sel = 2; homeUseSpot(w.spotById('fridge')); G.sel = 0; cam.lock = true; },
     tick(t) { const w = G.world; look(560 + t * 22, w.fy2y(1) - 70, 1.3); } },
   { cap: 'Real stairs: every step is planted, up and down', dur: 9,
-    setup() { const d = G.survivors[0]; d.task = null; d.path = G.world.path(d.x, d.f, 1240, 0); G.sel = 0; },
+    setup() { const d = G.survivors[0]; d.task = null; d.path = G.world.path(d.x, d.f, 1010, 0); G.sel = 0; },
     tick(t) { const d = G.survivors[0]; follow(d, 1.7, -30); } },
   { cap: 'Double-tap to run — fast, but everyone hears it', dur: 5,
     setup() { const t = G.survivors[2]; t.task = null; t.path = G.world.path(t.x, t.f, 1200, 1); t.run = true; G.sel = 2; },
@@ -1400,12 +1400,12 @@ const SHELTER_SPOTS = [
   { id: 'medcab', f: 2, x: 600, type: 'search', uses: 2, loot: [['bandage', 1], ['meds', 1], ['water', 1]] },
   { id: 'rubble2', f: 2, x: 900, type: 'dig', uses: 4, loot: [['wood', 3], ['scrap', 1], ['parts', 1]] },
   { id: 'desk', f: 2, x: 1180, type: 'search', uses: 2, loot: [['books', 2], ['parts', 1], ['lockpick', 1]] },
-  { id: 'rubble3', f: 0, x: 1000, type: 'dig', uses: 5, loot: [['wood', 2], ['scrap', 2], ['parts', 1]] },
-  { id: 'crates', f: 0, x: 1120, type: 'search', uses: 3, loot: [['canned', 1], ['fuel', 1], ['cloth', 1]] },
+  { id: 'rubble3', f: 0, x: 1140, type: 'dig', uses: 5, loot: [['wood', 2], ['scrap', 2], ['parts', 1]] },
+  { id: 'crates', f: 0, x: 1265, type: 'search', uses: 3, loot: [['canned', 1], ['fuel', 1], ['cloth', 1]] },
   { id: 'storeshelf', f: 0, x: 400, type: 'search', uses: 4, loot: [['canned', 2], ['water', 2], ['fuel', 1], ['parts', 1]] },
   { id: 'rubble4', f: 0, x: 200, type: 'dig', uses: 4, loot: [['wood', 3], ['scrap', 3]] },
   // built / fixed stations
-  { id: 'bench', f: 0, x: 1240, type: 'bench' },
+  { id: 'bench', f: 0, x: 1010, type: 'bench' },
   { id: 'stove', f: 1, x: 720, type: 'stove', needsBuild: 'stove' },
   { id: 'collector', f: 2, x: 530, type: 'collector', needsBuild: 'collector' },
   { id: 'bed', f: 2, x: 340, type: 'bed' },
@@ -1451,6 +1451,7 @@ const EVENTS = [
 const STAIR_W = 120;
 let CUR_W = null, LASTTAP = { t: -9, x: 0, y: 0 };
 function isDoubleTap(wx, wy) { const now = performance.now() / 1000, d = now - LASTTAP.t < .45 && Math.hypot(wx - LASTTAP.x, wy - LASTTAP.y) < 70; LASTTAP = { t: now, x: wx, y: wy }; return d; }
+const RUB_W = 44;   // half-width of a debris pile
 class World {
   constructor(def) {
     this.x0 = def.x0; this.x1 = def.x1; this.nFloors = def.nFloors; this.groundY = def.groundY === undefined ? GROUND_Y : def.groundY;
@@ -1469,8 +1470,10 @@ class World {
   passable(xa, xb, f) {
     const lo = Math.min(xa, xb), hi = Math.max(xa, xb);
     for (const r of this.rooms) if (r.f === f && r.x1 > lo + 1 && r.x0 < hi - 1 && !r.open) return false;
+    for (const d of this.spots) if (d.type === 'dig' && d.left > 0 && d.f === f && d.x + RUB_W > lo + 1 && d.x - RUB_W < hi - 1) return false;   // debris blocks the way until it is dug out
     return true;
   }
+  blockedByDebris(x, f, tx, tf) { const live = this.spots.filter(d => d.type === 'dig' && d.left > 0), keep = live.map(d => d.left); live.forEach(d => d.left = 0); const ok = !!this.path(x, f, tx, tf); live.forEach((d, i) => d.left = keep[i]); return ok; }
   stairsFor(f) { return this.stairs.filter(s => s.a === f || s.b === f); }
   // waypoints from (x,f) to (tx,tf) or null
   path(x, f, tx, tf, depth = 0) {
@@ -1519,7 +1522,7 @@ function makeShelter(saved) {
   const add = (f, x, t, o) => props.push(Object.assign({ f, x, t }, o || {}));
   add(1, 300, 'sofa'); add(1, 180, 'table'); add(1, 460, 'shelf', { h: 60 }); add(1, 600, 'cabinet'); add(1, 820, 'fridge'); add(1, 720, 'counter'); add(1, 1060, 'rubble', { id: 'rubble1' }); add(1, 1200, 'garshelf'); add(1, 980, 'car');
   add(2, 130, 'dresser'); add(2, 340, 'bedframe'); add(2, 600, 'medcab'); add(2, 680, 'tub'); add(2, 900, 'rubble', { id: 'rubble2' }); add(2, 1180, 'desk'); add(2, 1050, 'bookcase');
-  add(0, 1000, 'rubble', { id: 'rubble3' }); add(0, 1120, 'crates'); add(0, 1240, 'bench'); add(0, 400, 'storeshelf'); add(0, 200, 'rubble', { id: 'rubble4' }); add(0, 560, 'boiler');
+  add(0, 1140, 'rubble', { id: 'rubble3' }); add(0, 1265, 'crates'); add(0, 1010, 'bench'); add(0, 400, 'storeshelf'); add(0, 200, 'rubble', { id: 'rubble4' }); add(0, 560, 'boiler');
   add(1, 530, 'pipe'); add(0, 1180, 'pipe'); add(2, 500, 'sink');
   const stairs = [{ x: 820, a: 0, b: 1 }, { x: 240, a: 1, b: 2 }];
   const barricades = BARRICADES.map(b => Object.assign({ level: 0, hp: 0 }, b));
@@ -1663,7 +1666,7 @@ function drawPersonRig(a, pose, t, extra) {
   if (a.idlePose === 'read') { const h = handOf(a); if (h) { ctx.save(); ctx.translate(h.x, h.y - 2); ctx.rotate((a.facing || 1) * .35); ctx.fillStyle = '#cfc3a6'; ctx.fillRect(-7, -4.5, 14, 9); ctx.fillStyle = '#6b5a44'; ctx.fillRect(-.7, -4.5, 1.4, 9); ctx.restore(); } }
   if (a.say && a.sayT > 0) { const sx = X, sy = tr.base - c.y - 100 * (a.scale || 1); ctx.fillStyle = 'rgba(20,20,22,.85)'; rr(sx - 16, sy - 16, 32, 32, 8); ctx.fill(); drawIcon(a.say, sx, sy, 20); }
 }
-function poseTool(pose, extra, a) { switch (pose) { case 'dig': return 'shovel'; case 'hammer': return 'hammer'; case 'cook': return 'spoon'; case 'guard': case 'attack': return extra && extra.weapon; default: return null; } }
+function poseTool(pose, extra, a) { switch (pose) { case 'dig': return G.inv.shovel ? 'shovel' : null; case 'hammer': return 'hammer'; case 'cook': return 'spoon'; case 'guard': case 'attack': return extra && extra.weapon; default: return null; } }
 function boot(ft, facing, k) { ctx.fillStyle = shade('#3a3029', k); ctx.beginPath(); ctx.ellipse(ft[0] + 2 * facing, ft[1] + 1, 6, 3.2, 0, 0, TAU); ctx.fill(); }
 function drawTool(tool, x, y, ang, facing) {
   ctx.save(); ctx.translate(x, y); ctx.rotate(ang * facing); ctx.lineCap = 'round';
@@ -2713,16 +2716,19 @@ function continueGame() {
 function homeTapWorld(wx, wy) {
   const s = G.survivors[G.sel]; if (!s || !s.alive) return; const w = G.world;
   let bf = 0, bd = 1e9; for (let f = 0; f < w.nFloors; f++) { const d = Math.abs(w.fy2y(f) - 40 - wy); if (d < bd) { bd = d; bf = f; } }
-  const dbl = isDoubleTap(wx, wy); const path = w.path(s.x, s.f, wx, bf); if (!path) { homeMsg('locked', 'lock', RED); return; }
+  const dbl = isDoubleTap(wx, wy); const path = w.path(s.x, s.f, wx, bf); if (!path) { if (w.blockedByDebris(s.x, s.f, wx, bf)) homeMsg('debris in the way', 'shovel', RED); else homeMsg('locked', 'lock', RED); return; }
   s.task = null; s.path = path; s.run = dbl; AUDIO.sfx('tap');
 }
 function homeUseSpot(spot) {
   const s = G.survivors[G.sel]; if (!s || !s.alive) return; const w = G.world; const info = spotInfo(spot); if (!info) return;
   if (info.disabled) { if (spot.type === 'door') homeMsg('need ' + ITEMS[spot.tool].n.toLowerCase(), spot.tool, RED); else if (spot.type === 'stove') homeMsg('2 raw + water + fuel', 'cook', RED); else if (spot.type === 'collector') homeMsg('empty · wait for rain', 'water', RED); else if (spot.type === 'radio') homeMsg('already listened today', 'radio', RED); return; }
-  const path = w.path(s.x, s.f, spot.x + (spot.type === 'door' ? -spot.dir * 30 : 0), spot.f); if (!path) { homeMsg('locked', 'lock', RED); return; }
+  let path;
+  if (spot.type === 'dig') { const side = Math.sign(s.x - spot.x) || -1, off = RUB_W + 10; path = w.path(s.x, s.f, spot.x + side * off, spot.f) || w.path(s.x, s.f, spot.x - side * off, spot.f); }   // work from whichever side of the pile can be reached
+  else path = w.path(s.x, s.f, spot.x + (spot.type === 'door' ? -spot.dir * 30 : 0), spot.f);
+  if (!path) { if (w.blockedByDebris(s.x, s.f, spot.x, spot.f)) homeMsg('debris in the way', 'shovel', RED); else homeMsg('locked', 'lock', RED); return; }
   // another survivor already working there?
   if (G.survivors.some(o => o !== s && o.alive && o.task && o.task.spot === spot && spot.type !== 'bed')) { homeMsg('busy', 'people'); return; }
-  const dur = { search: 6, dig: G.inv.shovel ? 5 : 11, door: 5, bed: 20, radio: 8, collector: 3, stove: COOK.dur, bench: 0 }[spot.type] || 5;
+  const dur = { search: 6, dig: G.inv.shovel ? 5 : 45, door: 5, bed: 20, radio: 8, collector: 3, stove: COOK.dur, bench: 0 }[spot.type] || 5;
   s.path = path; s.task = { spot, kind: spot.type, t: 0, dur };
   if (spot.type === 'stove') { pay(COOK.cost); }
   AUDIO.sfx('tap');
@@ -2730,7 +2736,7 @@ function homeUseSpot(spot) {
 function homeUseBarricade(b) {
   const s = G.survivors[G.sel]; if (!s || !s.alive) return; const info = barricadeInfo(b);
   if (info.disabled) { homeMsg(b.level >= 3 && b.hp >= 90 ? 'fully boarded' : 'need ' + Object.entries(info.icon === 'repair' ? REPAIR_COST : BOARD_COST).map(([k, v]) => v + ' ' + k).join(' + '), 'wood', RED); return; }
-  const path = G.world.path(s.x, s.f, b.x + 40, b.f); if (!path) { homeMsg('locked', 'lock', RED); return; }
+  const path = G.world.path(s.x, s.f, b.x + 40, b.f); if (!path) { if (G.world.blockedByDebris(s.x, s.f, b.x + 40, b.f)) homeMsg('debris in the way', 'shovel', RED); else homeMsg('locked', 'lock', RED); return; }
   const kind = info.icon === 'repair' ? 'repair' : 'board'; pay(kind === 'repair' ? REPAIR_COST : BOARD_COST);
   s.path = path; s.task = { bar: b, kind, t: 0, dur: kind === 'repair' ? 6 : 9 }; AUDIO.sfx('tap');
 }
@@ -2763,7 +2769,7 @@ function updateHome(dt) {
     tk.t += gdt * (tk.kind === 'dig' || tk.kind === 'board' || tk.kind === 'repair' ? (s.trait === 'handy' ? 1.4 : 1) : 1);
     switch (tk.kind) {
       case 'search': s.pose = 'search'; break;
-      case 'dig': s.pose = 'dig'; if (Math.floor(tk.t * 1.6) !== Math.floor((tk.t - gdt) * 1.6)) AUDIO.sfx('dig'); break;
+      case 'dig': s.pose = 'dig'; if (Math.abs(tk.spot.x - s.x) > 6) { s.facing = Math.sign(tk.spot.x - s.x); if (s.mc) s.mc.facing = s.facing; } tk.dur = G.inv.shovel ? 5 : 45; if (Math.floor(tk.t * 1.6) !== Math.floor((tk.t - gdt) * 1.6)) AUDIO.sfx('dig'); break;
       case 'door': s.pose = G.inv.crowbar ? 'hammer' : 'cook'; break;
       case 'bed': s.pose = 'sleep'; s.fatigue = clamp(s.fatigue + gdt * 1.6, 0, 100); break;
       case 'radio': s.pose = 'cook'; break;
