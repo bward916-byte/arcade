@@ -808,7 +808,7 @@ const Motion = (() => {
       const cyl = (x0, y0, x1, y1, col) => { const g = ctx.createLinearGradient(x0, y0, x1, y1); g.addColorStop(0, shade(col, .62)); g.addColorStop(.3, shade(col, 1.12)); g.addColorStop(.55, col); g.addColorStop(1, shade(col, .55)); return g; };
       const outline = col => { ctx.strokeStyle = shade(col, .45); ctx.lineWidth = .9; ctx.stroke(); };
       const weave = Character.weave(ctx);
-      const texture = () => { if (weave) { ctx.fillStyle = weave; ctx.fill(); } };
+      const texture = () => { };   // plain cloth: no weave
       // a tapered capsule between two joints: the basic unit of flesh
       const cap = (a, b, wa, wb, col, tex) => { const ax = X(a), ay = Y(a), bx = X(b), by = Y(b), dx = bx - ax, dy = by - ay, d = Math.hypot(dx, dy) || 1e-6, th = Math.atan2(dx, -dy);
         let nx = -dy / d, ny = dx / d; if (nx * LX + ny * LY < 0) { nx = -nx; ny = -ny; }          // nx,ny points toward the light
@@ -830,6 +830,7 @@ const Motion = (() => {
       const pants = cols.clothDark, pantsFar = shade(pants, farMul), skinFar = shade(cols.skin, farMul), sleeveN = look.coat ? cols.coat : cols.cloth, sleeveF = shade(sleeveN, farMul);
       const leg = (L3, ball, toe, far) => { const pc = far ? pantsFar : pants, sc = far ? shade(cols.shoe, .8) : cols.shoe;
         cap(L3[0], L3[1], W.thigh, W.knee, pc, true); cap(L3[1], L3[2], W.calf, W.ankle, pc, true);
+        if (look.mess) { ctx.fillStyle = 'rgba(20,14,8,.22)'; ctx.beginPath(); ctx.arc(X(L3[1]), Y(L3[1]), W.knee * .5 * S, 0, 2 * PI); ctx.fill(); ctx.beginPath(); ctx.arc(X(L3[2]), Y(L3[2]) - 2 * S, W.ankle * .7 * S, 0, 2 * PI); ctx.fill(); }
         const heel = [L3[2][0] - (ball[0] - L3[2][0]) * .55, L3[2][1] - (ball[1] - L3[2][1]) * .55 + 1.2 * S];   // boot: heel behind the ankle, sole to the toe
         cap(heel, ball, W.ankle + 2.2, W.ankle + 1.6, sc); cap(ball, toe, W.ankle + 1.4, W.ankle + .2, sc);
         ctx.strokeStyle = 'rgba(255,255,255,.18)'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(X(heel), Y(heel) - 1.5 * S); ctx.lineTo(X(toe), Y(toe) - 1.2 * S); ctx.stroke(); };   // a glint along the boot
@@ -870,10 +871,14 @@ const Motion = (() => {
         T3(shAlong, W.sh + x + W.chest, W.shB + x), T3(Tt * .62, W.sh * .9 + x + W.chest * 1.3 + bl * .25, (W.shB + W.waistB) / 2 + x),              // chest
         T3(waistAlong, W.waist + x + bl * .7, W.waistB + x), T3(Tt * .18, W.hip + x + bl, W.hipB * 1.05 + x),                                        // belly
         T3(0, W.hip + x + bl * .75, W.hipB + x), T3(hem, W.hip + x + 1 + bl * .3, W.hipB + x)], col);                                                 // overhang
-      if (look.bag === 'backpack') { const a = T3(L.torso * .85, -W.sh - 4.5, 0), b = T3(L.torso * .3, -W.waist - 5.5, 0); const bw = 6.5 * S, bh = Math.hypot(b[0] - a[0], b[1] - a[1]) + 6 * S; ctx.save(); ctx.translate((a[0] + b[0]) / 2, (a[1] + b[1]) / 2); ctx.rotate(Math.atan2(b[1] - a[1], b[0] - a[0]) - H); ctx.fillStyle = look.bagCol || '#5a6a4a'; ctx.beginPath(); ctx.roundRect ? ctx.roundRect(-bw, -bh / 2, 2 * bw, bh, 3 * S) : ctx.rect(-bw, -bh / 2, 2 * bw, bh); ctx.fill(); texture(); outline(look.bagCol || '#5a6a4a'); ctx.fillStyle = shade(look.bagCol || '#5a6a4a', .7); ctx.fillRect(-bw * .8, -bh / 2 + bh * .55, bw * 1.6, bh * .3); ctx.restore(); }
+      if (look.bag === 'backpack') { const a = T3(L.torso * .85, -W.sh - 4.5, 0), b = T3(L.torso * .3, -W.waist - 5.5, 0); const bw = 6.5 * S * (1 + .5 * (look.bagFull || 0)), bh = Math.hypot(b[0] - a[0], b[1] - a[1]) + 6 * S; ctx.save(); ctx.translate((a[0] + b[0]) / 2, (a[1] + b[1]) / 2); ctx.rotate(Math.atan2(b[1] - a[1], b[0] - a[0]) - H); ctx.fillStyle = look.bagCol || '#5a6a4a'; ctx.beginPath(); ctx.roundRect ? ctx.roundRect(-bw, -bh / 2, 2 * bw, bh, 3 * S) : ctx.rect(-bw, -bh / 2, 2 * bw, bh); ctx.fill(); texture(); outline(look.bagCol || '#5a6a4a'); ctx.fillStyle = shade(look.bagCol || '#5a6a4a', .7); ctx.fillRect(-bw * .8, -bh / 2 + bh * .55, bw * 1.6, bh * .3); ctx.restore(); }
       if (look.coat) trunk(1.2, -7, cols.coat);                      // a coat hangs past the hips
       trunk(0, -2, look.coat ? cols.coat : cols.cloth);
       if (look.coat) { ctx.strokeStyle = shade(cols.coat, .6); ctx.lineWidth = 1.2; const a = T2(L.torso, 0), b = T2(0, 1.5); ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke(); }
+      if (look.mess) for (const m of look.mess) { const c = T3(m.along * Tt, m.side * W.waist, m.side * W.waistB);   // lived-in clothes: stains, a patch, a tear
+        if (m.k === 'stain') { ctx.fillStyle = 'rgba(20,14,8,' + m.a + ')'; ctx.beginPath(); ctx.ellipse(c[0], c[1], m.r * S, m.r * .7 * S, m.rot, 0, 2 * PI); ctx.fill(); }
+        else if (m.k === 'patch') { ctx.save(); ctx.translate(c[0], c[1]); ctx.rotate(m.rot); ctx.fillStyle = m.col; ctx.fillRect(-m.r * S, -m.r * .8 * S, 2 * m.r * S, 1.6 * m.r * S); ctx.strokeStyle = 'rgba(0,0,0,.45)'; ctx.lineWidth = .7; ctx.setLineDash([1.5, 1.5]); ctx.strokeRect(-m.r * S, -m.r * .8 * S, 2 * m.r * S, 1.6 * m.r * S); ctx.setLineDash([]); ctx.restore(); }
+        else { ctx.strokeStyle = 'rgba(0,0,0,.5)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(c[0] - m.r * S * Math.cos(m.rot), c[1] - m.r * S * Math.sin(m.rot)); ctx.lineTo(c[0], c[1] + .6 * S); ctx.lineTo(c[0] + m.r * S * Math.cos(m.rot), c[1] + m.r * S * Math.sin(m.rot)); ctx.stroke(); } }
       if (wt > .2) { ctx.strokeStyle = 'rgba(0,0,0,.16)'; ctx.lineWidth = 1.2; const a = T3(Tt * .3, W.waist + bl * .55, 0), b = T3(1, W.hip + bl * .75, 0);   // a soft crease under the belly
         ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.quadraticCurveTo((a[0] + b[0]) / 2 + nS[0] * bl * .4 * S, (a[1] + b[1]) / 2, b[0], b[1]); ctx.stroke(); }
       if (look.bag === 'handbag') { const h = T3(-1, W.hip + 3, 0), st = T3(L.shoulder, -W.sh * .3, 0); ctx.strokeStyle = '#3a2a1a'; ctx.lineWidth = 1.3; ctx.beginPath(); ctx.moveTo(st[0], st[1]); ctx.lineTo(h[0], h[1] + 2 * S); ctx.stroke(); ctx.fillStyle = look.bagCol || '#6a4a2a'; ctx.beginPath(); ctx.roundRect ? ctx.roundRect(h[0] - 5 * S, h[1] + 1 * S, 10 * S, 8 * S, 2 * S) : ctx.rect(h[0] - 5 * S, h[1] + 1 * S, 10 * S, 8 * S); ctx.fill(); outline(look.bagCol || '#6a4a2a'); }
@@ -900,6 +905,8 @@ const Motion = (() => {
       if (look.face === 'beard') { ctx.fillStyle = cols.hair; ctx.beginPath(); ctx.ellipse(.3 * R * ct, .45 * R, .7 * R * Math.abs(ct) + .35 * R, .62 * R, 0, 0, 2 * PI); ctx.fill();
         ctx.fillStyle = cols.skin; ctx.beginPath(); ctx.ellipse(.45 * R * ct, .25 * R, .32 * R * Math.abs(ct) + .12 * R, .22 * R, 0, 0, 2 * PI); ctx.fill(); }   // the mouth shows through
       ctx.restore();
+      if (look.mess && look.hair !== 'none' && (!look.hat || look.hat === 'none')) { ctx.strokeStyle = cols.hair; ctx.lineWidth = 1.1; ctx.lineCap = 'round';   // unkempt: tufts sticking up
+        for (let i = 0; i < 5; i++) { const a0 = -2.5 + i * .34 + (look.messSeed || 0) * .3, r0 = R * .92, r1 = R * (1.12 + .1 * ((i * 7 + (look.messSeed || 0) * 13) % 3)); ctx.beginPath(); ctx.moveTo(Math.cos(a0) * r0 * ct, Math.sin(a0) * r0); ctx.lineTo(Math.cos(a0 - .18) * r1 * ct, Math.sin(a0 - .18) * r1); ctx.stroke(); } }
       if (look.face !== 'none') {
         for (const side of [1, -1]) {                                                        // near and far eye, brow and ear
           const e = az(side * 1.0, .72 * R), b = az(side * .95, .8 * R), ear = az(side * 2.6, .85 * R);
@@ -1040,6 +1047,9 @@ function lookFor(a) {
     a.zt = { lean: .18 + r() * .32, head: .1 + r() * .35, armA: [.3 + r() * 1.1, .2 + r() * 1.2], armB: [.1 + r() * .5, .1 + r() * .5], lurch: r() * .09, limp: r() < .5 ? .5 + r() : 0, pace: .55 + r() * .55 };
   }
   if (!a.zombie) a.st = { lean: -.03 + r() * .08, head: -.06 + r() * .12, pace: .9 + r() * .2 };
+  // weeks without a wash: colours gone dull, stains, a patch, a tear, hair on end
+  if (!a.zombie) for (const k of ['cloth', 'clothDark', 'coat', 'scarf']) if (lk.cols[k] && lk.cols[k][0] === '#') lk.cols[k] = mix(lk.cols[k], '#4b463f', k === 'scarf' ? .3 : .38);
+  { const mess = [], n = 3 + Math.floor(r() * 3); for (let i = 0; i < n; i++) { const q = r(); mess.push({ k: q < .6 ? 'stain' : q < .82 ? 'patch' : 'tear', along: .12 + r() * .7, side: -.75 + r() * 1.5, r: 1.6 + r() * 2.2, rot: r() * 3, a: (.14 + r() * .16).toFixed(2), col: mix(pk(SHIRTS), '#4b463f', .5) }); } lk.mess = mess; lk.messSeed = Math.floor(r() * 9); }
   return a.mlook = lk;
 }
 function shadeHex(col, m) { const n = parseInt(col.slice(1), 16); const c = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map(v => Math.round(clamp(v * m, 0, 255))); return `rgb(${c[0]},${c[1]},${c[2]})`; }
@@ -1058,7 +1068,8 @@ function setMove(c, m, a) {   // m = speed in walker units (1 = walk, 2 = run), 
 function moodOf(a) { if (a.zombie || a.morale == null) return null; const t = _T | 0; if (a._mood && a._moodT === t) return a._mood;
   const sad = clamp((45 - a.morale) / 45, 0, 1), tired = clamp((40 - a.fatigue) / 40, 0, 1), hurt = clamp((50 - a.health) / 50, 0, 1) + (a.infected ? .35 : 0), hungry = clamp((35 - a.hunger) / 35, 0, 1);
   a._moodT = t; return a._mood = { lean: .10 * sad + .07 * tired + .12 * hurt, head: -.24 * sad - .16 * tired - .06 * hurt, squat: 1.1 * tired + 2 * hurt + .5 * hungry, pace: clamp(1 - .1 * tired - .18 * hurt - .07 * hungry - .05 * sad, .6, 1), arm: hurt > .55 ? { a: .95, b: 1.45, k: .9 } : null, rate: .55 * sad + .6 * tired + .8 * hurt }; }
-function extFor(a, ext) { const o = ext ? Object.assign({}, ext) : {}; if (a.st && !a.zombie) { const m = moodOf(a) || { lean: 0, head: 0, squat: 0 }; if (o.lean == null) o.lean = a.st.lean + m.lean; if (o.head == null) o.head = a.st.head + m.head; if (m.squat) o.squat = (o.squat || 0) + m.squat; if (m.arm && !o.arm) o.arm = [null, m.arm]; if (m.rate && o.rate == null) o.rate = 12 - 6 * Math.min(1, m.rate); } return o; }
+function extFor(a, ext) { const o = ext ? Object.assign({}, ext) : {}; if (!a.zombie && a.cold > .3 && CUR_W === G.world) { if (!o.arm) o.arm = [{ a: .5, b: 1.95, k: .85 }, { a: .42, b: 2.05, k: .85 }]; o.lean = (o.lean == null ? (a.st ? a.st.lean : 0) + .06 : o.lean) + Math.sin(_T * 41 + (a.x | 0)) * .012 * Math.min(1.5, a.cold * 1.5); o.squat = (o.squat || 0) + .6; }   // shivering: arms hugged, a tremble
+  if (a.st && !a.zombie) { const m = moodOf(a) || { lean: 0, head: 0, squat: 0 }; if (o.lean == null) o.lean = a.st.lean + m.lean; if (o.head == null) o.head = a.st.head + m.head; if (m.squat) o.squat = (o.squat || 0) + m.squat; if (m.arm && !o.arm) o.arm = [null, m.arm]; if (m.rate && o.rate == null) o.rate = 12 - 6 * Math.min(1, m.rate); } return o; }
 // drive toward tx (px). loose: pass through without braking. Returns true when there.
 function rigTo(a, t, tx, spd, dt, ext, loose) {
   const c = mcOf(a, t), w = c.w, k = c.k; c.hold = null; w.ext = extFor(a, ext);
@@ -1078,7 +1089,7 @@ function zombieExt(a, t) { const z = a.zt || { lean: .3, head: .3, armA: [1.2, 1
 const SNEAK_EXT = { squat: 4.5, lean: .22, arm: [{ a: .55, b: 1.25, k: .9 }, { a: .5, b: 1.3, k: .9 }], rate: 10 };
 // the actor's terrain when standing about (home / site / street / title)
 function engFor(a) {
-  if (a.street || (TR.active && (a === TR.player || TR.zombies.includes(a)))) return TR.ew;
+  if (a.street || (TR.active && !SC.active && G.phase === 'travel' && (a === TR.player || TR.zombies.includes(a)))) return TR.ew;
   const w = typeof CUR_W !== 'undefined' && CUR_W; if (w && a.onStair) return engStair(w, a.onStair);   // paused mid-flight: stay on the stairs
   if (w && a.fy != null) return engFlat(w, Math.round(a.fy));
   a._tw = a._tw || flatWorld(a.y, -1e5, 1e5); return a._tw;
@@ -1249,7 +1260,7 @@ const AUDIO = {
 // ===== procedural icon set (designed on a 32px grid, centered) =====
 const ICON_COLORS = {
   wood: '#b07a3c', scrap: '#8d9299', parts: '#c9b36a', cloth: '#9c6b8f', water: '#5fa8d3', canned: '#c75b4a', raw: '#d98f6a', meal: '#e2b35d',
-  bandage: '#eee6d8', meds: '#6fcf97', fuel: '#f0a24a', books: '#7f9bc9', lockpick: '#cfd3d8', shovel: '#b0b0a6', crowbar: '#d0433a', knife: '#d9dde2', bat: '#c89a5c', pistol: '#7a7f86', ammo: '#d6b25a', backpack: '#8c7a5a'
+  bandage: '#eee6d8', meds: '#6fcf97', fuel: '#f0a24a', fire: '#f08a3a', cold: '#9cc7e6', books: '#7f9bc9', lockpick: '#cfd3d8', shovel: '#b0b0a6', crowbar: '#d0433a', knife: '#d9dde2', bat: '#c89a5c', pistol: '#7a7f86', ammo: '#d6b25a', backpack: '#8c7a5a'
 };
 function drawIcon(name, x, y, s, color) {
   const k = s / 32; ctx.save(); ctx.translate(x, y); ctx.scale(k, k);
@@ -1333,6 +1344,9 @@ function drawIcon(name, x, y, s, color) {
     case 'bench': P(); rr(-14, -4, 28, 5, 1); F(); P(); rr(-11, 1, 4, 12, 1); F(); P(); rr(7, 1, 4, 12, 1); F(); P(); ctx.arc(2, -9, 4, 0, TAU); F(); break;
     case 'trap': P(); ctx.arc(0, 0, 11, 0, TAU); S(); for (let i = 0; i < 8; i++) { const a = i / 8 * TAU; P(); M(Math.cos(a) * 11, Math.sin(a) * 11); L(Math.cos(a + .2) * 6, Math.sin(a + .2) * 6); S(); } break;
     case 'dot': P(); ctx.arc(0, 0, 5, 0, TAU); F(); break;
+    case 'cold': for (let i = 0; i < 3; i++) { const a = i / 3 * Math.PI; P(); M(Math.cos(a) * 12, Math.sin(a) * 12); L(-Math.cos(a) * 12, -Math.sin(a) * 12); S(); for (const g of [1, -1]) { const bx = Math.cos(a) * 8 * g, by = Math.sin(a) * 8 * g; P(); M(bx + Math.cos(a + 1) * 4 * g, by + Math.sin(a + 1) * 4 * g); L(bx, by); L(bx + Math.cos(a - 1) * 4 * g, by + Math.sin(a - 1) * 4 * g); S(); } } break;
+    case 'fire': P(); M(0, -13); ctx.quadraticCurveTo(10, -3, 8, 5); ctx.quadraticCurveTo(7, 13, 0, 13); ctx.quadraticCurveTo(-8, 13, -8, 4); ctx.quadraticCurveTo(-8, -1, -4, -4); ctx.quadraticCurveTo(-3, 1, 0, 0); ctx.quadraticCurveTo(3, -5, 0, -13); ctx.closePath(); F(); break;
+    case 'throw': P(); ctx.arc(-2, 8, 13, -Math.PI * .95, -Math.PI * .25); S(); P(); ctx.arc(9, -3, 3.5, 0, TAU); F(); P(); M(-14, 1); L(-14, 8); M(-14, 1); L(-8, 3); S(); break;
     default: P(); ctx.arc(0, 0, 10, 0, TAU); S(); break;
   }
   ctx.restore();
@@ -1406,7 +1420,8 @@ const SHELTER_SPOTS = [
   { id: 'rubble4', f: 0, x: 200, type: 'dig', uses: 4, loot: [['wood', 3], ['scrap', 3]] },
   // built / fixed stations
   { id: 'bench', f: 0, x: 1010, type: 'bench' },
-  { id: 'stove', f: 1, x: 720, type: 'stove', needsBuild: 'stove' },
+  { id: 'stove', f: 1, x: 700, type: 'stove', needsBuild: 'stove' },
+  { id: 'fire', f: 1, x: 756, type: 'fire', needsBuild: 'stove' },
   { id: 'collector', f: 2, x: 530, type: 'collector', needsBuild: 'collector' },
   { id: 'bed', f: 2, x: 340, type: 'bed' },
   { id: 'bed2', f: 1, x: 190, type: 'bed', needsBuild: 'bed' },
@@ -1416,11 +1431,11 @@ const SHELTER_SPOTS = [
 
 // survivors (original characters)
 const SURVIVOR_TEMPLATES = [
-  { name: 'Dale', trait: 'handy', coat: '#5b6a52', pants: '#3a3a40', skin: '#c9a07a', hair: '#3a2a1e', hairStyle: 'short', beard: true, slots: 10 },
-  { name: 'Noor', trait: 'runner', coat: '#6a4b5c', pants: '#2e2e36', skin: '#a3744f', hair: '#1a1410', hairStyle: 'wrap', slots: 12 },
-  { name: 'Teo', trait: 'medic', coat: '#4d5d78', pants: '#3b3730', skin: '#e0b89a', hair: '#6b4a2a', hairStyle: 'curly', slots: 10 },
-  { name: 'Ines', trait: 'quiet', coat: '#7a5a3a', pants: '#2a2f35', skin: '#f0cdb0', hair: '#c9a060', hairStyle: 'long', slots: 10 },
-  { name: 'Marcus', trait: 'strong', coat: '#4a4a4a', pants: '#333', skin: '#7a5236', hair: '#111', hairStyle: 'bald', slots: 14 }
+  { name: 'Dale', trait: 'handy', quirk: 'lightsleeper', coat: '#5b6a52', pants: '#3a3a40', skin: '#c9a07a', hair: '#3a2a1e', hairStyle: 'short', beard: true, slots: 10 },
+  { name: 'Noor', trait: 'runner', quirk: 'bigeater', coat: '#6a4b5c', pants: '#2e2e36', skin: '#a3744f', hair: '#1a1410', hairStyle: 'wrap', slots: 12 },
+  { name: 'Teo', trait: 'medic', quirk: 'frail', coat: '#4d5d78', pants: '#3b3730', skin: '#e0b89a', hair: '#6b4a2a', hairStyle: 'curly', slots: 10 },
+  { name: 'Ines', trait: 'quiet', quirk: 'cook', coat: '#7a5a3a', pants: '#2a2f35', skin: '#f0cdb0', hair: '#c9a060', hairStyle: 'long', slots: 10 },
+  { name: 'Marcus', trait: 'strong', quirk: 'loud', coat: '#4a4a4a', pants: '#333', skin: '#7a5236', hair: '#111', hairStyle: 'bald', slots: 14 }
 ];
 const TRAIT_DESC = { handy: 'crafts fast', runner: 'carries more, runs fast', medic: 'bandages heal double', quiet: 'zombies notice late', strong: 'carries most, hits hard' };
 
@@ -1438,9 +1453,13 @@ const LOCATIONS = [
 
 // dawn events: icon, text, choices [{label icon, cost?, effect}]
 const EVENTS = [
-  { id: 'stranger', icon: 'people', text: 'A stranger at the door asks to join.', req: g => g.survivors.length < 4, choices: [{ icon: 'check', label: 'Let in', fx: 'join' }, { icon: 'close', label: 'Turn away', fx: 'morale-' }] },
-  { id: 'trader', icon: 'trade', text: 'A trader offers meds for 4 scrap.', req: g => (g.inv.scrap || 0) >= 4, choices: [{ icon: 'check', label: 'Trade', fx: 'trade' }, { icon: 'close', label: 'No', fx: null }] },
-  { id: 'neighbor', icon: 'heart', text: 'A neighbor begs for a bandage.', req: g => (g.inv.bandage || 0) >= 1, choices: [{ icon: 'check', label: 'Give', fx: 'give' }, { icon: 'close', label: 'Refuse', fx: 'morale-' }] },
+  { id: 'stranger', icon: 'people', text: 'A stranger at the door asks to join.', who: true, req: g => g.survivors.length < 4, choices: [{ icon: 'check', label: 'Let in', fx: 'join' }, { icon: 'close', label: 'Turn away', fx: 'morale-' }] },
+  { id: 'trader', icon: 'trade', text: 'A trader offers meds for 4 scrap.', who: true, req: g => (g.inv.scrap || 0) >= 4, choices: [{ icon: 'check', label: 'Trade', fx: 'trade' }, { icon: 'close', label: 'No', fx: null }] },
+  { id: 'neighbor', icon: 'heart', text: 'A neighbor begs for a bandage.', who: true, req: g => (g.inv.bandage || 0) >= 1, choices: [{ icon: 'check', label: 'Give', fx: 'give' }, { icon: 'close', label: 'Refuse', fx: 'morale-' }] },
+  { id: 'medbeg', icon: 'meds', text: 'A man begs for medicine for his daughter.', who: true, req: g => (g.inv.meds || 0) >= 1, choices: [{ icon: 'check', label: 'Give meds', fx: 'giveMeds' }, { icon: 'close', label: 'Refuse', fx: 'morale--' }] },
+  { id: 'kids', icon: 'canned', text: 'Two children at the door ask for food.', who: true, req: g => (g.inv.canned || 0) >= 1, choices: [{ icon: 'check', label: 'Give a can', fx: 'giveFood' }, { icon: 'close', label: 'Send away', fx: 'morale--' }] },
+  { id: 'woodtrade', icon: 'trade', text: 'A woman offers 6 wood for a can of food.', who: true, req: g => (g.inv.canned || 0) >= 1, choices: [{ icon: 'check', label: 'Trade', fx: 'woodtrade' }, { icon: 'close', label: 'No', fx: null }] },
+  { id: 'warm', icon: 'fire', text: 'A half-frozen traveller asks to sit by your stove.', who: true, req: g => g.built.stove && fireLeft() > 0, choices: [{ icon: 'check', label: 'Let him warm up', fx: 'warm' }, { icon: 'close', label: 'Keep the door shut', fx: 'morale-' }] },
   { id: 'rain', icon: 'rain', text: 'Heavy rain overnight.', req: g => g.built.collector, choices: [{ icon: 'check', label: 'OK', fx: 'rainwater' }] },
   { id: 'broadcast', icon: 'radio', text: 'Radio: evacuation convoy confirmed, airport, day 20.', req: g => g.built.radio && !g.flags.heardRadio, choices: [{ icon: 'check', label: 'OK', fx: 'radio' }] },
   { id: 'horde', icon: 'zombie', text: 'A horde drifts past. Stay quiet today.', req: g => g.day > 4, choices: [{ icon: 'check', label: 'OK', fx: 'horde' }] }
@@ -1520,7 +1539,7 @@ function makeShelter(saved) {
   const props = [];
   // decorative props per room: [type, x]
   const add = (f, x, t, o) => props.push(Object.assign({ f, x, t }, o || {}));
-  add(1, 300, 'sofa'); add(1, 180, 'table'); add(1, 460, 'shelf', { h: 60 }); add(1, 600, 'cabinet'); add(1, 820, 'fridge'); add(1, 720, 'counter'); add(1, 1060, 'rubble', { id: 'rubble1' }); add(1, 1200, 'garshelf'); add(1, 980, 'car');
+  add(1, 300, 'sofa'); add(1, 180, 'table'); add(1, 460, 'shelf', { h: 60 }); add(1, 600, 'cabinet'); add(1, 820, 'fridge'); add(1, 640, 'counter'); add(1, 1060, 'rubble', { id: 'rubble1' }); add(1, 1200, 'garshelf'); add(1, 980, 'car');
   add(2, 130, 'dresser'); add(2, 340, 'bedframe'); add(2, 600, 'medcab'); add(2, 680, 'tub'); add(2, 900, 'rubble', { id: 'rubble2' }); add(2, 1180, 'desk'); add(2, 1050, 'bookcase');
   add(0, 1140, 'rubble', { id: 'rubble3' }); add(0, 1265, 'crates'); add(0, 1010, 'bench'); add(0, 400, 'storeshelf'); add(0, 200, 'rubble', { id: 'rubble4' }); add(0, 560, 'boiler');
   add(1, 530, 'pipe'); add(0, 1180, 'pipe'); add(2, 500, 'sink');
@@ -1551,6 +1570,7 @@ function statusIcons(s) {
   const o = [];
   if (!s.alive) return ['dead'];
   if (s.hunger < 30) o.push('hungry'); if (s.fatigue < 30) o.push('tired');
+  if (s.cold > .25) o.push('cold');
   if (s.wounded || s.health < 40) o.push('hurt'); if (s.infected) o.push('infected'); if (s.morale < 30) o.push('sad');
   return o;
 }
@@ -1661,8 +1681,13 @@ function drawPersonRig(a, pose, t, extra) {
   }
   a._lt = _T;
   if (pose === 'dead') { ctx.fillStyle = 'rgba(70,10,10,.45)'; ctx.beginPath(); ctx.ellipse(X - (a.facing || 1) * 10, tr.base - c.y + 1, 30, 6, 0, 0, TAU); ctx.fill(); }
+  { const lk = c.look; if (lk && !a.zombie) { if (lk.bag0 === undefined) lk.bag0 = lk.bag; lk.bag = a.hasPack ? 'backpack' : lk.bag0; lk.bagFull = a.hasPack ? clamp(SC.active ? SC.pack.length / SC.cap : TR.pack ? TR.pack.length / (TR.cap || 10) : 0, 0, 1) : 0; } }   // a pack that fills out as it fills up
   ctx.save(); if (a.hurtT > 0) ctx.translate(rnd(-1.3, 1.3), 0); c.draw(ctx, 0, tr.base, null, false); ctx.restore();
   const tool = poseTool(pose, extra, a); if (tool && !c.dead && handOf(a)) { const h = handOf(a); const F = a.facing || 1; const ang = (tool === 'shovel' ? h.th - Math.PI / 2 : h.th + Math.PI / 2) * F; drawTool(tool, h.x, h.y, ang, F); }
+  if (!a.zombie && !c.dead && c.cur) { const k = c.skeleton(c.cur), dy = c.curDy != null ? c.curDy : k.dy, f = c.facing * k.sx, bx = v => c.x + v[0] * f, by = v => tr.base - c.y + v[1] + dy, sc = c.k || 1;
+    if (a.wounded) { const A = k.armN[0], B = k.armN[1]; ctx.strokeStyle = '#e4dccb'; ctx.lineWidth = 4.6 * sc; ctx.lineCap = 'butt'; ctx.beginPath(); ctx.moveTo(lerp(bx(A), bx(B), .38), lerp(by(A), by(B), .38)); ctx.lineTo(lerp(bx(A), bx(B), .72), lerp(by(A), by(B), .72)); ctx.stroke(); ctx.fillStyle = 'rgba(150,30,30,.8)'; circ(lerp(bx(A), bx(B), .55), lerp(by(A), by(B), .55), 1.3 * sc); ctx.fill(); ctx.lineCap = 'round'; }   // a bandaged arm
+    const frosty = (CUR_W === G.world && !SC.active && G.phase !== 'title') ? indoorTemp(G.hour) < 7 : true;
+    if (frosty && pose !== 'sleep') { const ph = (_T * .3 + ((a.x * .013) % 1) + (a.name ? a.name.length * .17 : 0)) % 1; if (ph < .34) { const hx = bx(k.headC) + (a.facing || 1) * (9 + ph * 34) * sc, hy = by(k.headC) + 2 - ph * 10; ctx.fillStyle = `rgba(225,232,240,${((.34 - ph) * .75).toFixed(3)})`; ctx.beginPath(); ctx.ellipse(hx, hy, (4 + ph * 22) * sc, (3 + ph * 12) * sc, 0, 0, TAU); ctx.fill(); } } }   // breath in the cold
   if (a.idlePose === 'read') { const h = handOf(a); if (h) { ctx.save(); ctx.translate(h.x, h.y - 2); ctx.rotate((a.facing || 1) * .35); ctx.fillStyle = '#cfc3a6'; ctx.fillRect(-7, -4.5, 14, 9); ctx.fillStyle = '#6b5a44'; ctx.fillRect(-.7, -4.5, 1.4, 9); ctx.restore(); } }
   if (a.say && a.sayT > 0) { const sx = X, sy = tr.base - c.y - 100 * (a.scale || 1); ctx.fillStyle = 'rgba(20,20,22,.85)'; rr(sx - 16, sy - 16, 32, 32, 8); ctx.fill(); drawIcon(a.say, sx, sy, 20); }
 }
@@ -1722,7 +1747,7 @@ function skyAt(hour) {
 function mix(a, b, t) { const A = parseInt(a.slice(1), 16), B = parseInt(b.slice(1), 16); const r = Math.round(lerp(A >> 16, B >> 16, t)), g = Math.round(lerp(A >> 8 & 255, B >> 8 & 255, t)), bl = Math.round(lerp(A & 255, B & 255, t)); return `rgb(${r},${g},${bl})`; }
 
 const FX = { ash: [], motes: [], smoke: [], rain: [], float: [] , flash: 0 };
-function initFx() { FX.ash = []; for (let i = 0; i < 70; i++) FX.ash.push({ x: rnd(-400, 1900), y: rnd(-500, 500), v: rnd(8, 22), w: rnd(.5, 1.5), p: rnd(6) }); FX.motes = []; for (let i = 0; i < 40; i++) FX.motes.push({ x: rnd(0, 1400), y: rnd(-250, 420), p: rnd(6), r: rnd(.6, 1.6) }); }
+function initFx() { FX.ash = []; for (let i = 0; i < 150; i++) FX.ash.push({ x: rnd(-400, 1900), y: rnd(-500, 500), v: rnd(8, 22), w: rnd(.5, 1.5), p: rnd(6) }); FX.motes = []; for (let i = 0; i < 40; i++) FX.motes.push({ x: rnd(0, 1400), y: rnd(-250, 420), p: rnd(6), r: rnd(.6, 1.6) }); }
 function floatIcon(x, y, icon, n) { FX.float.push({ x, y, icon, n, t: 0 }); }
 
 function drawScene(world, hour, actors, opts = {}) {
@@ -1740,6 +1765,7 @@ function drawScene(world, hour, actors, opts = {}) {
   const groundTop = gy + 14;
   ctx.fillStyle = mix('#3a3733', '#15161a', 1 - sky.light); ctx.fillRect(-3000, groundTop, 7000, 1200);
   ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fillRect(-3000, groundTop, 7000, 6);
+  { const sn = clamp((G.day - 1) * .07 + (weatherNow() === 'clear' ? 0 : .35), 0, .85); if (sn > 0) { ctx.fillStyle = `rgba(214,222,232,${sn.toFixed(2)})`; ctx.fillRect(-3000, groundTop - 2, 7000, 7); const r = mulberry(11); for (let i = 0; i < 40; i++) { const x = -1500 + r() * 4500, wd = 60 + r() * 160; ctx.beginPath(); ctx.ellipse(x, groundTop + 2, wd, 4 + r() * 5, 0, Math.PI, 0); ctx.fill(); } } }
   // road markings & debris
   ctx.fillStyle = 'rgba(255,255,255,.08)'; for (let x = -2800; x < 4000; x += 160) ctx.fillRect(x, groundTop + 40, 70, 4);
   drawExteriorDebris(world, gy, night);
@@ -1789,6 +1815,7 @@ function drawScene(world, hour, actors, opts = {}) {
   drawRoof(world, topY, sky);
   // built stations (front layer, drawn at spot positions)
   for (const s of world.spots) drawStation(world, s, night);
+  if (world === G.world && !SC.active) { drawClutter(world); drawLanterns(world, hour); }
   // actors sorted by y
   const list = actors.filter(a => a.visible !== false).slice().sort((a, b) => a.fy - b.fy || a.x - b.x);
   for (const a of list) { a.y = world.fy2y(a.fy); drawPerson(a, a.pose || 'idle', opts.t || 0, a.poseExtra); }
@@ -1801,7 +1828,7 @@ function drawScene(world, hour, actors, opts = {}) {
   // locked rooms: shuttered and dark until someone gets the door open
   for (const r of world.rooms) if (!r.open) { const fy = world.fy2y(r.f), ceil = fy - FLOOR_H + 14; ctx.fillStyle = 'rgba(8,8,10,.86)'; ctx.fillRect(r.x0 + 6, ceil, r.x1 - r.x0 - 12, fy - ceil); ctx.fillStyle = 'rgba(255,255,255,.04)'; for (let y = ceil + 10; y < fy - 10; y += 18) ctx.fillRect(r.x0 + 6, y, r.x1 - r.x0 - 12, 2); }
   // night lighting
-  if (sky.light < .9) drawLighting(world, sky, opts.lights || []);
+  drawLighting(world, sky, opts.lights || []);
   ctx.restore();
   // vignette
   const vg = ctx.createRadialGradient(W / 2, H / 2, H * .35, W / 2, H / 2, H * .95); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.55)'); ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
@@ -1855,6 +1882,7 @@ function drawBarricade(world, b, sky, night) {
     ctx.fillStyle = 'rgba(255,255,255,.08)'; ctx.fillRect(x - w / 2, y, w, h * .5);
     ctx.strokeStyle = '#1e1a17'; ctx.lineWidth = 5; ctx.strokeRect(x - w / 2, y, w, h); ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + h); ctx.moveTo(x - w / 2, y + h / 2); ctx.lineTo(x + w / 2, y + h / 2); ctx.stroke();
     if (b.level === 0) { ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x - 20, y + 10); ctx.lineTo(x - 5, y + 30); ctx.lineTo(x + 8, y + 22); ctx.stroke(); }
+    if (world === G.world && !SC.active) { const fr = clamp((3 - indoorTemp(G.hour)) / 9, 0, 1); if (fr > 0) { for (const [cx, cy] of [[x - w / 2, y], [x + w / 2, y], [x - w / 2, y + h], [x + w / 2, y + h]]) { const g2 = ctx.createRadialGradient(cx, cy, 2, cx, cy, 18 + 40 * fr); g2.addColorStop(0, `rgba(225,238,248,${(.75 * fr + .15).toFixed(2)})`); g2.addColorStop(1, 'rgba(225,238,248,0)'); ctx.fillStyle = g2; ctx.fillRect(x - w / 2, y, w, h); } } }
     drawPlanks(x, y + h / 2, w + 20, b);
   } else {
     const x = b.x, y = fy - 110, w = 54, h = 110;
@@ -1867,7 +1895,7 @@ function drawBarricade(world, b, sky, night) {
 }
 function drawPlanks(x, y, w, b) {
   const n = b.level; if (n <= 0) return; const dmg = b.hp / (30 * n);
-  for (let i = 0; i < n * 2; i++) { ctx.save(); ctx.translate(x, y + (i - n + .5) * 22); ctx.rotate((i % 2 ? .12 : -.1)); ctx.fillStyle = i % 2 ? '#8a6a44' : '#7a5c3c'; rr(-w / 2, -6, w, 12, 2); ctx.fill(); ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fillRect(-w / 2, 3, w, 3); ctx.fillStyle = '#2a2622'; circ(-w / 2 + 8, 0, 2); ctx.fill(); circ(w / 2 - 8, 0, 2); ctx.fill(); if (dmg < .5 && i % 3 === 0) { ctx.fillStyle = '#1c1916'; ctx.beginPath(); ctx.moveTo(w * .1, -6); ctx.lineTo(w * .2, 6); ctx.lineTo(w * .25, -6); ctx.fill(); } ctx.restore(); }
+  for (let i = 0; i < n * 2; i++) { ctx.save(); ctx.translate(x, y + (i - n + .5) * 22); ctx.rotate((i % 2 ? .12 : -.1)); ctx.fillStyle = i % 2 ? '#8a6a44' : '#7a5c3c'; rr(-w / 2, -6, w, 12, 2); ctx.fill(); ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fillRect(-w / 2, 3, w, 3); ctx.fillStyle = '#2a2622'; circ(-w / 2 + 8, 0, 2); ctx.fill(); circ(w / 2 - 8, 0, 2); ctx.fill(); if (dmg < .98) { ctx.strokeStyle = 'rgba(20,16,12,.7)'; ctx.lineWidth = 1; ctx.beginPath(); const cx0 = (i % 2 ? -1 : 1) * w * .18; ctx.moveTo(cx0 - 9, -5); ctx.lineTo(cx0 - 2, -1); ctx.lineTo(cx0 - 6, 2); ctx.lineTo(cx0 + 5, 5); ctx.stroke(); } if (dmg < .6 && i % 2 === 0) { ctx.fillStyle = '#1c1916'; ctx.beginPath(); ctx.moveTo(w * .1, -6); ctx.lineTo(w * .2, 6); ctx.lineTo(w * .27, -6); ctx.fill(); ctx.beginPath(); ctx.moveTo(-w * .32, 6); ctx.lineTo(-w * .26, -3); ctx.lineTo(-w * .2, 6); ctx.fill(); } ctx.restore(); }
 }
 const sp = (r, arr) => arr[Math.floor(r() * arr.length)];
 function drawProp(world, p, night) {
@@ -1895,14 +1923,27 @@ function drawProp(world, p, night) {
   }
   ctx.restore();
 }
+// the longer they live here the more it shows: tins, bottles, rags, a washing line
+function drawClutter(world) {
+  const n = Math.min(16, (G.day - 1) * 2), r = mulberry(4242); const rooms = world.rooms.filter(q => q.f > 0);
+  for (let i = 0; i < 16; i++) { const room = rooms[Math.floor(r() * rooms.length)], x = room.x0 + 40 + r() * (room.x1 - room.x0 - 80), k = Math.floor(r() * 4), rot = (r() - .5) * 1.2; if (i >= n || !room.open) continue; const fy = world.fy2y(room.f);
+    ctx.save(); ctx.translate(x, fy);
+    if (k === 0) { ctx.rotate(rot > 0 ? Math.PI / 2 : 0); ctx.fillStyle = '#8a8f96'; ctx.fillRect(-3, -8, 6, 8); ctx.fillStyle = '#a3463a'; ctx.fillRect(-3, -6, 6, 3); }
+    else if (k === 1) { ctx.fillStyle = 'rgba(120,150,120,.75)'; ctx.fillRect(-2, -9, 4, 9); ctx.fillRect(-1, -12, 2, 3); }
+    else if (k === 2) { ctx.fillStyle = '#6a5a52'; ctx.beginPath(); ctx.ellipse(0, -2, 10, 3, rot * .2, 0, TAU); ctx.fill(); }
+    else { ctx.rotate(rot * .3); ctx.fillStyle = '#b9b2a0'; ctx.fillRect(-6, -1.5, 12, 1.5); ctx.fillStyle = '#9a927f'; ctx.fillRect(-2, -3, 9, 1.5); }
+    ctx.restore(); }
+  if (G.day >= 3) { const fy = world.fy2y(1), x0 = 330, x1 = 500, y = fy - 118; ctx.strokeStyle = 'rgba(30,26,22,.9)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x0, y); ctx.quadraticCurveTo((x0 + x1) / 2, y + 10, x1, y); ctx.stroke();
+    const cols = ['#7d7466', '#5d6470', '#8a6f66']; for (let i = 0; i < 3; i++) { const x = x0 + 34 + i * 44, yy = y + 7 - Math.abs(i - 1) * 2, sw = Math.sin(_T * 1.3 + i) * 1.2; ctx.fillStyle = cols[i]; ctx.beginPath(); ctx.moveTo(x - 9, yy); ctx.lineTo(x + 9, yy); ctx.lineTo(x + 8 + sw, yy + 22 + i * 3); ctx.lineTo(x - 8 + sw, yy + 22 + i * 3); ctx.closePath(); ctx.fill(); } }
+}
 function drawStation(world, s, night) {
   const fy = world.fy2y(s.f), x = s.x; const built = s.needsBuild ? (G.built && G.built[s.needsBuild]) : true;
   switch (s.type) {
-    case 'stove': if (!built) break; ctx.fillStyle = '#3a3a3a'; rr(x - 26, fy - 60, 52, 60, 4); ctx.fill(); ctx.fillStyle = '#2a2a2a'; ctx.fillRect(x - 20, fy - 44, 40, 24); ctx.fillStyle = '#6a6a6a'; ctx.fillRect(x - 4, fy - 120, 8, 60); ctx.fillStyle = '#5a5a5a'; ctx.fillRect(x - 26, fy - 64, 52, 6); if (s.active) { ctx.fillStyle = `rgba(255,${120 + rnd(60)},40,.9)`; ctx.fillRect(x - 14, fy - 40, 28, 16); } break;
+    case 'stove': if (!built) break; ctx.fillStyle = '#3a3a3a'; rr(x - 26, fy - 60, 52, 60, 4); ctx.fill(); ctx.fillStyle = '#2a2a2a'; ctx.fillRect(x - 20, fy - 44, 40, 24); ctx.fillStyle = '#6a6a6a'; ctx.fillRect(x - 4, fy - 120, 8, 60); ctx.fillStyle = '#5a5a5a'; ctx.fillRect(x - 26, fy - 64, 52, 6); if (s.active || fireLeft() > 0) { ctx.fillStyle = `rgba(255,${120 + rnd(60)},40,.9)`; ctx.fillRect(x - 14, fy - 40, 28, 16); ctx.fillStyle = `rgba(255,${200 + rnd(40)},120,.9)`; ctx.fillRect(x - 8 + rnd(4), fy - 34, 12, 10); } break;
     case 'collector': if (!built) break; ctx.fillStyle = '#6a6a66'; ctx.beginPath(); ctx.moveTo(x - 40, fy - 118); ctx.lineTo(x + 40, fy - 118); ctx.lineTo(x, fy - 90); ctx.fill(); ctx.fillRect(x - 3, fy - 90, 6, 50); ctx.fillStyle = '#5a7a9a'; rr(x - 22, fy - 40, 44, 40, 6); ctx.fill(); ctx.fillStyle = 'rgba(255,255,255,.1)'; ctx.fillRect(x - 18, fy - 36, 10, 30); break;
     case 'radio': if (!built) break; ctx.fillStyle = '#5a4a3a'; ctx.fillRect(x - 34, fy - 46, 68, 6); ctx.fillRect(x - 30, fy - 40, 6, 40); ctx.fillRect(x + 24, fy - 40, 6, 40); ctx.fillStyle = '#3a3a3a'; rr(x - 20, fy - 66, 40, 20, 3); ctx.fill(); ctx.fillStyle = '#8a4a3a'; circ(x - 10, fy - 56, 5); ctx.fill(); ctx.fillStyle = '#9a9a92'; ctx.fillRect(x + 8, fy - 90, 2, 26); if (night || true) { ctx.fillStyle = `rgba(120,255,120,${.5 + Math.sin(_T * 3) * .4})`; circ(x + 10, fy - 56, 2); ctx.fill(); } break;
     case 'bed': if (s.id === 'bed2') { if (!built) break; ctx.fillStyle = '#4a3a2c'; ctx.fillRect(x - 60, fy - 24, 120, 6); ctx.fillStyle = '#7a7a6a'; rr(x - 56, fy - 34, 112, 12, 4); ctx.fill(); ctx.fillStyle = '#5a5a6a'; rr(x - 26, fy - 36, 80, 12, 4); ctx.fill(); ctx.fillStyle = '#2a2622'; ctx.fillRect(x - 58, fy - 18, 6, 18); ctx.fillRect(x + 52, fy - 18, 6, 18); } break;
-    case 'bench': case 'exit': case 'search': case 'dig': case 'door': break;
+    case 'bench': case 'exit': case 'search': case 'dig': case 'door': case 'fire': break;
   }
   if (s.type === 'trapSpot') { }
 }
@@ -1912,23 +1953,42 @@ function drawHide(world, h) {
   if (h.used) { ctx.fillStyle = 'rgba(255,255,255,.06)'; ctx.fillRect(x - 24, fy - 110, 48, 110); }
 }
 function drawFx(world, hour, night, dt) {
-  // ash outside
-  ctx.fillStyle = night ? 'rgba(200,200,210,.25)' : 'rgba(60,60,60,.35)';
-  for (const a of FX.ash) { a.y += a.v * dt; a.x += Math.sin(_T + a.p) * 10 * dt; if (a.y > world.groundY + 20) { a.y = world.fy2y(world.nFloors - 1) - FLOOR_H - 300; a.x = rnd(world.x0 - 600, world.x1 + 600); } if (a.x > world.x0 - 20 && a.x < world.x1 + 20 && a.y > world.fy2y(world.nFloors - 1) - FLOOR_H - 160) continue; ctx.fillRect(a.x, a.y, a.w * 2, a.w * 2); }
+  // outside: a little drifting ash on a clear day, snow when it snows, a slanting blizzard in a storm
+  { const wx = weatherNow(), n = wx === 'clear' ? 30 : wx === 'snow' ? 100 : 150, vm = wx === 'storm' ? 3.2 : wx === 'snow' ? 1.5 : 1, wind = wx === 'storm' ? 150 : wx === 'snow' ? 18 : 0;
+    ctx.fillStyle = wx === 'clear' ? (night ? 'rgba(200,200,210,.25)' : 'rgba(60,60,60,.35)') : (night ? 'rgba(210,220,235,.55)' : 'rgba(240,244,250,.8)');
+    for (let i = 0; i < n && i < FX.ash.length; i++) { const a = FX.ash[i]; a.y += a.v * vm * dt; a.x += (Math.sin(_T + a.p) * 10 + wind) * dt; if (a.y > world.groundY + 20 || a.x > world.x1 + 700) { a.y = world.fy2y(world.nFloors - 1) - FLOOR_H - 300 + (a.x > world.x1 + 700 ? rnd(0, 500) : 0); a.x = rnd(world.x0 - 700, world.x1 + 600); } if (a.x > world.x0 - 20 && a.x < world.x1 + 20 && a.y > world.fy2y(world.nFloors - 1) - FLOOR_H - 160) continue; const sz = wx === 'clear' ? a.w * 2 : a.w * 2.6; ctx.fillRect(a.x, a.y, sz, sz); } }
   // interior motes
   ctx.fillStyle = 'rgba(255,240,200,.18)';
   for (const m of FX.motes) { const x = m.x + Math.sin(_T * .3 + m.p) * 20, y = m.y + Math.cos(_T * .2 + m.p) * 12; if (x > world.x0 && x < world.x1) { circ(x, y, m.r); ctx.fill(); } }
   // float icons (loot gained)
   for (let i = FX.float.length - 1; i >= 0; i--) { const f = FX.float[i]; f.t += dt; const y = f.y - 40 - f.t * 30; ctx.globalAlpha = clamp(1.6 - f.t, 0, 1); ctx.fillStyle = 'rgba(20,20,24,.8)'; rr(f.x - 22, y - 14, 44, 28, 8); ctx.fill(); drawIcon(f.icon, f.x - 6, y, 20); txt('+' + f.n, f.x + 12, y, 14, '#fff'); ctx.globalAlpha = 1; if (f.t > 1.6) FX.float.splice(i, 1); }
 }
+// Light is the picture: a darkness map is laid over the world, and windows, lanterns, fire and torches cut holes in it.
+let LMAP = null;
 function drawLighting(world, sky, lights) {
-  const topY = world.fy2y(world.nFloors - 1) - FLOOR_H - 200, botY = world.fy2y(0) + 40;
-  ctx.save(); ctx.globalCompositeOperation = 'multiply';
-  const k = clamp(1 - sky.light, 0, .84); ctx.fillStyle = `rgba(${Math.round(255 - 215 * k)},${Math.round(255 - 205 * k)},${Math.round(255 - 170 * k)},1)`;
-  ctx.fillRect(world.x0 - 2600, topY, world.x1 - world.x0 + 5200, botY - topY + 800);
-  ctx.restore();
-  ctx.save(); ctx.globalCompositeOperation = 'lighter';
-  for (const l of lights) { const g = ctx.createRadialGradient(l.x, l.y, 4, l.x, l.y, l.r); g.addColorStop(0, `rgba(${l.c || '255,170,80'},${(l.a || .55) * (1 - sky.light * .5)})`); g.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = g; ctx.fillRect(l.x - l.r, l.y - l.r, l.r * 2, l.r * 2); }
+  if (HEADLESS) return;
+  const q = .5, lw = Math.ceil(W * q), lh = Math.ceil(H * q);
+  if (!LMAP) LMAP = document.createElement('canvas'); if (LMAP.width !== lw || LMAP.height !== lh) { LMAP.width = lw; LMAP.height = lh; }
+  const g = LMAP.getContext('2d'), dark = clamp(1 - sky.light, 0, 1), night = sky.light < .3;
+  g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'source-over'; g.clearRect(0, 0, lw, lh);
+  g.fillStyle = `rgba(6,8,16,${(.8 * Math.pow(dark, 1.15)).toFixed(3)})`; g.fillRect(0, 0, lw, lh);                       // outdoors: only as dark as the sky
+  g.setTransform(cam.z * q, 0, 0, cam.z * q, (W / 2 - cam.x * cam.z) * q, (H / 2 - cam.y * cam.z) * q);
+  const topY = world.fy2y(world.nFloors - 1) - FLOOR_H + 10, botY = world.fy2y(0) + 14;
+  g.clearRect(world.x0 - 14, topY, world.x1 - world.x0 + 28, botY - topY);
+  g.fillStyle = `rgba(6,8,16,${clamp(.2 + .9 * dark, 0, .94).toFixed(3)})`; g.fillRect(world.x0 - 14, topY, world.x1 - world.x0 + 28, botY - topY);   // indoors is dim even at noon
+  g.globalCompositeOperation = 'destination-out';
+  for (const b of world.barricades || []) { if (b.kind !== 'win') continue;                                              // daylight (or moonlight) falls in through each window; boards cut it down
+    const st = (1 - .27 * b.level) * (.8 * sky.light + (night ? .2 : 0)); if (st <= .02) continue; const fy = world.fy2y(b.f), x = b.x;
+    g.fillStyle = `rgba(0,0,0,${st.toFixed(3)})`; g.fillRect(x - 32, fy - 112, 64, 70);
+    const sh = g.createLinearGradient(0, fy - 112, 0, fy); sh.addColorStop(0, `rgba(0,0,0,${(st * .75).toFixed(3)})`); sh.addColorStop(1, `rgba(0,0,0,${(st * .3).toFixed(3)})`); g.fillStyle = sh;
+    g.beginPath(); g.moveTo(x - 32, fy - 112); g.lineTo(x + 32, fy - 112); g.lineTo(x + 150, fy); g.lineTo(x - 10, fy); g.closePath(); g.fill();
+    const gl = g.createRadialGradient(x, fy - 77, 10, x, fy - 77, 150); gl.addColorStop(0, `rgba(0,0,0,${(st * .45).toFixed(3)})`); gl.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gl; g.fillRect(x - 150, fy - 227, 300, 300); }
+  for (const l of lights) { const gr = g.createRadialGradient(l.x, l.y, l.r * .08, l.x, l.y, l.r); gr.addColorStop(0, `rgba(0,0,0,${Math.min(1, (l.a || .55) * 1.7).toFixed(3)})`); gr.addColorStop(.4, `rgba(0,0,0,${Math.min(1, (l.a || .55) * 1.15).toFixed(3)})`); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(l.x - l.r, l.y - l.r, l.r * 2, l.r * 2); }
+  g.globalCompositeOperation = 'source-over';
+  ctx.drawImage(LMAP, cam.x - W / 2 / cam.z, cam.y - H / 2 / cam.z, W / cam.z, H / cam.z);
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';                                                                  // and the lamps tint what they light
+  for (const l of lights) { const gr = ctx.createRadialGradient(l.x, l.y, 4, l.x, l.y, l.r * .8); gr.addColorStop(0, `rgba(${l.c || '255,170,80'},${((l.a || .55) * .34 * (.2 + dark)).toFixed(3)})`); gr.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = gr; ctx.fillRect(l.x - l.r, l.y - l.r, l.r * 2, l.r * 2); }
+  if (night) for (const b of world.barricades || []) if (b.kind === 'win' && b.level < 3) { const fy = world.fy2y(b.f); const gr = ctx.createLinearGradient(0, fy - 112, 0, fy); gr.addColorStop(0, `rgba(120,150,210,${(.10 * (1 - .27 * b.level)).toFixed(3)})`); gr.addColorStop(1, 'rgba(120,150,210,0)'); ctx.fillStyle = gr; ctx.beginPath(); ctx.moveTo(b.x - 32, fy - 112); ctx.lineTo(b.x + 32, fy - 112); ctx.lineTo(b.x + 150, fy); ctx.lineTo(b.x - 10, fy); ctx.closePath(); ctx.fill(); }
   ctx.restore();
 }
 
@@ -2000,7 +2060,7 @@ function packRemove(pack, id, n = 1) { for (let i = pack.length - 1; i >= 0 && n
 function startScavenge(loc, surv, pack, cap) {
   const { world, zombies } = makeSite(loc, G.day);
   const p = surv; p.x = world.x0 + 40; p.fy = 0; p.f = 0; p.facing = 1; p.path = null; p.moving = false; p.task = null; p.hidden = false; p.visible = true; p.attackT = 0; p.pose = 'idle'; p.hasPack = true;
-  Object.assign(SC, { active: true, world, zombies, player: p, loc, pack, cap, sneak: false, seen: 0, lootSpot: null, noiseT: 0, done: false, result: null, msg: null, msgT: 0, kills: 0, lights: [] });
+  Object.assign(SC, { active: true, world, zombies, player: p, loc, pack, cap, sneak: false, seen: 0, lootSpot: null, noiseT: 0, done: false, result: null, msg: null, msgT: 0, kills: 0, lights: [], throwCd: 0, proj: null });
   FX.float = []; initFx();
   fitCam({ x0: world.x0 - 60, x1: world.x1 + 60, y0: world.fy2y(world.nFloors - 1) - FLOOR_H - 60, y1: world.groundY + 230 });
   cam.z = cam.tz = clamp(Math.max(cam.z, H / 420), cam.minZ, cam.maxZ); cam.x = cam.tx = p.x + 200; cam.y = cam.ty = world.groundY - 80; clampCam();
@@ -2010,6 +2070,12 @@ function scMsg(icon, t = 2.2) { SC.msg = icon; SC.msgT = t; }
 function scWeapon() { return ['pistol', 'bat', 'knife'].find(w => packCount(SC.pack, w) > 0) || null; }
 function scNoise(x, f, radius) { for (const z of SC.zombies) { if (!z.alive) continue; const d = Math.abs(z.x - x) + Math.abs(z.f - f) * 220; if (d < radius && z.state !== 'chase') { z.state = 'look'; z.lookX = x; z.lookF = f; z.t = 0; z.path = SC.world.path(z.x, z.f, x, f); } } }
 
+// throw something: it clatters down the corridor and whatever hears it goes to look
+function scThrow() {
+  const p = SC.player, w = SC.world; if (SC.done || p.hidden || (SC.throwCd || 0) > 0) return;
+  let tx = null; for (const d of [280, 220, 160, 100]) { const x = clamp(p.x + p.facing * d, w.x0 + 20, w.x1 - 20); if (w.passable(p.x, x, p.f)) { tx = x; break; } } if (tx == null) { scMsg('lock', 1); return; }
+  SC.proj = { x0: p.x, x1: tx, f: p.f, t: 0 }; SC.throwCd = 6; p.attackT = .3; p.attackKind = 'shove'; p.attackHit = true; AUDIO.sfx('tap');
+}
 function scTapWorld(wx, wy) {
   const p = SC.player, w = SC.world; if (SC.done) return;
   // nearest floor by y
@@ -2046,12 +2112,14 @@ function scUpdate(dt) {
   const p = SC.player, w = SC.world; _T += dt; CUR_W = w;
   if (SC.done) return;
   G.nightT -= dt; if (SC.msgT > 0) SC.msgT -= dt;
+  if (SC.throwCd > 0) SC.throwCd -= dt;
+  if (SC.proj) { SC.proj.t += dt; if (SC.proj.t >= .6 && !SC.proj.hit) { SC.proj.hit = true; scNoise(SC.proj.x1, SC.proj.f, 360); AUDIO.sfx('open'); } if (SC.proj.t > 1.5) SC.proj = null; }
   if (G.nightT <= 0) { endScavenge(true); return; }
   // movement
   const chasing = SC.zombies.some(z => z.alive && z.state === 'chase');
   const speed = SC.sneak ? 42 : (chasing || p.run ? 112 : 78);
   if (p.attackT > 0) { p.attackT -= dt; if (p.attackKind !== 'shoot' && p.attackT < .25 && !p.attackHit) { p.attackHit = true; const wep = scWeapon(); const dmg = wep === 'bat' ? 2 : wep === 'knife' ? 1 : 0; for (const z of SC.zombies) if (z.alive && z.f === p.f && Math.abs(z.x - p.x) < 48 && (z.x - p.x) * p.facing > -10) { z.hp -= dmg * (p.trait === 'strong' ? 2 : 1); z.hurtT = .3; z.x += p.facing * (wep === 'bat' ? 40 : 28); z.attackT = 0; z.state = 'chase'; if (z.hp <= 0) killZombie(z); else AUDIO.sfx('groan'); } } }
-  else if (p.path && p.path.length) { moveActor(p, dt, speed); p.pose = SC.sneak ? 'sneak' : (chasing || p.run ? 'run' : 'walk'); if (!SC.sneak && !p.hidden) { SC.noiseT += dt; if (SC.noiseT > .6) { SC.noiseT = 0; scNoise(p.x, p.f, chasing || p.run ? 260 : 150); } } }
+  else if (p.path && p.path.length) { moveActor(p, dt, speed); p.pose = SC.sneak ? 'sneak' : (chasing || p.run ? 'run' : 'walk'); if (!SC.sneak && !p.hidden) { SC.noiseT += dt; if (SC.noiseT > .6) { SC.noiseT = 0; scNoise(p.x, p.f, (chasing || p.run ? 260 : 150) * (p.quirk === 'loud' ? 1.35 : 1)); } } }
   else {
     p.moving = false;
     if (p.task) {
@@ -2400,6 +2468,9 @@ function drawHomeHud(dt) {
   // goal
   ctx.fillStyle = 'rgba(14,15,18,.75)'; rr(W - 130, 8, 122, 50, 10); ctx.fill(); drawIcon('radio', W - 108, 33, 24, G.built.radio ? GREEN : DIM); txt('→ 20', W - 60, 33, 20, G.flags.heardRadio ? INK : DIM);
   iconButton(32, 33, 40, null, () => { UI.help = !UI.help; }, { active: UI.help, label: '?' });
+  { const T = Math.round(indoorTemp(G.phase === 'plan' ? 20 : G.hour)), cold = T < 6, bx = 62, bw = G.built.stove ? 150 : 86; if (cx - 150 > bx + bw + 6) { ctx.fillStyle = 'rgba(14,15,18,.75)'; rr(bx, 8, bw, 50, 10); ctx.fill();
+    drawIcon(weatherNow() === 'clear' ? 'cold' : 'cold', bx + 22, 33, 22, cold ? '#9cc7e6' : DIM); txt((T > 0 ? '' : T < 0 ? '−' : '') + Math.abs(T) + '°', bx + 58, 33, 19, T < 0 ? '#9cc7e6' : cold ? '#c5d8e6' : INK);
+    if (G.built.stove) { const f = fireLeft(); drawIcon('fire', bx + 100, 33, 22, f > 0 ? '#f08a3a' : '#555'); txt(f > 0 ? Math.ceil(f) + 'h' : '–', bx + 128, 33, 16, f > 0 ? INK : DIM); } } }
   // ---- portraits ----
   const alive = G.survivors; let px = 20;
   for (let i = 0; i < alive.length; i++) {
@@ -2408,7 +2479,7 @@ function drawHomeHud(dt) {
     drawPortrait(s, px + 32, py, r);
     ctx.strokeStyle = i === G.sel ? GOLD : '#4a4d52'; ctx.lineWidth = i === G.sel ? 3 : 2; circ(px + 32, py, r); ctx.stroke();
     txt(s.name, px + 32, py + 40, 13, i === G.sel ? GOLD : DIM);
-    const st = statusIcons(s); st.slice(0, 4).forEach((ic, j) => { drawIcon(ic, px + 8 + j * 16, py - r - 8, 16, ic === 'dead' ? DIM : ic === 'infected' ? GREEN : RED); });
+    const st = statusIcons(s); st.slice(0, 4).forEach((ic, j) => { drawIcon(ic, px + 8 + j * 16, py - r - 8, 16, ic === 'dead' ? DIM : ic === 'infected' ? GREEN : ic === 'cold' ? '#9cc7e6' : RED); });
     if (s.alive && G.phase === 'day') { bar(px + 2, py + 50, 60, 4, s.health / 100, needColor(s.health)); }
     UI.btn(px - 4, py - 36, 72, 94, () => { if (!s.alive) return; if (G.sel === i) UI.survOpen = UI.survOpen === i ? -1 : i; else { G.sel = i; UI.survOpen = -1; } AUDIO.sfx('tap'); });
     px += 78;
@@ -2432,6 +2503,7 @@ function spotInfo(s) {
     case 'door': if (s.room.open) return null; { const ok = G.inv.crowbar > 0 || G.inv.lockpick > 0; return { icon: 'lock', badgeIcon: s.tool, disabled: !ok }; }
     case 'bench': return { icon: 'craft' };
     case 'stove': return G.built.stove ? { icon: 'cook', disabled: !canAfford(COOK.cost) } : null;
+    case 'fire': return G.built.stove ? { icon: 'fire', badge: Math.ceil(fireLeft()) || undefined, disabled: !((G.inv.wood || 0) >= 2 || (G.inv.fuel || 0) >= 1) || fireLeft() > 12 } : null;
     case 'collector': return G.built.collector ? { icon: 'water', badge: G.collectorWater, disabled: G.collectorWater <= 0 } : null;
     case 'bed': return (s.id === 'bed' || G.built.bed) ? { icon: 'sleep' } : null;
     case 'radio': return G.built.radio ? { icon: 'radio', disabled: G.flags.radioToday } : null;
@@ -2455,7 +2527,7 @@ function drawInventory() {
 function drawSurvivorPanel(s) {
   const w = Math.min(W - 40, 420), h = 230, x = 20, y = H - h - 110;
   ctx.fillStyle = PANEL_BG; rr(x, y, w, h, 10); ctx.fill(); ctx.strokeStyle = PANEL_EDGE; ctx.lineWidth = 2; rr(x, y, w, h, 10); ctx.stroke(); UI.btn(x, y, w, h, () => { });
-  txt(s.name.toUpperCase(), x + 16, y + 22, 20, INK, 'left'); txt(TRAIT_DESC[s.trait] || '', x + w - 16, y + 22, 13, DIM, 'right');
+  txt(s.name.toUpperCase(), x + 16, y + 22, 20, INK, 'left'); txt(TRAIT_DESC[s.trait] || '', x + w - 16, y + 16, 13, DIM, 'right'); txt(QUIRK_DESC[s.quirk] || '', x + w - 16, y + 32, 12, '#a89b7c', 'right');
   const rows = [['hungry', s.hunger], ['tired', s.fatigue], ['hurt', s.health], ['sad', s.morale]];
   rows.forEach(([ic, v], i) => { const ry = y + 52 + i * 30; drawIcon(ic, x + 26, ry, 20, needColor(v)); bar(x + 46, ry - 6, w - 70, 12, v / 100, needColor(v)); });
   // actions
@@ -2524,9 +2596,9 @@ function drawDawn() {
   textButton(x + w / 2 - 60, y + h - 50, 120, 40, 'OK', () => { afterDawn(); }, { primary: true });
 }
 function drawEvent() {
-  const ev = G.event; const w = Math.min(W - 30, 520), h = 220, x = (W - w) / 2, y = (H - h) / 2; panel(x, y, w, h);
+  const ev = G.event; const w = Math.min(W - 30, 560), h = 190, x = (W - w) / 2, y = H - h - 14; panel(x, y, w, h);
   drawIcon(ev.icon, x + 50, y + 60, 44, GOLD); txt(ev.text, x + 90, y + 60, 17, INK, 'left');
-  ev.choices.forEach((c, i) => { textButton(x + 30 + i * 240, y + 140, 220, 44, c.label, () => { applyEvent(ev, c); }, { icon: c.icon, primary: i === 0 }); });
+  ev.choices.forEach((c, i) => { textButton(x + 30 + i * ((w - 60) / 2 + 8), y + 118, (w - 60) / 2 - 8, 44, c.label, () => { applyEvent(ev, c); }, { icon: c.icon, primary: i === 0 }); });
 }
 function drawCraft() {
   const s = G.survivors[UI.modal.who]; const w = Math.min(W - 20, 640), h = Math.min(H - 20, 420), x = (W - w) / 2, y = (H - h) / 2; panel(x, y, w, h, 'WORKBENCH');
@@ -2570,6 +2642,9 @@ function drawScavHud(dt) {
   txt(SC.loc.name, cx - 60, 56, 13, DIM);
   // sneak toggle (bottom-left), big
   iconButton(60, H - 60, 76, 'sneak', () => { SC.sneak = !SC.sneak; AUDIO.sfx('tap'); }, { active: SC.sneak, bg: SC.sneak ? '#20302a' : undefined });
+  // throw: a distraction (bottom-left, beside sneak)
+  if (!SC.done) { const cd = SC.throwCd || 0; iconButton(142, H - 54, 60, 'throw', cd > 0 ? null : () => scThrow(), { disabled: cd > 0 }); if (cd > 0) ring(142, H - 54, 30, 1 - cd / 6, GOLD); }
+  if (SC.proj) { const q = SC.proj, t = Math.min(1, q.t / .6), fy = w.fy2y(q.f), wx = lerp(q.x0, q.x1, t), wy = fy - 60 - Math.sin(t * Math.PI) * 60 + t * 58; if (!q.hit) { ctx.fillStyle = '#c9c2b0'; circ(w2sx(wx), w2sy(wy), 3.5 * cam.z); ctx.fill(); } else { const k = (q.t - .6) / .9; ctx.strokeStyle = `rgba(230,200,120,${(1 - k).toFixed(2)})`; ctx.lineWidth = 2.5; for (const rr2 of [1, .6]) { ctx.beginPath(); ctx.ellipse(w2sx(q.x1), w2sy(fy - 4), (30 + 330 * k) * rr2 * cam.z, (8 + 60 * k) * rr2 * cam.z, 0, 0, TAU); ctx.stroke(); } } }
   // fight button
   const wep = scWeapon(); const near = SC.zombies.some(z => z.alive && z.f === p.f && Math.abs(z.x - p.x) < (wep === 'pistol' ? 320 : 70));
   if (near && !SC.done) iconButton(W - 140, H - 60, 70, wep || 'shove', () => scAttack(), { bg: '#3a2020', edge: RED, badge: wep === 'pistol' ? packCount(SC.pack, 'ammo') : undefined });
@@ -2691,11 +2766,19 @@ function drawEnd(win) {
 // ---- 70_game.js ----
 // ===== game state, day loop, night resolution, save =====
 const DAY_LEN = 210; // real seconds for 06:00 → 20:00
+// ----- weather and cold: it gets colder every day; the stove (wood or fuel) is the only heat -----
+function rollWeather(day) { const r = mulberry(day * 97 + 13)(); return day < 2 ? 'clear' : r < .4 ? 'clear' : r < .8 ? 'snow' : 'storm'; }
+function weatherNow() { return (G.flags && G.flags.weather) || 'clear'; }
+function outdoorTemp(hour) { const wx = weatherNow(), h = hour < 5 ? hour + 24 : hour; return 2 - G.day * .6 - (wx === 'storm' ? 6 : wx === 'snow' ? 2 : 0) + 5 * Math.cos((h - 15) / 24 * TAU); }
+function fireLeft() { return (G.flags && G.flags.fire) || 0; }
+function indoorTemp(hour, noFire) { const w = G.world; let ins = 0; for (const b of w.barricades) ins += b.level; ins /= w.barricades.length * 3; return outdoorTemp(hour) + 5 + 4 * ins + (!noFire && fireLeft() > 0 ? 16 : 0); }
+function coldOf(s, T) { return clamp((6 - T) / 10, 0, 1.4) * (s.quirk === 'frail' ? 1.6 : 1); }   // 0 = comfortable … 1+ = freezing
+const QUIRK_DESC = { lightsleeper: 'light sleeper · wakes for raids', bigeater: 'big eater · hungry sooner', frail: 'feels the cold badly', cook: 'good cook · extra meal', loud: 'heavy-footed · noisy outside' };
 const SAVE_KEY = 'ashwinter2';
 let G = { nightT: 0, phase: 'title', day: 1, hour: 6, inv: {}, survivors: [], world: null, built: {}, flags: {}, collectorWater: 0, sel: 0, plan: {}, planLoc: null, report: [], event: null, msg: '', msgT: 0 };
 
 function newGame() {
-  G = { phase: 'day', day: 1, hour: 6, inv: { wood: 2, water: 2, canned: 1 }, survivors: SURVIVOR_TEMPLATES.slice(0, 3).map((t, i) => makeSurvivor(t, i)), world: makeShelter(), built: {}, flags: {}, collectorWater: 0, sel: 0, plan: {}, planLoc: null, report: [], event: null, msg: '', msgT: 0 };
+  G = { phase: 'day', day: 1, hour: 6, inv: { wood: 2, water: 2, canned: 1 }, survivors: SURVIVOR_TEMPLATES.slice(0, 3).map((t, i) => makeSurvivor(t, i)), world: makeShelter(), built: {}, flags: { weather: 'clear', fire: 0 }, collectorWater: 0, sel: 0, plan: {}, planLoc: null, report: [], event: null, msg: '', msgT: 0 };
   UI.modal = null; UI.ff = false; initFx(); homeCam(); homeMsg('Tap a face, then an icon', 'search'); save();
 }
 function homeCam() { const w = G.world; fitCam({ x0: w.x0 - 120, x1: w.x1 + 120, y0: w.fy2y(2) - FLOOR_H - 170, y1: w.groundY + 240 }); cam.y = cam.ty = cam.y + 50 / cam.z; clampCam(); }
@@ -2721,14 +2804,14 @@ function homeTapWorld(wx, wy) {
 }
 function homeUseSpot(spot) {
   const s = G.survivors[G.sel]; if (!s || !s.alive) return; const w = G.world; const info = spotInfo(spot); if (!info) return;
-  if (info.disabled) { if (spot.type === 'door') homeMsg('need ' + ITEMS[spot.tool].n.toLowerCase(), spot.tool, RED); else if (spot.type === 'stove') homeMsg('2 raw + water + fuel', 'cook', RED); else if (spot.type === 'collector') homeMsg('empty · wait for rain', 'water', RED); else if (spot.type === 'radio') homeMsg('already listened today', 'radio', RED); return; }
+  if (info.disabled) { if (spot.type === 'door') homeMsg('need ' + ITEMS[spot.tool].n.toLowerCase(), spot.tool, RED); else if (spot.type === 'stove') homeMsg('2 raw + water + fuel', 'cook', RED); else if (spot.type === 'fire') homeMsg(fireLeft() > 12 ? 'stove is full' : 'need 2 wood or 1 fuel', 'fire', RED); else if (spot.type === 'collector') homeMsg('empty · wait for rain', 'water', RED); else if (spot.type === 'radio') homeMsg('already listened today', 'radio', RED); return; }
   let path;
   if (spot.type === 'dig') { const side = Math.sign(s.x - spot.x) || -1, off = RUB_W + 10; path = w.path(s.x, s.f, spot.x + side * off, spot.f) || w.path(s.x, s.f, spot.x - side * off, spot.f); }   // work from whichever side of the pile can be reached
   else path = w.path(s.x, s.f, spot.x + (spot.type === 'door' ? -spot.dir * 30 : 0), spot.f);
   if (!path) { if (w.blockedByDebris(s.x, s.f, spot.x, spot.f)) homeMsg('debris in the way', 'shovel', RED); else homeMsg('locked', 'lock', RED); return; }
   // another survivor already working there?
   if (G.survivors.some(o => o !== s && o.alive && o.task && o.task.spot === spot && spot.type !== 'bed')) { homeMsg('busy', 'people'); return; }
-  const dur = { search: 6, dig: G.inv.shovel ? 5 : 45, door: 5, bed: 20, radio: 8, collector: 3, stove: COOK.dur, bench: 0 }[spot.type] || 5;
+  const dur = { fire: 3, search: 6, dig: G.inv.shovel ? 5 : 45, door: 5, bed: 20, radio: 8, collector: 3, stove: COOK.dur, bench: 0 }[spot.type] || 5;
   s.path = path; s.task = { spot, kind: spot.type, t: 0, dur };
   if (spot.type === 'stove') { pay(COOK.cost); }
   AUDIO.sfx('tap');
@@ -2751,11 +2834,14 @@ function updateHome(dt) {
   const w = G.world; _T += dt; CUR_W = w;
   const speed = UI.ff ? 3 : 1; const gdt = dt * speed;
   G.hour += gdt * 14 / DAY_LEN;
+  if (fireLeft() > 0) G.flags.fire = Math.max(0, fireLeft() - gdt * 14 / DAY_LEN);
+  const Tin = indoorTemp(G.hour);
   for (const s of G.survivors) {
     if (!s.alive) { s.pose = 'dead'; continue; }
     if (s.sayT > 0) s.sayT -= dt; if (s.eatT > 0) s.eatT -= dt;
     // needs drift
-    s.hunger = clamp(s.hunger - gdt * 30 / DAY_LEN, 0, 100);
+    s.hunger = clamp(s.hunger - gdt * (s.quirk === 'bigeater' ? 39 : 30) / DAY_LEN, 0, 100);
+    s.cold = coldOf(s, Tin); if (s.cold > 0) { s.morale = clamp(s.morale - gdt * 12 / DAY_LEN * s.cold, 0, 100); s.fatigue = clamp(s.fatigue - gdt * 8 / DAY_LEN * s.cold, 0, 100); if (Tin < 0) s.health = clamp(s.health - gdt * 5 / DAY_LEN * s.cold, 0, 100); }
     if (s.hunger <= 0) s.health = clamp(s.health - gdt * 8 / DAY_LEN, 0, 100);
     if (s.infected) s.health = clamp(s.health - gdt * 6 / DAY_LEN, 0, 100);
     if (s.hunger < 30 || s.health < 40) s.morale = clamp(s.morale - gdt * 10 / DAY_LEN, 0, 100);
@@ -2775,6 +2861,7 @@ function updateHome(dt) {
       case 'radio': s.pose = 'cook'; break;
       case 'collector': s.pose = 'search'; break;
       case 'stove': s.pose = 'cook'; tk.spot.active = true; break;
+      case 'fire': s.pose = 'search'; break;
       case 'craft': s.pose = 'hammer'; if (Math.floor(tk.t * 2.3) !== Math.floor((tk.t - gdt) * 2.3)) AUDIO.sfx('hammer'); break;
       case 'board': case 'repair': s.pose = 'hammer'; s.facing = -1; if (Math.floor(tk.t * 2.3) !== Math.floor((tk.t - gdt) * 2.3)) AUDIO.sfx('hammer'); break;
       case 'bench': s.pose = 'idle'; if (!UI.modal) { UI.modal = { kind: 'craft', who: G.survivors.indexOf(s) }; s.task = null; } break;
@@ -2788,7 +2875,8 @@ function updateHome(dt) {
         case 'bed': s.task = null; s.morale = clamp(s.morale + 5, 0, 100); break;
         case 'radio': s.task = null; G.flags.radioToday = true; for (const o of G.survivors) if (o.alive) o.morale = clamp(o.morale + 10, 0, 100); s.say = 'heart'; s.sayT = 2; if (!G.flags.heardRadio && G.day >= 2) { G.flags.heardRadio = true; homeMsg('Convoy at the airport · day 20', 'radio', GOLD); } break;
         case 'collector': { const n = G.collectorWater; G.collectorWater = 0; G.inv.water = (G.inv.water || 0) + n; floatIcon(s.x, w.fy2y(s.fy) - 60, 'water', n); s.task = null; AUDIO.sfx('pick'); break; }
-        case 'stove': sp.active = false; G.inv.meal = (G.inv.meal || 0) + COOK.give.meal; floatIcon(s.x, w.fy2y(s.fy) - 60, 'meal', 2); s.task = null; AUDIO.sfx('done'); break;
+        case 'fire': { const useWood = (G.inv.wood || 0) >= 2; if (useWood) G.inv.wood -= 2; else if ((G.inv.fuel || 0) >= 1) G.inv.fuel -= 1; else { s.task = null; break; } G.flags.fire = Math.min(16, fireLeft() + (useWood ? 4 : 6)); floatIcon(s.x, w.fy2y(s.fy) - 60, 'fire', useWood ? 4 : 6); s.task = null; AUDIO.sfx('done'); break; }
+        case 'stove': { const n = COOK.give.meal + (s.quirk === 'cook' ? 1 : 0); sp.active = false; G.inv.meal = (G.inv.meal || 0) + n; floatIcon(s.x, w.fy2y(s.fy) - 60, 'meal', n); s.task = null; AUDIO.sfx('done'); break; }
         case 'craft': { const rc = tk.recipe; if (rc.build) { G.built[rc.id] = true; homeMsg(ITEMS[rc.give] ? '' : rc.id + ' built', rc.icon, GOLD); } else { G.inv[rc.give] = (G.inv[rc.give] || 0) + 1; floatIcon(s.x, w.fy2y(s.fy) - 60, rc.give, 1); } s.task = null; AUDIO.sfx('done'); break; }
         case 'board': tk.bar.level++; tk.bar.hp = tk.bar.level * 30; s.task = null; AUDIO.sfx('done'); break;
         case 'repair': tk.bar.hp = tk.bar.level * 30; s.task = null; AUDIO.sfx('done'); break;
@@ -2798,10 +2886,20 @@ function updateHome(dt) {
   if (G.hour >= 20) { G.hour = 20; for (const s of G.survivors) { s.task = null; s.path = null; } G.plan = {}; for (const s of G.survivors) if (s.alive) G.plan[s.name] = 'sleep'; G.planLoc = null; G.phase = 'plan'; UI.modal = { kind: 'plan' }; UI.ff = false; UI.invOpen = false; UI.survOpen = -1; }
   if (!G.survivors.some(s => s.alive)) { G.phase = 'lose'; }
 }
-function homeLights() {
-  const w = G.world; const L = [];
-  if (G.hour > 17) { L.push({ x: 300, y: w.fy2y(1) - 60, r: 160, a: .5 }); L.push({ x: 720, y: w.fy2y(1) - 70, r: 140, a: G.built.stove ? .5 : .25 }); L.push({ x: 340, y: w.fy2y(2) - 60, r: 150, a: .4 }); L.push({ x: 1240, y: w.fy2y(0) - 70, r: 130, a: .45 }); for (const b of w.barricades) if (b.kind === 'win') L.push({ x: b.x, y: w.fy2y(b.f) - 80, r: 50, c: '120,140,180', a: .25 }); }
+const LANTERNS = [{ f: 1, x: 250 }, { f: 1, x: 610 }, { f: 1, x: 1150 }, { f: 2, x: 270 }, { f: 2, x: 620 }, { f: 2, x: 1080 }, { f: 0, x: 940 }, { f: 0, x: 380 }];
+function lanternsLit(hour) { return skyAt(hour).light < .8; }
+function homeLights(hour) {
+  const w = G.world, L = [], h = hour == null ? G.hour : hour;
+  if (lanternsLit(h)) for (const l of LANTERNS) { const r = w.roomAt(l.x, l.f); if (!r || !r.open) continue; const fl = .9 + .1 * Math.sin(_T * 9 + l.x) * Math.sin(_T * 5.3 + l.f); L.push({ x: l.x, y: w.fy2y(l.f) - 84, r: 190, a: .66 * fl, c: '255,185,110' }); }
+  if (G.built.stove && fireLeft() > 0) { const fl = .85 + .15 * Math.sin(_T * 11) * Math.sin(_T * 7.1); L.push({ x: 700, y: w.fy2y(1) - 34, r: 260, a: .72 * fl, c: '255,130,50' }); }
   return L;
+}
+function drawLanterns(world, hour) {
+  const lit = lanternsLit(hour);
+  for (const l of LANTERNS) { const r = world.roomAt(l.x, l.f); if (!r || !r.open) continue; const fy = world.fy2y(l.f), y = fy - 92;
+    ctx.strokeStyle = '#1e1a17'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(l.x, fy - FLOOR_H + 14); ctx.lineTo(l.x, y - 8); ctx.stroke();
+    ctx.fillStyle = '#2a2622'; ctx.fillRect(l.x - 5, y - 9, 10, 3); ctx.fillRect(l.x - 5, y + 8, 10, 3);
+    ctx.fillStyle = lit ? '#ffd58a' : 'rgba(190,200,205,.35)'; rr(l.x - 4, y - 6, 8, 14, 2); ctx.fill(); if (lit) { ctx.fillStyle = '#fff3d0'; ctx.fillRect(l.x - 1.2, y - 1, 2.4, 6); } }
 }
 
 // ---------- night ----------
@@ -2827,17 +2925,23 @@ function resolveNight(scav) {
   for (const s of guards) s.fatigue = clamp(s.fatigue - 15, 0, 100);
   const scavS = alive.find(s => G.plan[s.name] === 'scav'); if (scavS) scavS.fatigue = clamp(scavS.fatigue - 25, 0, 100);
   for (const s of alive) { s.hunger = clamp(s.hunger - 18, 0, 100); if (s.hunger <= 0) { s.health = clamp(s.health - 15, 0, 100); line('hungry', s.name + ' is starving', RED); } if (s.infected) { s.health = clamp(s.health - 16, 0, 100); line('infected', s.name + ': the bite is getting worse', GREEN); } if (s.fatigue <= 0) { s.health = clamp(s.health - 5, 0, 100); } }
+  // the cold: ten hours of night, heated only while the stove has something to burn
+  { const lit = Math.min(10, fireLeft()), unlit = 10 - lit, Tn = indoorTemp(2, true); G.flags.fire = Math.max(0, fireLeft() - 10);
+    if (unlit > 0 && Tn < 6) { for (const s of alive) { if (scavS === s) continue; const c = coldOf(s, Tn); s.health = clamp(s.health - Math.min(14, 9 * c) * unlit / 10, 0, 100); s.morale = clamp(s.morale - 6 * c * unlit / 10, 0, 100); } line('cold', (lit > 0 ? 'The fire died in the night · ' : 'No fire · ') + Math.round(Tn) + '° indoors', '#9cc7e6'); }
+    else if (lit >= 10 && Tn < 6) { for (const s of alive) s.morale = clamp(s.morale + 2, 0, 100); line('fire', 'The stove burned all night', '#f08a3a'); } }
   // attack
   const chance = Math.min(.8, .18 + G.day * .035 + (G.flags.horde ? .3 : 0)); G.flags.horde = false;
+  let raid = null;
   if (Math.random() < chance) {
     let strength = ri(1, 2 + Math.floor(G.day / 4)) + (G.day > 10 ? 1 : 0);
-    const def = guards.reduce((a, s) => a + (G.inv.pistol && G.inv.ammo >= 2 ? 3 : G.inv.bat ? 2 : G.inv.knife ? 2 : 1) * (s.trait === 'strong' ? 1.5 : 1), 0) + (G.built.trap ? 1 : 0);
+    const def = guards.reduce((a, s) => a + (G.inv.pistol && G.inv.ammo >= 2 ? 3 : G.inv.bat ? 2 : G.inv.knife ? 2 : 1) * (s.trait === 'strong' ? 1.5 : 1), 0) + (G.built.trap ? 1 : 0) + sleepers.filter(s => s.quirk === 'lightsleeper').length;   // a light sleeper is up at the first scratch
     if (G.built.trap) line('trap', 'The trap caught one', GREEN);
     const kills = Math.min(strength, Math.floor(def)); if (guards.length && G.inv.pistol && G.inv.ammo >= 2 && kills > 0) G.inv.ammo -= 2;
     line('zombie', strength + ' at the walls' + (kills ? ' · ' + kills + ' put down by ' + (guards.map(g => g.name).join(', ') || 'the trap') : ''), kills >= strength ? GREEN : GOLD);
     let left = strength - kills;
+    const weakest = w.barricades.slice().sort((a, b) => (a.level * 30 ? a.hp : -1) - (b.level * 30 ? b.hp : -1))[0];
+    raid = { strength, kills, bar: weakest, guards: guards.slice(), sleepers: sleepers.slice(), gun: !!(guards.length && G.inv.pistol), hurt: left > 0 };
     if (left > 0) {
-      const weakest = w.barricades.slice().sort((a, b) => (a.level * 30 ? a.hp : -1) - (b.level * 30 ? b.hp : -1))[0];
       if (weakest.level === 0) { breach(weakest, sleepers, guards, line); }
       else { weakest.hp -= left * 14; if (weakest.hp <= 0) { weakest.level = Math.max(0, weakest.level - 1); weakest.hp = weakest.level * 30; line('board', bname(weakest) + ' boards torn down', RED); if (weakest.level === 0) breach(weakest, sleepers, guards, line); } else line('repair', bname(weakest) + ' damaged', GOLD); }
     }
@@ -2846,11 +2950,43 @@ function resolveNight(scav) {
   for (const s of alive) if (s.health <= 0) { s.alive = false; line('dead', s.name + ' died in the night', RED); for (const o of G.survivors) o.morale = clamp(o.morale - 20, 0, 100); }
   G.flags.radioToday = false;
   G.day++; G.hour = 6; G.report = rep; G.phase = 'dawn'; UI.modal = { kind: 'dawn' };
-  for (const s of G.survivors) { s.task = null; s.path = null; s.pose = 'idle'; if (s.alive) { s.x = 200 + G.survivors.indexOf(s) * 100; s.fy = 1; s.f = 1; } }
-  G.sel = Math.max(0, G.survivors.findIndex(s => s.alive));
+  G.flags.weather = rollWeather(G.day); if (G.flags.weather !== 'clear') line('cold', G.flags.weather === 'storm' ? 'A snowstorm is blowing in' : 'Snow today', '#9cc7e6');
+  placeForDawn();
   // event
-  G.event = null; const pool = EVENTS.filter(e => e.req(G)); if (pool.length && Math.random() < .5) G.event = pick(pool);
+  G.event = null; const pool = EVENTS.filter(e => e.req(G)); if (pool.length && Math.random() < .6) G.event = pick(pool);
   homeCam(); save();
+  if (raid && !DEMO.on && !HEADLESS) startRaid(raid);
+}
+function placeForDawn() { for (const s of G.survivors) { s.task = null; s.path = null; s.pose = 'idle'; s.poseExtra = null; s.onStair = null; if (s.alive) { s.x = 200 + G.survivors.indexOf(s) * 100; s.fy = 1; s.f = 1; s.facing = 1; } }
+  G.sel = Math.max(0, G.survivors.findIndex(s => s.alive)); }
+// ----- the raid, watched: the dead come out of the dark to the weakest board; whoever is on guard meets them there -----
+function startRaid(info) {
+  const w = G.world, b = info.bar, side = b.x < (w.x0 + w.x1) / 2 ? -1 : 1, edge = side < 0 ? w.x0 - 34 : w.x1 + 34, zs = [];
+  for (let i = 0; i < info.strength; i++) { const z = makeZombie(edge + side * Math.min(540, 240 + i * 80 + rnd(40)), 1, Math.random); z.id = 'raid' + G.day + '_' + i; z.rx = edge + side * (i * 24); z.dieAt = i < info.kills ? 4.2 + i * 1.5 : null; z.facing = -side; z.pose = 'zombie'; zs.push(z); }
+  const open1 = w.rooms.filter(r => r.f === 1 && r.open), inner = side < 0 ? Math.min(...open1.map(r => r.x0)) + 80 : Math.max(...open1.map(r => r.x1)) - 60;
+  info.guards.forEach((g, i) => { if (!g.alive) return; g.x = inner - side * i * 46; g.fy = g.f = 1; g.facing = side; g.pose = 'guard'; g.mc = null; g.onStair = null; });
+  const beds = [{ x: 340, f: 2 }].concat(G.built.bed ? [{ x: 190, f: 1 }] : []).concat([{ x: 420, f: 2 }, { x: 600, f: 2 }, { x: 560, f: 1 }]);
+  info.sleepers.forEach((sl, i) => { if (!sl.alive) return; const bd = beds[i % beds.length]; sl.x = bd.x; sl.fy = sl.f = bd.f; sl.pose = 'sleep'; sl.mc = null; });
+  G.raid = { t: 0, dur: 8.5 + info.strength * 1.1, zs, info, side, edge, inner, bang: 0, shake: 0 }; G.phase = 'raid'; UI.modal = null; homeCam();
+  { const cxw = (inner + edge + side * 160) / 2, span = Math.abs(edge + side * 300 - inner) + 260; cam.z = cam.tz = clamp(W / span, cam.minZ, 1.5); cam.x = cam.tx = cxw; cam.y = cam.ty = w.fy2y(1) - 70; }
+}
+function endRaid() { G.raid = null; placeForDawn(); for (const s of G.survivors) s.mc = null; G.phase = 'dawn'; UI.modal = { kind: 'dawn' }; homeCam(); }
+function updateRaid(dt) {
+  const R = G.raid, w = G.world, wep = G.inv.pistol && G.inv.ammo >= 0 && R.info.gun ? 'pistol' : G.inv.bat ? 'bat' : G.inv.knife ? 'knife' : null; _T += dt; CUR_W = w; R.t += dt; R.shake = Math.max(0, R.shake - dt * 3);
+  let strike = 0;
+  for (const z of R.zs) {
+    if (!z.alive) { z.pose = 'dead'; continue; }
+    if (z.dieAt != null && R.t >= z.dieAt) { z.alive = false; z.pose = 'dead'; AUDIO.sfx(R.info.gun ? 'bang' : 'groan'); if (R.info.gun) FX.flash = .25; continue; }
+    if (z.dieAt != null && z.dieAt - R.t < .45) strike = Math.max(strike, 1 - (z.dieAt - R.t) / .45);
+    if (Math.abs(z.x - z.rx) > 8) { const c = mcOf(z, engFlat(w, 1)); rigTo(z, engFlat(w, 1), z.rx, 46 / (Motion.CFG.walkSpeed * c.k), dt, zombieExt(z, _T), true); z.fy = 1; z.pose = 'zombie'; }
+    else { z.facing = -R.side; z.pose = 'zombieAttack'; z.at = (z.at || 0) + dt; z.poseExtra = { k: (z.at % 1) / .5 }; if (Math.floor(z.at) !== Math.floor(z.at - dt)) { AUDIO.sfx('bang'); R.shake = 1; } }
+  }
+  for (const g of R.info.guards) if (g.alive) { g.pose = strike > 0 ? 'attack' : 'guard'; g.poseExtra = { k: strike, weapon: wep }; }
+  if (R.t >= R.dur) endRaid();
+}
+function drawRaidHud() {
+  const cx = W / 2, R = G.raid; ctx.fillStyle = 'rgba(14,15,18,.75)'; rr(cx - 120, 8, 240, 50, 10); ctx.fill(); drawIcon('moon', cx - 92, 33, 22, '#aab'); txt('NIGHT ' + (G.day - 1), cx - 30, 33, 20, INK); drawIcon('zombie', cx + 50, 33, 22, RED); txt(String(R.zs.filter(z => z.alive).length), cx + 78, 33, 20, INK);
+  textButton(W - 120, H - 60, 100, 40, 'SKIP', () => endRaid(), {});
 }
 function bname(b) { return b.id === 'frontdoor' ? 'Front door' : b.id === 'garagedoor' ? 'Garage door' : 'A window'; }
 function breach(b, sleepers, guards, line) {
@@ -2862,20 +2998,25 @@ function afterDawn() {
   UI.modal = null;
   if (!G.survivors.some(s => s.alive)) { G.phase = 'lose'; return; }
   if (G.day >= 20) { G.phase = 'win'; return; }
-  if (G.event) { G.phase = 'event'; UI.modal = { kind: 'event' }; return; }
+  if (G.event) { G.phase = 'event'; UI.modal = { kind: 'event' }; G.visitor = G.event.who ? { name: 'visitor' + G.day, x: G.world.x0 - 46, fy: 1, f: 1, facing: 1, pose: 'idle', alive: true, hunger: 20, fatigue: 30, health: 60, morale: 20, cold: 1, scale: G.event.id === 'kids' ? .8 : 1 } : null; if (G.visitor) { const w = G.world; cam.z = cam.tz = clamp(H / 300, cam.minZ, 1.9); cam.x = cam.tx = w.x0 + 150; cam.y = cam.ty = w.fy2y(1) + 10; } return; }
   G.phase = 'day';
 }
 function applyEvent(ev, c) {
   switch (c.fx) {
     case 'join': { const used = G.survivors.map(s => s.name); const t = SURVIVOR_TEMPLATES.find(x => !used.includes(x.name)); if (t) { const s = makeSurvivor(t, G.survivors.length); s.hunger = 40; G.survivors.push(s); homeMsg(t.name + ' joined · ' + TRAIT_DESC[t.trait], 'people', GOLD); } break; }
     case 'morale-': for (const s of G.survivors) s.morale = clamp(s.morale - 8, 0, 100); break;
+    case 'morale--': for (const s of G.survivors) s.morale = clamp(s.morale - 13, 0, 100); homeMsg('nobody speaks for a while', 'sad', RED); break;
+    case 'giveMeds': G.inv.meds--; for (const s of G.survivors) s.morale = clamp(s.morale + 14, 0, 100); homeMsg('he will not forget it', 'heart', GOLD); break;
+    case 'giveFood': G.inv.canned--; for (const s of G.survivors) s.morale = clamp(s.morale + 11, 0, 100); homeMsg('they run off with it, laughing', 'heart', GOLD); break;
+    case 'woodtrade': G.inv.canned--; G.inv.wood = (G.inv.wood || 0) + 6; break;
+    case 'warm': { const gift = pick(['bandage', 'ammo', 'fuel', 'parts']); G.inv[gift] = (G.inv[gift] || 0) + 1; for (const s of G.survivors) s.morale = clamp(s.morale + 6, 0, 100); homeMsg('he leaves something behind', gift, GOLD); break; }
     case 'trade': G.inv.scrap -= 4; G.inv.meds = (G.inv.meds || 0) + 1; break;
     case 'give': G.inv.bandage--; for (const s of G.survivors) s.morale = clamp(s.morale + 10, 0, 100); break;
     case 'rainwater': G.collectorWater += 3; break;
     case 'radio': G.flags.heardRadio = true; break;
     case 'horde': G.flags.horde = true; break;
   }
-  G.event = null; UI.modal = null; G.phase = 'day'; save();
+  G.event = null; G.visitor = null; UI.modal = null; G.phase = 'day'; homeCam(); save();
 }
 
 // ---------- main loop ----------
@@ -2887,10 +3028,15 @@ function frame(now) {
   if (DEMO.on) demoTick(dt);
   switch (G.phase) {
     case 'title': _T += dt; drawTitle(); break;
-    case 'day': case 'plan': case 'dawn': case 'event': case 'win': case 'lose': {
-      if (G.phase === 'day' && !UI.modal) updateHome(dt); else _T += dt;
-      const hour = G.phase === 'plan' ? 20 : G.phase === 'dawn' || G.phase === 'event' ? 6.5 : G.hour;
-      drawScene(G.world, hour, G.survivors, { t: _T, dt, lights: G.phase === 'plan' ? homeLights() : (G.hour > 17 ? homeLights() : []) });
+    case 'day': case 'plan': case 'dawn': case 'event': case 'win': case 'lose': case 'raid': {
+      if (G.phase === 'day' && !UI.modal) updateHome(dt); else if (G.phase === 'raid') updateRaid(dt); else _T += dt;
+      if (G.phase === 'raid' && !G.raid) break;
+      const hour = G.phase === 'raid' ? 2 : G.phase === 'plan' ? 20 : G.phase === 'event' ? 8 : G.phase === 'dawn' ? 6.5 : G.hour;
+      let actors = G.survivors, lights = homeLights(hour);
+      if (G.phase === 'raid') { const R = G.raid, w = G.world; actors = G.survivors.concat(R.zs); lights = lights.filter(l => l.c !== '255,185,110'); for (const g of R.info.guards) if (g.alive) lights.push({ x: g.x + R.side * 30, y: w.fy2y(1) - 60, r: 230, a: .7, c: '255,200,130' }); lights.push({ x: R.edge + R.side * 150, y: w.fy2y(1) - 60, r: 460, a: .5, c: '150,170,220' }); lights.push({ x: (R.inner + R.edge) / 2, y: w.fy2y(1) - 70, r: 420, a: .3, c: '150,170,220' }); if (R.shake > 0) { cam.x = cam.tx + rnd(-2, 2) * R.shake; } }
+      else if (G.phase === 'event' && G.visitor) { actors = G.survivors.concat([G.visitor]); lights.push({ x: G.visitor.x, y: G.world.fy2y(1) - 60, r: 170, a: .55, c: '200,210,230' }); }
+      drawScene(G.world, hour, actors, { t: _T, dt, lights });
+      if (G.phase === 'raid') drawRaidHud();
       if (G.phase === 'day' || G.phase === 'plan') drawHomeHud(dt);
       if (UI.modal) { switch (UI.modal.kind) { case 'loot': drawLoot(); break; case 'plan': drawPlan(); break; case 'map': drawMap(); break; case 'dawn': drawDawn(); break; case 'event': drawEvent(); break; case 'craft': drawCraft(); break; } }
       if (G.phase === 'win') drawEnd(true); if (G.phase === 'lose') drawEnd(false);
