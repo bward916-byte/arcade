@@ -1336,7 +1336,7 @@ const AUDIO = {
 // ===== procedural icon set (designed on a 32px grid, centered) =====
 const ICON_COLORS = {
   wood: '#b07a3c', scrap: '#8d9299', parts: '#c9b36a', cloth: '#9c6b8f', water: '#5fa8d3', canned: '#c75b4a', raw: '#d98f6a', meal: '#e2b35d',
-  bandage: '#eee6d8', meds: '#6fcf97', fuel: '#f0a24a', fire: '#f08a3a', cold: '#9cc7e6', books: '#7f9bc9', lockpick: '#cfd3d8', shovel: '#b0b0a6', crowbar: '#d0433a', knife: '#d9dde2', bat: '#c89a5c', pistol: '#7a7f86', ammo: '#d6b25a', backpack: '#8c7a5a'
+  bandage: '#eee6d8', meds: '#6fcf97', fuel: '#f0a24a', fire: '#f08a3a', cold: '#9cc7e6', books: '#7f9bc9', lockpick: '#cfd3d8', shovel: '#b0b0a6', crowbar: '#d0433a', knife: '#d9dde2', bat: '#c89a5c', pistol: '#7a7f86', rifle: '#8a8f96', ammo: '#d6b25a', backpack: '#8c7a5a'
 };
 function drawIcon(name, x, y, s, color) {
   const k = s / 32; ctx.save(); ctx.translate(x, y); ctx.scale(k, k);
@@ -1364,6 +1364,7 @@ function drawIcon(name, x, y, s, color) {
     case 'crowbar': ctx.lineWidth = 4.5; P(); M(-9, 12); L(7, -4); S(); P(); ctx.arc(4, -7, 4.5, Math.PI * .25, Math.PI * 1.35, true); S(); ctx.lineWidth = 3; P(); M(-12, 9); L(-6, 15); S(); break;
     case 'knife': P(); M(-12, 10); L(-4, 2); S(); ctx.fillStyle = '#d9dde2'; P(); M(-4, 2); L(10, -12); L(14, -8); L(0, 6); ctx.closePath(); F(); ctx.fillStyle = '#5a4a3a'; P(); M(-13, 11); L(-7, 5); L(-4, 8); L(-10, 14); ctx.closePath(); F(); break;
     case 'bat': ctx.lineWidth = 4; P(); M(-11, 11); L(-2, 2); S(); ctx.lineWidth = 7; P(); M(-2, 2); L(10, -10); S(); break;
+    case 'rifle': P(); rr(-15, -3, 30, 4, 1.5); F(); P(); M(-15, -1); L(-9, 7); L(-5, 7); L(-6, 1); ctx.closePath(); F(); P(); rr(-3, -8, 10, 4, 2); F(); P(); rr(0, 1, 3, 6, 1); F(); break;
     case 'pistol': P(); rr(-13, -8, 24, 7, 2); F(); P(); rr(-10, -3, 8, 13, 2); F(); P(); rr(-1, -1, 6, 4, 1); ctx.fillStyle = '#333'; F(); break;
     case 'ammo': for (let i = -1; i <= 1; i++) { P(); rr(i * 7 - 2.5, -4, 5, 14, 1); F(); P(); ctx.fillStyle = '#9a7b3a'; ctx.arc(i * 7, -4, 2.5, Math.PI, 0); F(); ctx.fillStyle = c; } break;
     case 'backpack': P(); rr(-11, -8, 22, 22, 5); F(); P(); ctx.strokeStyle = c; M(-6, -8); ctx.quadraticCurveTo(0, -16, 6, -8); S(); ctx.fillStyle = shade('#8c7a5a', .6); P(); rr(-7, 2, 14, 8, 2); F(); break;
@@ -1435,10 +1436,10 @@ const ITEMS = {
   canned: { n: 'Canned food', eat: 45 }, raw: { n: 'Raw food', eat: 18 }, meal: { n: 'Meal', eat: 70, morale: 8 },
   bandage: { n: 'Bandage' }, meds: { n: 'Medicine' }, fuel: { n: 'Fuel' }, books: { n: 'Books' },
   lockpick: { n: 'Lockpick', tool: true }, shovel: { n: 'Shovel', tool: true }, crowbar: { n: 'Crowbar', tool: true },
-  knife: { n: 'Knife', weapon: 2, tool: true }, bat: { n: 'Bat', weapon: 3, tool: true }, pistol: { n: 'Pistol', weapon: 6, tool: true }, ammo: { n: 'Ammo' },
+  knife: { n: 'Knife', weapon: 2, tool: true }, bat: { n: 'Bat', weapon: 3, tool: true }, pistol: { n: 'Pistol', weapon: 6, tool: true }, rifle: { n: 'Sniper rifle', weapon: 8, tool: true }, ammo: { n: 'Ammo' },
   backpack: { n: 'Backpack', tool: true }
 };
-const ITEM_ORDER = ['wood', 'scrap', 'parts', 'cloth', 'water', 'canned', 'raw', 'meal', 'bandage', 'meds', 'fuel', 'books', 'ammo', 'lockpick', 'shovel', 'crowbar', 'knife', 'bat', 'pistol', 'backpack'];
+const ITEM_ORDER = ['wood', 'scrap', 'parts', 'cloth', 'water', 'canned', 'raw', 'meal', 'bandage', 'meds', 'fuel', 'books', 'ammo', 'lockpick', 'shovel', 'crowbar', 'knife', 'bat', 'pistol', 'rifle', 'backpack'];
 
 // workbench recipes: id, icon, cost, result ('build' = house upgrade)
 const RECIPES = [
@@ -1519,11 +1520,11 @@ const TRAIT_DESC = { handy: 'crafts fast', runner: 'carries more, runs fast', me
 const LOCATIONS = [
   { id: 'market', day: 1, name: 'Corner Market', x: .22, y: .30, danger: 1, floors: 1, loot: ['canned', 'canned', 'water', 'raw', 'raw', 'cloth', 'books'], locked: 1 },
   { id: 'flats', day: 1, name: 'Burnt Flats', x: .40, y: .20, danger: 2, floors: 3, loot: ['cloth', 'wood', 'books', 'canned', 'water', 'bandage', 'scrap'], locked: 1 },
-  { id: 'hardware', day: 2, name: 'Hardware Store', x: .62, y: .28, danger: 2, floors: 2, loot: ['scrap', 'parts', 'parts', 'wood', 'fuel', 'crowbar', 'shovel'], locked: 2 },
+  { id: 'hardware', day: 2, name: 'Hardware Store', x: .62, y: .28, danger: 2, floors: 2, loot: ['scrap', 'parts', 'parts', 'wood', 'fuel', 'crowbar', 'shovel', 'rifle', 'ammo'], locked: 2 },
   { id: 'pharmacy', day: 3, name: 'Pharmacy', x: .78, y: .42, danger: 3, floors: 1, loot: ['meds', 'meds', 'bandage', 'bandage', 'water', 'cloth'], locked: 1 },
   { id: 'school', day: 5, name: 'Flooded School', x: .30, y: .58, danger: 3, floors: 2, loot: ['books', 'cloth', 'canned', 'water', 'parts', 'scrap', 'raw'], locked: 1 },
   { id: 'station', day: 7, name: 'Gas Station', x: .55, y: .62, danger: 3, floors: 1, loot: ['fuel', 'fuel', 'fuel', 'canned', 'scrap', 'parts', 'ammo'], locked: 1 },
-  { id: 'police', day: 9, name: 'Police Post', x: .80, y: .70, danger: 4, floors: 2, loot: ['pistol', 'ammo', 'ammo', 'bat', 'bandage', 'parts', 'meds'], locked: 2 },
+  { id: 'police', day: 9, name: 'Police Post', x: .80, y: .70, danger: 4, floors: 2, loot: ['pistol', 'rifle', 'ammo', 'ammo', 'bat', 'bandage', 'parts', 'meds'], locked: 2 },
   { id: 'hospital', day: 12, name: 'St. Brigid Hospital', x: .50, y: .84, danger: 5, floors: 3, loot: ['meds', 'meds', 'meds', 'bandage', 'bandage', 'water', 'cloth', 'parts'], locked: 2 }
 ];
 
@@ -1797,6 +1798,7 @@ function drawTool(tool, x, y, ang, facing) {
     case 'knife': ctx.fillStyle = '#d9dde2'; ctx.beginPath(); ctx.moveTo(-2, 0); ctx.lineTo(2, 0); ctx.lineTo(1, -18); ctx.lineTo(-2, -16); ctx.closePath(); ctx.fill(); ctx.fillStyle = '#5a4a3a'; ctx.fillRect(-2, 0, 4, 6); break;
     case 'bat': ctx.strokeStyle = '#b08a55'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(0, 2); ctx.lineTo(0, -14); ctx.stroke(); ctx.lineWidth = 7; ctx.beginPath(); ctx.moveTo(0, -14); ctx.lineTo(0, -30); ctx.stroke(); break;
     case 'pistol': ctx.fillStyle = '#44474c'; ctx.fillRect(-2, -4, 4, 8); ctx.fillRect(-2, -8, 16, 5); break;
+    case 'rifle': ctx.fillStyle = '#3a3d42'; ctx.fillRect(-10, -7, 44, 4); ctx.fillStyle = '#5a4632'; ctx.fillRect(-16, -6, 12, 6); ctx.fillStyle = '#22252a'; ctx.fillRect(2, -11, 14, 3); break;
     case 'crowbar': ctx.strokeStyle = '#b53a30'; ctx.lineWidth = 3.5; ctx.beginPath(); ctx.moveTo(0, 4); ctx.lineTo(0, -20); ctx.quadraticCurveTo(0, -27, 5, -25); ctx.stroke(); break;
   }
   ctx.restore();
@@ -2113,6 +2115,27 @@ function drawLighting(world, sky, lights) {
 // ===== scavenge mode: site generation, zombies, stealth, loot, backpack =====
 const STACK = { wood: 4, scrap: 4, parts: 4, cloth: 4, water: 3, canned: 3, raw: 3, meal: 2, bandage: 3, meds: 3, fuel: 2, books: 3, ammo: 6 };
 const NIGHT_TOTAL = 330; // real seconds 20:00 → 05:00
+// Guns are aimed: hold still on a target and the sight closes; the rifle reaches much further but takes longer to settle.
+const GUNS = { pistol: { range: 320, aim: 1.1, dmg: 3, noise: 900 }, rifle: { range: 950, aim: 2.2, dmg: 6, noise: 1400 } };
+function aimTick(dt, o) {   // o: { wep, ammo, foes, px, py, fire(target) } — returns the aim state (or null)
+  const gun = GUNS[o.wep], ptr = IN.ptrs.size === 1 ? [...IN.ptrs.values()][0] : null;
+  const onUi = ptr && ptr.y > H - 112 && (ptr.x < 300 || ptr.x > W - 180);
+  if (!gun || !ptr || onUi || UI.modal || IN.moved > 16 || performance.now() - IN.downT < 260) return null;
+  const wx = s2wx(ptr.x), wy = s2wy(ptr.y), a = o.prev || { t: 0 };
+  const target = o.foes.filter(z => Math.abs(z.x - wx) < 60 && Math.abs(z.ay - wy) < 90).sort((p, q) => Math.abs(p.x - wx) - Math.abs(q.x - wx))[0] || null;
+  a.sx = ptr.x; a.sy = ptr.y; a.target = target; a.need = gun.aim; a.far = !!target && Math.abs(target.x - o.px) > gun.range; a.dry = o.ammo <= 0;
+  if (target && !a.far && !a.dry) { a.t += dt; if (a.t >= gun.aim) { o.fire(target, gun); a.t = 0; a.shot = .25; } } else a.t = Math.max(0, a.t - dt * 3);
+  if (a.shot > 0) a.shot -= dt;
+  return a;
+}
+function drawAim(a, tracer) {
+  if (tracer && tracer.t > 0) { ctx.strokeStyle = `rgba(255,235,180,${Math.min(1, tracer.t * 8).toFixed(2)})`; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(w2sx(tracer.x0), w2sy(tracer.y0)); ctx.lineTo(w2sx(tracer.x1), w2sy(tracer.y1)); ctx.stroke(); }
+  if (!a) return; const x = a.target ? w2sx(a.target.x) : a.sx, y = a.target ? w2sy(a.target.ay) : a.sy, k = clamp(a.t / a.need, 0, 1), r = 30 - 14 * k, bad = a.far || a.dry;
+  ctx.strokeStyle = bad ? RED : a.target ? 'rgba(240,235,220,.9)' : 'rgba(200,200,200,.45)'; ctx.lineWidth = 1.5; circ(x, y, r); ctx.stroke();
+  ctx.beginPath(); for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { ctx.moveTo(x + dx * (r - 5), y + dy * (r - 5)); ctx.lineTo(x + dx * (r + 7), y + dy * (r + 7)); } ctx.stroke();
+  if (k > 0) { ctx.strokeStyle = GOLD; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(x, y, r + 4, -Math.PI / 2, -Math.PI / 2 + k * TAU); ctx.stroke(); }
+  const label = a.dry ? 'no ammo' : a.far ? 'too far' : a.target ? '' : 'hold on a target'; if (label) { ctx.font = '600 13px Oswald, Impact, sans-serif'; const tw = ctx.measureText(label).width + 16; ctx.fillStyle = 'rgba(14,15,18,.85)'; rr(x - tw / 2, y - r - 34, tw, 22, 6); ctx.fill(); txt(label, x, y - r - 22, 13, bad ? RED : DIM); }
+}
 const nightHour = () => 20 + (1 - G.nightT / NIGHT_TOTAL) * 9;
 function fmtClock(h) { const hh = Math.floor(h) % 24, mm = Math.floor((h % 1) * 60); return (hh % 12 || 12) + ':' + (mm < 10 ? '0' : '') + mm + (hh < 12 ? ' AM' : ' PM'); }
 const SC = { active: false };
@@ -2185,7 +2208,7 @@ function startScavenge(loc, surv, pack, cap) {
   scMsg('exit');
 }
 function scMsg(icon, t = 2.2) { SC.msg = icon; SC.msgT = t; }
-function scWeapon() { return ['pistol', 'bat', 'knife'].find(w => packCount(SC.pack, w) > 0) || null; }
+function scWeapon() { return ['rifle', 'pistol', 'bat', 'knife'].find(w => packCount(SC.pack, w) > 0) || null; }
 function scNoise(x, f, radius) { for (const z of SC.zombies) { if (!z.alive) continue; const d = Math.abs(z.x - x) + Math.abs(z.f - f) * 220; if (d < radius && z.state !== 'chase') { z.state = 'look'; z.lookX = x; z.lookF = f; z.t = 0; z.path = SC.world.path(z.x, z.f, x, f); } } }
 
 // throw something: it clatters down the corridor and whatever hears it goes to look
@@ -2214,12 +2237,12 @@ function scUseHide(h) {
 function scAttack() {
   const p = SC.player; if (p.attackT > 0 || SC.done) return;
   const wep = scWeapon();
-  if (wep === 'pistol') {
+  if (GUNS[wep]) {
     if (packCount(SC.pack, 'ammo') <= 0) { scMsg('ammo', 1.2); return; }
-    const t = SC.zombies.filter(z => z.alive && z.f === p.f && Math.abs(z.x - p.x) < 320).sort((a, b) => Math.abs(a.x - p.x) - Math.abs(b.x - p.x))[0];
+    const t = SC.zombies.filter(z => z.alive && z.f === p.f && Math.abs(z.x - p.x) < 150).sort((a, b) => Math.abs(a.x - p.x) - Math.abs(b.x - p.x))[0];
     if (!t) { scMsg('zombie', 1); return; }
     packRemove(SC.pack, 'ammo', 1); p.facing = t.x < p.x ? -1 : 1; p.attackT = .35; p.attackKind = 'shoot'; AUDIO.sfx('shot'); FX.flash = .25; scNoise(p.x, p.f, 900);
-    t.hp -= 3; t.hurtT = .3; if (t.hp <= 0) killZombie(t); else { t.state = 'chase'; }
+    t.hp -= GUNS[wep].dmg; t.hurtT = .3; if (t.hp <= 0) killZombie(t); else { t.state = 'chase'; }
     return;
   }
   { const t = SC.zombies.filter(z => z.alive && z.f === p.f && Math.abs(z.x - p.x) < 110).sort((a, b) => Math.abs(a.x - p.x) - Math.abs(b.x - p.x))[0]; if (t) { p.facing = t.x < p.x ? -1 : 1; p.path = null; if (p.mc) rigFace(p, p.facing); } }
@@ -2232,12 +2255,16 @@ function scUpdate(dt) {
   if (SC.done) return;
   G.nightT -= dt; if (SC.msgT > 0) SC.msgT -= dt;
   if (SC.throwCd > 0) SC.throwCd -= dt;
+  if (SC.tracer && SC.tracer.t > 0) SC.tracer.t -= dt;
+  { const wep = scWeapon(); SC.aim = GUNS[wep] && !p.hidden ? aimTick(dt, { prev: SC.aim, wep, ammo: packCount(SC.pack, 'ammo'), px: p.x, foes: SC.zombies.filter(z => z.alive && z.f === p.f).map(z => (z.ay = w.fy2y(z.fy) - 50, z)), fire: (t, gun) => {
+      packRemove(SC.pack, 'ammo', 1); p.facing = t.x < p.x ? -1 : 1; p.attackT = .35; p.attackKind = 'shoot'; AUDIO.sfx('shot'); FX.flash = .25; scNoise(p.x, p.f, gun.noise); SC.tracer = { x0: p.x + p.facing * 16, y0: w.fy2y(p.fy) - 58, x1: t.x, y1: t.ay, t: .14 }; t.hp -= gun.dmg; t.hurtT = .3; if (t.hp <= 0) killZombie(t); else t.state = 'chase'; } }) : null;
+    if (SC.aim && SC.aim.target) { p.path = null; p.task = null; p.facing = SC.aim.target.x < p.x ? -1 : 1; if (p.mc) rigFace(p, p.facing); } }
   if (SC.proj) { SC.proj.t += dt; if (SC.proj.t >= .6 && !SC.proj.hit) { SC.proj.hit = true; scNoise(SC.proj.x1, SC.proj.f, 360); AUDIO.sfx('open'); } if (SC.proj.t > 1.5) SC.proj = null; }
   if (G.nightT <= 0) { endScavenge(true); return; }
   // movement
   const chasing = SC.zombies.some(z => z.alive && z.state === 'chase');
   const speed = SC.fight ? 50 : SC.sneak ? 42 : (chasing || p.run ? 112 : 78);
-  { const foe = SC.zombies.filter(z => z.alive && z.f === p.f && !p.hidden).sort((a, b) => Math.abs(a.x - p.x) - Math.abs(b.x - p.x))[0]; if (SC.fight && foe && Math.abs(foe.x - p.x) < 56 && p.attackT <= 0 && scWeapon() !== 'pistol') scAttack(); SC.foe = foe; }
+  { const foe = SC.zombies.filter(z => z.alive && z.f === p.f && !p.hidden).sort((a, b) => Math.abs(a.x - p.x) - Math.abs(b.x - p.x))[0]; if (SC.fight && foe && Math.abs(foe.x - p.x) < 56 && p.attackT <= 0 && !GUNS[scWeapon()]) scAttack(); SC.foe = foe; }
   if (p.attackT > 0) { p.attackT -= dt; if (p.attackKind !== 'shoot' && p.attackT < .25 && !p.attackHit) { p.attackHit = true; const wep = scWeapon(); const dmg = wep === 'bat' ? 2 : wep === 'knife' ? 1 : 0; for (const z of SC.zombies) if (z.alive && z.f === p.f && Math.abs(z.x - p.x) < 48 && (z.x - p.x) * p.facing > -10) { z.hp -= dmg * (p.trait === 'strong' ? 2 : 1); z.hurtT = .3; z.x += p.facing * (wep === 'bat' ? 40 : 28); z.attackT = 0; z.state = 'chase'; if (z.hp <= 0) killZombie(z); else AUDIO.sfx('groan'); } } }
   else if (p.path && p.path.length) { moveActor(p, dt, speed); p.pose = SC.sneak ? 'sneak' : (chasing || p.run ? 'run' : 'walk'); if (!SC.sneak && !p.hidden) { SC.noiseT += dt; if (SC.noiseT > .6) { SC.noiseT = 0; scNoise(p.x, p.f, (chasing || p.run ? 260 : 150) * (p.quirk === 'loud' ? 1.35 : 1)); } } }
   else {
@@ -2256,9 +2283,9 @@ function scUpdate(dt) {
           else { p.pose = tool === 'crowbar' ? 'hammer' : 'cook'; const need = tool === 'crowbar' ? 2.5 : 4.5; if (tool === 'crowbar' && Math.floor(tk.t * 2) !== Math.floor((tk.t - dt) * 2)) { AUDIO.sfx('bang'); scNoise(s.x, s.f, 420); } if (tk.t >= need) { s.room.open = true; s.done = true; p.task = null; AUDIO.sfx('done'); if (tool === 'lockpick' && Math.random() < .35) { packRemove(SC.pack, 'lockpick', 1); scMsg('lockpick', 1.5); } } }
         }
       }
-    } else { p.pose = SC.fight ? 'guard' : SC.sneak ? 'sneak' : 'idle'; if (SC.fight && SC.foe && Math.abs(SC.foe.x - p.x) < 240) { p.facing = SC.foe.x < p.x ? -1 : 1; if (p.mc) rigFace(p, p.facing); } }
+    } else { p.pose = SC.fight || (SC.aim && SC.aim.target) ? 'guard' : SC.sneak ? 'sneak' : 'idle'; if (SC.fight && SC.foe && Math.abs(SC.foe.x - p.x) < 240) { p.facing = SC.foe.x < p.x ? -1 : 1; if (p.mc) rigFace(p, p.facing); } }
   }
-  if (p.attackT > 0) { p.pose = p.attackKind === 'shove' ? 'shove' : 'attack'; p.poseExtra = { k: 1 - p.attackT / .45, weapon: scWeapon() }; } else p.poseExtra = SC.fight ? { weapon: scWeapon() } : null;
+  if (p.attackT > 0) { p.pose = p.attackKind === 'shove' ? 'shove' : 'attack'; p.poseExtra = { k: 1 - p.attackT / .45, weapon: scWeapon() }; } else p.poseExtra = SC.fight || SC.aim ? { weapon: scWeapon() } : null;
   if (p.hurtT > 0) p.hurtT -= dt;
   // zombies
   let seen = 0;
@@ -2321,9 +2348,9 @@ const RAMP = 80; // every obstacle has a rubble ramp / plank on each side — yo
 function startTravel(surv) {
   const p = surv; const r = mulberry(G.day * 131 + 7);
   const cap = (p.slots || 10) + (G.inv.backpack ? 2 : 0); const pack = [];
-  const weapon = ['pistol', 'bat', 'knife'].find(w => G.inv[w] > 0);
+  const weapon = ['rifle', 'pistol', 'bat', 'knife'].find(w => G.inv[w] > 0);
   for (const t of [weapon, 'lockpick', 'crowbar']) if (t && G.inv[t] > 0) { G.inv[t]--; packAdd(pack, cap, t, 1); }
-  if (weapon === 'pistol' && G.inv.ammo > 0) { const n = Math.min(6, G.inv.ammo); G.inv.ammo -= n; packAdd(pack, cap, 'ammo', n); }
+  if (GUNS[weapon] && G.inv.ammo > 0) { const n = Math.min(6, G.inv.ammo); G.inv.ammo -= n; packAdd(pack, cap, 'ammo', n); }
   p.x = 80; p.fy = 0; p.f = 0; p.facing = 1; p.path = null; p.task = null; p.hidden = false; p.visible = true; p.hasPack = true; p.attackT = 0; p.pose = 'idle';
   const dest = LOCATIONS.find(l => l.id === G.planLoc && (l.day || 1) <= G.day) || LOCATIONS[0]; ST_END = 1500;
   Object.assign(TR, { active: true, player: p, pack, cap, x: 80, py: 0, zombies: [], obstacles: [], dest, fires: [], drifters: [], locX: { [dest.id]: 1180 }, kills: 0, attackT: 0, hurtT: 0, msg: 'run', msgT: 3, decor: [], done: false, result: null, grounded: true, tx: null, run: false, fight: false });
@@ -2347,17 +2374,17 @@ function startTravel(surv) {
   cam.z = cam.tz = clamp(H / 400, cam.minZ, cam.maxZ); cam.x = cam.tx = p.x + 160; cam.y = cam.ty = GROUND_Y - 110; initFx();
 }
 function trMsg(icon, t = 2) { TR.msg = icon; TR.msgT = t; }
-function trWeapon() { return ['pistol', 'bat', 'knife'].find(w => packCount(TR.pack, w) > 0) || null; }
+function trWeapon() { return ['rifle', 'pistol', 'bat', 'knife'].find(w => packCount(TR.pack, w) > 0) || null; }
 function heightAt(x) { let s = 0; for (const o of TR.obstacles) { const l = o.x - o.w / 2, r = o.x + o.w / 2; let h = 0; if (x >= l && x <= r) h = o.h; else if (x > l - RAMP && x < l) h = o.h * (x - (l - RAMP)) / RAMP; else if (x > r && x < r + RAMP) h = o.h * (r + RAMP - x) / RAMP; s = Math.max(s, h); } return s; }
 const slopeAt = x => heightAt(x + 2) - heightAt(x - 2);
 function trAttack() {
   const p = TR.player; if (TR.attackT > 0 || TR.done) return; const wep = trWeapon();
-  if (wep === 'pistol') {
+  if (GUNS[wep]) {
     if (packCount(TR.pack, 'ammo') <= 0) { trMsg('ammo', 1.2); return; }
-    const t = TR.zombies.filter(z => z.alive && Math.abs(z.x - TR.x) < 320).sort((a, b) => Math.abs(a.x - TR.x) - Math.abs(b.x - TR.x))[0]; if (!t) return;
+    const t = TR.zombies.filter(z => z.alive && Math.abs(z.x - TR.x) < 150).sort((a, b) => Math.abs(a.x - TR.x) - Math.abs(b.x - TR.x))[0]; if (!t) return;
     packRemove(TR.pack, 'ammo', 1); p.facing = t.x < TR.x ? -1 : 1; TR.attackT = .35; TR.attackKind = 'shoot'; AUDIO.sfx('shot'); FX.flash = .25;
     for (const z of TR.zombies) if (z.alive && Math.abs(z.x - TR.x) < 700) z.state = 'chase';
-    t.hp -= 3; t.hurtT = .3; if (t.hp <= 0) { t.alive = false; t.pose = 'dead'; TR.kills++; AUDIO.sfx('groan'); }
+    t.hp -= GUNS[wep].dmg; t.hurtT = .3; if (t.hp <= 0) { t.alive = false; t.pose = 'dead'; TR.kills++; AUDIO.sfx('groan'); }
     return;
   }
   { const t = TR.zombies.filter(z => z.alive && Math.abs(z.x - TR.x) < 110).sort((a, b) => Math.abs(a.x - TR.x) - Math.abs(b.x - TR.x))[0]; if (t) { p.facing = t.x < TR.x ? -1 : 1; if (p.mc) rigFace(p, p.facing); } TR.tx = null; }
@@ -2369,9 +2396,13 @@ function trUpdate(dt) {
   if (G.nightT <= 0) { trLost(true); return; }
   // input: held pad
   let dir = 0; IN.downs.length = 0;
+  if (TR.tracer && TR.tracer.t > 0) TR.tracer.t -= dt;
+  { const wep = trWeapon(); TR.aim = GUNS[wep] ? aimTick(dt, { prev: TR.aim, wep, ammo: packCount(TR.pack, 'ammo'), px: TR.x, foes: TR.zombies.filter(z => z.alive).map(z => (z.ay = GROUND_Y - (z.py || 0) - 50, z)), fire: (t, gun) => {
+      packRemove(TR.pack, 'ammo', 1); p.facing = t.x < TR.x ? -1 : 1; TR.attackT = .35; TR.attackKind = 'shoot'; AUDIO.sfx('shot'); FX.flash = .25; for (const z of TR.zombies) if (z.alive && Math.abs(z.x - TR.x) < gun.noise * .7) z.state = 'chase'; TR.tracer = { x0: TR.x + p.facing * 16, y0: GROUND_Y - TR.py - 58, x1: t.x, y1: t.ay, t: .14 }; t.hp -= gun.dmg; t.hurtT = .3; if (t.hp <= 0) { t.alive = false; t.pose = 'dead'; TR.kills++; AUDIO.sfx('groan'); } } }) : null;
+    if (TR.aim && TR.aim.target) { TR.tx = null; p.facing = TR.aim.target.x < TR.x ? -1 : 1; if (p.mc) rigFace(p, p.facing); } }
   if (TR.tx != null) { if (Math.abs(TR.tx - TR.x) < 8) { TR.tx = null; TR.run = false; } else dir = Math.sign(TR.tx - TR.x); }
   const foe = TR.zombies.filter(z => z.alive).sort((a, b) => Math.abs(a.x - TR.x) - Math.abs(b.x - TR.x))[0], foeD = foe ? Math.abs(foe.x - TR.x) : 1e9;
-  if (TR.fight && foe && foeD < 56 && TR.attackT <= 0 && trWeapon() !== 'pistol') trAttack();   // fighting stance: strike whoever comes within reach
+  if (TR.fight && foe && foeD < 56 && TR.attackT <= 0 && !GUNS[trWeapon()]) trAttack();   // fighting stance: strike whoever comes within reach
   for (const d of TR.drifters || []) if (d.sayT > 0) d.sayT -= dt;
   const chasing = TR.zombies.some(z => z.alive && z.state === 'chase');
   const speed = (TR.fight ? 52 : TR.run ? 124 : 80) * (p.trait === 'runner' ? 1.15 : 1);
@@ -2384,7 +2415,7 @@ function trUpdate(dt) {
   { const c0 = mcOf(p, TR.ew); const inp = (dir && TR.attackT <= 0) ? dir * speed / (Motion.CFG.walkSpeed * c0.k) : 0; const c = rigInput(p, TR.ew, inp, dt, null); TR.x = clamp(c.x, 20, ST_END + 300); if (c.x !== TR.x) { c.x = TR.x; c.w.x = TR.x / c.k; c.w.vx = 0; } if (inp) p.facing = dir; TR.py = c.y; }
   TR.grounded = true;
   p.x = TR.x; p.y = GROUND_Y - TR.py;
-  p.pose = dir ? (TR.run ? 'run' : 'walk') : (TR.fight ? 'guard' : 'idle'); p.poseExtra = TR.fight ? { weapon: trWeapon() } : null;
+  p.pose = dir ? (TR.run ? 'run' : 'walk') : (TR.fight || (TR.aim && TR.aim.target) ? 'guard' : 'idle'); p.poseExtra = TR.fight || TR.aim ? { weapon: trWeapon() } : null;
   if (TR.fight && foe && foeD < 240 && !dir) { p.facing = foe.x < TR.x ? -1 : 1; if (p.mc) rigFace(p, p.facing); }
   if (TR.attackT > 0) { p.pose = TR.attackKind === 'shove' ? 'shove' : 'attack'; p.poseExtra = { k: 1 - TR.attackT / .45, weapon: trWeapon() }; }
   if (p.hurtT > 0) p.hurtT -= dt;
@@ -2495,14 +2526,15 @@ function drawTravelHud(dt) {
     for (const z of TR.zombies) if (z.alive && z.state === 'chase') { const sx = w2sx(z.x), sy = w2sy(GROUND_Y - 100); if (sx > -30 && sx < W + 30) drawIcon('alert', sx, sy, 22, RED); }
     for (const d of TR.drifters) if (!d.fed && Math.abs(d.x - TR.x) < 70 && packCount(TR.pack, 'canned') > 0) { const sx = w2sx(d.x), sy = w2sy(GROUND_Y - 120); spotBubble(sx, sy, 'canned', { size: 40, badgeIcon: 'heart' }); UI.btn(sx - 24, sy - 24, 48, 48, () => { packRemove(TR.pack, 'canned', 1); d.fed = true; d.say = 'heart'; d.sayT = 4; p.morale = clamp(p.morale + 12, 0, 100); trMsg('heart'); AUDIO.sfx('done'); }); break; }
   }
+  drawAim(TR.aim, TR.tracer);
   const cx = W / 2; ctx.fillStyle = 'rgba(14,15,18,.75)'; rr(cx - 170, 8, 340, 62, 10); ctx.fill(); drawNightClock(cx - 60, 33);
   const next = LOCATIONS.map(l => ({ l, d: TR.locX[l.id] - TR.x })).filter(o => o.d > 0).sort((a, b) => a.d - b.d)[0];
   txt(TR.x < 150 ? 'home' : next ? next.l.name + '  →  ' + Math.round(next.d / 10) + 'm' : 'end of the district', cx - 60, 56, 13, DIM);
   ctx.fillStyle = TR.zombies.some(z => z.alive && z.state === 'chase') ? RED : GREEN; circ(cx + 100, 33, 16); ctx.fill(); drawIcon('eye', cx + 100, 33, 22, '#111');
   // pads
   iconButton(56, H - 56, 68, 'fight', () => { TR.fight = !TR.fight; TR.run = false; AUDIO.sfx('tap'); }, { active: TR.fight, bg: TR.fight ? '#3a2020' : undefined, edge: TR.fight ? RED : undefined });
-  const wep = trWeapon(); const near = TR.zombies.some(z => z.alive && Math.abs(z.x - TR.x) < (wep === 'pistol' ? 320 : 70));
-  if (near && !TR.done) iconButton(W - 80, H - 70, 70, wep || 'shove', () => trAttack(), { bg: '#3a2020', edge: RED, badge: wep === 'pistol' ? packCount(TR.pack, 'ammo') : undefined });
+  const wep = trWeapon(); const near = TR.zombies.some(z => z.alive && Math.abs(z.x - TR.x) < (GUNS[wep] ? 150 : 70));
+  if (near && !TR.done) iconButton(W - 80, H - 70, 70, wep || 'shove', () => trAttack(), { bg: '#3a2020', edge: RED, badge: GUNS[wep] ? packCount(TR.pack, 'ammo') : undefined });
   iconButton(W - 50, 100, 56, 'backpack', () => { UI.modal = UI.modal && UI.modal.kind === 'inv' ? null : { kind: 'inv' }; }, { badge: TR.pack.length + '/' + TR.cap, active: UI.modal && UI.modal.kind === 'inv' });
   bar(W - 170, 20, 150, 10, p.health / 100, needColor(p.health)); drawIcon('hurt', W - 184, 25, 16, RED);
   if (TR.msgT > 0 && TR.msg) { ctx.fillStyle = 'rgba(14,15,18,.85)'; rr(cx - 40, 78, 80, 50, 10); ctx.fill(); drawIcon(TR.msg, cx, 103, 30); }
@@ -2700,7 +2732,7 @@ function drawPlan() {
     drawPortrait(s, x + 40, ry, 24); txt(s.name, x + 80, ry - 10, 17, INK, 'left'); statusIcons(s).slice(0, 4).forEach((ic, j) => drawIcon(ic, x + 86 + j * 18, ry + 12, 15, ic === 'infected' ? GREEN : RED));
     const jobs = [['sleep', 'sleep'], ['guard', 'guard'], ['backpack', 'scav']];
     jobs.forEach(([ic, job], j) => {
-      const bx = x + w - 190 + j * 60; const on = P[s.name] === job; const armed = ['pistol', 'bat', 'knife'].some(k => G.inv[k] > 0);
+      const bx = x + w - 190 + j * 60; const on = P[s.name] === job; const armed = ['rifle', 'pistol', 'bat', 'knife'].some(k => G.inv[k] > 0);
       const can = job !== 'scav' || (armed && s.health > 25 && !Object.entries(P).some(([n, v]) => v === 'scav' && n !== s.name));
       iconButton(bx, ry, 46, ic, can ? () => { P[s.name] = job; AUDIO.sfx('tap'); if (job === 'scav') UI.modal = { kind: 'map' }; } : () => { if (job === 'scav' && !armed) homeMsg('craft a weapon first', 'knife', RED); }, { active: on, bg: on ? '#3a3320' : undefined, disabled: !can, badge: job === 'scav' && !armed ? '!' : undefined, badgeColor: RED });
     });
@@ -2808,6 +2840,7 @@ function drawScavHud(dt) {
     // zombie state markers
     for (const z of SC.zombies) { if (!z.alive) continue; if (z.state === 'chase' || z.state === 'look' || z.alert > .3) { const sx = w2sx(z.x), sy = w2sy(w.fy2y(z.fy) - 100); drawIcon(z.state === 'chase' ? 'alert' : 'eye', sx, sy, 22, z.state === 'chase' ? RED : GOLD); } }
   }
+  drawAim(SC.aim, SC.tracer);
   // top: timer + eye
   const cx = W / 2; ctx.fillStyle = 'rgba(14,15,18,.75)'; rr(cx - 170, 8, 340, 62, 10); ctx.fill();
   drawNightClock(cx - 60, 33);
@@ -2821,8 +2854,8 @@ function drawScavHud(dt) {
   if (!SC.done) { const cd = SC.throwCd || 0; iconButton(142, H - 54, 60, 'throw', cd > 0 ? null : () => scThrow(), { disabled: cd > 0 }); if (cd > 0) ring(142, H - 54, 30, 1 - cd / 6, GOLD); }
   if (SC.proj) { const q = SC.proj, t = Math.min(1, q.t / .6), fy = w.fy2y(q.f), wx = lerp(q.x0, q.x1, t), wy = fy - 60 - Math.sin(t * Math.PI) * 60 + t * 58; if (!q.hit) { ctx.fillStyle = '#c9c2b0'; circ(w2sx(wx), w2sy(wy), 3.5 * cam.z); ctx.fill(); } else { const k = (q.t - .6) / .9; ctx.strokeStyle = `rgba(230,200,120,${(1 - k).toFixed(2)})`; ctx.lineWidth = 2.5; for (const rr2 of [1, .6]) { ctx.beginPath(); ctx.ellipse(w2sx(q.x1), w2sy(fy - 4), (30 + 330 * k) * rr2 * cam.z, (8 + 60 * k) * rr2 * cam.z, 0, 0, TAU); ctx.stroke(); } } }
   // fight button
-  const wep = scWeapon(); const near = SC.zombies.some(z => z.alive && z.f === p.f && Math.abs(z.x - p.x) < (wep === 'pistol' ? 320 : 70));
-  if (near && !SC.done) iconButton(W - 140, H - 60, 70, wep || 'shove', () => scAttack(), { bg: '#3a2020', edge: RED, badge: wep === 'pistol' ? packCount(SC.pack, 'ammo') : undefined });
+  const wep = scWeapon(); const near = SC.zombies.some(z => z.alive && z.f === p.f && Math.abs(z.x - p.x) < (GUNS[wep] ? 150 : 70));
+  if (near && !SC.done) iconButton(W - 140, H - 60, 70, wep || 'shove', () => scAttack(), { bg: '#3a2020', edge: RED, badge: GUNS[wep] ? packCount(SC.pack, 'ammo') : undefined });
   // backpack
   iconButton(W - 50, H - 50, 66, 'backpack', () => { UI.modal = UI.modal && UI.modal.kind === 'inv' ? null : { kind: 'inv' }; }, { badge: SC.pack.length + '/' + SC.cap, active: UI.modal && UI.modal.kind === 'inv' });
   // health
@@ -2850,7 +2883,7 @@ function lootPackView(M) {
   const ids = ITEM_ORDER.filter(k => G.inv[k] > 0); const slots = ids.map(k => ({ id: k, n: G.inv[k] }));
   return { slots, cap: Infinity, add: (id, n) => { G.inv[id] = (G.inv[id] || 0) + n; return n; }, take: i => { const st = slots[i]; G.inv[st.id] = 0; return { id: st.id, n: st.n }; }, swap: () => { } };
 }
-const RARITY = { wood: 0, scrap: 0, cloth: 0, water: 0, canned: 0, raw: 0, parts: 1, meal: 1, bandage: 1, fuel: 1, books: 1, lockpick: 1, shovel: 1, knife: 1, bat: 1, crowbar: 1, meds: 2, ammo: 2, pistol: 2, backpack: 2 };
+const RARITY = { wood: 0, scrap: 0, cloth: 0, water: 0, canned: 0, raw: 0, parts: 1, meal: 1, bandage: 1, fuel: 1, books: 1, lockpick: 1, shovel: 1, knife: 1, bat: 1, crowbar: 1, meds: 2, ammo: 2, rifle: 2, pistol: 2, backpack: 2 };
 const RARITY_NAME = ['COMMON', 'UNCOMMON', 'RARE'], RARITY_COL = ['#8d8a82', '#7fb0d9', '#d9b35a'];
 function drawLoot() {
   const M = UI.modal, sp = M.spot, found = sp.lootList; const home = !!M.home;
