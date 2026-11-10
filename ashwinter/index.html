@@ -219,7 +219,7 @@ const Motion = (() => {
     const groundAng = x => { const k = (g(x + 2.5) - g(x - 2.5)) / 5; return Math.abs(k) > .9 ? 0 : Math.atan(k); };
     const rot = (x, y, a) => { const c = Math.cos(a), sn = Math.sin(a); return [x * c - y * sn, x * sn + y * c]; };
     const plantPose = (x, th) => { const a = groundAng(x), rho = a + dir * th, t0 = rot(dir * TOE, 0, a), T = [x + t0[0], g(x) + t0[1]], k = rot(dir * TOE, ANK, rho); return { A: [T[0] - k[0], T[1] - k[1]], rho }; };
-    const run = w._run = (w._run || 0) + clamp(rf - (w._run || 0), -dt * 2.2, dt * 2.2);
+    const run = w._run = (w._run || 0) + clamp(rf * .55 - (w._run || 0), -dt * 2.2, dt * 2.2);   // a jog that keeps a foot on the ground
     const swingPose = f => { const e = f.e, end = plantPose(f.tx, 0), A1 = end.A, y0 = f.y0, y1 = A1[1];
       const top = minGround(f.x0 - HEEL, f.tx + dir * TOE) - ANK - 1.5, c = Math.min(y0, y1, top) - lerp(.07 * L, .11 * L, run), u = 1 - e, up = y0 - y1 > 2;
       let ax = lerp(f.x0, A1[0], ss(up ? (e - .12) / .88 : e)), ay = u * u * u * y0 + 3 * u * u * e * c + 3 * u * e * e * c + e * e * e * y1;
@@ -544,6 +544,7 @@ const Motion = (() => {
     read: (t) => { const b = Math.sin(t * 1.4); return pose({ torso: .08, head: .35 + .02 * b, ua2: .7, la2: 1.55, ua1: .62, la1: 1.6 }); },
     warm: (t) => { const s = Math.sin(t * 6) * .08; return pose({ torso: .12, head: .15, ua2: .95 + s, la2: 1.2, ua1: .9 - s, la1: 1.25, ul2: .1, ll2: .15, ul1: -.1, ll1: .12 }); },
     recline: () => pose({ rot: -.85, torso: -.12, head: .3, ul2: 1.05, ll2: .75, ul1: .9, ll1: .55, f2: H + .3, f1: H + .35, ua2: -.55, la2: .25, ua1: -.35, la1: .35 }),   // leaning back on the hands, legs coming up
+    bed: (t, c) => { const k = c ? clamp(c.poseK || 0, 0, 1) : 1, A = Poses.sit(t), B = Poses.recline(t), C = Poses.sleep(t), lo = k < .5, u = ss(lo ? k * 2 : (k - .5) * 2), P0 = lo ? A : B, P1 = lo ? B : C, o = {}; for (const key in P0) o[key] = typeof P0[key] === 'number' && typeof P1[key] === 'number' ? lerp(P0[key], P1[key], u) : P0[key]; return o; },   // sitting → leaning back → lying, as one movement
     sit: () => pose({ torso: .12, head: .05, ul2: 1.5, ll2: 1.55, ul1: 1.45, ll1: 1.5, f2: H, f1: H, ua2: .9, la2: 1.0, ua1: .8, la1: 1.1, lift: 0 }),
     getup: (t) => Poses.die(1 - ease(Math.min(1, t))),
     loco: (t, c) => c._locoPose(),    // standing, walking, running, stairs: the walker's hips and feet turned into angles
@@ -1044,8 +1045,8 @@ const SCENES = [
     setup() { G.hour = 20; G.phase = 'plan'; G.plan = { Dale: 'scav', Noor: 'guard', Teo: 'sleep' }; G.planLoc = LOCATIONS[0]; UI.modal = { kind: 'plan' }; look(700, G.world.fy2y(1) - 60, .9); },
     tick() {} },
   { cap: 'The street: climb the wrecks, slip past the gangs, be home by five', dur: 11,
-    setup() { UI.modal = null; beginNight(); IN.ptrs.set(99, { x: 150, y: H - 60 }); const z = TR.zombies[0]; if (z) { z.x = TR.x - 160; z.state = 'chase'; z.alert = 2; z.wk = null; } },
-    tick(t) { if (t > 9.5) IN.ptrs.delete(99); const z = TR.zombies.find(q => q.alive && q.state === 'chase'); if (z && Math.abs(z.x - TR.x) < 40 && TR.attackT <= 0) trAttack(); } },
+    setup() { UI.modal = null; beginNight(); TR.tx = ST_END; TR.run = true; const z = TR.zombies[0]; if (z) { z.x = TR.x - 160; z.state = 'chase'; z.alert = 2; z.wk = null; } },
+    tick(t) { if (t > 9.5) TR.tx = null; const z = TR.zombies.find(q => q.alive && q.state === 'chase'); if (z && Math.abs(z.x - TR.x) < 40 && TR.attackT <= 0) trAttack(); } },
   { cap: 'Inside: search quietly — raiders follow noise', dur: 9,
     setup() { IN.ptrs.delete(99); trEnter(LOCATIONS[0]); UI.modal = null; SC.sneak = true; const w = SC.world, p = SC.player; const sp = w.spots.filter(s => s.type === 'search' && s.f === 0).sort((a, b) => Math.abs(a.x - p.x) - Math.abs(b.x - p.x)); DEMO.keep = sp; if (sp[0]) scUseSpot(sp[0]); for (const z of SC.zombies) { z.alert = 0; z.state = 'idle'; } },
     tick(t) { const p = SC.player; if (UI.modal && UI.modal.kind === 'loot') { if (t > 5.5) { UI.modal = null; } } if (t > 5.6 && !p.task && !p.path && DEMO.keep[1] && !DEMO.k2) { DEMO.k2 = true; scUseSpot(DEMO.keep[1]); } } },
@@ -1568,6 +1569,16 @@ class World {
     return true;
   }
   blockedByDebris(x, f, tx, tf) { const live = this.spots.filter(d => d.type === 'dig' && d.left > 0), keep = live.map(d => d.left); live.forEach(d => d.left = 0); const ok = !!this.path(x, f, tx, tf); live.forEach((d, i) => d.left = keep[i]); return ok; }
+  // the way is shut (a locked room, a pile of debris): go as far along it as can be reached
+  pathFar(x, f, tx, tf) { const direct = this.path(x, f, tx, tf); if (direct) return direct;
+    const shut = this.rooms.filter(r => !r.open), live = this.spots.filter(d => d.type === 'dig' && d.left > 0), keep = live.map(d => d.left); shut.forEach(r => r.open = true); live.forEach(d => d.left = 0);
+    const ideal = this.path(x, f, tx, tf); shut.forEach(r => r.open = false); live.forEach((d, i) => d.left = keep[i]); if (!ideal) return null;
+    const out = []; let cx = x, cf = f;
+    for (const wp of ideal) { if (wp.fy !== cf) { out.push(wp); cx = wp.x; cf = wp.fy; continue; }
+      if (this.passable(cx, wp.x, cf)) { out.push(wp); cx = wp.x; continue; }
+      const dir = Math.sign(wp.x - cx); let best = cx; for (let q = cx + dir * 8; (wp.x - q) * dir > 0; q += dir * 8) { if (this.passable(cx, q, cf)) best = q; else break; }
+      if (Math.abs(best - cx) > 22) out.push({ x: best - dir * 12, fy: cf }); break; }
+    return out.length ? out : null; }
   stairsFor(f) { return this.stairs.filter(s => s.a === f || s.b === f); }
   // waypoints from (x,f) to (tx,tf) or null
   path(x, f, tx, tf, depth = 0) {
@@ -1740,15 +1751,15 @@ function drawPerson(a, pose, t, extra) {
   if (a.say && a.sayT > 0) { const sx = X, sy = Y - 95 * S; ctx.fillStyle = 'rgba(20,20,22,.85)'; rr(sx - 16, sy - 16, 32, 32, 8); ctx.fill(); drawIcon(a.say, sx, sy, 20); }
 }
 const SPOT_H = { sofa: 'low', crates: 'low', dresser: 'low', garshelf: 'high', storeshelf: 'high', medcab: 'high' };
-const HOLD_OF = { nail: 'nail', situp: 'sit', recline: 'recline', search: 'search', dig: 'dig', hammer: 'hammer', cook: 'cook', eat: 'eat', guard: 'hold', attack: 'swing', shove: 'shove', zombieIdle: 'look', zombieAttack: 'swing', zombie: 'look', sleep: 'sleep', sit: 'sit', warm: 'warm' };
+const HOLD_OF = { bed: 'bed', nail: 'nail', situp: 'sit', recline: 'recline', search: 'search', dig: 'dig', hammer: 'hammer', cook: 'cook', eat: 'eat', guard: 'hold', attack: 'swing', shove: 'shove', zombieIdle: 'look', zombieAttack: 'swing', zombie: 'look', sleep: 'sleep', sit: 'sit', warm: 'warm' };
 function drawPersonRig(a, pose, t, extra) {
   const X = a.x, Y = a.y;
   // beds: sit on the edge, swing up onto the mattress, and the same in reverse to get out
   { const ddt = clamp(_T - (a._lt == null ? _T : a._lt), 0, .05), bedSpot = pose === 'sleep' && a.task && a.task.kind === 'bed' ? a.task.spot : null, inBed = !!bedSpot || (pose === 'sleep' && a.bedAt);
     if (inBed) a.bedH = bedSpot ? (bedSpot.id === 'bed' ? 40 : 32) : a.bedAt;
-    a.bedIn = inBed ? Math.min(1, (a.bedIn || 0) + ddt / 1.3) : Math.max(0, (a.bedIn || 0) - ddt / 1.1);
-    const lying = inBed && a.bedIn >= 1, rec = a.bedIn > .45, tgt = lying ? a.bedH : rec ? a.bedH * .8 : a.bedIn > 0 ? a.bedH * .42 : 0; a.bedLift = (a.bedLift || 0) + (tgt - (a.bedLift || 0)) * Math.min(1, ddt * 6);
-    if (a.bedIn > 0 && !lying && a.mcT_ !== _T) { pose = rec ? 'recline' : 'situp'; if (inBed) a.facing = 1; } if (a.bedIn <= 0 && !inBed) { if (a.bedLift < .5) a.bedLift = 0; } }
+    a.bedIn = inBed ? Math.min(1, (a.bedIn || 0) + ddt / 1.7) : Math.max(0, (a.bedIn || 0) - ddt / 1.4);
+    const e = a.bedIn, k2 = e * e * (3 - 2 * e); a.bedLift = a.bedIn > 0 ? (a.bedH || 0) * (.42 + .58 * k2) * Math.min(1, e * 6) : 0;
+    if (a.bedIn > 0 && a.mcT_ !== _T) { pose = 'bed'; if (inBed) a.facing = 1; a._bedK = k2; } }
   const tr = a.mc && a.mcT_ === _T ? a.mcT : engFor(a); const c = mcOf(a, tr);
   if (a.mcT_ !== _T) {                                         // not moved this frame: stand, work, or lie where he is
     const dt = clamp(_T - (a._lt == null ? _T : a._lt), 0, .05);
@@ -1756,6 +1767,7 @@ function drawPersonRig(a, pose, t, extra) {
     if (pose === 'idle' && !a.zombie && CUR_W && CUR_W === G.world && G.phase === 'day') { a.idleT = (a.idleT || 0) + dt; if (!a.idlePose || a.idleT > a.idleDur) { a.idlePose = pick(['idle', 'idle', 'look', 'look', 'cross', 'rub', 'hips', 'stretch', 'read']); a.idleT = 0; a.idleDur = a.idlePose === 'read' ? rnd(9, 16) : rnd(4, 9); } hold = a.idlePose === 'idle' ? null : a.idlePose; }
     else { a.idlePose = null; hold = HOLD_OF[pose] || null; if (pose === 'search' && a.task && a.task.spot) { const hh = a.task.spot.hgt || SPOT_H[a.task.spot.id]; if (hh === 'low') hold = 'searchLow'; else if (hh === 'high') hold = 'searchHigh'; } }
     if (pose === 'attack' || pose === 'shove' || pose === 'zombieAttack') c.poseK = extra ? clamp(extra.k || 0, 0, 1) : 0;
+    if (pose === 'bed') c.poseK = a._bedK || 0;
     if (a.zombie && pose === 'zombie') ext = zombieExt(a, t);
     if (pose === 'dead') { hold = null; if (!c.dead && !(c.action && c.action.name === 'die')) { if (!c.play('die')) { c.action = null; c.dead = true; c._setState('dead'); } } }
     else if (c.dead) { c.dead = false; c._setState('loco'); }
@@ -2102,6 +2114,7 @@ function drawLighting(world, sky, lights) {
 const STACK = { wood: 4, scrap: 4, parts: 4, cloth: 4, water: 3, canned: 3, raw: 3, meal: 2, bandage: 3, meds: 3, fuel: 2, books: 3, ammo: 6 };
 const NIGHT_TOTAL = 330; // real seconds 20:00 → 05:00
 const nightHour = () => 20 + (1 - G.nightT / NIGHT_TOTAL) * 9;
+function fmtClock(h) { const hh = Math.floor(h) % 24, mm = Math.floor((h % 1) * 60); return (hh % 12 || 12) + ':' + (mm < 10 ? '0' : '') + mm + (hh < 12 ? ' AM' : ' PM'); }
 const SC = { active: false };
 
 function hashStr(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
@@ -2165,7 +2178,7 @@ function packRemove(pack, id, n = 1) { for (let i = pack.length - 1; i >= 0 && n
 function startScavenge(loc, surv, pack, cap) {
   const { world, zombies } = makeSite(loc, G.day);
   const p = surv; p.x = world.x0 + 40; p.fy = 0; p.f = 0; p.facing = 1; p.path = null; p.moving = false; p.task = null; p.hidden = false; p.visible = true; p.attackT = 0; p.pose = 'idle'; p.hasPack = true;
-  Object.assign(SC, { active: true, world, zombies, player: p, loc, pack, cap, sneak: false, seen: 0, lootSpot: null, noiseT: 0, done: false, result: null, msg: null, msgT: 0, kills: 0, lights: [], throwCd: 0, proj: null });
+  Object.assign(SC, { active: true, world, zombies, player: p, loc, pack, cap, sneak: false, seen: 0, lootSpot: null, noiseT: 0, done: false, result: null, msg: null, msgT: 0, kills: 0, lights: [], throwCd: 0, proj: null, fight: false });
   FX.float = []; initFx();
   fitCam({ x0: world.x0 - 60, x1: world.x1 + 60, y0: world.fy2y(world.nFloors - 1) - FLOOR_H - 60, y1: world.groundY + 230 });
   cam.z = cam.tz = clamp(Math.max(cam.z, H / 420), cam.minZ, cam.maxZ); cam.x = cam.tx = p.x + 200; cam.y = cam.ty = world.groundY - 80; clampCam();
@@ -2187,7 +2200,7 @@ function scTapWorld(wx, wy) {
   let bf = 0, bd = 1e9; for (let f = 0; f < w.nFloors; f++) { const d = Math.abs(w.fy2y(f) - 40 - wy); if (d < bd) { bd = d; bf = f; } }
   if (p.hidden) { p.hidden = false; p.visible = true; }
   p.task = null; const dbl = isDoubleTap(wx, wy);
-  const path = w.path(p.x, p.f, wx, bf); if (path) { p.path = path; p.run = dbl; if (dbl) SC.sneak = false; AUDIO.sfx('tap'); } else scMsg('lock', 1);
+  let path = w.path(p.x, p.f, wx, bf); if (!path) { scMsg('lock', 1); path = w.pathFar(p.x, p.f, wx, bf); } if (path) { p.path = path; p.run = dbl; if (dbl) SC.sneak = false; AUDIO.sfx('tap'); }
 }
 function scUseSpot(s) {
   const p = SC.player, w = SC.world; if (SC.done) return;
@@ -2209,6 +2222,7 @@ function scAttack() {
     t.hp -= 3; t.hurtT = .3; if (t.hp <= 0) killZombie(t); else { t.state = 'chase'; }
     return;
   }
+  { const t = SC.zombies.filter(z => z.alive && z.f === p.f && Math.abs(z.x - p.x) < 110).sort((a, b) => Math.abs(a.x - p.x) - Math.abs(b.x - p.x))[0]; if (t) { p.facing = t.x < p.x ? -1 : 1; p.path = null; if (p.mc) rigFace(p, p.facing); } }
   p.attackT = .45; p.attackKind = wep ? 'swing' : 'shove'; p.attackHit = false; AUDIO.sfx(wep ? 'hammer' : 'dig');
 }
 function killZombie(z) { z.alive = false; z.pose = 'dead'; SC.kills++; AUDIO.sfx('groan'); }
@@ -2222,7 +2236,8 @@ function scUpdate(dt) {
   if (G.nightT <= 0) { endScavenge(true); return; }
   // movement
   const chasing = SC.zombies.some(z => z.alive && z.state === 'chase');
-  const speed = SC.sneak ? 42 : (chasing || p.run ? 112 : 78);
+  const speed = SC.fight ? 50 : SC.sneak ? 42 : (chasing || p.run ? 112 : 78);
+  { const foe = SC.zombies.filter(z => z.alive && z.f === p.f && !p.hidden).sort((a, b) => Math.abs(a.x - p.x) - Math.abs(b.x - p.x))[0]; if (SC.fight && foe && Math.abs(foe.x - p.x) < 56 && p.attackT <= 0 && scWeapon() !== 'pistol') scAttack(); SC.foe = foe; }
   if (p.attackT > 0) { p.attackT -= dt; if (p.attackKind !== 'shoot' && p.attackT < .25 && !p.attackHit) { p.attackHit = true; const wep = scWeapon(); const dmg = wep === 'bat' ? 2 : wep === 'knife' ? 1 : 0; for (const z of SC.zombies) if (z.alive && z.f === p.f && Math.abs(z.x - p.x) < 48 && (z.x - p.x) * p.facing > -10) { z.hp -= dmg * (p.trait === 'strong' ? 2 : 1); z.hurtT = .3; z.x += p.facing * (wep === 'bat' ? 40 : 28); z.attackT = 0; z.state = 'chase'; if (z.hp <= 0) killZombie(z); else AUDIO.sfx('groan'); } } }
   else if (p.path && p.path.length) { moveActor(p, dt, speed); p.pose = SC.sneak ? 'sneak' : (chasing || p.run ? 'run' : 'walk'); if (!SC.sneak && !p.hidden) { SC.noiseT += dt; if (SC.noiseT > .6) { SC.noiseT = 0; scNoise(p.x, p.f, (chasing || p.run ? 260 : 150) * (p.quirk === 'loud' ? 1.35 : 1)); } } }
   else {
@@ -2241,9 +2256,9 @@ function scUpdate(dt) {
           else { p.pose = tool === 'crowbar' ? 'hammer' : 'cook'; const need = tool === 'crowbar' ? 2.5 : 4.5; if (tool === 'crowbar' && Math.floor(tk.t * 2) !== Math.floor((tk.t - dt) * 2)) { AUDIO.sfx('bang'); scNoise(s.x, s.f, 420); } if (tk.t >= need) { s.room.open = true; s.done = true; p.task = null; AUDIO.sfx('done'); if (tool === 'lockpick' && Math.random() < .35) { packRemove(SC.pack, 'lockpick', 1); scMsg('lockpick', 1.5); } } }
         }
       }
-    } else p.pose = SC.sneak ? 'sneak' : 'idle';
+    } else { p.pose = SC.fight ? 'guard' : SC.sneak ? 'sneak' : 'idle'; if (SC.fight && SC.foe && Math.abs(SC.foe.x - p.x) < 240) { p.facing = SC.foe.x < p.x ? -1 : 1; if (p.mc) rigFace(p, p.facing); } }
   }
-  if (p.attackT > 0) { p.pose = p.attackKind === 'shove' ? 'shove' : 'attack'; p.poseExtra = { k: 1 - p.attackT / .45, weapon: scWeapon() }; } else p.poseExtra = null;
+  if (p.attackT > 0) { p.pose = p.attackKind === 'shove' ? 'shove' : 'attack'; p.poseExtra = { k: 1 - p.attackT / .45, weapon: scWeapon() }; } else p.poseExtra = SC.fight ? { weapon: scWeapon() } : null;
   if (p.hurtT > 0) p.hurtT -= dt;
   // zombies
   let seen = 0;
@@ -2299,6 +2314,7 @@ function leaveSite() { const p = SC.player; TR.kills += SC.kills; SC.active = fa
 // ===== travel: the night street, a 2D platformer run between the house and the district's buildings =====
 const TR = { active: false, player: null, pack: [], cap: 10, x: 0, py: 0, vy: 0, zombies: [], obstacles: [], locX: {}, kills: 0, attackT: 0, hurtT: 0, msg: null, msgT: 0, decor: [], done: false, result: null };
 let ST_END = 7200; // street length (set per outing)
+const DANGER = ['unknown', 'calm', 'uneasy', 'dangerous', 'very dangerous', 'extremely dangerous'], DANGER_COL = ['#8d8a82', '#8fbf7a', '#c9c27a', '#d9a35a', '#d97a4a', '#d1584a'];
 const LOC_DIST = { market: 700, flats: 1500, hardware: 2300, pharmacy: 3200, school: 4100, station: 5000, police: 5900, hospital: 6800 };
 const RAMP = 80; // every obstacle has a rubble ramp / plank on each side — you walk up, no jumping
 
@@ -2310,7 +2326,7 @@ function startTravel(surv) {
   if (weapon === 'pistol' && G.inv.ammo > 0) { const n = Math.min(6, G.inv.ammo); G.inv.ammo -= n; packAdd(pack, cap, 'ammo', n); }
   p.x = 80; p.fy = 0; p.f = 0; p.facing = 1; p.path = null; p.task = null; p.hidden = false; p.visible = true; p.hasPack = true; p.attackT = 0; p.pose = 'idle';
   const dest = LOCATIONS.find(l => l.id === G.planLoc && (l.day || 1) <= G.day) || LOCATIONS[0]; ST_END = 1500;
-  Object.assign(TR, { active: true, player: p, pack, cap, x: 80, py: 0, zombies: [], obstacles: [], dest, fires: [], drifters: [], locX: { [dest.id]: 1180 }, kills: 0, attackT: 0, hurtT: 0, msg: 'run', msgT: 3, decor: [], done: false, result: null, grounded: true });
+  Object.assign(TR, { active: true, player: p, pack, cap, x: 80, py: 0, zombies: [], obstacles: [], dest, fires: [], drifters: [], locX: { [dest.id]: 1180 }, kills: 0, attackT: 0, hurtT: 0, msg: 'run', msgT: 3, decor: [], done: false, result: null, grounded: true, tx: null, run: false, fight: false });
   // obstacles between locations
   const kinds = [['car', 120, 48], ['rubble', 140, 46], ['barrier', 60, 54], ['crates', 70, 36], ['bus', 260, 60]];
   for (let x = 420; x < ST_END - 200; x += 260 + r() * 420) {
@@ -2344,6 +2360,7 @@ function trAttack() {
     t.hp -= 3; t.hurtT = .3; if (t.hp <= 0) { t.alive = false; t.pose = 'dead'; TR.kills++; AUDIO.sfx('groan'); }
     return;
   }
+  { const t = TR.zombies.filter(z => z.alive && Math.abs(z.x - TR.x) < 110).sort((a, b) => Math.abs(a.x - TR.x) - Math.abs(b.x - TR.x))[0]; if (t) { p.facing = t.x < TR.x ? -1 : 1; if (p.mc) rigFace(p, p.facing); } TR.tx = null; }
   TR.attackT = .45; TR.attackKind = wep ? 'swing' : 'shove'; TR.attackHit = false; AUDIO.sfx(wep ? 'hammer' : 'dig');
 }
 function trUpdate(dt) {
@@ -2352,10 +2369,12 @@ function trUpdate(dt) {
   if (G.nightT <= 0) { trLost(true); return; }
   // input: held pad
   let dir = 0; IN.downs.length = 0;
-  for (const q of IN.ptrs.values()) { if (q.y > H - 130) { if (q.x < 110) dir = -1; else if (q.x < 220) dir = 1; } }
+  if (TR.tx != null) { if (Math.abs(TR.tx - TR.x) < 8) { TR.tx = null; TR.run = false; } else dir = Math.sign(TR.tx - TR.x); }
+  const foe = TR.zombies.filter(z => z.alive).sort((a, b) => Math.abs(a.x - TR.x) - Math.abs(b.x - TR.x))[0], foeD = foe ? Math.abs(foe.x - TR.x) : 1e9;
+  if (TR.fight && foe && foeD < 56 && TR.attackT <= 0 && trWeapon() !== 'pistol') trAttack();   // fighting stance: strike whoever comes within reach
   for (const d of TR.drifters || []) if (d.sayT > 0) d.sayT -= dt;
   const chasing = TR.zombies.some(z => z.alive && z.state === 'chase');
-  const speed = 120 * (p.trait === 'runner' ? 1.15 : 1);
+  const speed = (TR.fight ? 52 : TR.run ? 124 : 80) * (p.trait === 'runner' ? 1.15 : 1);
   if (TR.attackT > 0) {
     TR.attackT -= dt;
     if (TR.attackKind !== 'shoot' && TR.attackT < .25 && !TR.attackHit) { TR.attackHit = true; const wep = trWeapon(); const dmg = wep === 'bat' ? 2 : wep === 'knife' ? 1 : 0; for (const z of TR.zombies) if (z.alive && Math.abs(z.x - TR.x) < 50 && (z.x - TR.x) * p.facing > -10) { z.hp -= dmg * (p.trait === 'strong' ? 2 : 1); z.hurtT = .3; z.x += p.facing * (wep === 'bat' ? 45 : 30); z.attackT = 0; z.state = 'chase'; if (z.hp <= 0) { z.alive = false; z.pose = 'dead'; TR.kills++; } AUDIO.sfx('groan'); } }
@@ -2365,7 +2384,8 @@ function trUpdate(dt) {
   { const c0 = mcOf(p, TR.ew); const inp = (dir && TR.attackT <= 0) ? dir * speed / (Motion.CFG.walkSpeed * c0.k) : 0; const c = rigInput(p, TR.ew, inp, dt, null); TR.x = clamp(c.x, 20, ST_END + 300); if (c.x !== TR.x) { c.x = TR.x; c.w.x = TR.x / c.k; c.w.vx = 0; } if (inp) p.facing = dir; TR.py = c.y; }
   TR.grounded = true;
   p.x = TR.x; p.y = GROUND_Y - TR.py;
-  p.pose = dir ? (onSlope ? 'climb' : 'run') : 'idle'; p.poseExtra = null;
+  p.pose = dir ? (TR.run ? 'run' : 'walk') : (TR.fight ? 'guard' : 'idle'); p.poseExtra = TR.fight ? { weapon: trWeapon() } : null;
+  if (TR.fight && foe && foeD < 240 && !dir) { p.facing = foe.x < TR.x ? -1 : 1; if (p.mc) rigFace(p, p.facing); }
   if (TR.attackT > 0) { p.pose = TR.attackKind === 'shove' ? 'shove' : 'attack'; p.poseExtra = { k: 1 - TR.attackT / .45, weapon: trWeapon() }; }
   if (p.hurtT > 0) p.hurtT -= dt;
   // zombies (1D)
@@ -2384,7 +2404,7 @@ function trUpdate(dt) {
     z.py = heightAt(z.x);
   }
   // camera
-  cam.tx = TR.x + p.facing * 140; cam.x = lerp(cam.x, cam.tx, Math.min(1, dt * 3.5)); cam.y = cam.ty = GROUND_Y - 110;
+  cam.tx = TR.x + p.facing * Math.min(140, W / cam.z * .16); cam.x = lerp(cam.x, cam.tx, Math.min(1, dt * 3.5)); cam.y = cam.ty = GROUND_Y - 110;
 }
 function trLost(timeout) { TR.done = true; TR.result = { died: true, timeout, pack: TR.pack, kills: TR.kills, loc: null }; SC.result = TR.result; UI.modal = { kind: 'scavEnd' }; AUDIO.sfx('bad'); }
 function trEnter(loc) { const p = TR.player; p.hasPack = true; G.phase = 'scav'; cam.lock = false; startScavenge(loc, p, TR.pack, TR.cap); }
@@ -2448,7 +2468,7 @@ function drawFacade(l, x, gy) {
   // door + sign
   ctx.fillStyle = '#1c1916'; ctx.fillRect(x - 30, gy - 104, 60, 118); ctx.fillStyle = '#2b2622'; ctx.fillRect(x - 26, gy - 100, 52, 114); ctx.fillStyle = 'rgba(200,120,80,.25)'; ctx.fillRect(x - 22, gy - 96, 44, 50);
   ctx.fillStyle = '#2a2a2e'; rr(x - 90, gy - 150, 180, 34, 4); ctx.fill(); ctx.strokeStyle = '#4a4d52'; ctx.lineWidth = 2; rr(x - 90, gy - 150, 180, 34, 4); ctx.stroke();
-  txt(l.name.toUpperCase(), x, gy - 133, 15, '#b8a888'); for (let i = 0; i < 5; i++) drawIcon('zombie', x - 60 + i * 30, gy - 170, 14, i < l.danger ? RED : '#3a3d42');
+  txt(l.name.toUpperCase(), x, gy - 133, 15, '#b8a888');
 }
 function drawRamp(x0, x1, top, y) { // plank ramp from ground at x0 up to the obstacle top at x1
   ctx.fillStyle = '#6a5236'; ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x1, y - top); ctx.lineTo(x1, y - top + 10); ctx.lineTo(x0 + (x1 > x0 ? 14 : -14), y); ctx.closePath(); ctx.fill();
@@ -2470,8 +2490,8 @@ function drawTravelHud(dt) {
   const p = TR.player;
   // door bubbles (proximity)
   if (!TR.done) {
-    if (Math.abs(TR.x) < 150) { const sx = w2sx(0), sy = w2sy(GROUND_Y - 150); spotBubble(sx, sy, 'home', { hl: true, size: 50 }); UI.btn(sx - 30, sy - 30, 60, 60, () => trHome()); }
-    for (const l of LOCATIONS) { const lx = TR.locX[l.id]; if (lx == null) continue; if (Math.abs(TR.x - lx) < 150) { const sx = w2sx(lx), sy = w2sy(GROUND_Y - 200); spotBubble(sx, sy, 'exit', { hl: true, size: 50 }); UI.btn(sx - 30, sy - 30, 60, 60, () => trEnter(l)); } }
+    if (Math.abs(TR.x) < 150) { const sx = w2sx(0), sy = w2sy(GROUND_Y - 128); spotBubble(sx, sy, 'home', { hl: true, size: 50 }); UI.btn(sx - 30, sy - 30, 60, 60, () => trHome()); }
+    for (const l of LOCATIONS) { const lx = TR.locX[l.id]; if (lx == null) continue; if (Math.abs(TR.x - lx) < 150) { const sx = w2sx(lx), sy = w2sy(GROUND_Y - 128); spotBubble(sx, sy, 'exit', { hl: true, size: 50 }); UI.btn(sx - 30, sy - 30, 60, 60, () => trEnter(l)); } }
     for (const z of TR.zombies) if (z.alive && z.state === 'chase') { const sx = w2sx(z.x), sy = w2sy(GROUND_Y - 100); if (sx > -30 && sx < W + 30) drawIcon('alert', sx, sy, 22, RED); }
     for (const d of TR.drifters) if (!d.fed && Math.abs(d.x - TR.x) < 70 && packCount(TR.pack, 'canned') > 0) { const sx = w2sx(d.x), sy = w2sy(GROUND_Y - 120); spotBubble(sx, sy, 'canned', { size: 40, badgeIcon: 'heart' }); UI.btn(sx - 24, sy - 24, 48, 48, () => { packRemove(TR.pack, 'canned', 1); d.fed = true; d.say = 'heart'; d.sayT = 4; p.morale = clamp(p.morale + 12, 0, 100); trMsg('heart'); AUDIO.sfx('done'); }); break; }
   }
@@ -2480,8 +2500,7 @@ function drawTravelHud(dt) {
   txt(TR.x < 150 ? 'home' : next ? next.l.name + '  →  ' + Math.round(next.d / 10) + 'm' : 'end of the district', cx - 60, 56, 13, DIM);
   ctx.fillStyle = TR.zombies.some(z => z.alive && z.state === 'chase') ? RED : GREEN; circ(cx + 100, 33, 16); ctx.fill(); drawIcon('eye', cx + 100, 33, 22, '#111');
   // pads
-  ctx.fillStyle = 'rgba(30,32,36,.75)'; rr(20, H - 120, 90, 100, 14); ctx.fill(); rr(120, H - 120, 90, 100, 14); ctx.fill(); drawIcon('back', 65, H - 70, 36); drawIcon('arrow', 165, H - 70, 36);
-  UI.btn(20, H - 120, 190, 100, () => { });
+  iconButton(56, H - 56, 68, 'fight', () => { TR.fight = !TR.fight; TR.run = false; AUDIO.sfx('tap'); }, { active: TR.fight, bg: TR.fight ? '#3a2020' : undefined, edge: TR.fight ? RED : undefined });
   const wep = trWeapon(); const near = TR.zombies.some(z => z.alive && Math.abs(z.x - TR.x) < (wep === 'pistol' ? 320 : 70));
   if (near && !TR.done) iconButton(W - 80, H - 70, 70, wep || 'shove', () => trAttack(), { bg: '#3a2020', edge: RED, badge: wep === 'pistol' ? packCount(TR.pack, 'ammo') : undefined });
   iconButton(W - 50, 100, 56, 'backpack', () => { UI.modal = UI.modal && UI.modal.kind === 'inv' ? null : { kind: 'inv' }; }, { badge: TR.pack.length + '/' + TR.cap, active: UI.modal && UI.modal.kind === 'inv' });
@@ -2507,7 +2526,7 @@ function handleTaps() {
     if (UI.invOpen || UI.survOpen >= 0 || UI.help) { UI.invOpen = false; UI.survOpen = -1; UI.help = false; continue; }
     const wx = s2wx(t.x), wy = s2wy(t.y);
     if (DEMO.on) continue;
-    if (G.phase === 'day') homeTapWorld(wx, wy); else if (G.phase === 'scav') scTapWorld(wx, wy);
+    if (G.phase === 'day') homeTapWorld(wx, wy); else if (G.phase === 'scav') scTapWorld(wx, wy); else if (G.phase === 'travel' && !TR.done) { TR.tx = clamp(wx, 20, ST_END + 300); TR.run = isDoubleTap(wx, wy); if (TR.run) TR.fight = false; AUDIO.sfx('tap'); }
   }
 }
 // ---- generic widgets ----
@@ -2576,12 +2595,13 @@ function drawHomeHud(dt) {
   }
   // ---- top bar ----
   const cx = W / 2;
-  ctx.fillStyle = 'rgba(14,15,18,.75)'; rr(cx - 150, 8, 300, 50, 10); ctx.fill();
-  txt('DAY ' + G.day, cx - 90, 33, 24, INK);
+  ctx.fillStyle = 'rgba(14,15,18,.75)'; rr(cx - 150, 8, 338, 50, 10); ctx.fill();
+  txt('DAY ' + G.day, cx - 96, 33, 22, INK);
   // clock arc
   const hr = G.hour; ring(cx + 10, 33, 16, clamp((hr - 6) / 14, 0, 1), hr > 17 ? '#c9793f' : GOLD); drawIcon(hr >= 19 ? 'moon' : 'sun', cx + 10, 33, 16, hr >= 19 ? '#aab' : GOLD);
-  { const mm = Math.floor((hr % 1) * 60); txt(Math.floor(hr) + ':' + (mm < 10 ? '0' : '') + mm, cx + 60, 33, 18, DIM); }
-  iconButton(cx + 118, 33, 36, 'ff', () => { UI.ff = !UI.ff; }, { active: UI.ff });
+  txt(fmtClock(hr), cx + 64, 33, 16, DIM);
+  iconButton(cx + 122, 33, 34, 'ff', () => { UI.ff = !UI.ff; }, { active: UI.ff });
+  if (G.phase === 'day') iconButton(cx + 164, 33, 34, 'moon', () => { UI.modal = { kind: 'confirm', icon: 'moon', who: 'everyone', text: 'End the day now', note: 'skips straight to nightfall', secs: 0, yes: () => { G.hour = 20; } }; });
   // goal
   ctx.fillStyle = 'rgba(14,15,18,.75)'; rr(W - 130, 8, 122, 50, 10); ctx.fill(); drawIcon('home', W - 110, 33, 20, GOLD); txt(SHELTERS[homeTier()].name, W - 94, 33, 13, INK, 'left');
   iconButton(32, 33, 40, null, () => { UI.help = !UI.help; }, { active: UI.help, label: '?' });
@@ -2666,7 +2686,7 @@ function eat(s, k) {
 }
 function drawHelp() {
   const w = Math.min(W - 40, 560), h = Math.min(H - 40, 330), x = (W - w) / 2, y = (H - h) / 2; panel(x, y, w, h, 'ASHWINTER');
-  const rows = [['dot', 'Tap a face, walk near things to see what they offer'], ['search', 'Tap an icon to work it'], ['board', 'Board windows & doors before dark'], ['knife', 'Craft a weapon, then one can go out at night'], ['run', 'Pick an area on the map, cross the street, sneak inside'], ['moon', 'Be back through the front door by 5:00 or be lost']];
+  const rows = [['dot', 'Tap a face, walk near things to see what they offer'], ['search', 'Tap an icon to work it'], ['board', 'Board windows & doors before dark'], ['knife', 'Craft a weapon, then one can go out at night'], ['run', 'Pick an area on the map, cross the street, sneak inside'], ['moon', 'Be back through the front door by 5:00 AM or be lost']];
   rows.forEach(([ic, t], i) => { const ry = y + 72 + i * 40; drawIcon(ic, x + 40, ry, 26, GOLD); txt(t, x + 66, ry, 17, INK, 'left'); });
 }
 
@@ -2688,7 +2708,7 @@ function drawPlan() {
   const scavName = Object.keys(P).find(n => P[n] === 'scav');
   const by = y + h - 50;
   const dest = LOCATIONS.find(l => l.id === G.planLoc && (l.day || 1) <= G.day);
-  if (scavName) { drawIcon('run', x + 30, by - 18, 20, GOLD); txt(scavName + ' goes to ' + (dest ? dest.name : '… choose where'), x + 48, by - 18, 15, dest ? INK : RED, 'left'); txt('must be home by 5:00', x + 48, by + 2, 12, DIM, 'left'); UI.btn(x + 16, by - 32, w - 190, 46, () => { UI.modal = { kind: 'map' }; }); }
+  if (scavName) { drawIcon('run', x + 30, by - 18, 20, GOLD); txt(scavName + ' goes to ' + (dest ? dest.name : '… choose where'), x + 48, by - 18, 15, dest ? INK : RED, 'left'); txt('must be home by 5:00 AM', x + 48, by + 2, 12, DIM, 'left'); UI.btn(x + 16, by - 32, w - 190, 46, () => { UI.modal = { kind: 'map' }; }); }
   else txt('no one goes out tonight', x + 30, by - 10, 15, DIM, 'left');
   textButton(x + w - 150, by - 4, 130, 44, 'GO', () => { if (scavName && !dest) { UI.modal = { kind: 'map' }; return; } beginNight(); }, { primary: true, icon: 'arrow' });
   if (G.msgT > 0) { G.msgT -= 1 / 60; ctx.fillStyle = 'rgba(14,15,18,.9)'; rr(W / 2 - 110, y - 50, 220, 40, 10); ctx.fill(); drawIcon(G.msgIcon, W / 2 - 80, y - 30, 22, G.msgColor); txt(G.msg, W / 2 + 12, y - 30, 14, G.msgColor); }
@@ -2705,10 +2725,9 @@ function drawMap() {
   for (const l of LOCATIONS) {
     const lx = mx + mw * l.x, ly = my + mh * l.y; const sel = G.planLoc === l.id; const visited = G.flags['v_' + l.id];
     if ((l.day || 1) > G.day) { ctx.fillStyle = 'rgba(30,32,36,.6)'; rr(lx - 22, ly - 14, 44, 28, 8); ctx.fill(); txt('?', lx, ly, 16, '#55585e'); continue; }
-    ctx.fillStyle = sel ? '#4a3a20' : 'rgba(30,32,36,.95)'; rr(lx - 60, ly - 18, 120, 36, 8); ctx.fill(); ctx.strokeStyle = sel ? GOLD : '#4a4d52'; ctx.lineWidth = 2; rr(lx - 60, ly - 18, 120, 36, 8); ctx.stroke();
-    txt(l.name, lx - 2, ly - 4, 12, INK); for (let i = 0; i < 5; i++) { drawIcon('zombie', lx - 36 + i * 14, ly + 9, 11, i < l.danger ? RED : '#3a3d42'); }
-    if (visited) drawIcon('check', lx + 46, ly, 14, GREEN);
-    UI.btn(lx - 60, ly - 18, 120, 36, () => { G.planLoc = l.id; AUDIO.sfx('tap'); });
+    ctx.fillStyle = sel ? '#4a3a20' : 'rgba(30,32,36,.95)'; rr(lx - 70, ly - 20, 140, 40, 8); ctx.fill(); ctx.strokeStyle = sel ? GOLD : '#4a4d52'; ctx.lineWidth = 2; rr(lx - 70, ly - 20, 140, 40, 8); ctx.stroke();
+    const dg = visited ? l.danger : 0; txt(l.name, lx, ly - 7, 13, INK); txt(DANGER[dg], lx, ly + 9, 11, DANGER_COL[dg]);
+    UI.btn(lx - 70, ly - 20, 140, 40, () => { G.planLoc = l.id; AUDIO.sfx('tap'); });
   }
   iconButton(x + w - 28, y + 26, 36, 'check', () => { UI.modal = { kind: 'plan' }; });
 }
@@ -2731,7 +2750,7 @@ function wrapLines(str, maxW, max) { const words = str.split(' '), out = []; let
 function drawCraft() {
   const M = UI.modal, s = G.survivors[M.who]; const w = Math.min(W - 16, 700), h = Math.min(H - 16, 460), x = (W - w) / 2, y = (H - h) / 2; panel(x, y, w, h, 'WORKBENCH');
   s.queue = s.queue || []; const queued = id => s.queue.filter(q => q.id === id).length;
-  txt(s.queue.length ? s.queue.length + ' to make · close to start' : s.name + (s.trait === 'handy' ? ' · works fast' : ''), x + 16, y + 26, 12, s.queue.length ? GOLD : DIM, 'left');
+  { const mk = s.task && s.task.kind === 'craft' ? s.task.recipe : null; txt(mk ? 'making: ' + (RECIPE_INFO[mk.id] || [mk.id])[0] + (s.queue.length ? ' · ' + s.queue.length + ' more' : '') : s.name + (s.trait === 'handy' ? ' · works fast' : ''), x + 16, y + 26, 12, mk ? GOLD : DIM, 'left'); }
   const A = { x: x + 10, y: y + 50, w: w - 20, h: h - 60 }, narrow = A.w < 470, CH = narrow ? 104 : 84, rows = [];
   const open = RECIPES.filter(recipeOpen), shut = RECIPES.filter(r => !recipeOpen(r)).sort((p, q) => RECIPE_DAY[p.id] - RECIPE_DAY[q.id]);
   rows.push({ head: 'FOR THE HOUSE · you choose where each one goes' }); open.filter(r => r.build).forEach(r => rows.push({ rc: r })); rows.push({ head: 'TOOLS AND GEAR' }); open.filter(r => !r.build).forEach(r => rows.push({ rc: r }));
@@ -2745,16 +2764,17 @@ function drawCraft() {
   ctx.save(); ctx.beginPath(); ctx.rect(A.x, A.y, A.w, A.h); ctx.clip();
   for (const r of rows) { const ry = A.y + r.y - M.scroll; if (ry > A.y + A.h || ry + CH < A.y) continue;
     if (r.head) { txt(r.head, A.x + 6, ry + 13, 11, GOLD, 'left'); continue; }
-    const rc = r.rc, inf = RECIPE_INFO[rc.id] || [rc.id, ''], q = queued(rc.id), done = rc.build && (G.built[rc.id] || G.flags.placing === rc.id || q > 0), ok = !r.locked && !done && canAfford(rc.cost), cw = A.w - 8, cx0 = A.x + 2;
+    const rc = r.rc, inf = RECIPE_INFO[rc.id] || [rc.id, ''], q = queued(rc.id) + (s.task && s.task.kind === 'craft' && s.task.recipe.id === rc.id ? 1 : 0), done = rc.build && (G.built[rc.id] || G.flags.placing === rc.id || q > 0), ok = !r.locked && !done && canAfford(rc.cost), cw = A.w - 8, cx0 = A.x + 2;
     ctx.fillStyle = r.locked ? '#1a1a1b' : done ? '#1c261c' : ok ? '#2b2d31' : '#211f1f'; rr(cx0, ry, cw, CH, 9); ctx.fill(); ctx.strokeStyle = r.locked ? '#2a2a2c' : done ? '#3d5a3a' : ok ? GOLD : '#34302f'; ctx.lineWidth = ok ? 1.5 : 1; rr(cx0, ry, cw, CH, 9); ctx.stroke();
+    if (s.task && s.task.kind === 'craft' && s.task.recipe.id === rc.id) { ctx.fillStyle = 'rgba(217,179,90,.22)'; rr(cx0, ry, cw * clamp(s.task.t / s.task.dur, 0, 1), CH, 9); ctx.fill(); }   // being made right now
     ctx.fillStyle = 'rgba(0,0,0,.25)'; rr(cx0 + 8, ry + 8, 46, 46, 8); ctx.fill(); drawIcon(r.locked ? 'lock' : rc.icon, cx0 + 31, ry + 31, r.locked ? 24 : 32, r.locked ? '#55524c' : done ? GREEN : ok ? undefined : DIM);
     const rightW = narrow ? 0 : 176, tx0 = cx0 + 64, tw = cw - 64 - rightW - 10;
     txt(inf[0], tx0, ry + 19, 16, r.locked ? '#6d6a63' : done ? GREEN : ok ? INK : '#a9a59c', 'left');
-    if (!rc.build && !r.locked) { const have = G.inv[rc.give] || 0; ctx.font = '600 16px Oswald, Impact, sans-serif'; const nx = tx0 + ctx.measureText(inf[0]).width + 10; txt('have ' + have + (q ? ' · +' + q + ' queued' : ''), nx, ry + 20, 12, have || q ? GOLD : '#77736b', 'left'); }
+    if (!rc.build && !r.locked) { const have = G.inv[rc.give] || 0; ctx.font = '600 16px Oswald, Impact, sans-serif'; const nx = tx0 + ctx.measureText(inf[0]).width + 10; txt('have ' + have + (q ? ' · making ' + q : ''), nx, ry + 20, 12, have || q ? GOLD : '#77736b', 'left'); }
     ctx.font = '500 12px Oswald, Impact, sans-serif'; const lines = r.locked ? ['Comes to mind on day ' + RECIPE_DAY[rc.id] + '.'] : wrapLines(inf[1], tw, 2); lines.forEach((ln, i) => txt(ln, tx0, ry + 39 + i * 15, 12, r.locked ? '#55524c' : DIM, 'left', '500'));
     if (r.locked) continue;
     const rx = narrow ? tx0 : cx0 + cw - rightW, cy = narrow ? ry + 82 : ry + 24;
-    if (done) { drawIcon('check', rx + 12, cy + (narrow ? 0 : 16), 20, GREEN); txt(q ? 'queued' : G.flags.placing === rc.id ? 'ready to place' : 'built', rx + 28, cy + (narrow ? 0 : 16), 14, GREEN, 'left'); }
+    if (done) { drawIcon('check', rx + 12, cy + (narrow ? 0 : 16), 20, GREEN); txt(q ? 'being built' : G.flags.placing === rc.id ? 'ready to place' : 'built', rx + 28, cy + (narrow ? 0 : 16), 14, GREEN, 'left'); }
     else { let ix = rx + 12; for (const k in rc.cost) { const have = (G.inv[k] || 0) >= rc.cost[k]; drawIcon(k, ix, cy, 19, have ? undefined : '#6a4a48'); txt(rc.cost[k], ix + 11, cy + 6, 12, have ? INK : RED, 'left'); const bx0 = ix - 13, by0 = cy - 14; if (!M.scrollDrag && by0 >= A.y && by0 + 30 <= A.y + A.h) UI.btn(bx0, by0, 36, 30, () => { M.tip = { text: ITEMS[k].n + ' · you have ' + (G.inv[k] || 0), x: ix, y: by0 }; }); ix += 38; }
       const px = narrow ? cx0 + cw - 84 : rx + rightW - 78, py = narrow ? ry + 70 : ry + 50;
       if (!narrow) { drawIcon('clock', rx + 12, ry + 60, 13, DIM); txt(Math.round(rc.dur * (s.trait === 'handy' ? .6 : 1)) + 's', rx + 23, ry + 61, 12, DIM, 'left'); }
@@ -2796,6 +2816,7 @@ function drawScavHud(dt) {
   txt(SC.loc.name, cx - 60, 56, 13, DIM);
   // sneak toggle (bottom-left), big
   iconButton(60, H - 60, 76, 'sneak', () => { SC.sneak = !SC.sneak; AUDIO.sfx('tap'); }, { active: SC.sneak, bg: SC.sneak ? '#20302a' : undefined });
+  if (!SC.done) iconButton(216, H - 54, 60, 'fight', () => { SC.fight = !SC.fight; if (SC.fight) SC.sneak = false; AUDIO.sfx('tap'); }, { active: SC.fight, bg: SC.fight ? '#3a2020' : undefined, edge: SC.fight ? RED : undefined });
   // throw: a distraction (bottom-left, beside sneak)
   if (!SC.done) { const cd = SC.throwCd || 0; iconButton(142, H - 54, 60, 'throw', cd > 0 ? null : () => scThrow(), { disabled: cd > 0 }); if (cd > 0) ring(142, H - 54, 30, 1 - cd / 6, GOLD); }
   if (SC.proj) { const q = SC.proj, t = Math.min(1, q.t / .6), fy = w.fy2y(q.f), wx = lerp(q.x0, q.x1, t), wy = fy - 60 - Math.sin(t * Math.PI) * 60 + t * 58; if (!q.hit) { ctx.fillStyle = '#c9c2b0'; circ(w2sx(wx), w2sy(wy), 3.5 * cam.z); ctx.fill(); } else { const k = (q.t - .6) / .9; ctx.strokeStyle = `rgba(230,200,120,${(1 - k).toFixed(2)})`; ctx.lineWidth = 2.5; for (const rr2 of [1, .6]) { ctx.beginPath(); ctx.ellipse(w2sx(q.x1), w2sy(fy - 4), (30 + 330 * k) * rr2 * cam.z, (8 + 60 * k) * rr2 * cam.z, 0, 0, TAU); ctx.stroke(); } } }
@@ -2809,7 +2830,7 @@ function drawScavHud(dt) {
   // message
   if (SC.msgT > 0 && SC.msg) { ctx.fillStyle = 'rgba(14,15,18,.85)'; rr(cx - 40, 70, 80, 50, 10); ctx.fill(); drawIcon(SC.msg, cx, 95, 30); }
 }
-function drawNightClock(x, y) { const h = nightHour(); const late = G.nightT < 60; drawIcon('moon', x - 80, y, 22, '#aab'); bar(x - 58, y - 6, 110, 12, G.nightT / NIGHT_TOTAL, late ? RED : '#8a93a8'); const hh = Math.floor(h) % 24, mm = Math.floor((h % 1) * 60); txt(hh + ':' + (mm < 10 ? '0' : '') + mm, x + 90, y, 18, late ? RED : INK); }
+function drawNightClock(x, y) { const h = nightHour(); const late = G.nightT < 60; drawIcon('moon', x - 80, y, 22, '#aab'); bar(x - 58, y - 6, 110, 12, G.nightT / NIGHT_TOTAL, late ? RED : '#8a93a8'); txt(fmtClock(h), x + 96, y, 16, late ? RED : INK); }
 function drawPackGrid(x, y, cols, pack, cap, onTap) {
   const size = 54; const rows = Math.ceil(cap / cols);
   for (let i = 0; i < cap; i++) { const ix = x + (i % cols) * (size + 6), iy = y + Math.floor(i / cols) * (size + 6); ctx.fillStyle = '#1b1d20'; rr(ix, iy, size, size, 8); ctx.fill(); ctx.strokeStyle = '#33363b'; ctx.lineWidth = 1.5; rr(ix, iy, size, size, 8); ctx.stroke(); const s = pack[i]; if (s) { drawIcon(s.id, ix + size / 2, iy + size / 2 - 3, 30); if (s.n > 1) txt(s.n, ix + size - 6, iy + size - 10, 13, INK, 'right'); if (onTap) UI.btn(ix, iy, size, size, () => onTap(i)); } }
@@ -2953,7 +2974,7 @@ function homeTapWorld(wx, wy) {
   const s = G.survivors[G.sel]; if (!s || !s.alive) return; const w = G.world;
   let bf = 0, bd = 1e9; for (let f = 0; f < w.nFloors; f++) { const d = Math.abs(w.fy2y(f) - 40 - wy); if (d < bd) { bd = d; bf = f; } }
   if (G.flags.placing) { placeAt(wx, bf); return; }
-  const dbl = isDoubleTap(wx, wy); const path = w.path(s.x, s.f, wx, bf); if (!path) { if (w.blockedByDebris(s.x, s.f, wx, bf)) homeMsg('debris in the way', 'shovel', RED); else homeMsg('locked', 'lock', RED); return; }
+  const dbl = isDoubleTap(wx, wy); let path = w.path(s.x, s.f, wx, bf); if (!path) { if (w.blockedByDebris(s.x, s.f, wx, bf)) homeMsg('debris in the way', 'shovel', RED); else homeMsg('locked', 'lock', RED); path = w.pathFar(s.x, s.f, wx, bf); if (!path) return; }
   s.task = null; s.path = path; s.run = dbl; AUDIO.sfx('tap');
 }
 // ----- "are you sure": every action is spelled out (who, what, cost, how long) before it is committed -----
@@ -2986,7 +3007,7 @@ function drawConfirm() {
   ctx.fillStyle = '#25272b'; circ(x + 44, y + 50, 26); ctx.fill(); drawIcon(M.icon, x + 44, y + 50, 30);
   txt(M.who.toUpperCase(), x + 84, y + 30, 12, GOLD, 'left'); txt(M.text, x + 84, y + 50, 18, INK, 'left'); if (M.note) txt(M.note, x + 84, y + 71, 13, DIM, 'left');
   let cx = x + 22; if (M.cost) { txt('USES', cx, y + 100, 11, DIM, 'left'); cx = costRow(cx + 46, y + 99, M.cost, 20) + 10; }
-  drawIcon('clock', x + w - 70, y + 99, 16, DIM); txt('~' + Math.round(M.secs * (UI.ff ? 1 / 3 : 1)) + 's', x + w - 56, y + 100, 13, DIM, 'left');
+  if (M.secs) { drawIcon('clock', x + w - 70, y + 99, 16, DIM); txt('~' + Math.round(M.secs * (UI.ff ? 1 / 3 : 1)) + 's', x + w - 56, y + 100, 13, DIM, 'left'); }
   const bw = (w - 44) / 2;
   textButton(x + 16, y + h - 52, bw, 40, 'Do it', () => { const f = M.yes; UI.modal = null; f(); }, { icon: 'check', primary: true });
   textButton(x + 28 + bw, y + h - 52, bw, 40, 'Cancel', () => { UI.modal = null; }, { icon: 'close' });
@@ -3009,7 +3030,7 @@ function homeUseSpot(spot) {
   if (spot.type === 'dig') { const side = Math.sign(s.x - spot.x) || -1, off = RUB_W + 10; path = w.path(s.x, s.f, spot.x + side * off, spot.f) || w.path(s.x, s.f, spot.x - side * off, spot.f); }   // work from whichever side of the pile can be reached
   else if (spot.type === 'search') { const side = Math.sign(s.x - spot.x) || -1; path = w.path(s.x, s.f, spot.x + side * 20, spot.f) || w.path(s.x, s.f, spot.x - side * 20, spot.f) || w.path(s.x, s.f, spot.x, spot.f); }
   else path = w.path(s.x, s.f, spot.x + (spot.type === 'door' ? -spot.dir * 30 : 0), spot.f);
-  if (!path) { if (w.blockedByDebris(s.x, s.f, spot.x, spot.f)) homeMsg('debris in the way', 'shovel', RED); else homeMsg('locked', 'lock', RED); return; }
+  if (!path) { if (w.blockedByDebris(s.x, s.f, spot.x, spot.f)) homeMsg('debris in the way', 'shovel', RED); else homeMsg('locked', 'lock', RED); const far = w.pathFar(s.x, s.f, spot.x, spot.f); if (far) { s.task = null; s.path = far; } return; }
   // another survivor already working there?
   if (G.survivors.some(o => o !== s && o.alive && o.task && o.task.spot === spot && spot.type !== 'bed')) { homeMsg('busy', 'people'); return; }
   const dur = { fire: 3, search: 8, dig: digDur(spot), door: 5, bed: 20, radio: 8, collector: 3, stove: COOK.dur, bench: 0 }[spot.type] || 5;
@@ -3039,6 +3060,7 @@ function updateHome(dt) {
   const Tin = indoorTemp(G.hour);
   for (const s of G.survivors) {
     if (!s.alive) { s.pose = 'dead'; continue; }
+    if (UI.modal && UI.modal.kind === 'craft' && G.survivors.indexOf(s) !== UI.modal.who) continue;   // at the bench: only the one working carries on
     if (s.sayT > 0) s.sayT -= dt; if (s.eatT > 0) s.eatT -= dt;
     // needs drift
     s.hunger = clamp(s.hunger - gdt * (s.quirk === 'bigeater' ? 39 : 30) / DAY_LEN, 0, 100);
@@ -3048,10 +3070,10 @@ function updateHome(dt) {
     if (s.hunger < 30 || s.health < 40) s.morale = clamp(s.morale - gdt * 10 / DAY_LEN, 0, 100);
     if (s.health <= 0) { s.alive = false; s.pose = 'dead'; homeMsg(s.name + ' died', 'dead', RED); AUDIO.sfx('bad'); for (const o of G.survivors) o.morale = clamp(o.morale - 20, 0, 100); continue; }
     s.poseExtra = null;
-    if (s.path && s.path.length) { if (s.pose === 'sleep' || s.pose === 'situp') { if (s.pose === 'sleep') s.upT = 1.15; s.pose = 'situp'; s.upT -= dt; if (s.upT > 0) continue; } moveActor(s, gdt * (UI.test ? 2.5 : 1), (s.run ? 125 : 70) * (s.trait === 'runner' ? 1.2 : 1)); s.pose = s.run ? 'run' : 'walk'; continue; }
+    if (s.path && s.path.length) { if (s.pose === 'sleep' || s.pose === 'situp') { if (s.pose === 'sleep') s.upT = 1.5; s.pose = 'situp'; s.upT -= dt; if (s.upT > 0) continue; } moveActor(s, gdt * (UI.test ? 2.5 : 1), (s.run ? 125 : 70) * (s.trait === 'runner' ? 1.2 : 1)); s.pose = s.run ? 'run' : 'walk'; continue; }
     s.moving = false;
     if (s.eatT > 0) { s.pose = 'eat'; continue; }
-    if (!s.task && s.queue && s.queue.length && !UI.modal) { const bench = w.spotById('bench'); if (Math.abs(s.x - bench.x) > 30 || s.f !== bench.f) { const pth = w.path(s.x, s.f, bench.x, bench.f); if (pth) { s.path = pth; continue; } s.queue.length = 0; } else { const rc = s.queue.shift(); s.task = { spot: bench, kind: 'craft', recipe: rc, t: 0, dur: rc.dur * (s.trait === 'handy' ? .6 : 1) }; } }
+    if (!s.task && s.queue && s.queue.length) { const bench = w.spotById('bench'); if (Math.abs(s.x - bench.x) > 30 || s.f !== bench.f) { const pth = w.path(s.x, s.f, bench.x, bench.f); if (pth) { s.path = pth; continue; } s.queue.length = 0; } else { const rc = s.queue.shift(); s.task = { spot: bench, kind: 'craft', recipe: rc, t: 0, dur: rc.dur * (s.trait === 'handy' ? .6 : 1) }; } }
     const tk = s.task;
     if (!tk) { s.pose = 'idle'; continue; }
     tk.t += gdt * (tk.kind === 'dig' || tk.kind === 'board' || tk.kind === 'repair' ? (s.trait === 'handy' ? 1.4 : 1) : 1) * (UI.test && tk.kind !== 'bench' ? 40 : 1);   // TEST: no long waits
@@ -3234,7 +3256,7 @@ function frame(now) {
   switch (G.phase) {
     case 'title': _T += dt; drawTitle(); break;
     case 'day': case 'plan': case 'dawn': case 'event': case 'win': case 'lose': case 'raid': {
-      if (G.phase === 'day' && !UI.modal) updateHome(dt); else if (G.phase === 'raid') updateRaid(dt); else _T += dt;
+      if (G.phase === 'day' && (!UI.modal || UI.modal.kind === 'craft')) updateHome(dt); else if (G.phase === 'raid') updateRaid(dt); else _T += dt;
       if (G.phase === 'raid' && !G.raid) break;
       const hour = G.phase === 'raid' ? 2 : G.phase === 'plan' ? 20 : G.phase === 'event' ? 8 : G.phase === 'dawn' ? 6.5 : G.hour;
       if (!G.homeDrifters || G.homeDrifters.day !== G.day) { const w = G.world; G.homeDrifters = { day: G.day, list: [{ drifter: true, name: 'yard' + G.day + 'a', x: w.x0 - 222, fy: 1, f: 1, facing: 1, pose: 'warm', alive: true, scale: .97 }].concat(G.day % 3 ? [{ drifter: true, name: 'yard' + G.day + 'b', x: w.x0 - 160, fy: 1, f: 1, facing: -1, pose: 'warm', alive: true, scale: 1 }] : []) }; }
