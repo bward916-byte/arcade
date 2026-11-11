@@ -526,6 +526,8 @@ const Motion = (() => {
     search: (t) => { const q = Math.sin(t * 3.4), r = Math.sin(t * 2.1 + 1); return pose({ torso: .2, head: .12, ul2: .14, ll2: .2, ul1: -.12, ll1: .14, ua2: 1.05 + .16 * q, la2: .55 - .3 * q, ua1: .85 - .16 * q, la1: .75 + .3 * r }); },   // standing at it, hands working at waist height
     searchLow: (t) => { const q = Math.sin(t * 3.4), r = Math.sin(t * 2.1 + 1); return pose({ torso: .5, head: .05, ul2: 1.45, ll2: 2.25, ul1: 1.15, ll1: 2.3, f2: H, f1: H - .5, tf1: .5, ua2: .7 + .18 * q, la2: .45 - .25 * q, ua1: .5 - .18 * q, la1: .6 + .25 * r }); },   // crouched in front of something low
     searchHigh: (t) => { const q = Math.sin(t * 3.4), r = Math.sin(t * 2.1 + 1); return pose({ torso: .06, head: -.25, ul2: .1, ll2: .12, ul1: -.1, ll1: .1, ua2: 1.9 + .2 * q, la2: .5 - .3 * q, ua1: 1.6 - .2 * q, la1: .7 + .3 * r }); },   // reaching up to a shelf
+    pry: (t) => { const q = (Math.sin(t * 4.2) + 1) / 2, e = q * q; return pose({ torso: .26 - .34 * e, head: .05, ul2: .5 - .2 * e, ll2: .5, ul1: -.32 - .1 * e, ll1: .3 + .2 * e, ua2: 1.25 - .5 * e, la2: .25 + .5 * e, ua1: 1.05 - .45 * e, la1: .45 + .5 * e }); },   // both hands on the bar, one foot forward: lean in, then heave back
+    pick: (t) => { const q = Math.sin(t * 9) * .06; return pose({ torso: .3, head: .22, ul2: .75, ll2: 1.15, ul1: .25, ll1: .9, f1: H - .3, tf1: .3, ua2: 1.0 + q, la2: .75 - q, ua1: .85 - q, la1: .95 + q }); },   // down at the lock, small careful movements
     nail: (t) => { const q = (Math.sin(t * 7) + 1) / 2; return pose({ torso: .1, head: 0, ul2: .22, ll2: .22, ul1: -.18, ll1: .18, ua2: 1.15 - .15 * q, la2: .35 + 1.25 * q, ua1: 1.25, la1: .3 }); },   // hammering straight ahead at chest height, the other hand on the board
     dig: (t) => { const q = Math.sin(t * 5), k = (q + 1) / 2; return pose({ torso: .45 + .12 * q, head: -.2, ul2: .5, ll2: .55 + .25 * k, ul1: -.25, ll1: .25 + .25 * k, ua2: .9 + .3 * q, la2: .3, ua1: 1.3 + .3 * q, la1: .15 }); },
     hammer: (t) => { const q = (Math.sin(t * 7) + 1) / 2; return pose({ torso: .1 + .08 * q, head: -.15, ul2: .25, ll2: .25, ul1: -.2, ll1: .2, ua2: -.3 + 1.6 * q, la2: .9 - .5 * q, ua1: .5, la1: 1.1 }); },
@@ -1259,7 +1261,7 @@ function initInput() {
     const dx = e.clientX - p.x, dy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY;
     IN.moved += Math.abs(dx) + Math.abs(dy);
     if (IN.ptrs.size === 1) {
-      if (IN.moved > 8 && !UI.modal && !cam.lock) { IN.dragging = true; cam.tx -= dx / cam.z; cam.x = cam.tx; cam.ty -= dy / cam.z; cam.y = cam.ty; clampCam(); }
+      if (IN.moved > 8 && !UI.modal && !cam.lock) { IN.dragging = true; cam.panT = 5; cam.tx -= dx / cam.z; cam.x = cam.tx; cam.ty -= dy / cam.z; cam.y = cam.ty; clampCam(); }
     } else if (IN.ptrs.size === 2) {
       const [a, b] = [...IN.ptrs.values()]; const d = dist(a.x, a.y, b.x, b.y);
       if (IN.pinchD > 0 && !UI.modal && !cam.lock) { const k = d / IN.pinchD; zoomAt((a.x + b.x) / 2, (a.y + b.y) / 2, cam.z * k); }
@@ -1517,14 +1519,14 @@ const TRAIT_DESC = { handy: 'crafts fast', runner: 'carries more, runs fast', me
 
 // scavenge locations
 const LOCATIONS = [
-  { id: 'market', day: 1, name: 'Corner Market', x: .22, y: .30, danger: 1, floors: 1, loot: ['canned', 'canned', 'water', 'canned', 'canned', 'scrap', 'wood'], locked: 1 },
-  { id: 'flats', day: 1, name: 'Burnt Flats', x: .40, y: .20, danger: 2, floors: 3, loot: ['scrap', 'wood', 'wood', 'canned', 'water', 'bandage', 'scrap'], locked: 1 },
-  { id: 'hardware', day: 2, name: 'Hardware Store', x: .62, y: .28, danger: 2, floors: 2, loot: ['scrap', 'parts', 'parts', 'wood', 'fuel', 'crowbar', 'shovel', 'rifle', 'ammo'], locked: 2 },
-  { id: 'pharmacy', day: 3, name: 'Pharmacy', x: .78, y: .42, danger: 3, floors: 1, loot: ['meds', 'meds', 'bandage', 'bandage', 'water', 'scrap'], locked: 1 },
-  { id: 'school', day: 5, name: 'Flooded School', x: .30, y: .58, danger: 3, floors: 2, loot: ['wood', 'scrap', 'canned', 'water', 'parts', 'scrap', 'canned'], locked: 1 },
-  { id: 'station', day: 7, name: 'Gas Station', x: .55, y: .62, danger: 3, floors: 1, loot: ['fuel', 'fuel', 'fuel', 'canned', 'scrap', 'parts', 'ammo'], locked: 1 },
-  { id: 'police', day: 9, name: 'Police Post', x: .80, y: .70, danger: 4, floors: 2, loot: ['pistol', 'rifle', 'ammo', 'ammo', 'bat', 'bandage', 'parts', 'meds'], locked: 2 },
-  { id: 'hospital', day: 12, name: 'St. Brigid Hospital', x: .50, y: .84, danger: 5, floors: 3, loot: ['meds', 'meds', 'meds', 'bandage', 'bandage', 'water', 'scrap', 'parts'], locked: 2 }
+  { id: 'market', w: 760, plan: [2], roof: 'awning', day: 1, name: 'Corner Market', x: .22, y: .30, danger: 1, floors: 1, loot: ['canned', 'canned', 'water', 'canned', 'canned', 'scrap', 'wood'], locked: 1 },
+  { id: 'flats', w: 700, plan: [2, 2, 2], roof: 'burnt', day: 1, name: 'Burnt Flats', x: .40, y: .20, danger: 2, floors: 3, loot: ['scrap', 'wood', 'wood', 'canned', 'water', 'bandage', 'scrap'], locked: 1 },
+  { id: 'hardware', w: 1300, plan: [3, 2], roof: 'shed', day: 2, name: 'Hardware Store', x: .62, y: .28, danger: 2, floors: 2, loot: ['scrap', 'parts', 'parts', 'wood', 'fuel', 'crowbar', 'shovel', 'rifle', 'ammo'], locked: 2 },
+  { id: 'pharmacy', w: 600, plan: [2], roof: 'sign', day: 3, name: 'Pharmacy', x: .78, y: .42, danger: 3, floors: 1, loot: ['meds', 'meds', 'bandage', 'bandage', 'water', 'scrap'], locked: 1 },
+  { id: 'school', w: 1750, plan: [4, 4], roof: 'gable', day: 5, name: 'Flooded School', x: .30, y: .58, danger: 3, floors: 2, loot: ['wood', 'scrap', 'canned', 'water', 'parts', 'scrap', 'canned'], locked: 1 },
+  { id: 'station', w: 1050, plan: [3], roof: 'canopy', day: 7, name: 'Gas Station', x: .55, y: .62, danger: 3, floors: 1, loot: ['fuel', 'fuel', 'fuel', 'canned', 'scrap', 'parts', 'ammo'], locked: 1 },
+  { id: 'police', w: 980, plan: [3, 2], roof: 'mast', day: 9, name: 'Police Post', x: .80, y: .70, danger: 4, floors: 2, loot: ['pistol', 'rifle', 'ammo', 'ammo', 'bat', 'bandage', 'parts', 'meds'], locked: 2 },
+  { id: 'hospital', w: 1500, plan: [4, 3, 3], roof: 'block', day: 12, name: 'St. Brigid Hospital', x: .50, y: .84, danger: 5, floors: 3, loot: ['meds', 'meds', 'meds', 'bandage', 'bandage', 'water', 'scrap', 'parts'], locked: 2 }
 ];
 
 // dawn events: icon, text, choices [{label icon, cost?, effect}]
@@ -1755,7 +1757,7 @@ function drawPerson(a, pose, t, extra) {
   if (a.say && a.sayT > 0) { const sx = X, sy = Y - 95 * S; ctx.fillStyle = 'rgba(20,20,22,.85)'; rr(sx - 16, sy - 16, 32, 32, 8); ctx.fill(); drawIcon(a.say, sx, sy, 20); }
 }
 const SPOT_H = { sofa: 'low', crates: 'low', dresser: 'low', garshelf: 'high', storeshelf: 'high', medcab: 'high' };
-const HOLD_OF = { bed: 'bed', nail: 'nail', situp: 'sit', recline: 'recline', search: 'search', dig: 'dig', hammer: 'hammer', cook: 'cook', eat: 'eat', guard: 'hold', attack: 'swing', shove: 'shove', zombieIdle: 'look', zombieAttack: 'swing', zombie: 'look', sleep: 'sleep', sit: 'sit', warm: 'warm' };
+const HOLD_OF = { pry: 'pry', pick: 'pick', bed: 'bed', nail: 'nail', situp: 'sit', recline: 'recline', search: 'search', dig: 'dig', hammer: 'hammer', cook: 'cook', eat: 'eat', guard: 'hold', attack: 'swing', shove: 'shove', zombieIdle: 'look', zombieAttack: 'swing', zombie: 'look', sleep: 'sleep', sit: 'sit', warm: 'warm' };
 function drawPersonRig(a, pose, t, extra) {
   const X = a.x, Y = a.y;
   // beds: sit on the edge, swing up onto the mattress, and the same in reverse to get out
@@ -1769,7 +1771,7 @@ function drawPersonRig(a, pose, t, extra) {
     const dt = clamp(_T - (a._lt == null ? _T : a._lt), 0, .05);
     let hold = null, ext = null;
     if (pose === 'idle' && !a.zombie && CUR_W && CUR_W === G.world && G.phase === 'day') { a.idleT = (a.idleT || 0) + dt; if (!a.idlePose || a.idleT > a.idleDur) { a.idlePose = pick(['idle', 'idle', 'look', 'look', 'cross', 'rub', 'hips', 'stretch', 'read']); a.idleT = 0; a.idleDur = a.idlePose === 'read' ? rnd(9, 16) : rnd(4, 9); } hold = a.idlePose === 'idle' ? null : a.idlePose; }
-    else { a.idlePose = null; hold = HOLD_OF[pose] || null; if (pose === 'search' && a.task && a.task.spot) { const hh = a.task.spot.hgt || SPOT_H[a.task.spot.id]; if (hh === 'low') hold = 'searchLow'; else if (hh === 'high') hold = 'searchHigh'; } }
+    else { a.idlePose = null; hold = HOLD_OF[pose] || null; if (pose === 'search' && a.searchLow) hold = 'searchLow'; if (pose === 'search' && a.task && a.task.spot) { const hh = a.task.spot.hgt || SPOT_H[a.task.spot.id]; if (hh === 'low') hold = 'searchLow'; else if (hh === 'high') hold = 'searchHigh'; } }
     if (pose === 'attack' || pose === 'shove' || pose === 'zombieAttack') c.poseK = extra ? clamp(extra.k || 0, 0, 1) : 0;
     if (pose === 'bed') c.poseK = a._bedK || 0;
     if (a.zombie && pose === 'zombie') ext = zombieExt(a, t);
@@ -1790,7 +1792,7 @@ function drawPersonRig(a, pose, t, extra) {
   if (a.idlePose === 'read') { const h = handOf(a); if (h) { ctx.save(); ctx.translate(h.x, h.y - 2); ctx.rotate((a.facing || 1) * .35); ctx.fillStyle = '#cfc3a6'; ctx.fillRect(-7, -4.5, 14, 9); ctx.fillStyle = '#6b5a44'; ctx.fillRect(-.7, -4.5, 1.4, 9); ctx.restore(); } }
   if (a.say && a.sayT > 0) { const sx = X, sy = tr.base - c.y - 100 * (a.scale || 1); ctx.fillStyle = 'rgba(20,20,22,.85)'; rr(sx - 16, sy - 16, 32, 32, 8); ctx.fill(); drawIcon(a.say, sx, sy, 20); }
 }
-function poseTool(pose, extra, a) { switch (pose) { case 'dig': return G.inv.shovel ? 'shovel' : null; case 'hammer': case 'nail': return 'hammer'; case 'cook': return 'spoon'; case 'guard': case 'attack': return extra && extra.weapon; case 'zombieAttack': case 'zombie': case 'zombieIdle': return a.zombie ? a.wpn || 'bat' : null; default: return null; } }
+function poseTool(pose, extra, a) { switch (pose) { case 'dig': return G.inv.shovel ? 'shovel' : null; case 'pry': return 'crowbar'; case 'hammer': case 'nail': return 'hammer'; case 'cook': return 'spoon'; case 'guard': case 'attack': return extra && extra.weapon; case 'zombieAttack': case 'zombie': case 'zombieIdle': return a.zombie ? a.wpn || 'bat' : null; default: return null; } }
 function boot(ft, facing, k) { ctx.fillStyle = shade('#3a3029', k); ctx.beginPath(); ctx.ellipse(ft[0] + 2 * facing, ft[1] + 1, 6, 3.2, 0, 0, TAU); ctx.fill(); }
 function drawTool(tool, x, y, ang, facing) {
   ctx.save(); ctx.translate(x, y); ctx.rotate(ang * facing); ctx.lineCap = 'round';
@@ -1917,6 +1919,7 @@ function drawScene(world, hour, actors, opts = {}) {
   // built stations (front layer, drawn at spot positions)
   for (const s of world.spots) drawStation(world, s, night);
   if (world === G.world && !SC.active) { drawClutter(world); drawLanterns(world, hour); }
+  drawBloodStains(world);
   // actors sorted by y
   const list = actors.filter(a => a.visible !== false).slice().sort((a, b) => a.fy - b.fy || a.x - b.x);
   for (const a of list) { a.y = world.fy2y(a.fy); drawPerson(a, a.pose || 'idle', opts.t || 0, a.poseExtra); }
@@ -1925,6 +1928,7 @@ function drawScene(world, hour, actors, opts = {}) {
   // hides overlay (closets) drawn in front
   for (const h of world.hides) drawHide(world, h);
   // fx: motes, floaters
+  drawBloodDrops(world, opts.dt || 0);
   drawFx(world, hour, night, opts.dt || 0);
   // locked rooms: shuttered and dark until someone gets the door open
   for (const r of world.rooms) if (!r.open) { const fy = world.fy2y(r.f), ceil = fy - FLOOR_H + 14; ctx.fillStyle = 'rgba(8,8,10,.86)'; ctx.fillRect(r.x0 + 6, ceil, r.x1 - r.x0 - 12, fy - ceil); ctx.fillStyle = 'rgba(255,255,255,.04)'; for (let y = ceil + 10; y < fy - 10; y += 18) ctx.fillRect(r.x0 + 6, y, r.x1 - r.x0 - 12, 2); }
@@ -1980,7 +1984,17 @@ function drawExteriorDebris(world, gy, night) {
 }
 function drawRoof(world, topY, sky) {
   const x0 = world.x0 - 30, x1 = world.x1 + 30; ctx.fillStyle = '#2a2320';
-  if (world.site) { ctx.fillRect(x0, topY - 18, x1 - x0, 20); ctx.fillStyle = '#3a3330'; ctx.fillRect(x0 + 20, topY - 34, 40, 16); ctx.fillRect(x1 - 90, topY - 44, 26, 26); return; }
+  if (world.site) { const st = world.site.roof, mx = (x0 + x1) / 2, wd = x1 - x0; ctx.fillRect(x0, topY - 18, wd, 20);
+    if (st === 'gable') { ctx.beginPath(); ctx.moveTo(x0, topY - 16); ctx.lineTo(mx, topY - 110); ctx.lineTo(x1, topY - 16); ctx.fill(); ctx.fillStyle = '#3a3330'; ctx.fillRect(mx - 14, topY - 150, 28, 50); ctx.fillStyle = '#1c1816'; ctx.fillRect(mx - 7, topY - 140, 14, 16); }
+    else if (st === 'burnt') { const r = mulberry(77); ctx.beginPath(); ctx.moveTo(x0, topY - 16); for (let x = x0; x < x1; x += 46) { ctx.lineTo(x + 10, topY - 30 - r() * 80); ctx.lineTo(x + 30, topY - 20 - r() * 20); } ctx.lineTo(x1, topY - 16); ctx.fill(); ctx.strokeStyle = '#191412'; ctx.lineWidth = 5; for (let i = 0; i < 5; i++) { const bx = x0 + 40 + r() * (wd - 80); ctx.beginPath(); ctx.moveTo(bx, topY - 16); ctx.lineTo(bx + (r() - .5) * 60, topY - 70 - r() * 60); ctx.stroke(); } }
+    else if (st === 'shed') { ctx.beginPath(); ctx.moveTo(x0, topY - 16); ctx.lineTo(x0, topY - 90); ctx.lineTo(x1, topY - 30); ctx.lineTo(x1, topY - 16); ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,.05)'; ctx.lineWidth = 2; for (let x = x0 + 40; x < x1; x += 60) { const t = (x - x0) / wd; ctx.beginPath(); ctx.moveTo(x, topY - 16); ctx.lineTo(x, topY - 90 + 60 * t); ctx.stroke(); } }
+    else if (st === 'canopy') { ctx.fillStyle = '#3a3330'; ctx.fillRect(x0 - 240, topY - 26, 250, 16); ctx.fillStyle = '#2a2320'; ctx.fillRect(x0 - 200, topY - 12, 10, world.groundY - topY + 12); ctx.fillRect(x0 - 70, topY - 12, 10, world.groundY - topY + 12); ctx.fillStyle = '#4a2a22'; ctx.fillRect(x0 - 240, topY - 26, 250, 4); ctx.fillStyle = '#3a3330'; ctx.fillRect(x1 - 120, topY - 60, 70, 44); }
+    else if (st === 'mast') { ctx.fillStyle = '#3a3330'; ctx.fillRect(x0 + 30, topY - 40, 90, 24); ctx.strokeStyle = '#3a3330'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(x1 - 90, topY - 16); ctx.lineTo(x1 - 90, topY - 190); ctx.moveTo(x1 - 120, topY - 16); ctx.lineTo(x1 - 90, topY - 120); ctx.lineTo(x1 - 60, topY - 16); ctx.moveTo(x1 - 108, topY - 170); ctx.lineTo(x1 - 72, topY - 170); ctx.stroke(); }
+    else if (st === 'block') { ctx.fillStyle = '#3a3330'; ctx.fillRect(mx - 130, topY - 70, 260, 54); ctx.fillRect(x0 + 40, topY - 44, 60, 28); ctx.fillRect(x1 - 150, topY - 50, 90, 34); ctx.fillStyle = '#5a2620'; ctx.fillRect(mx - 9, topY - 62, 18, 40); ctx.fillRect(mx - 20, topY - 51, 40, 18); }
+    else if (st === 'awning') { ctx.fillStyle = '#3a3330'; ctx.fillRect(x0 + 20, topY - 34, 40, 16); for (let i = 0; i < 9; i++) { ctx.fillStyle = i % 2 ? '#4a2a22' : '#55504a'; ctx.beginPath(); ctx.moveTo(x0 - 70 + i * 10, topY + 60 + i * 0); ctx.lineTo(x0 + 6, topY + 22 + i * 4); ctx.lineTo(x0 + 6, topY + 26 + i * 4); ctx.fill(); } }
+    else if (st === 'sign') { ctx.fillStyle = '#3a3330'; ctx.fillRect(mx - 100, topY - 62, 200, 46); ctx.fillStyle = '#2f5a48'; ctx.fillRect(mx - 8, topY - 56, 16, 34); ctx.fillRect(mx - 17, topY - 47, 34, 16); }
+    else { ctx.fillStyle = '#3a3330'; ctx.fillRect(x0 + 20, topY - 34, 40, 16); ctx.fillRect(x1 - 90, topY - 44, 26, 26); }
+    return; }
   ctx.beginPath(); ctx.moveTo(x0, topY); ctx.lineTo((x0 + x1) / 2, topY - 150); ctx.lineTo(x1, topY); ctx.closePath(); ctx.fill();
   ctx.fillStyle = 'rgba(255,255,255,.05)'; ctx.beginPath(); ctx.moveTo(x0, topY); ctx.lineTo((x0 + x1) / 2, topY - 150); ctx.lineTo((x0 + x1) / 2, topY); ctx.fill();
   // hole in roof
@@ -2085,6 +2099,7 @@ function drawFx(world, hour, night, dt) {
   // float icons (loot gained)
   for (let i = FX.float.length - 1; i >= 0; i--) { const f = FX.float[i]; f.t += dt; const y = f.y - 40 - f.t * 30; ctx.globalAlpha = clamp(1.6 - f.t, 0, 1); ctx.fillStyle = 'rgba(20,20,24,.8)'; rr(f.x - 22, y - 14, 44, 28, 8); ctx.fill(); drawIcon(f.icon, f.x - 6, y, 20); txt('+' + f.n, f.x + 12, y, 14, '#fff'); ctx.globalAlpha = 1; if (f.t > 1.6) FX.float.splice(i, 1); }
 }
+function drawVignette() { const vw = W / cam.z, vh = H / cam.z, g = ctx.createRadialGradient(cam.x, cam.y, Math.min(vw, vh) * .42, cam.x, cam.y, Math.hypot(vw, vh) * .56); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,.5)'); ctx.fillStyle = g; ctx.fillRect(cam.x - vw / 2 - 2, cam.y - vh / 2 - 2, vw + 4, vh + 4); }
 // Light is the picture: a darkness map is laid over the world, and windows, lanterns, fire and torches cut holes in it.
 let LMAP = null;
 function drawLighting(world, sky, lights) {
@@ -2112,6 +2127,7 @@ function drawLighting(world, sky, lights) {
   for (const l of lights) { const gr = ctx.createRadialGradient(l.x, l.y, 4, l.x, l.y, l.r * .8); gr.addColorStop(0, `rgba(${l.c || '255,170,80'},${((l.a || .55) * .34 * (.2 + dark)).toFixed(3)})`); gr.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = gr; ctx.fillRect(l.x - l.r, l.y - l.r, l.r * 2, l.r * 2); }
   if (night) for (const b of world.barricades || []) if (b.kind === 'win' && b.level < 3) { const fy = world.fy2y(b.f); const gr = ctx.createLinearGradient(0, fy - 112, 0, fy); gr.addColorStop(0, `rgba(120,150,210,${(.10 * (1 - .27 * b.level)).toFixed(3)})`); gr.addColorStop(1, 'rgba(120,150,210,0)'); ctx.fillStyle = gr; ctx.beginPath(); ctx.moveTo(b.x - 32, fy - 112); ctx.lineTo(b.x + 32, fy - 112); ctx.lineTo(b.x + 150, fy); ctx.lineTo(b.x - 10, fy); ctx.closePath(); ctx.fill(); }
   ctx.restore();
+  drawVignette();
 }
 
 // ---- 50_scavenge.js ----
@@ -2147,12 +2163,12 @@ function hashStr(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h
 
 function makeSite(loc, day) {
   const r = mulberry(hashStr(loc.id) + day * 7919);
-  const x0 = 60, width = 900 + loc.floors * 120, x1 = x0 + width; const nF = loc.floors;
+  const x0 = 60, width = loc.w || 900 + loc.floors * 120, x1 = x0 + width; const nF = loc.floors;
   const rooms = [], spots = [], props = [], hides = [], stairs = [];
   const palette = { market: ['#6a6a5a', '#5a6a6a'], flats: ['#6a5a4a', '#5a4a4a', '#6a6a7a'], hardware: ['#5a5e62', '#6a6a5a'], pharmacy: ['#6a7a7a', '#7a7a6a'], school: ['#5a6a7a', '#6a7a6a'], station: ['#5a5a5a', '#6a5a4a'], police: ['#4a5a6a', '#5a5a5a'], hospital: ['#7a7a7a', '#6a7a7a'] }[loc.id] || ['#6a6a6a'];
   let lockedLeft = loc.locked;
   for (let f = 0; f < nF; f++) {
-    const n = 2 + (r() < .6 ? 1 : 0); const cuts = [x0]; for (let i = 1; i < n; i++) cuts.push(x0 + width * (i / n) + (r() - .5) * 120); cuts.push(x1); cuts.sort((a, b) => a - b);
+    const n = loc.plan ? loc.plan[f] : 2 + (r() < .6 ? 1 : 0); const cuts = [x0]; for (let i = 1; i < n; i++) cuts.push(x0 + width * (i / n) + (r() - .5) * Math.min(120, width / n * .3)); cuts.push(x1); cuts.sort((a, b) => a - b);
     for (let i = 0; i < n; i++) {
       const room = { f, x0: cuts[i], x1: cuts[i + 1], name: loc.id + f + i, col: palette[(f + i) % palette.length] };
       // lock end rooms (not the exit room on floor 0 left)
@@ -2168,14 +2184,15 @@ function makeSite(loc, day) {
   spots.push({ id: 'exit', f: 0, x: x0 + 40, type: 'exit' });
   // loot spots
   const propTypes = { market: ['storeshelf', 'counter', 'crates', 'fridge'], flats: ['sofa', 'dresser', 'cabinet', 'bedframe', 'shelf'], hardware: ['garshelf', 'crates', 'bench', 'counter'], pharmacy: ['medcab', 'counter', 'cabinet', 'storeshelf'], school: ['desk', 'bookcase', 'cabinet', 'table'], station: ['counter', 'crates', 'garshelf', 'car'], police: ['desk', 'cabinet', 'garshelf', 'crates'], hospital: ['medcab', 'bedframe', 'cabinet', 'tub'] }[loc.id] || ['crates'];
-  let sid = 0;
+  let sid = 0; const world0 = { got: {} };
   for (const room of rooms) {
-    const w = room.x1 - room.x0; const n = 1 + Math.floor(w / 260) + (room.locked ? 1 : 0);
+    const w = room.x1 - room.x0; const n = room.locked ? Math.min(2, 1 + Math.floor(w / 260)) : 1 + Math.floor(w / 260);
     for (let i = 0; i < n; i++) {
       const x = room.x0 + 60 + (i + .5) * (w - 120) / n + (r() - .5) * 40; if (room.f === 0 && x < x0 + 120) continue;
       const pt = propTypes[Math.floor(r() * propTypes.length)]; const loot = [];
-      const k = 1 + Math.floor(r() * 2) + (room.locked ? 1 : 0);
-      for (let j = 0; j < k; j++) { const it = loc.loot[Math.floor(r() * loc.loot.length)]; const e = loot.find(o => o.id === it); if (e && !ITEMS[it].tool) e.n++; else if (!loot.find(o => o.id === it)) loot.push({ id: it, n: 1 }); }
+      const k = room.locked ? 1 + (r() < .4 ? 1 : 0) : 1 + Math.floor(r() * 2);
+      const isRare = q => RARITY[q] >= 2, common = loc.loot.filter(q => !isRare(q)), rare = loc.loot.filter(isRare).concat(loc.danger >= 3 ? ['meds', 'ammo'] : ['meds']).concat(loc.danger >= 4 ? ['backpack'] : []), pool = room.locked ? rare : (common.length ? common : ['scrap', 'wood']);
+      for (let j = 0; j < k; j++) { let it = pool[Math.floor(r() * pool.length)]; if (ITEMS[it].tool && isRare(it)) { if (world0.got[it]) it = r() < .5 ? 'meds' : 'ammo'; else world0.got[it] = 1; } const e = loot.find(o => o.id === it); if (e && !ITEMS[it].tool) e.n++; else if (!loot.find(o => o.id === it)) loot.push({ id: it, n: 1 }); }
       if (r() < .2 && loot.length < 2) loot.push({ id: ['wood', 'scrap', 'parts'][Math.floor(r() * 3)], n: 1 });
       props.push({ f: room.f, x, t: pt }); spots.push({ id: 's' + (sid++), f: room.f, x, type: 'search', uses: 1, left: 1, lootList: loot, dur: 3 + r() * 2 });
     }
@@ -2185,9 +2202,15 @@ function makeSite(loc, day) {
   if (!hides.length) hides.push({ f: 0, x: x0 + 200 });
   const world = new World({ x0, x1, nFloors: nF, rooms, stairs, spots, props, hides, site: loc });
   // zombies
-  const zombies = []; const nz = Math.max(1, Math.round((loc.danger + 1 + Math.floor(day / 6)) * .45));
-  for (let i = 0; i < nz; i++) { const room = rooms[Math.floor(r() * rooms.length)]; let zx = room.x0 + 40 + r() * (room.x1 - room.x0 - 80); if (room.f === 0 && zx < x0 + 320) zx = x0 + 320 + r() * 100; zombies.push(makeZombie(zx, room.f, r)); }
-  return { world, zombies };
+  // Who is here. Quiet places are empty, or hold one person going through the junk. Only dangerous places have raiders, and they stand guard over what is locked away; a patrol is rare.
+  const zombies = [], people = [], dg = loc.danger + (day > 15 ? 1 : 0);
+  const nz = dg <= 1 ? 0 : dg === 2 ? (r() < .3 ? 1 : 0) : dg === 3 ? 1 + (r() < .35 ? 1 : 0) : dg === 4 ? 2 + (r() < .5 ? 1 : 0) : 3 + (r() < .5 ? 1 : 0);
+  const doors = world.spots.filter(q => q.type === 'door'), open = rooms.filter(q => !q.locked);
+  for (let i = 0; i < nz; i++) { let zx, zf; const d = doors[i];
+    if (d && r() < .8) { zx = d.x - d.dir * (50 + r() * 40); zf = d.f; } else { const room = open[Math.floor(r() * open.length)]; zx = room.x0 + 40 + r() * (room.x1 - room.x0 - 80); zf = room.f; }
+    if (zf === 0 && zx < x0 + 320) zx = x0 + 320 + r() * 100; const z = makeZombie(zx, zf, r); z.patrol = r() < .2; zombies.push(z); }
+  if (dg <= 3 && r() < (dg <= 1 ? .5 : .35)) { const sp = spots.filter(q => q.type === 'search' && !rooms.find(o => o.f === q.f && q.x > o.x0 && q.x < o.x1 && o.locked) && (q.f > 0 || q.x > x0 + 300)); if (sp.length) { const t = sp[Math.floor(r() * sp.length)], side = r() < .5 ? -1 : 1; people.push({ drifter: true, name: 'picker' + loc.id + day, x: t.x + side * 24, f: t.f, fy: t.f, facing: -side, pose: 'search', searchLow: r() < .6, alive: true, scale: .94 + r() * .1 }); } }
+  return { world, zombies, people };
 }
 
 // ---- backpack ----
@@ -2202,9 +2225,9 @@ function packRemove(pack, id, n = 1) { for (let i = pack.length - 1; i >= 0 && n
 
 // ---- start / end ----
 function startScavenge(loc, surv, pack, cap) {
-  const { world, zombies } = makeSite(loc, G.day);
+  const { world, zombies, people } = makeSite(loc, G.day);
   const p = surv; p.x = world.x0 + 40; p.fy = 0; p.f = 0; p.facing = 1; p.path = null; p.moving = false; p.task = null; p.hidden = false; p.visible = true; p.attackT = 0; p.pose = 'idle'; p.hasPack = true;
-  Object.assign(SC, { active: true, world, zombies, player: p, loc, pack, cap, sneak: false, seen: 0, lootSpot: null, noiseT: 0, done: false, result: null, msg: null, msgT: 0, kills: 0, lights: [], throwCd: 0, proj: null, fight: false });
+  Object.assign(SC, { active: true, world, zombies, people, player: p, loc, pack, cap, sneak: false, seen: 0, lootSpot: null, noiseT: 0, done: false, result: null, msg: null, msgT: 0, kills: 0, lights: [], throwCd: 0, proj: null, fight: false });
   FX.float = []; initFx();
   fitCam({ x0: world.x0 - 60, x1: world.x1 + 60, y0: world.fy2y(world.nFloors - 1) - FLOOR_H - 60, y1: world.groundY + 230 });
   cam.z = cam.tz = clamp(Math.max(cam.z, H / 420), cam.minZ, cam.maxZ); cam.x = cam.tx = p.x + 200; cam.y = cam.ty = world.groundY - 80; clampCam();
@@ -2251,7 +2274,18 @@ function scAttack() {
   { const t = SC.zombies.filter(z => z.alive && z.f === p.f && Math.abs(z.x - p.x) < 110).sort((a, b) => Math.abs(a.x - p.x) - Math.abs(b.x - p.x))[0]; if (t) { p.facing = t.x < p.x ? -1 : 1; p.path = null; if (p.mc) rigFace(p, p.facing); } }
   p.attackT = .45; p.attackKind = wep ? 'swing' : 'shove'; p.attackHit = false; AUDIO.sfx(wep ? 'hammer' : 'dig');
 }
-function killZombie(z) { z.alive = false; z.pose = 'dead'; SC.kills++; AUDIO.sfx('groan'); }
+// Blood: a spurt of drops where the blow lands, and a stain on the floor (and the wall behind) that stays for the rest of the visit.
+const BLOOD = [];   // flying drops, shared by every scene
+function bleed(world, x, f, dir, big) {
+  if (!world) return; const y = world.fy2y(f) - 46; for (let i = 0; i < (big ? 16 : 8); i++) BLOOD.push({ w: world, x, y: y + rnd(-10, 10), vx: dir * rnd(20, 150) + rnd(-30, 30), vy: rnd(-150, -20), life: rnd(.5, 1.1), gy: world.fy2y(f), r: rnd(.9, 2.2) });
+  const st = world.blood || (world.blood = []); st.push({ x: x + dir * rnd(4, 30), f, r: big ? rnd(14, 24) : rnd(4, 9), a: big ? .8 : .6, seed: Math.random() * 1000, wall: big || Math.random() < .5 }); if (st.length > 60) st.shift();
+}
+function drawBloodStains(world) { for (const b of world.blood || []) { const fy = world.fy2y(b.f), r = mulberry(Math.floor(b.seed));
+    ctx.fillStyle = `rgba(88,10,10,${b.a})`; ctx.beginPath(); ctx.ellipse(b.x, fy - 1, b.r, Math.max(1.5, b.r * .16), 0, 0, TAU); ctx.fill();
+    for (let i = 0; i < 5; i++) { ctx.beginPath(); ctx.ellipse(b.x + (r() - .5) * b.r * 3, fy - 1, 1 + r() * b.r * .25, 1, 0, 0, TAU); ctx.fill(); }
+    if (b.wall) { ctx.fillStyle = `rgba(100,12,12,${b.a * .55})`; for (let i = 0; i < 9; i++) { const wx = b.x + (r() - .3) * b.r * 2.6, wy = fy - 30 - r() * 46, rr0 = .8 + r() * b.r * .14; ctx.beginPath(); ctx.arc(wx, wy, rr0, 0, TAU); ctx.fill(); if (r() < .4) ctx.fillRect(wx - .5, wy, 1, 4 + r() * 14); } } } }
+function drawBloodDrops(world, dt) { ctx.fillStyle = '#8e1414'; for (let i = BLOOD.length - 1; i >= 0; i--) { const d = BLOOD[i]; if (d.w !== world) { if ((d.life -= dt) <= 0) BLOOD.splice(i, 1); continue; } d.vy += 520 * dt; d.x += d.vx * dt; d.y += d.vy * dt; d.life -= dt; if (d.y >= d.gy || d.life <= 0) { BLOOD.splice(i, 1); continue; } ctx.beginPath(); ctx.arc(d.x, d.y, d.r, 0, TAU); ctx.fill(); } }
+function killZombie(z) { z.alive = false; z.pose = 'dead'; SC.kills++; AUDIO.sfx('groan'); bleed(SC.world, z.x, z.f, -z.facing, true); }
 
 function scUpdate(dt) {
   const p = SC.player, w = SC.world; _T += dt; CUR_W = w;
@@ -2261,7 +2295,7 @@ function scUpdate(dt) {
   if (SC.throwCd > 0) SC.throwCd -= dt;
   if (SC.tracer && SC.tracer.t > 0) SC.tracer.t -= dt;
   { const wep = scWeapon(); SC.aim = GUNS[wep] && !p.hidden ? aimTick(dt, { prev: SC.aim, wep, ammo: packCount(SC.pack, 'ammo'), px: p.x, foes: SC.zombies.filter(z => z.alive && z.f === p.f).map(z => (z.ay = w.fy2y(z.fy) - 50, z)), fire: (t, gun) => {
-      packRemove(SC.pack, 'ammo', 1); p.facing = t.x < p.x ? -1 : 1; p.attackT = .35; p.attackKind = 'shoot'; AUDIO.sfx('shot'); FX.flash = .25; scNoise(p.x, p.f, gun.noise); SC.tracer = { x0: p.x + p.facing * 16, y0: w.fy2y(p.fy) - 58, x1: t.x, y1: t.ay, t: .14 }; t.hp -= gun.dmg; t.hurtT = .3; if (t.hp <= 0) killZombie(t); else t.state = 'chase'; } }) : null;
+      packRemove(SC.pack, 'ammo', 1); p.facing = t.x < p.x ? -1 : 1; p.attackT = .35; p.attackKind = 'shoot'; AUDIO.sfx('shot'); FX.flash = .25; scNoise(p.x, p.f, gun.noise); SC.tracer = { x0: p.x + p.facing * 16, y0: w.fy2y(p.fy) - 58, x1: t.x, y1: t.ay, t: .14 }; t.hp -= gun.dmg; t.hurtT = .3; bleed(w, t.x, t.f, p.facing, false); if (t.hp <= 0) killZombie(t); else t.state = 'chase'; } }) : null;
     if (SC.aim && SC.aim.target) { p.path = null; p.task = null; p.facing = SC.aim.target.x < p.x ? -1 : 1; if (p.mc) rigFace(p, p.facing); } }
   if (SC.proj) { SC.proj.t += dt; if (SC.proj.t >= .6 && !SC.proj.hit) { SC.proj.hit = true; scNoise(SC.proj.x1, SC.proj.f, 360); AUDIO.sfx('open'); } if (SC.proj.t > 1.5) SC.proj = null; }
   if (G.nightT <= 0) { endScavenge(true); return; }
@@ -2269,7 +2303,7 @@ function scUpdate(dt) {
   const chasing = SC.zombies.some(z => z.alive && z.state === 'chase');
   const speed = SC.fight ? 50 : SC.sneak ? 42 : (chasing || p.run ? 112 : 78);
   { const foe = SC.zombies.filter(z => z.alive && z.f === p.f && !p.hidden).sort((a, b) => Math.abs(a.x - p.x) - Math.abs(b.x - p.x))[0]; if (SC.fight && foe && Math.abs(foe.x - p.x) < 56 && p.attackT <= 0 && !GUNS[scWeapon()]) scAttack(); SC.foe = foe; }
-  if (p.attackT > 0) { p.attackT -= dt; if (p.attackKind !== 'shoot' && p.attackT < .25 && !p.attackHit) { p.attackHit = true; const wep = scWeapon(); const dmg = wep === 'bat' ? 2 : wep === 'knife' ? 1 : 0; for (const z of SC.zombies) if (z.alive && z.f === p.f && Math.abs(z.x - p.x) < 48 && (z.x - p.x) * p.facing > -10) { z.hp -= dmg * (p.trait === 'strong' ? 2 : 1); z.hurtT = .3; z.x += p.facing * (wep === 'bat' ? 40 : 28); z.attackT = 0; z.state = 'chase'; if (z.hp <= 0) killZombie(z); else AUDIO.sfx('groan'); } } }
+  if (p.attackT > 0) { p.attackT -= dt; if (p.attackKind !== 'shoot' && p.attackT < .25 && !p.attackHit) { p.attackHit = true; const wep = scWeapon(); const dmg = wep === 'bat' ? 2 : wep === 'knife' ? 1 : 0; for (const z of SC.zombies) if (z.alive && z.f === p.f && Math.abs(z.x - p.x) < 48 && (z.x - p.x) * p.facing > -10) { z.hp -= dmg * (p.trait === 'strong' ? 2 : 1); z.hurtT = .3; if (dmg) bleed(w, z.x, z.f, p.facing, false); z.x += p.facing * (wep === 'bat' ? 40 : 28); z.attackT = 0; z.state = 'chase'; if (z.hp <= 0) killZombie(z); else AUDIO.sfx('groan'); } } }
   else if (p.path && p.path.length) { moveActor(p, dt, speed); p.pose = SC.sneak ? 'sneak' : (chasing || p.run ? 'run' : 'walk'); if (!SC.sneak && !p.hidden) { SC.noiseT += dt; if (SC.noiseT > .6) { SC.noiseT = 0; scNoise(p.x, p.f, (chasing || p.run ? 260 : 150) * (p.quirk === 'loud' ? 1.35 : 1)); } } }
   else {
     p.moving = false;
@@ -2284,7 +2318,7 @@ function scUpdate(dt) {
           const havePick = packCount(SC.pack, 'lockpick') > 0, haveBar = packCount(SC.pack, 'crowbar') > 0;
           const tool = s.tool === 'lockpick' ? (havePick ? 'lockpick' : haveBar ? 'crowbar' : null) : (haveBar ? 'crowbar' : havePick ? 'lockpick' : null);
           if (!tool) { p.task = null; scMsg(s.tool, 1.5); }
-          else { p.pose = tool === 'crowbar' ? 'hammer' : 'cook'; const need = tool === 'crowbar' ? 2.5 : 4.5; if (tool === 'crowbar' && Math.floor(tk.t * 2) !== Math.floor((tk.t - dt) * 2)) { AUDIO.sfx('bang'); scNoise(s.x, s.f, 420); } if (tk.t >= need) { s.room.open = true; s.done = true; p.task = null; AUDIO.sfx('done'); if (tool === 'lockpick' && Math.random() < .35) { packRemove(SC.pack, 'lockpick', 1); scMsg('lockpick', 1.5); } } }
+          else { p.pose = tool === 'crowbar' ? 'pry' : 'pick'; p.facing = s.dir || Math.sign(s.x - p.x) || 1; if (p.mc) rigFace(p, p.facing); const need = tool === 'crowbar' ? 2.5 : 4.5; if (tool === 'crowbar' && Math.floor(tk.t * 2) !== Math.floor((tk.t - dt) * 2)) { AUDIO.sfx('bang'); scNoise(s.x, s.f, 420); } if (tk.t >= need) { s.room.open = true; s.done = true; p.task = null; AUDIO.sfx('done'); if (tool === 'lockpick' && Math.random() < .35) { packRemove(SC.pack, 'lockpick', 1); scMsg('lockpick', 1.5); } } }
         }
       }
     } else { p.pose = SC.fight || (SC.aim && SC.aim.target) ? 'guard' : SC.sneak ? 'sneak' : 'idle'; if (SC.fight && SC.foe && Math.abs(SC.foe.x - p.x) < 240) { p.facing = SC.foe.x < p.x ? -1 : 1; if (p.mc) rigFace(p, p.facing); } }
@@ -2307,7 +2341,8 @@ function scUpdate(dt) {
     if (z.alert >= 1 && z.state !== 'chase') { z.state = 'chase'; z.lostT = 0; AUDIO.sfx('groan'); }
     if (z.state === 'chase') seen++;
     switch (z.state) {
-      case 'idle': z.pose = 'zombieIdle'; if (z.t > 2 + Math.random() * 4) { z.t = 0; const room = w.roomAt(z.x, z.f); if (room) { z.path = w.path(z.x, z.f, room.x0 + 30 + Math.random() * (room.x1 - room.x0 - 60), z.f); z.state = 'wander'; } } break;
+      case 'idle': z.pose = 'zombieIdle'; if (!z.patrol) { if (z.t > 4 + Math.random() * 5) { z.t = 0; z.facing *= -1; } break; }   // a guard stays put and looks about; only a patrol walks
+        if (z.t > 2 + Math.random() * 4) { z.t = 0; const room = w.roomAt(z.x, z.f); if (room) { z.path = w.path(z.x, z.f, room.x0 + 30 + Math.random() * (room.x1 - room.x0 - 60), z.f); z.state = 'wander'; } } break;
       case 'wander': z.pose = 'zombie'; if (moveActor(z, dt, 22)) { z.state = 'idle'; z.t = 0; } break;
       case 'look': z.pose = 'zombie'; if (!z.path || moveActor(z, dt, 36)) { z.state = 'idle'; z.t = 0; z.facing *= Math.random() < .5 ? -1 : 1; } break;
       case 'chase': {
@@ -2316,7 +2351,7 @@ function scUpdate(dt) {
         else if (d > 480 || !sameF && d > 300) { z.lostT += dt; if (z.lostT > 5) { z.state = 'idle'; z.alert = 0; z.t = 0; break; } } else z.lostT = 0;
         if (sameF && d < 30 && !p.hidden) {
           z.facing = dx < 0 ? -1 : 1; z.path = null; z.attackT += dt; z.pose = 'zombieAttack'; z.poseExtra = { k: (z.attackT % 1) / .5 };
-          if (z.attackT >= 1) { z.attackT = 0; p.health -= 11; p.hurtT = .3; p.wounded = true; AUDIO.sfx('hurt'); if (Math.random() < .25 && !p.infected) { p.infected = true; scMsg('infected', 2); } if (p.health <= 0) { p.health = 0; endScavenge(false, true); return; } }
+          if (z.attackT >= 1) { z.attackT = 0; p.health -= 11; p.hurtT = .3; bleed(w, p.x, p.f, z.facing, false); p.wounded = true; AUDIO.sfx('hurt'); if (Math.random() < .25 && !p.infected) { p.infected = true; scMsg('infected', 2); } if (p.health <= 0) { p.health = 0; endScavenge(false, true); return; } }
         } else {
           if (!z.path || !z.path.length || z.t > .6) { z.t = 0; z.path = w.path(z.x, z.f, p.hidden ? z.x : p.x, p.hidden ? z.f : p.f); }
           moveActor(z, dt, 52); z.attackT = 0;
@@ -2328,10 +2363,13 @@ function scUpdate(dt) {
   }
   SC.seen = seen;
   // lights: flashlight + flicker lamps
-  SC.lights = [{ x: p.x + p.facing * 70, y: w.fy2y(p.fy) - 50, r: 240, c: '255,230,180', a: .6 }, { x: p.x, y: w.fy2y(p.fy) - 40, r: 120, c: '255,230,180', a: .35 }];
+  { const ly = w.fy2y(p.fy) - 50, fl = .94 + .06 * Math.sin(_T * 31);   // a torch: a tight pool at the hand, a long beam ahead
+    SC.lights = [{ x: p.x, y: ly + 8, r: 110, c: '255,230,180', a: .4 }, { x: p.x + p.facing * 60, y: ly, r: 150, c: '255,232,190', a: .62 * fl }, { x: p.x + p.facing * 150, y: ly, r: 170, c: '255,232,190', a: .5 * fl }, { x: p.x + p.facing * 260, y: ly, r: 180, c: '255,232,190', a: .32 * fl }, { x: p.x + p.facing * 370, y: ly, r: 170, c: '255,232,190', a: .16 * fl }];
+    if (p.attackKind === 'shoot' && p.attackT > .22) SC.lights.push({ x: p.x + p.facing * 30, y: ly - 6, r: 300, c: '255,220,150', a: .95 }); }
   for (const h of w.hides) SC.lights.push({ x: h.x, y: w.fy2y(h.f) - 90, r: 60, c: '120,160,200', a: .15 });
   // camera follow
-  cam.tx = p.x + p.facing * 40; cam.ty = w.fy2y(p.fy) - 60; cam.x = lerp(cam.x, cam.tx, Math.min(1, dt * 4)); cam.y = lerp(cam.y, cam.ty, Math.min(1, dt * 4)); clampCam();
+  if (cam.panT > 0 && !(SC.aim && SC.aim.target)) { cam.panT -= dt; if (p.path && p.path.length) cam.panT = Math.min(cam.panT, 1.2); }   // looking around: the view stays where it was dragged for a few seconds
+  else { cam.tx = p.x + p.facing * 40; cam.ty = w.fy2y(p.fy) - 60; cam.x = lerp(cam.x, cam.tx, Math.min(1, dt * 4)); cam.y = lerp(cam.y, cam.ty, Math.min(1, dt * 4)); clampCam(); }
 }
 function endScavenge(timeout, died) {
   if (SC.done) return; SC.done = true; const p = SC.player;
@@ -2357,7 +2395,7 @@ function startTravel(surv) {
   if (GUNS[weapon] && G.inv.ammo > 0) { const n = Math.min(6, G.inv.ammo); G.inv.ammo -= n; packAdd(pack, cap, 'ammo', n); }
   p.x = 80; p.fy = 0; p.f = 0; p.facing = 1; p.path = null; p.task = null; p.hidden = false; p.visible = true; p.hasPack = true; p.attackT = 0; p.pose = 'idle';
   const dest = LOCATIONS.find(l => l.id === G.planLoc && (l.day || 1) <= G.day) || LOCATIONS[0]; ST_END = 1500;
-  Object.assign(TR, { active: true, player: p, pack, cap, x: 80, py: 0, zombies: [], obstacles: [], dest, fires: [], drifters: [], locX: { [dest.id]: 1180 }, kills: 0, attackT: 0, hurtT: 0, msg: 'run', msgT: 3, decor: [], done: false, result: null, grounded: true, tx: null, run: false, fight: false });
+  Object.assign(TR, { active: true, player: p, pack, cap, x: 80, py: 0, zombies: [], obstacles: [], dest, fires: [], drifters: [], locX: { [dest.id]: 1180 }, kills: 0, attackT: 0, hurtT: 0, msg: 'run', msgT: 3, decor: [], done: false, result: null, grounded: true, tx: null, run: false, fight: false, bw: null });
   // obstacles between locations
   const kinds = [['car', 120, 48], ['rubble', 140, 46], ['barrier', 60, 54], ['crates', 70, 36], ['bus', 260, 60]];
   for (let x = 420; x < ST_END - 200; x += 260 + r() * 420) {
@@ -2366,15 +2404,16 @@ function startTravel(surv) {
   }
   TR.ew = engStreet(TR.obstacles, GROUND_Y, 0, ST_END + 400); p.mc = null; p.mcT = null;
   // zombies: denser further out
-  for (let x = 500; x < ST_END; x += 180 + r() * 300) { if (r() < .05 + dest.danger * .05) { const z = makeZombie(x, 0, r); z.street = true; z.y = GROUND_Y; TR.zombies.push(z); } }
+  for (let x = 500; x < ST_END; x += 180 + r() * 300) { if (dest.danger >= 3 && r() < (dest.danger - 2) * .07) { const z = makeZombie(x, 0, r); z.street = true; z.y = GROUND_Y; TR.zombies.push(z); } }
   // decor
   for (let x = -300; x < ST_END + 600; x += 90 + r() * 200) TR.decor.push({ x, t: r() < .25 ? 'lamp' : r() < .5 ? 'wall' : r() < .75 ? 'fence' : 'junk', h: 60 + r() * 140, w: 60 + r() * 160, s: r() });
   // fires in oil drums, burning wrecks, and the people with nowhere else to be
   for (const x0f of [250, 520, 800, 1010, 1390]) { let x = x0f + r() * 40, ok = false; for (let k = 0; k < 5 && !ok; k++) { ok = !(Object.values(TR.locX).some(lx => Math.abs(lx - x) < 110) || TR.obstacles.some(o => Math.abs(o.x - x) < o.w / 2 + RAMP + 26)); if (!ok) x += 55; } if (!ok) continue; TR.fires.push({ x, s: r() });
     const n = r() < .3 ? 1 : 0; for (let i = 0; i < n; i++) { const side = i ? 1 : -1; TR.drifters.push({ drifter: true, street: true, name: 'drifter' + G.day + '_' + Math.round(x) + i, x: x + side * (30 + r() * 8), y: GROUND_Y, facing: -side, pose: 'warm', alive: true, fed: false, scale: .94 + r() * .1 }); } }
   for (const o of TR.obstacles) if ((o.t === 'car' || o.t === 'bus') && r() < .45) o.fire = true;
+  { const o = TR.obstacles[Math.floor(r() * TR.obstacles.length)]; if (o && r() < .45 && o.x > 300) { const side = r() < .5 ? -1 : 1; TR.drifters.push({ drifter: true, street: true, name: 'picker' + G.day + dest.id, x: o.x + side * (o.w / 2 + RAMP + 14), y: GROUND_Y, facing: -side, pose: 'search', searchLow: true, alive: true, fed: false, scale: .94 + r() * .1 }); } }
   G.flags['v_' + dest.id] = true;
-  G.nightT = NIGHT_TOTAL; G.phase = 'travel'; cam.lock = true; cam.bounds = { x0: -400, x1: ST_END + 400, y0: -400, y1: GROUND_Y + 300 };
+  G.nightT = NIGHT_TOTAL; G.phase = 'travel'; cam.lock = false; cam.panT = 0; cam.bounds = { x0: -400, x1: ST_END + 400, y0: -400, y1: GROUND_Y + 300 };
   cam.z = cam.tz = clamp(H / 400, cam.minZ, cam.maxZ); cam.x = cam.tx = p.x + 160; cam.y = cam.ty = GROUND_Y - 110; initFx();
 }
 function trMsg(icon, t = 2) { TR.msg = icon; TR.msgT = t; }
@@ -2402,8 +2441,9 @@ function trUpdate(dt) {
   // input: held pad
   let dir = 0; IN.downs.length = 0;
   if (TR.tracer && TR.tracer.t > 0) TR.tracer.t -= dt;
+  if (!TR.bw) TR.bw = { fy2y: () => GROUND_Y + 14, blood: [] };   // the street as a place blood can lie
   { const wep = trWeapon(); TR.aim = GUNS[wep] ? aimTick(dt, { prev: TR.aim, wep, ammo: packCount(TR.pack, 'ammo'), px: TR.x, foes: TR.zombies.filter(z => z.alive).map(z => (z.ay = GROUND_Y - (z.py || 0) - 36, z)), fire: (t, gun) => {
-      packRemove(TR.pack, 'ammo', 1); p.facing = t.x < TR.x ? -1 : 1; TR.attackT = .35; TR.attackKind = 'shoot'; AUDIO.sfx('shot'); FX.flash = .25; for (const z of TR.zombies) if (z.alive && Math.abs(z.x - TR.x) < gun.noise * .7) z.state = 'chase'; TR.tracer = { x0: TR.x + p.facing * 16, y0: GROUND_Y - TR.py - 58, x1: t.x, y1: t.ay, t: .14 }; t.hp -= gun.dmg; t.hurtT = .3; if (t.hp <= 0) { t.alive = false; t.pose = 'dead'; TR.kills++; AUDIO.sfx('groan'); } } }) : null;
+      packRemove(TR.pack, 'ammo', 1); p.facing = t.x < TR.x ? -1 : 1; TR.attackT = .35; TR.attackKind = 'shoot'; AUDIO.sfx('shot'); FX.flash = .25; for (const z of TR.zombies) if (z.alive && Math.abs(z.x - TR.x) < gun.noise * .7) z.state = 'chase'; TR.tracer = { x0: TR.x + p.facing * 16, y0: GROUND_Y - TR.py - 58, x1: t.x, y1: t.ay, t: .14 }; t.hp -= gun.dmg; t.hurtT = .3; bleed(TR.bw, t.x, 0, p.facing, t.hp <= 0); if (t.hp <= 0) { t.alive = false; t.pose = 'dead'; TR.kills++; AUDIO.sfx('groan'); } } }) : null;
     if (TR.aim && TR.aim.target) { TR.tx = null; p.facing = TR.aim.target.x < TR.x ? -1 : 1; if (p.mc) rigFace(p, p.facing); } }
   if (TR.tx != null) { if (Math.abs(TR.tx - TR.x) < 8) { TR.tx = null; TR.run = false; } else dir = Math.sign(TR.tx - TR.x); }
   const foe = TR.zombies.filter(z => z.alive).sort((a, b) => Math.abs(a.x - TR.x) - Math.abs(b.x - TR.x))[0], foeD = foe ? Math.abs(foe.x - TR.x) : 1e9;
@@ -2413,7 +2453,7 @@ function trUpdate(dt) {
   const speed = (TR.fight ? 52 : TR.run ? 124 : 80) * (p.trait === 'runner' ? 1.15 : 1);
   if (TR.attackT > 0) {
     TR.attackT -= dt;
-    if (TR.attackKind !== 'shoot' && TR.attackT < .25 && !TR.attackHit) { TR.attackHit = true; const wep = trWeapon(); const dmg = wep === 'bat' ? 2 : wep === 'knife' ? 1 : 0; for (const z of TR.zombies) if (z.alive && Math.abs(z.x - TR.x) < 50 && (z.x - TR.x) * p.facing > -10) { z.hp -= dmg * (p.trait === 'strong' ? 2 : 1); z.hurtT = .3; z.x += p.facing * (wep === 'bat' ? 45 : 30); z.attackT = 0; z.state = 'chase'; if (z.hp <= 0) { z.alive = false; z.pose = 'dead'; TR.kills++; } AUDIO.sfx('groan'); } }
+    if (TR.attackKind !== 'shoot' && TR.attackT < .25 && !TR.attackHit) { TR.attackHit = true; const wep = trWeapon(); const dmg = wep === 'bat' ? 2 : wep === 'knife' ? 1 : 0; for (const z of TR.zombies) if (z.alive && Math.abs(z.x - TR.x) < 50 && (z.x - TR.x) * p.facing > -10) { z.hp -= dmg * (p.trait === 'strong' ? 2 : 1); z.hurtT = .3; if (dmg) bleed(TR.bw, z.x, 0, p.facing, z.hp <= 0); z.x += p.facing * (wep === 'bat' ? 45 : 30); z.attackT = 0; z.state = 'chase'; if (z.hp <= 0) { z.alive = false; z.pose = 'dead'; TR.kills++; } AUDIO.sfx('groan'); } }
     dir = 0;
   }
   const slope = slopeAt(TR.x); const onSlope = Math.abs(slope) > .3;
@@ -2433,14 +2473,15 @@ function trUpdate(dt) {
     if (z.state === 'chase') {
       z.pose = 'zombie'; z.facing = dx < 0 ? -1 : 1;
       if (d > 600) { z.lostT += dt; if (z.lostT > 4) { z.state = 'idle'; z.alert = 0; } }
-      if (d < 30 && Math.abs(heightAt(z.x) - TR.py) < 30) { z.attackT += dt; z.pose = 'zombieAttack'; z.poseExtra = { k: (z.attackT % 1) / .5 }; if (z.attackT >= 1) { z.attackT = 0; p.health -= 11; p.hurtT = .3; p.wounded = true; AUDIO.sfx('hurt'); if (Math.random() < .25 && !p.infected) { p.infected = true; trMsg('infected', 2); } if (p.health <= 0) { p.health = 0; trLost(false); return; } } }
+      if (d < 30 && Math.abs(heightAt(z.x) - TR.py) < 30) { z.attackT += dt; z.pose = 'zombieAttack'; z.poseExtra = { k: (z.attackT % 1) / .5 }; if (z.attackT >= 1) { z.attackT = 0; p.health -= 11; p.hurtT = .3; bleed(TR.bw, TR.x, 0, z.facing, false); p.wounded = true; AUDIO.sfx('hurt'); if (Math.random() < .25 && !p.infected) { p.infected = true; trMsg('infected', 2); } if (p.health <= 0) { p.health = 0; trLost(false); return; } } }
       else { const c = mcOf(z, TR.ew); rigTo(z, TR.ew, TR.x, 58 / (Motion.CFG.walkSpeed * c.k), dt, zombieExt(z, z.t), true); z.x = c.x; z.py = c.y; z.attackT = 0; }
     } else if (z.state === 'wander') { z.pose = 'zombie'; const nz = z.x + z.facing * 20 * dt; if (heightAt(nz) <= 4 && nz > 300) { const c = rigInput(z, TR.ew, z.facing * .32, dt, zombieExt(z, z.t)); z.x = c.x; z.py = c.y; } else z.facing *= -1; if (z.t > 4) { z.state = 'idle'; z.t = 0; } }
     else { z.pose = 'zombieIdle'; if (z.t > 2 + Math.random() * 4) { z.t = 0; z.state = 'wander'; z.facing = Math.random() < .5 ? -1 : 1; } }
     z.py = heightAt(z.x);
   }
   // camera
-  cam.tx = TR.x + p.facing * Math.min(140, W / cam.z * .16); cam.x = lerp(cam.x, cam.tx, Math.min(1, dt * 3.5)); cam.y = cam.ty = GROUND_Y - 110;
+  if (cam.panT > 0 && !(TR.aim && TR.aim.target)) { cam.panT -= dt; if (dir) cam.panT = Math.min(cam.panT, 1.2); cam.y = cam.ty = GROUND_Y - 110; }
+  else { cam.tx = TR.x + p.facing * Math.min(140, W / cam.z * .16); cam.x = lerp(cam.x, cam.tx, Math.min(1, dt * 3.5)); cam.y = cam.ty = GROUND_Y - 110; }
 }
 function trLost(timeout) { TR.done = true; TR.result = { died: true, timeout, pack: TR.pack, kills: TR.kills, loc: null }; SC.result = TR.result; UI.modal = { kind: 'scavEnd' }; AUDIO.sfx('bad'); }
 function trEnter(loc) { const p = TR.player; p.hasPack = true; G.phase = 'scav'; cam.lock = false; startScavenge(loc, p, TR.pack, TR.cap); }
@@ -2478,6 +2519,7 @@ function drawStreet(dt) {
   for (const f of TR.fires) if (f.x > x0v - 100 && f.x < x1v + 100) drawBarrelFire(f.x, gy + 14, f.s);
   for (const o of TR.obstacles) if (o.fire && o.x > x0v - 200 && o.x < x1v + 200) drawFlames(o.x + o.w * .12, gy + 14 - o.h, o.w * .3, 46, o.x);
   const list = [...TR.drifters.filter(z => z.x > x0v - 100 && z.x < x1v + 100), ...TR.zombies.filter(z => z.x > x0v - 100 && z.x < x1v + 100), TR.player];
+  if (TR.bw) { drawBloodStains(TR.bw); drawBloodDrops(TR.bw, dt); }
   ctx.save(); ctx.translate(0, 14);   // the road surface is drawn 14 below the walking line: put everyone's feet on it
   for (const a of list) { a.y = GROUND_Y - (a === TR.player ? TR.py : (a.py || 0)); drawPerson(a, a.pose || 'idle', _T, a.poseExtra); }
   ctx.restore();
@@ -2500,7 +2542,7 @@ function drawHouseFacade(x, gy) {
   for (const [wx, wy] of [[-200, -230], [-110, -230], [-200, -110], [-110, -110]]) { ctx.fillStyle = '#1a1d26'; ctx.fillRect(x + wx, gy + wy, 50, 60); ctx.fillStyle = 'rgba(255,190,110,.25)'; ctx.fillRect(x + wx + 4, gy + wy + 4, 42, 52); ctx.fillStyle = '#7a5c3c'; ctx.fillRect(x + wx - 6, gy + wy + 20, 62, 9); ctx.fillRect(x + wx - 6, gy + wy + 40, 62, 9); }
 }
 function drawFacade(l, x, gy) {
-  const r = mulberry(hashStr(l.id)); const w = 300 + l.floors * 40, h = 120 + l.floors * 90;
+  const r = mulberry(hashStr(l.id)); const w = Math.round((l.w || 1000) * .36), h = 120 + l.floors * 90;
   ctx.fillStyle = ['#3a3836', '#3d3330', '#333a3a', '#383530'][Math.floor(r() * 4)]; ctx.fillRect(x - w / 2, gy + 14 - h, w, h);
   ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(x - w / 2, gy + 14 - h, 8, h); ctx.fillStyle = 'rgba(255,255,255,.05)'; ctx.fillRect(x - w / 2, gy + 14 - h, w, 6);
   for (let fy = gy - 60; fy > gy + 14 - h + 30; fy -= 80) for (let wx = x - w / 2 + 24; wx < x + w / 2 - 40; wx += 56) { if (Math.abs(wx + 18 - x) < 50 && fy > gy - 100) continue; ctx.fillStyle = r() < .3 ? '#1a1d26' : '#14151a'; ctx.fillRect(wx, fy - 40, 36, 46); if (r() < .4) { ctx.fillStyle = '#7a5c3c'; ctx.fillRect(wx - 4, fy - 30, 44, 7); } }
@@ -3136,7 +3178,7 @@ function updateHome(dt) {
     switch (tk.kind) {
       case 'search': s.pose = 'search'; if (Math.abs(tk.spot.x - s.x) > 4) { s.facing = Math.sign(tk.spot.x - s.x); if (s.mc) s.mc.facing = s.facing; } break;
       case 'dig': s.pose = 'dig'; if (Math.abs(tk.spot.x - s.x) > 6) { s.facing = Math.sign(tk.spot.x - s.x); if (s.mc) s.mc.facing = s.facing; } tk.dur = digDur(tk.spot); if (Math.floor(tk.t * 1.6) !== Math.floor((tk.t - gdt) * 1.6)) AUDIO.sfx('dig'); break;
-      case 'door': s.pose = G.inv.crowbar ? 'hammer' : 'cook'; break;
+      case 'door': s.pose = G.inv.crowbar ? 'pry' : 'pick'; s.facing = tk.spot.dir || Math.sign(tk.spot.x - s.x) || 1; if (s.mc) s.mc.facing = s.facing; break;
       case 'bed': s.pose = 'sleep'; s.fatigue = clamp(s.fatigue + gdt * 1.6, 0, 100); break;
       case 'radio': s.pose = 'cook'; break;
       case 'collector': s.pose = 'search'; break;
@@ -3259,7 +3301,7 @@ function updateRaid(dt) {
   let strike = 0;
   for (const z of R.zs) {
     if (!z.alive) { z.pose = 'dead'; continue; }
-    if (z.dieAt != null && R.t >= z.dieAt) { z.alive = false; z.pose = 'dead'; AUDIO.sfx(R.info.gun ? 'bang' : 'groan'); if (R.info.gun) FX.flash = .25; continue; }
+    if (z.dieAt != null && R.t >= z.dieAt) { bleed(w, z.x, 1, R.side, true); z.alive = false; z.pose = 'dead'; AUDIO.sfx(R.info.gun ? 'bang' : 'groan'); if (R.info.gun) FX.flash = .25; continue; }
     if (z.dieAt != null && z.dieAt - R.t < .45) strike = Math.max(strike, 1 - (z.dieAt - R.t) / .45);
     if (Math.abs(z.x - z.rx) > 8) { const c = mcOf(z, engFlat(w, 1)); rigTo(z, engFlat(w, 1), z.rx, 46 / (Motion.CFG.walkSpeed * c.k), dt, zombieExt(z, _T), true); z.fy = 1; z.pose = 'zombie'; }
     else { z.facing = -R.side; z.pose = 'zombieAttack'; z.at = (z.at || 0) + dt; z.poseExtra = { k: (z.at % 1) / .5 }; if (Math.floor(z.at) !== Math.floor(z.at - dt)) { AUDIO.sfx('bang'); R.shake = 1; } }
@@ -3335,7 +3377,7 @@ function frame(now) {
     }
     case 'scav': {
       if (!UI.modal) scUpdate(dt); else _T += dt;
-      const actors = [SC.player, ...SC.zombies]; drawScene(SC.world, Math.min(23.5, nightHour()), actors, { t: _T, dt, lights: SC.lights });
+      const actors = [...(SC.people || []), SC.player, ...SC.zombies]; drawScene(SC.world, Math.min(23.5, nightHour()), actors, { t: _T, dt, lights: SC.lights });
       drawScavHud(dt);
       if (UI.modal) { switch (UI.modal.kind) { case 'loot': drawLoot(); break; case 'leave': drawLeave(); break; case 'scavEnd': drawScavEnd(); break; case 'inv': drawScavInv(); break; } }
       break;
