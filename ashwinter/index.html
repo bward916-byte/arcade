@@ -2257,6 +2257,7 @@ function killZombie(z) { z.alive = false; z.pose = 'dead'; SC.kills++; AUDIO.sfx
 function scUpdate(dt) {
   const p = SC.player, w = SC.world; _T += dt; CUR_W = w;
   if (SC.done) return;
+  if (PREVIEW) { SC.player.health = 100; SC.player.infected = false; SC.player.wounded = false; G.nightT = NIGHT_TOTAL; }
   G.nightT -= dt; if (SC.msgT > 0) SC.msgT -= dt;
   if (SC.throwCd > 0) SC.throwCd -= dt;
   if (SC.tracer && SC.tracer.t > 0) SC.tracer.t -= dt;
@@ -2396,6 +2397,7 @@ function trAttack() {
 }
 function trUpdate(dt) {
   if (TR.done) return; const p = TR.player; _T += dt;
+  if (PREVIEW) { p.health = 100; p.infected = false; p.wounded = false; G.nightT = NIGHT_TOTAL; }
   G.nightT -= dt; if (TR.msgT > 0) TR.msgT -= dt;
   if (G.nightT <= 0) { trLost(true); return; }
   // input: held pad
@@ -2530,7 +2532,7 @@ function drawTravelHud(dt) {
     for (const z of TR.zombies) if (z.alive && z.state === 'chase') { const sx = w2sx(z.x), sy = w2sy(GROUND_Y - 100); if (sx > -30 && sx < W + 30) drawIcon('alert', sx, sy, 22, RED); }
     for (const d of TR.drifters) if (!d.fed && Math.abs(d.x - TR.x) < 70 && packCount(TR.pack, 'canned') > 0) { const sx = w2sx(d.x), sy = w2sy(GROUND_Y - 120); spotBubble(sx, sy, 'canned', { size: 40, badgeIcon: 'heart' }); UI.btn(sx - 24, sy - 24, 48, 48, () => { packRemove(TR.pack, 'canned', 1); d.fed = true; d.say = 'heart'; d.sayT = 4; p.morale = clamp(p.morale + 12, 0, 100); trMsg('heart'); AUDIO.sfx('done'); }); break; }
   }
-  drawAim(TR.aim, TR.tracer);
+  drawAim(TR.aim, TR.tracer); if (PREVIEW) drawPreviewBar();
   const cx = W / 2; ctx.fillStyle = 'rgba(14,15,18,.75)'; rr(cx - 170, 8, 340, 62, 10); ctx.fill(); drawNightClock(cx - 60, 33);
   const next = LOCATIONS.map(l => ({ l, d: TR.locX[l.id] - TR.x })).filter(o => o.d > 0).sort((a, b) => a.d - b.d)[0];
   txt(TR.x < 150 ? 'home' : next ? next.l.name + '  →  ' + Math.round(next.d / 10) + 'm' : 'end of the district', cx - 60, 56, 13, DIM);
@@ -2844,7 +2846,7 @@ function drawScavHud(dt) {
     // zombie state markers
     for (const z of SC.zombies) { if (!z.alive) continue; if (z.state === 'chase' || z.state === 'look' || z.alert > .3) { const sx = w2sx(z.x), sy = w2sy(w.fy2y(z.fy) - 100); drawIcon(z.state === 'chase' ? 'alert' : 'eye', sx, sy, 22, z.state === 'chase' ? RED : GOLD); } }
   }
-  drawAim(SC.aim, SC.tracer);
+  drawAim(SC.aim, SC.tracer); if (PREVIEW) drawPreviewBar();
   // top: timer + eye
   const cx = W / 2; ctx.fillStyle = 'rgba(14,15,18,.75)'; rr(cx - 170, 8, 340, 62, 10); ctx.fill();
   drawNightClock(cx - 60, 33);
@@ -2960,8 +2962,14 @@ function drawTitle() {
   const has = !!loadSave();
   textButton(W / 2 - 110, H * .58, 220, 50, 'NEW GAME', () => newGame(), { primary: !has, icon: 'play' });
   if (has) textButton(W / 2 - 110, H * .58 + 64, 220, 50, 'CONTINUE', () => continueGame(), { primary: true, icon: 'home' });
-  textButton(W / 2 - 110, H * .58 + (has ? 128 : 64), 220, 50, 'WATCH DEMO', () => demoStart(), { icon: 'play' });
-  txt('3 survivors · 1 house · 20 days until the convoy · be home by 5', W / 2, H - 30, 14, DIM, 'center', '400');
+  const by0 = Math.min(H * .58 + (has ? 128 : 64), H - 62);
+  textButton(W / 2 - 110, by0, 106, 46, 'DEMO', () => demoStart(), {});
+  textButton(W / 2 + 4, by0, 106, 46, 'AREAS', () => { UI.areaPick = true; }, {});
+  if (H > 470) txt('3 survivors · a district in ruins · be home by 5 AM', W / 2, H - 22, 13, DIM, 'center', '400');
+  if (UI.areaPick) { const w = Math.min(W - 20, 560), rows = Math.ceil(LOCATIONS.length / 2), h = Math.min(H - 16, 86 + rows * 50), x = (W - w) / 2, y = (H - h) / 2; UI.hits = []; UI.btn(0, 0, W, H, () => { UI.areaPick = false; }); panel(x, y, w, h, 'PREVIEW AN AREA'); UI.btn(x, y, w, h, () => { });
+    txt('walk it unhurt, with no clock · nothing is saved', x + w / 2, y + 56, 12, DIM);
+    LOCATIONS.forEach((l, i) => { const bw = (w - 36) / 2, bx = x + 12 + (i % 2) * (bw + 12), byy = y + 72 + Math.floor(i / 2) * ((h - 84) / rows), bh = Math.min(42, (h - 84) / rows - 6); ctx.fillStyle = '#2b2d31'; rr(bx, byy, bw, bh, 8); ctx.fill(); ctx.strokeStyle = '#4a4d52'; ctx.lineWidth = 1.5; rr(bx, byy, bw, bh, 8); ctx.stroke(); txt(l.name, bx + 12, byy + bh / 2 - (bh > 34 ? 7 : 0), 14, INK, 'left'); if (bh > 34) txt(DANGER[l.danger] + ' · day ' + (l.day || 1), bx + 12, byy + bh / 2 + 9, 11, DANGER_COL[l.danger], 'left'); UI.btn(bx, byy, bw, bh, () => startPreview(l.id)); });
+    iconButton(x + w - 26, y + 24, 34, 'close', () => { UI.areaPick = false; }); }
 }
 function drawEnd(win) {
   ctx.fillStyle = 'rgba(0,0,0,.75)'; ctx.fillRect(0, 0, W, H);
@@ -2993,8 +3001,16 @@ function newGame() {
   UI.modal = null; UI.ff = false; initFx(); homeCam(); homeMsg('Tap a face, then an icon', 'search'); save();
 }
 function homeCam() { const w = G.world; fitCam({ x0: w.x0 - 120, x1: w.x1 + 120, y0: w.fy2y(2) - FLOOR_H - 170, y1: w.groundY + 240 }); cam.y = cam.ty = cam.y + 50 / cam.z; clampCam(); }
+// ----- area preview: walk any area from the title screen, unhurt and untimed; nothing is saved -----
+let PREVIEW = false;
+function startPreview(id) {
+  PREVIEW = true; UI.areaPick = false; newGame(); UI.modal = null; G.day = 12; Object.assign(G.inv, { bat: 1, rifle: 1, ammo: 6, lockpick: 2, crowbar: 1 });
+  const s = G.survivors[0]; G.plan = { [s.name]: 'scav' }; G.planLoc = id; beginNight(); TR.x = 1040; s.x = 1040; s.mc = null;
+}
+function endPreview() { PREVIEW = false; TR.active = false; SC.active = false; TR.done = true; UI.modal = null; cam.lock = false; UI.titleZ = null; G.phase = 'title'; }
+function drawPreviewBar() { ctx.fillStyle = 'rgba(14,15,18,.8)'; rr(8, 8, 150, 34, 8); ctx.fill(); ctx.strokeStyle = GOLD; ctx.lineWidth = 1; rr(8, 8, 150, 34, 8); ctx.stroke(); txt('EXIT PREVIEW', 83, 26, 13, GOLD); UI.btn(8, 8, 150, 34, () => endPreview()); txt('cannot be hurt · no time limit', 12, 54, 11, DIM, 'left'); }
 function save() {
-  if (DEMO.on) return;
+  if (DEMO.on || PREVIEW) return;
   if (HEADLESS) return;
   try { localStorage.setItem(SAVE_KEY, JSON.stringify({ day: G.day, inv: G.inv, built: G.built, flags: G.flags, collectorWater: G.collectorWater, shelter: serializeShelter(G.world), survivors: G.survivors.map(s => ({ name: s.name, hunger: s.hunger, fatigue: s.fatigue, health: s.health, morale: s.morale, wounded: s.wounded, infected: s.infected, alive: s.alive })) })); } catch (e) { }
 }
@@ -3170,6 +3186,7 @@ function beginNight() {
   else { resolveNight(null); }
 }
 function finishScavenge() {
+  if (PREVIEW) { endPreview(); return; }
   const r = TR.result || SC.result || { died: false, pack: [], kills: 0 }; const p = TR.player; const w = G.world; cam.lock = false; TR.active = false; SC.active = false;
   UI.modal = null; p.hasPack = false; p.visible = true; p.hidden = false; p.task = null; p.path = null; p.x = 140; p.fy = 1; p.f = 1;
   if (r.died) { p.alive = false; p.health = 0; }
