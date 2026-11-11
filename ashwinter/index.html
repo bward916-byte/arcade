@@ -883,7 +883,7 @@ const Motion = (() => {
       // Light comes from the upper left of the screen. A "cylinder" gradient across a limb, an outline, and a woven texture make the flesh read as round.
       const LX = -.6, LY = -.8;
       const cyl = (x0, y0, x1, y1, col) => { const g = ctx.createLinearGradient(x0, y0, x1, y1); g.addColorStop(0, shade(col, .62)); g.addColorStop(.3, shade(col, 1.12)); g.addColorStop(.55, col); g.addColorStop(1, shade(col, .55)); return g; };
-      const outline = col => { ctx.strokeStyle = shade(col, .45); ctx.lineWidth = .9; ctx.stroke(); };
+      const outline = col => { };   // no ink line round each part: the shading alone carries the form
       const weave = Character.weave(ctx);
       const texture = () => { };   // plain cloth: no weave
       // a tapered capsule between two joints: the basic unit of flesh
@@ -1119,8 +1119,8 @@ function lookFor(a) {
   else if (!a.zombie) lk = { hat: pk(['none', 'none', 'cap', 'beanie', 'hood', 'bandana']), hair: pk(['short', 'short', 'long', 'none']), face: pk(['plain', 'plain', 'stubble', 'beard', 'glasses']), coat: r() < .5, scarf: r() < .4, build: pk(Motion.Character.BUILDS.slice(0, 4)), bag: pk(['none', 'backpack', 'handbag', 'none']), bagCol: pk(BAGC),
     cols: { cloth: pk(SHIRTS), clothDark: pk(PANTS), coat: pk(COATS), scarf: pk(SCARFS), hair: pk(HAIRS_C), skin: pk(SKINS), shoe: pk(SHOES) } };
   else {   // raiders: hooded, masked, dark worn clothes, a heavy walk
-    lk = { hat: pk(['hood', 'hood', 'bandana', 'beanie', 'cap', 'none']), hair: pk(['short', 'short', 'none', 'long']), face: pk(['plain', 'stubble', 'beard', 'stubble']), coat: r() < .7, scarf: r() < .55, build: pk(Motion.Character.BUILDS.slice(0, 4)), bag: r() < .3 ? 'backpack' : 'none', bagCol: '#3a3a2a',
-      cols: { cloth: shadeHex(pk(SHIRTS), .45 + r() * .25), clothDark: shadeHex(pk(PANTS), .7), coat: shadeHex(pk(COATS), .6 + r() * .2), scarf: pk(['#5a1f1f', '#2a2a2a', '#4a3a2a']), hair: pk(HAIRS_C), skin: pk(SKINS), shoe: pk(SHOES) } };
+    lk = { hat: pk(['hood', 'bandana', 'beanie', 'cap', 'none', 'none']), hair: pk(['short', 'long', 'none', 'short']), face: pk(['plain', 'stubble', 'beard', 'glasses', 'plain']), coat: r() < .55, scarf: r() < .45, build: pk(Motion.Character.BUILDS), bag: pk(['none', 'none', 'backpack', 'handbag']), bagCol: pk(['#3a3a2a', '#4a3a2a', '#2f3a44']),
+      cols: { cloth: shadeHex(pk(SHIRTS), .55 + r() * .4), clothDark: shadeHex(pk(PANTS), .65 + r() * .35), coat: shadeHex(pk(COATS), .6 + r() * .4), scarf: pk(['#5a1f1f', '#2a2a2a', '#4a3a2a', '#2f4a3a', '#3a3a5a']), hair: pk(HAIRS_C), skin: pk(SKINS), shoe: pk(SHOES) } };
     a.zt = { lean: .03 + r() * .07, head: .02 + r() * .05, pace: .9 + r() * .3 }; a.wpn = pk(['bat', 'bat', 'knife', 'crowbar']);
   }
   if (!a.zombie) a.st = { lean: -.03 + r() * .08, head: -.06 + r() * .12, pace: .9 + r() * .2 };
@@ -1442,23 +1442,22 @@ const ITEMS = {
 const ITEM_ORDER = ['wood', 'scrap', 'parts', 'cloth', 'water', 'canned', 'raw', 'meal', 'bandage', 'meds', 'fuel', 'books', 'ammo', 'lockpick', 'shovel', 'crowbar', 'knife', 'bat', 'pistol', 'rifle', 'backpack'];
 
 // workbench recipes: id, icon, cost, result ('build' = house upgrade)
-const RECIPES = [
-  { id: 'stove', icon: 'stove', cost: { scrap: 5, parts: 2 }, build: true, dur: 14 },
-  { id: 'collector', icon: 'collector', cost: { scrap: 4, cloth: 2, parts: 1 }, build: true, dur: 14 },
-  { id: 'bed', icon: 'bed', cost: { wood: 8, cloth: 3 }, build: true, dur: 16 },
-  { id: 'radio', icon: 'radio', cost: { parts: 3, scrap: 2 }, build: true, dur: 12 },
-  { id: 'trap', icon: 'trap', cost: { scrap: 6, parts: 1 }, build: true, dur: 12 },
-  { id: 'shovel', icon: 'shovel', cost: { wood: 2, scrap: 3 }, give: 'shovel', dur: 8 },
-  { id: 'crowbar', icon: 'crowbar', cost: { scrap: 4, parts: 1 }, give: 'crowbar', dur: 8 },
-  { id: 'lockpick', icon: 'lockpick', cost: { parts: 2 }, give: 'lockpick', dur: 6 },
-  { id: 'knife', icon: 'knife', cost: { scrap: 2, cloth: 1 }, give: 'knife', dur: 6 },
-  { id: 'bat', icon: 'bat', cost: { wood: 3, cloth: 1 }, give: 'bat', dur: 6 },
-  { id: 'bandage', icon: 'bandage', cost: { cloth: 2, water: 1 }, give: 'bandage', dur: 5 },
-  { id: 'backpack', icon: 'backpack', cost: { cloth: 4, scrap: 1 }, give: 'backpack', dur: 8 }
+const RECIPES = [   // three materials only: wood, scrap, parts
+  { id: 'stove', icon: 'stove', cost: { scrap: 3, parts: 1 }, build: true, dur: 14 },
+  { id: 'collector', icon: 'collector', cost: { scrap: 3 }, build: true, dur: 14 },
+  { id: 'bed', icon: 'bed', cost: { wood: 4 }, build: true, dur: 16 },
+  { id: 'radio', icon: 'radio', cost: { parts: 2 }, build: true, dur: 12 },
+  { id: 'trap', icon: 'trap', cost: { scrap: 3, parts: 1 }, build: true, dur: 12 },
+  { id: 'shovel', icon: 'shovel', cost: { wood: 1, scrap: 1 }, give: 'shovel', dur: 8 },
+  { id: 'crowbar', icon: 'crowbar', cost: { scrap: 2 }, give: 'crowbar', dur: 8 },
+  { id: 'lockpick', icon: 'lockpick', cost: { parts: 1 }, give: 'lockpick', dur: 6 },
+  { id: 'knife', icon: 'knife', cost: { scrap: 1 }, give: 'knife', dur: 6 },
+  { id: 'bat', icon: 'bat', cost: { wood: 2 }, give: 'bat', dur: 6 },
+  { id: 'backpack', icon: 'backpack', cost: { scrap: 2 }, give: 'backpack', dur: 8 }
 ];
-const COOK = { cost: { raw: 2, water: 1, fuel: 1 }, give: { meal: 2 }, dur: 10 };
-const BOARD_COST = { wood: 3, scrap: 1 };   // per barricade level
-const REPAIR_COST = { wood: 2 };
+const COOK = { cost: { canned: 1, water: 1 }, give: { meal: 2 }, dur: 10 };
+const BOARD_COST = { wood: 2 };   // per barricade level
+const REPAIR_COST = { wood: 1 };
 
 // shelter: 3 floors. floor 0 = cellar (y 0), 1 = ground, 2 = upper.  y increases downward; floor index increases upward.
 const FLOOR_H = 150, HOUSE_X0 = 60, HOUSE_X1 = 1340, GROUND_Y = 420; // ground floor floor-line
@@ -1482,17 +1481,17 @@ const BARRICADES = [
 ];
 // hotspots in the shelter: id, floor, x, type, uses, loot table (per use), tool (optional, speeds or required)
 const SHELTER_SPOTS = [
-  { id: 'sofa', f: 1, x: 300, type: 'search', uses: 2, loot: [['cloth', 2], ['books', 1]] },
-  { id: 'cab1', f: 1, x: 600, type: 'search', uses: 3, loot: [['canned', 1], ['water', 1], ['raw', 1]] },
-  { id: 'fridge', f: 1, x: 820, type: 'search', uses: 2, loot: [['raw', 2], ['water', 1]] },
+  { id: 'sofa', f: 1, x: 300, type: 'search', uses: 2, loot: [['scrap', 1]] },
+  { id: 'cab1', f: 1, x: 600, type: 'search', uses: 3, loot: [['canned', 1], ['water', 1], ['canned', 1]] },
+  { id: 'fridge', f: 1, x: 820, type: 'search', uses: 2, loot: [['canned', 1], ['water', 1]] },
   { id: 'rubble1', f: 1, x: 1060, type: 'dig', uses: 4, loot: [['wood', 2], ['scrap', 2]] },
   { id: 'garshelf', f: 1, x: 1200, type: 'search', uses: 3, loot: [['parts', 2], ['scrap', 1], ['fuel', 1]] },
-  { id: 'dresser', f: 2, x: 130, type: 'search', uses: 2, loot: [['cloth', 2], ['bandage', 1]] },
+  { id: 'dresser', f: 2, x: 130, type: 'search', uses: 2, loot: [['scrap', 1], ['bandage', 1]] },
   { id: 'medcab', f: 2, x: 600, type: 'search', uses: 2, loot: [['bandage', 1], ['meds', 1], ['water', 1]] },
   { id: 'rubble2', f: 2, x: 900, type: 'dig', uses: 4, loot: [['wood', 3], ['scrap', 1], ['parts', 1]] },
-  { id: 'desk', f: 2, x: 1180, type: 'search', uses: 2, loot: [['books', 2], ['parts', 1], ['lockpick', 1]] },
+  { id: 'desk', f: 2, x: 1180, type: 'search', uses: 2, loot: [['parts', 1], ['lockpick', 1]] },
   { id: 'rubble3', f: 0, x: 1140, type: 'dig', uses: 5, loot: [['wood', 2], ['scrap', 2], ['parts', 1]] },
-  { id: 'crates', f: 0, x: 1265, type: 'search', uses: 3, loot: [['canned', 1], ['fuel', 1], ['cloth', 1]] },
+  { id: 'crates', f: 0, x: 1265, type: 'search', uses: 3, loot: [['canned', 1], ['fuel', 1]] },
   { id: 'storeshelf', f: 0, x: 400, type: 'search', uses: 4, loot: [['canned', 2], ['water', 2], ['fuel', 1], ['parts', 1]] },
   { id: 'rubble4', f: 0, x: 200, type: 'dig', uses: 4, loot: [['wood', 3], ['scrap', 3]] },
   // built / fixed stations
@@ -1518,14 +1517,14 @@ const TRAIT_DESC = { handy: 'crafts fast', runner: 'carries more, runs fast', me
 
 // scavenge locations
 const LOCATIONS = [
-  { id: 'market', day: 1, name: 'Corner Market', x: .22, y: .30, danger: 1, floors: 1, loot: ['canned', 'canned', 'water', 'raw', 'raw', 'cloth', 'books'], locked: 1 },
-  { id: 'flats', day: 1, name: 'Burnt Flats', x: .40, y: .20, danger: 2, floors: 3, loot: ['cloth', 'wood', 'books', 'canned', 'water', 'bandage', 'scrap'], locked: 1 },
+  { id: 'market', day: 1, name: 'Corner Market', x: .22, y: .30, danger: 1, floors: 1, loot: ['canned', 'canned', 'water', 'canned', 'canned', 'scrap', 'wood'], locked: 1 },
+  { id: 'flats', day: 1, name: 'Burnt Flats', x: .40, y: .20, danger: 2, floors: 3, loot: ['scrap', 'wood', 'wood', 'canned', 'water', 'bandage', 'scrap'], locked: 1 },
   { id: 'hardware', day: 2, name: 'Hardware Store', x: .62, y: .28, danger: 2, floors: 2, loot: ['scrap', 'parts', 'parts', 'wood', 'fuel', 'crowbar', 'shovel', 'rifle', 'ammo'], locked: 2 },
-  { id: 'pharmacy', day: 3, name: 'Pharmacy', x: .78, y: .42, danger: 3, floors: 1, loot: ['meds', 'meds', 'bandage', 'bandage', 'water', 'cloth'], locked: 1 },
-  { id: 'school', day: 5, name: 'Flooded School', x: .30, y: .58, danger: 3, floors: 2, loot: ['books', 'cloth', 'canned', 'water', 'parts', 'scrap', 'raw'], locked: 1 },
+  { id: 'pharmacy', day: 3, name: 'Pharmacy', x: .78, y: .42, danger: 3, floors: 1, loot: ['meds', 'meds', 'bandage', 'bandage', 'water', 'scrap'], locked: 1 },
+  { id: 'school', day: 5, name: 'Flooded School', x: .30, y: .58, danger: 3, floors: 2, loot: ['wood', 'scrap', 'canned', 'water', 'parts', 'scrap', 'canned'], locked: 1 },
   { id: 'station', day: 7, name: 'Gas Station', x: .55, y: .62, danger: 3, floors: 1, loot: ['fuel', 'fuel', 'fuel', 'canned', 'scrap', 'parts', 'ammo'], locked: 1 },
   { id: 'police', day: 9, name: 'Police Post', x: .80, y: .70, danger: 4, floors: 2, loot: ['pistol', 'rifle', 'ammo', 'ammo', 'bat', 'bandage', 'parts', 'meds'], locked: 2 },
-  { id: 'hospital', day: 12, name: 'St. Brigid Hospital', x: .50, y: .84, danger: 5, floors: 3, loot: ['meds', 'meds', 'meds', 'bandage', 'bandage', 'water', 'cloth', 'parts'], locked: 2 }
+  { id: 'hospital', day: 12, name: 'St. Brigid Hospital', x: .50, y: .84, danger: 5, floors: 3, loot: ['meds', 'meds', 'meds', 'bandage', 'bandage', 'water', 'scrap', 'parts'], locked: 2 }
 ];
 
 // dawn events: icon, text, choices [{label icon, cost?, effect}]
@@ -1832,7 +1831,7 @@ function drawPortrait(a, x, y, r) {
 // zombie factory
 function makeZombie(x, f, rng) {
   const r = rng || Math.random;
-  return { zombie: true, x, fy: f, f, facing: r() < .5 ? -1 : 1, walkPhase: r() * 6, path: null, moving: false, state: 'idle', hp: 3, t: r() * 5, alert: 0, attackT: 0, coat: pick(['#3d3a35', '#4a3b3b', '#35403a', '#4b4335']), hurtT: 0, alive: true, scale: .98 + r() * .06 };
+  return { zombie: true, id: 'r' + Math.floor(r() * 1e9) + '_' + Math.round(x), x, fy: f, f, facing: r() < .5 ? -1 : 1, walkPhase: r() * 6, path: null, moving: false, state: 'idle', hp: 3, t: r() * 5, alert: 0, attackT: 0, coat: pick(['#3d3a35', '#4a3b3b', '#35403a', '#4b4335']), hurtT: 0, alive: true, scale: .9 + r() * .2 };
 }
 
 // ---- 40_render.js ----
@@ -2175,9 +2174,9 @@ function makeSite(loc, day) {
     for (let i = 0; i < n; i++) {
       const x = room.x0 + 60 + (i + .5) * (w - 120) / n + (r() - .5) * 40; if (room.f === 0 && x < x0 + 120) continue;
       const pt = propTypes[Math.floor(r() * propTypes.length)]; const loot = [];
-      const k = 2 + Math.floor(r() * 3) + (room.locked ? 2 : 0);
+      const k = 1 + Math.floor(r() * 2) + (room.locked ? 1 : 0);
       for (let j = 0; j < k; j++) { const it = loc.loot[Math.floor(r() * loc.loot.length)]; const e = loot.find(o => o.id === it); if (e && !ITEMS[it].tool) e.n++; else if (!loot.find(o => o.id === it)) loot.push({ id: it, n: 1 }); }
-      if (r() < .25) loot.push({ id: ['wood', 'scrap', 'cloth', 'parts'][Math.floor(r() * 4)], n: 1 + Math.floor(r() * 3) });
+      if (r() < .2 && loot.length < 2) loot.push({ id: ['wood', 'scrap', 'parts'][Math.floor(r() * 3)], n: 1 });
       props.push({ f: room.f, x, t: pt }); spots.push({ id: 's' + (sid++), f: room.f, x, type: 'search', uses: 1, left: 1, lootList: loot, dur: 3 + r() * 2 });
     }
     if (r() < .55 && w > 240) { const hx = room.x0 + 30 + r() * (w - 60); if (!spots.some(s => s.f === room.f && Math.abs(s.x - hx) < 60)) hides.push({ f: room.f, x: hx }); }
@@ -2186,7 +2185,7 @@ function makeSite(loc, day) {
   if (!hides.length) hides.push({ f: 0, x: x0 + 200 });
   const world = new World({ x0, x1, nFloors: nF, rooms, stairs, spots, props, hides, site: loc });
   // zombies
-  const zombies = []; const nz = loc.danger + 1 + Math.floor(day / 6);
+  const zombies = []; const nz = Math.max(1, Math.round((loc.danger + 1 + Math.floor(day / 6)) * .45));
   for (let i = 0; i < nz; i++) { const room = rooms[Math.floor(r() * rooms.length)]; let zx = room.x0 + 40 + r() * (room.x1 - room.x0 - 80); if (room.f === 0 && zx < x0 + 320) zx = x0 + 320 + r() * 100; zombies.push(makeZombie(zx, room.f, r)); }
   return { world, zombies };
 }
@@ -2280,7 +2279,7 @@ function scUpdate(dt) {
       else {
         const s = tk.spot; tk.t += dt;
         if (s.type === 'exit') { p.task = null; leaveSite(); return; }
-        else if (s.type === 'search') { p.pose = 'search'; if (tk.t >= s.dur) { p.task = null; s.left = 0; SC.lootSpot = s; UI.modal = { kind: 'loot', spot: s }; AUDIO.sfx('open'); } }
+        else if (s.type === 'search') { p.pose = 'search'; if (tk.t >= (s.left > 0 ? s.dur : .7)) { p.task = null; s.left = 0; SC.lootSpot = s; UI.modal = { kind: 'loot', spot: s }; AUDIO.sfx('open'); } }
         else if (s.type === 'door') {
           const havePick = packCount(SC.pack, 'lockpick') > 0, haveBar = packCount(SC.pack, 'crowbar') > 0;
           const tool = s.tool === 'lockpick' ? (havePick ? 'lockpick' : haveBar ? 'crowbar' : null) : (haveBar ? 'crowbar' : havePick ? 'lockpick' : null);
@@ -2367,12 +2366,12 @@ function startTravel(surv) {
   }
   TR.ew = engStreet(TR.obstacles, GROUND_Y, 0, ST_END + 400); p.mc = null; p.mcT = null;
   // zombies: denser further out
-  for (let x = 500; x < ST_END; x += 180 + r() * 300) { if (r() < .12 + dest.danger * .1) { const z = makeZombie(x, 0, r); z.street = true; z.y = GROUND_Y; TR.zombies.push(z); } }
+  for (let x = 500; x < ST_END; x += 180 + r() * 300) { if (r() < .05 + dest.danger * .05) { const z = makeZombie(x, 0, r); z.street = true; z.y = GROUND_Y; TR.zombies.push(z); } }
   // decor
   for (let x = -300; x < ST_END + 600; x += 90 + r() * 200) TR.decor.push({ x, t: r() < .25 ? 'lamp' : r() < .5 ? 'wall' : r() < .75 ? 'fence' : 'junk', h: 60 + r() * 140, w: 60 + r() * 160, s: r() });
   // fires in oil drums, burning wrecks, and the people with nowhere else to be
   for (const x0f of [250, 520, 800, 1010, 1390]) { let x = x0f + r() * 40, ok = false; for (let k = 0; k < 5 && !ok; k++) { ok = !(Object.values(TR.locX).some(lx => Math.abs(lx - x) < 110) || TR.obstacles.some(o => Math.abs(o.x - x) < o.w / 2 + RAMP + 26)); if (!ok) x += 55; } if (!ok) continue; TR.fires.push({ x, s: r() });
-    const n = r() < .75 ? (r() < .4 ? 2 : 1) : 0; for (let i = 0; i < n; i++) { const side = i ? 1 : -1; TR.drifters.push({ drifter: true, street: true, name: 'drifter' + G.day + '_' + Math.round(x) + i, x: x + side * (30 + r() * 8), y: GROUND_Y, facing: -side, pose: 'warm', alive: true, fed: false, scale: .94 + r() * .1 }); } }
+    const n = r() < .3 ? 1 : 0; for (let i = 0; i < n; i++) { const side = i ? 1 : -1; TR.drifters.push({ drifter: true, street: true, name: 'drifter' + G.day + '_' + Math.round(x) + i, x: x + side * (30 + r() * 8), y: GROUND_Y, facing: -side, pose: 'warm', alive: true, fed: false, scale: .94 + r() * .1 }); } }
   for (const o of TR.obstacles) if ((o.t === 'car' || o.t === 'bus') && r() < .45) o.fire = true;
   G.flags['v_' + dest.id] = true;
   G.nightT = NIGHT_TOTAL; G.phase = 'travel'; cam.lock = true; cam.bounds = { x0: -400, x1: ST_END + 400, y0: -400, y1: GROUND_Y + 300 };
@@ -2679,7 +2678,7 @@ function homeMsg(text, icon, color) { G.msg = text; G.msgIcon = icon; G.msgColor
 
 function spotInfo(s) {
   switch (s.type) {
-    case 'search': return s.left > 0 ? { icon: 'search' } : null;
+    case 'search': return s.left > 0 || (s.lootList && s.lootList.length) ? { icon: 'search' } : null;
     case 'dig': return s.left > 0 ? { icon: 'shovel', badgeIcon: G.inv.shovel ? undefined : 'shovel', disabled: false } : null;
     case 'door': if (s.room.open) return null; { const ok = G.inv.crowbar > 0 || G.inv.lockpick > 0; return { icon: 'lock', badgeIcon: s.tool, disabled: !ok }; }
     case 'bench': return { icon: 'craft' };
@@ -2716,7 +2715,7 @@ function drawSurvivorPanel(s) {
   const act = (icon, n, fn, badgeColor) => { iconButton(ax + 24, ay + 12, 48, icon, n > 0 ? fn : null, { badge: n, disabled: n <= 0, badgeColor }); ax += 60; };
   act('meal', G.inv.meal || 0, () => eat(s, 'meal'));
   act('canned', G.inv.canned || 0, () => eat(s, 'canned'));
-  act('raw', G.inv.raw || 0, () => eat(s, 'raw'));
+  if (G.inv.raw > 0) act('raw', G.inv.raw || 0, () => eat(s, 'raw'));
   act('bandage', G.inv.bandage || 0, () => { if (!s.wounded && s.health >= 90) { homeMsg('not needed', 'bandage'); return; } G.inv.bandage--; s.wounded = false; s.health = Math.min(100, s.health + (s.trait === 'medic' ? 30 : 15)); s.say = 'heal'; s.sayT = 2; AUDIO.sfx('done'); });
   act('meds', G.inv.meds || 0, () => { if (!s.infected) { homeMsg('not infected', 'meds'); return; } G.inv.meds--; s.infected = false; s.health = Math.min(100, s.health + 10); s.say = 'meds'; s.sayT = 2; AUDIO.sfx('done'); }, s.infected ? GREEN : undefined);
   if (s.infected) { drawIcon('infected', x + w - 30, ay + 12, 26, GREEN); }
@@ -2785,7 +2784,7 @@ function drawEvent() {
 const RECIPE_INFO = { stove: ['Stove', 'Heat for the house and somewhere to cook. Burns wood or fuel.'], collector: ['Rain collector', 'Fills with water when it rains or snows.'], bed: ['Second bed', 'One more survivor sleeps properly each night.'], radio: ['Radio', 'Lifts spirits once a day. Sometimes there is news.'], trap: ['Door trap', 'Stops one intruder in every raid.'],
   shovel: ['Shovel', 'Clears debris nine times faster.'], crowbar: ['Crowbar', 'Forces locked doors and never breaks. Noisy outside.'], lockpick: ['Lockpick', 'Opens locked doors quietly. Can snap.'], knife: ['Knife', 'A light weapon for the scavenger or the guard.'], bat: ['Bat', 'Hits harder than a knife and knocks them back.'], bandage: ['Bandage', 'Treats a wound and restores health.'], backpack: ['Backpack', 'Two more slots when scavenging.'] };
 // what can be made is learned over the days, a few things at a time
-const RECIPE_DAY = { shovel: 1, bandage: 1, knife: 1, stove: 1, crowbar: 2, bat: 2, bed: 3, lockpick: 3, collector: 4, backpack: 5, radio: 6, trap: 8 };
+const RECIPE_DAY = { shovel: 1, knife: 1, stove: 1, crowbar: 2, bat: 2, bed: 3, lockpick: 3, collector: 4, backpack: 5, radio: 6, trap: 8 };
 const recipeOpen = rc => (RECIPE_DAY[rc.id] || 1) <= G.day;
 function wrapLines(str, maxW, max) { const words = str.split(' '), out = []; let cur = ''; for (const wd of words) { const t = cur ? cur + ' ' + wd : wd; if (ctx.measureText(t).width > maxW && cur) { out.push(cur); cur = wd; } else cur = t; } if (cur) out.push(cur); return out.slice(0, max || 3); }
 function drawCraft() {
@@ -2835,7 +2834,7 @@ function drawScavHud(dt) {
   if (!SC.done) {
     for (const s of w.spots) {
       let icon = null, opts = {};
-      if (s.type === 'search' && s.left > 0) icon = 'search';
+      if (s.type === 'search' && (s.left > 0 || (s.lootList && s.lootList.length))) icon = 'search';
       else if (s.type === 'door' && !s.room.open) { icon = 'lock'; opts.badgeIcon = s.tool; opts.disabled = !(packCount(SC.pack, 'lockpick') || packCount(SC.pack, 'crowbar')); }
       else if (s.type === 'exit') { icon = 'exit'; opts.hl = true; }
       if (!icon) continue;
@@ -3008,7 +3007,7 @@ function homeCam() { const w = G.world; fitCam({ x0: w.x0 - 120, x1: w.x1 + 120,
 let PREVIEW = false;
 function startPreview(id) {
   PREVIEW = true; UI.areaPick = false; newGame(); UI.modal = null; G.day = 12; Object.assign(G.inv, { bat: 1, rifle: 1, ammo: 6, lockpick: 2, crowbar: 1 });
-  const s = G.survivors[0]; G.plan = { [s.name]: 'scav' }; G.planLoc = id; beginNight(); TR.x = 1040; s.x = 1040; s.mc = null;
+  const s = G.survivors[0]; G.plan = { [s.name]: 'scav' }; G.planLoc = id; beginNight(); TR.x = TR.locX[id]; s.x = TR.x; s.mc = null; trEnter(TR.dest);   // straight in, at the door on the far left
 }
 function endPreview() { PREVIEW = false; TR.active = false; SC.active = false; TR.done = true; UI.modal = null; cam.lock = false; UI.titleZ = null; G.phase = 'title'; }
 function drawPreviewBar() { ctx.fillStyle = 'rgba(14,15,18,.8)'; rr(8, 8, 150, 34, 8); ctx.fill(); ctx.strokeStyle = GOLD; ctx.lineWidth = 1; rr(8, 8, 150, 34, 8); ctx.stroke(); txt('EXIT PREVIEW', 83, 26, 13, GOLD); UI.btn(8, 8, 150, 34, () => endPreview()); txt('cannot be hurt · no time limit', 12, 54, 11, DIM, 'left'); }
@@ -3081,7 +3080,7 @@ function placeAt(wx, f) {
 }
 function homeUseSpot(spot) {
   const s = G.survivors[G.sel]; if (!s || !s.alive) return; const w = G.world; const info = spotInfo(spot); if (!info) return;
-  if (info.disabled) { if (spot.type === 'door') homeMsg('need ' + ITEMS[spot.tool].n.toLowerCase(), spot.tool, RED); else if (spot.type === 'stove') homeMsg('2 raw + water + fuel', 'cook', RED); else if (spot.type === 'fire') homeMsg(fireLeft() > 12 ? 'stove is full' : 'need 2 wood or 1 fuel', 'fire', RED); else if (spot.type === 'collector') homeMsg('empty · wait for rain', 'water', RED); else if (spot.type === 'radio') homeMsg('already listened today', 'radio', RED); return; }
+  if (info.disabled) { if (spot.type === 'door') homeMsg('need ' + ITEMS[spot.tool].n.toLowerCase(), spot.tool, RED); else if (spot.type === 'stove') homeMsg('needs a can and water', 'cook', RED); else if (spot.type === 'fire') homeMsg(fireLeft() > 12 ? 'stove is full' : 'need 2 wood or 1 fuel', 'fire', RED); else if (spot.type === 'collector') homeMsg('empty · wait for rain', 'water', RED); else if (spot.type === 'radio') homeMsg('already listened today', 'radio', RED); return; }
   let path;
   if (spot.type === 'dig') { const side = Math.sign(s.x - spot.x) || -1, off = RUB_W + 10; path = w.path(s.x, s.f, spot.x + side * off, spot.f) || w.path(s.x, s.f, spot.x - side * off, spot.f); }   // work from whichever side of the pile can be reached
   else if (spot.type === 'search') { const side = Math.sign(s.x - spot.x) || -1; path = w.path(s.x, s.f, spot.x + side * 20, spot.f) || w.path(s.x, s.f, spot.x - side * 20, spot.f) || w.path(s.x, s.f, spot.x, spot.f); }
@@ -3089,7 +3088,7 @@ function homeUseSpot(spot) {
   if (!path) { if (w.blockedByDebris(s.x, s.f, spot.x, spot.f)) homeMsg('debris in the way', 'shovel', RED); else homeMsg('locked', 'lock', RED); const far = w.pathFar(s.x, s.f, spot.x, spot.f); if (far) { s.task = null; s.path = far; } return; }
   // another survivor already working there?
   if (G.survivors.some(o => o !== s && o.alive && o.task && o.task.spot === spot && spot.type !== 'bed')) { homeMsg('busy', 'people'); return; }
-  const dur = { fire: 3, search: 8, dig: digDur(spot), door: 5, bed: 20, radio: 8, collector: 3, stove: COOK.dur, bench: 0 }[spot.type] || 5;
+  const dur = { fire: 3, search: spot.left > 0 ? 8 : 1, dig: digDur(spot), door: 5, bed: 20, radio: 8, collector: 3, stove: COOK.dur, bench: 0 }[spot.type] || 5;
   s.path = path; s.task = { spot, kind: spot.type, t: 0, dur };
   if (spot.type === 'stove') { pay(COOK.cost); }
   AUDIO.sfx('tap');
@@ -3102,9 +3101,10 @@ function homeUseBarricade(b) {
   s.path = path; s.task = { bar: b, kind, t: 0, dur: kind === 'repair' ? 6 : 9 }; AUDIO.sfx('tap');
 }
 function digDur(spot) { return (G.inv.shovel ? 4 : 34) * (spot.uses || 4); }   // one job: quick with a shovel, a very long haul by hand
-function giveLoot(spot, s) {   // one search turns out everything the place holds
+function giveLoot(spot, s) {   // one search turns out everything the place holds; what is left behind stays there
+  if (spot.left <= 0 && spot.lootList && spot.lootList.length) { AUDIO.sfx('open'); UI.modal = { kind: 'loot', spot, home: true, scroll: 0 }; return; }
   const list = [], u = spot.uses || 1;
-  for (const [id, n] of spot.loot) { if (Math.random() > .8 && list.length) continue; let got = Math.max(1, Math.round(n * u * rnd(.45, .75))); if (ITEMS[id].tool) { if (G.inv[id] > 0) { const e = list.find(q => q.id === 'scrap'); if (e) e.n++; else list.push({ id: 'scrap', n: 1 }); continue; } got = 1; } const e = list.find(q => q.id === id); if (e) e.n += got; else list.push({ id, n: got }); }
+  for (const [id, n] of spot.loot) { if (list.length >= 2 || (Math.random() > .8 && list.length)) continue; let got = Math.max(1, Math.round(n * u * rnd(.3, .5))); if (ITEMS[id].tool) { if (G.inv[id] > 0) { const e = list.find(q => q.id === 'scrap'); if (e) e.n++; else list.push({ id: 'scrap', n: 1 }); continue; } got = 1; } const e = list.find(q => q.id === id); if (e) e.n += got; else list.push({ id, n: got }); }
   spot.lootList = list; AUDIO.sfx('open'); UI.modal = { kind: 'loot', spot, home: true, scroll: 0 };
 }
 function updateHome(dt) {
@@ -3150,7 +3150,7 @@ function updateHome(dt) {
     if (tk && tk.t >= tk.dur && tk.kind !== 'bench') {
       const sp = tk.spot;
       switch (tk.kind) {
-        case 'search': case 'dig': giveLoot(sp, s); sp.left--; if (sp.left <= 0) { s.task = null; } else tk.t = 0; break;
+        case 'search': case 'dig': giveLoot(sp, s); sp.left = Math.max(0, sp.left - 1); s.task = null; break;
         case 'door': sp.room.open = true; s.task = null; AUDIO.sfx('done'); if (!G.inv.crowbar && Math.random() < .3) { G.inv.lockpick--; homeMsg('lockpick snapped', 'lockpick', RED); } break;
         case 'bed': s.task = null; s.morale = clamp(s.morale + 5, 0, 100); break;
         case 'radio': s.task = null; G.flags.radioToday = true; for (const o of G.survivors) if (o.alive) o.morale = clamp(o.morale + 10, 0, 100); s.say = 'heart'; s.sayT = 2; if (!G.flags.heardRadio && G.day >= 2) { G.flags.heardRadio = true; homeMsg('Voices on the radio · you are not alone', 'radio', GOLD); } break;
@@ -3316,7 +3316,7 @@ function frame(now) {
       if (G.phase === 'day' && (!UI.modal || UI.modal.kind === 'craft')) updateHome(dt); else if (G.phase === 'raid') updateRaid(dt); else _T += dt;
       if (G.phase === 'raid' && !G.raid) break;
       const hour = G.phase === 'raid' ? 2 : G.phase === 'plan' ? 20 : G.phase === 'event' ? 8 : G.phase === 'dawn' ? 6.5 : G.hour;
-      if (!G.homeDrifters || G.homeDrifters.day !== G.day) { const w = G.world; G.homeDrifters = { day: G.day, list: [{ drifter: true, name: 'yard' + G.day + 'a', x: w.x0 - 222, fy: 1, f: 1, facing: 1, pose: 'warm', alive: true, scale: .97 }].concat(G.day % 3 ? [{ drifter: true, name: 'yard' + G.day + 'b', x: w.x0 - 160, fy: 1, f: 1, facing: -1, pose: 'warm', alive: true, scale: 1 }] : []) }; }
+      if (!G.homeDrifters || G.homeDrifters.day !== G.day) { const w = G.world; G.homeDrifters = { day: G.day, list: G.day % 3 === 2 ? [{ drifter: true, name: 'yard' + G.day + 'a', x: w.x0 - 222, fy: 1, f: 1, facing: 1, pose: 'warm', alive: true, scale: .97 }] : [] }; }
       let actors = G.survivors.concat(G.homeDrifters.list), lights = homeLights(hour);
       if (G.phase === 'raid') { const R = G.raid, w = G.world; actors = G.survivors.concat(R.zs).concat(R.side < 0 ? [] : G.homeDrifters.list); lights = lights.filter(l => l.c !== '255,185,110'); for (const g of R.info.guards) if (g.alive) lights.push({ x: g.x + R.side * 30, y: w.fy2y(1) - 60, r: 230, a: .7, c: '255,200,130' }); lights.push({ x: R.edge + R.side * 150, y: w.fy2y(1) - 60, r: 460, a: .5, c: '150,170,220' }); lights.push({ x: (R.inner + R.edge) / 2, y: w.fy2y(1) - 70, r: 420, a: .3, c: '150,170,220' }); if (R.shake > 0) { cam.x = cam.tx + rnd(-2, 2) * R.shake; } }
       else if (G.phase === 'event' && G.visitor) { actors = G.survivors.concat([G.visitor]).concat(G.homeDrifters.list); lights.push({ x: G.visitor.x, y: G.world.fy2y(1) - 60, r: 170, a: .55, c: '200,210,230' }); }
