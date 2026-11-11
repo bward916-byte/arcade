@@ -536,7 +536,9 @@ const Motion = (() => {
     eat: (t) => { const q = (Math.sin(t * 4) + 1) / 2; return pose({ torso: .05, head: .1 + .1 * q, ua2: .7 + .3 * q, la2: 2.4, ua1: .3, la1: 1.2 }); },
     hold: (t) => { const b = Math.sin(t * 1.6); return pose({ torso: .06 + .02 * b, ua2: .65, la2: 1.3, ua1: .45, la1: 1.4, ul2: .2, ll2: .2, ul1: -.2, ll1: .15 }); },   // weapon ready
     swing: (t, c) => { const k = c.poseK || 0; return pose({ torso: .1 + .3 * k, head: -.1, hx: 4 * k, ua2: -1.5 + 2.8 * k, la2: .3, ua1: .5, la1: .9, ul2: .3 + .3 * k, ll2: .3, ul1: -.3 - .3 * k, ll1: .25 }); },
-    climb: (t, c) => { const k = c.poseK || 0, s = Math.sin(k * TAU), q = Math.cos(k * TAU); return pose({ torso: .12, head: -.15, ua2: 2.55 + .3 * s, la2: .55 - .2 * s, ua1: 2.55 - .3 * s, la1: .55 + .2 * s, ul2: .75 + .45 * s, ll2: 1.25 + .35 * Math.max(0, s), ul1: .75 - .45 * s, ll1: 1.25 + .35 * Math.max(0, -s), f2: H - .2, f1: H - .2 }); },   // hand over hand, a knee up with each rung
+    climb: (t, c) => { const k = c.poseK || 0, s = Math.sin(k * TAU), q = Math.cos(k * TAU); return pose({ turn: -H, torso: .04, head: -.1, ua2: 2.55 + .3 * s, la2: .55 - .2 * s, ua1: 2.55 - .3 * s, la1: .55 + .2 * s, ul2: .75 + .45 * s, ll2: 1.25 + .35 * Math.max(0, s), ul1: .75 - .45 * s, ll1: 1.25 + .35 * Math.max(0, -s), f2: H - .2, f1: H - .2 }); },   // hand over hand, a knee up with each rung
+    kneelAim: (t) => { const b = Math.sin(t * 1.7) * .012; return pose({ torso: .16 + b, head: .04, ua2: 1.02 + b, la2: .5, ua1: .8, la1: .95, ul2: 1.25, ll2: 1.5, ul1: .1, ll1: 1.55, f1: H - .5, tf1: .5 }); },   // one knee down, elbow on the other, the rifle steady
+    aimP: (t) => { const b = Math.sin(t * 2.1) * .014; return pose({ torso: .12 + b, head: .05, ua2: 1.38 + b, la2: .16, ua1: 1.26 + b, la1: .34, ul2: .42, ll2: .5, ul1: -.36, ll1: .46 }); },   // both hands out, knees soft
     aimR: (t) => { const b = Math.sin(t * 1.9) * .015; return pose({ torso: .06 + b, head: .06, ua2: 1.15 + b, la2: .42, ua1: .95, la1: .85, ul2: .35, ll2: .35, ul1: -.32, ll1: .32 }); },   // rifle up at the shoulder
     brace: (t) => { const b = Math.sin(t * 3.1); return pose({ torso: .22 + .02 * b, head: -.08, ul2: .5, ll2: .6, ul1: -.38, ll1: .5, ua2: .95 + .05 * b, la2: 1.55, ua1: .75, la1: 1.7 }); },   // a fighter's stance: knees bent, feet apart, weapon up
     chop: (t, c) => { const k = c.poseK || 0, e = k * k * (3 - 2 * k); return pose({ torso: -.08 + .55 * e, head: -.1 + .1 * e, hx: 5 * e, ua2: 2.8 - 2.3 * e, la2: .55 - .35 * e, ua1: 2.6 - 2.0 * e, la1: .7 - .4 * e, ul2: .4 + .2 * e, ll2: .45, ul1: -.35 - .2 * e, ll1: .35 }); },   // overhead, down through the target
@@ -563,7 +565,7 @@ const Motion = (() => {
       [1, k => { k = ease(k); return pose({ torso: .15 * (1 - k), head: -.05 * (1 - k), ul2: lerp(.5, .02, k), ll2: lerp(.5, .06, k), ul1: lerp(.4, -.02, k), ll1: lerp(1.3, .06, k), f1: lerp(H - .2, H, k), ua2: lerp(.6, -.1, k), la2: lerp(.6, .25, k), ua1: lerp(.3, .12, k), la1: .25 }); }])
   };
   // States whose feet are planted on the terrain by IK (everything else sits on its lowest point)
-  const PLANTED = new Set(['idle', 'walk', 'run', 'crouch', 'guard', 'guardStep', 'fists', 'search', 'dig', 'hammer', 'cook', 'eat', 'hold', 'swing', 'brace', 'chop', 'upper', 'stab', 'shove', 'zombieIdle', 'zombieAttack', 'cross', 'rub', 'hips', 'stretch', 'look', 'read', 'warm', 'sit']);
+  const PLANTED = new Set(['idle', 'walk', 'run', 'crouch', 'guard', 'guardStep', 'fists', 'search', 'dig', 'hammer', 'cook', 'eat', 'hold', 'kneelAim', 'aimP', 'aimR', 'swing', 'brace', 'chop', 'upper', 'stab', 'shove', 'zombieIdle', 'zombieAttack', 'cross', 'rub', 'hips', 'stretch', 'look', 'read', 'warm', 'sit']);
 
   // --- Character: state machine + physics + blending ------------------------------------------
   // World: x in px, y = height of the feet above the base ground (px, up = +). The terrain decides the floor.
@@ -812,9 +814,19 @@ function drawHeadFront(hc){
       if(f.hat==='hood'){const c=f.coat;ctx.fillStyle=c;ctx.beginPath();M(-0.52,1.16);Q(-0.62,0.3,-0.36,-0.06);Q(0,-0.22,0.36,-0.06);Q(0.62,0.3,0.52,1.16);ctx.closePath();const e=P(0,0.56);ctx.ellipse(e[0],e[1],HH*0.3,HH*0.44,0,0,7);ctx.fill('evenodd');
         ctx.strokeStyle=shade(c,0.55);ctx.lineWidth=0.7;ctx.beginPath();ctx.ellipse(e[0],e[1],HH*0.3,HH*0.44,0,0,7);ctx.stroke();}
     }
+    function drawHeadBack() { const f = FL, P = (x, y) => [x * HH, (y - 0.5) * HH], bald = f.hairStyle === 'bald', col = bald ? f.skin : f.hair; ctx.save(); ctx.lineCap = 'round';
+      for (const sd of [-1, 1]) { const e = P(sd * 0.385, 0.56); ctx.fillStyle = shade(f.skin, 0.85); ctx.beginPath(); ctx.ellipse(e[0], e[1], HH * 0.045, HH * 0.12, sd * 0.15, 0, 7); ctx.fill(); }
+      if (f.hairStyle === 'long' || f.hairStyle === 'ponytail') { ctx.fillStyle = shade(f.hair, 0.8); ctx.beginPath(); const a = P(-0.42, 0.3), b = P(-0.36, 1.4), c = P(0.36, 1.4), d = P(0.42, 0.3); if (f.hairStyle === 'ponytail') { const t0 = P(-0.09, 0.4), t1 = P(0, 1.35), t2 = P(0.09, 0.4); ctx.moveTo(t0[0], t0[1]); ctx.quadraticCurveTo(t1[0] - HH * 0.1, t1[1], t1[0], t1[1]); ctx.quadraticCurveTo(t1[0] + HH * 0.1, t1[1], t2[0], t2[1]); } else { ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.lineTo(c[0], c[1]); ctx.lineTo(d[0], d[1]); } ctx.fill(); }
+      const c0 = P(0, 0.5), g = ctx.createRadialGradient(c0[0] - HH * 0.1, c0[1] - HH * 0.2, HH * 0.05, c0[0], c0[1], HH * 0.55); g.addColorStop(0, shade(col, 1.2)); g.addColorStop(0.6, shade(col, 1)); g.addColorStop(1, shade(col, 0.6)); ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(c0[0], c0[1] - HH * 0.02, HH * 0.385, HH * 0.5, 0, 0, 7); ctx.fill();
+      if (!bald) { ctx.strokeStyle = shade(f.hair, 1.5); ctx.lineWidth = 0.25; ctx.globalAlpha = 0.3; for (let i = 0; i < 9; i++) { const x = -0.3 + i * 0.075, a = P(x * 0.3, 0.02), b = P(x * 1.1, 0.5), c = P(x, 0.92); ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.quadraticCurveTo(b[0], b[1], c[0], c[1]); ctx.stroke(); } ctx.globalAlpha = 1;
+        ctx.fillStyle = shade(f.skin, 0.8); const n = P(0, 0.97); ctx.beginPath(); ctx.ellipse(n[0], n[1], HH * 0.2, HH * 0.07, 0, 0, Math.PI); ctx.fill(); }   // the nape under the hairline
+      const W = 0.37, M = (x, y) => { const p = P(x, y); ctx.moveTo(p[0], p[1]); }, Ln = (x, y) => { const p = P(x, y); ctx.lineTo(p[0], p[1]); }, B = (ax, ay, bx, by, x, y) => { const a = P(ax, ay), b = P(bx, by), p = P(x, y); ctx.bezierCurveTo(a[0], a[1], b[0], b[1], p[0], p[1]); };
+      if (f.hat === 'hood') { ctx.fillStyle = f.coat; ctx.beginPath(); M(-0.52, 1.16); B(-0.64, 0.2, -0.3, -0.2, 0, -0.2); B(0.3, -0.2, 0.64, 0.2, 0.52, 1.16); ctx.closePath(); ctx.fill(); ctx.strokeStyle = shade(f.coat, 0.6); ctx.lineWidth = 0.4; ctx.beginPath(); M(0, -0.18); Ln(0, 1.1); ctx.stroke(); }
+      else if (f.hat !== 'none') { const hc = f.hat === 'cap' ? shade(f.coat, 0.8) : f.hat === 'fedora' ? '#4a3b2c' : f.scarf; ctx.fillStyle = hc; ctx.beginPath(); M(-W - 0.03, 0.34); B(-W - 0.04, -0.18, W + 0.04, -0.18, W + 0.03, 0.34); ctx.closePath(); ctx.fill(); ctx.fillStyle = shade(hc, 0.75); ctx.fillRect(P(-W - 0.03, 0.28)[0], P(0, 0.28)[1], HH * (2 * W + 0.06), HH * 0.07); if (f.hat === 'fedora') { const c = P(0, 0.3); ctx.beginPath(); ctx.ellipse(c[0], c[1], HH * 0.66, HH * 0.06, 0, 0, 7); ctx.fill(); } }
+      ctx.restore(); }
     const CW = 200, CH = 240, OX = 90, OY = 98, SC = 5;
-    function sprite(fl, front, blink) { const key = (front ? 'f' : 's') + (blink ? 'b' : ''), cache = fl._sp || (fl._sp = {}); if (cache[key]) return cache[key];
-      const cv = document.createElement('canvas'); cv.width = CW; cv.height = CH; ctx = cv.getContext('2d'); FL = fl; BLINK = blink; ctx.translate(OX, OY); ctx.scale(SC, SC); front ? drawHeadFront([0, 0]) : drawHead([0, 0]); ctx = null; return cache[key] = cv; }
+    function sprite(fl, front, blink) { const key = front === 2 ? 'k' : (front ? 'f' : 's') + (blink ? 'b' : ''), cache = fl._sp || (fl._sp = {}); if (cache[key]) return cache[key];
+      const cv = document.createElement('canvas'); cv.width = CW; cv.height = CH; ctx = cv.getContext('2d'); FL = fl; BLINK = blink; ctx.translate(OX, OY); ctx.scale(SC, SC); front === 2 ? drawHeadBack() : front ? drawHeadFront([0, 0]) : drawHead([0, 0]); ctx = null; return cache[key] = cv; }
     return { sprite, rng, CW, CH, OX, OY, HHpx: HH * SC };
   })();
   const hex6 = c => c && c[0] === '#' && c.length === 4 ? '#' + c[1] + c[1] + c[2] + c[2] + c[3] + c[3] : c;
@@ -1239,7 +1251,7 @@ function drawHeadFront(hc){
       ctx.save(); smoothPath(shirt); ctx.clip();
       { const sc2 = shade(gcol, .6); fold(TF(23, 6.8), T(18, 4.5), TF(12, 6.3), sc2); fold(T(26, -1), T(20, 1), T(11, -.5), shade(gcol, .72)); fold(TF(10, 6.6), T(7.5, 4.8), TF(5, 6.4), sc2); fold(TB(6, -6.5), T(9, -3), TB(13, -6.2), sc2);
         ctx.strokeStyle = shade(gcol, .7); ctx.lineWidth = Math.max(.5, .5 * q); ctx.beginPath(); const pa = TF(33, 6.6), pb = TF(hem + 1, 6.8); ctx.moveTo(pa[0], pa[1]); ctx.lineTo(pb[0], pb[1]); ctx.stroke();   // the opening down the front
-        ctx.fillStyle = shade(gcol, 1.45); for (const [i, a] of [29, 22, 15, 8.5].entries()) if (!rag || (i + ms) % 3) { const b = TF(a, 6.4); ctx.beginPath(); ctx.arc(b[0], b[1], .6 * q, 0, 2 * PI); ctx.fill(); }   // a button or two gone
+        ctx.fillStyle = shade(gcol, 1.45); if (Math.sin(p.turn) > -.5) for (const [i, a] of [29, 22, 15, 8.5].entries()) if (!rag || (i + ms) % 3) { const b = TF(a, 6.4); ctx.beginPath(); ctx.arc(b[0], b[1], .6 * q, 0, 2 * PI); ctx.fill(); }   // a button or two gone
         const sb = TB(26, -5.5); ctx.fillStyle = 'rgba(0,0,0,.12)'; ctx.beginPath(); ctx.ellipse(sb[0], sb[1], 2.6 * q, 5.5 * q, 0, 0, 2 * PI); ctx.fill();
         if (look.mess) for (const mm of look.mess) { const c = T(4 + mm.along * 28, mm.side * 6), r0 = mm.r * q * 1.25;   // stains, a patch sewn on, a rip
           if (mm.k === 'stain') { ctx.fillStyle = 'rgba(20,14,8,' + mm.a + ')'; ctx.beginPath(); ctx.ellipse(c[0], c[1], r0, r0 * .7, mm.rot, 0, 2 * PI); ctx.fill(); }
@@ -1254,7 +1266,7 @@ function drawHeadFront(hc){
       if (look.scarf) { const sc0 = T(35, .4); ctx.fillStyle = cols.scarf; ctx.beginPath(); ctx.ellipse(sc0[0], sc0[1], 6.2 * q, 3.4 * q, Math.atan2(uS[0], -uS[1]), 0, 2 * PI); ctx.fill(); ctx.strokeStyle = shade(cols.scarf, .62); ctx.lineWidth = Math.max(.5, .5 * q); for (const o of [-2, 0, 2]) { const s1 = T(35 + o * .5, -5), s2 = T(35 - o * .4, 5.5); ctx.beginPath(); ctx.moveTo(s1[0], s1[1]); ctx.lineTo(s2[0], s2[1]); ctx.stroke(); } }   // wound round the neck
       chain(this.cloth.scarf, 3.4, 2.4, cols.scarf);
       // head: Stride's, stamped from the sprite for this face. Side on unless turned to face us; eyes shut to blink, sleep or die.
-      { const fl = faceOf(look, cols), fr = face > .72, shut = this.dead || this.hold === 'sleep' || ((this.time + fl.seed % 5) % 4.3) < .12, spr = StrideHead.sprite(fl, fr, shut), hs = 2 * L.head * S / StrideHead.HHpx * (1 + .05 * wt);
+      { const fl = faceOf(look, cols), bk = Math.sin(p.turn) < -.72, fr = bk ? 2 : face > .72, shut = this.dead || this.hold === 'sleep' || ((this.time + fl.seed % 5) % 4.3) < .12, spr = StrideHead.sprite(fl, fr, shut), hs = 2 * L.head * S / StrideHead.HHpx * (1 + .05 * wt);
         ctx.save(); ctx.translate(X(k.headC), Y(k.headC)); ctx.scale(this.facing * (fr || k.sx >= 0 ? 1 : -1), 1); ctx.rotate(p.rot + (p.torso + p.head) * .7); ctx.drawImage(spr, -StrideHead.OX * hs, -StrideHead.OY * hs, StrideHead.CW * hs, StrideHead.CH * hs); ctx.restore(); }
       for (const h of ['hair0', 'hair1', 'hair2']) chain(this.cloth[h], 2.6, 1.3, cols.hair);
       front ? near() : far();
@@ -2089,7 +2101,7 @@ function drawPersonRig(a, pose, t, extra) {
     const dt = clamp(_T - (a._lt == null ? _T : a._lt), 0, .05);
     let hold = null, ext = null;
     if (pose === 'idle' && !a.zombie && !a.drifter && ((CUR_W && CUR_W === G.world && G.phase === 'day') || SC.active || TR.active)) { const home = CUR_W === G.world && !SC.active; a.idleT = (a.idleT || 0) + dt; if (!a.idlePose || a.idleT > a.idleDur) { a.idlePose = pick(home ? ['idle', 'idle', 'look', 'look', 'cross', 'rub', 'hips', 'stretch', 'read'] : ['idle', 'look', 'look', 'look', 'rub', 'hips']); a.idleT = 0; a.idleDur = a.idlePose === 'read' ? rnd(9, 16) : rnd(4, 9); } hold = a.idlePose === 'idle' ? null : a.idlePose; }
-    else { a.idlePose = null; hold = HOLD_OF[pose] || null; if (pose === 'search' && a.searchLow) hold = 'searchLow'; if ((pose === 'attack' || pose === 'zombieAttack') && extra && extra.style) hold = extra.style; if (pose === 'zombieIdle' && a.fidget) hold = a.fidget === 'idle' ? null : a.fidget; if (pose === 'guard' && extra && (extra.weapon === 'bat' || extra.weapon === 'knife')) hold = 'brace'; if (pose === 'search' && a.task && a.task.spot) { const hh = a.task.spot.hgt || SPOT_H[a.task.spot.id]; if (hh === 'low') hold = 'searchLow'; else if (hh === 'high') hold = 'searchHigh'; } }
+    else { a.idlePose = null; hold = HOLD_OF[pose] || null; if (pose === 'search' && a.searchLow) hold = 'searchLow'; if ((pose === 'attack' || pose === 'zombieAttack') && extra && extra.style) hold = extra.style; if (pose === 'zombieIdle' && a.fidget) hold = a.fidget === 'idle' ? null : a.fidget; if (pose === 'aimGun') hold = extra && extra.kneel ? 'kneelAim' : extra && extra.weapon === 'rifle' ? 'aimR' : 'aimP'; if (pose === 'zombieAim' && extra && extra.kneel) hold = 'kneelAim'; if (pose === 'guard' && extra && (extra.weapon === 'bat' || extra.weapon === 'knife')) hold = 'brace'; if (pose === 'search' && a.task && a.task.spot) { const hh = a.task.spot.hgt || SPOT_H[a.task.spot.id]; if (hh === 'low') hold = 'searchLow'; else if (hh === 'high') hold = 'searchHigh'; } }
     if (pose === 'attack' || pose === 'shove' || pose === 'zombieAttack') c.poseK = extra ? clamp(extra.k || 0, 0, 1) : 0;
     if (pose === 'bed') c.poseK = a._bedK || 0;
     if (pose === 'climb') c.poseK = (a.climbPh || 0) % 1;
@@ -2113,7 +2125,7 @@ function drawPersonRig(a, pose, t, extra) {
   if (a.idlePose === 'read') { const h = handOf(a); if (h) { ctx.save(); ctx.translate(h.x, h.y - 2); ctx.rotate((a.facing || 1) * .35); ctx.fillStyle = '#cfc3a6'; ctx.fillRect(-7, -4.5, 14, 9); ctx.fillStyle = '#6b5a44'; ctx.fillRect(-.7, -4.5, 1.4, 9); ctx.restore(); } }
   if (a.say && a.sayT > 0) { const sx = X, sy = tr.base - c.y - 100 * (a.scale || 1); ctx.fillStyle = 'rgba(20,20,22,.85)'; rr(sx - 16, sy - 16, 32, 32, 8); ctx.fill(); drawIcon(a.say, sx, sy, 20); }
 }
-function poseTool(pose, extra, a) { switch (pose) { case 'dig': return G.inv.shovel ? 'shovel' : null; case 'pry': return 'crowbar'; case 'hammer': case 'nail': return 'hammer'; case 'cook': return 'spoon'; case 'guard': case 'attack': return extra && extra.weapon; case 'zombieAttack': case 'zombieGuard': case 'zombieAim': case 'zombie': case 'zombieIdle': return a.zombie ? a.wpn || 'bat' : null; default: return null; } }
+function poseTool(pose, extra, a) { switch (pose) { case 'dig': return G.inv.shovel ? 'shovel' : null; case 'pry': return 'crowbar'; case 'hammer': case 'nail': return 'hammer'; case 'cook': return 'spoon'; case 'guard': case 'attack': return extra && extra.weapon; case 'aimGun': return extra && extra.weapon || null; case 'zombieAttack': case 'zombieGuard': case 'zombieAim': case 'zombie': case 'zombieIdle': return a.zombie ? a.wpn || 'bat' : null; default: return null; } }
 function boot(ft, facing, k) { ctx.fillStyle = shade('#3a3029', k); ctx.beginPath(); ctx.ellipse(ft[0] + 2 * facing, ft[1] + 1, 6, 3.2, 0, 0, TAU); ctx.fill(); }
 function drawTool(tool, x, y, ang, facing) {
   ctx.save(); ctx.translate(x, y); ctx.rotate(ang * facing); ctx.lineCap = 'round';
@@ -2849,8 +2861,10 @@ function guardUpdate(z, dt, p, w) {
   z.alert = clamp(z.alert, 0, 1.2); if (z.flashT > 0) z.flashT -= dt;
   if (z.alert >= 1 && z.state !== 'chase') { z.state = 'chase'; z.aimT = 0; z.lostT = 0; z.searched = false; AUDIO.sfx('groan'); scNoise(z.x, z.f, 900); }   // he shouts
   if (z.state === 'chase') {
-    if (los && d < 680 && z.alert > .5) { z.lkx = p.x; z.lkf = p.f; z.lostT = 0; z.path = null; z.facing = dx < 0 ? -1 : 1; z.pose = 'zombieAim'; z.aimT += dt;
-      if (z.aimT >= (z.shotN ? 1.15 : .9)) { z.aimT = 0; z.shotN = (z.shotN || 0) + 1; guardFire(z, p, w); } return; }
+    if (los && d < 680 && z.alert > .5) { z.lkx = p.x; z.lkf = p.f; z.lostT = 0; z.facing = dx < 0 ? -1 : 1;
+      if (z.shiftX != null) { if (!z.path || !z.path.length) z.path = w.path(z.x, z.f, z.shiftX, z.f); z.pose = 'zombie'; if (!z.path || moveActor(z, dt, 64)) { z.shiftX = null; z.path = null; z.kneel = Math.random() < .55; } return; }   // a few quick steps to a new spot
+      z.path = null; if (z.kneel == null) z.kneel = Math.random() < .5; z.pose = 'zombieAim'; z.poseExtra = { kneel: z.kneel }; z.aimT += dt;
+      if (z.aimT >= (z.shotN ? 1.15 : .9) + (z.kneel ? .25 : 0)) { z.aimT = 0; z.shotN = (z.shotN || 0) + 1; guardFire(z, p, w); if (Math.random() < .45) { const nx = z.x + (Math.random() < .5 ? -1 : 1) * (30 + Math.random() * 50); if (w.passable(z.x, nx, z.f) && w.roomAt(nx, z.f)) z.shiftX = nx; } } return; }
     z.aimT = Math.max(0, z.aimT - dt); z.lostT += dt;
     if (z.lkx != null && !z.searched) { if (!z.path || !z.path.length) { z.path = w.path(z.x, z.f, z.lkx, z.lkf) || w.pathFar(z.x, z.f, z.lkx, z.lkf); if (!z.path) z.searched = true; }
       if (z.path && moveActor(z, dt, 66 * (z.paceMul || 1))) { z.path = null; z.searched = true; } z.pose = 'zombie'; }
@@ -2907,7 +2921,9 @@ function scUpdate(dt) {
       }
     } else { p.pose = SC.fight || (SC.aim && SC.aim.target) ? 'guard' : SC.sneak ? 'sneak' : 'idle'; if (SC.fight && SC.foe && Math.abs(SC.foe.x - p.x) < 240) { p.facing = SC.foe.x < p.x ? -1 : 1; if (p.mc) rigFace(p, p.facing); } }
   }
-  if (p.attackT > 0) { p.pose = p.attackKind === 'shove' ? 'shove' : 'attack'; p.poseExtra = p.attackKind === 'takedown' ? { k: 1 - p.attackT / .6, weapon: 'knife', style: 'stab' } : { k: 1 - p.attackT / .45, weapon: scWeapon(), style: p.attackKind === 'swing' ? p.style : null }; } else p.poseExtra = SC.fight || SC.aim ? { weapon: scWeapon() } : null;
+  if (SC.aim && SC.aim.target && !(p.path && p.path.length) && !p.task && !p.hidden && !p.onStair) { const wp = scWeapon(); p.pose = 'aimGun'; p.poseExtra = { weapon: wp, kneel: wp === 'rifle' }; p.facing = SC.aim.target.x < p.x ? -1 : 1; if (p.mc) rigFace(p, p.facing); }
+  if (p.attackT > 0 && p.attackKind === 'shoot') { const wp = scWeapon(); p.pose = 'aimGun'; p.poseExtra = { weapon: wp, kneel: wp === 'rifle' && !(p.path && p.path.length) }; }
+  else if (p.attackT > 0) { p.pose = p.attackKind === 'shove' ? 'shove' : 'attack'; p.poseExtra = p.attackKind === 'takedown' ? { k: 1 - p.attackT / .6, weapon: 'knife', style: 'stab' } : { k: 1 - p.attackT / .45, weapon: scWeapon(), style: p.attackKind === 'swing' ? p.style : null }; } else if (p.pose !== 'aimGun') p.poseExtra = SC.fight || SC.aim ? { weapon: scWeapon() } : null;
   if (p.hurtT > 0) p.hurtT -= dt;
   // zombies
   let seen = 0;
@@ -2940,7 +2956,7 @@ function scUpdate(dt) {
         else if (d > 480 || !sameF && d > 300) { z.lostT += dt; if (z.lostT > 5) { z.state = 'idle'; z.alert = 0; z.t = 0; break; } } else z.lostT = 0;
         if (sameF && d < 30 && !p.hidden) {
           z.facing = dx < 0 ? -1 : 1; z.path = null; raiderSwing(z, dt);
-          if (z.attackT >= 1) { z.attackT = 1e-4; p.health -= 11; p.hurtT = .3; bleed(w, p.x, p.f, z.facing, false); p.wounded = true; AUDIO.sfx('hurt'); if (Math.random() < .25 && !p.infected) { p.infected = true; scMsg('infected', 2); } if (p.health <= 0) { p.health = 0; endScavenge(false, true); return; } }
+          if (z.attackT >= 1) { z.attackT = 1e-4; if (Math.random() < .4) z.kb = -z.facing * 24; p.health -= 11; p.hurtT = .3; bleed(w, p.x, p.f, z.facing, false); p.wounded = true; AUDIO.sfx('hurt'); if (Math.random() < .25 && !p.infected) { p.infected = true; scMsg('infected', 2); } if (p.health <= 0) { p.health = 0; endScavenge(false, true); return; } }
         } else {
           if (d > 120 || !sameF) z.sizeT = 0;
           if (sameF && d < 80 && !p.hidden && (z.sizeT = (z.sizeT || 0) + dt) < .6) { z.facing = dx < 0 ? -1 : 1; z.path = null; z.pose = 'zombieGuard'; z.attackT = 0; }   // squares up first
@@ -3068,7 +3084,9 @@ function trUpdate(dt) {
   p.pose = dir ? (TR.run ? 'run' : 'walk') : (TR.fight || (TR.aim && TR.aim.target) ? 'guard' : 'idle'); p.poseExtra = TR.fight || TR.aim ? { weapon: trWeapon() } : null;
   if (TR.fight && foe && foeD < 240 && !dir) { p.facing = foe.x < TR.x ? -1 : 1; if (p.mc) rigFace(p, p.facing); }
   if (TR.hidden) { p.pose = 'crouch'; p.poseExtra = null; p.facing = TR.hideFace || 1; if (p.mc) rigFace(p, p.facing); }
-  if (TR.attackT > 0) { p.pose = TR.attackKind === 'shove' ? 'shove' : 'attack'; p.poseExtra = { k: 1 - TR.attackT / .45, weapon: trWeapon(), style: TR.attackKind === 'swing' ? p.style : null }; }
+  if (!TR.hidden && TR.aim && TR.aim.target && TR.tx == null) { const wp = trWeapon(); p.pose = 'aimGun'; p.poseExtra = { weapon: wp, kneel: wp === 'rifle' }; p.facing = TR.aim.target.x < TR.x ? -1 : 1; if (p.mc) rigFace(p, p.facing); }
+  if (TR.attackT > 0 && TR.attackKind === 'shoot') { const wp = trWeapon(); p.pose = 'aimGun'; p.poseExtra = { weapon: wp, kneel: wp === 'rifle' && TR.tx == null }; }
+  else if (TR.attackT > 0) { p.pose = TR.attackKind === 'shove' ? 'shove' : 'attack'; p.poseExtra = { k: 1 - TR.attackT / .45, weapon: trWeapon(), style: TR.attackKind === 'swing' ? p.style : null }; }
   if (p.hurtT > 0) p.hurtT -= dt;
   // zombies (1D)
   for (const z of TR.zombies) {
@@ -3081,7 +3099,7 @@ function trUpdate(dt) {
       z.pose = 'zombie'; z.facing = dx < 0 ? -1 : 1;
       if (d > 120) z.sizeT = 0;
       if (TR.hidden) { if (d < 36 && z.lostT < .8) TR.hidden = false; z.lostT += dt; if (z.lostT > 2.5) { z.state = 'idle'; z.alert = 0; z.t = 0; } } else if (d > 600) { z.lostT += dt; if (z.lostT > 4) { z.state = 'idle'; z.alert = 0; } } else z.lostT = 0;
-      if (!TR.hidden && d < 30 && Math.abs(heightAt(z.x) - TR.py) < 30) { raiderSwing(z, dt); if (z.attackT >= 1) { z.attackT = 1e-4; p.health -= 11; p.hurtT = .3; bleed(TR.bw, TR.x, 0, z.facing, false); p.wounded = true; AUDIO.sfx('hurt'); if (Math.random() < .25 && !p.infected) { p.infected = true; trMsg('infected', 2); } if (p.health <= 0) { p.health = 0; trLost(false); return; } } }
+      if (!TR.hidden && d < 30 && Math.abs(heightAt(z.x) - TR.py) < 30) { raiderSwing(z, dt); if (z.attackT >= 1) { z.attackT = 1e-4; if (Math.random() < .4) z.kb = -z.facing * 24; p.health -= 11; p.hurtT = .3; bleed(TR.bw, TR.x, 0, z.facing, false); p.wounded = true; AUDIO.sfx('hurt'); if (Math.random() < .25 && !p.infected) { p.infected = true; trMsg('infected', 2); } if (p.health <= 0) { p.health = 0; trLost(false); return; } } }
       else if (!TR.hidden && d < 80 && (z.sizeT = (z.sizeT || 0) + dt) < .6) { z.pose = 'zombieGuard'; z.attackT = 0; }
       else { const c = mcOf(z, TR.ew); rigTo(z, TR.ew, TR.hidden ? z.x : TR.x, 58 / (Motion.CFG.walkSpeed * c.k), dt, zombieExt(z, z.t), true); z.x = c.x; z.py = c.y; z.attackT = 0; }
     } else if (z.state === 'wander') { z.pose = 'zombie'; const nz = z.x + z.facing * 20 * dt; if (heightAt(nz) <= 4 && nz > 300) { const c = rigInput(z, TR.ew, z.facing * .32, dt, zombieExt(z, z.t)); z.x = c.x; z.py = c.y; } else z.facing *= -1; if (z.t > 4) { z.state = 'idle'; z.t = 0; } }
