@@ -2065,6 +2065,7 @@ function drawPersonRig(a, pose, t, extra) {
   if (pose === 'dead') { ctx.fillStyle = 'rgba(70,10,10,.45)'; ctx.beginPath(); ctx.ellipse(X - (a.facing || 1) * 10, tr.base - c.y + 1, 30, 6, 0, 0, TAU); ctx.fill(); }
   { const lk = c.look; if (lk && !a.zombie) { if (lk.bag0 === undefined) lk.bag0 = lk.bag; lk.bag = a.hasPack ? 'backpack' : lk.bag0; lk.bagFull = a.hasPack ? clamp(SC.active ? SC.pack.length / SC.cap : TR.pack ? TR.pack.length / (TR.cap || 10) : 0, 0, 1) : 0; } }   // a pack that fills out as it fills up
   ctx.save(); if (a.hurtT > 0) ctx.translate(rnd(-1.3, 1.3), 0); if (a.bedLift) ctx.translate(0, -a.bedLift); c.draw(ctx, 0, tr.base, null, false); ctx.restore();
+  if (a.alive !== false && pose !== 'dead' && pose !== 'sleep' && a.visible !== false && G.world && G.phase !== 'title' && (SC.active || TR.active ? outdoorTemp(G.hour) : indoorTemp(G.hour)) < 5) { const ph = ((_T * .32 + (a.x % 37) * .11) % 1), hx = a.x + c.facing * (9 + ph * 16) * (a.scale || 1), hy = tr.base - c.y - 69 * (a.scale || 1) - ph * 7; if (ph < .6) { ctx.fillStyle = `rgba(225,232,240,${(.2 * (1 - ph / .6)).toFixed(3)})`; circ(hx, hy, 2 + ph * 9); ctx.fill(); circ(hx + c.facing * 4, hy - 2, 1.5 + ph * 6); ctx.fill(); } }   // breath showing in the cold
   const tool = poseTool(pose, extra, a); if (tool && !c.dead && handOf(a)) { const h = handOf(a); const F = a.facing || 1; const ang = (tool === 'shovel' ? h.th - Math.PI / 2 : h.th + Math.PI / 2) * F; drawTool(tool, h.x, h.y, ang, F); }
   if (!a.zombie && !c.dead && c.cur) { const k = c.skeleton(c.cur), dy = c.curDy != null ? c.curDy : k.dy, f = c.facing * k.sx, bx = v => c.x + v[0] * f, by = v => tr.base - c.y + v[1] + dy, sc = c.k || 1;
     if (a.wounded) { const A = k.armN[0], B = k.armN[1]; ctx.strokeStyle = '#e4dccb'; ctx.lineWidth = 4.6 * sc; ctx.lineCap = 'butt'; ctx.beginPath(); ctx.moveTo(lerp(bx(A), bx(B), .38), lerp(by(A), by(B), .38)); ctx.lineTo(lerp(bx(A), bx(B), .72), lerp(by(A), by(B), .72)); ctx.stroke(); ctx.fillStyle = 'rgba(150,30,30,.8)'; circ(lerp(bx(A), bx(B), .55), lerp(by(A), by(B), .55), 1.3 * sc); ctx.fill(); ctx.lineCap = 'round'; }   // a bandaged arm
@@ -2397,6 +2398,21 @@ function drawFx(world, hour, night, dt) {
   // float icons (loot gained)
   for (let i = FX.float.length - 1; i >= 0; i--) { const f = FX.float[i]; f.t += dt; const y = f.y - 40 - f.t * 30; ctx.globalAlpha = clamp(1.6 - f.t, 0, 1); ctx.fillStyle = 'rgba(20,20,24,.8)'; rr(f.x - 22, y - 14, 44, 28, 8); ctx.fill(); drawIcon(f.icon, f.x - 6, y, 20); txt('+' + f.n, f.x + 12, y, 14, '#fff'); ctx.globalAlpha = 1; if (f.t > 1.6) FX.float.splice(i, 1); }
 }
+// the air itself: beams you can see, a hot core to every flame, mist lying on the ground
+function drawAtmos(world, sky, lights, dark) {
+  const vw = W / cam.z, vh = H / cam.z, vx = cam.x - vw / 2, vy = cam.y - vh / 2;
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  for (const l of lights) {
+    if (l.cone) { const x1 = l.x + l.dir * l.len, gr = ctx.createLinearGradient(l.x, 0, x1, 0); gr.addColorStop(0, `rgba(${l.c},${(l.a * .3 * (.3 + dark)).toFixed(3)})`); gr.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = gr; ctx.beginPath(); ctx.moveTo(l.x, l.y - 3); ctx.lineTo(x1, l.y - l.len * .17); ctx.lineTo(x1, l.y + l.len * .22); ctx.lineTo(l.x, l.y + 3); ctx.fill();
+      ctx.fillStyle = `rgba(${l.c},${(.5 * (.3 + dark)).toFixed(3)})`; for (let i = 0; i < 9; i++) { const u = ((i * .37 + _T * .03 * (1 + i % 3)) % 1), px = l.x + l.dir * l.len * u * .85, py = l.y + (Math.sin(i * 12.9 + _T * .4) * .5) * l.len * u * .32; ctx.globalAlpha = (1 - u) * .8; ctx.fillRect(px, py, 1.3, 1.3); } ctx.globalAlpha = 1; continue; }   // dust turning in the beam
+    if ((l.a || 0) >= .6 && l.r >= 150 && /^255,1[0-9][0-9],/.test(l.c || '')) { const rr0 = l.r * .22, gr = ctx.createRadialGradient(l.x, l.y, 0, l.x, l.y, rr0); gr.addColorStop(0, `rgba(255,214,150,${(.3 * (.35 + dark)).toFixed(3)})`); gr.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = gr; ctx.fillRect(l.x - rr0, l.y - rr0, rr0 * 2, rr0 * 2); } }   // the bloom at the heart of a fire
+  ctx.restore();
+  // ground mist outside, thicker at night and in the cold
+  { const gy = world.groundY != null ? world.groundY : GROUND_Y, a = .05 + .1 * dark;
+    for (let i = 0; i < 3; i++) { const h = 46 + i * 26, off = Math.sin(_T * (.05 + i * .02) + i * 2) * 120, gr = ctx.createLinearGradient(0, gy + 16 - h, 0, gy + 18); gr.addColorStop(0, 'rgba(150,160,175,0)'); gr.addColorStop(.75, `rgba(150,160,175,${(a * (.5 + .25 * i)).toFixed(3)})`); gr.addColorStop(1, 'rgba(150,160,175,0)'); ctx.fillStyle = gr;
+      for (let x = Math.floor((vx - off) / 520) * 520 + off; x < vx + vw; x += 520) { const x0 = x + i * 170, x1 = x0 + 380; if (world.rooms && world.rooms.length) { if (x1 > world.x0 - 10 && x0 < world.x1 + 10) { if (x0 < world.x0 - 10) { ctx.beginPath(); ctx.ellipse((x0 + world.x0 - 10) / 2, gy + 14 - h * .2, Math.max(1, (world.x0 - 10 - x0) / 2), h * .5, 0, 0, TAU); ctx.fill(); } continue; } }
+        ctx.beginPath(); ctx.ellipse((x0 + x1) / 2, gy + 14 - h * .2, 190, h * .5, 0, 0, TAU); ctx.fill(); } } }
+}
 function drawVignette() { const vw = W / cam.z, vh = H / cam.z, g = ctx.createRadialGradient(cam.x, cam.y, Math.min(vw, vh) * .42, cam.x, cam.y, Math.hypot(vw, vh) * .56); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,.5)'); ctx.fillStyle = g; ctx.fillRect(cam.x - vw / 2 - 2, cam.y - vh / 2 - 2, vw + 4, vh + 4); }
 // Light is the picture: a darkness map is laid over the world, and windows, lanterns, fire and torches cut holes in it.
 let LMAP = null;
@@ -2418,13 +2434,15 @@ function drawLighting(world, sky, lights) {
     const sh = g.createLinearGradient(0, fy - 112, 0, fy); sh.addColorStop(0, `rgba(0,0,0,${(st * .75).toFixed(3)})`); sh.addColorStop(1, `rgba(0,0,0,${(st * .3).toFixed(3)})`); g.fillStyle = sh;
     g.beginPath(); g.moveTo(x - 32, fy - 112); g.lineTo(x + 32, fy - 112); g.lineTo(x + 150, fy); g.lineTo(x - 10, fy); g.closePath(); g.fill();
     const gl = g.createRadialGradient(x, fy - 77, 10, x, fy - 77, 150); gl.addColorStop(0, `rgba(0,0,0,${(st * .45).toFixed(3)})`); gl.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gl; g.fillRect(x - 150, fy - 227, 300, 300); }
-  for (const l of lights) { const gr = g.createRadialGradient(l.x, l.y, l.r * .08, l.x, l.y, l.r); gr.addColorStop(0, `rgba(0,0,0,${Math.min(1, (l.a || .55) * 1.7).toFixed(3)})`); gr.addColorStop(.4, `rgba(0,0,0,${Math.min(1, (l.a || .55) * 1.15).toFixed(3)})`); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(l.x - l.r, l.y - l.r, l.r * 2, l.r * 2); }
+  for (const l of lights) { if (l.cone) { const y1 = l.y - l.len * .2, y2 = l.y + l.len * .26, x1 = l.x + l.dir * l.len, gr = g.createLinearGradient(l.x, 0, x1, 0); gr.addColorStop(0, `rgba(0,0,0,${(l.a * 1.5).toFixed(3)})`); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.beginPath(); g.moveTo(l.x, l.y - 4); g.lineTo(x1, y1); g.lineTo(x1, y2); g.lineTo(l.x, l.y + 4); g.fill(); continue; }
+    const gr = g.createRadialGradient(l.x, l.y, l.r * .08, l.x, l.y, l.r); gr.addColorStop(0, `rgba(0,0,0,${Math.min(1, (l.a || .55) * 1.7).toFixed(3)})`); gr.addColorStop(.4, `rgba(0,0,0,${Math.min(1, (l.a || .55) * 1.15).toFixed(3)})`); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(l.x - l.r, l.y - l.r, l.r * 2, l.r * 2); }
   g.globalCompositeOperation = 'source-over';
   ctx.drawImage(LMAP, cam.x - W / 2 / cam.z, cam.y - H / 2 / cam.z, W / cam.z, H / cam.z);
   ctx.save(); ctx.globalCompositeOperation = 'lighter';                                                                  // and the lamps tint what they light
-  for (const l of lights) { const gr = ctx.createRadialGradient(l.x, l.y, 4, l.x, l.y, l.r * .8); gr.addColorStop(0, `rgba(${l.c || '255,170,80'},${((l.a || .55) * .34 * (.2 + dark)).toFixed(3)})`); gr.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = gr; ctx.fillRect(l.x - l.r, l.y - l.r, l.r * 2, l.r * 2); }
+  for (const l of lights) { if (l.cone) continue; const gr = ctx.createRadialGradient(l.x, l.y, 4, l.x, l.y, l.r * .8); gr.addColorStop(0, `rgba(${l.c || '255,170,80'},${((l.a || .55) * .34 * (.2 + dark)).toFixed(3)})`); gr.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = gr; ctx.fillRect(l.x - l.r, l.y - l.r, l.r * 2, l.r * 2); }
   if (night) for (const b of world.barricades || []) if (b.kind === 'win' && b.level < 3) { const fy = world.fy2y(b.f); const gr = ctx.createLinearGradient(0, fy - 112, 0, fy); gr.addColorStop(0, `rgba(120,150,210,${(.10 * (1 - .27 * b.level)).toFixed(3)})`); gr.addColorStop(1, 'rgba(120,150,210,0)'); ctx.fillStyle = gr; ctx.beginPath(); ctx.moveTo(b.x - 32, fy - 112); ctx.lineTo(b.x + 32, fy - 112); ctx.lineTo(b.x + 150, fy); ctx.lineTo(b.x - 10, fy); ctx.closePath(); ctx.fill(); }
   ctx.restore();
+  drawAtmos(world, sky, lights, dark);
   drawVignette();
 }
 
@@ -2511,6 +2529,8 @@ function drawRoomSurface(world, r, fy, ceil) {
     if (mat === 'tile' || mat === 'block') { ctx.fillStyle = '#2e2e2c'; ctx.fillRect(lx - 34, ceil + 2, 68, 6); ctx.fillStyle = 'rgba(210,220,220,.16)'; if (rs() < .4) { ctx.fillRect(lx - 31, ceil + 8, 34, 3); ctx.save(); ctx.translate(lx + 3, ceil + 9); ctx.rotate(.55); ctx.fillRect(0, 0, 30, 3); ctx.restore(); } else ctx.fillRect(lx - 31, ceil + 8, 62, 3); }   // a fluorescent tube, sometimes hanging by one end
     else { ctx.strokeStyle = '#1a1714'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(lx, ceil); ctx.lineTo(lx, ceil + 20); ctx.stroke(); ctx.fillStyle = '#3a3128'; ctx.beginPath(); ctx.moveTo(lx - 12, ceil + 30); ctx.lineTo(lx - 5, ceil + 20); ctx.lineTo(lx + 5, ceil + 20); ctx.lineTo(lx + 12, ceil + 30); ctx.fill(); } }   // a shade on its flex
   ctx.strokeStyle = 'rgba(220,220,220,.13)'; ctx.lineWidth = .8; for (const [cx, sx] of [[x0, 1], [x1, -1]]) if (rs() < .55) { const sz = 16 + rs() * 16; ctx.beginPath(); for (let i = 0; i < 4; i++) { ctx.moveTo(cx, ceil + i * sz / 4); ctx.lineTo(cx + sx * (sz - i * sz / 4), ceil); } ctx.moveTo(cx, ceil + sz * .7); ctx.quadraticCurveTo(cx + sx * sz * .25, ceil + sz * .25, cx + sx * sz * .7, ceil); ctx.stroke(); }   // cobwebs
+  for (const [cx, d] of [[r.x0, 1], [r.x1, -1]]) { const gr = ctx.createLinearGradient(cx, 0, cx + d * 34, 0); gr.addColorStop(0, 'rgba(0,0,0,.34)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = gr; ctx.fillRect(Math.min(cx, cx + d * 34), ceil, 34, fy - ceil); }
+  { const gr = ctx.createLinearGradient(0, fy - 16, 0, fy); gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(0,0,0,.28)'); ctx.fillStyle = gr; ctx.fillRect(r.x0, fy - 16, r.x1 - r.x0, 16); }   // where wall meets floor
   if (rs() < .6) { const sx = x0 + 30 + rs() * (w - 60); ctx.fillStyle = 'rgba(200,190,170,.16)'; ctx.fillRect(sx, fy - 30, 7, 9); ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.fillRect(sx + 2, fy - 28, 1, 3); ctx.fillRect(sx + 4, fy - 28, 1, 3); }   // a socket
 }
 // what is left outside each place
@@ -2817,8 +2837,9 @@ function scUpdate(dt) {
   // lights: flashlight + flicker lamps
   { const ly = w.fy2y(p.fy) - 50, fl = .94 + .06 * Math.sin(_T * 31);   // a torch: a tight pool at the hand, a long beam ahead
     SC.lights = SC.sneak ? [{ x: p.x, y: ly + 8, r: 150, c: '255,230,180', a: .4 }, { x: p.x + p.facing * 70, y: ly, r: 150, c: '255,232,190', a: .36 * fl }, { x: p.x + p.facing * 170, y: ly, r: 130, c: '255,232,190', a: .16 * fl }] : [{ x: p.x, y: ly + 8, r: 110, c: '255,230,180', a: .4 }, { x: p.x + p.facing * 60, y: ly, r: 150, c: '255,232,190', a: .62 * fl }, { x: p.x + p.facing * 150, y: ly, r: 170, c: '255,232,190', a: .5 * fl }, { x: p.x + p.facing * 260, y: ly, r: 180, c: '255,232,190', a: .32 * fl }, { x: p.x + p.facing * 370, y: ly, r: 170, c: '255,232,190', a: .16 * fl }];
+    SC.lights.push({ cone: 1, x: p.x + p.facing * 14, y: ly + 4, dir: p.facing, len: SC.sneak ? 190 : 400, c: '255,232,190', a: SC.sneak ? .3 : .5 });
     if (p.attackKind === 'shoot' && p.attackT > .22) SC.lights.push({ x: p.x + p.facing * 30, y: ly - 6, r: 300, c: '255,220,150', a: .95 }); }
-  for (const z of SC.zombies) if (z.alive && z.armed && z.takenT == null) { const gy = w.fy2y(z.fy) - 54; for (const [o, rr0, al] of [[45, 70, .35], [130, 110, .3], [230, 130, .2], [330, 120, .1]]) SC.lights.push({ x: z.x + z.facing * o, y: gy, r: rr0, c: '205,222,255', a: al }); if (z.flashT > 0) SC.lights.push({ x: z.x + z.facing * 30, y: gy - 4, r: 280, c: '255,220,150', a: .9 }); }
+  for (const z of SC.zombies) if (z.alive && z.armed && z.takenT == null) { const gy = w.fy2y(z.fy) - 54; for (const [o, rr0, al] of [[45, 70, .35], [130, 110, .3], [230, 130, .2], [330, 120, .1]]) SC.lights.push({ x: z.x + z.facing * o, y: gy, r: rr0, c: '205,222,255', a: al }); if (z.flashT > 0) SC.lights.push({ x: z.x + z.facing * 30, y: gy - 4, r: 280, c: '255,220,150', a: .9 }); SC.lights.push({ cone: 1, x: z.x + z.facing * 16, y: gy + 6, dir: z.facing, len: 360, c: '205,222,255', a: .45 }); }
   for (let i = (SC.gtr || []).length - 1; i >= 0; i--) if ((SC.gtr[i].t -= dt) <= 0) SC.gtr.splice(i, 1);
   for (const h of w.hides) SC.lights.push({ x: h.x, y: w.fy2y(h.f) - 90, r: 60, c: '120,160,200', a: .15 });
   // camera follow
