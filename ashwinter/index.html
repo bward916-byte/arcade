@@ -2403,7 +2403,7 @@ function trUpdate(dt) {
   // input: held pad
   let dir = 0; IN.downs.length = 0;
   if (TR.tracer && TR.tracer.t > 0) TR.tracer.t -= dt;
-  { const wep = trWeapon(); TR.aim = GUNS[wep] ? aimTick(dt, { prev: TR.aim, wep, ammo: packCount(TR.pack, 'ammo'), px: TR.x, foes: TR.zombies.filter(z => z.alive).map(z => (z.ay = GROUND_Y - (z.py || 0) - 50, z)), fire: (t, gun) => {
+  { const wep = trWeapon(); TR.aim = GUNS[wep] ? aimTick(dt, { prev: TR.aim, wep, ammo: packCount(TR.pack, 'ammo'), px: TR.x, foes: TR.zombies.filter(z => z.alive).map(z => (z.ay = GROUND_Y - (z.py || 0) - 36, z)), fire: (t, gun) => {
       packRemove(TR.pack, 'ammo', 1); p.facing = t.x < TR.x ? -1 : 1; TR.attackT = .35; TR.attackKind = 'shoot'; AUDIO.sfx('shot'); FX.flash = .25; for (const z of TR.zombies) if (z.alive && Math.abs(z.x - TR.x) < gun.noise * .7) z.state = 'chase'; TR.tracer = { x0: TR.x + p.facing * 16, y0: GROUND_Y - TR.py - 58, x1: t.x, y1: t.ay, t: .14 }; t.hp -= gun.dmg; t.hurtT = .3; if (t.hp <= 0) { t.alive = false; t.pose = 'dead'; TR.kills++; AUDIO.sfx('groan'); } } }) : null;
     if (TR.aim && TR.aim.target) { TR.tx = null; p.facing = TR.aim.target.x < TR.x ? -1 : 1; if (p.mc) rigFace(p, p.facing); } }
   if (TR.tx != null) { if (Math.abs(TR.tx - TR.x) < 8) { TR.tx = null; TR.run = false; } else dir = Math.sign(TR.tx - TR.x); }
@@ -2461,7 +2461,8 @@ function drawStreet(dt) {
   for (const d of TR.decor) {
     if (d.x < x0v - 300 || d.x > x1v + 300) continue;
     if (d.t === 'wall') { ctx.fillStyle = '#2a2724'; ctx.fillRect(d.x, gy + 14 - d.h, d.w, d.h); ctx.fillStyle = 'rgba(0,0,0,.35)'; for (let wy = gy + 14 - d.h + 24; wy < gy; wy += 34) for (let wx = d.x + 12; wx < d.x + d.w - 16; wx += 30) ctx.fillRect(wx, wy, 14, 20); if (d.s < .3) { ctx.fillStyle = 'rgba(255,150,60,.5)'; ctx.fillRect(d.x + 12 + Math.floor(d.s * 10) * 30 % (d.w - 30), gy - 40, 14, 20); } }
-    else if (d.t === 'fence') { ctx.fillStyle = '#3a3733'; for (let fx = d.x; fx < d.x + d.w; fx += 14) ctx.fillRect(fx, gy + 14 - 50, 6, 50); ctx.fillRect(d.x, gy - 30, d.w, 4); }
+    else if (d.t === 'fence') { if (Object.values(TR.locX).some(lx => lx > d.x - 50 && lx < d.x + d.w + 50)) continue;   // never across a doorway
+      ctx.fillStyle = '#26231f'; for (let fx = d.x; fx < d.x + d.w; fx += 14) ctx.fillRect(fx, gy - 36, 5, 50); ctx.fillRect(d.x, gy - 26, d.w, 3); ctx.fillRect(d.x, gy - 4, d.w, 3); }   // a back fence: it stands behind where people walk, foot of it above their feet
     else if (d.t === 'lamp') { ctx.fillStyle = '#3a3a3a'; ctx.fillRect(d.x, gy - 180, 6, 194); ctx.fillRect(d.x, gy - 184, 34, 6); if (d.s < .5) { const fl = d.s < .18 ? .55 + .45 * Math.abs(Math.sin(_T * 23 + d.x)) * (Math.sin(_T * 3.1 + d.x) > -.7 ? 1 : 0) : 1; ctx.fillStyle = `rgba(255,214,150,${.9 * fl})`; ctx.fillRect(d.x + 22, gy - 180, 12, 5); d.fl = fl; ctx.fillStyle = 'rgba(255,200,120,.07)'; ctx.beginPath(); ctx.moveTo(d.x + 30, gy - 180); ctx.lineTo(d.x - 60, gy + 14); ctx.lineTo(d.x + 120, gy + 14); ctx.fill(); } }
     else { ctx.fillStyle = '#2f2b28'; ctx.fillRect(d.x, gy + 14 - 18, 30 + d.s * 30, 18); }
   }
@@ -2478,7 +2479,9 @@ function drawStreet(dt) {
   for (const f of TR.fires) if (f.x > x0v - 100 && f.x < x1v + 100) drawBarrelFire(f.x, gy + 14, f.s);
   for (const o of TR.obstacles) if (o.fire && o.x > x0v - 200 && o.x < x1v + 200) drawFlames(o.x + o.w * .12, gy + 14 - o.h, o.w * .3, 46, o.x);
   const list = [...TR.drifters.filter(z => z.x > x0v - 100 && z.x < x1v + 100), ...TR.zombies.filter(z => z.x > x0v - 100 && z.x < x1v + 100), TR.player];
+  ctx.save(); ctx.translate(0, 14);   // the road surface is drawn 14 below the walking line: put everyone's feet on it
   for (const a of list) { a.y = GROUND_Y - (a === TR.player ? TR.py : (a.py || 0)); drawPerson(a, a.pose || 'idle', _T, a.poseExtra); }
+  ctx.restore();
   drawFx(fake, hour, night, dt);
   // lighting
   const L = [{ x: TR.x + TR.player.facing * 80, y: GROUND_Y - TR.py - 50, r: 260, c: '255,230,180', a: .55 }, { x: TR.x, y: GROUND_Y - TR.py - 40, r: 130, c: '255,230,180', a: .3 }];
