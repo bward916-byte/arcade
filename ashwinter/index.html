@@ -1369,6 +1369,7 @@ function drawIcon(name, x, y, s, color) {
     // ---- tools / weapons ----
     case 'lockpick': P(); M(-13, 10); L(9, -12); S(); P(); M(9, -12); L(13, -8); S(); P(); M(-13, 10); L(-9, 12); S(); P(); M(-6, -2); L(2, -10); S(); break;
     case 'shovel': P(); M(0, -14); L(0, 2); S(); P(); M(-4, -14); L(4, -14); S(); P(); M(-7, 2); L(7, 2); L(5, 13); ctx.quadraticCurveTo(0, 16, -5, 13); ctx.closePath(); F(); break;
+    case 'cutters': ctx.lineWidth = 3.6; P(); M(-11, 14); L(1, -3); M(11, 14); L(-1, -3); S(); ctx.lineWidth = 3; P(); M(1, -3); L(-4, -15); M(-1, -3); L(4, -15); S(); P(); ctx.arc(0, -3, 2.8, 0, TAU); F(); break;
     case 'crowbar': ctx.lineWidth = 4.5; P(); M(-9, 12); L(7, -4); S(); P(); ctx.arc(4, -7, 4.5, Math.PI * .25, Math.PI * 1.35, true); S(); ctx.lineWidth = 3; P(); M(-12, 9); L(-6, 15); S(); break;
     case 'knife': P(); M(-12, 10); L(-4, 2); S(); ctx.fillStyle = '#d9dde2'; P(); M(-4, 2); L(10, -12); L(14, -8); L(0, 6); ctx.closePath(); F(); ctx.fillStyle = '#5a4a3a'; P(); M(-13, 11); L(-7, 5); L(-4, 8); L(-10, 14); ctx.closePath(); F(); break;
     case 'bat': ctx.lineWidth = 4; P(); M(-11, 11); L(-2, 2); S(); ctx.lineWidth = 7; P(); M(-2, 2); L(10, -10); S(); break;
@@ -1444,11 +1445,11 @@ const ITEMS = {
   wood: { n: 'Wood' }, scrap: { n: 'Scrap' }, parts: { n: 'Parts' }, cloth: { n: 'Cloth' }, water: { n: 'Water' },
   canned: { n: 'Canned food', eat: 45 }, raw: { n: 'Raw food', eat: 18 }, meal: { n: 'Meal', eat: 70, morale: 8 },
   bandage: { n: 'Bandage' }, meds: { n: 'Medicine' }, fuel: { n: 'Fuel' }, books: { n: 'Books' },
-  lockpick: { n: 'Lockpick', tool: true }, shovel: { n: 'Shovel', tool: true }, crowbar: { n: 'Crowbar', tool: true },
+  lockpick: { n: 'Lockpick', tool: true }, shovel: { n: 'Shovel', tool: true }, crowbar: { n: 'Crowbar', tool: true }, cutters: { n: 'Bolt cutters', tool: true },
   knife: { n: 'Knife', weapon: 2, tool: true }, bat: { n: 'Bat', weapon: 3, tool: true }, pistol: { n: 'Pistol', weapon: 6, tool: true }, rifle: { n: 'Sniper rifle', weapon: 8, tool: true }, ammo: { n: 'Ammo' },
   backpack: { n: 'Backpack', tool: true }
 };
-const ITEM_ORDER = ['wood', 'scrap', 'parts', 'cloth', 'water', 'canned', 'raw', 'meal', 'bandage', 'meds', 'fuel', 'books', 'ammo', 'lockpick', 'shovel', 'crowbar', 'knife', 'bat', 'pistol', 'rifle', 'backpack'];
+const ITEM_ORDER = ['wood', 'scrap', 'parts', 'cloth', 'water', 'canned', 'raw', 'meal', 'bandage', 'meds', 'fuel', 'books', 'ammo', 'lockpick', 'shovel', 'crowbar', 'cutters', 'knife', 'bat', 'pistol', 'rifle', 'backpack'];
 
 // workbench recipes: id, icon, cost, result ('build' = house upgrade)
 const RECIPES = [   // three materials only: wood, scrap, parts
@@ -1460,6 +1461,7 @@ const RECIPES = [   // three materials only: wood, scrap, parts
   { id: 'shovel', icon: 'shovel', cost: { wood: 1, scrap: 1 }, give: 'shovel', dur: 8 },
   { id: 'crowbar', icon: 'crowbar', cost: { scrap: 2 }, give: 'crowbar', dur: 8 },
   { id: 'lockpick', icon: 'lockpick', cost: { parts: 1 }, give: 'lockpick', dur: 6 },
+  { id: 'cutters', icon: 'cutters', cost: { scrap: 2, parts: 2 }, give: 'cutters', dur: 10 },
   { id: 'knife', icon: 'knife', cost: { scrap: 1 }, give: 'knife', dur: 6 },
   { id: 'bat', icon: 'bat', cost: { wood: 2 }, give: 'bat', dur: 6 },
   { id: 'backpack', icon: 'backpack', cost: { scrap: 2 }, give: 'backpack', dur: 8 }
@@ -1528,7 +1530,7 @@ const TRAIT_DESC = { handy: 'crafts fast', runner: 'carries more, runs fast', me
 const LOCATIONS = [
   { id: 'market', w: 760, plan: [2], roof: 'awning', day: 1, name: 'Corner Market', x: .22, y: .30, danger: 1, floors: 1, loot: ['canned', 'canned', 'water', 'canned', 'canned', 'scrap', 'wood'], locked: 1 },
   { id: 'flats', w: 700, plan: [2, 2, 2], roof: 'burnt', day: 1, name: 'Burnt Flats', x: .40, y: .20, danger: 2, floors: 3, loot: ['scrap', 'wood', 'wood', 'canned', 'water', 'bandage', 'scrap'], locked: 1 },
-  { id: 'hardware', w: 1300, plan: [3, 2], roof: 'shed', day: 2, name: 'Hardware Store', x: .62, y: .28, danger: 2, floors: 2, loot: ['scrap', 'parts', 'parts', 'wood', 'fuel', 'crowbar', 'shovel', 'rifle', 'ammo'], locked: 2 },
+  { id: 'hardware', w: 1300, plan: [3, 2], roof: 'shed', day: 2, name: 'Hardware Store', x: .62, y: .28, danger: 2, floors: 2, loot: ['scrap', 'parts', 'parts', 'wood', 'fuel', 'crowbar', 'shovel', 'cutters', 'rifle', 'ammo'], locked: 2 },
   { id: 'pharmacy', w: 600, plan: [2], roof: 'sign', day: 3, name: 'Pharmacy', x: .78, y: .42, danger: 3, floors: 1, loot: ['meds', 'meds', 'bandage', 'bandage', 'water', 'scrap'], locked: 1 },
   { id: 'farm', w: 1250, plan: [3, 2], roof: 'farm', rural: true, day: 4, name: 'Country House', x: .17, y: .86, danger: 1, floors: 2, loot: ['canned', 'canned', 'water', 'wood', 'wood', 'fuel', 'scrap', 'shovel', 'rifle', 'ammo'], locked: 1 },
   { id: 'military', w: 2100, roof: 'mil', day: 16, name: 'Military Post', x: .9, y: .57, danger: 5, floors: 3, loot: ['ammo', 'rifle', 'pistol', 'meds', 'canned'], locked: 2 },
@@ -1539,11 +1541,13 @@ const LOCATIONS = [
 ];
 
 // roads across the district. Some are closed: for good, until a day comes, or on nights the raiders hold them.
-const ROADS = [['home', 'market'], ['home', 'flats'], ['market', 'flats'], ['flats', 'hardware'], ['market', 'school'], ['hardware', 'pharmacy'], ['school', 'station'], ['station', 'pharmacy', { why: 'Raider roadblock', odd: true }], ['station', 'police'], ['pharmacy', 'police', { why: 'Bridge out' }], ['police', 'hospital'], ['school', 'hospital', { why: 'Collapsed', until: 18 }], ['station', 'hospital', { why: 'Fire', odd: true }], ['home', 'farm'], ['farm', 'school', { why: 'Flooded', until: 9 }], ['police', 'military'], ['pharmacy', 'military', { why: 'Minefield' }]];
-function roadOpen(o) { if (!o) return true; if (o.until) return G.day >= o.until; if (o.odd) return hashStr(o.why + G.day) % 3 !== 0; return false; }
+const ROADS = [['home', 'market'], ['home', 'flats'], ['home', 'farm'], ['market', 'flats'], ['flats', 'hardware'], ['market', 'school'], ['hardware', 'pharmacy', { why: 'Barricaded', need: 'crowbar' }], ['school', 'station'], ['station', 'pharmacy', { why: 'Raider roadblock', odd: true }], ['station', 'police', { why: 'Wire fence', need: 'cutters' }], ['pharmacy', 'police', { why: 'Bridge out' }], ['police', 'hospital', { why: 'Collapsed', need: 'shovel' }], ['school', 'hospital', { why: 'Bridge out' }], ['station', 'hospital', { why: 'Fire', odd: true }], ['farm', 'school', { why: 'Chained gate', need: 'cutters' }], ['police', 'military', { why: 'Checkpoint', need: 'radio' }], ['pharmacy', 'military', { why: 'Minefield' }]];
+const needName = id => ((ITEMS[id] || {}).n || (RECIPE_INFO[id] || [id])[0]).toLowerCase();
+const known = id => id === 'home' || !!G.flags['v_' + id] || ROADS.some(([a, b]) => (a === id && (b === 'home' || G.flags['v_' + b])) || (b === id && (a === 'home' || G.flags['v_' + a])));   // you learn of a place by going to its neighbour
+function roadOpen(o) { if (!o) return true; if (o.need) return (G.inv[o.need] || 0) > 0 || !!(G.built && G.built[o.need]); if (o.odd) return hashStr(o.why + G.day) % 3 !== 0; return false; }
 const NODE = id => id === 'home' ? { id, x: .08, y: .5 } : LOCATIONS.find(l => l.id === id);
 function routeTo(id) {   // the shortest open way there from home, or null
-  const ok = n => n.id === 'home' || (n.day || 1) <= G.day, dist = { home: 0 }, prev = {}, done = new Set();
+  const ok = n => known(n.id), dist = { home: 0 }, prev = {}, done = new Set();
   for (;;) { let u = null; for (const k in dist) if (!done.has(k) && (u == null || dist[k] < dist[u])) u = k; if (u == null) break; done.add(u); if (u === id) break;
     for (const [a, b, o] of ROADS) { if (a !== u && b !== u) continue; const v = a === u ? b : a, A = NODE(u), B = NODE(v); if (!ok(B) || !roadOpen(o)) continue; const dd = dist[u] + Math.hypot((A.x - B.x) * 1.6, A.y - B.y); if (dist[v] == null || dd < dist[v]) { dist[v] = dd; prev[v] = u; } } }
   if (dist[id] == null) return null; const path = [id]; while (path[0] !== 'home') path.unshift(prev[path[0]]); return { d: dist[id], path };
@@ -1926,6 +1930,7 @@ function drawScene(world, hour, actors, opts = {}) {
     if (r.f === 0) { ctx.fillStyle = 'rgba(0,0,0,.18)'; for (let y = ceil; y < fy; y += 26) ctx.fillRect(r.x0, y, r.x1 - r.x0, 1.5); for (let x = r.x0 + ((r.f * 13) % 50); x < r.x1; x += 50) ctx.fillRect(x, ceil, 1.5, fy - ceil); }
     // cracks
     const rr_ = mulberry(r.x0 + r.f * 31); ctx.strokeStyle = 'rgba(0,0,0,.25)'; ctx.lineWidth = 1.2; for (let i = 0; i < 2; i++) { let cx = r.x0 + rr_() * (r.x1 - r.x0), cy = ceil + rr_() * 50; ctx.beginPath(); ctx.moveTo(cx, cy); for (let j = 0; j < 5; j++) { cx += (rr_() - .5) * 30; cy += rr_() * 25; ctx.lineTo(cx, cy); } ctx.stroke(); }
+    drawRoomSurface(world, r, fy, ceil);
   }
   if (world.decor) for (const d of world.decor) drawDeco(world, d);
   // props (back layer)
@@ -2021,6 +2026,7 @@ function drawExteriorDebris(world, gy, night) {
   // fence / lamp post right
   ctx.fillStyle = '#3a3a3a'; ctx.fillRect(world.x1 + 120, gy - 180, 6, 194); ctx.fillRect(world.x1 + 120, gy - 184, 34, 6);
   if (night) { ctx.fillStyle = 'rgba(255,200,120,.08)'; ctx.beginPath(); ctx.moveTo(world.x1 + 150, gy - 180); ctx.lineTo(world.x1 + 90, gy + 14); ctx.lineTo(world.x1 + 230, gy + 14); ctx.fill(); }
+  if (world.site) drawSiteYard(world, gy);
 }
 function drawRoof(world, topY, sky) {
   const x0 = world.x0 - 30, x1 = world.x1 + 30; ctx.fillStyle = '#2a2320';
@@ -2247,6 +2253,44 @@ function drawDeco(world, d) {
     case 'stencil': { ctx.fillStyle = 'rgba(200,190,150,.22)'; ctx.fillRect(x - 40, fy - 104, 80, 2); txt(['AUTHORIZED ONLY', 'NO SMOKING', 'SECTOR ' + d.n, 'MUSTER POINT', 'KEEP CLEAR'][d.n % 5], x, fy - 92, 10, 'rgba(210,200,160,.38)', 'center', '700'); break; }
     case 'map': { ctx.fillStyle = '#3a2e22'; ctx.fillRect(x - 34, fy - 124, 68, 48); ctx.fillStyle = 'rgba(190,180,150,.45)'; ctx.fillRect(x - 31, fy - 121, 62, 42); ctx.strokeStyle = 'rgba(80,70,50,.6)'; ctx.lineWidth = 1; for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.moveTo(x - 31, fy - 114 + i * 10 + rs() * 4); ctx.bezierCurveTo(x - 10, fy - 120 + i * 9, x + 6, fy - 108 + i * 9, x + 31, fy - 116 + i * 10); ctx.stroke(); } ctx.fillStyle = 'rgba(150,40,36,.8)'; circ(x - 6 + rs() * 20, fy - 104, 2.2); ctx.fill(); circ(x + 12, fy - 92, 2.2); ctx.fill(); break; }   // a wall map with pins
     case 'litter': { for (let i = 0; i < 5; i++) { ctx.fillStyle = sp(rs, ['rgba(190,180,160,.35)', 'rgba(60,50,40,.6)', 'rgba(120,110,100,.4)']); ctx.save(); ctx.translate(x + (rs() - .5) * 60, fy - 2); ctx.rotate((rs() - .5) * .6); ctx.fillRect(-4, -2, 6 + rs() * 8, 2.5); ctx.restore(); } break; }
+  }
+}
+// each place has its own walls: tiles, block, panelling or old paper; and every room its skirting, pipes, a dead light, cobwebs
+const ROOM_MAT = { market: 'tile', flats: 'paper', hardware: 'block', pharmacy: 'tile', school: 'paper', station: 'block', police: 'panel', hospital: 'tile', farm: 'panel', military: 'block' };
+function drawRoomSurface(world, r, fy, ceil) {
+  const site = world.site, mat = site ? (ROOM_MAT[site.id] || 'paper') : 'paper', x0 = r.x0 + 6, x1 = r.x1 - 6, w = x1 - x0, rs = mulberry(r.x0 * 7 + r.f * 101 + 5); if (w < 40) return;
+  if (mat === 'tile') { const top = fy - 64; ctx.fillStyle = 'rgba(255,255,255,.04)'; ctx.fillRect(x0, top, w, 64); ctx.fillStyle = 'rgba(0,0,0,.16)'; for (let y = top; y < fy; y += 16) ctx.fillRect(x0, y, w, 1); for (let x = x0; x < x1; x += 16) ctx.fillRect(x, top, 1, 64); ctx.fillStyle = 'rgba(0,0,0,.3)'; for (let i = 0; i < w / 60; i++) ctx.fillRect(x0 + Math.floor(rs() * (w - 16) / 16) * 16 + 1, top + Math.floor(rs() * 4) * 16 + 1, 15, 15); ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fillRect(x0, top - 3, w, 3); }   // tiles to waist height, some gone
+  else if (mat === 'block') { ctx.fillStyle = 'rgba(0,0,0,.13)'; let row = 0; for (let y = fy - 20; y > ceil; y -= 20, row++) { ctx.fillRect(x0, y, w, 1.2); for (let x = x0 + (row % 2) * 20; x < x1; x += 40) ctx.fillRect(x, y - 20, 1.2, 20); } ctx.fillStyle = 'rgba(210,190,120,.08)'; ctx.fillRect(x0, fy - 58, w, 10); }   // painted block with a band
+  else if (mat === 'panel') { const top = fy - 58; ctx.fillStyle = 'rgba(70,45,25,.35)'; ctx.fillRect(x0, top, w, 58); ctx.fillStyle = 'rgba(0,0,0,.2)'; for (let x = x0; x < x1; x += 14) ctx.fillRect(x, top, 1, 58); ctx.fillStyle = 'rgba(40,26,14,.8)'; ctx.fillRect(x0, top - 4, w, 4); ctx.fillStyle = 'rgba(255,230,190,.08)'; ctx.fillRect(x0, top - 4, w, 1); }   // wood panelling and a rail
+  else { ctx.fillStyle = 'rgba(255,240,210,.035)'; for (let x = x0; x < x1; x += 24) ctx.fillRect(x, ceil, 12, fy - ceil); ctx.fillStyle = 'rgba(30,20,12,.4)'; ctx.fillRect(x0, fy - 48, w, 3);
+    if (rs() < .6 && w > 120) { const bx = x0 + 10 + rs() * (w - 90), by = ceil + 22 + rs() * 36; ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.fillRect(bx - 3, by - 3, 68, 38); for (let i = 0; i < 4; i++) for (let j = 0; j < 3; j++) { ctx.fillStyle = (i + j) % 3 ? 'rgba(120,58,40,.5)' : 'rgba(96,46,32,.5)'; ctx.fillRect(bx + j * 21 + (i % 2) * 8, by + i * 8, 19, 6); } } }   // striped paper; plaster fallen away to brick
+  ctx.fillStyle = 'rgba(20,16,12,.55)'; ctx.fillRect(x0, fy - 7, w, 7); ctx.fillStyle = 'rgba(255,240,210,.06)'; ctx.fillRect(x0, fy - 7, w, 1);   // skirting
+  if (rs() < .55) { ctx.fillStyle = '#2c2b28'; ctx.fillRect(x0, ceil + 8, w, 6); ctx.fillStyle = 'rgba(255,255,255,.07)'; ctx.fillRect(x0, ceil + 8, w, 1.5); ctx.fillStyle = '#232220'; for (let x = x0 + 30; x < x1; x += 120) ctx.fillRect(x, ceil, 4, 14); }   // a pipe along the ceiling
+  else { ctx.fillStyle = 'rgba(0,0,0,.28)'; for (let x = x0 + 40; x < x1; x += 160) ctx.fillRect(x, ceil, 12, 10); }   // joist ends
+  if (site) { const lx = (r.x0 + r.x1) / 2 + (rs() - .5) * w * .3;
+    if (mat === 'tile' || mat === 'block') { ctx.fillStyle = '#2e2e2c'; ctx.fillRect(lx - 34, ceil + 2, 68, 6); ctx.fillStyle = 'rgba(210,220,220,.16)'; if (rs() < .4) { ctx.fillRect(lx - 31, ceil + 8, 34, 3); ctx.save(); ctx.translate(lx + 3, ceil + 9); ctx.rotate(.55); ctx.fillRect(0, 0, 30, 3); ctx.restore(); } else ctx.fillRect(lx - 31, ceil + 8, 62, 3); }   // a fluorescent tube, sometimes hanging by one end
+    else { ctx.strokeStyle = '#1a1714'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(lx, ceil); ctx.lineTo(lx, ceil + 20); ctx.stroke(); ctx.fillStyle = '#3a3128'; ctx.beginPath(); ctx.moveTo(lx - 12, ceil + 30); ctx.lineTo(lx - 5, ceil + 20); ctx.lineTo(lx + 5, ceil + 20); ctx.lineTo(lx + 12, ceil + 30); ctx.fill(); } }   // a shade on its flex
+  ctx.strokeStyle = 'rgba(220,220,220,.13)'; ctx.lineWidth = .8; for (const [cx, sx] of [[x0, 1], [x1, -1]]) if (rs() < .55) { const sz = 16 + rs() * 16; ctx.beginPath(); for (let i = 0; i < 4; i++) { ctx.moveTo(cx, ceil + i * sz / 4); ctx.lineTo(cx + sx * (sz - i * sz / 4), ceil); } ctx.moveTo(cx, ceil + sz * .7); ctx.quadraticCurveTo(cx + sx * sz * .25, ceil + sz * .25, cx + sx * sz * .7, ceil); ctx.stroke(); }   // cobwebs
+  if (rs() < .6) { const sx = x0 + 30 + rs() * (w - 60); ctx.fillStyle = 'rgba(200,190,170,.16)'; ctx.fillRect(sx, fy - 30, 7, 9); ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.fillRect(sx + 2, fy - 28, 1, 3); ctx.fillRect(sx + 4, fy - 28, 1, 3); }   // a socket
+}
+// what is left outside each place
+function drawSiteYard(world, gy) {
+  const id = world.site.id, y = gy + 14, X = world.x1;
+  const car = (x, col, w = 150, light) => { ctx.fillStyle = col; rr(x, y - 38, w, 30, 8); ctx.fill(); ctx.fillStyle = 'rgba(0,0,0,.25)'; rr(x + w * .2, y - 60, w * .55, 26, 8); ctx.fill(); ctx.fillStyle = '#16181c'; ctx.fillRect(x + w * .26, y - 56, w * .2, 16); ctx.fillRect(x + w * .5, y - 56, w * .2, 16); ctx.fillStyle = '#141210'; circ(x + w * .2, y - 8, 12); ctx.fill(); circ(x + w * .8, y - 8, 12); ctx.fill(); if (light) { ctx.fillStyle = '#3a4e8a'; ctx.fillRect(x + w * .38, y - 66, 12, 6); ctx.fillStyle = '#8a3a34'; ctx.fillRect(x + w * .38 + 12, y - 66, 12, 6); } };
+  const van = (x, col, stripe) => { ctx.fillStyle = col; rr(x, y - 82, 210, 72, 8); ctx.fill(); ctx.fillStyle = '#16181c'; ctx.fillRect(x + 168, y - 74, 32, 24); ctx.fillStyle = stripe; ctx.fillRect(x, y - 44, 210, 7); ctx.fillStyle = '#141210'; circ(x + 40, y - 8, 13); ctx.fill(); circ(x + 168, y - 8, 13); ctx.fill(); };
+  const sandbags = (x, n, rows) => { ctx.fillStyle = '#4a4636'; for (let rI = 0; rI < rows; rI++) for (let i = 0; i < n - rI; i++) { ctx.beginPath(); ctx.ellipse(x + i * 22 + rI * 11, y - 6 - rI * 11, 12, 7, 0, 0, TAU); ctx.fill(); } };
+  switch (id) {
+    case 'market': for (const [cx, tip] of [[X + 190, 0], [X + 245, .5]]) { ctx.save(); ctx.translate(cx, y - 14); ctx.rotate(tip); ctx.strokeStyle = '#6a6a66'; ctx.lineWidth = 1.5; ctx.strokeRect(-18, -28, 36, 24); for (let i = -12; i < 18; i += 6) { ctx.beginPath(); ctx.moveTo(i, -28); ctx.lineTo(i, -4); ctx.stroke(); } ctx.beginPath(); ctx.moveTo(18, -28); ctx.lineTo(26, -36); ctx.stroke(); ctx.fillStyle = '#1a1816'; circ(-12, 6, 4); ctx.fill(); circ(12, 6, 4); ctx.fill(); ctx.restore(); }
+      ctx.fillStyle = '#2f4a3a'; ctx.fillRect(X + 300, y - 56, 110, 56); ctx.fillStyle = '#263c30'; ctx.save(); ctx.translate(X + 300, y - 56); ctx.rotate(-.2); ctx.fillRect(0, -6, 112, 7); ctx.restore(); ctx.fillStyle = '#1e1c1a'; ctx.fillRect(X + 230, y - 10, 30, 10); break;   // carts and a dumpster
+    case 'flats': ctx.fillStyle = '#3e2e2a'; rr(X + 190, y - 34, 110, 30, 6); ctx.fill(); rr(X + 190, y - 52, 22, 48, 6); ctx.fill(); rr(X + 278, y - 52, 22, 48, 6); ctx.fill(); ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(X + 214, y - 30, 60, 3); ctx.fillStyle = 'rgba(10,8,6,.5)'; ctx.beginPath(); ctx.ellipse(X + 380, y - 1, 80, 6, 0, 0, TAU); ctx.fill(); car(X + 330, '#2a2422'); break;   // a sofa on the kerb, a burnt-out car
+    case 'hardware': ctx.fillStyle = '#5a4832'; for (let i = 0; i < 4; i++) { ctx.fillRect(X + 190, y - 12 - i * 14, 110, 4); for (let j = 0; j < 4; j++) ctx.fillRect(X + 192 + j * 34, y - 12 - i * 14, 8, 12); } for (let i = 0; i < 3; i++) { ctx.fillStyle = ['#5a3a30', '#3a4a5a', '#5a3a30'][i]; rr(X + 330 + i * 26, y - 62, 20, 62, 8); ctx.fill(); ctx.fillStyle = '#2a2622'; ctx.fillRect(X + 336 + i * 26, y - 70, 8, 8); } break;   // pallets and gas bottles
+    case 'pharmacy': ctx.fillStyle = '#2a2826'; ctx.fillRect(X + 200, y - 210, 6, 210); ctx.fillStyle = '#26302c'; ctx.fillRect(X + 180, y - 250, 46, 46); ctx.fillStyle = 'rgba(80,140,100,.6)'; ctx.fillRect(X + 197, y - 244, 12, 34); ctx.fillRect(X + 186, y - 233, 34, 12); ctx.fillStyle = '#3a3a40'; ctx.fillRect(X + 280, y - 60, 40, 60); ctx.fillStyle = 'rgba(200,190,170,.25)'; ctx.fillRect(X + 284, y - 54, 32, 20); break;   // the green cross, a paper box
+    case 'school': ctx.fillStyle = '#2a2826'; ctx.fillRect(X + 210, y - 170, 5, 170); ctx.fillStyle = '#7a6a2a'; ctx.fillRect(X + 196, y - 180, 34, 22); ctx.strokeStyle = '#3a3a38'; ctx.lineWidth = 2; for (let i = 0; i < 5; i++) { ctx.beginPath(); ctx.arc(X + 290 + i * 22, y - 10, 10, Math.PI, 0); ctx.stroke(); } ctx.lineWidth = 1.6; ctx.beginPath(); ctx.arc(X + 312, y - 12, 12, 0, TAU); ctx.arc(X + 356, y - 12, 12, 0, TAU); ctx.moveTo(X + 312, y - 12); ctx.lineTo(X + 330, y - 34); ctx.lineTo(X + 356, y - 12); ctx.moveTo(X + 330, y - 34); ctx.lineTo(X + 346, y - 34); ctx.stroke(); ctx.fillStyle = 'rgba(70,92,112,.35)'; ctx.beginPath(); ctx.ellipse(X + 230, y, 120, 4, 0, 0, TAU); ctx.fill(); break;   // bus stop, bike rack, flood water
+    case 'station': ctx.fillStyle = '#2a2826'; ctx.fillRect(X + 230, y - 260, 8, 260); ctx.fillStyle = '#2e3236'; ctx.fillRect(X + 190, y - 300, 88, 64); ctx.fillStyle = 'rgba(200,160,80,.45)'; for (let i = 0; i < 3; i++) txt(['4.', '4.', '5.'][i] + (59 + i * 20), X + 234, y - 286 + i * 19, 12, 'rgba(220,180,90,.6)'); for (let i = 0; i < 4; i++) { ctx.fillStyle = '#161514'; ctx.beginPath(); ctx.ellipse(X + 330, y - 7 - i * 13, 24, 7, 0, 0, TAU); ctx.fill(); ctx.fillStyle = '#262422'; ctx.fillRect(X + 306, y - 14 - i * 13, 48, 7); } break;   // price sign, tyres
+    case 'police': ctx.fillStyle = '#5a5a56'; for (let i = 0; i < 2; i++) { ctx.beginPath(); ctx.moveTo(X + 180 + i * 90, y); ctx.lineTo(X + 190 + i * 90, y - 40); ctx.lineTo(X + 250 + i * 90, y - 40); ctx.lineTo(X + 260 + i * 90, y); ctx.fill(); ctx.fillStyle = 'rgba(200,180,80,.35)'; ctx.fillRect(X + 195 + i * 90, y - 30, 50, 6); ctx.fillStyle = '#5a5a56'; } car(X + 380, '#2e3440', 160, true); break;   // barriers, a patrol car
+    case 'hospital': van(X + 190, '#8a8a84', 'rgba(150,40,36,.8)'); ctx.fillStyle = 'rgba(150,40,36,.8)'; ctx.fillRect(X + 260, y - 74, 8, 22); ctx.fillRect(X + 253, y - 67, 22, 8); ctx.fillStyle = '#3a3a40'; ctx.fillRect(X + 430, y - 40, 60, 6); ctx.fillRect(X + 436, y - 34, 4, 26); ctx.fillRect(X + 482, y - 34, 4, 26); break;   // an ambulance, a gurney
+    case 'farm': ctx.fillStyle = '#4a3020'; rr(X + 210, y - 70, 110, 40, 6); ctx.fill(); ctx.fillStyle = '#3a2418'; ctx.fillRect(X + 290, y - 104, 34, 40); ctx.fillStyle = '#16181c'; ctx.fillRect(X + 296, y - 98, 22, 18); ctx.fillStyle = '#2a2624'; ctx.fillRect(X + 230, y - 96, 5, 26); ctx.fillStyle = '#141210'; circ(X + 300, y - 26, 28); ctx.fill(); circ(X + 222, y - 14, 15); ctx.fill(); ctx.strokeStyle = '#2a2624'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(X + 300, y - 26, 18, 0, TAU); ctx.stroke(); ctx.fillStyle = '#3a3a38'; ctx.fillRect(X + 380, y - 26, 80, 26); ctx.fillStyle = 'rgba(70,92,112,.4)'; ctx.fillRect(X + 384, y - 24, 72, 6); break;   // a tractor, a trough
+    case 'military': sandbags(X + 180, 6, 3); car(X + 360, '#3e4232', 170); ctx.strokeStyle = 'rgba(150,150,140,.5)'; ctx.lineWidth = 1.2; for (let x = world.x0 - 640; x < world.x0 - 330; x += 12) { ctx.beginPath(); ctx.arc(x, y - 14, 10, 0, TAU); ctx.stroke(); } ctx.fillStyle = '#2a2a26'; for (let x = world.x0 - 640; x < world.x0 - 320; x += 70) ctx.fillRect(x, y - 60, 5, 60); break;   // sandbags, a jeep, wire
   }
 }
 function drawTreeAt(x, gy, s) { const th = 210 + s * 80; ctx.fillStyle = '#1c1916'; ctx.fillRect(x - 7, gy + 14 - th * .6, 14, th * .6); ctx.strokeStyle = '#1c1916'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(x, gy - th * .4); ctx.lineTo(x - 50, gy - th * .75); ctx.moveTo(x, gy - th * .5); ctx.lineTo(x + 44, gy - th * .85); ctx.moveTo(x, gy - th * .55); ctx.lineTo(x + 4, gy - th); ctx.stroke(); ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x - 30, gy - th * .63); ctx.lineTo(x - 60, gy - th * .6); ctx.moveTo(x + 26, gy - th * .7); ctx.lineTo(x + 66, gy - th * .72); ctx.stroke(); }
@@ -2572,7 +2616,7 @@ function startTravel(surv) {
   for (const t of [weapon, 'lockpick', 'crowbar']) if (t && G.inv[t] > 0) { G.inv[t]--; packAdd(pack, cap, t, 1); }
   if (GUNS[weapon] && G.inv.ammo > 0) { const n = Math.min(6, G.inv.ammo); G.inv.ammo -= n; packAdd(pack, cap, 'ammo', n); }
   p.x = 80; p.fy = 0; p.f = 0; p.facing = 1; p.path = null; p.task = null; p.hidden = false; p.visible = true; p.hasPack = true; p.attackT = 0; p.pose = 'idle';
-  const dest = LOCATIONS.find(l => l.id === G.planLoc && (l.day || 1) <= G.day && (PREVIEW || routeTo(l.id))) || LOCATIONS[0]; { const rt = routeTo(dest.id); ST_END = Math.round(clamp(1100 + (rt ? rt.d : .35) * 2000, 1300, 2800)); }   // a longer road to the further places
+  const dest = LOCATIONS.find(l => l.id === G.planLoc && (PREVIEW || (known(l.id) && routeTo(l.id)))) || LOCATIONS[0]; { const rt = routeTo(dest.id); ST_END = Math.round(clamp(1100 + (rt ? rt.d : .35) * 2000, 1300, 2800)); }   // a longer road to the further places
   Object.assign(TR, { active: true, player: p, pack, cap, x: 80, py: 0, zombies: [], obstacles: [], dest, fires: [], drifters: [], locX: { [dest.id]: ST_END - 320 }, kills: 0, attackT: 0, hurtT: 0, msg: 'run', msgT: 3, decor: [], done: false, result: null, grounded: true, tx: null, run: false, fight: false, bw: null, hidden: false, hideAt: null });
   // obstacles between locations
   const kinds = [['car', 120, 48], ['rubble', 140, 46], ['barrier', 60, 54], ['crates', 70, 36], ['bus', 260, 60]];
@@ -3001,7 +3045,7 @@ function drawPlan() {
   });
   const scavName = Object.keys(P).find(n => P[n] === 'scav');
   const by = y + h - 50;
-  const dest = LOCATIONS.find(l => l.id === G.planLoc && (l.day || 1) <= G.day && routeTo(l.id));
+  const dest = LOCATIONS.find(l => l.id === G.planLoc && known(l.id) && routeTo(l.id));
   if (scavName) { drawIcon('run', x + 30, by - 18, 20, GOLD); txt(scavName + ' goes to ' + (dest ? dest.name : '… choose where'), x + 48, by - 18, 15, dest ? INK : RED, 'left'); txt('must be home by 5:00 AM', x + 48, by + 2, 12, DIM, 'left'); UI.btn(x + 16, by - 32, w - 190, 46, () => { UI.modal = { kind: 'map' }; }); }
   else txt('no one goes out tonight', x + 30, by - 10, 15, DIM, 'left');
   textButton(x + w - 150, by - 4, 130, 44, 'GO', () => { if (scavName && !dest) { UI.modal = { kind: 'map' }; return; } beginNight(); }, { primary: true, icon: 'arrow' });
@@ -3015,19 +3059,20 @@ function drawMap() {
   ctx.strokeStyle = '#2f3338'; ctx.lineWidth = 6; for (let i = 1; i < 4; i++) { ctx.beginPath(); ctx.moveTo(mx, my + mh * i / 4 + Math.sin(i) * 20); ctx.lineTo(mx + mw, my + mh * i / 4 - Math.cos(i) * 20); ctx.stroke(); ctx.beginPath(); ctx.moveTo(mx + mw * i / 4 + 10, my); ctx.lineTo(mx + mw * i / 4 - 10, my + mh); ctx.stroke(); }
   ctx.fillStyle = '#2b2f34'; const r = mulberry(5); for (let i = 0; i < 40; i++) { ctx.fillRect(mx + r() * mw, my + r() * mh, 10 + r() * 30, 8 + r() * 22); }
   // roads: open grey, the way there gold, closed ones red and dashed with the reason
-  const pt = id => { const n = NODE(id); return [mx + mw * n.x, my + mh * n.y]; }, seen = id => id === 'home' || (NODE(id).day || 1) <= G.day;
+  const pt = id => { const n = NODE(id); return [mx + mw * n.x, my + mh * n.y]; }, seen = id => known(id);
   const route = G.planLoc ? routeTo(G.planLoc) : null, onRoute = (a, b) => route && route.path.some((q, i) => i && ((route.path[i - 1] === a && q === b) || (route.path[i - 1] === b && q === a)));
   const closedTags = [];
   for (const [a, b, o] of ROADS) { if (!seen(a) || !seen(b)) continue; const [ax, ay] = pt(a), [bx, by] = pt(b), open = roadOpen(o), on = open && onRoute(a, b);
     ctx.strokeStyle = on ? GOLD : open ? '#4c5056' : 'rgba(200,80,64,.8)'; ctx.lineWidth = on ? 5 : 4; ctx.setLineDash(open ? [] : [7, 6]); ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke(); ctx.setLineDash([]);
     if (!open) closedTags.push([(ax + bx) / 2, (ay + by) / 2, o]); }
-  for (const [cx, cy, o] of closedTags) { ctx.fillStyle = 'rgba(30,18,18,.92)'; const tw = Math.max(60, o.why.length * 6.4 + 26); rr(cx - tw / 2, cy - 10, tw, 20, 6); ctx.fill(); drawIcon('close', cx - tw / 2 + 11, cy, 12, RED); txt(o.why + (o.until ? ' · day ' + o.until : ''), cx + 7, cy, 10, '#d9a49a'); }
+  for (const [cx, cy, o] of closedTags) { if (!o.need && !o.odd) { ctx.fillStyle = 'rgba(30,18,18,.92)'; circ(cx, cy, 9); ctx.fill(); drawIcon('close', cx, cy, 12, RED); continue; }   // closed for good: just the mark
+    ctx.fillStyle = 'rgba(30,18,18,.92)'; const tw = Math.max(60, (o.why.length + (o.need ? needName(o.need).length + 8 : 0)) * 6 + 26); rr(cx - tw / 2, cy - 10, tw, 20, 6); ctx.fill(); drawIcon('close', cx - tw / 2 + 11, cy, 12, RED); txt(o.why + (o.need ? ' · need ' + needName(o.need) : ''), cx + 7, cy, 10, '#d9a49a'); }
   // home
   drawIcon('home', mx + mw * .08, my + mh * .5, 26, GOLD); txt('home', mx + mw * .08, my + mh * .5 + 22, 12, GOLD);
   if (route) txt(route.path.map(id => id === 'home' ? 'Home' : NODE(id).name).join('  →  '), mx + mw / 2, my + mh - 12, 12, GOLD);
   for (const l of LOCATIONS) {
     const lx = mx + mw * l.x, ly = my + mh * l.y; const sel = G.planLoc === l.id; const visited = G.flags['v_' + l.id];
-    if ((l.day || 1) > G.day) { ctx.fillStyle = 'rgba(30,32,36,.6)'; rr(lx - 22, ly - 14, 44, 28, 8); ctx.fill(); txt('?', lx, ly, 16, '#55585e'); continue; }
+    if (!known(l.id)) { ctx.fillStyle = 'rgba(30,32,36,.6)'; rr(lx - 22, ly - 14, 44, 28, 8); ctx.fill(); txt('?', lx, ly, 16, '#55585e'); continue; }
     const reach = !!routeTo(l.id), st = G.flags.sites && G.flags.sites[l.id];
     ctx.fillStyle = sel ? '#4a3a20' : reach ? 'rgba(30,32,36,.95)' : 'rgba(30,32,36,.7)'; rr(lx - 64, ly - 20, 128, 40, 8); ctx.fill(); ctx.strokeStyle = sel ? GOLD : '#4a4d52'; ctx.lineWidth = 2; rr(lx - 64, ly - 20, 128, 40, 8); ctx.stroke();
     const dg = visited ? l.danger : 0; txt(l.name, lx, ly - 7, 12, reach ? INK : '#77787c');
@@ -3047,17 +3092,18 @@ function drawEvent() {
   ev.choices.forEach((c, i) => { textButton(x + 30 + i * ((w - 60) / 2 + 8), y + 118, (w - 60) / 2 - 8, 44, c.label, () => { applyEvent(ev, c); }, { icon: c.icon, primary: i === 0 }); });
 }
 const RECIPE_INFO = { stove: ['Stove', 'Heat for the house and somewhere to cook. Burns wood or fuel.'], collector: ['Rain collector', 'Fills with water when it rains or snows.'], bed: ['Second bed', 'One more survivor sleeps properly each night.'], radio: ['Radio', 'Lifts spirits once a day. Sometimes there is news.'], trap: ['Door trap', 'Stops one intruder in every raid.'],
-  shovel: ['Shovel', 'Clears debris nine times faster.'], crowbar: ['Crowbar', 'Forces locked doors and never breaks. Noisy outside.'], lockpick: ['Lockpick', 'Opens locked doors quietly. Can snap.'], knife: ['Knife', 'A light weapon for the scavenger or the guard.'], bat: ['Bat', 'Hits harder than a knife and knocks them back.'], bandage: ['Bandage', 'Treats a wound and restores health.'], backpack: ['Backpack', 'Two more slots when scavenging.'] };
+  shovel: ['Shovel', 'Clears debris nine times faster.'], crowbar: ['Crowbar', 'Forces locked doors and never breaks. Noisy outside.'], cutters: ['Bolt cutters', 'Cuts chains and wire. Opens fenced and chained roads.'], lockpick: ['Lockpick', 'Opens locked doors quietly. Can snap.'], knife: ['Knife', 'A light weapon for the scavenger or the guard.'], bat: ['Bat', 'Hits harder than a knife and knocks them back.'], bandage: ['Bandage', 'Treats a wound and restores health.'], backpack: ['Backpack', 'Two more slots when scavenging.'] };
 // what can be made is learned over the days, a few things at a time
-const RECIPE_DAY = { shovel: 1, knife: 1, stove: 1, crowbar: 2, bat: 2, bed: 3, lockpick: 3, collector: 4, backpack: 5, radio: 6, trap: 8 };
-const recipeOpen = rc => (RECIPE_DAY[rc.id] || 1) <= G.day;
+const RECIPE_REQ = { bat: ['find', 'wood'], bed: ['find', 'wood'], crowbar: ['find', 'parts'], lockpick: ['visit', 'hardware'], cutters: ['visit', 'hardware'], collector: ['visit', 'farm'], trap: ['visit', 'farm'], backpack: ['visit', 'school'], radio: ['visit', 'police'] };
+const recipeOpen = rc => { const q = RECIPE_REQ[rc.id]; if (!q) return true; return q[0] === 'find' ? !!((G.flags.found && G.flags.found[q[1]]) || (G.inv[q[1]] || 0) > 0) : !!G.flags['v_' + q[1]]; };
+const recipeHint = id => { const q = RECIPE_REQ[id]; if (!q) return ''; return q[0] === 'find' ? 'Bring home some ' + ITEMS[q[1]].n.toLowerCase() + ' and it will come to you.' : 'Comes to mind once you have seen the ' + LOCATIONS.find(l => l.id === q[1]).name + '.'; };
 function wrapLines(str, maxW, max) { const words = str.split(' '), out = []; let cur = ''; for (const wd of words) { const t = cur ? cur + ' ' + wd : wd; if (ctx.measureText(t).width > maxW && cur) { out.push(cur); cur = wd; } else cur = t; } if (cur) out.push(cur); return out.slice(0, max || 3); }
 function drawCraft() {
   const M = UI.modal, s = G.survivors[M.who]; const w = Math.min(W - 16, 700), h = Math.min(H - 16, 460), x = (W - w) / 2, y = (H - h) / 2; panel(x, y, w, h, 'WORKBENCH');
   s.queue = s.queue || []; const queued = id => s.queue.filter(q => q.id === id).length;
   { const mk = s.task && s.task.kind === 'craft' ? s.task.recipe : null; txt(mk ? 'making: ' + (RECIPE_INFO[mk.id] || [mk.id])[0] + (s.queue.length ? ' · ' + s.queue.length + ' more' : '') : s.name + (s.trait === 'handy' ? ' · works fast' : ''), x + 16, y + 26, 12, mk ? GOLD : DIM, 'left'); }
   const A = { x: x + 10, y: y + 50, w: w - 20, h: h - 60 }, narrow = A.w < 470, CH = narrow ? 104 : 84, rows = [];
-  const open = RECIPES.filter(recipeOpen), shut = RECIPES.filter(r => !recipeOpen(r)).sort((p, q) => RECIPE_DAY[p.id] - RECIPE_DAY[q.id]);
+  const open = RECIPES.filter(recipeOpen), shut = RECIPES.filter(r => !recipeOpen(r));
   rows.push({ head: 'FOR THE HOUSE · you choose where each one goes' }); open.filter(r => r.build).forEach(r => rows.push({ rc: r })); rows.push({ head: 'TOOLS AND GEAR' }); open.filter(r => !r.build).forEach(r => rows.push({ rc: r }));
   if (shut.length) { rows.push({ head: 'NOT WORKED OUT YET' }); shut.forEach(r => rows.push({ rc: r, locked: true })); }
   let total = 0; for (const r of rows) { r.y = total; total += r.head ? 24 : CH + 6; }
@@ -3076,7 +3122,7 @@ function drawCraft() {
     const rightW = narrow ? 0 : 176, tx0 = cx0 + 64, tw = cw - 64 - rightW - 10;
     txt(inf[0], tx0, ry + 19, 16, r.locked ? '#6d6a63' : done ? GREEN : ok ? INK : '#a9a59c', 'left');
     if (!rc.build && !r.locked) { const have = G.inv[rc.give] || 0; ctx.font = '600 16px Oswald, Impact, sans-serif'; const nx = tx0 + ctx.measureText(inf[0]).width + 10; txt('have ' + have + (q ? ' · making ' + q : ''), nx, ry + 20, 12, have || q ? GOLD : '#77736b', 'left'); }
-    ctx.font = '500 12px Oswald, Impact, sans-serif'; const lines = r.locked ? ['Comes to mind on day ' + RECIPE_DAY[rc.id] + '.'] : wrapLines(inf[1], tw, 2); lines.forEach((ln, i) => txt(ln, tx0, ry + 39 + i * 15, 12, r.locked ? '#55524c' : DIM, 'left', '500'));
+    ctx.font = '500 12px Oswald, Impact, sans-serif'; const lines = r.locked ? wrapLines(recipeHint(rc.id), tw, 2) : wrapLines(inf[1], tw, 2); lines.forEach((ln, i) => txt(ln, tx0, ry + 39 + i * 15, 12, r.locked ? '#55524c' : DIM, 'left', '500'));
     if (r.locked) continue;
     const rx = narrow ? tx0 : cx0 + cw - rightW, cy = narrow ? ry + 82 : ry + 24;
     if (done) { drawIcon('check', rx + 12, cy + (narrow ? 0 : 16), 20, GREEN); txt(q ? 'being built' : G.flags.placing === rc.id ? 'ready to place' : 'built', rx + 28, cy + (narrow ? 0 : 16), 14, GREEN, 'left'); }
@@ -3158,7 +3204,7 @@ function lootPackView(M) {
   const ids = ITEM_ORDER.filter(k => G.inv[k] > 0); const slots = ids.map(k => ({ id: k, n: G.inv[k] }));
   return { slots, cap: Infinity, add: (id, n) => { G.inv[id] = (G.inv[id] || 0) + n; return n; }, take: i => { const st = slots[i]; G.inv[st.id] = 0; return { id: st.id, n: st.n }; }, swap: () => { } };
 }
-const RARITY = { wood: 0, scrap: 0, cloth: 0, water: 0, canned: 0, raw: 0, parts: 1, meal: 1, bandage: 1, fuel: 1, books: 1, lockpick: 1, shovel: 1, knife: 1, bat: 1, crowbar: 1, meds: 2, ammo: 2, rifle: 2, pistol: 2, backpack: 2 };
+const RARITY = { wood: 0, scrap: 0, cloth: 0, water: 0, canned: 0, raw: 0, parts: 1, meal: 1, bandage: 1, fuel: 1, books: 1, lockpick: 1, shovel: 1, knife: 1, bat: 1, crowbar: 1, cutters: 2, meds: 2, ammo: 2, rifle: 2, pistol: 2, backpack: 2 };
 const RARITY_NAME = ['COMMON', 'UNCOMMON', 'RARE'], RARITY_COL = ['#8d8a82', '#7fb0d9', '#d9b35a'];
 function drawLoot() {
   const M = UI.modal, sp = M.spot, found = sp.lootList; const home = !!M.home;
@@ -3477,7 +3523,7 @@ function finishScavenge() {
   const r = TR.result || SC.result || { died: false, pack: [], kills: 0 }; const p = TR.player; const w = G.world; cam.lock = false; TR.active = false; SC.active = false;
   UI.modal = null; p.hasPack = false; p.visible = true; p.hidden = false; p.task = null; p.path = null; p.x = 140; p.fy = 1; p.f = 1;
   if (r.died) { p.alive = false; p.health = 0; }
-  else { for (const s of r.pack) G.inv[s.id] = (G.inv[s.id] || 0) + s.n; if (r.kills) p.morale = clamp(p.morale + r.kills * 2, 0, 100); }
+  else { for (const s of r.pack) { G.inv[s.id] = (G.inv[s.id] || 0) + s.n; (G.flags.found = G.flags.found || {})[s.id] = true; } if (r.kills) p.morale = clamp(p.morale + r.kills * 2, 0, 100); }
   resolveNight(r);
 }
 function resolveNight(scav) {
@@ -3515,7 +3561,7 @@ function resolveNight(scav) {
   for (const s of alive) if (s.health <= 0) { s.alive = false; line('dead', s.name + ' died in the night', RED); for (const o of G.survivors) o.morale = clamp(o.morale - 20, 0, 100); }
   G.flags.radioToday = false;
   G.day++; G.hour = 6; G.report = rep; G.phase = 'dawn'; UI.modal = { kind: 'dawn' };
-  { const fresh = RECIPES.filter(r => RECIPE_DAY[r.id] === G.day).map(r => (RECIPE_INFO[r.id] || [r.id])[0]); if (fresh.length) line('craft', 'New ideas for the workbench: ' + fresh.join(', '), GOLD); }
+  { const ideas = G.flags.ideas || (G.flags.ideas = {}), fresh = RECIPES.filter(r => recipeOpen(r) && !ideas[r.id]); fresh.forEach(r => { ideas[r.id] = true; }); if (fresh.length && G.day > 1) line('craft', 'New ideas for the workbench: ' + fresh.map(r => (RECIPE_INFO[r.id] || [r.id])[0]).join(', '), GOLD); }
   G.flags.weather = rollWeather(G.day); if (G.flags.weather !== 'clear') line('cold', G.flags.weather === 'storm' ? 'A snowstorm is blowing in' : 'Snow today', '#9cc7e6');
   placeForDawn();
   // event
