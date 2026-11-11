@@ -1572,10 +1572,14 @@ class World {
   blockedByDebris(x, f, tx, tf) { const live = this.spots.filter(d => d.type === 'dig' && d.left > 0), keep = live.map(d => d.left); live.forEach(d => d.left = 0); const ok = !!this.path(x, f, tx, tf); live.forEach((d, i) => d.left = keep[i]); return ok; }
   // the way is shut (a locked room, a pile of debris): go as far along it as can be reached
   pathFar(x, f, tx, tf) { const direct = this.path(x, f, tx, tf); if (direct) return direct;
-    const shut = this.rooms.filter(r => !r.open), live = this.spots.filter(d => d.type === 'dig' && d.left > 0), keep = live.map(d => d.left); shut.forEach(r => r.open = true); live.forEach(d => d.left = 0);
-    const ideal = this.path(x, f, tx, tf); shut.forEach(r => r.open = false); live.forEach((d, i) => d.left = keep[i]); if (!ideal) return null;
+    const shut = this.rooms.filter(r => !r.open), live = this.spots.filter(d => d.type === 'dig' && d.left > 0), keep = live.map(d => d.left), goal = this.roomAt(clamp(tx, this.x0 + 20, this.x1 - 20), tf);
+    // the route as it would be with only the room being aimed at unlocked (so the stairs are approached the real way); failing that, with everything open
+    let ideal = null; live.forEach(d => d.left = 0); if (goal && !goal.open) { goal.open = true; ideal = this.path(x, f, tx, tf); goal.open = false; } else ideal = this.path(x, f, tx, tf);
+    if (!ideal) { shut.forEach(r => r.open = true); ideal = this.path(x, f, tx, tf); shut.forEach(r => r.open = false); }
+    live.forEach((d, i) => d.left = keep[i]); if (!ideal) return null;
     const out = []; let cx = x, cf = f;
-    for (const wp of ideal) { if (wp.fy !== cf) { out.push(wp); cx = wp.x; cf = wp.fy; continue; }
+    for (let wp of ideal) { if (wp.fy !== cf) { const r2 = this.roomAt(wp.x, wp.fy); if (r2 && !r2.open) wp = { x: wp.x > r2.x1 - 40 ? r2.x1 : r2.x0, fy: wp.fy };   // a landing just inside a locked room: stop on the stairs' own side
+      out.push(wp); cx = wp.x; cf = wp.fy; continue; }
       if (this.passable(cx, wp.x, cf)) { out.push(wp); cx = wp.x; continue; }
       const dir = Math.sign(wp.x - cx); let best = cx; for (let q = cx + dir * 8; (wp.x - q) * dir > 0; q += dir * 8) { if (this.passable(cx, q, cf)) best = q; else break; }
       if (Math.abs(best - cx) > 22) out.push({ x: best - dir * 12, fy: cf }); break; }
@@ -2220,7 +2224,7 @@ function scThrow() {
 function scTapWorld(wx, wy) {
   const p = SC.player, w = SC.world; if (SC.done) return;
   // nearest floor by y
-  let bf = 0, bd = 1e9; for (let f = 0; f < w.nFloors; f++) { const d = Math.abs(w.fy2y(f) - 40 - wy); if (d < bd) { bd = d; bf = f; } }
+  let bf = 0; for (let f = 0; f < w.nFloors; f++) if (wy <= w.fy2y(f) + 12) bf = f;   // the floor whose room the tap is in
   if (p.hidden) { p.hidden = false; p.visible = true; }
   p.task = null; const dbl = isDoubleTap(wx, wy);
   let path = w.path(p.x, p.f, wx, bf); if (!path) { scMsg('lock', 1); path = w.pathFar(p.x, p.f, wx, bf); } if (path) { p.path = path; p.run = dbl; if (dbl) SC.sneak = false; AUDIO.sfx('tap'); }
@@ -3005,7 +3009,7 @@ function continueGame() {
 // ---------- day: input ----------
 function homeTapWorld(wx, wy) {
   const s = G.survivors[G.sel]; if (!s || !s.alive) return; const w = G.world;
-  let bf = 0, bd = 1e9; for (let f = 0; f < w.nFloors; f++) { const d = Math.abs(w.fy2y(f) - 40 - wy); if (d < bd) { bd = d; bf = f; } }
+  let bf = 0; for (let f = 0; f < w.nFloors; f++) if (wy <= w.fy2y(f) + 12) bf = f;   // the floor whose room the tap is in
   if (G.flags.placing) { placeAt(wx, bf); return; }
   const dbl = isDoubleTap(wx, wy); let path = w.path(s.x, s.f, wx, bf); if (!path) { if (w.blockedByDebris(s.x, s.f, wx, bf)) homeMsg('debris in the way', 'shovel', RED); else homeMsg('locked', 'lock', RED); path = w.pathFar(s.x, s.f, wx, bf); if (!path) return; }
   s.task = null; s.path = path; s.run = dbl; AUDIO.sfx('tap');
