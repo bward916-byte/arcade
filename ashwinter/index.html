@@ -3770,7 +3770,7 @@ function makeSite(loc, day) {
   for (let i = 0; i < nzLeft; i++) { let zx, zf; const d = doors[i];
     if (d && r() < .8) { zx = d.x - d.dir * (50 + r() * 40); zf = d.f; } else for (let k = 0; k < 8; k++) { const room = open[Math.floor(r() * open.length)]; zx = room.x0 + 40 + r() * (room.x1 - room.x0 - 80); zf = room.f; if (!zombies.some(o => o.f === zf && Math.abs(o.x - zx) < 150)) break; }   // not all in a huddle
     if (zf === 0 && zx < x0 + 320) zx = x0 + 320 + r() * 100; const z = makeZombie(zx, zf, r); z.patrol = r() < .3 || (i === 1); zombies.push(z); }
-  if (dg <= 3 && r() < (dg <= 1 ? .5 : .35)) { const sp = spots.filter(q => q.type === 'search' && !rooms.find(o => o.f === q.f && q.x > o.x0 && q.x < o.x1 && o.locked) && (q.f > 0 || q.x > x0 + 300)); if (sp.length) { const t = sp[Math.floor(r() * sp.length)], side = r() < .5 ? -1 : 1; people.push({ drifter: true, name: 'picker' + loc.id + day, x: t.x + side * 24, f: t.f, fy: t.f, facing: -side, pose: 'search', searchLow: r() < .6, alive: true, scale: .94 + r() * .1 }); } }
+  if (dg <= 3 && (r() < (dg <= 1 ? .5 : .35) || nz === 0)) { const sp = spots.filter(q => q.type === 'search' && !rooms.find(o => o.f === q.f && q.x > o.x0 && q.x < o.x1 && o.locked) && (q.f > 0 || q.x > x0 + (nz === 0 ? 150 : 300))); if (sp.length) { const t = sp[Math.floor(r() * sp.length)], side = r() < .5 ? -1 : 1; people.push({ drifter: true, name: 'picker' + loc.id + day, x: t.x + side * 24, f: t.f, fy: t.f, facing: -side, pose: 'search', searchLow: r() < .6, alive: true, scale: .94 + r() * .1 }); } }
   }
   needsPlant(loc, world); makeSituation(loc, world, zombies, people, day);
   return { world, zombies, people };
