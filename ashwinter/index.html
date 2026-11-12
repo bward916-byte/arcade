@@ -1881,6 +1881,7 @@ const EVENTS = [
   { id: 'kids', icon: 'canned', text: 'Two children at the door ask for food.', who: true, req: g => (g.inv.canned || 0) >= 1, choices: [{ icon: 'check', label: 'Give a can', fx: 'giveFood' }, { icon: 'close', label: 'Send away', fx: 'morale--' }] },
   { id: 'woodtrade', icon: 'trade', text: 'A woman offers 6 wood for a can of food.', who: true, req: g => (g.inv.canned || 0) >= 1, choices: [{ icon: 'check', label: 'Trade', fx: 'woodtrade' }, { icon: 'close', label: 'No', fx: null }] },
   { id: 'warm', icon: 'fire', text: 'A half-frozen traveller asks to sit by your stove.', who: true, req: g => g.built.stove && fireLeft() > 0, choices: [{ icon: 'check', label: 'Let him warm up', fx: 'warm' }, { icon: 'close', label: 'Keep the door shut', fx: 'morale-' }] },
+  { id: 'barter', icon: 'trade', text: 'A trader lays out what she carries. One swap, no more.', who: true, req: g => g.day > 2 && Object.values(g.inv).reduce((a, b) => a + b, 0) >= 6, make: barterOffers, choices: [] },
   { id: 'rain', icon: 'rain', text: 'Heavy rain overnight.', req: g => g.built.collector, choices: [{ icon: 'check', label: 'OK', fx: 'rainwater' }] },
   { id: 'broadcast', icon: 'radio', text: 'Radio: a voice reading names. Others are alive out there.', req: g => g.built.radio && !g.flags.heardRadio, choices: [{ icon: 'check', label: 'OK', fx: 'radio' }] },
   { id: 'horde', icon: 'zombie', text: 'A gang is sweeping the street. Stay quiet today.', req: g => g.day > 4, choices: [{ icon: 'check', label: 'OK', fx: 'horde' }] }
@@ -1894,6 +1895,12 @@ const MEMO = {
   'nb+': { icon: 'guard', who: true, text: 'Your neighbor knocks: a gang is coming tonight. She has brought boards.', choices: [{ icon: 'check', label: 'Thank her', fx: 'm_warn' }] },
   'str-': { icon: 'zombie', who: true, text: 'The stranger you turned away is back at the end of the street. He is not alone.', choices: [{ icon: 'check', label: 'OK', fx: 'm_grudge' }] }
 };
+// a trader's offers: she wants what you have plenty of, and has some of what you are short of
+const TRADE_VAL = { wood: 1, scrap: 1, cloth: 1, water: 1.5, raw: 1.5, canned: 2.5, meal: 3, parts: 2.5, fuel: 3, bandage: 3, books: 2, ammo: 2, meds: 6, lockpick: 4 };
+function barterOffers(g) { const out = [], have = Object.keys(TRADE_VAL).filter(k => (g.inv[k] || 0) >= 2), want = ['meds', 'bandage', 'canned', 'fuel', 'parts', 'ammo', 'wood', 'water', 'lockpick', 'books'].filter(k => (g.inv[k] || 0) <= 1);
+  for (let tries = 0; tries < 30 && out.length < 3; tries++) { const w = pick(want), h = pick(have); if (!w || !h || w === h || out.some(o => o.icon === w)) continue; const qw = TRADE_VAL[w] < 2.5 && Math.random() < .5 ? 2 : 1, qh = Math.ceil(TRADE_VAL[w] * qw * 1.3 / TRADE_VAL[h]); if (qh > g.inv[h] || qh > 8) continue;
+    out.push({ icon: w, label: qh + ' ' + ITEMS[h].n.toLowerCase() + '  for  ' + qw + ' ' + ITEMS[w].n.toLowerCase(), fx: 'swap', give: { [w]: qw }, take: { [h]: qh } }); }
+  out.push({ icon: 'close', label: out.length ? 'Nothing today' : 'Nothing she wants', fx: null }); return out; }
 function remember(k, lo, hi) { (G.flags.memo = G.flags.memo || []).push({ k, day: G.day + ri(lo, hi) }); }
 function memoFor(ev, c) { const yes = c.icon === 'check';
   switch (ev.id) { case 'medbeg': remember(yes ? 'med+' : 'med-', 2, 4); break; case 'kids': remember(yes ? 'kids+' : 'kids-', 2, 3); break; case 'neighbor': if (yes) remember('nb+', 2, 5); break; case 'stranger': if (!yes) remember('str-', 3, 5); break; } }
@@ -2281,15 +2288,18 @@ function drawCorpse(a) {
 }
 function drawPortrait(a, x, y, r) {
   if (!HEADLESS && typeof Motion !== 'undefined' && a && !a.zombie) { try {
-    let c = a._pc; if (!c) { const t = new Motion.Terrain().flat(-1e5, 1e5, 0); t.base = 0; c = a._pc = new Motion.Character({ x: 0, scale: MS, terrain: t, look: lookFor(a) }); c.y = t.h(0); c.facing = 1; c.input.move = 0; a._pcT = _T; for (let i = 0; i < 20; i++) c.update(1 / 60); }
-    const dt = clamp(_T - a._pcT, 0, .05); a._pcT = _T; c.input.move = 0; c.hold = null; if (a.alive) { const m = moodOf(a) || { lean: 0, head: 0 }; c.w.ext = { lean: m.lean * .6, head: (a.st ? a.st.head : 0) + m.head }; c.update(dt); }
-    const k = c.cur && c.skeleton(c.cur);
-    if (k && k.headC) { const dy = c.curDy != null ? c.curDy : k.dy, hx = c.x + k.headC[0] * c.facing * k.sx, hy = -c.y + k.headC[1] + dy, z = r / 10.5;
-      ctx.save(); ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.clip();
-      const bg = ctx.createLinearGradient(0, y - r, 0, y + r); bg.addColorStop(0, a.alive ? '#5a5d64' : '#221a1c'); bg.addColorStop(1, a.alive ? '#2c2e33' : '#141012'); ctx.fillStyle = bg; ctx.fillRect(x - r, y - r, r * 2, r * 2);
-      ctx.translate(x - r * .1, y - r * .02); ctx.scale(z, z); ctx.translate(-hx, -hy); c.draw(ctx, 0, 0, null, false); ctx.restore();
-      ctx.save(); ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.clip(); const sh = ctx.createRadialGradient(x - r * .3, y - r * .4, r * .3, x, y, r * 1.1); sh.addColorStop(0, 'rgba(0,0,0,0)'); sh.addColorStop(1, 'rgba(0,0,0,.22)'); ctx.fillStyle = sh; ctx.fillRect(x - r, y - r, r * 2, r * 2);
-      if (!a.alive) { ctx.fillStyle = 'rgba(0,0,0,.62)'; ctx.fillRect(x - r, y - r, r * 2, r * 2); } ctx.restore(); return; } } catch (e) { } }
+    const px = Math.max(48, Math.round(r * 2 * 2)); let cv = a._pv; if (!cv || cv.width !== px) { cv = a._pv = document.createElement('canvas'); cv.width = cv.height = px; a._pvT = null; }
+    if (a._pvT == null || _T - a._pvT > .2 || _T < a._pvT || a._pvAlive !== a.alive) {
+      let c = a._pc; if (!c) { const t = new Motion.Terrain().flat(-1e5, 1e5, 0); t.base = 0; c = a._pc = new Motion.Character({ x: 0, scale: MS, terrain: t, look: lookFor(a) }); c.y = t.h(0); c.facing = 1; c.input.move = 0; for (let i = 0; i < 20; i++) c.update(1 / 60); }
+      const dt = clamp(_T - (a._pvT == null ? _T : a._pvT), 0, .25); a._pvT = _T; a._pvAlive = a.alive; c.input.move = 0; c.hold = null; if (a.alive) { const m = moodOf(a) || { lean: 0, head: 0 }; c.w.ext = { lean: m.lean * .6, head: (a.st ? a.st.head : 0) + m.head }; for (let u = dt; u > 0; u -= .05) c.update(Math.min(.05, u)); }
+      const k = c.cur && c.skeleton(c.cur); if (!k || !k.headC) throw 0;
+      const dy = c.curDy != null ? c.curDy : k.dy, hx = c.x + k.headC[0] * c.facing * k.sx, hy = -c.y + k.headC[1] + dy, R = px / 2, z = R / 10.5, main = ctx; ctx = cv.getContext('2d');
+      try { ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, px, px); ctx.save(); ctx.beginPath(); ctx.arc(R, R, R, 0, TAU); ctx.clip();
+        const bg = ctx.createLinearGradient(0, 0, 0, px); bg.addColorStop(0, a.alive ? '#5a5d64' : '#221a1c'); bg.addColorStop(1, a.alive ? '#2c2e33' : '#141012'); ctx.fillStyle = bg; ctx.fillRect(0, 0, px, px);
+        ctx.save(); ctx.translate(R - R * .1, R - R * .02); ctx.scale(z, z); ctx.translate(-hx, -hy); c.draw(ctx, 0, 0, null, false); ctx.restore();
+        const sh = ctx.createRadialGradient(R * .7, R * .6, R * .3, R, R, R * 1.1); sh.addColorStop(0, 'rgba(0,0,0,0)'); sh.addColorStop(1, 'rgba(0,0,0,.22)'); ctx.fillStyle = sh; ctx.fillRect(0, 0, px, px);
+        if (!a.alive) { ctx.fillStyle = 'rgba(0,0,0,.62)'; ctx.fillRect(0, 0, px, px); } ctx.restore(); } finally { ctx = main; } }
+    ctx.drawImage(cv, x - r, y - r, r * 2, r * 2); return; } catch (e) { } }
   ctx.save(); ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.clip();
   ctx.fillStyle = a.alive ? '#2a2c30' : '#1a1416'; ctx.fillRect(x - r, y - r, r * 2, r * 2);
   ctx.fillStyle = a.coat; ctx.beginPath(); ctx.ellipse(x, y + r * 1.2, r * .9, r * .7, 0, 0, TAU); ctx.fill();
@@ -2366,7 +2376,7 @@ function drawScene(world, hour, actors, opts = {}) {
   // road markings & debris
   ctx.fillStyle = 'rgba(255,255,255,.08)'; for (let x = -2800; x < 4000; x += 160) ctx.fillRect(x, groundTop + 40, 70, 4);
   drawRoadDetail(gy, cam.x - W / cam.z, cam.x + W / cam.z);
-  drawExteriorDebris(world, gy, night); drawYard(world, gy);
+  drawExteriorDebris(world, gy, night); drawYard(world, gy); drawPrints(world, gy + 13);
   drawBarrelFire(world.x0 - 190, gy + 14, 3);
   if (world.site && world.site.rural) { drawTreeAt(world.x0 - 420, gy, .3); drawTreeAt(world.x1 + 260, gy, .8); drawTreeAt(world.x1 + 470, gy, .1); }
   // ---- building ----
@@ -2765,7 +2775,7 @@ const STREET_CITY = ['hydrant', 'mailbox', 'dumpster', 'cones', 'barrier', 'benc
 function drawStreetProp(t, x, y, seed) { const A = STREET_ART[t]; if (!A) return; ctx.save(); ctx.translate(x, y); ctx.lineCap = 'round'; ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.beginPath(); ctx.ellipse(0, -.5, 26, 3, 0, 0, TAU); ctx.fill(); A(mulberry(seed)); ctx.restore(); }
 function streetProps() { const key = (TR.dest ? TR.dest.id : '') + '|' + G.day + '|' + ST_END; if (TR.spKey === key && TR.sprops) return TR.sprops; const r = mulberry(hashStr('sp' + key)), out = [];
   for (let x = 200 + r() * 60; x < ST_END + 280; x += 50 + r() * 70) { if (out.length && x - out[out.length - 1].x < 150 + r() * 120) continue; const set = TR.dest && TR.dest.rural && x > 500 ? STREET_RURAL : STREET_CITY, t = set[Math.floor(r() * set.length)], seed = Math.floor(r() * 1e6);
-    if (Object.values(TR.locX).some(lx => Math.abs(lx - x) < 150) || TR.obstacles.some(o => Math.abs(o.x - x) < o.w / 2 + RAMP + 50) || (TR.fires || []).some(f => Math.abs(f.x - x) < 70) || heightAt(x) > 1) continue; out.push({ x, t, seed }); }
+    if (Object.values(TR.locX).some(lx => Math.abs(lx - x) < 150) || TR.obstacles.some(o => Math.abs(o.x - x) < o.w / 2 + 34) || (TR.fires || []).some(f => Math.abs(f.x - x) < 70)) continue;   /* they stand at the back of the pavement, so a ramp in front is no matter */ out.push({ x, t, seed }); }
   TR.spKey = key; return TR.sprops = out; }
 function drawYard(world, gy) { const id = world.site ? world.site.id : 'home', r = mulberry(hashStr('yard' + id)), set = world.site && world.site.rural ? STREET_RURAL : STREET_CITY;
   for (const x of [world.x0 - 560, world.x0 - 760, world.x1 + 170, world.x1 + 520, world.x1 + 760]) { const t = set[Math.floor(r() * set.length)], sd = Math.floor(r() * 1e6), o = (r() - .5) * 60; if (r() < .2) continue; drawStreetProp(t, x + o, gy + 14, sd); } }
@@ -3131,7 +3141,7 @@ function scAttack() {
     return;
   }
   { const t = SC.zombies.filter(z => z.alive && z.f === p.f && Math.abs(z.x - p.x) < 110).sort((a, b) => Math.abs(a.x - p.x) - Math.abs(b.x - p.x))[0]; if (t) { p.facing = t.x < p.x ? -1 : 1; p.path = null; if (p.mc) rigFace(p, p.facing); } }
-  p.attackT = .45; p.attackKind = wep ? 'swing' : 'shove'; p.style = swingStyle(wep, p.style); p.attackHit = false; AUDIO.sfx('swing');
+  p.attackKind = wep ? 'swing' : 'shove'; p.style = swingStyle(wep, p.style); p.attackDur = p.attackT = wep && (st => st === 'jab' || st === 'butt' || st === 'slash')(p.style) ? .33 : .45; p.attackHit = false; AUDIO.sfx('swing');
 }
 // Blood: a spurt of drops where the blow lands, and a stain on the floor (and the wall behind) that stays for the rest of the visit.
 const BLOOD = [];   // flying drops, shared by every scene
@@ -3226,7 +3236,7 @@ function scUpdate(dt) {
   const chasing = SC.zombies.some(z => z.alive && z.state === 'chase');
   const speed = SC.fight ? 50 : SC.sneak ? 42 : (chasing || p.run ? 112 : 78);
   { const foe = SC.zombies.filter(z => z.alive && z.f === p.f && !p.hidden).sort((a, b) => Math.abs(a.x - p.x) - Math.abs(b.x - p.x))[0]; if (SC.fight && foe && Math.abs(foe.x - p.x) < 56 && p.attackT <= 0 && !GUNS[scWeapon()]) scAttack(); SC.foe = foe; }
-  if (p.attackT > 0) { p.attackT -= dt; if (p.attackKind !== 'shoot' && p.attackT < .25 && !p.attackHit) { p.attackHit = true; const wep = scWeapon(); const dmg = wep === 'bat' ? 2 : wep === 'knife' ? 1 : 0; for (const z of SC.zombies) if (z.alive && z.f === p.f && Math.abs(z.x - p.x) < 48 && (z.x - p.x) * p.facing > -10) { z.hp -= (wep === 'knife' && z.state !== 'chase' && (z.x - p.x) * z.facing > 0) ? 99 : dmg * (p.trait === 'strong' ? 2 : 1); z.hurtT = .3; AUDIO.sfx('hit'); if (dmg) bleed(w, z.x, z.f, p.facing, false); z.kb = p.facing * (wep === 'bat' ? 40 : 28); z.attackT = 0; z.state = 'chase'; if (z.hp <= 0) killZombie(z); else AUDIO.sfx('groan'); } } }
+  if (p.attackT > 0) { p.attackT -= dt; if (p.attackKind !== 'shoot' && p.attackT < (p.attackKind === 'swing' && p.attackDur || .45) * .55 && !p.attackHit) { p.attackHit = true; const wep = scWeapon(); const dmg = wep === 'bat' ? 2 : wep === 'knife' ? 1 : 0; for (const z of SC.zombies) if (z.alive && z.f === p.f && Math.abs(z.x - p.x) < 48 && (z.x - p.x) * p.facing > -10) { z.hp -= (wep === 'knife' && z.state !== 'chase' && (z.x - p.x) * z.facing > 0) ? 99 : dmg * (p.trait === 'strong' ? 2 : 1); z.hurtT = .3; AUDIO.sfx('hit'); if (dmg) bleed(w, z.x, z.f, p.facing, false); z.kb = p.facing * (wep === 'bat' ? 40 : 28); z.attackT = 0; z.state = 'chase'; if (z.hp <= 0) killZombie(z); else AUDIO.sfx('groan'); } } }
   else if (p.path && p.path.length) { moveActor(p, dt, speed); p.pose = SC.sneak ? 'sneak' : (chasing || p.run ? 'run' : 'walk'); if (!SC.sneak && !p.hidden) { SC.noiseT += dt; if (SC.noiseT > .6) { SC.noiseT = 0; scNoise(p.x, p.f, (chasing || p.run ? 260 : 150) * (p.quirk === 'loud' ? 1.35 : 1)); } } }
   else {
     p.moving = false;
@@ -3248,7 +3258,7 @@ function scUpdate(dt) {
   }
   if (SC.aim && SC.aim.target && !(p.path && p.path.length) && !p.task && !p.hidden && !p.onStair) { const wp = scWeapon(); p.pose = 'aimGun'; p.poseExtra = { weapon: wp, kneel: wp === 'rifle' }; p.facing = SC.aim.target.x < p.x ? -1 : 1; if (p.mc) rigFace(p, p.facing); }
   if (p.attackT > 0 && p.attackKind === 'shoot') { const wp = scWeapon(); p.pose = 'aimGun'; p.poseExtra = { weapon: wp, kneel: wp === 'rifle' && !(p.path && p.path.length) }; }
-  else if (p.attackT > 0) { p.pose = p.attackKind === 'shove' ? 'shove' : 'attack'; p.poseExtra = p.attackKind === 'takedown' ? { k: 1 - p.attackT / .6, weapon: 'knife', style: 'stab' } : { k: 1 - p.attackT / .45, weapon: scWeapon(), style: p.attackKind === 'swing' ? p.style : null }; } else if (p.pose !== 'aimGun') p.poseExtra = SC.fight || SC.aim ? { weapon: scWeapon() } : null;
+  else if (p.attackT > 0) { p.pose = p.attackKind === 'shove' ? 'shove' : 'attack'; p.poseExtra = p.attackKind === 'takedown' ? { k: 1 - p.attackT / .6, weapon: 'knife', style: 'stab' } : { k: 1 - p.attackT / (p.attackKind === 'swing' && p.attackDur || .45), weapon: scWeapon(), style: p.attackKind === 'swing' ? p.style : null }; } else if (p.pose !== 'aimGun') p.poseExtra = SC.fight || SC.aim ? { weapon: scWeapon() } : null;
   if (p.hurtT > 0) p.hurtT -= dt;
   // zombies
   let seen = 0;
@@ -3376,7 +3386,7 @@ function trAttack() {
     return;
   }
   { const t = TR.zombies.filter(z => z.alive && Math.abs(z.x - TR.x) < 110).sort((a, b) => Math.abs(a.x - TR.x) - Math.abs(b.x - TR.x))[0]; if (t) { p.facing = t.x < TR.x ? -1 : 1; if (p.mc) rigFace(p, p.facing); } TR.tx = null; }
-  TR.attackT = .45; TR.attackKind = wep ? 'swing' : 'shove'; p.style = swingStyle(wep, p.style); TR.attackHit = false; AUDIO.sfx('swing');
+  TR.attackKind = wep ? 'swing' : 'shove'; p.style = swingStyle(wep, p.style); TR.attackDur = TR.attackT = wep && (st => st === 'jab' || st === 'butt' || st === 'slash')(p.style) ? .33 : .45; TR.attackHit = false; AUDIO.sfx('swing');
 }
 function trUpdate(dt) {
   if (TR.done) return; const p = TR.player; _T += dt;
@@ -3400,7 +3410,7 @@ function trUpdate(dt) {
   const speed = (TR.fight ? 52 : TR.run ? 124 : 80) * (p.trait === 'runner' ? 1.15 : 1);
   if (TR.attackT > 0) {
     TR.attackT -= dt;
-    if (TR.attackKind !== 'shoot' && TR.attackT < .25 && !TR.attackHit) { TR.attackHit = true; const wep = trWeapon(); const dmg = wep === 'bat' ? 2 : wep === 'knife' ? 1 : 0; for (const z of TR.zombies) if (z.alive && Math.abs(z.x - TR.x) < 50 && (z.x - TR.x) * p.facing > -10) { z.hp -= dmg * (p.trait === 'strong' ? 2 : 1); z.hurtT = .3; AUDIO.sfx('hit'); if (dmg) bleed(TR.bw, z.x, 0, p.facing, z.hp <= 0); z.kb = p.facing * (wep === 'bat' ? 45 : 30); z.attackT = 0; z.state = 'chase'; if (z.hp <= 0) { z.alive = false; z.pose = 'dead'; TR.kills++; } AUDIO.sfx('groan'); } }
+    if (TR.attackKind !== 'shoot' && TR.attackT < (TR.attackKind === 'swing' && TR.attackDur || .45) * .55 && !TR.attackHit) { TR.attackHit = true; const wep = trWeapon(); const dmg = wep === 'bat' ? 2 : wep === 'knife' ? 1 : 0; for (const z of TR.zombies) if (z.alive && Math.abs(z.x - TR.x) < 50 && (z.x - TR.x) * p.facing > -10) { z.hp -= dmg * (p.trait === 'strong' ? 2 : 1); z.hurtT = .3; AUDIO.sfx('hit'); if (dmg) bleed(TR.bw, z.x, 0, p.facing, z.hp <= 0); z.kb = p.facing * (wep === 'bat' ? 45 : 30); z.attackT = 0; z.state = 'chase'; if (z.hp <= 0) { z.alive = false; z.pose = 'dead'; TR.kills++; } AUDIO.sfx('groan'); } }
     dir = 0;
   }
   const slope = slopeAt(TR.x); const onSlope = Math.abs(slope) > .3;
@@ -3412,7 +3422,7 @@ function trUpdate(dt) {
   if (TR.hidden) { p.pose = 'crouch'; p.poseExtra = null; p.facing = TR.hideFace || 1; if (p.mc) rigFace(p, p.facing); }
   if (!TR.hidden && TR.aim && TR.aim.target && TR.tx == null) { const wp = trWeapon(); p.pose = 'aimGun'; p.poseExtra = { weapon: wp, kneel: wp === 'rifle' }; p.facing = TR.aim.target.x < TR.x ? -1 : 1; if (p.mc) rigFace(p, p.facing); }
   if (TR.attackT > 0 && TR.attackKind === 'shoot') { const wp = trWeapon(); p.pose = 'aimGun'; p.poseExtra = { weapon: wp, kneel: wp === 'rifle' && TR.tx == null }; }
-  else if (TR.attackT > 0) { p.pose = TR.attackKind === 'shove' ? 'shove' : 'attack'; p.poseExtra = { k: 1 - TR.attackT / .45, weapon: trWeapon(), style: TR.attackKind === 'swing' ? p.style : null }; }
+  else if (TR.attackT > 0) { p.pose = TR.attackKind === 'shove' ? 'shove' : 'attack'; p.poseExtra = { k: 1 - TR.attackT / (TR.attackKind === 'swing' && TR.attackDur || .45), weapon: trWeapon(), style: TR.attackKind === 'swing' ? p.style : null }; }
   if (p.hurtT > 0) p.hurtT -= dt;
   // zombies (1D)
   for (const z of TR.zombies) {
@@ -3476,6 +3486,7 @@ function drawStreet(dt) {
   // location facades
   for (const l of LOCATIONS) { const lx = TR.locX[l.id]; if (lx == null) continue; if (lx < x0v - 400 || lx > x1v + 400) continue; drawFacade(l, lx, gy); }
   for (const sp of streetProps()) if (sp.x > x0v - 120 && sp.x < x1v + 120) drawStreetProp(sp.t, sp.x, gy + 14, sp.seed);
+  drawPrints('st' + TR.spKey, gy + 13);
   // obstacles
   for (const o of TR.obstacles) { if (o.x < x0v - 200 || o.x > x1v + 200) continue; drawObstacle(o, gy); }
   // actors
@@ -3857,8 +3868,9 @@ function drawDawn() {
   textButton(x + w / 2 - 60, y + h - 50, 120, 40, 'OK', () => { afterDawn(); }, { primary: true });
 }
 function drawEvent() {
-  const ev = G.event; const w = Math.min(W - 30, 560), h = 190, x = (W - w) / 2, y = H - h - 14; panel(x, y, w, h);
+  const ev = G.event, many = ev.choices.length > 2; const w = Math.min(W - 30, 560), h = many ? Math.min(H - 12, 100 + ev.choices.length * 42) : 190, x = (W - w) / 2, y = H - h - (many ? 6 : 14); panel(x, y, w, h);
   drawIcon(ev.icon, x + 50, y + 60, 44, GOLD); { ctx.font = '600 17px Oswald, Impact, sans-serif'; const ls = wrapLines(ev.text, w - 120, 3); ls.forEach((ln, i) => txt(ln, x + 90, y + 60 - (ls.length - 1) * 11 + i * 22, 17, INK, 'left')); }
+  if (many) { ev.choices.forEach((c, i) => { textButton(x + 24, y + 94 + i * 42, w - 48, 36, c.label, () => { applyEvent(ev, c); }, { icon: c.icon, primary: c.fx === 'swap' }); }); return; }   // several offers: one to a line
   ev.choices.forEach((c, i) => { textButton(x + 30 + i * ((w - 60) / 2 + 8), y + 118, (w - 60) / 2 - 8, 44, c.label, () => { applyEvent(ev, c); }, { icon: c.icon, primary: i === 0 }); });
 }
 const RECIPE_INFO = { stove: ['Stove', 'Heat for the house and somewhere to cook. Burns wood or fuel.'], collector: ['Rain collector', 'Fills with water when it rains or snows.'], bed: ['Second bed', 'One more survivor sleeps properly each night.'], radio: ['Radio', 'Lifts spirits once a day. Keep listening: the signal leads somewhere.'], trap: ['Door trap', 'Stops one intruder in every raid.'],
@@ -4329,9 +4341,10 @@ function homeLights(hour) {
 function drawLanterns(world, hour) {
   const lit = lanternsLit(hour);
   for (const l of LANTERNS) { const r = world.roomAt(l.x, l.f); if (!r || !r.open) continue; const fy = world.fy2y(l.f), y = fy - 92;
+    ctx.save(); { const py0 = fy - FLOOR_H + 14, wx = weatherNow(), sw = Math.sin(_T * 1.6 + l.x * .013) * (wx === 'storm' ? .11 : wx === 'snow' ? .03 : .008); ctx.translate(l.x, py0); ctx.rotate(sw); ctx.translate(-l.x, -py0); }   // a draught through the boards sets them swinging
     ctx.strokeStyle = '#1e1a17'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(l.x, fy - FLOOR_H + 14); ctx.lineTo(l.x, y - 8); ctx.stroke();
     ctx.fillStyle = '#2a2622'; ctx.fillRect(l.x - 5, y - 9, 10, 3); ctx.fillRect(l.x - 5, y + 8, 10, 3);
-    ctx.fillStyle = lit ? '#ffd58a' : 'rgba(190,200,205,.35)'; rr(l.x - 4, y - 6, 8, 14, 2); ctx.fill(); if (lit) { ctx.fillStyle = '#fff3d0'; ctx.fillRect(l.x - 1.2, y - 1, 2.4, 6); } }
+    ctx.fillStyle = lit ? '#ffd58a' : 'rgba(190,200,205,.35)'; rr(l.x - 4, y - 6, 8, 14, 2); ctx.fill(); if (lit) { ctx.fillStyle = '#fff3d0'; ctx.fillRect(l.x - 1.2, y - 1, 2.4, 6); } ctx.restore(); }
 }
 
 // ---------- night ----------
@@ -4400,7 +4413,7 @@ function resolveNight(scav) {
   G.flags.weather = rollWeather(G.day); if (G.flags.weather !== 'clear') line('cold', G.flags.weather === 'storm' ? 'A snowstorm is blowing in' : 'Snow today', '#9cc7e6');
   placeForDawn();
   // event
-  G.event = null; const pool = EVENTS.filter(e => e.req(G)); if (pool.length && Math.random() < .6) G.event = pick(pool);
+  G.event = null; const pool = EVENTS.filter(e => e.req(G)); if (pool.length && Math.random() < .6) G.event = pick(pool); if (G.event && G.event.make) G.event = Object.assign({}, G.event, { choices: G.event.make(G) });
   { let bt = 0; for (let t = SHELTERS.length - 1; t > homeTier(); t--) if (G.flags['sh' + t]) { bt = t; break; } const nt = SHELTERS[bt]; if (bt && (G.flags.moveAsk || 0) <= G.day) G.event = { id: 'move', tier: bt, icon: 'home', text: 'The ' + nt.name + ' you found stands empty and sturdier. Move there?', choices: [{ icon: 'check', label: 'Move in', fx: 'move' }, { icon: 'close', label: 'Not yet', fx: 'moveLater' }] }; }
   if (!G.event || G.event.id !== 'move') { const mm = G.flags.memo || [], i = mm.findIndex(m => m.day <= G.day); if (i >= 0) { const m = mm.splice(i, 1)[0]; if (MEMO[m.k]) G.event = Object.assign({ id: 'memo' }, MEMO[m.k]); } }
   homeCam(); save();
@@ -4456,7 +4469,7 @@ function updateRaidLive(dt) {
     if (d.path && d.path.length) { moveActor(d, dt, 135); d.pose = 'run'; d.poseExtra = null; continue; }
     d.ready = true; d.facing = R.side; rigFace(d, R.side);
     if (d.aim) { const z = d.aim.z; if (!z.alive || z.flee || !dGun(d)) d.aim = null; else { d.aim.t += dt; d.pose = 'aimGun'; d.poseExtra = { weapon: d.aim.gun }; if (d.aim.t >= d.aim.need) raidShoot(d, z); continue; } }
-    if (d.swing) { const sw = d.swing; sw.t += dt; const k = sw.t / .42; d.pose = 'attack'; d.poseExtra = { k, weapon: dMelee(d), style: dMelee(d) ? sw.style : null }; if (k >= .55 && !sw.hit) { sw.hit = true; raidHit(d, sw.z, dMelee(d)); } if (k >= 1) d.swing = null; continue; }
+    if (d.swing) { const sw = d.swing; sw.t += dt; const k = sw.t / ((st => st === 'jab' || st === 'butt' || st === 'slash')(sw.style) ? .32 : .42); d.pose = 'attack'; d.poseExtra = { k, weapon: dMelee(d), style: dMelee(d) ? sw.style : null }; if (k >= .55 && !sw.hit) { sw.hit = true; raidHit(d, sw.z, dMelee(d)); } if (k >= 1) d.swing = null; continue; }
     d.pose = 'guard'; d.poseExtra = { k: 0, weapon: d.arm }; }
   let living = 0;
   for (const z of R.zs) {
@@ -4536,6 +4549,7 @@ function afterDawn() {
 function applyEvent(ev, c) {
   memoFor(ev, c);
   switch (c.fx) {
+    case 'swap': { for (const k in c.take) G.inv[k] = Math.max(0, (G.inv[k] || 0) - c.take[k]); for (const k in c.give) G.inv[k] = (G.inv[k] || 0) + c.give[k]; homeMsg('traded', c.icon, GOLD); AUDIO.sfx('pick'); break; }
     case 'm_gift': { const g = c.give || {}; for (const k in g) G.inv[k] = (G.inv[k] || 0) + g[k]; for (const s of G.survivors) s.morale = clamp(s.morale + 8, 0, 100); homeMsg('a kindness repaid', 'heart', GOLD); AUDIO.sfx('done'); break; }
     case 'm_grudge': G.flags.horde = true; G.flags.grudge = true; for (const s of G.survivors) s.morale = clamp(s.morale - 6, 0, 100); homeMsg('board up · they will come tonight', 'board', RED); AUDIO.sfx('bad'); break;
     case 'm_warn': G.inv.wood = (G.inv.wood || 0) + 4; G.flags.horde = true; G.flags.warned = true; homeMsg('+4 wood · post a guard tonight', 'guard', GOLD); AUDIO.sfx('done'); break;
@@ -4557,9 +4571,13 @@ function applyEvent(ev, c) {
   G.event = null; G.visitor = null; UI.modal = null; G.phase = 'day'; homeCam(); save();
 }
 
+// footprints in the snow, wherever someone has walked out of doors; they soften and fill in
+const PRINTS = [];
+function leavePrint(key, x, dir) { PRINTS.push({ key, x, dir, t: _T }); if (PRINTS.length > 140) PRINTS.shift(); }
+function drawPrints(key, y) { for (let i = PRINTS.length - 1; i >= 0; i--) { const q = PRINTS[i]; if (q.key !== key) continue; const age = _T - q.t; if (age > 90 || age < 0) { PRINTS.splice(i, 1); continue; } const al = .5 * (1 - age / 90); ctx.fillStyle = `rgba(96,110,134,${al.toFixed(3)})`; ctx.beginPath(); ctx.ellipse(q.x, y, 4.6, 1.5, 0, 0, TAU); ctx.fill(); ctx.fillStyle = `rgba(240,244,250,${(al * .5).toFixed(3)})`; ctx.beginPath(); ctx.ellipse(q.x + q.dir * 1.5, y + 1.3, 4.6, .8, 0, 0, Math.PI); ctx.fill(); } }
 // ----- what the place sounds like: wind by the weather, the stove, far gunfire, and every foot as it lands -----
 function soundTick(dt) {
-  if (HEADLESS || !AUDIO.ac) return; const ph = G.phase, wx = (G.flags && G.flags.weather) || 'clear', out = ph === 'travel', home = ph === 'day' || ph === 'plan' || ph === 'dawn' || ph === 'event' || ph === 'raid';
+  if (HEADLESS) return; const ph = G.phase, wx = (G.flags && G.flags.weather) || 'clear', out = ph === 'travel', home = ph === 'day' || ph === 'plan' || ph === 'dawn' || ph === 'event' || ph === 'raid';
   const wind = ph === 'title' || ph === 'intro' ? .15 : (wx === 'storm' ? .9 : wx === 'snow' ? .4 : .14) * (out ? 1.25 : ph === 'scav' ? .6 : .7);
   let fire = 0; if (home && G.built && G.built.stove && fireLeft() > 0) fire = .8; else if (out && TR.fires && TR.fires.some(f => Math.abs(f.x - TR.x) < 260)) fire = .7; else if (home) fire = .1;
   AUDIO.update(dt, { wind, fire, night: out || ph === 'scav' || ph === 'raid' || ph === 'plan', creak: home && wx === 'storm' });
@@ -4570,6 +4588,8 @@ function soundTick(dt) {
   if (!list) return;
   for (const a of list) { const c = a && a.mc, ft = c && c.w && c.w.feet; if (!ft || a.alive === false || a.visible === false) continue; const fp = a._fp || (a._fp = [true, true]), moving = Math.abs((a._lx == null ? a.x : a._lx) - a.x) > .12; a._lx = a.x;
     for (let i = 0; i < 2; i++) { const pl = !!ft[i].planted; if (pl && !fp[i] && moving) { const sx = w2sx(a.x); if (sx > -80 && sx < W + 80) { const outside = !out && CUR_W && (a.x < CUR_W.x0 || a.x > CUR_W.x1);
+        if (snowCover() > .25 && (out ? heightAt(a.x) < 1 : outside)) leavePrint(out ? 'st' + TR.spKey : CUR_W, a.x + (i ? 3 : -3), a.facing || 1);
+        if (!a.zombie && (a.wounded || (a.health != null && a.health < 35)) && Math.random() < .3) { const bw = out ? TR.bw : CUR_W; if (bw) { const st = bw.blood || (bw.blood = []); st.push({ x: a.x + rnd(-5, 5), f: out ? 0 : Math.round(a.fy), r: rnd(1.4, 3), a: .55, seed: Math.random() * 1000, wall: false }); if (st.length > 60) st.shift(); } }   // someone hurt leaves a trail
         AUDIO.step(outside ? (snowCover() > .25 ? 'snow' : 'stone') : (!out && Math.round(a.fy) === 0 ? 'stone' : kind), (a === me ? 1 : .5) * clamp(cam.z, .45, 1) * (SC.active && SC.sneak && a === SC.player ? .3 : 1)); } } fp[i] = pl; } }
 }
 
