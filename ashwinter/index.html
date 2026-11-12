@@ -2346,7 +2346,7 @@ function drawFarWar(gy, dt) {
   for (let i = b.list.length - 1; i >= 0; i--) { const e = b.list[i]; e.t += dt; if (e.t > 7) { b.list.splice(i, 1); continue; } if (e.t < 0) continue; const x = cam.x * .82 + e.o + 200, y = gy - 16, t = e.t, heat = Math.exp(-t / .9);
     if (t < .5) { ctx.fillStyle = `rgba(255,225,170,${(.2 * (1 - t / .5) * e.s).toFixed(3)})`; ctx.fillRect(vx, gy - 900, vw, 914); }                            // the sky jumps
     const R = (30 + 70 * Math.min(1, t / .5)) * e.s, g = ctx.createRadialGradient(x, y, 0, x, y, R * 2.2); g.addColorStop(0, `rgba(255,220,150,${(.9 * heat).toFixed(3)})`); g.addColorStop(.35, `rgba(255,130,50,${(.6 * heat).toFixed(3)})`); g.addColorStop(1, 'rgba(255,90,30,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, R * 2.2, Math.PI, TAU); ctx.fill();
-    const sa = clamp(t / 1.2, 0, 1) * clamp((7 - t) / 3, 0, 1) * .5; ctx.fillStyle = `rgba(26,22,22,${sa.toFixed(3)})`; for (let k = 0; k < 5; k++) { const yy = y - 14 - (t * 16 + k * 20) * e.s, rr0 = (16 + k * 5 + t * 3) * e.s; ctx.beginPath(); ctx.arc(x + Math.sin(k * 2.1 + t * .3) * 8 + t * 4, yy, rr0, 0, TAU); ctx.fill(); }   // the smoke that follows
+    { const sa = clamp(t / .8, 0, 1) * clamp((7 - t) / 3.5, 0, 1), wd = smokeWind(); for (let k = 0; k < 9; k++) { const up = (t * 20 + k * 15) * e.s * (1 - Math.exp(-t)), rr0 = (15 + k * 5 + t * 5) * e.s; smokePuff('dark', k + (e.o | 0), x + Math.sin(k * 2.1 + t * .3) * 9 + up * wd * .012 + t * 3, y - 10 - up, rr0, k * 1.7 + t * .2, sa * (1 - k / 14)); } }   // the smoke that follows, mushrooming
     if (!e.snd && t > (e.big ? .45 : 1.1)) { e.snd = true; FX.shake = Math.max(FX.shake || 0, (e.big ? 4.2 : 1.6) * e.s); try { AUDIO.tone(58, .9, 'sine', (e.big ? .12 : .05) * e.s, 30); if (e.big) AUDIO.noise(.7, .16, 260); } catch (_) {} } }   // the sound arrives late
   drawSkyWar(gy, dt, vx, vw, b);
 }
@@ -2502,13 +2502,29 @@ function drawFarFires(gy) {
     ctx.fillStyle = `rgba(255,190,90,${(.8 * fl).toFixed(3)})`; for (let j = 0; j < 3; j++) ctx.fillRect(x - 8 + j * 7 + Math.sin(_T * 7 + j + i) * 2, y - 6 - Math.abs(Math.sin(_T * 5 + j * 2 + i)) * 10, 4, 12); }
   ctx.restore();
 }
+// ----- smoke: billows built from a few soft lumps, drawn as sprites so there can be plenty of it -----
+const SMOKE = { spr: {}, em: {}, sweep: 0 };
+function smokeSpr(kind, i) { const k = kind + i; if (SMOKE.spr[k]) return SMOKE.spr[k]; const c = document.createElement('canvas'); c.width = c.height = 96; const g = c.getContext('2d'), r = mulberry(77 + i * 13 + kind.length), col = kind === 'glow' ? '255,140,60' : kind === 'pale' ? '206,204,200' : kind === 'day' ? '96,92,88' : '30,28,30';
+  for (let n = 0; n < 11; n++) { const a = r() * TAU, d = r() * 20, x = 48 + Math.cos(a) * d, y = 48 + Math.sin(a) * d * .85, R = 13 + r() * 14, gr = g.createRadialGradient(x, y, 0, x, y, R); gr.addColorStop(0, `rgba(${col},${kind === 'glow' ? .2 : .3})`); gr.addColorStop(.55, `rgba(${col},.14)`); gr.addColorStop(1, `rgba(${col},0)`); g.fillStyle = gr; g.fillRect(x - R, y - R, R * 2, R * 2); }
+  return SMOKE.spr[k] = c; }
+function smokePuff(kind, i, x, y, R, rot, al) { if (al <= .004) return; ctx.save(); ctx.globalAlpha = Math.min(1, al); ctx.translate(x, y); ctx.rotate(rot); ctx.drawImage(smokeSpr(kind, i % 4), -R, -R, R * 2, R * 2); ctx.restore(); }
+function smokeWind() { const wx = weatherNow(); return wx === 'storm' ? 80 : wx === 'snow' ? 28 : 10; }
+// a fire's smoke: it leaves hot and fast, lit from below, then slows, spreads, leans with the wind and thins out
+function smokeFrom(key, x, y, w, heavy) { if (HEADLESS) return; const E = SMOKE.em[key] || (SMOKE.em[key] = { L: [], last: _T, acc: 0 }), dt = clamp(_T - E.last, 0, .05), wind = smokeWind(); if (_T - E.last > 1.5) E.L.length = 0; E.last = _T; E.x = x; E.y = y;
+  E.acc += dt; const every = heavy ? .09 : .14; while (E.acc > every) { E.acc -= every; E.L.push({ x: x + rnd(-w * .3, w * .3), y: y + rnd(-4, 2), vx: rnd(-5, 5), vy: -rnd(34, 52), t: 0, life: rnd(4, 6.5) * (heavy ? 1.3 : 1), r: w * rnd(.28, .42), rot: rnd(0, 6), spin: rnd(-.5, .5), i: Math.floor(rnd(0, 4)), wob: rnd(0, 6) }); }
+  for (let n = E.L.length - 1; n >= 0; n--) { const q = E.L[n]; q.t += dt; if (q.t > q.life) { E.L.splice(n, 1); continue; } const u = q.t / q.life; q.vx += (wind - q.vx) * dt * .45; q.vy += (-11 - q.vy) * dt * .55; q.x += (q.vx + Math.sin(_T * 1.1 + q.wob) * 5 * u) * dt; q.y += q.vy * dt; q.rot += q.spin * dt;
+    const R = q.r * (1 + 4.2 * Math.pow(u, .8)), al = (heavy ? 1.35 : 1.05) * Math.min(1, q.t / .35) * Math.pow(1 - u, 1.25); smokePuff('dark', q.i, q.x, q.y, R, q.rot, al); if (u < .22) { ctx.globalCompositeOperation = 'lighter'; smokePuff('glow', q.i, q.x, q.y, R * .9, q.rot, (1 - u / .22) * .55); ctx.globalCompositeOperation = 'source-over'; } }
+  if (E.L.length > 90) E.L.splice(0, E.L.length - 90);
+  if ((SMOKE.sweep += 1) > 600) { SMOKE.sweep = 0; for (const k in SMOKE.em) if (_T - SMOKE.em[k].last > 8) delete SMOKE.em[k]; } }
+// a column standing over something that has been burning for days: no state, just a slow conveyor of billows
+function smokeColumn(x, y, h, seed, night, sc) { const N = 26, wind = smokeWind(), kind = night ? 'dark' : 'day'; for (let j = 0; j < N; j++) { const p = ((_T * .035 + j / N + seed * .37) % 1), yy = y - Math.pow(p, .85) * h, xx = x + Math.pow(p, 1.5) * wind * 4.2 * sc + Math.sin(p * 9 + seed * 5 + _T * .15) * (6 + p * 34) * sc, R = (16 + p * 86) * sc, al = .75 * Math.min(1, p * 9) * Math.pow(1 - p, 1.15); smokePuff(kind, j + seed, xx, yy, R, j * 2.4 + p * 1.6, al); } }
 function drawFlames(x, y, w, h, seed) {
   ctx.save(); ctx.globalCompositeOperation = 'lighter';
   for (let i = 0; i < 6; i++) { const ph = _T * (5 + i * .7) + seed + i * 1.9, fx = x + (i - 2.5) * w / 5 + Math.sin(ph) * 3, fh = h * (.55 + .45 * Math.abs(Math.sin(ph * .7 + i))); const g = ctx.createLinearGradient(0, y, 0, y - fh); g.addColorStop(0, 'rgba(255,220,120,.85)'); g.addColorStop(.5, 'rgba(255,120,30,.55)'); g.addColorStop(1, 'rgba(180,30,0,0)'); ctx.fillStyle = g;
     ctx.beginPath(); ctx.moveTo(fx - w / 7, y); ctx.quadraticCurveTo(fx - w / 9 + Math.sin(ph * 1.3) * 4, y - fh * .5, fx + Math.sin(ph * 2) * 5, y - fh); ctx.quadraticCurveTo(fx + w / 9 + Math.sin(ph * 1.7) * 4, y - fh * .5, fx + w / 7, y); ctx.fill(); }
   ctx.restore();
   ctx.fillStyle = 'rgba(255,200,120,.9)'; for (let i = 0; i < 5; i++) { const t = (_T * .6 + i * .21 + (seed % 7) * .1) % 1; ctx.globalAlpha = 1 - t; ctx.fillRect(x + Math.sin(i * 7 + seed + t * 6) * (w * .5 + t * 12), y - h * .6 - t * 90, 1.6, 1.6); } ctx.globalAlpha = 1;
-  ctx.fillStyle = 'rgba(40,38,40,.22)'; for (let j = 0; j < 6; j++) { const t = (_T * .18 + j / 6 + (seed % 5) * .07) % 1; circ(x + Math.sin(t * 5 + j) * 14 + t * 30, y - h - t * 170, 8 + t * 26); ctx.globalAlpha = (1 - t) * .8; ctx.fill(); } ctx.globalAlpha = 1;
+  smokeFrom('f' + Math.round(seed * 10), x, y - h * .8, w, w > 40);
 }
 function drawBarrelFire(x, y, seed) {   // an oil drum, y = ground
   drawDrumAt(x, y, (seed || 0) * 50 + x);
@@ -2524,7 +2540,7 @@ function drawSkyline(world, sky, night, gy) {
   ctx.fillStyle = base; x = cam.x * .45 - 2200;
   for (let i = 0; i < 50; i++) { const w = 60 + r() * 160, h = 40 + r() * 170; ctx.fillRect(x, gy + 14 - h, w, h); if (!night && r() < .6) { ctx.fillStyle = 'rgba(0,0,0,.25)'; for (let wy = gy - h + 30; wy < gy; wy += 28) for (let wx = x + 10; wx < x + w - 14; wx += 24) if (r() < .7) ctx.fillRect(wx, wy, 10, 14); ctx.fillStyle = base; } if (night && r() < .25) { ctx.fillStyle = 'rgba(255,160,60,.5)'; ctx.fillRect(x + 10 + r() * (w - 20), gy - h + 20 + r() * (h - 30), 8, 8); ctx.fillStyle = base; } x += w + r() * 50; }
   // smoke columns
-  for (let i = 0; i < 4; i++) { const sx = cam.x * .45 - 1600 + i * 900, t = (opts_t() * .1 + i); ctx.fillStyle = `rgba(${night ? 40 : 90},${night ? 40 : 85},${night ? 45 : 80},.5)`; for (let j = 0; j < 12; j++) { const yy = gy - 100 - j * 36; const xx = sx + Math.sin(t + j * .6) * (10 + j * 6) + j * 10; circ(xx, yy, 18 + j * 5); ctx.fill(); } if (night) { ctx.fillStyle = 'rgba(255,120,40,.35)'; circ(sx, gy - 60, 30); ctx.fill(); } }
+  for (let i = 0; i < 4; i++) { const sx = cam.x * .45 - 1600 + i * 900; if (night) { const g = ctx.createRadialGradient(sx, gy - 50, 4, sx, gy - 50, 80); g.addColorStop(0, `rgba(255,130,50,${(.4 + .08 * Math.sin(_T * 3 + i)).toFixed(2)})`); g.addColorStop(1, 'rgba(255,120,40,0)'); ctx.fillStyle = g; ctx.fillRect(sx - 80, gy - 130, 160, 144); } smokeColumn(sx, gy - 60, 560, i + 1, night, 1); }
 }
 let _T = 0; function opts_t() { return _T; }
 function drawExteriorDebris(world, gy, night) {
@@ -2573,7 +2589,7 @@ function drawRoof(world, topY, sky) {
 function drawChimneySmoke(world, topY, dt) { const L = FX.chim || (FX.chim = []), lit = G.built && G.built.stove && fireLeft() > 0 && G.phase !== 'title', cx = world.x1 + 30 - 245, cy = topY - 112, wx = weatherNow(), wind = wx === 'storm' ? 70 : wx === 'snow' ? 26 : 9;
   if (lit) { FX.chimT = (FX.chimT || 0) + dt; if (FX.chimT > .16) { FX.chimT = 0; L.push({ x: cx + rnd(-5, 5), y: cy, vx: rnd(-3, 3), vy: -rnd(16, 26), t: 0, life: rnd(4.5, 7), r: rnd(5, 8), rot: rnd(0, 3), w: rnd(0, 6) }); } }
   for (let i = L.length - 1; i >= 0; i--) { const q = L[i]; q.t += dt; if (q.t > q.life) { L.splice(i, 1); continue; } const u = q.t / q.life; q.vx += (wind - q.vx) * dt * .5; q.vy *= Math.exp(-.22 * dt); q.x += (q.vx + Math.sin(_T * .8 + q.w) * 3) * dt; q.y += q.vy * dt;
-    const al = .34 * Math.min(1, q.t / .5) * Math.pow(1 - u, 1.3), R = q.r * (1 + 4.5 * u); ctx.save(); ctx.translate(q.x, q.y); ctx.rotate(q.rot + u); ctx.scale(1.25, .85); const g = ctx.createRadialGradient(0, 0, 0, 0, 0, R); g.addColorStop(0, `rgba(214,212,208,${al.toFixed(3)})`); g.addColorStop(.6, `rgba(196,194,190,${(al * .5).toFixed(3)})`); g.addColorStop(1, 'rgba(190,188,184,0)'); ctx.fillStyle = g; ctx.fillRect(-R, -R, R * 2, R * 2); ctx.restore(); }
+    const al = .95 * Math.min(1, q.t / .5) * Math.pow(1 - u, 1.3), R = q.r * (1.6 + 5.5 * u); smokePuff('pale', Math.floor(q.w), q.x, q.y, R, q.rot + u, al); }
   if (L.length > 60) L.splice(0, L.length - 60); }
 // crows on the ridge by day: they shuffle and peck, lift off at a bang, and come back when it is quiet
 function drawCrows(world, topY, sky, dt) { if (sky.light < .35) return; const C = world.crows || (world.crows = [.22, .36, .7].map(u => ({ u, st: 'sit', t: 0, next: rnd(20, 70), ph: rnd(0, 6), f: Math.random() < .5 ? -1 : 1 })));
