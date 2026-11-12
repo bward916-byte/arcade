@@ -2375,7 +2375,7 @@ function drawFarWar(gy, dt) {
     const R = (30 + 70 * Math.min(1, t / .5)) * e.s, g = ctx.createRadialGradient(x, y, 0, x, y, R * 2.2); g.addColorStop(0, `rgba(255,220,150,${(.9 * heat).toFixed(3)})`); g.addColorStop(.35, `rgba(255,130,50,${(.6 * heat).toFixed(3)})`); g.addColorStop(1, 'rgba(255,90,30,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, R * 2.2, Math.PI, TAU); ctx.fill();
     { const sa = clamp(t / .8, 0, 1) * clamp((7 - t) / 3.5, 0, 1), wd = smokeWind(); for (let k = 0; k < 9; k++) { const up = (t * 20 + k * 15) * e.s * (1 - Math.exp(-t)), rr0 = (15 + k * 5 + t * 5) * e.s; smokePuff('dark', k + (e.o | 0), x + Math.sin(k * 2.1 + t * .3) * 9 + up * wd * .012 + t * 3, y - 10 - up, rr0, k * 1.7 + t * .2, sa * (1 - k / 14)); } }   // the smoke that follows, mushrooming
     if (!e.snd && t > (e.big ? .45 : 1.1)) { e.snd = true; FX.shake = Math.max(FX.shake || 0, (e.big ? 4.2 : 1.6) * e.s); try { AUDIO.tone(58, .9, 'sine', (e.big ? .12 : .05) * e.s, 30); if (e.big) AUDIO.noise(.7, .16, 260); } catch (_) {} } }   // the sound arrives late
-  drawSkyWar(gy, dt, vx, vw, b);
+  drawSkyWar(gy, dt, vx, vw, b); if (EXTRAS.sky) drawSkyExtras(gy, dt, vx, vw);
 }
 // the war overhead: a helicopter working its searchlight along the rooftops, a jet going over low and what it drops, tracer going up, and in a storm the lightning
 function drawSkyWar(gy, dt, vx, vw, boom) { const S = FX.sky || (FX.sky = { heli: null, heliIn: 10 + Math.random() * 20, jet: null, jetIn: 25 + Math.random() * 40, tr: null, trIn: 8 + Math.random() * 20, bolt: null, boltIn: 4 + Math.random() * 8 }), cx = vx + vw / 2, skyH = Math.max(220, gy - (cam.y - H / 2 / cam.z)), snd = fn => { try { fn(); } catch (_) {} };
@@ -2387,7 +2387,7 @@ function drawSkyWar(gy, dt, vx, vw, boom) { const S = FX.sky || (FX.sky = { heli
   if (!S.heli && (S.heliIn -= dt) <= 0) { const dir = Math.random() < .5 ? -1 : 1; S.heli = { dir, o: -dir * (vw / 2 + 120), af: .5 + Math.random() * .28, v: 70 + Math.random() * 45, t: 0, thump: 0 }; }
   if (S.heli) { const h = S.heli; h.t += dt; h.o += h.dir * h.v * dt; const x = cx + h.o, y = gy - Math.min(420, skyH * h.af) + Math.sin(h.t * .9) * 6, near = clamp(1 - Math.abs(h.o) / (vw / 2), 0, 1);
     if (Math.abs(h.o) > vw / 2 + 160) { S.heli = null; S.heliIn = 45 + Math.random() * 70; }
-    else { const sw = Math.sin(h.t * .55) * .5 + h.dir * .25, bx = x + h.dir * 10, by = y + 9, gx = bx + Math.tan(sw) * (gy + 14 - by); { const g = ctx.createLinearGradient(bx, by, gx, gy + 14); g.addColorStop(0, 'rgba(225,235,255,.34)'); g.addColorStop(1, 'rgba(225,235,255,.03)'); ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(bx - 2, by); ctx.lineTo(bx + 2, by); ctx.lineTo(gx + 52, gy + 14); ctx.lineTo(gx - 52, gy + 14); ctx.fill(); ctx.fillStyle = 'rgba(225,235,255,.1)'; ctx.beginPath(); ctx.ellipse(gx, gy + 13, 56, 5, 0, 0, TAU); ctx.fill(); }   // the searchlight, sweeping
+    else { const sw = Math.sin(h.t * .55) * .5 + h.dir * .25, bx = x + h.dir * 10, by = y + 9, gx = bx + Math.tan(sw) * (gy + 14 - by); { const g = ctx.createLinearGradient(bx, by, gx, gy + 14); g.addColorStop(0, 'rgba(225,235,255,.34)'); g.addColorStop(1, 'rgba(225,235,255,.03)'); ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(bx - 2, by); ctx.lineTo(bx + 2, by); ctx.lineTo(gx + 52, gy + 14); ctx.lineTo(gx - 52, gy + 14); ctx.fill(); ctx.fillStyle = 'rgba(225,235,255,.1)'; ctx.beginPath(); ctx.ellipse(gx, gy + 13, 56, 5, 0, 0, TAU); ctx.fill(); S.beamX = gx; S.beamT = _T; }   // the searchlight, sweeping
       ctx.save(); ctx.translate(x, y); ctx.scale(h.dir, 1); ctx.rotate(.07); ctx.fillStyle = '#0c0d10'; ctx.beginPath(); ctx.ellipse(0, 0, 17, 7.5, 0, 0, TAU); ctx.fill(); ctx.beginPath(); ctx.moveTo(-10, -4); ctx.lineTo(-44, -3); ctx.lineTo(-45, 1.5); ctx.lineTo(-10, 4); ctx.fill(); ctx.beginPath(); ctx.moveTo(-40, -2); ctx.lineTo(-48, -13); ctx.lineTo(-43, -13); ctx.lineTo(-36, -2); ctx.fill(); ctx.fillRect(-3, -11, 5, 5);
       ctx.fillStyle = 'rgba(120,150,170,.35)'; ctx.beginPath(); ctx.ellipse(9, -1, 6, 4.4, 0, 0, TAU); ctx.fill(); ctx.strokeStyle = '#0c0d10'; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(-10, 11); ctx.lineTo(13, 11); ctx.moveTo(-5, 6); ctx.lineTo(-6, 11); ctx.moveTo(7, 6); ctx.lineTo(8, 11); ctx.stroke();
       const rl = 40 * Math.abs(Math.cos(h.t * 31)) + 6; ctx.strokeStyle = 'rgba(20,22,26,.8)'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(-rl, -12); ctx.lineTo(rl, -12); ctx.stroke(); ctx.fillStyle = 'rgba(30,32,38,.16)'; ctx.beginPath(); ctx.ellipse(0, -12, 42, 2.4, 0, 0, TAU); ctx.fill(); ctx.strokeStyle = '#0c0d10'; ctx.lineWidth = 1.2; const ta = h.t * 40; ctx.beginPath(); ctx.moveTo(-46 + Math.cos(ta) * 6, -12 + Math.sin(ta) * 6); ctx.lineTo(-46 - Math.cos(ta) * 6, -12 - Math.sin(ta) * 6); ctx.stroke();
@@ -2483,7 +2483,7 @@ function drawBuilding(world, hour, sky, night, actors, opts) {
   // hides overlay (closets) drawn in front
   for (const h of world.hides) drawHide(world, h);
   // fx: motes, floaters
-  if (!opts.embed) { drawBloodDrops(world, opts.dt || 0); drawFx(world, hour, night, opts.dt || 0); }
+  if (!opts.embed) { if (EXTRAS.cat && world === G.world && !world.site) drawCat(world, opts.dt || 0); if (EXTRAS.dust) drawDustFall(world, opts.dt || 0); drawBloodDrops(world, opts.dt || 0); drawFx(world, hour, night, opts.dt || 0); }
   // locked rooms: shuttered and dark until someone gets the door open
   for (const r of world.rooms) if (!r.open) { const fy = world.fy2y(r.f), ceil = fy - FLOOR_H + 14; ctx.fillStyle = 'rgba(8,8,10,.86)'; ctx.fillRect(r.x0 + 6, ceil, r.x1 - r.x0 - 12, fy - ceil); ctx.fillStyle = 'rgba(255,255,255,.04)'; for (let y = ceil + 10; y < fy - 10; y += 18) ctx.fillRect(r.x0 + 6, y, r.x1 - r.x0 - 12, 2); }
 }
@@ -2530,6 +2530,56 @@ function drawFarFires(gy) {
     ctx.fillStyle = `rgba(255,190,90,${(.8 * fl).toFixed(3)})`; for (let j = 0; j < 3; j++) ctx.fillRect(x - 8 + j * 7 + Math.sin(_T * 7 + j + i) * 2, y - 6 - Math.abs(Math.sin(_T * 5 + j * 2 + i)) * 10, 4, 12); }
   ctx.restore();
 }
+// ===== TEN EXTRAS, each on its own switch: set one to false and it is gone from the game =====
+const EXTRAS = {
+  flames: true,     // 1 fire drawn as licking tongues with a hot core and flying embers
+  yards: true,      // 2 the forecourt of each place (pumps and canopy, ambulance, and so on) back on the street
+  fog: true,        // 3 a new kind of day: fog, lying in the street and haloing every light
+  cat: true,        // 4 a stray cat that moves into the house and sleeps by the stove
+  puddles: true,    // 5 meltwater in the road that throws back the firelight and skins over with ice
+  searchlight: true,// 6 the helicopter's light can find you in the street, and then the raiders know
+  sky: true,        // 7 shooting stars, and on some clear nights the aurora
+  talk: true,       // 8 the survivors say what is on their minds
+  notes: true,      // 9 a letter or a scrap of diary found in each place, once
+  dust: true        // 10 when a bomb or thunder shakes the building, plaster dust comes down from the ceilings
+};
+// ---- 4 the cat ----
+function drawCat(world, dt) { if (HEADLESS || G.day < 2) return; const C = FX.cat || (FX.cat = { x: 620, tx: 620, t: 0, st: 'sit', face: 1 }), fy = world.fy2y(1), warm = fireLeft() > 0, home = warm ? 790 : 520; C.t -= dt;
+  if (C.t <= 0) { if (C.st === 'walk') { C.st = Math.abs(C.x - home) < 40 && warm ? 'sleep' : 'sit'; C.t = 6 + Math.random() * 12; } else { C.st = 'walk'; C.tx = Math.random() < .6 ? home + (Math.random() - .5) * 40 : 420 + Math.random() * 560; C.t = 30; } }
+  if (C.st === 'walk') { const d = C.tx - C.x; C.face = Math.sign(d) || 1; C.x += C.face * Math.min(Math.abs(d), 46 * dt); if (Math.abs(d) < 2) C.t = 0; }
+  ctx.save(); ctx.translate(C.x, fy); ctx.scale(C.face, 1); ctx.lineCap = 'round'; const c = '#2a2622', c2 = '#3a342e', w = Math.sin(_T * 11) * (C.st === 'walk' ? 1 : 0);
+  ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.beginPath(); ctx.ellipse(0, -.5, 12, 2, 0, 0, TAU); ctx.fill(); ctx.fillStyle = c; ctx.strokeStyle = c;
+  if (C.st === 'sleep') { ctx.beginPath(); ctx.ellipse(0, -5 - Math.sin(_T * 1.6) * .4, 10, 5.4, 0, 0, TAU); ctx.fill(); ctx.beginPath(); ctx.arc(7, -5, 4, 0, TAU); ctx.fill(); ctx.lineWidth = 2.4; ctx.beginPath(); ctx.moveTo(-9, -3); ctx.quadraticCurveTo(-2, 2, 8, -1); ctx.stroke(); }
+  else { const sit = C.st === 'sit'; ctx.lineWidth = 2.2; ctx.beginPath(); ctx.moveTo(-9, sit ? -4 : -9); ctx.quadraticCurveTo(-17, -12 - (sit ? 0 : 4), -14 + Math.sin(_T * (sit ? 1.3 : 4)) * 3, -19 - (sit ? 0 : 3)); ctx.stroke();   // the tail
+    if (sit) { ctx.beginPath(); ctx.ellipse(-2, -6, 6.4, 6.4, 0, 0, TAU); ctx.fill(); ctx.beginPath(); ctx.ellipse(2.4, -10, 4.4, 6.4, .3, 0, TAU); ctx.fill(); ctx.fillRect(3, -4, 2, 4); }
+    else { ctx.beginPath(); ctx.ellipse(0, -10, 10, 4.4, 0, 0, TAU); ctx.fill(); ctx.lineWidth = 2; for (const [lx, ph] of [[-7, 0], [-4, 1], [5, 1], [8, 0]]) { ctx.beginPath(); ctx.moveTo(lx, -8); ctx.lineTo(lx + (ph ? w : -w) * 3, 0); ctx.stroke(); } }
+    const hx = sit ? 5 : 11, hy = sit ? -17 : -13; ctx.beginPath(); ctx.arc(hx, hy, 4, 0, TAU); ctx.fill(); ctx.beginPath(); ctx.moveTo(hx - 3.6, hy - 2); ctx.lineTo(hx - 2.4, hy - 7); ctx.lineTo(hx - .4, hy - 3.4); ctx.moveTo(hx + .6, hy - 3.4); ctx.lineTo(hx + 2.6, hy - 7); ctx.lineTo(hx + 3.6, hy - 2); ctx.fill(); ctx.fillStyle = '#c9c36a'; ctx.fillRect(hx + 1, hy - 1, 1.3, 1.1); ctx.fillStyle = c2; ctx.fillRect(hx - 2, hy + 1.6, 3, 1.4); }
+  ctx.restore(); }
+// ---- 10 plaster dust shaken down ----
+function drawDustFall(world, dt) { if (HEADLESS) return; const D = FX.dust || (FX.dust = { L: [], prev: 0 }), sh = FX.shake || 0; if (sh > 2.2 && D.prev <= 2.2) { const n = Math.min(18, 5 + Math.round(sh * 2)); for (let i = 0; i < n; i++) { const room = world.rooms[Math.floor(Math.random() * world.rooms.length)]; if (!room || room.open === false) continue; D.L.push({ x: room.x0 + 20 + Math.random() * (room.x1 - room.x0 - 40), f: room.f, t: -Math.random() * .5, w: 3 + Math.random() * 7 }); } } D.prev = sh;
+  for (let i = D.L.length - 1; i >= 0; i--) { const q = D.L[i]; q.t += dt; if (q.t > 2.4) { D.L.splice(i, 1); continue; } if (q.t < 0) continue; const top = world.fy2y(q.f) - FLOOR_H + 14, fall = Math.min(FLOOR_H - 16, q.t * q.t * 190), a = clamp(1.3 - q.t / 1.9, 0, 1); const g = ctx.createLinearGradient(0, top, 0, top + fall); g.addColorStop(0, `rgba(205,196,180,${(.4 * a).toFixed(3)})`); g.addColorStop(1, 'rgba(205,196,180,0)'); ctx.fillStyle = g; ctx.fillRect(q.x - q.w / 2, top, q.w, fall);
+    for (let k = 0; k < 5; k++) { const u = ((q.t * (1.1 + k * .23) + k * .21) % 1); ctx.fillStyle = `rgba(225,216,200,${(.7 * a * (1 - u)).toFixed(3)})`; ctx.fillRect(q.x + Math.sin(k * 9 + q.x) * q.w * .6, top + u * fall, 1.3, 1.3); } if (fall > FLOOR_H - 20) smokePuff('pale', i, q.x, top + FLOOR_H - 18, 10 + q.t * 9, i, .35 * a); } }
+// ---- 5 puddles ----
+function drawPuddles(gy, x0v, x1v) { const cold = outdoorTemp(nightHour()) < -3, src = []; for (const f of TR.fires) src.push([f.x, '255,150,60']); for (const o of TR.obstacles) if (o.fire) src.push([o.x, '255,140,50']); for (const d of TR.decor) if (d.t === 'lamp' && d.s < .5 && (d.fl == null || d.fl > .3)) src.push([d.x + 46, '255,214,150']);
+  for (let px = Math.floor(x0v / 340) * 340; px < x1v; px += 340) { const r = mulberry((px | 0) + 911), x = px + r() * 240, w = 34 + r() * 60, y = gy + 20 + r() * 9; if (r() < .35 || x < 240 || heightAt(x) > 2 || (TR.xMax != null && x > TR.xMax - 30)) continue;
+    ctx.fillStyle = cold ? 'rgba(150,170,190,.2)' : 'rgba(8,10,14,.6)'; ctx.beginPath(); ctx.ellipse(x, y, w, 3.6, 0, 0, TAU); ctx.fill(); ctx.strokeStyle = cold ? 'rgba(220,230,240,.4)' : 'rgba(120,130,150,.16)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.ellipse(x, y, w, 3.6, 0, cold ? 0 : Math.PI, TAU); ctx.stroke();
+    if (cold) { ctx.strokeStyle = 'rgba(230,238,246,.35)'; ctx.lineWidth = .7; for (let k = 0; k < 3; k++) { const cx = x + (r() - .5) * w; ctx.beginPath(); ctx.moveTo(cx - 8, y - 1 + r() * 2); ctx.lineTo(cx, y); ctx.lineTo(cx + 9, y + (r() - .5) * 3); ctx.stroke(); } }   // iced over, cracked
+    ctx.save(); ctx.beginPath(); ctx.ellipse(x, y, w, 3.6, 0, 0, TAU); ctx.clip(); ctx.globalCompositeOperation = 'lighter'; for (const [sx, col] of src) { const d = Math.abs(sx - x); if (d > 360) continue; const a = (1 - d / 360) * (cold ? .3 : .55) * (.85 + .15 * Math.sin(_T * 9 + sx)), rx = clamp(sx, x - w, x + w); ctx.fillStyle = `rgba(${col},${a.toFixed(3)})`; ctx.fillRect(rx - 7 + Math.sin(_T * 2.2 + sx) * 1.5, y - 4, 14, 8); } ctx.restore(); } }   // whatever is burning nearby lies in it, wavering
+// ---- 7 the sky on a quiet night ----
+function drawSkyExtras(gy, dt, vx, vw) { const hour = G.phase === 'day' || G.phase === 'plan' ? G.hour : 23, night = hour >= 19.5 || hour < 5.5; if (!night || weatherNow() !== 'clear' || HEADLESS) return; const S = FX.sx || (FX.sx = { st: null, stIn: 6 + Math.random() * 14 }), skyH = Math.max(220, gy - (cam.y - H / 2 / cam.z));
+  if (hashStr('aurora' + G.day) % 3 === 0) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; for (let b = 0; b < 3; b++) { const base = gy - skyH * (.5 + b * .13), amp = 18 + b * 8; for (let x = vx; x < vx + vw; x += 14) { const u = (x + cam.x * -.6) * .004, y = base + Math.sin(u * 2.3 + _T * .12 + b * 2) * amp + Math.sin(u * 5.1 - _T * .07) * amp * .4, hgt = skyH * (.22 + .1 * Math.sin(u * 3.7 + _T * .2 + b)), a = (.05 + .035 * Math.sin(u * 7 + _T * .5 + b * 3)) * (1 - b * .2); const g = ctx.createLinearGradient(0, y - hgt, 0, y); g.addColorStop(0, 'rgba(120,90,220,0)'); g.addColorStop(.55, `rgba(80,230,160,${(a * .7).toFixed(3)})`); g.addColorStop(1, `rgba(120,255,170,${a.toFixed(3)})`); ctx.fillStyle = g; ctx.fillRect(x, y - hgt, 15, hgt); } } ctx.restore(); }   // one clear night in three: the aurora, curtains of it moving
+  if (!S.st && (S.stIn -= dt) <= 0) S.st = { x: vx + vw * (.15 + Math.random() * .7), y: gy - skyH * (.55 + Math.random() * .4), dx: (Math.random() < .5 ? -1 : 1) * (260 + Math.random() * 200), dy: 90 + Math.random() * 80, t: 0 };
+  if (S.st) { const q = S.st; q.t += dt; const a = clamp(1 - q.t / .7, 0, 1), x = q.x + q.dx * q.t, y = q.y + q.dy * q.t; const g = ctx.createLinearGradient(x, y, x - q.dx * .16, y - q.dy * .16); g.addColorStop(0, `rgba(255,255,255,${(.9 * a).toFixed(2)})`); g.addColorStop(1, 'rgba(255,255,255,0)'); ctx.strokeStyle = g; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - q.dx * .16, y - q.dy * .16); ctx.stroke(); if (q.t > .7) { S.st = null; S.stIn = 14 + Math.random() * 30; } } }
+// ---- 8 talk ----
+const TALK = { hungry: ['My stomach thinks my throat is cut.', 'Is there anything left in a tin?', 'I keep dreaming about bread.'], tired: ['I could sleep standing up.', 'Just ten minutes. That is all I ask.', 'My eyes are full of sand.'], hurt: ['It only hurts when I breathe.', 'Does this look infected to you?', 'I have had worse. I think.'], sad: ['What are we even holding out for?', 'I cannot remember their voices.', 'Leave me be for a while.'], cold: ['I cannot feel my hands.', 'We need that stove lit.', 'You can see your breath in here.'], stairs: ['Somebody should see to those stairs.', 'There is a good bed up there, if we could reach it.'], storm: ['Listen to that wind.', 'Nobody will come out in this. I hope.'], war: ['That one was close.', 'They are still at it over the river.', 'Was that ours or theirs?'], fine: ['Quiet today.', 'We are still here. That is something.', 'I found myself humming. Imagine.', 'When this is over I am going to sit in the sun.', 'The cat seems to like you.', 'Did you hear the birds this morning?'] };
+function drawTalk(dt) { if (HEADLESS || DEMO.on) return; const T = FX.talk || (FX.talk = { in: 9, cur: null }); if (!T.cur && (T.in -= dt) <= 0) { const live = G.survivors.filter(s => s.alive && s.pose !== 'sleep' && !s.out); T.in = 16 + Math.random() * 14; if (live.length) { const s = pick(live), wx = weatherNow(), k = s.hunger < 35 ? 'hungry' : s.health < 50 ? 'hurt' : s.fatigue < 30 ? 'tired' : s.morale < 35 ? 'sad' : (FX.shake || 0) > 1 || Math.random() < .12 ? 'war' : fireLeft() <= 0 && outdoorTemp(G.hour) < 0 && Math.random() < .5 ? 'cold' : G.flags.stairsOut && Math.random() < .25 ? 'stairs' : wx === 'storm' && Math.random() < .4 ? 'storm' : 'fine'; let line = pick(TALK[k]); if (line.includes('cat') && !(EXTRAS.cat && G.day >= 2)) line = TALK.fine[0]; T.cur = { s, line, t: 0 }; } }
+  if (!T.cur) return; const c = T.cur; c.t += dt; if (c.t > 4.2 || !c.s.alive) { T.cur = null; return; } const a = clamp(c.t / .25, 0, 1) * clamp((4.2 - c.t) / .5, 0, 1), sx = w2sx(c.s.x), sy = w2sy(G.world.fy2y(c.s.fy) - 92 * (c.s.scale || 1)) - 8; ctx.save(); ctx.globalAlpha = a; ctx.font = '500 13px system-ui, sans-serif'; const tw = ctx.measureText(c.line).width + 22, bx = clamp(sx - tw / 2, 8, W - tw - 8), by = Math.max(60, sy - 30);
+  ctx.fillStyle = 'rgba(24,25,28,.92)'; rr(bx, by, tw, 28, 9); ctx.fill(); ctx.beginPath(); ctx.moveTo(clamp(sx, bx + 14, bx + tw - 14) - 6, by + 27); ctx.lineTo(clamp(sx, bx + 14, bx + tw - 14), by + 36); ctx.lineTo(clamp(sx, bx + 14, bx + tw - 14) + 6, by + 27); ctx.fill(); ctx.fillStyle = '#e8e2d0'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(c.line, bx + 11, by + 14.5); ctx.restore(); }
+// ---- 9 notes ----
+const NOTES = ['"Gone to my sister\'s at the lake. The key is where it always is. Feed the cat if he comes back."', '"Day 9. They took the Hendersons\' door off for firewood. I said nothing. I am ashamed of that."', '"If you are reading this, take what you need. Leave the photographs."', '"Mara — we waited until Thursday. We could not wait longer. North road, then the river. Come."', '"Stock count: 14 tins. Stock count: 9 tins. Stock count: 2 tins. I have stopped counting."', '"To whoever finds the dog: his name is Biscuit and he is afraid of thunder."', '"They say the relay station still answers. I do not believe it. I am going anyway."', '"I taught here thirty years. I swept the room before I left. Somebody should."', '"Paid in full, the note says. Paid to whom? There is nobody left to owe."', '"We buried him under the pear tree. It will flower in spring whether we are here or not."', '"Do not drink from the blue barrel."', '"Whoever you are: it was a good street once. We had a party every August."'];
+function findNote(loc) { if (!EXTRAS.notes || !loc || PREVIEW || HEADLESS || G.flags['note_' + loc.id]) return; G.flags['note_' + loc.id] = 1; G.flags.notes = (G.flags.notes || 0) + 1; FX.note = { text: NOTES[hashStr(loc.id) % NOTES.length], where: loc.name, t: 0 }; for (const s of G.survivors) if (s.alive) s.morale = clamp(s.morale + 3, 0, 100); try { AUDIO.sfx('page'); } catch (_) {} }
+function drawNoteCard(dt) { const n = FX.note; if (!n) return; n.t += dt; if (n.t > 8) { FX.note = null; return; } const a = clamp(n.t / .4, 0, 1) * clamp((8 - n.t) / .8, 0, 1), w = Math.min(W - 40, 430); ctx.save(); ctx.globalAlpha = a; ctx.font = 'italic 15px Georgia, serif'; const words = n.text.split(' '), lines = []; let cur = ''; for (const wd of words) { if (ctx.measureText(cur + ' ' + wd).width > w - 44 && cur) { lines.push(cur); cur = wd; } else cur = cur ? cur + ' ' + wd : wd; } lines.push(cur);
+  const h = 54 + lines.length * 21, x = (W - w) / 2, y = Math.max(64, H * .2); ctx.translate(x + w / 2, y + h / 2); ctx.rotate(-.012); ctx.translate(-w / 2, -h / 2); ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(4, 5, w, h); ctx.fillStyle = '#d9d0b6'; ctx.fillRect(0, 0, w, h); ctx.fillStyle = 'rgba(120,90,50,.12)'; ctx.fillRect(0, 0, w, 6); ctx.fillRect(w - 30, h - 22, 30, 22); ctx.fillStyle = '#7a6a4e'; ctx.font = '600 11px system-ui, sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillText('FOUND AT ' + n.where.toUpperCase(), 22, 16); ctx.fillStyle = '#2e2a22'; ctx.font = 'italic 15px Georgia, serif'; lines.forEach((l, i) => ctx.fillText(l, 22, 38 + i * 21)); ctx.restore(); }
 // ----- smoke: billows built from a few soft lumps, drawn as sprites so there can be plenty of it -----
 const SMOKE = { spr: {}, em: {}, sweep: 0 };
 function smokeSpr(kind, i) { const k = kind + i; if (SMOKE.spr[k]) return SMOKE.spr[k]; const c = document.createElement('canvas'); c.width = c.height = 96; const g = c.getContext('2d'), r = mulberry(77 + i * 13 + kind.length), col = kind === 'glow' ? '255,140,60' : kind === 'pale' ? '206,204,200' : kind === 'day' ? '96,92,88' : '30,28,30';
@@ -2546,7 +2596,14 @@ function smokeFrom(key, x, y, w, heavy) { if (HEADLESS) return; const E = SMOKE.
   if ((SMOKE.sweep += 1) > 600) { SMOKE.sweep = 0; for (const k in SMOKE.em) if (_T - SMOKE.em[k].last > 8) delete SMOKE.em[k]; } }
 // a column standing over something that has been burning for days: no state, just a slow conveyor of billows
 function smokeColumn(x, y, h, seed, night, sc) { const N = 26, wind = smokeWind(), kind = night ? 'dark' : 'day'; for (let j = 0; j < N; j++) { const p = ((_T * .035 + j / N + seed * .37) % 1), yy = y - Math.pow(p, .85) * h, xx = x + Math.pow(p, 1.5) * wind * 4.2 * sc + Math.sin(p * 9 + seed * 5 + _T * .15) * (6 + p * 34) * sc, R = (16 + p * 86) * sc, al = .75 * Math.min(1, p * 9) * Math.pow(1 - p, 1.15); smokePuff(kind, j + seed, xx, yy, R, j * 2.4 + p * 1.6, al); } }
-function drawFlames(x, y, w, h, seed) {
+function drawFlames2(x, y, w, h, seed) { ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  { const g = ctx.createRadialGradient(x, y - h * .3, 2, x, y - h * .3, w * 1.5); g.addColorStop(0, `rgba(255,150,50,${(.2 + .05 * Math.sin(_T * 13 + seed)).toFixed(3)})`); g.addColorStop(1, 'rgba(255,120,40,0)'); ctx.fillStyle = g; ctx.fillRect(x - w * 1.5, y - h * .3 - w * 1.5, w * 3, w * 3); }   // the heat of it on the air
+  const n = Math.max(5, Math.round(w / 7)); for (const [k, c0, c1, c2] of [[1, 'rgba(210,50,10,.5)', 'rgba(255,110,25,.42)', 'rgba(150,20,0,0)'], [.72, 'rgba(255,150,40,.6)', 'rgba(255,190,70,.45)', 'rgba(255,90,10,0)'], [.42, 'rgba(255,240,190,.75)', 'rgba(255,220,120,.5)', 'rgba(255,170,50,0)']])
+    for (let i = 0; i < n; i++) { const ph = _T * (4.2 + (i % 4) * .9) + seed * 1.7 + i * 2.3, fx = x + ((i + .5) / n - .5) * w * k + Math.sin(ph * .8) * 2.4, fw = w / n * 1.25 * k, fh = h * k * (.5 + .5 * Math.pow(Math.abs(Math.sin(ph * .6 + i * 1.3)), .7)) * (1 - Math.abs((i + .5) / n - .5) * .7), tip = Math.sin(ph * 1.6) * fw * 1.1 + smokeWind() * .04 * fh / 20;
+      const g = ctx.createLinearGradient(0, y, 0, y - fh); g.addColorStop(0, c0); g.addColorStop(.45, c1); g.addColorStop(1, c2); ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(fx - fw, y); ctx.bezierCurveTo(fx - fw * 1.2, y - fh * .35, fx - fw * .2 + tip * .4, y - fh * .6, fx + tip, y - fh); ctx.bezierCurveTo(fx + fw * .5 + tip * .4, y - fh * .55, fx + fw * 1.25, y - fh * .3, fx + fw, y); ctx.fill(); }   // three coats of flame: red skirts, orange body, a white-yellow heart
+  for (let i = 0; i < 9; i++) { const t = (_T * (.35 + (i % 3) * .12) + i * .137 + (seed % 7) * .1) % 1, ex = x + Math.sin(i * 7.3 + seed) * w * .4 + Math.sin(t * 7 + i) * (6 + t * 16) + smokeWind() * t * .5, ey = y - h * .5 - t * (70 + (i % 4) * 26); ctx.fillStyle = `rgba(255,${190 - t * 90 | 0},${90 - t * 70 | 0},${((1 - t) * .95).toFixed(2)})`; ctx.fillRect(ex, ey, 1.7 - t * .6, 1.7 - t * .6); }   // embers, cooling as they climb
+  ctx.restore(); smokeFrom('f' + Math.round(seed * 10), x, y - h * .8, w, w > 40); }
+function drawFlames(x, y, w, h, seed) { if (EXTRAS.flames) return drawFlames2(x, y, w, h, seed);
   ctx.save(); ctx.globalCompositeOperation = 'lighter';
   for (let i = 0; i < 6; i++) { const ph = _T * (5 + i * .7) + seed + i * 1.9, fx = x + (i - 2.5) * w / 5 + Math.sin(ph) * 3, fh = h * (.55 + .45 * Math.abs(Math.sin(ph * .7 + i))); const g = ctx.createLinearGradient(0, y, 0, y - fh); g.addColorStop(0, 'rgba(255,220,120,.85)'); g.addColorStop(.5, 'rgba(255,120,30,.55)'); g.addColorStop(1, 'rgba(180,30,0,0)'); ctx.fillStyle = g;
     ctx.beginPath(); ctx.moveTo(fx - w / 7, y); ctx.quadraticCurveTo(fx - w / 9 + Math.sin(ph * 1.3) * 4, y - fh * .5, fx + Math.sin(ph * 2) * 5, y - fh); ctx.quadraticCurveTo(fx + w / 9 + Math.sin(ph * 1.7) * 4, y - fh * .5, fx + w / 7, y); ctx.fill(); }
@@ -3109,6 +3166,9 @@ function drawFx(world, hour, night, dt) {
   { const wx = weatherNow(), n = wx === 'clear' ? 30 : wx === 'snow' ? 100 : 150, vm = wx === 'storm' ? 3.2 : wx === 'snow' ? 1.5 : 1, wind = wx === 'storm' ? 150 : wx === 'snow' ? 18 : 0;
     ctx.fillStyle = wx === 'clear' ? (night ? 'rgba(200,200,210,.25)' : 'rgba(60,60,60,.35)') : (night ? 'rgba(210,220,235,.55)' : 'rgba(240,244,250,.8)');
     for (let i = 0; i < n && i < FX.ash.length; i++) { const a = FX.ash[i]; a.y += a.v * vm * dt; a.x += (Math.sin(_T + a.p) * 10 + wind) * dt; if (a.y > world.groundY + 20 || a.x > world.x1 + 700) { a.y = world.fy2y(world.nFloors - 1) - FLOOR_H - 300 + (a.x > world.x1 + 700 ? rnd(0, 500) : 0); a.x = rnd(world.x0 - 700, world.x1 + 600); } if (a.x > world.x0 - 20 && a.x < world.x1 + 20 && a.y > world.fy2y(world.nFloors - 1) - FLOOR_H - 160) continue; const sz = wx === 'clear' ? a.w * 2 : a.w * 2.6; ctx.fillRect(a.x, a.y, sz, sz); } }
+  if (weatherNow() === 'fog') { const vx = cam.x - W / cam.z, vw = 2 * W / cam.z, gy = world.groundY + 14;   // fog: slow banks of it along the ground, thinner above
+    for (let i = 0; i < 26; i++) { const lay = i % 3, x = vx + ((i * 173.3 + _T * (7 + lay * 5) + cam.x * (.1 * lay)) % (vw + 500)) - 250, y = gy - 16 - lay * 46 - (i % 5) * 9, R = 120 + (i % 4) * 46 + lay * 30; if (x > world.x0 - 40 && x < world.x1 + 40 && world.x1 - world.x0 < 5000) continue; smokePuff('pale', i, x, y, R, i * 1.3 + _T * .01, (.5 - lay * .12) * (.8 + .2 * Math.sin(_T * .3 + i))); }
+    ctx.fillStyle = 'rgba(170,176,184,.07)'; ctx.fillRect(vx, gy - 900, vw, 900); }
   if (weatherNow() === 'storm') { const vx = cam.x - W / cam.z, vw = 2 * W / cam.z, vy = cam.y - H / cam.z, vh = 2 * H / cam.z, gy = world.groundY + 14; ctx.lineCap = 'round';   // a storm: the wind made visible, and snow smoking along the ground
     for (let i = 0; i < 16; i++) { const sp = 700 + (i % 5) * 130, len = 60 + (i * 37 % 90), x = vx + ((i * 211.7 + _T * sp) % (vw + 300)) - 150, y = vy + ((i * 97.3 + _T * sp * .16) % vh); if (y > gy) continue; if (x > world.x0 - 30 && x < world.x1 + 30 && y > world.fy2y(world.nFloors - 1) - FLOOR_H) continue; ctx.strokeStyle = `rgba(225,232,245,${(.07 + (i % 4) * .03).toFixed(2)})`; ctx.lineWidth = 1 + (i % 3) * .5; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + len, y + len * .16); ctx.stroke(); }
     for (let i = 0; i < 9; i++) { const x = vx + ((i * 331.3 + _T * (260 + i * 30)) % (vw + 400)) - 200, a = .1 + .06 * Math.sin(_T * 1.3 + i); if (x > world.x0 - 60 && x < world.x1 + 60) continue; ctx.fillStyle = `rgba(214,222,236,${a.toFixed(2)})`; ctx.beginPath(); ctx.ellipse(x, gy - 3 - (i % 3) * 3, 70 + (i % 4) * 26, 3 + (i % 3), 0, 0, TAU); ctx.fill(); } }
@@ -3322,7 +3382,7 @@ function makeKennel(loc, day) {
 function dogUpdate(z, dt, p, w) {
   const dx = p.x - z.x, d = Math.abs(dx), los = !p.hidden && w.passable(z.x, p.x, 0) && p.f === 0; if (z.biteT > 0) z.biteT -= dt;
   if (z.kb) { const m = z.kb * Math.min(1, dt * 12); if (w.passable(z.x, z.x + m, 0)) z.x += m; z.kb = Math.abs(z.kb - m) < .5 ? 0 : z.kb - m; }
-  if (los && d < (SC.sneak ? 190 : 300)) z.alert += dt * (SC.sneak ? 1.4 : 3); else if (p.hidden && d < 70 && w.passable(z.x, p.x, 0)) z.alert += dt * .8; else z.alert -= dt * .3; z.alert = clamp(z.alert, 0, 1.2);   // a dog smells what it cannot see
+  if (los && d < (SC.sneak ? 190 : 300) * (weatherNow() === 'fog' ? .8 : 1)) z.alert += dt * (SC.sneak ? 1.4 : 3); else if (p.hidden && d < 70 && w.passable(z.x, p.x, 0)) z.alert += dt * .8; else z.alert -= dt * .3; z.alert = clamp(z.alert, 0, 1.2);   // a dog smells what it cannot see
   if (z.alert >= 1 && z.state !== 'chase') { z.state = 'chase'; z.lostT = 0; try { AUDIO.tone(240, .12, 'square', .07, 130); } catch (_) {} scNoise(z.x, 0, 500); }
   if (z.state === 'chase') { z.facing = dx < 0 ? -1 : 1;
     if (!los) { z.lostT += dt; if (z.lostT > 5) { z.state = 'idle'; z.alert = .3; } z.moving = false; return; } z.lostT = 0;
@@ -3664,7 +3724,7 @@ function siteSave() { if (PREVIEW || !SC.world || !SC.loc || SC.saved) return; S
   st.sp = {}; for (const s of w.spots) if (s.type === 'search' && s.left <= 0) st.sp[s.id] = { l: s.left, ls: (s.lootList || []).map(o => ({ id: o.id, n: o.n })) };
   st.total = w.spots.filter(s => s.type === 'search').length; st.open = w.rooms.filter(r => r.open && r.locked).map(r => r.name); st.blood = (w.blood || []).slice(-30).map(b => ({ x: Math.round(b.x), f: b.f, r: +b.r.toFixed(1), a: b.a, seed: Math.round(b.seed), wall: b.wall }));
   st.kills = Math.max(0, (st.kills || 0) - Math.floor((G.day - (st.day || G.day)) / 4)) + SC.kills; st.day = G.day; st.visits = (st.visits || 0) + 1; }
-function leaveSite() { siteSave(); const p = SC.player, link = siteLink(SC.world), px = p.x; TR.kills += SC.kills; SC.active = false; p.hidden = false; p.visible = true; p.task = null; p.path = null; p.fy = 0; p.f = 0; G.phase = 'travel'; TR.x = TR.locX[SC.loc.id] != null ? TR.locX[SC.loc.id] : 1180; TR.py = 0; TR.vy = 0; p.x = TR.x; p.facing = 1; cam.lock = true; AUDIO.sfx('open'); SC.leaving = false; if (link != null) { TR.x = p.x = Math.min(TR.xMax, px + link); p.facing = -1; p.mc = null; cam.bounds = streetBounds(); cam.x = cam.tx = cam.x + link; cam.y = cam.ty = cam.y + 14; TR.tx = null; } }
+function leaveSite() { siteSave(); findNote(SC.loc); const p = SC.player, link = siteLink(SC.world), px = p.x; TR.kills += SC.kills; SC.active = false; p.hidden = false; p.visible = true; p.task = null; p.path = null; p.fy = 0; p.f = 0; G.phase = 'travel'; TR.x = TR.locX[SC.loc.id] != null ? TR.locX[SC.loc.id] : 1180; TR.py = 0; TR.vy = 0; p.x = TR.x; p.facing = 1; cam.lock = true; AUDIO.sfx('open'); SC.leaving = false; if (link != null) { TR.x = p.x = Math.min(TR.xMax, px + link); p.facing = -1; p.mc = null; cam.bounds = streetBounds(); cam.x = cam.tx = cam.x + link; cam.y = cam.ty = cam.y + 14; TR.tx = null; } }
 
 // ---- 55_travel.js ----
 // ===== travel: the night street, a 2D platformer run between the house and the district's buildings =====
@@ -3727,7 +3787,9 @@ function trAttack() {
   { const t = TR.zombies.filter(z => z.alive && Math.abs(z.x - TR.x) < 110).sort((a, b) => Math.abs(a.x - TR.x) - Math.abs(b.x - TR.x))[0]; if (t) { p.facing = t.x < TR.x ? -1 : 1; if (p.mc) rigFace(p, p.facing); } TR.tx = null; }
   TR.attackKind = wep ? 'swing' : 'shove'; p.style = swingStyle(wep, p.style); TR.attackDur = TR.attackT = wep && (st => st === 'jab' || st === 'butt' || st === 'slash')(p.style) ? .33 : .45; TR.attackHit = false; AUDIO.sfx('swing');
 }
-function trUpdate(dt) {
+function searchlightCheck(dt) { const S = FX.sky; if (!EXTRAS.searchlight || !S || S.beamT == null || _T - S.beamT > .2 || TR.hidden || HEADLESS) return; if (Math.abs(S.beamX - TR.x) > 50) { TR.lit = Math.max(0, (TR.lit || 0) - dt); return; }
+  TR.lit = (TR.lit || 0) + dt; if (TR.lit > .7 && !(TR.litCd > _T)) { TR.litCd = _T + 25; trMsg('alert', 2.4); FX.flash = Math.max(FX.flash || 0, .12); try { AUDIO.tone(240, .12, 'square', .07, 130); } catch (_) {} for (const z of TR.zombies) if (z.alive !== false && Math.abs(z.x - TR.x) < 900) { z.state = 'chase'; z.alert = 2; z.wk = null; } } }   // caught in the light for most of a second: every raider in sight of it comes
+function trUpdate(dt) { searchlightCheck(dt);
   if (TR.done) return; const p = TR.player; _T += dt;
   if (PREVIEW) { if (PREVIEW === true) { p.health = 100; p.infected = false; p.wounded = false; } G.nightT = NIGHT_TOTAL; }
   G.nightT -= dt; if (TR.msgT > 0) TR.msgT -= dt;
@@ -3864,7 +3926,9 @@ function drawStreetBack(gy, dt, sky, withSite) { const night = true, fake = { gr
   drawHouseFacade(0, gy);
   // location facades
   for (const l of LOCATIONS) { const lx = TR.locX[l.id]; if (lx == null) continue; if (lx < x0v - 400 || lx > x1v + 400) continue; if (!(TR.site && l === TR.dest)) drawFacade(l, lx, gy); }
+  if (TR.site && EXTRAS.yards) { ctx.save(); ctx.translate(TR.siteOff, 0); try { drawSiteYard(TR.site.world, gy); } catch (_) {} ctx.restore(); }
   if (TR.site && withSite) { const w = TR.site.world, keep = CUR_W; CUR_W = w; cam.x -= TR.siteOff; cam.y -= 14; ctx.save(); ctx.translate(TR.siteOff, 14); drawBuilding(w, 22, sky, true, [...(TR.site.people || []), ...TR.site.zombies].filter(a => a.alive !== false), { dt, t: _T, embed: true }); ctx.restore(); cam.x += TR.siteOff; cam.y += 14; CUR_W = keep; }   // the place being made for stands open on the street: no other screen to go into
+  if (EXTRAS.puddles) drawPuddles(gy, x0v, x1v);
   for (const sp of streetProps()) if (sp.x > x0v - 120 && sp.x < x1v + 120 && !(TR.site && sp.x > TR.xMax - 10)) drawStreetProp(sp.t, sp.x, gy + 14, sp.seed);
   drawPrints('st' + TR.spKey, gy + 13);
   // obstacles
@@ -4567,7 +4631,7 @@ const SIGNAL_MAX = 5;   // days at the radio before the voice gives a place
 const snowCover = () => clamp((G.day - 1) * .07 + (weatherNow() === 'clear' ? 0 : .35), 0, .85);
 const homeTier = () => (G.flags && G.flags.home) || 0;
 // ----- weather and cold: it gets colder every day; the stove (wood or fuel) is the only heat -----
-function rollWeather(day) { const r = mulberry(day * 97 + 13)(); return day < 2 ? 'clear' : r < .4 ? 'clear' : r < .8 ? 'snow' : 'storm'; }
+function rollWeather(day) { const r = mulberry(day * 97 + 13)(); return day < 2 ? 'clear' : EXTRAS.fog && r > .26 && r < .4 ? 'fog' : r < .4 ? 'clear' : r < .8 ? 'snow' : 'storm'; }
 function weatherNow() { return (G.flags && G.flags.weather) || 'clear'; }
 function outdoorTemp(hour) { const wx = weatherNow(), h = hour < 5 ? hour + 24 : hour; return 2 - G.day * .6 - (wx === 'storm' ? 6 : wx === 'snow' ? 2 : 0) + 5 * Math.cos((h - 15) / 24 * TAU); }
 function fireLeft() { return (G.flags && G.flags.fire) || 0; }
@@ -4846,7 +4910,7 @@ function resolveNight(scav) {
   G.flags.radioToday = false;
   G.day++; G.hour = 6; G.report = rep; G.phase = 'dawn'; UI.modal = { kind: 'dawn' };
   { const ideas = G.flags.ideas || (G.flags.ideas = {}), fresh = RECIPES.filter(r => recipeOpen(r) && !ideas[r.id]); fresh.forEach(r => { ideas[r.id] = true; }); if (fresh.length && G.day > 1) line('craft', 'New ideas for the workbench: ' + fresh.map(r => (RECIPE_INFO[r.id] || [r.id])[0]).join(', '), GOLD); }
-  G.flags.weather = rollWeather(G.day); if (G.flags.weather !== 'clear') line('cold', G.flags.weather === 'storm' ? 'A snowstorm is blowing in' : 'Snow today', '#9cc7e6');
+  G.flags.weather = rollWeather(G.day); if (G.flags.weather !== 'clear') line('cold', G.flags.weather === 'storm' ? 'A snowstorm is blowing in' : G.flags.weather === 'fog' ? 'Fog has come down · harder to be seen, harder to see' : 'Snow today', '#9cc7e6');
   placeForDawn();
   // event
   G.event = null; const pool = EVENTS.filter(e => e.req(G)); if (pool.length && Math.random() < .6) G.event = pick(pool); if (G.event && G.event.make) G.event = Object.assign({}, G.event, { choices: G.event.make(G) });
@@ -5050,13 +5114,14 @@ function frame(now) {
       drawScene(G.world, hour, actors, { t: _T, dt, lights });
       if (G.phase === 'raid') drawRaidHud();
       if (G.phase === 'day' || G.phase === 'plan') drawHomeHud(dt);
+      if (EXTRAS.talk && G.phase === 'day' && !UI.modal) drawTalk(dt);
       if (UI.modal) { switch (UI.modal.kind) { case 'loot': drawLoot(); break; case 'plan': drawPlan(); break; case 'map': drawMap(); break; case 'dawn': drawDawn(); break; case 'event': drawEvent(); break; case 'craft': drawCraft(); break; case 'confirm': drawConfirm(); break; } }
       if (G.phase === 'win') drawEnd(true); if (G.phase === 'lose') drawEnd(false);
       break;
     }
     case 'travel': {
       if (!UI.modal) trUpdate(dt); else _T += dt;
-      drawStreet(dt); drawTravelHud(dt);
+      drawStreet(dt); drawTravelHud(dt); drawNoteCard(dt);
       if (UI.modal) { switch (UI.modal.kind) { case 'scavEnd': drawScavEnd(); break; case 'inv': drawScavInv(); break; case 'haven': drawHaven(); break; } }
       break;
     }
