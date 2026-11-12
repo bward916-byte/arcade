@@ -1652,6 +1652,7 @@ const AUDIO = {
       case 'thud': this.tone(70, .14, 'sine', .25, -30); this.noise(.08, .25, 300); break;
       case 'page': this.noise(.12, .1, 3200); setTimeout(() => this.noise(.1, .08, 2600), 160); break;
       case 'radio': this.noise(.5, .07, 2400); this.tone(700 + Math.random() * 900, .25, 'sine', .025, (Math.random() - .5) * 600); break;
+      case 'caw': this.tone(640, .11, 'sawtooth', .028, -230); setTimeout(() => this.tone(590, .15, 'sawtooth', .026, -250), 180); break;
       case 'reveal': this.tone(392, .18, 'triangle', .1); setTimeout(() => this.tone(523, .18, 'triangle', .1), 130); setTimeout(() => this.tone(659, .3, 'triangle', .1), 260); break;
     }
   }
@@ -2145,7 +2146,7 @@ function drawPersonRig(a, pose, t, extra) {
   if (a.mcT_ !== _T) {                                         // not moved this frame: stand, work, or lie where he is
     const dt = clamp(_T - (a._lt == null ? _T : a._lt), 0, .05);
     let hold = null, ext = null;
-    if (pose === 'idle' && !a.zombie && !a.drifter && ((CUR_W && CUR_W === G.world && G.phase === 'day') || SC.active || TR.active)) { const home = CUR_W === G.world && !SC.active; a.idleT = (a.idleT || 0) + dt; if (!a.idlePose || a.idleT > a.idleDur) { a.idlePose = pick(home ? ['idle', 'idle', 'look', 'look', 'cross', 'rub', 'hips', 'stretch', 'read'] : ['idle', 'look', 'look', 'look', 'rub', 'hips']); a.idleT = 0; a.idleDur = a.idlePose === 'read' ? rnd(9, 16) : rnd(4, 9); } hold = a.idlePose === 'idle' ? null : a.idlePose; }
+    if (pose === 'idle' && !a.zombie && !a.drifter && ((CUR_W && CUR_W === G.world && G.phase === 'day') || SC.active || TR.active)) { const home = CUR_W === G.world && !SC.active; a.idleT = (a.idleT || 0) + dt; if (!a.idlePose || a.idleT > a.idleDur) { { const ws = home ? warmSpot(a) : 0; if (ws) { a.idlePose = 'warm'; a.facing = ws; rigFace(a, ws); } else a.idlePose = pick(home ? ['idle', 'idle', 'look', 'look', 'cross', 'rub', 'hips', 'stretch', 'read'] : ['idle', 'look', 'look', 'look', 'rub', 'hips']); } a.idleT = 0; a.idleDur = a.idlePose === 'read' ? rnd(9, 16) : rnd(4, 9); } hold = a.idlePose === 'idle' ? null : a.idlePose; }
     else { a.idlePose = null; hold = HOLD_OF[pose] || null; if (pose === 'search' && a.searchLow) hold = 'searchLow'; if ((pose === 'attack' || pose === 'zombieAttack') && extra && extra.style) hold = extra.style; if (pose === 'zombieIdle' && a.fidget) hold = a.fidget === 'idle' ? null : a.fidget; if (pose === 'aimGun') hold = extra && extra.kneel ? 'kneelAim' : extra && extra.weapon === 'rifle' ? 'aimR' : 'aimP'; if (pose === 'zombieAim' && extra && extra.kneel) hold = 'kneelAim'; if (pose === 'guard' && extra && (extra.weapon === 'bat' || extra.weapon === 'knife')) hold = 'brace'; if (pose === 'search' && a.task && a.task.spot) { const hh = a.task.spot.hgt || SPOT_H[a.task.spot.id]; if (hh === 'low') hold = 'searchLow'; else if (hh === 'high') hold = 'searchHigh'; } }
     if (pose === 'attack' || pose === 'shove' || pose === 'zombieAttack') c.poseK = extra ? clamp(extra.k || 0, 0, 1) : 0;
     if (pose === 'bed') c.poseK = a._bedK || 0;
@@ -2415,11 +2416,11 @@ function drawScene(world, hour, actors, opts = {}) {
   // outer walls & roof
   ctx.fillStyle = '#3a3330'; ctx.fillRect(x0 - 14, topY, 14, botY - topY); ctx.fillRect(x1, topY, 14, botY - topY);
   ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.fillRect(x0 - 14, topY, 4, botY - topY); ctx.fillRect(x1 + 10, topY, 4, botY - topY);
-  drawRoof(world, topY, sky);
+  drawRoof(world, topY, sky); if (!world.site) { drawChimneySmoke(world, topY, opts.dt || 0); drawCrows(world, topY, sky, opts.dt || 0); }
   // built stations (front layer, drawn at spot positions)
   for (const s of world.spots) drawStation(world, s, night);
   if (world === G.world && !SC.active) { drawClutter(world); drawLanterns(world, hour); }
-  drawBloodStains(world); drawScars(world); drawTracks(world, opts.dt || 0);
+  drawBloodStains(world); drawScars(world); drawTracks(world, opts.dt || 0); drawRat(world, opts.dt || 0);
   // actors sorted by y
   const list = actors.filter(a => a.visible !== false).slice().sort((a, b) => a.fy - b.fy || a.x - b.x);
   for (const a of list) { a.y = world.fy2y(a.fy); if (a.fade != null && a.fade < 1) { ctx.save(); ctx.globalAlpha = a.fade; drawPerson(a, a.pose || 'idle', opts.t || 0, a.poseExtra); ctx.restore(); } else drawPerson(a, a.pose || 'idle', opts.t || 0, a.poseExtra); }
@@ -2512,7 +2513,36 @@ function drawRoof(world, topY, sky) {
   ctx.fillStyle = sky.top; ctx.beginPath(); ctx.moveTo(x0 + 420, topY - 60); ctx.lineTo(x0 + 480, topY - 85); ctx.lineTo(x0 + 530, topY - 70); ctx.lineTo(x0 + 500, topY - 45); ctx.fill();
   ctx.fillStyle = '#3a3330'; ctx.fillRect(x1 - 260, topY - 110, 30, 70); // chimney
   ctx.fillStyle = '#2a2320'; for (let y = topY - 10; y > topY - 150; y -= 18) { ctx.fillRect(x0 + (topY - y) * (x1 - x0) / 300, y, (x1 - x0) - (topY - y) * (x1 - x0) / 150, 2); }
+  { const sn = snowCover(); if (sn > .08) { const mx = (x0 + x1) / 2, th = 3 + 10 * sn; ctx.fillStyle = 'rgba(226,232,240,.93)'; ctx.beginPath(); ctx.moveTo(x0 - 4, topY + 1); ctx.lineTo(mx, topY - 152); ctx.lineTo(x1 + 4, topY + 1); ctx.lineTo(x1 - th * 2.4, topY + 1); ctx.lineTo(mx, topY - 152 + th); ctx.lineTo(x0 + th * 2.4, topY + 1); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(x1 - 245, topY - 110, 18, 2.5 + 4 * sn, 0, Math.PI, TAU); ctx.fill(); } }   // snow lying along the roof and capping the chimney
 }
+// the stove lit: smoke from the chimney, leaning with the wind, thinning as it climbs
+function drawChimneySmoke(world, topY, dt) { const L = FX.chim || (FX.chim = []), lit = G.built && G.built.stove && fireLeft() > 0 && G.phase !== 'title', cx = world.x1 + 30 - 245, cy = topY - 112, wx = weatherNow(), wind = wx === 'storm' ? 70 : wx === 'snow' ? 26 : 9;
+  if (lit) { FX.chimT = (FX.chimT || 0) + dt; if (FX.chimT > .16) { FX.chimT = 0; L.push({ x: cx + rnd(-5, 5), y: cy, vx: rnd(-3, 3), vy: -rnd(16, 26), t: 0, life: rnd(4.5, 7), r: rnd(5, 8), rot: rnd(0, 3), w: rnd(0, 6) }); } }
+  for (let i = L.length - 1; i >= 0; i--) { const q = L[i]; q.t += dt; if (q.t > q.life) { L.splice(i, 1); continue; } const u = q.t / q.life; q.vx += (wind - q.vx) * dt * .5; q.vy *= Math.exp(-.22 * dt); q.x += (q.vx + Math.sin(_T * .8 + q.w) * 3) * dt; q.y += q.vy * dt;
+    const al = .34 * Math.min(1, q.t / .5) * Math.pow(1 - u, 1.3), R = q.r * (1 + 4.5 * u); ctx.save(); ctx.translate(q.x, q.y); ctx.rotate(q.rot + u); ctx.scale(1.25, .85); const g = ctx.createRadialGradient(0, 0, 0, 0, 0, R); g.addColorStop(0, `rgba(214,212,208,${al.toFixed(3)})`); g.addColorStop(.6, `rgba(196,194,190,${(al * .5).toFixed(3)})`); g.addColorStop(1, 'rgba(190,188,184,0)'); ctx.fillStyle = g; ctx.fillRect(-R, -R, R * 2, R * 2); ctx.restore(); }
+  if (L.length > 60) L.splice(0, L.length - 60); }
+// crows on the ridge by day: they shuffle and peck, lift off at a bang, and come back when it is quiet
+function drawCrows(world, topY, sky, dt) { if (sky.light < .35) return; const C = world.crows || (world.crows = [.22, .36, .7].map(u => ({ u, st: 'sit', t: 0, next: rnd(20, 70), ph: rnd(0, 6), f: Math.random() < .5 ? -1 : 1 })));
+  const x0 = world.x0 - 30, x1 = world.x1 + 30, mx = (x0 + x1) / 2, scare = FX.flash > .1 || !!(G.raid && G.raid.shake > .5);
+  for (const c of C) { c.t += dt; const px = x0 + (x1 - x0) * c.u, py = topY - 150 * (1 - Math.abs(px - mx) / (mx - x0)) - 3; let x = px, y = py, fly = 0;
+    if (c.st === 'sit') { if (scare || c.t > c.next) { c.st = 'away'; c.t = 0; c.dir = Math.random() < .5 ? -1 : 1; c.dur = scare ? rnd(16, 34) : rnd(9, 18); if (Math.random() < .6) AUDIO.sfx('caw'); } }
+    if (c.st === 'away') { if (c.t < 3) { x = px + c.dir * c.t * 130; y = py - c.t * 62 - Math.sin(c.t * 3) * 8; fly = 1; c.f = c.dir; } else if (c.t > c.dur - 3) { const r = c.dur - c.t; x = px - c.dir * r * 130; y = py - r * 62 - Math.sin(r * 3) * 8; fly = 1; c.f = c.dir; } else { if (c.t > c.dur) { c.st = 'sit'; c.t = 0; c.next = rnd(25, 80); } continue; }
+      if (c.t > c.dur) { c.st = 'sit'; c.t = 0; c.next = rnd(25, 80); } }
+    const f = c.f, peck = !fly && (Math.sin(_T * .7 + c.ph) > .82) ? Math.abs(Math.sin(_T * 7)) : 0, hop = !fly && Math.sin(_T * .23 + c.ph * 2) > .97 ? 1.5 : 0;
+    ctx.save(); ctx.translate(x, y - hop); ctx.fillStyle = '#101012'; ctx.strokeStyle = '#101012';
+    if (fly) { const w = Math.sin(_T * 15 + c.ph); ctx.lineWidth = 2.2; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(-f * 4, -7 * w - 2, -f * 9, -9 * w); ctx.moveTo(0, 0); ctx.quadraticCurveTo(f * 3, -7 * w - 2, f * 5, -8 * w); ctx.stroke(); ctx.beginPath(); ctx.ellipse(0, 0, 5.5, 2.2, 0, 0, TAU); ctx.fill(); ctx.beginPath(); ctx.arc(f * 5.5, -.6, 1.9, 0, TAU); ctx.fill(); }
+    else { ctx.lineWidth = .9; ctx.beginPath(); ctx.moveTo(-1, 0); ctx.lineTo(-1, 3); ctx.moveTo(1.4, 0); ctx.lineTo(1.4, 3); ctx.stroke(); ctx.beginPath(); ctx.ellipse(0, -3, 5.6, 3.3, -f * .35, 0, TAU); ctx.fill(); ctx.beginPath(); ctx.moveTo(-f * 4, -2.5); ctx.lineTo(-f * 10, 0); ctx.lineTo(-f * 4.5, -.6); ctx.fill();
+      const hx = f * 4.6, hy = -6.6 + peck * 5; ctx.beginPath(); ctx.arc(hx, hy, 2.3, 0, TAU); ctx.fill(); ctx.beginPath(); ctx.moveTo(hx + f * 1.6, hy - .8); ctx.lineTo(hx + f * 5, hy + .4 + peck); ctx.lineTo(hx + f * 1.6, hy + .9); ctx.fill(); }
+    ctx.restore(); } }
+// and a rat along the skirting now and then
+function drawRat(world, dt) { const R = world.rat || (world.rat = { wait: rnd(8, 24), on: false });
+  if (!R.on) { R.wait -= dt; if (R.wait > 0) return; const rooms = world.rooms.filter(r => r.f === 0 && r.open !== false && r.x1 - r.x0 > 200); if (!rooms.length) { R.wait = 30; return; } const rm = pick(rooms); R.dir = Math.random() < .5 ? -1 : 1; R.x = R.dir > 0 ? rm.x0 + 14 : rm.x1 - 14; R.x1 = R.dir > 0 ? rm.x1 - 14 : rm.x0 + 14; R.on = true; R.p = 0; R.stop = rnd(.35, .8); }
+  R.p += dt; const pausing = Math.abs(R.x - R.x1) > 60 && (R.p % 2.3) > 2.3 - R.stop; if (!pausing) R.x += R.dir * 100 * dt; if ((R.x1 - R.x) * R.dir <= 0) { R.on = false; R.wait = rnd(20, 60); return; }
+  const y = world.fy2y(0) - 3, d = R.dir, hop = pausing ? 0 : Math.abs(Math.sin(R.p * 22)) * 1.2; ctx.fillStyle = '#2a2623'; ctx.beginPath(); ctx.ellipse(R.x, y - hop, 6, 2.8, 0, 0, TAU); ctx.fill(); ctx.beginPath(); ctx.ellipse(R.x + d * 5.5, y - .6 - hop, 2.6, 2, 0, 0, TAU); ctx.fill(); ctx.beginPath(); ctx.arc(R.x + d * 4.6, y - 2.6 - hop, 1.1, 0, TAU); ctx.fill();
+  ctx.strokeStyle = '#3a3330'; ctx.lineWidth = .9; ctx.beginPath(); ctx.moveTo(R.x - d * 5.5, y - hop); ctx.quadraticCurveTo(R.x - d * 10, y - 3 - (pausing ? 0 : Math.sin(R.p * 18)), R.x - d * 14, y - .5); ctx.stroke(); }
+// someone idle and cold near a lit stove holds their hands out to it
+function warmSpot(a) { if (!G.built || !G.built.stove || fireLeft() <= 0 || outdoorTemp(G.hour) > 3 || !G.world) return 0; const sv = G.world.spotById('stove'); if (!sv || Math.round(a.fy) !== sv.f) return 0; const d = sv.x - a.x; return Math.abs(d) > 18 && Math.abs(d) < 120 ? Math.sign(d) : 0; }
 function drawStairs(world, s) {
   const ya = world.fy2y(s.a), yb = world.fy2y(s.b); const x0 = s.x - STAIR_W, x1 = s.x + STAIR_W; const n = STAIR_N, tr = (x1 - x0) / n, rise = (ya - yb) / n;
   // stringer / carriage under the flight
@@ -3101,7 +3131,7 @@ function scAttack() {
     return;
   }
   { const t = SC.zombies.filter(z => z.alive && z.f === p.f && Math.abs(z.x - p.x) < 110).sort((a, b) => Math.abs(a.x - p.x) - Math.abs(b.x - p.x))[0]; if (t) { p.facing = t.x < p.x ? -1 : 1; p.path = null; if (p.mc) rigFace(p, p.facing); } }
-  p.attackT = .45; p.attackKind = wep ? 'swing' : 'shove'; p.style = swingStyle(wep, p.style); p.attackHit = false; AUDIO.sfx(wep ? 'hammer' : 'dig');
+  p.attackT = .45; p.attackKind = wep ? 'swing' : 'shove'; p.style = swingStyle(wep, p.style); p.attackHit = false; AUDIO.sfx('swing');
 }
 // Blood: a spurt of drops where the blow lands, and a stain on the floor (and the wall behind) that stays for the rest of the visit.
 const BLOOD = [];   // flying drops, shared by every scene
@@ -3196,7 +3226,7 @@ function scUpdate(dt) {
   const chasing = SC.zombies.some(z => z.alive && z.state === 'chase');
   const speed = SC.fight ? 50 : SC.sneak ? 42 : (chasing || p.run ? 112 : 78);
   { const foe = SC.zombies.filter(z => z.alive && z.f === p.f && !p.hidden).sort((a, b) => Math.abs(a.x - p.x) - Math.abs(b.x - p.x))[0]; if (SC.fight && foe && Math.abs(foe.x - p.x) < 56 && p.attackT <= 0 && !GUNS[scWeapon()]) scAttack(); SC.foe = foe; }
-  if (p.attackT > 0) { p.attackT -= dt; if (p.attackKind !== 'shoot' && p.attackT < .25 && !p.attackHit) { p.attackHit = true; const wep = scWeapon(); const dmg = wep === 'bat' ? 2 : wep === 'knife' ? 1 : 0; for (const z of SC.zombies) if (z.alive && z.f === p.f && Math.abs(z.x - p.x) < 48 && (z.x - p.x) * p.facing > -10) { z.hp -= (wep === 'knife' && z.state !== 'chase' && (z.x - p.x) * z.facing > 0) ? 99 : dmg * (p.trait === 'strong' ? 2 : 1); z.hurtT = .3; if (dmg) bleed(w, z.x, z.f, p.facing, false); z.kb = p.facing * (wep === 'bat' ? 40 : 28); z.attackT = 0; z.state = 'chase'; if (z.hp <= 0) killZombie(z); else AUDIO.sfx('groan'); } } }
+  if (p.attackT > 0) { p.attackT -= dt; if (p.attackKind !== 'shoot' && p.attackT < .25 && !p.attackHit) { p.attackHit = true; const wep = scWeapon(); const dmg = wep === 'bat' ? 2 : wep === 'knife' ? 1 : 0; for (const z of SC.zombies) if (z.alive && z.f === p.f && Math.abs(z.x - p.x) < 48 && (z.x - p.x) * p.facing > -10) { z.hp -= (wep === 'knife' && z.state !== 'chase' && (z.x - p.x) * z.facing > 0) ? 99 : dmg * (p.trait === 'strong' ? 2 : 1); z.hurtT = .3; AUDIO.sfx('hit'); if (dmg) bleed(w, z.x, z.f, p.facing, false); z.kb = p.facing * (wep === 'bat' ? 40 : 28); z.attackT = 0; z.state = 'chase'; if (z.hp <= 0) killZombie(z); else AUDIO.sfx('groan'); } } }
   else if (p.path && p.path.length) { moveActor(p, dt, speed); p.pose = SC.sneak ? 'sneak' : (chasing || p.run ? 'run' : 'walk'); if (!SC.sneak && !p.hidden) { SC.noiseT += dt; if (SC.noiseT > .6) { SC.noiseT = 0; scNoise(p.x, p.f, (chasing || p.run ? 260 : 150) * (p.quirk === 'loud' ? 1.35 : 1)); } } }
   else {
     p.moving = false;
@@ -3346,7 +3376,7 @@ function trAttack() {
     return;
   }
   { const t = TR.zombies.filter(z => z.alive && Math.abs(z.x - TR.x) < 110).sort((a, b) => Math.abs(a.x - TR.x) - Math.abs(b.x - TR.x))[0]; if (t) { p.facing = t.x < TR.x ? -1 : 1; if (p.mc) rigFace(p, p.facing); } TR.tx = null; }
-  TR.attackT = .45; TR.attackKind = wep ? 'swing' : 'shove'; p.style = swingStyle(wep, p.style); TR.attackHit = false; AUDIO.sfx(wep ? 'hammer' : 'dig');
+  TR.attackT = .45; TR.attackKind = wep ? 'swing' : 'shove'; p.style = swingStyle(wep, p.style); TR.attackHit = false; AUDIO.sfx('swing');
 }
 function trUpdate(dt) {
   if (TR.done) return; const p = TR.player; _T += dt;
@@ -3370,7 +3400,7 @@ function trUpdate(dt) {
   const speed = (TR.fight ? 52 : TR.run ? 124 : 80) * (p.trait === 'runner' ? 1.15 : 1);
   if (TR.attackT > 0) {
     TR.attackT -= dt;
-    if (TR.attackKind !== 'shoot' && TR.attackT < .25 && !TR.attackHit) { TR.attackHit = true; const wep = trWeapon(); const dmg = wep === 'bat' ? 2 : wep === 'knife' ? 1 : 0; for (const z of TR.zombies) if (z.alive && Math.abs(z.x - TR.x) < 50 && (z.x - TR.x) * p.facing > -10) { z.hp -= dmg * (p.trait === 'strong' ? 2 : 1); z.hurtT = .3; if (dmg) bleed(TR.bw, z.x, 0, p.facing, z.hp <= 0); z.kb = p.facing * (wep === 'bat' ? 45 : 30); z.attackT = 0; z.state = 'chase'; if (z.hp <= 0) { z.alive = false; z.pose = 'dead'; TR.kills++; } AUDIO.sfx('groan'); } }
+    if (TR.attackKind !== 'shoot' && TR.attackT < .25 && !TR.attackHit) { TR.attackHit = true; const wep = trWeapon(); const dmg = wep === 'bat' ? 2 : wep === 'knife' ? 1 : 0; for (const z of TR.zombies) if (z.alive && Math.abs(z.x - TR.x) < 50 && (z.x - TR.x) * p.facing > -10) { z.hp -= dmg * (p.trait === 'strong' ? 2 : 1); z.hurtT = .3; AUDIO.sfx('hit'); if (dmg) bleed(TR.bw, z.x, 0, p.facing, z.hp <= 0); z.kb = p.facing * (wep === 'bat' ? 45 : 30); z.attackT = 0; z.state = 'chase'; if (z.hp <= 0) { z.alive = false; z.pose = 'dead'; TR.kills++; } AUDIO.sfx('groan'); } }
     dir = 0;
   }
   const slope = slopeAt(TR.x); const onSlope = Math.abs(slope) > .3;
@@ -3745,6 +3775,9 @@ function drawHelp() {
 function drawPlan() {
   const alive = G.survivors.filter(s => s.alive);
   const w = Math.min(W - 30, 620), h = Math.min(H - 20, 150 + alive.length * 64), x = (W - w) / 2, y = (H - h) / 2; panel(x, y, w, h, 'NIGHT ' + G.day);
+  { const ch = G.flags.grudge || G.flags.warned ? 1 : Math.min(.8, .18 + G.day * .035 + (G.flags.horde ? .3 : 0)), wk = G.world.barricades.slice().sort((a, b) => a.level - b.level || a.hp - b.hp)[0];
+    txt(ch >= 1 ? 'they are coming tonight' : ch > .55 ? 'gangs close by' : ch > .36 ? 'the street is uneasy' : 'the street is quiet', x + w - 18, y + 20, 13, ch >= 1 ? RED : ch > .55 ? '#d97a4a' : ch > .36 ? GOLD : GREEN, 'right');
+    txt('weakest: ' + bname(wk).toLowerCase() + (wk.level ? ' · ' + wk.level + ' of 3 boards' : ' · not boarded'), x + w - 18, y + 36, 11, wk.level ? DIM : RED, 'right', '400'); }
   const P = G.plan;
   alive.forEach((s, i) => {
     const ry = y + 60 + i * 64 + 20;
@@ -4384,7 +4417,7 @@ function startRaid(info) {
   const beds = [{ x: 340, f: 2 }].concat(G.built.bed ? [{ x: 190, f: 1 }] : []).concat([{ x: 420, f: 2 }, { x: 600, f: 2 }, { x: 560, f: 1 }]);
   const nBeds = 1 + (G.built.bed ? 1 : 0); info.sleepers.forEach((sl, i) => { if (!sl.alive) return; const bd = beds[i % beds.length]; sl.x = bd.x; sl.fy = sl.f = bd.f; sl.pose = 'sleep'; sl.mc = null; sl.bedAt = i < nBeds ? (i === 0 ? 40 : 32) : 0; sl.bedIn = 1; sl.bedLift = sl.bedAt; });
   G.raid = { t: 0, dur: info.live ? 22 + info.strength * 3 : 8.5 + info.strength * 1.1, zs, info, side, edge, inner, bang: 0, shake: 0, live: !!info.live, kills: 0, def: info.guards.slice(), wakers: info.wakers || [], b: info.bar };
-  if (info.live) { for (const z of zs) { z.dieAt = null; z.hp = 3 + (G.day >= 14 ? 1 : 0); z.atB = false; } for (const g of info.guards) { g.ready = true; g.cd = 0; g.aim = null; g.swing = null; g.path = null; } for (const s of G.raid.wakers) s.woke = false; AUDIO.sfx('creak'); } G.phase = 'raid'; UI.modal = null; homeCam();
+  if (info.live) { for (const z of zs) { z.dieAt = null; z.hp = 3 + (G.day >= 14 ? 1 : 0); z.atB = false; } for (const g of info.guards) { g.ready = true; g.cd = 0; g.aim = null; g.swing = null; g.path = null; } for (const s of G.raid.wakers) s.woke = false; raidArm(); AUDIO.sfx('creak'); } G.phase = 'raid'; UI.modal = null; homeCam();
   { const cxw = (inner + edge + side * 160) / 2, span = Math.abs(edge + side * 300 - inner) + 260; cam.z = cam.tz = clamp(W / span, cam.minZ, 1.5); cam.x = cam.tx = cxw; cam.y = cam.ty = w.fy2y(1) - 70; }
 }
 function endRaid() { G.raid = null; placeForDawn(); for (const s of G.survivors) s.mc = null; G.phase = 'dawn'; UI.modal = { kind: 'dawn' }; homeCam(); }
@@ -4410,18 +4443,21 @@ function drawRaidHud() {
 // ----- the raid, fought: tap a raider and whoever is on guard goes for him. A gun reaches across the yard; a bat or a knife has to wait until they are at the boards. -----
 function raidGun() { return (G.inv.ammo || 0) > 0 ? (G.inv.rifle > 0 ? 'rifle' : G.inv.pistol > 0 ? 'pistol' : null) : null; }
 function raidMelee() { return G.inv.bat > 0 ? 'bat' : G.inv.knife > 0 ? 'knife' : null; }
+// what is in the house is shared out, best first: one rifle is one rifle, and whoever is left without fights bare-handed
+function raidArm() { const R = G.raid, pool = [], add = (k, n) => { for (let i = 0; i < (n || 0); i++) pool.push(k); }; add('rifle', G.inv.rifle); add('pistol', G.inv.pistol); add('bat', G.inv.bat); add('knife', G.inv.knife); R.def.forEach((d, i) => { d.arm = pool[i] || null; }); }
+const dGun = d => GUNS[d.arm] && (G.inv.ammo || 0) > 0 ? d.arm : null, dMelee = d => d.arm === 'bat' || d.arm === 'knife' ? d.arm : null;
 function updateRaidLive(dt) {
   const R = G.raid, w = G.world, flat = engFlat(w, 1), gun = raidGun(), melee = raidMelee(); _T += dt; CUR_W = w; R.t += dt; R.shake = Math.max(0, R.shake - dt * 3);
   if (R.msgT > 0) R.msgT -= dt; if (R.flash > 0) R.flash -= dt; if (R.tracer) { R.tracer.t -= dt; if (R.tracer.t <= 0) R.tracer = null; } if (R.b.shakeT > 0) R.b.shakeT -= dt;
   // a light sleeper is up at the first blow and comes running
   for (const s of R.wakers) { if (!s.alive || s.woke || !(R.bang > 0 || R.t > 7)) continue; s.woke = true; s.bedAt = 0; s.bedIn = 0; s.bedLift = 0; s.pose = 'run'; s.cd = 0; s.aim = null; s.swing = null; s.ready = false;
-    const tx = R.inner - R.side * R.def.length * 46; s.path = w.path(s.x, s.f, tx, 1); if (!s.path) { s.x = tx; s.fy = s.f = 1; s.mc = null; } s.run = true; R.def.push(s); if (!R.info.guards.includes(s)) R.info.guards.push(s); }
+    const tx = R.inner - R.side * R.def.length * 46; s.path = w.path(s.x, s.f, tx, 1); if (!s.path) { s.x = tx; s.fy = s.f = 1; s.mc = null; } s.run = true; R.def.push(s); if (!R.info.guards.includes(s)) R.info.guards.push(s); raidArm(); }
   for (const d of R.def) { if (!d.alive) continue; d.cd = Math.max(0, (d.cd || 0) - dt); if (d.hurtT > 0) d.hurtT -= dt;
     if (d.path && d.path.length) { moveActor(d, dt, 135); d.pose = 'run'; d.poseExtra = null; continue; }
     d.ready = true; d.facing = R.side; rigFace(d, R.side);
-    if (d.aim) { const z = d.aim.z; if (!z.alive || z.flee || !gun) d.aim = null; else { d.aim.t += dt; d.pose = 'aimGun'; d.poseExtra = { weapon: d.aim.gun }; if (d.aim.t >= d.aim.need) raidShoot(d, z); continue; } }
-    if (d.swing) { const sw = d.swing; sw.t += dt; const k = sw.t / .42; d.pose = 'attack'; d.poseExtra = { k, weapon: melee, style: melee ? sw.style : null }; if (k >= .55 && !sw.hit) { sw.hit = true; raidHit(d, sw.z, melee); } if (k >= 1) d.swing = null; continue; }
-    d.pose = 'guard'; d.poseExtra = { k: 0, weapon: gun || melee }; }
+    if (d.aim) { const z = d.aim.z; if (!z.alive || z.flee || !dGun(d)) d.aim = null; else { d.aim.t += dt; d.pose = 'aimGun'; d.poseExtra = { weapon: d.aim.gun }; if (d.aim.t >= d.aim.need) raidShoot(d, z); continue; } }
+    if (d.swing) { const sw = d.swing; sw.t += dt; const k = sw.t / .42; d.pose = 'attack'; d.poseExtra = { k, weapon: dMelee(d), style: dMelee(d) ? sw.style : null }; if (k >= .55 && !sw.hit) { sw.hit = true; raidHit(d, sw.z, dMelee(d)); } if (k >= 1) d.swing = null; continue; }
+    d.pose = 'guard'; d.poseExtra = { k: 0, weapon: d.arm }; }
   let living = 0;
   for (const z of R.zs) {
     if (z.gone) continue; if (!z.alive) { z.pose = 'dead'; continue; } if (z.hurtT > 0) z.hurtT -= dt;
@@ -4443,10 +4479,10 @@ function raidBreach() { const R = G.raid, lines = R.lines || (R.lines = []), res
   breach(R.b, rest, R.def.filter(d => d.alive), (icon, text, color) => lines.push({ icon, text, color }));
   const took = []; for (const k of ['canned', 'meal', 'water', 'meds', 'fuel']) { if (took.length >= 3) break; if (G.inv[k] > 0) { G.inv[k]--; took.push(ITEMS[k].n.toLowerCase()); } } if (took.length) lines.push({ icon: 'backpack', text: 'They got away with ' + took.join(', '), color: RED });
   FX.shake = 8; raidFlee('got in'); }
-function raidTap(z) { const R = G.raid; if (!z.alive || z.flee) return; const gun = raidGun(), d = R.def.find(q => q.alive && q.ready && !(q.path && q.path.length) && !(q.cd > 0) && !q.aim && !q.swing); if (!d) return;
-  if (gun) { d.aim = { z, t: 0, need: GUNS[gun].aim * .55, gun }; AUDIO.sfx('tap'); return; }
+function raidTap(z) { const R = G.raid; if (!z.alive || z.flee) return; const free = R.def.filter(q => q.alive && q.ready && !(q.path && q.path.length) && !(q.cd > 0) && !q.aim && !q.swing); if (!free.length) return;
+  const g = free.find(dGun); if (g) { const gun = dGun(g); g.aim = { z, t: 0, need: GUNS[gun].aim * .55, gun }; AUDIO.sfx('tap'); return; }
   if (!z.atB) { R.msg = 'too far · wait until he is at the boards'; R.msgT = 1.6; return; }
-  d.swing = { z, t: 0, style: (d.lastStyle = swingStyle(raidMelee(), d.lastStyle)) }; d.cd = d.trait === 'strong' ? .75 : 1.05; AUDIO.sfx('swing'); }
+  const d = free.find(dMelee) || free[0], ml = dMelee(d); d.swing = { z, t: 0, style: ml ? (d.lastStyle = swingStyle(ml, d.lastStyle)) : null }; d.cd = d.trait === 'strong' ? .75 : 1.05; AUDIO.sfx('swing'); }
 function raidShoot(d, z) { const R = G.raid, w = G.world, g = GUNS[d.aim.gun]; G.inv.ammo = Math.max(0, (G.inv.ammo || 0) - 1); d.aim = null; d.cd = .45; AUDIO.sfx('shot'); FX.flash = .22; FX.shake = 5; R.flash = .12;
   const y = w.fy2y(1) - 58, hit = Math.random() < (g.dmg > 4 ? .95 : .8); R.tracer = { x0: d.x + R.side * 16, y0: y, x1: hit ? z.x : z.x + R.side * 300, y1: hit ? y + 4 : y - 30, t: .12 };
   if (hit) raidDamage(z, g.dmg, true); else { R.msg = 'missed'; R.msgT = .8; } }
@@ -4455,9 +4491,9 @@ function raidHit(d, z, melee) { if (!z.alive || z.flee) return; raidDamage(z, (m
 function raidDamage(z, dmg, shot) { const R = G.raid; z.hp -= dmg; z.hurtT = .3; bleed(G.world, z.x, 1, R.side, z.hp <= 0); AUDIO.sfx(shot ? 'thud' : 'hit');
   if (z.hp <= 0) { z.alive = false; z.pose = 'dead'; R.kills++; AUDIO.sfx('groan'); if (shot) for (const o of R.zs) if (o.alive && !o.flee && Math.random() < .3) o.flee = true; } }   // a gunshot sends some of them running
 function raidAuto() {   // SKIP: let it play out by the odds, as it would with nobody watching
-  const R = G.raid, b = R.b; let def = 0; for (const d of R.def) if (d.alive) def += (raidGun() ? 3 : raidMelee() ? 2 : 1) * (d.trait === 'strong' ? 1.5 : 1); if (G.built.trap && !R.trapUsed) { R.trapUsed = R.trapKill = true; def += 1; }
+  const R = G.raid, b = R.b; let def = 0; for (const d of R.def) if (d.alive) def += (dGun(d) ? 3 : dMelee(d) ? 2 : 1) * (d.trait === 'strong' ? 1.5 : 1); if (G.built.trap && !R.trapUsed) { R.trapUsed = R.trapKill = true; def += 1; }
   let k = Math.floor(def), shots = 0; for (const z of R.zs) { if (!z.alive || z.flee || z.gone) continue; if (k > 0) { k--; z.alive = false; R.kills++; shots++; } }
-  if (raidGun() && shots) G.inv.ammo = Math.max(0, G.inv.ammo - Math.min(2, shots));
+  if (R.def.some(dGun) && shots) G.inv.ammo = Math.max(0, G.inv.ammo - Math.min(2, shots));
   const left = R.zs.filter(z => z.alive && !z.flee && !z.gone).length;
   if (left > 0) { if (b.level === 0) { if (!R.breached) { R.breached = true; raidBreach(); } } else { b.hp -= left * 14; R.bang++; if (b.hp <= 0) { b.level = Math.max(0, b.level - 1); b.hp = b.level * 30; R.tore = 1; if (b.level === 0 && !R.breached) { R.breached = true; raidBreach(); } } } }
   if (!R.fled) R.fled = 'gave up'; endRaidLive(); }
@@ -4470,7 +4506,7 @@ function endRaidLive() { const R = G.raid, rep = G.report, total = R.zs.length, 
   for (const s of G.survivors) if (s.alive && s.health <= 0) { s.alive = false; add('dead', s.name + ' died in the night', RED); for (const o of G.survivors) o.morale = clamp(o.morale - 20, 0, 100); }
   endRaid(); save(); }
 function drawRaidHudLive() {
-  const cx = W / 2, R = G.raid, w = G.world, gun = raidGun(), melee = raidMelee(), b = R.b, foes = R.zs.filter(z => z.alive && !z.gone && !z.flee);
+  const cx = W / 2, R = G.raid, w = G.world, gun = R.def.map(dGun).find(Boolean) || null, melee = R.def.map(dMelee).find(Boolean) || null, b = R.b, foes = R.zs.filter(z => z.alive && !z.gone && !z.flee);
   ctx.fillStyle = 'rgba(14,15,18,.75)'; rr(cx - 170, 8, 340, 50, 10); ctx.fill(); drawIcon('moon', cx - 146, 33, 22, '#aab'); txt('NIGHT ' + (G.day - 1), cx - 96, 33, 20, INK);
   drawIcon('zombie', cx - 30, 33, 22, RED); txt(String(foes.length), cx - 8, 33, 20, INK);
   drawIcon('board', cx + 34, 33, 20, b.level ? INK : RED); for (let i = 0; i < 3; i++) { ctx.fillStyle = i < b.level ? (b.hp / (b.level * 30) < .5 ? GOLD : GREEN) : '#333'; ctx.fillRect(cx + 50 + i * 12, 29, 9, 8); }
