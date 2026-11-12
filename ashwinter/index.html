@@ -1603,7 +1603,13 @@ function fitCam(b, pad = 40) {
 // ---- audio (procedural, tiny) ----
 const AUDIO = {
   ac: null, master: null, on: true, ambient: null,
-  unlock() { if (HEADLESS || this.ac) return; try { this.ac = new (window.AudioContext || window.webkitAudioContext)(); this.master = this.ac.createGain(); this.master.gain.value = .5; this.master.connect(this.ac.destination); this.startAmbient(); } catch (e) { } },
+  unlock() { if (HEADLESS || this.ac) return; try { const ac = this.ac = new (window.AudioContext || window.webkitAudioContext)(); this.master = ac.createGain(); this.master.gain.value = .55;
+      this.lp = ac.createBiquadFilter(); this.lp.type = 'lowpass'; this.lp.frequency.value = 18000; const cmp = ac.createDynamicsCompressor(); cmp.threshold.value = -16; cmp.ratio.value = 5; cmp.attack.value = .004; cmp.release.value = .22; this.master.connect(this.lp); this.lp.connect(cmp); cmp.connect(ac.destination);   // muffling when you hide, and a limiter so a shot does not tear the speaker
+      const n = Math.floor(ac.sampleRate * 2.6), ir = ac.createBuffer(2, n, ac.sampleRate); for (let c = 0; c < 2; c++) { const d = ir.getChannelData(c); let l = 0; for (let i = 0; i < n; i++) { const e = Math.pow(1 - i / n, 2.8), w = Math.random() * 2 - 1; l += (w - l) * (.5 - .4 * i / n); d[i] = l * e * (i < 400 ? i / 400 : 1); } }   // a room made of decaying noise that darkens as it dies
+      this.rev = ac.createConvolver(); this.rev.buffer = ir; this.send = ac.createGain(); this.send.gain.value = .22; this.revG = ac.createGain(); this.revG.gain.value = .9; this.send.connect(this.rev); this.rev.connect(this.revG); this.revG.connect(this.master);
+      this._pan = 0; this._gain = 1; this.startAmbient(); } catch (e) { } },
+  pos(x) { if (x == null) { this._pan = 0; this._gain = 1; return; } const sx = w2sx(x) - W / 2; this._pan = clamp(sx / (W * .55), -1, 1); this._gain = clamp(1.12 - Math.abs(sx) / (W * 1.5), .22, 1); },   // where in the picture the next sound comes from: it is heard to that side, fainter with distance
+  out(wet) { const ac = this.ac, g = ac.createGain(); g.gain.value = this._gain == null ? 1 : this._gain; let o = g; if (ac.createStereoPanner) { const pn = ac.createStereoPanner(); pn.pan.value = this._pan || 0; g.connect(pn); o = pn; } o.connect(this.master); if (this.send) { if (wet != null) { const w = ac.createGain(); w.gain.value = wet; o.connect(w); w.connect(this.send); } else o.connect(this.send); } return g; },
   startAmbient() {
     const ac = this.ac; const buf = ac.createBuffer(1, ac.sampleRate * 2, ac.sampleRate); const d = buf.getChannelData(0); let l = 0;
     for (let i = 0; i < d.length; i++) { const w = Math.random() * 2 - 1; l = (l + .02 * w) / 1.02; d[i] = l * 3.5; }
@@ -1613,22 +1619,36 @@ const AUDIO = {
     this.ambient = g;
     { const b2 = ac.createBuffer(1, ac.sampleRate * 3, ac.sampleRate), d2 = b2.getChannelData(0); for (let i = 0; i < d2.length; i++) d2[i] = Math.random() * 2 - 1;   // the wind: its own band of noise, raised and lowered by the weather
       const s2 = ac.createBufferSource(); s2.buffer = b2; s2.loop = true; const bp = ac.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 520; bp.Q.value = 1.1; const wg = ac.createGain(); wg.gain.value = 0; s2.connect(bp); bp.connect(wg); wg.connect(this.master); s2.start(); this.windG = wg; this.windF = bp; }
+    { const b3 = ac.createBuffer(1, ac.sampleRate * 2, ac.sampleRate), d3 = b3.getChannelData(0); for (let i = 0; i < d3.length; i++) d3[i] = (Math.random() * 2 - 1) * (.6 + .4 * Math.random()); const s3 = ac.createBufferSource(); s3.buffer = b3; s3.loop = true; const hp = ac.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 2400; const rg = ac.createGain(); rg.gain.value = 0; s3.connect(hp); hp.connect(rg); rg.connect(this.master); s3.start(); this.rainG = rg; }   // rain: a bed of hiss, brought up when it is raining
     const lfo = ac.createOscillator(); lfo.frequency.value = .07; const lg = ac.createGain(); lg.gain.value = 180; lfo.connect(lg); lg.connect(f.frequency); lfo.start();
   },
   tone(freq, dur, type = 'sine', vol = .2, slide = 0) {
     if (!this.ac || !this.on) return; const ac = this.ac, o = ac.createOscillator(), g = ac.createGain(); o.type = type; o.frequency.value = freq;
     if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(20, freq + slide), ac.currentTime + dur);
-    g.gain.setValueAtTime(vol, ac.currentTime); g.gain.exponentialRampToValueAtTime(.001, ac.currentTime + dur); o.connect(g); g.connect(this.master); o.start(); o.stop(ac.currentTime + dur);
+    g.gain.setValueAtTime(vol, ac.currentTime); g.gain.exponentialRampToValueAtTime(.001, ac.currentTime + dur); o.connect(g); g.connect(this.out()); o.start(); o.stop(ac.currentTime + dur);
   },
-  noise(dur, vol = .3, freq = 1200) {
-    if (!this.ac || !this.on) return; const ac = this.ac; const b = ac.createBuffer(1, ac.sampleRate * dur, ac.sampleRate); const d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
-    const s = ac.createBufferSource(); s.buffer = b; const f = ac.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = freq; const g = ac.createGain(); g.gain.value = vol; s.connect(f); f.connect(g); g.connect(this.master); s.start();
+  noise(dur, vol = .3, freq = 1200, type = 'bandpass', curve = 1, wet) {
+    if (!this.ac || !this.on) return; const ac = this.ac; const b = ac.createBuffer(1, Math.max(1, Math.floor(ac.sampleRate * dur)), ac.sampleRate); const d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, curve);
+    const s = ac.createBufferSource(); s.buffer = b; const f = ac.createBiquadFilter(); f.type = type; f.frequency.value = freq; const g = ac.createGain(); g.gain.value = vol; s.connect(f); f.connect(g); g.connect(this.out(wet)); s.start();
   },
+  sweep(dur, vol, f0, f1, wet) {   // a body of noise whose tone falls as it fades: thunder, a blast, a jet going over
+    if (!this.ac || !this.on) return; const ac = this.ac, t = ac.currentTime, b = ac.createBuffer(1, Math.floor(ac.sampleRate * dur), ac.sampleRate), d = b.getChannelData(0); let l = 0; for (let i = 0; i < d.length; i++) { l += ((Math.random() * 2 - 1) - l) * .35; d[i] = l * 2.2; }
+    const s = ac.createBufferSource(); s.buffer = b; const f = ac.createBiquadFilter(); f.type = 'lowpass'; f.frequency.setValueAtTime(f0, t); f.frequency.exponentialRampToValueAtTime(Math.max(30, f1), t + dur); const g = ac.createGain(); g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + .03); g.gain.exponentialRampToValueAtTime(.0008, t + dur); s.connect(f); f.connect(g); g.connect(this.out(wet)); s.start();
+  },
+  bell(freq, vol = .04, dur = 3) {   // a struck, glassy note with a long tail: what there is of music
+    if (!this.ac || !this.on) return; const ac = this.ac, t = ac.currentTime, out = this.out(1.4); for (const [m, a] of [[1, 1], [2.01, .35], [3.02, .12], [4.2, .05]]) { const o = ac.createOscillator(), g = ac.createGain(); o.type = 'sine'; o.frequency.value = freq * m; g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(vol * a, t + .012); g.gain.exponentialRampToValueAtTime(.0001, t + dur / m); o.connect(g); g.connect(out); o.start(); o.stop(t + dur / m + .05); } },
+  music(dt, mood) {   // a low chord that drifts between four harmonies, a few single notes over it; it tightens and sours while you are hunted
+    if (!this.ac) return; const ac = this.ac, t = ac.currentTime, on = this.on && EXTRAS.music && mood !== 'off'; if (!this.pad) { if (!on) return; const f = ac.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 520; f.Q.value = .7; const g = ac.createGain(); g.gain.value = 0; f.connect(g); g.connect(this.master); const w = ac.createGain(); w.gain.value = .7; g.connect(w); w.connect(this.send); this.pad = { f, g, o: [], ch: 0, t: 0, note: 3 }; for (let i = 0; i < 4; i++) { const o = ac.createOscillator(); o.type = i === 3 ? 'sine' : 'triangle'; o.frequency.value = 110; o.detune.value = [0, 7, -6, 0][i]; const og = ac.createGain(); og.gain.value = [.5, .4, .34, .6][i]; o.connect(og); og.connect(f); o.start(); this.pad.o.push(o); } }
+    const P = this.pad, CH = [[110, 164.8, 261.6, 55], [87.3, 130.8, 220, 43.65], [146.8, 220, 174.6, 73.4], [82.4, 123.5, 196, 41.2]], tense = mood === 'tense', lvl = !on ? 0 : mood === 'title' ? .07 : tense ? .085 : mood === 'night' ? .05 : mood === 'out' ? .045 : .035;
+    P.g.gain.setTargetAtTime(lvl, t, 1.2); P.f.frequency.setTargetAtTime(tense ? 900 + 300 * Math.sin(_T * 5.5) : 420 + 140 * Math.sin(_T * .11), t, .3); P.t -= dt; if (P.t <= 0) { P.t = tense ? 5 : 13 + Math.random() * 6; P.ch = (P.ch + 1 + (Math.random() < .3 ? 1 : 0)) % 4; const c = CH[P.ch]; P.o.forEach((o, i) => o.frequency.setTargetAtTime(c[i] * (tense && i === 2 ? 1.0595 : 1), t, tense ? .25 : 1.1)); }
+    if (on && !tense && (P.note -= dt) <= 0) { P.note = mood === 'title' ? 2.4 + Math.random() * 3 : 5 + Math.random() * 9; const sc = [220, 261.6, 293.7, 329.6, 392, 440, 523.3, 587.3], c = CH[P.ch][0]; this.pos(null); this._pan = (Math.random() - .5) * .9; this.bell(sc[Math.floor(Math.random() * sc.length)] * (c < 90 ? 1 : 1) * (Math.random() < .25 ? 2 : 1), mood === 'title' ? .05 : .03, 3.2); this._pan = 0; } },
   update(dt, st) {   // the weather and the fire, heard: wind that rises with the storm, a stove that crackles, shots far off in the night
-    if (!this.ac || !this.on) return; const t = this.ac.currentTime;
+    if (!this.ac) return; const t = this.ac.currentTime; this.music(dt, st.mood || 'off'); if (!this.on) return;
+    if (this.send) this.send.gain.setTargetAtTime(st.space === 'street' ? .17 : st.space === 'big' ? .36 : .26, t, .5); if (this.lp) this.lp.frequency.setTargetAtTime(st.muffle ? 750 : st.fog ? 5200 : 18000, t, .18); if (this.rainG) this.rainG.gain.setTargetAtTime(st.rain ? (st.space === 'street' ? .16 : .06) : 0, t, .8);
+    if (st.rain && st.space !== 'street' && Math.random() < dt * 5) { this._pan = Math.random() * 2 - 1; this.noise(.02, .03 + Math.random() * .04, 1800 + Math.random() * 2400); this._pan = 0; }   // drips, indoors
     if (this.windG) { const gust = .65 + .35 * Math.sin(_T * .31) * Math.sin(_T * .13 + 1); this.windG.gain.setTargetAtTime(st.wind * gust * .5, t, .4); this.windF.frequency.setTargetAtTime(380 + 520 * st.wind * gust, t, .6); }
     if (st.fire > 0 && Math.random() < dt * 11 * st.fire) this.noise(.012 + Math.random() * .03, (.05 + Math.random() * .12) * st.fire, 1500 + Math.random() * 3500);
-    if (st.night) { this.farT = (this.farT == null ? 6 + Math.random() * 16 : this.farT) - dt; if (this.farT <= 0) { this.farT = 14 + Math.random() * 34; const n = 1 + (Math.random() * 3 | 0); for (let i = 0; i < n; i++) setTimeout(() => { this.noise(.22, .07, 260); this.tone(64, .18, 'sine', .05, -20); }, i * (120 + Math.random() * 260)); } }
+    if (st.night) { this.farT = (this.farT == null ? 6 + Math.random() * 16 : this.farT) - dt; if (this.farT <= 0) { this.farT = 14 + Math.random() * 34; const n = 1 + (Math.random() * 3 | 0); const pan = Math.random() * 1.6 - .8; for (let i = 0; i < n; i++) setTimeout(() => { this._pan = pan; this._gain = 1; this.noise(.22, .07, 260, 'lowpass', 1.6, 1.6); this.tone(64, .18, 'sine', .05, -20); this._pan = 0; }, i * (120 + Math.random() * 260)); } }
     if (st.creak && Math.random() < dt * .07) this.sfx('creak');
   },
   step(kind, vol) {   // one footfall, by what it lands on
@@ -1644,18 +1664,19 @@ const AUDIO = {
       case 'done': this.tone(520, .12, 'sine', .15, 260); setTimeout(() => this.tone(780, .15, 'sine', .12), 90); break;
       case 'dig': this.noise(.12, .25, 500); break;
       case 'hammer': this.noise(.05, .35, 2500); this.tone(180, .06, 'square', .08); break;
-      case 'groan': this.tone(110, .7, 'sawtooth', .08, -40); break;
-      case 'hurt': this.tone(200, .25, 'square', .15, -120); this.noise(.15, .3, 900); break;
-      case 'shot': this.noise(.25, .6, 1800); this.tone(90, .2, 'square', .3, -60); break;
-      case 'open': this.noise(.2, .15, 700); break;
+      case 'groan': { const f = 96 + Math.random() * 30; this.tone(f, .55, 'sawtooth', .06, -34); this.tone(f * 2.02, .4, 'triangle', .03, -50); this.noise(.3, .05, 700 + Math.random() * 300, 'bandpass', 2); break; }   // a man's grunt: a low buzz, its octave, a breath of air
+      case 'hurt': this.tone(230, .22, 'sawtooth', .1, -130); this.tone(118, .2, 'sine', .16, -40); this.noise(.12, .28, 900, 'bandpass', 2); break;
+      case 'shot': this.noise(.045, .75, 3800, 'highpass', 3, 2.2); this.noise(.22, .55, 900, 'lowpass', 2, 2.2); this.tone(120, .16, 'square', .28, -90); this.sweep(1.1, .16, 1400, 120, 2.6); break;   // the crack, the body of it, the kick, and the street answering
+      case 'open': this.tone(210 + Math.random() * 60, .34, 'sawtooth', .028, 140); this.tone(96, .3, 'sawtooth', .02, 50); this.noise(.07, .14, 500, 'lowpass', 2); setTimeout(() => { this.noise(.05, .2, 320, 'lowpass', 3); this.tone(88, .08, 'sine', .14, -30); }, 300); break;   // a hinge that has not been oiled, then the latch
       case 'alarm': this.tone(440, .3, 'square', .1); setTimeout(() => this.tone(440, .3, 'square', .1), 350); break;
       case 'bad': this.tone(160, .5, 'sawtooth', .15, -80); break;
-      case 'bang': this.noise(.3, .5, 300); this.tone(60, .3, 'square', .25); break;
+      case 'bang': this.noise(.06, .5, 2200, 'highpass', 3); this.sweep(.5, .5, 900, 90, 1.8); this.tone(64, .28, 'sine', .3, -30); break;
       case 'creak': this.tone(170, .5, 'sawtooth', .035, -50); setTimeout(() => this.tone(140, .6, 'sawtooth', .03, 40), 420); break;
       case 'crack': this.noise(.16, .5, 1500); this.noise(.3, .3, 400); this.tone(120, .12, 'square', .12, -60); break;
-      case 'swing': this.noise(.14, .12, 700); break;
-      case 'hit': this.noise(.07, .4, 500); this.tone(95, .09, 'sine', .22, -40); break;
-      case 'thud': this.tone(70, .14, 'sine', .25, -30); this.noise(.08, .25, 300); break;
+      case 'glass': for (let i = 0; i < 5; i++) setTimeout(() => { this.noise(.03 + Math.random() * .04, .22 + Math.random() * .16, 4200 + Math.random() * 3000, 'highpass', 2); if (Math.random() < .6) this.tone(2400 + Math.random() * 2600, .05, 'sine', .03, -400); }, i * 28 + Math.random() * 20); this.noise(.1, .16, 900, 'bandpass', 2); break;   // glass going under a boot: a scatter of bright ticks
+      case 'swing': if (this.ac && this.on) { const ac = this.ac, t = ac.currentTime, b = ac.createBuffer(1, Math.floor(ac.sampleRate * .2), ac.sampleRate), d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.sin(Math.PI * i / d.length); const sc = ac.createBufferSource(); sc.buffer = b; const f = ac.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = 2.2; f.frequency.setValueAtTime(380, t); f.frequency.exponentialRampToValueAtTime(1500, t + .1); f.frequency.exponentialRampToValueAtTime(500, t + .2); const g = ac.createGain(); g.gain.value = .22; sc.connect(f); f.connect(g); g.connect(this.out()); sc.start(); } break;   // the air parting: a whoosh that rises and falls
+      case 'hit': this.noise(.05, .42, 420, 'lowpass', 2); this.noise(.025, .2, 2600, 'highpass', 3); this.tone(92, .1, 'sine', .26, -42); break;
+      case 'thud': this.tone(70, .16, 'sine', .28, -30); this.noise(.09, .28, 260, 'lowpass', 2); break;
       case 'page': this.noise(.12, .1, 3200); setTimeout(() => this.noise(.1, .08, 2600), 160); break;
       case 'radio': this.noise(.5, .07, 2400); this.tone(700 + Math.random() * 900, .25, 'sine', .025, (Math.random() - .5) * 600); break;
       case 'caw': this.tone(640, .11, 'sawtooth', .028, -230); setTimeout(() => this.tone(590, .15, 'sawtooth', .026, -250), 180); break;
@@ -2439,7 +2460,7 @@ function drawFarWar(gy, dt) {
     if (t < .5) { ctx.fillStyle = `rgba(255,225,170,${(.2 * (1 - t / .5) * e.s).toFixed(3)})`; ctx.fillRect(vx, gy - 900, vw, 914); }                            // the sky jumps
     const R = (30 + 70 * Math.min(1, t / .5)) * e.s, g = ctx.createRadialGradient(x, y, 0, x, y, R * 2.2); g.addColorStop(0, `rgba(255,220,150,${(.9 * heat).toFixed(3)})`); g.addColorStop(.35, `rgba(255,130,50,${(.6 * heat).toFixed(3)})`); g.addColorStop(1, 'rgba(255,90,30,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, R * 2.2, Math.PI, TAU); ctx.fill();
     { const sa = clamp(t / .8, 0, 1) * clamp((7 - t) / 3.5, 0, 1), wd = smokeWind(); for (let k = 0; k < 9; k++) { const up = (t * 20 + k * 15) * e.s * (1 - Math.exp(-t)), rr0 = (15 + k * 5 + t * 5) * e.s; smokePuff('dark', k + (e.o | 0), x + Math.sin(k * 2.1 + t * .3) * 9 + up * wd * .012 + t * 3, y - 10 - up, rr0, k * 1.7 + t * .2, sa * (1 - k / 14)); } }   // the smoke that follows, mushrooming
-    if (!e.snd && t > (e.big ? .45 : 1.1)) { e.snd = true; FX.shake = Math.max(FX.shake || 0, (e.big ? 4.2 : 1.6) * e.s); try { AUDIO.tone(58, .9, 'sine', (e.big ? .12 : .05) * e.s, 30); if (e.big) AUDIO.noise(.7, .16, 260); } catch (_) {} } }   // the sound arrives late
+    if (!e.snd && t > (e.big ? .45 : 1.1)) { e.snd = true; FX.shake = Math.max(FX.shake || 0, (e.big ? 4.2 : 1.6) * e.s); try { AUDIO.pos(x); AUDIO._gain = 1; AUDIO.tone(52, 1, 'sine', (e.big ? .16 : .06) * e.s, -18); AUDIO.sweep(e.big ? 2.4 : 1.8, (e.big ? .5 : .16) * e.s, e.big ? 900 : 380, 40, 2.6); AUDIO.pos(null); } catch (_) {} } }   // the sound arrives late
   drawSkyWar(gy, dt, vx, vw, b); if (EXTRAS.sky) drawSkyExtras(gy, dt, vx, vw); if (EXTRAS.flares) drawFlare(gy, dt, vx, vw);
 }
 // the war overhead: a helicopter working its searchlight along the rooftops, a jet going over low and what it drops, tracer going up, and in a storm the lightning
@@ -2463,7 +2484,7 @@ function drawSkyWar(gy, dt, vx, vw, boom) { const S = FX.sky || (FX.sky = { heli
   if (S.jet) { const j = S.jet; j.t += dt; j.o += j.dir * 1150 * dt; const x = cx + j.o, y = gy - Math.min(560, skyH * j.af), gone = Math.abs(j.o) > vw / 2 + 260;
     if (gone) j.fade = (j.fade || 0) + dt; { const a = clamp(.3 - (j.fade || 0) * .1, 0, .3), x0 = cx - j.dir * (vw / 2 + 200); const g = ctx.createLinearGradient(x0, 0, x, 0); g.addColorStop(0, 'rgba(200,205,215,0)'); g.addColorStop(1, `rgba(200,205,215,${a.toFixed(3)})`); ctx.strokeStyle = g; ctx.lineWidth = 2.4; ctx.beginPath(); ctx.moveTo(x0, y + 1); ctx.lineTo(x - j.dir * 16, y + 1); ctx.stroke(); }   // what it leaves across the sky
     if (!gone) { ctx.save(); ctx.translate(x, y); ctx.scale(j.dir, 1); ctx.fillStyle = '#0b0c0f'; ctx.beginPath(); ctx.moveTo(22, 0); ctx.lineTo(6, -3); ctx.lineTo(-8, -3.4); ctx.lineTo(-17, -10); ctx.lineTo(-20, -10); ctx.lineTo(-17, -2.4); ctx.lineTo(-20, 1.6); ctx.lineTo(-4, 3); ctx.lineTo(-12, 8); ctx.lineTo(-7, 8); ctx.lineTo(8, 2.4); ctx.closePath(); ctx.fill(); ctx.fillStyle = 'rgba(255,170,80,.9)'; ctx.beginPath(); ctx.ellipse(-22, -.5, 5, 1.6, 0, 0, TAU); ctx.fill(); ctx.restore(); }
-    if (!j.roar && j.dir * j.o > -vw * .1) { j.roar = true; snd(() => { AUDIO.noise(2.2, .2, 520); AUDIO.tone(180, 1.8, 'sawtooth', .035, -120); }); FX.shake = Math.max(FX.shake || 0, 1.4); }
+    if (!j.roar && j.dir * j.o > -vw * .1) { j.roar = true; snd(() => { AUDIO._pan = -j.dir * .8; AUDIO.sweep(2.8, .4, 2600, 180, 1.6); AUDIO.tone(210, 2, 'sawtooth', .03, -130); AUDIO._pan = 0; }); FX.shake = Math.max(FX.shake || 0, 1.4); }
     if (j.bomb && !j.drop && j.dir * j.o > vw * .05) { j.drop = true; const n = 3 + Math.floor(Math.random() * 3), base = (Math.random() - .5) * vw * .25; for (let i = 0; i < n; i++) boom.list.push({ o: base + j.dir * i * (90 + Math.random() * 60), t: -(.9 + i * .28), s: 1.2 + Math.random() * .7, snd: false, big: true }); }
     if ((j.fade || 0) > 3) { S.jet = null; S.jetIn = 55 + Math.random() * 90; } }
   // lightning
@@ -2471,7 +2492,7 @@ function drawSkyWar(gy, dt, vx, vw, boom) { const S = FX.sky || (FX.sky = { heli
       S.bolt = { pts, fork, t: 0, far: r() < .45, th: .5 + r() * 1.8, done: false }; if (!S.bolt.far) FX.flash = Math.max(FX.flash || 0, .3); }
     if (S.bolt) { const q = S.bolt; q.t += dt; const fl = q.t < .09 ? 1 : q.t < .16 ? .15 : q.t < .26 ? .8 : q.t < .5 ? (.5 - q.t) * 2 : 0;
       if (fl > 0) { ctx.fillStyle = `rgba(200,215,255,${(.16 * fl * (q.far ? .6 : 1)).toFixed(3)})`; ctx.fillRect(vx, gy - 900, vw, 914); if (!q.far) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; for (const [lw, c] of [[7, `rgba(150,180,255,${(.22 * fl).toFixed(2)})`], [2, `rgba(240,245,255,${(.95 * fl).toFixed(2)})`]]) { ctx.strokeStyle = c; ctx.lineWidth = lw; ctx.beginPath(); q.pts.forEach(([px, py], i) => i ? ctx.lineTo(px, py) : ctx.moveTo(px, py)); ctx.stroke(); ctx.lineWidth = lw * .55; ctx.beginPath(); q.fork.forEach(([px, py], i) => i ? ctx.lineTo(px, py) : ctx.moveTo(px, py)); ctx.stroke(); } ctx.restore(); if (q.t > .16 && q.t < .2) FX.flash = Math.max(FX.flash || 0, .2); } }
-      if (!q.done && q.t > q.th) { q.done = true; snd(() => { AUDIO.noise(q.far ? 2.2 : 1.6, q.far ? .1 : .24, q.far ? 160 : 240); AUDIO.tone(48, 1.4, 'sine', q.far ? .04 : .1, -14); }); if (!q.far) FX.shake = Math.max(FX.shake || 0, 2.6); }   // the thunder, a moment behind
+      if (!q.done && q.t > q.th) { q.done = true; snd(() => { AUDIO.pos(q.pts[0][0]); if (!q.far) AUDIO.noise(.09, .5, 3000, 'highpass', 3, 2); AUDIO.sweep(q.far ? 3.6 : 2.8, q.far ? .22 : .5, q.far ? 300 : 1100, 50, 2.4); setTimeout(() => AUDIO.sweep(2.2, q.far ? .1 : .2, 240, 40, 2.4), 500 + Math.random() * 500); AUDIO.pos(null); }); if (!q.far) FX.shake = Math.max(FX.shake || 0, 2.6); }   // the thunder, a moment behind
       if (q.done && q.t > q.th + .3) { S.bolt = null; S.boltIn = (wx === 'storm' ? 7 : 40) + Math.random() * (wx === 'storm' ? 16 : 60); } } }
 }
 function drawRoadDetail(gy, xa, xb) {   // a road nobody has mended: cracks, patches, standing water that holds the firelight
@@ -2614,7 +2635,8 @@ const EXTRAS = {
   flares: true,     // 12 parachute flares that hang over the district and light everything for a few seconds
   pulse: true,      // 13 the edge of the screen beats red while someone is hunting you, or you are badly hurt
   blackouts: true,  // 14 where the power is still on, it drops out now and then and the lamps go dark
-  rain: true        // 15 a new kind of day: rain, which covers the sound you make
+  rain: true,       // 15 a new kind of day: rain, which covers the sound you make
+  music: true       // 16 a quiet score: a low drifting chord and a few bell notes, turning tense when you are hunted
 };
 // ---- 11 pigeons ----
 function drawPigeons(gy, dt) { if (HEADLESS || !TR.active) return; const key = TR.spKey; if (!TR.birds || TR.birdsKey !== key) { TR.birdsKey = key; TR.birds = []; const r = mulberry(hashStr('pg' + key)); for (let x = 500; x < (TR.xMax || ST_END) - 200; x += 520 + r() * 700) { if (heightAt(x) > 1) continue; const n = 3 + Math.floor(r() * 5); for (let i = 0; i < n; i++) TR.birds.push({ x: x + (r() - .5) * 90, g: x, st: 0, t: r() * 9, d: r() < .5 ? -1 : 1, c: ['#6a6e74', '#7d8187', '#55595e'][Math.floor(r() * 3)] }); } }
@@ -2681,7 +2703,7 @@ function inLampLight(world, a) { return !!world.site && hasPower(world.site) && 
 function drawLampShafts(world) { if (HEADLESS || !world.site || !hasPower(world.site) || REVIEW.on) return; ctx.save(); ctx.globalCompositeOperation = 'lighter'; for (const d of world.decor || []) { if (d.t !== 'window' || d.f > 1) continue; const room = world.roomAt(d.x, d.f); if (room && room.open === false) continue; const fy = world.fy2y(d.f), x = d.x, a = d.f ? .07 : .11, g = ctx.createLinearGradient(x, fy - 120, x + 40, fy); g.addColorStop(0, `rgba(255,205,140,${a})`); g.addColorStop(1, 'rgba(255,205,140,.015)'); ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(x - 22, fy - 122); ctx.lineTo(x + 22, fy - 122); ctx.lineTo(x + 22, fy - 64); ctx.lineTo(x + 96, fy); ctx.lineTo(x - 6, fy); ctx.lineTo(x - 22, fy - 64); ctx.fill(); ctx.fillStyle = `rgba(255,205,140,${a * .8})`; ctx.beginPath(); ctx.ellipse(x + 44, fy - 1, 54, 4, 0, 0, TAU); ctx.fill(); } ctx.restore(); }
 // ----- sound made visible: a pair of faint arcs opening out from whatever made the noise, as far as it carries -----
 const NOISE = [];
-function noiseRing(x, y, R, col) { if (HEADLESS || NOISE.length > 48 || !(R > 0)) return; NOISE.push({ x, y, R, t: 0, col: col || '232,232,222' }); }
+function noiseRing(x, y, R, col) { try { AUDIO.pos(x); } catch (_) {} if (HEADLESS || NOISE.length > 48 || !(R > 0)) return; NOISE.push({ x, y, R, t: 0, col: col || '232,232,222' }); }
 function drawNoiseRings(dt) { drawImpacts(dt); drawAlertMarks(dt); ctx.save(); ctx.lineCap = 'round'; for (let i = NOISE.length - 1; i >= 0; i--) { const q = NOISE[i]; q.t += dt; const life = .45 + q.R / 520, u = q.t / life; if (u >= 1) { NOISE.splice(i, 1); continue; } const e = 1 - (1 - u) * (1 - u), big = q.R > 90, a = (1 - u) * (big ? .42 : .26);
     for (const k of big ? [1, .62, .3] : [1]) { const r = 5 + q.R * .5 * e * k; ctx.strokeStyle = `rgba(${q.col},${(a * k).toFixed(3)})`; ctx.lineWidth = big ? 1.5 : 1.1; ctx.beginPath(); ctx.arc(q.x, q.y, r, -.55, .55); ctx.stroke(); ctx.beginPath(); ctx.arc(q.x, q.y, r, Math.PI - .55, Math.PI + .55); ctx.stroke(); } } ctx.restore(); }
 // ----- smoke: billows built from a few soft lumps, drawn as sprites so there can be plenty of it -----
@@ -3720,8 +3742,8 @@ function onGlass(w, a) { return (w.glass || []).find(g => g.f === Math.round(a.f
 function siteHazards(dt, p, w) { if (!w.site || SC.done) return; SC.glassCd -= dt;
   if (SC.people && SC.people.length) { for (const q of SC.people) { if (q.sitActor && !q.flee) continue; if (!q.flee) { if (SC.zombies.some(z => z.alive && z.state === 'chase' && Math.abs(z.x - q.x) < 420) || NOISE.some(n => n.R > 300 && n.t < .12 && Math.abs(n.x - q.x) < n.R) || (!SC.sneak && p.run && q.f === p.f && Math.abs(p.x - q.x) < 110)) { q.flee = true; q.poseExtra = null; q.searchLow = false; q.mc = null; q.path = w.path(q.x, q.f, w.x0 + 30, 0); noiseRing(q.x, w.fy2y(q.f) - 60, 200, '232,232,222'); } }
       else { q.pose = 'run'; const done = moveActor(q, dt, 120); if (done || (q.f === 0 && q.x < w.x0 + 40)) q.gone = true; } } SC.people = SC.people.filter(q => !q.gone); }   // whoever else was picking the place over drops it and bolts for the street
-  if (SC.glassCd <= 0 && p.moving !== false && Math.abs((p._gx == null ? p.x : p._gx) - p.x) > .2 && onGlass(w, p) && !(SC.sneak && !p.run)) { SC.glassCd = .55; scNoise(p.x, p.f, p.run ? 520 : 380); try { AUDIO.sfx('crack'); } catch (_) {} } p._gx = p.x;   // creep across it and it holds its tongue
-  for (const z of SC.zombies) if (z.alive && !z.dog && z.moving && onGlass(w, z) && !((z._gc -= dt) > 0)) { z._gc = .6; noiseRing(z.x, w.fy2y(z.f) - 6, 240, '255,150,120'); try { AUDIO.sfx('crack'); } catch (_) {} }                                             // and it gives them away just the same
+  if (SC.glassCd <= 0 && p.moving !== false && Math.abs((p._gx == null ? p.x : p._gx) - p.x) > .2 && onGlass(w, p) && !(SC.sneak && !p.run)) { SC.glassCd = .55; scNoise(p.x, p.f, p.run ? 520 : 380); try { AUDIO.sfx('glass'); } catch (_) {} } p._gx = p.x;   // creep across it and it holds its tongue
+  for (const z of SC.zombies) if (z.alive && !z.dog && z.moving && onGlass(w, z) && !((z._gc -= dt) > 0)) { z._gc = .6; noiseRing(z.x, w.fy2y(z.f) - 6, 240, '255,150,120'); try { AUDIO.sfx('glass'); } catch (_) {} }                                             // and it gives them away just the same
   if (SC.alarmT > 0) { SC.alarmT -= dt; if (Math.floor(SC.alarmT * 1.6) !== Math.floor((SC.alarmT + dt) * 1.6)) { noiseRing(SC.alarmX, w.fy2y(SC.alarmF) - 70, 620, '255,90,70'); try { AUDIO.tone(1250, .16, 'square', .05, 0); } catch (_) {} } if (SC.alarmT <= 0) SC.arriveT = Math.min(SC.arriveT == null ? 9 : SC.arriveT, 2); }   // the bell rings itself out, and then they are at the door
   if (SC.arriveT != null && SC.arrivals > 0 && (SC.arriveT -= dt) <= 0) { if (p.f === 0 && p.x < w.x0 + 300) { SC.arriveT = 4; return; } SC.arrivals--; SC.arriveT = SC.arrivals > 0 ? 55 + Math.random() * 30 : null; const z = makeZombie(w.x0 + 50, 0, Math.random); z.patrol = true; SC.zombies.push(z); noiseRing(w.x0 + 10, w.fy2y(0) - 50, 460, '255,150,120'); try { AUDIO.sfx('open'); } catch (_) {} } }   // somebody else has come for the same shelves: the street door goes, and now there is one more between you and the way out
 function siteAlarm(spot) { const loc = SC.loc; if (!loc || !loc.alarm || PREVIEW || SC.alarmT > 0 || SC.alarmDone) return; SC.alarmDone = true; SC.alarmT = 14; SC.alarmX = spot.x; SC.alarmF = spot.f; SC.arrivals = Math.max(SC.arrivals, 2); scNoise(spot.x, spot.f, 1400); scMsg('alert', 2.2); }
@@ -4896,7 +4918,7 @@ function homeCam() { const w = G.world; fitCam({ x0: w.x0 - 120, x1: w.x1 + 120,
 let PREVIEW = false;
 const AUTO_MISSION = false;   // the stealth demo build sets this: straight into the military post
 // ===== REVIEW: every place in turn, lit and whole, with what you are up against there; switches for the extras; pictures saved at a tap =====
-const EXTRA_NAMES = { flames: 'Fire redrawn', yards: 'Forecourts on the street', fog: 'Fog days', cat: 'The cat', puddles: 'Puddles', searchlight: 'Searchlight can spot you', sky: 'Aurora and shooting stars', talk: 'Survivors talk', notes: 'Found notes', dust: 'Plaster dust', pigeons: 'Pigeons', flares: 'Parachute flares', pulse: 'Red pulse when hunted', blackouts: 'Power cuts', rain: 'Rain days' };
+const EXTRA_NAMES = { flames: 'Fire redrawn', yards: 'Forecourts on the street', fog: 'Fog days', cat: 'The cat', puddles: 'Puddles', searchlight: 'Searchlight can spot you', sky: 'Aurora and shooting stars', talk: 'Survivors talk', notes: 'Found notes', dust: 'Plaster dust', pigeons: 'Pigeons', flares: 'Parachute flares', pulse: 'Red pulse when hunted', blackouts: 'Power cuts', rain: 'Rain days', music: 'Music' };
 { const sv = STORE('ashwinter_extras'); if (sv) for (const k in EXTRAS) if (sv[k] === false) EXTRAS[k] = false; }
 function reviewList() { return LOCATIONS.filter(l => !l.haven); }
 function reviewGo(i) { REVIEW.live = 0; const list = reviewList(); REVIEW.i = (i + list.length) % list.length; REVIEW.on = false; startPreview(list[REVIEW.i].id); const w = SC.world; for (const r of w.rooms) r.open = true; SC.player.visible = false; cam.lock = true; cam.minZ = Math.min(cam.minZ || 1, .2);
@@ -5344,11 +5366,12 @@ const PRINTS = [];
 function leavePrint(key, x, dir) { PRINTS.push({ key, x, dir, t: _T }); if (PRINTS.length > 140) PRINTS.shift(); }
 function drawPrints(key, y) { for (let i = PRINTS.length - 1; i >= 0; i--) { const q = PRINTS[i]; if (q.key !== key) continue; const age = _T - q.t; if (age > 90 || age < 0) { PRINTS.splice(i, 1); continue; } const al = .5 * (1 - age / 90); ctx.fillStyle = `rgba(96,110,134,${al.toFixed(3)})`; ctx.beginPath(); ctx.ellipse(q.x, y, 4.6, 1.5, 0, 0, TAU); ctx.fill(); ctx.fillStyle = `rgba(240,244,250,${(al * .5).toFixed(3)})`; ctx.beginPath(); ctx.ellipse(q.x + q.dir * 1.5, y + 1.3, 4.6, .8, 0, 0, Math.PI); ctx.fill(); } }
 // ----- what the place sounds like: wind by the weather, the stove, far gunfire, and every foot as it lands -----
-function soundTick(dt) { powerTick(dt);
+function soundTick(dt) { powerTick(dt); AUDIO.pos(null);
   if (HEADLESS) return; const ph = G.phase, wx = (G.flags && G.flags.weather) || 'clear', out = ph === 'travel', home = ph === 'day' || ph === 'plan' || ph === 'dawn' || ph === 'event' || ph === 'raid';
   const wind = ph === 'title' || ph === 'intro' ? .15 : (wx === 'storm' ? .9 : wx === 'snow' ? .4 : .14) * (out ? 1.25 : ph === 'scav' ? .6 : .7);
   let fire = 0; if (home && G.built && G.built.stove && fireLeft() > 0) fire = .8; else if (out && TR.fires && TR.fires.some(f => Math.abs(f.x - TR.x) < 260)) fire = .7; else if (home) fire = .1;
-  AUDIO.update(dt, { wind, fire, night: out || ph === 'scav' || ph === 'raid' || ph === 'plan', creak: home && wx === 'storm' });
+  { const hunted = FX.pulse && FX.pulse.a > .4, late = G.hour >= 19 || G.hour < 6, big = ph === 'scav' && SC.world && SC.world.x1 - SC.world.x0 > 1400;
+    AUDIO.update(dt, { wind, fire, night: out || ph === 'scav' || ph === 'raid' || ph === 'plan', creak: home && wx === 'storm', space: out ? 'street' : big ? 'big' : 'room', rain: wx === 'rain' && ph !== 'title', fog: wx === 'fog' && out, muffle: (ph === 'scav' && SC.player && SC.player.hidden) || (out && TR.hidden) || !!UI.peek, mood: DEMO.on ? 'off' : ph === 'title' || ph === 'intro' ? 'title' : ph === 'raid' || hunted ? 'tense' : out || ph === 'scav' ? 'out' : home ? (late ? 'night' : 'home') : 'off' }); }
   let list = null, kind = 'wood', me = null;
   if (ph === 'day' || ph === 'raid' || ph === 'event') { list = G.survivors.concat(G.raid ? G.raid.zs : [], G.visitor ? [G.visitor] : []); me = G.survivors[G.sel]; }
   else if (ph === 'scav' && SC.active) { list = [SC.player].concat(SC.zombies || []); me = SC.player; }
@@ -5358,7 +5381,7 @@ function soundTick(dt) { powerTick(dt);
     for (let i = 0; i < 2; i++) { const pl = !!ft[i].planted; if (pl && !fp[i] && moving) { const sx = w2sx(a.x); if (sx > -80 && sx < W + 80) { const outside = !out && CUR_W && (a.x < CUR_W.x0 || a.x > CUR_W.x1);
         if (snowCover() > .25 && (out ? heightAt(a.x) < 1 : outside)) leavePrint(out ? 'st' + TR.spKey : CUR_W, a.x + (i ? 3 : -3), a.facing || 1);
         if (!a.zombie && (a.wounded || (a.health != null && a.health < 35)) && Math.random() < .3) { const bw = out ? TR.bw : CUR_W; if (bw) { const st = bw.blood || (bw.blood = []); st.push({ x: a.x + rnd(-5, 5), f: out ? 0 : Math.round(a.fy), r: rnd(1.4, 3), a: .55, seed: Math.random() * 1000, wall: false }); if (st.length > 60) st.shift(); } }   // someone hurt leaves a trail
-        AUDIO.step(outside ? (snowCover() > .25 ? 'snow' : 'stone') : (!out && Math.round(a.fy) === 0 ? 'stone' : kind), (a === me ? 1 : .5) * clamp(cam.z, .45, 1) * (SC.active && SC.sneak && a === SC.player ? .3 : 1)); if (a.y != null && !(a === SC.player && SC.active && SC.sneak) && ph !== 'day') noiseRing(a.x, a.y - 3 + (out ? 14 : 0), a === me ? (a.run ? 60 : 30) : 34, a === me ? undefined : '255,150,120'); } } fp[i] = pl; } }
+        AUDIO.pos(a.x); if (a !== me) AUDIO._gain *= .8; AUDIO.step(outside ? (snowCover() > .25 ? 'snow' : 'stone') : (!out && Math.round(a.fy) === 0 ? 'stone' : kind), (a === me ? 1 : .5) * clamp(cam.z, .45, 1) * (SC.active && SC.sneak && a === SC.player ? .3 : 1)); if (a.y != null && !(a === SC.player && SC.active && SC.sneak) && ph !== 'day') noiseRing(a.x, a.y - 3 + (out ? 14 : 0), a === me ? (a.run ? 60 : 30) : 34, a === me ? undefined : '255,150,120'); } } fp[i] = pl; } }
 }
 
 // ---------- main loop ----------
