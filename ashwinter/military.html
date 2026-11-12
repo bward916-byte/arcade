@@ -1786,7 +1786,7 @@ const RECIPES = [   // three materials only: wood, scrap, parts
 ];
 const COOK = { cost: { canned: 1, water: 1 }, give: { meal: 2 }, dur: 10 };
 const BOARD_COST = { wood: 2 };   // per barricade level
-const REPAIR_COST = { wood: 1 };
+const REPAIR_COST = { wood: 1 }, STAIR_COST = { wood: 3, scrap: 1 };
 
 // shelter: 3 floors. floor 0 = cellar (y 0), 1 = ground, 2 = upper.  y increases downward; floor index increases upward.
 const FLOOR_H = 150, HOUSE_X0 = 60, HOUSE_X1 = 1340, GROUND_Y = 420; // ground floor floor-line
@@ -1831,7 +1831,8 @@ const SHELTER_SPOTS = [
   { id: 'bed', f: 2, x: 340, type: 'bed' },
   { id: 'bed2', f: 1, x: 190, type: 'bed', needsBuild: 'bed' },
   { id: 'radio', f: 1, x: 460, type: 'radio', needsBuild: 'radio' },
-  { id: 'exit', f: 1, x: 100, type: 'exit' }
+  { id: 'exit', f: 1, x: 100, type: 'exit' },
+  { id: 'stairfix', f: 1, x: 178, type: 'stairfix' }
 ];
 
 // survivors (original characters)
@@ -1955,7 +1956,7 @@ class World {
     if (depth > 4) return null;
     if (f === tf) { if (!this.roomAt(tx, tf) || !this.roomAt(tx, tf).open || !this.passable(x, tx, f)) return null; return [{ x: tx, fy: tf }]; }
     const up = tf > f; let best = null, bd = 1e9;
-    for (const s of this.stairsFor(f)) {
+    for (const s of this.stairsFor(f)) { if (s.fix && this === G.world && G.flags && G.flags.stairsOut) continue;   // the flight is down: no way up it
       const other = s.a === f ? s.b : s.a; if ((other > f) !== up) continue;
       if (s.ladder) { if (!this.passable(x, s.x, f)) continue; const rest = this.path(s.x, other, tx, tf, depth + 1); if (!rest) continue; const d = Math.abs(x - s.x) + Math.abs(s.x - tx) + Math.abs(other - tf) * 200 + 60; if (d < bd) { bd = d; best = [{ x: s.x, fy: f }, { x: s.x, fy: other, lad: s }, ...rest]; } continue; }   // a ladder: straight up or down at its x
       const fe = up ? s.x - STAIR_W : s.x + STAIR_W, he = up ? s.x + STAIR_W : s.x - STAIR_W, o = up ? 16 : -16;   // flight edges
@@ -2014,7 +2015,7 @@ function makeShelter(saved, tier = 0) {
   add(2, 130, 'dresser'); add(2, 340, 'bedframe'); add(2, 600, 'medcab'); add(2, 680, 'tub'); add(2, 900, 'rubble', { id: 'rubble2' }); add(2, 1180, 'desk'); add(2, 1050, 'bookcase');
   add(0, 1140, 'rubble', { id: 'rubble3' }); add(0, 1265, 'crates'); add(0, 1010, 'bench'); add(0, 400, 'storeshelf'); add(0, 200, 'rubble', { id: 'rubble4' }); add(0, 560, 'boiler');
   add(1, 530, 'pipe'); add(0, 1180, 'pipe'); add(2, 500, 'sink');
-  const stairs = [{ x: 820, a: 0, b: 1 }, { x: 240, a: 1, b: 2 }];
+  const stairs = [{ x: 820, a: 0, b: 1 }, { x: 240, a: 1, b: 2, fix: true }];
   const barricades = BARRICADES.map(b => Object.assign({ level: 0, hp: 0 }, b));
   const w = new World({ x0: HOUSE_X0, x1: HOUSE_X1, nFloors: 3, rooms: ROOMS.map(r => Object.assign({}, r, tier ? { col: mix(r.col, SHELTERS[tier].tint, .45) } : {})), stairs, spots, barricades, props });
   if (tier) { for (const b of w.barricades) { b.level = SHELTERS[tier].bar; b.hp = b.level * 30; } for (const sp of spots) if (sp.loot) sp.loot = sp.loot.map(([id, n]) => [id, n + Math.ceil(tier / 2)]); }
@@ -2450,6 +2451,7 @@ function drawBuilding(world, hour, sky, night, actors, opts) {
   const list = actors.filter(a => a.visible !== false).slice().sort((a, b) => a.fy - b.fy || a.x - b.x);
   for (const a of list) { a.y = world.fy2y(a.fy); if (a.fade != null && a.fade < 1) { ctx.save(); ctx.globalAlpha = a.fade; drawPerson(a, a.pose || 'idle', opts.t || 0, a.poseExtra); ctx.restore(); } else drawPerson(a, a.pose || 'idle', opts.t || 0, a.poseExtra); }
   if (world.site && world.site.id === 'school') { const fy = world.fy2y(0); ctx.fillStyle = 'rgba(70,92,112,.38)'; ctx.fillRect(world.x0, fy - 9, world.x1 - world.x0, 10); ctx.strokeStyle = 'rgba(190,210,230,.18)'; ctx.lineWidth = 1; for (let x = world.x0 + 20; x < world.x1; x += 70) { const o = Math.sin(_T * 1.4 + x * .05) * 8; ctx.beginPath(); ctx.moveTo(x + o, fy - 8); ctx.lineTo(x + o + 26, fy - 8); ctx.stroke(); } }   // the ground floor stands in water
+  drawSunShafts(world, hour, sky);
   // front-of-floor edge for depth
   for (let f = 0; f < nF; f++) { const fy = world.fy2y(f); ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fillRect(x0 - 14, fy + 11, x1 - x0 + 28, 3); }
   // hides overlay (closets) drawn in front
@@ -2614,12 +2616,34 @@ function drawRat(world, dt) { const R = world.rat || (world.rat = { wait: rnd(8,
 function warmSpot(a) { if (!G.built || !G.built.stove || fireLeft() <= 0 || outdoorTemp(G.hour) > 3 || !G.world) return 0; const sv = G.world.spotById('stove'); if (!sv || Math.round(a.fy) !== sv.f) return 0; const d = sv.x - a.x; return Math.abs(d) > 18 && Math.abs(d) < 120 ? Math.sign(d) : 0; }
 function drawStairs(world, s) {
   const ya = world.fy2y(s.a), yb = world.fy2y(s.b); const x0 = s.x - STAIR_W, x1 = s.x + STAIR_W; const n = STAIR_N, tr = (x1 - x0) / n, rise = (ya - yb) / n;
+  const out = s.fix && world === G.world && G.flags && G.flags.stairsOut, mended = s.fix && world === G.world && G.flags && G.flags.stairsMended, g0 = 6, g1 = 12, r = mulberry(s.x * 3 + 7);   // treads g0..g1 are the ones that came down
+  const at = i => [x0 + i * tr, ya - i * rise];
   // stringer / carriage under the flight
-  ctx.fillStyle = '#2b221a'; ctx.beginPath(); ctx.moveTo(x0, ya); ctx.lineTo(x1, yb); ctx.lineTo(x1, yb + 22); ctx.lineTo(x0 + 30, ya); ctx.closePath(); ctx.fill();
-  for (let i = 0; i < n; i++) { const sx = x0 + i * tr, sy = ya - (i + 1) * rise; ctx.fillStyle = i % 2 ? '#4a3b2e' : '#52412f'; ctx.fillRect(sx, sy, tr + 1, rise); ctx.fillStyle = '#7a6248'; ctx.fillRect(sx - 1.5, sy, tr + 3, 2.6); ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(sx, sy + rise - 2.5, tr + 1, 2.5); }
-  ctx.strokeStyle = '#2b2622'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x0 + 4, ya - 44); ctx.lineTo(x1 + 4, yb - 44); ctx.stroke(); ctx.lineWidth = 2;
-  for (let i = 0; i <= 6; i++) { const t = i / 6, px = lerp(x0 + 4, x1 + 4, t), py = lerp(ya, yb, t); ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px, py - 44); ctx.stroke(); }
+  ctx.fillStyle = '#2b221a';
+  if (!out) { ctx.beginPath(); ctx.moveTo(x0, ya); ctx.lineTo(x1, yb); ctx.lineTo(x1, yb + 22); ctx.lineTo(x0 + 30, ya); ctx.closePath(); ctx.fill(); }
+  else { const [ax, ay] = at(g0), [bx, by] = at(g1); ctx.beginPath(); ctx.moveTo(x0, ya); ctx.lineTo(ax, ay); ctx.lineTo(ax + 9, ay + 6); ctx.lineTo(ax + 2, ay + 11); ctx.lineTo(ax + 12, ay + 17); ctx.lineTo(x0 + 30, ya); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(x1, yb); ctx.lineTo(x1, yb + 22); ctx.lineTo(bx + 4, by + 24); ctx.lineTo(bx - 8, by + 15); ctx.lineTo(bx + 1, by + 9); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#8a6f4e'; ctx.lineWidth = 1.2; for (const [px, py, d] of [[ax, ay, 1], [bx, by + 12, -1]]) for (let k = 0; k < 4; k++) { ctx.beginPath(); ctx.moveTo(px + d * 2, py + 3 + k * 4); ctx.lineTo(px + d * (8 + r() * 9), py + 1 + k * 4 + r() * 4); ctx.stroke(); }   // split ends, pale where the wood tore
+    ctx.save(); ctx.translate(ax + 6, ay + 4); ctx.rotate(1.25); ctx.fillStyle = '#52412f'; ctx.fillRect(0, -2, 30, 4); ctx.fillStyle = '#7a6248'; ctx.fillRect(0, -2, 30, 1.2); ctx.restore();                                                // a tread hanging by one nail
+    for (const [dx, rot, len] of [[-34, .1, 34], [6, -.22, 40], [44, .32, 28], [-6, 1.2, 22]]) { ctx.save(); ctx.translate(s.x + dx, ya - 3); ctx.rotate(rot); ctx.fillStyle = '#4a3b2e'; ctx.fillRect(-len / 2, -2.4, len, 4.8); ctx.fillStyle = '#7a6248'; ctx.fillRect(-len / 2, -2.4, len, 1.2); ctx.fillStyle = '#8a6f4e'; ctx.fillRect(len / 2 - 3, -2.4, 3, 4.8); ctx.restore(); }   // what fell, lying where it landed
+    ctx.fillStyle = 'rgba(0,0,0,.22)'; ctx.beginPath(); ctx.ellipse(s.x + 4, ya - 1, 62, 4, 0, 0, TAU); ctx.fill(); for (let k = 0; k < 9; k++) { ctx.fillStyle = k % 2 ? '#5a4a3a' : '#3d3229'; ctx.fillRect(s.x - 50 + r() * 100, ya - 3 - r() * 2, 2 + r() * 4, 2); } }
+  for (let i = 0; i < n; i++) { if (out && i >= g0 && i < g1) continue; const sx = x0 + i * tr, sy = ya - (i + 1) * rise, fresh = mended && i >= g0 && i < g1; ctx.fillStyle = fresh ? (i % 2 ? '#8a7352' : '#947c58') : i % 2 ? '#4a3b2e' : '#52412f'; ctx.fillRect(sx, sy, tr + 1, rise); ctx.fillStyle = fresh ? '#b89c70' : '#7a6248'; ctx.fillRect(sx - 1.5, sy, tr + 3, 2.6); ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(sx, sy + rise - 2.5, tr + 1, 2.5); if (fresh) { ctx.fillStyle = '#2a2420'; ctx.fillRect(sx + 2, sy + 4, 1.4, 1.4); ctx.fillRect(sx + tr - 3, sy + 4, 1.4, 1.4); } }   // new boards show pale against the old, nail heads in them
+  if (mended) { const [ax, ay] = at(g0 - .5), [bx, by] = at(g1 + .5); ctx.strokeStyle = '#7a6444'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(ax + 8, ay + 12); ctx.lineTo(bx + 8, by + 12); ctx.stroke(); }   // a length of timber sistered along the break
+  ctx.strokeStyle = '#2b2622'; ctx.lineWidth = 3; const rail = (a, b) => { const [ax, ay] = at(a), [bx, by] = at(b); ctx.beginPath(); ctx.moveTo(ax + 4, ay - 44); ctx.lineTo(bx + 4, by - 44); ctx.stroke(); };
+  if (!out) rail(0, n); else { rail(0, g0 - .6); rail(g1 + 1, n); const [hx, hy] = at(g0 - .6); ctx.beginPath(); ctx.moveTo(hx + 4, hy - 44); ctx.lineTo(hx + 22, hy - 20); ctx.stroke(); }   // the handrail snapped, one end hanging
+  ctx.lineWidth = 2;
+  for (let i = 0; i <= 6; i++) { const t = i / 6; if (out && t * n > g0 - .6 && t * n < g1 + 1) continue; const px = lerp(x0 + 4, x1 + 4, t), py = lerp(ya, yb, t); ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px, py - 44); ctx.stroke(); }
 }
+// sunlight (or the moon, or lightning) coming in at the windows: shafts across the room with the dust turning in them, swinging round as the day goes
+function shaftDx(hour, night) { return night ? 70 : lerp(135, -135, (clamp(hour, 6, 18) - 6) / 12); }
+function drawSunShafts(world, hour, sky) { if (HEADLESS || !world.barricades || !world.barricades.length) return; const night = sky.light < .3, dx = shaftDx(hour, night), wx = weatherNow(), fl = FX.flash || 0, base = (night ? (wx === 'clear' ? .09 : .03) : .2 * sky.light * (wx === 'clear' ? 1 : .55)) + fl * .6; if (base < .02) return;
+  const col = fl > .05 ? '225,235,255' : night ? '165,190,255' : hour < 8.5 || hour > 15.5 ? '255,190,120' : '255,236,190'; ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  for (const b of world.barricades) { if (b.kind !== 'win') continue; const room = world.roomAt(b.x, b.f); if (room && !room.open) continue; const fy = world.fy2y(b.f), x = b.x, a = base * (1 - .22 * b.level), nb = b.level ? 3 : 1, bh = 68 / nb;
+    for (let k = 0; k < nb; k++) { const y0 = fy - 110 + k * bh + (b.level ? 3 : 0), y1 = y0 + (b.level ? Math.max(4, bh - 8 - b.level * 4) : bh), sp = b.level ? 1 - k * .16 : 1, g = ctx.createLinearGradient(x, y0, x + dx * sp, fy); g.addColorStop(0, `rgba(${col},${a.toFixed(3)})`); g.addColorStop(1, `rgba(${col},${(a * .12).toFixed(3)})`); ctx.fillStyle = g;
+      ctx.beginPath(); ctx.moveTo(x - 30, y0); ctx.lineTo(x + 30, y0); ctx.lineTo(x + 30, y1); ctx.lineTo(x + 30 + dx * sp + 16, fy); ctx.lineTo(x - 30 + dx * sp - 16, fy); ctx.lineTo(x - 30, y1); ctx.closePath(); ctx.fill(); }
+    ctx.fillStyle = `rgba(${col},${(a * .55).toFixed(3)})`; ctx.beginPath(); ctx.ellipse(x + dx, fy - 1, 52, 4.5, 0, 0, TAU); ctx.fill();                                                   // where it lands on the boards
+    for (let m = 0; m < 8; m++) { const u = (m * .371 + _T * .018 * (1 + m % 3)) % 1, v = (m * .613 + Math.sin(_T * .23 + m) * .08 + 1) % 1, px = lerp(x + (v - .5) * 54, x + dx + (v - .5) * 84, u) + Math.sin(_T * .7 + m * 2.1) * 3, py = lerp(fy - 104 + (m % 4) * 12, fy - 3, u), tw = Math.abs(Math.sin(_T * 1.1 + m * 1.9)); ctx.fillStyle = `rgba(${col},${Math.min(.9, a * 3.2 * tw).toFixed(3)})`; ctx.fillRect(px, py, 1.5, 1.5); } }   // dust, caught in it
+  ctx.restore(); }
 // a door between rooms: the frame, then either the door shut (panelled, a handle, scuffed at the foot) or standing ajar against the jamb
 function drawInnerDoor(x, fy, shut, seed) { ctx.save(); ctx.translate(x, fy); ctx.scale(.9, .9); ctx.translate(-x, -fy); drawInnerDoor0(x, fy, shut, seed); ctx.restore(); }
 function drawInnerDoor0(x, fy, shut, seed) { const { B, E, Ln, P, wood, SH, SH2, HI, HI2 } = PA, r = mulberry(seed), c = '#5c4532';
@@ -3087,7 +3111,7 @@ function drawLighting(world, sky, lights) {
     const st = (1 - .27 * b.level) * (.8 * sky.light + (night ? .2 : 0)); if (st <= .02) continue; const fy = world.fy2y(b.f), x = b.x;
     g.fillStyle = `rgba(0,0,0,${st.toFixed(3)})`; g.fillRect(x - 32, fy - 112, 64, 70);
     const sh = g.createLinearGradient(0, fy - 112, 0, fy); sh.addColorStop(0, `rgba(0,0,0,${(st * .75).toFixed(3)})`); sh.addColorStop(1, `rgba(0,0,0,${(st * .3).toFixed(3)})`); g.fillStyle = sh;
-    g.beginPath(); g.moveTo(x - 32, fy - 112); g.lineTo(x + 32, fy - 112); g.lineTo(x + 150, fy); g.lineTo(x - 10, fy); g.closePath(); g.fill();
+    { const dx = shaftDx(G.hour, night); g.beginPath(); g.moveTo(x - 32, fy - 112); g.lineTo(x + 32, fy - 112); g.lineTo(x + 32 + dx + 22, fy); g.lineTo(x - 32 + dx - 22, fy); g.closePath(); g.fill(); }
     const gl = g.createRadialGradient(x, fy - 77, 10, x, fy - 77, 150); gl.addColorStop(0, `rgba(0,0,0,${(st * .45).toFixed(3)})`); gl.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gl; g.fillRect(x - 150, fy - 227, 300, 300); }
   for (const l of lights) { if (l.cone) { const y1 = l.y - l.len * .2, y2 = l.y + l.len * .26, x1 = l.x + l.dir * l.len, gr = g.createLinearGradient(l.x, 0, x1, 0); gr.addColorStop(0, `rgba(0,0,0,${(l.a * 1.5).toFixed(3)})`); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.beginPath(); g.moveTo(l.x, l.y - 4); g.lineTo(x1, y1); g.lineTo(x1, y2); g.lineTo(l.x, l.y + 4); g.fill(); continue; }
     const gr = g.createRadialGradient(l.x, l.y, l.r * .08, l.x, l.y, l.r); gr.addColorStop(0, `rgba(0,0,0,${Math.min(1, (l.a || .55) * 1.7).toFixed(3)})`); gr.addColorStop(.4, `rgba(0,0,0,${Math.min(1, (l.a || .55) * 1.15).toFixed(3)})`); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(l.x - l.r, l.y - l.r, l.r * 2, l.r * 2); }
@@ -4084,6 +4108,7 @@ function spotInfo(s) {
   switch (s.type) {
     case 'search': return s.left > 0 || (s.lootList && s.lootList.length) ? { icon: 'search' } : null;
     case 'dig': return s.left > 0 ? { icon: 'shovel', badgeIcon: G.inv.shovel ? undefined : 'shovel', disabled: false } : null;
+    case 'stairfix': return G.flags.stairsOut ? { icon: 'repair', hl: true, disabled: !canAfford(STAIR_COST) } : null;
     case 'door': if (s.room.open) return null; { const ok = G.inv.crowbar > 0 || G.inv.lockpick > 0; return { icon: 'lock', badgeIcon: s.tool, disabled: !ok }; }
     case 'bench': return { icon: 'craft' };
     case 'stove': return G.built.stove ? { icon: 'cook', disabled: !canAfford(COOK.cost) } : null;
@@ -4505,7 +4530,7 @@ const SAVE_KEY = 'ashwinter2';
 let G = { nightT: 0, phase: 'title', day: 1, hour: 6, inv: {}, survivors: [], world: null, built: {}, flags: {}, collectorWater: 0, sel: 0, plan: {}, planLoc: null, report: [], event: null, msg: '', msgT: 0 };
 
 function newGame() {
-  G = { phase: 'day', day: 1, hour: 6, inv: { wood: 2, water: 2, canned: 1 }, survivors: SURVIVOR_TEMPLATES.slice(0, 3).map((t, i) => makeSurvivor(t, i)), world: makeShelter(), built: {}, flags: { weather: 'clear', fire: 0 }, collectorWater: 0, sel: 0, plan: {}, planLoc: null, report: [], event: null, msg: '', msgT: 0 };
+  G = { phase: 'day', day: 1, hour: 6, inv: { wood: 2, water: 2, canned: 1 }, survivors: SURVIVOR_TEMPLATES.slice(0, 3).map((t, i) => makeSurvivor(t, i)), world: makeShelter(), built: {}, flags: { weather: 'clear', fire: 0, stairsOut: !DEMO.on }, collectorWater: 0, sel: 0, plan: {}, planLoc: null, report: [], event: null, msg: '', msgT: 0 };
   UI.modal = null; UI.ff = false; initFx(); homeCam(); homeMsg('Tap a face, then an icon', 'search'); save();
 }
 function homeCam() { const w = G.world; fitCam({ x0: w.x0 - 120, x1: w.x1 + 120, y0: w.fy2y(2) - FLOOR_H - 170, y1: w.groundY + 240 }); cam.y = cam.ty = cam.y + 50 / cam.z; clampCam(); }
@@ -4558,6 +4583,7 @@ function askSpot(spot) {
   let text = '', cost = null, secs = { fire: 3, search: 8, dig: digDur(spot), door: 5, bed: 20, radio: 8, collector: 3, stove: COOK.dur }[spot.type] || 5, note = '';
   switch (spot.type) {
     case 'search': text = 'Search the ' + (SPOT_NAME[spot.id] || 'place'); note = spot.left + ' left to go through'; break;
+    case 'stairfix': text = 'Mend the stairs'; note = '3 wood + 1 scrap · the top floor is cut off until it is done'; break;
     case 'dig': text = 'Clear the debris'; note = G.inv.shovel ? 'with the shovel' : 'by hand · this will take a long time'; break;
     case 'door': text = 'Force the ' + spot.room.name + ' door'; note = G.inv.crowbar ? 'with the crowbar' : 'with a lockpick · it may snap'; break;
     case 'stove': text = 'Cook ' + COOK.give.meal + ' meals'; cost = COOK.cost; break;
@@ -4599,17 +4625,18 @@ function placeAt(wx, f) {
 function homeUseSpot(spot) {
   const s = G.survivors[G.sel]; if (!s || !s.alive) return; const w = G.world; const info = spotInfo(spot); if (!info) return;
   if (s.broken && spot.type !== 'bed' && spot.type !== 'radio') { homeMsg(s.name + ' will not work · needs rest, the radio or a book', 'sad', RED); return; }
-  if (info.disabled) { if (spot.type === 'door') homeMsg('need ' + ITEMS[spot.tool].n.toLowerCase(), spot.tool, RED); else if (spot.type === 'stove') homeMsg('needs a can and water', 'cook', RED); else if (spot.type === 'fire') homeMsg(fireLeft() > 12 ? 'stove is full' : 'need 2 wood or 1 fuel', 'fire', RED); else if (spot.type === 'collector') homeMsg('empty · wait for rain', 'water', RED); else if (spot.type === 'radio') homeMsg('already listened today', 'radio', RED); return; }
+  if (info.disabled) { if (spot.type === 'stairfix') homeMsg('need 3 wood + 1 scrap', 'wood', RED); else if (spot.type === 'door') homeMsg('need ' + ITEMS[spot.tool].n.toLowerCase(), spot.tool, RED); else if (spot.type === 'stove') homeMsg('needs a can and water', 'cook', RED); else if (spot.type === 'fire') homeMsg(fireLeft() > 12 ? 'stove is full' : 'need 2 wood or 1 fuel', 'fire', RED); else if (spot.type === 'collector') homeMsg('empty · wait for rain', 'water', RED); else if (spot.type === 'radio') homeMsg('already listened today', 'radio', RED); return; }
   let path;
   if (spot.type === 'dig') { const side = Math.sign(s.x - spot.x) || -1, off = RUB_W + 10; path = w.path(s.x, s.f, spot.x + side * off, spot.f) || w.path(s.x, s.f, spot.x - side * off, spot.f); }   // work from whichever side of the pile can be reached
   else if (spot.type === 'search') { const side = Math.sign(s.x - spot.x) || -1; path = w.path(s.x, s.f, spot.x + side * 20, spot.f) || w.path(s.x, s.f, spot.x - side * 20, spot.f) || w.path(s.x, s.f, spot.x, spot.f); }
   else path = w.path(s.x, s.f, spot.x + (spot.type === 'door' ? -spot.dir * 30 : 0), spot.f);
-  if (!path) { if (w.blockedByDebris(s.x, s.f, spot.x, spot.f)) homeMsg('debris in the way', 'shovel', RED); else homeMsg('locked', 'lock', RED); const far = w.pathFar(s.x, s.f, spot.x, spot.f); if (far) { s.task = null; s.path = far; } return; }
+  if (!path) { if (G.flags.stairsOut && spot.f === 2 && s.f < 2) homeMsg('the stairs are out · mend them first', 'repair', RED); else if (w.blockedByDebris(s.x, s.f, spot.x, spot.f)) homeMsg('debris in the way', 'shovel', RED); else homeMsg('locked', 'lock', RED); const far = w.pathFar(s.x, s.f, spot.x, spot.f); if (far) { s.task = null; s.path = far; } return; }
   // another survivor already working there?
   if (G.survivors.some(o => o !== s && o.alive && o.task && o.task.spot === spot && spot.type !== 'bed')) { homeMsg('busy', 'people'); return; }
-  const dur = { fire: 3, search: spot.left > 0 ? 8 : 1, dig: digDur(spot), door: 5, bed: 20, radio: 8, collector: 3, stove: COOK.dur, bench: 0 }[spot.type] || 5;
+  const dur = { fire: 3, search: spot.left > 0 ? 8 : 1, dig: digDur(spot), door: 5, bed: 20, radio: 8, collector: 3, stove: COOK.dur, bench: 0, stairfix: 10 }[spot.type] || 5;
   s.path = path; s.task = { spot, kind: spot.type, t: 0, dur };
   if (spot.type === 'stove') { pay(COOK.cost); }
+  if (spot.type === 'stairfix') pay(STAIR_COST);
   AUDIO.sfx('tap');
 }
 function homeUseBarricade(b) {
@@ -4653,7 +4680,7 @@ function updateHome(dt) {
     if (!s.task && !s.broken && s.queue && s.queue.length) { const bench = w.spotById('bench'); if (Math.abs(s.x - bench.x) > 30 || s.f !== bench.f) { const pth = w.path(s.x, s.f, bench.x, bench.f); if (pth) { s.path = pth; continue; } s.queue.length = 0; } else { const rc = s.queue.shift(); s.task = { spot: bench, kind: 'craft', recipe: rc, t: 0, dur: rc.dur * (s.trait === 'handy' ? .6 : 1) }; } }
     const tk = s.task;
     if (!tk) { s.pose = 'idle'; continue; }
-    tk.t += gdt * (tk.kind === 'dig' || tk.kind === 'board' || tk.kind === 'repair' ? (s.trait === 'handy' ? 1.4 : 1) : 1) * (UI.test && tk.kind !== 'bench' ? 40 : 1);   // TEST: no long waits
+    tk.t += gdt * (tk.kind === 'dig' || tk.kind === 'board' || tk.kind === 'repair' || tk.kind === 'stairfix' ? (s.trait === 'handy' ? 1.4 : 1) : 1) * (UI.test && tk.kind !== 'bench' ? 40 : 1);   // TEST: no long waits
     switch (tk.kind) {
       case 'search': s.pose = 'search'; if (Math.abs(tk.spot.x - s.x) > 4) { s.facing = Math.sign(tk.spot.x - s.x); if (s.mc) s.mc.facing = s.facing; } break;
       case 'dig': s.pose = 'dig'; if (Math.abs(tk.spot.x - s.x) > 6) { s.facing = Math.sign(tk.spot.x - s.x); if (s.mc) s.mc.facing = s.facing; } tk.dur = digDur(tk.spot); if (Math.floor(tk.t * 1.6) !== Math.floor((tk.t - gdt) * 1.6)) AUDIO.sfx('dig'); break;
@@ -4664,6 +4691,7 @@ function updateHome(dt) {
       case 'stove': s.pose = 'cook'; tk.spot.active = true; break;
       case 'fire': s.pose = 'search'; break;
       case 'craft': s.pose = 'hammer'; if (Math.floor(tk.t * 2.3) !== Math.floor((tk.t - gdt) * 2.3)) AUDIO.sfx('hammer'); break;
+      case 'stairfix': s.pose = 'nail'; s.facing = 1; if (s.mc) s.mc.facing = 1; if (Math.floor(tk.t * 2.3) !== Math.floor((tk.t - gdt) * 2.3)) AUDIO.sfx('hammer'); break;
       case 'board': case 'repair': s.pose = 'nail'; s.facing = -1; if (Math.floor(tk.t * 2.3) !== Math.floor((tk.t - gdt) * 2.3)) AUDIO.sfx('hammer'); break;
       case 'bench': s.pose = 'idle'; if (!UI.modal) { UI.modal = { kind: 'craft', who: G.survivors.indexOf(s) }; s.task = null; } break;
       case 'exit': s.task = null; break;
@@ -4681,6 +4709,7 @@ function updateHome(dt) {
         case 'fire': { const useWood = (G.inv.wood || 0) >= 2; if (useWood) G.inv.wood -= 2; else if ((G.inv.fuel || 0) >= 1) G.inv.fuel -= 1; else { s.task = null; break; } G.flags.fire = Math.min(16, fireLeft() + (useWood ? 4 : 6)); floatIcon(s.x, w.fy2y(s.fy) - 60, 'fire', useWood ? 4 : 6); s.task = null; AUDIO.sfx('done'); break; }
         case 'stove': { const n = COOK.give.meal + (s.quirk === 'cook' ? 1 : 0); sp.active = false; G.inv.meal = (G.inv.meal || 0) + n; floatIcon(s.x, w.fy2y(s.fy) - 60, 'meal', n); s.task = null; AUDIO.sfx('done'); break; }
         case 'craft': { const rc = tk.recipe; if (rc.build && PLACEABLE[rc.id]) { G.flags.placing = rc.id; } else if (rc.build) { G.built[rc.id] = true; homeMsg(ITEMS[rc.give] ? '' : rc.id + ' built', rc.icon, GOLD); } else { G.inv[rc.give] = (G.inv[rc.give] || 0) + 1; floatIcon(s.x, w.fy2y(s.fy) - 60, rc.give, 1); } s.task = null; AUDIO.sfx('done'); break; }
+        case 'stairfix': G.flags.stairsOut = false; G.flags.stairsMended = true; s.task = null; AUDIO.sfx('done'); homeMsg('stairs mended · the top floor is open', 'repair', GOLD); break;
         case 'board': tk.bar.level++; tk.bar.hp = tk.bar.level * 30; s.task = null; AUDIO.sfx('done'); break;
         case 'repair': tk.bar.hp = tk.bar.level * 30; s.task = null; AUDIO.sfx('done'); break;
       }
@@ -4731,7 +4760,7 @@ function resolveNight(scav) {
   if (scav) { if (scav.died) line('dead', TR.player.name + (scav.timeout ? ' never made it back before dawn' : ' was lost out there'), RED); else line('backpack', TR.player.name + ' brought home ' + scav.pack.reduce((a, s) => a + s.n, 0) + ' items · ' + scav.kills + ' driven off', GREEN); }
   if (scav && scav.shelter) line('home', TR.player.name + ' found the ' + SHELTERS[scav.shelter].name + ' standing empty', GOLD);
   const guards = alive.filter(s => G.plan[s.name] === 'guard'), sleepers = alive.filter(s => G.plan[s.name] === 'sleep');
-  const beds = 1 + (G.built.bed ? 1 : 0);
+  const beds = (G.flags.stairsOut ? 0 : 1) + (G.built.bed ? 1 : 0);
   sleepers.forEach((s, i) => { s.fatigue = clamp(s.fatigue + (i < beds ? 70 : 45), 0, 100); if (i < beds) s.morale = clamp(s.morale + 3, 0, 100); });
   for (const s of guards) s.fatigue = clamp(s.fatigue - 15, 0, 100);
   const scavS = alive.find(s => G.plan[s.name] === 'scav'); if (scavS) scavS.fatigue = clamp(scavS.fatigue - 25, 0, 100);
@@ -4786,8 +4815,8 @@ function startRaid(info) {
   for (let i = 0; i < info.strength; i++) { const z = makeZombie(edge + side * Math.min(540, 240 + i * 80 + rnd(40)), 1, Math.random); z.id = 'raid' + G.day + '_' + i; z.rx = edge + side * (i * 24); z.dieAt = i < info.kills ? 4.2 + i * 1.5 : null; z.facing = -side; z.pose = 'zombie'; zs.push(z); }
   const open1 = w.rooms.filter(r => r.f === 1 && r.open), inner = side < 0 ? Math.min(...open1.map(r => r.x0)) + 80 : Math.max(...open1.map(r => r.x1)) - 60;
   info.guards.forEach((g, i) => { if (!g.alive) return; g.x = inner - side * i * 46; g.fy = g.f = 1; g.facing = side; g.pose = 'guard'; g.mc = null; g.onStair = null; });
-  const beds = [{ x: 340, f: 2 }].concat(G.built.bed ? [{ x: 190, f: 1 }] : []).concat([{ x: 420, f: 2 }, { x: 600, f: 2 }, { x: 560, f: 1 }]);
-  const nBeds = 1 + (G.built.bed ? 1 : 0); info.sleepers.forEach((sl, i) => { if (!sl.alive) return; const bd = beds[i % beds.length]; sl.x = bd.x; sl.fy = sl.f = bd.f; sl.pose = 'sleep'; sl.mc = null; sl.bedAt = i < nBeds ? (i === 0 ? 26 : 21) : 0; sl.bedIn = 1; sl.bedLift = sl.bedAt; });
+  const up = !G.flags.stairsOut, beds = (up ? [{ x: 340, f: 2, h: 26 }] : []).concat(G.built.bed ? [{ x: 190, f: 1, h: 21 }] : []).concat(up ? [{ x: 420, f: 2 }, { x: 600, f: 2 }, { x: 560, f: 1 }] : [{ x: 560, f: 1 }, { x: 430, f: 1 }, { x: 640, f: 1 }]);
+  const nBeds = 1 + (G.built.bed ? 1 : 0); info.sleepers.forEach((sl, i) => { if (!sl.alive) return; const bd = beds[i % beds.length]; sl.x = bd.x; sl.fy = sl.f = bd.f; sl.pose = 'sleep'; sl.mc = null; sl.bedAt = i < beds.length && bd.h ? bd.h : 0; sl.bedIn = 1; sl.bedLift = sl.bedAt; });
   G.raid = { t: 0, dur: info.live ? 22 + info.strength * 3 : 8.5 + info.strength * 1.1, zs, info, side, edge, inner, bang: 0, shake: 0, live: !!info.live, kills: 0, def: info.guards.slice(), wakers: info.wakers || [], b: info.bar };
   if (info.live) { for (const z of zs) { z.dieAt = null; z.hp = 3 + (G.day >= 14 ? 1 : 0); z.atB = false; } for (const g of info.guards) { g.ready = true; g.cd = 0; g.aim = null; g.swing = null; g.path = null; } for (const s of G.raid.wakers) s.woke = false; raidArm(); AUDIO.sfx('creak'); } G.phase = 'raid'; UI.modal = null; homeCam();
   { const cxw = (inner + edge + side * 160) / 2, span = Math.abs(edge + side * 300 - inner) + 260; cam.z = cam.tz = clamp(W / span, cam.minZ, 1.5); cam.x = cam.tx = cxw; cam.y = cam.ty = w.fy2y(1) - 70; }
