@@ -104,6 +104,17 @@ canvas{display:block;image-rendering:crisp-edges;image-rendering:pixelated;touch
 #skip{position:absolute;right:14px;top:8px;margin:0;font-family:Georgia,serif;font-size:12px;opacity:0}
 .cine #skip{opacity:.65;transition:opacity .6s}
 .duel #skip{display:none}
+#demos[hidden]{display:none}
+#demos{position:absolute;inset:0;display:grid;place-items:center;background:rgba(18,10,6,.6);padding:8px;z-index:8}
+#demin{width:min(100%,62rem);max-height:100%;overflow:auto;box-sizing:border-box;background:#ead9ae;color:#2a1a10;border:3px solid #6a4a2e;border-radius:6px;box-shadow:0 0 0 2px #2a1a10,0 14px 40px rgba(0,0,0,.5);padding:8px 12px;font-family:Georgia,serif}
+#demin h2{margin:0 0 6px;font-size:19px;font-weight:400}#demin h2 small{font-size:12px;opacity:.7;margin-left:6px}
+#demg{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:4px 7px;align-items:start}
+@media (max-width:700px){#demg{grid-template-columns:repeat(4,minmax(0,1fr))}}
+#demg h3{margin:0 0 2px;font-size:11.5px;letter-spacing:.05em;text-transform:uppercase;color:#8a3a26;border-bottom:1px solid rgba(106,74,46,.5)}
+.dm{display:block;width:100%;box-sizing:border-box;font:inherit;font-size:12.5px;line-height:1.15;text-align:left;color:inherit;background:rgba(242,193,78,.28);border:1px solid rgba(106,74,46,.7);border-radius:4px;padding:3px 5px;margin:2px 0;cursor:pointer}
+.dm:hover,.dm:focus-visible{background:rgba(242,193,78,.6)}
+#demin p{margin:7px 0 0;text-align:center}#demin p button{font:inherit;font-size:13px;color:#ead9ae;background:#6a4a2e;border:0;border-radius:4px;padding:5px 10px;cursor:pointer}
+@media (max-height:430px){#demin{padding:5px 9px}#demin h2{font-size:15px;margin-bottom:3px}.dm{font-size:11.5px;padding:2px 4px;margin:1.5px 0}#demin p{margin-top:4px}#demin p button{padding:3px 9px;font-size:12px}}
 .title #title h1{filter:brightness(calc(1 + var(--fl,0)*.8)) drop-shadow(0 0 calc(var(--fl,0)*14px) rgba(190,205,255,.9))}
 .cine #hud,.cine #pad,.cine #toss,.cine #hint,.cine #fire,.title #fire{display:none}
 @media (prefers-reduced-motion:reduce){#barT,#barB,#cap,#cap.on,#card,#card.on,#cine::before{transition:none}}
@@ -198,8 +209,9 @@ button.stop.chosen{background:#f2c14e;animation:none;outline-style:solid}button.
 </div>
 <div id="cine"><i id="barT"></i><i id="barB"><span id="cap"></span></i><h2 id="card"></h2><p id="skip">Tap or press any key to skip</p><p id="info" role="status"><b></b><span></span></p></div>
 <div id="hint" role="status"></div>
-<div id="tour" hidden><span id="tourt"></span><small><span id="tourn"></span> · tap<span id="tourk"> or press Space</span> for the next scene <button id="tourx" type="button">Exit tour</button></small><i id="tourp"></i></div>
+<div id="tour" hidden><span id="tourt"></span><small><span id="tourn"></span> · tap<span id="tourk"> or press Space</span> for the next scene <button id="tourx" type="button">Demo menu</button></small><i id="tourp"></i></div>
 <div id="map" hidden><div id="mapin"><h2 id="maph">The territory</h2><div id="stops"><svg id="links"></svg></div><svg id="loco" viewBox="0 0 30 18"><path d="M2 12V6h7V2h8v4h7l4 6z" fill="#2a1a10"/><rect x="11" y="4" width="4" height="3" fill="#ead9ae"/><rect x="20" y="1" width="3" height="5" fill="#2a1a10"/><circle cx="8" cy="14" r="3.2" fill="#a8452e"/><circle cx="18" cy="14" r="3.2" fill="#a8452e"/><circle cx="25" cy="15" r="2.2" fill="#a8452e"/></svg><p id="mapnote"></p><canvas id="prof"></canvas><p id="profcap"></p></div></div>
+<div id="demos" hidden><div id="demin"><h2>Demos <small>every part of the game, a scene each</small></h2><div id="demg"></div><p><button type="button" id="demall">Play everything in order</button> <button type="button" id="demx">Back to the title</button></p></div></div>
 <div id="roster" hidden><div id="rosin"><h2>Who does what</h2><ul id="jobs"></ul><p>Releasing someone makes him plain townsfolk again, free to build. The tool is not refunded.</p><button type="button" id="rosx">Done</button></div></div>
 <div id="pad" aria-label="Thumbstick: ride left or right">
   <svg viewBox="0 0 24 24"><path d="M16 4 6 12l10 8z"/></svg><i id="knob"></i><svg viewBox="0 0 24 24"><path d="m8 4 10 8-10 8z"/></svg>
@@ -211,7 +223,7 @@ button.stop.chosen{background:#f2c14e;animation:none;outline-style:solid}button.
   <p id="tag">Open range, wide skies, and thunder on the wind.</p>
   <button id="go" type="button">Ride in</button>
   <button id="cont" type="button" hidden>Continue</button>
-  <button id="demo" type="button">Watch the tour</button>
+  <button id="demo" type="button">Demos</button>
   <p id="how">Arrow keys or A and D to ride. Space to toss a coin, F to fire.</p>
 </div>
 
@@ -226,7 +238,7 @@ let SS=2,HP=.5,Q=2,qLock=false;       // every old pixel is SS by SS fine ones, 
 const mctx=ctx;
 const DAY_LEN=100,FIRE_X=1365,MINE=830,MID=1400,CLAIM_X=528;
 // towns down the line are bigger and each sits in its own country: everything east of the stable moves out to make room for four more buildings
-let WORLD=2780,TOWN=[1010,1790],STOP=1798,PASTURE=[2030,2150],SHIFT=0,BIO='desert',PLACE='dustfall',C,GP,DUSTC='#e2c08c';
+let WORLD=3420,TOWN=[1010,1790],STOP=1798,PASTURE=[2030,2150],SHIFT=0,BIO='desert',PLACE='dustfall',C,GP,DUSTC='#e2c08c';
 // the far west of every place is a mesa with a cave in it: the world runs on underground as far as WEST
 const WEST=-700,MOUTH=-9999,PADT=70,PADB=130;
 // the line forks. Each stage down it offers one or two places, each in its own country with its own lie of the land
@@ -244,7 +256,7 @@ const stageOf=town=>STAGES[town%NST];
 const EX=x=>x>1695?x+SHIFT:x;
 function layout(town,place){
   PLACE=place&&PLACES[place]?place:stageOf(town)[0];
-  SHIFT=town?340:0;BIO=PLACES[PLACE].bio;WORLD=2780+SHIFT;TOWN=[1010,1790+SHIFT];STOP=1798+SHIFT;PASTURE=[2030+SHIFT,2150+SHIFT];
+  SHIFT=town?340:0;BIO=PLACES[PLACE].bio;WORLD=2780+SHIFT+640;TOWN=[1010,1790+SHIFT];STOP=1798+SHIFT;PASTURE=[2030+SHIFT,2150+SHIFT];
   C=CSET[BIO];GP=GSET[BIO];DUSTC=GP[9];buildLand();buildCave();
 }
 // heights, in pixels above the town's street, of the fixed spots outside town.
@@ -748,7 +760,7 @@ function raidPlan(){
 function news(){
   if(G.state!=='play')return '';
   const out=[],tg=G.b[16],r=raidPlan(),c=G.coach;
-  if((tg.level||G.x.tribe.days>0)&&r.n&&G.t<.72)out.push((r.gang?'Gang':r.boss?'Outlaw':'Raid')+': '+(G.side<0?'west':'east'));
+  if((tg.level||G.x.tribe.days>0||G.x.tip===G.day)&&r.n&&G.t<.72)out.push((r.gang?'Gang':r.boss?'Outlaw':'Raid')+': '+(G.side<0?'west':'east'));
   if(c&&(c.st==='in'||c.st==='stop'))out.push('Stage in town');
   if(G.outlaw)out.push('Wanted: '+(G.outlaw.side<0?'west':'east'));
   if(G.wx&&wxName())out.push(wxName());
@@ -779,6 +791,7 @@ const GIVES={
 const RACK={miner:['Tool rack','a prospector, who digs gold at the mine west of town'],deputy:['Badge rack','a deputy, who guards the gates at night'],rancher:['Rope rack','a rancher, who raises cattle that pay 2 coins each a day']};
 function info(x){
   if(G.state!=='play'||G.trip||G.duel)return null;
+  if(G.rail)return ['Handcar','Hold right to pump, left to brake. Take the gaps fast and the rockfalls slow.'];
   const p=G.player;
   {const k=siteAt(x);if(k){const r=siteInfo(k);if(r)return r;}}
   {const w=(G.wild||[]).find(w=>!w.foal&&Math.abs(w.x-x)<16);if(w)return w.k==='horse'?['Wild mustang',w.st==='tame'?'Roped. Lead it in through the gate to sell it.':'Gallop alongside for a moment to rope it, then lead it into town to sell.']:['Stray longhorn',w.st==='tame'?'It follows you. Drive it to your pasture, or into town to sell.':'Ride right up to it and it follows you.'];}
@@ -837,7 +850,7 @@ function updRider(dt,fresh,shoes,d){
     if(p.rl>0||p.ammo<=0){sfx.empty();p.gcd=.3;hint('dry',true,`Reloading. ${Math.ceil(p.rl)} ${Math.ceil(p.rl)>1?'seconds':'second'} to go.`);}
     else if(tg&&G.x.dyn>0&&hostiles().filter(q=>Math.abs(q.x-tg.x)<36).length>=3){p.gcd=.7;p.gun=.16;p.gdir=Math.sign(tg.x-p.x)||p.dir;boom(tg.x);}
     else{
-      const dir=tg?Math.sign(tg.x-p.x)||p.dir:p.dir,hit=!!tg&&Math.random()<.82;
+      const dir=tg?Math.sign(tg.x-p.x)||p.dir:p.dir,hit=!!tg&&Math.random()<(G.x.starMetal?1:.82);
       p.ammo--;p.gcd=.38;p.gun=.16;p.gdir=dir;sfx.shot(1);G.shake=Math.max(G.shake,.07);
       G.shots.push({x0:p.x+dir*9,x1:tg?(hit?tg.x:tg.x+dir*rnd(15,40)):p.x+dir*rng,h:17,h1:tg?(hit?9:3):13,hit});
       if(hit){tg.hp-=2;tg.hurt=.18;dust(tg.x,8,3,'#d04a3a');if(tg.hp<=0){if(tg===G.outlaw)killOutlaw();else killBandit(tg);}}
@@ -1033,7 +1046,7 @@ function drawProfile(){
   const px=Math.round(sx(G.player.x)),py=Math.round(sy(E(G.player.x)));c.fillStyle='#2a1a10';c.fillRect(px-1,py-13,3,1);c.fillStyle='#f2c14e';c.strokeStyle='#2a1a10';c.beginPath();c.moveTo(px-4,py-12);c.lineTo(px+5,py-12);c.lineTo(px+.5,py-5);c.closePath();c.fill();c.stroke();
   c.fillStyle='#2a1a10';c.font='9px Georgia,serif';c.textBaseline='top';
   const lab=(x,t,al)=>{c.textAlign=al||'center';c.fillText(t,sx(x),h-11);};
-  lab(SITE.rig.x-20,'Oil','left');lab(SITE.ruin.x,'Ruins');lab(SITE.tribe.x,'Scouts');lab(SITE.post.x,'Post');lab(392+30,'Mission');lab((G.b[6].x+G.b[7].x)/2,nice(townName()));lab(EX(2360),'Arch');
+  lab(SITE.rig.x-20,'Oil','left');lab(SITE.ruin.x,'Ruins');lab(SITE.tribe.x,'Scouts');lab(SITE.post.x,'Post');lab(392+30,'Mission');lab((G.b[6].x+G.b[7].x)/2,nice(townName()));lab(EX(2360),'Arch');lab(YARD()+300,'Yard');
   $('profcap').textContent=G.outlaw?'You are the gold marker. Red marks the wanted man.':G.bandits.length?'You are the gold marker. Red marks raiders.':'You are the gold marker.';
 }
 function hideMap(){$('map').hidden=true;paused=mapBusy=false;mapPick=null;held.clear();input.key=0;}
@@ -1312,25 +1325,88 @@ const TSCN=[
     init(T){G.star=true;showMap();}},
   {dur:4.5,cap:'That is the whole game. Your turn.',
     init(T){card('Dustfall III','Ride in when you are ready',3000);}}];
-function tourStart(){
-  if(TOUR)return;
+// ---------- Dustfall III: demos. Every part of the game as a short scripted scene, grouped by where it happens, so any one of them can be played on its own
+const GORDER=['Basics','Defence','Out west','Range','Rail yard','Sky','Story','Down the line','End'];
+const TAGS=[['Dustfall is a dead town','Basics','Riding in'],['Drifters camp','Basics','Drifters'],['Fill the coin slots','Basics','Rebuilding'],['Tools give townsfolk','Basics','Jobs'],['Every dawn','Basics','Dawn pay'],['Raise the town centre','Basics','Town centre'],['Open every building','Basics','Railroad'],['Finish every building','Basics','Town star'],
+  ['After dark the raiders','Defence','First raid'],['Later nights bring','Defence','Gatehouse'],['Lightning and raiders','Defence','Fire brigade'],['Every fifth day','Defence','Duel'],
+  ['The cave is gone','Out west','Ghost town'],['Wild mustangs','Out west','Mustangs'],
+  ['New in Dustfall III: real thunderstorms','Sky','Storm by day'],['A storm by night','Sky','Storm by night'],['And now and then, on a clear night','Sky','Saucer'],['A story runs through','Story','First beat'],
+  ['The line forks','Down the line','The map'],['Redwater adds','Down the line','Redwater'],['Road agents','Down the line','Road agents'],['Out west, prospectors','Down the line','Mine & claim'],['Ranchers raise','Down the line','Ranch'],['Timberline is','Down the line','Timberline'],['Silver Peak','Down the line','Silver Peak'],['Bitter End is','Down the line','Bitter End'],['That is the whole game','End','']];
+TSCN.forEach(S=>{const t=TAGS.find(t=>S.cap.startsWith(t[0]));S.g=t?t[1]:'Basics';S.n=t?t[2]:S.cap.slice(0,14);});
+const mkComet=()=>{FX().comet={x:rnd(.15,.5),y:rnd(.05,.16),dx:rnd(.3,.45),dy:rnd(.1,.18),t:0,life:1.7};whoosh(1.5,.035,2800,500);};
+TSCN.push(
+  {g:'Defence',n:'Cavalry',dur:13,town:1,place:'redwater',cap:'8 coins at the outpost east of town calls out a cavalry patrol. They ride through once that night and cut down raiders outside the walls.',
+    init(T){tourSet(1,{place:'redwater',t:.78,day:14,day0:11,x:EX(1990),lv:TFULL});tourFolk(3,EX(1900),EX(1930),'deputy',1);tourRaid(1,['bandit','bandit','rider','bandit','bandit','rider','bandit','bandit','bandit'],150,26,1);G.x.fort.night=true;T.fire=true;}},
+  {g:'Defence',n:'Dynamite',dur:8,town:0,cap:'Dynamite from the trading post, or out of a hobo’s bindle. Fire into a bunch of three or more raiders and the shot is a stick of it.',
+    init(T){tourSet(0,{t:.8,day:9,x:1000,dir:-1,lv:TFULL});tourRaid(-1,['bandit','bandit','bandit','bandit','bandit'],66,7,2);G.x.dyn=2;T.fire=true;}},
+  {g:'Out west',n:'Trading post',dur:14,town:0,cap:'The trading post sells one thing a day: dynamite, a speed loader, a signal lantern or oats. Next door, 4 coins hires the scouts for three days.',
+    init(T){tourSet(0,{t:.3,day:9,x:-30,dir:-1,coins:14,lv:TFULL});T.go=-90;T.toss=6;},tick(t,T){if(tAt(T,'a',6)){T.go=-250;T.toss=4;}}},
+  {g:'Out west',n:'Oil derrick',dur:17,town:0,cap:'14 coins raises a derrick on the oil seep. It comes in with a gusher and pays every dawn, until lightning sets it alight. 3 coins caps it.',
+    init(T){tourSet(0,{t:.3,day:9,x:-540,dir:-1,coins:16,lv:TFULL});T.go=-600;T.toss=14;},tick(t,T){if(tAt(T,'a',12)){G.x.rig.burn=true;fireball(SITE.rig.x,52,40);boltAt(SITE.rig.x,54);}}},
+  {g:'Range',n:'Stampede',dur:14,town:1,place:'redwater',cap:'Thunder spooks the herd and it runs east. Ride out past each animal to turn it back before it is gone.',
+    init(T){tourSet(1,{place:'redwater',t:.4,day:14,day0:11,x:PASTURE[0]-30,lv:{0:2,1:2,2:2,3:2,5:2,9:1,6:2,7:2}});tourCows(6);G.wx={k:'thun',a:.3,b:.6};G.wet=.5;SK().next=99;G.x.oats=G.day;},
+    tick(t,T){if(tAt(T,'a',1.2)){boltAt(PASTURE[0]-10,0);G.stamp={saved:0,lost:0};for(const c of G.herd)c.run=1;sfx.moo(1);T.go=PASTURE[1]+460;}}},
+  {g:'Range',n:'Flash flood',dur:9,town:0,cap:'After a storm the dry wash east of town runs for a day. It slows everyone who crosses, raiders too, and leaves gold in the gravel when it drops.',
+    init(T){tourSet(0,{t:.5,day:9,x:EX(2100),lv:TFULL});G.x.flood=G.day+1;G.wet=.9;T.go=EX(2260);}},
+  {g:'Range',n:'Strays',dur:16,town:1,place:'redwater',cap:'Stray longhorns graze out past the rock arch. Ride right up to one and it follows you home to the pasture, or into town to sell.',
+    init(T){tourSet(1,{place:'redwater',t:.3,day:14,day0:11,x:EX(2390),lv:{0:2,1:2,2:2,3:2,5:2,9:1,6:2,7:2}});wildInit();tourCows(3);G.x.oats=G.day;T.go=EX(2452);},tick(t,T){if(tAt(T,'a',3.4))T.go=PASTURE[0]+50;}},
+  {g:'Range',n:'Medicine show',dur:9,town:0,cap:'Every fourth day a medicine show pulls up by the signpost west of town. 3 coins buys a bottle: a tireless horse, a payout, or coloured water.',
+    init(T){tourSet(0,{t:.3,day:9,x:830,dir:-1,coins:8,lv:TFULL});G.x.show.on=true;T.go=752;T.toss=3;}},
+  {g:'Range',n:'Poker',dur:13,town:0,cap:'Stake up to 5 coins at the saloon door before dark. At dawn the cards fall: double or nothing.',
+    init(T){tourSet(0,{t:.55,day:9,x:1240,coins:8,lv:TFULL});tourFolk(5,1150,1500);T.go=G.b[1].x+43;T.toss=5;},tick(t,T){if(tAt(T,'a',6.5))G.t=.992;}},
+  {g:'Rail yard',n:'The old yard',dur:13,town:0,cap:'New: past the far east camp the line runs into an abandoned junction. A dead engine, a hobo jungle, a boxcar nobody will open, a boarded depot and a handcar.',
+    init(T){tourSet(0,{t:.3,day:9,x:YARD()-10,lv:TFULL});G.x.oats=G.day;T.go=YARD()+560;}},
+  {g:'Rail yard',n:'Hobo rumours',dur:9,town:0,cap:'2 coins a day buys a rumour from the men at the barrel fire: a buried strongbox, which side tonight’s raid comes from, or a stick of dynamite. They can be hired like drifters too.',
+    init(T){tourSet(0,{t:.3,day:9,x:YARD()+250,coins:8,lv:TFULL});T.go=YARD()+300;T.toss=2;}},
+  {g:'Rail yard',n:'Sealed boxcar',dur:13,town:0,cap:'The sealed boxcar hums after dark. 5 coins pays a crew to open it: ledgers, dynamite, coins, or something that leaves in a hurry. It fills again in three days.',
+    init(T){tourSet(0,{t:.84,day:9,x:YARD()+345,coins:8,lv:TFULL});T.go=YARD()+392;T.toss=5;}},
+  {g:'Rail yard',n:'Handcar',dur:40,town:0,cap:'4 coins and you can pump the handcar down the spur. Hold right to pump, left to brake: gaps want speed, rockfalls want care, and mail still hangs on the hooks. Each run finds something new.',
+    init(T){tourSet(0,{t:.3,day:9,x:YARD()+520,coins:8,lv:TFULL});T.go=YARD()+552;T.toss=4;},tick(t,T){if(!G.rail&&!G.cut&&T.t>14&&G.x.finds)T.t=Math.max(T.t,37);}},
+  {g:'Rail yard',n:'Finds',dur:20,town:0,cap:'What the spur leads to, one find a run: a wrecked payroll car, a valley the yard folk can settle, and a hole in the ground at the end of the line.',
+    init(T){tourSet(0,{t:.3,day:9,x:YARD()+540,lv:TFULL});playCut([{art:'payroll',tr:'iris',cap:'The payroll car: coins to bring home.'},{art:'valley',tr:'blinds',cap:'The valley: a new home for the yard folk, and 4 coins a dawn.'},{art:'crater',tr:'flash',cap:'The end of the line: star metal, and a gun that does not miss.'}]);TSCN[T.i].dur=13;}},
+  {g:'Rail yard',n:'Ghost train',dur:8,town:0,cap:'Some nights a train that is not there comes through the yard.',
+    init(T){tourSet(0,{t:.9,day:9,x:YARD()+330,lv:TFULL});},tick(t,T){if(tAt(T,'a',1))startGhost();}},
+  {g:'Sky',n:'Dust storm',dur:9,town:2,place:'lasthope',cap:'Dust storms roll through in billows, with grit on the glass. Deputies cannot see far, and raiders are close before anyone spots them.',
+    init(T){tourSet(2,{place:'lasthope',t:.4,day:22,day0:20,x:1415,lv:TFULL});G.wx={k:'dust'};tourFolk(6,1300,1700);T.go=1640;}},
+  {g:'Sky',n:'Twister',dur:10,town:0,cap:'Under about half the thunderstorms a funnel hangs from the cloud and walks the horizon.',
+    init(T){tourSet(0,{t:.44,day:9,x:640,lv:TFULL});G.wx={k:'thun',a:.3,b:.62,tw:true};G.wet=.6;SK().next=1.5;T.go=760;}},
+  {g:'Sky',n:'Night sky',dur:10,town:0,cap:'Clear nights: fireballs, heat lightning on the horizon, a will-o’-the-wisp in the ghost town, moths at the lamps.',
+    init(T){tourSet(0,{t:.9,day:9,x:700,lv:TFULL});},tick(t,T){if(tAt(T,'a',1)||tAt(T,'c',6))mkComet();if(tAt(T,'b',3.5))strike('heat');}},
+  {g:'Story',n:'All closeups',dur:60,town:0,cap:'Every story closeup in order, with its transition. Tap moves on.',
+    init(T){tourSet(0,{t:.3,day:9,x:1380,lv:TFULL});const B=[];for(const k in STORY)for(const b of STORY[k].beats)B.push({...b,dur:3});playCut(B);TSCN[T.i].dur=B.length*3.15+2;}},
+  {g:'Story',n:'Ending',dur:20,town:4,place:'bitterend',cap:'The ending, when the last town on the line gets its star.',
+    init(T){tourSet(4,{place:'bitterend',t:.3,day:40,day0:36,x:1500,lv:TFULL});G.star=true;playCut(STORY.end.beats.map(b=>({...b,dur:3.4})),STORY.end.then);}}
+);
+TSCN.sort((a,b)=>GORDER.indexOf(a.g)-GORDER.indexOf(b.g));
+function showDemos(){
+  const box=$('demg');box.textContent='';
+  for(const g of GORDER){
+    if(g==='End')continue;const sec=document.createElement('section'),h=document.createElement('h3');h.textContent=g;sec.append(h);
+    TSCN.forEach((S,i)=>{if(S.g!==g)return;const b=document.createElement('button');b.type='button';b.className='dm';b.textContent=S.n;b.addEventListener('click',e=>{e.stopPropagation();hideDemos();tourStart(i);});sec.append(b);});
+    box.append(sec);
+  }
+  $('title').hidden=true;$('demos').hidden=false;
+}
+function hideDemos(){$('demos').hidden=true;}
+function tourStart(at){
+  if(TOUR)return;hideDemos();
   initAudio();if(AC&&AC.state==='suspended')AC.resume();
   document.body.classList.remove('over','title');document.body.classList.add('tour');$('title').hidden=true;$('tour').hidden=false;$('hint').classList.remove('on');
-  TOUR={i:-1,t:0,go:null,toss:0,fire:false,f:{},tw:0};tourNext(1);
+  TOUR={i:(typeof at==='number'?at:0)-1,t:0,go:null,toss:0,fire:false,f:{},tw:0};tourNext(1);
 }
 function tourNext(d){
   const T=TOUR;if(!T)return;
   T.i=Math.max(0,T.i+(d===undefined?1:d));if(T.i>=TSCN.length)return tourEnd();
   T.t=0;T.go=null;T.toss=0;T.fire=false;T.f={};hideMap();wipeCard();
   const S=TSCN[T.i];if(S.town!==undefined)layout(S.town,S.place);S.init(T);
-  $('tour').classList.toggle('low',!!S.low);$('tourt').textContent=S.cap;$('tourn').textContent=`${T.i+1} of ${TSCN.length}`;
+  $('tour').classList.toggle('low',!!S.low);$('tourt').textContent=S.cap;$('tourn').textContent=`${S.g}${S.n?' · '+S.n:''} · ${T.i+1} of ${TSCN.length}`;
 }
 function tourEnd(){
   if(!TOUR)return;
   hideMap();wipeCard();TOUR=null;document.body.classList.remove('tour');$('tour').hidden=true;
   input.key=input.stick=0;input.dropKey=input.fireTap=false;
   reset();$('title').hidden=false;document.body.classList.add('title');
-  $('title').querySelector('h1').innerHTML='Dustfall <span>III</span>';$('tag').textContent='Open range, wide skies, and thunder on the wind.';$('go').textContent='Ride in';$('cont').hidden=!peek();
+  $('title').querySelector('h1').innerHTML='Dustfall <span>III</span>';$('tag').textContent='Open range, wide skies, and thunder on the wind.';$('go').textContent='Ride in';$('cont').hidden=!peek();showDemos();
 }
 // each frame: steer the rider toward where the scene wants him, toss and fire for him, and move on when the scene's time is up
 function tourTick(dt){
@@ -1846,6 +1922,7 @@ function update(dt){
   if(G.state==='intro')updIntro(dt);
   else if(G.state==='play'){
     if(G.duel)updDuel(dt);
+    else if(G.rail)updRailTrip(dt);
     else if(G.trip)updTrain(dt);
     else{
       G.t+=dt/DAY_LEN;
@@ -2172,7 +2249,7 @@ function drawBrush(cam){
   const pine=BIO==='pine',sage=snow?['#7d8a86','#a4b0aa','#f4f8ff']:pine?['#3f6a3a','#5a8a4a','#7aa860']:riv?['#4f7a3e','#6f9a52','#8fb86a']:BIO==='canyon'?['#7a7a4a','#9a9a60','#b9b878']:['#7f8a5a','#a0aa72','#c0c890'];
   const x0=Math.floor(cam)-12;
   for(let x=x0;x<x0+W+24;x++){
-    const k=hash(x*.613+11);if(k>(pine?.05:.032)||x<WEST+60||(x<70&&Object.keys(SITE).some(s=>Math.abs(x-SITE[s].x)<(s==='ruin'?74:46)))||Math.abs(x-siteX('fort')-14)<34)continue;
+    const k=hash(x*.613+11);if(k>(pine?.05:.032)||x<WEST+60||(x<70&&Object.keys(SITE).some(s=>Math.abs(x-SITE[s].x)<(s==='ruin'?74:46)))||Math.abs(x-siteX('fort')-14)<34||x>YARD()-10)continue;
     if(x>gW&&x<gE||x>PASTURE[0]-16&&x<PASTURE[1]+16||Math.abs(x-MINE-25)<46||G.camps.some(c=>Math.abs(c.x-15-x)<54)||(G.town&&Math.abs(x-CLAIM_X-20)<42)||(riv&&x>rv[0]-9&&x<rv[1]+9))continue;
     const sx=x-cam,t=Math.floor(k/(pine?.05:.032)*5);
     if(t===0){          // sagebrush
@@ -2365,6 +2442,44 @@ const ART={
     cq(0,100,200,12,fl?'#34364a':'#06060c');for(const [bx,bw,bh] of [[70,14,10],[86,18,14],[106,12,9],[120,16,12]]){cq(bx,100-bh,bw,bh,fl?'#22243a':'#040408');cq(bx+3,100-bh+3,3,3,'#ffcf6b');if(bw>13)cq(bx+bw-6,100-bh+3,3,3,'#ffcf6b');}
     cu.strokeStyle='rgba(200,214,240,.5)';cu.lineWidth=1;cu.beginPath();for(let i=0;i<70;i++){const x=((hash(i+1)*260-t*90*(.6+hash(i+2)))%260+260)%260-30,y=((hash(i+3)*112+t*260*(.7+hash(i+4)*.5))%112);cu.moveTo(x,y);cu.lineTo(x-3,y+8);}cu.stroke();
   },
+  // the payroll car, where it left the rails
+  payroll(t){
+    cq(0,0,200,112,'#d8b078');for(let i=0;i<4;i++)cq(0,10+i*14,200,6,'#e2c090');cq(0,70,200,42,'#b98f58');for(let i=0;i<50;i++)cq(hash(i+1)*200,72+hash(i+2)*40,3+hash(i)*6,1,'#9a7444');
+    cu.fillStyle='#a8814e';cu.beginPath();cu.moveTo(0,70);cu.lineTo(40,52);cu.lineTo(80,66);cu.lineTo(130,50);cu.lineTo(200,68);cu.lineTo(200,74);cu.lineTo(0,74);cu.fill();
+    cu.save();cu.translate(92,74);cu.rotate(-.42);cq(-52,-26,104,30,'#6a2f26');for(let i=0;i<13;i++)cq(-52+i*8,-26,1,30,'#4a1f1a');cq(-54,-29,108,4,'#2a2220');cq(-14,-22,26,24,'#120c0a');cq(-52,2,104,3,'#2a2220');
+    for(const wx of [-38,-22,24,40]){cu.fillStyle='#1f1f26';cu.beginPath();cu.arc(wx,9,7,0,7);cu.fill();cu.fillStyle='#5a5a66';cu.beginPath();cu.arc(wx,9,2.5,0,7);cu.fill();}
+    cu.fillStyle='#ead7a4';cu.font='bold 7px Georgia,serif';cu.textBaseline='top';cu.fillText('PAY',22,-20);cu.restore();
+    cq(120,84,26,16,'#3a302c');cq(120,84,26,3,'#5a4a40');cq(130,90,6,5,'#c9a14a');cq(118,80,30,5,'#2a2220');
+    for(let i=0;i<14;i++){const x=104+hash(i+30)*70,y=96+hash(i+31)*10;cq(x,y,4,3,'#a8741a');cq(x,y,3,2,'#f2c14e');if(Math.sin(t*3+i*2)>.85)cq(x+1,y-1,1,1,'#ffffff');}
+    for(const [x,h] of [[14,18],[30,10],[176,16]]){cq(x,96-h,4,h,'#5c7a3e');cq(x-4,96-h+4,4,3,'#5c7a3e');cq(x+4,96-h+7,4,3,'#5c7a3e');}
+    cuMotes(t,12,'#fff3c4');
+  },
+  // the valley past the wreck
+  valley(t){
+    cq(0,0,200,112,'#9cc4e4');for(let i=0;i<4;i++)cq(0,8+i*10,200,5,'#b4d4ec');
+    cu.fillStyle='#8a94b4';cu.beginPath();cu.moveTo(0,60);cu.lineTo(30,26);cu.lineTo(52,44);cu.lineTo(84,18);cu.lineTo(120,46);cu.lineTo(150,28);cu.lineTo(200,58);cu.lineTo(200,70);cu.lineTo(0,70);cu.fill();
+    cu.fillStyle='#f4f8ff';cu.beginPath();cu.moveTo(84,18);cu.lineTo(74,27);cu.lineTo(82,25);cu.lineTo(88,30);cu.lineTo(95,26);cu.fill();cu.beginPath();cu.moveTo(150,28);cu.lineTo(143,35);cu.lineTo(152,33);cu.lineTo(158,35);cu.fill();
+    cu.fillStyle='#5f8a4a';cu.beginPath();cu.moveTo(0,64);cu.quadraticCurveTo(50,50,100,62);cu.quadraticCurveTo(150,72,200,58);cu.lineTo(200,112);cu.lineTo(0,112);cu.fill();
+    cu.fillStyle='#7aa85a';cu.beginPath();cu.moveTo(0,80);cu.quadraticCurveTo(60,66,120,82);cu.quadraticCurveTo(160,90,200,80);cu.lineTo(200,112);cu.lineTo(0,112);cu.fill();
+    cu.strokeStyle='#7fc4dc';cu.lineWidth=4;cu.beginPath();cu.moveTo(96,62);cu.quadraticCurveTo(120,76,104,88);cu.quadraticCurveTo(86,100,112,112);cu.stroke();cu.strokeStyle='#dff2fa';cu.lineWidth=1;cu.setLineDash([3,5]);cu.lineDashOffset=-t*8;cu.stroke();cu.setLineDash([]);
+    for(const [x,y,s] of [[34,74,9],[52,80,11],[150,78,10],[168,86,12],[136,70,7]]){cq(x-1,y,2,s*.6,'#5a3a22');cu.fillStyle='#3f6a3a';cu.beginPath();cu.arc(x,y-s*.3+Math.sin(t+x)*.4,s*.6,0,7);cu.fill();cu.fillStyle='#5a8a4a';cu.beginPath();cu.arc(x-2,y-s*.5,s*.35,0,7);cu.fill();}
+    cq(66,84,22,2,'#8a6a44');for(const x of [66,76,86]){cq(x,72,2,13,'#8a6a44');}cq(64,71,26,2,'#8a6a44');cu.strokeStyle='#8a6a44';cu.lineWidth=2;cu.beginPath();cu.moveTo(64,72);cu.lineTo(77,62);cu.lineTo(90,72);cu.stroke();
+    for(let i=0;i<5;i++){const k=(t*.25+i*.2)%1;cu.globalAlpha=.4*(1-k);cu.fillStyle='#f0f0f0';cu.beginPath();cu.arc(60+k*8,82-k*20,2+k*4,0,7);cu.fill();}cu.globalAlpha=1;cq(57,84,5,3,'#ff9a2e');
+    for(let i=0;i<24;i++)cq(hash(i+9)*200,92+hash(i+8)*18,1,1,['#f2d94e','#e8553f','#ffffff'][i%3]);
+    for(let i=0;i<3;i++){const x=((t*9+i*70)%240)-20,y=30+i*7+Math.sin(t+i)*3;cq(x-2,y,2,1,'#2a2028');cq(x+1,y,2,1,'#2a2028');}
+  },
+  // the hole at the end of the line
+  crater(t){
+    cq(0,0,200,112,'#161432');for(let i=0;i<50;i++){cu.globalAlpha=.3+.7*Math.abs(Math.sin(t+i));cq(hash(i+1)*200,hash(i+2)*46,1,1,'#cfd6ff');}cu.globalAlpha=1;
+    cu.fillStyle='#231d3a';cu.beginPath();cu.moveTo(0,56);cu.lineTo(40,44);cu.lineTo(70,52);cu.lineTo(120,42);cu.lineTo(160,50);cu.lineTo(200,44);cu.lineTo(200,60);cu.lineTo(0,60);cu.fill();cq(0,58,200,54,'#2c2434');
+    cu.fillStyle='#120e1a';cu.beginPath();cu.ellipse(104,84,70,20,0,0,7);cu.fill();cu.fillStyle='#3a3044';cu.beginPath();cu.ellipse(104,80,72,20,0,Math.PI,0);cu.fill();cu.fillStyle='#120e1a';cu.beginPath();cu.ellipse(104,82,62,15,0,0,7);cu.fill();
+    {const g=cu.createRadialGradient(104,86,2,104,86,60);g.addColorStop(0,`rgba(140,255,190,${(.65+.2*Math.sin(t*2)).toFixed(2)})`);g.addColorStop(1,'rgba(140,255,190,0)');cu.fillStyle=g;cu.fillRect(30,40,150,70);}
+    cu.save();cu.translate(110,84);cu.rotate(-.5);cu.fillStyle='#6a7488';cu.beginPath();cu.ellipse(0,0,34,8,0,Math.PI,0);cu.fill();cu.fillStyle='#9aa4b8';cu.beginPath();cu.ellipse(0,-2,34,6,0,Math.PI,0);cu.fill();cu.fillStyle='#bfe8ff';cu.beginPath();cu.ellipse(-4,-6,10,8,0,Math.PI,0);cu.fill();
+    for(let i=0;i<5;i++)if(Math.sin(t*5+i*1.4)>.2)cq(-26+i*12,-3,3,2,['#ff5a3c','#ffd76a','#8cf7b0'][i%3]);cu.restore();
+    for(let i=0;i<8;i++){const k=(t*.3+i/8)%1;cu.globalAlpha=.35*(1-k);cu.fillStyle='#b8ffd0';cu.beginPath();cu.arc(70+i*9+Math.sin(t+i)*3,80-k*44,2+k*5,0,7);cu.fill();}cu.globalAlpha=1;
+    cq(0,100,60,3,'#6a5a4a');cq(0,104,60,2,'#4a3e36');for(let i=0;i<7;i++)cq(i*9,98,3,9,'#3a2a1e');cq(56,96,6,12,'#3a2a1e');
+    cq(14,82,8,16,'#0c0a14');cq(15,76,6,6,'#0c0a14');cq(11,75,14,2,'#0c0a14');cq(14,72,8,3,'#0c0a14');
+  },
   // the star, pinned on
   badge(t){
     cq(0,0,200,112,'#4a3426');for(let i=0;i<10;i++)cq(i*22,0,1,112,'#3a2a1e');cq(120,0,80,112,'#b53a2e');cq(118,0,4,112,'#2e1a12');for(let i=0;i<6;i++)cq(108,10+i*18,5,5,'#c9a14a');
@@ -2399,7 +2514,7 @@ function updCut(dt){
   const c=G.cut;c.t+=dt;const tap=c.tap&&c.t>.5;c.tap=0;
   if(c.ph==='in'){if(!c.w){c.w=1;whoosh(.5,.09,2200,300);}if(c.t>.55){c.ph='beat';c.t=0;caption(c.beats[0].cap);sfx.sting();whoosh(.45,.1,300,2200);}}
   else if(c.ph==='beat'){
-    if(tap||c.t>(c.beats[c.i].dur||6)){if(c.i<c.beats.length-1){c.i++;c.t=0;caption(c.beats[c.i].cap);sfx.click();whoosh(.45,.1,c.i%2?2400:300,c.i%2?300:2400);}else{c.ph='out';c.t=0;caption('');whoosh(.55,.09,300,2200);}}
+    if(tap||c.t>(TOUR?Math.min(c.beats[c.i].dur||6,3.6):c.beats[c.i].dur||6)){if(c.i<c.beats.length-1){c.i++;c.t=0;caption(c.beats[c.i].cap);sfx.click();whoosh(.45,.1,c.i%2?2400:300,c.i%2?300:2400);}else{c.ph='out';c.t=0;caption('');whoosh(.55,.09,300,2200);}}
   }else if(c.t>.6){G.cut=null;cine(false);G.player.lock=true;G.player.glock=true;if(c.then)c.then();}
 }
 function storyTick(){
@@ -2508,7 +2623,7 @@ function drawUfo(cam){
 }
 // ---------- Dustfall III: wild stock. Mustangs run the open west and stray longhorns graze out past the rock arch. Rope one or turn one, and bring it home
 const bare=p=>sprite(HROWS,{...p,c:p.h,S:p.h,b:p.h}),WILDS=[bare(PAL),bare({...PAL,h:'#c9a36a',l:'#dcbc86',d:'#a8854f',n:'#8a6a40'}),bare({...PAL2,h:'#8a8480',l:'#a8a29c',d:'#6a6460',n:'#4a4642',k:'#3a3632'}),bare(PAL2)],WSPR=w=>WILDS[w.id%4],WLEG=w=>[['#5a2f1c','#7a4025'],['#8a6a40','#a8854f'],['#5a5450','#7a7470'],['#1f1c22','#2e2a30']][w.id%4];
-const wildRange=k=>k==='horse'?[WEST+70,84]:[EX(2424),WORLD-56];
+const wildRange=k=>k==='horse'?[WEST+70,84]:[EX(2424),EX(2744)];
 function wildAdd(k,x){const r=wildRange(k);G.wild.push({k,id:G.nextId++,x:x===undefined?rnd(r[0]+20,r[1]-20):x,dir:Math.random()<.5?-1:1,st:'graze',t:rnd(1,5),tx:null,vx:0,phase:0,rope:0});}
 function wildInit(){G.wild=[];for(const x of [-540,-505,-330,-150,-20])wildAdd('horse',x);wildAdd('horse',-520);G.wild[G.wild.length-1].foal=1;for(const x of [2450,2600,2700])wildAdd('cow',EX(x));}
 function updWild(dt){
@@ -2728,8 +2843,8 @@ function skyComet(){
 const SITE={post:{x:-90,h:34,name:'Trading post'},tribe:{x:-250,h:38,name:'Scout camp'},ruin:{x:-430,h:40,name:'Ghost town',r:16},rig:{x:-600,h:64,name:'Oil derrick'},
   rods:{x:992,h:76,name:'Windmill'},tower:{x:1206,h:78,name:'Water tower'},show:{x:752,h:34,name:'Medicine show'},fort:{x:2470,h:46,name:'Cavalry outpost'},poker:{x:0,h:30,name:'Poker table'}};
 const mkX=()=>({post:{paid:0,incoming:0,sold:0},tribe:{paid:0,incoming:0,days:0},ruin:{paid:0,incoming:0,cool:0},rig:{paid:0,incoming:0,lv:0,burn:false},rods:{paid:0,incoming:0,lv:0},tower:{paid:0,incoming:0,lv:0},
-  show:{paid:0,incoming:0,on:false,used:false},fort:{paid:0,incoming:0,night:false},poker:{paid:0,incoming:0},dyn:0,loader:false,lantern:false,oats:0,flood:0,duelDay:0,stampDay:0,rigRoll:0,ufoAt:0,noHorse:0,string:0});
-const siteX=k=>k==='poker'?G.b[1].x+43:k==='fort'?EX(SITE.fort.x):SITE[k].x;
+  show:{paid:0,incoming:0,on:false,used:false},fort:{paid:0,incoming:0,night:false},poker:{paid:0,incoming:0},dyn:0,loader:false,lantern:false,oats:0,flood:0,duelDay:0,stampDay:0,rigRoll:0,ufoAt:0,noHorse:0,string:0,hobo:{paid:0,incoming:0,day:0},car:{paid:0,incoming:0,cool:0,n:0},handcar:{paid:0,incoming:0,day:0},finds:0,home:false,starMetal:false,tip:0,ghostAt:0});
+const siteX=k=>k==='poker'?G.b[1].x+43:k==='fort'||SITE[k].ex?EX(SITE[k].x):SITE[k].x;
 const siteLive=k=>k==='show'?G.x.show.on:k==='poker'?G.b[1].level>0&&!G.b[1].building:true;
 const siteAt=x=>{for(const k in SITE)if(siteLive(k)&&Math.abs(x-siteX(k))<(SITE[k].r||10))return k;return null;};
 const ITEMS=[{k:'dyn',name:'Dynamite',cost:4,txt:'Your next shot into a bunch of three or more raiders is a stick of dynamite.'},{k:'loader',name:'Speed loader',cost:6,once:1,txt:'Reloading is two seconds quicker for as long as you stay in this town.'},
@@ -2741,7 +2856,7 @@ const rigPay=()=>6+G.town,ruinPay=()=>9+2*G.town;
 function siteCost(k){
   const X=G.x,s=X[k];
   return k==='post'?(postItem()||{cost:0}).cost:k==='tribe'?(s.days>0?0:4):k==='ruin'?(s.cool>0?0:3):k==='rig'?(!s.lv?14:s.burn?3:0):k==='rods'?(s.lv?0:5):k==='tower'?(s.lv?0:6):
-    k==='show'?(s.used?0:3):k==='fort'?(s.night||G.cav?0:8):k==='poker'?(G.t>.42&&G.t<.68&&s.paid<5?5:0):0;
+    k==='show'?(s.used?0:3):k==='fort'?(s.night||G.cav?0:8):k==='poker'?(G.t>.42&&G.t<.68&&s.paid<5?5:0):yardCost(k);
 }
 const sitePos=(k,i,n)=>{const cols=Math.min(n,7),rows=Math.ceil(n/7),row=Math.floor(i/7);return {x:Math.round(siteX(k)-(cols-1)*3)+(i%7)*6,h:SITE[k].h+(rows-1-row)*6};};
 function siteInfo(k){
@@ -2754,6 +2869,7 @@ function siteInfo(k){
   if(k==='tower')return s.lv?['Water tower','The fire brigade is standing by. Roof fires go out fast.']:['Water tower',`6 coins${go} raises a fire brigade. Lightning and raiders' torches start roof fires, and the brigade puts them out fast.`];
   if(k==='show')return ['Medicine show',s.used?'One bottle to a customer. He moves on in the morning.':`3 coins${go} for a bottle of tonic. It might put fire in your horse, pay out handsomely, or be coloured water.`];
   if(k==='fort')return ['Cavalry outpost',s.night?'A patrol rides tonight, as soon as raiders show.':G.cav?'The patrol is out.':`8 coins${go} calls out a patrol for tonight. They ride through and cut down raiders outside the walls.`];
+  {const r=yardInfo(k,s,go);if(r)return r;}
   if(k==='poker')return c?['Poker table',`Stake up to 5 coins before dark (${s.paid} in). At dawn it is double or nothing.`]:s.paid?['Poker table',`${s.paid} staked. The cards fall at dawn.`]:null;
   return null;
 }
@@ -2781,6 +2897,7 @@ function siteDone(k){
     else{sfx.empty();hint('tonic3',true,'Coloured water. The professor tips his hat.');}
   }else if(k==='fort'){s.night=true;bugle();hint('fort',true,'The patrol saddles up. They ride tonight as soon as raiders show, and cut down those outside the walls.');}
   else if(k==='poker')hint('poker',true,'Five coins on the table. The cards fall at dawn: double or nothing.');
+  else yardDone(k,s,x);
 }
 // ---------- fire: lightning or a raider's torch sets a roof alight, and the town fights it
 function setFire(b,why){
@@ -2816,7 +2933,7 @@ function updStampede(dt){
   for(const c of [...G.herd]){
     if(!c.run)continue;c.x+=34*dt;c.dir=1;if(Math.random()<dt*8)dust(c.x-5,0,1);if(Math.random()<dt*4)puff(c.x-7,2,DUSTC);if(Math.abs(c.x-G.cam-W/2)<W*.6)G.shake=Math.max(G.shake,.1);
     if(p.x>c.x-6&&p.x-c.x<32){c.run=0;c.back=1;c.tx=rnd(PASTURE[0]+8,PASTURE[1]-8);c.t=40;G.stamp.saved++;sfx.moo(.6);}
-    else if(c.x>WORLD-40){G.herd.splice(G.herd.indexOf(c),1);G.stamp.lost++;}else run++;
+    else if(c.x>EX(2760)){G.herd.splice(G.herd.indexOf(c),1);G.stamp.lost++;}else run++;
   }
   if(!run){const s=G.stamp;G.stamp=null;hint('stampEnd',true,s.lost?`The stampede is over. You turned ${s.saved} head and lost ${s.lost}.`:'You turned the whole herd. They are walking back to pasture.');}
 }
@@ -2879,7 +2996,7 @@ function updDuel(dt){
 }
 // ---------- each dawn and dusk
 function dawnX(ln){
-  const X=G.x,sl=G.b[1];X.ufoAt=0;G.ufo=null;
+  const X=G.x,sl=G.b[1];X.ufoAt=0;G.ufo=null;yardDawn();
   if(G.wild){if(G.wild.filter(w=>w.k==='horse'&&!w.foal).length<5)wildAdd('horse');if(G.wild.filter(w=>w.k==='cow').length<3)wildAdd('cow');}
   if(X.ruin.cool>0)X.ruin.cool--;if(X.tribe.days>0)X.tribe.days--;X.fort.night=false;G.cav=null;G.stamp=null;for(const c of G.herd)c.run=0;
   if(X.rig.lv&&!X.rig.burn){pop(FIRE_X,30,'Oil +'+rigPay());for(let i=0;i<rigPay();i++)coin(FIRE_X+rnd(-12,12),6,rnd(-30,30),rnd(50,85),true);hint('oilpay',false,`The oil company's draft: ${rigPay()} coins at the town centre every morning the derrick is pumping.`);}
@@ -2895,7 +3012,7 @@ function dawnX(ln){
 }
 function duskX(){
   const X=G.x;
-  X.ufoAt=G.day-G.day0>=2&&Math.random()<.36?rnd(.8,.93):0;
+  X.ufoAt=G.day-G.day0>=2&&Math.random()<.36?rnd(.8,.93):0;X.ghostAt=Math.random()<.4?rnd(.82,.96):0;
   if(X.tribe.days>0&&G.night&&G.raid.length>1){
     let k=0;for(let i=G.raid.length-1;i>=0&&k<2;i--)if(G.raid[i].kind!=='boss'){G.raid.splice(i,1);k++;}
     G.night.n=G.raid.length;if(k)hint('ambush',true,`The scouts ambushed ${k} raiders on the trail. The rest are coming from the ${G.side<0?'west':'east'}.`);
@@ -2915,7 +3032,7 @@ function updX(dt){
   if(Math.abs(G.cam+W/2-SITE.tribe.x)<W&&Math.random()<dt*1.6)puff(SITE.tribe.x+(Math.random()<.5?-30:34),30,'#cfc8be');
   if(X.duelDay===G.day&&G.t>.33&&G.t<.5&&!TOUR&&!G.trip)startDuel();
   if(X.rig.gush>0){X.rig.gush-=dt;for(let i=0;i<3;i++)G.parts.push({x:SITE.rig.x+rnd(-1.5,1.5),h:56,vx:rnd(-18,18)-windK()*20,vh:rnd(50,125),life:0,max:rnd(.9,1.7),col:i?'#16110e':'#3a3038',grav:-150,conf:1});}
-  updFires(dt);updCav(dt);if(G.stamp)updStampede(dt);updUfo(dt);updWild(dt);storyTick();
+  updFires(dt);updCav(dt);if(G.stamp)updStampede(dt);updUfo(dt);updWild(dt);updYard(dt);storyTick();
 }
 // ---------- drawing the new places
 function drawTipi(cx,h,band){
@@ -3036,6 +3153,175 @@ function drawXLights(cam){
     flames(x+3,b.w-6,GY-top+1,b.x,(1+.9*Math.min(1,b.fire.t/6))*(.5+.5*b.fire.hp));glow(x+b.w/2,GY-top-3,Math.round(b.w*.55),'255,150,60',.2+.1*Math.sin(G.clock*13));
   }
   if(X.rods.lv)for(const b of G.b){if(b.x<0||!DEF[b.type].wall||!b.level)continue;const x=Math.round(b.x-cam)+4,t=tall(b,b.level);if(x<-4||x>W+4)continue;R(x,GY-t-9,1,9,'#4a4a52');P(x,GY-t-10,'#d0d4dc');}
+}
+// ---------- Dustfall III: the old yard. Past the far east camp the line runs into an abandoned junction: dead engines, a hobo jungle, a boxcar nobody will open, and a handcar that will take you down the spur
+const YARD=()=>EX(2790),YARDW=640;
+Object.assign(SITE,{hobo:{x:2790+300,ex:1,h:34,name:'Hobo jungle'},car:{x:2790+392,ex:1,h:46,name:'Sealed boxcar'},handcar:{x:2790+552,ex:1,h:30,name:'Handcar'}});
+const yardCost=k=>{const s=G.x[k];return k==='hobo'?(s.day===G.day?0:2):k==='car'?(s.cool>0?0:5):k==='handcar'?(s.day===G.day||G.t>.5||G.rail?0:4):0;};
+function yardInfo(k,s,go){
+  const X=G.x;
+  if(k==='hobo')return ['Hobo jungle',s.day===G.day?'They have said all they are going to say today. The men by the fire can be hired like any drifter.':`2 coins${go} buys a rumour: a buried box, which side tonight’s raid comes from, or something out of a bindle.`];
+  if(k==='car')return ['Sealed boxcar',s.cool>0?`Empty for now. The hobos say it fills again by itself. Look in ${s.cool} ${s.cool>1?'days':'day'}.`:`5 coins${go} pays a crew with crowbars. Nobody knows what is in it. It hums after dark.`];
+  if(k==='handcar')return ['Handcar',s.day===G.day?'One run a day. The spur is long.':G.t>.5?'Too late in the day to start down the spur. Come back in the morning.':`4 coins${go} for grease and water, and you can pump down the spur to see where it goes. ${['Nobody has been down it in years.','There is more track past the wreck.','The hobos talk about a light out past the valley.','You have seen the end of it, but the mail still hangs on the hooks.'][Math.min(3,X.finds)]}`];
+  return null;
+}
+function yardDone(k,s,x){
+  const X=G.x;
+  if(k==='hobo'){
+    const r=Math.random();s.day=G.day;sfx.recruit();spark(x,20,6);
+    if(r<.4){const sp=[[330,'by the lone tree west of the mission'],[EX(2300),'under the rock arch east of town'],[-180,'between the trading post and the scout camp'],[826,'behind the old mine']],[bx,where]=sp[Math.floor(Math.random()*sp.length)];G.boxes.push({x:bx,n:8+2*G.town,open:false});hint('rumor1',true,`A hobo scratches a sign in the dirt: a box, buried ${where}.`);}
+    else if(r<.75&&raidPlan().n&&G.t<.72){X.tip=G.day;hint('rumor2',true,`“They come from the ${G.side<0?'west':'east'} tonight. We saw them watering up.”`);}
+    else{X.dyn++;hint('rumor3',true,'One of them sells you a stick of dynamite out of his bindle. No questions asked.');}
+  }else if(k==='car'){
+    const n=s.n++;s.cool=3;sfx.crash(.6);dust(x,10,12);G.shake=Math.max(G.shake,.2);
+    const pay=c=>{pop(x,40,'+'+c);for(let i=0;i<c;i++)coin(x+rnd(-8,8),10,rnd(-40,40),rnd(40,90),true);};
+    if(n===0){pay(10);playCut([{art:'wire',tr:'iris',lines:['PAID VARNEY  DUSTFALL JOB','PAID  TORCHES AND LAMP OIL','OIL LEASE TO FOLLOW  S.C.'],cap:'Crates of company ledgers. Crane paid for the fire, and wrote it down.',dur:TOUR?5:7}]);}
+    else if(n===1){X.dyn+=2;hint('car2',true,'Blasting supplies, forgotten since the line was built. Two sticks of dynamite are still good.');}
+    else if(n===2){pay(12);G.ufo={ph:'out',t:0,x,tg:{k:'none'},lift:1,side:1,hum:0};tone1(240,.8,'sawtooth',.05,2800);hint('car3',true,'The door comes off and something green goes straight up out of it. It left twelve coins behind.');}
+    else if(Math.random()<.3){X.dyn++;pay(4);hint('car4',true,'A few coins and a stick of dynamite, this time.');}
+    else{pay(8+Math.floor(Math.random()*7));hint('car5',true,'Coins in a mail sack. Nobody can say how it got in there.');}
+  }else if(k==='handcar')startRail();
+}
+function yardDawn(){
+  const X=G.x;if(X.car.cool>0)X.car.cool--;G.ghost=null;X.ghostAt=0;
+  if(X.home){pop(FIRE_X,36,'Valley +4','#8fe08a');for(let i=0;i<4;i++)coin(FIRE_X+rnd(-12,12),6,rnd(-30,30),rnd(50,85),true);}
+}
+function updYard(dt){
+  const X=G.x,p=G.player;
+  if(!G.ghost&&X.ghostAt&&G.t>X.ghostAt&&p.x>EX(2500)&&!TOUR){X.ghostAt=0;startGhost();}
+  if(G.ghost){G.ghost.x-=210*dt;if(G.ghost.x<YARD()-320)G.ghost=null;}
+}
+function startGhost(){G.ghost={x:WORLD+80};for(const f of [196,247,294])tone1(f,2.6,'triangle',.05,f*.94);hint('ghost',true,'A train that is not there goes through the yard without a sound on the rails.');}
+// ---------- drawing the yard
+function boxcar(sx,open,col,chalk){
+  const g=GY-3;shadow(sx+29,64);R(sx,g-22,58,18,col);for(let k=0;k<58;k+=4)R(sx+k,g-22,1,18,'rgba(20,10,6,.25)');R(sx-1,g-24,60,2,'#2a2220');R(sx,g-5,58,1,'#2a2220');
+  for(let i=0;i<12;i++)R(sx+hash(i+sx)*54,g-21+hash(i*2+sx)*15,2+hash(i)*4,1,'rgba(150,84,44,.45)');
+  if(open){R(sx+21,g-21,16,17,'#0e0908');R(sx+20,g-21,1,17,'#2a2220');R(sx+37,g-21,1,17,'#2a2220');}
+  else{R(sx+21,g-21,16,17,'#5a4638');line(sx+21,g-21,sx+36,g-5,'#3a2c24');line(sx+36,g-21,sx+21,g-5,'#3a2c24');R(sx+28,g-13,3,3,'#c9a14a');}
+  if(chalk){for(const [dx,dy] of [[6,-16],[8,-14],[10,-16],[46,-12],[48,-12],[47,-14],[47,-10],[44,-18]])P(sx+dx,g+dy,'#e8e2d2');}
+  for(const k of [8,16,42,50])wheel(sx+k,GY-2,2);R(sx+4,g-3,16,2,'#1f1f26');R(sx+38,g-3,16,2,'#1f1f26');
+}
+function drawYard(cam){
+  const Y=YARD(),X=G.x,g=GY,vis=(x,r)=>x-cam>-r&&x-cam<W+r;if(cam+W<Y-40)return;
+  // the old main line and a siding behind it
+  {const x0=Math.max(0,Math.round(Y-20-cam)),x1=Math.min(W,Math.round(WORLD-cam));for(let x=x0;x<x1;x++)if((x+cam)%4<2){P(x,GY,'#4a3626');if(x+cam>Y+70&&x+cam<Y+450)P(x,GY-3,'#3a2a1e');}
+    R(x0,g-1,x1-x0,1,'#7a6a5a');{const a=Math.max(x0,Math.round(Y+70-cam)),b=Math.min(x1,Math.round(Y+450-cam));if(b>a)R(a,g-4,b-a,1,'#6a5648');}}
+  // the bluff the spur disappears into
+  {const x1=Math.round(WORLD-40-cam);if(x1<W+2){const c=css(C.mesa),cs=css(C.mesaS),cl=css(C.mesaT);
+    for(const [dx,top] of [[0,g-26],[8,g-54],[17,g-86],[27,-PADT]]){R(x1+dx,top,W-x1-dx+4,g-top,c);R(x1+dx,top,3,g-top,cs);R(x1+dx,top,W-x1-dx+4,1,cl);}
+    R(x1-1,g-21,15,21,'#3a2e2a');R(x1+1,g-19,13,19,'#070405');R(x1,g-22,15,2,'#8a7a6a');for(let k=0;k<5;k++)P(x1+2+k*3,g-22,'#5a4e44');}}
+  if(vis(Y+40,40)){const sx=Math.round(Y+40-cam),up=G.dark>.5&&X.ghostAt?0:1;      // a switch stand and a semaphore that still moves
+    R(sx,g-9,1,9,'#3a302c');R(sx-2,g-12,5,3,'#a8452e');R(sx+14,g-40,2,40,'#3a302c');line(sx+15,g-38,sx+15+(up?9:7),g-38-(up?7:-5),'#b53a2e',2);R(sx+13,g-41,4,2,'#2a2220');P(sx+15,g-34,up?'#8fcf6a':'#ff5a3c');}
+  if(vis(Y+140,90)){const sx=Math.round(Y+84-cam),gg=g-3,bk='#3a302c',ru='#7a4a30';       // a dead engine, down on its springs, and its tender
+    shadow(sx+60,130);R(sx+8,gg-19,46,13,bk);R(sx+8,gg-19,46,2,'#5a4a40');for(let i=0;i<14;i++)R(sx+10+hash(i+3)*42,gg-18+hash(i+5)*11,3+hash(i)*5,1+hash(i+1)*2,ru);
+    R(sx+4,gg-18,5,12,'#2a2220');R(sx+2,gg-12,3,3,'#5a5450');R(sx+14,gg-23,4,4,bk);R(sx+30,gg-22,6,3,ru);R(sx+54,gg-26,20,20,'#33282a');R(sx+52,gg-28,24,2,'#1f1a1a');R(sx+59,gg-23,9,7,'#0e0908');
+    for(let k=0;k<7;k++)R(sx+k-2,gg-1-k,1,k+1,'#4a4038');wheel(sx+16,g-4,4,.6);wheel(sx+27,g-4,4,2.1);wheel(sx+38,g-4,4,1.2);wheel(sx+62,g-2,2);wheel(sx+70,g-2,2);
+    R(sx+80,gg-15,28,10,bk);R(sx+80,gg-15,28,1,'#5a4a40');R(sx+83,gg-17,22,2,'#16110e');wheel(sx+86,g-2,2);wheel(sx+102,g-2,2);for(let i=0;i<6;i++)R(sx+82+hash(i+9)*24,gg-13+hash(i+11)*7,4,1,ru);
+    for(const [dx,h] of [[10,5],[13,8],[34,6],[58,7],[90,5]]){line(sx+dx,g,sx+dx+1,g-h,'#6f8f45');P(sx+dx+1,g-h-1,'#8fb058');}}
+  if(vis(Y+240,60))boxcar(Math.round(Y+212-cam),true,'#6a3a2c',true);
+  if(vis(Y+392,60)){const sx=Math.round(Y+362-cam);boxcar(sx,false,'#3f4a44',false);R(sx+8,g-20,10,6,'#d8cdb0');P(sx+10,g-18,'#3a2a1e');P(sx+13,g-18,'#3a2a1e');P(sx+15,g-17,'#3a2a1e');}
+  if(vis(Y+300,50)){const sx=Math.round(Y+300-cam);          // the hobo jungle: a barrel fire and three men who have seen everything
+    R(sx-3,g-8,6,8,'#3a2e2a');R(sx-3,g-8,6,1,'#5a4a40');R(sx-3,g-4,6,1,'#241c1a');
+    for(const [dx,id,d] of [[-13,21,1],[11,22,-1],[19,23,-1]])person(sx+dx,{id,dir:d,sit:true,moving:false,walk:0},'folk');
+    line(sx-20,g-1,sx-26,g-13,'#5a3a22');R(sx-29,g-16,5,5,'#a8452e');R(sx+24,g-5,7,5,'#6a5a48');R(sx+24,g-5,7,1,'#8a7a64');}
+  if(vis(Y+478,70)){const sx=Math.round(Y+452-cam),w='#7a6a54',d='#4a3a2c';        // the junction depot, boarded up, and its water tank
+    shadow(sx+26,60);R(sx,g-24,52,24,w);for(let k=0;k<52;k+=5)R(sx+k,g-24,1,24,'#66573f');R(sx-4,g-28,60,4,d);R(sx-4,g-28,60,1,'#6a5440');R(sx+6,g-17,10,17,'#2a1e16');line(sx+6,g-17,sx+15,g-1,d);R(sx+26,g-18,16,9,'#2a1e16');R(sx+25,g-15,18,1,w);R(sx+25,g-12,18,1,w);
+    R(sx+8,g-37,36,8,'#e6d6ac');R(sx+8,g-37,36,1,d);text(sx+10,g-36,'JUNCTION','#4a3a2c');drawTower(sx+86);}
+  if(vis(Y+552,30)&&!G.rail){const sx=Math.round(Y+552-cam);handcar(sx,g,0);}
+  if(vis(Y+590,30)){const sx=Math.round(Y+584-cam);for(let k=0;k<4;k++)R(sx-k,g-3-k*2,12+k*2,2,k%2?'#4a3626':'#5a4636');}
+  for(let x=Math.max(Y+30,Math.floor(cam));x<Math.min(WORLD-50,cam+W);x++){const k=hash(x*.713+2);if(k<.03){const sx=x-cam;line(sx,g,sx+Math.sin(G.clock*1.6+x)*.8,g-4-k*120,k<.015?'#8a7a50':'#6f8f45');}}
+}
+function handcar(sx,g,ph){
+  shadow(sx,22);R(sx-10,g-5,20,2,'#5a3a22');R(sx-10,g-5,20,1,'#7a5434');wheel(sx-6,g-2,2);wheel(sx+6,g-2,2);R(sx-1,g-12,2,7,'#3a302c');
+  const a=Math.sin(ph)*.55;line(sx-9*Math.cos(a),g-12-9*Math.sin(a),sx+9*Math.cos(a),g-12+9*Math.sin(a),'#2a2220',2);P(sx,g-12,'#c9a14a');
+}
+function drawYardLights(cam){
+  const Y=YARD(),X=G.x;if(cam+W<Y-60)return;
+  const fx=Math.round(Y+300-cam);if(fx>-40&&fx<W+40){ctx.save();ctx.translate(0,-7);flames(fx-2.5,5,GY,3,1.1);ctx.restore();glow(fx,GY-10,30,'255,150,60',.14+.36*G.dark);}
+  if(G.dark>.4){const bx=Math.round(Y+241-cam);if(bx>-30&&bx<W+30){R(bx-7,GY-23,14,15,'rgba(255,170,80,.22)');glow(bx,GY-14,16,'255,170,80',.3*G.dark);}
+    const cx=Math.round(Y+392-cam);if(cx>-40&&cx<W+40&&!X.car.cool){const k=.5+.5*Math.sin(G.clock*2.2);glow(cx,GY-14,26,'130,255,180',.22*G.dark*k);for(let i=0;i<3;i++)P(cx-28+i*27,GY-5,'#8cf7b0');}}
+  if(G.ghost){const sx=Math.round(G.ghost.x-cam),g=GY-1;if(sx>-240&&sx<W+20){        // the train that is not there
+    ctx.save();ctx.globalAlpha=.34+.08*Math.sin(G.clock*9);const c='#bfe0ff',d='#8fb4e8';
+    R(sx+6,g-16,26,10,c);R(sx+9,g-22,4,6,c);R(sx+30,g-23,13,17,d);R(sx+2,g-19,3,3,'#ffffff');for(let k=0;k<6;k++)R(sx+k,g-1-k,1,k+1,c);
+    for(let i=0;i<4;i++){const cx=sx+48+i*50;R(cx,g-18,46,13,i%2?d:c);R(cx-1,g-20,48,2,c);for(let j=0;j<6;j++)R(cx+4+j*7,g-15,4,5,'#eef6ff');}
+    ctx.globalAlpha=1;glow(sx+3,g-18,40,'190,220,255',.4);glow(sx+120,g-10,140,'150,190,255',.16,.3);ctx.restore();
+    for(let i=0;i<3;i++){const k=(G.clock*.9+i/3)%1;ctx.globalAlpha=.3*(1-k);ctx.fillStyle='#dfeeff';ctx.beginPath();ctx.arc(sx+11+k*40,g-24-k*22,3+k*8,0,7);ctx.fill();}ctx.globalAlpha=1;}}
+}
+// ---------- down the spur on the handcar. Hold right to pump and left to brake: washed-out gaps want speed, rockfalls want care, and there is mail still hanging on the hooks
+const SPUR=[[.12,'mail'],[.21,'gap'],[.31,'mail'],[.4,'slow'],[.49,'mail'],[.56,'tun'],[.69,'gap'],[.77,'mail'],[.86,'slow'],[.94,'mail']];
+function startRail(){
+  const len=TOUR?1150:1900;G.x.handcar.day=G.day;G.rail={t:0,x:0,v:0,len,ph:'ride',crash:0,air:0,got:0,pump:0,pops:[],feats:SPUR.map(([u,k])=>({x:u*len,k,done:0}))};
+  G.fade=1;whoosh(.8,.1,300,1600);input.key=input.stick=0;held.clear();G.player.vx=0;
+  hint('spur',true,'Hold right to pump and left to brake. Take the washed-out gaps fast and the rockfalls slow. The signs tell you which is coming.');
+}
+function updRailTrip(dt){
+  const r=G.rail,p=G.player;r.t+=dt;if(G.fade>0)G.fade=Math.max(0,G.fade-dt*1.5);
+  for(let i=r.pops.length-1;i>=0;i--)if((r.pops[i].t+=dt)>1.3)r.pops.splice(i,1);
+  if(r.ph!=='ride')return;
+  if(r.air>0)r.air-=dt;
+  if(r.crash>0){r.crash-=dt;r.v=0;return;}
+  let pump=input.key>0||input.stick>.25||input.padAxis>.25||input.dpad>0,brake=input.key<0||input.stick<-.25||input.padAxis<-.25||input.dpad<0;
+  const nx=r.feats.find(f=>!f.done&&f.x>r.x&&(f.k==='gap'||f.k==='slow'));
+  if(TOUR){const want=nx&&nx.x-r.x<200?(nx.k==='gap'?90:32):72;pump=r.v<want-4;brake=r.v>want+8;}
+  r.v=clamp(r.v+(brake?-120:pump?58:-15)*dt,0,104);r.x+=r.v*dt;r.pump+=r.v*dt*.1;
+  if(r.v>20&&Math.floor(r.pump/Math.PI)!==Math.floor((r.pump-r.v*dt*.1)/Math.PI))tone1(180,.05,'square',.04,120);
+  if(Math.floor(r.x/14)!==Math.floor((r.x-r.v*dt)/14))tone1(90,.02,'triangle',.03,60);
+  for(const f of r.feats){
+    if(f.done||r.x<f.x)continue;f.done=1;
+    if(f.k==='mail'){const n=3+(G.town>>1);r.got+=n;p.coins+=n;sfx.pick();r.pops.push({txt:'+'+n,t:0});}
+    else if(f.k==='gap'&&r.v<66||f.k==='slow'&&r.v>44){const n=Math.min(2,p.coins);p.coins-=n;r.crash=1.6;r.bad=f.k;sfx.crash(.8);G.shake=.4;r.pops.push({txt:n?'-'+n:'!',t:0,c:'#ff7a5a'});}
+    else if(f.k==='gap'){r.air=.55;whoosh(.5,.1,500,2200);}
+    else if(f.k==='slow')sfx.moo(.5);
+  }
+  if(r.x>=r.len){r.ph='find';railFind();}
+}
+function railFind(){
+  const X=G.x,p=G.player,n=X.finds++,back=txt=>()=>{G.rail=null;G.t=Math.min(.999,G.t+.08);G.fade=1;FX().iris={t:0};p.x=siteX('handcar')-16;p.dir=-1;G.cam=clamp(p.x-W/2,WEST-70,WORLD-W);hint('found'+Math.min(n,3),true,txt);save();};
+  if(n===0){const c=18+2*G.town;playCut([{art:'payroll',tr:'iris',cap:'A payroll car on its side in a dry wash, where it left the rails years ago.'},{art:'star',tr:'wipe',cap:'Nobody ever came back for the strongbox.',dur:5}],()=>{p.coins+=c;back(`You bring ${c} coins back from the wreck. The spur runs on past it.`)();});}
+  else if(n===1)playCut([{art:'valley',tr:'blinds',cap:'Past the wreck the spur drops into a valley with a spring in it, and nobody on it.'},{art:'eyes',who:'rider',tr:'wipe',cap:'The men from the yard could make a home here.',dur:5}],()=>{X.home=true;back('The yard folk stake the valley. They send 4 coins to the town centre every morning, and there is more track beyond.')();});
+  else if(n===2)playCut([{art:'crater',tr:'flash',cap:'At the end of the line the rails stop at a hole in the ground, still warm.'},{art:'saucer',tr:'blinds',cap:'One of them did not make it home.'},{art:'hand',tr:'wipe',cap:'The metal will not scratch. The blacksmith makes it into six rounds that never miss.',dur:6}],()=>{X.starMetal=true;back('Star metal. Your six-shooter does not miss any more.')();});
+  else playCut([{art:'valley',tr:'iris',cap:'The valley folk have a roof up. They send you back with what they can spare.',dur:5}],()=>{p.coins+=6;back('Six coins from the valley, and the mail off the hooks.')();});
+}
+function drawRailTrip(){
+  const r=G.rail,[st,sb]=skyAt(G.t),g=GY,cx=Math.round(W*.34),dark=G.dark,T=performance.now()/1000,sxOf=x=>Math.round(cx+x-r.x),wrap=(v,n)=>((v%n)+n)%n;
+  {const gr=ctx.createLinearGradient(0,0,0,g);gr.addColorStop(0,css(st));gr.addColorStop(1,css(sb));ctx.fillStyle=gr;ctx.fillRect(0,0,W,g);}
+  if(G.t<.68){const k=G.t/.66;glow(W*(.1+.8*k),g-4-Math.sin(k*Math.PI)*g*.8,26,'255,236,180',.9);}
+  for(let i=0;i<5;i++){const span=W+160,x=wrap(hash(i+3)*span-r.x*.04-T*2,span)-80;ctx.fillStyle=css(mixA([255,250,240],sb,.45));ctx.beginPath();ctx.ellipse(x,g*(.2+hash(i+5)*.3),24+hash(i)*20,5,0,0,7);ctx.fill();}
+  for(let L=0;L<3;L++){        // three ranges of hills sliding past at their own pace
+    const par=[.07,.17,.36][L],base=[34,16,0][L],col=css(mixA(L===0?C.haze:L===1?C.mesa:C.dune,sb,[.55,.3,.1][L]));ctx.fillStyle=col;
+    for(let sx=0;sx<W;sx+=2){const wx=sx+r.x*par+L*311;let h=[20,24,9][L]+Math.sin(wx*.013)*[10,12,4][L]+Math.sin(wx*.037+L)*[5,7,3][L];if(L<2)h=Math.round(h/7)*7;ctx.fillRect(sx,g-base-h,2,h+base);}
+  }
+  R(0,g,W,H-g,css(mixA(C.plain,[0,0,0],.08)));R(0,g,W,1,css(C.mesaT));for(let i=0;i<40;i++){const x=wrap(hash(i+60)*(W+20)-r.x,W+20)-10;R(x,g+4+hash(i+61)*(H-g-6),2+hash(i)*4,1,'rgba(60,34,14,.25)');}
+  for(let i=-1;i<5;i++){const wx=(Math.floor(r.x/140)+i)*140,x=sxOf(wx);if(x<-10||x>W+10)continue;R(x,g-36,1,36,'#3a2a1e');R(x-4,g-34,9,1,'#3a2a1e');}      // the telegraph still follows the line
+  // what the spur runs through
+  for(const f of r.feats){
+    const x=sxOf(f.x);if(x<-240||x>W+240)continue;
+    if(f.k==='tun'){const w=170,rc=css(mixA(C.mesa,[40,24,20],.45));R(x,-2,w,g+2,rc);for(let k=0;k<10;k++)R(x,g-8-k*13,w,1,css(mixA(C.mesaS,[20,12,10],.4)));R(x,g-26,10,26,'#070405');R(x+w-10,g-26,10,26,'#070405');R(x-2,g-28,14,2,'#8a7a6a');R(x+w-12,g-28,14,2,'#8a7a6a');R(x+10,g-26,w-20,26,'#0b0708');}
+    if(f.k==='gap'){R(x-70,g,150,H-g,'#1a1012');R(x-70,g,150,2,css(C.mesaS));for(let k=-60;k<=70;k+=20){R(x+k,g+2,2,H-g,'#4a3626');line(x+k,g+6,x+k+20,g+22,'#3a2a1e');}
+      const sg=x-170;R(sg,g-20,1,20,'#3a302c');ctx.fillStyle='#f2c14e';ctx.beginPath();ctx.moveTo(sg,g-34);ctx.lineTo(sg+8,g-26);ctx.lineTo(sg,g-18);ctx.lineTo(sg-8,g-26);ctx.fill();for(const dy of [-28,-24]){line(sg-3,g+dy+2,sg,g+dy-1,'#2a1a10');line(sg,g+dy-1,sg+3,g+dy+2,'#2a1a10');}}
+    if(f.k==='slow'){for(const [dx,s] of [[-26,7],[-12,10],[10,8],[24,11],[40,6]]){R(x+dx,g-s+2,s+2,s,'#8f7a66');R(x+dx+1,g-s+2,s-2,2,'#b09a83');}drawCow(x+58,{id:7,dir:-1,calf:0});
+      const sg=x-170;R(sg,g-20,1,20,'#3a302c');ctx.fillStyle='#c0392b';ctx.beginPath();ctx.arc(sg,g-27,8,0,7);ctx.fill();R(sg-5,g-28,10,3,'#f4ecd6');}
+    if(f.k==='mail'){R(x,g-24,1,24,'#3a302c');R(x,g-24,7,1,'#3a302c');if(!f.done){R(x+4,g-23,4,7,'#b9a070');P(x+5,g-24,'#8a7a50');}}
+  }
+  {const ex=sxOf(r.len);if(ex<W+40){R(ex+10,g-9,2,9,'#3a302c');R(ex+4,g-12,14,3,'#a8452e');}}
+  // ties and rails, broken where the bridge is out
+  for(let x=-wrap(r.x,8);x<W;x+=8)R(x,g+1,3,2,'#4a3626');R(0,g,W,1,'#8a8f98');R(0,g+3,W,1,'#6a6f78');
+  for(const f of r.feats)if(f.k==='gap'){const x=sxOf(f.x);R(x-9,g,18,5,'#1a1012');}
+  // the handcar: the rider on the lever and the dog up front
+  {const jump=r.air>0?Math.sin((1-r.air/.55)*Math.PI)*13:0,tilt=r.crash>0?Math.min(1,(1.6-r.crash)*4)*(r.bad==='gap'?.9:-.5):0;
+    ctx.save();ctx.translate(cx,g-jump);ctx.rotate(tilt);ctx.translate(-cx,-g);handcar(cx,g,r.pump);ctx.save();ctx.translate(0,-5);person(cx-5,{id:1,dir:1,moving:false,walk:0},'drifter');drawDog(cx+6,{...G.dog,dir:1,moving:false,walk:0});ctx.restore();ctx.restore();
+    if(r.v>40&&Math.random()<.4)R(cx-12-Math.random()*8,g-1-Math.random()*3,2,1,'rgba(240,220,180,.6)');
+    if(r.crash>0)for(let i=0;i<6;i++){const k=(1.6-r.crash)/1.6;ctx.globalAlpha=.4*(1-k);ctx.fillStyle=DUSTC;ctx.beginPath();ctx.arc(cx+Math.cos(i)*k*26,g-4-Math.abs(Math.sin(i*2))*k*18,3+k*6,0,7);ctx.fill();}ctx.globalAlpha=1;}
+  // inside the tunnel it is your lantern or nothing
+  {const tn=r.feats.find(f=>f.k==='tun'),k=tn?clamp(Math.min(r.x-tn.x+20,tn.x+170-r.x+20)/40,0,1):0;if(k>0){R(0,0,W,H,`rgba(5,3,6,${(.86*k).toFixed(3)})`);glow(cx+6,g-12,46,'255,196,110',.5*k);glow(cx+30,g+2,60,'255,180,90',.25*k,.3);}}
+  R(0,0,W,H,`rgba(16,14,54,${(.5*dark).toFixed(3)})`);
+  // how fast you are going, with the band the next sign wants
+  {const bw=Math.min(120,W*.4),bx=Math.round((W-bw)/2),by=13,nx=r.feats.find(f=>!f.done&&f.x>r.x&&(f.k==='gap'||f.k==='slow'));
+    R(bx-1,by-1,bw+2,6,'#24160f');R(bx,by,bw,4,'#4a3626');
+    if(nx&&nx.x-r.x<260){if(nx.k==='gap')R(bx+bw*66/104,by,bw*38/104,4,'rgba(143,207,106,.55)');else R(bx,by,bw*44/104,4,'rgba(143,207,106,.55)');}
+    R(bx+Math.round(bw*r.v/104)-1,by-2,2,8,'#f2c14e');
+    const pw=Math.min(160,W*.5),px=Math.round((W-pw)/2);R(px,5,pw,1,'#24160f');for(const f of r.feats)if(f.k!=='tun')R(px+pw*f.x/r.len-1,4,2,3,f.k==='mail'?'#f2c14e':f.k==='gap'?'#e8a03a':'#c0392b');R(px+Math.round(pw*Math.min(1,r.x/r.len))-1,2,3,7,'#fff3c4');}
+  ctx.save();ctx.font='bold 9px Georgia,serif';ctx.textAlign='center';for(const q of r.pops){ctx.globalAlpha=Math.min(1,(1.3-q.t)*2.5);ctx.fillStyle='#24160f';ctx.fillText(q.txt,cx+.5,g-32-q.t*16+.5);ctx.fillStyle=q.c||'#ffe07a';ctx.fillText(q.txt,cx,g-32-q.t*16);}ctx.restore();
 }
 // ---------- Dustfall III: thunderstorms. A storm has a shape in time: cloud first, then a gust front of dust, then the rain, then lightning at its height
 const smooth=(v,a,b)=>{const u=clamp((v-a)/(b-a),0,1);return u*u*(3-2*u);};
@@ -3829,7 +4115,7 @@ function draw(){
   }
   // everything that stands on the ground is drawn flat on its own canvas, with room above and below, then lifted column by column
   ctx=nctx;ctx.setTransform(SS,0,0,SS,0,PADT*SS);ctx.clearRect(0,-PADT,W,H+PADT+PADB);
-  drawPoles(cam);drawPerch(cam);drawMission(392-cam);drawArch(EX(2330)-cam);drawMine(MINE-cam);drawWindmill(992-cam);drawTower(1206-cam);drawWest(cam);grain(SITE.post.x-23-cam,GY-27,46,27,21,1);grain(SITE.ruin.x-56-cam,GY-34,26,34,23,1);grain(siteX('fort')-8-cam,GY-19,44,19,25,1);
+  drawPoles(cam);drawPerch(cam);drawMission(392-cam);drawArch(EX(2330)-cam);drawMine(MINE-cam);drawWindmill(992-cam);drawTower(1206-cam);drawWest(cam);drawYard(cam);grain(SITE.post.x-23-cam,GY-27,46,27,21,1);grain(SITE.ruin.x-56-cam,GY-34,26,34,23,1);grain(siteX('fort')-8-cam,GY-19,44,19,25,1);
   grain(376-cam,GY-66,90,66,7,0);grain(EX(2330)-6-cam,GY-52,76,52,9,0);grain(MINE-8-cam,GY-28,62,28,11,0);grain(1196-cam,GY-70,24,70,13,1);
   const brow=backRow();drawBack(brow,cam,sb);
   for(const b of G.b){
@@ -4017,7 +4303,7 @@ function draw(){
     for(let i=0;i<70;i++){const z=i%4?HP:1;ctx.globalAlpha=mote*(.35+.65*Math.abs(Math.sin(G.clock*.7+i*1.9)));ctx.fillRect(((hash(i+640)*span+Math.sin(G.clock*.21+i)*9-cam*.8)%span+span)%span-10,GY-4-hash(i+650)*70+Math.sin(G.clock*.4+i*2.3)*4,z,z);}
     ctx.globalAlpha=1;
   }
-  if(!tier)drawFire(FIRE_X-cam,0);G.camps.forEach((c,i)=>drawFire(c.x-cam,2+i*2));for(const f of SK().fires)drawFire(f.x-cam,f.x);drawXLights(cam);
+  if(!tier)drawFire(FIRE_X-cam,0);G.camps.forEach((c,i)=>drawFire(c.x-cam,2+i*2));for(const f of SK().fires)drawFire(f.x-cam,f.x);drawXLights(cam);drawYardLights(cam);
   if(dark>.3)for(const g of [G.b[6],G.b[7]])if(g.level){ctx.save();ctx.translate(0,-5);drawFire(g.x+7-g.side*16-cam,g.x);ctx.restore();}
   for(const q of G.parts){
     if(!q.lit)continue;
@@ -4037,7 +4323,7 @@ function draw(){
   ctx.globalAlpha=1;
   for(const c of G.coins){drawCoin(Math.round(c.x-cam),GY-Math.round(c.h),c);if(c.st==='ground'&&Math.sin(G.clock*4+c.x*1.7)>.94){const x=Math.round(c.x-cam),y=GY-2;P(x,y,'#ffffff');P(x-1,y,'#fff3b0');P(x+1,y,'#fff3b0');P(x,y-1,'#fff3b0');P(x,y+1,'#fff3b0');}}
   // a slot is a round socket; the next one to fill blinks, and a paid one holds a coin
-  const play=G.state==='play'&&!G.trip&&!G.duel,tg=play?target(p.x):null,blink=Math.sin(G.clock*7)>0;
+  const play=G.state==='play'&&!G.trip&&!G.duel&&!G.rail,tg=play?target(p.x):null,blink=Math.sin(G.clock*7)>0;
   const slot=(x,y,on,next)=>{
     R(x-1,y-3,3,7,'#24160f');R(x-3,y-1,7,3,'#24160f');R(x-2,y-2,5,5,'#24160f');
     if(on)return ctx.drawImage(COIN[0].r,x-2,y-2);
@@ -4104,6 +4390,7 @@ function draw(){
     ctx.fillStyle=dg;ctx.fillRect(0,0,W,H);
   }
   {ctx.save();ctx.beginPath();ctx.rect(clamp(MOUTH+6-cam,0,W),0,W,H);ctx.clip();drawBolts(cam);drawWeather();ctx.restore();}
+  if(G.rail)drawRailTrip();
   drawFX(cam);drawGrade(cam);
   if(G.duel&&G.duel.st==='wait')duelStrips();
   if(G.duel&&G.duel.st==='draw'){const k=G.duel.t-G.duel.t0;R(0,0,W,H,`rgba(255,244,214,${Math.max(0,.5-k*3).toFixed(3)})`);ctx.save();ctx.font='bold 26px Georgia,serif';ctx.textAlign='center';ctx.fillStyle='#24160f';ctx.fillText('DRAW!',W/2+1,GY*.5+1.5);ctx.fillStyle='#f2c14e';ctx.fillText('DRAW!',W/2,GY*.5);ctx.restore();}
@@ -4292,7 +4579,7 @@ function start(keep){
 $('go').addEventListener('click',start);
 document.addEventListener('pointerdown',()=>{if(G.state==='intro'&&G.intro.t>.6)endIntro(true);});
 $('cont').addEventListener('click',()=>{if(load())start(true);});
-$('demo').addEventListener('click',tourStart);$('tourx').addEventListener('click',tourEnd);
+$('demo').addEventListener('click',showDemos);$('demall').addEventListener('click',()=>tourStart(0));$('demx').addEventListener('click',()=>{hideDemos();$('title').hidden=false;});$('tourx').addEventListener('click',tourEnd);
 document.addEventListener('pointerdown',e=>{if(TOUR&&TOUR.t>.3&&!(e.target.closest&&e.target.closest('#tourx,#mute')))tourNext(1);});
 if(peek()){$('cont').hidden=false;$('cont').textContent='Continue in '+nice((PLACES[peek().place]||PLACES[stageOf(peek().town||0)[0]]).name)+', day '+peek().day;}
 document.addEventListener('visibilitychange',()=>{if(document.hidden)save();});addEventListener('pagehide',save);
