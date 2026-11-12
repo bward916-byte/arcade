@@ -104,6 +104,7 @@ canvas{display:block;image-rendering:crisp-edges;image-rendering:pixelated;touch
 #skip{position:absolute;right:14px;top:8px;margin:0;font-family:Georgia,serif;font-size:12px;opacity:0}
 .cine #skip{opacity:.65;transition:opacity .6s}
 .duel #skip{display:none}
+.title #title h1{filter:brightness(calc(1 + var(--fl,0)*.8)) drop-shadow(0 0 calc(var(--fl,0)*14px) rgba(190,205,255,.9))}
 .cine #hud,.cine #pad,.cine #toss,.cine #hint,.cine #fire,.title #fire{display:none}
 @media (prefers-reduced-motion:reduce){#barT,#barB,#cap,#cap.on,#card,#card.on,#cine::before{transition:none}}
 #hint{background:linear-gradient(rgba(62,39,24,.95),rgba(36,22,15,.95));border:1px solid rgba(240,223,180,.34);box-shadow:0 3px 0 rgba(0,0,0,.3),inset 0 1px 0 rgba(255,240,210,.12)}
@@ -684,6 +685,7 @@ function firework(x,h){
 const fireworks=(x,n)=>{for(let k=0;k<n;k++)setTimeout(()=>{if(G.state==='play')firework(x+rnd(-40,40),rnd(70,100));},k*380);};
 const puff=(x,h,col)=>G.parts.push({x,h,vx:rnd(2,7),vh:rnd(7,12),life:0,max:rnd(1.5,2.8),col,grav:0,big:1});
 function recruit(d){
+  G.parts.push({x:d.x,h:8,vx:0,vh:0,life:0,max:.4,col:'#fff',grav:0,lit:1,glow:20});SK().rings.push({x:d.x,t:0,r:16});
   G.drifters.splice(G.drifters.indexOf(d),1);townie(d.id,d.x,d.dir);
   dust(d.x,3,8);spark(d.x,10,7);sfx.recruit();hint('recruit');
 }
@@ -727,7 +729,7 @@ function dusk(){
   const gang=ln>=8&&ln%5===3;
   if(gang)for(let i=0;i<Math.min(2+(ln>>1),14);i++)G.raid.push({t:.77+Math.random()*.05,side:s0,kind:'rider',hp:d>>2});
   G.night={n:G.raid.length,down:0,gates:0,lost:0};duskX();
-  hint(gang?'gang':boss?'boss':'raid',gang||boss,gang?`A gang of horsemen is riding in from the ${s0<0?'west':'east'} tonight. Wire and a strong gate on that side will break the charge.`:undefined);sfx.sting();
+  hint(gang?'gang':boss?'boss':'raid',gang||boss,gang?`A gang of horsemen is riding in from the ${s0<0?'west':'east'} tonight. Wire and a strong gate on that side will break the charge.`:undefined);sfx.sting();FX().alarm=1.8;whoosh(1.2,.1,900,120);
 }
 // ---------- the rider's gun and the horse's wind; and what the towns down the line add
 const troughs=()=>[1337,PASTURE[0]+32,POOL[0]+11,POOL[0]+25,POOL[1]-11],PIPES=['store','sheriff','doctor','bordello','bank'];
@@ -1037,6 +1039,7 @@ function drawProfile(){
 function hideMap(){$('map').hidden=true;paused=mapBusy=false;mapPick=null;held.clear();input.key=0;}
 function startTrip(){G.trip={t:0};G.player.vx=0;sfx.whistle();}
 function nextTown(place){
+  setTimeout(()=>{FX().iris={t:0};whoosh(.9,.08,300,2000);},60);
   const p=G.player,carry=carryOut(true),why=carryWhy(true),keep={town:G.town+1,day:G.day+1,seen:G.seen,log:[...G.log,{d:G.day-G.day0,star:!!G.star,place:G.place}]};
   reset(keep.town,place);Object.assign(G,keep,{day0:keep.day-1,state:'play',t:.08,fade:1});G.player.coins=carry;G.player.lock=true;
   const told=`${nice(townName())}. ${PLACES[G.place].note} You stepped off with ${carry} coins, ${why}. Nothing else came with you.`+(NEWB[G.town%NST]?` New here: ${NEWB[G.town%NST]}.`:'');
@@ -1416,7 +1419,7 @@ function updPlayer(dt){
   const sp=Math.abs(p.vx);
   p.phase+=sp*dt*.085;p.toss-=dt;
   const st=Math.floor(p.phase*4/Math.PI);
-  if(st!==p.st){p.st=st;if(sp>10){sfx.hoof(sp>55?1:.6);G.prints.push({x:p.x-p.dir*(st&1?6:-4),t:0});if(G.prints.length>60)G.prints.shift();}}
+  if(st!==p.st){p.st=st;if(sp>55&&p.coins>14&&st%2)tone1(rnd(2500,3300),.025,'triangle',.011);if(sp>10){sfx.hoof(sp>55?1:.6);G.prints.push({x:p.x-p.dir*(st&1?6:-4),t:0});if(G.prints.length>60)G.prints.shift();}}
   if(sp>60&&Math.random()<dt*16)dust(p.x-p.dir*8,0,1);
   if(sp>95&&(G.wet||0)<.4&&BIO!=='snow'&&Math.random()<dt*4)puff(p.x-p.dir*10,1,DUSTC);
   p.cd-=dt;if(p.rear>0)p.rear-=dt;updRider(dt,fresh,shoes,d);
@@ -1555,6 +1558,7 @@ function killBandit(q){
   if(q.kind==='boss'){sfx.fanfare();hint('bounty',true);FX().slomo=.6;fxPunch(q.x,10,1);}
 }
 function breakGate(g){
+  fxPunch(g.x+7,10,1);FX().slomo=.35;SK().rings.push({x:g.x+7,t:0,r:40});
   if(G.night)G.night.gates++;g.pay=0;
   g.level--;g.hp=0;G.shake=.3;sfx.crash(near(g.x));
   for(let i=0;i<14;i++)dust(g.x+rnd(0,14),rnd(0,16),1,'#8a6a44');
@@ -1604,7 +1608,7 @@ function banditAct(q,dt,p){
   if(Math.abs(dp)<75){
     step(q,p.x,sp,dt);
     if(Math.abs(dp)<9&&q.cd<=0){
-      q.cd=1.6;G.shake=.3;G.flash=.3;sfx.hit();p.rear=.6;sfx.whinny();
+      q.cd=1.6;G.shake=.3;G.flash=.3;sfx.hit();p.rear=.6;sfx.whinny();fxPunch(p.x,14,.8);
       if(p.coins<=0&&G.bank<=0){gameOver();return;}
       if(p.coins<=0){const n=Math.min(5,G.bank);G.bank-=n;q.loot+=n;q.state='flee';hint('paidoff',true);return;}
       const n=Math.min(K[3],p.coins);p.coins-=n;
@@ -1651,6 +1655,7 @@ function updBuild(dt){
     b.progress+=dt*(gate?.09:.035)*Math.min(G.folk.filter(f=>f.work).length,5);
     if(b.progress<1)continue;
     b.building=false;b.progress=0;b.paid=0;b.level++;if(gate)b.hp=GHP[b.level];
+    {const f=FX(),cx=b.x+b.w/2;f.rays=1.6;f.rx=cx;f.rh=topOf(b,b.level)*.6;SK().rings.push({x:cx,t:0,r:b.w*.8});spark(cx,topOf(b,b.level),10,'#ffe9a8');for(let i=0;i<8;i++)G.parts.push({x:b.x+rnd(0,b.w),h:rnd(0,4),vx:rnd(-20,20),vh:rnd(6,16),life:0,max:rnd(.8,1.6),col:DUSTC,grav:0,big:1});whoosh(.5,.08,400,2400);}
     for(let i=0;i<24;i++)dust(b.x+rnd(0,b.w),rnd(0,50),1,i%3?'#f0dfb4':'#f2c14e',true);
     confetti(b.x+b.w/2,topOf(b,b.level)+8,DEF[b.type].wall?30:12);b.pop=.6;
     for(const f of G.folk)if(Math.abs(f.x-b.x-b.w/2)<160)f.cheer=1.6;
@@ -1776,6 +1781,7 @@ function updHerd(dt){
 }
 function updWorld(dt){
   updFX(dt);
+  if(G.dark>=.6&&Math.random()<dt*1.4){const l=G.b.filter(b=>b.x>=0&&b.level&&!b.building&&PIPED[b.type]&&b.x+b.w>G.cam-20&&b.x<G.cam+W+20),b=l[Math.floor(Math.random()*l.length)];if(b)G.parts.push({x:b.x+b.w-9,h:tall(b,b.level)+6,vx:rnd(-3,6)-windK()*20,vh:rnd(10,22),life:0,max:rnd(.6,1.3),col:'#ff9a2e',grav:0,lit:1});}
   if(G.dark<.6&&Math.random()<dt*2.2){const l=G.b.filter(b=>b.x>=0&&b.level&&!b.building&&PIPED[b.type]&&b.x+b.w>G.cam-20&&b.x<G.cam+W+20),b=l[Math.floor(Math.random()*l.length)];if(b)G.parts.push({x:b.x+b.w-9,h:tall(b,b.level)+6,vx:rnd(2,7)-windK()*26,vh:rnd(7,12),life:0,max:rnd(1.8,3.2),col:'#cfc8be',grav:0,big:1});}
   if((G.dark>.35||BIO==='snow')&&Math.random()<dt*1.6){const r=backRow().filter(h=>h.i%7!==3),h=r[Math.floor(Math.random()*r.length)];if(h){const s=backShape(h);puff(h.x+(s.w>>1)-5,s.hh+13,'#bdb6ad');}}
   if(BIO==='snow'&&G.state==='play'){       // breath in the cold
@@ -2383,7 +2389,8 @@ const STORY={
   a4:{when:()=>G.town%NST===4&&G.t>.14,beats:[{art:'train',tr:'iris',cap:'Bitter End. The last town on the line.'},{art:'eyes',who:'crane',tr:'wipe',cap:'Silas Crane came down to finish it himself.'}]},
   storm:{when:()=>thun()&&!G.wx.title&&cloudI()>.7&&rainI()<.5,beats:[{art:'storm',tr:'blinds',cap:'The first big storm of the season came in off the mesas like a wall.'}]},
   ufo:{when:()=>!!G.seen.ufo&&G.t>.03&&G.t<.3,beats:[{art:'saucer',tr:'flash',cap:'Nobody in town believed a word of it.'},{art:'eyes',who:'rider',tr:'wipe',cap:'The scorched ring was still warm in the morning.'}]},
-  end:{when:()=>G.town%NST===4&&G.star,beats:[{art:'map',n:0,tr:'flash',cap:'Five towns stood. There was nothing left for Crane to buy.'},{art:'eyes',who:'crane',tr:'blinds',cap:'He left on the night train and did not come back.'},{art:'badge',tr:'iris',cap:'The line belongs to the people who live on it.',dur:8}]}
+  end:{when:()=>G.town%NST===4&&G.star,beats:[{art:'map',n:0,tr:'flash',cap:'Five towns stood. There was nothing left for Crane to buy.'},{art:'eyes',who:'crane',tr:'blinds',cap:'He left on the night train and did not come back.'},{art:'badge',tr:'iris',cap:'The line belongs to the people who live on it.',dur:8}],
+    then:()=>{const st=G.log.filter(r=>r.star).length+(G.star?1:0);card('Dustfall III',`The end of the line: ${G.day} days, ${st} of 5 towns with a star. Ride on as long as you like.`,7000);fireworks(G.player.x,12);sfx.fanfare();FX().rays=3;FX().rx=G.player.x;FX().rh=40;}}
 };
 function playCut(beats,then){
   if(G.cut)return;G.cut={beats,i:0,t:0,ph:'in',tap:0,then,t0:performance.now()};cine(true);caption('');input.key=input.stick=0;held.clear();G.player.vx=0;
@@ -2397,7 +2404,7 @@ function updCut(dt){
 }
 function storyTick(){
   if(TOUR||G.cut||G.duel||G.trip||G.fade>.05||G.stamp||document.body.classList.contains('carded')||G.bandits.some(q=>q.state==='raid'))return;
-  for(const k in STORY)if(!G.seen['st_'+k]&&STORY[k].when()){G.seen['st_'+k]=1;playCut(STORY[k].beats);return;}
+  for(const k in STORY)if(!G.seen['st_'+k]&&STORY[k].when()){G.seen['st_'+k]=1;playCut(STORY[k].beats,STORY[k].then);return;}
 }
 function drawCut(cam){
   const c=G.cut,time=(performance.now()-c.t0)/1000,px=clamp(G.player.x-cam,0,W),py=GY-14,RM=Math.hypot(W,H),ink='#0c0705';
@@ -2605,6 +2612,8 @@ function updAudio2(){
   if(X.rig.lv&&!X.rig.burn&&t>pumpT){pumpT=t+1.43;const n=near(SITE.rig.x);if(n>0){tone1(74,.13,'sine',.13*n,44);tone1(240,.05,'square',.02*n,120,.05);}}
   if(G.t<.09&&!G.wx&&BIO!=='snow'&&Math.random()<.05){const f=rnd(2400,3800);tone1(f,.05,'sine',.012,f*rnd(1.1,1.35));if(Math.random()<.5)tone1(f*1.1,.05,'sine',.01,f*1.3,.08);}
   if(G.dark>.8&&!G.wx&&t>owlT){owlT=t+rnd(14,30);tone1(340,.22,'sine',.022,300);tone1(340,.3,'sine',.02,285,.34);}
+  if(G.dark>.6){const n=near(SITE.ruin.x);if(n>0&&Math.random()<.004){tone1(520,1.6,'sine',.014*n,470);whoosh(1.8,.03*n,300,700);}}
+  if(X.tribe.days>0&&G.dark>.5){const n=near(SITE.tribe.x),b=Math.floor(t/.3);if(n>0&&b!==updAudio2.b){updAudio2.b=b;if([1,0,0,1,0,1,0,0][b%8])tone1(104,.11,'sine',.06*n,72);}}
   // a guitar, far off: a slow line by day and a note or two at night. It gives way to the saloon piano, to weather and to a raid
   if(t>musicT){
     musicT=t+.44;const st=musicI++%16,sc=SCALES[BIO],raid=G.bandits.some(q=>q.state==='raid'),quiet=pianoVol>.15||rainI()>.3||storm()||raid,night=G.dark>.6,bar=Math.floor(musicI/16);
@@ -2614,6 +2623,36 @@ function updAudio2(){
       if(h<(night?.16:.42)||st===4||(!night&&st===12)){musicN=clamp(musicN+Math.round((hash(musicI*1.37+bar)-.5)*4),1,sc.length-1);pluck(sc[musicN],t+.02+(h<.1?.22:0),night?1.8:1.1,v);if(!night&&h<.06)pluck(sc[Math.max(0,musicN-2)],t+.24,1,v*.7);}
     }
   }
+}
+// ---------- Dustfall III: light and air. A colour grade over the finished picture, fog lying on the street, ribbons of grit on the wind, and a little grain
+function drawGrade(cam){
+  const wm=warmth(G.t),dk=G.dark,t=G.clock,wrap=(v,n)=>((v%n)+n)%n,ri=rainI(),wk=windK(),snow=BIO==='snow';
+  // fog: on the river and in the pines at night, and wherever rain has just stopped
+  {const fa=Math.max(BIO==='river'||BIO==='pine'?.5*dk:0,(G.wet||0)>.3&&ri<.05?.4*G.wet:0,G.t<.06?(1-G.t/.06)*.4:0);
+    if(fa>.03&&Q>0)for(let i=0;i<8;i++){const span=W+260,x=wrap(hash(i+41)*span+t*(5+i*1.7)-cam*.9,span)-130;blob(x,GY-1+Math.sin(t*.4+i)*2,64+hash(i+43)*50,'214,222,236',.15*fa,.2);}}
+  // grit and snow run on the wind in long broken ribbons
+  {const a=Math.max(wk*.5,storm()?.5:0,gustI());
+    if(a>.08&&Q>0){ctx.save();ctx.lineWidth=HP;ctx.setLineDash([26,44]);ctx.strokeStyle=snow?`rgba(255,255,255,${(.3*a).toFixed(3)})`:`rgba(244,220,176,${(.26*a).toFixed(3)})`;
+      for(let i=0;i<6;i++){ctx.lineDashOffset=t*(150+i*30)*(thun()?1:-1)+i*37;ctx.beginPath();const y0=GY-8-hash(i+51)*GY*.55;for(let x=-10;x<=W+10;x+=8)ctx.lineTo(x,y0+Math.sin(x*.028+t*2.6+i*1.9)*7+Math.sin(x*.011+i)*9);ctx.stroke();}
+      ctx.restore();}}
+  // the grade: cool shadow over warm ground by day, amber into violet at the ends of the day, deep blue at night
+  if(Q>0){ctx.save();ctx.globalCompositeOperation='soft-light';
+    const fill=(c0,c1,a)=>{if(a<=.01)return;const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,`rgba(${c0},${a.toFixed(3)})`);g.addColorStop(1,`rgba(${c1},${a.toFixed(3)})`);ctx.fillStyle=g;ctx.fillRect(0,0,W,H);};
+    fill('110,160,255','255,214,150',.22*(1-dk)*(1-wm)*(1-cloudI()*.7));fill('255,150,84','150,70,150',.3*wm);fill('60,96,190','30,40,110',.28*dk);
+    if(thun())fill('90,120,170','60,70,110',.3*cloudI()*(1-dk));
+    ctx.restore();}
+  // grain
+  if(Q>1){const fr=Math.floor(t*20);for(let i=0;i<70;i++)R(hash(i*3.1+fr*7.7)*W,hash(i*5.3+fr*3.3)*H,HP,HP,i%2?'rgba(255,250,236,.07)':'rgba(8,6,10,.09)');}
+}
+// the picture opens from a circle on the rider when you step off a train or ride in, as it closes on him before a closeup
+function irisHole(px,py,r){ctx.fillStyle='#0c0705';ctx.beginPath();ctx.rect(0,0,W,H);ctx.moveTo(px+Math.max(.01,r),py);ctx.arc(px,py,Math.max(.01,r),0,Math.PI*2,true);ctx.closePath();ctx.fill('evenodd');ctx.strokeStyle='rgba(242,193,78,.5)';ctx.lineWidth=1;ctx.beginPath();ctx.arc(px,py,Math.max(.01,r),0,Math.PI*2);ctx.stroke();}
+function drawEvents(cam){
+  const f=FX();
+  {const v=G.state==='title'?Math.round(SK().fl*20)/20:0;if(v!==drawEvents.fl){drawEvents.fl=v;document.documentElement.style.setProperty('--fl',v);}}
+  if(f.alarm>0){const k=f.alarm/1.8,g=ctx.createRadialGradient(W/2,H/2,H*.35,W/2,H/2,W*.66);g.addColorStop(0,'rgba(200,30,20,0)');g.addColorStop(1,`rgba(200,30,20,${(.42*k*(.6+.4*Math.sin(G.clock*14))).toFixed(3)})`);ctx.fillStyle=g;ctx.fillRect(0,0,W,H);}
+  if(f.rays>0){const k=Math.min(1,f.rays/1.2),x=f.rx-cam,y=GY-f.rh;ctx.save();ctx.globalCompositeOperation='lighter';ctx.translate(x,y);ctx.rotate(G.clock*.5);for(let i=0;i<12;i++){ctx.rotate(Math.PI/6);ctx.fillStyle=`rgba(255,226,150,${(.16*k).toFixed(3)})`;ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(-5,-70);ctx.lineTo(5,-70);ctx.fill();}ctx.restore();}
+  if(G.state==='over'){ctx.save();ctx.globalCompositeOperation='saturation';ctx.fillStyle='rgba(128,128,128,.9)';ctx.fillRect(0,0,W,H);ctx.restore();const g=ctx.createRadialGradient(W/2,H/2,H*.2,W/2,H/2,W*.6);g.addColorStop(0,'rgba(10,6,8,0)');g.addColorStop(1,'rgba(10,6,8,.6)');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);}
+  if(f.iris){const k=Math.min(1,f.iris.t/1.1);irisHole(clamp(G.player.x-cam,0,W),GY-14,Math.hypot(W,H)*k*k+10*k);}
 }
 // ---------- Dustfall III: special effects. Slow motion on the big moments, a punch-in on the picture, fireballs, heat shimmer, a twister on the horizon, and the odd fireball in the night sky
 const FX=()=>G.fx||(G.fx={slomo:0,punch:null,xray:[],dawn:0,comet:null});
@@ -2628,6 +2667,7 @@ function fireball(x,h,size){
 }
 function updFX(dt){
   const f=FX();if(f.punch&&(f.punch.t+=dt)>.35)f.punch=null;
+  if(f.alarm>0)f.alarm-=dt;if(f.rays>0)f.rays-=dt;if(f.iris&&(f.iris.t+=dt)>1.1)f.iris=null;
   if(f.slomo>0&&!f.sl){f.sl=1;tone1(190,.8,'sine',.1,38);whoosh(.7,.07,1800,200);}else if(f.slomo<=0)f.sl=0;if(f.dawn>0)f.dawn-=dt;
   if(G.pops)for(let i=G.pops.length-1;i>=0;i--){const q=G.pops[i];q.t+=dt;q.h+=13*dt;if(q.t>1.5)G.pops.splice(i,1);}
   if(f.flock&&(f.flock.t+=dt)>f.flock.life)f.flock=null;
@@ -2640,6 +2680,7 @@ function drawFX(cam){
   if(G.pops&&G.pops.length){ctx.save();ctx.font='bold 8px Georgia,serif';ctx.textAlign='center';
     for(const q of G.pops){const x=q.x-cam,y=GY-q.h;if(x<-30||x>W+30)continue;ctx.globalAlpha=Math.min(1,(1.5-q.t)*2.5);ctx.fillStyle='#24160f';ctx.fillText(q.txt,x+.5,y+.5);ctx.fillStyle=q.col;ctx.fillText(q.txt,x,y);}
     ctx.restore();}
+  if(Q>0&&storm()){for(let i=0;i<16;i++){const e=i%2,x=e?W-hash(i+70)*W*.22:hash(i+70)*W*.22,y=hash(i+71)*H;ctx.fillStyle=BIO==='snow'?'rgba(255,255,255,.14)':'rgba(120,84,44,.16)';ctx.beginPath();ctx.arc(x,y,1+hash(i+72)*2.4,0,7);ctx.fill();}}
   // in a downpour, drops run down the glass
   if(Q>0&&rainI()>.55){const a=(rainI()-.55)/.45;for(let i=0;i<7;i++){const c=G.clock*.17+hash(i+90),k=c%1,x=hash(i+91+Math.floor(c)*3.7)*W,y=k*k*H*1.15-8,r=2.2+hash(i)*2;
     ctx.fillStyle=`rgba(230,240,255,${(.09*a).toFixed(3)})`;ctx.fillRect(x-.5,y-12-k*26,1,12+k*26);ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.fillStyle=`rgba(210,226,250,${(.16*a).toFixed(3)})`;ctx.fill();
@@ -2871,6 +2912,7 @@ function updX(dt){
     if(Math.random()<dt*14)G.parts.push({x:SITE.rig.x+rnd(-3,3),h:rnd(50,60),vx:rnd(8,18)-windK()*20,vh:rnd(14,24),life:0,max:rnd(2,3.4),col:'#2e2a2a',grav:0,big:1});
     if(Math.random()<dt*10)G.parts.push({x:SITE.rig.x+rnd(-3,3),h:rnd(46,56),vx:rnd(-8,8),vh:rnd(16,36),life:0,max:rnd(.5,1.2),col:Math.random()<.5?'#ffb13b':'#ff7a2a',grav:0,lit:1});
   }
+  if(Math.abs(G.cam+W/2-SITE.tribe.x)<W&&Math.random()<dt*1.6)puff(SITE.tribe.x+(Math.random()<.5?-30:34),30,'#cfc8be');
   if(X.duelDay===G.day&&G.t>.33&&G.t<.5&&!TOUR&&!G.trip)startDuel();
   if(X.rig.gush>0){X.rig.gush-=dt;for(let i=0;i<3;i++)G.parts.push({x:SITE.rig.x+rnd(-1.5,1.5),h:56,vx:rnd(-18,18)-windK()*20,vh:rnd(50,125),life:0,max:rnd(.9,1.7),col:i?'#16110e':'#3a3038',grav:-150,conf:1});}
   updFires(dt);updCav(dt);if(G.stamp)updStampede(dt);updUfo(dt);updWild(dt);storyTick();
@@ -2978,12 +3020,15 @@ function drawXLights(cam){
   const X=G.x,sx=Math.round(SITE.tribe.x-cam);
   if(sx>-60&&sx<W+60){drawFire(sx,9);glow(sx-30,GY-9,17,'255,170,80',.4*G.dark);glow(sx+34,GY-8,14,'255,170,80',.34*G.dark);}
   if(G.dark>.6){const gx=Math.round(SITE.ruin.x-cam+Math.sin(G.clock*.3)*42),gy=GY-14+Math.sin(G.clock*.9)*5;if(gx>-40&&gx<W+40){glow(gx,gy,13,'170,220,255',.3*(.6+.4*Math.sin(G.clock*2.3)));glow(gx,gy,4,'230,245,255',.55);}}
+  if(G.dark>.4)for(const lx of lamps()){const x=lx-cam;if(x<-40||x>W+40)continue;glow(x,GY-27,38,'255,214,150',.22*G.dark,.05);}
+  if(G.dark>.4)for(const b of G.b){if(b.x<0||!b.level||b.building||!DEF[b.type].wins)continue;const x=b.x-cam;if(x>W+20||x+b.w<-20)continue;glow(x+b.w/2,GY+5,Math.round(b.w*.55),'255,190,110',.16*G.dark,.22);}
   if(G.dark>.5&&!G.wx)for(const lx of lamps()){const x=lx-cam;if(x<-10||x>W+10)continue;for(let i=0;i<3;i++){const a=G.clock*(3+i)+lx+i*2;Pf(x+Math.cos(a)*(3+i),GY-27+Math.sin(a*1.3)*3,'#f4ecd6');}}
   if(G.dark>.5)for(const b of G.b){
     if(b.x<0||!b.level||b.building||!DEF[b.type].wins||b.fire)continue;const x=b.x-cam;if(x>W+10||x+b.w<-10)continue;
     wins(b,b.level).forEach((w,i)=>{if(w.door||w.w<10||w.bars)return;const ph=(G.clock*.06*(1+((b.home+i)%3)*.35)+hash(b.home+i*7))%1;if(ph>.3)return;
       const px=Math.round(x+w.x+1+ph/.3*(w.w-4)),by=GY+w.y+w.h;ctx.globalAlpha=.5;R(px,by-6,2,6,'#2a160c');R(px,by-8,2,2,'#2a160c');ctx.globalAlpha=1;});
   }
+  if(X.rig.lv&&!X.rig.burn){const rx=Math.round(SITE.rig.x-cam);if(rx>-60&&rx<W+60){R(rx-38,GY-22,1,8,'#3a2c22');flames(rx-39.5,3,GY-21,5,.75);glow(rx-38,GY-24,12,'255,170,70',.22+.2*G.dark);}}
   if(X.rig.burn){const rx=Math.round(SITE.rig.x-cam);if(rx>-80&&rx<W+80){flames(rx-5,11,GY-55,3,2.6);glow(rx,GY-60,52,'255,150,60',.34+.08*Math.sin(G.clock*11));}}
   if(G.dark>.4){const px=Math.round(SITE.post.x-cam);if(px>-40&&px<W+40){R(px-21,GY-14,2,3,'#ffe08a');glow(px-20,GY-13,18,'255,200,110',.4*G.dark);}}
   for(const b of G.b){
@@ -3136,7 +3181,8 @@ function drawBolts(cam){
   for(const b of s.bolts){
     if(!b.segs)continue;
     const cg=b.kind==='cg',lead=b.lead&&b.t<b.lead,f=boltF(b),ox=cg?b.x-cam:b.sx*W,oy=cg?GY-b.h:b.sy*GY,a=lead?.5:f;
-    if(ox<-150||ox>W+150||a<.03)continue;
+    if(ox<-150||ox>W+150)continue;
+    if(a<.03){if(!lead&&b.t<b.life){ctx.globalAlpha=.16*(1-b.t/b.life);ctx.strokeStyle='#b48cff';ctx.lineWidth=1;for(const g of b.segs){if(!g.main)continue;ctx.beginPath();ctx.moveTo(ox+g.pts[0][0],oy+g.pts[0][1]);for(let i=1;i<g.pts.length;i++)ctx.lineTo(ox+g.pts[i][0],oy+g.pts[i][1]);ctx.stroke();}ctx.globalAlpha=1;}continue;}
     for(const g of b.segs){
       if(!g.main&&(lead||b.t>b.lead+.13))continue;       // forks show on the first stroke only; the main channel flashes again
       const n=lead?Math.max(2,Math.ceil(g.pts.length*b.t/b.lead)):g.pts.length;
@@ -3361,7 +3407,7 @@ function drawRail(cam){
 
 function flag(x,base,h){
   R(x,base-h,1,h,'#3a2a1e');P(x,base-h-1,'#f2c14e');
-  for(let i=0;i<9;i++){const y=base-h+1+Math.round(Math.sin(G.clock*4-i*.7)*.9);R(x+1+i,y,1,5,'#b53a2e');P(x+1+i,y+2,'#ead7a4');}
+  for(let i=0;i<9;i++){const wk=windK(),y=base-h+1+Math.round(Math.sin(G.clock*(4+wk*9)-i*.7)*(.9+wk*1.4));R(x+1+i,y,1,5,'#b53a2e');P(x+1+i,y+2,'#ead7a4');}
 }
 // the town centre: nothing but the campfire, then a square with a well and a flag, then a clock tower
 function drawHall(sx,b,L){
@@ -3772,7 +3818,7 @@ function draw(){
   const coat=(col,a)=>{if(a<=0)return;ctx.globalCompositeOperation='source-atop';ctx.fillStyle=`rgba(${col},${a})`;ctx.fillRect(0,NB0,W,NBH);ctx.globalCompositeOperation='source-over';};
   // each place sits under a slightly different light
   const TINT=PLACES[G.place].tint,la=clamp(dark*1.4,0,1);
-  if(TINT)coat(TINT,.13);coat('255,120,50',.2*warmth(G.t));coat('16,14,54',.65*dark);
+  if(TINT)coat(TINT,.13);coat('255,120,50',.2*warmth(G.t));coat('16,14,54',.65*dark);if(BIO!=='snow')coat('18,26,48',.17*(G.wet||0));
   if(la>0){      // raiders' campfires on the far mesas: the bigger the night ahead, the more of them
     const n=Math.min(10,Math.ceil(raidSize(G.day-G.day0+G.town+(G.t<.5?0:1))/3)),span=W+240;
     for(let i=0;i<n;i++){
@@ -3820,6 +3866,7 @@ function draw(){
   {const wet=G.wet||0,x1=Math.max(0,MOUTH+8-cam);
   if(wet>.02&&BIO!=='snow'&&x1<W){      // the street darkens as it soaks, then puddles stand on it and mirror the sky
     ctx.fillStyle=`rgba(24,20,34,${(.36*wet).toFixed(3)})`;ctx.fillRect(x1,GY,W-x1,H-GY+PADB);
+    for(const ry of [9,21]){ctx.fillStyle=`rgba(16,12,14,${(.3*wet).toFixed(3)})`;for(let x=x1;x<W;x+=3)ctx.fillRect(x,GY+ry+Math.round(Math.sin((cam+x)*.021+ry)*1.6),3,1);if(wet>.5){ctx.fillStyle=`rgba(190,210,236,${(.22*(wet-.5)).toFixed(3)})`;for(let x=x1;x<W;x+=3)if(hash(Math.floor((cam+x)/3)+ry)>.55)ctx.fillRect(x,GY+ry+Math.round(Math.sin((cam+x)*.021+ry)*1.6),3,HP);}}
     const fl=SK().fl,pc=css(mixA(mixA(sb,[70,100,140],.5),[236,240,255],Math.min(1,fl))),x0=Math.floor(cam/46)*46-46,rn=rainI();
     if(wet>.12)for(let wx=x0;wx<cam+W+46;wx+=46){
       if(wx<MOUTH+20||hash(wx*.37)>wet*1.25)continue;
@@ -3869,7 +3916,7 @@ function draw(){
     rctx.globalCompositeOperation='destination-out';rctx.drawImage(nearCv,0,y0,bw,hh,-LD,1,bw,hh);
     rctx.globalCompositeOperation='source-in';rctx.fillStyle=`rgba(${rimC},${rimA.toFixed(3)})`;rctx.fillRect(0,0,bw,hh);
     ctx.save();ctx.setTransform(1,0,0,1,0,0);ctx.globalCompositeOperation='source-atop';ctx.drawImage(rimCv,0,0,bw,hh,0,y0,bw,hh);ctx.restore();}
-  if(TINT)coat(TINT,.13);coat('255,120,50',.2*warmth(G.t));coat('16,14,54',.65*dark);
+  if(TINT)coat(TINT,.13);coat('255,120,50',.2*warmth(G.t));coat('16,14,54',.65*dark);if(BIO!=='snow')coat('18,26,48',.17*(G.wet||0));
   // lit windows go on first so nobody walks behind the glass; people get their own layer and a lighter coat of night
   const main=ctx;
   for(const b of G.b)lights(b.x-cam,b,b.building?0:la);
@@ -3910,9 +3957,11 @@ function draw(){
   for(const c of G.herd)drawCow(Math.round(c.x-cam),c);drawWild(cam);
   for(const d of G.drifters)person(Math.round(d.x-cam),d,'drifter');
   for(const f of G.folk)if(!f.hidden)person(Math.round(f.x-cam),f,f.role);
+  if(rainI()>.3)for(const f of G.folk){if(f.hidden||f.role!=='folk'||f.sit)continue;const x=Math.round(f.x-cam),c=['#2e2a30','#6a2f26','#2f4a3a','#3a3a5a'][f.id%4];if(x<-8||x>W+8)continue;R(x,GY-18,1,7,'#3a2a1e');R(x-5,GY-18,11,1,c);R(x-4,GY-19,9,1,c);R(x-2,GY-20,5,1,c);P(x,GY-21,c);P(x-5,GY-17,c);P(x+5,GY-17,c);}
   for(const q of G.bandits){
     const sx=Math.round(q.x-cam);if(storm())ctx.globalAlpha=Math.abs(q.x-p.x)<70?1:.35;     // dust hides them until they are close
     if(q.kind==='rider'){if(q.id%3)drawHorse(sx,q,HORSE2,RIDER2,'#1f1c22','#2e2a30');else drawHorse(sx,q,HORSE3,RIDER2,'#5a5450','#7a7470');}else person(sx,q,q.kind);
+    if(G.dark>.6&&q.state==='raid'&&Math.abs(q.x-p.x)>64&&Math.sin(G.clock*3+q.id)>-.7){const ey=q.kind==='rider'?GY-27:GY-9;P(sx+q.dir,ey,'#ff5a3c');}
     if(q.torch&&q.state==='raid'){const ty=q.kind==='rider'?GY-31:GY-19;line(sx+q.dir*2,ty+7,sx+q.dir*4,ty+1,'#5a3a22');}
   }
   ctx.globalAlpha=1;
@@ -4055,12 +4104,13 @@ function draw(){
     ctx.fillStyle=dg;ctx.fillRect(0,0,W,H);
   }
   {ctx.save();ctx.beginPath();ctx.rect(clamp(MOUTH+6-cam,0,W),0,W,H);ctx.clip();drawBolts(cam);drawWeather();ctx.restore();}
-  drawFX(cam);
+  drawFX(cam);drawGrade(cam);
   if(G.duel&&G.duel.st==='wait')duelStrips();
   if(G.duel&&G.duel.st==='draw'){const k=G.duel.t-G.duel.t0;R(0,0,W,H,`rgba(255,244,214,${Math.max(0,.5-k*3).toFixed(3)})`);ctx.save();ctx.font='bold 26px Georgia,serif';ctx.textAlign='center';ctx.fillStyle='#24160f';ctx.fillText('DRAW!',W/2+1,GY*.5+1.5);ctx.fillStyle='#f2c14e';ctx.fillText('DRAW!',W/2,GY*.5);ctx.restore();}
   ctx.imageSmoothingEnabled=true;ctx.drawImage(vigCv,0,0,W,H);ctx.imageSmoothingEnabled=false;
   if(G.flash>0)R(0,0,W,H,`rgba(200,40,30,${G.flash*.8})`);
   if(G.fade>0)R(0,0,W,H,`rgba(12,7,5,${G.fade})`);
+  drawEvents(cam);
   if(G.cut)drawCut(cam);
   // sky goes in behind everything: clouds, sun or moon, stars, then the gradient. It changes slowly, so it is painted small, every other frame
   if(!(++FRAME&1)||skyKey===''||SK().fl>0||SK().lit||FX().comet||FX().flock){SK().lit=SK().fl>0;
