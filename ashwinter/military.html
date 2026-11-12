@@ -2099,6 +2099,9 @@ class World {
 function moveActor(a, dt, speed) {
   if (!a.path || !a.path.length) { a.moving = false; a.onStair = null; return true; }
   const W = CUR_W; if (!W) return true;
+  if (a.onStair && !a.onStair.ladder && a._pr !== a.path) { const s = a.onStair, lo = { x: s.x - STAIR_W, f: Math.min(s.a, s.b) }, hi = { x: s.x + STAIR_W, f: Math.max(s.a, s.b) }, at = (q, e) => q && q.fy === e.f && Math.abs(q.x - e.x) < 24, P = a.path;
+    if ((at(P[0], lo) && at(P[1], hi)) || (at(P[0], hi) && at(P[1], lo))) P.shift(); else if (!at(P[0], lo) && !at(P[0], hi)) { const e = Math.round(a.fy) === lo.f ? lo : hi; P.unshift({ x: e.x, fy: e.f }); } }   // a new order given on the stairs: carry on from where you stand
+  a._pr = a.path;
   const wp = a.path[0]; let tr;
   if (wp.lad && !a.onStair && Math.abs(wp.fy - Math.round(a.fy)) > .001) a.onStair = wp.lad;
   if (a.onStair && a.onStair.ladder) return climbLadder(a, dt, wp, W);
@@ -4122,11 +4125,11 @@ function startTravel(surv) {
   TR.entered = null;
   const p = surv; const r = mulberry(G.day * 131 + 7);
   const cap = (p.slots || 10) + (G.inv.backpack ? 2 : 0); const pack = [];
-  const weapon = ['rifle', 'pistol', 'bat', 'knife'].find(w => G.inv[w] > 0);
+  const dest = LOCATIONS.find(l => l.id === G.planLoc && (PREVIEW || (known(l.id) && routeTo(l.id)))) || LOCATIONS[0]; { const rt = routeTo(dest.id); ST_END = Math.round(clamp(1100 + (rt ? rt.d : .35) * 2000, 1300, 2800)); }   // a longer road to the further places   // settled before the tools go into the pack: a road that needs the crowbar used to count as shut the moment it was packed, and you ended up at the market
+  const weapon = ['rifle', 'pistol', 'bat', 'knife', 'shovel'].find(w => G.inv[w] > 0);
   for (const t of [weapon, 'lockpick', 'crowbar']) if (t && G.inv[t] > 0) { G.inv[t]--; packAdd(pack, cap, t, 1); }
   if (GUNS[weapon] && G.inv.ammo > 0) { const n = Math.min(6, G.inv.ammo); G.inv.ammo -= n; packAdd(pack, cap, 'ammo', n); }
   p.x = 80; p.fy = 0; p.f = 0; p.facing = 1; p.path = null; p.task = null; p.hidden = false; p.visible = true; p.hasPack = true; p.attackT = 0; p.pose = 'idle';
-  const dest = LOCATIONS.find(l => l.id === G.planLoc && (PREVIEW || (known(l.id) && routeTo(l.id)))) || LOCATIONS[0]; { const rt = routeTo(dest.id); ST_END = Math.round(clamp(1100 + (rt ? rt.d : .35) * 2000, 1300, 2800)); }   // a longer road to the further places
   Object.assign(TR, { active: true, player: p, pack, cap, x: 80, py: 0, zombies: [], obstacles: [], dest, fires: [], drifters: [], locX: { [dest.id]: ST_END - 320 }, kills: 0, attackT: 0, hurtT: 0, msg: 'run', msgT: 3, decor: [], done: false, result: null, grounded: true, tx: null, run: false, fight: false, bw: null, hidden: false, hideAt: null });
   // obstacles between locations
   const kinds = [['car', 176, 64], ['rubble', 140, 46], ['barrier', 110, 40], ['crates', 78, 40], ['bus', 520, 0, 134], ['car', 176, 64]];   // width, height you climb to, height drawn. A bus is too tall to climb: you walk past it
@@ -4695,7 +4698,7 @@ function mapView(ids) {   // the frame that just holds everything known so far
   const kx = clamp(1 / (x1 - x0 + .34), 1, 2.4), ky = clamp(1 / (y1 - y0 + .38), 1, 2.4); return { kx, ky, cx: clamp((x0 + x1) / 2, .5 / kx, 1 - .5 / kx), cy: clamp((y0 + y1) / 2, .5 / ky, 1 - .5 / ky) };
 }
 function drawMap() {
-  const M = UI.modal, w = Math.min(W - 20, 700), h = Math.min(H - 20, 440), x = (W - w) / 2, y = (H - h) / 2; panel(x, y, w, h, 'THE DISTRICT');
+  const M = UI.modal, many = LOCATIONS.filter(l => known(l.id)).length > 18, w = many ? W - 16 : Math.min(W - 20, 700), h = many ? H - 12 : Math.min(H - 20, 440), x = (W - w) / 2, y = (H - h) / 2; panel(x, y, w, h, 'THE DISTRICT');
   const mx = x + 14, my = y + 54, mw = w - 28, mh = h - 70;
   const ids = ['home'].concat(LOCATIONS.filter(l => known(l.id)).map(l => l.id)), seenSet = G.flags.mapSeen || (G.flags.mapSeen = { home: 1 });
   // opened with new places on it: start on the old frame, then let it open out to take them in
@@ -4721,9 +4724,10 @@ function drawMap() {
     ctx.fillStyle = 'rgba(30,18,18,.92)'; const tw = Math.max(60, (o.why.length + (o.need ? needName(o.need).length + 8 : 0)) * 6 + 26); rr(cx - tw / 2, cy - 10, tw, 20, 6); ctx.fill(); drawIcon('close', cx - tw / 2 + 11, cy, 12, RED); txt(o.why + (o.need ? ' · need ' + needName(o.need) : ''), cx + 7, cy, 10, '#d9a49a'); }
   // home
   { const [hx, hy] = pt('home'); drawIcon('home', hx, hy, 26, GOLD); txt('home', hx, hy + 22, 12, GOLD); }
-  for (const l of LOCATIONS) {
+  for (const l of LOCATIONS.slice().sort((a, b) => (G.planLoc === a.id) - (G.planLoc === b.id))) {
     if (!known(l.id)) continue;
-    const [lx, ly] = pt(l.id); const sel = G.planLoc === l.id; const visited = G.flags['v_' + l.id], fresh = M.fresh.includes(l.id);
+    const [lx, ly] = pt(l.id); const sel = G.planLoc === l.id;
+    if (many && !sel) { const ok = !!routeTo(l.id), nd = needsOpen().some(n => n.where.includes(l.id)), dg = G.flags['v_' + l.id] ? l.danger : 0; ctx.font = '600 10px system-ui, sans-serif'; let nm = l.name; while (ctx.measureText(nm).width > 84 && nm.length > 4) nm = nm.slice(0, -2); if (nm !== l.name) nm += '…'; ctx.fillStyle = ok ? 'rgba(30,32,36,.95)' : 'rgba(30,32,36,.7)'; rr(lx - 50, ly - 11, 100, 22, 6); ctx.fill(); ctx.strokeStyle = nd ? '#e8c060' : l.haven ? GOLD : '#4a4d52'; ctx.lineWidth = nd ? 2 : 1.2; rr(lx - 50, ly - 11, 100, 22, 6); ctx.stroke(); ctx.fillStyle = DANGER_COL[dg]; ctx.fillRect(lx - 47, ly - 6, 3, 12); txt(nm, lx + 2, ly + .5, 10, nd ? '#e8c060' : ok ? INK : '#77787c'); if (ok) UI.btn(lx - 50, ly - 11, 100, 22, () => { G.planLoc = l.id; AUDIO.sfx('tap'); }); continue; } const visited = G.flags['v_' + l.id], fresh = M.fresh.includes(l.id);
     const reach = !!routeTo(l.id), st = G.flags.sites && G.flags.sites[l.id];
     if (fresh && M.t < 5) { const u = (M.t * .8) % 1; ctx.strokeStyle = `rgba(217,179,90,${(.8 * (1 - u)).toFixed(3)})`; ctx.lineWidth = 2.5; rr(lx - 64 - u * 16, ly - 20 - u * 16, 128 + u * 32, 40 + u * 32, 8 + u * 8); ctx.stroke(); }   // just found
     ctx.fillStyle = sel ? '#4a3a20' : reach ? 'rgba(30,32,36,.95)' : 'rgba(30,32,36,.7)'; rr(lx - 64, ly - 20, 128, 40, 8); ctx.fill(); ctx.strokeStyle = sel || l.haven ? GOLD : fresh ? '#a08a52' : '#4a4d52'; ctx.lineWidth = 2; rr(lx - 64, ly - 20, 128, 40, 8); ctx.stroke();
@@ -5534,7 +5538,7 @@ function frame(now) {
       if (G.phase === 'raid') drawRaidHud();
       if (G.phase === 'day' || G.phase === 'plan') drawHomeHud(dt);
       if (EXTRAS.talk && G.phase === 'day' && !UI.modal) drawTalk(dt);
-      needsCheck(); if (G.phase === 'day' || G.phase === 'plan') drawNeedsHud(); drawNoteCard(dt);
+      needsCheck(); if (G.phase === 'day' || G.phase === 'plan') drawNeedsHud(); if (!UI.modal) drawNoteCard(dt);
       if (UI.modal) { switch (UI.modal.kind) { case 'loot': drawLoot(); break; case 'plan': drawPlan(); break; case 'map': drawMap(); break; case 'dawn': drawDawn(); break; case 'event': drawEvent(); break; case 'craft': drawCraft(); break; case 'confirm': drawConfirm(); break; } }
       if (G.phase === 'win') drawEnd(true); if (G.phase === 'lose') drawEnd(false);
       break;
