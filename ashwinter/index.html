@@ -2810,10 +2810,16 @@ function drawStation(world, s, night) {
 
 function drawHide(world, h) {
   const fy = world.fy2y(h.f), x = h.x, occ = SC.active && SC.player.hidden && SC.player.hideRef === h, eyes = (ex, ey) => { if (!occ || Math.sin(_T * 1.7) > .85) return; ctx.fillStyle = 'rgba(230,220,190,.85)'; ctx.fillRect(ex - 3, ey, 2, 1.4); ctx.fillRect(ex + 2, ey, 2, 1.4); };
+  if (h.kind === 'shadow') { const { B, VG } = PA, r = mulberry(Math.round(x) + 2), top = -(FLOOR_H - 14); ctx.save(); ctx.translate(x, fy);
+    for (const [px, c] of [[-48, '#3b3632'], [30, '#332f2b']]) { ctx.fillStyle = VG(0, top, 0, -top, shade(c, 1.1), shade(c, .8)); ctx.fillRect(px, top, 18, -top); ctx.fillStyle = 'rgba(0,0,0,.2)'; for (let yy = top + 7; yy < -2; yy += 8) ctx.fillRect(px, yy, 18, 1); B(px, top, 2, -top, 'rgba(255,255,255,.06)'); B(px + 16, top, 2, -top, 'rgba(0,0,0,.3)'); B(px - 2, -6, 22, 6, shade(c, .7)); }   // two piers with a recess between them
+    B(-30, top, 60, -top, 'rgba(4,4,6,.5)'); const g = ctx.createLinearGradient(-58, 0, 58, 0); g.addColorStop(0, 'rgba(3,3,5,0)'); g.addColorStop(.24, `rgba(3,3,5,${occ ? .86 : .82})`); g.addColorStop(.76, `rgba(3,3,5,${occ ? .86 : .82})`); g.addColorStop(1, 'rgba(3,3,5,0)'); ctx.fillStyle = g; ctx.fillRect(-58, top, 116, -top);
+    const f = ctx.createLinearGradient(0, -22, 0, 0); f.addColorStop(0, 'rgba(3,3,5,0)'); f.addColorStop(1, 'rgba(3,3,5,.5)'); ctx.fillStyle = f; ctx.fillRect(-30, -22, 60, 22); ctx.restore(); eyes(x, fy - 70 * (SC.active && SC.player.scale || 1)); return; }   // the dark between them: someone standing back in it is hard to make out
   if (h.kind === 'under') { const { B, E, wood } = PA, r = mulberry(Math.round(x) + 3), cl = ['#6a4a44', '#4f5a52', '#5a5268'][Math.round(x) % 3]; ctx.save(); ctx.translate(x, fy); ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.beginPath(); ctx.ellipse(0, -.5, 52, 3.6, 0, 0, TAU); ctx.fill(); wood(-42, -44, 6, 44, '#4a3a2c', r, 1); wood(36, -44, 6, 44, '#4a3a2c', r, 1); wood(-48, -53, 96, 7, '#5f4a36', r);
     const g = ctx.createLinearGradient(0, -47, 0, -4); g.addColorStop(0, shade(cl, 1.15)); g.addColorStop(1, shade(cl, .72)); ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(-47, -47); ctx.lineTo(47, -47); ctx.lineTo(42, -8); ctx.quadraticCurveTo(26, -3, 12, -9); ctx.quadraticCurveTo(-4, -2, -18, -8); ctx.quadraticCurveTo(-32, -4, -42, -10); ctx.closePath(); ctx.fill();
     ctx.strokeStyle = 'rgba(0,0,0,.2)'; ctx.lineWidth = 1.4; for (let i = -36; i < 42; i += 13) { ctx.beginPath(); ctx.moveTo(i, -46); ctx.quadraticCurveTo(i + 3, -28, i - 2, -9); ctx.stroke(); } ctx.fillStyle = 'rgba(235,225,200,.22)'; for (let i = -40; i < 44; i += 9) ctx.fillRect(i, -16, 4.4, 2); E(-12, -55, 9, 1.6, '#b9b4a6'); B(16, -62, 5, 9, '#3d5a45'); ctx.restore(); eyes(x + 30, fy - 16); return; }   // a table with a cloth hanging to the floor   // a table with a cloth hanging over the front
-  if (h.kind === 'curtain') { const sw = Math.sin(_T * .8 + x) * 2; ctx.fillStyle = '#2a2420'; ctx.fillRect(x - 40, fy - FLOOR_H + 22, 80, 4); for (let i = 0; i < 8; i++) { ctx.fillStyle = i % 2 ? '#5a3a34' : '#4a302b'; ctx.beginPath(); ctx.moveTo(x - 38 + i * 9.5, fy - FLOOR_H + 26); ctx.lineTo(x - 28.5 + i * 9.5, fy - FLOOR_H + 26); ctx.lineTo(x - 28.5 + i * 9.5 + sw * (i / 8), fy - 2); ctx.lineTo(x - 38 + i * 9.5 + sw * (i / 8), fy - 2); ctx.fill(); } ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fillRect(x - 38, fy - 30, 76, 28); eyes(x - 8, fy - 70); return; }   // a long curtain; feet would show, so keep still
+  if (h.kind === 'curtain') { const { B, E } = PA, top = fy - FLOOR_H + 22, c = ['#5a3a34', '#3f4a52', '#55503a'][Math.round(x) % 3], sw = Math.sin(_T * .8 + x) * 2; B(x - 44, top - 2, 88, 3.4, '#2a2420'); E(x - 45, top - .4, 2.6, 2.6, '#8f8562'); E(x + 45, top - .4, 2.6, 2.6, '#8f8562');
+    for (let i = 0; i < 9; i++) { const x0 = x - 40 + i * 9, off = sw * (i / 8), g = ctx.createLinearGradient(x0, 0, x0 + 9, 0); g.addColorStop(0, shade(c, .62)); g.addColorStop(.45, shade(c, 1.2)); g.addColorStop(1, shade(c, .7)); ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(x0, top + 2); ctx.lineTo(x0 + 9, top + 2); ctx.lineTo(x0 + 9 + off, fy - 2 - (i % 3)); ctx.lineTo(x0 + off, fy - 3 - ((i + 1) % 3)); ctx.fill(); E(x0 + 4.5, top + 1, 1.6, 1.6, '#8f8562'); }   // each fold lit down one side
+    ctx.fillStyle = 'rgba(0,0,0,.22)'; ctx.fillRect(x - 40, fy - 30, 82, 28); for (let i = 0; i < 4; i++) ctx.fillRect(x - 36 + i * 22, fy - 8 - i % 2 * 3, 9, 6); eyes(x - 8, fy - 70); return; }   // a long curtain, frayed at the hem; feet would show, so keep still
   if (h.kind === 'crate') { const { B, E, P, wood, SH } = PA, r = mulberry(Math.round(x) + 5), c = '#6a5236'; ctx.save(); ctx.translate(x, fy); ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.beginPath(); ctx.ellipse(0, -.5, 42, 3.4, 0, 0, TAU); ctx.fill(); wood(-36, -62, 72, 62, c, r); for (let sy = -50; sy < -4; sy += 12.4) B(-36, sy, 72, 1.4, SH); for (const bx of [-36, -3, 30]) wood(bx, -62, 6, 62, shade(c, .8), r, 1); P([[-30, -60], [-25, -60], [30, -3], [25, -3]], 'rgba(50,36,22,.55)'); for (const [nx, ny] of [[-33, -57], [33, -57], [-33, -5], [33, -5], [0, -57], [0, -5]]) E(nx, ny, 1, 1, '#2a2622'); ctx.strokeStyle = 'rgba(30,24,16,.55)'; ctx.lineWidth = 1.6; ctx.strokeRect(8, -42, 18, 12); B(-30, -65, 52, 3.4, '#0c0a08'); ctx.save(); ctx.translate(-36, -63); ctx.rotate(-.12); wood(0, -6, 75, 6.4, shade(c, 1.12), r); ctx.restore(); ctx.restore(); eyes(x - 8, fy - 66); return; }   // a packing crate, the lid propped a crack   // a big crate, lid propped open a crack
   if (h.kind === 'behind') { const { B, E, metal, SH } = PA, r = mulberry(Math.round(x) + 9), c = '#55595e'; ctx.save(); ctx.translate(x, fy); ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.beginPath(); ctx.ellipse(4, -.5, 42, 3.6, 0, 0, TAU); ctx.fill(); B(-30, -130, 60, 128, '#1b1d20'); for (const ux of [-35, 30]) { metal(ux, -134, 5, 134, c); for (let yy = -128; yy < -4; yy += 8) E(ux + 2.5, yy, .9, 1.3, '#1f2226'); }
     for (let i = 0; i < 4; i++) { const sy = -8 - i * 31; let bx = -28; while (bx < 22) { const q = r(); if (q < .2) { bx += 6 + r() * 8; continue; } const w = 10 + r() * 9, hh = 12 + r() * 12, col = ['#7a6240', '#6a5a44', '#4a4f58', '#8a6f4a', '#5a4a3a'][Math.floor(r() * 5)]; B(bx, sy - hh, w, hh, col); B(bx, sy - hh, w, 1.2, 'rgba(255,255,255,.14)'); if (w > 13) B(bx + w / 2 - 1.5, sy - hh, 3, hh, 'rgba(210,190,150,.4)'); bx += w + 2; } metal(-35, sy, 70, 4, shade(c, 1.1)); B(-35, sy + 4, 70, 2.6, SH); }
@@ -3151,7 +3157,7 @@ function makeMilitary(loc, day) {
   S(1, 520, 'crates', [['water', 1], ['scrap', 1]]); S(1, 830, 'desk', [['parts', 1], ['bandage', 1]]); S(1, 1180, 'cabinet', [['meds', 1]]); S(1, 1620, 'desk', [['parts', 2]]); S(1, 2090, 'cabinet', [['ammo', 1]]);
   S(2, 470, 'crates', [['canned', 1], ['ammo', 1]]); S(2, 880, 'desk', [['meds', 2]]); S(2, 1260, 'cabinet', [['ammo', 2]]); S(2, 1700, 'crates', [['fuel', 1], ['canned', 1]]);
   props.push({ f: 0, x: 200, t: 'rubble' }, { f: 1, x: 1450, t: 'bench' });
-  const hides = [{ f: 0, x: 820, kind: 'crate' }, { f: 0, x: 1580, kind: 'closet' }, { f: 0, x: 1040, kind: 'under' }, { f: 1, x: 640, kind: 'crate' }, { f: 1, x: 1010, kind: 'behind' }, { f: 1, x: 1820, kind: 'closet' }, { f: 2, x: 140, kind: 'crate' }, { f: 2, x: 1560, kind: 'crate' }, { f: 2, x: 2080, kind: 'behind' }];
+  const hides = [{ f: 0, x: 820, kind: 'crate' }, { f: 0, x: 1580, kind: 'closet' }, { f: 0, x: 1040, kind: 'under' }, { f: 1, x: 640, kind: 'shadow' }, { f: 1, x: 1010, kind: 'behind' }, { f: 1, x: 1820, kind: 'closet' }, { f: 2, x: 140, kind: 'crate' }, { f: 2, x: 1560, kind: 'shadow' }, { f: 2, x: 2080, kind: 'behind' }];
   const world = new World({ x0, x1, nFloors: 3, rooms, stairs, spots, props, hides, site: loc }); world.decor = makeDecor(loc, rooms, r);
   const zombies = [], G0 = (x, f, facing, pts) => { const z = makeZombie(x, f, r); z.armed = true; z.wpn = 'rifle'; z.hp = 4; z.facing = facing; z.post = { x, f, facing }; z.pts = pts; z.patrol = !!pts; z.paceMul = .85 + r() * .25; zombies.push(z); };
   G0(700 + r() * 200, 0, 1, [600, 1080]); G0(1190, 0, 1, null); G0(800 + r() * 300, 1, -1, [760, 1280]); G0(1880, 1, -1, null); G0(1600 + r() * 300, 2, 1, [1480, 2120]); G0(560, 2, 1, null);
@@ -3240,7 +3246,7 @@ function makeSite(loc, day) {
       if (r() < .2 && loot.length < 2) { const id = ['wood', 'scrap', 'parts'][Math.floor(r() * 3)], e = loot.find(o => o.id === id); if (e) e.n++; else loot.push({ id, n: 1 }); }
       props.push({ f: room.f, x, t: pt }); spots.push({ id: 's' + (sid++), f: room.f, x, type: 'search', uses: 1, left: 1, lootList: loot, dur: 3 + r() * 2 });
     }
-    { const nh = 1 + (w > 420 && r() < .5 ? 1 : 0), hk = HIDE_KINDS[loc.id] || ['closet']; for (let i = 0; i < nh * 4 && hides.filter(o => o.f === room.f && o.x > room.x0 && o.x < room.x1).length < nh; i++) { const hx = room.x0 + 60 + r() * (w - 120), kind = hk[Math.floor(r() * hk.length)]; if (w > 160 && !spots.some(s => s.f === room.f && Math.abs(s.x - hx) < 52) && !hides.some(o => o.f === room.f && Math.abs(o.x - hx) < 100) && !(room.f === 0 && hx < x0 + 120)) hides.push({ f: room.f, x: hx, kind }); } }
+    { const nh = 1 + (w > 420 && r() < .5 ? 1 : 0), hk = HIDE_KINDS[loc.id] || ['closet']; for (let i = 0; i < nh * 4 && hides.filter(o => o.f === room.f && o.x > room.x0 && o.x < room.x1).length < nh; i++) { const hx = room.x0 + 60 + r() * (w - 120), kind = hk[Math.floor(r() * hk.length)]; if (w > 160 && !spots.some(s => s.f === room.f && Math.abs(s.x - hx) < 52) && !hides.some(o => o.f === room.f && Math.abs(o.x - hx) < 100) && !(room.f === 0 && hx < x0 + 120)) hides.push({ f: room.f, x: hx, kind: (Math.round(hx) * 7 + room.f * 13) % 5 < 2 ? 'shadow' : kind }); } }   /* two in five are no more than a dark corner */
     if (r() < .5) props.push({ f: room.f, x: room.x0 + 40 + r() * (w - 80), t: 'rubble' });
   }
   if (!hides.length) hides.push({ f: 0, x: x0 + 200, kind: (HIDE_KINDS[loc.id] || ['closet'])[0] });
@@ -3421,7 +3427,7 @@ function scUpdate(dt) {
     p.moving = false;
     if (p.task) {
       const tk = p.task;
-      if (tk.hide) { p.hidden = true; p.visible = false; p.x = tk.hide.x; p.hideRef = tk.hide; p.task = null; AUDIO.sfx(tk.hide.kind === 'closet' || tk.hide.kind === 'crate' ? 'open' : 'tap'); }
+      if (tk.hide) { const dark = tk.hide.kind === 'shadow'; p.hidden = true; p.visible = dark; p.x = tk.hide.x; p.hideRef = tk.hide; p.task = null; if (dark) { p.pose = 'idle'; p.poseExtra = null; if (p.mc) { p.mc.x = p.x; p.mc.w.x = p.x / p.mc.k; p.mc.w.vx = 0; } } AUDIO.sfx(dark ? 'tap' : tk.hide.kind === 'closet' || tk.hide.kind === 'crate' ? 'open' : 'tap'); }   // in a shadow you are still standing there: back to the wall, in the dark
       else {
         const s = tk.spot; tk.t += dt;
         if (s.type === 'exit') { p.task = null; if (PREVIEW === 'mission') { endScavenge(false, false); return; } leaveSite(); return; }
@@ -3451,6 +3457,7 @@ function scUpdate(dt) {
     if (z.kb) { const m = z.kb * Math.min(1, dt * 12); if (w.passable(z.x, z.x + m, z.f)) z.x += m; z.kb = Math.abs(z.kb - m) < .5 ? 0 : z.kb - m; if (z.mc) { z.mc.x = z.x; z.mc.w.x = z.x / z.mc.k; } }   // knocked back over a few frames, not teleported
     const sameF = z.f === p.f; const dx = p.x - z.x; const d = Math.abs(dx);
     // perception
+    if (p.hidden && p.hideRef && p.hideRef.kind === 'shadow' && sameF && d < 30 && !z.dog) { p.hidden = false; p.visible = true; z.alert = 1.2; z.facing = dx < 0 ? -1 : 1; scMsg('alert', 1.4); }   // a shadow only hides you from across the room: walk into it and there you are
     if (!p.hidden && sameF && w.passable(z.x, p.x, z.f)) {
       const facingP = (dx > 0) === (z.facing > 0) || d < 40;
       const range = (SC.sneak ? 95 : 180) * (p.trait === 'quiet' ? .7 : 1) * (facingP ? 1 : .5) * (SC.sneak && !(p.path && p.path.length) && !p.task ? .55 : 1);   // keeping low and still: half seen
@@ -3486,7 +3493,8 @@ function scUpdate(dt) {
   // lights: flashlight + flicker lamps
   { const ly = w.fy2y(p.fy) - 50, fl = .94 + .06 * Math.sin(_T * 31);   // a torch: a tight pool at the hand, a long beam ahead
     SC.lights = SC.sneak ? [{ x: p.x, y: ly + 8, r: 150, c: '255,230,180', a: .4 }, { x: p.x + p.facing * 70, y: ly, r: 150, c: '255,232,190', a: .36 * fl }, { x: p.x + p.facing * 170, y: ly, r: 130, c: '255,232,190', a: .16 * fl }] : [{ x: p.x, y: ly + 8, r: 110, c: '255,230,180', a: .4 }, { x: p.x + p.facing * 60, y: ly, r: 150, c: '255,232,190', a: .62 * fl }, { x: p.x + p.facing * 150, y: ly, r: 170, c: '255,232,190', a: .5 * fl }, { x: p.x + p.facing * 260, y: ly, r: 180, c: '255,232,190', a: .32 * fl }, { x: p.x + p.facing * 370, y: ly, r: 170, c: '255,232,190', a: .16 * fl }];
-    SC.lights.push({ cone: 1, x: p.x + p.facing * 14, y: ly + 4, dir: p.facing, len: SC.sneak ? 190 : 400, c: '255,232,190', a: SC.sneak ? .3 : .5 });
+    if (p.hidden) SC.lights = [{ x: p.x, y: ly + 8, r: 80, c: '200,210,230', a: .08 }];   /* hidden: the torch is off */
+    else SC.lights.push({ cone: 1, x: p.x + p.facing * 14, y: ly + 4, dir: p.facing, len: SC.sneak ? 190 : 400, c: '255,232,190', a: SC.sneak ? .3 : .5 });
     if (p.attackKind === 'shoot' && p.attackT > .22) SC.lights.push({ x: p.x + p.facing * 30, y: ly - 6, r: 300, c: '255,220,150', a: .95 }); }
   for (const z of SC.zombies) if (z.alive && z.armed && z.takenT == null) { const gy = w.fy2y(z.fy) - 54; for (const [o, rr0, al] of [[45, 70, .35], [130, 110, .3], [230, 130, .2], [330, 120, .1]]) SC.lights.push({ x: z.x + z.facing * o, y: gy, r: rr0, c: '205,222,255', a: al }); if (z.flashT > 0) SC.lights.push({ x: z.x + z.facing * 30, y: gy - 4, r: 280, c: '255,220,150', a: .9 }); SC.lights.push({ cone: 1, x: z.x + z.facing * 16, y: gy + 6, dir: z.facing, len: 360, c: '205,222,255', a: .45 }); }
   for (let i = (SC.gtr || []).length - 1; i >= 0; i--) if ((SC.gtr[i].t -= dt) <= 0) SC.gtr.splice(i, 1);
@@ -3660,6 +3668,7 @@ function drawStreet(dt) {
   // ground
   ctx.fillStyle = mix('#3a3733', '#15161a', .8); ctx.fillRect(x0v - 500, gy + 14, x1v - x0v + 1000, 1200); ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fillRect(x0v - 500, gy + 14, x1v - x0v + 1000, 6); drawRoadDetail(gy, x0v, x1v);
   ctx.fillStyle = 'rgba(255,255,255,.08)'; for (let x = Math.floor(x0v / 160) * 160; x < x1v + 160; x += 160) ctx.fillRect(x, gy + 54, 70, 4);
+  { const sn = snowCover(); if (sn > .05) { ctx.fillStyle = `rgba(206,214,226,${(sn * .9).toFixed(2)})`; ctx.fillRect(x0v - 500, gy + 12, x1v - x0v + 1000, 8); for (let wx = Math.floor((x0v - 300) / 240) * 240; wx < x1v + 300; wx += 240) { const q = mulberry(wx | 0); ctx.beginPath(); ctx.ellipse(wx + q() * 200, gy + 15, 50 + q() * 110, 3 + q() * 5, 0, Math.PI, 0); ctx.fill(); ctx.fillStyle = `rgba(206,214,226,${(sn * .35).toFixed(2)})`; ctx.fillRect(wx + q() * 160, gy + 26 + q() * 60, 60 + q() * 120, 3); ctx.fillStyle = `rgba(206,214,226,${(sn * .9).toFixed(2)})`; } } }   // snow along the kerb, in drifts, in streaks across the road
   // house at 0
   drawHouseFacade(0, gy);
   // location facades
@@ -3697,10 +3706,19 @@ function drawStreet(dt) {
   if (FX.flash > 0) { ctx.fillStyle = `rgba(255,220,200,${FX.flash})`; ctx.fillRect(0, 0, W, H); FX.flash = Math.max(0, FX.flash - dt * 3); }
   FX.shake = Math.max(0, (FX.shake || 0) - dt * 14);
 }
-function drawHouseFacade(x, gy) {
-  ctx.fillStyle = '#3a3330'; ctx.fillRect(x - 260, gy - 290, 320, 304); ctx.fillStyle = '#2a2320'; ctx.beginPath(); ctx.moveTo(x - 290, gy - 290); ctx.lineTo(x - 100, gy - 420); ctx.lineTo(x + 90, gy - 290); ctx.fill();
-  ctx.fillStyle = '#1c1916'; ctx.fillRect(x - 26, gy - 110, 54, 124); ctx.fillStyle = '#4a3a2c'; ctx.fillRect(x - 22, gy - 106, 46, 120); ctx.fillStyle = '#c9b26a'; circ(x + 14, gy - 50, 3); ctx.fill();
-  for (const [wx, wy] of [[-200, -230], [-110, -230], [-200, -110], [-110, -110]]) { ctx.fillStyle = '#1a1d26'; ctx.fillRect(x + wx, gy + wy, 50, 60); ctx.fillStyle = 'rgba(255,190,110,.25)'; ctx.fillRect(x + wx + 4, gy + wy + 4, 42, 52); ctx.fillStyle = '#7a5c3c'; ctx.fillRect(x + wx - 6, gy + wy + 20, 62, 9); ctx.fillRect(x + wx - 6, gy + wy + 40, 62, 9); }
+function facadeWindow(wx, wy, ww, wh, base, r) {   // a window in a street front: frame, sill, and whatever has become of the glass
+  const { B, P, Ln } = PA, q = r(); B(wx - 3, wy - 3, ww + 6, wh + 6, shade(base, .58)); B(wx, wy, ww, wh, q < .5 ? '#0e1014' : '#161a22'); B(wx + ww / 2 - 1, wy, 2, wh, shade(base, .58)); B(wx, wy + wh * .45, ww, 2, shade(base, .58)); B(wx - 6, wy + wh + 3, ww + 12, 4, shade(base, 1.3)); B(wx - 6, wy + wh + 7, ww + 12, 2, 'rgba(0,0,0,.3)');
+  if (q < .28) { for (const [a2, yy] of [[-.14, .3], [.1, .62]]) { ctx.save(); ctx.translate(wx + ww / 2, wy + wh * yy); ctx.rotate(a2); B(-ww / 2 - 5, -3.6, ww + 10, 7.2, '#6f5536'); B(-ww / 2 - 5, 1.6, ww + 10, 2, 'rgba(0,0,0,.3)'); ctx.restore(); } }                       // boarded
+  else if (q < .55) { P([[wx, wy + wh], [wx + ww * .18, wy + wh * .5], [wx + ww * .36, wy + wh * .8], [wx + ww * .5, wy + wh]], 'rgba(170,190,205,.28)'); P([[wx + ww, wy], [wx + ww * .7, wy + wh * .3], [wx + ww, wy + wh * .5]], 'rgba(170,190,205,.22)'); }   // broken: shards in the corners
+  else if (q < .68) { const g = ctx.createLinearGradient(0, wy - 46, 0, wy + 4); g.addColorStop(0, 'rgba(8,7,6,0)'); g.addColorStop(1, 'rgba(8,7,6,.7)'); ctx.fillStyle = g; ctx.fillRect(wx - 4, wy - 46, ww + 8, 50); }                                           // burnt out: soot up the wall
+  else { ctx.fillStyle = 'rgba(190,210,230,.08)'; ctx.fillRect(wx + 3, wy + 3, ww * .28, wh - 6); if (q > .9) { ctx.fillStyle = 'rgba(255,190,110,.2)'; ctx.fillRect(wx, wy, ww, wh); } }                                                                 // whole; in one or two, a light
+}
+function drawHouseFacade(x, gy) { const { B, P, VG } = PA, base = '#3f3733', r = mulberry(404);
+  ctx.fillStyle = VG(0, gy - 290, 0, 304, shade(base, 1.12), shade(base, .82)); ctx.fillRect(x - 260, gy - 290, 320, 304); ctx.fillStyle = 'rgba(0,0,0,.12)'; for (let yy = gy - 282; yy < gy + 10; yy += 9) ctx.fillRect(x - 260, yy, 320, 1);                           // courses of brick
+  P([[x - 292, gy - 288], [x - 100, gy - 422], [x + 92, gy - 288]], '#2a2320'); P([[x - 292, gy - 288], [x - 100, gy - 422], [x - 100, gy - 414], [x - 278, gy - 288]], 'rgba(255,255,255,.06)'); B(x - 292, gy - 292, 384, 6, '#231d1a'); B(x + 20, gy - 400, 26, 70, '#352e2a'); B(x + 17, gy - 404, 32, 6, '#2a2320');   // roof, eaves, chimney
+  B(x + 46, gy - 290, 5, 304, '#2a2c2e'); for (const [wx, wy] of [[-200, -230], [-110, -230], [-200, -110], [-110, -110]]) facadeWindow(x + wx, gy + wy, 50, 60, base, r);
+  B(x - 40, gy + 4, 82, 10, '#4a4642'); B(x - 40, gy + 4, 82, 2, 'rgba(255,255,255,.1)'); B(x - 30, gy - 114, 62, 128, shade(base, .55)); B(x - 24, gy - 108, 50, 122, '#4f3d2e'); for (const [py, ph] of [[-100, 44], [-48, 52]]) { ctx.fillStyle = 'rgba(0,0,0,.24)'; ctx.fillRect(x - 17, gy + py, 36, ph); }   // the step and the front door
+  ctx.fillStyle = '#c9b26a'; circ(x + 16, gy - 50, 3); ctx.fill(); B(x - 9, gy - 54, 18, 3.4, '#8f8562');
 }
 function drawFarmFacade(x, gy) {   // a clapboard farmhouse set back from the road: porch, gable, one boarded window
   const w = 400, h = 210, y0 = gy + 14 - h;
@@ -3720,10 +3738,12 @@ function drawMilFacade(x, gy) {   // a blast wall, razor wire, a barrier gate
 function drawFacade(l, x, gy) {
   if (l.id === 'farm') { drawFarmFacade(x, gy); return; }
   if (l.id === 'military') { drawMilFacade(x, gy); return; }
-  const r = mulberry(hashStr(l.id)); const w = Math.round((l.w || 1000) * .36), h = 120 + l.floors * 90;
-  ctx.fillStyle = ['#3a3836', '#3d3330', '#333a3a', '#383530'][Math.floor(r() * 4)]; ctx.fillRect(x - w / 2, gy + 14 - h, w, h);
-  ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(x - w / 2, gy + 14 - h, 8, h); ctx.fillStyle = 'rgba(255,255,255,.05)'; ctx.fillRect(x - w / 2, gy + 14 - h, w, 6);
-  for (let fy = gy - 60; fy > gy + 14 - h + 30; fy -= 80) for (let wx = x - w / 2 + 24; wx < x + w / 2 - 40; wx += 56) { if (Math.abs(wx + 18 - x) < 50 && fy > gy - 100) continue; ctx.fillStyle = r() < .3 ? '#1a1d26' : '#14151a'; ctx.fillRect(wx, fy - 40, 36, 46); if (r() < .4) { ctx.fillStyle = '#7a5c3c'; ctx.fillRect(wx - 4, fy - 30, 44, 7); } }
+  const r = mulberry(hashStr(l.id)); const w = Math.round((l.w || 1000) * .36), h = 120 + l.floors * 90, { B, VG } = PA, base = ['#403c39', '#463a35', '#373e3e', '#3e3a34'][Math.floor(r() * 4)], x0 = x - w / 2, top = gy + 14 - h;
+  ctx.fillStyle = VG(0, top, 0, h, shade(base, 1.14), shade(base, .8)); ctx.fillRect(x0, top, w, h); ctx.fillStyle = 'rgba(0,0,0,.12)'; for (let yy = top + 8; yy < gy + 10; yy += 9) ctx.fillRect(x0, yy, w, 1);                                             // courses of brick
+  for (let i = 0; i < 5; i++) { ctx.fillStyle = `rgba(${r() < .5 ? '150,96,72' : '0,0,0'},${(.06 + r() * .08).toFixed(2)})`; ctx.fillRect(x0 + r() * (w - 60), top + r() * (h - 50), 30 + r() * 50, 18 + r() * 28); }                                                        // patches where the render has gone
+  B(x0, top, 8, h, 'rgba(0,0,0,.3)'); B(x0 - 6, top - 8, w + 12, 10, shade(base, .68)); B(x0 - 6, top - 8, w + 12, 2, 'rgba(255,255,255,.08)'); B(x0 + w - 17, top, 5, h, '#2a2c2e'); for (let yy = top + 30; yy < gy; yy += 64) B(x0 + w - 19, yy, 9, 3, '#1f2123');   // a cornice, a downpipe
+  for (let fy = gy - 60; fy > gy + 14 - h + 30; fy -= 80) for (let wx = x - w / 2 + 24; wx < x + w / 2 - 44; wx += 56) { if (Math.abs(wx + 18 - x) < 50 && fy > gy - 100) continue; facadeWindow(wx, fy - 40, 36, 46, base, r); }
+  B(x - 42, gy + 5, 84, 9, '#4a4642'); B(x - 42, gy + 5, 84, 2, 'rgba(255,255,255,.1)');                                                                                                                                                              // the step
   // door + sign
   ctx.fillStyle = '#1c1916'; ctx.fillRect(x - 30, gy - 104, 60, 118); ctx.fillStyle = '#2b2622'; ctx.fillRect(x - 26, gy - 100, 52, 114); ctx.fillStyle = 'rgba(200,120,80,.25)'; ctx.fillRect(x - 22, gy - 96, 44, 50);
   ctx.fillStyle = '#2a2a2e'; rr(x - 90, gy - 150, 180, 34, 4); ctx.fill(); ctx.strokeStyle = '#4a4d52'; ctx.lineWidth = 2; rr(x - 90, gy - 150, 180, 34, 4); ctx.stroke();
