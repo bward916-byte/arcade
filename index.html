@@ -260,7 +260,7 @@ const ART={
 };
 
 const list=document.getElementById('list');
-const THUMB_V=2;
+const THUMB_V=3;
 function card(gm,i){
   const li=document.createElement('li');li.style.animationDelay=Math.min(i||0,12)*40+'ms';
   li.innerHTML=`<a class="game" href="${url(gm.repo)}" style="--c:${gm.c}"><div class="thumb"><div class="t">${gm.title}</div></div>
