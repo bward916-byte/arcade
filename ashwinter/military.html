@@ -239,7 +239,7 @@ const Motion = (() => {
     const v = Math.abs(w.vx), going = input !== 0 || v > .6 * L, st = stairAt(w.x + dir * 4), gr = Math.abs(w.grade);
     const beta = lerp(.62, .36, run), ahead = lerp(.5, .36, run);
     let S; if (st) S = 2 * st.w * ((run > .5 && v > 2.4 * L && 2 * st.w <= .95 * L && 2 * st.r <= .5 * L) ? 2 : 1);
-    else { const vv = Math.max(v, .5), f = lerp(.55 + .26 * vv / L, 1.32 + .06 * vv / L, run); S = vv / f / (1 + .8 * gr); }
+    else { const vv = Math.max(v, .5), f = lerp(.68 + .31 * vv / L, 1.32 + .06 * vv / L, run);   /* steps a little quicker and a good deal shorter: nobody walks at full stretch */ S = vv / f / (1 + .8 * gr); }
     S = Math.max(S, .35 * L) * (w.strideVar || 1); w.S = S;
     if (ST.mode === 'stand' && going && !timedActive()) { ST.mode = 'go'; const b = dir * F[0].px < dir * F[1].px ? 0 : 1; ST.p = ((Math.max(beta, .5) + 1e-4 - b * .5) % 1 + 1) % 1; }   // the trailing foot steps first
     if (ST.mode === 'go' && !input && v < .6 * L) { ST.mode = 'stand'; const sp = standSpots(); F.forEach((f, i) => { if (!f.planted) lift(f, 0, sp[i], true, .14 + .2 * (1 - f.e)); }); }
@@ -536,7 +536,7 @@ const Motion = (() => {
     eat: (t) => { const q = (Math.sin(t * 4) + 1) / 2; return pose({ torso: .05, head: .1 + .1 * q, ua2: .7 + .3 * q, la2: 2.4, ua1: .3, la1: 1.2 }); },
     hold: (t) => { const b = Math.sin(t * 1.6); return pose({ torso: .06 + .02 * b, ua2: .65, la2: 1.3, ua1: .45, la1: 1.4, ul2: .2, ll2: .2, ul1: -.2, ll1: .15 }); },   // weapon ready
     swing: (t, c) => { const k = c.poseK || 0; return pose({ torso: .1 + .3 * k, head: -.1, hx: 4 * k, ua2: -1.5 + 2.8 * k, la2: .3, ua1: .5, la1: .9, ul2: .3 + .3 * k, ll2: .3, ul1: -.3 - .3 * k, ll1: .25 }); },
-    climb: (t, c) => { const k = c.poseK || 0, s = Math.sin(k * TAU), q = Math.cos(k * TAU); return pose({ turn: -H, torso: .04, head: -.1, ua2: 2.2 + .75 * s, la2: .7 - .5 * s, ua1: 2.2 - .75 * s, la1: .7 + .5 * s, ul2: .75 + .45 * s, ll2: 1.25 + .35 * Math.max(0, s), ul1: .75 - .45 * s, ll1: 1.25 + .35 * Math.max(0, -s), f2: H - .2, f1: H - .2 }); },   // hand over hand, a knee up with each rung
+    climb: (t, c) => { const k = c.poseK || 0, s = Math.sin(k * TAU), q = Math.cos(k * TAU), tp = c.climbTop || 0, te = tp * tp * (3 - 2 * tp), ua = 2.2 - 1.55 * te, sw = .75 - .6 * te; return pose({ turn: -H, torso: .04 + .1 * te, head: -.1, ua2: ua + sw * s, la2: .7 - .5 * s * (1 - te) + .1 * te, ua1: ua - sw * s, la1: .7 + .5 * s * (1 - te) + .1 * te, ul2: .75 + .45 * s, ll2: 1.25 + .35 * Math.max(0, s), ul1: .75 - .45 * s, ll1: 1.25 + .35 * Math.max(0, -s), f2: H - .2, f1: H - .2 }); },   // hand over hand, a knee up with each rung
     kneelAim: (t) => { const b = Math.sin(t * 1.7) * .012; return pose({ torso: .16 + b, head: .04, ua2: 1.02 + b, la2: .5, ua1: .8, la1: .95, ul2: 1.25, ll2: 1.5, ul1: .1, ll1: 1.55, f1: H - .5, tf1: .5 }); },   // one knee down, elbow on the other, the rifle steady
     aimP: (t) => { const b = Math.sin(t * 2.1) * .014; return pose({ torso: .12 + b, head: .05, ua2: 1.38 + b, la2: .16, ua1: 1.26 + b, la1: .34, ul2: .42, ll2: .5, ul1: -.36, ll1: .46 }); },   // both hands out, knees soft
     aimR: (t) => { const b = Math.sin(t * 1.9) * .015; return pose({ torso: .06 + b, head: .06, ua2: 1.15 + b, la2: .42, ua1: .95, la1: .85, ul2: .35, ll2: .35, ul1: -.32, ll1: .32 }); },   // rifle up at the shoulder
@@ -1436,7 +1436,7 @@ function mcOf(a, t) {
 }
 function setMove(c, m, a) {   // m = speed in walker units (1 = walk, 2 = run), signed
   let pace = (a && (a.zt ? a.zt.pace : a.st && a.st.pace)) || 1; if (a && !a.zombie) { const md = moodOf(a); if (md) pace *= md.pace; } m *= pace;
-  const am = Math.abs(m); if (am <= 1) { c.input.run = false; c.input.move = m; } else { c.input.run = true; c.input.move = Math.sign(m) * Math.min(1, am / 2); }
+  const am = Math.abs(m); if (am <= 1.3) { c.input.run = false; c.input.move = Math.sign(m) * Math.min(1, am); }   /* a brisk walk is still a walk, not the start of a jog */ else { c.input.run = true; c.input.move = Math.sign(m) * Math.min(1, am / 2); }
 }
 // how a survivor feels shows in how he carries himself: sad → head down and slumped, tired → heavy and slow, hurt → bent, favouring the belly, hungry → a little sunk
 function moodOf(a) { if (a.zombie || a.morale == null) return null; const t = _T | 0; if (a._mood && a._moodT === t) return a._mood;
@@ -1981,7 +1981,7 @@ function moveActor(a, dt, speed) {
 // up or down a ladder: hand over hand; quiet if you take it slowly, a clatter if you rush
 function climbLadder(a, dt, wp, W) {
   const s = a.onStair, me = SC.active && a === SC.player, rate = me ? (SC.sneak ? .24 : a.run ? .58 : .4) : .36;
-  a.x = s.x; const dir = Math.sign(wp.fy - a.fy) || 1; a.fy += dir * Math.min(rate * dt, Math.abs(wp.fy - a.fy)); a.climbPh = (a.climbPh || 0) + rate * dt * 3.4; a.moving = true; a.f = Math.round(a.fy);
+  a.x = s.x; const dir = Math.sign(wp.fy - a.fy) || 1; a.fy += dir * Math.min(rate * dt, Math.abs(wp.fy - a.fy)); a.climbPh = (a.climbPh || 0) + rate * dt * 3.4; a.climbTop = clamp(1 - (Math.max(s.a, s.b) - a.fy) * FLOOR_H / 62, 0, 1); a.moving = true; a.f = Math.round(a.fy);
   const t = a._ladT || (a._ladT = new Motion.Terrain().flat(-1e5, 1e5, 0)); t.base = baseOf(W) - a.fy * FLOOR_H; const c = mcOf(a, t); c.x = a.x;
   if (me && !SC.sneak) { SC.ladN = (SC.ladN || 0) + dt; if (SC.ladN > .45) { SC.ladN = 0; scNoise(a.x, a.f, 260); AUDIO.sfx('tap'); } }
   if (Math.abs(a.fy - wp.fy) < .002) { a.fy = wp.fy; a.f = wp.fy; a.onStair = null; a.path.shift(); if (!a.path.length) { a.moving = false; a.run = false; return true; } }
@@ -2144,7 +2144,7 @@ function drawPersonRig(a, pose, t, extra) {
     else { a.idlePose = null; hold = HOLD_OF[pose] || null; if (pose === 'search' && a.searchLow) hold = 'searchLow'; if ((pose === 'attack' || pose === 'zombieAttack') && extra && extra.style) hold = extra.style; if (pose === 'zombieIdle' && a.fidget) hold = a.fidget === 'idle' ? null : a.fidget; if (pose === 'aimGun') hold = extra && extra.kneel ? 'kneelAim' : extra && extra.weapon === 'rifle' ? 'aimR' : 'aimP'; if (pose === 'zombieAim' && extra && extra.kneel) hold = 'kneelAim'; if (pose === 'guard' && extra && (extra.weapon === 'bat' || extra.weapon === 'knife')) hold = 'brace'; if (pose === 'search' && a.task && a.task.spot) { const hh = a.task.spot.hgt || SPOT_H[a.task.spot.id]; if (hh === 'low') hold = 'searchLow'; else if (hh === 'high') hold = 'searchHigh'; } }
     if (pose === 'attack' || pose === 'shove' || pose === 'zombieAttack') c.poseK = extra ? clamp(extra.k || 0, 0, 1) : 0;
     if (pose === 'bed') c.poseK = a._bedK || 0;
-    if (pose === 'climb') c.poseK = (a.climbPh || 0) % 1;
+    if (pose === 'climb') { c.poseK = (a.climbPh || 0) % 1; c.climbTop = a.climbTop || 0; }
     if (a.zombie && pose === 'zombie') ext = zombieExt(a, t);
     if (pose === 'dead') { hold = null; if (!c.dead && !(c.action && c.action.name === 'die')) { if (!c.play('die')) { c.action = null; c.dead = true; c._setState('dead'); } } }
     else if (c.dead) { c.dead = false; c._setState('loco'); }
@@ -2159,7 +2159,7 @@ function drawPersonRig(a, pose, t, extra) {
   if (pose === 'search' && _T - (a._pfT || 0) > .55) { a._pfT = _T; (FX.puffs || (FX.puffs = [])).push({ x: a.x + c.facing * 24, y: tr.base - c.y - 34, d: -c.facing, t: 0 }); }
   if (pose === 'run' && _T - (a._pfT || 0) > .2) { a._pfT = _T; (FX.puffs || (FX.puffs = [])).push({ x: a.x - c.facing * 10, y: tr.base - c.y, d: c.facing, t: 0 }); }
   if (a.alive !== false && pose !== 'dead' && pose !== 'sleep' && a.visible !== false && G.world && G.phase !== 'title' && (SC.active || TR.active ? outdoorTemp(G.hour) : indoorTemp(G.hour)) < 5) { const ph = ((_T * .32 + (Math.abs(a.x) % 37) * .11) % 1), hx = a.x + c.facing * (9 + ph * 16) * (a.scale || 1), hy = tr.base - c.y - 69 * (a.scale || 1) - ph * 7; if (ph < .6) { ctx.fillStyle = `rgba(225,232,240,${(.2 * (1 - ph / .6)).toFixed(3)})`; circ(hx, hy, 2 + ph * 9); ctx.fill(); circ(hx + c.facing * 4, hy - 2, 1.5 + ph * 6); ctx.fill(); } }   // breath showing in the cold
-  const tool = poseTool(pose, extra, a); if (tool && !c.dead && handOf(a)) { const h = handOf(a); const F = a.facing || 1; const ang = (tool === 'shovel' ? h.th - Math.PI / 2 : h.th + Math.PI / 2) * F; drawTool(tool, h.x, h.y, ang, F, a); }
+  const tool = poseTool(pose, extra, a); if (tool && !c.dead && handOf(a)) { const h = handOf(a); const F = a.facing || 1; const ang = (tool === 'shovel' ? h.th - Math.PI / 2 : h.th + Math.PI / 2) * F; drawTool(tool, h.x, h.y, ang, F, a, pose === 'aimGun' || pose === 'zombieAim'); }
   if (!a.zombie && !c.dead && c.cur) { const k = c.skeleton(c.cur), dy = c.curDy != null ? c.curDy : k.dy, f = c.facing * k.sx, bx = v => c.x + v[0] * f, by = v => tr.base - c.y + v[1] + dy, sc = c.k || 1;
     if (a.wounded) { const A = k.armN[0], B = k.armN[1]; ctx.strokeStyle = '#e4dccb'; ctx.lineWidth = 4.6 * sc; ctx.lineCap = 'butt'; ctx.beginPath(); ctx.moveTo(lerp(bx(A), bx(B), .38), lerp(by(A), by(B), .38)); ctx.lineTo(lerp(bx(A), bx(B), .72), lerp(by(A), by(B), .72)); ctx.stroke(); ctx.fillStyle = 'rgba(150,30,30,.8)'; circ(lerp(bx(A), bx(B), .55), lerp(by(A), by(B), .55), 1.3 * sc); ctx.fill(); ctx.lineCap = 'round'; }   // a bandaged arm
     const frosty = (CUR_W === G.world && !SC.active && G.phase !== 'title') ? indoorTemp(G.hour) < 7 : true;
@@ -2180,8 +2180,7 @@ const WEAPON_ART = {
       ctx.strokeStyle = 'rgba(40,24,10,.45)'; ctx.lineWidth = .5; for (let i = 0; i < 4; i++) { const gx = -2 + r() * 4; ctx.beginPath(); ctx.moveTo(gx * .6, -14 - r() * 4); ctx.quadraticCurveTo(gx + (r() - .5), -22, gx * .9, -30 + r() * 3); ctx.stroke(); }   // grain
       ctx.fillStyle = wood[1]; ctx.beginPath(); ctx.ellipse(0, 3.4, 2.6, 1.4, 0, 0, TAU); ctx.fill();                                             // the knob
       const tape = r() < .5 ? '#d8d2c4' : '#2a2a2c'; ctx.strokeStyle = tape; ctx.lineWidth = 1.5; for (let ty = 1; ty > -9; ty -= 2.2) { ctx.beginPath(); ctx.moveTo(-1.9, ty); ctx.lineTo(1.9, ty - 1.2); ctx.stroke(); }
-      if (r() < .6) { ctx.fillStyle = 'rgba(96,14,14,.7)'; ctx.beginPath(); ctx.ellipse(r() * 2 - 1, -25 - r() * 4, 2.2, 3.2, .3, 0, TAU); ctx.fill(); }   // it has been used
-      if (r() < .5) { ctx.strokeStyle = 'rgba(20,12,6,.7)'; ctx.lineWidth = .7; ctx.beginPath(); ctx.moveTo(-1, -31); ctx.lineTo(.2, -26); ctx.lineTo(-.8, -23); ctx.stroke(); }   // a split in the barrel
+      if (r() < .5) { ctx.fillStyle = 'rgba(40,26,12,.35)'; ctx.fillRect(-2.6, -24 - r() * 4, 5.2, 1.6); }   // a scuffed band
     } else if (v === 1) {   // aluminium: dented, the paint going
       const g = ctx.createLinearGradient(-3.5, 0, 3.5, 0); g.addColorStop(0, '#6d7379'); g.addColorStop(.35, '#c9cfd4'); g.addColorStop(.6, '#8d949a'); g.addColorStop(1, '#4b5055');
       P([[-1.5, 3], [1.5, 3], [1.7, -12], [3.3, -21], [3.3, -31], [2, -32.5], [-2, -32.5], [-3.3, -31], [-3.3, -21], [-1.7, -12]], g);
@@ -2192,7 +2191,7 @@ const WEAPON_ART = {
       P([[-2.6, 3], [2.6, 3], [2.8, -31], [-2.4, -32]], '#9a7a4e'); P([[1, 3], [2.6, 3], [2.8, -31], [1.2, -31.3]], '#6f5533');
       ctx.strokeStyle = 'rgba(50,32,14,.5)'; ctx.lineWidth = .5; for (let i = 0; i < 4; i++) { const gx = -2 + i * 1.2 + r() * .5; ctx.beginPath(); ctx.moveTo(gx, 2); ctx.quadraticCurveTo(gx + r() - .5, -14, gx + .3, -31); ctx.stroke(); }
       ctx.fillStyle = 'rgba(40,26,12,.7)'; ctx.beginPath(); ctx.ellipse(-.4, -12 - r() * 6, 1.3, 1.8, 0, 0, TAU); ctx.fill();                      // a knot
-      ctx.strokeStyle = '#8f9498'; ctx.lineWidth = 1; for (let i = 0; i < 3; i++) { const ny = -21 - i * 3.6 - r(), nl = 5 + r() * 3, s = i % 2 ? 1 : -1; ctx.beginPath(); ctx.moveTo(s * -2.6, ny); ctx.lineTo(s * (2.6 + nl), ny - 1 + r() * 2); ctx.stroke(); ctx.fillStyle = '#5c6064'; ctx.fillRect(s * -3.6 - .8, ny - 1, 1.6, 2); }   // nails, heads one side, points the other
+      ctx.strokeStyle = '#8f9498'; ctx.lineWidth = 1; for (let i = 0; i < 3; i++) { const ny = -22 - i * 3.4 - r(), nl = 1.4 + r() * 1.2, s = i % 2 ? 1 : -1; ctx.beginPath(); ctx.moveTo(s * -2.6, ny); ctx.lineTo(s * (2.6 + nl), ny - 1 + r() * 2); ctx.stroke(); ctx.fillStyle = '#5c6064'; ctx.fillRect(s * -3.6 - .8, ny - 1, 1.6, 2); }   // nails, heads one side, points the other
       ctx.fillStyle = '#3a3a3c'; ctx.fillRect(-2.8, -7, 5.6, 9); ctx.fillStyle = 'rgba(255,255,255,.1)'; for (let ty = 1; ty > -7; ty -= 2.4) ctx.fillRect(-2.8, ty, 5.6, .7);   // rag wound round the grip
     } else {   // a steel pipe with a fitting still on the end
       const g = ctx.createLinearGradient(-2.4, 0, 2.4, 0); g.addColorStop(0, '#4a4e52'); g.addColorStop(.4, '#9aa0a5'); g.addColorStop(1, '#3a3d40'); ctx.fillStyle = g; ctx.fillRect(-2, -29, 4, 32);
@@ -2204,10 +2203,10 @@ const WEAPON_ART = {
     const blade = pts => { ctx.fillStyle = steel; ctx.beginPath(); pts.forEach(([px, py], i) => i ? ctx.lineTo(px, py) : ctx.moveTo(px, py)); ctx.closePath(); ctx.fill(); };
     if (v === 0) { blade([[-2, 0], [2.2, 0], [2.2, -11], [.2, -19], [-2, -15]]); ctx.fillStyle = '#2b2622'; rr(-2.2, 0, 4.4, 7.5, 1.2); ctx.fill(); ctx.fillStyle = '#b9b0a0'; circ(0, 2, .7); ctx.fill(); circ(0, 5.2, .7); ctx.fill(); }   // a kitchen knife, riveted handle
     else if (v === 1) { blade([[-1.8, 0], [2, 0], [2.4, -9], [0, -17], [-1.2, -12], [-1.8, -11]]); ctx.fillStyle = '#6c7076'; ctx.fillRect(-3.6, -.6, 7.2, 1.6); ctx.fillStyle = '#5a3d24'; rr(-1.9, 1, 3.8, 7, 1.4); ctx.fill(); ctx.fillStyle = 'rgba(0,0,0,.3)'; for (let ty = 2.2; ty < 7.5; ty += 1.6) ctx.fillRect(-1.9, ty, 3.8, .6); ctx.fillStyle = '#6c7076'; ctx.fillRect(-2, 7.6, 4, 1.4); }   // a hunting knife: guard, stacked grip, pommel
-    else if (v === 2) { blade([[-2.2, 0], [2.6, 0], [3.4, -20], [1.2, -26], [-2, -22]]); ctx.fillStyle = '#1e1e20'; rr(-2.3, 0, 4.6, 8, 1.2); ctx.fill(); ctx.fillStyle = '#c8c0b0'; for (let ty = 1.5; ty < 7; ty += 2) ctx.fillRect(-2.3, ty, 4.6, .8); ctx.fillStyle = 'rgba(120,64,30,.55)'; ctx.fillRect(-1.6, -9 - r() * 8, 2.4, 3); }   // a machete, cord on the grip, spotted with rust
+    else if (v === 2) { blade([[-2.2, 0], [2.4, 0], [2.9, -17], [1, -21.5], [-2, -18]]); ctx.fillStyle = '#1e1e20'; rr(-2.3, 0, 4.6, 8, 1.2); ctx.fill(); ctx.fillStyle = '#c8c0b0'; for (let ty = 1.5; ty < 7; ty += 2) ctx.fillRect(-2.3, ty, 4.6, .8); ctx.fillStyle = 'rgba(120,64,30,.55)'; ctx.fillRect(-1.6, -9 - r() * 8, 2.4, 3); }   // a machete, cord on the grip, spotted with rust
     else { ctx.fillStyle = steel; ctx.beginPath(); ctx.moveTo(-.9, 0); ctx.lineTo(.9, 0); ctx.lineTo(.5, -15); ctx.lineTo(0, -17.5); ctx.lineTo(-.5, -15); ctx.closePath(); ctx.fill(); ctx.fillStyle = ['#a8362c', '#c9a23a', '#2d5d86'][sd % 3]; rr(-2.2, 0, 4.4, 8, 2); ctx.fill(); ctx.fillStyle = 'rgba(0,0,0,.28)'; for (const gx of [-1.1, 0, 1.1]) ctx.fillRect(gx - .25, .8, .5, 6.4); }   // a screwdriver ground to a point
     ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = .5; ctx.beginPath(); ctx.moveTo(-1.3, -2); ctx.lineTo(-1.1, -12); ctx.stroke();                 // the edge catching light
-    if (r() < .5) { ctx.fillStyle = 'rgba(100,14,14,.6)'; ctx.beginPath(); ctx.ellipse(.4, -9 - r() * 5, 1.2, 2.4, 0, 0, TAU); ctx.fill(); } },
+    },
   pistol(r, sd) { const v = sd % 3, body = ['#3d4045', '#565a60', '#2b2d31'][sd % 3];
     if (v === 1) {   // a revolver: cylinder, thin barrel, wooden grip
       ctx.fillStyle = '#6a6e74'; ctx.fillRect(1, -7.6, 14, 2.6); ctx.fillStyle = '#4c5056'; rr(-3.4, -8.6, 7, 5.6, 1.6); ctx.fill(); ctx.fillStyle = '#7d8288'; rr(-1.4, -9.3, 4.6, 6.6, 1.4); ctx.fill(); ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(-.6, -9, .8, 6); ctx.fillRect(1.4, -9, .8, 6);
@@ -2230,9 +2229,14 @@ const WEAPON_ART = {
     else { ctx.fillStyle = '#8c8676'; for (let gx = 8; gx < 15; gx += 1.7) ctx.fillRect(gx, -6.2, 1.1, 3.2); ctx.fillStyle = '#1f2125'; ctx.fillRect(-1, -9, 1.4, 1.4); }   // no scope: iron sights, and rag bound round the fore-end
     if (r() < .6) { ctx.strokeStyle = '#4a3c2a'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(-15, 1); ctx.quadraticCurveTo(0, 6 + r() * 3, 14, -3.4); ctx.stroke(); } }   // a sling hanging slack
 };
-function drawTool(tool, x, y, ang, facing, who) {
-  ctx.save(); ctx.translate(x, y); ctx.rotate(ang * facing); ctx.lineCap = 'round';
-  if (WEAPON_ART[tool]) { const sd = who ? hashStr(String(who.id || who.name || 'x') + tool) : 7; ctx.lineCap = 'butt'; WEAPON_ART[tool](mulberry(sd), sd); ctx.restore(); return; }
+const WEAPON_SIZE = { bat: .7, knife: .6, pistol: .6, rifle: .78 };   // kept to the size they are in a hand
+function drawTool(tool, x, y, ang, facing, who, aim) {
+  ctx.save(); ctx.translate(x, y); const gun = tool === 'pistol' || tool === 'rifle';
+  if (gun && aim) { ctx.scale(facing, 1); if (tool === 'rifle') ctx.translate(-7, 1); }                                                   // aimed: level, along the line of sight
+  else if (gun) { ctx.rotate(ang * facing - Math.PI / 2); ctx.scale(1, facing); ctx.rotate(.3); }   // carried: along the forearm, muzzle a little down
+  else ctx.rotate(ang * facing);
+  ctx.lineCap = 'round';
+  if (WEAPON_ART[tool]) { const sd = who ? hashStr(String(who.id || who.name || 'x') + tool) : 7, k = WEAPON_SIZE[tool] || 1; ctx.lineCap = 'butt'; ctx.scale(k, k); WEAPON_ART[tool](mulberry(sd), sd); ctx.restore(); return; }
   switch (tool) {
     case 'shovel': ctx.strokeStyle = '#8a6a44'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0, -14); ctx.lineTo(0, 22); ctx.stroke(); ctx.fillStyle = '#9a9a92'; ctx.beginPath(); ctx.moveTo(-6, 20); ctx.lineTo(6, 20); ctx.lineTo(5, 32); ctx.quadraticCurveTo(0, 36, -5, 32); ctx.closePath(); ctx.fill(); ctx.fillStyle = '#5a5a55'; ctx.fillRect(-1, 20, 2, 12); break;
     case 'hammer': ctx.strokeStyle = '#8a6a44'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0, 4); ctx.lineTo(0, -16); ctx.stroke(); ctx.fillStyle = '#6a6d70'; rr(-8, -22, 16, 7, 2); ctx.fill(); ctx.fillStyle = '#4a4d50'; ctx.fillRect(4, -22, 4, 7); break;
@@ -4064,7 +4068,7 @@ function updateHome(dt) {
     if (!s.broken && s.morale < 15) { s.broken = true; homeMsg(s.name + ' has given up · will not work', 'sad', RED); AUDIO.sfx('bad'); } else if (s.broken && s.morale >= 35) { s.broken = false; homeMsg(s.name + ' is back on their feet', 'heart', GOLD); }
     if (s.health <= 0) { s.alive = false; s.pose = 'dead'; homeMsg(s.name + ' died', 'dead', RED); AUDIO.sfx('bad'); for (const o of G.survivors) o.morale = clamp(o.morale - 20, 0, 100); continue; }
     s.poseExtra = null;
-    if (s.path && s.path.length) { if (s.pose === 'sleep' || s.pose === 'situp') { if (s.pose === 'sleep') s.upT = 1.5; s.pose = 'situp'; s.upT -= dt; if (s.upT > 0) continue; } moveActor(s, gdt * (UI.test ? 2.5 : 1), (s.run ? 125 : 70) * (s.trait === 'runner' ? 1.2 : 1)); s.pose = s.run ? 'run' : 'walk'; continue; }
+    if (s.path && s.path.length) { if (s.pose === 'sleep' || s.pose === 'situp') { if (s.pose === 'sleep') s.upT = 1.5; s.pose = 'situp'; s.upT -= dt; if (s.upT > 0) continue; } moveActor(s, gdt * (UI.test ? 2.5 : 1), (s.run ? 125 : 62) * (s.trait === 'runner' ? 1.15 : 1)); s.pose = s.run ? 'run' : 'walk'; continue; }
     s.moving = false;
     if (s.eatT > 0) { s.pose = 'eat'; continue; }
     if (!s.task && !s.broken && s.queue && s.queue.length) { const bench = w.spotById('bench'); if (Math.abs(s.x - bench.x) > 30 || s.f !== bench.f) { const pth = w.path(s.x, s.f, bench.x, bench.f); if (pth) { s.path = pth; continue; } s.queue.length = 0; } else { const rc = s.queue.shift(); s.task = { spot: bench, kind: 'craft', recipe: rc, t: 0, dur: rc.dur * (s.trait === 'handy' ? .6 : 1) }; } }
