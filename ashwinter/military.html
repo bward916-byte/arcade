@@ -2279,6 +2279,16 @@ function drawCorpse(a) {
   ctx.restore();
 }
 function drawPortrait(a, x, y, r) {
+  if (!HEADLESS && typeof Motion !== 'undefined' && a && !a.zombie) { try {
+    let c = a._pc; if (!c) { const t = new Motion.Terrain().flat(-1e5, 1e5, 0); t.base = 0; c = a._pc = new Motion.Character({ x: 0, scale: MS, terrain: t, look: lookFor(a) }); c.y = t.h(0); c.facing = 1; c.input.move = 0; a._pcT = _T; for (let i = 0; i < 20; i++) c.update(1 / 60); }
+    const dt = clamp(_T - a._pcT, 0, .05); a._pcT = _T; c.input.move = 0; c.hold = null; if (a.alive) { const m = moodOf(a) || { lean: 0, head: 0 }; c.w.ext = { lean: m.lean * .6, head: (a.st ? a.st.head : 0) + m.head }; c.update(dt); }
+    const k = c.cur && c.skeleton(c.cur);
+    if (k && k.headC) { const dy = c.curDy != null ? c.curDy : k.dy, hx = c.x + k.headC[0] * c.facing * k.sx, hy = -c.y + k.headC[1] + dy, z = r / 10.5;
+      ctx.save(); ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.clip();
+      const bg = ctx.createLinearGradient(0, y - r, 0, y + r); bg.addColorStop(0, a.alive ? '#5a5d64' : '#221a1c'); bg.addColorStop(1, a.alive ? '#2c2e33' : '#141012'); ctx.fillStyle = bg; ctx.fillRect(x - r, y - r, r * 2, r * 2);
+      ctx.translate(x - r * .1, y - r * .02); ctx.scale(z, z); ctx.translate(-hx, -hy); c.draw(ctx, 0, 0, null, false); ctx.restore();
+      ctx.save(); ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.clip(); const sh = ctx.createRadialGradient(x - r * .3, y - r * .4, r * .3, x, y, r * 1.1); sh.addColorStop(0, 'rgba(0,0,0,0)'); sh.addColorStop(1, 'rgba(0,0,0,.22)'); ctx.fillStyle = sh; ctx.fillRect(x - r, y - r, r * 2, r * 2);
+      if (!a.alive) { ctx.fillStyle = 'rgba(0,0,0,.62)'; ctx.fillRect(x - r, y - r, r * 2, r * 2); } ctx.restore(); return; } } catch (e) { } }
   ctx.save(); ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.clip();
   ctx.fillStyle = a.alive ? '#2a2c30' : '#1a1416'; ctx.fillRect(x - r, y - r, r * 2, r * 2);
   ctx.fillStyle = a.coat; ctx.beginPath(); ctx.ellipse(x, y + r * 1.2, r * .9, r * .7, 0, 0, TAU); ctx.fill();
@@ -3690,13 +3700,17 @@ function barricadeInfo(b) {
   return { icon: 'board', badge: b.level, disabled: true, color: GREEN };
 }
 
+const SUPPLY_GROUPS = [['FOOD AND WATER', ['meal', 'canned', 'raw', 'water'], 0], ['MEDICAL', ['bandage', 'meds'], 0], ['MATERIALS', ['wood', 'scrap', 'parts', 'cloth', 'fuel'], 1], ['COMFORT', ['books'], 1], ['WEAPONS', ['knife', 'bat', 'pistol', 'rifle', 'ammo'], 2], ['TOOLS', ['lockpick', 'crowbar', 'shovel', 'cutters', 'backpack'], 3]];
 function drawInventory() {
-  const w = Math.min(W - 40, 520), h = 250, x = W - w - 20, y = H - h - 100;
+  const groups = SUPPLY_GROUPS.map(([name, ids, col]) => ({ name, col, items: ids.filter(k => G.inv[k] > 0) })).filter(g => g.items.length);
+  const nCol = W < 620 ? 2 : 4, RH = 21, HH = 22, colH = []; for (const g of groups) { const c = nCol === 2 ? (g.col < 2 ? 0 : 1) : g.col; g.c = c; g.y = colH[c] || 0; colH[c] = g.y + HH + g.items.length * RH + 8; }
+  const used = colH.map((h, i) => h ? i : -1).filter(i => i >= 0), cw = nCol === 2 ? 168 : 138, w = Math.min(W - 16, Math.max(260, used.length * cw + 24)), bodyH = Math.max(40, ...colH.filter(Boolean)), h = bodyH + 44, x = W - w - 12, y = Math.max(8, H - h - 96);
   ctx.fillStyle = PANEL_BG; rr(x, y, w, h, 10); ctx.fill(); ctx.strokeStyle = PANEL_EDGE; ctx.lineWidth = 2; rr(x, y, w, h, 10); ctx.stroke(); UI.btn(x, y, w, h, () => { });
-  txt('SUPPLIES', x + w / 2, y + 20, 18, INK);
-  const items = ITEM_ORDER.filter(k => G.inv[k] > 0); const cols = Math.floor((w - 20) / 62);
-  items.forEach((k, i) => { const ix = x + 12 + (i % cols) * 62, iy = y + 40 + Math.floor(i / cols) * 62; ctx.fillStyle = '#25272b'; rr(ix, iy, 56, 56, 8); ctx.fill(); drawIcon(k, ix + 28, iy + 24, 30); txt(G.inv[k], ix + 46, iy + 46, 14, INK, 'right'); });
-  if (!items.length) txt('empty', x + w / 2, y + h / 2, 18, DIM);
+  txt('HOUSE SUPPLIES', x + 16, y + 20, 16, INK, 'left'); ctx.fillStyle = PANEL_EDGE; ctx.fillRect(x + 12, y + 34, w - 24, 1);
+  if (!groups.length) { txt('nothing in the house', x + w / 2, y + h / 2 + 12, 15, DIM); return; }
+  const colW = (w - 24) / used.length;
+  for (const g of groups) { const gx = x + 12 + used.indexOf(g.c) * colW, gy = y + 44 + g.y; txt(g.name, gx + 2, gy + 8, 10.5, GOLD, 'left');
+    g.items.forEach((k, i) => { const ry = gy + HH + i * RH + 6; drawIcon(k, gx + 11, ry, 17); txt(ITEMS[k].n, gx + 26, ry + 1, 13.5, INK, 'left', '500'); txt(String(G.inv[k]), gx + colW - 12, ry + 1, 14, INK, 'right'); }); }
 }
 function drawSurvivorPanel(s) {
   const w = Math.min(W - 40, 420), h = 230, x = 20, y = H - h - 110;
