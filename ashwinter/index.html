@@ -535,15 +535,20 @@ const Motion = (() => {
     cook: (t) => { const q = Math.sin(t * 4); return pose({ torso: .12, head: .2, ul2: .15, ll2: .15, ul1: -.1, ll1: .1, ua2: .95, la2: 1.4 + .15 * q, ua1: .75, la1: 1.5 }); },
     eat: (t) => { const q = (Math.sin(t * 4) + 1) / 2; return pose({ torso: .05, head: .1 + .1 * q, ua2: .7 + .3 * q, la2: 2.4, ua1: .3, la1: 1.2 }); },
     hold: (t) => { const b = Math.sin(t * 1.6); return pose({ torso: .06 + .02 * b, ua2: .65, la2: 1.3, ua1: .45, la1: 1.4, ul2: .2, ll2: .2, ul1: -.2, ll1: .15 }); },   // weapon ready
-    swing: (t, c) => { const k = c.poseK || 0; return pose({ torso: .1 + .3 * k, head: -.1, hx: 4 * k, ua2: -1.5 + 2.8 * k, la2: .3, ua1: .5, la1: .9, ul2: .3 + .3 * k, ll2: .3, ul1: -.3 - .3 * k, ll1: .25 }); },
+    swing: (t, c) => { const k = c.poseK || 0; return pose({ torso: .04 + .24 * k, head: -.1, hx: 3 * k, ua2: -.35 + 1.6 * k, la2: .75 - .45 * k, ua1: .5, la1: .9, ul2: .3 + .3 * k, ll2: .3, ul1: -.3 - .3 * k, ll1: .25 }); },
     climb: (t, c) => { const k = c.poseK || 0, s = Math.sin(k * TAU), q = Math.cos(k * TAU), tp = c.climbTop || 0, te = tp * tp * (3 - 2 * tp), ua = 2.2 - 1.55 * te, sw = .75 - .6 * te; return pose({ turn: -H, torso: .04 + .1 * te, head: -.1, ua2: ua + sw * s, la2: .7 - .5 * s * (1 - te) + .1 * te, ua1: ua - sw * s, la1: .7 + .5 * s * (1 - te) + .1 * te, ul2: .75 + .45 * s, ll2: 1.25 + .35 * Math.max(0, s), ul1: .75 - .45 * s, ll1: 1.25 + .35 * Math.max(0, -s), f2: H - .2, f1: H - .2 }); },   // hand over hand, a knee up with each rung
     kneelAim: (t) => { const b = Math.sin(t * 1.7) * .012; return pose({ torso: .16 + b, head: .04, ua2: 1.02 + b, la2: .5, ua1: .8, la1: .95, ul2: 1.25, ll2: 1.5, ul1: .1, ll1: 1.55, f1: H - .5, tf1: .5 }); },   // one knee down, elbow on the other, the rifle steady
     aimP: (t) => { const b = Math.sin(t * 2.1) * .014; return pose({ torso: .12 + b, head: .05, ua2: 1.38 + b, la2: .16, ua1: 1.26 + b, la1: .34, ul2: .42, ll2: .5, ul1: -.36, ll1: .46 }); },   // both hands out, knees soft
     aimR: (t) => { const b = Math.sin(t * 1.9) * .015; return pose({ torso: .06 + b, head: .06, ua2: 1.15 + b, la2: .42, ua1: .95, la1: .85, ul2: .35, ll2: .35, ul1: -.32, ll1: .32 }); },   // rifle up at the shoulder
     brace: (t) => { const b = Math.sin(t * 3.1); return pose({ torso: .22 + .02 * b, head: -.08, ul2: .5, ll2: .6, ul1: -.38, ll1: .5, ua2: .95 + .05 * b, la2: 1.55, ua1: .75, la1: 1.7 }); },   // a fighter's stance: knees bent, feet apart, weapon up
-    chop: (t, c) => { const k = c.poseK || 0, e = k * k * (3 - 2 * k); return pose({ torso: -.08 + .55 * e, head: -.1 + .1 * e, hx: 5 * e, ua2: 2.8 - 2.3 * e, la2: .55 - .35 * e, ua1: 2.6 - 2.0 * e, la1: .7 - .4 * e, ul2: .4 + .2 * e, ll2: .45, ul1: -.35 - .2 * e, ll1: .35 }); },   // overhead, down through the target
-    upper: (t, c) => { const k = c.poseK || 0, e = k * k * (3 - 2 * k); return pose({ torso: .4 - .45 * e, head: .1 - .2 * e, hx: 4 * e, ua2: -.9 + 3.1 * e, la2: .25, ua1: .3 + .5 * e, la1: 1.2, ul2: .45, ll2: .7 - .4 * e, ul1: -.35, ll1: .55 - .2 * e }); },   // rising from low behind
+    chop: (t, c) => { const k = c.poseK || 0, e = k * k * (3 - 2 * k); return pose({ torso: -.08 + .55 * e, head: -.1 + .1 * e, hx: 5 * e, ua2: 2.2 - 1.5 * e, la2: 1.0 - .6 * e, ua1: 2.05 - 1.4 * e, la1: 1.1 - .6 * e, ul2: .4 + .2 * e, ll2: .45, ul1: -.35 - .2 * e, ll1: .35 }); },   // overhead, down through the target
+    upper: (t, c) => { const k = c.poseK || 0, e = k * k * (3 - 2 * k); return pose({ torso: .3 - .32 * e, head: .1 - .2 * e, hx: 3 * e, ua2: -.4 + 1.9 * e, la2: .25, ua1: .3 + .5 * e, la1: 1.2, ul2: .45, ll2: .7 - .4 * e, ul1: -.35, ll1: .55 - .2 * e }); },   // rising from low behind
     stab: (t, c) => { const k = c.poseK || 0, e = k < .5 ? k * 2 : 1; return pose({ torso: .08 + .3 * e, head: -.05, hx: 7 * e, ua2: .15 + 1.3 * e, la2: 1.7 - 1.6 * e, ua1: .7 - .5 * e, la1: 1.4, ul2: .3 + .4 * e, ll2: .35, ul1: -.3 - .3 * e, ll1: .25 }); },   // drawn back to the hip, then driven straight in
+    // the small ones: most blows are short and quick, thrown from where the hands already are
+    jab: (t, c) => { const k = c.poseK || 0, e = k < .45 ? k / .45 : 1; return pose({ torso: .1 + .1 * e, head: -.05, hx: 2.5 * e, ua2: .45 + .6 * e, la2: 1.6 - 1.15 * e, ua1: .6, la1: 1.5, ul2: .32 + .12 * e, ll2: .32, ul1: -.3 - .1 * e, ll1: .25 }); },   // a short poke from the hip, the elbow never fully out
+    slash: (t, c) => { const k = c.poseK || 0, e = k * k * (3 - 2 * k); return pose({ torso: .06 + .16 * e, head: -.06, hx: 2 * e, ua2: 1.5 - .75 * e, la2: 1.3 - .85 * e, ua1: .65, la1: 1.45, ul2: .32 + .1 * e, ll2: .32, ul1: -.3 - .08 * e, ll1: .25 }); },   // a short cut down across the body
+    short: (t, c) => { const k = c.poseK || 0, e = k * k * (3 - 2 * k); return pose({ torso: -.02 + .26 * e, head: -.08, hx: 3 * e, ua2: 1.2 - .05 * e, la2: 1.85 - 1.45 * e, ua1: 1.0, la1: 1.95 - 1.4 * e, ul2: .34 + .14 * e, ll2: .36, ul1: -.32 - .12 * e, ll1: .28 }); },   // both hands, cocked at the shoulder, snapped through from the elbows
+    butt: (t, c) => { const k = c.poseK || 0, e = k < .45 ? k / .45 : 1; return pose({ torso: .12 + .12 * e, head: -.06, hx: 3 * e, ua2: .5 + .45 * e, la2: 1.6 - .9 * e, ua1: .4 + .45 * e, la1: 1.7 - .9 * e, ul2: .34 + .14 * e, ll2: .34, ul1: -.3 - .12 * e, ll1: .26 }); },   // a shove with the end of it
     shove: (t, c) => { const k = c.poseK || 0; return pose({ torso: .15 + .2 * k, hx: 5 * k, ua2: .4 + 1.1 * k, la2: 1.2 - 1.1 * k, ua1: .4 + 1.1 * k, la1: 1.2 - 1.1 * k, ul2: .3 + .3 * k, ll2: .3, ul1: -.3 - .3 * k, ll1: .25 }); },
     zombieIdle: (t, c) => { const z = c.zt || { lean: .3, head: .3, armA: [.5, .35], armB: [.3, .3] }, q = Math.sin(t * 1.3); return pose({ torso: z.lean, head: z.head + .1 + .08 * q, ua2: z.armA[0] * .5 + .1 * q, la2: z.armB[0], ua1: z.armA[1] * .4, la1: z.armB[1], ul2: .12, ll2: .25, ul1: -.1, ll1: .2 }); },
     zombieAttack: (t, c) => { const k = c.poseK || 0, z = c.zt || { lean: .3 }; return pose({ torso: z.lean + .1 + .3 * k, head: .4, hx: 4 * k, ua2: .6 + .9 * k, la2: .3, ua1: .45 + 1.1 * k, la1: .25, ul2: .3 + .3 * k, ll2: .3, ul1: -.3 - .3 * k, ll1: .25 }); },
@@ -2159,7 +2164,7 @@ function drawPersonRig(a, pose, t, extra) {
   if (pose === 'search' && _T - (a._pfT || 0) > .55) { a._pfT = _T; (FX.puffs || (FX.puffs = [])).push({ x: a.x + c.facing * 24, y: tr.base - c.y - 34, d: -c.facing, t: 0 }); }
   if (pose === 'run' && _T - (a._pfT || 0) > .2) { a._pfT = _T; (FX.puffs || (FX.puffs = [])).push({ x: a.x - c.facing * 10, y: tr.base - c.y, d: c.facing, t: 0 }); }
   if (a.alive !== false && pose !== 'dead' && pose !== 'sleep' && a.visible !== false && G.world && G.phase !== 'title' && (SC.active || TR.active ? outdoorTemp(G.hour) : indoorTemp(G.hour)) < 5) { const ph = ((_T * .32 + (Math.abs(a.x) % 37) * .11) % 1), hx = a.x + c.facing * (9 + ph * 16) * (a.scale || 1), hy = tr.base - c.y - 69 * (a.scale || 1) - ph * 7; if (ph < .6) { ctx.fillStyle = `rgba(225,232,240,${(.2 * (1 - ph / .6)).toFixed(3)})`; circ(hx, hy, 2 + ph * 9); ctx.fill(); circ(hx + c.facing * 4, hy - 2, 1.5 + ph * 6); ctx.fill(); } }   // breath showing in the cold
-  const tool = poseTool(pose, extra, a); if (tool && !c.dead && handOf(a)) { const h = handOf(a); const F = a.facing || 1; const ang = (tool === 'shovel' ? h.th - Math.PI / 2 : h.th + Math.PI / 2) * F; drawTool(tool, h.x, h.y, ang, F, a, pose === 'aimGun' || pose === 'zombieAim'); }
+  const tool = poseTool(pose, extra, a); if (tool && !c.dead && handOf(a)) { const h = handOf(a); const F = a.facing || 1; const ang = (tool === 'shovel' ? h.th - Math.PI / 2 : h.th + Math.PI / 2 + wristOf(tool, pose, extra)) * F; drawTool(tool, h.x, h.y, ang, F, a, pose === 'aimGun' || pose === 'zombieAim'); }
   if (!a.zombie && !c.dead && c.cur) { const k = c.skeleton(c.cur), dy = c.curDy != null ? c.curDy : k.dy, f = c.facing * k.sx, bx = v => c.x + v[0] * f, by = v => tr.base - c.y + v[1] + dy, sc = c.k || 1;
     if (a.wounded) { const A = k.armN[0], B = k.armN[1]; ctx.strokeStyle = '#e4dccb'; ctx.lineWidth = 4.6 * sc; ctx.lineCap = 'butt'; ctx.beginPath(); ctx.moveTo(lerp(bx(A), bx(B), .38), lerp(by(A), by(B), .38)); ctx.lineTo(lerp(bx(A), bx(B), .72), lerp(by(A), by(B), .72)); ctx.stroke(); ctx.fillStyle = 'rgba(150,30,30,.8)'; circ(lerp(bx(A), bx(B), .55), lerp(by(A), by(B), .55), 1.3 * sc); ctx.fill(); ctx.lineCap = 'round'; }   // a bandaged arm
     const frosty = (CUR_W === G.world && !SC.active && G.phase !== 'title') ? indoorTemp(G.hour) < 7 : true;
@@ -2232,11 +2237,13 @@ const WEAPON_ART = {
 const WEAPON_SIZE = { bat: .7, knife: .6, pistol: .6, rifle: .78 };   // kept to the size they are in a hand
 function drawTool(tool, x, y, ang, facing, who, aim) {
   ctx.save(); ctx.translate(x, y); const gun = tool === 'pistol' || tool === 'rifle';
-  if (gun && aim) { ctx.scale(facing, 1); if (tool === 'rifle') ctx.translate(-7, 1); }                                                   // aimed: level, along the line of sight
-  else if (gun) { ctx.rotate(ang * facing - Math.PI / 2); ctx.scale(1, facing); ctx.rotate(.3); }   // carried: along the forearm, muzzle a little down
+  if (gun && aim) { ctx.scale(facing, 1); if (tool === 'rifle') ctx.translate(-7, 1); else ctx.translate(5, .3); }   // the hand lies a little past the wrist: that is where the grip goes                                                   // aimed: level, along the line of sight
+  else if (gun) { ctx.rotate(ang * facing - Math.PI / 2); ctx.scale(1, facing); ctx.rotate(.3); if (tool === 'pistol') ctx.translate(5, .3); }   // carried: along the forearm, muzzle a little down
   else ctx.rotate(ang * facing);
   ctx.lineCap = 'round';
-  if (WEAPON_ART[tool]) { const sd = who ? hashStr(String(who.id || who.name || 'x') + tool) : 7, k = WEAPON_SIZE[tool] || 1; ctx.lineCap = 'butt'; ctx.scale(k, k); WEAPON_ART[tool](mulberry(sd), sd); ctx.restore(); return; }
+  if (WEAPON_ART[tool]) { const sd = who ? hashStr(String(who.id || who.name || 'x') + tool) : 7, k = WEAPON_SIZE[tool] || 1; ctx.lineCap = 'butt'; ctx.save(); ctx.scale(k, k); WEAPON_ART[tool](mulberry(sd), sd); ctx.restore();
+    if (tool === 'pistol') { const skin = (who && who.skin) || '#c9a07a'; ctx.fillStyle = skin; ctx.beginPath(); ctx.ellipse(-.9, 1.5, 2.3, 2.5, -.15, 0, TAU); ctx.fill(); ctx.strokeStyle = 'rgba(0,0,0,.28)'; ctx.lineWidth = .5; for (const fy of [.4, 1.5, 2.6]) { ctx.beginPath(); ctx.moveTo(-.2, fy); ctx.lineTo(1.3, fy - .2); ctx.stroke(); } ctx.fillStyle = skin; ctx.fillRect(.6, -1.1, 2.3, 1); }   // fingers closed round the handle, one along the trigger guard
+    ctx.restore(); return; }
   switch (tool) {
     case 'shovel': ctx.strokeStyle = '#8a6a44'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0, -14); ctx.lineTo(0, 22); ctx.stroke(); ctx.fillStyle = '#9a9a92'; ctx.beginPath(); ctx.moveTo(-6, 20); ctx.lineTo(6, 20); ctx.lineTo(5, 32); ctx.quadraticCurveTo(0, 36, -5, 32); ctx.closePath(); ctx.fill(); ctx.fillStyle = '#5a5a55'; ctx.fillRect(-1, 20, 2, 12); break;
     case 'hammer': ctx.strokeStyle = '#8a6a44'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0, 4); ctx.lineTo(0, -16); ctx.stroke(); ctx.fillStyle = '#6a6d70'; rr(-8, -22, 16, 7, 2); ctx.fill(); ctx.fillStyle = '#4a4d50'; ctx.fillRect(4, -22, 4, 7); break;
@@ -2961,7 +2968,11 @@ function drawPuffs(dt) { const L = FX.puffs || (FX.puffs = []); for (let i = L.l
     else { ctx.fillStyle = `rgba(150,140,125,${(.26 * (1 - u)).toFixed(3)})`; circ(q.x - q.d * u * 10, q.y - 3 - u * 9, 3 + u * 11); ctx.fill(); circ(q.x - q.d * (6 + u * 16), q.y - 2 - u * 5, 2 + u * 8); ctx.fill(); } } if (L.length > 60) L.splice(0, L.length - 60); }   // dust kicked up behind running feet
 function drawBloodDrops(world, dt) { drawPuffs(dt); ctx.fillStyle = '#8e1414'; for (let i = BLOOD.length - 1; i >= 0; i--) { const d = BLOOD[i]; if (d.w !== world) { if ((d.life -= dt) <= 0) BLOOD.splice(i, 1); continue; } d.vy += 520 * dt; d.x += d.vx * dt; d.y += d.vy * dt; d.life -= dt; if (d.y >= d.gy || d.life <= 0) { BLOOD.splice(i, 1); continue; } ctx.beginPath(); ctx.arc(d.x, d.y, d.r, 0, TAU); ctx.fill(); } }
 // a knife stabs or slashes; a bat swings, chops down or comes up from below; never the same blow twice running
-function swingStyle(wep, last) { const opts = wep === 'knife' ? ['stab', 'stab', 'swing'] : ['swing', 'chop', 'upper']; let st = pick(opts); if (st === last) st = pick(opts); return st; }
+function swingStyle(wep, last) { const opts = wep === 'knife' ? ['jab', 'jab', 'jab', 'slash', 'slash', 'stab'] : ['short', 'short', 'short', 'butt', 'butt', 'chop', 'swing', 'upper']; let st = pick(opts); if (st === last) st = pick(opts); return st; }   // mostly small, quick blows; a full swing now and then
+// how the weapon sits in the hand through a blow: a bat lags behind the wrist and whips through; a slashing knife leads with the edge
+function wristOf(tool, pose, extra) { if ((pose !== 'attack' && pose !== 'zombieAttack') || !extra) return 0; const k = clamp(extra.k || 0, 0, 1), e = k * k * (3 - 2 * k), st = extra.style || 'swing';
+  if (tool === 'bat') return st === 'short' ? -1.15 * (1 - e) : st === 'swing' ? -.9 * (1 - e) : st === 'chop' ? -.55 * (1 - e) : st === 'upper' ? .5 * (1 - e) : 0;
+  if (tool === 'knife') return st === 'slash' ? -.45 * (1 - e) : 0; return 0; }
 // a raider's blow: recover, hold the weapon cocked (the tell to back off), then strike; it lands as the swing ends
 function raiderSwing(z, dt) {
   if (z.attackT === 0 || !z.style) { z.attackT = Math.max(z.attackT, .25); z.style = swingStyle(z.wpn, z.style); }
@@ -4222,7 +4233,7 @@ function updateRaid(dt) {
     if (z.dieAt != null && R.t >= z.dieAt) { bleed(w, z.x, 1, R.side, true); z.alive = false; z.pose = 'dead'; AUDIO.sfx(R.info.gun ? 'bang' : 'groan'); if (R.info.gun) FX.flash = .25; FX.shake = 5; continue; }
     if (z.dieAt != null && z.dieAt - R.t < .45) strike = Math.max(strike, 1 - (z.dieAt - R.t) / .45);
     if (Math.abs(z.x - z.rx) > 8) { const c = mcOf(z, engFlat(w, 1)); rigTo(z, engFlat(w, 1), z.rx, 46 / (Motion.CFG.walkSpeed * c.k), dt, zombieExt(z, _T), true); z.fy = 1; z.pose = 'zombie'; }
-    else { z.facing = -R.side; z.pose = 'zombieAttack'; z.at = (z.at || 0) + dt; z.poseExtra = { k: (z.at % 1) / .5 }; if (Math.floor(z.at) !== Math.floor(z.at - dt)) { AUDIO.sfx('bang'); R.shake = 1; } }
+    else { z.facing = -R.side; z.pose = 'zombieAttack'; z.at = (z.at || 0) + dt; z.poseExtra = { k: (z.at % 1) / .5, style: z.style || (z.style = swingStyle(z.wpn)) }; if (Math.floor(z.at) !== Math.floor(z.at - dt)) { AUDIO.sfx('bang'); R.shake = 1; z.style = swingStyle(z.wpn, z.style); } }
   }
   for (const g of R.info.guards) if (g.alive) { g.pose = strike > 0 ? 'attack' : 'guard'; g.poseExtra = { k: strike, weapon: wep }; }
   if (R.t >= R.dur) endRaid();
@@ -4245,7 +4256,7 @@ function updateRaidLive(dt) {
     if (d.path && d.path.length) { moveActor(d, dt, 135); d.pose = 'run'; d.poseExtra = null; continue; }
     d.ready = true; d.facing = R.side; rigFace(d, R.side);
     if (d.aim) { const z = d.aim.z; if (!z.alive || z.flee || !gun) d.aim = null; else { d.aim.t += dt; d.pose = 'aimGun'; d.poseExtra = { weapon: d.aim.gun }; if (d.aim.t >= d.aim.need) raidShoot(d, z); continue; } }
-    if (d.swing) { const sw = d.swing; sw.t += dt; const k = sw.t / .42; d.pose = 'attack'; d.poseExtra = { k, weapon: melee }; if (k >= .55 && !sw.hit) { sw.hit = true; raidHit(d, sw.z, melee); } if (k >= 1) d.swing = null; continue; }
+    if (d.swing) { const sw = d.swing; sw.t += dt; const k = sw.t / .42; d.pose = 'attack'; d.poseExtra = { k, weapon: melee, style: melee ? sw.style : null }; if (k >= .55 && !sw.hit) { sw.hit = true; raidHit(d, sw.z, melee); } if (k >= 1) d.swing = null; continue; }
     d.pose = 'guard'; d.poseExtra = { k: 0, weapon: gun || melee }; }
   let living = 0;
   for (const z of R.zs) {
@@ -4253,7 +4264,7 @@ function updateRaidLive(dt) {
     if (z.flee) { const c = mcOf(z, flat); rigTo(z, flat, R.edge + R.side * 1200, 135 / (Motion.CFG.walkSpeed * c.k), dt, zombieExt(z, _T), true); z.fy = 1; z.pose = 'zombie'; if (Math.abs(z.x - R.edge) > 640) { z.gone = true; z.visible = false; } continue; }
     living++;
     if (Math.abs(z.x - z.rx) > 8) { const c = mcOf(z, flat); rigTo(z, flat, z.rx, 46 / (Motion.CFG.walkSpeed * c.k), dt, zombieExt(z, _T), true); z.fy = 1; z.pose = 'zombie'; z.atB = false; }
-    else { z.atB = true; z.facing = -R.side; z.pose = 'zombieAttack'; z.at = (z.at || 0) + dt; z.poseExtra = { k: (z.at % 1) / .5 }; if (Math.floor(z.at) !== Math.floor(z.at - dt)) raidBang(z); }
+    else { z.atB = true; z.facing = -R.side; z.pose = 'zombieAttack'; z.at = (z.at || 0) + dt; z.poseExtra = { k: (z.at % 1) / .5, style: z.style || (z.style = swingStyle(z.wpn)) }; if (Math.floor(z.at) !== Math.floor(z.at - dt)) { raidBang(z); z.style = swingStyle(z.wpn, z.style); } }
   }
   // they lose heart when most of them are down, or when it has gone on too long
   if (!R.fled && living > 0 && (R.kills >= Math.ceil(R.zs.length * .6) || R.t >= R.dur)) raidFlee(R.t >= R.dur ? 'gave up' : 'ran');
@@ -4271,7 +4282,7 @@ function raidBreach() { const R = G.raid, lines = R.lines || (R.lines = []), res
 function raidTap(z) { const R = G.raid; if (!z.alive || z.flee) return; const gun = raidGun(), d = R.def.find(q => q.alive && q.ready && !(q.path && q.path.length) && !(q.cd > 0) && !q.aim && !q.swing); if (!d) return;
   if (gun) { d.aim = { z, t: 0, need: GUNS[gun].aim * .55, gun }; AUDIO.sfx('tap'); return; }
   if (!z.atB) { R.msg = 'too far · wait until he is at the boards'; R.msgT = 1.6; return; }
-  d.swing = { z, t: 0 }; d.cd = d.trait === 'strong' ? .75 : 1.05; AUDIO.sfx('swing'); }
+  d.swing = { z, t: 0, style: (d.lastStyle = swingStyle(raidMelee(), d.lastStyle)) }; d.cd = d.trait === 'strong' ? .75 : 1.05; AUDIO.sfx('swing'); }
 function raidShoot(d, z) { const R = G.raid, w = G.world, g = GUNS[d.aim.gun]; G.inv.ammo = Math.max(0, (G.inv.ammo || 0) - 1); d.aim = null; d.cd = .45; AUDIO.sfx('shot'); FX.flash = .22; FX.shake = 5; R.flash = .12;
   const y = w.fy2y(1) - 58, hit = Math.random() < (g.dmg > 4 ? .95 : .8); R.tracer = { x0: d.x + R.side * 16, y0: y, x1: hit ? z.x : z.x + R.side * 300, y1: hit ? y + 4 : y - 30, t: .12 };
   if (hit) raidDamage(z, g.dmg, true); else { R.msg = 'missed'; R.msgT = .8; } }
