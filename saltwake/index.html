@@ -118,7 +118,7 @@ body.intro #hud,body.intro #touch,body.demo #touch{visibility:hidden}body.demo #
 <div id="title" class="screen">
 <h1>Saltwake</h1>
 <p>A boy, a short cutlass, a longboat and four loyal hands. Scavenge, trade and fight your way up to a sloop, then a brig, and grow into the captain your father was.</p>
-<div class="ctas"><button class="cta" id="btnNew" type="button">Set sail</button><button class="cta alt" id="btnCont" type="button" hidden>Continue voyage</button><button class="cta alt" id="btnDemo" type="button">Watch the demo</button><button class="cta alt" id="btnExped" type="button">Treasure expedition · preview</button></div>
+<div class="ctas"><button class="cta" id="btnNew" type="button">Set sail</button><button class="cta alt" id="btnCont" type="button" hidden>Continue voyage</button><button class="cta alt" id="btnDemo" type="button">Watch the demo</button></div>
 <div class="how"><span><kbd>Arrows</kbd>point and sail, or walk</span><span><kbd>Space</kbd>fire, land or jump</span><span><kbd>Q E</kbd>port and starboard guns</span><span><kbd>J</kbd>slash</span><span><kbd>W</kbd>climb</span><span><kbd>M</kbd>sea chart</span><span><kbd>N</kbd>sound</span></div>
 <div class="how"><span>Touch pad and controllers work too. Best in landscape.</span></div>
 </div>
@@ -228,11 +228,11 @@ const G = {
   mode: 'title', t: 0,
   gold: 60, hull: 30, hullMax: 30, crew: 4, crewMax: 4, tier: 0, plank: 0, holdUp: 0,
   food: 70, water: 45, timber: 0, cargo: 0, hold: 4, guns: 0,
-  hp: 5, kills: 0, sold: 0, thirstT: 0, bounty: 0, map: 0,
+  hp: 5, kills: 0, sold: 0, thirstT: 0, bounty: 0,
   isleDone: { chest: false, items: {}, foes: {} }, portChest: false,
 };
 function saveGame() {
-  try { localStorage.setItem('saltwake2', JSON.stringify({ tier: G.tier, plank: G.plank, holdUp: G.holdUp, crewMax: G.crewMax, hold: G.hold, gold: G.gold, hull: G.hull, hullMax: G.hullMax, crew: G.crew, food: G.food, water: G.water, timber: G.timber, cargo: G.cargo, guns: G.guns, kills: G.kills, sold: G.sold, portChest: G.portChest, bounty: G.bounty, map: G.map })); } catch (e) { /* storage unavailable */ }
+  try { localStorage.setItem('saltwake2', JSON.stringify({ tier: G.tier, plank: G.plank, holdUp: G.holdUp, crewMax: G.crewMax, hold: G.hold, gold: G.gold, hull: G.hull, hullMax: G.hullMax, crew: G.crew, food: G.food, water: G.water, timber: G.timber, cargo: G.cargo, guns: G.guns, kills: G.kills, sold: G.sold, portChest: G.portChest, bounty: G.bounty })); } catch (e) { /* storage unavailable */ }
 }
 function loadGame() {
   try { const s = JSON.parse(localStorage.getItem('saltwake2') || 'null'); if (s) Object.assign(G, s); return !!s; } catch (e) { return false; }
@@ -722,7 +722,7 @@ const LEVELS = {
     h: (x, z) => 0.35 + 4.4 * smooth((x - 1) / 9) * smooth((-z - 0.5) / 4.5) + 0.25 * vnoise(x * 0.5, z * 0.5, 4),
     water: (x, z) => z > 3.4 || x < -6 || (x < -3.8 && z < -1.5) || z < -9.5,
     rects: [], circles: [[-1.5, -4, 0.4], [3, 1.6, 0.4], [7, -7.5, 0.4], [14, 1.4, 0.4], [18.5, -8.2, 0.4], [23.5, -2, 0.4], [9.5, -1.5, 0.35], [21, 1.6, 0.4], [13.5, -6.5, 1.1]],
-    zones: [{ x: -5.0, z: 0.4, r: 1.5, label: 'Row back to the ship', act: 'leave' }, { x: 26, z: -3, r: 1.8, label: 'Follow the map inland', act: 'exped', need: 'map' }, { x: 13.5, z: -6.5, r: 2.0, label: 'Fill the water casks', act: 'water' }],
+    zones: [{ x: -5.0, z: 0.4, r: 1.5, label: 'Row back to the ship', act: 'leave' }, { x: 13.5, z: -6.5, r: 2.0, label: 'Fill the water casks', act: 'water' }],
     chest: [25, -7.5], items: [['timber', -2.2, 2.2], ['coco', 3.4, 0.4], ['coco', 15.5, -0.3], ['timber', 10.5, -5.5], ['coco', 19.5, -6.5], ['timber', 23, 0.8], ['timber', 6.5, -3.8]],
     foes: [[6, -1, 3.5], [22.5, -7.5, 3]], palms: [[-1.5, -4, 4.5], [3, 1.6, 4], [7, -7.5, 5], [14, 1.4, 4.2], [18.5, -8.2, 5.5], [23.5, -2, 4.8], [9.5, -1.5, 3.6], [21, 1.6, 4.4]] },
 };
@@ -748,6 +748,7 @@ const Land = {
   text(x, z, s, col) { this.fx.push({ k: 'txt', x, z, s, col: col || '#f2ecdc', t: 0, life: 1.3 }); },
   tap(x, z) { if (this.leaving() || UI.panelOpen) return; const lv = this.lv; this.tapAct = null;
     for (const zn of lv.zones) if (Math.hypot(x - zn.x, z - zn.z) < zn.r + 1.0 && (!zn.need || G[zn.need] === 1)) { this.tapAct = zn; x = zn.x; z = zn.z; break; }
+    if (!this.tapAct && Land3.folk) for (const f of Land3.folk) if (Math.hypot(x - f.x, z - f.z) < 1.2) { this.tapAct = { label: 'Talk', act: 'talk', folk: f, x: f.x, z: f.z, r: 1.4 }; x = f.x; z = f.z; break; }
     if (!this.tapAct && !this.chestOpen && Math.hypot(x - lv.chest[0], z - lv.chest[1]) < 1.8) { this.tapAct = { label: 'Open the chest', act: 'chest', x: lv.chest[0], z: lv.chest[1], r: 1.1 }; x = lv.chest[0]; z = lv.chest[1]; }
     const f = this.foes.find(f => f.state !== 'dead' && Math.hypot(x - f.x, z - f.z) < 1.6); if (f) { this.tapAct = { act: 'attack', foe: f }; }
     this.tapTarget = [x, z]; },
@@ -761,7 +762,7 @@ const Land = {
     else if (this.tapTarget) { const dx = this.tapTarget[0] - p.x, dz = this.tapTarget[1] - p.z, d = Math.hypot(dx, dz), stop = this.tapAct ? (this.tapAct.act === 'attack' ? 1.3 : this.tapAct.r ? this.tapAct.r * 0.9 : 0.6) : 0.25;
       if (d > stop) { let ux = dx / d, uz = dz / d; const probe = (ax, az) => this.free(p.x + ax * 0.9, p.z + az * 0.9, 0.35) && this.free(p.x + ax * 0.45, p.z + az * 0.45, 0.35);
         if (!probe(ux, uz)) for (const a of [0.5, -0.5, 1.0, -1.0, 1.5, -1.5, 2.2, -2.2]) { const c = Math.cos(a), sn = Math.sin(a), rx = ux * c - uz * sn, rz = ux * sn + uz * c; if (probe(rx, rz)) { ux = rx; uz = rz; break; } }
-        const k = Math.min(1, d / 1.5); mx = ux * k; mz = uz * k; } else { const a = this.tapAct; this.tapTarget = null; this.tapAct = null; if (a) { if (a.act === 'attack') { p.head = Math.atan2(a.foe.x - p.x, a.foe.z - p.z); this.slash(); } else this.act(a.act); } } }
+        const k = Math.min(1, d / 1.5); mx = ux * k; mz = uz * k; } else { const a = this.tapAct; this.tapTarget = null; this.tapAct = null; if (a) { if (a.act === 'attack') { p.head = Math.atan2(a.foe.x - p.x, a.foe.z - p.z); this.slash(); } else { this.tapAct = a; this.act(a.act); this.tapAct = null; } } } }
     const m = Math.hypot(mx, mz), stunned = p.hurtT > 0.15 || p.slashT > 0.2;
     if (m > 0.2 && !stunned) { p.head = Math.atan2(mx, mz); p.speed = lerp(p.speed, 4.8 * Math.min(1, m), Math.min(1, dt * 10)); } else p.speed = lerp(p.speed, 0, Math.min(1, dt * 12));
     if (p.hurtT > 0.15) { this.move(p, p.vx * dt, p.vz * dt, 0.35); p.vx *= 0.9; p.vz *= 0.9; }
@@ -770,6 +771,7 @@ const Land = {
     // interactions
     this.zone = null; for (const zn of lv.zones) if (Math.hypot(p.x - zn.x, p.z - zn.z) < zn.r && (!zn.need || G[zn.need] === 1)) this.zone = zn;
     if (!this.chestOpen && Math.hypot(p.x - lv.chest[0], p.z - lv.chest[1]) < 1.3) this.zone = { label: 'Open the chest', act: 'chest' };
+    if (!this.zone && Land3.folk) for (const f of Land3.folk) if (Math.hypot(p.x - f.x, p.z - f.z) < 1.5) this.zone = { label: 'Talk to ' + f.name, act: 'talk', folk: f, x: f.x, z: f.z };
     if (ctl.hit.A || ctl.hit.B || ctl.hit.X) { if (this.zone && !ctl.hit.X && !this.duel) this.act(this.zone.act); else if (ctl.hit.X && this.duel) this.parry(); else this.slash(); }
     // a duel: the nearest hostile within reach pulls the camera round to the side until it is settled
     if (this.duel && (this.duel.state === 'dead' || Math.hypot(this.duel.x - p.x, this.duel.z - p.z) > 9)) this.duel = null;
@@ -801,8 +803,9 @@ const Land = {
     const p = this.p;
     if (a === 'chest') { if (this.chestOpen) return; this.chestOpen = true; const g = this.key === 'port' ? 50 : 90; G.gold += g; Sfx.gold(); this.text(p.x, p.z, '+' + g + ' gold', '#ffe2a0');
       if (this.key === 'port') { G.portChest = true; toast('A rumor note: a wreck lies on the far cove of Driftwood Isle.', 4200); } else G.isleDone.chest = true; }
+    else if (a === 'talk') { const f = (this.tapAct && this.tapAct.folk) || (this.zone && this.zone.folk); if (f) { toast(f.name + ': “' + f.lines[f.said % f.lines.length] + '”', 5000); f.said++; f.rest = 4; Sfx.ui(); } }
     else if (a === 'water') { if (G.water >= 99.5) toast('The casks are already full.', 1500); else { G.water = 100; Sfx.pickup(); this.text(p.x, p.z, 'Casks filled'); } }
-    else if (a === 'trade') UI.openTrade(); else if (a === 'tavern') UI.openTavern(); else if (a === 'leave') Land3.startCine('out'); else if (a === 'exped') { Game.previewExped = false; Game.enter('exped'); }
+    else if (a === 'trade') UI.openTrade(); else if (a === 'tavern') UI.openTavern(); else if (a === 'leave') Land3.startCine('out');
   },
   render() { Land3.render(); },
 };
@@ -820,7 +823,7 @@ const Land3 = {
     this.sun = new THREE.DirectionalLight(0xfff1d6, 2.2); this.sun.castShadow = true; const sc = this.sun.shadow; sc.mapSize.set(2048, 2048); sc.camera.near = 1; sc.camera.far = 90; sc.camera.left = sc.camera.bottom = -26; sc.camera.right = sc.camera.top = 26; sc.bias = -0.0008;
     this.scene.add(this.sun); this.scene.add(this.sun.target); this.hemi = new THREE.HemisphereLight(0xbfd8ee, 0x4a6a3a, 0.9); this.scene.add(this.hemi);
     this.makeMaterials(); this.water = this.makeWater(); this.scene.add(this.water);
-    fxCanvas.addEventListener('pointerdown', e => { Sfx.unlock(); if (G.mode === 'exped') Exped.tap(e.clientX, e.clientY); else if (G.mode === 'island' || G.mode === 'port') this.tapAt(e.clientX, e.clientY); else return; e.preventDefault(); });
+    fxCanvas.addEventListener('pointerdown', e => { Sfx.unlock(); if (G.mode === 'island' || G.mode === 'port') this.tapAt(e.clientX, e.clientY); else return; e.preventDefault(); });
   },
   resize(w, h) { if (!this.ready) return; this.r.setSize(w, h, false); this.cam.aspect = w / h; this.cam.updateProjectionMatrix(); this.fx.width = w; this.fx.height = h; },
   // --- procedural textures
@@ -1005,7 +1008,13 @@ const Land3 = {
     // life: townsfolk on the quay, a dog by the tavern, gulls; grass, ferns and flowers on the island
     Flora.init(); this.folk = []; this.gullList = Flora.gulls(this.group, port ? 5 : 8, port ? 6 : 10, port ? 2 : 0, port ? 9 : 7);
     if (port) { const looks = [{ skin: 0xd9a784, shirt: 0x6a7a9a, pants: 0x4a3a2a, boot: 0x2a2320, hat: 0x3a2a1a, vest: 0x3a3a3a, sash: 0x5a5a5a, hair: 0x4a3020 }, { skin: 0x8a5a3a, shirt: 0xb8a070, pants: 0x3a3a4a, boot: 0x2a2320, hat: 'bandana', band: 0x3a6a8a, vest: 0x5a4a30, sash: 0x3a3a3a, hair: 0x1a1a1a }, { skin: 0xe8c8a8, shirt: 0x8a3a3a, pants: 0x2a2a3a, boot: 0x2a2320, hat: 0x5a3a1a, vest: 0x2a2420, sash: 0x8a7a40, hair: 0x6a4a2a, beard: false }];
-      [[2, 3.5, 9, 4.5], [12, 2.0, 20, 5.5], [-1, 1.0, 3, 4]].forEach((w, i) => { const r = this.rig(looks[i], {}); r.poser = new Motion.Poser(); this.folk.push({ r, x: w[0] + 2, z: (w[1] + w[3]) / 2, box: w, wp: null, head: 0, walk: 0, rest: rand(0, 4) }); });
+      const names = [['Old Pell', ['Your father owed me two shillings. Keep them, boy. Bring me a story instead.', 'The navy brig patrols east of the fort. Give her a wide berth in that boat.', 'Timber mends a hull. The isle has it for the carrying.']], ['Marisol', ['Fresh mangoes, three for a penny. Your crew will thank you at sea.', 'The merchantmen out of the east run heavy. And they run, full stop.', 'A squall is a gift to a small boat with a smart captain. Everyone else slows down.']], ['Brother Anselm', ['Your father is in the Lord\'s hands now. You are in your own.', 'Water first, then food, then gold. Men forget that order and die of it.', 'The Red Corsair drinks at this very tavern some nights. Not tonight.']]];
+      [[2, 3.5, 9, 4.5], [12, 2.0, 20, 5.5], [-1, 1.0, 3, 4]].forEach((w, i) => { const r = this.rig(looks[i], {}); r.poser = new Motion.Poser(); this.folk.push({ r, x: w[0] + 2, z: (w[1] + w[3]) / 2, box: w, wp: null, head: 0, walk: 0, rest: rand(0, 4), name: names[i][0], lines: names[i][1], said: 0 }); });
+      // a market stall: counter, awning on poles, fruit; and a fisherman at the pier end with a rod
+      { const sx = 13.5, sz = 3.2; this.box(2.6, 0.9, 0.9, this.mat.wood, sx, 1.9 + 0.45, sz); for (const px of [-1.2, 1.2]) this.box(0.08, 2.4, 0.08, this.mat.wood, sx + px, 1.9 + 1.2, sz - 0.5, false); const aw = this.box(3.0, 0.05, 1.6, new THREE.MeshStandardMaterial({ color: 0xb8432a, roughness: .9, side: THREE.DoubleSide }), sx, 1.9 + 2.35, sz - 0.1, false); aw.rotation.x = 0.25;
+        const fruit = [0xf2a93b, 0xd94a3a, 0x8fc24a, 0xf6d35a]; for (let k = 0; k < 14; k++) { const f = new THREE.Mesh(new THREE.SphereGeometry(0.09, 7, 6), new THREE.MeshStandardMaterial({ color: fruit[k % 4], roughness: .6 })); f.position.set(sx - 1.0 + (k % 7) * 0.33, 1.9 + 0.98 + Math.floor(k / 7) * 0.05, sz - 0.2 + Math.floor(k / 7) * 0.3); f.castShadow = true; this.group.add(f); }
+        this.box(0.8, 0.5, 0.5, this.mat.crate, sx + 1.7, 1.9 + 0.25, sz + 0.1); }
+      { const r = this.rig({ skin: 0xb98a6a, shirt: 0x6a6a5a, pants: 0x3a3a3a, boot: 0x2a2320, hat: 0x7a6a3a, vest: 0x3a2a1a, sash: 0x4a4a4a, hair: 0x9a9a9a }, {}); r.poser = new Motion.Poser(); r.poser.set('sit'); this.fisher = r; const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.02, 2.6, 5), this.mat.wood); rod.position.set(0.9, 0.9, 0.3); rod.rotation.z = -0.9; r.group.add(rod); const bucket = this.box(0.3, 0.3, 0.3, this.mat.iron, -22.3, 1.75 + 0.15, 0.9); bucket.geometry = new THREE.CylinderGeometry(0.16, 0.13, 0.3, 10); }
       const dog = new THREE.Group(), dm = new THREE.MeshStandardMaterial({ color: 0x8a6a3a, roughness: .9 }); const body = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 6), dm); body.scale.set(1.8, 0.9, 0.9); body.position.y = 0.32; dog.add(body); const hd = new THREE.Mesh(new THREE.SphereGeometry(0.14, 8, 6), dm); hd.position.set(0.42, 0.42, 0); dog.add(hd); for (const [x, z] of [[0.25, 0.1], [0.25, -0.1], [-0.25, 0.1], [-0.25, -0.1]]) { const lg = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.03, 0.3, 6), dm); lg.position.set(x, 0.15, z); dog.add(lg); } const tl = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.035, 0.3, 6), dm); tl.position.set(-0.42, 0.42, 0); tl.rotation.z = -0.9; dog.add(tl); dog.position.set(10.2, 1.9, 0.5); dog.rotation.y = -0.6; dog.traverse(m => { if (m.isMesh) m.castShadow = true; }); this.group.add(dog); this.dog = { g: dog, tail: tl }; }
     else { const L = [], F = [], FL = [], rng = mulberry(5), R = (a, b) => a + rng() * (b - a), tc = new THREE.Color();
       for (let i = 0; i < 1600; i++) { const x = R(-5, 27), z = R(-9.5, 3.2); if (lv.water(x, z)) continue; const y = lv.h(x, z), gr = clamp((y - 1.0) * 0.6, 0, 1); if (rng() > 0.25 + gr * 0.7) continue; tc.set(0xc9b56a).lerp(new THREE.Color(0x7fb052), gr).offsetHSL(R(-0.02, 0.02), 0, R(-0.06, 0.06)); L.push({ x, y: y - 0.02, z, s: R(0.6, 1.1), ry: R(0, TAU), c: tc.getHex() }); }
@@ -1033,7 +1042,8 @@ const Land3 = {
     else { if (p.hurtT > 0) { st = 'hurt'; tt = (0.4 - p.hurtT) / 0.4; } else if (p.slashT > 0) { st = 'cut'; tt = (0.36 - p.slashT) / 0.36; } else if (p.parryT > 0) { st = 'parry'; tt = (0.5 - p.parryT) / 0.5; } else if (p.speed > 3) { st = 'run'; po.gaitPhase = p.walk * 1.25; } else if (p.speed > 0.3) { st = 'walk'; po.gaitPhase = p.walk * 1.4; } else if (Land.duel) st = 'guard'; }
     po.set(st); P.apply(po.update(dt, tt), { yaw: head - Math.PI / 2 }, px, py, pz); P.group.visible = p.inv <= 0 || Math.floor(Land.t * 14) % 2 === 0;
     Flora.uTime.value = this.t; Flora.uPlayer.value.set(p.x, p.y, p.z); if (this.gullList) Flora.tickGulls(this.gullList, this.t); if (this.dog) this.dog.tail.rotation.z = -0.9 + Math.sin(this.t * 9) * 0.4;
-    for (const f of this.folk) { const b = f.box; if (f.rest > 0) { f.rest -= dt; } else { if (!f.wp || Math.hypot(f.wp[0] - f.x, f.wp[1] - f.z) < 0.3) { f.wp = [rand(b[0], b[2]), rand(b[1], b[3])]; f.rest = rand(1, 5); } else { f.head = Math.atan2(f.wp[0] - f.x, f.wp[1] - f.z); const nx = f.x + Math.sin(f.head) * 1.0 * dt, nz = f.z + Math.cos(f.head) * 1.0 * dt; if (Land.free(nx, nz, 0.35) && Math.hypot(nx - p.x, nz - p.z) > 0.9) { f.x = nx; f.z = nz; f.walk += dt * 1.9; } else f.rest = 0.6; } }
+    if (this.fisher) this.fisher.apply(this.fisher.poser.update(dt, Land.t), { yaw: -Math.PI / 2 - Math.PI / 2 }, -23.2, 1.75 + 0.02, 0.1);
+    for (const f of this.folk) { const b = f.box; const nearP = Math.hypot(f.x - p.x, f.z - p.z) < 2.2; if (nearP) { f.rest = Math.max(f.rest, 0.5); f.head = Math.atan2(p.x - f.x, p.z - f.z); } if (f.rest > 0) { f.rest -= dt; } else { if (!f.wp || Math.hypot(f.wp[0] - f.x, f.wp[1] - f.z) < 0.3) { f.wp = [rand(b[0], b[2]), rand(b[1], b[3])]; f.rest = rand(1, 5); } else { f.head = Math.atan2(f.wp[0] - f.x, f.wp[1] - f.z); const nx = f.x + Math.sin(f.head) * 1.0 * dt, nz = f.z + Math.cos(f.head) * 1.0 * dt; if (Land.free(nx, nz, 0.35) && Math.hypot(nx - p.x, nz - p.z) > 0.9) { f.x = nx; f.z = nz; f.walk += dt * 1.9; } else f.rest = 0.6; } }
       f.r.poser.set(f.rest > 0 ? 'idle' : 'walk'); f.r.poser.gaitPhase = f.walk * 1.4; f.r.apply(f.r.poser.update(dt, Land.t + f.x), { yaw: f.head - Math.PI / 2 }, f.x, lv.h(f.x, f.z), f.z); }
     Land.foes.forEach((f, i) => { const R = this.foeRigs[i], q = R.poser; let s = 'walk', t2 = f.t; if (f.state === 'dead') { s = 'die'; t2 = Math.min(1, f.t * 1.4); } else if (f.state === 'hurt') s = 'hurt'; else if (f.state === 'windup') { s = 'cut'; t2 = f.t / 0.38 * 0.3; } else if (f.state === 'slash') { s = 'cut'; t2 = 0.3 + f.t / 0.28 * 0.5; } else q.gaitPhase = f.walk * 1.4;
       q.set(s); R.apply(q.update(dt, t2), { yaw: f.head - Math.PI / 2 }, f.x, lv.h(f.x, f.z), f.z); });
@@ -1055,202 +1065,6 @@ const Land3 = {
     for (const f of Land.foes) if (f.state !== 'dead' && f.hp < 3) { const q = this.proj(f.x, lv.h(f.x, f.z) + 2.1, f.z); c.fillStyle = 'rgba(8,14,18,.7)'; c.fillRect(q.sx - 22, q.sy, 44, 6); c.fillStyle = '#ffb08a'; c.fillRect(q.sx - 21, q.sy + 1, 42 * f.hp / 3, 4); }
     if (!this.cine && Land.zone && Land.zone.x !== undefined) { const z = Land.zone, q = this.proj(z.x, lv.h(z.x, z.z) + 0.2, z.z), r = 0.9 * W / this.dist / 1.2; c.strokeStyle = 'rgba(255,236,170,.6)'; c.lineWidth = 2; c.setLineDash([6, 5]); c.beginPath(); c.ellipse(q.sx, q.sy, r, r * 0.57, 0, 0, TAU); c.stroke(); c.setLineDash([]); }
     if (Land.tapTarget && !this.cine) { const tg = Land.tapTarget, q = this.proj(tg[0], lv.h(tg[0], tg[1]) + 0.05, tg[1]), r = 8 + 3 * Math.sin(this.t * 6); c.strokeStyle = 'rgba(255,255,255,.7)'; c.lineWidth = 2; c.beginPath(); c.ellipse(q.sx, q.sy, r, r * 0.57, 0, 0, TAU); c.stroke(); }
-  },
-};
-
-// ==== 04c_exped.js
-// ---- the expedition: a 3D side-view trek east across the island, beach -> dunes -> scrub -> jungle, to a buried chest
-const Exped = {
-  LEN: 268, p: null, foes: [], fx: [], t: 0, dig: 0, done: false, preview: false, tapDir: 0, tapT: 0, tapJump: false, target: null, duel: null, camX: 0, camY: 0,
-  ZMIN: -28, ZMAX: 10, SEA: -0.3, SX: [196, 199], X: [258, -14], circles: [], logs: [],
-  foeSpots: [[150, -10], [178, -3], [226, -17], [244, 3]],
-  biome(x) { return x < 28 ? 'beach' : x < 112 ? 'dunes' : x < 150 ? 'scrub' : 'jungle'; },
-  pathZ(x) { return -4 + 4 * Math.sin(x * 0.028) - 6 * smooth((x - 200) / 50); },
-  // gentle open ground: under a metre of roll, a beach that slopes into the sea to the south and west, hills only beyond the north edge
-  land(x, z) { const d = smooth((x - 24) / 10) * (1 - smooth((x - 108) / 10)), j = smooth((x - 145) / 15);
-    let y = 0.45 + 0.35 * vnoise(x * 0.05, z * 0.05, 4) + d * 0.25 * Math.sin(x * 0.16 + z * 0.12) + j * 0.3 + 0.06 * vnoise(x * 0.7, z * 0.7, 6);
-    const sx = this.SX, ch = smooth((x - sx[0]) / 0.5) * (1 - smooth((x - sx[1] + 0.5) / 0.5)); y -= ch * 1.5;
-    y += smooth((-z - 30) / 10) * (5 + 3 * vnoise(x * 0.05, z * 0.1, 5)); return y; },
-  ground(x, z) { const shore = Math.max(smooth((z - 7) / 9), smooth((-x - 1) / 9)); return lerp(this.land(x, z), -1.8, shore); },
-  h(x) { return this.ground(x, this.pathZ(x)); },
-  enter(preview) { this.preview = !!preview; this.t = 0; this.fx = []; this.dig = 0; this.done = false; this.tapDir = 0; this.target = null; this.duel = null; this.tapTarget = null;
-    this.p = { x: 4, z: 2, y: this.ground(4, 2), vy: 0, ground: true, face: 1, head: Math.PI / 2, speed: 0, vx: 0, vz: 0, walk: 0, slashT: 0, parryT: 0, hitDone: false, hurtT: 0, inv: 0, coyote: 0 };
-    this.foes = this.foeSpots.map(([x, z], i) => ({ x, z, y: this.ground(x, z), hx: x, hz: z, id: 'e' + i, hp: 3, face: -1, head: -Math.PI / 2, state: 'walk', t: 0, walk: 0, cd: 0, kx: 0, kz: 0, wp: null }));
-    this.items = [[22, 4, 'coco'], [48, -12, 'coco'], [70, -3, 'timber'], [95, 5, 'coco'], [128, -18, 'coco'], [141, -2, 'timber'], [160, 3, 'coco'], [190, -20, 'timber'], [220, -1, 'coco'], [250, -22, 'coco']].map((it, i) => ({ x: it[0], z: it[1], type: it[2], taken: false }));
-    this.boar = { x: 125, z: -14, hx: 125, hz: -14, head: 0, state: 'graze', t: 0, cd: 0, hp: 2, walk: 0 }; this.chirpT = 2; this.camp = [118, 2];
-    G.hp = 5; this.build(); this.camX = 4; this.camZ = 2; this.camY = this.p.y; },
-  // logs are jumpable boxes [x, z, halfX, halfZ, height]; rocks and trunks are solid circles [x, z, r]
-  top(x, z) { let g = this.ground(x, z); for (const o of this.logs) if (Math.abs(x - o[0]) < o[2] + 0.2 && Math.abs(z - o[1]) < o[3] + 0.2) g = Math.max(g, this.ground(o[0], o[1]) + o[4]); return g; },
-  wall(x, z, y) { for (const o of this.logs) { const base = this.ground(o[0], o[1]); if (Math.abs(x - o[0]) < o[2] + 0.3 && Math.abs(z - o[1]) < o[3] + 0.3 && y < base + o[4] - 0.3 && y > base - 1.5) return o; }
-    for (const c of this.circles) if (Math.abs(x - c[0]) < c[2] + 0.3 && Math.hypot(x - c[0], z - c[1]) < c[2] + 0.3) return c; return null; },
-  free(x, z, y) { return x >= 0 && x <= this.LEN + 2 && z >= this.ZMIN && z <= this.ZMAX && !this.wall(x, z, y); },
-  build() { const L3 = Land3; if (!L3.ready) return; if (L3.group) L3.scene.remove(L3.group); L3.group = new THREE.Group(); L3.scene.add(L3.group); L3.t = 0;
-    Flora.init(); L3.scene.background = new THREE.Color(0xcfe2ec); L3.scene.fog = new THREE.Fog(0xcfe2ec, 50, 230); L3.cam.far = 400; L3.cam.updateProjectionMatrix(); L3.sunDir = [-14, 26, -12]; L3.sun.intensity = 2.0; L3.sun.color.set(0xffe6c4); L3.hemi.intensity = 0.75; L3.hemi.color.set(0xbcd6ea); L3.hemi.groundColor.set(0x6a6a3a); L3.waterMat.uniforms.uNight.value = 0;
-    L3.r.toneMappingExposure = 0.95; const sc = L3.sun.shadow.camera; sc.left = sc.bottom = -32; sc.right = sc.top = 32; sc.updateProjectionMatrix();
-    this.skyM = Flora.sky(L3.group, 0x4f8fc6, 0xd8e8ee, [-14, 26, -12]);
-    const W = this.LEN + 80, D = 90, g = new THREE.PlaneGeometry(W, D, 340, 110); g.rotateX(-Math.PI / 2); const pos = g.attributes.position, col = [];
-    for (let i = 0; i < pos.count; i++) { const x = pos.getX(i) + this.LEN / 2, z = pos.getZ(i) - 12, y = this.ground(x, z);
-      const jg = smooth((x - 140 + 8 * vnoise(z * 0.08, 1, 7)) / 20), sc = smooth((x - 105 + 6 * vnoise(z * 0.08, 2, 7)) / 12) * (1 - jg), dn = smooth((x - 26) / 14);
-      let c = [lerp(0.8, 0.74, dn), lerp(0.72, 0.62, dn), lerp(0.55, 0.4, dn)]; c = [lerp(c[0], 0.36, sc), lerp(c[1], 0.34, sc), lerp(c[2], 0.2, sc)]; c = [lerp(c[0], 0.17, jg), lerp(c[1], 0.19, jg), lerp(c[2], 0.09, jg)];
-      const beach = Math.max(smooth((z - 4) / 3), smooth((-x + 2) / 3)); c = [lerp(c[0], 0.82, beach), lerp(c[1], 0.74, beach), lerp(c[2], 0.57, beach)];
-      const wet = smooth((0.25 - Math.abs(y - this.SEA)) / 0.25); c = [lerp(c[0], 0.66, wet), lerp(c[1], 0.6, wet), lerp(c[2], 0.46, wet)];
-      const trail = (1 - smooth((Math.abs(z - this.pathZ(x)) - 0.8) / 0.8)) * (1 - beach); c = [c[0] * (1 - 0.16 * trail), c[1] * (1 - 0.18 * trail), c[2] * (1 - 0.2 * trail)];
-      pos.setX(i, x); pos.setZ(i, z); pos.setY(i, y); col.push(c[0], c[1], c[2]); }
-    g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.computeVertexNormals();
-    const dt2 = Flora.tex.detail.clone(); dt2.needsUpdate = true; dt2.repeat.set(70, 18); const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ vertexColors: true, map: dt2, roughness: 1 })); m.receiveShadow = true; L3.group.add(m);
-    // foam along the waterline: find where the ground meets the sea for each x and lay a ribbon there
-    { const P = [], U = [], I = []; let n = 0; for (let x = -6; x <= this.LEN + 12; x += 1) { let lo = 2, hi = 20; for (let k = 0; k < 18; k++) { const mid = (lo + hi) / 2; if (this.ground(x, mid) > this.SEA) lo = mid; else hi = mid; } const zs = lo;
-        for (const [dz, v] of [[-0.6, 0], [0.9, 1]]) { P.push(x, this.SEA + 0.03, zs + dz); U.push(x / 8, v); } if (n) { const b = (n - 1) * 2; I.push(b, b + 2, b + 1, b + 1, b + 2, b + 3); } n++; }
-      const fg = new THREE.BufferGeometry(); fg.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); fg.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2)); fg.setIndex(I);
-      this.foamTex = Flora.tex.foam.clone(); this.foamTex.needsUpdate = true; this.foam = new THREE.Mesh(fg, new THREE.MeshBasicMaterial({ map: this.foamTex, transparent: true, opacity: 0.8, depthWrite: false })); L3.group.add(this.foam); }
-    const rng = mulberry(11), R = (a, b) => a + rng() * (b - a); this.circles = []; this.logs = []; const placed = [];
-    const spot = (x0, x1, z0, z1, gap) => { for (let t = 0; t < 30; t++) { const x = R(x0, x1), z = R(z0, z1); if (Math.abs(z - this.pathZ(x)) < 1.6 || (x > this.SX[0] - 2 && x < this.SX[1] + 2) || Math.hypot(x - this.X[0], z - this.X[1]) < 4 || Math.hypot(x - 4, z - 2) < 4) continue; if (placed.some(q => Math.hypot(q[0] - x, q[1] - z) < gap)) continue; placed.push([x, z]); return [x, z]; } return null; };
-    const solid = (x, z, r) => this.circles.push([x, z, r]);
-    const mat = c => new THREE.MeshStandardMaterial({ color: c, roughness: 1 });
-    // beach: palms along the shore and a beached rowboat; dunes: grass tufts, bones, a wreck's ribs, scattered rocks
-    for (let i = 0; i < 26; i++) { const q = spot(-2, 150, -2, 9, 4); if (!q) continue; L3.palm(q[0], this.ground(q[0], q[1]) - 0.1, q[1], R(3.5, 6)); solid(q[0], q[1], 0.3); }
-    { const L = [], dry = new THREE.Color(0xd8c27a), lush = new THREE.Color(0x8fbf5a), deep = new THREE.Color(0x5f9a3e), tc = new THREE.Color();
-      for (let i = 0; i < 5200; i++) { const x = R(10, this.LEN + 10), z = R(this.ZMIN, 6.5); if (Math.abs(z - this.pathZ(x)) < 0.9 || this.ground(x, z) < this.SEA + 0.25) continue; const dens = x < 30 ? 0.04 : x < 112 ? 0.16 : x < 150 ? 0.7 : 1; if (rng() > dens) continue;
-        const k = smooth((x - 105) / 30), j = smooth((x - 150) / 30); tc.copy(dry).lerp(lush, k).lerp(deep, j).offsetHSL(R(-0.02, 0.02), R(-0.05, 0.05), R(-0.06, 0.06)); L.push({ x, y: this.ground(x, z) - 0.02, z, s: R(0.7, 1.3) * (x < 112 ? 0.8 : 1.15), ry: R(0, TAU), c: tc.getHex() }); }
-      Flora.inst(L3.group, Flora.geo.grass, Flora.mat.grass, L); }
-    for (let i = 0; i < 10; i++) { const x = R(40, 105), z = R(-20, 6); const bn = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, R(0.8, 1.6), 6), mat(0xeee8d8)); bn.rotation.z = R(0.9, 1.6); bn.rotation.y = R(0, 3); bn.position.set(x, this.ground(x, z) + 0.08, z); L3.group.add(bn); }
-    for (let i = 0; i < 6; i++) { const rx = 76 + i * 0.9, rz = 5; const rib = new THREE.Mesh(new THREE.TorusGeometry(1.6, 0.08, 6, 14, Math.PI), L3.mat.hullDark); rib.position.set(rx, this.ground(rx, rz) - 0.6, rz); rib.rotation.y = Math.PI / 2 + 0.2; L3.group.add(rib); }
-    const boat = L3.ship(0); boat.position.set(2, this.SEA - 0.25, 11.5); boat.rotation.y = -0.3; boat.scale.setScalar(0.8); L3.group.add(boat);
-    for (let i = 0; i < 40; i++) { const q = spot(20, this.LEN, this.ZMIN + 1, 7, 5); if (!q) continue; const r = R(0.4, 1.1), rk = new THREE.Mesh(Flora.geo.rocks[i % 5], Flora.mat.rock); rk.scale.set(r, r * R(0.8, 1.2), r * R(0.8, 1.2)); rk.rotation.y = R(0, TAU); rk.position.set(q[0], this.ground(q[0], q[1]) + r * 0.15, q[1]); rk.castShadow = rk.receiveShadow = true; L3.group.add(rk); solid(q[0], q[1], r * 0.85); }
-    // fallen logs across the trail: jump them or walk round
-    for (const lx of [60, 96, 168, 186, 214, 238]) { const lz = this.pathZ(lx), len = R(3.5, 5), r = R(0.45, 0.7), log = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, 10), L3.mat.wood); log.rotation.x = Math.PI / 2; log.position.set(lx, this.ground(lx, lz) + r, lz); log.castShadow = log.receiveShadow = true; L3.group.add(log); this.logs.push([lx, lz, r, len / 2, r * 2]); }
-    // scrub and jungle trees spread across the whole width, thicker to the north
-    const TR = [], CN = [], CO = [], tcol = new THREE.Color();
-    const tree = (x, z, h, canopyCol, big) => { solid(x, z, 0.3 + big * 0.15); const y = this.ground(x, z), w = 0.2 + big * 0.14; TR.push({ x, y: y - 0.1, z, s: w, sy: h + 0.2, ry: R(0, TAU), rz: R(-0.05, 0.05) });
-      const n = 3 + big * 2 + (rng() < 0.5 ? 1 : 0); for (let k = 0; k < n; k++) { const a = R(0, TAU), rr = k === 0 ? 0 : R(0.8, 1.8) * (1 + big * 0.4), cs = R(1.3, 2.0) * (1 + big * 0.35); const cx = x + Math.cos(a) * rr, cz = z + Math.sin(a) * rr, cy = y + h - R(-0.3, 1.4);
-        tcol.set(canopyCol).offsetHSL(R(-0.03, 0.03), R(-0.08, 0.08), R(-0.06, 0.08)); CN.push({ x: cx, y: cy, z: cz, s: cs, sy: cs * 0.75, ry: R(0, TAU), c: tcol.getHex() }); CO.push({ x: cx, y: cy - 0.1, z: cz, s: cs * 0.75, sy: cs * 0.55 }); } };
-    for (let i = 0; i < 18; i++) { const q = spot(110, 150, this.ZMIN, 5, 5); if (q) tree(q[0], q[1], R(2.5, 4), 0x9fbf6a, 0); }
-    for (let i = 0; i < 110; i++) { const q = spot(148, this.LEN + 10, this.ZMIN, 6, 3.6); if (q) tree(q[0], q[1], R(4, 8), [0x7fb05a, 0x9cc46a, 0x6aa04a][i % 3], rng() < 0.3 ? 1 : 0); }
-    for (let i = 0; i < 20; i++) { const q = spot(150, this.LEN + 10, this.ZMIN, 6, 3.6); if (q) { L3.palm(q[0], this.ground(q[0], q[1]), q[1], R(4, 7)); solid(q[0], q[1], 0.3); } }
-    Flora.inst(L3.group, Flora.geo.trunk, Flora.mat.trunk, TR, true); Flora.inst(L3.group, Flora.geo.core, Flora.mat.core, CO, true); Flora.inst(L3.group, Flora.geo.canopy, Flora.mat.leaf, CN, true, Flora.mat.leafDepth);
-    { const F = [], FL = [], fc = new THREE.Color(); for (let i = 0; i < 900; i++) { const x = R(115, this.LEN + 10), z = R(this.ZMIN, 5); if (Math.abs(z - this.pathZ(x)) < 1.1 || rng() > smooth((x - 120) / 40)) continue; fc.set(0x9fd070).offsetHSL(R(-0.03, 0.03), 0, R(-0.08, 0.06)); F.push({ x, y: this.ground(x, z) - 0.03, z, s: R(0.8, 1.6), ry: R(0, TAU), c: fc.getHex() }); }
-      for (let i = 0; i < 260; i++) { const x = R(120, this.LEN + 10), z = R(this.ZMIN, 5); if (Math.abs(z - this.pathZ(x)) < 1) continue; FL.push({ x, y: this.ground(x, z) + R(0.25, 0.5), z, s: R(0.05, 0.09), c: [0xff5a6a, 0xffd34a, 0xffffff, 0xff8ad0, 0xff7a3a][i % 5] }); }
-      Flora.inst(L3.group, Flora.geo.fern, Flora.mat.fern, F); Flora.inst(L3.group, new THREE.IcosahedronGeometry(1, 0), Flora.mat.flower, FL); }
-    this.motes = Flora.motes(L3.group, 260, 140, this.LEN + 10, this.ZMIN, 6, 0.5, 6, 0xfff2b0, 0.07); this.gullList = Flora.gulls(L3.group, 7, 40, 10, 9);
-    this.parrots = Flora.gulls(L3.group, 6, 200, -8, 7); this.parrots.forEach((g, i) => g.traverse(m => { if (m.isMesh) m.material = new THREE.MeshStandardMaterial({ color: [0xe03030, 0x30a030, 0x3060e0][i % 3], roughness: .8 }); }));
-    this.itemMeshes = this.items.map(it => { let m; if (it.type === 'timber') { m = new THREE.Group(); for (let k = 0; k < 3; k++) { const b = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.14, 0.14), L3.mat.wood); b.position.set(0, 0.08 + (k === 2 ? 0.14 : 0), k === 2 ? 0 : (k - 0.5) * 0.16); b.rotation.y = k * 0.1; b.castShadow = true; m.add(b); } }
-      else { m = new THREE.Mesh(new THREE.SphereGeometry(0.17, 10, 8), L3.mat.coco); m.position.y = 0.17; m.castShadow = true; } m.position.x = it.x; m.position.z = it.z; m.position.y += this.ground(it.x, it.z); L3.group.add(m); return m; });
-    { const [cx, cz] = this.camp, cy = this.ground(cx, cz); for (let k = 0; k < 7; k++) { const a = k / 7 * TAU, st = new THREE.Mesh(Flora.geo.rocks[k % 5], Flora.mat.rock); st.scale.setScalar(0.22); st.position.set(cx + Math.cos(a) * 0.55, cy + 0.06, cz + Math.sin(a) * 0.55); L3.group.add(st); }
-      for (let k = 0; k < 4; k++) { const lg = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.7, 6), L3.mat.wood); lg.position.set(cx, cy + 0.12, cz); lg.rotation.z = 1.2; lg.rotation.y = k * 0.8; L3.group.add(lg); }
-      this.fire = new THREE.PointLight(0xff9040, 0, 7, 2); this.fire.position.set(cx, cy + 0.6, cz); L3.group.add(this.fire); this.flame = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.6, 7), new THREE.MeshBasicMaterial({ color: 0xffb040, transparent: true, opacity: 0.85 })); this.flame.position.set(cx, cy + 0.4, cz); L3.group.add(this.flame);
-      const stump = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.34, 0.45, 9), L3.mat.wood); stump.position.set(cx + 1.3, cy + 0.22, cz + 0.6); stump.castShadow = true; L3.group.add(stump); solid(cx + 1.3, cz + 0.6, 0.35); }
-    { const bm = new THREE.MeshStandardMaterial({ color: 0x4a3a2a, roughness: .95 }), g = new THREE.Group(); const body = new THREE.Mesh(new THREE.SphereGeometry(0.45, 10, 8), bm); body.scale.set(1.6, 1, 1); body.position.y = 0.55; g.add(body); const hd = new THREE.Mesh(new THREE.SphereGeometry(0.28, 8, 6), bm); hd.scale.set(1.3, 1, 0.9); hd.position.set(0.8, 0.5, 0); g.add(hd);
-      for (const sd of [-1, 1]) { const tk = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.22, 5), new THREE.MeshStandardMaterial({ color: 0xeeeedd })); tk.position.set(1.05, 0.42, sd * 0.12); tk.rotation.z = -1.2; g.add(tk); } for (const [x, z] of [[0.45, 0.2], [0.45, -0.2], [-0.45, 0.2], [-0.45, -0.2]]) { const lg = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.05, 0.5, 6), bm); lg.position.set(x, 0.25, z); g.add(lg); }
-      g.traverse(m => { if (m.isMesh) m.castShadow = true; }); L3.group.add(g); this.boarG = g; }
-    // the X: two crossed stone slabs in a clearing off the trail
-    const [X, XZ] = this.X; for (const a of [0.6, -0.6]) { const s = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.12, 0.45), mat(0xcfc6b0)); s.position.set(X, this.ground(X, XZ) + 0.06, XZ); s.rotation.y = a; L3.group.add(s); }
-    const chest = new THREE.Group(); chest.position.set(X, this.ground(X, XZ) - 0.9, XZ); const cb = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.5, 0.55), L3.mat.wood); cb.position.y = 0.25; cb.castShadow = true; chest.add(cb); const lid = new THREE.Group(); lid.position.set(0, 0.5, -0.27); const lm = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.22, 0.55), L3.mat.wood); lm.position.set(0, 0.11, 0.27); lid.add(lm); const gold = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.1, 0.4), L3.mat.gold); gold.position.y = 0.52; chest.add(gold); chest.add(lid); chest.visible = false; this.chest = { g: chest, lid }; L3.group.add(chest);
-    this.player = L3.rig({ skin: 0xe2b58c, shirt: 0xeadfc4, pants: 0x3d3a4a, boot: 0x2a2320, hat: 0x1e1a1a, vest: 0x5a3a22, sash: 0x8a2424 }, { sword: true, player: true, grow: this.preview ? 1 : G.tier / 2, swordK: this.preview ? 1 : 0.55 + 0.225 * G.tier }); this.player.poser = new Motion.Poser();
-    this.foeRigs = this.foes.map((f, i) => { const r = L3.rig({ skin: 0xc99a74, shirt: 0x2f4a28, pants: 0x4a4038, boot: 0x241e1a, hat: 'bandana', band: 0x2a7a3a, vest: 0x2a2420, sash: 0x3a3a3a, patch: i % 2 === 1 }, { sword: true }); r.poser = new Motion.Poser(); return r; });
-    L3.dist = 14; L3.el = 11 * Math.PI / 180; L3.az = 0; L3.player = this.player; L3.foeRigs = this.foeRigs; L3.itemMeshes = []; L3.chest = null; L3.shipG = null; L3.cine = null; },
-  tap(cx, cy) { for (const f of this.foes) { if (f.state === 'dead') continue; const fq = Land3.proj(f.x, f.y + 1, f.z); if (Math.hypot(fq.sx - cx, fq.sy - cy) < 50) { this.target = f; this.tapTarget = null; return; } }
-    this.target = null; const L3 = Land3, v = new THREE.Vector3(cx / L3.fx.width * 2 - 1, -(cy / L3.fx.height) * 2 + 1, 0.5).unproject(L3.cam), o = L3.cam.position, d = v.sub(o).normalize(); if (Math.abs(d.y) < 1e-4) return;
-    const t = (this.p.y - o.y) / d.y; if (t < 0) return; this.tapTarget = [clamp(o.x + d.x * t, 0, this.LEN + 2), clamp(o.z + d.z * t, this.ZMIN, this.ZMAX)]; },
-  text(x, y, s, col) { this.fx.push({ k: 'txt', x, y, s, col: col || '#f2ecdc', t: 0, life: 1.3 }); },
-  update(dt) { dt = Math.min(dt, 1 / 30); this.t += dt; const p = this.p, ctl = UI.panelOpen ? { x: 0, y: 0, hit: {}, held: {} } : Pad;
-    p.inv = Math.max(0, p.inv - dt); p.hurtT = Math.max(0, p.hurtT - dt); p.slashT = Math.max(0, p.slashT - dt); p.parryT = Math.max(0, p.parryT - dt); this.tapT = Math.max(0, this.tapT - dt);
-    // steering on the ground: the camera looks east, so stick up/down is east/west and left/right is north/south; or walk to a tapped point
-    let mx = -ctl.y, mz = ctl.x; if (Math.hypot(mx, mz) > 0.2) { this.tapTarget = null; this.target = null; }
-    else { if (this.target && this.target.state === 'dead') this.target = null; const goal = this.target ? [this.target.x, this.target.z] : this.tapTarget;
-      if (goal) { const dx = goal[0] - p.x, dz = goal[1] - p.z, d = Math.hypot(dx, dz), stop = this.target ? 1.4 : 0.3;
-        if (d <= stop) { if (this.target) { if (p.slashT <= 0 && p.parryT <= 0) { p.head = Math.atan2(dx, dz); p.face = dx >= 0 ? 1 : -1; this.slash(); } } else this.tapTarget = null; }
-        else { let ux = dx / d, uz = dz / d; const probe = (ax, az) => this.free(p.x + ax * 0.9, p.z + az * 0.9, p.y + 0.5) && this.free(p.x + ax * 0.45, p.z + az * 0.45, p.y + 0.5);
-          if (!probe(ux, uz)) for (const a of [0.5, -0.5, 1.0, -1.0, 1.5, -1.5, 2.2, -2.2]) { const c = Math.cos(a), sn = Math.sin(a), rx = ux * c - uz * sn, rz = ux * sn + uz * c; if (probe(rx, rz)) { ux = rx; uz = rz; break; } }
-          const k = this.target ? 1 : Math.min(1, d / 1.5); mx = ux * k; mz = uz * k; } } }
-    const m = Math.hypot(mx, mz), jump = ctl.hit.A && !this.zoneAt(); this.tapJump = false;
-    if (!this.done && p.hurtT <= 0.15) { if (m > 0.2 && p.slashT <= 0) { p.head = Math.atan2(mx, mz); p.face = mx >= 0 ? 1 : -1; } const want = Math.min(1, m) * 5.2; p.speed += clamp(want - p.speed, -(p.ground ? 40 : 18) * dt, (p.ground ? 40 : 18) * dt);
-      p.coyote = p.ground ? 0.1 : Math.max(0, p.coyote - dt); if (jump && p.coyote > 0 && p.slashT <= 0) { p.vy = 10; p.ground = false; p.coyote = 0; Sfx.jump(); } }
-    if (p.hurtT > 0.15) { p.vx *= 0.9; p.vz *= 0.9; } else { p.vx = Math.sin(p.head) * p.speed; p.vz = Math.cos(p.head) * p.speed; }
-    p.vy -= 24 * dt; const nx = p.x + p.vx * dt, nz = p.z + p.vz * dt; if (this.free(nx, p.z, p.y)) p.x = nx; else p.speed *= 0.5; if (this.free(p.x, nz, p.y)) p.z = nz; else p.speed *= 0.5;
-    let ny = p.y + p.vy * dt; p.ground = false; const g = this.top(p.x, p.z); if (p.vy <= 0 && ny <= g) { ny = g; p.vy = 0; p.ground = true; } p.y = ny;
-    if (p.ground) p.walk += p.speed * dt * 1.9;
-    if (p.x > this.SX[0] + 0.2 && p.x < this.SX[1] - 0.2 && p.y < this.SEA - 0.05 && p.inv <= 0) { const w = p.x < (this.SX[0] + this.SX[1]) / 2; this.hurt(1, w ? -1 : 1); p.x = w ? this.SX[0] - 0.7 : this.SX[1] + 0.7; p.y = this.ground(p.x, p.z); p.vy = 0; toast('Into the stream. Jump it from the bank.', 2000); }
-    // fight
-    if ((ctl.hit.X || ctl.hit.B) && this.duel) { if (ctl.hit.X) this.parry(); else this.slash(); } else if (ctl.hit.X || ctl.hit.B) this.slash();
-    if (ctl.hit.A && this.zoneAt()) this.use();
-    if (p.slashT > 0.1 && p.slashT < 0.26 && !p.hitDone) { p.hitDone = true; this.fx.push({ k: 'arc', x: p.x, y: p.y, z: p.z, head: p.head, t: 0, life: 0.16 });
-      for (const f of this.foes) { if (f.state === 'dead') continue; const dx = f.x - p.x, dz = f.z - p.z, d = Math.hypot(dx, dz); if (d < 1.9 && (dx * Math.sin(p.head) + dz * Math.cos(p.head)) / Math.max(0.01, d) > 0.2 && Math.abs(f.y - p.y) < 1.4) { f.hp--; f.kx = dx / d * 6; f.kz = dz / d * 6; f.state = f.hp <= 0 ? 'dead' : 'hurt'; f.t = 0; Sfx.hit(0); if (f.hp <= 0) { G.gold += 25; this.fx.push({ k: 'txt', x: f.x, y: f.y + 2, z: f.z, s: '+25 gold', col: '#ffe2a0', t: 0, life: 1.3 }); } } } }
-    this.duel = null; const fmove = (f, ax, az) => { const nx = f.x + ax, nz = f.z + az; if (this.free(nx, f.z, f.y + 0.5)) f.x = nx; if (this.free(f.x, nz, f.y + 0.5)) f.z = nz; };
-    for (const f of this.foes) { f.t += dt; f.cd = Math.max(0, f.cd - dt); if (f.state === 'dead') continue; fmove(f, f.kx * dt, f.kz * dt); f.kx *= Math.max(0, 1 - 8 * dt); f.kz *= Math.max(0, 1 - 8 * dt); f.y = this.top(f.x, f.z);
-      const dx = p.x - f.x, dz = p.z - f.z, d = Math.hypot(dx, dz), near = d < 8 && Math.abs(p.y - f.y) < 3; if (near) this.duel = f;
-      if (f.state === 'hurt') { if (f.t > 0.3) { f.state = 'walk'; f.t = 0; } continue; }
-      if (f.state === 'windup') { if (f.t > 0.38) { f.state = 'slash'; f.t = 0; if (d < 1.7) { if (p.parryT > 0.1 && p.parryT < 0.45) { Sfx.clash(); f.state = 'hurt'; f.t = -0.4; f.kx = -dx / d * 4; f.kz = -dz / d * 4; this.fx.push({ k: 'txt', x: p.x, y: p.y + 2, z: p.z, s: 'Parried!', col: '#cfe6ff', t: 0, life: 1.3 }); } else if (p.inv <= 0) this.hurt(1, dx / d, dz / d); } } continue; }
-      if (f.state === 'slash') { if (f.t > 0.28) { f.state = 'walk'; f.t = 0; f.cd = 0.8; } continue; }
-      if (near) { f.head = Math.atan2(dx, dz); f.face = dx >= 0 ? 1 : -1; if (d < 1.4) { if (f.cd <= 0) { f.state = 'windup'; f.t = 0; } } else { fmove(f, Math.sin(f.head) * 2.6 * dt, Math.cos(f.head) * 2.6 * dt); f.walk += dt * 5.5; } }
-      else { if (!f.wp || Math.hypot(f.wp[0] - f.x, f.wp[1] - f.z) < 0.5) f.wp = [f.hx + rand(-6, 6), clamp(f.hz + rand(-5, 5), this.ZMIN + 0.5, this.ZMAX - 2)]; f.head = Math.atan2(f.wp[0] - f.x, f.wp[1] - f.z); f.face = Math.sin(f.head) >= 0 ? 1 : -1; fmove(f, Math.sin(f.head) * 1.1 * dt, Math.cos(f.head) * 1.1 * dt); f.walk += dt * 2.8; } }
-    for (const it of this.items) { if (it.taken || Math.hypot(it.x - p.x, it.z - p.z) > 0.9) continue; it.taken = true; Sfx.pickup(); if (it.type === 'timber') { G.timber++; this.fx.push({ k: 'txt', x: it.x, y: p.y + 1.6, z: it.z, s: '+1 timber', col: '#f2ecdc', t: 0, life: 1.3 }); } else { G.food = Math.min(100, G.food + 12); this.fx.push({ k: 'txt', x: it.x, y: p.y + 1.6, z: it.z, s: '+food', col: '#f2ecdc', t: 0, life: 1.3 }); } }
-    if (Math.hypot(this.camp[0] - p.x, this.camp[1] - p.z) < 2.2 && p.speed < 0.3 && this.t > (this.restT || 0)) { this.restT = this.t + 25; if (G.hp < 5) { G.hp = 5; toast('You sit a while by the fire. The cuts close.', 3000); } }
-    // the boar: grazes until you come near, then charges in a straight line and wheels round for another go
-    { const b = this.boar; b.t += dt; b.cd = Math.max(0, b.cd - dt); if (b.hp > 0) { const dx = p.x - b.x, dz = p.z - b.z, d = Math.hypot(dx, dz);
-        if (b.state === 'graze') { if (d < 9 && b.cd <= 0) { b.state = 'charge'; b.head = Math.atan2(dx, dz); b.t = 0; Sfx.hurt(); } else if (Math.random() < dt * 0.3) b.head = Math.atan2(b.hx + rand(-5, 5) - b.x, b.hz + rand(-4, 4) - b.z); else if (Math.random() < dt * 0.5) { const nx = b.x + Math.sin(b.head) * 0.8 * dt * 30, nz = b.z + Math.cos(b.head) * 0.8 * dt * 30; if (this.free(nx, nz, b.y)) { b.x = nx; b.z = nz; } } }
-        else { const nx = b.x + Math.sin(b.head) * 9 * dt, nz = b.z + Math.cos(b.head) * 9 * dt; if (this.free(nx, nz, 0)) { b.x = nx; b.z = nz; } else b.t = 9; b.walk += dt * 9; if (d < 1.1 && p.inv <= 0) { this.hurt(1, dx / d, dz / d); b.t = 9; } if (b.t > 2.2) { b.state = 'graze'; b.cd = 3; }
-          if (p.slashT > 0.1 && p.slashT < 0.26 && d < 1.8) { b.hp--; Sfx.hit(0); b.state = 'graze'; b.cd = 4; b.head += Math.PI; if (b.hp <= 0) { G.food = Math.min(100, G.food + 40); this.fx.push({ k: 'txt', x: b.x, y: p.y + 1.6, z: b.z, s: 'Boar down · +food', col: '#ffe2a0', t: 0, life: 1.6 }); } } }
-        b.y = this.ground(b.x, b.z); } }
-    if (p.x > 140) { this.chirpT -= dt; if (this.chirpT <= 0) { this.chirpT = rand(1.5, 5); Sfx.chirp(); } }
-    for (let i = this.fx.length - 1; i >= 0; i--) { this.fx[i].t += dt; if (this.fx[i].t > this.fx[i].life) this.fx.splice(i, 1); }
-    if (this.done) { this.doneT = (this.doneT || 0) + dt; if (this.doneT > 4) { this.done = false; if (this.preview) { G.mode = 'title'; Game.show(); } else { G.map = 2; saveGame(); Game.enter('island'); } } }
-    this.render3(dt);
-  },
-  zoneAt() { return !this.done && Math.hypot(this.p.x - this.X[0], this.p.z - this.X[1]) < 1.8 ? { label: this.dig < 3 ? 'Dig here' : 'Open the chest' } : null; },
-  use() { const [X, XZ] = this.X; if (this.dig < 3) { this.dig++; Sfx.crunch(); for (let k = 0; k < 10; k++) this.fx.push({ k: 'dirt', x: X + rand(-0.6, 0.6), y: this.ground(X, XZ) + 0.2, z: XZ, vx: rand(-2, 2), vy: rand(2, 5), t: 0, life: 0.7 });
-      if (this.dig === 3) { this.chest.g.visible = true; toast('Steel rings on wood. There it is.', 2500); } else toast(this.dig === 1 ? 'Sand and roots. Keep digging.' : 'Something hard under the blade.', 1800); return; }
-    if (!this.done) { this.done = true; this.doneT = 0; G.gold += this.preview ? 300 : 400; Sfx.gold(); this.fx.push({ k: 'txt', x: X, y: this.ground(X, XZ) + 2.2, z: XZ, s: '+300 gold', col: '#ffe2a0', t: 0, life: 1.3 }); toast('A chest of Spanish gold. The crew will drink well tonight.', 4000); } },
-  slash() { const p = this.p; if (p.slashT > 0 || p.parryT > 0) return; p.slashT = 0.36; p.hitDone = false; Sfx.slash(); },
-  parry() { const p = this.p; if (p.slashT > 0 || p.parryT > 0) return; p.parryT = 0.5; Sfx.ui(); },
-  hurt(n, nx, nz) { const p = this.p; G.hp -= n; Sfx.hurt(); p.inv = 1.0; p.hurtT = 0.4; p.speed = 0; p.vx = nx * 5; p.vz = (nz || 0) * 5; p.vy = 4; p.ground = false; this.target = null; this.tapTarget = null;
-    if (G.hp <= 0) { G.hp = 5; p.x = Math.max(4, p.x - 20); p.z = this.pathZ(p.x); p.y = this.ground(p.x, p.z); p.vx = p.vz = 0; toast('You come to further back down the trail.', 2500); } },
-  render3(dt) { const L3 = Land3, p = this.p, P = this.player, po = P.poser; let st = 'idle', tt = this.t; po.vy = p.vy;
-    if (p.hurtT > 0) { st = 'hurt'; tt = (0.4 - p.hurtT) / 0.4; } else if (p.slashT > 0) { st = 'cut'; tt = (0.36 - p.slashT) / 0.36; } else if (p.parryT > 0) { st = 'parry'; tt = (0.5 - p.parryT) / 0.5; } else if (!p.ground) st = 'air'; else if (p.speed > 3) { st = 'run'; po.gaitPhase = p.walk * 1.25; } else if (p.speed > 0.3) { st = 'walk'; po.gaitPhase = p.walk * 1.4; } else if (this.duel) st = 'guard';
-    po.set(st); P.apply(po.update(dt, tt), { yaw: p.head - Math.PI / 2 }, p.x, p.y, p.z); P.group.visible = p.inv <= 0 || Math.floor(this.t * 14) % 2 === 0;
-    this.foes.forEach((f, i) => { const R = this.foeRigs[i], q = R.poser; let s = 'walk', t2 = f.t; if (f.state === 'dead') { s = 'die'; t2 = Math.min(1, f.t * 1.4); } else if (f.state === 'hurt') s = 'hurt'; else if (f.state === 'windup') { s = 'cut'; t2 = f.t / 0.38 * 0.3; } else if (f.state === 'slash') { s = 'cut'; t2 = 0.3 + f.t / 0.28 * 0.5; } else q.gaitPhase = f.walk * 1.4;
-      q.set(s); R.apply(q.update(dt, t2), { yaw: f.head - Math.PI / 2 }, f.x, f.y, f.z); });
-    if (this.chest) { this.chest.g.position.y = lerp(this.chest.g.position.y, this.ground(this.X[0], this.X[1]) + (this.dig >= 3 ? 0.05 : -0.9), Math.min(1, dt * 2)); this.chest.lid.rotation.x = lerp(this.chest.lid.rotation.x, this.done ? -1.9 : 0, Math.min(1, dt * 4)); }
-    for (const c of L3.group.children) if (c.children && c.children.length && c.children[c.children.length - 1].userData.leaf) for (const l of c.children) if (l.userData.leaf) l.rotation.z = -0.1 + Math.sin(this.t * 1.7 + l.rotation.y * 3) * 0.05;
-    const small = Math.min(L3.fx.width, L3.fx.height) < 500, D = this.duel;
-    // third person: the camera sits behind and above the figure looking down the trail; a duel swings it round to the side
-    // the camera keeps looking east down the trail from behind and above (sailing height); a duel eases it round to the side
-    const lookX = D ? (p.x + D.x) / 2 : p.x + 6, lookY = D ? (p.y + D.y) / 2 + 1.0 : p.y + 0.6, lookZ = D ? (p.z + D.z) / 2 : p.z; this.camX = lerp(this.camX, lookX, Math.min(1, dt * 2)); this.camY = lerp(this.camY, lookY, Math.min(1, dt * 1.5)); this.camZ = lerp(this.camZ === undefined ? lookZ : this.camZ, lookZ, Math.min(1, dt * 2));
-    let wantAz = -Math.PI / 2; if (D) { const a = Math.atan2(D.x - p.x, D.z - p.z); wantAz = a + Math.PI / 2; if (Math.cos(wantAz) < 0) wantAz += Math.PI; } // a duel is watched side-on, from the sea side
-    const wantEl = D ? 14 * Math.PI / 180 : 10.5 * Math.PI / 180, wantD = D ? (small ? 11 : 13) : (small ? 12 : 12.5);
-    let da = wantAz - (this.az === undefined ? wantAz : this.az); da = ((da + Math.PI) % TAU + TAU) % TAU - Math.PI; this.az = (this.az === undefined ? wantAz : this.az) + da * Math.min(1, dt * 1.5); this.el = lerp(this.el === undefined ? wantEl : this.el, wantEl, Math.min(1, dt * 1.5)); L3.dist = lerp(L3.dist, wantD, Math.min(1, dt * 1.5));
-    L3.cam.position.set(this.camX + Math.sin(this.az) * Math.cos(this.el) * L3.dist, this.camY + Math.sin(this.el) * L3.dist, this.camZ + Math.cos(this.az) * Math.cos(this.el) * L3.dist); L3.cam.lookAt(this.camX, this.camY, this.camZ);
-    L3.sun.target.position.set(p.x + 8, 0, p.z); L3.sun.position.set(p.x + 8 - 14, 26, p.z - 12); L3.waterMat.uniforms.uT.value = this.t; L3.waterMat.uniforms.uCam.value.copy(L3.cam.position); L3.water.position.set(this.camX, this.SEA, this.camZ); if (this.tapTarget) this.tapMark = this.tapTarget;
-    this.itemMeshes.forEach((m, i) => { m.visible = !this.items[i].taken; m.rotation.y = this.t * 0.6; }); if (this.parrots) Flora.tickGulls(this.parrots, this.t * 1.4);
-    { const b = this.boar, g = this.boarG; if (b.hp > 0) { g.position.set(b.x, b.y, b.z); g.rotation.y = b.head - Math.PI / 2; g.rotation.z = b.state === 'charge' ? Math.sin(b.walk * 2) * 0.08 : 0; } else { g.rotation.z = Math.PI / 2; g.position.y = b.y + 0.3; } }
-    if (this.fire) { this.fire.intensity = 1.6 + Math.sin(this.t * 11) * 0.4 + Math.sin(this.t * 23) * 0.2; this.flame.scale.set(1, 0.9 + Math.sin(this.t * 13) * 0.15, 1); this.flame.rotation.y = this.t * 2; }
-    Flora.uTime.value = this.t; Flora.uPlayer.value.set(p.x, p.y, p.z); if (this.skyM) this.skyM.position.copy(L3.cam.position); if (this.motes) Flora.tickMotes(this.motes, this.t); if (this.gullList) Flora.tickGulls(this.gullList, this.t);
-    if (this.foamTex) { this.foamTex.offset.x = this.t * 0.04; this.foam.material.opacity = 0.55 + 0.3 * Math.sin(this.t * 0.9); }
-    for (const c of L3.group.children) if (c.children && c.children.length && c.children[c.children.length - 1].userData.leaf) c.visible = Math.hypot(c.position.x - L3.cam.position.x, c.position.z - L3.cam.position.z) > 4.5 && !(c.position.x < p.x - 1 && Math.abs(c.position.z - p.z) < 2.5 && c.position.x > L3.cam.position.x - 1); // palms and palms step aside near the camera
-  },
-  // minimap: the island's spine from the landing to the X, biome bands, the ground profile, foes and the figure
-  drawMap(c, W, H) { const small = Math.min(W, H) < 500, mw = small ? 200 : 300, mh = small ? 54 : 74, mx = small ? W - mw - 12 : W / 2 - mw / 2, my = small ? 66 : 52, L = this.LEN, z0 = this.ZMIN - 2, z1 = 16;
-    const X = x => mx + 4 + (mw - 8) * (x + 4) / (L + 8), Z = z => my + 4 + (mh - 8) * (z - z0) / (z1 - z0);
-    c.save(); c.fillStyle = 'rgba(30,70,90,.92)'; c.strokeStyle = 'rgba(242,236,220,.45)'; c.lineWidth = 1.5; c.beginPath(); c.rect(mx, my, mw, mh); c.fill(); c.stroke(); c.beginPath(); c.rect(mx, my, mw, mh); c.clip();
-    for (const [x0, x1, col] of [[-1, 28, '#d9c48a'], [28, 112, '#c9b06a'], [112, 150, '#8a9a4a'], [150, L + 4, '#3f7a34']]) { c.fillStyle = col; c.fillRect(X(x0), Z(z0), X(x1) - X(x0), Z(8) - Z(z0)); }
-    c.fillStyle = '#d9c48a'; c.fillRect(X(-1), Z(4), X(L + 4) - X(-1), Z(8.5) - Z(4)); c.fillStyle = 'rgba(30,70,90,1)'; c.fillRect(X(this.SX[0]), Z(z0), X(this.SX[1]) - X(this.SX[0]), mh);
-    c.strokeStyle = 'rgba(80,55,30,.55)'; c.setLineDash([3, 3]); c.lineWidth = 1; c.beginPath(); for (let x = 0; x <= L; x += 3) { const y = Z(this.pathZ(x)); x ? c.lineTo(X(x), y) : c.moveTo(X(x), y); } c.stroke(); c.setLineDash([]);
-    for (const f of this.foes) if (f.state !== 'dead' && Math.abs(f.x - this.p.x) < 60) { c.fillStyle = '#ff6a5a'; c.beginPath(); c.arc(X(f.x), Z(f.z), 3, 0, TAU); c.fill(); }
-    if (this.boar.hp > 0 && Math.abs(this.boar.x - this.p.x) < 60) { c.fillStyle = '#c08a4a'; c.beginPath(); c.arc(X(this.boar.x), Z(this.boar.z), 3, 0, TAU); c.fill(); }
-    c.fillStyle = '#ffb060'; c.beginPath(); c.arc(X(this.camp[0]), Z(this.camp[1]), 2.5, 0, TAU); c.fill();
-    const tx = X(this.X[0]), ty = Z(this.X[1]); if (this.p.x > L - 90 || this.dig > 0) { c.strokeStyle = '#ffd86b'; c.lineWidth = 2; c.beginPath(); c.moveTo(tx - 4, ty - 4); c.lineTo(tx + 4, ty + 4); c.moveTo(tx + 4, ty - 4); c.lineTo(tx - 4, ty + 4); c.stroke(); }
-    else { c.fillStyle = 'rgba(242,236,220,.75)'; c.font = '700 11px "Barlow Semi Condensed", sans-serif'; c.textAlign = 'center'; c.fillText('?', tx, ty + 4); }
-    const p = this.p, ax = Math.sin(p.head), az = Math.cos(p.head), sx = (mw - 8) / (L + 8), sz = (mh - 8) / (z1 - z0), dl = Math.hypot(ax * sx, az * sz) || 1, ux = ax * sx / dl, uz = az * sz / dl, px = X(p.x), py = Z(p.z);
-    c.fillStyle = '#ffffff'; c.beginPath(); c.moveTo(px + ux * 6, py + uz * 6); c.lineTo(px - ux * 4 - uz * 4, py - uz * 4 + ux * 4); c.lineTo(px - ux * 4 + uz * 4, py - uz * 4 - ux * 4); c.closePath(); c.fill(); c.restore();
-    c.fillStyle = 'rgba(242,236,220,.85)'; c.font = '600 11px "Barlow Semi Condensed", sans-serif'; c.textAlign = 'center'; c.fillText(['Beach', 'Dunes', 'Scrub', 'Jungle'][['beach', 'dunes', 'scrub', 'jungle'].indexOf(this.biome(this.p.x))], mx + mw / 2, my + mh + 13); },
-  render() { const L3 = Land3; if (!L3.ready) return; L3.r.render(L3.scene, L3.cam); const c = L3.fctx, W = L3.fx.width, H = L3.fx.height; c.clearRect(0, 0, W, H);
-    for (const e of this.fx) { const k = e.t / e.life;
-      if (e.k === 'txt') { const q = L3.proj(e.x, e.y + k * 0.8, e.z || 0); c.font = '600 22px "Barlow Semi Condensed", sans-serif'; c.textAlign = 'center'; c.globalAlpha = 1 - k * k; c.fillStyle = 'rgba(0,0,0,.7)'; c.fillText(e.s, q.sx + 1, q.sy + 2); c.fillStyle = e.col; c.fillText(e.s, q.sx, q.sy); c.globalAlpha = 1; }
-      else if (e.k === 'arc') { c.globalAlpha = 0.8 * (1 - k); c.strokeStyle = '#ffffff'; c.lineWidth = 4; c.lineCap = 'round'; c.beginPath(); for (let i = 0; i <= 12; i++) { const a = (-0.9 + i / 12 * 1.8) + k * 0.4, q = L3.proj(e.x + Math.sin(e.head) * Math.cos(a) * 1.5, e.y + 1.1 + Math.sin(a) * 0.9, e.z + Math.cos(e.head) * Math.cos(a) * 1.5); i ? c.lineTo(q.sx, q.sy) : c.moveTo(q.sx, q.sy); } c.stroke(); c.globalAlpha = 1; }
-      else if (e.k === 'dirt') { const q = L3.proj(e.x + e.vx * e.t, e.y + e.vy * e.t - 6 * e.t * e.t, e.z || 0); c.globalAlpha = 1 - k; c.fillStyle = '#6b4a2b'; c.fillRect(q.sx - 3, q.sy - 3, 6, 6); c.globalAlpha = 1; } }
-    for (const f of this.foes) if (f.state !== 'dead' && f.hp < 3) { const q = L3.proj(f.x, f.y + 2.15, f.z); c.fillStyle = 'rgba(8,14,18,.7)'; c.fillRect(q.sx - 22, q.sy, 44, 6); c.fillStyle = '#ffb08a'; c.fillRect(q.sx - 21, q.sy + 1, 42 * f.hp / 3, 4); }
-    if (this.tapTarget) { const tg = this.tapTarget, q = L3.proj(tg[0], this.top(tg[0], tg[1]) + 0.05, tg[1]), r = 8 + 3 * Math.sin(this.t * 6); c.strokeStyle = 'rgba(255,255,255,.7)'; c.lineWidth = 2; c.beginPath(); c.ellipse(q.sx, q.sy, r, r * 0.6, 0, 0, TAU); c.stroke(); }
-    const vg = c.createRadialGradient(W / 2, H * 0.55, Math.min(W, H) * 0.35, W / 2, H * 0.55, Math.max(W, H) * 0.75); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(20,14,6,0.38)'); c.fillStyle = vg; c.fillRect(0, 0, W, H);
-    this.drawMap(c, W, H);
   },
 };
 
@@ -1369,7 +1183,7 @@ const UI = {
   },
   bar(id, v, warn) { const b = $(id); b.firstChild.style.width = clamp(v, 0, 100) + '%'; b.classList.toggle('warn', !!warn); },
   update(dt) {
-    const sea = G.mode === 'sea', land = G.mode === 'island' || G.mode === 'port' || G.mode === 'exped', ex = G.mode === 'exped';
+    const sea = G.mode === 'sea', land = G.mode === 'island' || G.mode === 'port';
     $('hud').hidden = !(sea || land); $('touch').hidden = !(sea || land) || !this.touch;
     if (!(sea || land)) return;
     $('seaBars').hidden = !sea; $('landBars').hidden = !land; $('bc').hidden = !sea;
@@ -1377,7 +1191,7 @@ const UI = {
     let prompt = '', key = this.touch ? '' : 'Space';
     if (sea) { const P = Sea.P;
       $('place').textContent = 'Open water';
-      $('goal').textContent = G.map === 1 ? 'The map points to Driftwood Isle. Land and head inland.' : G.bounty === 1 ? 'The Red Corsair is out there. Check the chart.' : G.tier === 0 && G.gold >= 300 ? 'You can afford a sloop. Dock at Gallows Cay.' : G.water < 30 ? 'Water is low. Land at Driftwood Isle to the north-east.' : G.hull < G.hullMax * 0.45 ? 'The hull is failing. Make for Gallows Cay.' : G.cargo > 0 ? 'Cargo aboard. Sell it at Gallows Cay.' : (G.tier === 0 ? 'A longboat can outrun a ship, not outgun one. Scavenge flotsam.' : 'Hunt a sail, or scavenge the isles.');
+      $('goal').textContent = G.bounty === 1 ? 'The Red Corsair is out there. Check the chart.' : G.tier === 0 && G.gold >= 300 ? 'You can afford a sloop. Dock at Gallows Cay.' : G.water < 30 ? 'Water is low. Land at Driftwood Isle to the north-east.' : G.hull < G.hullMax * 0.45 ? 'The hull is failing. Make for Gallows Cay.' : G.cargo > 0 ? 'Cargo aboard. Sell it at Gallows Cay.' : (G.tier === 0 ? 'A longboat can outrun a ship, not outgun one. Scavenge flotsam.' : 'Hunt a sail, or scavenge the isles.');
       $('hullV').textContent = Math.round(G.hull) + ' / ' + G.hullMax; this.bar('hullB', G.hull / G.hullMax * 100, G.hull < G.hullMax * 0.4);
       $('crewV').textContent = G.crew + ' / ' + G.crewMax; this.bar('crewB', G.crew / G.crewMax * 100, G.crew < G.crewMax * 0.4);
       $('foodV').textContent = Math.round(G.food) + '%'; this.bar('foodB', G.food, G.food < 25);
@@ -1390,17 +1204,13 @@ const UI = {
       $('keys').innerHTML = '<span><kbd>Arrows</kbd>Point and sail</span><span><kbd>Space</kbd>' + (Sea.near ? 'Land' : 'Fire') + '</span>' + (P.T.guns ? '<span><kbd>Q E</kbd>Port or starboard</span>' : '');
       $('btnA').textContent = Sea.near ? 'Land' : Sea.board ? 'Board' : 'Fire'; $('btnX').textContent = 'Port'; $('btnB').textContent = 'Stbd'; $('btnA').classList.remove('dim'); $('btnB').classList.remove('dim'); $('btnX').hidden = $('btnB').hidden = !P.T.guns;
     } else {
-      $('place').textContent = ex ? 'Expedition' : G.mode === 'port' ? 'Gallows Cay' : 'Driftwood Isle';
-      $('goal').textContent = ex ? (Exped.dig >= 3 ? 'Open it.' : Exped.p.x > Exped.LEN - 20 ? 'The X is close. Dig.' : 'Head east through the dunes into the jungle. The map says X.') : G.mode === 'port' ? 'Sell plunder, repair, restock. Cast off from the pier.' : (G.water < 99 ? 'Climb to the spring and fill the casks.' : 'Casks are full. Salvage what you can, then row back.');
+      $('place').textContent = G.mode === 'port' ? 'Gallows Cay' : 'Driftwood Isle';
+      $('goal').textContent = G.mode === 'port' ? 'Sell plunder, repair, restock. Cast off from the pier.' : (G.water < 99 ? 'Climb to the spring and fill the casks.' : 'Casks are full. Salvage what you can, then row back.');
       let h = ''; for (let i = 0; i < 5; i++) h += '<i class="' + (i < G.hp ? 'f' : '') + '"></i>'; if ($('hearts').dataset.v !== String(G.hp)) { $('hearts').innerHTML = h; $('hearts').dataset.v = G.hp; }
       $('lfood').textContent = 'Food ' + Math.round(G.food) + '%'; $('lwater').textContent = 'Water ' + Math.round(G.water) + '%';
-      if (ex) { const z = Exped.zoneAt(); if (z) { prompt = z.label; key = this.touch ? '' : 'Space'; }
-        $('keys').innerHTML = '<span><kbd>Arrows</kbd>Walk</span><span><kbd>Space</kbd>' + (z ? 'Use' : 'Jump') + '</span><span><kbd>E</kbd>Slash</span>' + (Exped.duel ? '<span><kbd>Q</kbd>Parry</span>' : '<span><kbd>Click</kbd>Walk there</span>');
-        $('btnA').textContent = z ? 'Use' : 'Jump'; $('btnX').textContent = 'Parry'; $('btnX').hidden = !Exped.duel; $('btnB').textContent = 'Slash'; $('btnB').hidden = false; $('btnA').classList.remove('dim'); }
-      else {
       if (Land.zone && !this.panelOpen && !Land.duel) { prompt = Land.zone.label; key = this.touch ? '' : 'Space'; }
       $('keys').innerHTML = '<span><kbd>Arrows</kbd>Walk</span><span><kbd>Space</kbd>' + (Land.duel ? 'Slash' : Land.zone ? 'Use' : 'Slash') + '</span>' + (Land.duel ? '<span><kbd>Q</kbd>Parry</span>' : '<span><kbd>Click</kbd>Walk there</span>');
-      $('btnA').textContent = Land.duel ? 'Slash' : Land.zone ? 'Use' : 'Slash'; $('btnX').textContent = 'Parry'; $('btnX').hidden = !Land.duel; $('btnB').hidden = true; $('btnA').classList.remove('dim'); }
+      $('btnA').textContent = Land.duel ? 'Slash' : Land.zone ? 'Use' : 'Slash'; $('btnX').textContent = 'Parry'; $('btnX').hidden = !Land.duel; $('btnB').hidden = true; $('btnA').classList.remove('dim');
     }
     if (sea && Sea.chart) prompt = ''; const pr = $('prompt'); pr.hidden = !prompt; if (prompt) pr.innerHTML = (key ? '<kbd>' + key + '</kbd>' : '') + '<span></span>', pr.lastChild.textContent = prompt;
     if (this.panelOpen) { const bs = [...$('panel').querySelectorAll('button:not([disabled])')];
@@ -1435,7 +1245,6 @@ const UI = {
     this.panel('The tavern', 'Crew ' + G.crew + ' / ' + G.crewMax + ' · Purse ' + G.gold + ' gold', [
       ['Hire a hand', '40 gold', () => { G.gold -= 40; G.crew++; this.openTavern(); }, G.crew >= G.crewMax || G.gold < 40],
       ['Buy a round and listen', '10 gold', () => { G.gold -= 10; toast(rumors[Math.floor(Math.random() * rumors.length)], 4200); this.openTavern(); }, G.gold < 10],
-      [G.map === 2 ? 'The treasure map · dug up' : G.map === 1 ? 'The treasure map · in your coat' : 'Buy a dead man\'s treasure map', G.map ? '' : '120 gold', () => { G.gold -= 120; G.map = 1; toast('Driftwood Isle, it says. Land there and follow it inland.', 5000); this.openTavern(); }, G.map !== 0 || G.gold < 120],
       [G.bounty === 2 ? 'The Red Corsair · bounty paid' : 'Take the bounty on the Red Corsair', G.bounty === 2 ? 'done' : G.bounty === 1 ? 'posted' : '250 gold', () => { G.bounty = 1; toast('The Corsair is marked on your chart. A brig and a full crew are advised.', 5000); this.openTavern(); }, G.bounty !== 0 || G.tier < 1],
     ]);
   },
@@ -1457,29 +1266,18 @@ const Demo = {
   walkLand(x, z) { const L = Land; if (!L.tapTarget || Math.hypot(L.tapTarget[0] - x, L.tapTarget[1] - z) > 0.5) L.tap(x, z); return Math.hypot(L.p.x - x, L.p.z - z) < 1.2; },
   fightLand() { const L = Land, f = L.duel; G.hp = Math.max(G.hp, 3); if (!f) return true; if (f.state === 'windup' && f.t > 0.2 && L.p.parryT <= 0 && L.p.slashT <= 0) Pad.hit.X = true; else if (!L.tapAct || L.tapAct.foe !== f) L.tap(f.x, f.z); return false; },
   STEPS: [
-    { cap: 'Gallows Cay. A boy, a short cutlass and his father\'s longboat.', run: (dt, t) => { if (Game.intro && t > 7) Game.intro.skip = true; return !Game.intro && G.mode === 'port' && t > 7.5; }, max: 20 },
-    { cap: 'Walk to the pier end and cast off.', mode: 'port', run: () => Demo.walkLand(-7.4, 0) && (Land.act('leave'), true), max: 25 },
-    { cap: 'The sea. Point and sail; the wind decides how fast.', mode: 'sea', init: () => { G.tier = 1; G.gold = 400; Sea.applyTier(); G.hull = G.hullMax; Sea.P.T = TIERS[1]; Sea.P.hull = G.hull; }, run: (dt, t) => { const P = Sea.P; if (!Demo.aim) Demo.aim = [P.x + Math.sin(P.th) * 160, P.y - Math.cos(P.th) * 160]; Sea.tapGo = Demo.aim; return t > 9; }, max: 14 },
-    { cap: 'A privateer sloop. Close in and give her the broadside.', mode: 'sea', init: () => { const P = Sea.P; const e = Sea.add({ kind: 'sloop', x: P.x + 140, y: P.y - 60, th: 2 }); Demo.foe = e; Sea.tapGo = null; }, run: () => { const e = Demo.foe; if (!e || e.sink) return true; Sea.tapFoe = e; G.hull = Math.max(G.hull, G.hullMax * 0.6); Sea.P.hull = G.hull; return false; }, max: 75 },
-    { cap: 'Haul the flotsam aboard. Cargo sells at Gallows Cay.', mode: 'sea', run: (dt, t) => { const P = Sea.P, l = Sea.loot.slice().sort((a, b) => Math.hypot(a.x - P.x, a.y - P.y) - Math.hypot(b.x - P.x, b.y - P.y))[0]; if (!l || G.cargo >= G.hold) return t > 2; Sea.tapGo = [l.x, l.y]; return false; }, max: 30 },
-    { cap: 'Back to port. Sell, repair, hire hands — and buy a dead man\'s map.', mode: 'sea', run: () => { const r = Sea.rings[0]; Sea.tapGo = [r.x, r.y]; G.hull = Math.max(G.hull, 10); Sea.P.hull = G.hull; return !!Game.pending; }, max: 90 },
-    { cap: 'The shipwright takes the plunder and patches the hull.', mode: 'port', run: (dt, t) => { if (Land3.cine) return false; if (Demo.walkLand(0.5, -0.5)) { if (!UI.panelOpen && t < 6) { UI.openTrade(); Demo.pt = t; } if (UI.panelOpen && t - Demo.pt > 3) { UI.closePanel(); G.cargo = 0; G.gold += 180; G.hull = G.hullMax; return true; } } return false; }, max: 30 },
-    { cap: 'The tavern: rumours, crew for hire, and a treasure map.', mode: 'port', run: (dt, t) => { if (Demo.walkLand(8.6, -0.6)) { if (!UI.panelOpen && !Demo.tv) { UI.openTavern(); Demo.tv = t; } if (Demo.tv && t - Demo.tv > 3) { UI.closePanel(); G.map = 1; G.crew = G.crewMax; return true; } } return false; }, max: 30 },
-    { cap: 'Cast off for Driftwood Isle.', mode: 'port', run: () => Demo.walkLand(-7.4, 0) && (Land.act('leave'), true), max: 30 },
-    { cap: 'A squall blows up. Every ship slows; the waves get up.', mode: 'sea', init: () => { Sea.stormOn = true; Sea.stormT = 40; }, run: () => { const r = Sea.rings[1]; Sea.tapGo = [r.x, r.y]; G.hull = Math.max(G.hull, 10); Sea.P.hull = G.hull; return !!Game.pending; }, max: 120 },
-    { cap: 'Driftwood Isle. Fill the casks at the spring, salvage timber.', mode: 'island', init: () => { Sea.stormOn = false; }, run: (dt, t) => { if (Land3.cine) return false; if (G.water > 99) return t > 2; Demo.walkLand(13.5, -6.5); return false; }, max: 40 },
-    { cap: 'Trouble. Duels play out side-on: slash, and parry on the beat.', mode: 'island', run: (dt, t) => { const f = Land.foes[0]; if (f.state === 'dead') return true; if (!Land.duel) { Land.tap(f.x, f.z); return false; } return Demo.fightLand(); }, max: 60 },
-    { cap: 'The map points inland. Beach, dunes, scrub, then the jungle.', mode: 'island', run: () => Demo.walkLand(26, -3) && (Land.act('exped'), true), max: 40 },
-    { cap: 'Third person on foot. Jump the logs; keep an eye on the minimap.', mode: 'exped', run: (dt, t) => Demo.trek(dt, 150), max: 110 },
-    { cap: 'Into the jungle. Parrots, a boar, and men who guard the clearing.', mode: 'exped', run: (dt) => Demo.trek(dt, 256), max: 140 },
-    { cap: 'X marks it. Dig.', mode: 'exped', run: (dt, t) => { const E = Exped; if (E.done) return true; if (!E.zoneAt()) { E.tapTarget = [E.X[0], E.X[1]]; return false; } if (t - (Demo.digT || 0) > 1.2) { Demo.digT = t; Pad.hit.A = true; } return false; }, max: 40 },
-    { cap: 'Spanish gold, and a name on the sea. Your voyage starts now.', run: (dt, t) => t > 5, max: 8 },
+    { cap: 'Gallows Cay, 1721. A boy, a short cutlass, and his father\'s longboat tied at the pier.', run: (dt, t) => { if (Game.intro && t > 7) Game.intro.skip = true; return !Game.intro && G.mode === 'port' && t > 7.5; }, max: 20 },
+    { cap: 'The pier. Old Pell fishes off the end most mornings; the longboat waits alongside.', mode: 'port', init: () => { Demo.aimD = 9; }, run: (dt, t) => Demo.walkLand(-19, 0.2) && t > 4, max: 25 },
+    { cap: 'Up the quay. Walk with the stick, or tap where you want to go.', mode: 'port', run: () => Demo.walkLand(-2.5, 3.5), max: 25 },
+    { cap: 'Townsfolk have things to say. Walk up and talk.', mode: 'port', run: (dt, t) => { const f = Land3.folk[2]; if (Demo.talk1 === undefined) { if (f.said > 0) Demo.talk1 = t; else Demo.walkLand(f.x, f.z); return false; } return t - Demo.talk1 > 5; }, max: 30 },
+    { cap: 'The shipwright. Plunder sells here; hull, guns, planking and hold space are bought here.', mode: 'port', run: (dt, t) => { if (Demo.walkLand(0.5, -0.5)) { if (!UI.panelOpen && Demo.pt === undefined) { G.gold = 420; UI.openTrade(); Demo.pt = t; } if (Demo.pt !== undefined && t - Demo.pt > 4) { UI.closePanel(); return true; } } return false; }, max: 30 },
+    { cap: 'Marisol\'s stall. Fruit for the crew, and gossip about who sails heavy.', mode: 'port', run: (dt, t) => { const f = Land3.folk[1]; if (Demo.talk2 === undefined) { if (f.said > 0) Demo.talk2 = t; else Demo.walkLand(f.x, f.z); return false; } return t - Demo.talk2 > 5; }, max: 30 },
+    { cap: 'The tavern: hands for hire, rumours for a round, and the Corsair\'s bounty on the wall.', mode: 'port', run: (dt, t) => { if (Demo.walkLand(8.6, -0.6)) { if (!UI.panelOpen && Demo.tv === undefined) { UI.openTavern(); Demo.tv = t; } if (Demo.tv !== undefined && t - Demo.tv > 4) { UI.closePanel(); return true; } } return false; }, max: 30 },
+    { cap: 'Every town keeps a secret. This one is behind the barrels.', mode: 'port', run: (dt, t) => { const lv = Land.lv; if (Land.chestOpen) return t > 3 && Demo.ct !== undefined && t - Demo.ct > 3; if (Demo.walkLand(lv.chest[0], lv.chest[1] + 0.6)) { Land.act('chest'); Demo.ct = t; } return false; }, max: 30 },
+    { cap: 'Night falls over the cay. Lanterns, a dog asleep by the door, gulls going home.', mode: 'port', run: (dt, t) => { Demo.walkLand(10.2, 1.6); return t > 7; }, max: 10 },
+    { cap: 'Back down to the water. The sea does not care how old you are.', mode: 'port', run: () => Demo.walkLand(-7.4, 0) && (Land.act('leave'), true), max: 30 },
+    { cap: 'Your voyage starts here.', mode: 'sea', run: (dt, t) => { const P = Sea.P; Sea.tapGo = [P.x + Math.sin(P.th) * 120, P.y - Math.cos(P.th) * 120]; return t > 7; }, max: 12 },
   ],
-  // walk the expedition east to x, jumping logs and the stream, fighting what engages
-  trek(dt, toX) { const E = Exped, p = E.p; G.hp = Math.max(G.hp, 3); if (p.x >= toX) return true;
-    if (E.duel) { const f = E.duel; if (f.state === 'windup' && f.t > 0.2 && p.parryT <= 0 && p.slashT <= 0) Pad.hit.X = true; else E.target = f; return false; }
-    const w = E.wall(p.x + 0.9, p.z, p.y + 0.5); if (w && w.length === 5 && p.ground) Pad.hit.A = true; if (p.x > E.SX[0] - 1.2 && p.x < E.SX[0] && p.ground) Pad.hit.A = true;
-    const nx = Math.min(toX, p.x + 14), nz = E.pathZ(nx); if (!E.tapTarget || Math.hypot(E.tapTarget[0] - nx, E.tapTarget[1] - nz) > 6) E.tapTarget = [nx, nz]; return false; },
 };
 addEventListener('keydown', () => { if (Demo.on) Demo.end(); }); addEventListener('pointerdown', e => { if (Demo.on && !e.target.closest('#title')) Demo.end(); });
 
@@ -1488,13 +1286,12 @@ addEventListener('keydown', () => { if (Demo.on) Demo.end(); }); addEventListene
 const Game = {
   pending: null, ring: null, last: 0,
   enter(mode) { if (this.pending) return; this.pending = mode; const land = mode === 'island' || mode === 'port';
-    if (mode === 'exped') { $('fade').classList.add('on'); setTimeout(() => { UI.closePanel(); G.mode = 'exped'; Exped.enter(this.previewExped); this.show(); $('land').classList.add('in'); $('landfx').classList.add('in'); $('fade').classList.remove('on'); this.pending = null; }, 430); return; }
     if (Land3.ready && land) { this.apply(mode); requestAnimationFrame(() => { $('land').classList.add('in'); $('landfx').classList.add('in'); }); setTimeout(() => { this.pending = null; }, 700); return; }
     if (Land3.ready && mode === 'sea') { $('land').classList.remove('in'); $('landfx').classList.remove('in'); setTimeout(() => { this.apply(mode); this.pending = null; }, 650); return; }
     $('fade').classList.add('on'); setTimeout(() => { this.apply(mode); $('fade').classList.remove('on'); this.pending = null; }, 430); },
   apply(mode) {
     UI.closePanel();
-    if (mode === 'island' || mode === 'port') { const back = G.mode === 'exped'; this.ring = Sea.near || this.ring || Sea.rings[mode === 'port' ? 0 : 1]; Land.enter(mode); G.mode = mode; if (back) { Land3.cine = null; Land.p.x = 24; Land.p.z = -2; Land3.camX = 24; Land3.camZ = -2; toast('Back at the beach with the chest on your back. Row it home.', 4000); return this.show(); }
+    if (mode === 'island' || mode === 'port') { this.ring = Sea.near || this.ring || Sea.rings[mode === 'port' ? 0 : 1]; Land.enter(mode); G.mode = mode;
       if (mode === 'port') { G.isleDone = { chest: false, items: {}, foes: {} }; saveGame(); toast('Gallows Cay. No flag asks questions here.'); } else toast('Driftwood Isle. The spring is up the cliff.'); }
     else { if (G.mode === 'island' || G.mode === 'port') {
         if (G.timber > 0 && G.hull < G.hullMax) { const use = Math.min(G.timber, Math.ceil((G.hullMax - G.hull) / 12)); G.hull = Math.min(G.hullMax, G.hull + use * 12); G.timber -= use; toast('Timber patched the hull to ' + Math.round(G.hull) + '%'); }
@@ -1502,7 +1299,7 @@ const Game = {
       G.mode = 'sea'; }
     this.show();
   },
-  show() { const land = G.mode === 'island' || G.mode === 'port' || G.mode === 'exped'; $('sea').hidden = land; $('seafx').hidden = land; $('land').hidden = !land; $('landfx').hidden = !land; $('labels').hidden = G.mode !== 'sea'; $('title').hidden = G.mode !== 'title'; $('over').hidden = G.mode !== 'over'; },
+  show() { const land = G.mode === 'island' || G.mode === 'port'; $('sea').hidden = land; $('seafx').hidden = land; $('land').hidden = !land; $('landfx').hidden = !land; $('labels').hidden = G.mode !== 'sea'; $('title').hidden = G.mode !== 'title'; $('over').hidden = G.mode !== 'over'; },
   start(cont) { if (!cont) { try { localStorage.removeItem('saltwake2'); } catch (e) { /* ignore */ } } Sea.P.T = TIERS[G.tier];
     if (cont || !Land3.ready) { G.mode = 'sea'; this.show(); toast(UI.touch ? 'Push the stick where you want to sail. Land at a gold ring.' : 'Point the arrow keys where you want to sail. Space fires, or lands at a gold ring.', 4500); return; }
     this.intro = { t: 0, i: -1 }; this.ring = Sea.rings[0]; G.mode = 'port'; Land.enter('port'); this.show(); $('land').classList.add('in'); $('landfx').classList.add('in'); $('intro').hidden = false; document.body.classList.add('intro'); },
@@ -1519,21 +1316,20 @@ const Game = {
     if (G.mode === "title" && Pad.hit.A && !Demo.on) this.start(this.had); else if (G.mode === 'over' && Pad.hit.A) this.revive();
     if (Demo.on) Demo.tick(dt);
     if (this.intro) this.tickIntro(dt);
-    if (G.mode === 'exped') { Exped.update(dt); Exped.render(); } else if (G.mode === 'island' || G.mode === 'port') { Land.update(dt); Land.render(); } else { Sea.update(dt); Sea.render(); }
+    if (G.mode === 'island' || G.mode === 'port') { Land.update(dt); Land.render(); } else { Sea.update(dt); Sea.render(); }
     UI.update(dt);
   },
   boot(data) {
     const had = this.had = loadGame(); if (data && data.G) Object.assign(G, data.G);
     Sea.init($('sea'), $('seafx')); Land.init($('land'), $('landfx')); UI.init();
     $('seafx').addEventListener('pointerdown', e => { if (G.mode !== 'sea') return; const m = Sea.mini; if (Sea.chart || (m && Math.hypot(e.clientX - m.x, e.clientY - m.y) < m.r + 10)) { Pad._tl.map = true; e.preventDefault(); return; } Sea.tapAt(e.clientX, e.clientY); e.preventDefault(); }); this.resize(); addEventListener('resize', () => this.resize());
-    $('btnNew').addEventListener('click', () => { Object.assign(G, { gold: 60, tier: 0, plank: 0, holdUp: 0, hull: 30, hullMax: 30, crew: 4, crewMax: 4, food: 70, water: 45, timber: 0, cargo: 0, hold: 4, guns: 0, kills: 0, sold: 0, portChest: false, bounty: 0, map: 0 }); Sea.reset(); this.start(false); });
+    $('btnNew').addEventListener('click', () => { Object.assign(G, { gold: 60, tier: 0, plank: 0, holdUp: 0, hull: 30, hullMax: 30, crew: 4, crewMax: 4, food: 70, water: 45, timber: 0, cargo: 0, hold: 4, guns: 0, kills: 0, sold: 0, portChest: false, bounty: 0 }); Sea.reset(); this.start(false); });
     $('btnCont').hidden = !had; $('btnCont').addEventListener('click', () => this.start(true));
     $('btnRevive').addEventListener('click', () => this.revive());
-    $('btnExped').addEventListener('click', () => { this.previewExped = true; this.enter('exped'); });
     $('intro').addEventListener('pointerdown', () => { if (this.intro && !Demo.on) this.intro.skip = true; });
     $('btnDemo').addEventListener('click', e => { e.stopPropagation(); setTimeout(() => Demo.start(), 50); });
     G.mode = 'title'; this.show(); requestAnimationFrame(tt => this.frame(tt));
-    window.__game = { G, Sea, Land, Exped, UI, Game, Pad, Demo, sim(sec) { for (let t = 0; t < sec; t += 1 / 30) { Pad.hit = {}; if (G.mode === 'exped') Exped.update(1 / 30); else if (G.mode === 'island' || G.mode === 'port') Land.update(1 / 30); else Sea.update(1 / 30); } } };
+    window.__game = { G, Sea, Land, UI, Game, Pad, Demo, sim(sec) { for (let t = 0; t < sec; t += 1 / 30) { Pad.hit = {}; if (G.mode === 'island' || G.mode === 'port') Land.update(1 / 30); else Sea.update(1 / 30); } } };
   },
 };
 if (window.claude && window.claude.hot && window.claude.hot.snapshot) window.claude.hot.snapshot(() => ({ G: { tier: G.tier, plank: G.plank, holdUp: G.holdUp, crewMax: G.crewMax, gold: G.gold, hull: G.hull, hullMax: G.hullMax, crew: G.crew, food: G.food, water: G.water, timber: G.timber, cargo: G.cargo, hold: G.hold, guns: G.guns, kills: G.kills } }));
