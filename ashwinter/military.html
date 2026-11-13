@@ -3998,7 +3998,12 @@ function guardUpdate(z, dt, p, w) {
 function canTakedown(z, p) { if (z.dog || !z.alive || z.takenT != null || z.state === 'chase' || z.f !== p.f || z.onStair) return false; const d = Math.abs(z.x - p.x); if (d > (p.hidden ? 80 : 64)) return false; return (p.x - z.x) * z.facing < 0 || (z.alert < .2 && d < 34); }
 function scTakedown(z) { const p = SC.player, w = SC.world; p.hidden = false; p.visible = true; p.path = null; p.task = null; const bx = z.x - z.facing * 24; if (w.passable(p.x, bx, p.f)) p.x = bx; if (p.mc) { p.mc.x = p.x; p.mc.w.x = p.x / p.mc.k; } p.facing = z.facing; if (p.mc) rigFace(p, p.facing);
   p.attackT = .6; p.attackKind = 'takedown'; p.style = 'stab'; p.attackHit = true; z.takenT = .5; z.path = null; z.state = 'idle'; AUDIO.sfx('tap'); }
-function killZombie(z) { z.alive = false; z.pose = 'dead'; SC.kills++; AUDIO.sfx('groan'); bleed(SC.world, z.x, z.f, -z.facing, true); }
+// the dead can be gone through: what they fought with is still on them, and whatever was in their pockets
+function bodySpot(world, z) { if (!world || z.dog || z.bodyDone) return; z.bodyDone = true; const R = Math.random, list = [], add = (id, n) => { if (ITEMS[id]) { const o = list.find(q => q.id === id); if (o) o.n += n; else list.push({ id, n }); } };
+  if (z.wpn) add(z.wpn, 1); if (z.wpn === 'rifle' || z.wpn === 'pistol') add('ammo', 1 + Math.floor(R() * 3));
+  const pockets = ['canned', 'water', 'bandage', 'scrap', 'parts', 'canned', 'water', 'meds', 'lockpick', 'books', 'wood']; for (let k = 0, n = R() < .25 ? 0 : R() < .6 ? 1 : 2; k < n; k++) add(pockets[Math.floor(R() * pockets.length)], 1);
+  world.spots.push({ id: 'body_' + z.id, f: z.f, x: z.x, type: 'search', body: true, uses: 1, left: 1, lootList: list, dur: 2.4 }); }
+function killZombie(z) { z.alive = false; z.pose = 'dead'; SC.kills++; AUDIO.sfx('groan'); bleed(SC.world, z.x, z.f, -z.facing, true); bodySpot(SC.world, z); }
 
 function scUpdate(dt) {
   const p = SC.player, w = SC.world; _T += dt; CUR_W = w;
@@ -4047,7 +4052,7 @@ function scUpdate(dt) {
   for (const z of SC.zombies) {
     if (!z.alive) { z.pose = 'dead'; continue; }
     z.t += dt; if (z.hurtT > 0) z.hurtT -= dt;
-    if (z.takenT != null) { z.takenT -= dt; z.pose = 'hurt'; z.alert = 0; if (z.takenT <= 0) { z.takenT = null; z.alive = false; z.pose = 'dead'; SC.kills++; bleed(w, z.x, z.f, z.facing, true); } continue; }
+    if (z.takenT != null) { z.takenT -= dt; z.pose = 'hurt'; z.alert = 0; if (z.takenT <= 0) { z.takenT = null; z.alive = false; z.pose = 'dead'; SC.kills++; bleed(w, z.x, z.f, z.facing, true); bodySpot(w, z); } continue; }
     if (z.dog) { dogUpdate(z, dt, p, w); if (SC.done) return; if (z.state === 'chase') seen++; continue; }
     if (z.armed) { guardUpdate(z, dt, p, w); if (SC.done) return; if (z.state === 'chase') seen++; continue; }
     if (z.state === 'idle') fidgetTick(z, dt);
@@ -4114,7 +4119,7 @@ function siteLoad(loc, world) { const st = !PREVIEW && G.flags.sites && G.flags.
   world.blood = (st.blood || []).map(b => Object.assign({}, b)); }
 function siteSave() { if (PREVIEW || !SC.world || !SC.loc || SC.saved) return; SC.saved = true; const w = SC.world, all = G.flags.sites || (G.flags.sites = {}), st = all[SC.loc.id] || (all[SC.loc.id] = {});
   st.sp = {}; for (const s of w.spots) if (s.type === 'search' && s.left <= 0) st.sp[s.id] = { l: s.left, ls: (s.lootList || []).map(o => ({ id: o.id, n: o.n })) };
-  st.total = w.spots.filter(s => s.type === 'search').length; st.open = w.rooms.filter(r => r.open && r.locked).map(r => r.name); st.blood = (w.blood || []).slice(-30).map(b => ({ x: Math.round(b.x), f: b.f, r: +b.r.toFixed(1), a: b.a, seed: Math.round(b.seed), wall: b.wall }));
+  st.total = w.spots.filter(s => s.type === 'search' && !s.body).length; st.open = w.rooms.filter(r => r.open && r.locked).map(r => r.name); st.blood = (w.blood || []).slice(-30).map(b => ({ x: Math.round(b.x), f: b.f, r: +b.r.toFixed(1), a: b.a, seed: Math.round(b.seed), wall: b.wall }));
   st.kills = Math.max(0, (st.kills || 0) - Math.floor((G.day - (st.day || G.day)) / 4)) + SC.kills; st.day = G.day; st.visits = (st.visits || 0) + 1; }
 function leaveSite() { siteSave(); findNote(SC.loc); sitLeave(); const p = SC.player, link = siteLink(SC.world), px = p.x; TR.kills += SC.kills; SC.active = false; p.hidden = false; p.visible = true; p.task = null; p.path = null; p.fy = 0; p.f = 0; G.phase = 'travel'; TR.x = TR.locX[SC.loc.id] != null ? TR.locX[SC.loc.id] : 1180; TR.py = 0; TR.vy = 0; p.x = TR.x; p.facing = 1; cam.lock = true; AUDIO.sfx('open'); SC.leaving = false; if (link != null) { TR.x = p.x = Math.min(TR.xMax, px + link); p.facing = -1; p.mc = null; cam.bounds = streetBounds(); cam.x = cam.tx = cam.x + link; cam.y = cam.ty = cam.y + 14; TR.tx = null; } }
 
@@ -4552,7 +4557,7 @@ function drawHomeHud(dt) {
     for (const s of w.spots) {
       const info = spotInfo(s); if (!info) continue;
       if (!near(s.x, s.f) && !G.survivors.some(v => v.alive && v.task && v.task.spot === s)) continue;
-      const sx = w2sx(s.x), sy = w2sy(w.fy2y(s.f) - 95); if (sx < -40 || sx > W + 40 || sy < -40 || sy > H + 40) continue;
+      const sx = w2sx(s.x), sy = w2sy(w.fy2y(s.f) - (s.body ? 58 : 95)); if (sx < -40 || sx > W + 40 || sy < -40 || sy > H + 40) continue;
       const worker = G.survivors.find(v => v.alive && v.task && v.task.spot === s && !(v.path && v.path.length));
       spotBubble(sx, sy, info.icon, { disabled: info.disabled, badgeIcon: info.badgeIcon, badge: info.badge, progress: worker ? clamp(worker.task.t / worker.task.dur, 0, 1) : undefined });
       UI.btn(sx - 26, sy - 26, 52, 52, () => askSpot(s));
@@ -4828,7 +4833,7 @@ function drawScavHud(dt) {
       else if (s.type === 'exit') { icon = 'exit'; opts.hl = true; }
       if (!icon) continue;
       if (!(Math.abs(p.x - s.x) < 150 && Math.abs(p.fy - s.f) < .5) && !(p.task && p.task.spot === s)) continue;
-      const sx = w2sx(s.x), sy = w2sy(w.fy2y(s.f) - 95); if (sx < -40 || sx > W + 40 || sy < -40 || sy > H + 40) continue;
+      const sx = w2sx(s.x), sy = w2sy(w.fy2y(s.f) - (s.body ? 58 : 95)); if (sx < -40 || sx > W + 40 || sy < -40 || sy > H + 40) continue;
       const working = p.task && p.task.spot === s && !(p.path && p.path.length) && s.type === 'search';
       spotBubble(sx, sy, icon, Object.assign(opts, { progress: working ? clamp(p.task.t / s.dur, 0, 1) : undefined }));
       UI.btn(sx - 26, sy - 26, 52, 52, () => scUseSpot(s));
@@ -4890,7 +4895,7 @@ for (const n of NEEDS) RARITY[n.item] = 2;
 const RARITY_NAME = ['COMMON', 'UNCOMMON', 'RARE'], RARITY_COL = ['#8d8a82', '#7fb0d9', '#d9b35a'];
 function drawLoot() {
   const M = UI.modal, sp = M.spot, found = sp.lootList; const home = !!M.home;
-  const w = Math.min(W - 16, 560), h = Math.min(H - 16, 330), x = (W - w) / 2, y = (H - h) / 2; panel(x, y, w, h, home ? 'SUPPLIES' : 'LOOT');
+  const w = Math.min(W - 16, 560), h = Math.min(H - 16, 330), x = (W - w) / 2, y = (H - h) / 2; panel(x, y, w, h, home ? 'SUPPLIES' : sp.body ? 'THE BODY' : 'LOOT');
   const PV = lootPackView(M); if (!UI.drag) found.sort((p, q) => (RARITY[q.id] || 0) - (RARITY[p.id] || 0) || ITEM_ORDER.indexOf(p.id) - ITEM_ORDER.indexOf(q.id));
   const L = { x: x + 12, y: y + 66, w: Math.floor((w - 36) * .42), h: h - 126 }, R = { x: 0, y: y + 66, w: 0, h: h - 126 }; R.x = L.x + L.w + 12; R.w = x + w - 12 - R.x;
   const close = () => { UI.modal = null; UI.drag = null; };
