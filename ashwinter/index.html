@@ -4485,9 +4485,12 @@ const UI = {
 };
 const PANEL_BG = 'rgba(18,19,22,.94)', PANEL_EDGE = '#3a3d42', INK = '#e6e1d6', DIM = '#8d8a82', RED = '#c9513f', GREEN = '#7fb069', GOLD = '#d9b35a';
 
+// anything put up in front of the player stops the clock: a window, the help sheet, the pack, a survivor's panel, a card to read
+function dialogUp() { if (UI.modal) return !(DEMO.on && UI.modal.kind === 'craft'); return !!(UI.help || UI.invOpen || UI.survOpen >= 0 || UI.peek || (FX.note && !DEMO.on && !REVIEW.on)); }
 function handleTaps() {
   while (IN.taps.length) {
     const t = IN.taps.shift(); let hit = null;
+    if (FX.note && !UI.modal && !DEMO.on && FX.note.t > .5 && FX.note.t < 7.2) { FX.note.t = 7.2; continue; }   // a tap puts the card away
     for (let i = UI.hits.length - 1; i >= 0; i--) { const h = UI.hits[i]; if (t.x >= h.x && t.x <= h.x + h.w && t.y >= h.y && t.y <= h.y + h.h) { hit = h; break; } }
     if (hit) { hit.fn(t); continue; }
     if (UI.modal) { if (['loot', 'craft', 'map', 'survivor', 'inv', 'help', 'confirm'].includes(UI.modal.kind)) UI.modal = null; continue; }
@@ -5527,7 +5530,7 @@ function frame(now) {
     case 'title': _T += dt; drawTitle(); break;
     case 'intro': _T += dt; drawIntro(dt); break;
     case 'day': case 'plan': case 'dawn': case 'event': case 'win': case 'lose': case 'raid': {
-      if (G.phase === 'day' && (!UI.modal || UI.modal.kind === 'craft')) updateHome(dt); else if (G.phase === 'raid') updateRaid(dt); else _T += dt;
+      if (G.phase === 'day' && !dialogUp()) updateHome(dt); else if (G.phase === 'raid') updateRaid(dt); else _T += dt;
       if (G.phase === 'raid' && !G.raid) break;
       const hour = G.phase === 'raid' ? 2 : G.phase === 'plan' ? 20 : G.phase === 'event' ? 8 : G.phase === 'dawn' ? 6.5 : G.hour;
       if (!G.homeDrifters || G.homeDrifters.day !== G.day) { const w = G.world; G.homeDrifters = { day: G.day, list: G.day % 3 === 2 ? [{ drifter: true, name: 'yard' + G.day + 'a', x: w.x0 - 222, fy: 1, f: 1, facing: 1, pose: 'warm', alive: true, scale: .97 }] : [] }; }
@@ -5537,14 +5540,14 @@ function frame(now) {
       drawScene(G.world, hour, actors, { t: _T, dt, lights });
       if (G.phase === 'raid') drawRaidHud();
       if (G.phase === 'day' || G.phase === 'plan') drawHomeHud(dt);
-      if (EXTRAS.talk && G.phase === 'day' && !UI.modal) drawTalk(dt);
+      if (EXTRAS.talk && G.phase === 'day' && !dialogUp()) drawTalk(dt);
       needsCheck(); if (G.phase === 'day' || G.phase === 'plan') drawNeedsHud(); if (!UI.modal) drawNoteCard(dt);
       if (UI.modal) { switch (UI.modal.kind) { case 'loot': drawLoot(); break; case 'plan': drawPlan(); break; case 'map': drawMap(); break; case 'dawn': drawDawn(); break; case 'event': drawEvent(); break; case 'craft': drawCraft(); break; case 'confirm': drawConfirm(); break; } }
       if (G.phase === 'win') drawEnd(true); if (G.phase === 'lose') drawEnd(false);
       break;
     }
     case 'travel': {
-      if (!UI.modal) trUpdate(dt); else _T += dt;
+      if (!dialogUp()) trUpdate(dt); else _T += dt;
       drawStreet(dt); postFx(dt); drawTravelHud(dt); drawNoteCard(dt); drawPulse(dt);
       if (UI.modal) { switch (UI.modal.kind) { case 'scavEnd': drawScavEnd(); break; case 'inv': drawScavInv(); break; case 'haven': drawHaven(); break; } }
       break;
@@ -5552,7 +5555,7 @@ function frame(now) {
     case 'scav': {
       if (REVIEW.on) { if (REVIEW.live > 0) { const was = REVIEW.live; REVIEW.live -= dt; scUpdate(dt); SC.player.visible = false; SC.player.health = 100; if (was > 5.5 && REVIEW.live <= 5.5) for (const z of SC.zombies) if (z.alive) { z.state = 'chase'; z.alert = 1.2; z.lostT = 0; } if (REVIEW.live <= 0) { reviewGo(REVIEW.i); break; } } else _T += dt; CUR_W = SC.world; Object.assign(cam, REVIEW.cam, { tx: REVIEW.cam.x, ty: REVIEW.cam.y, tz: REVIEW.cam.z }); drawScene(SC.world, 13, [...(SC.people || []), ...SC.zombies], { t: _T, dt, lights: [] }); drawReviewHud(dt); break; }
       if (UI.peek && SC.world.sit) { drawPeek(dt); drawNoteCard(dt); break; } else UI.peek = null;
-      if (!UI.modal) scUpdate(dt); else _T += dt;
+      if (!dialogUp()) scUpdate(dt); else _T += dt;
       const actors = [...(SC.people || []), SC.player, ...SC.zombies]; drawScene(SC.world, Math.min(23.5, nightHour()), actors, { t: _T, dt, lights: SC.lights });
       drawScavHud(dt); drawPulse(dt); drawNoteCard(dt);
       if (UI.modal) { switch (UI.modal.kind) { case 'loot': drawLoot(); break; case 'leave': drawLeave(); break; case 'scavEnd': drawScavEnd(); break; case 'inv': drawScavInv(); break; case 'mission': drawMission(); break; } }
