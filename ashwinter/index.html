@@ -2519,11 +2519,22 @@ function drawRoadDetail(gy, xa, xb) {   // a road nobody has mended: cracks, pat
   ctx.fillStyle = 'rgba(255,255,255,.07)'; ctx.fillRect(xa, y0, xb - xa, 1.5);
 }
 // the building itself, cut away: rooms, what is in them, who is in them. Drawn alone when it stands on the street
+function drawBoltKit(world) { const x0 = world.x0, fy = world.fy2y(0), f1 = world.fy2y(1), sx = x0 - 116, sw = 86, sh = 56; ctx.save();
+  ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.fillRect(sx - 4, fy - 2, sw + 10, 5);
+  ctx.fillStyle = '#3d5a4a'; ctx.beginPath(); ctx.moveTo(sx - 5, fy - sh); ctx.lineTo(sx + sw + 5, fy - sh); ctx.lineTo(sx + sw - 3, fy); ctx.lineTo(sx + 3, fy); ctx.closePath(); ctx.fill();   // a builder's skip against the wall
+  ctx.fillStyle = 'rgba(255,255,255,.08)'; ctx.fillRect(sx - 5, fy - sh, sw + 10, 4); ctx.fillStyle = 'rgba(0,0,0,.22)'; for (let k = 1; k < 4; k++) ctx.fillRect(sx + k * sw / 4 - 1, fy - sh + 6, 2, sh - 8); ctx.fillStyle = 'rgba(110,56,26,.45)'; ctx.fillRect(sx + 8, fy - 20, 22, 14); ctx.fillRect(sx + 52, fy - 40, 14, 20);
+  ctx.fillStyle = '#5a5046'; ctx.fillRect(sx + 6, fy - sh - 5, 30, 5); ctx.fillStyle = '#6a5a44'; ctx.fillRect(sx + 40, fy - sh - 8, 34, 8);   // rubble and a board level with the rim: something to stand on
+  ctx.strokeStyle = '#4a4d50'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(x0 - 30, fy); ctx.lineTo(x0 - 30, f1 - FLOOR_H + 30); ctx.stroke(); ctx.strokeStyle = 'rgba(255,255,255,.12)'; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(x0 - 31.6, fy); ctx.lineTo(x0 - 31.6, f1 - FLOOR_H + 30); ctx.stroke();   // the drainpipe
+  ctx.fillStyle = '#2f3133'; for (let y = fy - 40; y > f1 - FLOOR_H + 40; y -= 46) ctx.fillRect(x0 - 35, y, 12, 4);
+  ctx.fillStyle = '#0c0d0f'; ctx.fillRect(x0 - 27, f1 - 96, 10, 70); ctx.fillStyle = '#5a4632'; ctx.fillRect(x0 - 34, f1 - 28, 18, 4); ctx.fillStyle = 'rgba(200,190,160,.5)'; ctx.beginPath(); ctx.moveTo(x0 - 27, f1 - 96); ctx.lineTo(x0 - 44, f1 - 92 + Math.sin(_T * 1.3) * 3); ctx.lineTo(x0 - 40, f1 - 50 + Math.sin(_T * 1.1) * 4); ctx.lineTo(x0 - 27, f1 - 40); ctx.fill();   // the first-floor window standing open, its curtain blowing out
+  if (world.bolted) { ctx.fillStyle = '#6a6d70'; ctx.fillRect(x0 - 30, fy - 64, 12, 5); ctx.fillRect(x0 - 30, fy - 36, 12, 5); ctx.fillStyle = '#c9a23a'; ctx.fillRect(x0 - 33, fy - 56, 8, 10); ctx.strokeStyle = '#8f949a'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.arc(x0 - 29, fy - 57, 3.2, Math.PI, 0); ctx.stroke(); }   // bars across the door and a padlock
+  ctx.restore(); }
 function drawBuilding(world, hour, sky, night, actors, opts) {
   // ---- building ----
   const x0 = world.x0, x1 = world.x1, nF = world.nFloors; const topY = world.fy2y(nF - 1) - FLOOR_H + 10, botY = world.fy2y(0) + 14;
   // outer wall shadow
   ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(x0 - 26, topY - 10, x1 - x0 + 52, botY - topY + 10);
+  if (world.boltKit) drawBoltKit(world);
   // rooms
   for (const r of world.rooms) {
     const fy = world.fy2y(r.f); const ceil = fy - FLOOR_H + 14;
@@ -3772,6 +3783,7 @@ function makeSite(loc, day) {
     if (zf === 0 && zx < x0 + 320) zx = x0 + 320 + r() * 100; const z = makeZombie(zx, zf, r); z.patrol = r() < .3 || (i === 1); zombies.push(z); }
   if (dg <= 3 && (r() < (dg <= 1 ? .5 : .35) || nz === 0)) { const sp = spots.filter(q => q.type === 'search' && !rooms.find(o => o.f === q.f && q.x > o.x0 && q.x < o.x1 && o.locked) && (q.f > 0 || q.x > x0 + (nz === 0 ? 150 : 300))); if (sp.length) { const t = sp[Math.floor(r() * sp.length)], side = r() < .5 ? -1 : 1; people.push({ drifter: true, name: 'picker' + loc.id + day, x: t.x + side * 24, f: t.f, fy: t.f, facing: -side, pose: 'search', searchLow: r() < .6, alive: true, scale: .94 + r() * .1 }); } }
   }
+  { const up = world.nFloors >= 2 && world.rooms.find(q => q.f === 1 && q.x0 <= world.x0 + 90 && q.x1 > world.x0 + 90 && !q.locked && q.open !== false); world.boltKit = !!up && loc.danger >= 2 && loc.id !== 'freighter' && hashStr('bolt' + loc.id) % 3 === 0; world.bolted = world.boltKit && !PREVIEW && !(G.flags.unbolted && G.flags.unbolted[loc.id]); }   // one place in three (of those with an upstairs) is bolted from inside: in by the skip and the drainpipe, or with a crowbar and a lot of noise
   needsPlant(loc, world); makeSituation(loc, world, zombies, people, day);
   return { world, zombies, people };
 }
@@ -3791,7 +3803,7 @@ function startScavenge(loc, surv, pack, cap) {
   const linked = TR.active && TR.site && TR.dest === loc && !PREVIEW, { world, zombies, people } = linked ? TR.site : makeSite(loc, G.day);
   const p = surv; p.x = linked ? TR.x - TR.siteOff : world.x0 + 40; p.fy = 0; p.f = 0; p.facing = 1; p.path = null; p.moving = false; p.task = null; p.hidden = false; p.visible = true; p.attackT = 0; p.pose = 'idle'; p.hasPack = true;
   Object.assign(SC, { active: true, world, zombies, people, player: p, loc, pack, cap, sneak: false, seen: 0, lootSpot: null, noiseT: 0, done: false, result: null, msg: null, msgT: 0, kills: 0, lights: [], throwCd: 0, proj: null, fight: false, saved: false, leaving: false, arriveT: PREVIEW ? null : Math.max(45, 150 - loc.danger * 20) + Math.random() * 40, arrivals: loc.danger >= 4 ? 2 : 1, alarmT: 0, glassCd: 0 });
-  if (linked) { const c = { x: cam.x, y: cam.y, z: cam.z }; p.mc = null; p.path = [{ x: world.x0 + 40, fy: 0 }]; p.run = false; FX.float = [];
+  if (linked) { const c = { x: cam.x, y: cam.y, z: cam.z }; p.mc = null; p.path = [{ x: world.x0 + 40, fy: 0 }]; p.run = false; FX.float = []; if (TR.viaWindow) { TR.viaWindow = false; p.x = world.x0 + 12; p.fy = p.f = 1; p.path = [{ x: world.x0 + 84, fy: 1 }]; }   // in over the sill, upstairs
     { const sb = streetBounds(); cam.bounds = { x0: sb.x0 - TR.siteOff, x1: sb.x1 - TR.siteOff, y0: sb.y0 - 14, y1: sb.y1 - 14 }; } cam.z = cam.tz = c.z; cam.x = cam.tx = c.x - TR.siteOff; cam.y = cam.ty = c.y - 14; clampCam(); scMsg('exit'); return; }
   siteLoad(loc, world); FX.float = []; initFx();
   fitCam({ x0: world.x0 - 60, x1: world.x1 + 60, y0: world.fy2y(world.nFloors - 1) - FLOOR_H - 60, y1: world.groundY + 230 });
@@ -3864,9 +3876,16 @@ function drawPeek(dt) { const w = SC.world, st = w.sit, r = st.room, pk = UI.pee
 function drawGlass(world, g) { const fy = world.fy2y(g.f), r = mulberry(g.seed); ctx.save(); for (let i = 0; i < 16; i++) { const x = g.x + (r() - .5) * g.w * 2, y = fy - 1 - r() * 2.4, a = r() * 6, l = 2 + r() * 4.5, tw = .35 + .65 * Math.abs(Math.sin(_T * 1.7 + i * 2.3 + g.x)); ctx.fillStyle = `rgba(190,215,225,${(.22 + .5 * tw * (i % 3 === 0 ? 1 : .3)).toFixed(2)})`; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a) * l, y - Math.abs(Math.sin(a)) * 2.2); ctx.lineTo(x + Math.cos(a + 1.2) * l * .6, y); ctx.fill(); } ctx.restore(); }
 function onGlass(w, a) { return (w.glass || []).find(g => g.f === Math.round(a.fy) && Math.abs(g.x - a.x) < g.w); }
 function siteHazards(dt, p, w) { if (!w.site || SC.done) return; SC.glassCd -= dt;
+  for (const q of SC.people || []) { if (q.sitActor || q.flee || q.gone) continue; if (q.nerve == null) q.nerve = Math.random(); const d = Math.abs(p.x - q.x), armed = SC.fight && !p.hidden && q.f === p.f && d < 300, kind = q.nerve < .55 ? 'run' : q.nerve < .8 ? 'talk' : 'fight';
+    if (armed) { if (!q.wary) { q.wary = true; q.waryT = 0; q.pose0 = q.pose; q.low0 = q.searchLow; q.searchLow = false; q.say = { text: pick(WARY_LINES[kind]), t: 0 }; noiseRing(q.x, w.fy2y(q.f) - 70, 120, '232,200,120'); }
+      q.waryT += dt; q.facing = p.x < q.x ? -1 : 1; if (q.mc) q.mc.facing = q.facing; q.pose = kind === 'fight' ? 'guard' : 'idle'; q.poseExtra = null;
+      if (kind === 'run' && (q.waryT > 2.4 || d < 130)) { q.flee = true; q.mc = null; q.path = w.path(q.x, q.f, w.x0 + 30, 0); q.say = { text: pick(WARY_LINES.bolt), t: 0 }; }
+      else if (kind === 'fight' && d < 110 && q.waryT > 1.3) { const z = makeZombie(q.x, q.f); z.facing = q.facing; z.wpn = 'knife'; z.hp = 2; z.state = 'chase'; z.alert = 1.2; z.lostT = 0; z.scale = q.scale || 1; SC.zombies.push(z); q.gone = true; AUDIO.sfx('bad'); } }   // cornered by someone holding a weapon: this one comes at you
+    else if (q.wary) { q.wary = false; q.pose = q.pose0 || 'search'; q.searchLow = q.low0; q.say = { text: pick(WARY_LINES.calm), t: 0 }; } }   // put it away and they breathe out, say so, and go back to what they were doing
   if (SC.people && SC.people.length) { for (const q of SC.people) { if (q.sitActor && !q.flee) continue; if (!q.flee) { if (SC.zombies.some(z => z.alive && z.state === 'chase' && Math.abs(z.x - q.x) < 420) || NOISE.some(n => n.R > 300 && n.t < .12 && Math.abs(n.x - q.x) < n.R) || (!SC.sneak && p.run && q.f === p.f && Math.abs(p.x - q.x) < 110)) { q.flee = true; q.poseExtra = null; q.searchLow = false; q.mc = null; q.path = w.path(q.x, q.f, w.x0 + 30, 0); noiseRing(q.x, w.fy2y(q.f) - 60, 200, '232,232,222'); } }
       else { q.pose = 'run'; const done = moveActor(q, dt, 120); if (done || (q.f === 0 && q.x < w.x0 + 40)) q.gone = true; } } SC.people = SC.people.filter(q => !q.gone); }   // whoever else was picking the place over drops it and bolts for the street
   if (SC.glassCd <= 0 && p.moving !== false && Math.abs((p._gx == null ? p.x : p._gx) - p.x) > .2 && onGlass(w, p) && !(SC.sneak && !p.run)) { SC.glassCd = .55; scNoise(p.x, p.f, p.run ? 520 : 380); try { AUDIO.sfx('glass'); } catch (_) {} } p._gx = p.x;   // creep across it and it holds its tongue
+  for (const z of SC.zombies) if (z.alive && z.hp < (z.armed ? 4 : 3)) bloodDrip(w, z, dt, .45); if (p.wounded || p.health < 45) bloodDrip(w, p, dt, .7);   // the hurt leave a trail
   for (const z of SC.zombies) if (z.alive && !z.dog && z.moving && onGlass(w, z) && !((z._gc -= dt) > 0)) { z._gc = .6; noiseRing(z.x, w.fy2y(z.f) - 6, 240, '255,150,120'); try { AUDIO.sfx('glass'); } catch (_) {} }                                             // and it gives them away just the same
   if (SC.alarmT > 0) { SC.alarmT -= dt; if (Math.floor(SC.alarmT * 1.6) !== Math.floor((SC.alarmT + dt) * 1.6)) { noiseRing(SC.alarmX, w.fy2y(SC.alarmF) - 70, 620, '255,90,70'); try { AUDIO.tone(1250, .16, 'square', .05, 0); } catch (_) {} } if (SC.alarmT <= 0) SC.arriveT = Math.min(SC.arriveT == null ? 9 : SC.arriveT, 2); }   // the bell rings itself out, and then they are at the door
   if (SC.arriveT != null && SC.arrivals > 0 && (SC.arriveT -= dt) <= 0) { if (p.f === 0 && p.x < w.x0 + 300) { SC.arriveT = 4; return; } SC.arrivals--; SC.arriveT = SC.arrivals > 0 ? 55 + Math.random() * 30 : null; const z = makeZombie(w.x0 + 50, 0, Math.random); z.patrol = true; SC.zombies.push(z); noiseRing(w.x0 + 10, w.fy2y(0) - 50, 460, '255,150,120'); try { AUDIO.sfx('open'); } catch (_) {} } }   // somebody else has come for the same shelves: the street door goes, and now there is one more between you and the way out
@@ -3926,8 +3945,8 @@ function scAttack() {
 // Blood: a spurt of drops where the blow lands, and a stain on the floor (and the wall behind) that stays for the rest of the visit.
 const BLOOD = [];   // flying drops, shared by every scene
 function bleed(world, x, f, dir, big) {
-  if (!world) return; const y = world.fy2y(f) - 46; (FX.puffs || (FX.puffs = [])).push({ x: x + dir * 6, y, t: 0, hit: 1 }); for (let i = 0; i < (big ? 16 : 8); i++) BLOOD.push({ w: world, x, y: y + rnd(-10, 10), vx: dir * rnd(20, 150) + rnd(-30, 30), vy: rnd(-150, -20), life: rnd(.5, 1.1), gy: world.fy2y(f), r: rnd(.9, 2.2) });
-  const st = world.blood || (world.blood = []); st.push({ x: x + dir * rnd(4, 30), f, r: big ? rnd(14, 24) : rnd(4, 9), a: big ? .8 : .6, seed: Math.random() * 1000, wall: big || Math.random() < .5 }); if (st.length > 60) st.shift();
+  if (!world) return; const y = world.fy2y(f) - 46; (FX.puffs || (FX.puffs = [])).push({ x: x + dir * 6, y, t: 0, hit: 1 }); for (let i = 0; i < (big ? 28 : 13); i++) BLOOD.push({ w: world, x, y: y + rnd(-10, 10), vx: dir * rnd(20, 150) + rnd(-30, 30), vy: rnd(-150, -20), life: rnd(.5, 1.1), gy: world.fy2y(f), r: rnd(.9, 2.2) });
+  const st = world.blood || (world.blood = []); st.push({ x: x + dir * rnd(4, 30), f, r: big ? rnd(14, 24) : rnd(4, 9), a: big ? .8 : .6, seed: Math.random() * 1000, wall: big || Math.random() < .5 }); if (big) st.push({ x, f, r: 5, to: rnd(30, 46), born: _T, a: .82, seed: Math.random() * 1000, pool: true }); while (st.length > 150) st.shift();
 }
 // the house keeps what happens to it: splinters where boards were torn off, and snow walked in from the street until it melts
 function scar(world, x, f, k) { if (!world) return; const L = world.scars || (world.scars = []); L.push({ x, f, k, seed: Math.floor(Math.random() * 1000) }); if (L.length > 30) L.shift(); }
@@ -3937,7 +3956,10 @@ function drawScars(world) { for (const s of world.scars || []) { const fy = worl
 function trackIn(world, snowy) { if (!world) return; const T = world.tracks || (world.tracks = []); for (let i = 0; i < 10; i++) T.push({ x: world.x0 + 46 + i * 25 + rnd(-4, 4), f: 1, a: (snowy ? .8 : .4) * (1 - i / 12), s: snowy }); if (T.length > 40) T.splice(0, T.length - 40); }
 function drawTracks(world, dt) { const T = world.tracks; if (!T) return; for (let i = T.length - 1; i >= 0; i--) { const t = T[i]; t.a -= dt * .004; if (t.a <= 0) { T.splice(i, 1); continue; } const fy = world.fy2y(t.f);
     ctx.fillStyle = t.s ? `rgba(226,232,240,${t.a.toFixed(3)})` : `rgba(18,22,28,${t.a.toFixed(3)})`; ctx.beginPath(); ctx.ellipse(t.x, fy - 1, 7, 1.8, 0, 0, TAU); ctx.fill(); ctx.beginPath(); ctx.ellipse(t.x + 5, fy - .6, 3, 1, 0, 0, TAU); ctx.fill(); } }
-function drawBloodStains(world) { for (const b of world.blood || []) { const fy = world.fy2y(b.f), r = mulberry(Math.floor(b.seed));
+function bloodDrip(world, a, dt, rate) { if (!world || !(a.moving || (a.path && a.path.length))) return; a._drip = (a._drip || 0) - dt; if (a._drip > 0) return; a._drip = rate * (.7 + Math.random() * .6); if (a.onStair) return; const st = world.blood || (world.blood = []); st.push({ x: a.x + rnd(-5, 5), f: Math.round(a.fy == null ? a.f : a.fy), r: rnd(1.6, 3.4), a: .6, seed: Math.random() * 1000, drop: true }); while (st.length > 150) st.shift(); }
+function drawBloodStains(world) { for (const b of world.blood || []) { if (b.pool) { b.r = Math.min(b.to, 5 + (b.to - 5) * clamp((_T - b.born) / 9, 0, 1) ** .6); const fy = world.fy2y(b.f); ctx.fillStyle = `rgba(74,6,8,${b.a})`; ctx.beginPath(); ctx.ellipse(b.x, fy - .6, b.r, Math.max(1.6, b.r * .13), 0, 0, TAU); ctx.fill(); ctx.fillStyle = 'rgba(190,60,50,.22)'; ctx.beginPath(); ctx.ellipse(b.x - b.r * .25, fy - 1.2, b.r * .4, Math.max(.6, b.r * .035), 0, 0, TAU); ctx.fill(); continue; }
+    if (b.drop) { const fy = world.fy2y(b.f); ctx.fillStyle = `rgba(88,10,10,${b.a})`; ctx.beginPath(); ctx.ellipse(b.x, fy - .8, b.r, 1, 0, 0, TAU); ctx.fill(); continue; }
+    const fy = world.fy2y(b.f), r = mulberry(Math.floor(b.seed));
     ctx.fillStyle = `rgba(88,10,10,${b.a})`; ctx.beginPath(); ctx.ellipse(b.x, fy - 1, b.r, Math.max(1.5, b.r * .16), 0, 0, TAU); ctx.fill();
     for (let i = 0; i < 5; i++) { ctx.beginPath(); ctx.ellipse(b.x + (r() - .5) * b.r * 3, fy - 1, 1 + r() * b.r * .25, 1, 0, 0, TAU); ctx.fill(); }
     if (b.wall) { ctx.fillStyle = `rgba(100,12,12,${b.a * .55})`; for (let i = 0; i < 9; i++) { const wx = b.x + (r() - .3) * b.r * 2.6, wy = fy - 30 - r() * 46, rr0 = .8 + r() * b.r * .14; ctx.beginPath(); ctx.arc(wx, wy, rr0, 0, TAU); ctx.fill(); if (r() < .4) ctx.fillRect(wx - .5, wy, 1, 4 + r() * 14); } } } }
@@ -4121,7 +4143,7 @@ function siteSave() { if (PREVIEW || !SC.world || !SC.loc || SC.saved) return; S
   st.sp = {}; for (const s of w.spots) if (s.type === 'search' && s.left <= 0) st.sp[s.id] = { l: s.left, ls: (s.lootList || []).map(o => ({ id: o.id, n: o.n })) };
   st.total = w.spots.filter(s => s.type === 'search' && !s.body).length; st.open = w.rooms.filter(r => r.open && r.locked).map(r => r.name); st.blood = (w.blood || []).slice(-30).map(b => ({ x: Math.round(b.x), f: b.f, r: +b.r.toFixed(1), a: b.a, seed: Math.round(b.seed), wall: b.wall }));
   st.kills = Math.max(0, (st.kills || 0) - Math.floor((G.day - (st.day || G.day)) / 4)) + SC.kills; st.day = G.day; st.visits = (st.visits || 0) + 1; }
-function leaveSite() { siteSave(); findNote(SC.loc); sitLeave(); const p = SC.player, link = siteLink(SC.world), px = p.x; TR.kills += SC.kills; SC.active = false; p.hidden = false; p.visible = true; p.task = null; p.path = null; p.fy = 0; p.f = 0; G.phase = 'travel'; TR.x = TR.locX[SC.loc.id] != null ? TR.locX[SC.loc.id] : 1180; TR.py = 0; TR.vy = 0; p.x = TR.x; p.facing = 1; cam.lock = true; AUDIO.sfx('open'); SC.leaving = false; if (link != null) { TR.x = p.x = Math.min(TR.xMax, px + link); p.facing = -1; p.mc = null; cam.bounds = streetBounds(); cam.x = cam.tx = cam.x + link; cam.y = cam.ty = cam.y + 14; TR.tx = null; } }
+function leaveSite() { if (SC.world.bolted) { SC.world.bolted = false; (G.flags.unbolted || (G.flags.unbolted = {}))[SC.loc.id] = true; } siteSave(); findNote(SC.loc); sitLeave(); const p = SC.player, link = siteLink(SC.world), px = p.x; TR.kills += SC.kills; SC.active = false; p.hidden = false; p.visible = true; p.task = null; p.path = null; p.fy = 0; p.f = 0; G.phase = 'travel'; TR.x = TR.locX[SC.loc.id] != null ? TR.locX[SC.loc.id] : 1180; TR.py = 0; TR.vy = 0; p.x = TR.x; p.facing = 1; cam.lock = true; AUDIO.sfx('open'); SC.leaving = false; if (link != null) { TR.x = p.x = Math.min(TR.xMax, px + link); p.facing = -1; p.mc = null; cam.bounds = streetBounds(); cam.x = cam.tx = cam.x + link; cam.y = cam.ty = cam.y + 14; TR.tx = null; } }
 
 // ---- 55_travel.js ----
 // ===== travel: the night street, a 2D platformer run between the house and the district's buildings =====
@@ -4185,7 +4207,16 @@ function trAttack() {
 }
 function searchlightCheck(dt) { const S = FX.sky; if (!EXTRAS.searchlight || !S || S.beamT == null || _T - S.beamT > .2 || TR.hidden || HEADLESS) return; if (Math.abs(S.beamX - TR.x) > 50) { TR.lit = Math.max(0, (TR.lit || 0) - dt); return; }
   TR.lit = (TR.lit || 0) + dt; if (TR.lit > .7 && !(TR.litCd > _T)) { TR.litCd = _T + 25; trMsg('alert', 2.4); FX.flash = Math.max(FX.flash || 0, .12); try { AUDIO.tone(240, .12, 'square', .07, 130); } catch (_) {} for (const z of TR.zombies) if (z.alive !== false && Math.abs(z.x - TR.x) < 900) { z.state = 'chase'; z.alert = 2; z.wk = null; } } }   // caught in the light for most of a second: every raider in sight of it comes
-function trUpdate(dt) { searchlightCheck(dt);
+function trClimb(dt) { const C = TR.climb, p = TR.player, lx = TR.locX[C.loc.id], foot = lx - 62, top = lx - 20, pipe = lx + 16, E = t => t * t * (3 - 2 * t); _T += dt; p.mc = null; p.facing = 1; p.poseExtra = null;
+  if (C.x0 == null) { const d = foot - TR.x; if (Math.abs(d) > 4) { TR.x += Math.sign(d) * Math.min(Math.abs(d), 120 * dt); p.facing = Math.sign(d); p.pose = 'walk'; p.x = TR.x; p.y = GROUND_Y; TR.py = 0; return; } C.x0 = TR.x; }
+  C.t += dt; const t = C.t; let py = 0, x = C.x0;
+  if (t < .3) { p.pose = 'crouch'; }
+  else if (t < 1.0) { const k = E((t - .3) / .7); x = lerp(C.x0, top, k); py = 70 * k + Math.sin(k * Math.PI) * 16; p.pose = 'climb'; if (!C.s1) { C.s1 = true; AUDIO.sfx('thud'); } }
+  else if (t < 1.25) { x = top; py = 70; p.pose = 'idle'; }
+  else if (t < 2.3) { const k = E((t - 1.25) / 1.05); x = lerp(top, pipe, Math.min(1, k * 2.2)); py = lerp(70, 164, k); p.pose = 'climb'; }
+  else { TR.x = p.x = lx; TR.py = 0; TR.climb = null; TR.viaWindow = true; trEnter(C.loc); return; }
+  TR.x = p.x = x; TR.py = py; p.y = GROUND_Y - py; }
+function trUpdate(dt) { if (TR.climb) { trClimb(dt); return; } searchlightCheck(dt);
   for (const d of TR.drifters) { if (!d.flee) { if (TR.zombies.some(z => z.alive !== false && z.state === 'chase' && Math.abs(z.x - d.x) < 380) || (TR.attackKind === 'shoot' && TR.attackT > .25 && Math.abs(TR.x - d.x) < 900) || (FX.shake || 0) > 3.6) { d.flee = d.x < TR.x ? -1 : 1; d.pose = 'run'; d.poseExtra = null; d.mc = null; } }
     else { const c = mcOf(d, TR.ew); rigTo(d, TR.ew, d.x + d.flee * 500, 124 / (Motion.CFG.walkSpeed * c.k), dt, null, true); d.x = c.x; d.py = c.y; d.facing = d.flee; if (Math.abs(d.x - TR.x) > 1500 || d.x < 30) d.gone = true; } } if (TR.drifters.some(d => d.gone)) TR.drifters = TR.drifters.filter(d => !d.gone);   // a shot, a chase or a bomb close by, and the people round the fires scatter
   if (TR.done) return; const p = TR.player; _T += dt;
@@ -4465,7 +4496,10 @@ function drawTravelHud(dt) {
   // door bubbles (proximity)
   if (!TR.done) {
     if (Math.abs(TR.x) < 150) { const sx = w2sx(0), sy = w2sy(GROUND_Y - 128); spotBubble(sx, sy, 'home', { hl: true, size: 50 }); UI.btn(sx - 30, sy - 30, 60, 60, () => trHome()); }
-    for (const l of LOCATIONS) { const lx = TR.locX[l.id]; if (lx == null) continue; if (Math.abs(TR.x - lx) < 150) { const sx = w2sx(lx + (TR.site && l === TR.dest ? 46 : 0)), sy = w2sy(GROUND_Y - 128); spotBubble(sx, sy, 'exit', { hl: true, size: 50 }); UI.btn(sx - 30, sy - 30, 60, 60, () => trEnter(l)); } }
+    for (const l of LOCATIONS) { const lx = TR.locX[l.id]; if (lx == null) continue; if (Math.abs(TR.x - lx) < 150) { const sx = w2sx(lx + (TR.site && l === TR.dest ? 46 : 0)), sy = w2sy(GROUND_Y - 128); const bolted = TR.site && l === TR.dest && TR.site.world.bolted; if (TR.climb) continue;
+      if (bolted) { const bar = packCount(TR.pack, 'crowbar') > 0; spotBubble(sx, sy, 'lock', { size: 50, badgeIcon: 'crowbar', disabled: !bar }); UI.btn(sx - 30, sy - 30, 60, 60, () => { if (!bar) { trMsg('lock', 2.6); FX.note = { head: 'BOLTED FROM INSIDE', text: 'The door will not give. There is a skip under an open window, and a drainpipe: climb in that way. Or come back with a crowbar and take the noise.', where: '', t: 0 }; return; } const w = TR.site.world; w.bolted = false; (G.flags.unbolted || (G.flags.unbolted = {}))[l.id] = true; AUDIO.sfx('bang'); FX.shake = 6; for (const z of TR.site.zombies) if (z.alive !== false && !z.scene) { z.alert = Math.max(z.alert || 0, 1); z.state = 'look'; z.lookT = 6; } trEnter(l); });
+        const cx2 = w2sx(lx - 13), cy2 = w2sy(GROUND_Y - 150); spotBubble(cx2, cy2, 'arrow', { hl: true, size: 50 }); UI.btn(cx2 - 30, cy2 - 30, 60, 60, () => { TR.climb = { loc: l, t: 0, x0: null }; TR.tx = null; AUDIO.sfx('tap'); }); }
+      else { spotBubble(sx, sy, 'exit', { hl: true, size: 50 }); UI.btn(sx - 30, sy - 30, 60, 60, () => trEnter(l)); } } }
     if (!TR.hidden && !TR.hideAt) { const o = TR.obstacles.filter(o => o.t !== 'rubble' && Math.abs(o.x - TR.x) < o.w / 2 + (o.h ? RAMP : 0) + 130).sort((a, b) => Math.abs(a.x - TR.x) - Math.abs(b.x - TR.x))[0];   // crouch down behind a wreck
       if (o) { const side = TR.x < o.x ? -1 : 1, hx = o.x + side * (o.w / 2 + (o.h ? RAMP : 0) + 12); if (heightAt(hx) < 3) { const sx = w2sx(hx), sy = w2sy(GROUND_Y - 96); spotBubble(sx, sy, 'hideSpot', { size: 38, color: '#7cc4bc' }); UI.btn(sx - 22, sy - 22, 44, 44, () => { TR.tx = hx; TR.run = false; TR.fight = false; TR.hideAt = { x: hx, o }; AUDIO.sfx('tap'); }); } } }
     if (GUNS[trWeapon()] && !UI.modal) lockMarks(TR.zombies.filter(z => z.alive && Math.abs(z.x - TR.x) < 1100).map(z => [z, w2sx(z.x), w2sy(GROUND_Y - (z.py || 0) - 32), 48 * cam.z * .5 + 10]), TR.lock, z => { TR.lock = z; });
@@ -4478,6 +4512,7 @@ function drawTravelHud(dt) {
   txt(TR.x < 150 ? 'home' : next ? next.l.name + '  →  ' + Math.round(next.d / 10) + 'm' : 'end of the district', cx - 60, 56, 13, DIM);
   ctx.fillStyle = TR.hidden ? '#8ab' : TR.zombies.some(z => z.alive && z.state === 'chase') ? RED : GREEN; circ(cx + 100, 33, 16); ctx.fill(); drawIcon(TR.hidden ? 'eyeOff' : 'eye', cx + 100, 33, 22, '#111');
   // pads
+  txt(TR.fight ? 'Put away' : 'Weapon', 56, H - 12, 11, TR.fight ? RED : INK); if (TR.fight && !TR.done && !TR.climb) { const wp = trWeapon(), gun = GUNS[wp] && packCount(TR.pack, 'ammo') > 0; iconButton(W - 52, H - 150, 80, wp || 'fight', () => trAttack(), { bg: '#3a2020', edge: RED }); txt(gun ? 'FIRE' : wp ? 'SWING' : 'SHOVE', W - 52, H - 100, 13, INK, 'center', '700'); }
   iconButton(56, H - 56, 68, 'fight', () => { TR.fight = !TR.fight; TR.run = false; AUDIO.sfx('tap'); }, { active: TR.fight, bg: TR.fight ? '#3a2020' : undefined, edge: TR.fight ? RED : undefined });
   const wep = trWeapon(); const near = TR.zombies.some(z => z.alive && Math.abs(z.x - TR.x) < (GUNS[wep] ? 150 : 70));
   if ((near || (TR.aim && TR.aim.target)) && !TR.done) iconButton(W - 80, H - 70, 70, wep || 'shove', () => trAttack(), { bg: '#3a2020', edge: RED, badge: GUNS[wep] ? packCount(TR.pack, 'ammo') : undefined });
@@ -4822,7 +4857,9 @@ function drawCraft() {
 }
 
 // ================= SCAVENGE HUD =================
-function drawScavHud(dt) {
+const WARY_LINES = { run: ["Whoa. Easy. I'm only looking for food.", "Don't. Please. I've got nothing.", "I don't want trouble."], talk: ["Put that away. I'm no threat to you.", "Easy with that. There's enough here for two.", "You don't need that. Not for me."], fight: ["Take one more step with that.", "I've buried better than you. Back off.", "Drop it, or use it."], bolt: ["I'm going! I'm going!", "Keep it. Keep all of it!", "Not worth dying for."], calm: ["Thanks. No trouble from me.", "Better. Go careful in here.", "All right. All right."] };
+function drawSay(w, dt) { for (const q of SC.people || []) { const sy0 = q.say; if (!sy0) continue; sy0.t += dt; if (sy0.t > 3.4) { q.say = null; continue; } const a = clamp(sy0.t / .2, 0, 1) * clamp((3.4 - sy0.t) / .5, 0, 1); ctx.save(); ctx.globalAlpha = a; ctx.font = 'italic 14px Georgia, serif'; const tw = ctx.measureText(sy0.text).width + 22, sx = clamp(w2sx(q.x), tw / 2 + 6, W - tw / 2 - 6), sy = Math.max(84, w2sy(w.fy2y(q.fy == null ? q.f : q.fy) - 118)); ctx.fillStyle = 'rgba(232,226,208,.95)'; rr(sx - tw / 2, sy - 14, tw, 28, 8); ctx.fill(); ctx.beginPath(); ctx.moveTo(sx - 6, sy + 13); ctx.lineTo(sx + 6, sy + 13); ctx.lineTo(clamp(w2sx(q.x), sx - tw / 2 + 10, sx + tw / 2 - 10), sy + 24); ctx.fill(); ctx.fillStyle = '#1a1612'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(sy0.text, sx, sy + .5); ctx.restore(); } }
+function drawScavHud(dt) { drawSay(SC.world, dt);
   const w = SC.world, p = SC.player;
   // hotspot bubbles
   if (!SC.done) {
@@ -4857,6 +4894,8 @@ function drawScavHud(dt) {
   // sneak toggle (bottom-left), big
   iconButton(60, H - 60, 76, 'sneak', () => { SC.sneak = !SC.sneak; AUDIO.sfx('tap'); }, { active: SC.sneak, bg: SC.sneak ? '#20302a' : undefined });
   if (!SC.done) iconButton(216, H - 54, 60, 'fight', () => { SC.fight = !SC.fight; if (SC.fight) SC.sneak = false; AUDIO.sfx('tap'); }, { active: SC.fight, bg: SC.fight ? '#3a2020' : undefined, edge: SC.fight ? RED : undefined });
+  txt(SC.sneak ? 'Sneaking' : 'Sneak', 60, H - 12, 11, SC.sneak ? GOLD : INK); if (!SC.done) { txt('Throw', 142, H - 14, 11, INK); txt(SC.fight ? 'Put away' : 'Weapon', 216, H - 14, 11, SC.fight ? RED : INK); }
+  if (!SC.done && SC.fight) { const wp = scWeapon(), gun = GUNS[wp] && packCount(SC.pack, 'ammo') > 0; iconButton(W - 52, H - 150, 80, wp || 'fight', () => scAttack(), { bg: '#3a2020', edge: RED }); txt(gun ? 'FIRE' : wp ? 'SWING' : 'SHOVE', W - 52, H - 100, 13, INK, 'center', '700'); }
   // throw: a distraction (bottom-left, beside sneak)
   if (!SC.done) { const cd = SC.throwCd || 0; iconButton(142, H - 54, 60, 'throw', cd > 0 ? null : () => scThrow(), { disabled: cd > 0 }); if (cd > 0) ring(142, H - 54, 30, 1 - cd / 6, GOLD); }
   if (SC.proj) { const q = SC.proj, t = Math.min(1, q.t / .6), fy = w.fy2y(q.f), wx = lerp(q.x0, q.x1, t), wy = fy - 60 - Math.sin(t * Math.PI) * 60 + t * 58; if (!q.hit) { ctx.fillStyle = '#c9c2b0'; circ(w2sx(wx), w2sy(wy), 3.5 * cam.z); ctx.fill(); } else { const k = (q.t - .6) / .9; ctx.strokeStyle = `rgba(230,200,120,${(1 - k).toFixed(2)})`; ctx.lineWidth = 2.5; for (const rr2 of [1, .6]) { ctx.beginPath(); ctx.ellipse(w2sx(q.x1), w2sy(fy - 4), (30 + 330 * k) * rr2 * cam.z, (8 + 60 * k) * rr2 * cam.z, 0, 0, TAU); ctx.stroke(); } } }
