@@ -4758,8 +4758,9 @@ function drawMap() {
   iconButton(x + w - 28, y + 26, 36, 'check', () => { UI.modal = { kind: 'plan' }; });
 }
 function drawDawn() {
-  const rep = G.report; const w = Math.min(W - 30, 560), h = Math.min(H - 20, 110 + rep.length * 34), x = (W - w) / 2, y = (H - h) / 2; panel(x, y, w, h, 'DAWN · DAY ' + G.day);
-  rep.forEach((l, i) => { const ry = y + 70 + i * 34; drawIcon(l.icon, x + 36, ry, 24, l.color); txt(l.text, x + 60, ry, 16, l.color || INK, 'left'); });
+  const rep = G.report, w = Math.min(W - 30, 620); ctx.font = '600 16px Oswald, Impact, sans-serif'; const rows = []; for (const l of rep) wrapLines(l.text, w - 84, 3).forEach((t, k) => rows.push({ l, t, first: k === 0 }));   // a long line folds inside the panel instead of running out of it
+  const rh = Math.min(34, (H - 20 - 116) / Math.max(1, rows.length)), fs = clamp(rh * .52, 11, 16), h = Math.min(H - 20, 116 + rows.length * rh), x = (W - w) / 2, y = (H - h) / 2; panel(x, y, w, h, 'DAWN · DAY ' + G.day);
+  rows.forEach((q, i) => { const ry = y + 70 + i * rh; if (q.first) drawIcon(q.l.icon, x + 36, ry, Math.min(24, rh * .75), q.l.color); txt(q.t, x + 60, ry, fs, q.l.color || INK, 'left'); });
   textButton(x + w / 2 - 60, y + h - 50, 120, 40, 'OK', () => { afterDawn(); }, { primary: true });
 }
 function drawEvent() {
@@ -5301,7 +5302,7 @@ function resolveNight(scav) {
   // someone who has lost all heart may simply be gone in the morning, and not empty-handed
   for (const s of alive) { if (G.plan[s.name] === 'scav' || s.morale > 8 || G.survivors.filter(v => v.alive).length < 2 || Math.random() > .4) continue; const take = ['canned', 'meal', 'water'].find(k => G.inv[k] > 0); if (take) G.inv[take]--; G.survivors.splice(G.survivors.indexOf(s), 1); delete G.plan[s.name]; line('sad', s.name + ' walked out in the night' + (take ? ' · took some ' + ITEMS[take].n.toLowerCase() : ''), RED); for (const o of G.survivors) o.morale = clamp(o.morale - 6, 0, 100); }
   alive = G.survivors.filter(s => s.alive);
-  if (scav) { if (scav.died) line('dead', TR.player.name + (scav.timeout ? ' never made it back before dawn' : ' was lost out there'), RED); else line('backpack', TR.player.name + ' brought home ' + scav.pack.reduce((a, s) => a + s.n, 0) + ' items · ' + scav.kills + ' driven off', GREEN); }
+  if (scav) { if (scav.died) line('dead', TR.player.name + (scav.timeout ? ' never made it back before dawn' : ' was lost out there'), RED); else line('backpack', TR.player.name + ' brought home ' + (n => n + (n === 1 ? ' item' : ' items'))(scav.pack.reduce((a, s) => a + s.n, 0)) + ' · ' + scav.kills + ' driven off', GREEN); }
   if (scav && scav.shelter) line('home', TR.player.name + ' found the ' + SHELTERS[scav.shelter].name + ' standing empty', GOLD);
   const guards = alive.filter(s => G.plan[s.name] === 'guard'), sleepers = alive.filter(s => G.plan[s.name] === 'sleep');
   const beds = (G.flags.stairsOut ? 0 : 1) + (G.built.bed ? 1 : 0);
