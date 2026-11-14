@@ -1383,7 +1383,7 @@ const TSCN=[
   {dur:13,town:0,cap:'After dark the raiders come, and more each night. Gates, barbed wire and deputies hold them off. You have a six-shooter too.',
     init(T){tourSet(0,{t:.75,day:4,x:1050,dir:-1,lv:{0:2,1:2,2:1,9:1,6:2,7:1,11:1,12:1}});tourFolk(2,978,990,'deputy',-1);
       tourRaid(-1,['bandit','bandit','bandit','rider','bandit','bandit','bandit','rider','bandit','bandit'],150,36);T.go=1004;T.fire=true;}},
-  {dur:11,town:0,cap:'Raise the town centre and every building can go a level higher. Hold a direction to gallop. The horse tires, so rest it at a water trough.',
+  {dur:11,town:0,cap:'Raise the town centre and every building can go a level higher. The horse runs whenever you ride. It tires, so rest it at a water trough.',
     init(T){tourSet(0,{t:.36,day:9,x:1010,lv:TFULL});tourFolk(9,1060,1850);tourFolk(4,1410,1470,'deputy');T.go=1337;},
     tick(t,T){if(tAt(T,'a',6))T.go=1905;}},
   {dur:13,town:0,cap:'New in Dustfall III: real thunderstorms. Cloud rolls in off the mesas, a gust front throws dust down the street, and then the rain comes.',
@@ -1602,11 +1602,11 @@ function tossCoin(tg,fromBank){
   else{fly('bank',b.x+32,12);if(!p.coins)p.lock=true;}
 }
 function updPlayer(dt){
-  // keys and d-pad: hold to gallop. Sticks are analog: a light push walks, a full push gallops straight away
-  const p=G.player,a=input.stick||input.padAxis,dig=input.key||input.dpad,d=dig||(Math.abs(a)>.25?Math.sign(a):0);
+  // any push on keys, d-pad or stick and the horse runs
+  const p=G.player,a=input.stick||input.padAxis,dig=input.key||input.dpad,d=dig||(Math.abs(a)>.1?Math.sign(a):0);
   if(d){p.dir=d;p.hold+=dt;}else p.hold=0;
   // a fresh horse gallops flat out for a few seconds, then settles to its usual pace until it has caught its wind
-  const fast=!!d&&(dig?p.hold>.45:Math.abs(a)>.75),shoes=G.b[15].level>1,fresh=fast&&!p.blown;
+  const fast=!!d,shoes=G.b[15].level>1,fresh=fast&&!p.blown;
   const want=d*(fast?[78,104,118][G.b[3].level]*(fresh?1.28:1)*(shoes?1.06:1):40)*slowAt(p.x)*(d?climb(p.x,d):1),rate=(!d||want*p.vx<0?950:360)*dt;
   if(!d&&Math.abs(p.vx)>50)dust(p.x+Math.sign(p.vx)*9,0,2);
   p.vx+=clamp(want-p.vx,-rate,rate);p.x+=p.vx*dt;
@@ -4812,7 +4812,7 @@ stage.addEventListener('pointerleave',()=>{hover=null;});
 const fireB=$('fire');
 fireB.addEventListener('pointerdown',e=>{input.fireTouch=input.fireTap=true;fireB.classList.add('on');e.preventDefault();});
 for(const ev of ['pointerup','pointercancel','pointerleave'])fireB.addEventListener(ev,()=>{input.fireTouch=false;fireB.classList.remove('on');});addEventListener('contextmenu',e=>e.preventDefault());
-const touchy=()=>{document.body.classList.add('touch');if(G.state==='title')$('how').textContent='Push the stick to ride, further to gallop. Tap the coin to toss one, the gun to fire.';};
+const touchy=()=>{document.body.classList.add('touch');if(G.state==='title')$('how').textContent='Push the stick either way to ride. Tap the coin to toss one, the gun to fire.';};
 if((window.matchMedia&&matchMedia('(pointer:coarse)').matches)||navigator.maxTouchPoints>0)touchy();
 addEventListener('touchstart',touchy,{once:true,passive:true});
 // stop long-press text selection, the copy bubble, and double-tap or pinch zoom; real buttons still get their taps
