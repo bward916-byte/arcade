@@ -3,52 +3,80 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#1b1230">
+<meta name="theme-color" content="#16102a">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="manifest.json">
 <title>Blythe Arcade</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-html{background:#1b1230}
-body{min-height:100%;color:#f3e7c9;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
-  background:radial-gradient(120% 40% at 50% -5%,#3a2a66 0%,transparent 60%),#1b1230;
-  padding:max(14px,env(safe-area-inset-top)) 14px calc(24px + env(safe-area-inset-bottom))}
-h1{font-family:"Courier New",monospace;font-weight:700;font-size:22px;letter-spacing:.06em;color:#fff;text-shadow:0 2px 0 #000}
-p.sub{color:#b9a9dc;font-size:13px;margin:4px 0 16px}
-#list{list-style:none;display:grid;gap:16px;max-width:560px;margin:0 auto}
-a.game{position:relative;display:block;text-decoration:none;color:inherit;border-radius:14px;overflow:hidden;
-  background:linear-gradient(180deg,#2c2148,#1f1637);border:1px solid color-mix(in srgb,var(--c) 35%,#3a2f5c);
-  box-shadow:0 6px 18px rgba(0,0,0,.45);transition:transform .25s ease,box-shadow .25s ease,border-color .25s ease}
-a.game:hover{transform:translateY(-4px);border-color:var(--c);box-shadow:0 12px 28px rgba(0,0,0,.55),0 0 22px color-mix(in srgb,var(--c) 45%,transparent)}
-a.game:active{transform:translateY(1px) scale(.99)}
-a.game:focus-visible{outline:3px solid #fff;outline-offset:2px}
-.thumb{position:relative;aspect-ratio:16/9;overflow:hidden;background:#000}
-.thumb img,.thumb canvas{display:block;width:100%;height:100%;object-fit:cover;transition:transform .6s ease}
-a.game:hover .thumb img,a.game:hover .thumb canvas{transform:scale(1.07)}
-.thumb::before{content:"";position:absolute;inset:0;z-index:1;background:linear-gradient(180deg,transparent 45%,rgba(20,12,38,.92) 100%)}
-.thumb::after{content:"";position:absolute;top:0;bottom:0;left:-60%;width:40%;z-index:2;transform:skewX(-20deg);
-  background:linear-gradient(90deg,transparent,rgba(255,255,255,.22),transparent)}
-a.game:hover .thumb::after{left:130%;transition:left .7s ease}
-.t{position:absolute;left:12px;right:12px;bottom:8px;z-index:3;font-family:"Courier New",monospace;font-weight:700;font-size:17px;
-  letter-spacing:.04em;color:#fff;line-height:1.15;text-shadow:0 2px 6px #000}
-.body{padding:10px 12px 12px;border-top:3px solid var(--c)}
-.d{font-size:13px;color:#ddd3f0;line-height:1.35}
-.m{font-size:11px;color:var(--c);margin-top:6px;letter-spacing:.05em;text-transform:uppercase}
-li{animation:in .5s ease both}
-@keyframes in{from{opacity:0;transform:translateY(12px)}}
-@media (min-width:700px){#list{grid-template-columns:1fr 1fr;max-width:1000px}}
-@media (min-width:1100px){#list{grid-template-columns:repeat(3,1fr);max-width:1320px}}
-@media (prefers-reduced-motion:reduce){li{animation:none}a.game,.thumb img,.thumb canvas{transition:none}}
+html{background:#16102a}
+body{min-height:100%;color:#f3e7c9;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:radial-gradient(120% 34% at 50% -6%,#35265f 0%,transparent 60%),#16102a;padding-bottom:calc(28px + env(safe-area-inset-bottom))}
+button,input{font:inherit;color:inherit}
+.top{position:sticky;top:0;z-index:20;padding:max(10px,env(safe-area-inset-top)) 12px 8px;background:rgba(22,16,42,.86);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,.07)}
+.wrap{max-width:1240px;margin:0 auto}
+.bar{display:flex;align-items:center;gap:8px}
+h1{font-family:"Courier New",monospace;font-weight:700;font-size:16px;letter-spacing:.02em;color:#fff;white-space:nowrap}
+#count{color:#7f70a6;margin-left:6px}
+#q{flex:1;min-width:0;max-width:300px;margin-left:auto;height:34px;border-radius:17px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.07);padding:0 14px;font-size:14px;outline:none}
+#q::placeholder{color:#9788bd}#q:focus{border-color:#b9a3ff;background:rgba(255,255,255,.11)}
+#sort{height:34px;padding:0 12px;border-radius:17px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.07);font-size:12px;font-weight:600;white-space:nowrap;cursor:pointer}
+.chips{display:flex;gap:6px;overflow-x:auto;padding-top:8px;scrollbar-width:none}.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;height:30px;padding:0 13px;border-radius:15px;border:1px solid rgba(255,255,255,.14);background:transparent;font-size:12.5px;font-weight:600;color:#cfc3ea;cursor:pointer}
+.chip.on{background:#f3e7c9;border-color:#f3e7c9;color:#1b1230}
+main{padding:12px 12px 0}
+h2{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#a898cf;margin:2px 0 8px}
+.row{display:flex;gap:8px;overflow-x:auto;padding-bottom:12px;scrollbar-width:none}.row::-webkit-scrollbar{display:none}
+.row .game{flex:none;width:132px}
+#list{list-style:none;display:grid;gap:10px;grid-template-columns:repeat(2,minmax(0,1fr))}
+@media (min-width:520px){#list{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (min-width:780px){#list{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}}
+@media (min-width:1040px){#list{grid-template-columns:repeat(5,minmax(0,1fr))}}
+@media (min-width:1300px){#list{grid-template-columns:repeat(6,minmax(0,1fr))}}
+.game{position:relative;display:block;border-radius:10px;overflow:hidden;cursor:pointer;background:#221a3d;border:1px solid color-mix(in srgb,var(--c) 28%,#352b57);box-shadow:0 3px 10px rgba(0,0,0,.4);transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease;outline:none}
+.game:hover{transform:translateY(-3px);border-color:var(--c);box-shadow:0 8px 20px rgba(0,0,0,.5)}
+.game:active{transform:scale(.97)}
+.game:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.thumb{position:relative;aspect-ratio:16/10;overflow:hidden;background:#000}
+.thumb img,.thumb canvas{display:block;width:100%;height:100%;object-fit:cover}
+.thumb::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.28) 0%,transparent 30%,transparent 48%,rgba(18,11,34,.94) 100%);pointer-events:none}
+.t{position:absolute;left:8px;right:8px;bottom:6px;z-index:2;font-weight:800;font-size:12px;letter-spacing:.03em;color:#fff;line-height:1.15;text-shadow:0 1px 4px #000;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.m{padding:5px 8px 6px;font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-top:2px solid var(--c)}
+.ic{position:absolute;top:4px;z-index:3;width:30px;height:30px;border:0;border-radius:50%;background:rgba(10,6,22,.55);color:#fff;font-size:14px;font-weight:700;line-height:30px;text-align:center;cursor:pointer}
+.ic.fav{right:4px;color:rgba(255,255,255,.75)}.ic.fav.on{color:#ffd24a;background:rgba(10,6,22,.75)}
+.ic.info{left:4px;font-family:Georgia,serif;font-style:italic}
+#empty{text-align:center;color:#a898cf;font-size:14px;padding:40px 0}
+#sheet{position:fixed;inset:0;z-index:50;display:flex;align-items:flex-end;justify-content:center;background:rgba(6,4,14,.66)}
+#sheet[hidden]{display:none}
+.card{width:100%;max-width:520px;max-height:88vh;overflow:auto;background:#221a3d;border-radius:16px 16px 0 0;border-top:3px solid var(--c);padding-bottom:calc(16px + env(safe-area-inset-bottom));animation:up .22s ease}
+@media (min-width:600px){#sheet{align-items:center}.card{border-radius:16px}}
+@keyframes up{from{transform:translateY(30px);opacity:0}}
+.card .thumb{aspect-ratio:16/9}
+.card h3{font-size:19px;color:#fff;padding:12px 16px 0}
+.card .meta{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--c);padding:4px 16px 0}
+.card p{font-size:14px;line-height:1.45;color:#ddd3f0;padding:10px 16px 0}
+.acts{display:flex;gap:10px;padding:16px}
+.acts button{height:46px;border-radius:23px;border:1px solid rgba(255,255,255,.2);background:transparent;font-weight:700;font-size:14px;padding:0 20px;cursor:pointer}
+.acts .play{flex:1;background:var(--c);border-color:var(--c);color:#16102a;font-size:15px;letter-spacing:.06em}
+@media (prefers-reduced-motion:reduce){.game,.card{transition:none;animation:none}}
 </style>
 </head>
 <body>
-<h1>BLYTHE ARCADE</h1>
-<p class="sub" id="sub">Tap a game to play.</p>
-<ul id="list"></ul>
+<header class="top"><div class="wrap">
+ <div class="bar"><h1>BLYTHE ARCADE</h1><input id="q" type="search" placeholder="Search" autocomplete="off" aria-label="Search games"><button id="sort" type="button"></button></div>
+ <div class="chips" id="chips"></div>
+</div></header>
+<main><div class="wrap">
+ <section id="recentWrap" hidden><h2>Keep playing</h2><div class="row" id="recent"></div></section>
+ <h2><span id="listH">All games</span><span id="count"></span></h2>
+ <ul id="list"></ul>
+ <p id="empty" hidden>No games match.</p>
+</div></main>
+<div id="sheet" hidden></div>
 <script>
 const OWNER='bward916-byte';
 const GAMES=[
+ {repo:'arcade/extinction-event',title:'EXTINCTION EVENT',tag:'8.1 billion people. Leave none. Drop meteors, comets, solar flares and a planet killer on a living Earth, then dive to street level and watch each city fall its own way.',genre:'Planet destroyer',orient:'Portrait or landscape',c:'#ff5a3c',art:'space'},
  {repo:'arcade/hollowdeep',title:'HOLLOWDEEP',tag:'No way back, only down. Dig through six glowing underground worlds with a cave-in on your heels, and blast deeper with charges, a bore lance, a quake hammer and a black hole.',genre:'Cave descent',orient:'Portrait or landscape',c:'#5ff5d2',art:'generic'},
  {repo:'arcade/leviathan-rising',title:'LEVIATHAN RISING',tag:'Hatch as a tiny sea monster. Eat to grow, ram ships until the crew spills into the water, then crawl ashore and crush the city.',genre:'Monster rampage',orient:'Landscape',c:'#5fe0c0',art:'sea'},
  {repo:'arcade/scribble-isle',title:'SCRIBBLE ISLE',tag:'Somebody drew an island, then found the crayons. Wander a bright hand-scribbled isle, win back five festival kites the wind stole, befriend the bunnies and light up the lighthouse.',genre:'Scribble adventure',orient:'Portrait or landscape',c:'#ff8fb0',art:'spire'},
@@ -262,29 +290,53 @@ const ART={
  generic(g,w,h,t,r){g.fillStyle='#22263a';g.fillRect(0,0,w,h);for(let i=0;i<30;i++){g.fillStyle=`hsl(${r()*360},60%,60%)`;const x=r()*w,y=(r()*h+t*30*(1+r()))%h;g.fillRect(x,y,12,12);}}
 };
 
-const list=document.getElementById('list');
-const THUMB_V=3;
-function card(gm,i){
-  const li=document.createElement('li');li.style.animationDelay=Math.min(i||0,12)*40+'ms';
-  li.innerHTML=`<a class="game" href="${url(gm.repo)}" style="--c:${gm.c}"><div class="thumb"><div class="t">${gm.title}</div></div>
-   <div class="body"><div class="d">${gm.tag}</div><div class="m">${[gm.genre,gm.orient].filter(Boolean).join(' \u2022 ')}</div></div></a>`;
-  const th=li.querySelector('.thumb');
-  const draw=()=>{const cv=document.createElement('canvas');cv.width=448;cv.height=252;th.prepend(cv);const g=cv.getContext('2d');g.scale(4,3.5);
-    (ART[gm.art]||ART.generic)(g,112,72,(hash(gm.repo)%100),rng(hash(gm.repo)));};
-  if(gm.art==='generic'&&!gm.photo){draw();return li;}
-  const im=new Image();im.loading='lazy';im.alt='';im.onerror=()=>{im.remove();draw();};
-  im.src='thumbs/'+gm.repo.split('/').pop()+'.webp?v='+THUMB_V;th.prepend(im);
-  return li;
+
+const $=id=>document.getElementById(id),list=$('list'),THUMB_V=4;
+const LS={get(k,d){try{const v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+const fav=new Set(LS.get('arc_fav',[]));let recent=LS.get('arc_recent',[]),filt=LS.get('arc_filt','all'),az=LS.get('arc_az',false),q='';
+const CATS=[['all','All'],['fav','\u2605 Favorites'],['action','Action'],['adventure','Adventure'],['rpg','RPG'],['builder','Builders'],['survival','Survival'],['ascii','ASCII']];
+function cats(g){const s=(g.genre+' '+g.title).toLowerCase(),c=[];if(/builder|management|kingdom/.test(s))c.push('builder');if(/rpg/.test(s))c.push('rpg');if(/ascii/.test(s))c.push('ascii');if(/surviv|zombie/.test(s))c.push('survival');if(/adventure|explor/.test(s))c.push('adventure');if(!c.length||/action|platform|run and gun|horde|parkour|rampage|crawl|climb|stealth|descent|destroyer/.test(s))c.push('action');return c}
+GAMES.forEach(g=>g.cats=cats(g));
+function thumb(gm){const th=document.createElement('div');th.className='thumb';
+  const draw=()=>{const cv=document.createElement('canvas');cv.width=448;cv.height=252;th.prepend(cv);const g=cv.getContext('2d');g.scale(4,3.5);(ART[gm.art]||ART.generic)(g,112,72,(hash(gm.repo)%100),rng(hash(gm.repo)));};
+  if(gm.noThumb){draw();return th}
+  const im=new Image();im.loading='lazy';im.alt='';im.onerror=()=>{im.remove();draw();};im.src='thumbs/'+gm.repo.split('/').pop()+'.webp?v='+THUMB_V;th.prepend(im);return th}
+function tile(gm,small){const d=document.createElement('div');d.className='game';d.tabIndex=0;d.setAttribute('role','link');d.setAttribute('aria-label','Play '+gm.title);d.style.setProperty('--c',gm.c);d.dataset.repo=gm.repo;
+  const th=thumb(gm);th.insertAdjacentHTML('beforeend',(small?'':'<button class="ic info" type="button" aria-label="About '+gm.title+'">i</button><button class="ic fav'+(fav.has(gm.repo)?' on':'')+'" type="button" aria-label="Favorite">\u2605</button>')+'<div class="t"></div>');th.querySelector('.t').textContent=gm.title;d.appendChild(th);
+  if(!small){const m=document.createElement('div');m.className='m';m.textContent=gm.genre||'';d.appendChild(m)}return d}
+const byRepo=r=>GAMES.find(g=>g.repo===r);
+function play(gm){recent=[gm.repo].concat(recent.filter(r=>r!==gm.repo)).slice(0,8);LS.set('arc_recent',recent);window.location.assign(url(gm.repo)+'?v='+Date.now())}
+function render(){
+  const cb=$('chips');cb.textContent='';CATS.forEach(([k,l])=>{if(k!=='all'&&k!=='fav'&&!GAMES.some(g=>g.cats.includes(k)))return;const b=document.createElement('button');b.type='button';b.className='chip'+(filt===k?' on':'');b.textContent=l;b.dataset.k=k;cb.appendChild(b)});
+  $('sort').textContent=az?'A\u2013Z':'Newest';
+  const words=q.toLowerCase().split(/\s+/).filter(Boolean);
+  let gs=GAMES.filter(g=>(filt==='all'||(filt==='fav'?fav.has(g.repo):g.cats.includes(filt)))&&words.every(w=>(g.title+' '+g.genre+' '+g.tag).toLowerCase().includes(w)));
+  if(az)gs=gs.slice().sort((a,b)=>a.title.localeCompare(b.title));
+  list.textContent='';gs.forEach(g=>{const li=document.createElement('li');li.appendChild(tile(g));list.appendChild(li)});
+  $('empty').hidden=gs.length>0;$('empty').textContent=filt==='fav'&&!fav.size?'Tap \u2605 on a game to add it here.':'No games match.';
+  $('count').textContent=gs.length===GAMES.length?GAMES.length:gs.length+' of '+GAMES.length;
+  $('listH').textContent=(CATS.find(c=>c[0]===filt)||CATS[0])[1].replace('\u2605 ','')+(filt==='all'?' games':'');
+  const rs=recent.map(byRepo).filter(Boolean),rw=$('recentWrap');rw.hidden=!rs.length||!!words.length||filt!=='all';if(!rw.hidden){const rr=$('recent');rr.textContent='';rs.forEach(g=>rr.appendChild(tile(g,true)))}
 }
-GAMES.forEach((gm,i)=>list.appendChild(card(gm,i)));
-// navigate in-place (keeps home-screen / standalone mode from spawning a browser sheet)
-list.addEventListener('click',e=>{const a=e.target.closest('a.game');if(!a)return;e.preventDefault();window.location.assign(a.href+'?v='+Date.now());});
-document.getElementById('sub').textContent=`${GAMES.length} games. Tap one to play.`;
-// quietly append any new Pages repo that isn't in the list yet (no reorder, no rebuild)
+function sheet(gm){const s=$('sheet');s.textContent='';const c=document.createElement('div');c.className='card';c.style.setProperty('--c',gm.c);c.appendChild(thumb(gm));
+  const h=document.createElement('h3');h.textContent=gm.title;const m=document.createElement('div');m.className='meta';m.textContent=[gm.genre,gm.orient].filter(Boolean).join(' \u2022 ');const p=document.createElement('p');p.textContent=gm.tag||'';
+  const a=document.createElement('div');a.className='acts';a.innerHTML='<button type="button" class="close">Close</button><button type="button" class="play">PLAY</button>';c.append(h,m,p,a);s.appendChild(c);s.hidden=false;
+  a.querySelector('.play').onclick=()=>play(gm);a.querySelector('.close').onclick=()=>{s.hidden=true};a.querySelector('.play').focus()}
+$('sheet').addEventListener('click',e=>{if(e.target.id==='sheet')e.currentTarget.hidden=true});
+document.addEventListener('click',e=>{const t=e.target.closest('.game');if(!t)return;const gm=byRepo(t.dataset.repo);if(!gm)return;
+  if(e.target.closest('.fav')){fav.has(gm.repo)?fav.delete(gm.repo):fav.add(gm.repo);LS.set('arc_fav',[...fav]);e.target.closest('.fav').classList.toggle('on',fav.has(gm.repo));if(filt==='fav')render();return}
+  if(e.target.closest('.info')){sheet(gm);return}play(gm)});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')$('sheet').hidden=true;else if(e.key==='Enter'&&e.target.classList&&e.target.classList.contains('game')){const gm=byRepo(e.target.dataset.repo);if(gm)play(gm)}});
+$('chips').addEventListener('click',e=>{const b=e.target.closest('.chip');if(!b)return;filt=b.dataset.k;LS.set('arc_filt',filt);render();window.scrollTo(0,0)});
+$('sort').addEventListener('click',()=>{az=!az;LS.set('arc_az',az);render()});
+$('q').addEventListener('input',e=>{q=e.target.value;render()});
+if(!CATS.some(c=>c[0]===filt))filt='all';
+render();
+// quietly append any new Pages repo that isn't in the list yet
 fetch(`https://api.github.com/users/${OWNER}/repos?per_page=100`).then(r=>r.ok?r.json():[]).then(repos=>{
-  const known=new Set(GAMES.map(g=>g.repo));
-  repos.filter(r=>r.has_pages&&!r.fork&&!known.has(r.name)&&r.name!=='arcade').forEach(r=>
-    list.appendChild(card({repo:r.name,title:r.name.replace(/-/g,' ').toUpperCase(),tag:r.description||'',genre:'New',orient:'',c:'#fff',art:'generic'})));
+  const known=new Set(GAMES.map(g=>g.repo));let add=0;
+  repos.filter(r=>r.has_pages&&!r.fork&&!known.has(r.name)&&r.name!=='arcade').forEach(r=>{const g={repo:r.name,title:r.name.replace(/-/g,' ').toUpperCase(),tag:r.description||'',genre:'New',orient:'',c:'#ffffff',art:'generic',noThumb:true};g.cats=cats(g);GAMES.push(g);add++});
+  if(add)render();
 }).catch(()=>{});
 </script>
 </body>
