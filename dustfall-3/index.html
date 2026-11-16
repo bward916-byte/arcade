@@ -3212,7 +3212,7 @@ const DUELISTS=['Cole Varney','Dutch Maddox','One-Eye Reese','Eli Vance','Ned Pu
 function startDuel(){
   const p=G.player;p.x=FIRE_X-52;p.dir=1;p.vx=0;p.sight=null;G.x.duelDay=-G.day;
   G.duel={t:0,st:'wait',at:rnd(2.8,5.2),held:true,name:DUELISTS[(G.day+G.town)%DUELISTS.length],o:{x:p.x+96,dir:-1,id:G.nextId++,moving:false,walk:0,kind:'boss',hp:1,max:1,hurt:0}};
-  G.cam=clamp(p.x+48-W/2,WEST-70,WORLD-W);G.fade=1;cine(true);document.body.classList.add('duel');caption(`High noon. ${G.duel.name} faces you down the street. Wait for the bell, then fire.`);
+  G.cam=clamp(p.x+48-W/2,WEST-70,WORLD-W);G.fade=1;cine(true);document.body.classList.add('duel');caption(`High noon. ${G.duel.name} faces you down the street. Wait for the bell, then ${document.body.classList.contains('touch')?'tap anywhere':'fire'}.`);
   input.key=input.stick=0;held.clear();G.bandits.length=0;G.weeds[0].x=p.x-90;G.weeds[0].vx=30;
 }
 function updDuel(dt){
@@ -3231,7 +3231,7 @@ function updDuel(dt){
       const n=10+3*G.town,o=d.o;d.st='done';d.end=d.t+3.4;p.gun=.16;p.gdir=1;sfx.shot(1);G.shake=.12;FX().slomo=.9;fxPunch(o.x,10,1.2);G.parts.push({x:o.x,h:14,vx:rnd(10,24),vh:rnd(50,70),life:0,max:1.6,col:'#16131a',grav:-110,conf:1,hat:1});
       G.shots.push({x0:p.x+9,x1:o.x,h:17,h1:9,hit:1});dust(o.x,8,5,'#d04a3a');G.fallen.push({x:o.x,dir:-1,t:0,boss:true});d.o=null;
       pop(o.x,26,'+'+n);for(let i=0;i<n;i++)coin(o.x,6,rnd(-30,30),rnd(40,85),true);sfx.fanfare();if(!TOUR)G.seen.duelWon=1;caption(`${d.name} is down. The ${n}-coin bounty is yours.`);
-    }else if(d.t-d.t0>Math.max(.34,.62-.05*G.town))lose('Too slow.');
+    }else if(d.t-d.t0>Math.max(.55,.85-.05*G.town))lose('Too slow.');
   }else if(d.t>d.end){G.duel=null;cine(false);document.body.classList.remove('duel');caption('');p.lock=true;p.glock=true;}
 }
 // ---------- each dawn and dusk
@@ -4812,6 +4812,7 @@ stage.addEventListener('pointerleave',()=>{hover=null;});
 const fireB=$('fire');
 fireB.addEventListener('pointerdown',e=>{input.fireTouch=input.fireTap=true;fireB.classList.add('on');e.preventDefault();});
 for(const ev of ['pointerup','pointercancel','pointerleave'])fireB.addEventListener(ev,()=>{input.fireTouch=false;fireB.classList.remove('on');});addEventListener('contextmenu',e=>e.preventDefault());
+addEventListener('pointerdown',()=>{if(G.duel&&G.state==='play')input.fireTap=true;},true);
 const touchy=()=>{document.body.classList.add('touch');if(G.state==='title')$('how').textContent='Push the stick either way to ride. Tap the coin to toss one, the gun to fire.';};
 if((window.matchMedia&&matchMedia('(pointer:coarse)').matches)||navigator.maxTouchPoints>0)touchy();
 addEventListener('touchstart',touchy,{once:true,passive:true});
