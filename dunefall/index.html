@@ -10,6 +10,7 @@
 :root{--ink:#1c130c;--cream:#f3e3bc;--gold:#f2c14e;--teal:#2fa7a0;--rust:#b5412e;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 *,*::before,*::after{box-sizing:inherit;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;margin:0;touch-action:none}
+html{background:#0a0705;overflow:hidden}
 body{background:var(--ink);color:var(--cream);font-family:Cinzel,Georgia,serif;overflow:hidden;position:relative;overscroll-behavior:none}
 #stage{position:absolute;inset:0;display:flex;justify-content:center;align-items:flex-start;overflow:hidden}
 canvas{display:block;image-rendering:pixelated;touch-action:none;transition:filter 1.4s}
@@ -535,8 +536,9 @@ function updRaiders(dt){
   G.raiders=G.raiders.filter(r=>!r.dead);
   for(const f of G.fallen)f.t+=dt;G.fallen=G.fallen.filter(f=>f.t<5);
 }
-function cine(k,text,dur,z,fx){if(G.seen['c_'+k]||G.state!=='play'||G.trip||G.cine)return;G.seen['c_'+k]=1;G.cine={t:0,dur,text,fx:fx===undefined?G.player.x:fx};punch(z,dur);document.body.classList.add('cine');const c=$('cap');c.textContent=text;c.classList.add('on');}
-function endCine(){if(!G.cine)return;G.cine=null;G.zoomHold=0;$('cap').classList.remove('on');if(!G.trip)document.body.classList.remove('cine');}
+function setCap(text){const old=$('cap'),n=old.cloneNode(false);n.classList.remove('on');n.textContent=text||'';old.replaceWith(n);if(text){void n.offsetWidth;n.classList.add('on');}}
+function cine(k,text,dur,z,fx){if(G.seen['c_'+k]||G.state!=='play'||G.trip||G.cine)return;G.seen['c_'+k]=1;G.cine={t:0,dur,text,fx:fx===undefined?G.player.x:fx};punch(z,dur);document.body.classList.add('cine');setCap(text);}
+function endCine(){if(!G.cine)return;G.cine=null;G.zoomHold=0;setCap('');if(!G.trip)document.body.classList.remove('cine');}
 const eclK=()=>{const e=G.ecl;return e?clamp(Math.min(e.t/5,(e.dur-e.t)/5),0,1):0;};
 const rainK=()=>{const r=G.rain;return r?clamp(Math.min(r.t/2.5,(r.dur-r.t)/3),0,1):0;};
 const punch=(z,hold)=>{G.zoomT=Math.max(G.zoomT,z);G.zoomHold=Math.max(G.zoomHold,hold);};
@@ -595,7 +597,7 @@ function update(dt){
   if(G.state==='title'){G.dark=darkness(G.t);cam=lerp(cam,WELL_X-W/2+Math.sin(NOW*.05)*260,.02);updWorld(dt);updFolk(dt);return;}
   if(G.state==='intro'){const I=G.intro;I.t+=dt;G.dark=darkness(G.t);cam=lerp(60,WELL_X-W/2-20,clamp(I.t/11,0,1)**.8);
     const caps=['The caravans stopped coming when the river changed its course.','The bazaar emptied. The sand took the rest.','But there is gold under these dunes, and people who would stay.'],k=Math.floor(I.t/3.8);
-    if(k!==I.k){I.k=k;const c=$('cap');c.classList.remove('on');setTimeout(()=>{c.textContent=caps[k]||'';if(caps[k])c.classList.add('on');},350);}
+    if(k!==I.k){I.k=k;$('cap').classList.remove('on');setTimeout(()=>{if(G.state==='intro')setCap(caps[k]);},450);}
     updWorld(dt);updFolk(dt);G.zoom=lerp(1.45,1,clamp(I.t/11,0,1)**.7);if(I.t>12)endIntro();return;}
   if(G.state!=='play')return;
   if(G.cine){const C=G.cine;C.t+=dt;G.dark=Math.max(darkness(G.t),eclK()*.8);if(G.storm)G.storm.t-=dt*.6;updWorld(dt);updFolk(dt*.5);cam=lerp(cam,clamp(C.fx-W/2,0,WORLD-W),1-Math.pow(.02,dt));if(C.t>C.dur)endCine();return;}
@@ -610,7 +612,7 @@ function update(dt){
   const p=G.player,want=clamp(p.x-W/2+p.dir*24,0,WORLD-W);cam=lerp(cam,want,1-Math.pow(.0015,dt));
 }
 function beginIntro(){G.state='intro';G.t=.07;G.intro={t:0,k:-1};$('title').hidden=true;document.body.classList.remove('title');document.body.classList.add('cine');}
-function endIntro(){$('cap').classList.remove('on');document.body.classList.remove('cine');G.state='play';G.t=.08;G.intro=null;card('DUNEFALL','Bring the town back');hint('start');}
+function endIntro(){setCap('');document.body.classList.remove('cine');G.state='play';G.t=.08;G.intro=null;card('DUNEFALL','Bring the town back');hint('start');}
 
 // ---------- save: kept in this browser, written each dawn and whenever something is built
 const KEY='dunefall1';
@@ -651,7 +653,7 @@ const PRE=[
   ['Rain and a rainbow',()=>{grow(2);B('grove').level=1;G.t=.3;G.rainAt=.302;G.player.x=1500;}],
   ['The dock and the Nile',()=>{grow(3,30);B('dock').level=1;G.t=.56;G.player.x=3020;}]];
 function preview(i){
-  reset(0);document.body.classList.remove('cine');$('cap').classList.remove('on');G.preview=true;G.seen={start:1};PRE[i][1]();if(i===3){G.day=6;}
+  reset(0);document.body.classList.remove('cine');setCap('');G.preview=true;G.seen={start:1};PRE[i][1]();if(i===3){G.day=6;}
   $('pre').hidden=true;$('title').hidden=true;document.body.classList.remove('title');initAudio();if(AC&&AC.state==='suspended')AC.resume();
   G.state='play';cam=clamp(G.player.x-W/2,0,WORLD-W);if(i===0)hint('start',true);
 }
@@ -1160,13 +1162,14 @@ function draw(){
 
 // ---------- canvas sizing: whole game pixels, about 180 of them top to bottom
 function resize(){
+  {const vv=window.visualViewport,vh=vv?vv.height:window.innerHeight;if(vh>100)document.body.style.height=Math.floor(vh-Math.max(16,vh*.05))+'px';window.scrollTo(0,0);}
   const dpr=window.devicePixelRatio||1,sw=stage.clientWidth||800,sh=stage.clientHeight||450,sc=Math.max(2,2*Math.round(sh*dpr/370));
   W=Math.ceil(sw*dpr/sc);H=Math.ceil(sh*dpr/sc);GY=H-clamp(Math.round(H*.24),30,46);
   cv.width=scn.width=W*S;cv.height=scn.height=H*S;ovl.width=W;ovl.height=H;blm.width=Math.ceil(W/3);blm.height=Math.ceil(H/3);cv.style.width=sw+'px';cv.style.height=sh+'px';
   mctx.imageSmoothingEnabled=false;
 }
 const input={key:0,stick:0,padAxis:0,dpad:0,dropKey:false,dropTouch:false,padDrop:false,fireKey:false,fireTouch:false,padFire:false,reload:false};
-reset();addEventListener('resize',resize);resize();
+reset();addEventListener('resize',resize);addEventListener('orientationchange',()=>setTimeout(resize,300));if(window.visualViewport)window.visualViewport.addEventListener('resize',resize);resize();
 
 // ---------- the roster: a count for each job, and a way to take someone off one
 function showRoster(){
