@@ -258,7 +258,8 @@ button.stop.chosen{background:#f2c14e;animation:none;outline-style:solid}button.
 .rail #pad,.rail #toss,.rail #fire,.rail #guide,.rail #info{display:none !important}
 .rail #hint{top:auto !important;bottom:10px;max-width:min(60%,30rem);font-size:13px}
 /* story closeups: the picture on top, a tall panel underneath with who or what it is, the line, and a tap prompt */
-.cut #barT{height:0}.cut #barB{height:30%;flex-direction:column;gap:3px;border-top:2px solid #6a4a2e;padding:2px max(18px,env(safe-area-inset-left,0px)) 24px}
+.cut #barT{height:0}.cut #barB{height:30%;flex-direction:column;justify-content:flex-start;gap:3px;border-top:2px solid #6a4a2e;padding:max(8px,2.2vh) max(18px,env(safe-area-inset-left,0px)) 24px}
+.cut #cap,.cut #caph{transition:opacity .18s;transform:translateZ(0);white-space:normal}.cut #cap.on,.cut #caph.on{transition:opacity .45s}.cut #caph{white-space:nowrap}
 #caph,#capn{display:none;font-style:normal}
 .cut #caph{display:block;font-family:Rye,Rockwell,Georgia,serif;font-weight:400;font-size:clamp(10px,min(1.9vw,3.6vh),14px);letter-spacing:.12em;text-transform:uppercase;color:#f2c14e;opacity:0;transition:opacity .35s}.cut #caph.on{opacity:1}
 .cut #cap{font-size:clamp(14px,min(3vw,5.4vh),22px);line-height:1.25;max-width:min(94%,50rem);color:#f6ecd2}
@@ -1026,8 +1027,9 @@ const cine=on=>document.body.classList.toggle('cine',on),glance=on=>document.bod
 let capTimer=0,cardTimer=0,cardThen=null;
 // the old line fades right out and is wiped before the next one is written, so two lines are never on screen together
 function caption(txt,head){
-  const el=$('cap'),hd=$('caph');el.classList.remove('on');hd.classList.remove('on');clearTimeout(capTimer);
-  capTimer=setTimeout(()=>{el.textContent=txt||'';hd.textContent=head||'';if(txt){void el.offsetWidth;el.classList.add('on');if(head)hd.classList.add('on');}},G&&G.cut?260:450);
+  $('cap').classList.remove('on');$('caph').classList.remove('on');clearTimeout(capTimer);
+  const fresh=(id,t)=>{const o=$(id),n=o.cloneNode(false);n.classList.remove('on');n.textContent=t||'';o.replaceWith(n);return n;};
+  capTimer=setTimeout(()=>{const el=fresh('cap',txt),hd=fresh('caph',head);if(txt){void el.offsetWidth;el.classList.add('on');if(head)hd.classList.add('on');}},G&&G.cut?280:450);
 }
 // while a card is up the hint stays hidden; the card's text is removed once it has faded
 function card(title,sub,ms,then){
