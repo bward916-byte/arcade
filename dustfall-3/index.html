@@ -525,9 +525,11 @@ function text(x,y,s,c,drop){
 }
 
 // ---------- audio
-const OPT=(()=>{try{return Object.assign({m:0,h:1},JSON.parse(localStorage.getItem('dustfall3-opts'))||{});}catch(e){return {m:0,h:1};}})(),optSave=()=>{try{localStorage.setItem('dustfall3-opts',JSON.stringify(OPT));}catch(e){}};
+const nat=(plugin,method,opts)=>{try{const C=window.Capacitor;if(!C||!C.isNativePlatform||!C.isNativePlatform())return null;if(C.nativePromise)return C.nativePromise(plugin,method,opts||{});const P=C.Plugins&&C.Plugins[plugin];return P&&P[method]?P[method](opts||{}):null;}catch(e){return null;}};
+const LS={set(k,v){try{localStorage.setItem(k,v);}catch(e){}const p=nat('Preferences','set',{key:k,value:v});if(p&&p.catch)p.catch(()=>{});},del(k){try{localStorage.removeItem(k);}catch(e){}const p=nat('Preferences','remove',{key:k});if(p&&p.catch)p.catch(()=>{});}};
+const OPT=(()=>{try{return Object.assign({m:0,h:1},JSON.parse(localStorage.getItem('dustfall3-opts'))||{});}catch(e){return {m:0,h:1};}})(),optSave=()=>LS.set('dustfall3-opts',JSON.stringify(OPT));
 // a tap you can feel: the native plugin when wrapped as an app, the browser's vibration otherwise
-const haptic=ms=>{if(!OPT.h||TOUR)return;try{const H=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.Haptics;if(H)H.impact({style:ms>40?'HEAVY':ms>15?'MEDIUM':'LIGHT'});else if(navigator.vibrate)navigator.vibrate(ms);}catch(e){}};
+const haptic=ms=>{if(!OPT.h||TOUR)return;try{const p=nat('Haptics','impact',{style:ms>40?'HEAVY':ms>15?'MEDIUM':'LIGHT'});if(p){if(p.catch)p.catch(()=>{});}else if(navigator.vibrate)navigator.vibrate(ms);}catch(e){}};
 let AC=null,master,pianoBus,windBus,noiseBuf,muted=!!OPT.m,nextNote=0,noteIdx=0;
 function initAudio(){
   if(AC)return;
@@ -1055,7 +1057,7 @@ function endIntro(skipped){
 }
 function banner(state,h,tag,btn){
   G.focus=null;glance(false);cine(false);G.state=state;document.body.classList.toggle('over',state==='over');$('hint').classList.remove('on');$('title').hidden=false;document.body.classList.add('title');$('cont').hidden=true;
-  if(state==='over')try{localStorage.removeItem(SAVE);}catch(e){}else save();
+  if(state==='over')LS.del(SAVE);else save();
   $('title').querySelector('h1').textContent=h;$('tag').textContent=tag;$('go').textContent=btn;$('how').textContent='';
 }
 // boarding the train: it pulls out east, the screen fades, and you step off at the next dead town with half of purse and bank
@@ -1583,7 +1585,7 @@ const SAVE='dustfall3-save-1';
 function save(){
   if(TOUR||G.state!=='play'&&G.state!=='won')return;
   if(G.trip)return;
-  try{localStorage.setItem(SAVE,JSON.stringify({v:4,place:G.place,ammo:G.player.ammo,side:G.side,wx:G.wx&&!G.wx.title&&[G.wx.k,G.wx.a,G.wx.b],wet:G.wet||0,owed:G.owed,bell:G.bell,out:G.outlaw&&[G.outlaw.side,G.outlaw.hp,G.outlaw.days,G.outlaw.name,G.outlaw.reward,G.outlaw.x],day:G.day,day0:G.day0,town:G.town,bank:G.bank,herd:G.herd.length,t:G.t,dusk:G.duskDone,coins:G.player.coins,px:G.player.x,nextId:G.nextId,deps:G.deps,seen:G.seen,log:G.log,star:G.star,train:!!G.train,
+  try{LS.set(SAVE,JSON.stringify({v:4,place:G.place,ammo:G.player.ammo,side:G.side,wx:G.wx&&!G.wx.title&&[G.wx.k,G.wx.a,G.wx.b],wet:G.wet||0,owed:G.owed,bell:G.bell,out:G.outlaw&&[G.outlaw.side,G.outlaw.hp,G.outlaw.days,G.outlaw.name,G.outlaw.reward,G.outlaw.x],day:G.day,day0:G.day0,town:G.town,bank:G.bank,herd:G.herd.length,t:G.t,dusk:G.duskDone,coins:G.player.coins,px:G.player.x,nextId:G.nextId,deps:G.deps,seen:G.seen,log:G.log,star:G.star,train:!!G.train,
     b:G.b.map(b=>[b.level,b.badges,b.paid,+b.building,b.progress,b.hp]),boxes:G.boxes.map(b=>b.open),x:G.x,
     folk:G.folk.map(f=>[f.id,f.role,Math.round(f.x),f.side,f.slot]),dr:G.drifters.map(d=>[d.id,d.camp,Math.round(d.x)])}));}catch(e){}
 }
@@ -5002,6 +5004,9 @@ $('cont').addEventListener('click',()=>{if(load())start(true);});
 $('demo').addEventListener('click',showDemos);$('demall').addEventListener('click',()=>tourStart(0));$('demx').addEventListener('click',()=>{hideDemos();$('title').hidden=false;});$('tourx').addEventListener('click',tourEnd);
 document.addEventListener('pointerdown',e=>{if(TOUR&&TOUR.t>.3&&!(e.target.closest&&e.target.closest('#tourx,#mute')))tourNext(1);});
 if(peek()){$('cont').hidden=false;$('cont').textContent='Continue in '+nice((PLACES[peek().place]||PLACES[stageOf(peek().town||0)[0]]).name)+', day '+peek().day;}
+// if iOS has cleared the web copy of the save, bring it back from the native one before the title offers Continue
+for(const k of [SAVE,'dustfall3-opts']){let has=false;try{has=localStorage.getItem(k)!==null;}catch(e){}if(has)continue;const p=nat('Preferences','get',{key:k});
+  if(p&&p.then)p.then(r=>{if(r&&typeof r.value==='string'){try{localStorage.setItem(k,r.value);}catch(e){}if(k===SAVE&&G.state==='title')$('cont').hidden=!peek();}}).catch(()=>{});}
 document.addEventListener('visibilitychange',()=>{if(document.hidden){save();if(AC&&AC.state==='running')AC.suspend();menuOpen();}else if(AC&&AC.state==='suspended'&&$('menu').hidden&&G.state!=='title')AC.resume();});addEventListener('pagehide',save);
 let last=performance.now(),slowT=0,workT=0,slowN=0;
 const rotQ=window.matchMedia?matchMedia('(orientation:portrait) and (pointer:coarse)'):{matches:false};

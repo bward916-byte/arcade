@@ -1,0 +1,6 @@
+{
+  "appId": "com.brianward.dustfall3",
+  "appName": "Dustfall III",
+  "webDir": "www",
+  "ios": { "contentInset": "never", "backgroundColor": "#24160f", "scrollEnabled": false, "allowsLinkPreview": false }
+}
