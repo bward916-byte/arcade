@@ -196,7 +196,7 @@ button.stop.chosen{background:#f2c14e;animation:none;outline-style:solid}button.
 #mapin{max-height:calc(100% - 8px);overflow:auto}
 @media (max-width:560px){#stops{flex-direction:column;gap:4px;margin:6px 0 2px}.stage{flex-direction:row;align-items:stretch;justify-content:center;gap:6px;padding-top:11px}
   .stage em{position:absolute;left:0;right:0;top:0;margin:0}.stop{flex:1;max-width:48%}.stop small:last-child{display:none}button.stop small:last-child,.stop.next small:last-child{display:block}#loco{transform:translate(-50%,-135%)}}
-@media (max-height:430px){.stop small:last-child{display:none}button.stop small:last-child{display:block}.stage{gap:4px}#mapin h2{font-size:18px}#prof{height:44px}}
+@media (max-height:540px){.stop small:last-child{display:none}button.stop small:last-child{display:block}.stage{gap:4px}#mapin h2{font-size:18px}#prof{height:44px}}
 #title h1 span{color:var(--gold);margin-left:.08em}
 .stage em{background:#ead9ae;align-self:center;padding:0 5px;border-radius:3px}
 @media (min-width:900px){.stop{font-size:12.5px}.stop b{font-size:15px}.stop small{font-size:12px}.stage em{font-size:11.5px}}
@@ -221,7 +221,8 @@ button.stop.chosen{background:#f2c14e;animation:none;outline-style:solid}button.
 #profcap i{display:inline-block;width:8px;height:8px;border-radius:50%;border:1px solid #2a1a10;margin-right:4px;vertical-align:-1px}#profcap i.tri{border-radius:0;border:0;clip-path:polygon(0 0,100% 0,50% 100%)}#profcap i.none{display:none}
 #map:not(.travel) #mapnote{display:none}
 @media (max-width:560px){#loco{transform:translate(-175%,-50%)}.stop i{width:40px;height:27px;line-height:23px}}
-@media (max-height:430px){#prof{height:78px}.stop i{width:40px;height:27px;line-height:23px}#mapin{padding:9px 14px 8px}}
+@media (max-height:540px){#prof{height:78px}.stop i{width:40px;height:27px;line-height:23px}#mapin{padding:9px 14px 8px}}
+.stop b,.stop small{background:rgba(234,217,174,.86);box-shadow:0 0 0 2px rgba(234,217,174,.86);border-radius:2px}
 /* the title: the third ride */
 #title>*{position:relative}
 #title:has(h1 span)::before{content:"";position:absolute;left:50%;top:32%;width:min(120vw,900px);aspect-ratio:1;translate:-50% -50%;background:repeating-conic-gradient(rgba(242,193,78,.2) 0 5deg,transparent 5deg 10deg);-webkit-mask:radial-gradient(closest-side,#000 8%,transparent 78%);mask:radial-gradient(closest-side,#000 8%,transparent 78%);animation:rays 120s linear infinite;pointer-events:none}
@@ -1213,8 +1214,8 @@ function drawProfile(){
   for(const b of G.bandits)foe(b.x);if(G.outlaw)foe(G.outlaw.x,1);
   {const px=sx(G.player.x);c.fillStyle='#f2c14e';c.strokeStyle=ink;c.lineWidth=1.2;c.beginPath();c.arc(px,gy-33,5,0,7);c.fill();c.stroke();c.beginPath();c.moveTo(px-3,gy-29);c.lineTo(px,gy-22);c.lineTo(px+3,gy-29);c.fill();c.stroke();q(px-1.5,gy-34.5,3,3,ink);}
   // names along the bottom, dropped to a second line where they would run together
-  c.textBaseline='top';const end=[-99,-99];labs.sort((a,b)=>a[0]-b[0]);
-  for(const [x,t,bold] of labs){c.font=(bold?'bold ':'')+'10px Georgia,serif';const tw=c.measureText(t).width,x0=clamp(x-tw/2,2,w-tw-2),row=x0>end[0]+5?0:1;if(x0<=end[row]+3)continue;end[row]=x0+tw;c.fillStyle=ink;c.fillText(t,x0,gy+3+row*10.5);if(row){c.fillStyle='rgba(42,26,16,.4)';c.fillRect(x,gy+2,.8,11);}}
+  c.textBaseline='top';c.textAlign='left';const end=[-99,-99];labs.sort((a,b)=>a[0]-b[0]);
+  for(const [x,t,bold] of labs){c.font=(bold?'bold ':'')+'10px Georgia,serif';const tw=c.measureText(t).width,x0=clamp(x-tw/2,7,w-tw-7),row=x0>end[0]+5?0:1;if(x0<=end[row]+3)continue;end[row]=x0+tw;c.fillStyle=ink;c.fillText(t,x0,gy+3+row*10.5);if(row){c.fillStyle='rgba(42,26,16,.4)';c.fillRect(x,gy+2,.8,11);}}
   c.font='italic 9px Georgia,serif';c.fillStyle='rgba(42,26,16,.6)';c.textAlign='left';c.fillText('West',3,3);c.textAlign='right';c.fillText('East',w-3,3);c.textAlign='left';
   // the ledger and the key
   const cap=$('profcap'),key=(col,t,cls)=>{const sp=document.createElement('span'),i=document.createElement('i');i.className=cls||'';i.style.background=col;sp.append(i,t);return sp;},n=G.bandits.length+(G.outlaw?1:0);
