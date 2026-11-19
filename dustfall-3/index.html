@@ -1514,7 +1514,7 @@ TSCN.push(
     init(T){tourSet(0,{t:.3,day:9,x:830,dir:-1,coins:8,lv:TFULL});G.x.show.on=true;T.go=752;T.toss=3;}},
   {g:'Range',n:'Poker',dur:13,town:0,cap:'Stake up to 5 coins at the saloon door before dark. At dawn the cards fall: double or nothing.',
     init(T){tourSet(0,{t:.55,day:9,x:1240,coins:8,lv:TFULL});tourFolk(5,1150,1500);T.go=G.b[1].x+43;T.toss=5;},tick(t,T){if(tAt(T,'a',6.5))G.t=.992;}},
-  {g:'Rail yard',n:'The old yard',dur:13,town:0,cap:'New: past the far east camp the line runs into an abandoned junction. A dead engine, a hobo jungle, a boxcar nobody will open, a boarded depot and a handcar.',
+  {g:'Rail yard',n:'The old yard',dur:13,town:0,cap:'New: past the far east camp the line runs into an abandoned junction. A dead engine, a hobo jungle, a boxcar nobody will open, a boarded depot.',
     init(T){tourSet(0,{t:.3,day:9,x:YARD()-10,lv:TFULL});G.x.oats=G.day;T.go=YARD()+560;}},
   {g:'Rail yard',n:'Hobo rumours',dur:9,town:0,cap:'2 coins a day buys a rumour from the men at the barrel fire: a buried strongbox, which side tonight’s raid comes from, or a stick of dynamite. They can be hired like drifters too.',
     init(T){tourSet(0,{t:.3,day:9,x:YARD()+250,coins:8,lv:TFULL});T.go=YARD()+300;T.toss=2;}},
@@ -2796,7 +2796,7 @@ function drawUfo(cam){
 const bare=p=>sprite(HROWS,{...p,c:p.h,S:p.h,b:p.h}),WILDS=[bare(PAL),bare({...PAL,h:'#c9a36a',l:'#dcbc86',d:'#a8854f',n:'#8a6a40'}),bare({...PAL2,h:'#8a8480',l:'#a8a29c',d:'#6a6460',n:'#4a4642',k:'#3a3632'}),bare(PAL2)],WSPR=w=>WILDS[w.id%4],WLEG=w=>[['#5a2f1c','#7a4025'],['#8a6a40','#a8854f'],['#5a5450','#7a7470'],['#1f1c22','#2e2a30']][w.id%4];
 const wildRange=k=>k==='horse'?[WEST+70,84]:[EX(2424),EX(2744)];
 function wildAdd(k,x){const r=wildRange(k);G.wild.push({k,id:G.nextId++,x:x===undefined?rnd(r[0]+20,r[1]-20):x,dir:Math.random()<.5?-1:1,st:'graze',t:rnd(1,5),tx:null,vx:0,phase:0,rope:0});}
-function wildInit(){G.wild=[];for(const x of [-540,-505,-330,-150,-20])wildAdd('horse',x);wildAdd('horse',-520);G.wild[G.wild.length-1].foal=1;for(const x of [2450,2600,2700])wildAdd('cow',EX(x));}
+function wildInit(){G.wild=[];for(const x of [-540,-150])wildAdd('horse',x);wildAdd('horse',-520);G.wild[G.wild.length-1].foal=1;for(const x of [2450,2600,2700])wildAdd('cow',EX(x));}
 function updWild(dt){
   if(!G.wild)wildInit();
   const p=G.player,gW=G.b[6].x,gE=G.b[7].x;let slot=0;
@@ -2814,7 +2814,7 @@ function updWild(dt){
         G.wild.splice(G.wild.indexOf(w),1);sfx.recruit();spark(w.x,14,8);
         if(!H&&w.x>PASTURE[0]&&w.x<PASTURE[1]){cow();const c=G.herd[G.herd.length-1];c.x=w.x;c.calf=0;pop(w.x,24,'+1 herd','#8fe08a');hint('wildC2',true,'The stray joins your herd.');}
         else if(H&&G.b[3].level&&G.x.string<3){G.x.string++;pop(w.x,28,'Remount','#8fe08a');hint('string',true,`The stable breaks the mustang to saddle. With ${G.x.string} in your string your horse tires ${G.x.string*25}% slower. ${G.x.string<3?'The stable has room for '+(3-G.x.string)+' more.':'The string is full: the next one sells.'}`);}
-        else{const n=H?6+G.town:3;pop(w.x,28,'+'+n);for(let i=0;i<n;i++)coin(w.x,8,rnd(-30,30),rnd(45,85),true);hint(H?'wildH2':'wildC3',true,H?`The mustang sells in town for ${n} coins.`:`The stray sells in town for ${n} coins. With a stable and room in the pasture, it would join your herd instead.`);}
+        else{const n=H?3+G.town:3;pop(w.x,28,'+'+n);for(let i=0;i<n;i++)coin(w.x,8,rnd(-30,30),rnd(45,85),true);hint(H?'wildH2':'wildC3',true,H?`The mustang sells in town for ${n} coins.`:`The stray sells in town for ${n} coins. With a stable and room in the pasture, it would join your herd instead.`);}
       }
     }else{
       if(ad<130)hint(H?'wildH':'wildC',false,H?'Wild mustangs. Gallop alongside one for a moment to rope it, then lead it into town to sell.':'A stray longhorn. Ride right up to it and it will follow you. Drive it to your pasture, or into town to sell.');
@@ -3338,7 +3338,7 @@ function updDuel(dt){
 // ---------- each dawn and dusk
 function dawnX(ln){
   const X=G.x,sl=G.b[1];X.ufoAt=0;G.ufo=null;yardDawn();
-  if(G.wild){if(G.wild.filter(w=>w.k==='horse'&&!w.foal).length<5)wildAdd('horse');G.wild=G.wild.filter(w=>w.st!=='loose');if(G.wild.filter(w=>w.k==='cow').length<3)wildAdd('cow');}
+  if(G.wild){if(ln%2===0&&G.wild.filter(w=>w.k==='horse'&&!w.foal).length<3)wildAdd('horse');G.wild=G.wild.filter(w=>w.st!=='loose');if(G.wild.filter(w=>w.k==='cow').length<3)wildAdd('cow');}
   if(X.ruin.cool>0)X.ruin.cool--;if(X.tribe.days>0)X.tribe.days--;X.fort.night=false;G.cav=null;G.stamp=null;for(const c of G.herd)c.run=0;
   if(X.rig.lv&&!X.rig.burn){pop(FIRE_X,30,'Oil +'+rigPay());for(let i=0;i<rigPay();i++)coin(FIRE_X+rnd(-12,12),6,rnd(-30,30),rnd(50,85),true);hint('oilpay',false,`The oil company's draft: ${rigPay()} coins at the town centre every morning the derrick is pumping.`);}
   if(X.poker.paid){
@@ -3497,7 +3497,7 @@ function drawXLights(cam){
 }
 // ---------- Dustfall III: the old yard. Past the far east camp the line runs into an abandoned junction: dead engines, a hobo jungle, a boxcar nobody will open, and a handcar that will take you down the spur
 const YARD=()=>EX(2790),YARDW=640;
-Object.assign(SITE,{hobo:{x:2790+300,ex:1,h:34,name:'Hobo jungle'},car:{x:2790+392,ex:1,h:46,name:'Sealed boxcar'},handcar:{x:2790+552,ex:1,h:30,name:'Handcar'}});
+Object.assign(SITE,{hobo:{x:2790+300,ex:1,h:34,name:'Hobo jungle'},car:{x:2790+392,ex:1,h:46,name:'Sealed boxcar'}});
 const yardCost=k=>{const s=G.x[k];return k==='hobo'?(s.day===G.day?0:2):k==='car'?(s.cool>0?0:5):k==='handcar'?(s.day===G.day||G.dark>.35||G.rail?0:4):0;};
 function yardInfo(k,s,go){
   const X=G.x;
@@ -3568,8 +3568,7 @@ function drawYard(cam){
   if(vis(Y+478,70)){const sx=Math.round(Y+452-cam),w='#7a6a54',d='#4a3a2c';        // the junction depot, boarded up, and its water tank
     shadow(sx+26,60);R(sx,g-24,52,24,w);for(let k=0;k<52;k+=5)R(sx+k,g-24,1,24,'#66573f');R(sx-4,g-28,60,4,d);R(sx-4,g-28,60,1,'#6a5440');R(sx+6,g-17,10,17,'#2a1e16');line(sx+6,g-17,sx+15,g-1,d);R(sx+26,g-18,16,9,'#2a1e16');R(sx+25,g-15,18,1,w);R(sx+25,g-12,18,1,w);
     R(sx+8,g-37,36,8,'#e6d6ac');R(sx+8,g-37,36,1,d);text(sx+10,g-36,'JUNCTION','#4a3a2c');drawTower(sx+86);}
-  if(vis(Y+552,30)&&!G.rail){const sx=Math.round(Y+552-cam);handcar(sx,g,0);}
-  if(vis(Y+590,30)){const sx=Math.round(Y+584-cam);for(let k=0;k<4;k++)R(sx-k,g-3-k*2,12+k*2,2,k%2?'#4a3626':'#5a4636');}
+    if(vis(Y+590,30)){const sx=Math.round(Y+584-cam);for(let k=0;k<4;k++)R(sx-k,g-3-k*2,12+k*2,2,k%2?'#4a3626':'#5a4636');}
   for(let x=Math.max(Y+30,Math.floor(cam));x<Math.min(WORLD-50,cam+W);x++){const k=hash(x*.713+2);if(k<.03){const sx=x-cam;line(sx,g,sx+Math.sin(G.clock*1.6+x)*.8,g-4-k*120,k<.015?'#8a7a50':'#6f8f45');}}
 }
 function handcar(sx,g,ph){
