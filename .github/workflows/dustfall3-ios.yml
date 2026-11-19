@@ -46,6 +46,8 @@ jobs:
       - name: Xcode version
         run: xcodebuild -version
 
+      # Built unsigned: signing an archive automatically wants a development profile, which needs a registered device.
+      # The export step below does the real signing, with Apple's cloud-managed distribution certificate.
       - name: Archive
         run: |
           xcodebuild archive \
@@ -53,8 +55,7 @@ jobs:
             -destination 'generic/platform=iOS' \
             -archivePath "$RUNNER_TEMP/App.xcarchive" \
             CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER" \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath "$KEY_PATH" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""
 
       - name: Export the signed app
         run: |
