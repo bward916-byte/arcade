@@ -657,7 +657,7 @@ const HINTS={
   noworkers:'Paid for, but nobody is free to build. Recruit a drifter, or tap the head count at the top to take someone off a job.',
   saloon1:'The saloon is open. It pays out every morning and shelters townsfolk at night.',
   saloon2:'A second floor. The saloon pays double now.',
-  store1:'The store is open and pays 4 coins every morning. You reload a second quicker. Toss a coin at the tool rack on its left to outfit a prospector.',
+  store1:'The store is open and pays out every morning. You reload a second quicker. Toss a coin at the tool rack on its left to outfit a prospector.',
   store2:'A second floor for the store. It pays double now, and you reload in 3 seconds.',
   miner:'A prospector. They dig at the old mine west of town by day, so ride out and collect the gold.',
   sheriff1:'The sheriff is in. Toss a coin at the badge rack on its right and a townsperson will pin it on.',
@@ -691,7 +691,7 @@ const HINTS={
   sheriff3:'Rifles for the deputies. Every hit counts double.',
   bank2:'A steel vault. The outlaw cannot rob it, and it pays more interest.',
   stable2:'A bigger stable. Your horse is faster still, and ranchers can keep three head each.',
-  bordello1:'The bordello is open. It pays 5 coins every morning and draws a newcomer to town each day.',
+  bordello1:'The bordello is open. It pays out every morning and draws a newcomer to town each day.',
   bordello2:'A second floor for the bordello. It pays double and draws two newcomers a day.',
   bordello3:'The bordello pays triple and draws three newcomers a day.',
   gang:'A gang of horsemen is riding in tonight.',
@@ -797,7 +797,7 @@ function dawn(){
   for(const f of G.folk)if(f.role==='folk')coin(f.hidden?G.b[1].x+43:f.x,6,rnd(-22,22),rnd(50,75),true);
   for(const b of G.b){
     const d=DEF[b.type];
-    if(b.level&&d.pay&&!b.robbed)for(let i=0;i<d.pay*b.level;i++)coin(b.x+d.door.x+7,5,rnd(-40,40),rnd(55,90),true);
+    if(b.level&&d.pay&&!b.robbed)for(let i=0,n=Math.max(1,d.pay*b.level-(G.day-G.day0>1?1:0));i<n;i++)coin(b.x+d.door.x+7,5,rnd(-40,40),rnd(55,90),true);
     b.robbed=false;if(d.gate){b.hp=GHP[b.level];b.pay=0;}
   }
   // grown cattle pay 2 coins a head, left in the pasture; the bank pays a little interest
