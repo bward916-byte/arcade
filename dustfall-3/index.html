@@ -257,6 +257,15 @@ button.stop.chosen{background:#f2c14e;animation:none;outline-style:solid}button.
 @media (max-height:430px){#guide{font-size:14px;padding:5px 12px 5px 6px}}
 .rail #pad,.rail #toss,.rail #fire,.rail #guide,.rail #info{display:none !important}
 .rail #hint{top:auto !important;bottom:10px;max-width:min(60%,30rem);font-size:13px}
+/* story closeups: the picture on top, a tall panel underneath with who or what it is, the line, and a tap prompt */
+.cut #barT{height:0}.cut #barB{height:30%;flex-direction:column;gap:3px;border-top:2px solid #6a4a2e;padding:2px max(18px,env(safe-area-inset-left,0px)) 24px}
+#caph,#capn{display:none;font-style:normal}
+.cut #caph{display:block;font-family:Rye,Rockwell,Georgia,serif;font-weight:400;font-size:clamp(10px,min(1.9vw,3.6vh),14px);letter-spacing:.12em;text-transform:uppercase;color:#f2c14e;opacity:0;transition:opacity .35s}.cut #caph.on{opacity:1}
+.cut #cap{font-size:clamp(14px,min(3vw,5.4vh),22px);line-height:1.25;max-width:min(94%,50rem);color:#f6ecd2}
+.cut #capn{display:block;position:absolute;right:max(14px,env(safe-area-inset-right,0px));bottom:6px;font-family:Georgia,serif;font-size:13.5px;color:#f2c14e;opacity:0}
+.cut #capn.on{opacity:.9;animation:capn 1.3s ease-in-out infinite}@keyframes capn{50%{opacity:.4}}
+.cut #skip{display:none}
+.intro #barB{height:18%}.intro #cap{font-size:clamp(16px,2.9vw,21px);color:#f6ecd2}
 </style>
 </head>
 <body class="title">
@@ -273,7 +282,7 @@ button.stop.chosen{background:#f2c14e;animation:none;outline-style:solid}button.
   <button id="mapb" type="button">Map</button>
   <button id="mute" type="button" aria-label="Menu">Menu</button>
 </div>
-<div id="cine"><i id="barT"></i><i id="barB"><span id="cap"></span></i><h2 id="card"></h2><p id="skip">Tap or press any key to skip</p><p id="info" role="status"><b></b><span></span></p></div>
+<div id="cine"><i id="barT"></i><i id="barB"><b id="caph"></b><span id="cap"></span><em id="capn"></em></i><h2 id="card"></h2><p id="skip">Tap or press any key to skip</p><p id="info" role="status"><b></b><span></span></p></div>
 <div id="hint" role="status"></div>
 <div id="tour" hidden><span id="tourt"></span><small><span id="tourn"></span> · tap<span id="tourk"> or press Space</span> for the next scene <button id="tourx" type="button">Demo menu</button></small><i id="tourp"></i></div>
 <div id="map" hidden><div id="mapin"><h2 id="maph">The territory</h2><div id="stops"><svg id="links"></svg></div><svg id="loco" viewBox="0 0 30 18"><path d="M2 12V6h7V2h8v4h7l4 6z" fill="#2a1a10"/><rect x="11" y="4" width="4" height="3" fill="#ead9ae"/><rect x="20" y="1" width="3" height="5" fill="#2a1a10"/><circle cx="8" cy="14" r="3.2" fill="#a8452e"/><circle cx="18" cy="14" r="3.2" fill="#a8452e"/><circle cx="25" cy="15" r="2.2" fill="#a8452e"/></svg><p id="mapnote"></p><canvas id="prof"></canvas><p id="profcap"></p></div></div>
@@ -1016,9 +1025,9 @@ function killOutlaw(){
 const cine=on=>document.body.classList.toggle('cine',on),glance=on=>document.body.classList.toggle('peek',on);
 let capTimer=0,cardTimer=0,cardThen=null;
 // the old line fades right out and is wiped before the next one is written, so two lines are never on screen together
-function caption(txt){
-  const el=$('cap');el.classList.remove('on');clearTimeout(capTimer);
-  capTimer=setTimeout(()=>{el.textContent=txt||'';if(txt){void el.offsetWidth;el.classList.add('on');}},450);
+function caption(txt,head){
+  const el=$('cap'),hd=$('caph');el.classList.remove('on');hd.classList.remove('on');clearTimeout(capTimer);
+  capTimer=setTimeout(()=>{el.textContent=txt||'';hd.textContent=head||'';if(txt){void el.offsetWidth;el.classList.add('on');if(head)hd.classList.add('on');}},G&&G.cut?260:450);
 }
 // while a card is up the hint stays hidden; the card's text is removed once it has faded
 function card(title,sub,ms,then){
@@ -1031,10 +1040,10 @@ function wipeCard(){
   const f=cardThen;cardThen=null;if(f)f();
 }
 // the opening: night gives way to sunrise while the camera drifts down the dead main street, then a rider comes in from the east
-const INTRO=[[.7,'The railroad went another way, and Dustfall emptied out.'],[4.5,'Years later, one rider came back.'],[7.7,'All he carried was a purse of coins.'],[10.3,'']];
+const INTRO=[[.7,'The railroad moved away, and the town of Dustfall died.'],[4.5,'Years later, the old sheriff’s son rides home.'],[7.7,'All he has is a purse of coins. It is enough to start rebuilding.'],[10.6,'']];
 function beginIntro(){
   const p=G.player;G.state='intro';G.intro={t:0,cap:0,card:0};G.t=.955;p.x=FIRE_X+470;p.dir=-1;p.vx=0;
-  $('title').hidden=true;document.body.classList.remove('title');cine(true);playTheme();
+  $('title').hidden=true;document.body.classList.remove('title');cine(true);document.body.classList.add('intro');playTheme();
 }
 function updIntro(dt){
   const I=G.intro,p=G.player,ease=u=>u*u*(3-2*u);I.t+=dt;
@@ -1053,7 +1062,7 @@ function updIntro(dt){
 function endIntro(skipped){
   if(G.state!=='intro')return;
   const p=G.player;p.x=FIRE_X-20;p.vx=0;p.dir=-1;p.lock=true;G.intro=null;G.t=.08;G.state='play';
-  cine(false);clearTimeout(capTimer);$('cap').classList.remove('on');$('cap').textContent='';wipeCard();G.seen.start=1;
+  cine(false);document.body.classList.remove('intro');clearTimeout(capTimer);$('cap').classList.remove('on');$('cap').textContent='';wipeCard();G.seen.start=1;
   if(skipped){G.fade=1;G.cam=clamp(p.x-W*.6,WEST,WORLD-W);if(themeBus&&AC)themeBus.gain.setTargetAtTime(0,AC.currentTime,.2);}
 }
 function banner(state,h,tag,btn){
@@ -2482,7 +2491,7 @@ function drawCoach(sx,c){
 }
 // rain, snow, or a wall of dust across the whole frame
 // ---------- Dustfall III: the story. It is told in closeups: the game irises out, a painted panel wipes in with a line under it, and a tap moves on
-const CU=document.createElement('canvas'),cu=CU.getContext('2d');CU.width=200;CU.height=112;
+const CK=4,CU=document.createElement('canvas'),cu=CU.getContext('2d');CU.width=200*CK;CU.height=112*CK;
 const cq=(x,y,w,h,c)=>{cu.fillStyle=c;cu.fillRect(Math.round(x),Math.round(y),w,h);};
 const cuStar=(cx,cy,r0,r1,rot,c)=>{cu.fillStyle=c;cu.beginPath();for(let i=0;i<10;i++){const a=rot+i*Math.PI/5,r=i%2?r1:r0;cu.lineTo(cx+Math.sin(a)*r,cy-Math.cos(a)*r);}cu.closePath();cu.fill();};
 const cuMotes=(t,n,c)=>{for(let i=0;i<n;i++){const x=((hash(i+3)*240+t*(6+hash(i+9)*14))%240)-20,y=hash(i+5)*112+Math.sin(t*.8+i)*4;cu.globalAlpha=.25+.5*hash(i+7);cq(x,y,hash(i)>.7?2:1,1,c);}cu.globalAlpha=1;};
@@ -2541,24 +2550,31 @@ const ART={
   wire(t,b){
     cq(0,0,200,112,'#4a3020');for(let i=0;i<6;i++)cq(0,i*20,200,1,'#3a2416');for(let i=0;i<40;i++)cq(hash(i+2)*200,hash(i+4)*112,8+hash(i)*14,1,'rgba(90,60,36,.5)');
     {const g=cu.createRadialGradient(170,10,4,170,10,120);g.addColorStop(0,'rgba(255,214,140,.5)');g.addColorStop(1,'rgba(255,214,140,0)');cu.fillStyle=g;cu.fillRect(0,0,200,112);}
-    cu.save();cu.translate(100,58);cu.rotate(-.045);cq(-80,-43,163,90,'rgba(20,10,6,.4)');cq(-82,-46,163,90,'#efe4c4');cq(-82,-46,163,13,'#d8c9a0');cq(-82,-33,163,1,'#8a7a5a');
-    cu.fillStyle='#4a3a2a';cu.font='bold 8px monospace';cu.textBaseline='top';cu.fillText('WESTERN TELEGRAPH CO.',-76,-43);
-    cu.font='bold 9px monospace';cu.fillStyle='#2a1c14';let n=Math.floor(t*24);
-    (b.lines||[]).forEach((ln,i)=>{const s=ln.slice(0,Math.max(0,n));n-=ln.length+6;cu.fillText(s,-74,-24+i*15);if(s.length&&s.length<ln.length&&Math.floor(t*8)%2)cq(-74+s.length*5.4,-24+i*15,5,8,'#2a1c14');});
-    cu.restore();cq(0,96,36,16,'#2e241c');cq(4,90,22,8,'#8d8780');cq(12,84,6,8,'#c9a14a');
+    cu.save();cu.translate(100,57);cu.rotate(-.025);cq(-82,-28,168,62,'rgba(20,10,6,.4)');cq(-84,-31,168,62,'#efe4c4');cq(-84,-31,168,11,'#d8c9a0');cq(-84,-20,168,1,'#8a7a5a');
+    cu.fillStyle='#4a3a2a';cu.font='bold 7px monospace';cu.textBaseline='top';cu.textAlign='left';cu.fillText(b.from||'WESTERN TELEGRAPH CO.',-78,-29);
+    cu.font='bold 9.5px monospace';cu.fillStyle='#2a1c14';let n=Math.floor(t*26);
+    (b.lines||[]).forEach((ln,i)=>{const s=ln.slice(0,Math.max(0,n));n-=ln.length+5;cu.fillText(s,-76,-15+i*14);if(s.length&&s.length<ln.length&&Math.floor(t*8)%2)cq(-76+s.length*5.7,-15+i*14,5,8,'#2a1c14');});
+    cu.restore();
   },
-  // Crane's map of the line, a cross through every town he has taken
+  // the rail line: towns you have rebuilt, where you are now, and what Crane still holds
   map(t,b){
     cq(0,0,200,112,'#e2cf9c');for(let i=0;i<30;i++)cq(hash(i+1)*200,hash(i+2)*112,10+hash(i+3)*30,6+hash(i)*10,'rgba(160,120,60,.12)');
-    cu.strokeStyle='#8a7a5a';cu.lineWidth=1;for(let i=0;i<7;i++){const x=14+i*28,y=22+hash(i+20)*10;cu.beginPath();cu.moveTo(x,y+12);cu.lineTo(x+8,y);cu.lineTo(x+16,y+12);cu.stroke();}
-    cu.fillStyle='#4a3a2a';cu.font='bold 9px Georgia,serif';cu.textBaseline='top';cu.fillText('CRANE CATTLE & RAIL',44,6);
-    const xs=[26,63,100,137,174],ys=[66,58,70,56,64],nm=['Dustfall','Redwater','Last Hope','Cold Creek','Bitter End'];
+    const lap=Math.floor(G.town/NST),cur=b.all?NST:b.cur===undefined?G.town%NST:b.cur,log=b.log||G.log.slice(lap*NST),here=b.place||G.place;
+    const xs=[24,62,100,138,176],ys=[56,50,60,48,55];
+    cu.textBaseline='middle';cu.textAlign='center';
     cu.strokeStyle='#2a1c14';cu.lineWidth=2;cu.setLineDash([5,3]);cu.beginPath();xs.forEach((x,i)=>i?cu.lineTo(x,ys[i]):cu.moveTo(x,ys[i]));cu.stroke();cu.setLineDash([]);
-    cu.font='7px Georgia,serif';xs.forEach((x,i)=>{cu.fillStyle='#2a1c14';cu.beginPath();cu.arc(x,ys[i],3.5,0,7);cu.fill();cu.fillStyle='#4a3a2a';cu.fillText(nm[i],x-16,ys[i]+9);});
-    cu.strokeStyle='#b0261c';cu.lineWidth=2.5;const n=b.n===undefined?5:b.n;
-    for(let i=4;i>=5-n;i--){const k=clamp(t*1.6-(4-i)*.7,0,1),x=xs[i],y=ys[i];if(k<=0)continue;cu.beginPath();cu.moveTo(x-7,y-7);cu.lineTo(x-7+14*Math.min(1,k*2),y-7+14*Math.min(1,k*2));cu.stroke();if(k>.5){cu.beginPath();cu.moveTo(x+7,y-7);cu.lineTo(x+7-14*(k-.5)*2,y-7+14*(k-.5)*2);cu.stroke();}}
-    cu.strokeStyle='#b0261c';cu.lineWidth=1.5;cu.beginPath();cu.arc(xs[0],ys[0],9+Math.sin(t*3),0,7);cu.stroke();
-    cq(150,84,40,22,'rgba(20,10,6,.25)');cq(148,80,40,22,'#5a3a22');cq(150,82,36,4,'#7a5434');
+    xs.forEach((x,i)=>{
+      const y=ys[i],up=i%2===1,done=i<cur,rec=log[i],nm=done?PLACES[(rec&&rec.place)||STAGES[i][0]].name:i===cur?PLACES[here].name:STAGES[i].length>1?'?':PLACES[STAGES[i][0]].name;
+      if(done&&(b.all||!rec||rec.star)){cuStar(x,y,7.5,3.3,0,'#2a1c14');cuStar(x,y,5.8,2.5,0,'#e8b830');}
+      else{cu.fillStyle='#2a1c14';cu.beginPath();cu.arc(x,y,4,0,7);cu.fill();if(done){cu.fillStyle='#e8b830';cu.beginPath();cu.arc(x,y,2.6,0,7);cu.fill();}}
+      if(i===cur){cu.strokeStyle='#b0261c';cu.lineWidth=1.6;cu.beginPath();cu.arc(x,y,8+Math.sin(t*3.2),0,7);cu.stroke();cu.fillStyle='#b0261c';cu.font='bold 6px Georgia,serif';cu.fillText('YOU ARE HERE',clamp(x,32,168),y+(up?13:-13));}
+      cu.fillStyle='#2a1c14';cu.font='bold 6.5px Georgia,serif';cu.fillText(nice(nm),clamp(x,26,174),y+(up?-12:12));
+    });
+    cu.font='bold 6px Georgia,serif';cu.textAlign='left';
+    cuStar(36,82,4.6,2,0,'#2a1c14');cuStar(36,82,3.5,1.5,0,'#e8b830');cu.fillStyle='#2a1c14';cu.fillText('rebuilt',43,82.5);
+    cu.strokeStyle='#b0261c';cu.lineWidth=1.2;cu.beginPath();cu.arc(84,82,3.6,0,7);cu.stroke();cu.fillText('you are here',91,82.5);
+    cu.fillStyle='#2a1c14';cu.beginPath();cu.arc(140,82,2.8,0,7);cu.fill();cu.fillText('held by Crane',146,82.5);
+    cu.textAlign='left';cu.textBaseline='top';
   },
   // Crane's private car, parked up the line at night
   train(t){
@@ -2660,34 +2676,57 @@ const ART={
     cuMotes(t,10,'#fff3c4');
   }
 };
-const cuArt=(b,t)=>{cu.setTransform(1,0,0,1,0,0);cu.globalAlpha=1;cu.clearRect(0,0,200,112);ART[b.art](t,b);};
+const cuArt=(b,t)=>{cu.setTransform(CK,0,0,CK,0,0);cu.globalAlpha=1;cu.clearRect(0,0,200,112);ART[b.art](t,b);};
 // the closeup fills the frame and drifts slowly inward
-function cuBlit(zoom){const sc=Math.max(W/200,H/112)*(zoom||1),w=200*sc,h=112*sc;ctx.imageSmoothingEnabled=false;ctx.drawImage(CU,(W-w)/2,(H-h)/2,w,h);}
+function cuBlit(zoom){const sc=Math.max(W/200,H*.7/78)*(zoom||1),w=200*sc,h=112*sc;ctx.imageSmoothingEnabled=false;ctx.drawImage(CU,(W-w)/2,H*.35-57*sc,w,h);}
 const STORY={
-  s1:{when:()=>!G.town&&G.day>=2&&G.t>.03&&G.t<.3,beats:[{art:'star',tr:'iris',cap:'In the ashes of the sheriff’s office he found his father’s star.'},{art:'eyes',who:'rider',tr:'wipe',cap:'Dustfall did not just die. Somebody burned it.'}]},
-  s2:{when:()=>!!G.report&&G.day-G.day0>=3&&G.t>.03&&G.t<.3,beats:[{art:'brand',tr:'flash',cap:'Every raider’s horse wears the same brand: a C in a ring.'},{art:'wire',tr:'blinds',lines:['CRANE CATTLE AND RAIL','BUYING ALL LAND AT DUSTFALL','ANY PRICE STOP OR NONE'],cap:'Crane Cattle & Rail. The outfit that moved the railroad away.'}]},
-  s3:{when:()=>G.x.duelDay===G.day&&G.t>.2&&G.t<.32,beats:[{art:'eyes',who:'gun',tr:'push',cap:'Crane does not ask twice. He sends a man.'},{art:'hand',tr:'wipe',cap:'Noon, on main street. Wait for the bell.'}]},
-  s4:{when:()=>G.x.rig.lv>0&&!(G.x.rig.gush>0),beats:[{art:'wire',tr:'iris',lines:['OIL UNDER DUSTFALL STOP','WHOLE LINE SITS ON IT STOP','GET IT BACK      S CRANE'],cap:'So that is what the town was burned for.'}]},
-  a1:{when:()=>G.town%NST===1&&G.t>.14,beats:[{art:'map',n:1,tr:'iris',cap:'Crane’s line runs five towns west, and he means to own every one of them.'}]},
-  a2:{when:()=>G.town%NST===2&&G.t>.14,beats:[{art:'map',n:2,tr:'blinds',cap:'Two towns stand against him now.'},{art:'eyes',who:'gun',tr:'flash',cap:'His riders are thicker out here, and better paid.'}]},
-  a3:{when:()=>G.town%NST===3&&G.t>.14,beats:[{art:'train',tr:'push',cap:'A private car is parked up the line. Crane has come to watch.'}]},
-  a4:{when:()=>G.town%NST===4&&G.t>.14,beats:[{art:'train',tr:'iris',cap:'Bitter End. The last town on the line.'},{art:'eyes',who:'crane',tr:'wipe',cap:'Silas Crane came down to finish it himself.'}]},
-  yard:{when:()=>G.player.x>YARD()+210,beats:[{art:'eyes',who:'hobo',tr:'push',cap:'“The railroad left us here when Crane pulled the line. Everything you see, he walked away from.”'}]},
-  won:{when:()=>!!G.seen.duelWon&&G.t>.5,beats:[{art:'hand',tr:'flash',cap:'Crane’s man did not get up.'},{art:'eyes',who:'crane',tr:'blinds',cap:'Word reached Crane by wire that same night. He sent for another.'}]},
-  storm:{when:()=>thun()&&!G.wx.title&&cloudI()>.7&&rainI()<.5,beats:[{art:'storm',tr:'blinds',cap:'The first big storm of the season came in off the mesas like a wall.'}]},
-  ufo:{when:()=>!!G.seen.ufo&&G.t>.03&&G.t<.3,beats:[{art:'saucer',tr:'flash',cap:'Nobody in town believed a word of it.'},{art:'eyes',who:'rider',tr:'wipe',cap:'The scorched ring was still warm in the morning.'}]},
-  end:{when:()=>G.town%NST===4&&G.star,beats:[{art:'map',n:0,tr:'flash',cap:'Five towns stood. There was nothing left for Crane to buy.'},{art:'eyes',who:'crane',tr:'blinds',cap:'He left on the night train and did not come back.'},{art:'badge',tr:'iris',cap:'The line belongs to the people who live on it.',dur:8}],
+  s1:{when:()=>!G.town&&G.day>=2&&G.t>.03&&G.t<.3,beats:[
+    {art:'star',tr:'iris',head:'Your father’s badge',cap:'In the ashes of the sheriff’s office you find your father’s badge.'},
+    {art:'eyes',who:'rider',tr:'wipe',head:'You, the rider',cap:'This town did not just empty out. Somebody burned it down. But who?'}]},
+  s2:{when:()=>!!G.report&&G.day-G.day0>=3&&G.t>.03&&G.t<.3,beats:[
+    {art:'brand',tr:'flash',head:'The raiders’ brand',cap:'Every raider’s horse carries the same brand: the letter C.'},
+    {art:'wire',tr:'blinds',head:'A telegram',lines:['CRANE CATTLE AND RAIL','IS BUYING ALL THE LAND','AT DUSTFALL'],cap:'C is for Crane, the railroad boss. His raiders want you off this land.'}]},
+  s3:{when:()=>G.x.duelDay===G.day&&G.t>.2&&G.t<.32,beats:[
+    {art:'eyes',who:'gun',tr:'push',head:'Crane’s hired gun',cap:'Crane has sent a gunfighter to get rid of you.'},
+    {art:'hand',tr:'wipe',head:'Duel at noon',cap:'Meet him on main street at noon. Wait for the bell, then fire first.'}]},
+  s4:{when:()=>G.x.rig.lv>0&&!(G.x.rig.gush>0),beats:[
+    {art:'wire',tr:'iris',head:'Crane’s telegram',lines:['OIL UNDER DUSTFALL','GET THAT LAND BACK','       S. CRANE'],cap:'Now you know why he burned the town. There is oil under it.'}]},
+  a1:{when:()=>G.town%NST===1&&G.t>.14,beats:[
+    {art:'map',tr:'iris',head:'The rail line',cap:'Dustfall stands again. Now rebuild the towns Crane still holds.'}]},
+  a2:{when:()=>G.town%NST===2&&G.t>.14,beats:[
+    {art:'map',tr:'blinds',head:'The rail line',cap:'Two towns are behind you. Three are still to come.'},
+    {art:'eyes',who:'gun',tr:'flash',head:'Crane’s riders',cap:'Crane pays his men better out here. Expect bigger raids.'}]},
+  a3:{when:()=>G.town%NST===3&&G.t>.14,beats:[
+    {art:'train',tr:'push',head:'Crane’s private train',cap:'Crane has come out in his own rail car to watch you fail.'}]},
+  a4:{when:()=>G.town%NST===4&&G.t>.14,beats:[
+    {art:'map',tr:'iris',head:'The rail line',cap:'Bitter End. This is the last town on the line.'},
+    {art:'eyes',who:'crane',tr:'wipe',head:'Silas Crane',cap:'Crane is here himself. Get every building here to its best and he is finished.'}]},
+  yard:{when:()=>G.player.x>YARD()+210,beats:[
+    {art:'eyes',who:'hobo',tr:'push',head:'A hobo at the old rail yard',cap:'“Crane shut this yard down and left us here. Take whatever you can use.”'}]},
+  won:{when:()=>!!G.seen.duelWon&&G.t>.5,beats:[
+    {art:'hand',tr:'flash',head:'You won the duel',cap:'Crane’s gunfighter is beaten.'},
+    {art:'eyes',who:'crane',tr:'blinds',head:'Silas Crane',cap:'Crane hears about it the same night. He will send another.'}]},
+  storm:{when:()=>thun()&&!G.wx.title&&cloudI()>.7&&rainI()<.5,beats:[
+    {art:'storm',tr:'blinds',head:'Storm season',cap:'The first big thunderstorm rolls in. Lightning can set your roofs on fire.'}]},
+  ufo:{when:()=>!!G.seen.ufo&&G.t>.03&&G.t<.3,beats:[
+    {art:'saucer',tr:'flash',head:'Last night',cap:'Something came down out of the sky and took one of the animals.'},
+    {art:'eyes',who:'rider',tr:'wipe',head:'You, the rider',cap:'Nobody in town believes you. But it left coins behind, in a burnt ring.'}]},
+  end:{when:()=>G.town%NST===4&&G.star,beats:[
+    {art:'map',all:1,tr:'flash',head:'All five towns rebuilt',cap:'Every town stands again. There is nothing left for Crane to buy.'},
+    {art:'eyes',who:'crane',tr:'blinds',head:'Silas Crane',cap:'He leaves on the night train and never comes back.'},
+    {art:'badge',tr:'iris',head:'The end',cap:'The line belongs to the people who live on it.'}],
     then:()=>{const st=G.log.filter(r=>r.star).length+(G.star?1:0);card('Dustfall III',`The end of the line: ${G.day} days, ${st} of 5 towns with a star. Ride on as long as you like.`,7000);fireworks(G.player.x,12);sfx.fanfare();FX().rays=3;FX().rx=G.player.x;FX().rh=40;}}
 };
 function playCut(beats,then){
-  if(G.cut)return;G.cut={beats,i:0,t:0,ph:'in',tap:0,then,t0:performance.now()};cine(true);caption('');input.key=input.stick=0;held.clear();G.player.vx=0;
+  if(G.cut)return;G.cut={beats,i:0,t:0,ph:'in',tap:0,then,t0:performance.now()};cine(true);document.body.classList.add('cut');$('capn').classList.remove('on');caption('');input.key=input.stick=0;held.clear();G.player.vx=0;
 }
 function updCut(dt){
-  const c=G.cut;c.t+=dt;const tap=c.tap&&c.t>.5;c.tap=0;
-  if(c.ph==='in'){if(!c.w){c.w=1;whoosh(.5,.09,2200,300);}if(c.t>.55){c.ph='beat';c.t=0;caption(c.beats[0].cap);sfx.sting();whoosh(.45,.1,300,2200);}}
+  const c=G.cut,pn=$('capn');c.t+=dt;const tap=c.tap&&c.t>.9;c.tap=0;
+  if(c.ph==='in'){if(!c.w){c.w=1;whoosh(.5,.09,2200,300);}if(c.t>.55){c.ph='beat';c.t=0;caption(c.beats[0].cap,c.beats[0].head);sfx.sting();whoosh(.45,.1,300,2200);}}
   else if(c.ph==='beat'){
-    if(tap||c.t>(TOUR?Math.min(c.beats[c.i].dur||6,3.6):c.beats[c.i].dur||6)){if(c.i<c.beats.length-1){c.i++;c.t=0;caption(c.beats[c.i].cap);sfx.click();whoosh(.45,.1,c.i%2?2400:300,c.i%2?300:2400);}else{c.ph='out';c.t=0;caption('');whoosh(.55,.09,300,2200);}}
-  }else if(c.t>.6){G.cut=null;cine(false);G.player.lock=true;G.player.glock=true;if(c.then)c.then();}
+    {const on=c.t>.9,key=c.i+'|'+on;if(c.pn!==key){c.pn=key;const last=c.i===c.beats.length-1;pn.textContent=(c.beats.length>1?(c.i+1)+' of '+c.beats.length+'  ·  ':'')+(document.body.classList.contains('touch')?'Tap':'Press any key')+(last?' to ride on \u25B8':' to go on \u25B8');pn.classList.toggle('on',on&&!TOUR);}}
+    if(tap||TOUR&&c.t>Math.min(c.beats[c.i].dur||6,3.6)){pn.classList.remove('on');if(c.i<c.beats.length-1){c.i++;c.t=0;caption(c.beats[c.i].cap,c.beats[c.i].head);sfx.click();whoosh(.45,.1,c.i%2?2400:300,c.i%2?300:2400);}else{c.ph='out';c.t=0;caption('');whoosh(.55,.09,300,2200);}}
+  }else if(c.t>.6){G.cut=null;cine(false);document.body.classList.remove('cut');G.player.lock=true;G.player.glock=true;if(c.then)c.then();}
 }
 function storyTick(){
   if(TOUR||G.cut||G.duel||G.trip||G.fade>.05||G.stamp||document.body.classList.contains('carded')||G.bandits.some(q=>q.state==='raid'))return;
@@ -2720,7 +2759,7 @@ function duelStrips(){
   const d=G.duel,time=performance.now()/1000,sh=Math.round(W*26/200);
   const strip=(who,k,y,dir)=>{
     if(k<=0)return;const e=Math.min(1,k/.28),x=Math.round(dir*Math.pow(1-e,3)*W);cuArt({art:'eyes',who},time);ctx.imageSmoothingEnabled=false;
-    R(x,y-2,W,sh+4,'#0c0705');ctx.drawImage(CU,0,39,200,26,x,y,W,sh);R(x,y-2,W,1,'#f2c14e');R(x,y+sh+1,W,1,'#f2c14e');
+    R(x,y-2,W,sh+4,'#0c0705');ctx.drawImage(CU,0,39*CK,200*CK,26*CK,x,y,W,sh);R(x,y-2,W,1,'#f2c14e');R(x,y+sh+1,W,1,'#f2c14e');
   };
   const y0=Math.max(2,Math.round(GY*.5-sh-3));
   strip('rider',d.t-.7,y0,-1);strip('gun',d.t-1.5,y0+sh+5,1);
@@ -3517,7 +3556,7 @@ function yardDone(k,s,x){
   }else if(k==='car'){
     const n=s.n++;s.cool=3;sfx.crash(.6);dust(x,10,12);G.shake=Math.max(G.shake,.2);
     const pay=c=>{pop(x,40,'+'+c);for(let i=0;i<c;i++)coin(x+rnd(-8,8),10,rnd(-40,40),rnd(40,90),true);};
-    if(n===0){pay(10);playCut([{art:'wire',tr:'iris',lines:['PAID VARNEY  DUSTFALL JOB','PAID  TORCHES AND LAMP OIL','OIL LEASE TO FOLLOW  S.C.'],cap:'Crates of company ledgers. Crane paid for the fire, and wrote it down.',dur:TOUR?5:7}]);}
+    if(n===0){pay(10);playCut([{art:'wire',tr:'iris',head:'Inside the boxcar',from:'CRANE CATTLE AND RAIL: LEDGER',lines:['PAID VARNEY: DUSTFALL JOB','PAID: TORCHES AND LAMP OIL','SIGNED       S. CRANE'],cap:'Company ledgers, and proof: Crane paid a man to burn Dustfall.'}]);}
     else if(n===1){X.dyn+=2;hint('car2',true,'Blasting supplies, forgotten since the line was built. Two sticks of dynamite are still good.');}
     else if(n===2){pay(12);G.ufo={ph:'out',t:0,x,tg:{k:'none'},lift:1,side:1,hum:0};tone1(240,.8,'sawtooth',.05,2800);hint('car3',true,'The door comes off and something green goes straight up out of it. It left twelve coins behind.');}
     else if(Math.random()<.3){X.dyn++;pay(4);hint('car4',true,'A few coins and a stick of dynamite, this time.');}
@@ -4968,7 +5007,7 @@ let padWas=false,padAx=0;
 function pollPad(){
   const gp=navigator.getGamepads?[...navigator.getGamepads()].find(g=>g&&g.connected):null,on=i=>!!(gp&&gp.buttons[i]&&gp.buttons[i].pressed);
   input.padAxis=gp&&Math.abs(gp.axes[0])>.25?gp.axes[0]:0;input.dpad=on(15)-on(14);input.padDrop=[0,2,7].some(on);input.padFire=[1,3,5].some(on);if(on(4))input.reload=true;
-  const go=on(0)||on(9);if(go&&!padWas){if(G.state==='intro')endIntro(true);else if(G.state!=='play')start();else if(mapPick)pickPlace(mapPick.els[mapPick.i].dataset.place);}padWas=go;
+  const go=on(0)||on(9);if(go&&!padWas){if(G.cut)G.cut.tap=1;else if(G.state==='intro')endIntro(true);else if(G.state!=='play')start();else if(mapPick)pickPlace(mapPick.els[mapPick.i].dataset.place);}padWas=go;
   {const ax=(input.padAxis>.5||on(15)||on(13))-(input.padAxis<-.5||on(14)||on(12));if(mapPick&&ax&&ax!==padAx)mapMove(ax);padAx=ax;}
 }
 addEventListener('gamepadconnected',()=>{if(G.state==='title')$('how').textContent='Controller: stick or d-pad to ride, A to toss a coin, B to fire.';});
