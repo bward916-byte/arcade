@@ -472,7 +472,7 @@ function reset(town,place){
     hares:[185,318,440,588,752,2245,2415,2500,2585,2725].map(EX).map((x,i)=>({x0:x,x,t:0,cool:0,dir:i%2?1:-1})),
     dog:{x:FIRE_X+16,dir:-1,walk:0,moving:false,bark:0,yap:0},
     // two camps close to town and two bigger ones out at the far ends; the far strongboxes hold more
-    boxes:[{x:250,n:6},{x:610},{x:EX(river?2292:2270)},{x:EX(2540),n:6},{x:-476,n:10+2*town}].map(b=>({open:false,...b})),
+    boxes:[{x:250,n:6},{x:610},{x:EX(river?2292:2270)},{x:EX(2540),n:6},{x:-476,n:6+2*town}].map(b=>({open:false,...b})),
     veins:VEINS.map((x,i)=>({x,pay:8+i*2,paid:0,incoming:0,cool:0,fuse:0,flash:0})),bats:[],roost:true,camps:[{x:120,cap:3},{x:700,cap:2},{x:EX(river?2256:2210),cap:2},{x:EX(2640),cap:3},{x:-392,cap:2}],seen:{},x:mkX(),cav:null,stamp:null,duel:null,
     perch:[640,655,1085,1100,1118,1462,1474,1612,1790,1803,1818,2262].map(EX).map((x,i)=>({x0:x,x,h:0,vx:0,vh:0,t:0,id:i}))};
   for(const b of G.b)if(!avail(b.type,town))b.x=-999;     // not in this town yet: an empty lot
@@ -1889,7 +1889,7 @@ function updBuild(dt){
       b.paid=0;p.lock=true;hint('short',true,p.coins+G.bank?`Coins returned. The ${label(b)} needs all ${cost} at once.`:`Not enough coins, so they came back. The ${label(b)} needs ${cost}.`);
     }
     if(!b.building)continue;
-    b.progress+=dt*(gate?.09:.035)*Math.min(G.folk.filter(f=>f.work).length,5);
+    b.progress+=dt*(gate?.063:.0245)*Math.min(G.folk.filter(f=>f.work).length,5);
     if(b.progress<1)continue;
     b.building=false;b.progress=0;b.paid=0;b.level++;if(gate)b.hp=GHP[b.level];
     {const f=FX(),cx=b.x+b.w/2;f.rays=1.6;f.rx=cx;f.rh=topOf(b,b.level)*.6;SK().rings.push({x:cx,t:0,r:b.w*.8});spark(cx,topOf(b,b.level),10,'#ffe9a8');for(let i=0;i<8;i++)G.parts.push({x:b.x+rnd(0,b.w),h:rnd(0,4),vx:rnd(-20,20),vh:rnd(6,16),life:0,max:rnd(.8,1.6),col:DUSTC,grav:0,big:1});whoosh(.5,.08,400,2400);}
@@ -3186,7 +3186,7 @@ const ITEMS=[{k:'dyn',name:'Dynamite',cost:4,txt:'Your next shot into a bunch of
   {k:'lantern',name:'Signal lantern',cost:6,once:1,txt:'You and your deputies see a fifth further, day or night.'},{k:'oats',name:'Sack of oats',cost:2,txt:'Your horse does not tire today.'}];
 const postItem=()=>{if(G.x.post.sold===G.day)return null;const l=ITEMS.filter(i=>!i.once||!G.x[i.k]);return l[(G.day+G.town)%l.length];};
 const flooded=()=>!!G.x&&G.x.flood>=G.day&&BIO!=='snow';
-const rigPay=()=>6+G.town,ruinPay=()=>9+2*G.town;
+const rigPay=()=>6+G.town,ruinPay=()=>7+2*G.town;
 // what it costs right now, or 0 if there is nothing to buy here at the moment
 function siteCost(k){
   const X=G.x,s=X[k];
