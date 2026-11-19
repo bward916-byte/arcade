@@ -875,7 +875,7 @@ function info(x){
   if(G.rail)return ['Handcar',document.body.classList.contains('touch')?'Hold the right side to pump, the left side to brake. Keep the needle in the green.':'Hold right to pump, left to brake. Keep the needle in the green.'];
   const p=G.player;
   {const k=siteAt(x);if(k){const r=siteInfo(k);if(r)return r;}}
-  {const w=(G.wild||[]).find(w=>!w.foal&&w.st!=='loose'&&Math.abs(w.x-x)<16);if(w)return w.k==='horse'?['Wild mustang',w.st==='tame'?'Roped. Lead it in through the gate to sell it.':'Gallop alongside for a moment to rope it, then lead it into town to sell.']:['Stray longhorn',w.st==='tame'?'It follows you. Drive it to your pasture, or into town to sell.':'Ride right up to it and it follows you.'];}
+  {const w=(G.wild||[]).find(w=>!w.foal&&w.st!=='loose'&&Math.abs(w.x-x)<(w.k==='cow'&&w.st!=='tame'?34:16));if(w)return w.k==='horse'?['Wild mustang',w.st==='tame'?'Roped. Lead it in through the gate to sell it.':'Gallop alongside for a moment to rope it, then lead it into town to sell.']:['Stray longhorn',w.st==='tame'?'It follows you. Drive it to your pasture, or into town to sell.':'Ride right up to it and it follows you.'];}
   if(flooded()&&x>RIV()[0]&&x<RIV()[1])return [BIO==='river'?'River in flood':'Flash flood','Everyone who crosses is slowed to a crawl. When it drops it leaves gold in the gravel.'];
   for(const b of G.b)if(DEF[b.type].tool&&b.level&&b.x>=0&&Math.abs(x-rackX(b))<9){
     const [what,does]=RACK[DEF[b.type].tool];
@@ -888,7 +888,7 @@ function info(x){
     return null;
   }
   const nm=NAME[b.type]||b.type,tg=target(x),L=b.level,gv=GIVES[b.type]||[];
-  if(b.building)return [nm,head('folk')?'Being built. More townsfolk build it faster.':'Nobody is free to build this. Tap the head count at the top to take someone off a job.'];
+  if(b.building)return [nm,head('folk')?(b===G.b.find(z=>z.building)?'Being built. More townsfolk build it faster.':'Paid for. The crew starts here when the job in hand is finished.'):'Nobody is free to build this. Tap the head count at the top to take someone off a job.'];
   if(tg){
     if(tg.k==='mend')return ['Gate','1 coin patches some of the damage.'];
     if(tg.k==='hire')return ['Gatehouse','4 coins hires a rifleman for tonight. Up to three.'];
@@ -1888,7 +1888,7 @@ function updBuild(dt){
       for(let i=0;i<b.paid;i++){const sp=slotPos(b,i,cost);G.coins.push({x:sp.x,h:sp.h-2,st:'back',age:-i*.07});}
       b.paid=0;p.lock=true;hint('short',true,p.coins+G.bank?`Coins returned. The ${label(b)} needs all ${cost} at once.`:`Not enough coins, so they came back. The ${label(b)} needs ${cost}.`);
     }
-    if(!b.building)continue;
+    if(!b.building||b!==G.b.find(z=>z.building))continue;     // one site at a time, the one the crew is at: the next waits its turn
     b.progress+=dt*(gate?.063:.0245)*Math.min(G.folk.filter(f=>f.work).length,5);
     if(b.progress<1)continue;
     b.building=false;b.progress=0;b.paid=0;b.level++;if(gate)b.hp=GHP[b.level];
@@ -2821,7 +2821,7 @@ function updWild(dt){
       if(w.st==='graze'){
         if((w.t-=dt)<=0){w.t=rnd(2,7);w.tx=Math.random()<.4?null:clamp(w.x+rnd(-50,50),r[0],r[1]);}
         if(w.tx!==null&&Math.abs(w.tx-w.x)>1){w.dir=Math.sign(w.tx-w.x);w.x+=w.dir*9*dt;}
-        if(ad<(H?66:26)&&(Math.abs(p.vx)>20||ad<20)){w.st='bolt';w.t=H?3.2:1.6;w.dir=dp>0?-1:1;if(H&&Math.random()<.4)sfx.whinny();if(!H)sfx.moo(.6);}
+        if(H&&ad<66&&(Math.abs(p.vx)>20||ad<20)){w.st='bolt';w.t=H?3.2:1.6;w.dir=dp>0?-1:1;if(H&&Math.random()<.4)sfx.whinny();if(!H)sfx.moo(.6);}
       }else{
         w.x+=w.dir*(H?88:34)*dt;if(w.x<r[0]){w.x=r[0];w.dir=1;}if(w.x>r[1]){w.x=r[1];w.dir=-1;}
         if(H&&Math.random()<dt*9)dust(w.x-w.dir*8,0,1);
