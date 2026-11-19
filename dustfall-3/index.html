@@ -295,7 +295,6 @@ button.stop.chosen{background:#f2c14e;animation:none;outline-style:solid}button.
   <p id="tag">Open range, wide skies, and thunder on the wind.</p>
   <button id="go" type="button">Ride in</button>
   <button id="cont" type="button" hidden>Continue</button>
-  <button id="demo" type="button">Demos</button>
   <p id="how">Arrow keys or A and D to ride. Space to toss a coin, F to fire.</p>
 </div>
 
@@ -527,13 +526,14 @@ function text(x,y,s,c,drop){
 // ---------- audio
 const nat=(plugin,method,opts)=>{try{const C=window.Capacitor;if(!C||!C.isNativePlatform||!C.isNativePlatform())return null;if(C.nativePromise)return C.nativePromise(plugin,method,opts||{});const P=C.Plugins&&C.Plugins[plugin];return P&&P[method]?P[method](opts||{}):null;}catch(e){return null;}};
 const LS={set(k,v){try{localStorage.setItem(k,v);}catch(e){}const p=nat('Preferences','set',{key:k,value:v});if(p&&p.catch)p.catch(()=>{});},del(k){try{localStorage.removeItem(k);}catch(e){}const p=nat('Preferences','remove',{key:k});if(p&&p.catch)p.catch(()=>{});}};
-const OPT=(()=>{try{return Object.assign({m:0,h:1},JSON.parse(localStorage.getItem('dustfall3-opts'))||{});}catch(e){return {m:0,h:1};}})(),optSave=()=>LS.set('dustfall3-opts',JSON.stringify(OPT));
+const OPT=(()=>{try{return Object.assign({s:0,h:1},JSON.parse(localStorage.getItem('dustfall3-opts'))||{});}catch(e){return {s:0,h:1};}})(),optSave=()=>LS.set('dustfall3-opts',JSON.stringify(OPT));
 // a tap you can feel: the native plugin when wrapped as an app, the browser's vibration otherwise
 const haptic=ms=>{if(!OPT.h||TOUR)return;try{const p=nat('Haptics','impact',{style:ms>40?'HEAVY':ms>15?'MEDIUM':'LIGHT'});if(p){if(p.catch)p.catch(()=>{});}else if(navigator.vibrate)navigator.vibrate(ms);}catch(e){}};
-let AC=null,master,pianoBus,windBus,noiseBuf,muted=!!OPT.m,nextNote=0,noteIdx=0;
+let AC=null,master,pianoBus,windBus,noiseBuf,muted=!!OPT.s,nextNote=0,noteIdx=0;
 function initAudio(){
   if(AC)return;
   try{
+    try{if(navigator.audioSession)navigator.audioSession.type='playback';}catch(e){}
     AC=new (window.AudioContext||window.webkitAudioContext)();
     master=AC.createGain();master.gain.value=.6;master.connect(AC.destination);
     pianoBus=AC.createGain();pianoBus.gain.value=0;pianoBus.connect(master);
@@ -3081,9 +3081,10 @@ const GSTEPS=[
 const gTouch=()=>document.body.classList.contains('touch');
 const gCamp=()=>{let best=null;for(const c of G.camps)if(best===null||Math.abs(c.x-G.player.x)<Math.abs(best-G.player.x))best=c.x;return best;};
 const gLot=()=>{let best=null;for(const b of G.b)if(b.x>=0&&b.level===0&&!b.building&&typeof DEF[b.type].wall==='string'&&costOf(b)&&(!best||costOf(b)<costOf(best)))best=b;return best;};
-let gShown='';
+let gShown='';const GUIDE_ON=false;
 function guideOff(){if(gShown){gShown='';$('guide').classList.remove('on');document.body.classList.remove('guiding');}}
 function updGuide(dt){
+  if(!GUIDE_ON)return;
   const X=G.x;if(TOUR||G.state!=='play'||G.town!==0||X.guide>=GSTEPS.length){guideOff();return;}
   if(X.guide===0&&!X.gt&&(G.folk.length||G.day-G.day0>1||G.b.some(b=>b.x>=0&&b.level>0&&typeof DEF[b.type].wall==='string'))){X.guide=99;return;}     // a town already under way needs no walking through
   X.gt=(X.gt||0)+dt;
@@ -3095,6 +3096,7 @@ function updGuide(dt){
   const t=s.txt();if(t!==gShown){gShown=t;const el=$('guide');el.lastChild.textContent=t;el.firstChild.textContent=Math.min(X.guide+1,GSTEPS.length-1)+'';el.classList.add('on');document.body.classList.add('guiding');}
 }
 function drawGuide(cam){
+  if(!GUIDE_ON)return;
   const X=G.x;if(TOUR||G.state!=='play'||G.town!==0||!(X.guide<GSTEPS.length)||!gShown||G.cut||G.duel)return;
   const wx=GSTEPS[X.guide].at();if(wx===null||wx===undefined)return;
   const sx=wx-cam,T=G.clock,b=Math.round(Math.abs(Math.sin(T*4))*4),gold='#f2c14e',ink='#24160f';
@@ -4959,7 +4961,7 @@ const touchy=()=>{document.body.classList.add('touch');if(G.state==='title')$('h
 if((window.matchMedia&&matchMedia('(pointer:coarse)').matches)||navigator.maxTouchPoints>0)touchy();
 addEventListener('touchstart',touchy,{once:true,passive:true});
 // stop long-press text selection, the copy bubble, and double-tap or pinch zoom; real buttons still get their taps
-const quiet=e=>{const t=e.target.closest?e.target:e.target.parentElement;if(!t||!t.closest('#go,#cont,#demo,#tourx,#mute,#mapb,#map,#folkb,#roster,#ammo'))e.preventDefault();};
+const quiet=e=>{const t=e.target.closest?e.target:e.target.parentElement;if(!t||!t.closest('#go,#cont,#tourx,#mute,#mapb,#map,#menu,#folkb,#roster,#ammo'))e.preventDefault();};
 for(const ev of ['touchstart','touchmove','touchend','gesturestart','selectstart','dblclick'])document.addEventListener(ev,quiet,{passive:false});
 // physical controller: left stick or d-pad rides, A / X or right trigger tosses, B / Y or right bumper fires, A or Start begins
 let padWas=false,padAx=0;
@@ -4975,10 +4977,10 @@ $('map').addEventListener('click',e=>{const bt=e.target.closest('button.stop');i
 $('ammo').addEventListener('click',()=>{$('ammo').blur();input.reload=true;});
 $('folkb').addEventListener('click',()=>{$('folkb').blur();if(G.state==='play'&&!G.trip&&!TOUR)showRoster();});
 $('roster').addEventListener('click',e=>{const bt=e.target.closest('button');if(!bt)hideRoster();else if(bt.dataset.role)release(bt.dataset.role);else hideRoster();});
-const setMuted=m=>{muted=!!m;OPT.m=muted?1:0;optSave();$('msnd').textContent='Sound: '+(muted?'off':'on');};
+const setMuted=m=>{muted=!!m;OPT.s=muted?1:0;optSave();$('msnd').textContent='Sound: '+(muted?'off':'on');};
 const menuOpen=()=>{if(G.state!=='play'||TOUR||G.cut||G.duel||G.trip||!$('map').hidden||!$('roster').hidden)return;save();$('menu').hidden=false;paused=true;held.clear();input.key=input.stick=0;$('msnd').textContent='Sound: '+(muted?'off':'on');$('mhap').textContent='Vibration: '+(OPT.h?'on':'off');$('mres').focus();};
-const menuClose=()=>{if($('menu').hidden)return;$('menu').hidden=true;paused=false;held.clear();input.key=0;if(AC&&AC.state==='suspended')AC.resume();};
-$('mute').addEventListener('click',()=>{$('mute').blur();if(TOUR||G.state!=='play')setMuted(!muted);else menuOpen();});
+const menuClose=()=>{if($('menu').hidden)return;$('menu').hidden=true;paused=false;held.clear();input.key=0;if(AC&&AC.state!=='running')AC.resume();};
+$('mute').addEventListener('click',()=>{$('mute').blur();if(!TOUR&&G.state==='play')menuOpen();});
 $('mres').addEventListener('click',menuClose);$('msnd').addEventListener('click',()=>setMuted(!muted));
 $('mhap').addEventListener('click',()=>{OPT.h=OPT.h?0:1;optSave();$('mhap').textContent='Vibration: '+(OPT.h?'on':'off');haptic(30);});
 $('mhow').addEventListener('click',()=>{$('menhow').hidden=!$('menhow').hidden;});
@@ -5001,7 +5003,7 @@ function start(keep){
 $('go').addEventListener('click',start);
 document.addEventListener('pointerdown',()=>{if(G.state==='intro'&&G.intro.t>.6)endIntro(true);});
 $('cont').addEventListener('click',()=>{if(load())start(true);});
-$('demo').addEventListener('click',showDemos);$('demall').addEventListener('click',()=>tourStart(0));$('demx').addEventListener('click',()=>{hideDemos();$('title').hidden=false;});$('tourx').addEventListener('click',tourEnd);
+$('demall').addEventListener('click',()=>tourStart(0));$('demx').addEventListener('click',()=>{hideDemos();$('title').hidden=false;});$('tourx').addEventListener('click',tourEnd);
 document.addEventListener('pointerdown',e=>{if(TOUR&&TOUR.t>.3&&!(e.target.closest&&e.target.closest('#tourx,#mute')))tourNext(1);});
 if(peek()){$('cont').hidden=false;$('cont').textContent='Continue in '+nice((PLACES[peek().place]||PLACES[stageOf(peek().town||0)[0]]).name)+', day '+peek().day;}
 // if iOS has cleared the web copy of the save, bring it back from the native one before the title offers Continue
@@ -5018,6 +5020,7 @@ function frame(now){
   if(!qLock&&Q>0&&raw<.25&&!document.hidden){slowT+=raw;workT+=performance.now()-now;if(++slowN>=100){if(workT/slowN>13||slowT/slowN>.045)setQ(Q-1);slowT=workT=slowN=0;}}
   requestAnimationFrame(frame);
 }
+document.addEventListener('pointerdown',()=>{if(AC&&AC.state!=='running'&&AC.state!=='closed'&&G.state!=='title')AC.resume();});
 requestAnimationFrame(frame);
 })();
 </script>
