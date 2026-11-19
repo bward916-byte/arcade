@@ -303,7 +303,7 @@ function hud(dt){
   const tg=G.state==='play'&&!G.trip?target(p.x):null,z=zoneOf(p.x),el=$('info');let a='',b='';
   if(tg&&tg.k==='merc'){a='CARAVAN';b=`${(tg.b.paid||0)+(tg.b.inc||0)} of 4 coins hires a guard`;}
   else if(tg&&tg.k==='tool'){a='TOOL RACK';b='A coin outfits a '+DEF[tg.b.type].tool;}
-  else if(tg&&tg.k==='slot'){a=tg.b.type==='dock'&&tg.b.level?'FELUCCA':DEF[tg.b.type].name;b=`${tg.b.paid+tg.b.incoming} of ${costOf(tg.b)} coins`;}
+  else if(tg&&tg.k==='slot'){a=tg.b.type==='dock'&&tg.b.level?'FELUCCA':DEF[tg.b.type].name;b=`${tg.b.paid+tg.b.incoming} of ${costOf(tg.b)} coins`;if(tg.b.type==='dock'&&tg.b.level)b+=`. You sail on with ${clamp((p.coins+G.bank-(costOf(tg.b)-tg.b.paid-tg.b.incoming))>>1,8,25)} coins`;}
   else if(tg&&tg.k==='mend'){a=DEF[tg.b.type].name;b='A coin patches the gate';}
   else if(tg&&tg.k==='bank'){a='TREASURY';b='Toss to deposit'+(G.bank?', or with an empty purse to draw five':'');}
   else if(z&&z.building){a=DEF[z.type].name;b=head('folk')?'Being built':'Nobody free to build';}
@@ -419,7 +419,7 @@ function updPlayer(dt){
     else if(tg&&tg.k!=='bank'&&G.bank>0){tossCoin(tg,true);p.cd=.2;}
     else if(p.coins>0){tossCoin(tg);p.cd=.2;}
     else if(tg&&tg.k==='bank'&&G.bank>0){const n=Math.min(5,G.bank);G.bank-=n;p.lock=true;sfx.urn();for(let i=0;i<n;i++)G.coins.push({x:tg.b.x+28,h:10,st:'back',age:-i*.07});}
-    else{sfx.empty();p.cd=.5;hint('broke',true);}
+    else if(!G.b.some(b=>b.paid)&&!(G.caravan&&G.caravan.paid)){sfx.empty();p.cd=.5;hint('broke',true);}
   }
   // the bow
   if(p.rl>0&&(p.rl-=dt)<=0){p.ammo=6;sfx.slot();}
@@ -458,10 +458,19 @@ function updCoins(dt){
       else{b.building=true;b.progress=0;b.need=3+b.paid*.45;hint(head('folk')?'funded':'noworkers',!head('folk'));}
     }
   }
-  // ride off from a half-paid ruin and the coins come back
-  for(const b of G.b)if(b.paid&&!b.building&&!b.incoming&&zoneOf(p.x)!==b&&(b.idle+=dt)>5){
-    const n=costOf(b)||b.paid;for(let k=0;k<b.paid;k++){const sp=slotPos(b,k,n);G.coins.push({x:sp.x,h:sp.h,st:'back',age:-k*.06});}b.paid=0;b.idle=0;hint('refund');
+  // Dustfall's rule: a half-paid job hands every coin back the moment you cannot or will not finish it,
+  // which is when the purse and treasury are both empty, or you ride out of reach
+  const broke=!(p.coins+G.bank);
+  for(const b of G.b){
+    b.idle=!b.building&&b.paid>0&&!b.incoming&&(broke||zoneOf(p.x)!==b)?b.idle+dt:0;
+    if(b.idle>.45){
+      const cost=costOf(b)||b.paid,nm=b.type==='dock'&&b.level?'felucca':DEF[b.type].name.toLowerCase();
+      for(let k=0;k<b.paid;k++){const sp=slotPos(b,k,cost);G.coins.push({x:sp.x,h:sp.h,st:'back',age:-k*.07});}
+      b.paid=0;b.idle=0;p.lock=true;hint('refund',true,broke?`Not enough coins, so they came back. The ${nm} needs ${cost}.`:`Coins returned. The ${nm} needs all ${cost} at once.`);
+    }
   }
+  {const c=G.caravan;if(c&&c.paid&&!c.sold&&!c.inc){c.idle=c.st!=='stop'||broke||Math.abs(p.x-c.x-22)>14?(c.idle||0)+dt:0;
+    if(c.idle>.45){for(let k=0;k<c.paid;k++)G.coins.push({x:c.x+13+k*6,h:21,st:'back',age:-k*.07});c.paid=0;c.idle=0;p.lock=true;hint('refund',true,broke?'Not enough coins, so they came back. The caravan guard costs 4.':'Coins returned. The caravan guard costs all 4 at once.');}}}
 }
 function step(o,tx,speed,dt){
   const dx=tx-o.x;if(Math.abs(dx)<1.5){o.moving=false;return true;}
@@ -568,7 +577,7 @@ function updWorld(dt){
   if(G.carAt>0&&G.t>=G.carAt&&!G.caravan){G.caravan={x:Math.max(40,B('gw').x-900),st:'in',t:0,ph:0};G.carAt=-1;hint('caravan');}
   const c=G.caravan;if(c){
     const m=B('market'),stop=m.x+m.w/2+20;
-    if(c.st==='stop'){if((c.t+=dt)>10)c.st='out';}
+    if(c.st==='stop'){if((c.t+=dt)>10&&!c.inc&&!c.paid)c.st='out';else if(c.t>16&&!c.inc)c.st='out';}
     else{c.x+=30*dt;c.ph+=30*dt*.075;if(c.st==='in'&&c.x>=stop){c.st='stop';c.t=0;if(m.level){for(let i=0;i<3+2*m.level;i++)coin(c.x-10,6,rnd(-40,30),rnd(50,90),true);sfx.fanfare();}}if(c.x>NILE-30)G.caravan=null;}
   }
   for(const m of G.mirages)if(m.gone)m.gone=Math.min(1,m.gone+dt*.8);
