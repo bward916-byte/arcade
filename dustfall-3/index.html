@@ -1525,7 +1525,7 @@ TSCN.push(
     init(T){tourSet(1,{place:'redwater',t:.3,day:14,day0:11,x:EX(2390),lv:{0:2,1:2,2:2,3:2,5:2,9:1,6:2,7:2}});wildInit();tourCows(3);G.x.oats=G.day;T.go=EX(2452);},tick(t,T){if(tAt(T,'a',3.4))T.go=PASTURE[0]+50;}},
   {g:'Range',n:'Medicine show',dur:9,town:0,cap:'Every fourth day a medicine show pulls up by the signpost west of town. 3 coins buys a bottle: a tireless horse, a payout, or coloured water.',
     init(T){tourSet(0,{t:.3,day:9,x:830,dir:-1,coins:8,lv:TFULL});G.x.show.on=true;T.go=752;T.toss=3;}},
-  {g:'Range',n:'Poker',dur:13,town:0,cap:'Stake up to 5 coins at the saloon door before dark. At dawn the cards fall: double or nothing.',
+  {g:'Range',n:'Saloon door',dur:13,town:0,cap:'',
     init(T){tourSet(0,{t:.55,day:9,x:1240,coins:8,lv:TFULL});tourFolk(5,1150,1500);T.go=G.b[1].x+43;T.toss=5;},tick(t,T){if(tAt(T,'a',6.5))G.t=.992;}},
   {g:'Rail yard',n:'The old yard',dur:13,town:0,cap:'New: past the far east camp the line runs into an abandoned junction. A dead engine, a hobo jungle, a boxcar nobody will open, a boarded depot.',
     init(T){tourSet(0,{t:.3,day:9,x:YARD()-10,lv:TFULL});G.x.oats=G.day;T.go=YARD()+560;}},
@@ -3219,7 +3219,7 @@ function skyComet(){
 }
 // ---------- Dustfall III: the open west, and the new things in and around town. Every one of them is worked the same way as a building: ride up and toss coins
 const SITE={post:{x:-90,h:34,name:'Trading post'},tribe:{x:-250,h:38,name:'Scout camp'},ruin:{x:-430,h:40,name:'Ghost town',r:16},rig:{x:-600,h:64,name:'Oil derrick'},
-  rods:{x:992,h:76,name:'Windmill'},tower:{x:1206,h:78,name:'Water tower'},show:{x:752,h:34,name:'Medicine show'},fort:{x:2470,h:46,name:'Cavalry outpost'},poker:{x:0,h:30,name:'Poker table'}};
+  rods:{x:992,h:76,name:'Windmill'},tower:{x:1206,h:78,name:'Water tower'},show:{x:752,h:34,name:'Medicine show'},fort:{x:2470,h:46,name:'Cavalry outpost'}};
 const mkX=()=>({guide:0,gt:0,post:{paid:0,incoming:0,sold:0},tribe:{paid:0,incoming:0,days:0},ruin:{paid:0,incoming:0,cool:0},rig:{paid:0,incoming:0,lv:0,burn:false},rods:{paid:0,incoming:0,lv:0},tower:{paid:0,incoming:0,lv:0},
   show:{paid:0,incoming:0,on:false,used:false},fort:{paid:0,incoming:0,night:false},poker:{paid:0,incoming:0},dyn:0,loader:false,lantern:false,oats:0,flood:0,duelDay:0,stampDay:0,rigRoll:0,ufoAt:0,noHorse:0,string:0,hobo:{paid:0,incoming:0,day:0},car:{paid:0,incoming:0,cool:0,n:0},handcar:{paid:0,incoming:0,day:0},finds:0,home:false,starMetal:false,tip:0,ghostAt:0});
 const siteX=k=>k==='poker'?G.b[1].x+43:k==='fort'||SITE[k].ex?EX(SITE[k].x):SITE[k].x;
@@ -3248,7 +3248,6 @@ function siteInfo(k){
   if(k==='show')return ['Medicine show',s.used?'One bottle to a customer. He moves on in the morning.':`3 coins${go} for a bottle of tonic. It might put fire in your horse, pay out handsomely, or be coloured water.`];
   if(k==='fort')return ['Cavalry outpost',s.night?'A patrol rides tonight, as soon as raiders show.':G.cav?'The patrol is out.':`8 coins${go} calls out a patrol for tonight. They ride through and cut down raiders outside the walls.`];
   {const r=yardInfo(k,s,go);if(r)return r;}
-  if(k==='poker')return c?['Poker table',`Stake up to 5 coins before dark (${s.paid} in). At dawn it is double or nothing.`]:s.paid?['Poker table',`${s.paid} staked. The cards fall at dawn.`]:null;
   return null;
 }
 const bugle=()=>[392,523,659,523,659,784].forEach((f,i)=>tone1(f,.16,'square',.05,0,i*.15));
@@ -3274,7 +3273,6 @@ function siteDone(k){
     else if(r<.7){for(let i=0;i<8;i++)coin(x,10,rnd(-40,40),rnd(50,95),true);sfx.fanfare();hint('tonic2',true,'There was a gold piece in the bottle, and seven more in the crate. The professor looks sick.');}
     else{sfx.empty();hint('tonic3',true,'Coloured water. The professor tips his hat.');}
   }else if(k==='fort'){s.night=true;bugle();hint('fort',true,'The patrol saddles up. They ride tonight as soon as raiders show, and cut down those outside the walls.');}
-  else if(k==='poker')hint('poker',true,'Five coins on the table. The cards fall at dawn: double or nothing.');
   else yardDone(k,s,x);
 }
 // ---------- fire: lightning or a raider's torch sets a roof alight, and the town fights it
@@ -3384,11 +3382,7 @@ function dawnX(ln){
   if(G.wild){if(ln%2===0&&G.wild.filter(w=>w.k==='horse'&&!w.foal).length<3)wildAdd('horse');G.wild=G.wild.filter(w=>w.st!=='loose');if(G.wild.filter(w=>w.k==='cow').length<3)wildAdd('cow');}
   if(X.ruin.cool>0)X.ruin.cool--;if(X.tribe.days>0)X.tribe.days--;X.fort.night=false;G.cav=null;G.stamp=null;for(const c of G.herd)c.run=0;
   if(X.rig.lv&&!X.rig.burn){pop(FIRE_X,30,'Oil +'+rigPay());for(let i=0;i<rigPay();i++)coin(FIRE_X+rnd(-12,12),6,rnd(-30,30),rnd(50,85),true);hint('oilpay',false,`The oil company's draft: ${rigPay()} coins at the town centre every morning the derrick is pumping.`);}
-  if(X.poker.paid){
-    const n=X.poker.paid;X.poker.paid=0;
-    if(Math.random()<.5){pop(sl.x+43,34,'Poker +'+n*2);for(let i=0;i<n*2;i++)coin(sl.x+43,6,rnd(-30,30),rnd(50,85),true);hint('pokerW',true,`Aces over kings. Your ${n} came back as ${n*2} outside the saloon.`);}
-    else hint('pokerL',true,`A busted flush. The ${n} you staked are gone.`);
-  }
+  if(X.poker.paid){const n=X.poker.paid;X.poker.paid=0;for(let i=0;i<n;i++)coin(sl.x+43,6,rnd(-30,30),rnd(50,85),true);}
   if(X.flood&&X.flood<G.day&&BIO!=='snow'){const r=RIV();X.flood=0;for(let i=0;i<5+G.town;i++)coin(rnd(r[0]+2,r[1]-2),2,0,0,true);hint('gravel',true,'The wash has run dry again, and left gold in the gravel east of town.');}
   X.show.on=ln>=2&&ln%4===2;X.show.used=false;X.show.paid=0;
   if(X.show.on)hint('show',true,'A medicine show has pulled up west of town, by the signpost. He is gone by morning.');
