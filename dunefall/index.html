@@ -74,13 +74,13 @@ canvas{display:block;image-rendering:pixelated;touch-action:none;transition:filt
 .title #pad,.title #toss,.title #fire,.title #hud,.title #info,.cine #hud,.cine #pad,.cine #toss,.cine #fire,.cine #hint,.cine #info{display:none}
 #title{position:absolute;inset:0;display:grid;place-content:center;justify-items:center;text-align:center;gap:11px;padding:20px;background:linear-gradient(rgba(28,19,12,.05),rgba(28,19,12,.55))}
 #title[hidden],#over[hidden],#demo[hidden]{display:none}
-@media (max-height:480px){#title{gap:6px;padding:8px 20px}#title h1{font-size:clamp(44px,22vh,88px)}#slots button{min-width:0}#title p{font-size:15px;padding:3px 10px}#go{font-size:17px;padding:7px 22px 5px;margin-top:2px}#slots button{font-size:13px;padding:4px 9px 3px}#title #how{display:none}#more button{font-size:13px;padding:5px 12px 4px}}
+@media (max-height:480px){#title{gap:6px;padding:8px 20px}#title h1{font-size:clamp(44px,22vh,88px)}#slots button{min-width:0}#title p{font-size:15px}#go{font-size:17px;padding:7px 22px 5px;margin-top:2px}#slots button{font-size:13px;padding:4px 9px 3px}#title #how{display:none}#more button{font-size:13px;padding:5px 12px 4px}}
 #more{display:flex;gap:8px;justify-content:center}
 #title h1,#card,#over h2{margin:0;font-family:"Cinzel Decorative",Cinzel,Georgia,serif;font-weight:700;font-size:clamp(44px,11vw,104px);line-height:1;letter-spacing:.04em;color:var(--gold);text-shadow:0 3px 0 #8a5a14,0 7px 0 var(--ink),0 0 30px rgba(242,193,78,.35)}
 #title h1{font-size:clamp(56px,14vw,132px);padding:0 .1em;letter-spacing:.1em;-webkit-text-stroke:1.5px #4a2a0a;paint-order:stroke fill;text-transform:uppercase;background:linear-gradient(#fff3c4 15%,#f2c14e 48%,#b9781f 52%,#f6d27a 85%);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:none;filter:drop-shadow(0 2px 0 #5e3a10) drop-shadow(0 5px 0 rgba(28,19,12,.85)) drop-shadow(0 0 18px rgba(255,200,90,.45))}
 #title h1::after{content:'';display:block;height:9px;margin:.12em auto 0;width:78%;background:linear-gradient(90deg,transparent,#f2c14e 25%,#fff3c4 50%,#f2c14e 75%,transparent) center/100% 2px no-repeat}
 #title{background:linear-gradient(rgba(24,10,26,.62),rgba(24,10,26,.28) 38%,rgba(24,10,26,0) 62%)}
-#title p{margin:0;font-family:Georgia,serif;font-size:19px;font-weight:700;color:#fff3d4;background:rgba(24,12,18,.72);padding:4px 14px;border-radius:5px;text-shadow:0 1px 0 #000}#title #how{font-size:15px;font-weight:400}
+#title p{margin:0;font-family:Georgia,serif;font-size:19px;font-weight:700;color:#fff3d4;text-shadow:0 1px 0 #2a1408,0 2px 3px #000,0 0 10px rgba(20,8,10,.9)}#title #how{font-size:15px;font-weight:400}
 #go,.big{font:inherit;font-weight:700;font-size:21px;color:var(--ink);background:var(--gold);border:0;border-bottom:4px solid #b9861f;border-radius:4px;padding:10px 28px 8px;margin-top:6px;cursor:pointer}
 #slots{display:flex;gap:10px;justify-content:center;align-items:flex-start}#slots div{display:flex;flex-direction:column;align-items:center;gap:2px}#slots small{display:block;font-size:10px;letter-spacing:.12em;text-transform:uppercase;opacity:.7}
 #slots:empty{display:none}
@@ -156,7 +156,7 @@ button:focus-visible{outline:3px solid var(--cream);outline-offset:3px}
 <div id="rot"><div>Turn your phone sideways to ride.</div></div>
 <div id="title">
   <h1>Dunefall</h1>
-  <p id="tag">A river that wandered off, an empty bazaar, and gold under the sand.</p>
+  <p id="tag">Build a town from the sand. Hold it through the night.</p>
   <button id="go" type="button">Ride in</button>
   <div id="slots"></div>
   <div id="more"><button id="demogo" type="button">Watch the demo</button><button id="prev" type="button">Previews</button></div>
