@@ -419,7 +419,7 @@ function spawnRaider(side,kind,more,boat){
   const K=KIND[kind],hp=K[0]+(more||0),g=side<0?B('gw'):B('ge');let x=kind==='mummy'?B('tomb').x+62:g.x+side*360;if(kind!=='mummy'&&Math.abs(G.player.x-x)<W*.7)x+=side*W*.8;if(boat)x=NILE-24-Math.random()*20;
   if(kind==='boss'){G.seen['c_boss'+G.town]||hint('boss',true,BOSS[G.feat]);cine('boss'+G.town,BOSS[G.feat],3.8,1.2,clamp(x,60,NILE-60));}
   G.raiders.push({id:G.nextId++,kind,x:clamp(x,10,NILE-10),dir:-side,side,hp,max:hp,state:'raid',loot:0,walk:0,cd:0,hurt:0,moving:true});
-  if(Math.abs(clamp(x,10,NILE-10)-G.player.x)>W*.45)cine('spot'+G.day+kind[0]+(boat?'b':side),kind==='mummy'?'The dead are walking.':boat?'They are landing at the dock.':`Raiders, from the ${side<0?'west':'east'}.`,2.1,1.08,clamp(x,60,NILE-60));
+  if(Math.abs(clamp(x,10,NILE-10)-G.player.x)>W*.45){const sk='spot'+G.day,msg=kind==='mummy'?'The dead are walking.':boat?'They are landing at the dock.':`Raiders, from the ${side<0?'west':'east'}.`;if(!G.seen['c_'+sk])cine(sk,msg,1.5,1.08,clamp(x,60,NILE-60));else if(!G.seen[sk+kind[0]+(boat?'b':side)]){G.seen[sk+kind[0]+(boat?'b':side)]=1;hint('more',true,kind==='mummy'?msg:boat?msg:`More raiders, from the ${side<0?'west':'east'}.`);}}
 }
 function dawn(){
   sfx.dawn();const n=G.night;{const want=G.town===0&&G.day-G.day0<=5?5:3;for(let i=G.hares.length;i<want;i++)G.hares.push(newHare(i+G.day));}
@@ -771,7 +771,7 @@ function update(dt){
   if(G.state==='end'){const E=G.end;E.t+=dt;G.fade=Math.max(0,G.fade-dt*.45);const k=Math.floor((E.t-1.2)/3.8);if(E.t>1.2&&k!==E.k){E.k=k;setCap(ENDCAPS[k]||'');}if(E.t>1.2+ENDCAPS.length*3.8+.6&&!E.shown){E.shown=1;showEnd();}return;}
   if(G.state!=='play')return;
   if(G.slow>0){G.slow-=dt;dt*=.28;}
-  if(G.cine){const C=G.cine;C.t+=dt;if(C.k==='tomb'){if(C.t>1.6&&C.t<4.3&&Math.random()<.35)noise(.14,.13,100+rnd(0,40),.7);if(C.t>4.3&&!C.g){C.g=1;sfx.gong();sfx.urn();}}G.dark=Math.max(darkness(G.t),eclK()*.8);if(G.storm)G.storm.t-=dt*.6;updWorld(dt);updFolk(dt*.5);cam=lerp(cam,clamp(C.fx-W/2,0,WORLD-W),1-Math.pow(.02,dt));if(C.t>C.dur)endCine();return;}
+  if(G.cine){const C=G.cine;C.t+=dt;if(C.k==='tomb'){if(C.t>1.6&&C.t<4.3&&Math.random()<.35)noise(.14,.13,100+rnd(0,40),.7);if(C.t>4.3&&!C.g){C.g=1;sfx.gong();sfx.urn();}}G.dark=Math.max(darkness(G.t),eclK()*.8);if(G.storm)G.storm.t-=dt*.6;if(C.k.startsWith('spot')){updWorld(dt*.2);updRaiders(dt*.2);}else{updWorld(dt);updFolk(dt*.5);}cam=lerp(cam,clamp(C.fx-W/2,0,WORLD-W),1-Math.pow(.02,dt));if(C.t>C.dur)endCine();return;}
   const t0=G.t;G.t+=dt/DAY_LEN;
   if(t0<.66&&G.t>=.66)dusk();
   if(G.t>=1){G.t-=1;G.day++;dawn();}
