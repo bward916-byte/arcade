@@ -220,6 +220,7 @@ const TCFG=[
   {feat:'cliff',ox:0,bx:{guard:1330,bank:1416,temple:1490,pen:1700,market:1806,tea:1896},sites:{tomb:78,grove:2450},oasis:2485,past:[2080,2200],quarry:985,camps:[[470,2],[1130,3],[2320,2],[2860,3]],urns:[[640,5],[860,4],[2230,5],[2700,6]]},
   {feat:'port',ox:640,bx:{market:1326,bank:1424,pen:1500,tea:1694,guard:1782,temple:1866},sites:{btemple:880},oasis:-9999,past:[2700,2820],quarry:1500,camps:[[420,3],[1080,3],[1680,2],[2900,2]],urns:[[250,6],[640,5],[1300,5],[1760,4]]},
   {feat:'temple',ox:0,bx:{temple:1330,tea:1420,market:1510,bank:1694,guard:1772,pen:1862},sites:{sphinx:600,tomb:78,grove:2450},oasis:2485,past:[2080,2200],quarry:985,camps:[[430,3],[1130,3],[2320,3],[2860,3]],urns:[[250,7],[860,5],[2230,5],[2650,7]]}];
+const RELV=[5,6,8,10,12,15],DIGX=()=>G.feat==='oasis'?660:-999,SELLX=()=>B('market').level?B('market').x+B('market').w/2:WELL_X-30;
 const FSPOT=()=>G.rodX||(G.rodX=[OASIS>0?[34,48,62,76,-44,-58].map(o=>OASIS+o).find(x=>!target(x))||OASIS+90:-999,[30,60,74,88,102,116].map(o=>NILE-o).find(x=>!target(x))||NILE-130]),FWATER=i=>i?NILE+12:OASIS+6;
 const newHare=i=>{const w=i%2===0,x=w?rnd(Math.max(90,TOWN[0]-520),TOWN[0]-70):rnd(TOWN[1]+70,Math.min(NILE-140,TOWN[1]+520));return {x,w,dir:1,t:rnd(0,2),hop:0,tx:x};};
 function catchHare(h){h.dead=1;for(let i=0;i<2;i++)coin(h.x,6,rnd(-18,18),rnd(40,65),true);dust(h.x,2,6);sfx.recruit();hint('hare2',true);}
@@ -233,7 +234,7 @@ function reset(town,keep){
     b:[mk('market',cf.bx.market+ox),mk('tea',cf.bx.tea+ox),mk('guard',cf.bx.guard+ox),mk('pen',cf.bx.pen+ox),mk('bank',cf.bx.bank+ox),mk('well',1640+ox),mk('temple',cf.bx.temple+ox),mk('gw',1290+ox),mk('ge',1978+ox),mk('dock',3040),site('sphinx'),site('tomb'),site('grove'),site('hermit'),site('btemple')],
     camps:cf.camps.map(q=>({x:q[0],cap:q[1]})),
     urns:cf.urns.map(u=>({x:u[0],n:u[1],open:false})),
-    rod:{n:[5,8],t:0,spot:-1,bite:0},hares:[0,1,2,3,4].map(i=>newHare(i)),mirages:[],devils:[{x:520,dir:1,a:260,b:Math.max(420,1296+ox-130)},1992+ox+110<2880?{x:1992+ox+220,dir:-1,a:1992+ox+110,b:2990}:{x:900,dir:-1,a:300,b:1296+ox-220}],weeds:[{x:300,rot:0,h:0,p:1},{x:1100,rot:2,h:0,p:3},{x:2400,rot:4,h:0,p:5}],rings:[],prints:[],zoom:1,zoomT:1,zoomHold:0,crowd:[],cine:null,drift:0,doves:[],rocks:[],poison:false,pirate:null,stuck:[],torches:[],slow:0,rain:null,rainAt:-1,ecl:null,eclAt:-1,omen:false,fest:0,festPending:false,fw:[],bow:0,wet:0,lush:false,meteor:null,fish:null,cat:{x:1600+ox,dir:1,t:0},scarabs:[700,1210,2390,2740].map(x=>({x,dir:1,t:0})),falcon:{a:0}};
+    rod:{n:[5,8],t:0,spot:-1,bite:0},dig:{n:0,today:0,t:0},carry:0,hares:[0,1,2,3,4].map(i=>newHare(i)),mirages:[],devils:[{x:520,dir:1,a:260,b:Math.max(420,1296+ox-130)},1992+ox+110<2880?{x:1992+ox+220,dir:-1,a:1992+ox+110,b:2990}:{x:900,dir:-1,a:300,b:1296+ox-220}],weeds:[{x:300,rot:0,h:0,p:1},{x:1100,rot:2,h:0,p:3},{x:2400,rot:4,h:0,p:5}],rings:[],prints:[],zoom:1,zoomT:1,zoomHold:0,crowd:[],cine:null,drift:0,doves:[],rocks:[],poison:false,pirate:null,stuck:[],torches:[],slow:0,rain:null,rainAt:-1,ecl:null,eclAt:-1,omen:false,fest:0,festPending:false,fw:[],bow:0,wet:0,lush:false,meteor:null,fish:null,cat:{x:1600+ox,dir:1,t:0},scarabs:[700,1210,2390,2740].map(x=>({x,dir:1,t:0})),falcon:{a:0}};
   G.camps.forEach((c,i)=>{for(let k=0;k<c.cap;k++)nomad(i,false);});
   G.player.ammo=maxAmmo();pickMirages();cam=G.player.x-W/2;window.G=G;
 }
@@ -331,6 +332,16 @@ const HINTS={
   fish2:'A coin for the fish. Stay put for more: the water restocks each morning.',
   fishbig:'A Nile perch. Three coins.',
   fished:'Fished out for today. Try the other water, or come back in the morning.',
+  stormcoin:'The wind is tearing coins from your purse. Get inside the walls.',
+  shelter:'Inside the walls the storm cannot touch your purse.',
+  stormraid:'Riders are using the dust for cover: two raiders, from the west.',
+  stormover:'The haboob has passed. Look for what it uncovered out in the dunes.',
+  dig:'A sunken tomb. Stop here and you go down. You can carry out one relic at a time.',
+  digfull:'Your hands are full. Sell this relic in town first.',
+  digrest:'The air below is bad. Three trips a day is all anyone can stand.',
+  digdone:'The sunken tomb is empty now.',
+  sold6:'The last relic, sold. The sunken tomb is empty.',
+  relost:'The raider knocked the relic from your hands. It is back in the tomb.',
   hare:'Desert hares. Ride one down, or shoot it, for two coins.',
   hare2:'Two coins. More hares come out each morning, outside the walls.',
   poison:'He fouled the well. Your villagers will bring you nothing in the morning.',
@@ -428,7 +439,7 @@ function spawnRaider(side,kind,more,boat){
   if(Math.abs(clamp(x,10,NILE-10)-G.player.x)>W*.45){const sk='spot'+G.day,msg=kind==='mummy'?'The dead are walking.':boat?'They are landing at the dock.':`Raiders, from the ${side<0?'west':'east'}.`;if(!G.seen['c_'+sk])cine(sk,msg,1.5,1.08,clamp(x,60,NILE-60));else if(!G.seen[sk+kind[0]+(boat?'b':side)]){G.seen[sk+kind[0]+(boat?'b':side)]=1;hint('more',true,kind==='mummy'?msg:boat?msg:`More raiders, from the ${side<0?'west':'east'}.`);}}
 }
 function dawn(){
-  sfx.dawn();const n=G.night;G.rod.n=[5,8];{const want=G.town===0&&G.day-G.day0<=5?5:3;for(let i=G.hares.length;i<want;i++)G.hares.push(newHare(i+G.day));}
+  sfx.dawn();const n=G.night;G.rod.n=[5,8];G.dig.today=0;{const want=G.town===0&&G.day-G.day0<=5?5:3;for(let i=G.hares.length;i<want;i++)G.hares.push(newHare(i+G.day));}
   G.report=n&&n.n?`Last night: ${n.n} raiders, ${n.down} brought down, ${n.gates?n.gates+(n.gates>1?' gates':' gate')+' broken':'the gates held'}${n.lost?', '+n.lost+' robbed':''}`:'';G.night=null;
   G.pirate=null;if(G.poison){G.poison=false;hint('poisoned',true);}else
   for(const f of G.folk)if(f.role==='folk')coin(f.hidden?B('tea').x+33:f.x,6,rnd(-22,22),rnd(50,75),true);
@@ -446,7 +457,7 @@ function dawn(){
   G.bank+=Math.min(3*B('bank').level,G.bank>>3);G.raid=[];
   for(const r of G.raiders){if(r.kind==='mummy'){dust(r.x,6,16,'#d8d0b8');coin(r.x,6,rnd(-20,20),60,true);r.dead=true;}else r.state='flee';}
   G.raiders=G.raiders.filter(r=>!r.dead);
-  const d=G.day-G.day0;G.stormAt=d>=3&&Math.random()<.3?rnd(.16,.4):-1;G.carAt=d%3===0?.13:-1;pickMirages();G.rainAt=G.stormAt<0&&d>=2&&Math.random()<.16?rnd(.2,.45):-1;G.eclAt=G.stormAt<0&&G.rainAt<0&&d>=4&&Math.random()<.12?rnd(.25,.4):-1;
+  const d=G.day-G.day0;G.stormAt=d>=3&&Math.random()<.3?rnd(.14,.3):-1;G.carAt=d%3===0?.13:-1;pickMirages();G.rainAt=G.stormAt<0&&d>=2&&Math.random()<.16?rnd(.2,.45):-1;G.eclAt=G.stormAt<0&&G.rainAt<0&&d>=4&&Math.random()<.12?rnd(.25,.4):-1;
   if(G.feat==='port'&&B('btemple').gone&&d>=2){G.stormAt=rnd(.2,.34);G.rainAt=G.eclAt=-1;}
   arrivals();save(true);if(G.folk.length)hint('dawn');
 }
@@ -638,6 +649,10 @@ function updFolk(dt){
     else{if((d.wait-=dt)<=0){d.wait=rnd(3,8);d.wx=d.home+rnd(-10,10);}step(d,d.wx===undefined?d.home:d.wx,12,dt);}
   }
   for(const c of G.herd){if((c.t-=dt)<=0){c.t=rnd(2,6);c.tx=rnd(PAST[0],PAST[1]);}step(c,c.tx===undefined?c.x:c.tx,8,dt);}
+  {const p=G.player,D=G.dig,dx=DIGX(),still=Math.abs(p.vx)<3&&!G.trip,safe=!G.raiders.some(r=>r.state==='raid'&&Math.abs(r.x-p.x)<120);
+    if(dx>0&&Math.abs(p.x-dx)<14){hint(D.n>=6?'digdone':G.carry?'digfull':D.today>=3?'digrest':'dig',true);
+      if(still&&safe&&!G.carry&&D.n<6&&D.today<3){D.t+=dt;if(Math.random()<dt*9)dust(dx+rnd(-6,6),1,1);if(D.t>=3+D.n*.7){D.t=0;G.carry=RELV[D.n];D.n++;D.today++;sfx.urn();spark(p.x,22,10);hint('relic',true,`A relic worth ${G.carry} coins. Carry it to ${B('market').level?'the bazaar':'the trader by the well'}: one at a time.`);}}else D.t=0;}else D.t=0;
+    if(G.carry&&still&&Math.abs(p.x-SELLX())<18){const v=G.carry;G.carry=0;for(let i=0;i<v;i++)coin(SELLX()+rnd(-6,6),10+rnd(0,8),rnd(-30,30),rnd(40,80),true);sfx.recruit();spark(p.x,18,12);hint(D.n>=6?'sold6':'sold',true,D.n>=6?undefined:`Sold for ${v} coins. ${D.today>=3?'The air below is bad: more tomorrow.':'There is more down there, and it gets better deeper in.'}`);}}
   {const p=G.player,F=G.rod,sp=FSPOT(),si=sp.findIndex(x=>Math.abs(p.x-x)<13);F.bite=Math.max(0,F.bite-dt);if(si>=0)hint(F.n[si]>0?'fish':'fished',true);
     if(si>=0&&Math.abs(p.vx)<3&&!G.trip&&F.n[si]>0&&!G.raiders.some(r=>r.state==='raid'&&Math.abs(r.x-p.x)<110)){const wx=FWATER(si);p.dir=Math.sign(wx-p.x);if(F.spot!==si){F.spot=si;F.t=rnd(2.4,4.2);}
       if((F.t-=dt)<=0){F.n[si]--;F.t=rnd(2.4,4.2);F.bite=.7;const big=Math.random()<.2;for(let i=0;i<(big?3:1);i++)coin(wx,3,-p.dir*rnd(26,40),rnd(60,80),true);for(let i=0;i<10;i++)G.parts.push({x:wx+rnd(-4,4),h:rnd(0,3),vx:rnd(-22,22),vh:rnd(20,60),life:0,max:rnd(.4,.8),col:'#cfeaf2',grav:-160});sfx.recruit();hint(big?'fishbig':'fish2',true);}}else F.spot=-1;}
@@ -686,7 +701,7 @@ function updRaiders(dt){
     if(step(r,tx,K[1]*(1-.3*stormK()),dt)||Math.abs(r.x-tx)<7){
       if(act==='rob'){
         if(!p.coins){if(G.ankh){G.ankh=false;G.flash=1;G.shake=.5;sfx.gong();hint('ankh',true);for(const o of G.raiders)if(Math.abs(o.x-p.x)<260&&o.kind!=='mummy')o.state='flee';}else gameOver();}
-        else{const n=Math.min(p.coins,K[3]);p.coins-=n;r.loot+=n;r.state='flee';G.shake=.35;punch(1.16,.35);sfx.rob();hint('hit');dust(p.x,12,6,'#f2c14e');}
+        else{const n=Math.min(p.coins,K[3]);p.coins-=n;r.loot+=n;r.state='flee';if(G.carry){G.carry=0;G.dig.n--;G.dig.today--;hint('relost',true);}G.shake=.35;punch(1.16,.35);sfx.rob();hint('hit');dust(p.x,12,6,'#f2c14e');}
       }else if(act==='none'){if(r.kind!=='mummy'&&Math.abs(r.x-WELL_X)<8)r.state='flee';}
       else if(act.role){G.folk.splice(G.folk.indexOf(act),1);if(G.night)G.night.lost++;dust(act.x,6,8);sfx.rob();hint('mug');if(r.kind!=='mummy')r.state='flee';}
       else if(act.type){act.robbed=true;r.loot+=2;r.state='flee';if(G.night)G.night.lost++;sfx.rob();hint('robbed');}
@@ -719,9 +734,14 @@ const punch=(z,hold)=>{G.zoomT=Math.max(G.zoomT,z);G.zoomHold=Math.max(G.zoomHol
 const stormK=x=>{const s=G.storm;return s?clamp(Math.min((s.front-(x===undefined?G.player.x:x))/90,(s.dur-s.t)/5),0,1):0;};
 function updWorld(dt){
   // sandstorm
-  if(G.stormAt>0&&G.t>=G.stormAt&&!G.storm){G.storm={t:0,dur:30,front:G.player.x-W/2-430,fl:0};G.stormAt=-1;hint('storm');sfx.horn();cine('haboob','Haboob. Get everyone inside.',3.4,1,G.storm.front+W*.45);}
-  {const s=G.storm;if(s){s.front+=85*dt;s.fl=Math.max(0,s.fl-dt);
-    if(s.front>cam&&Math.random()<dt*.3){s.fl=.3;G.flash=Math.max(G.flash,.3*stormK());noise(1.6,.28,80,.6,.2);G.shake=Math.max(G.shake,.12*stormK());}
+  if(G.stormAt>0&&G.t>=G.stormAt&&!G.storm){G.storm={t:0,dur:38,front:G.player.x-W/2-520,fl:0,leak:0,rd:0};G.stormAt=-1;hint('storm');sfx.horn();cine('haboob','Haboob. Get everyone inside.',3.4,1,G.storm.front+W*.45);}
+  {const s=G.storm;if(s){s.front+=58*dt;s.fl=Math.max(0,s.fl-dt);const p=G.player,k=stormK(),open=p.x<TOWN[0]||p.x>TOWN[1]||!(B('gw').level||B('ge').level);
+    if(k>.2)G.shake=Math.max(G.shake,.05*k);
+    if(k>.5&&open&&!G.relics.charm&&!G.trip){p.x=Math.min(NILE-14,p.x+26*k*dt);if((s.leak+=dt)>2.6&&p.coins>0){s.leak=0;p.coins--;coin(p.x,14,rnd(90,150),rnd(40,70),true);sfx.rob();hint('stormcoin',true);}}else s.leak=Math.max(0,s.leak-dt);
+    if(k>.5&&!open)hint('shelter',true);
+    if(!s.rd&&G.day-G.day0>=4&&s.front>TOWN[0]-260){s.rd=1;for(let i=0;i<2;i++)G.raiders.push({id:G.nextId++,kind:'bandit',x:clamp(s.front-40-i*26,20,NILE-20),dir:1,side:-1,hp:2,max:2,state:'raid',loot:0,walk:0,cd:0,hurt:0,moving:true});hint('stormraid',true);sfx.horn();}
+    if(s.front>cam-40&&Math.random()<dt*.55){G.bolt={x:clamp(s.front-rnd(30,W*.8),cam+10,cam+W-10),t:0,seed:Math.random()*99};s.fl=.3;G.flash=Math.max(G.flash,.45);noise(1.4,.3,70,.6,.12);G.shake=Math.max(G.shake,.22);}
+    if(G.bolt&&(G.bolt.t+=dt)>.28)G.bolt=null;
     if(stormK()>.3&&Math.random()<dt*24)G.parts.push({x:cam+rnd(0,W),h:rnd(0,6),vx:rnd(120,220),vh:rnd(-2,10),life:0,max:rnd(.5,1),col:'#f0d6a0',grav:0,sm:1,r:2.5,a:.3});}}
   {const m=B('market'),want=m.level*3+B('tea').level+(B('well').level>1?2:0),home=G.dark>.4||stormK(WELL_X)>.1;
     while(G.crowd.length<want)G.crowd.push({id:G.nextId++,x:m.x+m.w/2,dir:1,walk:0,wait:0,tx:m.x+20,hidden:true,moving:false});
@@ -737,7 +757,7 @@ function updWorld(dt){
   if(!G.fish&&Math.random()<dt*.2)G.fish={x:NILE+rnd(24,84),t:0};if(G.fish&&(G.fish.t+=dt)>1.4)G.fish=null;
   for(const r of G.rings)r.t+=dt;G.rings=G.rings.filter(r=>r.t<1);for(const f of G.prints)f.t+=dt;if(G.prints.length&&G.prints[0].t>12)G.prints.shift();
   if(G.storm&&(G.storm.t+=dt)>G.storm.dur){
-    G.storm=null;G.drift=1;{const bt=B('btemple');if(G.feat==='port'&&bt.gone){bt.gone=false;hint('btemple0',true);G.seen.c_btemple0=0;cine('btemple0','The storm has uncovered the top of something very old.',3.6,1.25,bt.x+45);}}
+    G.storm=null;G.bolt=null;G.drift=1;hint('stormover',true);{const bt=B('btemple');if(G.feat==='port'&&bt.gone){bt.gone=false;hint('btemple0',true);G.seen.c_btemple0=0;cine('btemple0','The storm has uncovered the top of something very old.',3.6,1.25,bt.x+45);}}
     const spots=[340,520,900,1060,2260,2380,2580,2760].filter(x=>(x<TOWN[0]-80||x>TOWN[1]+80)&&!zoneOf(x)&&!G.urns.some(u=>!u.open&&Math.abs(u.x-x)<40));
     if(spots.length&&G.urns.filter(u=>!u.open).length<4){G.urns.push({x:spots[Math.floor(rnd(0,spots.length))],n:5,open:false});hint('uncovered',true);}
   }
@@ -842,6 +862,7 @@ const PRE=[
   ['Festival night',()=>{grow(3);G.seen.c_raid=1;G.t=.7;G.festPending=true;G.player.x=1600;}],
   ['Rain and a rainbow',()=>{grow(2);B('grove').level=1;G.t=.3;G.rainAt=.39;G.player.x=1500;}],
   ['Town 2: Khepri Wells, the oasis',()=>{town(1);grow(2);B('grove').level=1;G.t=.3;G.player.x=1900;}],
+  ['The sunken tomb (town 2)',()=>{town(1);grow(1,10);G.t=.2;G.player.x=DIGX()-70;}],
   ['The hermit and his relics',()=>{town(1);grow(1,40);G.t=.3;G.player.x=200;}],
   ['Town 3: Sethat, under the cliffs',()=>{town(2);grow(2);G.t=.4;G.player.x=1500;}],
   ['The cave tomb and its traps',()=>{town(2);grow(1,20);B('tomb').level=1;G.t=.3;G.player.x=380;}],
@@ -866,7 +887,7 @@ const DEMO=[
   ['Inside the bazaar','Each building opens with a look inside.',8,0],
   ['Upgrades','Posts sell a bigger quiver, fire arrows, a scouting falcon and a racing camel.',6,0],
   ['A caravan comes in','Caravans cross by day. Pay a guard and it reaches town with a profit.',7,1],
-  ['Haboob','A haboob rolls in as a wall of dust. Everyone shelters and loose coins scatter.',8,0,()=>ffw(()=>G.storm&&G.storm.front>G.player.x-W/2-70)],
+  ['Haboob','A haboob is an event: lightning, wind that strips your purse outside the walls, raiders in the dust, and buried urns uncovered after.',10,0,()=>ffw(()=>G.storm&&G.storm.front>G.player.x-W/2-70)],
   ['Rain and a rainbow','Rare rain greens the grove and leaves a rainbow.',7,0,()=>ffw(()=>G.rain&&G.rain.t>2,1500)],
   ['Mirage at midday','At midday the heat shows water that is not there. One of them is real.',6,1],
   ['Eclipse','An eclipse is an omen: no raid that night.',7,0],
@@ -879,6 +900,7 @@ const DEMO=[
   ['The river voyage','Five towns lie down the river. Your upgrades and relics travel with you.',8,0],
   ['Town 2','Town 2, Khepri Wells: an oasis town.',6,1],
   ['The hermit','The hermit trades relics: scarab, lamp and charm.',6,-1],
+  ['The sunken tomb','Town 2 has a sunken tomb. Carry its relics out one at a time and sell them in town; deeper ones are worth more.',9,0,()=>{G.player.x=DIGX();G.player.vx=0;}],
   ['Boss: the Poisoner','Each later town has its own warlord. The Poisoner makes for the well: if he fouls it, no income at dawn.',8,0,()=>{ffw(()=>boss());by(boss(),110);}],
   ['Town 3','Town 3, Sethat: under the cliffs.',6,1],
   ['The cave tomb','Its cave tomb is guarded by spear traps.',6,-1],
@@ -1715,6 +1737,7 @@ function voyageScene(){
   if(G.fade>0){c.fillStyle=`rgba(10,7,5,${G.fade})`;c.fillRect(0,0,W,H);}
 }
 let MAPY=30.5;
+function boltDraw(){const B2=G.bolt;if(!B2)return;const c=ctx;let x=B2.x-cam,y=0;c.save();c.globalCompositeOperation='lighter';c.strokeStyle=`rgba(255,246,210,${1-B2.t/.28})`;c.lineWidth=1.4;c.beginPath();c.moveTo(x,y);for(let q=1;q<=9;q++){x+=(hash(q+B2.seed)-.5)*18;y=q/9*(GY-2);c.lineTo(x,y);if(q===5){c.moveTo(x,y);c.lineTo(x+(hash(B2.seed)-.5)*40,y+26);c.moveTo(x,y);}}c.stroke();c.lineWidth=4;c.strokeStyle=`rgba(255,220,150,${.25*(1-B2.t/.28)})`;c.stroke();const g=c.createRadialGradient(x,GY,0,x,GY,40);g.addColorStop(0,`rgba(255,236,180,${.7*(1-B2.t/.28)})`);g.addColorStop(1,'rgba(255,236,180,0)');c.fillStyle=g;c.fillRect(x-40,GY-40,80,50);c.restore();}
 function titleScene(){
   const c=mctx,hy=H*.5;c.setTransform(S,0,0,S,0,0);
   const g=c.createLinearGradient(0,0,0,hy);g.addColorStop(0,'#3f4f96');g.addColorStop(.45,'#d08a7a');g.addColorStop(.8,'#f6b56a');g.addColorStop(1,'#fde0a0');c.fillStyle=g;c.fillRect(0,0,W,H);
@@ -1832,6 +1855,17 @@ function draw(){
   for(const s of G.scarabs)R(s.x-cam,GY-1,1.6,1,'#1c3c4a');
   {const c=G.cat,x=c.x-cam,wk=c.moving?Math.sin(c.walk*14):0;R(x-2,GY-3,4.5,2,'#2a2420');R(x+c.dir*2.2-.6,GY-4.4,1.8,1.8,'#2a2420');R(x-1.8+wk*.5,GY-1.2,.7,1.2,'#2a2420');R(x+1.4-wk*.5,GY-1.2,.7,1.2,'#2a2420');seg(x-c.dir*2.2,GY-2.6,x-c.dir*3.6,GY-5.6,.6,'#2a2420');}
   for(const c of G.herd)goat(c);
+  {const dx=DIGX(),x=dx-cam,D=G.dig;if(dx>0&&x>-70&&x<W+70){const gl=.5+.2*Math.sin(NOW*3),x0=x;ctx.save();ctx.translate(x0,GY);ctx.scale(1.55,1.55);ctx.translate(-x0,-GY);
+    poly('#b08854',[x-34,GY,x-22,GY-7,x+22,GY-7,x+34,GY]);poly('#8a6434',[x-22,GY-7,x+22,GY-7,x+17,GY,x-17,GY]);
+    R(x-15,GY-30,30,24,'#3a2814');R(x-11,GY-26,22,26,'#0c0604');for(let q=0;q<4;q++)R(x-11+q*1.4,GY-3+q*.9-3,22-q*2.8,.9,'#5a4026');
+    R(x-18,GY-34,36,5,'#c9a45a');R(x-18,GY-34,36,1,'#e8d08a');R(x-17,GY-29,5,23,'#b99a64');R(x+12,GY-29,5,23,'#a98652');for(let q=0;q<7;q++)R(x-15+q*4.4,GY-32.4,2.2,2,['#2fa7a0','#b5412e','#2c4f9e'][q%3]);
+    R(x-30,GY-22,5,22,'#b99a64');poly('#b99a64',[x-30,GY-22,x-28,GY-26,x-26,GY-23,x-25,GY-22]);R(x+27,GY-13,5,13,'#a98652');R(x+26,GY-14,7,2,'#c9a45a');
+    if(lit()||D.t>0){light(x,GY-18,34,.5+gl*.3);}ctx.fillStyle=`rgba(255,190,90,${(D.n<6?.16:.04)+ (D.t>0?.2:0)*gl})`;ctx.fillRect(x-11,GY-26,22,26);
+    for(let q=0;q<6-D.n;q++){const rx=x-8.6+q*3.4;R(rx,GY-40,2.4,2.8,GOLD);R(rx+.6,GY-40.8,1.2,.9,GOLD);}
+    if(D.t>0){const k=D.t/(3+D.n*.7);R(x-14,GY-46,28,3,'rgba(28,19,12,.75)');R(x-13.4,GY-45.4,26.8*k,1.8,GOLD);}ctx.restore();}}
+  if(G.carry){const p=G.player,x=p.x-cam,y=GY-38+Math.sin(NOW*3)*1,sx2=SELLX()-cam;ctx.save();ctx.globalCompositeOperation='lighter';const g2=ctx.createRadialGradient(x,y,0,x,y,11);g2.addColorStop(0,'rgba(255,220,120,.6)');g2.addColorStop(1,'rgba(255,200,100,0)');ctx.fillStyle=g2;ctx.fillRect(x-11,y-11,22,22);ctx.restore();
+    ell(x,y,3,3.6,GOLD);R(x-1.4,y-5.4,2.8,2,GOLD);R(x-2.4,y-5.8,4.8,.9,'#b8862a');R(x-3.4,y-.6,6.8,1,'#2c4f9e');R(x-.5,y-2.6,1,1,'#fff3c4');
+    if(sx2>-10&&sx2<W+10){const by2=GY-52+Math.sin(NOW*5)*2.5;poly(GOLD,[sx2-4,by2,sx2+4,by2,sx2,by2+6]);R(sx2-1.2,by2-6,2.4,6,GOLD);}}
   FSPOT().forEach((fx,i)=>{const x=fx-cam;if(x<-40||x>W+40)return;const F=G.rod,wd=i?1:-1,wx=FWATER(i)-cam,p=G.player;
     R(x-9,GY-1.6,18+(i?16:0),1.6,'#8a6434');for(let q=0;q<(i?8:4);q++)R(x-8+q*4.4,GY-1.6,.5,1.6,'#5e3a1e');if(i){R(x+10,GY,1.4,5,'#5e3a1e');R(x+22,GY,1.4,5,'#5e3a1e');}
     {const s=x-wd*20;R(s,GY-17,1.2,17,WOOD);R(s-5.6,GY-25,12.4,8.4,'#d9b680');R(s-5.6,GY-25,12.4,1,'#8a6434');ell(s,GY-20.6,3.2,1.7,F.n[i]>0?'#2c6f9e':'#8a8070');poly(F.n[i]>0?'#2c6f9e':'#8a8070',[s+2.6,GY-20.6,s+5.4,GY-22.4,s+5.4,GY-18.8]);for(let q=0;q<F.n[i];q++)R(s-5+q*1.45,GY-15.4,1,1,'#2c6f9e');}
@@ -1860,7 +1894,7 @@ function draw(){
     else{const ban=r.id%4===1;person(r.x,0,{robe:fl?'#fff':RD.robe,turban:RD.turban,veil:RD.veil,skin:SKIN[r.id%3],beard:RD.veil?0:'#2a1a10',sash:RD.sash,dir:r.dir,moving:r.moving,walk:r.walk,tool:ban?0:RD.tool,banner:ban?RD.ban:0,torch:!ban&&r.id%3===0&&!r.noTorch,lean:r.stag>0?-r.dir*.5*Math.min(1,r.stag*4):0});}
     if(r.loot)circ(r.x-cam,GY-18,1.5,GOLD);if(r.burn>0)light(r.x-cam,GY-12,16,.7);
   }
-  if(!G.trip)drawPlayer();
+  if(!G.trip)drawPlayer();boltDraw();
   front(B('gw'));front(B('ge'));
   for(const b of G.b)slots(b);
   if(G.tut&&TUT[G.tut.i][1]){const wx=TUT[G.tut.i][1](),sx=wx-cam,bo=Math.sin(NOW*6)*2.4;
@@ -2063,7 +2097,7 @@ $('endnew').addEventListener('click',()=>{if(G.preview)return location.reload();
 $('fresh').addEventListener('click',()=>{if(G.preview)return location.reload();wipe();location.reload();});
 document.addEventListener('visibilitychange',()=>{if(document.hidden){save();if(AC&&AC.state==='running')AC.suspend();menuOpen();}else if(AC&&AC.state==='suspended'&&$('menu').hidden&&G.state!=='title')AC.resume();});
 addEventListener('pagehide',save);
-window.dunefall={FSPOT,DEMO,demoScene,peek,setQ,endTut,TUT,get Q(){return Q;},input,head,preview,update,draw,dawn,dusk,target,costOf,B,start,load,save,PRE};   // for the test scripts
+window.dunefall={DIGX,SELLX,FSPOT,DEMO,demoScene,peek,setQ,endTut,TUT,get Q(){return Q;},input,head,preview,update,draw,dawn,dusk,target,costOf,B,start,load,save,PRE};   // for the test scripts
 let last=performance.now(),fpsAvg=60,fpsT=0;
 function setQ(q,auto){Q=clamp(q,0,2);if(!auto){QSET=q;try{localStorage.setItem('dunefall_q',String(q));}catch(e){}}$('mgfx').textContent='Graphics: '+(QSET==='auto'?'auto ('+['full','reduced','minimal'][Q]+')':['full','reduced','minimal'][Q]);resize();}
 {let q=null;try{q=localStorage.getItem('dunefall_q');}catch(e){}if(q==='0'||q==='1'||q==='2'){QSET=+q;Q=+q;}setQ(Q,QSET==='auto');}
