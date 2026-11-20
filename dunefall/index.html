@@ -1683,6 +1683,7 @@ function voyageScene(){
   const vg=c.createRadialGradient(W/2,H*.5,H*.4,W/2,H*.5,W*.7);vg.addColorStop(0,'rgba(20,8,20,0)');vg.addColorStop(1,'rgba(20,8,20,.5)');c.fillStyle=vg;c.fillRect(0,0,W,H);
   if(G.fade>0){c.fillStyle=`rgba(10,7,5,${G.fade})`;c.fillRect(0,0,W,H);}
 }
+let MAPY=30.5;
 function titleScene(){
   const c=mctx,hy=H*.5;c.setTransform(S,0,0,S,0,0);
   const g=c.createLinearGradient(0,0,0,hy);g.addColorStop(0,'#3f4f96');g.addColorStop(.45,'#d08a7a');g.addColorStop(.8,'#f6b56a');g.addColorStop(1,'#fde0a0');c.fillStyle=g;c.fillRect(0,0,W,H);
@@ -1898,7 +1899,7 @@ function draw(){
   {const c=mctx,mk=clamp(1-Math.min(Math.abs(t-.04),Math.abs(t-1.04))/.09,0,1),nx=NILE-cam;   // dawn mist, thickest by the river
     for(let i=0;i<10;i++){const riv=nx<W+80?clamp(1-Math.abs((i*W/9)-nx)/200,0,1)*(G.feat==='port'?1.1:.5):0,al=(mk*.16+riv*(.06+mk*.12))*(1-stormK());if(al<.01)continue;const x=((i*W/7+NOW*(3+i%3)-cam*.6)%(W+160)+W+160)%(W+160)-80;c.fillStyle=`rgba(244,238,226,${al})`;c.beginPath();c.ellipse(x,GY-2+Math.sin(NOW*.3+i)*2+(i%3)*4,70+(i%4)*14,5+(i%3)*2.5,0,0,7);c.fill();}
     const tn=[null,'70,170,100','210,80,50','230,170,50','70,100,210'][G.town%5];if(tn){c.fillStyle=`rgba(${tn},.07)`;c.fillRect(0,0,W,H);}
-    if(G.state==='play'&&!G.cine&&!G.trip){const x0=W*.32,w=W*.38,y=30.5,mx=v=>x0+v/WORLD*w;c.fillStyle='#5e4020';c.fillRect(x0-4.4,y-4.4,w+8.8,8.8);c.fillStyle='#b89860';c.fillRect(x0-3.4,y-3.4,w+6.8,6.8);c.fillStyle='#d8c08c';c.fillRect(x0-3.4,y-3.4,w+6.8,1);c.fillStyle='rgba(60,40,20,.45)';c.fillRect(x0,y-.3,w,.6);
+    if(G.state==='play'&&!G.cine&&!G.trip){const x0=W*.32,w=W*.38,y=MAPY,mx=v=>x0+v/WORLD*w;c.fillStyle='#5e4020';c.fillRect(x0-4.4,y-4.4,w+8.8,8.8);c.fillStyle='#b89860';c.fillRect(x0-3.4,y-3.4,w+6.8,6.8);c.fillStyle='#d8c08c';c.fillRect(x0-3.4,y-3.4,w+6.8,1);c.fillStyle='rgba(60,40,20,.45)';c.fillRect(x0,y-.3,w,.6);
       c.fillStyle='#f6e6be';c.fillRect(mx(TOWN[0]),y-1,mx(TOWN[1])-mx(TOWN[0]),2);c.fillStyle='#2f8fa6';c.fillRect(mx(NILE),y-1.5,x0+w-mx(NILE),3);
       for(const k of ['gw','ge']){const g=B(k);if(g.level){c.fillStyle=g.hp>0?'#f3e3bc':RED;c.fillRect(mx(g.x)-.4,y-2.5,1,5);}}
       c.fillStyle=GOLD;c.fillRect(mx(WELL_X)-.6,y-2.6,1.2,2);if(!B('tomb').gone){c.fillStyle=G.feat==='cliff'?'#b0603a':'#e2ba7a';c.beginPath();c.moveTo(mx(150)-3,y+1.5);c.lineTo(mx(150),y-2.8);c.lineTo(mx(150)+3,y+1.5);c.fill();}
@@ -2030,6 +2031,7 @@ function frame(now){
   const raw=(now-last)/1000,dt=Math.min(.05,raw);last=now;
   if(raw<.5){fpsAvg=fpsAvg*.95+(1/Math.max(raw,.001))*.05;if((fpsT+=raw)>.5){fpsT=0;if(!$('fps').hidden)$('fps').textContent=Math.round(fpsAvg)+' fps, '+['full','reduced','minimal'][Q];}}
   if(QSET==='auto'&&Q<2&&G.state==='play'&&!paused&&raw<.5){frame.slow=raw>.03?(frame.slow||0)+raw:Math.max(0,(frame.slow||0)-raw*.5);if(frame.slow>2.5){frame.slow=0;setQ(Q+1,true);}}
+  if((frame.mt=(frame.mt||0)+raw)>.4){frame.mt=0;const hr=$('hud').getBoundingClientRect(),cr=$('game').getBoundingClientRect();if(hr.height&&cr.height)MAPY=Math.max(12,(hr.bottom-cr.top)/(cr.height/H)+8);}
   pollPad();demoStep(dt,input);if(!paused)update(dt);
   draw();hud(dt);updAudio();
   requestAnimationFrame(frame);
