@@ -73,7 +73,9 @@ canvas{display:block;image-rendering:pixelated;touch-action:none;transition:filt
 #fire svg{width:36px;height:36px;stroke:var(--cream);fill:none;stroke-width:1.8;stroke-linecap:round;pointer-events:none}
 .title #pad,.title #toss,.title #fire,.title #hud,.title #info,.cine #hud,.cine #pad,.cine #toss,.cine #fire,.cine #hint,.cine #info{display:none}
 #title{position:absolute;inset:0;display:grid;place-content:center;justify-items:center;text-align:center;gap:11px;padding:20px;background:linear-gradient(rgba(28,19,12,.05),rgba(28,19,12,.55))}
-#title[hidden],#over[hidden]{display:none}
+#title[hidden],#over[hidden],#demo[hidden]{display:none}
+@media (max-height:480px){#title{gap:6px;padding:8px 20px}#title h1{font-size:clamp(34px,13vh,60px)}#title p{font-size:14px}#go{font-size:17px;padding:7px 22px 5px;margin-top:2px}#slots button{font-size:12px;padding:4px 8px 3px}#title #how{display:none}#more button{font-size:13px;padding:5px 12px 4px}}
+#more{display:flex;gap:8px;justify-content:center}
 #title h1,#card,#over h2{margin:0;font-family:"Cinzel Decorative",Cinzel,Georgia,serif;font-weight:700;font-size:clamp(44px,11vw,104px);line-height:1;letter-spacing:.04em;color:var(--gold);text-shadow:0 3px 0 #8a5a14,0 7px 0 var(--ink),0 0 30px rgba(242,193,78,.35)}
 #title h1{padding:.2em .55em .12em;background:linear-gradient(#e0c894,#b99862 60%,#a07e48);border:3px solid #5e4020;border-radius:8px;color:#6e4a1c;text-shadow:0 1px 0 #f6e2b0,0 -1px 0 #3a2410;box-shadow:inset 0 2px 0 #f6e6bc,inset 0 -4px 0 rgba(90,60,20,.5),inset 0 0 0 5px rgba(90,60,20,.14),0 8px 26px rgba(0,0,0,.5)}
 #title{background:none}
@@ -83,7 +85,7 @@ canvas{display:block;image-rendering:pixelated;touch-action:none;transition:filt
 #slots:empty{display:none}
 #slots button{font:inherit;font-size:14px;color:var(--cream);background:rgba(28,19,12,.7);border:1px solid rgba(243,227,188,.6);border-radius:4px;padding:6px 12px 5px;cursor:pointer}
 #slots button.x{padding:6px 8px 5px;border-style:dashed;margin-left:-6px}
-#cont,#prev,.sm{font:inherit;font-size:15px;color:var(--cream);background:rgba(28,19,12,.6);border:1px solid rgba(243,227,188,.6);border-radius:4px;padding:7px 18px 6px;cursor:pointer}
+#cont,#prev,#demogo,.sm{font:inherit;font-size:15px;color:var(--cream);background:rgba(28,19,12,.6);border:1px solid rgba(243,227,188,.6);border-radius:4px;padding:7px 18px 6px;cursor:pointer}
 #prev{border-style:dashed}
 button:focus-visible{outline:3px solid var(--cream);outline-offset:3px}
 #cine{position:absolute;inset:0;pointer-events:none;overflow:hidden}
@@ -156,8 +158,7 @@ button:focus-visible{outline:3px solid var(--cream);outline-offset:3px}
   <p id="tag">A river that wandered off, an empty bazaar, and gold under the sand.</p>
   <button id="go" type="button">Ride in</button>
   <div id="slots"></div>
-  <button id="demogo" type="button">Watch the demo</button>
-  <button id="prev" type="button">Previews</button>
+  <div id="more"><button id="demogo" type="button">Watch the demo</button><button id="prev" type="button">Previews</button></div>
   <p id="how">Arrow keys or A and D to ride. Space to toss a coin, F to loose an arrow.</p>
 </div>
 <script>
