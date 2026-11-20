@@ -419,7 +419,7 @@ function nomad(camp,fromEdge){
 const arrivals=()=>G.camps.forEach((c,i)=>{if(G.folk.length+G.nomads.length<popCap()&&G.nomads.filter(d=>d.camp===i).length<c.cap)nomad(i,true);});
 const townie=(id,x,dir,role)=>{const f={id,x,dir,walk:0,wait:0,wx:x,hidden:false,moving:false,role:role||'folk',work:0,cd:0,ham:0,side:id%2?1:-1};G.folk.push(f);return f;};
 function recruit(d){G.stats.recruits++;G.nomads.splice(G.nomads.indexOf(d),1);townie(d.id,d.x,d.dir);G.rings.push({x:d.x,t:.4});dust(d.x,3,8);spark(d.x,10,8);sfx.recruit();hint('recruit');}
-const BOSS={pyramid:'The warlord rides with them tonight.',oasis:'The Poisoner. He is making for the well: stop him before he reaches it.',cliff:'The Stone Lord. He stands off and rolls boulders at your gate.',port:'River pirates. They are landing at the dock while the raid comes from the west.',temple:'The High Priest. While he stands, the dead keep rising.'};
+const BOSS={pyramid:'The warlord rides with them tonight.',oasis:'The Poisoner. He is making for the well: stop him before he reaches it.',cliff:'The Stone Lord. He stands off and rolls boulders at your gate.',port:'River pirates. They are landing at the dock while the raid comes from the west.',temple:'The High Priest. He raises the dead, then comes for the gate himself.'};
 function spawnRaider(side,kind,more,boat){
   const K=KIND[kind],hp=K[0]+(more||0),g=side<0?B('gw'):B('ge');let x=kind==='mummy'?B('tomb').x+62:g.x+side*360;if(kind!=='mummy'&&Math.abs(G.player.x-x)<W*.7)x+=side*W*.8;if(boat)x=NILE-24-Math.random()*20;
   if(kind==='boss'){G.seen['c_boss'+G.town]||hint('boss',true,BOSS[G.feat]);cine('boss'+G.town,BOSS[G.feat],3.8,1.2,clamp(x,60,NILE-60));}
@@ -452,8 +452,8 @@ function dawn(){
 function dusk(){
   if(G.omen){G.omen=false;if(B('tea').level)arrivals();hint('omen',true);return;}
   if(B('tea').level)arrivals();
-  const ln=G.day-G.day0,d=ln+Math.min(G.town,ln-1);if(d<2)return;
-  const boss=ln>=4&&ln%3===1,port=boss&&G.feat==='port',s0=G.side=port?-1:Math.random()<.5?1:-1,n=Math.min(1+Math.floor(d*.7),12),sph=B('sphinx').level;
+  const ln=G.day-G.day0,d=ln+Math.min(G.town,(ln-1)>>1);if(d<2)return;
+  const boss=ln>=5&&ln%3===1,port=boss&&G.feat==='port',s0=G.side=port?-1:Math.random()<.5?1:-1,n=Math.min(1+Math.floor(d*.7),12),sph=B('sphinx').level;
   for(let i=0;i<n;i++){const side=(G.town?i%3:i%2)?s0:-s0;if(side<0&&sph&&i%2)continue;G.raid.push({t:.74+Math.random()*.09,side,kind:d>=4&&i%3===2?'rider':'bandit',hp:d>>3});}
   if(boss)G.raid.push({t:.79,side:port?1:s0,kind:'boss',hp:d>>2,boat:port});
   if(port){for(let i=0;i<3;i++)G.raid.push({t:.795+i*.006,side:1,kind:'bandit',hp:d>>3,boat:true});G.pirate={t:0};}
@@ -660,8 +660,9 @@ function bossAI(r,dt,K){
     r.moving=false;r.dir=-r.side;r.bcd=(r.bcd===undefined?1.5:r.bcd)-dt;if(r.bcd<=0){r.bcd=4.2;G.rocks.push({x:r.x-r.side*10,dir:-r.side,rot:0,t:0});sfx.gate(near(r.x));dust(r.x-r.side*8,2,8);}return true;
   }
   if(f==='temple'){
+    if((r.raised||0)>=6)return false;
     const stand=g.x+r.side*150;if(Math.abs(r.x-stand)>4)step(r,stand,K[1]*1.4,dt);else{r.moving=false;r.dir=-r.side;}
-    r.bcd=(r.bcd===undefined?3:r.bcd)-dt;if(r.bcd<=0){r.bcd=6;if(G.raiders.filter(m=>m.kind==='mummy').length<4){const mx=r.x-r.side*16;G.raiders.push({id:G.nextId++,kind:'mummy',x:mx,dir:-r.side,side:r.side,hp:5,max:5,state:'raid',loot:0,walk:0,cd:0,hurt:0,moving:true});G.rings.push({x:mx,t:.2});sfx.gong();for(let i=0;i<12;i++)G.parts.push({x:mx+rnd(-5,5),h:rnd(0,10),vx:rnd(-6,6),vh:rnd(8,22),life:0,max:rnd(.8,1.6),col:'#7dffb0',grav:0,sm:1,r:2.4,a:.4});}}
+    r.bcd=(r.bcd===undefined?3:r.bcd)-dt;if(r.bcd<=0){r.bcd=8;if(G.raiders.filter(m=>m.kind==='mummy').length<2){r.raised=(r.raised||0)+1;const mx=r.x-r.side*16;G.raiders.push({id:G.nextId++,kind:'mummy',x:mx,dir:-r.side,side:r.side,hp:3,max:3,state:'raid',loot:0,walk:0,cd:0,hurt:0,moving:true});G.rings.push({x:mx,t:.2});sfx.gong();for(let i=0;i<12;i++)G.parts.push({x:mx+rnd(-5,5),h:rnd(0,10),vx:rnd(-6,6),vh:rnd(8,22),life:0,max:rnd(.8,1.6),col:'#7dffb0',grav:0,sm:1,r:2.4,a:.4});}}
     return true;
   }
   return false;
@@ -830,10 +831,10 @@ const PRE=[
   ['The Sphinx',()=>{grow(1,40);G.t=.2;G.player.x=640;}],
   ['The pyramid tomb',()=>{grow(1,40);G.t=.1;G.player.x=110;}],
   ['Inside the tomb',()=>{grow(1,40);B('tomb').level=1;G.ankh=true;G.t=.3;G.player.x=110;G.cineNow=1;}],
-  ['Boss: the Poisoner (town 2)',()=>{town(1);grow(2);G.day=4;G.day0=0;G.t=.655;G.player.x=WELL_X-40;}],
-  ['Boss: the Stone Lord (town 3)',()=>{town(2);grow(2);G.day=4;G.day0=0;G.t=.655;G.player.x=TOWN[0]+60;}],
-  ['Boss: river pirates (town 4)',()=>{town(3);grow(2);B('dock').level=1;G.day=4;G.day0=0;G.t=.655;G.player.x=TOWN[1]+120;}],
-  ['Boss: the High Priest (town 5)',()=>{town(4);grow(2);G.day=4;G.day0=0;G.t=.655;G.player.x=TOWN[0]+60;}],
+  ['Boss: the Poisoner (town 2)',()=>{town(1);grow(2);G.day=7;G.day0=0;G.t=.655;G.player.x=WELL_X-40;}],
+  ['Boss: the Stone Lord (town 3)',()=>{town(2);grow(2);G.day=7;G.day0=0;G.t=.655;G.player.x=TOWN[0]+60;}],
+  ['Boss: river pirates (town 4)',()=>{town(3);grow(2);B('dock').level=1;G.day=7;G.day0=0;G.t=.655;G.player.x=TOWN[1]+120;}],
+  ['Boss: the High Priest (town 5)',()=>{town(4);grow(2);G.day=7;G.day0=0;G.t=.655;G.player.x=TOWN[0]+60;}],
   ["The mummies' night",()=>{grow(2);B('tomb').level=1;B('sphinx').level=1;G.ankh=true;G.day=6;G.day0=0;G.t=.655;G.player.x=1200;}],
   ['The oasis and its grove',()=>{grow(1,20);G.t=.42;G.player.x=2400;}],
   ['Eclipse',()=>{grow(2);G.t=.33;G.eclAt=.332;G.player.x=1560;}],
@@ -883,7 +884,7 @@ const DEMO=[
   ['Town 4','Town 4, Amber Gate: the river port, with a buried temple to dig out.',6,1],
   ['Boss: river pirates','River pirates land at the dock while the raid comes from the west.',9,0,()=>{ffw(()=>G.pirate&&G.pirate.t>.5);G.player.x=NILE-150;}],
   ['Town 5','Town 5, the Last Cataract.',6,1],
-  ['Boss: the High Priest','The High Priest keeps raising the dead until he falls.',9,2,()=>{ffw(()=>G.raiders.filter(r=>r.kind==='mummy').length>1);by(boss(),120);}],
+  ['Boss: the High Priest','The High Priest raises the dead, then comes for the gate himself.',9,2,()=>{ffw(()=>G.raiders.filter(r=>r.kind==='mummy').length>1);by(boss(),120);}],
   ['@menu','The menu: sound, graphics quality (full, reduced, minimal or auto), frame-rate readout. Three save slots, saved as you play.',6,0],
   ['@over','Robbed with an empty purse and the game ends. You can go back to that morning.',5,0],
   ['The ending','Hold all five towns and the river comes home.',14,0]];
