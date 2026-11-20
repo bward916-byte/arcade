@@ -73,7 +73,9 @@ canvas{display:block;image-rendering:pixelated;touch-action:none;transition:filt
 #fire svg{width:36px;height:36px;stroke:var(--cream);fill:none;stroke-width:1.8;stroke-linecap:round;pointer-events:none}
 .title #pad,.title #toss,.title #fire,.title #hud,.title #info,.cine #hud,.cine #pad,.cine #toss,.cine #fire,.cine #hint,.cine #info{display:none}
 #title{position:absolute;inset:0;display:grid;place-content:center;justify-items:center;text-align:center;gap:11px;padding:20px;background:linear-gradient(rgba(28,19,12,.05),rgba(28,19,12,.55))}
-#title[hidden],#over[hidden],#demo[hidden]{display:none}
+#title[hidden],#over[hidden],#demo[hidden],#burn[hidden]{display:none}
+#burn{position:fixed;inset:0;width:100%;height:100%;z-index:70;pointer-events:none}
+.burning #title h1{visibility:hidden}.burning #title>*:not(h1){opacity:0;transition:opacity .5s;pointer-events:none}
 @media (max-height:480px){#title{gap:6px;padding:8px 20px}#title h1{font-size:clamp(44px,22vh,88px)}#slots button{min-width:0}#title p{font-size:15px}#go{font-size:17px;padding:7px 22px 5px;margin-top:2px}#slots button{font-size:13px;padding:4px 9px 3px}#title #how{display:none}#more button{font-size:13px;padding:5px 12px 4px}}
 #more{display:flex;gap:8px;justify-content:center}
 #title h1,#card,#over h2{margin:0;font-family:"Cinzel Decorative",Cinzel,Georgia,serif;font-weight:700;font-size:clamp(44px,11vw,104px);line-height:1;letter-spacing:.04em;color:var(--gold);text-shadow:0 3px 0 #8a5a14,0 7px 0 var(--ink),0 0 30px rgba(242,193,78,.35)}
@@ -138,6 +140,7 @@ button:focus-visible{outline:3px solid var(--cream);outline-offset:3px}
 <div id="cine"><i id="barT"></i><i id="barB"><span id="cap"></span></i><h2 id="card"></h2><p id="skip">Tap to skip</p></div>
 <div id="hint" role="status"></div>
 <p id="tut" role="status" hidden></p>
+<canvas id="burn" hidden></canvas>
 <div id="demo" hidden><p id="demot"></p><span id="demon"></span><button type="button" id="demox">Exit demo</button></div>
 <p id="fps" hidden></p>
 <p id="info" role="status"><b></b><span></span></p>
@@ -2070,7 +2073,40 @@ $('mquit').addEventListener('click',()=>{save();location.reload();});
 $('menu').addEventListener('pointerdown',e=>{if(e.target===$('menu'))menuClose();});
 
 // ---------- start and loop
-function start(keep){
+let burning=false;
+function start(keep){if(G.state!=='title'||burning)return;initAudio();if(AC&&AC.state==='suspended')AC.resume();burnTitle(()=>startNow(keep));}
+// the name catches, burns across from the left, and blows away as ash
+function burnTitle(done){
+  const h1=document.querySelector('#title h1'),r=h1.getBoundingClientRect(),cv=$('burn'),c=cv.getContext('2d');
+  if(Q>=2||!r.width||$('title').hidden){done();return;}
+  burning=true;cv.width=innerWidth;cv.height=innerHeight;cv.hidden=false;
+  const sc=Math.max(1,Math.round(r.width/340)),w=Math.ceil(r.width/sc)+16,hh=Math.ceil(r.height/sc)+16,T=document.createElement('canvas');T.width=w;T.height=hh;
+  const t=T.getContext('2d',{willReadFrequently:true}),fs=parseFloat(getComputedStyle(h1).fontSize)/sc,txt='DUNEFALL',ls=fs*.1;t.font=`700 ${fs}px "Cinzel Decorative",Cinzel,Georgia,serif`;t.textBaseline='middle';t.lineJoin='round';
+  let tw=0;for(const ch of txt)tw+=t.measureText(ch).width+ls;tw-=ls;const cyT=8+(hh-16)*.44,g=t.createLinearGradient(0,cyT-fs*.5,0,cyT+fs*.45);g.addColorStop(.1,'#fff3c4');g.addColorStop(.48,'#f2c14e');g.addColorStop(.52,'#b9781f');g.addColorStop(.9,'#f6d27a');
+  let x=(w-tw)/2;for(const ch of txt){t.strokeStyle='#4a2a0a';t.lineWidth=Math.max(1.2,3/sc);t.strokeText(ch,x,cyT);t.fillStyle=g;t.fillText(ch,x,cyT);x+=t.measureText(ch).width+ls;}
+  const src=t.getImageData(0,0,w,hh).data,out=t.createImageData(w,hh),O=out.data,gw=26,gh=9,gr=[];for(let i=0;i<gw*gh;i++)gr.push(Math.random());
+  const B=new Float32Array(w*hh);for(let y=0;y<hh;y++)for(let xx=0;xx<w;xx++){const u=xx/w*(gw-1),v=y/hh*(gh-1),i0=u|0,j0=v|0,fu=u-i0,fv=v-j0,i1=Math.min(gw-1,i0+1),j1=Math.min(gh-1,j0+1),n=(gr[j0*gw+i0]*(1-fu)+gr[j0*gw+i1]*fu)*(1-fv)+(gr[j1*gw+i0]*(1-fu)+gr[j1*gw+i1]*fu)*fv;B[y*w+xx]=n*.34+(xx/w)*.6+Math.random()*.05+(y/hh)*.06;}
+  const parts=[],ox=r.left-8*sc,oy=r.top-8*sc,DUR=2.3,t0=performance.now();let fired=false;document.body.classList.add('burning');
+  (function fr(now){
+    const tt=(now-t0)/1000,k=tt/DUR*1.32-.1,dt=1/60;let any=false;
+    for(let i=0,n=w*hh;i<n;i++){const a=src[i*4+3],j=i*4;if(!a){O[j+3]=0;continue;}const d=k-B[i];
+      if(d<0){O[j]=src[j];O[j+1]=src[j+1];O[j+2]=src[j+2];O[j+3]=a;any=true;}
+      else if(d<.025){O[j]=255;O[j+1]=252;O[j+2]=215;O[j+3]=255;any=true;if(Math.random()<.035)parts.push({x:ox+(i%w)*sc,y:oy+((i/w)|0)*sc,vx:20+Math.random()*70,vy:-30-Math.random()*90,l:0,m:.5+Math.random()*.9,e:1});}
+      else if(d<.07){O[j]=255;O[j+1]=150-d*900;O[j+2]=30;O[j+3]=255;any=true;}
+      else if(d<.13){O[j]=170-d*600;O[j+1]=36;O[j+2]=18;O[j+3]=255;any=true;}
+      else if(d<.3){const q=(d-.13)/.17;O[j]=O[j+1]=O[j+2]=66-q*30;O[j+3]=a*(1-q);any=true;if(d<.15&&Math.random()<.05)parts.push({x:ox+(i%w)*sc,y:oy+((i/w)|0)*sc,vx:50+Math.random()*150,vy:-8-Math.random()*46,l:0,m:1+Math.random()*1.3,e:0,p:Math.random()*6});}
+      else O[j+3]=0;}
+    t.putImageData(out,0,0);c.clearRect(0,0,cv.width,cv.height);c.imageSmoothingEnabled=false;c.globalCompositeOperation='source-over';if(any)c.drawImage(T,ox,oy,w*sc,hh*sc);
+    if(any&&k>0&&k<1.1){const fx=ox+clamp((k-.2)/.6,0,1)*w*sc;c.globalCompositeOperation='lighter';const fg=c.createRadialGradient(fx,r.top+r.height*.45,4,fx,r.top+r.height*.45,r.height*1.5);fg.addColorStop(0,'rgba(255,170,70,.32)');fg.addColorStop(1,'rgba(255,120,40,0)');c.fillStyle=fg;c.fillRect(fx-r.height*1.5,r.top-r.height,r.height*3,r.height*3);}
+    for(let i=parts.length-1;i>=0;i--){const p=parts[i];p.l+=dt;if(p.l>p.m){parts.splice(i,1);continue;}const u=p.l/p.m;p.x+=p.vx*dt;p.y+=p.vy*dt;
+      if(p.e){p.vy+=20*dt;c.globalCompositeOperation='lighter';c.fillStyle=`rgba(255,${(210-u*150)|0},${(90-u*80)|0},${1-u})`;c.fillRect(p.x,p.y,sc*1.2,sc*1.2);}
+      else{p.vx+=40*dt;p.y+=Math.sin(tt*7+p.p)*.5;c.globalCompositeOperation='source-over';const gcol=(70+Math.sin(p.p)*20)|0;c.fillStyle=`rgba(${gcol},${gcol-6},${gcol-10},${.85*(1-u)})`;c.fillRect(p.x,p.y,sc*(1+((p.p*3)|0)%2),sc);}}
+    if(tt<DUR&&Math.random()<.4)noise(.05,.05,1400+Math.random()*2600,1.2);
+    if(!fired&&tt>DUR+.05){fired=true;done();}
+    if(tt<DUR+.2||parts.length)requestAnimationFrame(fr);else{cv.hidden=true;burning=false;document.body.classList.remove('burning');}
+  })(t0);
+}
+function startNow(keep){
   if(G.state!=='title')return;
   initAudio();if(AC&&AC.state==='suspended')AC.resume();
   try{const so=screen.orientation;if(so&&so.lock)so.lock('landscape').catch(()=>{});}catch(e){}
@@ -2097,7 +2133,7 @@ $('endnew').addEventListener('click',()=>{if(G.preview)return location.reload();
 $('fresh').addEventListener('click',()=>{if(G.preview)return location.reload();wipe();location.reload();});
 document.addEventListener('visibilitychange',()=>{if(document.hidden){save();if(AC&&AC.state==='running')AC.suspend();menuOpen();}else if(AC&&AC.state==='suspended'&&$('menu').hidden&&G.state!=='title')AC.resume();});
 addEventListener('pagehide',save);
-window.dunefall={DIGX,SELLX,FSPOT,DEMO,demoScene,peek,setQ,endTut,TUT,get Q(){return Q;},input,head,preview,update,draw,dawn,dusk,target,costOf,B,start,load,save,PRE};   // for the test scripts
+window.dunefall={DIGX,SELLX,FSPOT,DEMO,demoScene,peek,setQ,endTut,TUT,get Q(){return Q;},input,head,preview,update,draw,dawn,dusk,target,costOf,B,start:startNow,load,save,PRE};   // for the test scripts
 let last=performance.now(),fpsAvg=60,fpsT=0;
 function setQ(q,auto){Q=clamp(q,0,2);if(!auto){QSET=q;try{localStorage.setItem('dunefall_q',String(q));}catch(e){}}$('mgfx').textContent='Graphics: '+(QSET==='auto'?'auto ('+['full','reduced','minimal'][Q]+')':['full','reduced','minimal'][Q]);resize();}
 {let q=null;try{q=localStorage.getItem('dunefall_q');}catch(e){}if(q==='0'||q==='1'||q==='2'){QSET=+q;Q=+q;}setQ(Q,QSET==='auto');}
