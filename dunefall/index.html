@@ -89,7 +89,9 @@ button:focus-visible{outline:3px solid var(--cream);outline-offset:3px}
 #prein{width:min(100%,44rem)}
 #preg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
 #preg button{margin:0;background:rgba(242,193,78,.35);color:#2a1a10;border:1px solid rgba(106,74,46,.7);padding:9px 6px}
-#jobs{list-style:none;margin:0;padding:0;text-align:left}
+#jobs,#endstats{list-style:none;margin:0 0 8px;padding:0;text-align:left}
+#endstats li{padding:4px 0;border-bottom:1px solid rgba(106,74,46,.35)}
+#end{background:rgba(14,9,5,.35)}
 #jobs li{display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid rgba(106,74,46,.35)}
 #jobs li b{flex:1}
 #over{position:absolute;inset:0;display:grid;place-content:center;justify-items:center;gap:12px;text-align:center;background:rgba(14,9,5,.55);z-index:5}
@@ -126,6 +128,7 @@ button:focus-visible{outline:3px solid var(--cream);outline-offset:3px}
 <p id="menhow" hidden>Ride left and right. Toss coins to nomads at their tents and they join you. Toss coins at ruins and your villagers rebuild them. Coins on a tool rack turn villagers into diggers, guards and herders. Raiders come after dark: loose arrows, and never be caught with an empty purse. Raise the obelisk, build the dock, and sail on when you choose.</p>
 <p>Your town is saved on this device each dawn.</p></div></div>
 <div id="pre" class="sheet" hidden><div id="prein"><h2>Previews</h2><div id="preg"></div><p>Each one drops you into that part of the game, ready to play.</p><button type="button" id="prex">Back</button></div></div>
+<div id="end" class="sheet" hidden><div><h2>The river remembers</h2><ul id="endstats"></ul><button type="button" id="endgo">Sail on to a sixth town</button><button type="button" id="endnew">New game</button></div></div>
 <div id="over" hidden><h2>Run out of town</h2><p>The raiders caught you with an empty purse.</p><button class="big" id="again" type="button">Back to the last dawn</button><button class="sm" id="fresh" type="button">New game</button></div>
 <div id="rot"><div>Turn your phone sideways to ride.</div></div>
 <div id="title">
@@ -141,7 +144,8 @@ button:focus-visible{outline:3px solid var(--cream);outline-offset:3px}
 const $=id=>document.getElementById(id);
 const cv=$('game'),stage=$('stage'),mctx=cv.getContext('2d'),scn=document.createElement('canvas'),ctx=scn.getContext('2d'),ovl=document.createElement('canvas'),octx=ovl.getContext('2d'),blm=document.createElement('canvas'),bctx=blm.getContext('2d');
 let W=400,H=190,GY=140,S=2,cam=0,NOW=0,G,paused=false,muted=false;
-const DAY_LEN=100,WORLD=3200,WELL_X=1655,TOWN=[1296,1992],QUARRY=985,PAST=[2080,2200],NILE=3106,OASIS=2485;
+const DAY_LEN=100,WORLD=3200,NILE=3106;
+let WELL_X=1655,TOWN=[1296,1992],QUARRY=985,PAST=[2080,2200],OASIS=2485;   // set per town in reset()
 const clamp=(v,a,b)=>v<a?a:v>b?b:v,rnd=(a,b)=>a+Math.random()*(b-a),lerp=(a,b,t)=>a+(b-a)*t;
 const hash=n=>{n=Math.sin(n*127.1+3.7)*43758.5453;return n-Math.floor(n);};
 const rgb=h=>[1,3,5].map(i=>parseInt(h.substr(i,2),16));
@@ -164,35 +168,48 @@ const DEF={
   dock:{name:'DOCK',w:56,cost:[20,6],pay:0,h:[8,14,14]},
   sphinx:{name:'SPHINX',w:84,cost:[10],pay:0,far:1,h:[26,40]},
   tomb:{name:'TOMB',w:50,cost:[14],pay:0,far:1,h:[22,22]},
-  grove:{name:'DATE GROVE',w:70,cost:[5],pay:0,far:1,h:[30,36]}};
-const ORDER=['market','tea','guard','pen','bank','well','temple','gw','ge','dock','sphinx','tomb','grove'],IDX={};ORDER.forEach((k,i)=>IDX[k]=i);
+  grove:{name:'DATE GROVE',w:70,cost:[5],pay:0,far:1,h:[30,36]},
+  hermit:{name:'HERMIT',w:44,cost:[6,6,6],pay:0,far:1,h:[30,30,30,30]},
+  btemple:{name:'BURIED TEMPLE',w:90,cost:[12],pay:0,far:1,h:[20,46]}};
+const ORDER=['market','tea','guard','pen','bank','well','temple','gw','ge','dock','sphinx','tomb','grove','hermit','btemple'],IDX={};ORDER.forEach((k,i)=>IDX[k]=i);
 const B=k=>G.b[IDX[k]];
 const GHP=[0,16,34,60];
 const KIND={bandit:[2,38,1,3],rider:[3,70,1,4],boss:[12,28,2,5],mummy:[8,17,2,0]};   // hit points, speed, damage to a gate, coins knocked from your purse
 const ROLES={folk:'Villagers',digger:'Diggers',guard:'Guards',herder:'Herders'};
+const SHOP={guard:[['quiver',6,'QUIVER','Nine arrows instead of six.'],['fire',10,'FIRE ARROWS','Every arrow bites twice as hard.'],['falcon',12,'FALCON','It shows you where raiders are gathering.']],pen:[['saddle',8,'RACING SADDLE','A faster camel.'],['racer',14,'RACING CAMEL','Faster still, at a full gallop.']]};
+const shopX=k=>B(k).x-9,shopItem=k=>B(k).level?SHOP[k].find(it=>!G.up[it[0]]):null,maxAmmo=()=>G.up.quiver?9:6;
 const rackX=b=>b.type==='market'?b.x-9:b.x+b.w+8;
 const tall=b=>DEF[b.type].h[b.level];
 const capped=b=>DEF[b.type].tier&&b.level>=1+B('well').level;
 const todo=()=>[...['market','tea','guard','pen','bank','temple'].filter(k=>!B(k).level).map(k=>DEF[k].name.toLowerCase()),...(B('well').level<2?['obelisk']:[])];
-const costOf=b=>{const c=DEF[b.type].cost[b.level];if(!c||capped(b))return 0;if(b.type==='dock'&&!b.level&&todo().length)return 0;return b.type==='dock'&&b.level?c:Math.ceil(c*(1+.25*G.town));};
+const costOf=b=>{const c=DEF[b.type].cost[b.level];if(!c||b.gone||capped(b))return 0;if(b.type==='dock'&&!b.level&&todo().length)return 0;return b.type==='dock'&&b.level?c:Math.ceil(c*(1+.25*G.town));};
 const popCap=()=>10+6*B('well').level+4*B('tea').level;
 const reloadTime=()=>Math.max(1.5,4-B('guard').level);
 const mk=(type,x)=>({type,x,w:DEF[type].w,level:0,paid:0,incoming:0,building:false,progress:0,need:1,robbed:false,badges:0,rin:0,hp:0,idle:0,shake:0});
 const head=r=>G.folk.filter(f=>f.role===r).length;
 
-function reset(town){
-  town=town||0;
-  G={state:'title',t:.62,day:1,day0:0,town,bank:0,ankh:false,side:Math.random()<.5?1:-1,dark:0,nextId:1,shake:0,flash:0,fade:0,trip:null,intro:null,raid:[],night:null,storm:null,stormAt:-1,caravan:null,carAt:-1,report:'',seen:{},over:false,
+// the five towns: each has its own street plan, its own country around it, and its own thing to find
+const TCFG=[
+  {feat:'pyramid',ox:0,bx:{bank:1338,market:1408,tea:1500,guard:1700,temple:1778,pen:1866},sites:{sphinx:600,tomb:78,grove:2450},oasis:2485,past:[2080,2200],quarry:985,camps:[[430,3],[1130,2],[2320,2],[2860,3]],urns:[[250,6],[860,4],[2230,4],[2650,6]]},
+  {feat:'oasis',ox:0,bx:{tea:1326,market:1412,guard:1512,temple:1694,pen:1786,bank:1888},sites:{grove:2050,hermit:150},oasis:2085,past:[2240,2380],quarry:900,camps:[[520,3],[1120,2],[2500,3],[2820,2]],urns:[[330,6],[760,5],[2640,6]]},
+  {feat:'cliff',ox:0,bx:{guard:1330,bank:1416,temple:1490,pen:1700,market:1806,tea:1896},sites:{tomb:78,grove:2450},oasis:2485,past:[2080,2200],quarry:985,camps:[[470,2],[1130,3],[2320,2],[2860,3]],urns:[[640,5],[860,4],[2230,5],[2700,6]]},
+  {feat:'port',ox:640,bx:{market:1326,bank:1424,pen:1500,tea:1694,guard:1782,temple:1866},sites:{btemple:880},oasis:-9999,past:[2700,2820],quarry:1500,camps:[[420,3],[1080,3],[1680,2],[2900,2]],urns:[[250,6],[640,5],[1300,5],[1760,4]]},
+  {feat:'temple',ox:0,bx:{temple:1330,tea:1420,market:1510,bank:1694,guard:1772,pen:1862},sites:{sphinx:600,tomb:78,grove:2450},oasis:2485,past:[2080,2200],quarry:985,camps:[[430,3],[1130,3],[2320,3],[2860,3]],urns:[[250,7],[860,5],[2230,5],[2650,7]]}];
+function reset(town,keep){
+  town=town||0;const cf=TCFG[town%5],ox=cf.ox,K=keep&&G?{stats:G.stats,relics:G.relics,up:G.up,ended:G.ended}:{stats:{built:0,recruits:0,down:0,towns:0},relics:{},up:{},ended:false};
+  WELL_X=1655+ox;TOWN=[1296+ox,1992+ox];QUARRY=cf.quarry;PAST=cf.past;OASIS=cf.oasis;
+  const site=t=>{const x=cf.sites[t],q=mk(t,x===undefined?-9999:x);if(x===undefined||t==='btemple')q.gone=true;return q;};
+  G={...K,shop:{guard:{k:'guard',paid:0,inc:0,idle:0},pen:{k:'pen',paid:0,inc:0,idle:0}},feat:cf.feat,looted:false,trapCd:0,end:null,traps:cf.feat==='cliff'?[190,245,300].map((x,i)=>({x,ph:i*.8})):[],state:'title',t:.62,day:1,day0:0,town,bank:0,ankh:false,side:Math.random()<.5?1:-1,dark:0,nextId:1,shake:0,flash:0,fade:0,trip:null,intro:null,raid:[],night:null,storm:null,stormAt:-1,caravan:null,carAt:-1,report:'',seen:{},over:false,
     player:{x:WELL_X-22,vx:0,dir:1,phase:0,coins:8,cd:0,toss:0,ammo:6,rl:0,rlT:1,gcd:0,draw:0,lock:false},
     coins:[],folk:[],nomads:[],raiders:[],parts:[],arrows:[],herd:[],fallen:[],
-    b:[mk('market',1408),mk('tea',1500),mk('guard',1700),mk('pen',1866),mk('bank',1338),mk('well',1640),mk('temple',1778),mk('gw',1290),mk('ge',1978),mk('dock',3040),mk('sphinx',600),mk('tomb',78),mk('grove',2450)],
-    camps:[{x:430,cap:3},{x:1130,cap:2},{x:2320,cap:2},{x:2860,cap:3}],
-    urns:[{x:250,n:6},{x:860,n:4},{x:2230,n:4},{x:2650,n:6}].map(u=>({open:false,...u})),
-    mirages:[],devils:[{x:520,dir:1,a:260,b:1180},{x:2520,dir:-1,a:2100,b:2990}],weeds:[{x:300,rot:0,h:0,p:1},{x:1100,rot:2,h:0,p:3},{x:2400,rot:4,h:0,p:5}],rings:[],prints:[],zoom:1,zoomT:1,zoomHold:0,crowd:[],cine:null,drift:0,doves:[],stuck:[],torches:[],slow:0,rain:null,rainAt:-1,ecl:null,eclAt:-1,omen:false,fest:0,festPending:false,fw:[],bow:0,wet:0,lush:false,meteor:null,fish:null,cat:{x:1600,dir:1,t:0},scarabs:[700,1210,2390,2740].map(x=>({x,dir:1,t:0})),falcon:{a:0}};
+    b:[mk('market',cf.bx.market+ox),mk('tea',cf.bx.tea+ox),mk('guard',cf.bx.guard+ox),mk('pen',cf.bx.pen+ox),mk('bank',cf.bx.bank+ox),mk('well',1640+ox),mk('temple',cf.bx.temple+ox),mk('gw',1290+ox),mk('ge',1978+ox),mk('dock',3040),site('sphinx'),site('tomb'),site('grove'),site('hermit'),site('btemple')],
+    camps:cf.camps.map(q=>({x:q[0],cap:q[1]})),
+    urns:cf.urns.map(u=>({x:u[0],n:u[1],open:false})),
+    mirages:[],devils:[{x:520,dir:1,a:260,b:Math.max(420,1296+ox-130)},1992+ox+110<2880?{x:1992+ox+220,dir:-1,a:1992+ox+110,b:2990}:{x:900,dir:-1,a:300,b:1296+ox-220}],weeds:[{x:300,rot:0,h:0,p:1},{x:1100,rot:2,h:0,p:3},{x:2400,rot:4,h:0,p:5}],rings:[],prints:[],zoom:1,zoomT:1,zoomHold:0,crowd:[],cine:null,drift:0,doves:[],stuck:[],torches:[],slow:0,rain:null,rainAt:-1,ecl:null,eclAt:-1,omen:false,fest:0,festPending:false,fw:[],bow:0,wet:0,lush:false,meteor:null,fish:null,cat:{x:1600+ox,dir:1,t:0},scarabs:[700,1210,2390,2740].map(x=>({x,dir:1,t:0})),falcon:{a:0}};
   G.camps.forEach((c,i)=>{for(let k=0;k<c.cap;k++)nomad(i,false);});
-  pickMirages();cam=G.player.x-W/2;window.G=G;
+  G.player.ammo=maxAmmo();pickMirages();cam=G.player.x-W/2;window.G=G;
 }
-function pickMirages(){G.mirages=[300,760,2600,2760].sort(()=>Math.random()-.5).slice(0,2).map(x=>({x,real:Math.random()<.25,gone:0}));}
+function pickMirages(){G.mirages=[300,760,2600,2760].filter(x=>x<TOWN[0]-80||x>TOWN[1]+80).sort(()=>Math.random()-.5).slice(0,2).map(x=>({x,real:!!G.relics.lamp||Math.random()<.25,gone:0}));}
 
 // ---------- time of day
 function darkness(t){if(t<.06)return .5*(1-t/.06);if(t<.58)return 0;if(t<.70)return (t-.58)/.12;if(t<.94)return 1;return 1-.5*(t-.94)/.06;}
@@ -202,7 +219,7 @@ const SKY=[[0,'#6a5f9a','#f6b98a'],[.08,'#4fb3d9','#f4e3bd'],[.5,'#4aaed6','#f6e
 function skyAt(t){let i=0;while(SKY[i+1][0]<=t)i++;const a=SKY[i],b=SKY[i+1],k=(t-a[0])/(b[0]-a[0]);return [mixA(a[1],b[1],k),mixA(a[2],b[2],k)];}
 
 // ---------- audio: a handful of tones and filtered noise, and an oud picking at a desert scale
-let AC=null,MG=null,NB=null,windG=null,windF=null,nextNote=0,noteI=3;
+let AC=null,MG=null,NB=null,windG=null,windF=null,noteI=3,seqT=0,seqI=0;
 function initAudio(){
   if(AC)return;try{AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){return;}
   MG=AC.createGain();MG.gain.value=.55;MG.connect(AC.destination);
@@ -228,17 +245,29 @@ const sfx={
   horn(){tone(110,1.3,'sawtooth',.07,104);tone(165,1.3,'sawtooth',.04,156);},
   dawn(){[4,7,9,7,10].forEach((n,i)=>tone(HIJAZ[n]*2,.34,'sine',.05,0,.5+i*.2));},
   rob(){tone(300,.3,'sawtooth',.07,90);noise(.2,.2,900,1);},urn(){noise(.18,.2,1500,2);[7,9,10].forEach((n,i)=>tone(HIJAZ[n]*2,.12,'triangle',.05,0,i*.06));},
-  gate(v){noise(.12,.25*v,220,1);},gong(){tone(98,2.2,'sine',.12);tone(147.5,2,'sine',.06);tone(246,1.2,'triangle',.03);}};
+  gate(v){noise(.12,.25*v,220,1);},grunt(){tone(118,.32,'sawtooth',.05,74);tone(86,.4,'square',.02,60,.05);},falcon(){tone(2300,.28,'sine',.04,1500);tone(2500,.22,'sine',.03,1700,.3);},gong(){tone(98,2.2,'sine',.12);tone(147.5,2,'sine',.06);tone(246,1.2,'triangle',.03);}};
 function updAudio(){
   if(!AC)return;if(G.rain&&!muted&&Math.random()<.5)noise(.05,.02*rainK(),5200+rnd(0,2500),1.5);const st=G.storm?Math.max(stormK(),.7*clamp(1-(G.player.x-G.storm.front)/520,0,1)*clamp((G.storm.dur-G.storm.t)/5,0,1)):0;
   windG.gain.value=muted?0:.02+st*.2+(G.dark>.5?.015:0);windF.frequency.value=380+st*500+Math.sin(NOW*.7)*90;
-  {const m=B('market'),v=m.level&&G.dark<.4&&G.state==='play'&&!muted?near(m.x+m.w/2)*(1-st):0;
-    if(AC.currentTime>=(updAudio.nb||0)){updAudio.nb=AC.currentTime+.21;const k='D..TD.T.D.TTD.T.'[updAudio.bi=((updAudio.bi||0)+1)%16];if(v>.05){if(k==='D')tone(96,.13,'sine',.11*v,58);else if(k==='T')noise(.035,.07*v,3200,2);}}}
-  if(G.state==='title'||muted||AC.currentTime<nextNote)return;
-  const night=G.dark>.5;noteI=clamp(noteI+[-2,-1,-1,1,1,2][Math.floor(rnd(0,6))],0,HIJAZ.length-1);
-  const f=HIJAZ[noteI]*(night?.5:1),d=night?1.4:.55;
-  tone(f,d,'triangle',night?.035:.04);tone(f*2.003,d*.5,'sine',.012);if(Math.random()<.25)tone(73.4,1.6,'sine',.04);
-  nextNote=AC.currentTime+(night?rnd(1.4,3.2):[.3,.3,.6,.6,1.2][Math.floor(rnd(0,5))]);
+  if(G.state==='title'||muted)return;
+  // bazaar voices: a murmur, and now and then a seller calling, heard when you are near the stalls by day
+  {const m=B('market'),v=G.state==='play'&&m.level&&G.dark<.4&&G.crowd.length?near(m.x+m.w/2)*(1-st):0;
+    if(v>.05){if(Math.random()<.16){const f=rnd(130,250);tone(f,.07+rnd(0,.09),'sawtooth',.009*v,f*rnd(.8,1.35));noise(.06,.012*v,rnd(500,1500),4);}
+      if(Math.random()<.004){const f=rnd(300,420);[0,2,4,2].forEach((n,q)=>tone(f*[1,1.12,1.33,1.12][q],.16,'triangle',.022*v,0,q*.15));}}}
+  // music: one sequencer, a different pattern and voice for day, dusk, night, a raid, a festival and the ending
+  const now=AC.currentTime;if(now<seqT)return;
+  const raid=G.state==='play'&&G.raiders.some(r=>r.state==='raid'),mode=G.state==='end'?'end':G.fest>0?'fest':raid?'raid':G.dark>.5?'night':G.t>.5&&warmth(G.t)>.12?'dusk':'day';
+  const M={day:[.2,'D..t..D.t...D.t.',.42],dusk:[.3,'D.....t...D.....',.3],night:[.42,'........D.......',.16],raid:[.15,'D.DtD.t.D.DtDtt.',.34],fest:[.13,'D.tkD.t.DktkD.tt',.72],end:[.34,'D...t...D.t.....',.4]}[mode];
+  seqT=(seqT<now-1?now:seqT)+M[0];const i=seqI=(seqI+1)%16,ch=M[1][i],dv=mode==='day'?.3+.7*near(B('market').x):1;
+  if(ch==='D')tone(mode==='raid'?70:94,.15,'sine',.1*dv,mode==='raid'?44:56);else if(ch==='t')noise(.03,.05*dv,3000,2);else if(ch==='k')noise(.02,.035,6200,3);
+  if(i===0){if(mode==='raid'){tone(73.4,2.3,'sawtooth',.028);tone(77.8,2.3,'sawtooth',.016);}else if(mode==='night')tone(73.4,3,'sine',.035);else if(mode==='dusk'||mode==='end')tone(73.4,2.6,'sine',.04);else if(mode==='fest'){tone(146.8,.5,'triangle',.04);}}
+  if(Math.random()<M[2]&&(mode!=='raid'||i%2===0)){
+    noteI=clamp(noteI+[-2,-1,-1,1,1,2][Math.floor(rnd(0,6))],mode==='raid'?0:1,mode==='raid'?5:HIJAZ.length-1);const f=HIJAZ[noteI];
+    if(mode==='day'){tone(f,.5,'triangle',.04);tone(f*2.003,.25,'sine',.012);}
+    else if(mode==='dusk'||mode==='end'){tone(f*2,1.3,'sine',.035,f*2.01);tone(f*2*1.006,1.3,'sine',.014);if(mode==='end'&&i%4===0)tone(f,.9,'triangle',.03);}
+    else if(mode==='night'){tone(f*.5,1.6,'triangle',.034);}
+    else if(mode==='raid'){tone(f*.5,.12,'square',.022);tone(f,.1,'triangle',.02);}
+    else{tone(f*2,.16,'triangle',.045);tone(f*4.01,.1,'sine',.012);if(i%4===2)tone(f*3,.14,'triangle',.02,0,.065);}}
 }
 
 // ---------- hints, shown once each
@@ -269,6 +298,15 @@ const HINTS={
   storm:'A haboob is rolling in from the west. Hard riding inside it, but the wind uncovers old things.',
   uncovered:'The storm has uncovered something out in the sand.',
   mirage:'Only a mirage.',
+  cave1:'The cave tomb is open, but spears guard the way in. Ride through when they drop. The gold is at the door.',
+  cave2:'Gold from the cave, and an ankh that will save you once.',
+  trap:'Speared. Wait for them to drop, then ride.',
+  btemple0:'The haboob uncovered an old temple west of town. Toss coins there and your villagers will dig it out.',
+  btemple1:'The temple is dug out. Its gold is yours, and pilgrims will leave three coins every dawn.',
+  hermit0:'A hermit. Six coins buys one of his relics, and a relic stays with you from town to town.',
+  relic_scarab:'The golden scarab. Three coins find their way to you every dawn.',
+  relic_lamp:'The lamp. From now on every mirage you ride into is real.',
+  relic_charm:'The wind charm. A haboob no longer slows your camel.',
   duston:'A brown line is growing on the western horizon. Something is coming.',
   clouds:'Clouds are building. That almost never happens here.',
   warlord:'The warlord is down. His purse is yours.',
@@ -298,13 +336,14 @@ function hud(dt){
   const p=G.player;if(hintT>0&&(hintT-=dt)<=0)$('hint').classList.remove('on');
   const set=(id,v)=>{const e=$(id);if(e.textContent!==String(v)){e.textContent=v;e.classList.remove('bump');void e.offsetWidth;e.classList.add('bump');}};
   set('coins',p.coins);set('bankc',G.bank);$('vault').hidden=!B('bank').level;$('relic').hidden=!G.ankh;
-  const am=$('ammo').children;for(let i=0;i<6;i++)am[i].className=i<p.ammo?'on':'';
+  const amE=$('ammo'),mx=maxAmmo();while(amE.children.length<mx)amE.append(document.createElement('i'));const am=amE.children;for(let i=0;i<am.length;i++){am[i].className=i<p.ammo?'on':'';am[i].style.display=i<mx?'':'none';}
   $('ammo').classList.toggle('rl',p.rl>0);$('fire').classList.toggle('rl',p.rl>0);if(p.rl>0)$('fire').style.setProperty('--rl',1-p.rl/p.rlT);
   $('folkn').textContent=head('folk');$('folkb').classList.toggle('stuck',G.b.some(b=>b.building)&&!head('folk'));
   $('day').textContent='Day '+(G.day-G.day0);$('dial').firstChild.style.transform=`rotate(${-G.t*360}deg)`;$('news').textContent=G.t<.2?G.report:'';
   // what a coin would do here
   const tg=G.state==='play'&&!G.trip?target(p.x):null,z=zoneOf(p.x),el=$('info');let a='',b='';
-  if(tg&&tg.k==='merc'){a='CARAVAN';b=`${(tg.b.paid||0)+(tg.b.inc||0)} of 4 coins hires a guard`;}
+  if(tg&&tg.k==='shop'){const it=shopItem(tg.b.k);a=it[2];b=`${tg.b.paid+tg.b.inc} of ${it[1]} coins. ${it[3]}`;}
+  else if(tg&&tg.k==='merc'){a='CARAVAN';b=`${(tg.b.paid||0)+(tg.b.inc||0)} of 4 coins hires a guard`;}
   else if(tg&&tg.k==='tool'){a='TOOL RACK';b='A coin outfits a '+DEF[tg.b.type].tool;}
   else if(tg&&tg.k==='slot'){a=tg.b.type==='dock'&&tg.b.level?'FELUCCA':DEF[tg.b.type].name;b=`${tg.b.paid+tg.b.incoming} of ${costOf(tg.b)} coins`;if(tg.b.type==='dock'&&tg.b.level)b+=`. You sail on with ${clamp((p.coins+G.bank-(costOf(tg.b)-tg.b.paid-tg.b.incoming))>>1,8,25)} coins`;}
   else if(tg&&tg.k==='mend'){a=DEF[tg.b.type].name;b='A coin patches the gate';}
@@ -326,9 +365,9 @@ function nomad(camp,fromEdge){
 }
 const arrivals=()=>G.camps.forEach((c,i)=>{if(G.folk.length+G.nomads.length<popCap()&&G.nomads.filter(d=>d.camp===i).length<c.cap)nomad(i,true);});
 const townie=(id,x,dir,role)=>{const f={id,x,dir,walk:0,wait:0,wx:x,hidden:false,moving:false,role:role||'folk',work:0,cd:0,ham:0,side:id%2?1:-1};G.folk.push(f);return f;};
-function recruit(d){G.nomads.splice(G.nomads.indexOf(d),1);townie(d.id,d.x,d.dir);G.rings.push({x:d.x,t:.4});dust(d.x,3,8);spark(d.x,10,8);sfx.recruit();hint('recruit');}
+function recruit(d){G.stats.recruits++;G.nomads.splice(G.nomads.indexOf(d),1);townie(d.id,d.x,d.dir);G.rings.push({x:d.x,t:.4});dust(d.x,3,8);spark(d.x,10,8);sfx.recruit();hint('recruit');}
 function spawnRaider(side,kind,more){
-  const K=KIND[kind],hp=K[0]+(more||0),g=side<0?B('gw'):B('ge');let x=kind==='mummy'?140:g.x+side*360;if(kind!=='mummy'&&Math.abs(G.player.x-x)<W*.7)x+=side*W*.8;
+  const K=KIND[kind],hp=K[0]+(more||0),g=side<0?B('gw'):B('ge');let x=kind==='mummy'?B('tomb').x+62:g.x+side*360;if(kind!=='mummy'&&Math.abs(G.player.x-x)<W*.7)x+=side*W*.8;
   G.raiders.push({id:G.nextId++,kind,x:clamp(x,10,NILE-10),dir:-side,side,hp,max:hp,state:'raid',loot:0,walk:0,cd:0,hurt:0,moving:true});
 }
 function dawn(){
@@ -341,6 +380,8 @@ function dawn(){
   }
   if(B('sphinx').level)for(let i=0;i<2;i++)coin(B('sphinx').x+70,4,rnd(-20,20),rnd(40,70),true);
   if(B('dock').level)for(let i=0;i<2;i++)coin(B('dock').x+34,6,rnd(-16,16),rnd(40,60),true);
+  if(B('btemple').level)for(let i=0;i<3;i++)coin(B('btemple').x+45,6,rnd(-20,20),rnd(40,60),true);
+  if(G.relics.scarab)for(let i=0;i<3;i++)coin(G.player.x,16,rnd(-20,20),rnd(40,70),true);
   if(B('grove').level)for(let i=0;i<(G.lush?6:3);i++)coin(OASIS+rnd(-20,20),18,rnd(-14,14),rnd(20,50),true);
   for(const c of G.herd){if(!c.kid)for(let i=0;i<(G.lush?2:1);i++)coin(c.x,4,rnd(-14,14),rnd(35,60),true);c.kid=0;}G.lush=false;
   if(G.herd.length<Math.min(8,head('herder')*2))G.herd.push({x:rnd(PAST[0]+8,PAST[1]-8),dir:1,t:0,kid:1});
@@ -348,6 +389,7 @@ function dawn(){
   for(const r of G.raiders){if(r.kind==='mummy'){dust(r.x,6,16,'#d8d0b8');coin(r.x,6,rnd(-20,20),60,true);r.dead=true;}else r.state='flee';}
   G.raiders=G.raiders.filter(r=>!r.dead);
   const d=G.day-G.day0;G.stormAt=d>=3&&Math.random()<.3?rnd(.16,.4):-1;G.carAt=d%3===0?.13:-1;pickMirages();G.rainAt=G.stormAt<0&&d>=2&&Math.random()<.16?rnd(.2,.45):-1;G.eclAt=G.stormAt<0&&G.rainAt<0&&d>=4&&Math.random()<.12?rnd(.25,.4):-1;
+  if(G.feat==='port'&&B('btemple').gone&&d>=2){G.stormAt=rnd(.2,.34);G.rainAt=G.eclAt=-1;}
   arrivals();save();if(G.folk.length)hint('dawn');
 }
 function dusk(){
@@ -362,13 +404,15 @@ function dusk(){
   // guards take a side: most of them to the one the gong names, if there is a temple to sound it
   const gs=G.folk.filter(f=>f.role==='guard'),know=B('temple').level;gs.forEach((f,i)=>f.side=know?(i%3===2?-s0:s0):(i%2?1:-1));
   sfx.horn();if(know)sfx.gong();cine('raid','They always come after dark.',3.2,1.25);
+  if(G.up.falcon){const w=G.raid.filter(r=>r.side<0).length,e=G.raid.length-w;sfx.falcon();hint('falcon',true,`Your falcon is back: ${w?w+' gathering to the west':''}${w&&e?', ':''}${e?e+' to the east':''}${dead?', and the dead are stirring':''}.`);}
   hint(dead?'mummy':'raid',true,dead?undefined:know?`The gong sounds: raiders from the ${s0<0?'west':'east'} tonight.`:boss?'A warlord rides with them tonight.':undefined);
 }
 
 // ---------- tossing coins
 const slotPos=(b,i,n)=>{const cols=Math.min(n,8),row=Math.floor(i/cols),inRow=Math.min(cols,n-row*cols);return {x:b.x+b.w/2-(inRow-1)*3+(i%cols)*6,h:tall(b)+12+(Math.ceil(n/cols)-1-row)*6};};
-const zoneOf=x=>G.b.find(b=>x>b.x-6&&x<b.x+b.w+6);
+const zoneOf=x=>G.b.find(b=>!b.gone&&x>b.x-6&&x<b.x+b.w+6);
 function target(x){
+  for(const k in SHOP){const it=shopItem(k),s=G.shop[k];if(it&&Math.abs(x-shopX(k))<7)return s.paid+s.inc<it[1]?{b:s,k:'shop'}:null;}
   {const c=G.caravan;if(c&&c.st==='stop'&&!c.sold&&B('market').level&&Math.abs(x-c.x-22)<12)return (c.paid||0)+(c.inc||0)<4?{b:c,k:'merc'}:null;}
   for(const b of G.b)if(DEF[b.type].tool&&b.level&&Math.abs(x-rackX(b))<8)return b.badges+b.rin<3?{b,k:'tool'}:null;
   const b=zoneOf(x);if(!b||b.building)return null;
@@ -380,9 +424,10 @@ function tossCoin(tg,fromBank){
   const p=G.player,b=tg&&tg.b,fly=(st,tx,th)=>G.coins.push({x:p.x,h:17,st,b,tx,th,age:0});
   if(fromBank)G.bank--;else p.coins--;
   p.toss=.25;sfx.toss();
-  if(!tg)coin(p.x+p.dir*7,16,p.dir*26+p.vx*.4,45,false);
+  if(!tg){coin(p.x+p.dir*7,16,p.dir*26+p.vx*.4,45,false);p.kneelT=1.5;}
   else if(tg.k==='slot'){const cost=costOf(b),sp=slotPos(b,b.paid+b.incoming,cost);p.lock=++b.incoming+b.paid>=cost;b.idle=0;fly('slot',sp.x,sp.h);}
   else if(tg.k==='tool'){fly('tool',rackX(b)-3+(b.badges+b.rin)*3,10);b.rin++;}
+  else if(tg.k==='shop'){const it=shopItem(b.k);fly('shop',shopX(b.k),17);b.inc++;p.lock=b.inc+b.paid>=it[1];}
   else if(tg.k==='merc'){fly('merc',b.x+22,13);b.inc=(b.inc||0)+1;p.lock=b.inc+(b.paid||0)>=4;}
   else if(tg.k==='mend'){fly('mend',b.x+7,10);b.incoming++;}
   else{fly('bank',b.x+b.w/2,12);if(!p.coins)p.lock=true;}
@@ -391,15 +436,24 @@ function built(b){
   b.building=false;b.paid=0;b.level++;b.shake=.3;G.rings.push({x:b.x+b.w/2,t:0});G.flash=Math.max(G.flash,.25);if(Math.abs(G.player.x-b.x-b.w/2)<160)punch(b.type==='tomb'?1.5:1.22,b.type==='tomb'?2.6:1.3);for(const f of G.folk)if(Math.abs(f.x-b.x-b.w/2)<130)f.cheer=1.8;confetti(b.x+b.w/2,tall(b),16);dust(b.x+b.w/2,2,14);sfx.fanfare();
   if(DEF[b.type].gate){b.hp=GHP[b.level];hint('gate');}else hint(b.type+b.level);
   if((b.type==='well'&&b.level===2)||(b.type==='dock'&&b.level===1))G.festPending=true;
-  const mid=b.x+b.w/2;if(b.type==='tomb')cine('tomb','Gold, an ankh, and something that should have stayed asleep.',7.5,1,mid+30);else if(b.type==='sphinx')cine('sphinx','The Sphinx looks east again.',3.4,1.3,mid);else if(b.type==='well'&&b.level===2)cine('obelisk','The obelisk stands. Travellers will see it for miles.',3.8,1.35,mid);else if(b.type==='market'&&b.level===1)cine('bazaar','The bazaar is open again.',3,1.3,mid);
-  if(b.type==='tomb'){G.ankh=true;for(let i=0;i<18;i++)coin(b.x+25,6,rnd(-50,50),rnd(60,110),true);}
+  const mid=b.x+b.w/2;if(b.type==='tomb'&&G.feat==='cliff'){hint('cave1',true);cine('cave','The cave tomb is open. The way in is trapped.',3.6,1.25,mid+90);}else if(b.type==='btemple')cine('btemple','A temple nobody has seen for a thousand years.',3.8,1.3,mid);else if(b.type==='tomb')cine('tomb','Gold, an ankh, and something that should have stayed asleep.',7.5,1,mid+30);else if(b.type==='sphinx')cine('sphinx','The Sphinx looks east again.',3.4,1.3,mid);else if(b.type==='well'&&b.level===2)cine('obelisk','The obelisk stands. Travellers will see it for miles.',3.8,1.35,mid);else if(b.type==='market'&&b.level===1)cine('bazaar','The bazaar is open again.',3,1.3,mid);
+  if(b.type==='tomb'&&G.feat!=='cliff'){G.ankh=true;for(let i=0;i<18;i++)coin(b.x+25,6,rnd(-50,50),rnd(60,110),true);}
+  if(b.type==='btemple')for(let i=0;i<20;i++)coin(b.x+45,8,rnd(-60,60),rnd(60,120),true);
+  G.stats.built++;
   save();
 }
 function startTrip(){G.trip={t:0};punch(1.3,4);B('dock').paid=0;sfx.fanfare();document.body.classList.add('cine');}
 function nextTown(){
-  const p=G.player,carry=clamp((p.coins+G.bank)>>1,8,25),town=G.town+1,day=G.day,seen=G.seen;
-  reset(town);G.day=day+1;G.day0=day;G.seen=seen;G.t=.08;G.player.coins=carry;G.state='play';G.fade=1;document.body.classList.remove('cine');
-  card(townName(),`You bring ${carry} coins with you`);save();
+  const p=G.player,carry=clamp((p.coins+G.bank)>>1,8,25),town=G.town+1,day=G.day,seen=G.seen;G.stats.towns++;
+  reset(town,true);G.day=day+1;G.day0=day;G.seen=seen;G.t=.08;G.player.coins=carry;G.state='play';G.fade=1;document.body.classList.remove('cine');
+  card(townName(),`${['Under the pyramids','The oasis town','Under the red cliffs','The river port','The city of old temples'][G.town%5]}. You bring ${carry} coins with you`);save();
+}
+const ENDCAPS=['Five towns stand where there was only sand.','The caravans came back. So did the people.','Wells drawn, gates held, old stones dug out of the dunes.','The river changed its course once. This time it carries you.'];
+function startEnding(){G.state='end';G.stats.towns++;G.end={t:0,k:-1};G.ended=true;G.trip=null;G.fade=1;G.cine=null;document.body.classList.add('cine');setCap('');try{localStorage.removeItem(KEY);}catch(e){}sfx.gong();}
+function showEnd(){
+  const s=G.stats,rel=Object.keys(G.relics),ul=$('endstats');ul.innerHTML='';
+  [['Towns rebuilt',s.towns],['Days on the road',G.day],['Buildings raised',s.built],['Nomads who joined you',s.recruits],['Raiders brought down',s.down],['Relics',rel.length?rel.join(', '):'none'],['Coins in hand',G.player.coins+G.bank]].forEach(([k,v])=>{const li=document.createElement('li'),b=document.createElement('b');b.textContent=k+': ';li.append(b,String(v));ul.append(li);});
+  $('end').hidden=false;
 }
 function card(a,b){const c=$('card');c.innerHTML='';c.append(a);const s=document.createElement('small');s.textContent=b;c.append(s);c.classList.add('on');setTimeout(()=>c.classList.remove('on'),3600);}
 function gameOver(){G.state='over';G.over=true;document.body.classList.add('over');$('over').hidden=false;$('again').hidden=!peek();sfx.rob();}
@@ -408,10 +462,13 @@ function gameOver(){G.state='over';G.over=true;document.body.classList.add('over
 function updPlayer(dt){
   const p=G.player,a=input.stick||input.padAxis,dig=input.key||input.dpad,d=dig||(Math.abs(a)>.1?Math.sign(a):0);
   if(d)p.dir=d;
-  const want=d*[72,94,112][B('pen').level]*(1-.3*stormK()),rate=(!d||want*p.vx<0?900:340)*dt;
+  const want=d*[72,94,112][B('pen').level]*(1+(G.up.saddle?.12:0)+(G.up.racer?.14:0))*(1-(G.relics.charm?0:.3)*stormK()),rate=(!d||want*p.vx<0?900:340)*dt;
   if(!d&&Math.abs(p.vx)>50){dust(p.x+Math.sign(p.vx)*9,0,2);G.parts.push({x:p.x+Math.sign(p.vx)*10,h:1,vx:Math.sign(p.vx)*rnd(20,50),vh:rnd(6,16),life:0,max:rnd(.6,1.1),col:'#ecd2a0',grav:0,sm:1,r:2.6,a:.45});}
   p.vx+=clamp(want-p.vx,-rate,rate);p.x=clamp(p.x+p.vx*dt,30,NILE-14);if(p.x<=30||p.x>=NILE-14)p.vx=0;
-  const sp=Math.abs(p.vx);p.idle=sp<3?(p.idle||0)+dt:0;p.phase+=sp*dt*.075;p.toss-=dt;p.cd-=dt;p.gcd-=dt;p.draw-=dt;
+  const sp=Math.abs(p.vx);p.idle=sp<3?(p.idle||0)+dt:0;
+  p.kneelT=Math.max(0,(p.kneelT||0)-dt);p.kneelK=lerp(p.kneelK||0,sp<4&&!d&&(p.kneelT>0||p.idle>7)?1:0,1-Math.pow(.004,dt));
+  p.rearCd=(p.rearCd||0)-dt;p.rearT=Math.max(0,(p.rearT||0)-dt);if(p.rearCd<=0&&G.raiders.some(r=>r.state==='raid'&&Math.abs(r.x-p.x)<36&&(r.x-p.x)*r.dir<0)){p.rearT=.75;p.rearCd=3.5;sfx.grunt();}
+  p.rearK=lerp(p.rearK||0,p.rearT>0?1:0,1-Math.pow(.0015,dt));p.phase+=sp*dt*.075;p.toss-=dt;p.cd-=dt;p.gcd-=dt;p.draw-=dt;
   if(sp>60&&Math.random()<dt*14)dust(p.x-p.dir*8,0,1);
   if(sp>80&&Math.random()<dt*10)G.parts.push({x:p.x-p.dir*9,h:1,vx:-p.dir*rnd(4,14),vh:rnd(3,8),life:0,max:rnd(.8,1.6),col:'#ecd2a0',grav:0,sm:1,r:2.4,a:.42});
   {const st=Math.floor(p.phase/Math.PI*2);if(st!==p.st){p.st=st;if(sp>10){G.prints.push({x:p.x-p.dir*(st&1?6:-5),t:0});noise(.035,.035,260,1);if(G.prints.length>70)G.prints.shift();}}}
@@ -422,16 +479,20 @@ function updPlayer(dt){
     else if(tg&&tg.k!=='bank'&&G.bank>0){tossCoin(tg,true);p.cd=.2;}
     else if(p.coins>0){tossCoin(tg);p.cd=.2;}
     else if(tg&&tg.k==='bank'&&G.bank>0){const n=Math.min(5,G.bank);G.bank-=n;p.lock=true;sfx.urn();for(let i=0;i<n;i++)G.coins.push({x:tg.b.x+28,h:10,st:'back',age:-i*.07});}
-    else if(!G.b.some(b=>b.paid)&&!(G.caravan&&G.caravan.paid)){sfx.empty();p.cd=.5;hint('broke',true);}
+    else if(!G.b.some(b=>b.paid)&&!(G.caravan&&G.caravan.paid)&&!G.shop.guard.paid&&!G.shop.pen.paid){sfx.empty();p.cd=.5;hint('broke',true);}
   }
   // the bow
-  if(p.rl>0&&(p.rl-=dt)<=0){p.ammo=6;sfx.slot();}
-  if(input.reload&&p.rl<=0&&p.ammo<6){p.rl=p.rlT=reloadTime();hint('reload');}input.reload=false;
+  if(p.rl>0&&(p.rl-=dt)<=0){p.ammo=maxAmmo();sfx.slot();}
+  if(input.reload&&p.rl<=0&&p.ammo<maxAmmo()){p.rl=p.rlT=reloadTime();hint('reload');}input.reload=false;
   const fire=input.fireKey||input.fireTouch||input.padFire;
   if(fire&&p.gcd<=0&&p.rl<=0){
-    if(p.ammo>0){p.ammo--;p.gcd=.38;p.draw=.25;G.arrows.push({x:p.x+p.dir*6,h:19,vx:p.dir*300,vh:20,life:.6,mine:true});sfx.arrow(1);if(!p.ammo){p.rl=p.rlT=reloadTime();hint('reload');}}
+    if(p.ammo>0){p.ammo--;p.gcd=.38;p.draw=.25;G.arrows.push({x:p.x+p.dir*6,h:19,vx:p.dir*300,vh:20,life:.6,mine:true,fire:!!G.up.fire});sfx.arrow(1);if(!p.ammo){p.rl=p.rlT=reloadTime();hint('reload');}}
     else{p.rl=p.rlT=reloadTime();}
   }
+  {const hm=B('hermit');if(!hm.gone&&Math.abs(p.x-hm.x-22)<70)hint('hermit0');}
+  if(G.traps.length&&B('tomb').level&&!G.looted){G.trapCd-=dt;
+    for(const t of G.traps)if(((NOW+t.ph)%2.6)<1.1&&G.trapCd<=0&&Math.abs(p.x-t.x)<7){G.trapCd=1;const n=Math.min(2,p.coins);p.coins-=n;for(let i=0;i<n;i++)coin(p.x+22,10,rnd(20,60),rnd(50,80),true);p.vx=200;p.x+=7;G.shake=.3;sfx.hit(1);sfx.gate(1);hint('trap',true);}
+    if(p.x<B('tomb').x+44){G.looted=true;G.ankh=true;for(let i=0;i<26;i++)coin(B('tomb').x+40,8,rnd(0,80),rnd(60,120),true);G.seen.c_tomb=0;cine('tomb','The cave gives up its gold, and an ankh.',7.5,1,B('tomb').x+40);hint('cave2',true);save();}}
   for(const u of G.urns)if(!u.open&&Math.abs(u.x-p.x)<10){u.open=true;for(let i=0;i<u.n;i++)coin(u.x,4,rnd(-34,34),rnd(60,95),true);sfx.urn();dust(u.x,2,8);hint('urn');}
   for(const m of G.mirages)if(!m.gone&&G.t>.26&&G.t<.56&&Math.abs(m.x-p.x)<46){m.gone=.01;if(m.real){for(let i=0;i<5;i++)coin(m.x,4,rnd(-30,30),rnd(50,90),true);sfx.urn();hint('real',true);}else hint('mirage',true);}
 }
@@ -452,12 +513,14 @@ function updCoins(dt){
       if(dist>step){c.x+=dx/dist*step;c.h+=dh/dist*step;continue;}
       G.coins.splice(i,1);sfx.slot();spark(c.tx,c.th+2,3);
       if(c.st==='bank'){G.bank++;continue;}
+      if(c.st==='shop'){const it=shopItem(b.k);b.inc--;b.paid++;if(it&&b.paid>=it[1]){b.paid=0;G.up[it[0]]=1;const sx=shopX(b.k);G.rings.push({x:sx,t:0});spark(sx,16,14);confetti(sx,18,10);sfx.fanfare();if(it[0]==='falcon')sfx.falcon();if(it[0]==='quiver'){p.ammo=maxAmmo();p.rl=0;}hint('up_'+it[0],true,it[2].charAt(0)+it[2].slice(1).toLowerCase()+'. '+it[3]+' It stays with you from town to town.');save();}continue;}
       if(c.st==='merc'){b.inc--;b.paid=(b.paid||0)+1;if(b.paid>=4&&!b.sold){b.sold=true;const f=townie(G.nextId++,b.x+22,1,'guard');f.cheer=1.5;G.rings.push({x:f.x,t:.3});spark(f.x,12,10);sfx.recruit();hint('merc');}continue;}
       if(c.st==='tool'){b.rin--;b.badges++;continue;}
       b.incoming--;
       if(c.st==='mend'){b.hp=Math.min(GHP[b.level],b.hp+8);b.shake=.12;sfx.hammer(near(b.x));continue;}
       if(++b.paid<costOf(b))continue;
       if(b.type==='dock'&&b.level)startTrip();
+      else if(b.type==='hermit'){const r=['scarab','lamp','charm'][b.level];b.paid=0;b.level++;G.relics[r]=1;G.rings.push({x:b.x+22,t:0});spark(b.x+22,14,14);sfx.fanfare();sfx.gong();hint('relic_'+r,true);if(r==='lamp')pickMirages();save();}
       else{b.building=true;b.progress=0;b.need=3+b.paid*.45;hint(head('folk')?'funded':'noworkers',!head('folk'));}
     }
   }
@@ -472,6 +535,7 @@ function updCoins(dt){
       b.paid=0;b.idle=0;p.lock=true;hint('refund',true,broke?`Not enough coins, so they came back. The ${nm} needs ${cost}.`:`Coins returned. The ${nm} needs all ${cost} at once.`);
     }
   }
+  for(const k in SHOP){const s=G.shop[k],it=shopItem(k);s.idle=s.paid>0&&!s.inc&&(broke||Math.abs(p.x-shopX(k))>9)?s.idle+dt:0;if(s.idle>.45){for(let q=0;q<s.paid;q++)G.coins.push({x:shopX(k)-6+q*3,h:22,st:'back',age:-q*.07});s.paid=0;s.idle=0;p.lock=true;hint('refund',true,`Coins returned. ${it?'That costs all '+it[1]+' at once.':''}`);}}
   {const c=G.caravan;if(c&&c.paid&&!c.sold&&!c.inc){c.idle=c.st!=='stop'||broke||Math.abs(p.x-c.x-22)>14?(c.idle||0)+dt:0;
     if(c.idle>.45){for(let k=0;k<c.paid;k++)G.coins.push({x:c.x+13+k*6,h:21,st:'back',age:-k*.07});c.paid=0;c.idle=0;p.lock=true;hint('refund',true,broke?'Not enough coins, so they came back. The caravan guard costs 4.':'Coins returned. The caravan guard costs all 4 at once.');}}}
 }
@@ -517,12 +581,12 @@ function updFolk(dt){
 function hurt(r,from){
   r.hp--;r.hurt=.15;r.stag=.38;spark(r.x,13,6,'#fff');if(r.kind==='bandit'&&r.id%3===0&&!r.noTorch){r.noTorch=true;G.torches.push({x:r.x+r.dir*4,t:0});}r.x-=Math.sign(from)*-3;sfx.hit(near(r.x));dust(r.x,10,3,r.kind==='mummy'?'#d8d0b8':'#b5412e');
   if(r.hp<=0&&r.kind==='boss'){G.slow=1.5;punch(1.32,1.6);G.flash=.45;G.shake=.5;for(let i=0;i<8;i++)coin(r.x,12,rnd(-50,50),rnd(60,110),true);sfx.gong();hint('warlord',true);}
-  if(r.hp<=0){r.dead=true;if(G.night)G.night.down++;for(let i=0;i<r.loot+(Math.random()<.35?1:0);i++)coin(r.x,8,rnd(-25,25),rnd(40,70),true);G.fallen.push({x:r.x,t:0,kind:r.kind,dir:r.dir});dust(r.x,4,8);}
+  if(r.hp<=0){r.dead=true;G.stats.down++;if(G.night)G.night.down++;for(let i=0;i<r.loot+(Math.random()<.35?1:0);i++)coin(r.x,8,rnd(-25,25),rnd(40,70),true);G.fallen.push({x:r.x,t:0,kind:r.kind,dir:r.dir});dust(r.x,4,8);}
 }
 function updRaiders(dt){
   const p=G.player;
   for(const r of G.raiders){
-    const K=KIND[r.kind];r.hurt-=dt;r.cd-=dt;
+    const K=KIND[r.kind];r.hurt-=dt;r.cd-=dt;if(r.burn>0){r.burn-=dt;if(Math.random()<.5)G.parts.push({x:r.x+rnd(-2,2),h:rnd(8,20),vx:rnd(-4,4),vh:rnd(8,18),life:0,max:.5,col:Math.random()<.5?'#ffc24a':'#e8602a',grav:0,lit:1});}
     if(r.stag>0){r.stag-=dt;r.moving=false;r.x=clamp(r.x-r.dir*14*dt,10,NILE-10);continue;}
     if(r.state==='flee'){r.dir=r.side;r.x+=r.side*K[1]*1.25*dt;r.walk+=dt;r.moving=true;if(r.x<TOWN[0]-520||r.x>TOWN[1]+520||r.x<12||r.x>NILE-12)r.dead=true;continue;}
     const g=r.side<0?B('gw'):B('ge'),blocked=g.level&&g.hp>0&&(r.side<0?r.x<g.x+2&&r.x>g.x-8:r.x>g.x+12&&r.x<g.x+22);
@@ -545,8 +609,9 @@ function updRaiders(dt){
   for(let i=G.arrows.length-1;i>=0;i--){
     const a=G.arrows[i];a.vh=(a.vh||0)-105*dt;a.x+=a.vx*dt;a.h+=a.vh*dt;a.life-=dt;
     const r=a.h<26&&G.raiders.find(r=>!r.dead&&Math.abs(r.x-a.x)<7&&(a.mine||r.state==='raid'));
-    if(r){hurt(r,a.vx);G.arrows.splice(i,1);}
-    else if(a.h<=0||a.x<20||a.x>NILE){if(a.h<=0&&a.x<NILE-4){G.stuck.push({x:a.x,ang:Math.atan2(-a.vh,a.vx),t:0});if(G.stuck.length>40)G.stuck.shift();dust(a.x,1,2);}G.arrows.splice(i,1);}
+    if(a.fire&&Math.random()<.5)G.parts.push({x:a.x,h:a.h,vx:rnd(-6,6),vh:rnd(0,10),life:0,max:.4,col:Math.random()<.5?'#ffc24a':'#e8602a',grav:0,lit:1});
+    if(r){hurt(r,a.vx);if(a.fire){if(!r.dead)hurt(r,a.vx);r.burn=1.6;}G.arrows.splice(i,1);}
+    else if(a.h<=0||a.x<20||a.x>NILE){if(a.h<=0&&a.x<NILE-4){G.stuck.push({x:a.x,ang:Math.atan2(-a.vh,a.vx),t:0});if(a.fire)G.torches.push({x:a.x-4,t:4});if(G.stuck.length>40)G.stuck.shift();dust(a.x,1,2);}G.arrows.splice(i,1);}
   }
   G.raiders=G.raiders.filter(r=>!r.dead);
   for(const s of G.stuck)s.t+=dt;G.stuck=G.stuck.filter(s=>s.t<22);for(const t of G.torches)t.t+=dt;G.torches=G.torches.filter(t=>t.t<9);
@@ -578,7 +643,8 @@ function updWorld(dt){
   if(!G.fish&&Math.random()<dt*.2)G.fish={x:NILE+rnd(24,84),t:0};if(G.fish&&(G.fish.t+=dt)>1.4)G.fish=null;
   for(const r of G.rings)r.t+=dt;G.rings=G.rings.filter(r=>r.t<1);for(const f of G.prints)f.t+=dt;if(G.prints.length&&G.prints[0].t>12)G.prints.shift();
   if(G.storm&&(G.storm.t+=dt)>G.storm.dur){
-    G.storm=null;G.drift=1;const spots=[340,520,900,1060,2260,2380,2580,2760].filter(x=>!G.urns.some(u=>!u.open&&Math.abs(u.x-x)<40));
+    G.storm=null;G.drift=1;{const bt=B('btemple');if(G.feat==='port'&&bt.gone){bt.gone=false;hint('btemple0',true);G.seen.c_btemple0=0;cine('btemple0','The storm has uncovered the top of something very old.',3.6,1.25,bt.x+45);}}
+    const spots=[340,520,900,1060,2260,2380,2580,2760].filter(x=>(x<TOWN[0]-80||x>TOWN[1]+80)&&!zoneOf(x)&&!G.urns.some(u=>!u.open&&Math.abs(u.x-x)<40));
     if(spots.length&&G.urns.filter(u=>!u.open).length<4){G.urns.push({x:spots[Math.floor(rnd(0,spots.length))],n:5,open:false});hint('uncovered',true);}
   }
   // caravan: in from the west, a stop at the bazaar, then on to the river
@@ -617,6 +683,7 @@ function update(dt){
     const caps=['The caravans stopped coming when the river changed its course.','The bazaar emptied. The sand took the rest.','But there is gold under these dunes, and people who would stay.'],k=Math.floor(I.t/3.8);
     if(k!==I.k){I.k=k;$('cap').classList.remove('on');setTimeout(()=>{if(G.state==='intro')setCap(caps[k]);},450);}
     updWorld(dt);updFolk(dt);G.zoom=lerp(1.45,1,clamp(I.t/11,0,1)**.7);if(I.t>12)endIntro();return;}
+  if(G.state==='end'){const E=G.end;E.t+=dt;G.fade=Math.max(0,G.fade-dt*.45);const k=Math.floor((E.t-1.2)/3.8);if(E.t>1.2&&k!==E.k){E.k=k;setCap(ENDCAPS[k]||'');}if(E.t>1.2+ENDCAPS.length*3.8+.6&&!E.shown){E.shown=1;showEnd();}return;}
   if(G.state!=='play')return;
   if(G.slow>0){G.slow-=dt;dt*=.28;}
   if(G.cine){const C=G.cine;C.t+=dt;if(C.k==='tomb'){if(C.t>1.6&&C.t<4.3&&Math.random()<.35)noise(.14,.13,100+rnd(0,40),.7);if(C.t>4.3&&!C.g){C.g=1;sfx.gong();sfx.urn();}}G.dark=Math.max(darkness(G.t),eclK()*.8);if(G.storm)G.storm.t-=dt*.6;updWorld(dt);updFolk(dt*.5);cam=lerp(cam,clamp(C.fx-W/2,0,WORLD-W),1-Math.pow(.02,dt));if(C.t>C.dur)endCine();return;}
@@ -625,7 +692,7 @@ function update(dt){
   if(G.t>=1){G.t-=1;G.day++;dawn();}
   G.dark=Math.max(darkness(G.t),eclK()*.8);
   for(let i=G.raid.length-1;i>=0;i--)if(G.t>=G.raid[i].t&&G.t>.5){const r=G.raid.splice(i,1)[0];spawnRaider(r.side,r.kind,r.hp);}
-  if(G.trip){const T=G.trip;T.t+=dt;if(T.t>2.4)G.fade=Math.min(1,G.fade+dt*2.2);if(T.t>4)nextTown();}
+  if(G.trip){const T=G.trip;T.t+=dt;if(T.t>2.4)G.fade=Math.min(1,G.fade+dt*2.2);if(T.t>4){if(G.town%5===4&&!G.ended)startEnding();else nextTown();}}
   else updPlayer(dt);
   updCoins(dt);updFolk(dt);updRaiders(dt);updWorld(dt);
   const p=G.player,want=clamp(p.x-W/2+p.dir*24,0,WORLD-W);cam=lerp(cam,want,1-Math.pow(.0015,dt));
@@ -637,12 +704,12 @@ function endIntro(){setCap('');document.body.classList.remove('cine');G.state='p
 const KEY='dunefall1';
 function save(){
   if(G.state!=='play'||G.preview)return;
-  try{localStorage.setItem(KEY,JSON.stringify({town:G.town,day:G.day,day0:G.day0,coins:G.player.coins,bank:G.bank,ankh:G.ankh,seen:G.seen,b:G.b.map(b=>[b.level,b.badges,b.building?b.paid:0]),folk:G.folk.map(f=>f.role),herd:G.herd.length,urns:G.urns.map(u=>[u.x,u.n,u.open])}));}catch(e){}
+  try{localStorage.setItem(KEY,JSON.stringify({town:G.town,day:G.day,day0:G.day0,coins:G.player.coins,bank:G.bank,ankh:G.ankh,seen:G.seen,stats:G.stats,relics:G.relics,up:G.up,ended:G.ended,looted:G.looted,gone:G.b.map(b=>b.gone?1:0),b:G.b.map(b=>[b.level,b.badges,b.building?b.paid:0]),folk:G.folk.map(f=>f.role),herd:G.herd.length,urns:G.urns.map(u=>[u.x,u.n,u.open])}));}catch(e){}
 }
 function peek(){try{return JSON.parse(localStorage.getItem(KEY));}catch(e){return null;}}
 function load(){
   const s=peek();if(!s)return false;
-  reset(s.town);G.day=s.day;G.day0=s.day0;G.t=.08;G.player.coins=s.coins;G.bank=s.bank;G.ankh=s.ankh;G.seen=s.seen||{};
+  reset(s.town);G.day=s.day;G.day0=s.day0;G.t=.08;G.player.coins=s.coins;G.bank=s.bank;G.ankh=s.ankh;G.seen=s.seen||{};if(s.stats)G.stats=s.stats;G.relics=s.relics||{};G.up=s.up||{};G.ended=!!s.ended;G.looted=!!s.looted;if(s.gone)s.gone.forEach((g,i)=>{if(G.b[i])G.b[i].gone=!!g;});pickMirages();
   s.b.forEach((v,i)=>{const b=G.b[i];if(!b)return;b.level=v[0];b.badges=v[1];if(DEF[b.type].gate)b.hp=GHP[b.level];if(v[2]){b.paid=v[2];b.building=true;b.need=3+b.paid*.45;}});
   s.folk.forEach((r,i)=>townie(G.nextId++,WELL_X+(i-s.folk.length/2)*7,1,r));for(let i=0;i<s.herd;i++)G.herd.push({x:rnd(PAST[0],PAST[1]),dir:1,t:0,kid:0});
   G.urns=s.urns.map(u=>({x:u[0],n:u[1],open:u[2]}));return true;
@@ -655,6 +722,7 @@ function grow(L,coins){
   ['folk','folk','folk','folk','folk','digger','digger','guard','guard','guard','guard','herder','herder'].forEach((r,i)=>townie(G.nextId++,WELL_X+(i-6)*9,1,r));
   for(let i=0;i<4;i++)G.herd.push({x:rnd(PAST[0],PAST[1]),dir:1,t:0,kid:0});G.player.coins=coins||30;
 }
+const town=n=>{reset(n);G.preview=true;G.seen={start:1};};
 const PRE=[
   ['A new arrival',()=>{}],
   ['A thriving town',()=>{grow(2);G.t=.3;}],
@@ -671,11 +739,20 @@ const PRE=[
   ['Eclipse',()=>{grow(2);G.t=.33;G.eclAt=.332;G.player.x=1560;}],
   ['Festival night',()=>{grow(3);G.seen.c_raid=1;G.t=.7;G.festPending=true;G.player.x=1600;}],
   ['Rain and a rainbow',()=>{grow(2);B('grove').level=1;G.t=.3;G.rainAt=.39;G.player.x=1500;}],
+  ['Town 2: Khepri Wells, the oasis',()=>{town(1);grow(2);B('grove').level=1;G.t=.3;G.player.x=1900;}],
+  ['The hermit and his relics',()=>{town(1);grow(1,40);G.t=.3;G.player.x=200;}],
+  ['Town 3: Sethat, under the cliffs',()=>{town(2);grow(2);G.t=.4;G.player.x=1500;}],
+  ['The cave tomb and its traps',()=>{town(2);grow(1,20);B('tomb').level=1;G.t=.3;G.player.x=380;}],
+  ['Town 4: Amber Gate, the river port',()=>{town(3);grow(2);B('dock').level=1;G.t=.5;G.player.x=2700;}],
+  ['The buried temple',()=>{town(3);grow(1,40);B('btemple').gone=false;G.t=.2;G.player.x=930;}],
+  ['Town 5: The Last Cataract',()=>{town(4);grow(3);B('sphinx').level=1;G.t=.56;G.player.x=1560;}],
+  ['The ending',()=>{town(4);grow(3,30);G.stats={built:41,recruits:58,down:97,towns:4};G.relics={scarab:1,lamp:1};G.day=44;G.endNow=1;}],
+  ['Upgrades: quiver, fire arrows, falcon, racing camel',()=>{grow(2,60);G.up={quiver:1,fire:1,falcon:1,saddle:1};G.player.ammo=9;G.day=6;G.t=.6;G.player.x=B('pen').x-9;}],
   ['The dock and the Nile',()=>{grow(3,30);B('dock').level=1;G.t=.56;G.player.x=3020;}]];
 function preview(i){
-  reset(0);document.body.classList.remove('cine');setCap('');G.preview=true;G.seen={start:1};PRE[i][1]();if(i===3){G.day=6;}
+  reset(0);document.body.classList.remove('cine');setCap('');$('end').hidden=true;G.preview=true;G.seen={start:1};PRE[i][1]();if(i===3){G.day=6;}
   $('pre').hidden=true;$('title').hidden=true;document.body.classList.remove('title');initAudio();if(AC&&AC.state==='suspended')AC.resume();
-  G.state='play';cam=clamp(G.player.x-W/2,0,WORLD-W);if(i===0)hint('start',true);if(G.cineNow){G.cineNow=0;cine('tomb','Gold, an ankh, and something that should have stayed asleep.',7.5,1,103);}
+  G.state='play';cam=clamp(G.player.x-W/2,0,WORLD-W);if(i===0)hint('start',true);if(G.endNow){startEnding();G.fade=1;return;}if(G.cineNow){G.cineNow=0;cine('tomb','Gold, an ankh, and something that should have stayed asleep.',7.5,1,103);}
 }
 
 // ---------- drawing: helpers. Everything is drawn in game pixels; the canvas itself is twice as fine
@@ -891,6 +968,105 @@ function slots(b){
 }
 
 // ---------- drawing: the far places
+// ---------- the country around each town
+function cliffs(hz){
+  for(const [par,base,hh,seed,cA,cB] of [[.06,14,64,3,'#c98a5e','#a0613c'],[.14,10,46,9,'#c0794a','#8f4e2c']]){
+    const l=mixA(rgb(cA),hz,.42-par),d=mixA(rgb(cB),hz,.42-par);
+    for(let i=-1;i<7;i++){const w=90+hash(i+seed)*110,fx=i*170+hash(i+seed*2)*60-cam*par,h=hh*(.55+hash(i+seed*3)*.45),y=GY-base;if(fx>W+20||fx+w<-20)continue;
+      poly(css(l),[fx,y,fx+6,y-h*.5,fx+10,y-h*.55,fx+14,y-h,fx+w-18,y-h,fx+w-12,y-h*.62,fx+w-6,y-h*.55,fx+w,y]);poly(css(d),[fx+w*.62,y,fx+w*.66,y-h,fx+w-18,y-h,fx+w-12,y-h*.62,fx+w-6,y-h*.55,fx+w,y]);
+      for(let q=1;q<6;q++)R(fx+8,y-h*q/6,w-20,.6,`rgba(90,40,20,${.1+.05*(q%2)})`);R(fx+14,y-h,w-32,1,'rgba(255,230,190,.35)');
+      if(par>.1)for(let q=0;q<2;q++){const cx=fx+w*(.25+q*.3),cy=y-h*(.3+hash(i+q)*.3);ctx.fillStyle='rgba(50,22,12,.6)';ctx.fillRect(cx,cy,4,5);ctx.beginPath();ctx.arc(cx+2,cy,2,Math.PI,0);ctx.fill();}}
+  }
+}
+function cliffTomb(b){
+  const x0=-30-cam,x1=300-cam,hh=Math.min(104,GY-16);if(x0>W)return;const dx=b.x+19-cam;
+  poly('#b8693e',[x0,GY,x0,GY-hh,x0+120,GY-hh-4,x0+214,GY-hh+6,x0+250,GY-hh*.7,x0+286,GY-hh*.42,x0+318,GY-hh*.16,x1+34,GY]);
+  poly('#8f4a2a',[x0+214,GY-hh+6,x0+250,GY-hh*.7,x0+286,GY-hh*.42,x0+318,GY-hh*.16,x1+34,GY,x0+232,GY]);
+  for(let q=1;q<10;q++)R(x0,GY-hh*q/10,214+q*-0+((q*37)%30),.7,`rgba(80,34,16,${.14+.06*(q%2)})`);R(x0,GY-hh,120,1.2,'rgba(255,224,184,.4)');
+  for(let i=0;i<10;i++)R(x0+20+hash(i+33)*190,GY-10-hash(i+34)*(hh-24),5+hash(i)*6,2,'rgba(70,30,14,.3)');
+  // the carved front: a recessed wall, four seated kings, a door between them
+  const fw=120,fx=dx-54,fh=64;R(fx,GY-fh,fw,fh,'#cf8a5a');R(fx,GY-fh,fw,2,'#e8b48a');R(fx,GY-fh,3,fh,'#a85a36');R(fx+fw-3,GY-fh,3,fh,'#a85a36');
+  for(let i=0;i<fw-8;i+=7)R(fx+4+i,GY-fh+4,4,3,i%14?'#2fa7a0':'#b5412e');R(fx+3,GY-fh+9,fw-6,1,'#a85a36');
+  for(const sx of [fx+8,fx+30,fx+76,fx+98]){R(sx,GY-13,15,13,'#b8693e');R(sx+2,GY-38,11,25,'#c98052');R(sx+3.5,GY-46,8,8,'#c98052');R(sx+2,GY-48,11,3,'#b8693e');R(sx+1,GY-45,2,10,'#b8693e');R(sx+12,GY-45,2,10,'#b8693e');R(sx+5,GY-43,1.2,1,'#5a2a14');R(sx+8.6,GY-43,1.2,1,'#5a2a14');R(sx+2,GY-22,11,2,'#a85a36');R(sx+12,GY-38,1.6,25,'#a85a36');}
+  R(dx-4,GY-26,20,26,'#a85a36');R(dx-5,GY-29,22,3.4,'#e8b48a');R(dx,GY-22,12,22,'#150a06');circ(dx+6,GY-33,2.6,GOLD);
+  if(!b.level){R(dx,GY-22,12,22,'#9a5632');for(let i=0;i<6;i++)R(dx-6+hash(i+50)*20,GY-3-hash(i+51)*9,5,3.4,i%2?'#8f4a2a':'#b8693e');poly('#b8693e',[dx-14,GY,dx-2,GY-8,dx+12,GY-5,dx+26,GY]);if(b.building)scaffoldOld(b,b.x-cam,26);}
+  else{fire(dx-9,GY-16,.6);fire(dx+21,GY-16,.6);R(dx-9.5,GY-16,1,16,WOOD);R(dx+20.5,GY-16,1,16,WOOD);
+    if(!G.looted){R(dx+2,GY-7,8,7,'#6a4426');R(dx+2,GY-7,8,1.4,GOLD);R(dx+5.2,GY-5,1.6,2.4,GOLD);light(dx+6,GY-5,12,.6);if(Math.sin(NOW*3)>.5){R(dx+3,GY-9,5,.5,'#fff');R(dx+5.2,GY-11,.5,5,'#fff');}}
+    else if(lit()){R(dx+1,GY-20,10,20,`rgba(120,255,170,${.14+.08*Math.sin(NOW*3)})`);}}
+  // the spear traps along the way in
+  if(b.level&&!G.looted)for(const t of G.traps){const tx=t.x-cam,ph=(NOW+t.ph)%2.6,up=ph<1.1?clamp(Math.min(ph/.12,(1.1-ph)/.25),0,1):0;R(tx-8,GY-.6,16,1.8,'#7a4426');R(tx-8,GY-.6,16,.5,'#c98052');for(let q=0;q<5;q++){R(tx-6.6+q*3,GY-.4,1.2,1.2,'#1c0c06');if(up>0){seg(tx-6+q*3,GY,tx-6+q*3,GY-15*up,.8,'#9aa0a0');poly('#e4e4dc',[tx-7+q*3,GY-15*up,tx-6+q*3,GY-19*up,tx-5+q*3,GY-15*up]);}}
+    if(ph>2.25)R(tx-8,GY-2.4,16,.6,`rgba(255,80,40,${(ph-2.25)*2.6})`);}
+}
+function hermit(b){
+  if(b.gone)return;const x=b.x-cam;if(x>W+60||x<-80)return;
+  poly('#a98a62',[x-18,GY,x-12,GY-22,x+4,GY-32,x+26,GY-30,x+44,GY-18,x+56,GY]);poly('#86693f',[x+26,GY-30,x+44,GY-18,x+56,GY,x+34,GY]);R(x-6,GY-22,24,.8,'rgba(255,236,196,.35)');
+  arch(x+8,GY-18,13,18,'#1c120a');if(lit())light(x+14,GY-8,18,.7);
+  seg(x-10,GY-23,x+36,GY-27,.3,'#5a3e22');for(let i=0;i<6;i++){const cx=x-6+i*7,sw=Math.sin(NOW*2+i)*.8,cy=GY-23.5-i*.55;seg(cx,cy,cx+sw,cy+4,.25,'#5a3e22');R(cx+sw-1,cy+4,2,2,[GOLD,TEAL,RED,'#f3ead2',LAPIS,GOLD][i]);}
+  fire(x+34,GY-1,.8);R(x+30,GY-1.5,8,1.5,'#4a3a2a');
+  // what he still has to sell, set out on a cloth
+  R(x-14,GY-1.6,20,1.6,'#7a1c14');R(x-14,GY-1.6,20,.5,GOLD);
+  if(b.level<1){ell(x-10,GY-3.4,2.2,1.6,GOLD);R(x-10.4,GY-5.2,.8,1.4,'#8a5f14');}
+  if(b.level<2){R(x-5,GY-4.6,3.4,3,'#c9922a');R(x-2,GY-5,2,1,'#c9922a');if(Math.sin(NOW*6)>0)R(x+.2,GY-6.6,1,1.4,'#ffd27a');}
+  if(b.level<3){seg(x+2.6,GY-2,x+2.6,GY-7,.4,'#e6d2a2');R(x+1.4,GY-7.6,2.4,1,TEAL);R(x+1.9,GY-6.4,1.4,1.8,'#f3ead2');}
+  person(b.x+25,0,{robe:'#6e5a44',turban:'#d8d0c0',skin:SKIN[1],beard:'#f0ece2',dir:-1,tool:'staff'});
+}
+function btemple(b){
+  if(b.gone)return;const x=b.x-cam,w=b.w;if(x>W+60||x+w<-60)return;const st='#d8c08e',sd='#a98a5a';
+  if(!b.level){poly(SAND,[x-24,GY,x+4,GY-12,x+34,GY-17,x+62,GY-13,x+w+22,GY]);for(const cx of [x+14,x+30,x+48,x+66]){const hh=6+hash(cx+cam)*9;R(cx,GY-12-hh,6,hh+4,st);R(cx+4,GY-12-hh,2,hh+4,sd);R(cx-1,GY-13.5-hh,8,2,st);}R(x+22,GY-27,34,3,st);R(x+22,GY-27,34,.8,'#f0dcae');poly(SAND2,[x-10,GY,x+20,GY-9,x+50,GY-11,x+78,GY-7,x+w+10,GY]);if(b.building)scaffoldOld(b,x,34);return;}
+  R(x-4,GY-3,w+8,3,sd);R(x,GY-6,w,3,st);for(let i=0;i<6;i++){const cx=x+5+i*15;R(cx,GY-36,7,30,st);R(cx+5,GY-36,2,30,sd);R(cx-1.5,GY-39,10,3,st);R(cx-1,GY-8,9,2,sd);R(cx,GY-32,7,1.4,TEAL);R(cx,GY-29.6,7,.8,RED);}
+  R(x-2,GY-44,w+4,5,st);R(x-2,GY-44,w+4,1,'#f0dcae');poly(st,[x-2,GY-44,x+w/2,GY-56,x+w+2,GY-44]);poly(sd,[x+w/2,GY-56,x+w+2,GY-44,x+w/2+6,GY-44]);circ(x+w/2,GY-48,2.6,GOLD);
+  R(x+35,GY-28,20,22,'#1c120a');if(lit()){R(x+37,GY-24,16,18,'rgba(255,196,100,.5)');light(x+45,GY-16,30,1);}else{const gl=.3+.2*Math.sin(NOW*2);R(x+38,GY-22,14,16,`rgba(255,210,110,${gl})`);}
+  for(const sx of [x+24,x+58]){R(sx,GY-22,8,16,sd);R(sx+1.5,GY-28,5,6,sd);R(sx+1,GY-29.6,6,2,GOLD);}
+}
+function featScene(hz){
+  const f=G.feat;
+  if(f==='oasis'){for(let i=0;i<9;i++){const wx=TOWN[0]+40+i*78+hash(i+900)*30;palm(wx-cam,34+hash(i+901)*22,1+hash(i+902)*.3,900+i,i%2===0);}
+    const px=WELL_X+62-cam;ell(px,GY+2,15,2.2,'#2f8fa6');ell(px-2,GY+1.6,10,1.2,'#7fc8d8');for(let q=0;q<2;q++){const d=px-6+q*9+Math.sin(NOW*.5+q*2)*3;ell(d,GY+1.2,1.8,1,'#f0ece2');R(d+1.2,GY-.4,1,1.2,'#f0ece2');R(d+2,GY,.8,.4,'#e0a030');}
+    for(let i=0;i<14;i++){const wx=TOWN[0]+24+i*50+hash(i+940)*20-cam;for(let q=-2;q<3;q++)seg(wx+q,GY+.5,wx+q*1.8+Math.sin(NOW*2+i)*.5,GY-3.4-hash(i+q)*2,.5,q%2?'#4d8a3c':'#6aa24a');if(i%3===0)R(wx-.6,GY-4.6,1.4,1.4,[RED,GOLD,'#e87aa0'][i%9%3]);}}
+  else if(f==='port'){const x0=TOWN[1]+44-cam;
+    for(const [o,w,hh] of [[0,54,30],[66,46,24]]){const x=x0+o;box(x,GY-hh,w,hh,'#c4a878','#9a7e52',o+7);poly('#8a6238',[x-3,GY-hh,x+w/2,GY-hh-10,x+w+3,GY-hh]);arch(x+8,GY-17,13,17,DARK);arch(x+w-21,GY-17,13,17,DARK);R(x+w/2-3,GY-hh+5,6,5,DARK);}
+    for(let i=0;i<7;i++){const cx=x0+124+i*9;R(cx,GY-6-(i%3)*3,7,6+(i%3)*3,i%2?'#8f6a3e':'#a87a48');R(cx,GY-6-(i%3)*3,7,.7,'#d9b680');}
+    for(let i=0;i<5;i++){const ux=x0+196+i*7;ell(ux,GY-3.4,2.6,3.6,'#b5673a');R(ux-1.2,GY-8,2.4,2,'#b5673a');}
+    const kx=NILE-74-cam,sw=Math.sin(NOW*.8)*5;seg(kx,GY,kx,GY-34,1.6,WOOD);seg(kx-6,GY,kx,GY-14,1,WOOD);seg(kx+6,GY,kx,GY-14,1,WOOD);seg(kx,GY-34,kx+26,GY-40,1.3,WOOD);seg(kx,GY-34,kx-9,GY-28,1,WOOD);seg(kx+26,GY-40,kx+26+sw,GY-17,.35,'#e6d2a2');R(kx+22+sw,GY-17,8,6,'#8f6a3e');R(kx+22+sw,GY-17,8,.8,'#d9b680');
+    const lx=NILE-128-cam;poly(STONE,[lx-7,GY,lx-4,GY-46,lx+4,GY-46,lx+7,GY]);poly(STONE2,[lx+2,GY,lx+2,GY-46,lx+4,GY-46,lx+7,GY]);R(lx-6,GY-49,12,3,STONE);R(lx-5.4,GY-20,10.8,1.6,RED);fire(lx,GY-50,1);light(lx,GY-52,60,.9);
+    for(let i=0;i<4;i++){const nx=NILE-52+i*9-cam;seg(nx,GY,nx,GY-11,.6,WOOD);if(i<3){seg(nx,GY-11,nx+9,GY-11,.5,WOOD);for(let q=1;q<4;q++)ell(nx+q*2.2,GY-9.4+Math.sin(NOW*2+q+i)*.3,.7,1.5,'#c8d8e0');}}
+    felucca(NILE+28,false,.8);felucca(NILE+50,true,.72);}
+  else if(f==='temple'){const px=wx=>W/2+(wx-(cam+W/2))*.86,l=css(mixA(rgb('#d8c090'),hz,.3)),d=css(mixA(rgb('#a88a5a'),hz,.3));
+    for(let i=0;i<12;i++){const wx=TOWN[0]-60+i*74,x=px(wx),br=hash(i+960)<.3,hh=(br?40:86)+hash(i+961)*14;if(x<-30||x>W+30)continue;
+      R(x,GY-hh,13,hh,l);R(x+9,GY-hh,4,hh,d);for(let q=2;q<13;q+=3)R(x+q,GY-hh+6,.6,hh-8,'rgba(90,60,20,.18)');
+      if(br)poly(l,[x,GY-hh,x+4,GY-hh-5,x+8,GY-hh-1,x+13,GY-hh-6,x+13,GY-hh]);else{poly(l,[x-4,GY-hh,x-1,GY-hh-8,x+14,GY-hh-8,x+17,GY-hh]);R(x-1,GY-hh-10,15,2,d);R(x,GY-hh+10,13,2,css(mixA(rgb('#2fa7a0'),hz,.4)));}
+      if(!br&&i<11&&hash(i+962)<.75){const x2=px(wx+74);R(x-2,GY-hh-17,x2-x+17,7,l);R(x-2,GY-hh-17,x2-x+17,1,'rgba(255,240,200,.4)');R(x-2,GY-hh-11.5,x2-x+17,1.5,d);}}
+    for(const wx of [TOWN[0]-130,TOWN[1]+70]){const x=px(wx);if(x<-50||x>W+50)continue;R(x,GY-18,34,18,d);R(x+4,GY-58,26,40,l);R(x+24,GY-58,6,40,d);R(x+8,GY-74,18,16,l);R(x+5,GY-78,24,5,d);R(x+4,GY-73,4,22,d);R(x+26,GY-73,4,22,d);R(x+11,GY-69,3,2,d);R(x+19,GY-69,3,2,d);R(x+13,GY-63,8,1.2,d);R(x+4,GY-34,26,3,d);R(x+2,GY-20,30,3,l);}}
+}
+function endScene(){
+  const c=mctx,t=G.end.t,hy=H*.56;c.setTransform(S,0,0,S,0,0);
+  const g=c.createLinearGradient(0,0,0,hy);g.addColorStop(0,'#2c1d56');g.addColorStop(.5,'#b24a56');g.addColorStop(.82,'#f08a44');g.addColorStop(1,'#fbc56a');c.fillStyle=g;c.fillRect(0,0,W,H);
+  for(const s of STARS){c.fillStyle=`rgba(255,248,226,${.5*s.b*Math.max(0,1-s.y*2.2)})`;c.fillRect(s.x*W,s.y*hy*.5,s.s,s.s);}
+  const sx=W*.56,sy=hy-9+Math.min(8,t*.3);c.save();c.translate(sx,sy);for(let i=0;i<16;i++){c.rotate(Math.PI/8);const rg=c.createLinearGradient(0,0,0,-W*.5);rg.addColorStop(0,'rgba(255,220,150,.16)');rg.addColorStop(1,'rgba(255,220,150,0)');c.fillStyle=rg;c.beginPath();c.moveTo(-4,0);c.lineTo(0,-W*.5-(i%2)*30);c.lineTo(4,0);c.fill();}c.restore();
+  const sg=c.createRadialGradient(sx,sy,2,sx,sy,90);sg.addColorStop(0,'rgba(255,236,170,.9)');sg.addColorStop(1,'rgba(255,200,120,0)');c.fillStyle=sg;c.fillRect(sx-90,sy-90,180,180);c.fillStyle='#fff3c8';c.beginPath();c.arc(sx,sy,11,0,7);c.fill();
+  for(let i=0;i<6;i++){const bx=((i*W/4+NOW*3)%(W+200))-100,by=18+i*7;c.fillStyle='rgba(255,170,130,.5)';c.beginPath();c.ellipse(bx,by,34+i*5,3,0,0,7);c.fill();}
+  // the far bank: the five towns slide by in silhouette
+  const off=-((t*9)%(W+900)),sil='#3a1f44';c.fillStyle=sil;c.fillRect(0,hy-4,W,5);
+  const T=x=>{c.beginPath();c.moveTo(x-30,hy-3);c.lineTo(x,hy-34);c.lineTo(x+30,hy-3);c.fill();c.beginPath();c.moveTo(x+20,hy-3);c.lineTo(x+40,hy-22);c.lineTo(x+60,hy-3);c.fill();};
+  for(let k=0;k<2;k++){const bx=off+k*(W+900)+W*.2;T(bx);c.fillRect(bx+80,hy-16,22,13);c.fillRect(bx+110,hy-40,3,37);c.fillRect(bx+118,hy-12,16,9);
+    for(let q=0;q<5;q++){const px=bx+190+q*16;c.fillRect(px,hy-14-(q%2)*6,1.4,12+(q%2)*6);c.beginPath();c.arc(px+.7,hy-14-(q%2)*6,6,Math.PI,0);c.fill();}c.fillRect(bx+270,hy-18,26,15);
+    c.beginPath();c.moveTo(bx+360,hy-3);c.lineTo(bx+366,hy-40);c.lineTo(bx+430,hy-42);c.lineTo(bx+446,hy-20);c.lineTo(bx+470,hy-3);c.fill();
+    for(let q=0;q<4;q++){c.fillRect(bx+540+q*18,hy-30,1.2,27);c.beginPath();c.moveTo(bx+540+q*18,hy-30);c.lineTo(bx+552+q*18,hy-10);c.lineTo(bx+540+q*18,hy-8);c.fill();}c.fillRect(bx+530,hy-9,80,6);
+    for(let q=0;q<7;q++)c.fillRect(bx+700+q*14,hy-36,6,33);c.fillRect(bx+696,hy-40,98,5);c.fillRect(bx+810,hy-30,16,27);c.fillRect(bx+813,hy-38,10,9);}
+  // the river
+  const wg=c.createLinearGradient(0,hy,0,H);wg.addColorStop(0,'#f6a257');wg.addColorStop(.35,'#a84a5c');wg.addColorStop(1,'#231640');c.fillStyle=wg;c.fillRect(0,hy,W,H-hy);
+  for(let r=0;r<H-hy;r+=1.3){const wd=6+r*1.3+Math.sin(NOW*4+r)*3;c.fillStyle=`rgba(255,232,160,${.55-r/(H-hy)*.4})`;c.fillRect(sx-wd/2+Math.sin(NOW*2.6+r*.9)*3,hy+r,wd,.7);}
+  for(let i=0;i<40;i++){const rx=((hash(i+70)*W+NOW*(5+i%4)*2)%(W+40))-20,ry=hy+4+hash(i+71)*(H-hy-6);c.fillStyle='rgba(255,220,180,.25)';c.fillRect(rx,ry,8+hash(i)*14,.6);}
+  // the barge, with you and the camel aboard
+  const bx=W*.2+t*5,by=hy+(H-hy)*.42+Math.sin(NOW*1.3)*1,dk='#1c0f22';c.save();c.translate(bx,by);c.fillStyle=dk;c.beginPath();c.moveTo(-52,-6);c.lineTo(-44,5);c.lineTo(40,5);c.lineTo(60,-12);c.lineTo(38,-5);c.lineTo(-40,-5);c.fill();
+  c.fillRect(-3,-64,2.4,60);c.strokeStyle=dk;c.lineWidth=1.6;c.beginPath();c.moveTo(-42,-26);c.lineTo(20,-74);c.stroke();const bl=Math.sin(NOW*1.5)*3;c.fillStyle='#f6d8a8';c.beginPath();c.moveTo(-42,-26);c.lineTo(20,-74);c.lineTo(28+bl,-16);c.lineTo(-26,-10);c.fill();c.fillStyle='rgba(180,80,60,.25)';c.beginPath();c.moveTo(-10,-38);c.lineTo(20,-74);c.lineTo(28+bl,-16);c.lineTo(4,-13);c.fill();
+  c.fillStyle=dk;c.beginPath();c.ellipse(-22,-13,11,5,0,0,7);c.fill();c.beginPath();c.arc(-27,-19,4,0,7);c.arc(-19,-19.5,4,0,7);c.fill();c.fillRect(-31,-10,2,6);c.fillRect(-15,-10,2,6);c.lineWidth=3;c.beginPath();c.moveTo(-13,-14);c.quadraticCurveTo(-8,-15,-7,-26);c.stroke();c.fillRect(-8,-29,6,3);
+  c.fillRect(-25.5,-31,4,9);c.fillRect(-25,-35,3.4,3.4);c.fillRect(-26,-37.4,5.4,2.6);c.fillRect(26,-17,3,12);c.fillRect(26.2,-21,2.6,3);c.fillRect(25.4,-23,4.2,2.2);c.restore();
+  for(let q=1;q<6;q++){c.strokeStyle=`rgba(255,236,200,${.4-q*.07})`;c.lineWidth=.5;c.beginPath();c.moveTo(bx-50-q*12,by+7+q*1.6);c.lineTo(bx-44-q*6,by+5);c.lineTo(bx-50-q*12,by+3-q*.6);c.stroke();}
+  for(let i=0;i<7;i++){const fx=W*.3+i*9+t*2,fy=hy*.34+Math.abs(i-3)*4,wg2=Math.sin(NOW*6+i)*1.6;c.strokeStyle='rgba(30,16,30,.7)';c.lineWidth=.6;c.beginPath();c.moveTo(fx-3.4,fy-wg2);c.lineTo(fx,fy+.6);c.lineTo(fx+3.4,fy-wg2);c.stroke();}
+  const vg=c.createRadialGradient(W/2,H*.5,H*.4,W/2,H*.5,W*.7);vg.addColorStop(0,'rgba(20,8,20,0)');vg.addColorStop(1,'rgba(20,8,20,.55)');c.fillStyle=vg;c.fillRect(0,0,W,H);
+  if(G.fade>0){c.fillStyle=`rgba(10,7,5,${G.fade})`;c.fillRect(0,0,W,H);}
+}
 function backTown(hz){
   const n=['market','tea','guard','pen','bank','temple'].reduce((s,k)=>s+B(k).level,0)+B('well').level*2,cl=css(mixA(rgb('#d6b584'),hz,.36)),cd=css(mixA(rgb('#a98658'),hz,.36)),ct=css(mixA(rgb('#efe0be'),hz,.3));let prev=null;
   for(let i=0;i<17;i++){
@@ -1042,11 +1218,13 @@ function person(x,h,o){
   if(o.torch){const tx=sx+d*3.5*PS,ty=y-14*PS;seg(sx+d*2.5*PS,y-8.6*PS,tx,ty,.8,WOOD);fire(tx,ty,.5);}
 }
 function camel(x,dir,ph,amp,o){
-  const sx=x-cam,d=dir,by=GY-13-Math.abs(Math.sin(ph*2))*.5*amp,col=o.col||'#8a5a32',dk=o.dk||'#5a391c',lt=o.lt||'#ad7a48';if(sx<-30||sx>W+30)return;
+  const sx=x-cam,d=dir,kn=o.kneel||0,by=GY-13-Math.abs(Math.sin(ph*2))*(o.gallop?1.5:.5)*amp+kn*7,col=o.col||'#8a5a32',dk=o.dk||'#5a391c',lt=o.lt||'#ad7a48';if(sx<-30||sx>W+30)return;
   {const sl=sunLean();poly('rgba(60,34,8,.2)',[sx-11,GY,sx+11,GY,sx+11+sl*16,GY+4.5,sx-11+sl*16,GY+4.5]);}ell(sx,GY+.4,13,1.4,'rgba(50,28,8,.32)');
+  ctx.save();if(o.rear||o.gallop){const px=sx-d*6.5,py=by+2;ctx.translate(px,py);ctx.rotate(-d*((o.rear||0)*.44+(o.gallop?Math.sin(ph*2)*.075*Math.min(1,amp):0)));ctx.translate(-px,-py);}
   for(let i=0;i<4;i++){
-    const fr=i<2,hx=sx+d*(fr?6.5:-6.5)+(i%2?.9:-.9),a=ph+(i%2?Math.PI:0)+(fr?.35:0),sw=Math.sin(a)*4.2*amp,lf=Math.max(0,Math.cos(a))*2.4*amp,kx=hx+d*sw*.45+d*(fr?.6:-.8),ky=by+6.5-lf*.3,fx=hx+d*sw,fy=GY-lf,c=i%2?dk:col;
-    seg(hx,by+1,kx,ky,2.5,c);seg(kx,ky,fx,fy-.6,1.7,c);circ(kx,ky,1.3,c);R(fx-1.2+d*.4,fy-1.1,2.6,1.1,'#3a2610');
+    const fr=i<2,hx=sx+d*(fr?6.5:-6.5)+(i%2?.9:-.9),a=o.gallop?ph+(fr?0:2.4)+(i%2?.5:0):ph+(i%2?Math.PI:0)+(fr?.35:0),sw=Math.sin(a)*(o.gallop?6:4.2)*amp+(o.rear&&fr?Math.sin(NOW*15+i*2)*2.4*o.rear:0),lf=Math.max(0,Math.cos(a))*2.4*amp,kx=hx+d*sw*.45+d*(fr?.6:-.8),ky=by+6.5-lf*.3,fx=hx+d*sw,fy=GY-lf,c=i%2?dk:col;
+    const KX=lerp(kx,hx+d*(fr?4.4:-4.4),kn),KY=lerp(ky,by+5.5,kn),FX=lerp(fx,hx+d*(fr?-.6:.6),kn),FY=lerp(fy,GY,kn);
+    seg(hx,by+1,KX,KY,2.5,c);seg(KX,KY,FX,FY-.6,1.7,c);circ(KX,KY,1.3,c);R(FX-1.2+d*.4,FY-1.1,2.6,1.1,'#3a2610');
   }
   ell(sx,by-1,10.5,4.9,col);ell(sx+d*.6,by+1.5,8.6,2.5,dk);ell(sx+d*8.3,by+1.2,2.3,3.2,dk);
   for(const hxo of [-4.8,2.8]){const hx=sx+d*hxo,sg=Math.sin(ph*2+hxo)*.4*amp;ell(hx,by-6.2,3.3,4.6,col);ell(hx-d*.9,by-7.4,1.3,2.4,lt);R(hx-1.6+sg,by-11.4,3.2,1.5,dk);R(hx-.8+sg,by-12.2,1.6,1,dk);}
@@ -1059,6 +1237,7 @@ function camel(x,dir,ph,amp,o){
   if(o.saddle||o.load){ctx.strokeStyle='#d8b060';ctx.lineWidth=.35;ctx.beginPath();ctx.moveTo(hx+d*2,hy+1);ctx.quadraticCurveTo(sx+d*9,by-5,sx+d*1,by-6);ctx.stroke();R(hx+d*.2-.3,hy-1.6,.6,3.4,RED);}
   if(o.load){R(sx-d*1-3.4,by-10.5,6.8,5.6,o.load);R(sx-d*1-3.4,by-8.6,6.8,.8,GOLD);R(sx-7.6,by-5.5,3.2,5.4,'#b5673a');R(sx+4.4,by-5.5,3.2,5.4,'#7a5a34');R(sx-7.6,by-5.5,3.2,.7,'#e0c08a');}
   if(o.saddle){R(sx-d*1-3.6,by-7.6,7.2,6.4,o.saddle);R(sx-d*1-3.6,by-7.6,7.2,.8,GOLD);R(sx-d*1-3.6,by-4.6,7.2,.7,TEAL);R(sx-d*1-3.6,by-2,7.2,.9,GOLD);for(let i=0;i<4;i++)R(sx-d*1-3.2+i*2,by-1.1,.8,1.7+Math.sin(ph*2+i)*.5*amp,GOLD);}
+  if(o.top)o.top(by);ctx.restore();
   return by;
 }
 function rider(sx,by,d,o){
@@ -1071,13 +1250,18 @@ function rider(sx,by,d,o){
   ctx.restore();
 }
 function drawPlayer(){
-  const p=G.player,sx=p.x-cam,sp=Math.abs(p.vx),amp=clamp(sp/70,0,1.1),by=camel(p.x,p.dir,p.phase,amp,{saddle:RED,graze:clamp(((p.idle||0)-2.5)/1.2,0,1)*(.5+.5*Math.sin(NOW*.7))}),d=p.dir;
-  rider(sx-d*1,by,d,{robe:'#f6efdc',sash:TEAL,skin:'#b8804e',turban:GOLD,fl:clamp(sp/110,0,1),jewel:1});
-  const y=by-8;R(sx-d*3.6-.6,y-6,1.4,6,'#6a4426');for(let i=0;i<Math.min(3,p.ammo);i++)R(sx-d*3.6-.6+i*.5,y-7.6,.4,1.8,PLA);
-  if(p.draw>0||p.rl>0){ctx.strokeStyle=WOOD;ctx.lineWidth=.8;ctx.beginPath();ctx.arc(sx+d*2.5,y-4,5,d>0?-1.25:Math.PI-1.25,d>0?1.25:Math.PI+1.25);ctx.stroke();seg(sx+d*4,y-8.7,sx+d*(p.draw>0?2:4),y-4,.3,PLA);seg(sx+d*(p.draw>0?2:4),y-4,sx+d*4,y+.7,.3,PLA);seg(sx,y-4,sx+d*3,y-4,1,'#f6efdc');}
-  else if(p.toss>0){seg(sx+d*1.5,y-5,sx+d*4.5,y-9,1.1,'#f6efdc');}
-  else seg(sx+d*1.5,y-4.5,sx+d*4.5,y-2,1.1,'#f6efdc');
-  if(lit()){fire(sx+d*6,by-12,.5);light(sx,GY-12,46,.9);}
+  const p=G.player,sx=p.x-cam,sp=Math.abs(p.vx),amp=clamp(sp/70,0,1.1),d=p.dir,gal=!!(G.up.racer||B('pen').level>=2)&&sp>92,kn=p.kneelK||0;
+  if(gal&&Math.random()<.5)G.parts.push({x:p.x-d*rnd(6,12),h:rnd(0,3),vx:-d*rnd(10,40),vh:rnd(6,18),life:0,max:rnd(.7,1.3),col:'#ecd2a0',grav:0,sm:1,r:2.8,a:.45});
+  camel(p.x,d,p.phase,gal?1.15:amp,{saddle:RED,kneel:kn,rear:p.rearK||0,gallop:gal,graze:kn>.1?0:clamp(((p.idle||0)-2.5)/1.2,0,1)*(.5+.5*Math.sin(NOW*.7)),top:by=>{
+    rider(sx-d*1,by,d,{robe:'#f6efdc',sash:TEAL,skin:'#b8804e',turban:GOLD,fl:clamp(sp/110,0,1),jewel:1});
+    const y=by-8;R(sx-d*3.6-.6,y-6,1.4,6,'#6a4426');for(let i=0;i<Math.min(3,p.ammo);i++)R(sx-d*3.6-.6+i*.5,y-7.6,.4,1.8,G.up.fire?'#ffb04a':PLA);if(G.up.quiver)R(sx-d*4.6-.6,y-5.4,1.2,5.4,'#7a4e2a');
+    if(p.draw>0||p.rl>0){ctx.strokeStyle=WOOD;ctx.lineWidth=.8;ctx.beginPath();ctx.arc(sx+d*2.5,y-4,5,d>0?-1.25:Math.PI-1.25,d>0?1.25:Math.PI+1.25);ctx.stroke();seg(sx+d*4,y-8.7,sx+d*(p.draw>0?2:4),y-4,.3,PLA);seg(sx+d*(p.draw>0?2:4),y-4,sx+d*4,y+.7,.3,PLA);seg(sx,y-4,sx+d*3,y-4,1,'#f6efdc');}
+    else if(p.toss>0){seg(sx+d*1.5,y-5,sx+d*4.5,y-9,1.1,'#f6efdc');}
+    else seg(sx+d*1.5,y-4.5,sx+d*4.5,y-2,1.1,'#f6efdc');
+    if(G.up.falcon&&(lit()||sp<6)){const fx=sx-d*3.4,fy=by-20;ell(fx,fy,1.5,2.3,'#6a4a30');R(fx+d*.4-.5,fy-3.2,1.2,1.4,'#6a4a30');R(fx+d*1.3-.3,fy-2.6,.7,.5,GOLD);R(fx-.8,fy+1.6,1.6,1.4,'#3a2a1c');}
+    if(lit())fire(sx+d*6,by-12,.5);}});
+  if(lit())light(sx,GY-12,46,.9);
+  if(G.up.falcon&&!lit()&&sp>=6){const an=NOW*1.4,fx=sx+Math.cos(an)*26-d*8,fy=GY-56+Math.sin(an*2)*5,wg=Math.sin(NOW*9)*2.4;poly('#6a4a30',[fx-5.5,fy-wg,fx,fy+1,fx+5.5,fy-wg,fx,fy-.6]);R(fx-.7,fy-.6,1.4,2.6,'#5a3a22');}
 }
 function goat(c){const x=c.x-cam,d=c.dir,s=c.kid?.7:1,wk=c.moving?Math.sin(c.walk*12):0;if(x<-10||x>W+10)return;
   R(x-3*s,GY-5*s,6*s,3*s,'#e8e0d0');R(x-2.6*s+wk*.6,GY-2*s,.8,2*s,'#5a4a3a');R(x+1.8*s-wk*.6,GY-2*s,.8,2*s,'#5a4a3a');R(x+d*3*s-(d<0?2*s:0),GY-6.5*s,2*s,2.2*s,'#d8ccb4');R(x+d*3.4*s-.3,GY-7.6*s,.6,1.2,'#4a3a2a');R(x-d*3.4*s-.3,GY-5.4*s,.7,1.2,'#e8e0d0');}
@@ -1128,13 +1312,13 @@ function tombInside(){
 
 // ---------- the frame
 function draw(){
-  const p=G.player,t=G.t,dark=G.dark,warm=warmth(t),hz=skyAt(t)[1];LIGHTS=[];FIRES=[B('well').x-13,...G.camps.map(c=>c.x+30)];
+  const p=G.player,t=G.t,dark=G.dark,warm=warmth(t),hz=skyAt(t)[1];LIGHTS=[];if(G.state==='end')return endScene();FIRES=[B('well').x-13,...G.camps.map(c=>c.x+30)];
   mctx.setTransform(S,0,0,S,0,0);drawSky();
   ctx.setTransform(S,0,0,S,0,0);ctx.clearRect(0,0,W,H);
   if(G.shake>0)ctx.translate(rnd(-1,1)*G.shake*4,rnd(-1,1)*G.shake*3);
   const zm=G.zoom,zx=clamp((G.cine?G.cine.fx:p.x)-cam,W*.25,W*.75);if(zm>1.001){ctx.translate(zx,GY+8);ctx.scale(zm,zm);ctx.translate(-zx,-GY-8);}
   // far country: the old pyramids on the horizon, then three ranks of dunes
-  farPyramid(150,16,62,58,hz);farPyramid(232,16,46,44,hz);farPyramid(292,16,30,30,hz);farPyramid(520,16,40,40,hz);farPyramid(700,16,54,50,hz);farPyramid(762,16,28,27,hz);
+  if(G.feat==='cliff')cliffs(hz);else{if(G.feat!=='oasis'){farPyramid(150,16,62,58,hz);farPyramid(232,16,46,44,hz);farPyramid(292,16,30,30,hz);}if(G.feat!=='port')farPyramid(520,16,40,40,hz);farPyramid(700,16,54,50,hz);if(G.feat!=='oasis')farPyramid(762,16,28,27,hz);}
   {const wk=stormWarn();if(wk>0){const hg=3+wk*30,col=mixA([122,76,36],hz,.1).map(Math.round),top=mixA([176,122,66],hz,.08).map(Math.round);
     for(let x=-10;x<W+10;x+=7){const al=(1-x/W*.6)*(.5+.5*wk),hh=hg*(.55+.45*hash(Math.floor((x+cam*.05)/7)+40))*(1-x/W*.5)+Math.sin(NOW*.6+x*.05)*1.5;ctx.fillStyle=`rgba(${col},${al})`;ctx.fillRect(x-4,GY-14-hh,8,hh+6);ctx.fillStyle=`rgba(${top},${al})`;ctx.beginPath();ctx.arc(x,GY-14-hh,5+hash(x)*3+Math.sin(NOW+x)*.6,0,7);ctx.fill();}}}
   dunes(.12,14,16,mixA(rgb('#ecd3a0'),hz,.35),mixA(rgb('#c39c62'),hz,.35),1.3,.012);
@@ -1160,8 +1344,8 @@ function draw(){
   if(G.dark<.6)for(let i=0;i<7;i++){const x=((hash(i+60)*W*2+NOW*(26+i*5)-cam*1.1)%(W+120)+W+120)%(W+120)-60,y=GY+1+hash(i+61)*(H-GY-3);const g=ctx.createLinearGradient(x,0,x+50,0);g.addColorStop(0,'rgba(255,244,214,0)');g.addColorStop(.5,'rgba(255,244,214,.22)');g.addColorStop(1,'rgba(255,244,214,0)');ctx.fillStyle=g;ctx.fillRect(x,y+Math.sin(NOW+i)*1,50,.7);}
   if(G.wet>0)for(let i=Math.floor(cam/60);i<(cam+W)/60+1;i++){if(hash(i+500)<.45)continue;const px=i*60+hash(i+501)*40-cam,py=GY+4+hash(i+502)*(H-GY-10),pw=(7+hash(i+503)*12)*Math.min(1,G.wet*1.6);ctx.globalAlpha=Math.min(1,G.wet*1.8)*.7;ell(px,py,pw,pw*.2,'#7fa8b8');ell(px-pw*.2,py-pw*.03,pw*.55,pw*.09,'#c8e0e8');ctx.globalAlpha=1;if(G.rain&&Math.sin(NOW*9+i*3)>.3){const rr=((NOW*1.6+i*.37)%1);ctx.strokeStyle=`rgba(255,255,255,${.6*(1-rr)})`;ctx.lineWidth=.4;ctx.beginPath();ctx.ellipse(px+Math.sin(i*7)*pw*.5,py,rr*5,rr*1.4,0,0,7);ctx.stroke();}}
   nile();
-  tombPyramid(B('tomb'));sphinx(B('sphinx'));oasis(B('grove'));quarry();G.camps.forEach(camp);for(const u of G.urns)urn(u);
-  for(let i=0;i<9;i++){const wx=[330,560,930,1210,2040,2260,2590,2780,2960][i];palm(wx-cam,18+hash(i+40)*14,.8+hash(i)*.3,50+i);}
+  if(G.feat==='cliff')cliffTomb(B('tomb'));else if(!B('tomb').gone)tombPyramid(B('tomb'));if(!B('sphinx').gone)sphinx(B('sphinx'));if(OASIS>0)oasis(B('grove'));hermit(B('hermit'));btemple(B('btemple'));quarry();featScene(hz);G.camps.forEach(camp);for(const u of G.urns)urn(u);
+  for(let i=0;i<9;i++){const wx=[330,560,930,1210,2040,2260,2590,2780,2960][i];if((wx>TOWN[0]-40&&wx<TOWN[1]+40)||zoneOf(wx)||Math.abs(wx-OASIS)<70)continue;palm(wx-cam,18+hash(i+40)*14,.8+hash(i)*.3,50+i);}
   backTown(hz);
   if(G.drift>0)for(const k of ['bank','market','tea','guard','temple','pen','gw','ge']){const q=B(k),x=q.x-cam,d=G.drift;if(x<-60||x>W+60)continue;if(Math.random()<.07*d)G.parts.push({x:q.x+1,h:7*d,vx:rnd(14,34),vh:rnd(0,5),life:0,max:rnd(.7,1.4),col:'#f0d8a4',grav:0,sm:1,r:1.6,a:.35});poly('#ecd09a',[x-12*d-2,GY+.5,x+1,GY-7*d,x+7+4*d,GY+.5]);poly(SAND,[x+q.w*.4,GY+.5,x+q.w*.62,GY-3*d,x+q.w*.9,GY+.5]);}
   for(const d of G.doves){const x=d.x-cam;if(x<-10||x>W+10)continue;if(!d.fly){const pk=Math.sin(d.t*5+d.x)>.4?1:0;ell(x,GY-1.8,2,1.3,'#f0ece2');R(x+d.dir*1.4-.5,GY-3.6+pk*1.6,1.1,1.1,'#f0ece2');R(x+d.dir*2.3-.3,GY-3.1+pk*1.6,.6,.4,'#d88a3a');R(x-d.dir*2.6-.4,GY-2.2,1.2,.6,'#c8c4ba');}
@@ -1185,6 +1369,15 @@ function draw(){
     if(gd.level&&tp.level)str(gd.x+gd.w-2,26,tp.x+3,tall(tp)-4,4,4);
     if(tp.level>1&&pn.level)str(tp.x+tp.w-3,tall(tp)-4,pn.x+4,22,5,2);}
   for(const b of G.b){rack(b);}
+  for(const k in SHOP){const it=shopItem(k);if(!B(k).level)continue;const x=shopX(k)-cam,s=G.shop[k];if(x<-20||x>W+20)continue;
+    seg(x,GY,x,GY-13,1,WOOD);R(x-4.5,GY-17,9,7,it?'#ecdcb0':'#b8a888');R(x-4.5,GY-17,9,.7,'#fff');R(x-4.5,GY-10.6,9,.6,'#7a5a2e');
+    if(it){const n=it[0],cy=GY-13.4;
+      if(n==='quiver'){R(x-1.4,cy-2.2,2.8,4.8,'#7a4e2a');for(let q=0;q<3;q++)R(x-1+q*.9,cy-3.4,.5,1.4,RED);}
+      else if(n==='fire'){seg(x-3,cy+1.4,x+2,cy-1.4,.6,'#5a3e22');poly('#e8602a',[x+1,cy-.6,x+3.4,cy-3.4,x+3,cy]);R(x+2,cy-1.6,1,1,'#ffc24a');}
+      else if(n==='falcon'){poly('#6a4a30',[x-3.4,cy-1.4,x,cy+.6,x+3.4,cy-1.4,x,cy-.4]);R(x-.6,cy-.4,1.2,2.2,'#6a4a30');}
+      else if(n==='saddle'){R(x-3,cy-1.4,6,3.4,RED);R(x-3,cy-1.4,6,.7,GOLD);R(x-3,cy+1.4,6,.6,GOLD);}
+      else{ell(x-.6,cy+.4,2.8,1.5,'#8a5a32');circ(x-1.8,cy-1.2,1.1,'#8a5a32');circ(x+.4,cy-1.2,1.1,'#8a5a32');seg(x+2,cy,x+3.2,cy-2.4,.8,'#8a5a32');R(x-4,cy+2,2,.5,GOLD);R(x-4.6,cy+.8,1.6,.5,GOLD);}
+      if(Math.abs(G.player.x-shopX(k))<46||s.paid+s.inc)for(let q=0;q<it[1];q++){const cols=Math.min(it[1],7),sx2=x-(Math.min(cols,it[1]-Math.floor(q/cols)*cols)-1)*3+(q%cols)*6,sy=GY-24-Math.floor(q/cols)*6;circ(sx2,sy,2.3,'rgba(28,19,12,.75)');circ(sx2,sy,1.7,q<s.paid?GOLD:'rgba(242,193,78,.22)');}}}
   if(B('market').level>1){const x=B('market').x+B('market').w+3-cam,sw=Math.sin(NOW*2)*1.5;person(x+cam,0,{robe:'#8a4a8a',turban:PLA,skin:SKIN[1],dir:-1});R(x-8,GY-3,4,3,'#b58a52');ctx.strokeStyle='#4a6a2a';ctx.lineWidth=.9;ctx.beginPath();ctx.moveTo(x-6,GY-3);ctx.quadraticCurveTo(x-6+sw,GY-7,x-6-sw*.5,GY-10);ctx.stroke();circ(x-6-sw*.5,GY-10.5,1.1,'#4a6a2a');}
   for(const s of G.scarabs)R(s.x-cam,GY-1,1.6,1,'#1c3c4a');
   {const c=G.cat,x=c.x-cam,wk=c.moving?Math.sin(c.walk*14):0;R(x-2,GY-3,4.5,2,'#2a2420');R(x+c.dir*2.2-.6,GY-4.4,1.8,1.8,'#2a2420');R(x-1.8+wk*.5,GY-1.2,.7,1.2,'#2a2420');R(x+1.4-wk*.5,GY-1.2,.7,1.2,'#2a2420');seg(x-c.dir*2.2,GY-2.6,x-c.dir*3.6,GY-5.6,.6,'#2a2420');}
@@ -1208,7 +1401,7 @@ function draw(){
       seg(x+r.dir*1.5,GY-9.5,x+r.dir*6,GY-9+wk*.6,1.2,'#d8d0b8');seg(x+r.dir*1.5,GY-8,x+r.dir*5.5,GY-7-wk*.6,1.2,'#c8c0a6');R(x+r.dir*.8-.4,GY-13.4,.9,.9,'#7dffb0');R(x-2.5,GY-7,1,4+wk,'#c8c0a6');ctx.restore();light(x,GY-17,8,.35);if(Math.random()<.12)G.parts.push({x:r.x+rnd(-3,3),h:rnd(1,10),vx:rnd(-4,4),vh:rnd(2,7),life:0,max:rnd(1,2),col:'#7dffb0',grav:0,sm:1,r:2.2,a:.16});}
     else{const big=r.kind==='boss';ctx.save();if(big){ctx.translate(r.x-cam,GY);ctx.scale(1.45,1.45);ctx.translate(-(r.x-cam),-GY);}
       person(r.x,0,{robe:fl?'#fff':'#2a2422',turban:big?RED:'#1a1614',veil:'#1a1614',skin:SKIN[1],sash:big?GOLD:RED,dir:r.dir,moving:r.moving,walk:r.walk,tool:'sword',torch:r.id%3===0&&!r.noTorch,lean:r.stag>0?-r.dir*.5*Math.min(1,r.stag*4):0});ctx.restore();}
-    if(r.loot)circ(r.x-cam,GY-18,1.5,GOLD);
+    if(r.loot)circ(r.x-cam,GY-18,1.5,GOLD);if(r.burn>0)light(r.x-cam,GY-12,16,.7);
   }
   if(!G.trip)drawPlayer();
   front(B('gw'));front(B('ge'));
@@ -1283,10 +1476,11 @@ function draw(){
     if(G.state==='play'&&!G.cine&&!G.trip){const x0=W*.3,w=W*.4,y=21,mx=v=>x0+v/WORLD*w;c.fillStyle='rgba(28,19,12,.5)';c.fillRect(x0-3,y-3,w+6,6);c.fillStyle='rgba(243,227,188,.35)';c.fillRect(x0,y-.3,w,.6);
       c.fillStyle='rgba(243,227,188,.55)';c.fillRect(mx(TOWN[0]),y-1,mx(TOWN[1])-mx(TOWN[0]),2);c.fillStyle='#2f8fa6';c.fillRect(mx(NILE),y-1.5,x0+w-mx(NILE),3);
       for(const k of ['gw','ge']){const g=B(k);if(g.level){c.fillStyle=g.hp>0?'#f3e3bc':RED;c.fillRect(mx(g.x)-.4,y-2.5,1,5);}}
-      c.fillStyle=GOLD;c.fillRect(mx(WELL_X)-.6,y-2.6,1.2,2);if(B('tomb').level||1){c.fillStyle='#e2ba7a';c.beginPath();c.moveTo(mx(150)-3,y+1.5);c.lineTo(mx(150),y-2.8);c.lineTo(mx(150)+3,y+1.5);c.fill();}
+      c.fillStyle=GOLD;c.fillRect(mx(WELL_X)-.6,y-2.6,1.2,2);if(!B('tomb').gone){c.fillStyle=G.feat==='cliff'?'#b0603a':'#e2ba7a';c.beginPath();c.moveTo(mx(150)-3,y+1.5);c.lineTo(mx(150),y-2.8);c.lineTo(mx(150)+3,y+1.5);c.fill();}
       for(const cp of G.camps)if(G.nomads.some(n=>G.camps[n.camp]===cp)){c.fillStyle='#6a8ae0';c.fillRect(mx(cp.x)-.7,y-.9,1.4,1.8);}
       if(G.caravan){c.fillStyle='#e0a030';c.fillRect(mx(G.caravan.x)-2.5,y-.8,3,1.6);}
       if(G.storm){const f=mx(clamp(G.storm.front,0,WORLD));c.fillStyle='rgba(170,112,52,.7)';c.fillRect(x0,y-3,f-x0,6);}
+      if(G.up.falcon&&G.t>.6)for(const r of G.raid){const g=r.side<0?B('gw'):B('ge'),rx=r.kind==='mummy'?B('tomb').x+62:g.x+r.side*360;if(Math.sin(NOW*5)>-.3){c.fillStyle='rgba(255,120,60,.8)';c.fillRect(mx(clamp(rx,0,WORLD))-.6,y-2.6,1.2,1.4);}}
       for(const r of G.raiders){c.fillStyle=r.kind==='mummy'?'#7dffb0':r.kind==='boss'?'#ff5030':'#e0452e';c.fillRect(mx(r.x)-.8,y-1.6-(r.kind==='boss'?.8:0),1.6,r.kind==='boss'?4.8:3.2);}
       const px=mx(p.x);c.fillStyle='#fff';c.beginPath();c.moveTo(px-2,y+3.6);c.lineTo(px,y+.4);c.lineTo(px+2,y+3.6);c.fill();}}
   if(G.cine&&G.cine.k==='tomb')tombInside();
@@ -1385,6 +1579,8 @@ document.addEventListener('pointerdown',()=>{if(G.state==='intro'&&G.intro.t>.6)
 PRE.forEach((s,i)=>{const b=document.createElement('button');b.type='button';b.textContent=s[0];b.addEventListener('click',()=>preview(i));$('preg').append(b);});
 $('prev').addEventListener('click',()=>{$('pre').hidden=false;});$('prex').addEventListener('click',()=>{$('pre').hidden=true;});
 $('again').addEventListener('click',()=>{$('over').hidden=true;document.body.classList.remove('over');if(load()){G.state='title';start(true);}else location.reload();});
+$('endgo').addEventListener('click',()=>{$('end').hidden=true;setCap('');nextTown();});
+$('endnew').addEventListener('click',()=>{try{localStorage.removeItem(KEY);}catch(e){}location.reload();});
 $('fresh').addEventListener('click',()=>{try{localStorage.removeItem(KEY);}catch(e){}location.reload();});
 {const s=peek();if(s){$('cont').hidden=false;$('cont').textContent='Continue in '+TOWNS[s.town%TOWNS.length].toLowerCase().replace(/\b\w/g,c=>c.toUpperCase())+', day '+(s.day-s.day0);}}
 document.addEventListener('visibilitychange',()=>{if(document.hidden){save();if(AC&&AC.state==='running')AC.suspend();menuOpen();}else if(AC&&AC.state==='suspended'&&$('menu').hidden&&G.state!=='title')AC.resume();});
