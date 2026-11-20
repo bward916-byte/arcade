@@ -324,6 +324,7 @@ const HINTS={
   storm:'A haboob is rolling in from the west. Hard riding inside it, but the wind uncovers old things.',
   uncovered:'The storm has uncovered something out in the sand.',
   mirage:'Only a mirage.',
+  back:'You turn in the saddle: arrows go at the nearest raider, in front or behind.',
   hare:'Desert hares. Ride one down, or shoot it, for two coins.',
   hare2:'Two coins. More hares come out each morning, outside the walls.',
   poison:'He fouled the well. Your villagers will bring you nothing in the morning.',
@@ -539,7 +540,8 @@ function updPlayer(dt){
   if(input.reload&&p.rl<=0&&p.ammo<maxAmmo()){p.rl=p.rlT=reloadTime();hint('reload');}input.reload=false;
   const fire=input.fireKey||input.fireTouch||input.padFire;
   if(fire&&p.gcd<=0&&p.rl<=0){
-    if(p.ammo>0){p.ammo--;p.gcd=.38;p.draw=.25;G.arrows.push({x:p.x+p.dir*6,h:19,vx:p.dir*300,vh:20,life:.6,mine:true,fire:!!G.up.fire});sfx.arrow(1);if(!p.ammo){p.rl=p.rlT=reloadTime();hint('reload');}}
+    if(p.ammo>0){const nr=(l,rg)=>l.filter(q=>Math.abs(q.x-p.x)<rg&&Math.abs(q.x-p.x)>4).sort((x,y)=>Math.abs(x.x-p.x)-Math.abs(y.x-p.x))[0],tg=nr(G.raiders.filter(r=>r.state==='raid'),240)||nr(G.hares,200),ad=tg?Math.sign(tg.x-p.x):p.dir;if(ad!==p.dir)hint('back',true);p.aim=ad;
+      p.ammo--;p.gcd=.38;p.draw=.25;G.arrows.push({x:p.x+ad*6,h:19,vx:ad*300,vh:20,life:.6,mine:true,fire:!!G.up.fire});sfx.arrow(1);if(!p.ammo){p.rl=p.rlT=reloadTime();hint('reload');}}
     else{p.rl=p.rlT=reloadTime();}
   }
   {const hm=B('hermit');if(!hm.gone&&Math.abs(p.x-hm.x-22)<70)hint('hermit0');}
@@ -1452,7 +1454,7 @@ function drawPlayer(){
   camel(p.x,d,p.phase,gal?1.15:amp,{trot,saddle:RED,kneel:kn,rear:p.rearK||0,gallop:gal,graze:kn>.1?0:clamp(((p.idle||0)-2.5)/1.2,0,1)*(.5+.5*Math.sin(NOW*.7)),top:by=>{
     rider(sx-d*1,by,d,{robe:'#f6efdc',sash:TEAL,skin:'#b8804e',turban:GOLD,fl:clamp(sp/110,0,1),jewel:1});
     const y=by-8;R(sx-d*3.6-.6,y-6,1.4,6,'#6a4426');for(let i=0;i<Math.min(3,p.ammo);i++)R(sx-d*3.6-.6+i*.5,y-7.6,.4,1.8,G.up.fire?'#ffb04a':PLA);if(G.up.quiver)R(sx-d*4.6-.6,y-5.4,1.2,5.4,'#7a4e2a');
-    if(p.draw>0||p.rl>0){ctx.strokeStyle=WOOD;ctx.lineWidth=.8;ctx.beginPath();ctx.arc(sx+d*2.5,y-4,5,d>0?-1.25:Math.PI-1.25,d>0?1.25:Math.PI+1.25);ctx.stroke();seg(sx+d*4,y-8.7,sx+d*(p.draw>0?2:4),y-4,.3,PLA);seg(sx+d*(p.draw>0?2:4),y-4,sx+d*4,y+.7,.3,PLA);seg(sx,y-4,sx+d*3,y-4,1,'#f6efdc');}
+    if(p.draw>0||p.rl>0){const d0=d;{const d=p.draw>0&&p.aim?p.aim:d0;ctx.strokeStyle=WOOD;ctx.lineWidth=.8;ctx.beginPath();ctx.arc(sx+d*2.5,y-4,5,d>0?-1.25:Math.PI-1.25,d>0?1.25:Math.PI+1.25);ctx.stroke();seg(sx+d*4,y-8.7,sx+d*(p.draw>0?2:4),y-4,.3,PLA);seg(sx+d*(p.draw>0?2:4),y-4,sx+d*4,y+.7,.3,PLA);seg(sx,y-4,sx+d*3,y-4,1,'#f6efdc');}}
     else if(p.toss>0){seg(sx+d*1.5,y-5,sx+d*4.5,y-9,1.1,'#f6efdc');}
     else seg(sx+d*1.5,y-4.5,sx+d*4.5,y-2,1.1,'#f6efdc');
     if(G.up.falcon&&(lit()||sp<6)){const fx=sx-d*3.4,fy=by-20;ell(fx,fy,1.5,2.3,'#6a4a30');R(fx+d*.4-.5,fy-3.2,1.2,1.4,'#6a4a30');R(fx+d*1.3-.3,fy-2.6,.7,.5,GOLD);R(fx-.8,fy+1.6,1.6,1.4,'#3a2a1c');}
