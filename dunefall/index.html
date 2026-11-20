@@ -219,6 +219,7 @@ const TCFG=[
   {feat:'cliff',ox:0,bx:{guard:1330,bank:1416,temple:1490,pen:1700,market:1806,tea:1896},sites:{tomb:78,grove:2450},oasis:2485,past:[2080,2200],quarry:985,camps:[[470,2],[1130,3],[2320,2],[2860,3]],urns:[[640,5],[860,4],[2230,5],[2700,6]]},
   {feat:'port',ox:640,bx:{market:1326,bank:1424,pen:1500,tea:1694,guard:1782,temple:1866},sites:{btemple:880},oasis:-9999,past:[2700,2820],quarry:1500,camps:[[420,3],[1080,3],[1680,2],[2900,2]],urns:[[250,6],[640,5],[1300,5],[1760,4]]},
   {feat:'temple',ox:0,bx:{temple:1330,tea:1420,market:1510,bank:1694,guard:1772,pen:1862},sites:{sphinx:600,tomb:78,grove:2450},oasis:2485,past:[2080,2200],quarry:985,camps:[[430,3],[1130,3],[2320,3],[2860,3]],urns:[[250,7],[860,5],[2230,5],[2650,7]]}];
+const FSPOT=()=>G.rodX||(G.rodX=[OASIS>0?[34,48,62,76,-44,-58].map(o=>OASIS+o).find(x=>!target(x))||OASIS+90:-999,[30,60,74,88,102,116].map(o=>NILE-o).find(x=>!target(x))||NILE-130]),FWATER=i=>i?NILE+12:OASIS+6;
 const newHare=i=>{const w=i%2===0,x=w?rnd(Math.max(90,TOWN[0]-520),TOWN[0]-70):rnd(TOWN[1]+70,Math.min(NILE-140,TOWN[1]+520));return {x,w,dir:1,t:rnd(0,2),hop:0,tx:x};};
 function catchHare(h){h.dead=1;for(let i=0;i<2;i++)coin(h.x,6,rnd(-18,18),rnd(40,65),true);dust(h.x,2,6);sfx.recruit();hint('hare2',true);}
 function reset(town,keep){
@@ -231,7 +232,7 @@ function reset(town,keep){
     b:[mk('market',cf.bx.market+ox),mk('tea',cf.bx.tea+ox),mk('guard',cf.bx.guard+ox),mk('pen',cf.bx.pen+ox),mk('bank',cf.bx.bank+ox),mk('well',1640+ox),mk('temple',cf.bx.temple+ox),mk('gw',1290+ox),mk('ge',1978+ox),mk('dock',3040),site('sphinx'),site('tomb'),site('grove'),site('hermit'),site('btemple')],
     camps:cf.camps.map(q=>({x:q[0],cap:q[1]})),
     urns:cf.urns.map(u=>({x:u[0],n:u[1],open:false})),
-    hares:[0,1,2,3,4].map(i=>newHare(i)),mirages:[],devils:[{x:520,dir:1,a:260,b:Math.max(420,1296+ox-130)},1992+ox+110<2880?{x:1992+ox+220,dir:-1,a:1992+ox+110,b:2990}:{x:900,dir:-1,a:300,b:1296+ox-220}],weeds:[{x:300,rot:0,h:0,p:1},{x:1100,rot:2,h:0,p:3},{x:2400,rot:4,h:0,p:5}],rings:[],prints:[],zoom:1,zoomT:1,zoomHold:0,crowd:[],cine:null,drift:0,doves:[],rocks:[],poison:false,pirate:null,stuck:[],torches:[],slow:0,rain:null,rainAt:-1,ecl:null,eclAt:-1,omen:false,fest:0,festPending:false,fw:[],bow:0,wet:0,lush:false,meteor:null,fish:null,cat:{x:1600+ox,dir:1,t:0},scarabs:[700,1210,2390,2740].map(x=>({x,dir:1,t:0})),falcon:{a:0}};
+    rod:{n:[5,8],t:0,spot:-1,bite:0},hares:[0,1,2,3,4].map(i=>newHare(i)),mirages:[],devils:[{x:520,dir:1,a:260,b:Math.max(420,1296+ox-130)},1992+ox+110<2880?{x:1992+ox+220,dir:-1,a:1992+ox+110,b:2990}:{x:900,dir:-1,a:300,b:1296+ox-220}],weeds:[{x:300,rot:0,h:0,p:1},{x:1100,rot:2,h:0,p:3},{x:2400,rot:4,h:0,p:5}],rings:[],prints:[],zoom:1,zoomT:1,zoomHold:0,crowd:[],cine:null,drift:0,doves:[],rocks:[],poison:false,pirate:null,stuck:[],torches:[],slow:0,rain:null,rainAt:-1,ecl:null,eclAt:-1,omen:false,fest:0,festPending:false,fw:[],bow:0,wet:0,lush:false,meteor:null,fish:null,cat:{x:1600+ox,dir:1,t:0},scarabs:[700,1210,2390,2740].map(x=>({x,dir:1,t:0})),falcon:{a:0}};
   G.camps.forEach((c,i)=>{for(let k=0;k<c.cap;k++)nomad(i,false);});
   G.player.ammo=maxAmmo();pickMirages();cam=G.player.x-W/2;window.G=G;
 }
@@ -325,6 +326,10 @@ const HINTS={
   uncovered:'The storm has uncovered something out in the sand.',
   mirage:'Only a mirage.',
   back:'You turn in the saddle: arrows go at the nearest raider, in front or behind.',
+  fish:'A fishing spot. Stop here and your line goes in. Each fish sells for a coin.',
+  fish2:'A coin for the fish. Stay put for more: the water restocks each morning.',
+  fishbig:'A Nile perch. Three coins.',
+  fished:'Fished out for today. Try the other water, or come back in the morning.',
   hare:'Desert hares. Ride one down, or shoot it, for two coins.',
   hare2:'Two coins. More hares come out each morning, outside the walls.',
   poison:'He fouled the well. Your villagers will bring you nothing in the morning.',
@@ -422,7 +427,7 @@ function spawnRaider(side,kind,more,boat){
   if(Math.abs(clamp(x,10,NILE-10)-G.player.x)>W*.45){const sk='spot'+G.day,msg=kind==='mummy'?'The dead are walking.':boat?'They are landing at the dock.':`Raiders, from the ${side<0?'west':'east'}.`;if(!G.seen['c_'+sk])cine(sk,msg,1.5,1.08,clamp(x,60,NILE-60));else if(!G.seen[sk+kind[0]+(boat?'b':side)]){G.seen[sk+kind[0]+(boat?'b':side)]=1;hint('more',true,kind==='mummy'?msg:boat?msg:`More raiders, from the ${side<0?'west':'east'}.`);}}
 }
 function dawn(){
-  sfx.dawn();const n=G.night;{const want=G.town===0&&G.day-G.day0<=5?5:3;for(let i=G.hares.length;i<want;i++)G.hares.push(newHare(i+G.day));}
+  sfx.dawn();const n=G.night;G.rod.n=[5,8];{const want=G.town===0&&G.day-G.day0<=5?5:3;for(let i=G.hares.length;i<want;i++)G.hares.push(newHare(i+G.day));}
   G.report=n&&n.n?`Last night: ${n.n} raiders, ${n.down} brought down, ${n.gates?n.gates+(n.gates>1?' gates':' gate')+' broken':'the gates held'}${n.lost?', '+n.lost+' robbed':''}`:'';G.night=null;
   G.pirate=null;if(G.poison){G.poison=false;hint('poisoned',true);}else
   for(const f of G.folk)if(f.role==='folk')coin(f.hidden?B('tea').x+33:f.x,6,rnd(-22,22),rnd(50,75),true);
@@ -632,6 +637,9 @@ function updFolk(dt){
     else{if((d.wait-=dt)<=0){d.wait=rnd(3,8);d.wx=d.home+rnd(-10,10);}step(d,d.wx===undefined?d.home:d.wx,12,dt);}
   }
   for(const c of G.herd){if((c.t-=dt)<=0){c.t=rnd(2,6);c.tx=rnd(PAST[0],PAST[1]);}step(c,c.tx===undefined?c.x:c.tx,8,dt);}
+  {const p=G.player,F=G.rod,sp=FSPOT(),si=sp.findIndex(x=>Math.abs(p.x-x)<13);F.bite=Math.max(0,F.bite-dt);if(si>=0)hint(F.n[si]>0?'fish':'fished',true);
+    if(si>=0&&Math.abs(p.vx)<3&&!G.trip&&F.n[si]>0&&!G.raiders.some(r=>r.state==='raid'&&Math.abs(r.x-p.x)<110)){const wx=FWATER(si);p.dir=Math.sign(wx-p.x);if(F.spot!==si){F.spot=si;F.t=rnd(2.4,4.2);}
+      if((F.t-=dt)<=0){F.n[si]--;F.t=rnd(2.4,4.2);F.bite=.7;const big=Math.random()<.2;for(let i=0;i<(big?3:1);i++)coin(wx,3,-p.dir*rnd(26,40),rnd(60,80),true);for(let i=0;i<10;i++)G.parts.push({x:wx+rnd(-4,4),h:rnd(0,3),vx:rnd(-22,22),vh:rnd(20,60),life:0,max:rnd(.4,.8),col:'#cfeaf2',grav:-160});sfx.recruit();hint(big?'fishbig':'fish2',true);}}else F.spot=-1;}
   {const p=G.player;for(const h of G.hares){const lo=h.w?60:TOWN[1]+40,hi=h.w?TOWN[0]-40:NILE-110,dx=h.x-p.x,near2=Math.abs(dx)<64&&!G.trip;if(near2){hint('hare',true);h.tx=clamp(h.x+Math.sign(dx||1)*60,lo,hi);}else if((h.t-=dt)<=0){h.t=rnd(1.5,5);h.tx=clamp(h.x+rnd(-50,50),lo,hi);}
     const mv=Math.abs(h.tx-h.x)>2;if(mv){h.dir=Math.sign(h.tx-h.x);h.x+=h.dir*(near2?80:26)*dt;h.hop+=dt*(near2?13:8);}else h.hop=0;if(Math.abs(dx)<9&&!G.trip&&G.state==='play')catchHare(h);}G.hares=G.hares.filter(h=>!h.dead);}
 }
@@ -1821,6 +1829,12 @@ function draw(){
   for(const s of G.scarabs)R(s.x-cam,GY-1,1.6,1,'#1c3c4a');
   {const c=G.cat,x=c.x-cam,wk=c.moving?Math.sin(c.walk*14):0;R(x-2,GY-3,4.5,2,'#2a2420');R(x+c.dir*2.2-.6,GY-4.4,1.8,1.8,'#2a2420');R(x-1.8+wk*.5,GY-1.2,.7,1.2,'#2a2420');R(x+1.4-wk*.5,GY-1.2,.7,1.2,'#2a2420');seg(x-c.dir*2.2,GY-2.6,x-c.dir*3.6,GY-5.6,.6,'#2a2420');}
   for(const c of G.herd)goat(c);
+  FSPOT().forEach((fx,i)=>{const x=fx-cam;if(x<-40||x>W+40)return;const F=G.rod,wd=i?1:-1,wx=FWATER(i)-cam,p=G.player;
+    R(x-9,GY-1.6,18+(i?16:0),1.6,'#8a6434');for(let q=0;q<(i?8:4);q++)R(x-8+q*4.4,GY-1.6,.5,1.6,'#5e3a1e');if(i){R(x+10,GY,1.4,5,'#5e3a1e');R(x+22,GY,1.4,5,'#5e3a1e');}
+    {const s=x-wd*20;R(s,GY-17,1.2,17,WOOD);R(s-5.6,GY-25,12.4,8.4,'#d9b680');R(s-5.6,GY-25,12.4,1,'#8a6434');ell(s,GY-20.6,3.2,1.7,F.n[i]>0?'#2c6f9e':'#8a8070');poly(F.n[i]>0?'#2c6f9e':'#8a8070',[s+2.6,GY-20.6,s+5.4,GY-22.4,s+5.4,GY-18.8]);for(let q=0;q<F.n[i];q++)R(s-5+q*1.45,GY-15.4,1,1,'#2c6f9e');}
+    if(F.spot===i){const hx=p.x-cam+p.dir*5,hy=GY-23,tipx=hx+p.dir*13,tipy=GY-31,bob=Math.sin(NOW*3)*.7+(F.bite>0?2.4*Math.sin(F.bite*30):0);seg(hx,hy,tipx,tipy,.7,'#5e3a1e');ctx.strokeStyle='rgba(255,255,255,.7)';ctx.lineWidth=.3;ctx.beginPath();ctx.moveTo(tipx,tipy);ctx.quadraticCurveTo((tipx+wx)/2,GY-12,wx,GY+1.6+bob);ctx.stroke();circ(wx,GY+1.6+bob,1.3,RED);R(wx-1.3,GY+1.6+bob,2.6,.9,'#fff8ea');
+      ctx.strokeStyle=`rgba(255,255,255,${.25+.2*Math.sin(NOW*3)})`;ctx.lineWidth=.4;ctx.beginPath();ctx.ellipse(wx,GY+2.4,3.4+Math.sin(NOW*3)*1.2,.8,0,0,7);ctx.stroke();}
+    else if(F.n[i]>0&&Math.sin(NOW*.9+i*2)>.93){const u=(Math.sin(NOW*.9+i*2)-.93)/.07;ell(wx+wd*6,GY+1-u*4,2.4,1,'#3a7a9e');}});
   for(const h of G.hares){const x=h.x-cam;if(x<-10||x>W+10)continue;const d=h.dir,hp=Math.abs(Math.sin(h.hop))*(h.hop?4.4:0),y=GY-hp,tw=!h.hop&&Math.sin(NOW*3+h.x)>.8?.8:0,C1='#8a5a34',C2='#6a4226';ell(x,GY+.3,5.2,1,'rgba(50,28,8,.32)');ell(x,y-3.8,5.2,3.3,C1);ell(x-d*1.8,y-3,3.4,2.9,C2);circ(x+d*4.4,y-6.4,2.5,C1);R(x+d*3.2-.6,y-13.4+tw,1.3,6,C2);R(x+d*4.9-.6,y-14-tw,1.3,6.4,C1);R(x+d*5.1-.3,y-13,.6,3.6,'#e0a890');R(x+d*5.1,y-7,.9,.9,'#1c120a');circ(x-d*5.2,y-4.4,1.6,'#fff8ea');if(h.hop){R(x-d*4.4,y-1,3.8,1.1,C2);R(x+d*2.2,y-.8,2.4,1,C2);}else{R(x-d*3.4,y-1.2,3.2,1.2,C2);R(x+d*1.6,y-1.2,2,1.2,C2);}}
   for(const d of G.nomads)person(d.x,0,{robe:'#2c3f6e',turban:'#1f2c50',veil:'#1f2c50',skin:SKIN[d.id%3],dir:d.dir,moving:d.moving,walk:d.walk});
   for(const f of G.folk)if(!f.hidden)person(f.x,f.cheer>0?Math.abs(Math.sin(f.cheer*11))*3:0,{cheer:f.cheer>0,robe:f.role==='digger'?'#d9b99a':f.role==='herder'?'#8a6a44':f.role==='guard'?'#e8dcc0':ROBE[f.id%5],turban:f.role==='guard'?RED:TURB[f.id%5],skin:SKIN[f.id%3],beard:f.id%4===0?'#3a2a1c':f.id%7===0?'#dcd4c4':0,sash:f.role==='guard'?RED:f.id%2?TURB[(f.id+2)%5]:0,dir:f.dir,moving:f.moving,walk:f.walk,ham:f.ham,
@@ -2046,7 +2060,7 @@ $('endnew').addEventListener('click',()=>{if(G.preview)return location.reload();
 $('fresh').addEventListener('click',()=>{if(G.preview)return location.reload();wipe();location.reload();});
 document.addEventListener('visibilitychange',()=>{if(document.hidden){save();if(AC&&AC.state==='running')AC.suspend();menuOpen();}else if(AC&&AC.state==='suspended'&&$('menu').hidden&&G.state!=='title')AC.resume();});
 addEventListener('pagehide',save);
-window.dunefall={DEMO,demoScene,peek,setQ,endTut,TUT,get Q(){return Q;},input,head,preview,update,draw,dawn,dusk,target,costOf,B,start,load,save,PRE};   // for the test scripts
+window.dunefall={FSPOT,DEMO,demoScene,peek,setQ,endTut,TUT,get Q(){return Q;},input,head,preview,update,draw,dawn,dusk,target,costOf,B,start,load,save,PRE};   // for the test scripts
 let last=performance.now(),fpsAvg=60,fpsT=0;
 function setQ(q,auto){Q=clamp(q,0,2);if(!auto){QSET=q;try{localStorage.setItem('dunefall_q',String(q));}catch(e){}}$('mgfx').textContent='Graphics: '+(QSET==='auto'?'auto ('+['full','reduced','minimal'][Q]+')':['full','reduced','minimal'][Q]);resize();}
 {let q=null;try{q=localStorage.getItem('dunefall_q');}catch(e){}if(q==='0'||q==='1'||q==='2'){QSET=+q;Q=+q;}setQ(Q,QSET==='auto');}
