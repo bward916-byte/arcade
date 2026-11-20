@@ -107,6 +107,7 @@ button:focus-visible{outline:3px solid var(--cream);outline-offset:3px}
 .sheet p{margin:8px 0 0;font-size:13px}
 .sheet button{font:inherit;font-size:14px;color:#ecdcb0;background:#6a4a2e;border:0;border-radius:4px;padding:7px 12px;cursor:pointer;margin:3px}
 #prein,#dmin{width:min(100%,44rem)}#dmg{margin:8px 0}
+#pret{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}#pret button{margin:0;padding:9px 4px;background:#b5412e;color:#fff3d4;font-weight:700}
 #preg,#dmg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
 #preg button,#dmg button{margin:0;background:rgba(242,193,78,.35);color:#2a1a10;border:1px solid rgba(106,74,46,.7);padding:9px 6px}
 #jobs,#endstats{list-style:none;margin:0 0 8px;padding:0;text-align:left}
@@ -151,7 +152,7 @@ button:focus-visible{outline:3px solid var(--cream);outline-offset:3px}
 <p id="menhow" hidden>Ride left and right. Toss coins to nomads at their tents and they join you. Toss coins at ruins and your villagers rebuild them. Coins on a tool rack turn villagers into diggers, guards and herders. Raiders come after dark: loose arrows, and never be caught with an empty purse. Raise the obelisk, build the dock, and sail on when you choose.</p>
 <p>Your town is saved on this device as you play. If the game runs slowly, set Graphics to reduced or minimal.</p></div></div>
 <div id="dm" class="sheet" hidden><div id="dmin"><h2>Demo</h2><button type="button" id="dmall">Play all from the start</button><p>Or jump to a scene. It plays on from there.</p><div id="dmg"></div><button type="button" id="dmx">Back</button></div></div>
-<div id="pre" class="sheet" hidden><div id="prein"><h2>Previews</h2><div id="preg"></div><p>Each one drops you into that part of the game, ready to play.</p><button type="button" id="prex">Back</button></div></div>
+<div id="pre" class="sheet" hidden><div id="prein"><h2>Previews</h2><p style="margin:0 0 6px"><b>Play a whole town from arrival</b> (not saved):</p><div id="pret"></div><p style="margin:10px 0 6px"><b>Or drop into one moment:</b></p><div id="preg"></div><p>Each one drops you into that part of the game, ready to play.</p><button type="button" id="prex">Back</button></div></div>
 <div id="end" class="sheet" hidden><div><h2>The river remembers</h2><ul id="endstats"></ul><button type="button" id="endgo">Sail on to a sixth town</button><button type="button" id="endnew">New game</button></div></div>
 <div id="over" hidden><h2>Run out of town</h2><p>The raiders caught you with an empty purse.</p><button class="big" id="again" type="button">Back to the last dawn</button><button class="sm" id="fresh" type="button">New game</button></div>
 <div id="rot"><div>Turn your phone sideways to ride.</div></div>
@@ -853,7 +854,8 @@ const PRE=[
   ['Inside the temple',()=>{grow(1,30);G.t=.3;G.cineNow='temple';}],
   ['Inside the cave tomb',()=>{town(2);grow(1,30);B('tomb').level=1;G.looted=true;G.t=.3;G.player.x=140;G.cineNow=1;}],
   ['The river voyage',()=>{grow(2,30);G.t=.5;G.voyNow=1;}],
-  ['The dock and the Nile',()=>{grow(3,30);B('dock').level=1;G.t=.56;G.player.x=3020;}]];
+  ['The dock and the Nile',()=>{grow(3,30);B('dock').level=1;G.t=.56;G.player.x=3020;}],
+  ...[0,1,2,3,4].map(n=>['Start at town '+(n+1)+': '+TOWNS[n].toLowerCase().replace(/\b\w/g,ch=>ch.toUpperCase()),()=>{town(n);G.stats.towns=n;G.t=.08;G.player.coins=15;card(townName(),'Day 1. You arrive with 15 coins');}])];
 // ---------- the demo: every part of the game in turn, at real speed. Tap for the next scene.
 const ffw=(f,n)=>{G.ff=true;for(let k=0;k<(n||2600)&&!f();k++){update(.033);G.cine=null;}G.ff=false;document.body.classList.remove('cine');setCap('');};
 const by=(r,off)=>{if(!r)return;G.player.x=clamp(r.x+(r.x<WELL_X?off:-off),40,NILE-40);G.player.dir=r.x<G.player.x?-1:1;cam=clamp(G.player.x-W/2,0,WORLD-W);},boss=()=>G.raiders.find(r=>r.kind==='boss');
@@ -2053,7 +2055,7 @@ $('go').addEventListener('click',()=>{const free=[0,1,2].find(n=>!peek(n));if(fr
 $('demogo').addEventListener('click',()=>{$('dm').hidden=false;});$('dmx').addEventListener('click',()=>{$('dm').hidden=true;});$('dmall').addEventListener('click',()=>{$('dm').hidden=true;initAudio();demoScene(0);});
 DEMO.forEach((d,i)=>{const bt=document.createElement('button');bt.type='button';bt.textContent=(i+1)+'. '+(d[0][0]==='@'?(d[0]==='@menu'?'The menu':'Game over'):d[0]);bt.addEventListener('click',()=>{$('dm').hidden=true;initAudio();demoScene(i);});$('dmg').append(bt);});$('demox').addEventListener('pointerdown',e=>{e.stopPropagation();location.reload();});
 document.addEventListener('pointerdown',e=>{if(G.demo){if(G.demo.t>.5&&!e.target.closest('#demo'))G.demo.i+1<DEMO.length?demoScene(G.demo.i+1):location.reload();return;}if(G.state==='intro'&&G.intro.t>.6)endIntro();else if(G.cine&&G.cine.t>.6)endCine();else if(G.state==='voyage'&&G.voy.t>1&&G.voy.t<8.2)G.voy.t=8.2;});
-PRE.forEach((s,i)=>{const b=document.createElement('button');b.type='button';b.textContent=s[0];b.addEventListener('click',()=>preview(i));$('preg').append(b);});
+PRE.forEach((s,i)=>{const b=document.createElement('button');b.type='button';b.textContent=s[0];b.addEventListener('click',()=>preview(i));if(s[0].startsWith('Start at')){b.className='st';$('pret').append(b);}else $('preg').append(b);});
 $('prev').addEventListener('click',()=>{$('pre').hidden=false;});$('prex').addEventListener('click',()=>{$('pre').hidden=true;});
 $('again').addEventListener('click',()=>{$('over').hidden=true;document.body.classList.remove('over');if(load(SLOT,1)){G.state='title';start(true);}else location.reload();});
 $('endgo').addEventListener('click',()=>{$('end').hidden=true;setCap('');nextTown();});
