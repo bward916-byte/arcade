@@ -2273,8 +2273,10 @@ function frame(now){
   if(raw<.5){fpsAvg=fpsAvg*.95+(1/Math.max(raw,.001))*.05;if((fpsT+=raw)>.5){fpsT=0;if(!$('fps').hidden)$('fps').textContent=Math.round(fpsAvg)+' fps, '+['full','reduced','minimal'][Q];}}
   if(QSET==='auto'&&Q<2&&G.state==='play'&&!paused&&raw<.5){frame.slow=raw>.03?(frame.slow||0)+raw:Math.max(0,(frame.slow||0)-raw*.5);if(frame.slow>2.5){frame.slow=0;setQ(Q+1,true);}}
   if((frame.mt=(frame.mt||0)+raw)>.4){frame.mt=0;const hr=$('hud').getBoundingClientRect(),cr=$('game').getBoundingClientRect();if(hr.height&&cr.height)MAPY=Math.max(12,(hr.bottom-cr.top)/(cr.height/H)+8);}
-  pollPad();demoStep(dt,input);if(!paused)update(dt);
-  draw();hud(dt);updAudio();
+  // a cutscene that outstays its length is ended; an error in one frame must never stop the next
+  if(G.cine&&!paused){frame.ct=(frame.ct||0)+Math.min(raw,.1);if(frame.ct>G.cine.dur+3){frame.ct=0;endCine();}}else frame.ct=0;
+  try{pollPad();demoStep(dt,input);if(!paused)update(dt);draw();hud(dt);updAudio();}
+  catch(e){frame.errs=(frame.errs||0)+1;try{const ln=String(e&&e.stack||'').split('\n').slice(0,3).join(' | ').slice(0,300),msg='Error: '+(e&&e.message||e)+' '+ln;$('fps').hidden=false;$('fps').textContent=msg.slice(0,220);localStorage.setItem('dunefall_err',new Date().toISOString()+' '+msg);if(G.cine)endCine();mctx.setTransform(1,0,0,1,0,0);ctx.setTransform(1,0,0,1,0,0);}catch(_){}}
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
