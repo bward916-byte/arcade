@@ -15,9 +15,42 @@ struct GuideList: Codable, Identifiable {
     var cards: [GuideCard]
 }
 
+struct GuidePhoto: Codable, Hashable {
+    let url: String
+    let page: String
+    let credit: String
+}
+
 struct GuideCard: Codable, Hashable {
     let title: String
     let text: String
+    var map: String?
+    var photo: GuidePhoto?
+}
+
+// The photo (with its credit) and the Google Maps link under a guide card, when the site sends them.
+struct CardExtras: View {
+    let map: String?
+    let photo: GuidePhoto?
+    var body: some View {
+        if let photo, let url = URL(string: photo.url) {
+            VStack(alignment: .leading, spacing: 4) {
+                AsyncImage(url: url) { image in
+                    image.resizable().scaledToFill()
+                } placeholder: {
+                    Color.gray.opacity(0.15)
+                }
+                .frame(maxWidth: .infinity).frame(height: 180).clipped().cornerRadius(10)
+                if let page = URL(string: photo.page) {
+                    Link(photo.credit, destination: page).font(.caption2).foregroundColor(.secondary)
+                }
+            }
+        }
+        if let map, let url = URL(string: map) {
+            Link(destination: url) { Label("Open in Google Maps", systemImage: "mappin.and.ellipse") }
+                .font(.subheadline.weight(.semibold))
+        }
+    }
 }
 
 struct GuideArea: Codable, Identifiable {
@@ -25,6 +58,7 @@ struct GuideArea: Codable, Identifiable {
     let name: String
     let kind: String
     let text: String
+    var photo: GuidePhoto?
 }
 
 struct Show: Codable, Hashable {
@@ -137,6 +171,7 @@ struct GuideView: View {
                         ForEach(areas) { a in
                             DisclosureGroup {
                                 Text(a.text).font(.subheadline)
+                                CardExtras(map: nil, photo: a.photo)
                             } label: {
                                 Text(a.name).font(.subheadline.weight(.semibold))
                             }
@@ -148,6 +183,7 @@ struct GuideView: View {
                         ForEach(list.cards, id: \.self) { card in
                             DisclosureGroup {
                                 Text(card.text).font(.subheadline).textSelection(.enabled)
+                                CardExtras(map: card.map, photo: card.photo)
                             } label: {
                                 Text(card.title).font(.subheadline.weight(.semibold))
                             }
