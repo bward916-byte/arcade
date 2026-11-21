@@ -14,6 +14,14 @@ struct Listing: Identifiable, Hashable {
     var amount: Double?
 }
 
+struct AlertPost: Identifiable {
+    let id: String
+    let text: String
+    let photo: String
+    let link: String
+    let ts: Double
+}
+
 struct Category: Identifiable {
     let id: String
     let name: String
@@ -80,6 +88,59 @@ enum Site {
             ))
         }
         return out
+    }
+
+    // The guide, show dates and map pins. The site lays the owner's edits over it before sending.
+    static func guide() async throws -> Data {
+        let url = base.appendingPathComponent("api").appendingPathComponent("guide")
+        let (data, response) = try await URLSession.shared.data(from: url)
+        if let http = response as? HTTPURLResponse, http.statusCode >= 400 { throw SiteError(message: "The guide did not load.") }
+        return data
+    }
+
+    // Weather alerts and local news.
+    static func alerts() async throws -> [AlertPost] {
+        let url = base.appendingPathComponent("api").appendingPathComponent("docs").appendingPathComponent("posts")
+        let (data, _) = try await URLSession.shared.data(from: url)
+        guard let rows = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] else { return [] }
+        var out: [AlertPost] = []
+        for row in rows {
+            guard let id = row["id"] as? String, let d = row["data"] as? [String: Any] else { continue }
+            if (d["board"] as? String) != "alerts" || (d["parent"] as? String ?? "") != "" { continue }
+            let text = d["text"] as? String ?? ""
+            let photo = d["photo"] as? String ?? ""
+            if text.isEmpty && photo.isEmpty { continue }
+            out.append(AlertPost(id: id, text: text, photo: photo, link: d["url"] as? String ?? "", ts: (d["ts"] as? NSNumber)?.doubleValue ?? 0))
+        }
+        return out.sorted { $0.ts > $1.ts }
+    }
+
+    // One photo for a new ad. The site checks it before it shows.
+    static func upload(photo: Data) async throws -> String {
+        var req = URLRequest(url: base.appendingPathComponent("api").appendingPathComponent("photos"))
+        req.httpMethod = "POST"
+        req.setValue("image/jpeg", forHTTPHeaderField: "Content-Type")
+        let (data, response) = try await URLSession.shared.upload(for: req, from: photo)
+        let body = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        if let http = response as? HTTPURLResponse, http.statusCode >= 400 {
+            throw SiteError(message: body?["error"] as? String ?? "A photo did not upload. Try again.")
+        }
+        guard let id = body?["id"] as? String else { throw SiteError(message: "A photo did not upload. Try again.") }
+        return id
+    }
+
+    // A new ad. The site emails a link that publishes it. In test mode it hands the link straight back.
+    static func post(ad: [String: Any]) async throws -> String? {
+        var req = URLRequest(url: base.appendingPathComponent("api").appendingPathComponent("ads"))
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.httpBody = try JSONSerialization.data(withJSONObject: ad)
+        let (data, response) = try await URLSession.shared.data(for: req)
+        let body = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        if let http = response as? HTTPURLResponse, http.statusCode >= 400 {
+            throw SiteError(message: body?["error"] as? String ?? "That did not go through. Check your signal and try again.")
+        }
+        return body?["testLink"] as? String
     }
 
     // A buyer's message. The site emails it to the seller; the seller's address is never shown.

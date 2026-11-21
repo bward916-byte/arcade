@@ -24,6 +24,7 @@ struct ForSaleView: View {
     @State private var cat = ""
     @State private var sort = "new"
     @State private var path: [Listing] = []
+    @State private var posting = ProcessInfo.processInfo.arguments.contains("-demo-post")
 
     private var shown: [Listing] {
         let q = search.trimmingCharacters(in: .whitespaces).lowercased()
@@ -90,6 +91,13 @@ struct ForSaleView: View {
             .navigationDestination(for: Listing.self) { l in ListingDetail(listing: l) }
             .searchable(text: $search, prompt: "Search ads")
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button {
+                        posting = true
+                    } label: {
+                        Label("Post an ad", systemImage: "plus.circle.fill").labelStyle(.titleAndIcon)
+                    }
+                }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Menu {
                         Picker("Sort", selection: $sort) {
@@ -103,6 +111,7 @@ struct ForSaleView: View {
                     .accessibilityLabel("Sort")
                 }
             }
+            .sheet(isPresented: $posting) { PostAdView() }
             .refreshable { await store.load() }
             .task {
                 await store.load()

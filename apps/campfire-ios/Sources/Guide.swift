@@ -1,0 +1,199 @@
+import SwiftUI
+
+// The guide as the site sends it: lists of cards, the camping areas, show dates and map pins.
+struct GuideData: Codable {
+    var lists: [GuideList]
+    var areas: [GuideArea]
+    var shows: [Show]
+    var pins: [Pin]
+}
+
+struct GuideList: Codable, Identifiable {
+    let id: String
+    let section: String
+    let label: String
+    var cards: [GuideCard]
+}
+
+struct GuideCard: Codable, Hashable {
+    let title: String
+    let text: String
+}
+
+struct GuideArea: Codable, Identifiable {
+    let id: String
+    let name: String
+    let kind: String
+    let text: String
+}
+
+struct Show: Codable, Hashable {
+    let n: String   // name
+    let w: String   // when
+    let p: String   // place
+    let s: String   // "ok" when the dates are confirmed
+    let d: String   // details
+}
+
+struct Pin: Codable, Identifiable {
+    var id: String { name }
+    let name: String
+    let lat: Double
+    let lon: Double
+    let kind: String
+    let area: String
+}
+
+// Loads the guide once for all tabs. A copy is kept on the phone so it opens with no signal.
+@MainActor
+final class GuideStore: ObservableObject {
+    @Published var data: GuideData?
+    @Published var failed = false
+
+    private var cacheFile: URL {
+        FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].appendingPathComponent("guide.json")
+    }
+
+    func load() async {
+        if data == nil, let saved = try? Data(contentsOf: cacheFile), let old = try? JSONDecoder().decode(GuideData.self, from: saved) {
+            data = old
+        }
+        do {
+            let fresh = try await Site.guide()
+            data = try JSONDecoder().decode(GuideData.self, from: fresh)
+            try? fresh.write(to: cacheFile)
+            failed = false
+        } catch {
+            failed = data == nil
+        }
+    }
+}
+
+struct GuideView: View {
+    @EnvironmentObject private var guide: GuideStore
+    @State private var section = "start"
+    @State private var search = ""
+
+    private let sections: [Category] = [
+        Category(id: "start", name: "Start here"), Category(id: "camping", name: "Camping"), Category(id: "wash", name: "Washes"),
+        Category(id: "services", name: "Services"), Category(id: "rocks", name: "Rockhounding"),
+        Category(id: "mines", name: "Gold and ghost camps"), Category(id: "trips", name: "Trips and trails"), Category(id: "town", name: "Town")
+    ]
+
+    // The lists to show: one section, or every card that matches the search.
+    private var lists: [GuideList] {
+        guard let data = guide.data else { return [] }
+        let q = search.trimmingCharacters(in: .whitespaces).lowercased()
+        if q.isEmpty { return data.lists.filter { $0.section == section } }
+        return data.lists.compactMap { list in
+            let hits = list.cards.filter { ($0.title + " " + $0.text).lowercased().contains(q) }
+            if hits.isEmpty { return nil }
+            var copy = list
+            copy.cards = hits
+            return copy
+        }
+    }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                if search.isEmpty {
+                    Section {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                ForEach(sections) { s in
+                                    Button {
+                                        section = s.id
+                                    } label: {
+                                        Text(s.name)
+                                            .font(.subheadline.weight(.semibold))
+                                            .padding(.horizontal, 14)
+                                            .padding(.vertical, 8)
+                                            .background(section == s.id ? Theme.primary : Theme.card)
+                                            .foregroundColor(section == s.id ? .white : .primary)
+                                            .clipShape(Capsule())
+                                            .overlay(Capsule().stroke(Color.black.opacity(section == s.id ? 0 : 0.12)))
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                            .padding(.horizontal)
+                        }
+                    }
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
+                }
+                if guide.data == nil {
+                    Section {
+                        if guide.failed {
+                            Text("The guide did not load. Check your signal and pull down to try again.").foregroundColor(.secondary)
+                        } else {
+                            ProgressView().frame(maxWidth: .infinity)
+                        }
+                    }
+                }
+                if search.isEmpty && section == "camping", let areas = guide.data?.areas {
+                    Section("Camping areas") {
+                        ForEach(areas) { a in
+                            DisclosureGroup {
+                                Text(a.text).font(.subheadline)
+                            } label: {
+                                Text(a.name).font(.subheadline.weight(.semibold))
+                            }
+                        }
+                    }
+                }
+                ForEach(lists) { list in
+                    Section(list.label) {
+                        ForEach(list.cards, id: \.self) { card in
+                            DisclosureGroup {
+                                Text(card.text).font(.subheadline).textSelection(.enabled)
+                            } label: {
+                                Text(card.title).font(.subheadline.weight(.semibold))
+                            }
+                        }
+                    }
+                }
+                if !search.isEmpty && lists.isEmpty && guide.data != nil {
+                    Text("Nothing in the guide matches.").foregroundColor(.secondary)
+                }
+            }
+            .listStyle(.insetGrouped)
+            .navigationTitle("Guide")
+            .searchable(text: $search, prompt: "Search the guide")
+            .refreshable { await guide.load() }
+        }
+    }
+}
+
+// The big gem, rock and RV shows.
+struct ShowsView: View {
+    @EnvironmentObject private var guide: GuideStore
+
+    var body: some View {
+        NavigationStack {
+            List {
+                if let shows = guide.data?.shows {
+                    ForEach(shows, id: \.self) { show in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(show.n).font(.headline)
+                            Text(show.w).font(.subheadline.weight(.semibold)).foregroundColor(Theme.primary)
+                            Text(show.p).font(.subheadline).foregroundColor(.secondary)
+                            Text(show.d).font(.subheadline)
+                            Text(show.s == "ok" ? "Dates confirmed" : "Check the dates before you go")
+                                .font(.caption.weight(.semibold))
+                                .foregroundColor(show.s == "ok" ? Theme.primary : Theme.accent)
+                        }
+                        .padding(.vertical, 4)
+                    }
+                } else if guide.failed {
+                    Text("The show dates did not load. Check your signal and pull down to try again.").foregroundColor(.secondary)
+                } else {
+                    ProgressView().frame(maxWidth: .infinity)
+                }
+            }
+            .navigationTitle("Shows")
+            .refreshable { await guide.load() }
+        }
+    }
+}
