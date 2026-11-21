@@ -43,8 +43,8 @@ let ROBE: [Col] = [Col(0xe8dcc0), Col(0xc9d6c2), Col(0xd9b99a), Col(0xb9c4d9), C
 let TURB: [Col] = [Col(0xf3ead2), RED, LAPIS, Col(0xe0a030), TEAL]
 let SKIN: [Col] = [Col(0xb8804e), Col(0x9a6a40), Col(0xc9925e)]
 
-enum BType: Int { case market, tea, guard, pen, well, temple, gw, ge }
-enum Role { case folk, digger, guard, herder }
+enum BType: Int { case market, tea, `guard`, pen, well, temple, gw, ge }
+enum Role { case folk, digger, `guard`, herder }
 
 struct Def {
     let name: String
