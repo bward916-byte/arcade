@@ -52,6 +52,27 @@ final class Game {
     var digT = 0.0
     var carry = 0
     var cardSub = ""
+    var rain: Double?
+    var rainAt = -1.0
+    var lush = false
+    var ecl: Double?
+    var eclAt = -1.0
+    var omen = false
+    var fest = 0.0
+    var festDone = false
+    var festT = 0.0
+    var ufo: Ufo?
+    var ufoDone = false
+    var ufoSeen = false
+    var deepT = 0.0
+    var trapCd = 0.0
+    var devils: [Devil] = []
+    func trapXs() -> [Double] {
+        let tb = B(.tomb)
+        if feat != .cliff || tb.gone || tb.level > 0 { return [] }
+        return [tb.x + 90, tb.x + 130, tb.x + 170]
+    }
+    func trapUp(_ i: Int) -> Bool { return sin(NOW * 1.6 + Double(i) * 2.1) > 0.2 }
     var ln: Int { return day - day0 }
     var townName: String { return TOWNS[town % 5] }
 
@@ -116,7 +137,7 @@ final class Game {
         feat = cf.feat
         usePalette(cf.feat.rawValue)
         WELL_X = 1655 + ox; TOWN = (1296 + ox, 1992 + ox); QUARRY = cf.quarry; PAST = cf.past; OASIS = cf.oasis
-        if !keep { stats = [0, 0, 0, 0]; relics = []; up = []; ended = false; seen = []; day = 1; day0 = 0 }
+        if !keep { stats = [0, 0, 0, 0]; relics = []; up = []; ended = false; seen = []; day = 1; day0 = 0; ufoDone = false; ufoSeen = false }
         state = .title
         t = 0.62; dark = 0; nextId = 1; shake = 0; flash = 0; report = ""
         player = Player()
@@ -138,6 +159,8 @@ final class Game {
         bank = 0; shops = [Shop(.guard), Shop(.pen)]; caravan = nil; carAt = -1; crowd = []; slow = 0
         ankh = false; poison = false; rocks = []; storm = nil; stormAt = -1; trip = nil; scene = nil; sceneQueue = []; zoom = 1; fade = 0
         rodN = [5, 8]; rodT = 0; rodSpot = -1; digN = 0; digToday = 0; digT = 0; carry = 0
+        rain = nil; rainAt = -1; lush = false; ecl = nil; eclAt = -1; omen = false; fest = 0; festDone = false; ufo = nil; deepT = 0; trapCd = 0
+        devils = [Devil(x: 520, dir: 1, a: 260, b: max(420, 1296 + ox - 130)), Devil(x: min(2900, 1992 + ox + 220), dir: -1, a: min(2700, 1992 + ox + 110), b: 2990)]
         camps = cf.camps.map { Camp(x: $0.0, cap: $0.1) }
         urns = cf.urns.map { Urn(x: $0.0, n: $0.1) }
         hares = (0..<5).map { newHare($0) }
@@ -413,7 +436,8 @@ final class Game {
         if B(.dock).level > 0 { for _ in 0..<2 { coin(B(.dock).x + 34, 6, rnd(-16, 16), rnd(40, 60), true) } }
         if B(.btemple).level > 0 { for _ in 0..<3 { coin(B(.btemple).x + 45, 6, rnd(-20, 20), rnd(40, 60), true) } }
         if relics.contains("scarab") { for _ in 0..<3 { coin(player.x, 16, rnd(-20, 20), rnd(40, 70), true) } }
-        if B(.grove).level > 0 { for _ in 0..<3 { coin(OASIS + rnd(-20, 20), 18, rnd(-14, 14), rnd(20, 50), true) } }
+        if B(.grove).level > 0 { for _ in 0..<(lush ? 6 : 3) { coin(OASIS + rnd(-20, 20), 18, rnd(-14, 14), rnd(20, 50), true) } }
+        lush = false; omen = false
         for c in herd {
             if !c.kid { coin(c.x, 4, rnd(-14, 14), rnd(35, 60), true) }
             c.kid = false
@@ -432,6 +456,10 @@ final class Game {
         raiders.removeAll { $0.dead }
         stormAt = (ln >= 3 && chance(0.3)) ? rnd(0.14, 0.3) : -1
         if feat == .port && B(.btemple).gone && ln >= 2 { stormAt = rnd(0.2, 0.34) }
+        rainAt = -1; eclAt = -1
+        if stormAt < 0 {
+            if feat == .oasis ? (ln >= 2 && chance(0.3)) : (ln >= 3 && chance(0.12)) { rainAt = rnd(0.3, 0.5) } else if ln >= 4 && chance(0.08) { eclAt = rnd(0.3, 0.44) }
+        }
         arrivals()
         if !folk.isEmpty { hint("dawn") }
         onDawn?()
@@ -441,6 +469,7 @@ final class Game {
         if B(.tea).level > 0 { arrivals() }
         let d = ln + min(town, (ln - 1) >> 1)
         if d < 2 { return }
+        if omen { hint("omen", again: true); return }
         let boss = ln >= 5 && ln % 3 == 1
         let port = boss && feat == .port
         let s0: Double = port ? -1 : (chance(0.5) ? 1 : -1)
@@ -466,6 +495,12 @@ final class Game {
         snd?.horn()
         if know { snd?.gong() }
         showScene("raid", "They always come after dark.", 3.2, 1.25)
+        let star = relics.contains("star")
+        if town % 5 == 0 && (!ufoDone || star) && ufo == nil && ln >= (star ? 3 : 4) && !boss && (star || chance(0.25)) {
+            ufoDone = true
+            let tb = B(.tomb)
+            ufo = Ufo(x: !tb.gone ? tb.x + 70 : max(120, TOWN.0 - 420))
+        }
         if up.contains("falcon") {
             let w = raid.filter { $0.side < 0 }.count
             let e = raid.count - w
@@ -576,6 +611,12 @@ final class Game {
                               col: i % 3 != 0 ? Col(0xffe08a) : Col(0xfff8dc), grav: -120))
         }
         let L = b.level
+        if !festDone && !b.def.far && todo().isEmpty {
+            festDone = true
+            fest = 14
+            for f in folk { f.cheer = 6 }
+            hint("festival", again: true)
+        }
         switch b.type {
         case .gw, .ge:
             b.hp = GHP[L]; hint("gate")
@@ -637,6 +678,7 @@ final class Game {
         if t0 < 0.66 && t >= 0.66 { dusk() }
         if t >= 1 { t -= 1; day += 1; dawn() }
         dark = darkness(t)
+        if let e = ecl { dark = max(dark, 0.85 * sin(PI * clampD(e / 20, 0, 1))) }
         var i = raid.count - 1
         while i >= 0 {
             if i < raid.count && t >= raid[i].t && t > 0.5 { let r = raid.remove(at: i); spawnRaider(r) }
@@ -716,6 +758,23 @@ final class Game {
             spark(p.x, 18, 12)
             hint("sold", again: true, "Sold for \(v) coins.")
         }
+        let tb = B(.tomb)
+        if town % 5 == 0 && tb.level > 0 && ufoSeen && !relics.contains("star") && abs(p.x - tb.x - 25) < 12 {
+            hint("deep0")
+            if still && safe {
+                deepT += dt
+                if chance(dt * 8) { dust(tb.x + 25 + rnd(-6, 6), 1, 1) }
+                if deepT > 4 {
+                    deepT = 0
+                    relics.insert("star")
+                    for _ in 0..<12 { coin(tb.x + 25, 8, rnd(-40, 40), rnd(60, 100), true) }
+                    snd?.gong()
+                    buzz(3)
+                    hint("star", again: true)
+                    showScene("deep", "Under the tomb, a room no mason ever cut. Its keeper left one thing behind.", 4.5, 1.35, tb.x + 25)
+                }
+            } else { deepT = 0 }
+        } else { deepT = 0 }
         let hm = B(.hermit)
         if !hm.gone && abs(p.x - hm.x - 22) < 70 { hint("hermit0") }
     }
@@ -1396,6 +1455,76 @@ final class Game {
     }
 
     func updWorld(_ dt: Double) {
+        // rain, the eclipse, the festival, the night visitor, the trapped road
+        if rainAt > 0 && t >= rainAt && rain == nil && state == .play { rain = 0; rainAt = -1; lush = true; hint("rain", again: true) }
+        if let r = rain {
+            rain = r + dt
+            if r + dt > 22 { rain = nil }
+        }
+        if eclAt > 0 && t >= eclAt && ecl == nil && state == .play {
+            ecl = 0; eclAt = -1; omen = true
+            snd?.gong()
+            hint("eclipse", again: true)
+            showScene("eclipse", "The sun is going out.", 3.4, 1, player.x)
+        }
+        if let e = ecl {
+            ecl = e + dt
+            if e + dt > 20 { ecl = nil }
+        }
+        if fest > 0 {
+            fest -= dt
+            festT -= dt
+            if festT <= 0 {
+                festT = rnd(0.35, 0.8)
+                let fx = WELL_X + rnd(-170, 170), fh = rnd(46, 84)
+                let cols: [Col] = [RED, GOLD, TEAL, Col(0xfff3b0), Col(0xd96ad0)]
+                let cc = cols[Int.random(in: 0..<5)]
+                for q in 0..<22 {
+                    let a = Double(q) / 22 * PI * 2
+                    var pt = Part(x: fx, h: fh, vx: cos(a) * rnd(18, 34), vh: sin(a) * rnd(18, 34) + 10, max: rnd(0.7, 1.2), col: cc, grav: -30)
+                    pt.lit = true
+                    parts.append(pt)
+                }
+                snd?.clink(near(fx))
+            }
+        }
+        if let u = ufo {
+            u.t += dt
+            if u.phase == 0 {
+                u.h = max(46, u.h - 34 * dt)
+                if u.t > 0.5 { hint("ufo", again: false); showScene("ufo", "Something is coming down out of the sky.", 3.6, 1.2, u.x) }
+                if u.h <= 46 { u.phase = 1; u.t = 0 }
+            } else if u.phase == 1 {
+                ufoSeen = true
+                if abs(player.x - u.x) < 34 && u.n < 8 {
+                    u.gt += dt
+                    if u.gt > 1 { u.gt = 0; u.n += 1; coin(u.x + rnd(-8, 8), 40, rnd(-10, 10), 0, true); hint("ufo2") }
+                }
+                if u.t > 18 || dark < 0.4 { u.phase = 2 }
+            } else {
+                u.h += 90 * dt
+                if u.h > 200 { ufo = nil; hint("ufogone") }
+            }
+        }
+        trapCd -= dt
+        let traps = trapXs()
+        for i in 0..<traps.count where trapCd <= 0 && trapUp(i) && abs(player.x - traps[i]) < 7 {
+            trapCd = 1.2
+            let p = player
+            if p.coins > 0 { p.coins -= 1; coin(p.x, 12, -p.dir * rnd(30, 60), rnd(50, 80), true) }
+            p.vx = -p.dir * 150
+            shake = 0.3
+            buzz(2)
+            snd?.hit(1)
+            hint("trap", again: true)
+        }
+        for i in 0..<devils.count {
+            var dv = devils[i]
+            dv.x += dv.dir * 14 * dt
+            if dv.x < dv.a { dv.dir = 1 }
+            if dv.x > dv.b { dv.dir = -1 }
+            devils[i] = dv
+        }
         // the haboob
         if stormAt > 0 && t >= stormAt && storm == nil && state == .play {
             let st = Storm(front: player.x - W / 2 - 520)
@@ -1592,7 +1721,10 @@ final class Game {
             for bt in [BType.market, .tea, .guard, .pen, .bank, .temple, .gw, .ge, .dock] { B(bt).level = 1 }
             B(.well).level = 2
             B(.btemple).gone = false
-            storm = Storm(front: 3300)
+            storm = nil
+            rain = 0
+            fest = 8
+            devils = [Devil(x: 2860, dir: -1, a: 2800, b: 2990)]
             player.x = 3000
             player.coins = 12
             cam = clampD(player.x - W / 2, 0, WORLD - W)

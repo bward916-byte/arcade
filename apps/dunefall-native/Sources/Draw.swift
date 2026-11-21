@@ -244,6 +244,15 @@ final class Renderer {
                 }
             }
         }
+        if g.rain != nil {
+            c.R(-9, -9, W + 18, H + 18, rgba(70, 96, 130, 0.22))
+            for q in 0..<70 {
+                let n = Double(q)
+                let rx = (hashN(n) * (W + 60) + NOW * 60).truncatingRemainder(dividingBy: W + 60) - 30
+                let ry = (hashN(n + 50) * H + NOW * (260 + hashN(n + 9) * 120)).truncatingRemainder(dividingBy: H)
+                c.seg(rx, ry, rx + 2.4, ry + 8, 0.45, rgba(210, 230, 255, 0.5))
+            }
+        }
         // dusk colour, then night with pools of firelight cut out of it
         let warm = g.warmth(g.t)
         if warm > 0 { c.R(-9, -9, W + 18, H + 18, rgba(255, 118, 48, warm * 0.16)) }
@@ -294,6 +303,11 @@ final class Renderer {
             c.restore()
             c.circ(sx, sy, 7 + low * 3, Col.mix(Col(0xfffce8), Col(0xff9646), low))
             c.circ(sx, sy, 4 + low * 2, rgba(255, 255, 255, 0.5))
+            if let e = g.ecl {
+                let k = clampD(e / 20, 0, 1)
+                c.circ(sx + (k - 0.5) * 22, sy, 7.6 + low * 3, Col(0x0a0a18))
+                c.arcStroke(sx + (k - 0.5) * 22, sy, 8.4 + low * 3, 0, PI * 2, 0.5, rgba(255, 236, 190, 0.5 * sin(PI * k)))
+            }
         }
         if t > 0.64 || t < 0.04 {
             let u = t < 0.04 ? 1 : (t - 0.64) / 0.36
@@ -844,6 +858,56 @@ final class Renderer {
         dock(g.B(.dock))
         fishing()
         digSite()
+        extras()
+    }
+    /// Mirages, dust devils, the trapped road and the night visitor.
+    func extras() {
+        if g.dark < 0.2 && g.storm == nil {
+            for mx in [g.TOWN.0 - 700, g.TOWN.1 + 620] {
+                let d = abs(g.player.x - mx)
+                let x = mx - cam
+                if d < 150 || x < -60 || x > W + 60 || mx < 80 || mx > g.NILE - 200 { continue }
+                c.alpha(clampD((d - 150) / 120, 0, 1) * 0.55)
+                c.ell(x, GY + 2.6, 34, 1.6, Col(0x9fd8e8)); c.ell(x - 6 + sin(NOW * 1.3) * 3, GY + 2.2, 18, 0.7, Col(0xffffff))
+                c.alpha(1)
+            }
+            for dv in g.devils {
+                let x = dv.x - cam
+                if x < -20 || x > W + 20 || (dv.x > g.TOWN.0 - 60 && dv.x < g.TOWN.1 + 60) { continue }
+                for q in 0..<7 {
+                    let n = Double(q)
+                    c.ell(x + sin(NOW * 6 + n * 0.9) * (1.5 + n * 0.7), GY - 2 - n * 4, 2 + n * 1.1, 1.3, rgba(226, 196, 140, 0.34 - n * 0.03))
+                }
+            }
+        }
+        let traps = g.trapXs()
+        for i in 0..<traps.count {
+            let x = traps[i] - cam
+            if x < -12 || x > W + 12 { continue }
+            c.R(x - 6, GY - 0.6, 12, 1.4, Col(0x6a5a48)); c.R(x - 6, GY - 0.6, 12, 0.4, Col(0x9a8a70))
+            if g.trapUp(i) {
+                for q in 0..<4 {
+                    let sx = x - 4.5 + Double(q) * 3
+                    c.poly(Col(0xc8c8c0), [sx - 1, GY - 0.6, sx, GY - 7.5, sx + 1, GY - 0.6])
+                }
+            }
+        }
+        if let u = g.ufo {
+            let x = u.x - cam, y = GY - u.h + sin(NOW * 2.2) * 1.5
+            if x > -80 && x < W + 80 {
+                if u.phase == 1 {
+                    c.poly(rgba(150, 255, 220, 0.16 + 0.05 * sin(NOW * 7)), [x - 6, y + 3, x + 6, y + 3, x + 26, GY + 2, x - 26, GY + 2])
+                    c.ell(x, GY + 1.6, 24, 2, rgba(180, 255, 230, 0.3))
+                }
+                c.ell(x, y, 19, 4.2, Col(0x8a94a4)); c.ell(x, y - 1, 18, 2.6, Col(0xc4ccd8)); c.dome(x, y - 2, 7.5, Col(0x9fe8d8))
+                c.ell(x - 2, y - 5.4, 2.6, 1.4, rgba(255, 255, 255, 0.6))
+                for q in 0..<5 {
+                    let on = Int(NOW * 6) % 5 == q
+                    c.circ(x - 12 + Double(q) * 6, y + 1.2, 1.1, on ? Col(0xfff3b0) : Col(0x4a8a80))
+                }
+                light(x, y + 4, 60, 1); light(x, GY - 6, 44, u.phase == 1 ? 0.9 : 0.3)
+            }
+        }
     }
     private func rising(_ b: Building, _ x: Double) {
         if b.building { scaffold(b, x, b.def.h[min(b.level + 1, b.def.h.count - 1)], 0) }

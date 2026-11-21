@@ -139,6 +139,17 @@ final class Storm {
     var raided = false
     init(front: Double) { self.front = front }
 }
+/// The night visitor: it comes down, hovers, drops what it has, and goes.
+final class Ufo {
+    var x: Double
+    var t = 0.0
+    var phase = 0
+    var h = 150.0
+    var gt = 0.0
+    var n = 0
+    init(x: Double) { self.x = x }
+}
+struct Devil { var x: Double; var dir: Double; let a: Double; let b: Double }
 struct Rock { var x: Double; var dir: Double; var rot = 0.0; var t = 0.0; var dead = false }
 
 let GHP: [Double] = [0, 16, 34, 60]
@@ -496,5 +507,15 @@ let HINTS: [String: String] = [
     "digfull": "Your hands are full. Sell this relic in town first.",
     "digrest": "The air below is bad. Three trips a day is all anyone can stand.",
     "digdone": "The sunken tomb is empty now.",
+    "rain": "Rain. It will not last, but the date grove will pay double in the morning.",
+    "eclipse": "The sun is going out. The raiders take it for an omen: nobody will ride tonight.",
+    "omen": "No raid tonight. They will not ride under a sky that went dark.",
+    "festival": "The whole town is rebuilt. Tonight they celebrate: the dock by the Nile is yours to build.",
+    "ufo": "Something is coming down out of the sky, west of town.",
+    "ufo2": "It drops gold where you stand, as if it wanted to see what you would do.",
+    "ufogone": "It is gone. The sand under it is glass, and it was looking at the tomb.",
+    "deep0": "The tomb door hums. Stand here a while.",
+    "star": "A star of cold metal. The visitor will come back for it, and pay.",
+    "trap": "The old way to the tomb is trapped. Cross the plates while the spikes are down.",
     "dock0": "No boat will stop at half a town. Rebuild everything and raise the obelisk first."
 ]
