@@ -1557,7 +1557,8 @@ final class Renderer {
                 if sin(NOW * 0.7) > 0.93 { c.R(x + 65, GY - 31, 2, 2, Col(0xfff3b0)); light(x + 66, GY - 30, 10, 0.4) }
                 for q in 0..<3 { c.seg(x + 20 + Double(q) * 14, GY - 15, x + 19 + Double(q) * 14, GY - 6 - hashN(Double(q)) * 4, 0.35, rgba(110, 78, 36, 0.3)) }
                 if sp.level > 1 {
-                    for q in 0..<5 { c.R(x + 52, GY - 37 + Double(q) * 5, 20, 1.6, Col(0xffe08a)) }
+                    for q in 0..<5 { c.R(x + 52, GY - 37 + Double(q) * 5, 4, 1.6, Col(0xffe08a)); c.R(x + 69, GY - 37 + Double(q) * 5, 3, 1.6, Col(0xffe08a)) }
+                    c.R(x + 54, GY - 40.8, 16, 1.4, GOLD); c.R(x + 61, GY - 43, 2, 2.6, GOLD)
                     c.R(x + 55, GY - 18.4, 15, 1.6, GOLD); c.R(x + 60, GY - 16.8, 5, 2, TEAL); c.R(x + 68.4, GY - 28, 1.6, 3, STONE)
                     c.R(x + 6, GY - 15.6, 56, 1, GOLD)
                     for sx in [x + 60.0, x + 78] { c.R(sx, GY - 9.4, 2, 2.4, Col(0x4a3a2a)); if lit { fire(sx + 1, GY - 9.4, 0.55) } else { plume(sx + 1, GY - 9.4, sx, 0.4, Col(0xd8d0e0)) } }
