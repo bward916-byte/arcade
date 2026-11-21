@@ -1,0 +1,20 @@
+run 17  commit 0501a1e34d3d9c31c9bdded2db4345b7ec2c1f20
+compile: success   testflight: success
+---- compile errors
+** ARCHIVE SUCCEEDED **
+---- export
+** EXPORT SUCCEEDED **
+---- upload
+Running altool at path '/Applications/Xcode_26.6.app/Contents/SharedFrameworks/ContentDelivery.framework/Resources/altool'...
+
+2026-11-21 20:25:19.690  INFO: [ContentDelivery.Uploader.A85018340] 
+==========================================
+UPLOAD SUCCEEDED with no errors, 1 warning
+Delivery UUID: 883a34e7-b130-45c5-a2f1-fd60988cc16d
+Transferred 785451 bytes in 0.038 seconds (20.7MB/s, 165.870Mbps)
+==========================================
+2026-11-21 20:25:19.694  WARN: [altool.A85018340] SDK version issue. This app was built with the iOS 26.5 SDK. Starting April 2027, iOS and iPadOS apps must be built with the iOS 27 SDK or later, included in Xcode 27 or later, in order to be uploaded to App Store Connect or submitted for distribution. (90725)
+   server_warning : 
+      code : 90725
+      description : SDK version issue. This app was built with the iOS 26.5 SDK. Starting April 2027, iOS and iPadOS apps must be built with the iOS 27 SDK or later, included in Xcode 27 or later, in order to be uploaded to App Store Connect or submitted for distribution.
+No errors, 1 warnings, uploading archive at '/Users/runner/work/_temp/export/Dunefall.ipa'.
