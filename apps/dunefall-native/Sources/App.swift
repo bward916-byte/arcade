@@ -1,3 +1,4 @@
+import GameController
 import UIKit
 
 @main
@@ -52,6 +53,24 @@ final class GameViewController: UIViewController {
     private let overName = UILabel()
     private let overText = UILabel()
     private let againBtn = UIButton(type: .system)
+    private let dawnBtn = UIButton(type: .system)
+    private let contBtn = UIButton(type: .system)
+    private let pauseBtn = UIButton(type: .system)
+    private let pauseBox = UIView()
+    private let pauseName = UILabel()
+    private let resumeBtn = UIButton(type: .system)
+    private let soundBtn = UIButton(type: .system)
+    private let quitBtn = UIButton(type: .system)
+    private var userPaused = false
+    private var tStick = 0.0
+    private var tToss = false
+    private var tFire = false
+    private var padMenuWas = false
+    private let tapLight = UIImpactFeedbackGenerator(style: .light)
+    private let tapMedium = UIImpactFeedbackGenerator(style: .medium)
+    private let tapHeavy = UIImpactFeedbackGenerator(style: .heavy)
+    private let tapDone = UINotificationFeedbackGenerator()
+    private let saveKey = "dunefall.native.save"
 
     private var stickTouch: UITouch?
     private var tossTouch: UITouch?
@@ -161,6 +180,36 @@ final class GameViewController: UIViewController {
         overBox.isHidden = true
         view.addSubview(overBox)
 
+        button(dawnBtn, "Back to the last dawn")
+        dawnBtn.titleLabel?.font = serif(17)
+        dawnBtn.addTarget(self, action: #selector(resumeSave), for: .touchUpInside)
+        overBox.addSubview(dawnBtn)
+        button(contBtn, "Continue")
+        contBtn.addTarget(self, action: #selector(resumeSave), for: .touchUpInside)
+        titleBox.addSubview(contBtn)
+
+        button(pauseBtn, "II")
+        pauseBtn.titleLabel?.font = serif(15)
+        pauseBtn.backgroundColor = gold.withAlphaComponent(0.8)
+        pauseBtn.addTarget(self, action: #selector(pauseTapped), for: .touchUpInside)
+        view.addSubview(pauseBtn)
+        pauseBox.backgroundColor = ink.withAlphaComponent(0.78)
+        style(pauseName, 34, gold, .center)
+        pauseName.text = "Paused"
+        button(resumeBtn, "Resume")
+        resumeBtn.addTarget(self, action: #selector(resumeTapped), for: .touchUpInside)
+        button(soundBtn, "Sound: on")
+        soundBtn.addTarget(self, action: #selector(soundTapped), for: .touchUpInside)
+        button(quitBtn, "Save and quit to title")
+        quitBtn.titleLabel?.font = serif(17)
+        quitBtn.addTarget(self, action: #selector(quitTapped), for: .touchUpInside)
+        for v in [pauseName, resumeBtn, soundBtn, quitBtn] as [UIView] { pauseBox.addSubview(v) }
+        pauseBox.isHidden = true
+        view.addSubview(pauseBox)
+
+        game.onBuzz = { [weak self] k in self?.buzz(k) }
+        game.onDawn = { [weak self] in self?.save() }
+
         let dl = CADisplayLink(target: self, selector: #selector(tick(_:)))
         dl.add(to: .main, forMode: .common)
         link = dl
@@ -173,7 +222,8 @@ final class GameViewController: UIViewController {
         let left = max(s.left, 12), right = max(s.right, 12), bottom = max(s.bottom, 8)
         stage.frame = b
         purse.frame = CGRect(x: left + 4, y: 6, width: b.width * 0.6, height: 22)
-        dayLabel.frame = CGRect(x: b.width - right - 164, y: 6, width: 160, height: 22)
+        dayLabel.frame = CGRect(x: b.width - right - 210, y: 6, width: 160, height: 22)
+        pauseBtn.frame = CGRect(x: b.width - right - 40, y: 4, width: 38, height: 28)
         hint.frame = CGRect(x: b.width * 0.5 - 250, y: 32, width: 500, height: 40)
         info.frame = CGRect(x: b.width * 0.5 - 150, y: b.height - bottom - 30, width: 300, height: 24)
         card.frame = CGRect(x: 0, y: b.height * 0.22, width: b.width, height: 80)
@@ -193,13 +243,28 @@ final class GameViewController: UIViewController {
         titleBox.frame = b
         titleName.frame = CGRect(x: 20, y: b.height * 0.06, width: b.width - 40, height: 76)
         titleTag.frame = CGRect(x: 20, y: b.height * 0.06 + 74, width: b.width - 40, height: 24)
-        goBtn.frame = CGRect(x: b.width * 0.5 - 90, y: b.height - bottom - 78, width: 180, height: 48)
+        let saved = loadSave() != nil
+        contBtn.isHidden = !saved
+        if saved {
+            contBtn.frame = CGRect(x: b.width * 0.5 - 190, y: b.height - bottom - 78, width: 180, height: 48)
+            goBtn.frame = CGRect(x: b.width * 0.5 + 10, y: b.height - bottom - 78, width: 180, height: 48)
+        } else {
+            goBtn.frame = CGRect(x: b.width * 0.5 - 90, y: b.height - bottom - 78, width: 180, height: 48)
+        }
+        goBtn.setTitle(saved ? "New game" : "Ride in", for: .normal)
+        pauseBox.frame = b
+        pauseName.frame = CGRect(x: 20, y: b.height * 0.1, width: b.width - 40, height: 44)
+        resumeBtn.frame = CGRect(x: b.width * 0.5 - 130, y: b.height * 0.1 + 56, width: 260, height: 46)
+        soundBtn.frame = CGRect(x: b.width * 0.5 - 130, y: b.height * 0.1 + 110, width: 260, height: 46)
+        quitBtn.frame = CGRect(x: b.width * 0.5 - 130, y: b.height * 0.1 + 164, width: 260, height: 46)
         titleNote.frame = CGRect(x: 20, y: b.height - bottom - 26, width: b.width - 40, height: 18)
 
         overBox.frame = b
         overName.frame = CGRect(x: 20, y: b.height * 0.24, width: b.width - 40, height: 44)
         overText.frame = CGRect(x: 20, y: b.height * 0.24 + 48, width: b.width - 40, height: 24)
-        againBtn.frame = CGRect(x: b.width * 0.5 - 90, y: b.height * 0.24 + 92, width: 180, height: 48)
+        dawnBtn.isHidden = !saved
+        dawnBtn.frame = CGRect(x: b.width * 0.5 - 230, y: b.height * 0.24 + 92, width: 240, height: 48)
+        againBtn.frame = saved ? CGRect(x: b.width * 0.5 + 30, y: b.height * 0.24 + 92, width: 180, height: 48) : CGRect(x: b.width * 0.5 - 90, y: b.height * 0.24 + 92, width: 180, height: 48)
         rebuild()
     }
 
@@ -230,12 +295,79 @@ final class GameViewController: UIViewController {
         paused = p
         last = 0
         if !p { sound.resume() }
-        if p { clearTouches() }
+        if p { clearTouches(); save() }
     }
 
     @objc private func ride() {
         sound.start()
         game.start()
+    }
+    @objc private func resumeSave() {
+        guard let d = loadSave() else { return }
+        sound.start()
+        game.restore(d)
+    }
+    @objc private func pauseTapped() {
+        if game.state != .play { return }
+        userPaused = true
+        pauseBox.isHidden = false
+        clearTouches()
+    }
+    @objc private func resumeTapped() {
+        userPaused = false
+        pauseBox.isHidden = true
+        last = 0
+    }
+    @objc private func soundTapped() {
+        sound.muted = !sound.muted
+        soundBtn.setTitle(sound.muted ? "Sound: off" : "Sound: on", for: .normal)
+    }
+    @objc private func quitTapped() {
+        save()
+        userPaused = false
+        pauseBox.isHidden = true
+        game.reset()
+        view.setNeedsLayout()
+    }
+
+    // The town is kept as it stood at the last dawn.
+    private func save() {
+        if game.state != .play { return }
+        if let data = try? JSONEncoder().encode(game.snapshot()) { UserDefaults.standard.set(data, forKey: saveKey) }
+    }
+    private func loadSave() -> SaveData? {
+        guard let data = UserDefaults.standard.data(forKey: saveKey) else { return nil }
+        return try? JSONDecoder().decode(SaveData.self, from: data)
+    }
+
+    private func buzz(_ k: Int) {
+        switch k {
+        case 0: tapLight.impactOccurred()
+        case 1: tapMedium.impactOccurred()
+        case 2: tapHeavy.impactOccurred()
+        default: tapDone.notificationOccurred(.success)
+        }
+    }
+
+    /// A paired game controller: stick or d-pad rides, A tosses, X or B looses an arrow, Y restrings, Menu pauses.
+    private func readInput() {
+        var stick = tStick, toss = tToss, fire = tFire
+        if let pad = GCController.controllers().first?.extendedGamepad {
+            let ax = Double(pad.leftThumbstick.xAxis.value)
+            let dp = Double(pad.dpad.xAxis.value)
+            if abs(ax) > 0.25 { stick = ax } else if abs(dp) > 0.25 { stick = dp }
+            if pad.buttonA.isPressed { toss = true }
+            if pad.buttonX.isPressed || pad.buttonB.isPressed { fire = true }
+            if pad.buttonY.isPressed { game.input.reload = true }
+            let menu = pad.buttonMenu.isPressed
+            if menu && !padMenuWas {
+                if game.state == .title { ride() } else if userPaused { resumeTapped() } else { pauseTapped() }
+            }
+            padMenuWas = menu
+        }
+        game.input.stick = stick
+        game.input.toss = toss
+        game.input.fire = fire
     }
 
     @objc private func tick(_ l: CADisplayLink) {
@@ -243,6 +375,8 @@ final class GameViewController: UIViewController {
         let raw = last == 0 ? 1.0 / 60 : now - last
         last = now
         if paused { return }
+        readInput()
+        if userPaused { return }
         game.update(min(0.05, max(0, raw)))
         guard let r = renderer, let cv = canvas else { return }
         r.draw()
@@ -257,10 +391,12 @@ final class GameViewController: UIViewController {
         let playing = game.state == .play
         titleBox.isHidden = game.state != .title
         overBox.isHidden = game.state != .over
-        for v in [purse, dayLabel, pad, tossBtn, fireBtn] as [UIView] { v.isHidden = game.state == .title }
+        for v in [purse, dayLabel, pad, tossBtn, fireBtn, pauseBtn] as [UIView] { v.isHidden = game.state == .title }
+        if game.state == .over && dawnBtn.isHidden == (loadSave() != nil) { view.setNeedsLayout() }
         let p = game.player
         let arrows = p.rl > 0 ? "restringing" : String(repeating: "|", count: max(0, p.ammo))
-        set(purse, "Coins \(p.coins)    Arrows \(arrows)    Free hands \(game.head(.folk))")
+        let vault = game.B(.bank).level > 0 ? "    Vault \(game.bank)" : ""
+        set(purse, "Coins \(p.coins)\(vault)    Arrows \(arrows)    Free hands \(game.head(.folk))")
         set(dayLabel, game.dark > 0.5 ? "Night \(game.day)" : "Day \(game.day)")
         if playing, let line = game.infoLine() {
             set(info, line.0 + "   " + line.1)
@@ -281,16 +417,17 @@ final class GameViewController: UIViewController {
     // ---------- touch: left side is the stick, the two round buttons toss a coin and loose an arrow
     private func moveStick(_ p: CGPoint) {
         let dx = max(-34, min(34, p.x - padCenter.x))
-        game.input.stick = Double(dx) / 34
+        tStick = Double(dx) / 34
         knob.transform = CGAffineTransform(translationX: dx, y: 0)
     }
     private func clearTouches() {
         stickTouch = nil; tossTouch = nil; fireTouch = nil
+        tStick = 0; tToss = false; tFire = false
         game.input.stick = 0; game.input.toss = false; game.input.fire = false
         knob.transform = .identity
     }
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-        if game.state != .play { return }
+        if game.state != .play || userPaused { return }
         for t in touches {
             let p = t.location(in: view)
             if p.y < 30 && p.x < view.bounds.width * 0.6 { game.input.reload = true; continue }
@@ -300,7 +437,7 @@ final class GameViewController: UIViewController {
             }
             let dt = hypot(p.x - tossCenter.x, p.y - tossCenter.y)
             let df = hypot(p.x - fireCenter.x, p.y - fireCenter.y)
-            if dt <= df && dt < 80 && tossTouch == nil { tossTouch = t; game.input.toss = true } else if df < 80 && fireTouch == nil { fireTouch = t; game.input.fire = true }
+            if dt <= df && dt < 80 && tossTouch == nil { tossTouch = t; tToss = true } else if df < 80 && fireTouch == nil { fireTouch = t; tFire = true }
         }
     }
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
@@ -308,9 +445,9 @@ final class GameViewController: UIViewController {
     }
     private func lift(_ touches: Set<UITouch>) {
         for t in touches {
-            if t === stickTouch { stickTouch = nil; game.input.stick = 0; knob.transform = .identity }
-            if t === tossTouch { tossTouch = nil; game.input.toss = false }
-            if t === fireTouch { fireTouch = nil; game.input.fire = false }
+            if t === stickTouch { stickTouch = nil; tStick = 0; knob.transform = .identity }
+            if t === tossTouch { tossTouch = nil; tToss = false }
+            if t === fireTouch { fireTouch = nil; tFire = false }
         }
     }
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) { lift(touches) }

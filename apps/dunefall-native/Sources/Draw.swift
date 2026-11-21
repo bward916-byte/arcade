@@ -32,6 +32,7 @@ struct CamelOpt {
     var col = Col(0x8a5a32)
     var dk = Col(0x5a391c)
     var lt = Col(0xad7a48)
+    var load: Col? = nil
 }
 
 struct RiderOpt {
@@ -131,14 +132,23 @@ final class Renderer {
             let k = r.t
             c.ellStroke(r.x - cam, GY, 6 + k * 70, 1.5 + k * 13, 1.4 * (1 - k) + 0.3, rgba(255, 226, 140, 1 - k))
         }
-        for k in [BType.market, .tea, .well, .guard, .temple, .pen] { front(g.B(k)) }
+        for k in [BType.bank, .market, .tea, .well, .guard, .temple, .pen] { front(g.B(k)) }
         for b in g.bs { rack(b) }
+        shopSigns()
         for cg in g.herd { goat(cg) }
         for h in g.hares { hare(h) }
         for d in g.nomads {
             person(d.x, 0, PersonOpt(robe: Col(0x2c3f6e), turban: Col(0x1f2c50), skin: SKIN[d.id % 3], dir: d.dir, moving: d.moving, walk: d.walk, veil: Col(0x1f2c50)))
         }
         for f in g.folk where !f.hidden { folk(f) }
+        let shopper: [Col] = [Col(0x7a4a8a), Col(0x3a7a6a), Col(0xc2643a), Col(0x4a5a9a), Col(0xd9c9a0), Col(0x8a3a3a)]
+        for cr in g.crowd where !cr.hidden {
+            var o = PersonOpt(robe: shopper[cr.id % 6], turban: TURB[(cr.id + 1) % 5], skin: SKIN[cr.id % 3])
+            o.dir = cr.dir; o.moving = cr.moving; o.walk = cr.walk
+            if cr.id % 2 == 1 { o.sash = GOLD }
+            person(cr.x, 0, o)
+        }
+        if let cv = g.caravan { caravan(cv) }
         for f in g.fallen {
             c.alpha(clampD(1 - f.t / 5, 0, 1))
             let k = min(1, f.t * 3.2)
@@ -474,6 +484,7 @@ final class Renderer {
         case .temple: temple(b, x, L)
         case .well: well(b, x, L)
         case .gw, .ge: gate(b, x, L)
+        case .bank: treasury(b, x, L)
         }
         if b.building && L >= 1 {
             let nh = b.def.h[min(L + 1, b.def.h.count - 1)]
@@ -652,6 +663,90 @@ final class Renderer {
         }
     }
 
+    func treasury(_ b: Building, _ x: Double, _ L: Int) {
+        let w = b.w
+        let h: Double = L > 1 ? 38 : 32
+        c.poly(STONE, [x, GY, x + 4, GY - h, x + w - 4, GY - h, x + w, GY])
+        c.poly(STONE2, [x + w - 6, GY, x + w - 8, GY - h, x + w - 4, GY - h, x + w, GY])
+        c.poly(STONE, [x + 2, GY - h, x, GY - h - 4, x + w, GY - h - 4, x + w - 2, GY - h])
+        c.R(x, GY - h - 4, w, 1, Col(0xecd6a4))
+        var y = 6.0
+        while y < h { c.R(x + 4, GY - y, w - 9, 0.5, STONE2); y += 6 }
+        c.R(x + 21, GY - 20, 14, 20, Col(0x6a4a2a)); c.R(x + 21, GY - 20, 14, 1.5, GOLD)
+        c.circ(x + 28, GY - 11, 2.6, GOLD); c.circ(x + 28, GY - 11, 1, Col(0x8a5f14))
+        c.R(x + 10, GY - 22, 2, 8, DARKC); c.R(x + 44, GY - 22, 2, 8, DARKC)
+        if L > 1 { c.R(x + 3, GY - h + 1, w - 6, 2, GOLD) }
+        // what is in the vault, stacked by the door
+        let stack = min(8, g.bank)
+        if stack > 0 { for i in 0..<stack { c.ell(x + 40, GY - 1.2 - Double(i) * 1.3, 2.2, 0.9, GOLD) } }
+    }
+
+    /// The upgrade signposts by the barracks and the camel yard.
+    func shopSigns() {
+        for sh in g.shops {
+            if g.B(sh.k).level == 0 { continue }
+            let x = g.shopX(sh.k) - cam
+            if x < -20 || x > W + 20 { continue }
+            let it = g.shopItem(sh.k)
+            c.seg(x, GY, x, GY - 13, 1, WOOD)
+            c.R(x - 4.5, GY - 17, 9, 7, it != nil ? Col(0xecdcb0) : Col(0xb8a888))
+            c.R(x - 4.5, GY - 17, 9, 0.7, Col(0xffffff)); c.R(x - 4.5, GY - 10.6, 9, 0.6, Col(0x7a5a2e))
+            guard let item = it else { continue }
+            upIcon(item.key, x, GY - 13.4)
+            if abs(g.player.x - g.shopX(sh.k)) < 46 || sh.paid + sh.inc > 0 {
+                let cols = min(item.cost, 7)
+                for q in 0..<item.cost {
+                    let row = q / cols
+                    let inRow = min(cols, item.cost - row * cols)
+                    let sx = x - Double(inRow - 1) * 3 + Double(q % cols) * 6
+                    let sy = GY - 24 - Double(row) * 6
+                    c.circ(sx, sy, 2.3, rgba(28, 19, 12, 0.75))
+                    c.circ(sx, sy, 1.7, q < sh.paid ? GOLD : rgba(242, 193, 78, 0.22))
+                }
+            }
+        }
+    }
+    func upIcon(_ n: String, _ x: Double, _ cy: Double) {
+        let brown = Col(0x8a5a32)
+        switch n {
+        case "quiver":
+            c.R(x - 1.4, cy - 2.2, 2.8, 4.8, Col(0x7a4e2a))
+            for q in 0..<3 { c.R(x - 1 + Double(q) * 0.9, cy - 3.4, 0.5, 1.4, RED) }
+        case "fire":
+            c.seg(x - 3, cy + 1.4, x + 2, cy - 1.4, 0.6, Col(0x5a3e22))
+            c.poly(Col(0xe8602a), [x + 1, cy - 0.6, x + 3.4, cy - 3.4, x + 3, cy]); c.R(x + 2, cy - 1.6, 1, 1, Col(0xffc24a))
+        case "falcon":
+            c.poly(Col(0x6a4a30), [x - 3.4, cy - 1.4, x, cy + 0.6, x + 3.4, cy - 1.4, x, cy - 0.4]); c.R(x - 0.6, cy - 0.4, 1.2, 2.2, Col(0x6a4a30))
+        case "saddle":
+            c.R(x - 3, cy - 1.4, 6, 3.4, RED); c.R(x - 3, cy - 1.4, 6, 0.7, GOLD); c.R(x - 3, cy + 1.4, 6, 0.6, GOLD)
+        default:
+            c.ell(x - 0.6, cy + 0.4, 2.8, 1.5, brown); c.circ(x - 1.8, cy - 1.2, 1.1, brown); c.circ(x + 0.4, cy - 1.2, 1.1, brown)
+            c.seg(x + 2, cy, x + 3.2, cy - 2.4, 0.8, brown); c.R(x - 4, cy + 2, 2, 0.5, GOLD)
+        }
+    }
+
+    func caravan(_ cv: Caravan) {
+        let mv: Double = cv.stopped ? 0 : 1
+        let loads: [Col] = [RED, LAPIS, Col(0xe0a030)]
+        for i in 0..<3 {
+            var co = CamelOpt()
+            co.col = Col(0xa07244); co.dk = Col(0x70502c); co.lt = Col(0xc0915c); co.load = loads[i]
+            let n = Double(i)
+            camel(cv.x - n * 30, 1, cv.ph + n, mv * 0.45, co)
+            if i > 0 { c.seg(cv.x - n * 30 + 15 - cam, GY - 22, cv.x - (n - 1) * 30 - 11 - cam, GY - 14, 0.4, Col(0x5a3e22)) }
+        }
+        var o = PersonOpt(robe: Col(0xf3ead2), turban: LAPIS, skin: SKIN[0])
+        o.moving = mv > 0; o.walk = cv.ph * 1.4; o.tool = .staff
+        person(cv.x + 22, 0, o)
+        if cv.stopped && !cv.sold && g.B(.market).level > 0 {
+            for i in 0..<4 {
+                let x = cv.x + 13 + Double(i) * 6 - cam, y = GY - 21
+                c.circ(x, y, 2.3, rgba(28, 19, 12, 0.75))
+                c.circ(x, y, 1.7, i < cv.paid ? GOLD : rgba(242, 193, 78, 0.22))
+            }
+        }
+    }
+
     func rack(_ b: Building) {
         guard b.level > 0, let tool = b.def.tool else { return }
         let x = g.rackX(b) - cam
@@ -763,7 +858,25 @@ final class Renderer {
     func raider(_ r: Raider) {
         let fl = r.hurt > 0
         let robe = fl ? Col(0xffffff) : Col(0x2a2422)
-        if r.kind == .rider {
+        if r.kind == .boss {
+            let x = r.x - cam
+            c.save()
+            c.translate(x, GY); c.scale(1.28, 1.28); c.translate(-x, -GY)
+            var bc = CamelOpt()
+            bc.col = Col(0x2e2018); bc.dk = Col(0x170f0a); bc.lt = Col(0x43301f); bc.saddle = Col(0x7a1c14); bc.trot = true
+            camel(r.x, r.dir, r.walk * 4, 1, bc) { by in
+                self.rider(x - r.dir, by, r.dir, RiderOpt(robe: fl ? Col(0xffffff) : Col(0x1c1614), skin: SKIN[1], turban: RED, sash: GOLD, veil: Col(0x1a1614), fl: 0.8, jewel: true))
+                let bx = x - r.dir * 4
+                let wv = sin(self.NOW * 6) * 1.2
+                self.c.seg(bx, by - 6, bx, by - 27, 0.8, Col(0x3a2a1c))
+                self.c.poly(RED, [bx, by - 27, bx - r.dir * 11, by - 25 + wv, bx - r.dir * 9, by - 21, bx - r.dir * 12, by - 17 + wv, bx, by - 18])
+                self.c.circ(bx - r.dir * 5, by - 22.5 + wv * 0.5, 1.6, GOLD)
+            }
+            c.restore()
+            c.R(x - 8, GY - 44, 16, 2, rgba(28, 19, 12, 0.7))
+            c.R(x - 8, GY - 44, 16 * Double(max(0, r.hp)) / Double(max(1, r.maxHp)), 2, RED)
+            if lit { fire(x + r.dir * 9, GY - 26, 0.5) }
+        } else if r.kind == .rider {
             var co = CamelOpt()
             co.col = Col(0x4e3824); co.dk = Col(0x30200f); co.lt = Col(0x6a4c30); co.saddle = Col(0x7a1c14); co.trot = true
             let sx = r.x - cam
@@ -927,6 +1040,10 @@ final class Renderer {
         c.R(hx + d * 0.7 - 0.4, hy - 1, 0.8, 0.8, Col(0x1c1008)); c.R(hx + d * 0.9 - 0.2, hy - 1, 0.3, 0.3, Col(0xffffff))
         let tailY = by + 3.6 + sin(ph * 2) * amp
         c.seg(sx - d * 10, by - 2.4, sx - d * 12, tailY, 0.9, dk); c.R(sx - d * 12 - 0.7, tailY - 0.2, 1.4, 1.8, Col(0x3a2610))
+        if let ld = o.load {
+            c.R(sx - d - 3.4, by - 10.5, 6.8, 5.6, ld); c.R(sx - d - 3.4, by - 8.6, 6.8, 0.8, GOLD)
+            c.R(sx - 7.6, by - 5.5, 3.2, 5.4, Col(0xb5673a)); c.R(sx + 4.4, by - 5.5, 3.2, 5.4, Col(0x7a5a34))
+        }
         if let s = o.saddle {
             c.curve(hx + d * 2, hy + 1, sx + d * 9, by - 5, sx + d, by - 6, 0.35, Col(0xd8b060))
             let bx = sx - d - 3.6
@@ -961,7 +1078,7 @@ final class Renderer {
         let p = g.player
         let sx = p.x - cam, sp = abs(p.vx), d = p.dir
         let amp = clampD(sp / 70, 0, 1.1)
-        let gal = g.B(.pen).level >= 2 && sp > 125
+        let gal = (g.up.contains("racer") || g.B(.pen).level >= 2) && sp > 125
         let trot = !gal && sp > 70
         var co = CamelOpt()
         co.trot = trot; co.gallop = gal; co.saddle = RED; co.kneel = p.kneelK
@@ -971,7 +1088,8 @@ final class Renderer {
             let y = by - 8
             let cv = self.c
             cv.R(sx - d * 3.6 - 0.6, y - 6, 1.4, 6, Col(0x6a4426))
-            for i in 0..<min(3, p.ammo) { cv.R(sx - d * 3.6 - 0.6 + Double(i) * 0.5, y - 7.6, 0.4, 1.8, PLA) }
+            let tip = self.g.up.contains("fire") ? Col(0xffb04a) : PLA
+            for i in 0..<min(3, p.ammo) { cv.R(sx - d * 3.6 - 0.6 + Double(i) * 0.5, y - 7.6, 0.4, 1.8, tip) }
             let arm = Col(0xf6efdc)
             if p.draw > 0 || p.rl > 0 {
                 let bd = p.draw > 0 ? p.aim : d

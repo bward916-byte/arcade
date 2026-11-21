@@ -43,7 +43,7 @@ let ROBE: [Col] = [Col(0xe8dcc0), Col(0xc9d6c2), Col(0xd9b99a), Col(0xb9c4d9), C
 let TURB: [Col] = [Col(0xf3ead2), RED, LAPIS, Col(0xe0a030), TEAL]
 let SKIN: [Col] = [Col(0xb8804e), Col(0x9a6a40), Col(0xc9925e)]
 
-enum BType: Int { case market, tea, `guard`, pen, well, temple, gw, ge }
+enum BType: Int { case market, tea, `guard`, pen, well, temple, gw, ge, bank }
 enum Role { case folk, digger, `guard`, herder }
 
 struct Def {
@@ -65,7 +65,8 @@ let DEF: [BType: Def] = [
     .well: Def(name: "WELL", w: 30, cost: [10, 22], pay: 0, tier: false, tool: nil, gate: false, h: [10, 22, 78]),
     .temple: Def(name: "TEMPLE", w: 72, cost: [12, 18], pay: 4, tier: true, tool: nil, gate: false, h: [16, 46, 58]),
     .gw: Def(name: "WEST GATE", w: 14, cost: [4, 8, 14], pay: 0, tier: true, tool: nil, gate: true, h: [4, 16, 26, 36]),
-    .ge: Def(name: "EAST GATE", w: 14, cost: [4, 8, 14], pay: 0, tier: true, tool: nil, gate: true, h: [4, 16, 26, 36])
+    .ge: Def(name: "EAST GATE", w: 14, cost: [4, 8, 14], pay: 0, tier: true, tool: nil, gate: true, h: [4, 16, 26, 36]),
+    .bank: Def(name: "TREASURY", w: 56, cost: [10, 16], pay: 0, tier: true, tool: nil, gate: false, h: [12, 32, 40])
 ]
 let GHP: [Double] = [0, 16, 34, 60]
 
@@ -115,7 +116,7 @@ final class Building {
     var mid: Double { return x + w / 2 }
 }
 
-enum CoinState { case air, ground, back, slot, tool, mend }
+enum CoinState { case air, ground, back, slot, tool, mend, bank, shop, merc }
 final class Coin {
     var x: Double
     var h: Double
@@ -126,6 +127,7 @@ final class Coin {
     var claimed = 0
     var free = false
     var b: Building?
+    var shop: Shop?
     var tx = 0.0
     var th = 0.0
     init(x: Double, h: Double, st: CoinState) { self.x = x; self.h = h; self.st = st }
@@ -192,7 +194,7 @@ final class Nomad: Walker {
     }
 }
 
-enum RaidKind { case bandit, rider }
+enum RaidKind: Int { case bandit, rider, boss }
 enum RaidState { case raid, flee }
 final class Raider: Walker {
     let id: Int
@@ -201,6 +203,8 @@ final class Raider: Walker {
     var dir: Double
     let side: Double
     var hp: Int
+    let maxHp: Int
+    var burn = 0.0
     var state = RaidState.raid
     var loot = 0
     var walk = 0.0
@@ -211,11 +215,81 @@ final class Raider: Walker {
     var dead = false
     init(id: Int, kind: RaidKind, x: Double, side: Double, hp: Int) {
         self.id = id; self.kind = kind; self.x = x; self.side = side; self.hp = hp
+        maxHp = hp
         dir = -side
     }
-    /// speed, damage to a gate, coins knocked from the purse
-    var speed: Double { return kind == .bandit ? 38 : 70 }
-    var rob: Int { return kind == .bandit ? 3 : 4 }
+    var speed: Double {
+        switch kind {
+        case .bandit: return 38
+        case .rider: return 70
+        case .boss: return 28
+        }
+    }
+    /// coins knocked from the purse
+    var rob: Int {
+        switch kind {
+        case .bandit: return 3
+        case .rider: return 4
+        case .boss: return 5
+        }
+    }
+    var gateDmg: Double { return kind == .boss ? 4 : 2 }
+}
+
+/// A signpost that sells one upgrade at a time.
+final class Shop {
+    let k: BType
+    var paid = 0
+    var inc = 0
+    var idle = 0.0
+    init(_ k: BType) { self.k = k }
+}
+struct ShopItem { let key: String; let cost: Int; let name: String; let text: String }
+let SHOP: [BType: [ShopItem]] = [
+    .guard: [ShopItem(key: "quiver", cost: 6, name: "Quiver", text: "Nine arrows instead of six."),
+             ShopItem(key: "fire", cost: 10, name: "Fire arrows", text: "Every arrow bites twice as hard."),
+             ShopItem(key: "falcon", cost: 12, name: "Falcon", text: "It shows you where raiders are gathering.")],
+    .pen: [ShopItem(key: "saddle", cost: 8, name: "Racing saddle", text: "A faster camel."),
+           ShopItem(key: "racer", cost: 14, name: "Racing camel", text: "Faster still, at a full gallop.")]
+]
+
+/// The trade caravan: in from the west every third day, a stop at the bazaar, then on to the river.
+final class Caravan {
+    var x: Double
+    var stopped = false
+    var leaving = false
+    var t = 0.0
+    var ph = 0.0
+    var paid = 0
+    var inc = 0
+    var sold = false
+    var idle = 0.0
+    init(x: Double) { self.x = x }
+}
+
+/// Someone shopping in the bazaar: for show only.
+final class Stroller: Walker {
+    let id: Int
+    var x: Double
+    var dir = 1.0
+    var walk = 0.0
+    var moving = false
+    var wait = 0.0
+    var tx: Double
+    var hidden = true
+    init(id: Int, x: Double) { self.id = id; self.x = x; tx = x }
+}
+
+struct SaveData: Codable {
+    var day: Int
+    var coins: Int
+    var bank: Int
+    var levels: [Int]
+    var roles: [Int]
+    var herd: Int
+    var up: [String]
+    var urns: [Bool]
+    var seen: [String]
 }
 
 final class Goat: Walker {
@@ -248,7 +322,7 @@ final class Urn {
 }
 
 struct Camp { let x: Double; let cap: Int }
-struct Arrow { var x: Double; var h: Double; var vx: Double; var vh: Double; var life: Double; var mine: Bool }
+struct Arrow { var x: Double; var h: Double; var vx: Double; var vh: Double; var life: Double; var mine: Bool; var fire = false }
 struct Part {
     var x: Double
     var h: Double
@@ -306,5 +380,9 @@ let HINTS: [String: String] = [
     "cap": "Rebuild the well first. Then the town can rise higher.",
     "hare": "A desert hare. Run it down or shoot it for two coins.",
     "hare2": "Two coins for the hare.",
-    "relic": "A digger struck something old. Extra gold at the quarry."
+    "relic": "A digger struck something old. Extra gold at the quarry.",
+    "bank1": "The treasury. Coins tossed here are safe from raiders, and building work is paid from it first.",
+    "caravan": "A caravan is coming in from the west. It pays the bazaar, and a coin or four hires its guard.",
+    "merc": "A caravan guard takes your coin and stays.",
+    "warlord": "The warlord is down. His purse is yours."
 ]

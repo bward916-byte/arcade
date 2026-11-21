@@ -2,7 +2,7 @@
 
 A Swift rewrite of part of `dunefall/index.html`: the title screen and the first town (ride, toss coins, recruit nomads, rebuild, hold off the night raids). No web view: the game logic is in `Sources/Game.swift` and every shape is drawn with CoreGraphics in `Sources/Draw.swift`.
 
-Not in the trial: towns 2 to 5, cutscenes, weather, the tomb, fishing, the shop upgrades, the treasury, saving, music.
+Stage 1 of the full conversion adds the treasury, the upgrade signposts, the trade caravan, the warlord, the bazaar crowd, music, saving at each dawn, a pause menu, haptics and game-controller support. Still to port: the far sites and the dock, towns 2 to 5 and their bosses, cutscenes, weather, the tomb, fishing.
 
 - Bundle ID `com.brianward.dunefall`, team `55NAZA6UKE`, iPhone only, landscape only.
 - The Xcode project is generated from `project.yml` by XcodeGen (`xcodegen generate`), so there is no `.xcodeproj` in the repo.

@@ -125,5 +125,40 @@ final class Sound {
     func rob() { tone(300, 0.3, 3, 0.07, 90); noise(0.2, 0.2, 900, 1) }
     func urn() { noise(0.18, 0.2, 1500, 2); run([7, 9, 10], 0.12, 1, 0.05, 0.06) }
     func gate(_ v: Double) { noise(0.12, 0.25 * v, 220, 1) }
+    func falcon() { tone(2300, 0.28, 0, 0.04, 1500); tone(2500, 0.22, 0, 0.03, 1700, 0.3) }
+
+    // ---------- music: one sequencer, a different pattern for day, dusk, night and a raid
+    private var seqT = 0.0
+    private var seqI = 0
+    private var noteI = 3
+    private let patterns: [(Double, [Character], Double)] = [
+        (0.2, Array("D..t..D.t...D.t."), 0.42), (0.3, Array("D.....t...D....."), 0.3),
+        (0.42, Array("........D......."), 0.16), (0.15, Array("D.DtD.t.D.DtDtt."), 0.34)
+    ]
+    /// mode: 0 day, 1 dusk, 2 night, 3 raid. `dv` is how loud the day drum is (nearer the bazaar, louder).
+    func music(_ now: Double, _ mode: Int, _ dv: Double) {
+        if muted || !running || now < seqT { return }
+        let m = patterns[max(0, min(3, mode))]
+        seqT = (seqT < now - 1 ? now : seqT) + m.0
+        seqI = (seqI + 1) % 16
+        let ch = m.1[seqI]
+        let raid = mode == 3
+        if ch == "D" { tone(raid ? 70 : 94, 0.15, 0, 0.1 * dv, raid ? 44 : 56) } else if ch == "t" { noise(0.03, 0.05 * dv, 3000, 2) }
+        if seqI == 0 {
+            if raid { tone(73.4, 2.3, 3, 0.028); tone(77.8, 2.3, 3, 0.016) } else if mode == 2 { tone(73.4, 3, 0, 0.035) } else if mode == 1 { tone(73.4, 2.6, 0, 0.04) }
+        }
+        if Double.random(in: 0..<1) < m.2 && (!raid || seqI % 2 == 0) {
+            let steps = [-2, -1, -1, 1, 1, 2]
+            noteI = max(raid ? 0 : 1, min(raid ? 5 : HIJAZ.count - 1, noteI + steps[Int.random(in: 0..<6)]))
+            let f = HIJAZ[noteI]
+            switch mode {
+            case 0: tone(f, 0.5, 1, 0.04); tone(f * 2.003, 0.25, 0, 0.012)
+            case 1: tone(f * 2, 1.3, 0, 0.035, f * 2.01); tone(f * 2 * 1.006, 1.3, 0, 0.014)
+            case 2: tone(f * 2, 1.6, 0, 0.022, f * 2.004)
+            default: tone(f, 0.22, 3, 0.03); tone(f * 0.5, 0.22, 2, 0.012)
+            }
+        }
+    }
+
     func gong() { tone(98, 2.2, 0, 0.12); tone(147.5, 2, 0, 0.06); tone(246, 1.2, 1, 0.03) }
 }
