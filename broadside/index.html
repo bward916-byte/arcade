@@ -1922,8 +1922,10 @@ function overlay(){
   let lines;
   if(mode==='intro'){const fs=Math.min(64,cw*0.13);ctx.font='bold '+fs+'px Georgia';ctx.fillStyle='rgba(0,0,0,0.55)';ctx.fillText('BROADSIDE',cw/2+2,ch*0.26+3);{const tg=ctx.createLinearGradient(0,ch*0.26-fs,0,ch*0.26);tg.addColorStop(0,'#fff3c4');tg.addColorStop(0.55,'#ffd27a');tg.addColorStop(1,'#b8862c');ctx.fillStyle=tg;}ctx.fillText('BROADSIDE',cw/2,ch*0.26);ctx.strokeStyle='rgba(216,184,106,0.8)';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(cw/2-fs*2.2,ch*0.26+14);ctx.lineTo(cw/2-12,ch*0.26+14);ctx.moveTo(cw/2+12,ch*0.26+14);ctx.lineTo(cw/2+fs*2.2,ch*0.26+14);ctx.stroke();ctx.fillStyle='#ffd27a';ctx.save();ctx.translate(cw/2,ch*0.26+14);ctx.rotate(Math.PI/4);ctx.fillRect(-4,-4,8,8);ctx.restore();ctx.fillStyle='#f4e6c8';ctx.font='16px Georgia';
     lines=['From a pier and a fishing line to a ship of your own.','Fish and trade · build the island · hold off the night raids','Hire a crew · sail the chart · fight, board and duel'];
-    const hs=hasSave(),nb=hs?3:2,bw=Math.min(150,(cw-40-(nb-1)*12)/nb),by=Math.min(ch-60,ch*0.4+lines.length*24+14),tot=nb*bw+(nb-1)*12,x0=cw/2-tot/2;introBtns=[];if(hs)introBtns.push({id:'cont',x:x0,y:by,w:bw,h:44,l:'CONTINUE'});introBtns.push({id:'play',x:x0+(hs?bw+12:0),y:by,w:bw,h:44,l:hs?'NEW GAME':'BEGIN'},{id:'demo',x:x0+(hs?2:1)*(bw+12),y:by,w:bw,h:44,l:'WATCH DEMO'});
-    for(const b of introBtns){ctx.fillStyle=(b.id==='play'&&!hs)||b.id==='cont'?'rgba(216,184,106,0.3)':'rgba(5,12,20,0.6)';ctx.fillRect(b.x,b.y,b.w,b.h);ctx.strokeStyle='#d8b86a';ctx.lineWidth=2;ctx.strokeRect(b.x+.5,b.y+.5,b.w-1,b.h-1);ctx.fillStyle='#f4e6c8';ctx.font='bold 16px Georgia';ctx.textAlign='center';ctx.fillText(b.l,b.x+b.w/2,b.y+28);}}
+    const hs=hasSave(),nb=hs?3:2,labs=[];if(hs)labs.push(['cont','CONTINUE']);labs.push(['play',hs?'NEW GAME':'BEGIN'],['demo','WATCH DEMO']);introBtns=[];const top=ch*0.4+lines.length*24-4;
+    if(cw>=nb*160+(nb-1)*16+32){const bw=160,tot=nb*bw+(nb-1)*16,x0=cw/2-tot/2,by=Math.min(ch-56,top);labs.forEach((l,k)=>introBtns.push({id:l[0],x:x0+k*(bw+16),y:by,w:bw,h:44,l:l[1]}));}
+    else{const bw=Math.min(260,cw-48),bh=Math.max(34,Math.min(44,(ch-top-12)/nb-10)),by=Math.min(top,ch-12-nb*(bh+10));labs.forEach((l,k)=>introBtns.push({id:l[0],x:cw/2-bw/2,y:by+k*(bh+10),w:bw,h:bh,l:l[1]}));}
+    for(const b of introBtns){ctx.fillStyle=(b.id==='play'&&!hs)||b.id==='cont'?'rgba(216,184,106,0.3)':'rgba(5,12,20,0.6)';ctx.fillRect(b.x,b.y,b.w,b.h);ctx.strokeStyle='#d8b86a';ctx.lineWidth=2;ctx.strokeRect(b.x+.5,b.y+.5,b.w-1,b.h-1);ctx.fillStyle='#f4e6c8';ctx.font='bold 16px Georgia';ctx.textAlign='center';ctx.fillText(b.l,b.x+b.w/2,b.y+b.h/2+6,b.w-16);}}
   else if(mode==='arrived'){const home=V.leg==='home';if(!home&&V.profit===undefined){V.profit=20+V.crew.length*4+cargoValue(V.cargo||{},V.prices||{});}ctx.font='bold 40px Georgia';ctx.fillText(home?'HOME':(V.dest||'Tortuga Cay').toUpperCase(),cw/2,ch*0.3);ctx.font='18px Georgia';
     lines=home?[`Home on day ${V.day} with ${V.crew.length} crew and ${V.gold} gold.`,'','Tap to go ashore']:[`Made port on day ${V.day} with ${V.crew.length} crew.`,`Cargo sold and shares paid: +${V.profit} gold  (${V.gold+V.profit} aboard)`,`Hull ${Math.round(V.hull)} · Sails ${Math.round(V.sails)} — refitted in port`,'','Tap to sail for home'];}
   else{ctx.font='bold 46px Georgia';ctx.fillText(enemy&&player.hp<=0?'YOU WERE SUNK':'LOST AT SEA',cw/2,ch*0.3);ctx.font='18px Georgia';
@@ -2029,9 +2031,9 @@ const STEPS=[
  {d:2.5,cap:'That is Broadside. Tap to play.'},
 ];
 function nextStep(){if(mode!=='battle')input.fire=false;if(!demo)return;demo.i++;demo.t=0;demo.acted=false;demo.dwell=0;demo.ptr.press=false;input.left=input.right=0;if(demo.i>=STEPS.length){stopDemo();return;}const s=STEPS[demo.i];demo.cap=s.cap;if(!s.target&&!s.tick)demo.ptr.show=false;if(s.on)s.on();}
-function demoTick(dt){if(!demo)return;if(mode==='over'){stopDemo();return;}const s=STEPS[demo.i];if(!s)return;demo.t+=dt;const P=demo.ptr;P.pressT=Math.max(0,P.pressT-dt);
-  if(s.target&&!demo.acted){const tg=s.target();if(tg){P.show=true;const dx=tg.x-P.x,dy=tg.y-P.y,dist=Math.hypot(dx,dy),step=Math.min(dist,(520+dist*5)*dt);if(dist>1){P.x+=dx/dist*step;P.y+=dy/dist*step;}
-      if(dist<6){demo.dwell+=dt;if(demo.dwell>0.2){P.pressT=0.3;s.act();demo.acted=true;}}}}
+function demoTick(dt){if(!demo)return;if(mode==='over'){stopDemo();return;}const s=STEPS[demo.i];if(!s)return;demo.t+=dt*0.62;const P=demo.ptr;P.pressT=Math.max(0,P.pressT-dt);
+  if(s.target&&!demo.acted){const tg=s.target();if(tg){P.show=true;const dx=tg.x-P.x,dy=tg.y-P.y,dist=Math.hypot(dx,dy),step=Math.min(dist,(300+dist*3)*dt);if(dist>1){P.x+=dx/dist*step;P.y+=dy/dist*step;}
+      if(dist<6){demo.dwell+=dt;if(demo.dwell>0.4){P.pressT=0.3;s.act();demo.acted=true;}}}}
   if(s.tick)s.tick(dt);
   if(demo&&demo.t>=s.d&&(!s.target||demo.acted))nextStep();
   if(demo&&mode==='voyage'&&demo.i<22)V.eventT=9999;if(demo&&mode==='battle'&&player.hp<35)player.hp=35;}
