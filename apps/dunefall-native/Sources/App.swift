@@ -349,6 +349,7 @@ final class GameViewController: UIViewController {
             if args.contains("-demo-night") { game.demo("night") }
             if args.contains("-demo-port") { game.demo("port") }
             if args.contains("-demo-oasis") { game.demo("oasis") }
+            if args.contains("-demo-desert") { game.demo("desert") }
             if args.contains("-demo-econ") {
                 let bot = Game()
                 bot.W = game.W; bot.H = game.H; bot.GY = game.GY

@@ -511,11 +511,15 @@ final class Game {
             b.robbed = false
             if b.def.gate { b.hp = GHP[b.level] }
         }
-        if B(.sphinx).level > 0 { for _ in 0..<2 { coin(B(.sphinx).x + 70, 4, rnd(-20, 20), rnd(40, 70), true) }; income.append("sphinx 2") }
+        let sphN = 2 * B(.sphinx).level
+        if sphN > 0 { for _ in 0..<sphN { coin(B(.sphinx).x + 70, 4, rnd(-20, 20), rnd(40, 70), true) }; income.append("sphinx \(sphN)") }
+        if B(.well).level >= 3 { for _ in 0..<2 { coin(WELL_X + 6, 8, rnd(-16, 16), rnd(40, 60), true) }; income.append("fountain 2") }
         if B(.dock).level > 0 { for _ in 0..<2 { coin(B(.dock).x + 34, 6, rnd(-16, 16), rnd(40, 60), true) }; income.append("dock 2") }
-        if B(.btemple).level > 0 { for _ in 0..<3 { coin(B(.btemple).x + 45, 6, rnd(-20, 20), rnd(40, 60), true) }; income.append("old temple 3") }
+        let btN = 3 * B(.btemple).level
+        if btN > 0 { for _ in 0..<btN { coin(B(.btemple).x + 45, 6, rnd(-20, 20), rnd(40, 60), true) }; income.append("old temple \(btN)") }
         if relics.contains("scarab") { for _ in 0..<3 { coin(player.x, 16, rnd(-20, 20), rnd(40, 70), true) }; income.append("scarab 3") }
-        if B(.grove).level > 0 { for _ in 0..<(lush ? 6 : 3) { coin(OASIS + rnd(-20, 20), 18, rnd(-14, 14), rnd(20, 50), true) }; income.append("dates \(lush ? 6 : 3)") }
+        let dates = 3 * B(.grove).level * (lush ? 2 : 1)
+        if dates > 0 { for _ in 0..<dates { coin(OASIS + rnd(-30, 30), 18, rnd(-14, 14), rnd(20, 50), true) }; income.append("dates \(dates)") }
         lush = false; omen = false
         var goats = 0
         for c in herd {
@@ -561,12 +565,12 @@ final class Game {
         for i in 0..<n {
             let odd = town > 0 ? (i % 3 != 0) : (i % 2 != 0)
             let side = odd ? s0 : -s0
-            if side < 0 && sph && i % 2 == 1 { continue }
+            if side < 0 && sph && (B(.sphinx).level > 1 ? (i % 3 != 0) : (i % 2 == 1)) { continue }
             raid.append(RaidPlan(t: 0.74 + rnd(0, 0.09), side: side, kind: (d >= 4 && i % 3 == 2) ? .rider : .bandit, hp: d >> 3))
         }
         if boss { raid.append(RaidPlan(t: 0.79, side: port ? 1 : s0, kind: .boss, hp: d >> 2, boat: port)) }
         if port { for i in 0..<3 { raid.append(RaidPlan(t: 0.795 + Double(i) * 0.006, side: 1, kind: .bandit, hp: d >> 3, boat: true)) } }
-        let dead = B(.tomb).level > 0 && ln % 3 == 0
+        let dead = B(.tomb).level == 1 && ln % 3 == 0
         if dead { for i in 0..<min(2 + (ln >> 2), 5) { raid.append(RaidPlan(t: 0.75 + Double(i) * 0.02, side: -1, kind: .mummy, hp: d >> 3)) } }
         hadNight = true; nightN = raid.count; nightDown = 0; nightGates = 0; nightLost = 0
         let know = B(.temple).level > 0
@@ -704,6 +708,7 @@ final class Game {
         switch b.type {
         case .gw, .ge:
             b.hp = GHP[L]; hint("gate")
+            if L == 4 { hint("gate4", again: true) }
         case .market:
             hint("market\(L)")
             if L == 1 { showScene("bazaar", "The bazaar is open again.", 3.6, 1.25, b.mid) }
@@ -719,18 +724,26 @@ final class Game {
             if L == 1 { showScene("temple", "The temple lamps are lit again.", 3.6, 1.25, b.mid) }
         case .dock: hint("dock1")
         case .sphinx:
-            hint("sphinx1")
-            showScene("sphinx", "The Sphinx looks east again.", 3.4, 1.3, b.mid)
+            hint("sphinx\(L)", again: true)
+            if L == 1 { showScene("sphinx", "The Sphinx looks east again.", 3.4, 1.3, b.mid) }
         case .tomb:
-            ankh = true
-            for _ in 0..<18 { coin(b.x + 25, 6, rnd(-50, 50), rnd(60, 110), true) }
-            hint("tomb1")
-            showScene("tomb", "Gold, an ankh, and something that should have stayed asleep.", 4.5, 1.3, b.mid + 30)
-        case .grove: hint("grove1")
+            if L == 1 {
+                ankh = true
+                for _ in 0..<18 { coin(b.x + 25, 6, rnd(-50, 50), rnd(60, 110), true) }
+                hint("tomb1")
+                showScene("tomb", "Gold, an ankh, and something that should have stayed asleep.", 4.5, 1.3, b.mid + 30)
+            } else {
+                for r in raiders where r.kind == .mummy { r.dead = true; dust(r.x, 6, 16, Col(0xd8d0b8)) }
+                raiders.removeAll { $0.dead }
+                hint("tomb2", again: true)
+            }
+        case .grove: hint("grove\(L)", again: true)
         case .btemple:
-            for _ in 0..<20 { coin(b.x + 45, 8, rnd(-60, 60), rnd(60, 120), true) }
-            hint("btemple1")
-            showScene("btemple", "A temple nobody has seen for a thousand years.", 3.8, 1.3, b.mid)
+            if L == 1 {
+                for _ in 0..<20 { coin(b.x + 45, 8, rnd(-60, 60), rnd(60, 120), true) }
+                showScene("btemple", "A temple nobody has seen for a thousand years.", 3.8, 1.3, b.mid)
+            }
+            hint("btemple\(L)", again: true)
         case .hermit: break
         }
     }
@@ -1740,7 +1753,7 @@ final class Game {
             g.acd -= dt
             let sd: Double = g.type == .gw ? -1 : 1
             if g.acd <= 0, raiders.contains(where: { $0.state == .raid && ($0.x - g.x) * sd > 0 && abs($0.x - g.x) < 110 }) {
-                g.acd = 1.3
+                g.acd = g.level > 3 ? 0.8 : 1.3
                 arrows.append(Arrow(x: g.x + 7, h: 36, vx: sd * 250, vh: -58, life: 0.46, mine: false))
                 snd?.arrow(near(g.x) * 0.6)
             }
@@ -1925,6 +1938,18 @@ final class Game {
 
     // ---------- set scenes for the simulator screenshots
     func demo(_ k: String) {
+        if k == "desert" {
+            reset(0)
+            state = .play
+            t = 0.3
+            relics.insert("lamp")
+            for bt in [BType.sphinx, .gw] { B(bt).level = 2 }
+            B(.gw).hp = GHP[2]
+            player.x = 760
+            player.coins = 9
+            cam = clampD(player.x - W / 2 + 24, 0, WORLD - W)
+            return
+        }
         if k == "oasis" {
             reset(1)
             state = .play

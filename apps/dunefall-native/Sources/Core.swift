@@ -63,17 +63,17 @@ let DEF: [BType: Def] = [
     .tea: Def(name: "TEAHOUSE", w: 66, cost: [6, 10, 16], pay: 2, tier: true, tool: nil, gate: false, h: [12, 34, 44, 50]),
     .guard: Def(name: "BARRACKS", w: 60, cost: [8, 12, 18, 26], pay: 0, tier: true, tool: .guard, gate: false, h: [14, 32, 52, 62, 66]),
     .pen: Def(name: "CAMEL YARD", w: 72, cost: [6, 12, 18], pay: 0, tier: true, tool: .herder, gate: false, h: [10, 24, 28, 34]),
-    .well: Def(name: "WELL", w: 30, cost: [10, 22], pay: 0, tier: false, tool: nil, gate: false, h: [10, 22, 78]),
+    .well: Def(name: "WELL", w: 30, cost: [10, 22, 34], pay: 0, tier: false, tool: nil, gate: false, h: [10, 22, 78, 78]),
     .temple: Def(name: "TEMPLE", w: 72, cost: [12, 18, 26], pay: 4, tier: true, tool: nil, gate: false, h: [16, 46, 58, 66]),
-    .gw: Def(name: "WEST GATE", w: 14, cost: [4, 8, 14], pay: 0, tier: true, tool: nil, gate: true, h: [4, 16, 26, 36]),
-    .ge: Def(name: "EAST GATE", w: 14, cost: [4, 8, 14], pay: 0, tier: true, tool: nil, gate: true, h: [4, 16, 26, 36]),
+    .gw: Def(name: "WEST GATE", w: 14, cost: [4, 8, 14, 22], pay: 0, tier: true, tool: nil, gate: true, h: [4, 16, 26, 36, 46]),
+    .ge: Def(name: "EAST GATE", w: 14, cost: [4, 8, 14, 22], pay: 0, tier: true, tool: nil, gate: true, h: [4, 16, 26, 36, 46]),
     .bank: Def(name: "TREASURY", w: 56, cost: [10, 16, 24], pay: 0, tier: true, tool: nil, gate: false, h: [12, 32, 40, 48]),
     .dock: Def(name: "DOCK", w: 56, cost: [20, 6], pay: 0, tier: false, tool: nil, gate: false, h: [8, 14, 14], far: true),
-    .sphinx: Def(name: "SPHINX", w: 84, cost: [10], pay: 0, tier: false, tool: nil, gate: false, h: [26, 40], far: true),
-    .tomb: Def(name: "TOMB", w: 50, cost: [14], pay: 0, tier: false, tool: nil, gate: false, h: [22, 22], far: true),
-    .grove: Def(name: "DATE GROVE", w: 70, cost: [5], pay: 0, tier: false, tool: nil, gate: false, h: [30, 36], far: true),
+    .sphinx: Def(name: "SPHINX", w: 84, cost: [10, 18], pay: 0, tier: false, tool: nil, gate: false, h: [26, 40, 40], far: true),
+    .tomb: Def(name: "TOMB", w: 50, cost: [14, 20], pay: 0, tier: false, tool: nil, gate: false, h: [22, 22, 22], far: true),
+    .grove: Def(name: "DATE GROVE", w: 70, cost: [5, 10, 16], pay: 0, tier: false, tool: nil, gate: false, h: [30, 36, 36, 36], far: true),
     .hermit: Def(name: "HERMIT", w: 44, cost: [6, 6, 6], pay: 0, tier: false, tool: nil, gate: false, h: [30, 30, 30, 30], far: true),
-    .btemple: Def(name: "BURIED TEMPLE", w: 90, cost: [12], pay: 0, tier: false, tool: nil, gate: false, h: [20, 46], far: true)
+    .btemple: Def(name: "BURIED TEMPLE", w: 90, cost: [12, 20], pay: 0, tier: false, tool: nil, gate: false, h: [20, 46, 50], far: true)
 ]
 
 // The five towns: each has its own street plan, its own country around it, and its own thing to find.
@@ -152,7 +152,7 @@ final class Ufo {
 struct Devil { var x: Double; var dir: Double; let a: Double; let b: Double }
 struct Rock { var x: Double; var dir: Double; var rot = 0.0; var t = 0.0; var dead = false }
 
-let GHP: [Double] = [0, 16, 34, 60]
+let GHP: [Double] = [0, 16, 34, 60, 90]
 
 protocol Walker: AnyObject {
     var x: Double { get set }
@@ -488,7 +488,14 @@ let HINTS: [String: String] = [
     "btemple0": "The storm has uncovered the top of something very old, west of town.",
     "hermit0": "A hermit. For six coins he parts with something old.",
     "relic_scarab": "A scarab. Three coins find you every dawn, in every town.",
-    "relic_lamp": "An old lamp. The hermit says it shows what is true.",
+    "relic_lamp": "An old lamp. It shows what is buried: every hidden urn glows, here and in every town, and is marked on the map.",
+    "well3": "A fountain garden at the well: two coins each dawn, and room for six more people.",
+    "sphinx2": "The Sphinx is restored and gilded. Four coins each dawn, and it turns back two in three raiders from the west.",
+    "tomb2": "The tomb is sealed with gold. The dead will not walk again.",
+    "grove2": "The grove is planted out: six coins of dates each dawn.",
+    "grove3": "A full orchard with drying racks: nine coins of dates each dawn.",
+    "btemple2": "The old temple is restored. Six coins each dawn.",
+    "gate4": "A fortified gatehouse: half again as strong, and its archers loose faster.",
     "relic_charm": "A storm charm. The haboob cannot push you or pick your purse.",
     "poison": "The well is poisoned. Your villagers earn nothing in the morning.",
     "poisoned": "The well ran foul last night: no coins from your villagers this morning.",

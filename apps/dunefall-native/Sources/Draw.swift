@@ -106,6 +106,7 @@ final class Renderer {
         let hz = skyAt(g.t).1
         sky()
         puffs()
+        skyLife()
         if g.shake > 0 { c.translate(rnd(-1, 1) * g.shake * 4, rnd(-1, 1) * g.shake * 3) }
         if g.zoom > 1.001 {
             let zx = clampD((g.scene?.fx ?? g.player.x) - cam, W * 0.25, W * 0.75)
@@ -119,10 +120,12 @@ final class Renderer {
         }
         dunes(0.12, 14, 16, Col.mix(Col(0xecd3a0), hz, 0.35), Col.mix(Col(0xc39c62), hz, 0.35), 1.3, 0.012, false)
         dunes(0.28, 6, 18, Col(0xebcd90), Col(0xbd9052), 4.1, 0.017, true)
+        farLife(hz)
         dunes(0.55, 0, 13, SAND, Col(0xb3854a), 7.7, 0.023, true)
         backTown(hz)
         ground()
         groundExtra()
+        critters()
         nile()
         nileExtra(hz)
         quarry()
@@ -973,6 +976,205 @@ final class Renderer {
         }
     }
 
+    /// A whirl of dust: a stack of rings that leans and wobbles, with grit orbiting it.
+    func devil(_ x: Double, _ base: Double, _ h: Double, _ a: Double, _ seed: Double) {
+        let n = max(5, Int(h / 3.2))
+        for q in 0..<n {
+            let k = Double(q) / Double(n)
+            let wob = sin(NOW * 6 + k * 7 + seed) * (1 + k * h * 0.09) + sin(NOW * 0.9 + seed) * k * h * 0.12
+            c.ell(x + wob, base - 1 - k * h, 1.4 + k * h * 0.2, 0.9 + k * h * 0.03, rgba(226, 196, 140, a * (1 - k * 0.55)))
+            if q % 2 == 0 { c.R(x + wob + cos(NOW * 9 + k * 11 + seed) * (2 + k * h * 0.22), base - 1 - k * h, 0.7, 0.5, rgba(150, 110, 60, min(1, a * 1.8))) }
+        }
+        c.ell(x, base + 0.4, 3 + h * 0.12, 0.9, rgba(226, 196, 140, a * 0.9))
+        c.ellStroke(x, base + 0.4, 4 + h * 0.16 + sin(NOW * 5 + seed) * 1.2, 1.1, 0.35, rgba(255, 240, 206, a * 0.8))
+    }
+
+    /// The far country: tall dust devils walking the dunes and a caravan on the ridge.
+    func farLife(_ hz: Col) {
+        if g.dark < 0.45 && g.rain == nil && g.storm == nil {
+            for i in 0..<2 {
+                let n = Double(i)
+                let span = W + 200
+                var fx = (hashN(n + 300) * span + NOW * (i == 0 ? 3.4 : -2.6) - cam * 0.28).truncatingRemainder(dividingBy: span)
+                if fx < 0 { fx += span }
+                devil(fx - 100, GY - 7 - n * 5, 50 - n * 14, 0.2, n * 9)
+            }
+        }
+        let span = W + 260
+        var x0 = (NOW * 1.1 - cam * 0.12).truncatingRemainder(dividingBy: span)
+        if x0 < 0 { x0 += span }
+        x0 -= 130
+        let col = Col.mix(Col(0x5a3e28), hz, 0.5)
+        let y = GY - 19.5
+        for i in 0..<5 {
+            let cx = x0 + Double(i) * 9
+            let st = sin(NOW * 2.4 + Double(i) * 1.3) * 0.9
+            c.ell(cx, y, 2.6, 1.2, col); c.circ(cx - 0.2, y - 1.3, 1, col); c.seg(cx + 2.2, y, cx + 3.4, y - 2.4, 0.6, col)
+            c.seg(cx - 1.6, y + 0.8, cx - 1.6 + st, y + 3.4, 0.45, col); c.seg(cx + 1.6, y + 0.8, cx + 1.6 - st, y + 3.4, 0.45, col)
+            if i % 2 == 0 { c.R(cx - 0.6, y - 4.2, 1.2, 2.6, col) }
+        }
+    }
+
+    /// Vultures on the thermals by day; bats at dusk; shooting stars and fireflies at night.
+    func skyLife() {
+        if g.dark < 0.35 {
+            let cx = W * 0.24 - (cam * 0.02).truncatingRemainder(dividingBy: 40), cy = GY * 0.3
+            for i in 0..<3 {
+                let a = NOW * 0.32 + Double(i) * 2.1
+                let vx = cx + cos(a) * (26 + Double(i) * 6), vy = cy + sin(a) * 7 - Double(i) * 5
+                let span = 4.4 + sin(a) * 1.6
+                c.seg(vx - span, vy - 1.2, vx, vy, 0.6, rgba(40, 28, 20, 0.7)); c.seg(vx, vy, vx + span, vy - 1.2, 0.6, rgba(40, 28, 20, 0.7)); c.R(vx - 0.4, vy - 0.3, 0.8, 0.8, rgba(40, 28, 20, 0.7))
+            }
+        }
+        if g.dark > 0.25 && g.dark < 0.95 {
+            for i in 0..<5 {
+                let n = Double(i)
+                let bx = g.WELL_X - cam + sin(NOW * 1.5 + n * 2.3) * 120 + cos(NOW * 3.7 + n) * 14
+                let by = GY - 62 + sin(NOW * 2.7 + n * 1.7) * 16
+                let flap = sin(NOW * 22 + n) * 1.8
+                c.poly(rgba(20, 14, 24, 0.8), [bx - 3.4, by - flap, bx - 1.2, by + 0.6, bx, by - 0.6, bx + 1.2, by + 0.6, bx + 3.4, by - flap, bx, by + 1.2])
+            }
+        }
+        if g.dark > 0.7 {
+            let cyc = NOW * 0.12
+            let ph = cyc - floor(cyc)
+            if ph < 0.07 {
+                let k = ph / 0.07
+                let sx = hashN(floor(cyc) + 1) * W * 0.8 + k * 60, sy = 8 + hashN(floor(cyc) + 2) * GY * 0.3 + k * 16
+                c.linear(sx - 26, sy - 9, 28, 12, sx - 24, sy - 6.4, sx, sy, [(0, rgba(255, 255, 255, 0)), (1, rgba(255, 250, 230, 0.9 * (1 - k)))])
+                c.seg(sx - 22, sy - 5.9, sx, sy, 0.6, rgba(255, 250, 230, 0.8 * (1 - k)))
+                c.R(sx - 0.6, sy - 0.6, 1.4, 1.4, rgba(255, 255, 255, 1 - k))
+            }
+        }
+    }
+
+    /// The small things you only see if you look: snakes, scorpions, beetles, lizards, bones, burrows, a fox at night.
+    func critters() {
+        if g.storm != nil { return }
+        var i = Int(floor(cam / 90)) - 1
+        let last = Int((cam + W) / 90) + 1
+        while i <= last {
+            let n = Double(i)
+            i += 1
+            let wx = n * 90 + hashN(n + 200) * 60
+            if wx < 60 || wx > g.NILE - 50 || (wx > g.TOWN.0 - 40 && wx < g.TOWN.1 + 40) { continue }
+            if abs(wx - g.QUARRY) < 70 || g.zoneOf(wx) != nil || (g.OASIS > 0 && abs(wx - g.OASIS) < 95) { continue }
+            if g.camps.contains(where: { abs($0.x - wx) < 60 }) { continue }
+            let x = wx - cam
+            let y = GY + 5 + hashN(n + 202) * (H - GY - 20)
+            let night = g.dark > 0.6
+            switch Int(hashN(n + 201) * 11) {
+            case 0:
+                // a sidewinder, and the marks it leaves
+                if night { break }
+                let sx = x + sin(NOW * 0.25 + n) * 20
+                for q in 0..<4 { c.seg(sx - 10 - Double(q) * 6, y + 1.6, sx - 6.5 - Double(q) * 6, y - 1.2, 0.4, rgba(120, 80, 30, 0.28)) }
+                var px = sx - 8.0, py = y
+                for q in 1..<10 {
+                    let k = Double(q)
+                    let nx = sx - 8 + k * 1.9, ny = y + sin(k * 1.1 + NOW * 5) * 1.5
+                    c.seg(px, py, nx, ny, 1 - k * 0.04, q % 2 == 0 ? Col(0xb89a5a) : Col(0x8a6a3a))
+                    px = nx; py = ny
+                }
+                c.ell(px + 0.8, py, 1.3, 0.9, Col(0x8a6a3a)); c.R(px + 1.2, py - 0.5, 0.4, 0.4, Col(0x1c1008))
+                if sin(NOW * 4 + n) > 0.7 { c.seg(px + 2, py, px + 3.6, py + 0.3, 0.25, RED) }
+            case 1:
+                // a scorpion that scuttles a little and stops
+                let step = floor(NOW * 0.6 + n)
+                let sx = x + (hashN(step + n) - 0.5) * 16
+                let dk = Col(0x3a2a14)
+                c.ell(sx, y, 2, 1, dk); c.ell(sx - 2.2, y, 1, 0.7, dk)
+                c.curve(sx - 3, y, sx - 5.4, y - 1, sx - 4.4, y - 3.4 + sin(NOW * 3 + n) * 0.4, 0.6, dk); c.R(sx - 4.2, y - 4.2 + sin(NOW * 3 + n) * 0.4, 0.8, 0.8, Col(0x7a4a1a))
+                c.seg(sx + 1.6, y - 0.4, sx + 3.4, y - 1.4, 0.45, dk); c.seg(sx + 1.6, y + 0.4, sx + 3.4, y + 1.2, 0.45, dk)
+                for q in 0..<3 { c.seg(sx - 0.8 + Double(q), y + 0.6, sx - 1.2 + Double(q), y + 1.8, 0.25, dk) }
+            case 2:
+                // a scarab rolling its ball
+                if night { break }
+                let u = (NOW * 2.4 + n * 30).truncatingRemainder(dividingBy: 50)
+                let bx = x - 25 + u
+                c.circ(bx, y - 1.4, 1.6, Col(0x6a4a2a)); c.R(bx + cos(u * 1.3) * 1, y - 1.6 + sin(u * 1.3) * 1, 0.5, 0.5, Col(0x8a6a44))
+                c.ell(bx - 2.6, y - 0.8, 1.4, 1, Col(0x1c2a3a)); c.R(bx - 3, y - 1.6, 0.6, 0.4, Col(0x4a8ab8))
+                for q in 0..<3 { c.R(bx - 6 - Double(q) * 3, y, 1.2, 0.3, rgba(120, 80, 30, 0.25)) }
+            case 3:
+                // a lizard on a warm rock
+                c.ell(x, y + 0.4, 5.4, 1, rgba(60, 34, 8, 0.25)); c.poly(Col(0xa8875a), [x - 5, y, x - 3, y - 3.4, x + 2, y - 4, x + 5, y]); c.poly(Col(0xc8a878), [x - 3, y - 3.4, x + 2, y - 4, x + 1, y - 2.6, x - 2.4, y - 2.2])
+                if !night {
+                    let cyc = NOW * 0.09 + n
+                    let u = cyc - floor(cyc)
+                    let lx = x - 1 + (u < 0.85 ? 0 : (u - 0.85) / 0.15 * 22), ly = u < 0.85 ? y - 4 : y - 0.6
+                    c.R(lx - 2, ly - 0.6, 4, 1, Col(0x7a8a4a)); c.R(lx + 1.8, ly - 0.9, 1.4, 1.1, Col(0x7a8a4a)); c.seg(lx - 2, ly, lx - 4.6, ly + 0.5, 0.4, Col(0x7a8a4a)); c.R(lx + 2.6, ly - 0.7, 0.3, 0.3, Col(0x1c1008))
+                }
+            case 4:
+                // old bones
+                c.ell(x, y, 2.6, 2, Col(0xece6d6)); c.R(x - 1.4, y - 0.4, 0.9, 0.9, Col(0x4a4034)); c.R(x + 0.5, y - 0.4, 0.9, 0.9, Col(0x4a4034)); c.R(x - 1.2, y + 1.4, 2.4, 0.8, Col(0xd8d0bc))
+                c.seg(x - 4.4, y - 0.6, x - 6.4, y - 4, 0.5, Col(0xece6d6))
+                for q in 0..<4 { c.arcStroke(x + 6 + Double(q) * 2.2, y + 1.6, 2.4, PI * 1.05, PI * 1.9, 0.45, Col(0xe0d8c4)) }
+            case 5:
+                // shards and stones
+                for q in 0..<4 {
+                    let k = Double(q)
+                    let sx = x - 6 + hashN(n + k * 3) * 12, sy = y - 1 + hashN(n + k * 5) * 3
+                    c.ell(sx + 0.6, sy + 0.8, 1.8, 0.5, rgba(60, 34, 8, 0.22))
+                    if q % 2 == 0 { c.poly(Col(0xb5673a), [sx - 1.4, sy + 0.6, sx, sy - 1.4, sx + 1.6, sy + 0.4]); c.R(sx - 0.4, sy - 0.2, 0.8, 0.3, LAPIS) } else { c.ell(sx, sy, 1.6, 1, Col(0x9a8262)); c.R(sx - 0.8, sy - 0.8, 1, 0.3, Col(0xc8b088)) }
+                }
+            case 6:
+                // a jerboa: a burrow by day, and out hopping at night
+                c.ell(x, y, 2.4, 0.9, Col(0x3a2814)); c.ell(x, y - 0.6, 3.6, 0.7, Col(0xd4ad6c))
+                if night {
+                    let u = (NOW * 0.9 + n).truncatingRemainder(dividingBy: 2)
+                    let jx = x + 6 + (u < 1 ? u : 2 - u) * 22, hop = abs(sin(NOW * 9 + n)) * 2.6
+                    c.ell(jx, y - 1.6 - hop, 1.5, 1.2, Col(0xc8a070)); c.circ(jx + 1.3, y - 2.6 - hop, 0.8, Col(0xc8a070)); c.R(jx + 1.2, y - 4.2 - hop, 0.4, 1.4, Col(0xc8a070))
+                    c.curve(jx - 1.4, y - 1.4 - hop, jx - 4, y - 0.6 - hop, jx - 5, y - 2.4 - hop, 0.3, Col(0xc8a070)); c.seg(jx - 0.2, y - 0.6 - hop, jx + 0.6, y + 0.4, 0.3, Col(0xc8a070))
+                }
+            case 7:
+                // a fennec that watches you at night; by day, just its tracks
+                if night {
+                    c.poly(Col(0xc89c64), [x - 2.4, y, x - 1.6, y - 4.4, x + 1.6, y - 4.4, x + 2.4, y]); c.ell(x, y - 5, 1.9, 1.5, Col(0xd8b07a))
+                    let tw = sin(NOW * 0.9 + n) > 0.8 ? 0.6 : 0.0
+                    c.poly(Col(0xd8b07a), [x - 1.8, y - 5.6, x - 2.6 - tw, y - 9, x - 0.4, y - 6.2]); c.poly(Col(0xd8b07a), [x + 1.8, y - 5.6, x + 2.6 + tw, y - 9, x + 0.4, y - 6.2])
+                    if sin(NOW * 0.7 + n) < 0.95 { c.R(x - 1.1, y - 5.4, 0.6, 0.6, Col(0xd8ffb0)); c.R(x + 0.5, y - 5.4, 0.6, 0.6, Col(0xd8ffb0)) }
+                    c.curve(x + 2, y - 0.6, x + 5, y - 0.4, x + 5.4, y - 2.6, 1.1, Col(0xc89c64))
+                } else {
+                    for q in 0..<6 { c.R(x - 10 + Double(q) * 4, y + (q % 2 == 0 ? 0 : 0.9), 0.9, 0.6, rgba(120, 80, 30, 0.3)) }
+                }
+            case 8:
+                // dry brush that rolls when the wind takes it
+                let u = (NOW * 9 + n * 50).truncatingRemainder(dividingBy: 120)
+                let bx = x - 60 + u, hop = abs(sin(u * 0.35)) * 2.4
+                c.ell(bx, y + 0.6, 2.6, 0.6, rgba(60, 34, 8, 0.2))
+                for q in 0..<6 { let a = u * 0.5 + Double(q) * PI / 3; c.seg(bx, y - 2.4 - hop, bx + cos(a) * 2.6, y - 2.4 - hop + sin(a) * 2.6, 0.35, Col(0x9a8448)) }
+                c.ellStroke(bx, y - 2.4 - hop, 2.4, 2.4, 0.3, Col(0x8a7438))
+            case 9:
+                // a small whirl of dust that comes and goes
+                let cyc = NOW * 0.07 + hashN(n + 7)
+                let u = cyc - floor(cyc)
+                if u < 0.3 && !night && g.rain == nil { devil(x + (u / 0.3 - 0.5) * 34, y, 10 + sin(PI * u / 0.3) * 5, 0.36 * sin(PI * u / 0.3), n) }
+            default:
+                // a tortoise going about its day, slowly
+                if night { break }
+                let u = (NOW * 0.5 + n * 9).truncatingRemainder(dividingBy: 60)
+                let tx = x - 30 + u
+                c.dome(tx, y, 2.8, Col(0x6a6a3a)); c.dome(tx, y, 1.8, Col(0x8a8a4a)); c.R(tx - 2.8, y - 0.2, 5.6, 0.6, Col(0x4a4a2a))
+                c.R(tx + 2.6, y - 1.4, 1.4, 1, Col(0x9a9a5a)); c.R(tx - 2 + sin(NOW * 3) * 0.3, y + 0.3, 0.9, 0.8, Col(0x9a9a5a)); c.R(tx + 1.2 - sin(NOW * 3) * 0.3, y + 0.3, 0.9, 0.8, Col(0x9a9a5a))
+            }
+        }
+        // fireflies over the water at night
+        if g.dark > 0.6 {
+            var spots: [Double] = [g.NILE - 12]
+            if g.OASIS > 0 { spots.append(g.OASIS) }
+            for sp in spots {
+                let x = sp - cam
+                if x < -60 || x > W + 60 { continue }
+                for q in 0..<7 {
+                    let n = Double(q)
+                    let fx = x + sin(NOW * 0.6 + n * 1.9) * 34 + sin(NOW * 2.3 + n) * 4, fy = GY - 6 + cos(NOW * 0.8 + n * 2.7) * 9
+                    let on = sin(NOW * 2.2 + n * 3.1) > 0
+                    if on { c.R(fx - 0.5, fy - 0.5, 1, 1, Col(0xe8ff9a)); if q < 3 { light(fx, fy, 6, 0.5) } }
+                }
+            }
+        }
+    }
+
     /// The streets behind the main street: ruins at first, and they come back as the town does.
     func backTown(_ hz: Col) {
         let core: [BType] = [.market, .tea, .guard, .pen, .bank, .temple]
@@ -1236,12 +1438,37 @@ final class Renderer {
             c.ell(px, GY - 21.6 - hop, 1.5, 1, Col(0x9aa0aa)); c.R(px + 1, GY - 22.8 - hop, 1, 1, Col(0x9aa0aa))
         }
         c.ell(x + 20, GY - 1.6, 2, 2.4, Col(0xb5673a)); c.R(x + 19, GY - 4.6, 2, 0.9, Col(0x8f4e2a))
+        if g.B(.well).level >= 3 {
+            // the fountain garden
+            let fx = x - 22
+            c.ell(fx, GY - 0.6, 9, 2, Col(0xb39466)); c.ell(fx, GY - 1.4, 7.6, 1.5, Col(0x6fb6c8)); c.R(fx - 1.2, GY - 8, 2.4, 7, STONE); c.ell(fx, GY - 8, 3, 0.9, STONE2)
+            for j in 0..<3 {
+                let dirx = Double(j - 1)
+                for q in 0..<6 {
+                    let u = (NOW * 1.4 + Double(q) / 6 + Double(j) * 0.2).truncatingRemainder(dividingBy: 1)
+                    c.R(fx + dirx * u * 6.5 - 0.3, GY - 8.6 - sin(PI * u) * 5 + u * 6.4, 0.7, 0.9, rgba(220, 244, 255, 0.85 * (1 - u * 0.5)))
+                }
+            }
+            c.ellStroke(fx, GY - 1.4, 3 + (NOW * 2).truncatingRemainder(dividingBy: 1) * 4, 0.8, 0.3, rgba(255, 255, 255, 0.6))
+            let bloom: [Col] = [RED, Col(0xd96ad0), GOLD, Col(0xf8f6ee)]
+            for q in 0..<8 {
+                let bx = fx - 16 + Double(q) * 4.6 + (q > 3 ? 4 : 0)
+                c.seg(bx, GY, bx + sin(NOW * 2 + Double(q)) * 0.4, GY - 3, 0.4, Col(0x4d8a3c)); c.circ(bx + sin(NOW * 2 + Double(q)) * 0.4, GY - 3.4, 0.9, bloom[q % 4])
+            }
+        }
     }
     func gateExtra(_ x: Double, _ L: Int) {
         c.R(x + 3, GY - 9.4, 8, 0.8, Col(0x3a3a3a)); c.R(x + 3, GY - 4.6, 8, 0.8, Col(0x3a3a3a))
         for q in 0..<4 { c.R(x + 3.8 + Double(q) * 2, GY - 9.2, 0.5, 0.5, Col(0xc8c8c0)); c.R(x + 3.8 + Double(q) * 2, GY - 4.4, 0.5, 0.5, Col(0xc8c8c0)) }
         c.circ(x + 6.2, GY - 6.6, 0.7, GOLD); c.circ(x + 7.8, GY - 6.6, 0.7, GOLD)
         if L > 2 { glyphs(x + 1.5, GY - 24, 11, 2, x) }
+        if L > 3 {
+            c.poly(STONE, [x - 1, GY - 34, x + 0.5, GY - 44, x + 13.5, GY - 44, x + 15, GY - 34]); c.R(x + 11, GY - 44, 2.5, 10, STONE2)
+            crenels(x + 0.5, GY - 44, 13, STONE); c.R(x + 0.5, GY - 41, 13, 1.2, GOLD)
+            c.R(x + 5, GY - 39.4, 4, 4.4, DARKC); c.seg(x + 2, GY - 37, x + 12, GY - 37.6, 0.5, WOOD)
+            pennant(x + 3, GY - 46, GOLD, 8); pennant(x + 11, GY - 46, RED, 8)
+            if lit { fire(x + 7, GY - 46, 0.55) }
+        }
     }
     func ruinExtra(_ x: Double, _ w: Double, _ seed: Double) {
         for k in 0..<3 {
@@ -1285,6 +1512,12 @@ final class Renderer {
         if u.open { return }
         let x = u.x - cam
         if x > W + 10 || x < -10 { return }
+        if g.relics.contains("lamp") {
+            let k = 0.5 + 0.5 * sin(NOW * 3 + u.x)
+            c.linear(x - 3, GY - 46, 6, 40, 0, GY - 46, 0, GY - 6, [(0, rgba(255, 226, 140, 0)), (1, rgba(255, 226, 140, 0.25 + 0.2 * k))])
+            c.poly(GOLD, [x - 2.4, GY - 16 - k * 2, x + 2.4, GY - 16 - k * 2, x, GY - 12.6 - k * 2])
+            light(x, GY - 8, 22, 0.7)
+        }
         for q in 0..<4 { c.poly(LAPIS, [x - 3 + Double(q) * 1.6, GY - 5.4, x - 2.2 + Double(q) * 1.6, GY - 6.6, x - 1.4 + Double(q) * 1.6, GY - 5.4]) }
         c.arcStroke(x - 3, GY - 6.4, 1.3, PI * 0.5, PI * 1.5, 0.5, Col(0x8f4e2a)); c.arcStroke(x + 3, GY - 6.4, 1.3, -PI * 0.5, PI * 0.5, 0.5, Col(0x8f4e2a))
         c.ell(x - 1.4, GY - 4.6, 0.7, 2.2, rgba(255, 255, 255, 0.25))
@@ -1323,6 +1556,13 @@ final class Renderer {
                 c.R(x + 59.5, GY - 17, 5, 3, STONE2); c.R(x + 56, GY - 19, 13, 0.6, GOLD)
                 if sin(NOW * 0.7) > 0.93 { c.R(x + 65, GY - 31, 2, 2, Col(0xfff3b0)); light(x + 66, GY - 30, 10, 0.4) }
                 for q in 0..<3 { c.seg(x + 20 + Double(q) * 14, GY - 15, x + 19 + Double(q) * 14, GY - 6 - hashN(Double(q)) * 4, 0.35, rgba(110, 78, 36, 0.3)) }
+                if sp.level > 1 {
+                    for q in 0..<5 { c.R(x + 52, GY - 37 + Double(q) * 5, 20, 1.6, Col(0xffe08a)) }
+                    c.R(x + 55, GY - 18.4, 15, 1.6, GOLD); c.R(x + 60, GY - 16.8, 5, 2, TEAL); c.R(x + 68.4, GY - 28, 1.6, 3, STONE)
+                    c.R(x + 6, GY - 15.6, 56, 1, GOLD)
+                    for sx in [x + 60.0, x + 78] { c.R(sx, GY - 9.4, 2, 2.4, Col(0x4a3a2a)); if lit { fire(sx + 1, GY - 9.4, 0.55) } else { plume(sx + 1, GY - 9.4, sx, 0.4, Col(0xd8d0e0)) } }
+                    for q in 0..<5 { c.circ(x + 62 + Double(q) * 3.4, GY - 0.8, 0.8, q % 2 == 0 ? RED : Col(0xf8f6ee)) }
+                }
             }
         }
         let tb = g.B(.tomb)
@@ -1336,6 +1576,12 @@ final class Renderer {
                     glyphs(x + 14, GY - 13, 4, 3, tb.x); glyphs(x + 31, GY - 13, 4, 3, tb.x + 2)
                     if lit { fire(x + 16, GY - 15, 0.5); fire(x + 32.5, GY - 15, 0.5) }
                     for q in 0..<3 { c.R(x + 16 + Double(q) * 6, GY, 5, 1, STONE2) }
+                    if tb.level > 1 {
+                        c.R(x + 18.4, GY - 14.6, 11.2, 14.6, GOLD); c.R(x + 18.4, GY - 14.6, 11.2, 1, Col(0xfff3b8)); c.R(x + 28.4, GY - 14.6, 1.2, 14.6, Col(0xb8860b))
+                        glyphs(x + 20, GY - 12.6, 8, 2, tb.x + 9)
+                        c.circ(x + 24, GY - 4.4, 2.2, Col(0x8f2a1c)); c.circ(x + 24, GY - 4.4, 1, GOLD)
+                        c.seg(x + 18.4, GY - 7, x + 29.6, GY - 7, 0.5, Col(0x8f2a1c))
+                    }
                 }
             }
         }
@@ -1359,6 +1605,26 @@ final class Renderer {
                 glyphs(x + 6, GY - 39, 78, 1, bt.x)
                 for sx in [x + 1.0, x + 85] { c.R(sx, GY - 9, 4, 9, STONE2); c.R(sx - 1, GY - 10.6, 6, 1.8, Col(0x4a3a2a)); if lit { fire(sx + 2, GY - 10.6, 0.7) } }
                 c.circ(x + 45, GY - 44.4, 3, GOLD); c.poly(GOLD, [x + 39, GY - 44.4, x + 45, GY - 46, x + 51, GY - 44.4, x + 45, GY - 43])
+                if bt.level > 1 {
+                    c.poly(GOLD, [x + 2, GY - 40, x + 45, GY - 51.6, x + 88, GY - 40, x + 84, GY - 40, x + 45, GY - 49.4, x + 6, GY - 40])
+                    for sx in [x - 8.0, x + 93] {
+                        c.R(sx, GY - 3, 6, 3, STONE2); c.R(sx + 1.2, GY - 17, 3.6, 14, STONE); c.R(sx + 0.8, GY - 21, 4.4, 4.4, STONE); c.R(sx + 0.4, GY - 22.4, 5.2, 1.8, LAPIS); c.R(sx + 2.4, GY - 12, 1.2, 6, GOLD)
+                    }
+                    for q in 0..<5 { c.R(x + 8 + Double(q) * 18, GY - 34.6, 6, 1.2, GOLD) }
+                }
+            }
+        }
+        let gv = g.B(.grove)
+        if !gv.gone && gv.level > 1 && g.OASIS > 0 {
+            let ox = g.OASIS - cam
+            if ox > -110 && ox < W + 110 {
+                palm(ox - 90, 30, 1, 41, true); palm(ox + 90, 26, 0.95, 42, true)
+                for q in 0..<3 { let bx = ox - 70 + Double(q) * 7; c.R(bx, GY - 3, 5, 3, Col(0xb89a54)); c.R(bx, GY - 3, 5, 0.6, Col(0xe0c88a)); c.circ(bx + 1.4, GY - 3.6, 1.1, Col(0xd9822a)); c.circ(bx + 3.4, GY - 3.8, 1.1, Col(0xc2641e)) }
+                if gv.level > 2 {
+                    palm(ox - 104, 24, 0.9, 43, true); palm(ox + 104, 30, 1, 44, true)
+                    c.seg(ox + 58, GY, ox + 58, GY - 9, 0.7, WOOD); c.seg(ox + 78, GY, ox + 78, GY - 9, 0.7, WOOD); c.R(ox + 57, GY - 9.6, 22, 1, WOOD)
+                    for q in 0..<8 { c.circ(ox + 59.5 + Double(q) * 2.5, GY - 7.6 + sin(NOW * 2 + Double(q)) * 0.3, 1, q % 2 == 0 ? Col(0xd9822a) : Col(0xa8521a)) }
+                }
             }
         }
         let dk = g.B(.dock)
@@ -1419,10 +1685,7 @@ final class Renderer {
             for dv in g.devils {
                 let x = dv.x - cam
                 if x < -20 || x > W + 20 || (dv.x > g.TOWN.0 - 60 && dv.x < g.TOWN.1 + 60) { continue }
-                for q in 0..<7 {
-                    let n = Double(q)
-                    c.ell(x + sin(NOW * 6 + n * 0.9) * (1.5 + n * 0.7), GY - 2 - n * 4, 2 + n * 1.1, 1.3, rgba(226, 196, 140, 0.34 - n * 0.03))
-                }
+                devil(x, GY, 30, 0.32, dv.a)
             }
         }
         let traps = g.trapXs()
@@ -1669,6 +1932,7 @@ final class Renderer {
         c.R(mx(g.NILE), y - 0.4, x0 + w - mx(g.NILE), 2.2, Col(0x4a9ab8))
         for b in g.bs where b.def.far && !b.gone { c.R(mx(b.mid) - 0.6, y - 0.8, 1.2, 3, b.level > 0 ? GOLD : rgba(242, 193, 78, 0.45)) }
         for d in g.nomads { c.R(mx(d.x) - 0.4, y + 0.2, 0.9, 0.9, Col(0x6f8fd8)) }
+        if g.relics.contains("lamp") { for u in g.urns where !u.open { c.R(mx(u.x) - 0.5, y - 0.2, 1, 1.8, Col(0xffe08a)) } }
         if let st = g.storm { c.R(x0, y - 0.4, max(0, mx(st.front) - x0), 2.2, rgba(176, 122, 66, 0.7)) }
         if let cv = g.caravan { c.R(mx(cv.x) - 0.7, y - 0.2, 1.4, 1.6, TEAL) }
         var left = false, right = false
