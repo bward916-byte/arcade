@@ -53,6 +53,7 @@ final class Game {
     var carry = 0
     var cardSub = ""
     var introFires = false
+    var picked = 0
     var hidePlayer = false
     var rain: Double?
     var rainAt = -1.0
@@ -321,7 +322,11 @@ final class Game {
         }
         return Int(ceil(Double(c) * (1 + 0.25 * Double(town))))
     }
-    func capped(_ b: Building) -> Bool { return b.def.tier && b.level >= 1 + B(.well).level }
+    /// The well sets how high the town can rise: one level, then two, then (with the obelisk) all the way.
+    func capped(_ b: Building) -> Bool {
+        let w = B(.well).level
+        return b.def.tier && b.level >= (w == 0 ? 1 : (w == 1 ? 2 : 4))
+    }
     func rackX(_ b: Building) -> Double { return b.type == .market ? b.x - 9 : b.x + b.w + 8 }
     var popCap: Int { return 10 + 6 * B(.well).level + 4 * B(.tea).level }
     var reloadTime: Double { return max(1.5, 4 - Double(B(.guard).level)) }
@@ -492,27 +497,35 @@ final class Game {
         var i = hares.count
         while i < want { hares.append(newHare(i + day)); i += 1 }
         let tea = B(.tea)
+        var income: [String] = []
+        let workers = folk.filter { $0.role == .folk }.count
         if poison { poison = false; hint("poisoned", again: true) } else {
             for f in folk where f.role == .folk { coin(f.hidden ? tea.x + 33 : f.x, 6, rnd(-22, 22), rnd(50, 75), true) }
+            if workers > 0 { income.append("villagers \(workers)") }
         }
         for b in bs {
             if b.level > 0 && b.def.pay > 0 && !b.robbed {
                 for _ in 0..<(b.def.pay * b.level) { coin(b.mid, 5, rnd(-40, 40), rnd(55, 90), true) }
+                income.append("\(b.def.name.lowercased()) \(b.def.pay * b.level)")
             }
             b.robbed = false
             if b.def.gate { b.hp = GHP[b.level] }
         }
-        if B(.sphinx).level > 0 { for _ in 0..<2 { coin(B(.sphinx).x + 70, 4, rnd(-20, 20), rnd(40, 70), true) } }
-        if B(.dock).level > 0 { for _ in 0..<2 { coin(B(.dock).x + 34, 6, rnd(-16, 16), rnd(40, 60), true) } }
-        if B(.btemple).level > 0 { for _ in 0..<3 { coin(B(.btemple).x + 45, 6, rnd(-20, 20), rnd(40, 60), true) } }
-        if relics.contains("scarab") { for _ in 0..<3 { coin(player.x, 16, rnd(-20, 20), rnd(40, 70), true) } }
-        if B(.grove).level > 0 { for _ in 0..<(lush ? 6 : 3) { coin(OASIS + rnd(-20, 20), 18, rnd(-14, 14), rnd(20, 50), true) } }
+        if B(.sphinx).level > 0 { for _ in 0..<2 { coin(B(.sphinx).x + 70, 4, rnd(-20, 20), rnd(40, 70), true) }; income.append("sphinx 2") }
+        if B(.dock).level > 0 { for _ in 0..<2 { coin(B(.dock).x + 34, 6, rnd(-16, 16), rnd(40, 60), true) }; income.append("dock 2") }
+        if B(.btemple).level > 0 { for _ in 0..<3 { coin(B(.btemple).x + 45, 6, rnd(-20, 20), rnd(40, 60), true) }; income.append("old temple 3") }
+        if relics.contains("scarab") { for _ in 0..<3 { coin(player.x, 16, rnd(-20, 20), rnd(40, 70), true) }; income.append("scarab 3") }
+        if B(.grove).level > 0 { for _ in 0..<(lush ? 6 : 3) { coin(OASIS + rnd(-20, 20), 18, rnd(-14, 14), rnd(20, 50), true) }; income.append("dates \(lush ? 6 : 3)") }
         lush = false; omen = false
+        var goats = 0
         for c in herd {
-            if !c.kid { coin(c.x, 4, rnd(-14, 14), rnd(35, 60), true) }
+            if !c.kid { coin(c.x, 4, rnd(-14, 14), rnd(35, 60), true); goats += 1 }
             c.kid = false
         }
-        if herd.count < min(8, head(.herder) * 2) { herd.append(Goat(x: rnd(PAST.0 + 8, PAST.1 - 8))) }
+        if goats > 0 { income.append("goats \(goats)") }
+        let big = B(.pen).level >= 3
+        if herd.count < min(big ? 12 : 8, head(.herder) * (big ? 3 : 2)) { herd.append(Goat(x: rnd(PAST.0 + 8, PAST.1 - 8))) }
+        if !income.isEmpty { report = "This morning: " + income.joined(separator: ", ") + ". " + report }
         bank += min(3 * B(.bank).level, bank >> 3)
         carAt = ln % 3 == 0 ? 0.13 : -1
         raid = []
@@ -681,6 +694,7 @@ final class Game {
                               col: i % 3 != 0 ? Col(0xffe08a) : Col(0xfff8dc), grav: -120))
         }
         let L = b.level
+        if L >= 3 && !b.def.gate && !b.def.far { hint("lv", again: true, "The \(b.def.name.lowercased()) is at level \(L)" + (L == b.def.cost.count ? ", as high as it goes." : ".")) }
         if !festDone && !b.def.far && todo().isEmpty {
             festDone = true
             fest = 14
@@ -880,9 +894,9 @@ final class Game {
         let a = input.stick
         let d: Double = abs(a) > 0.1 ? sgn(a) : 0
         if d != 0 { p.dir = d }
-        let speeds: [Double] = [104, 120, 136]
+        let speeds: [Double] = [104, 120, 136, 146]
         let tack = 1 + (up.contains("saddle") ? 0.12 : 0) + (up.contains("racer") ? 0.14 : 0)
-        let want = d * speeds[min(B(.pen).level, 2)] * tack
+        let want = d * speeds[min(B(.pen).level, 3)] * tack
         let rate = ((d == 0 || want * p.vx < 0) ? 900.0 : 340.0) * dt
         if d == 0 && abs(p.vx) > 50 { dust(p.x + sgn(p.vx) * 9, 0, 2) }
         p.vx += clampD(want - p.vx, -rate, rate)
@@ -1014,6 +1028,7 @@ final class Game {
                     if dist > stepLen { c.x += dx / dist * stepLen; c.h += dh / dist * stepLen } else {
                         coins.remove(at: i)
                         p.coins += 1
+                        picked += 1
                         snd?.pick()
                         spark(p.x, 14, 2)
                     }
@@ -1241,8 +1256,8 @@ final class Game {
                 let reach = 70 + Double(L) * 14
                 let r = raiders.filter { $0.state == .raid && abs($0.x - f.x) < reach }.min { abs($0.x - f.x) < abs($1.x - f.x) }
                 if let r = r, f.cd <= 0 {
-                    let cds: [Double] = [1.7, 1.7, 1.3, 1]
-                    f.cd = cds[min(L, 3)]
+                    let cds: [Double] = [1.7, 1.7, 1.3, 1, 0.75]
+                    f.cd = cds[min(L, 4)]
                     let dd = sgn(r.x - f.x)
                     f.dir = dd == 0 ? 1 : dd
                     f.ham = 0.25
@@ -1752,6 +1767,106 @@ final class Game {
         for b in bs { b.shake = max(0, b.shake - dt) }
         shake = max(0, shake - dt)
         flash = max(0, flash - dt * 1.5)
+    }
+
+    // ---------- one line of advice: what would help most right now
+    func nextGoal() -> String {
+        let p = player
+        func way(_ x: Double) -> String { return x < p.x - 40 ? "to the west" : (x > p.x + 40 ? "to the east" : "right here") }
+        func open(_ k: BType) -> Bool { let b = B(k); return b.level == 0 && !b.building }
+        if folk.isEmpty {
+            if p.coins < 3, let u = urns.filter({ !$0.open }).min(by: { abs($0.x - p.x) < abs($1.x - p.x) }) { return "Ride over the old urn \(way(u.x)) for coins" }
+            if let n = nomads.min(by: { abs($0.x - p.x) < abs($1.x - p.x) }) { return "Toss a coin to a nomad at the tents \(way(n.x)): they join you and build" }
+        }
+        let m = B(.market)
+        if open(.market) { return "Rebuild the bazaar \(way(m.mid)) for \(costOf(m)) coins: it pays every morning" }
+        if m.level > 0 && head(.digger) == 0 && m.badges == 0 { return "Toss a coin on the tool rack left of the bazaar: a digger mines gold at the quarry" }
+        if head(.digger) > 0 && coins.contains(where: { $0.st == .ground && abs($0.x - QUARRY) < 60 }) { return "Your diggers have gold waiting at the quarry \(way(QUARRY))" }
+        if open(.gw) && ln >= 1 { return "Raise the west gate for \(costOf(B(.gw))) coins before the raiders come at night" }
+        if open(.pen) { return "Rebuild the camel yard \(way(B(.pen).mid)) for \(costOf(B(.pen))) coins: goats pay each dawn" }
+        if B(.pen).level > 0 && head(.herder) == 0 && B(.pen).badges == 0 { return "Toss a coin on the crook rack right of the camel yard: a herder's goats pay each dawn" }
+        if open(.tea) { return "Rebuild the teahouse for \(costOf(B(.tea))) coins: it pays, and hides villagers at night" }
+        if open(.ge) { return "Raise the east gate for \(costOf(B(.ge))) coins" }
+        if open(.guard) { return "Rebuild the barracks for \(costOf(B(.guard))) coins, then put a coin on its spear rack for a guard" }
+        if B(.guard).level > 0 && head(.guard) == 0 && B(.guard).badges == 0 { return "Toss a coin on the spear rack right of the barracks: a guard holds the gate" }
+        if open(.well) { return "Rebuild the well for \(costOf(B(.well))) coins: then every building can rise a level" }
+        if open(.bank) { return "Rebuild the treasury for \(costOf(B(.bank))) coins: coins kept there are safe from raiders" }
+        if open(.temple) { return "Rebuild the temple for \(costOf(B(.temple))) coins: it pays well, and its gong warns you of raids" }
+        let w = B(.well)
+        if w.level == 1 && !w.building { return "Raise the obelisk at the well for \(costOf(w)) coins: it unlocks the top levels and the dock" }
+        let dk = B(.dock)
+        if dk.level == 0 && !dk.building && todo().isEmpty { return "Build the dock at the Nile, far to the east, for \(costOf(dk)) coins" }
+        if dk.level > 0 { return "Pay the felucca 6 coins at the dock to sail on, or keep raising the town: higher levels pay more" }
+        return "Raise any building another level: higher levels pay more each morning"
+    }
+
+    // ---------- a bot that plays the game, to see what the economy does
+    func botRun(days: Int) -> String {
+        start(intro: false)
+        var out = "town day coins vault picked folk dig grd herd goats | bazaar tea barracks yard well temple wgate egate treasury dock\n"
+        let dt = 1.0 / 30
+        var lastDay = day
+        var lastPicked = 0
+        var steps = 0
+        func stand(_ b: Building) -> Double { return b.mid }
+        while state == .play && day <= days && steps < 400000 {
+            steps += 1
+            if let sc = scene { sc.t = 1; skipScene() }
+            let p = player
+            var goal: Double? = nil
+            var toss = false
+            let threat = raiders.filter { $0.state == .raid }.min(by: { abs($0.x - p.x) < abs($1.x - p.x) })
+            var fire = false
+            if let r = threat, abs(r.x - p.x) < 220 { fire = true }
+            let have = p.coins + bank
+            let staff = head(.digger) + head(.herder) + head(.guard)
+            let free = head(.folk)
+            let loose = coins.filter { $0.st == .ground && $0.claimed == 0 && abs($0.x - p.x) < 900 }.min(by: { abs($0.x - p.x) < abs($1.x - p.x) })
+            // what to buy next, in the order the advice line gives it
+            var buy: (x: Double, cost: Int)? = nil
+            func slot(_ k: BType, _ maxLevel: Int) {
+                if buy != nil { return }
+                let b = B(k)
+                if b.gone || b.building || b.level >= maxLevel { return }
+                let c = costOf(b)
+                if c > 0 { buy = (b.mid, c) }
+            }
+            func rack(_ k: BType, _ role: Role, _ want: Int) {
+                if buy != nil { return }
+                let b = B(k)
+                if b.level > 0 && head(role) + b.badges + b.rin < want && free > 1 { buy = (rackX(b), 1) }
+            }
+            if free > 0 || folk.isEmpty {
+                slot(.market, 1); rack(.market, .digger, 2); slot(.gw, 1); slot(.pen, 1); rack(.pen, .herder, 2); slot(.tea, 1); slot(.ge, 1)
+                slot(.guard, 1); rack(.guard, .guard, 2); slot(.well, 1); slot(.market, 2); slot(.bank, 1); slot(.temple, 1); slot(.gw, 2); slot(.ge, 2)
+                slot(.well, 2); slot(.dock, 1); slot(.market, 4); slot(.temple, 3); slot(.tea, 3); slot(.pen, 3); slot(.guard, 4); slot(.bank, 3); slot(.dock, 2)
+            }
+            if let c = loose, !(dark > 0.5 && (c.x < TOWN.0 - 40 || c.x > TOWN.1 + 40)) {
+                goal = c.x
+            } else if dark < 0.3 && p.coins > 0 && folk.count < staff + 3 && folk.count + 1 <= popCap, let n = nomads.min(by: { abs($0.x - p.x) < abs($1.x - p.x) }) {
+                goal = n.x + 10
+                if abs(p.x - goal!) < 14 && target(p.x) == nil && !coins.contains(where: { $0.st != .back && !$0.free && abs($0.x - n.x) < 70 }) { toss = true }
+            } else if let b = buy, have >= b.cost, !(dark > 0.5 && (b.x < TOWN.0 - 40 || b.x > TOWN.1 + 40)) {
+                goal = b.x
+                if abs(p.x - b.x) < 3 { toss = true }
+            } else if dark < 0.2 && t < 0.5 && rodN[1] > 0 {
+                goal = fishSpots()[1]
+            } else {
+                goal = startX()
+            }
+            if let gx = goal { input.stick = abs(gx - p.x) < 2.5 ? 0 : sgn(gx - p.x) } else { input.stick = 0 }
+            input.toss = toss
+            input.fire = fire
+            update(dt)
+            if day != lastDay || state != .play {
+                lastDay = day
+                let lv = [BType.market, .tea, .guard, .pen, .well, .temple, .gw, .ge, .bank, .dock].map { String(B($0).level) }.joined(separator: " ")
+                out += "\(town + 1) \(ln) \(player.coins) \(bank) \(picked - lastPicked) \(folk.count) \(head(.digger)) \(head(.guard)) \(head(.herder)) \(herd.count) | \(lv)\n"
+                lastPicked = picked
+            }
+        }
+        out += "ended: state \(state) on day \(day), town \(town + 1), steps \(steps)\n"
+        return out
     }
 
     // ---------- saving: the town as it stood at the last dawn

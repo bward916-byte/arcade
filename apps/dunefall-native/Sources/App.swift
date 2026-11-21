@@ -270,7 +270,9 @@ final class GameViewController: UIViewController {
         dayLabel.frame = CGRect(x: b.width - right - 210, y: 6, width: 160, height: 22)
         pauseBtn.frame = CGRect(x: b.width - right - 40, y: 4, width: 38, height: 28)
         hint.frame = CGRect(x: b.width * 0.5 - 250, y: 32, width: 500, height: 40)
-        info.frame = CGRect(x: b.width * 0.5 - 230, y: b.height - bottom - 44, width: 460, height: 24)
+        let infoW = min(b.width - 330, 560)
+        info.frame = CGRect(x: b.width * 0.5 - infoW / 2, y: b.height - bottom - 44, width: infoW, height: 30)
+        info.numberOfLines = 2
         info.adjustsFontSizeToFitWidth = true
         info.minimumScaleFactor = 0.6
         card.frame = CGRect(x: 0, y: b.height * 0.22, width: b.width, height: 80)
@@ -347,6 +349,14 @@ final class GameViewController: UIViewController {
             if args.contains("-demo-night") { game.demo("night") }
             if args.contains("-demo-port") { game.demo("port") }
             if args.contains("-demo-oasis") { game.demo("oasis") }
+            if args.contains("-demo-econ") {
+                let bot = Game()
+                bot.W = game.W; bot.H = game.H; bot.GY = game.GY
+                let text = bot.botRun(days: 34)
+                if let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
+                    try? text.write(to: dir.appendingPathComponent("econ.txt"), atomically: true, encoding: .utf8)
+                }
+            }
             if args.contains("-demo-intro") { sound.start(); game.start() }
             if args.contains("-demo-fires") { game.start(); game.update(5.2); game.update(0.05) }
         }
@@ -479,6 +489,9 @@ final class GameViewController: UIViewController {
         set(dayLabel, game.dark > 0.5 ? "Night \(game.ln)" : "Day \(game.ln)")
         if playing, let line = game.infoLine() {
             set(info, line.0 + "   " + line.1)
+            info.isHidden = false
+        } else if playing && !game.raiders.contains(where: { $0.state == .raid }) {
+            set(info, "Next: " + game.nextGoal())
             info.isHidden = false
         } else { info.isHidden = true }
         let showHint = playing && game.hintT > 0

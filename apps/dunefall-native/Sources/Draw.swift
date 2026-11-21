@@ -546,6 +546,11 @@ final class Renderer {
         case .bank: treasury(b, x, L)
         default: break
         }
+        if plain && L >= 1 {
+            topTier(b, x, L)
+            // one gold pip by the door for each level raised
+            for q in 0..<L { c.R(x + 2 + Double(q) * 2.6, GY - 2.6, 1.6, 1.6, rgba(28, 19, 12, 0.6)); c.R(x + 2.3 + Double(q) * 2.6, GY - 2.3, 1, 1, GOLD) }
+        }
         if b.building && L >= 1 {
             let nh = b.def.h[min(L + 1, b.def.h.count - 1)]
             scaffold(b, x, nh, (b.def.gate || t == .well) ? 0 : b.tall)
@@ -824,6 +829,42 @@ final class Renderer {
                 c.circ(x, y, 2.3, rgba(28, 19, 12, 0.75))
                 c.circ(x, y, 1.7, i < cv.paid ? GOLD : rgba(242, 193, 78, 0.22))
             }
+        }
+    }
+
+    /// What the new top levels add to each building.
+    func topTier(_ b: Building, _ x: Double, _ L: Int) {
+        let w = b.w
+        switch b.type {
+        case .market where L >= 4:
+            c.dome(x + 16, GY - 46, 5, GOLD); c.dome(x + w - 16, GY - 46, 5, GOLD)
+            c.R(x + 8, GY - 47, w - 16, 1.2, GOLD)
+            for q in 0..<6 { pennant(x + 14 + Double(q) * 10, GY - 47, q % 2 == 0 ? RED : TEAL, 5) }
+        case .tea where L >= 3:
+            c.R(x + 2, GY - 25.5, w - 4, 1.5, WOOD)
+            awning(x + 4, GY - 36, 22, 4, RED, PLA, b.x + 9)
+            c.R(x + 30, GY - 30, 5, 5, Col(0x4d8a3c)); c.R(x + 37, GY - 31, 4, 6, Col(0x3f7d3a)); c.R(x + 29, GY - 26, 14, 1.4, Col(0xb5673a))
+        case .guard where L >= 4:
+            box(x + 2, GY - 44, 14, 16, MUD2, MUDD, b.x + 11); crenels(x + 2, GY - 44, 14, MUD2)
+            c.R(x + 7, GY - 40, 4, 6, DARKC); pennant(x + 9, GY - 46, GOLD, 9)
+            c.R(x, GY - 29, w, 1.2, GOLD)
+        case .pen where L >= 3:
+            c.poly(Col(0xc9a45a), [x - 2, GY - 30, x + 74, GY - 27, x + 76, GY - 23, x - 4, GY - 25])
+            c.seg(x + 1, GY - 26, x + 1, GY - 9, 1.2, WOOD); c.seg(x + 71, GY - 24, x + 71, GY - 9, 1.2, WOOD)
+            pennant(x + 36, GY - 28, TEAL, 8)
+            let cc = Col(0xa07244)
+            c.ell(x + 56, GY - 12, 5.5, 2.6, cc); c.circ(x + 54, GY - 14.6, 2, cc); c.circ(x + 58, GY - 14.6, 2, cc); c.seg(x + 51, GY - 12, x + 49, GY - 16.5, 1.6, cc)
+        case .temple where L >= 3:
+            for ox in [x - 7, x + w + 3] {
+                c.poly(Col(0xdcc08a), [ox, GY, ox + 1, GY - 60, ox + 3.4, GY - 60, ox + 4.4, GY])
+                c.poly(GOLD, [ox + 1, GY - 60, ox + 2.2, GY - 66, ox + 3.4, GY - 60])
+            }
+            c.R(x, GY - 59.6, 27, 1, GOLD); c.R(x + w - 27, GY - 59.6, 27, 1, GOLD)
+        case .bank where L >= 3:
+            c.dome(x + w / 2, GY - 42, 12, GOLD); c.dome(x + w / 2 - 3, GY - 44, 7, Col(0xfff3b8).alpha(0.5))
+            c.seg(x + w / 2, GY - 54, x + w / 2, GY - 59, 0.8, GOLD)
+        default:
+            break
         }
     }
 

@@ -59,15 +59,15 @@ struct Def {
 }
 
 let DEF: [BType: Def] = [
-    .market: Def(name: "BAZAAR", w: 78, cost: [6, 10, 16], pay: 3, tier: true, tool: .digger, gate: false, h: [14, 30, 46, 52]),
-    .tea: Def(name: "TEAHOUSE", w: 66, cost: [6, 10], pay: 2, tier: true, tool: nil, gate: false, h: [12, 34, 44]),
-    .guard: Def(name: "BARRACKS", w: 60, cost: [8, 12, 18], pay: 0, tier: true, tool: .guard, gate: false, h: [14, 32, 52, 62]),
-    .pen: Def(name: "CAMEL YARD", w: 72, cost: [6, 12], pay: 0, tier: true, tool: .herder, gate: false, h: [10, 24, 28]),
+    .market: Def(name: "BAZAAR", w: 78, cost: [6, 10, 16, 24], pay: 3, tier: true, tool: .digger, gate: false, h: [14, 30, 46, 52, 58]),
+    .tea: Def(name: "TEAHOUSE", w: 66, cost: [6, 10, 16], pay: 2, tier: true, tool: nil, gate: false, h: [12, 34, 44, 50]),
+    .guard: Def(name: "BARRACKS", w: 60, cost: [8, 12, 18, 26], pay: 0, tier: true, tool: .guard, gate: false, h: [14, 32, 52, 62, 66]),
+    .pen: Def(name: "CAMEL YARD", w: 72, cost: [6, 12, 18], pay: 0, tier: true, tool: .herder, gate: false, h: [10, 24, 28, 34]),
     .well: Def(name: "WELL", w: 30, cost: [10, 22], pay: 0, tier: false, tool: nil, gate: false, h: [10, 22, 78]),
-    .temple: Def(name: "TEMPLE", w: 72, cost: [12, 18], pay: 4, tier: true, tool: nil, gate: false, h: [16, 46, 58]),
+    .temple: Def(name: "TEMPLE", w: 72, cost: [12, 18, 26], pay: 4, tier: true, tool: nil, gate: false, h: [16, 46, 58, 66]),
     .gw: Def(name: "WEST GATE", w: 14, cost: [4, 8, 14], pay: 0, tier: true, tool: nil, gate: true, h: [4, 16, 26, 36]),
     .ge: Def(name: "EAST GATE", w: 14, cost: [4, 8, 14], pay: 0, tier: true, tool: nil, gate: true, h: [4, 16, 26, 36]),
-    .bank: Def(name: "TREASURY", w: 56, cost: [10, 16], pay: 0, tier: true, tool: nil, gate: false, h: [12, 32, 40]),
+    .bank: Def(name: "TREASURY", w: 56, cost: [10, 16, 24], pay: 0, tier: true, tool: nil, gate: false, h: [12, 32, 40, 48]),
     .dock: Def(name: "DOCK", w: 56, cost: [20, 6], pay: 0, tier: false, tool: nil, gate: false, h: [8, 14, 14], far: true),
     .sphinx: Def(name: "SPHINX", w: 84, cost: [10], pay: 0, tier: false, tool: nil, gate: false, h: [26, 40], far: true),
     .tomb: Def(name: "TOMB", w: 50, cost: [14], pay: 0, tier: false, tool: nil, gate: false, h: [22, 22], far: true),
