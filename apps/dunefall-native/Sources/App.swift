@@ -185,7 +185,7 @@ final class GameViewController: UIViewController {
         style(titleTag, 17, cream, .center)
         titleTag.text = "Build a town from the sand. Hold it through the night."
         style(titleNote, 12, cream, .center)
-        titleNote.text = "Five towns down the Nile"
+        titleNote.text = ""
         button(goBtn, "Ride in")
         goBtn.addTarget(self, action: #selector(ride), for: .touchUpInside)
         for v in [titleName, titleTag, titleNote, goBtn] as [UIView] { titleBox.addSubview(v) }
