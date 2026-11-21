@@ -105,6 +105,7 @@ final class Renderer {
         }
         let hz = skyAt(g.t).1
         sky()
+        puffs()
         if g.shake > 0 { c.translate(rnd(-1, 1) * g.shake * 4, rnd(-1, 1) * g.shake * 3) }
         if g.zoom > 1.001 {
             let zx = clampD((g.scene?.fx ?? g.player.x) - cam, W * 0.25, W * 0.75)
@@ -119,12 +120,17 @@ final class Renderer {
         dunes(0.12, 14, 16, Col.mix(Col(0xecd3a0), hz, 0.35), Col.mix(Col(0xc39c62), hz, 0.35), 1.3, 0.012, false)
         dunes(0.28, 6, 18, Col(0xebcd90), Col(0xbd9052), 4.1, 0.017, true)
         dunes(0.55, 0, 13, SAND, Col(0xb3854a), 7.7, 0.023, true)
+        backTown(hz)
         ground()
+        groundExtra()
         nile()
+        nileExtra(hz)
         quarry()
+        quarryExtra()
         sites()
-        for cp in g.camps { camp(cp) }
-        for u in g.urns { urn(u) }
+        siteExtras()
+        for cp in g.camps { camp(cp); campExtra(cp) }
+        for u in g.urns { urn(u); urnExtra(u) }
         let palms: [Double] = [330, 560, 930, 1210, 2040, 2260, 2590, 2780, 2960]
         for i in 0..<palms.count {
             let wx = palms[i]
@@ -144,7 +150,7 @@ final class Renderer {
         for k in [BType.bank, .market, .tea, .well, .guard, .temple, .pen] { front(g.B(k)) }
         for b in g.bs { rack(b) }
         shopSigns()
-        for cg in g.herd { goat(cg) }
+        for cg in g.herd { goat(cg); goatExtra(cg) }
         for h in g.hares { hare(h) }
         for d in g.nomads {
             person(d.x, 0, PersonOpt(robe: Col(0x2c3f6e), turban: Col(0x1f2c50), skin: SKIN[d.id % 3], dir: d.dir, moving: d.moving, walk: d.walk, veil: Col(0x1f2c50)))
@@ -428,7 +434,12 @@ final class Renderer {
             let ex = tx + cos(a) * len + sw, ey = ty + sin(a) * len * 0.55 + len * 0.42
             c.curve(tx, ty, tx + cos(a) * len * 0.6 + sw * 0.5, ty + sin(a) * len * 0.7, ex, ey, 1.5 * s, i % 2 == 1 ? Col(0x3f7d3a) : Col(0x2c5c2e))
         }
-        if dates { c.circ(tx - 1.5, ty + 2.5, 1.6, Col(0xd9822a)); c.circ(tx + 1.5, ty + 3, 1.6, Col(0xc2641e)) }
+        c.curve(sx - 0.5 * s, GY, sx + lean * 0.2 - 0.5 * s, GY - h * 0.5, tx - 0.5 * s, ty, 0.5 * s, rgba(255, 226, 170, 0.35))
+        c.circ(tx, ty + 0.6, 1.6 * s, Col(0x5a3e22))
+        if dates {
+            let dz = sin(NOW * 1.6 + seed) * 0.5
+            c.circ(tx - 1.5 + dz, ty + 2.5, 1.6, Col(0xd9822a)); c.circ(tx + 1.5 + dz, ty + 3, 1.6, Col(0xc2641e)); c.circ(tx + dz, ty + 4.4, 1.3, Col(0xe09a3a))
+        }
     }
 
     func fire(_ sx: Double, _ y: Double, _ s: Double) {
@@ -443,6 +454,20 @@ final class Renderer {
         c.R(x, y, w, h, c1)
         c.vfill(x, y, w, h, [(0, rgba(255, 236, 190, 0.22)), (0.55, rgba(255, 236, 190, 0)), (1, rgba(70, 40, 10, 0.28))])
         c.R(x, y, w, 1.2, rgba(255, 238, 200, 0.5)); c.R(x + w - 2.5, y, 2.5, h, c2); c.R(x, y + h - 1.5, w, 1.5, c2)
+        // brick courses, a few darker bricks, and a plinth
+        var cy = 4.0
+        var row = 0
+        while cy < h - 1 {
+            c.R(x, y + cy, w, 0.35, rgba(70, 40, 10, 0.16))
+            var bx = (row % 2 == 0) ? 0.0 : 3.5
+            while bx < w - 1 {
+                c.R(x + bx, y + cy - 4, 0.35, 4, rgba(70, 40, 10, 0.1))
+                if hashN(seed + bx * 1.7 + cy * 3.1) < 0.09 { c.R(x + bx + 0.4, y + cy - 3.7, min(6.2, w - bx - 0.6), 3.4, rgba(90, 54, 20, 0.18)) }
+                bx += 7
+            }
+            cy += 4; row += 1
+        }
+        c.R(x - 0.6, y + h - 2.2, w + 1.2, 2.2, rgba(70, 40, 10, 0.22)); c.R(x, y, 1, h, rgba(255, 240, 206, 0.25))
         let n = Int(w * h / 70)
         for i in 0..<max(0, n) {
             let k = Double(i)
@@ -508,7 +533,11 @@ final class Renderer {
         c.seg(x - 1, y + d, x - 1, GY, 0.7, WOOD); c.seg(x + w - 2, y + d, x + w - 2, GY, 0.7, WOOD)
     }
     func win(_ x: Double, _ y: Double, _ w: Double, _ h: Double) {
-        c.arch(x, y, w, h, lit ? Col(0xffd27a) : DARKC)
+        c.arch(x - 0.8, y - 0.8, w + 1.6, h + 1.2, rgba(255, 244, 214, 0.55))
+        c.arch(x, y, w, h, lit ? Col.mix(Col(0xffd27a), Col(0xffb04a), 0.5 + 0.5 * sin(NOW * 9 + x)) : DARKC)
+        c.R(x - 1.2, y + h, w + 2.4, 1, Col(0x8a6434))
+        c.R(x - 1.8, y + w / 2, 1.4, h - w / 2, TEAL.alpha(0.85)); c.R(x + w + 0.4, y + w / 2, 1.4, h - w / 2, TEAL.alpha(0.85))
+        c.R(x + w / 2 - 0.2, y + 1, 0.4, h - 1, rgba(40, 24, 10, 0.5))
         if lit { light(x + w / 2, y + h / 2, 14, 0.6) }
     }
     func pennant(_ x: Double, _ y: Double, _ col: Col, _ len: Double) {
@@ -531,6 +560,7 @@ final class Renderer {
         }
         if L == 0 && plain {
             ruin(x, w, b.def.h[0] + 8, b.x)
+            ruinExtra(x, w, b.x)
             if b.building { scaffold(b, x, b.def.h[1], 0) }
             c.restore()
             return
@@ -546,7 +576,10 @@ final class Renderer {
         case .bank: treasury(b, x, L)
         default: break
         }
+        if t == .well && L >= 1 { wellExtra(x) }
+        if b.def.gate && L >= 2 && b.hp > 0 { gateExtra(x, L) }
         if plain && L >= 1 {
+            dress(b, x, L)
             topTier(b, x, L)
             // one gold pip by the door for each level raised
             for q in 0..<L { c.R(x + 2 + Double(q) * 2.6, GY - 2.6, 1.6, 1.6, rgba(28, 19, 12, 0.6)); c.R(x + 2.3 + Double(q) * 2.6, GY - 2.3, 1, 1, GOLD) }
@@ -902,6 +935,451 @@ final class Renderer {
         }
     }
 
+    // ---------- a second pass of life and detail over the whole scene
+    func plume(_ x: Double, _ y: Double, _ seed: Double, _ scale: Double = 1, _ col: Col = Col(0xf0ece4)) {
+        for q in 0..<5 {
+            let u = (NOW * 0.25 + Double(q) * 0.2 + seed * 0.37).truncatingRemainder(dividingBy: 1)
+            c.alpha(0.34 * (1 - u))
+            c.circ(x + sin(u * 5 + seed) * 2.5 * scale + u * 5 * scale, y - u * 16 * scale, (1.2 + u * 3) * scale, col)
+        }
+        c.alpha(1)
+    }
+    func glyphs(_ x: Double, _ y: Double, _ w: Double, _ rows: Int, _ seed: Double) {
+        for r in 0..<rows {
+            var gx = 0.0
+            var k = 0.0
+            while gx < w - 1 {
+                let gw = 0.8 + hashN(seed + k + Double(r) * 31) * 1.6
+                let gh = 1 + hashN(seed + k * 3 + Double(r) * 17) * 1.6
+                c.R(x + gx, y + Double(r) * 3.4 + (2.6 - gh) / 2, gw, gh, rgba(80, 50, 16, 0.42))
+                gx += gw + 1.1; k += 1
+            }
+        }
+    }
+    func puffs() {
+        for i in 0..<4 {
+            let n = Double(i)
+            let span = W + 200
+            var x = (hashN(n + 11) * span + NOW * (2.2 + n * 0.7) - cam * 0.04).truncatingRemainder(dividingBy: span)
+            if x < 0 { x += span }
+            x -= 100
+            let y = 22 + hashN(n + 12) * GY * 0.3
+            let a = 0.5 * (1 - g.dark * 0.75)
+            let warm = g.warmth(g.t)
+            let col = Col.mix(Col(0xffffff), Col(0xffb48a), warm * 0.7).alpha(a)
+            let sz = 0.8 + hashN(n + 13) * 0.6
+            c.ell(x, y, 26 * sz, 4.4 * sz, col); c.ell(x - 10 * sz, y - 3 * sz, 11 * sz, 5 * sz, col); c.ell(x + 6 * sz, y - 4.4 * sz, 13 * sz, 6 * sz, col); c.ell(x + 18 * sz, y - 2 * sz, 9 * sz, 4 * sz, col)
+            c.ell(x + 2 * sz, y + 2.2 * sz, 22 * sz, 2 * sz, rgba(120, 130, 170, 0.16 * (1 - g.dark)))
+        }
+    }
+
+    /// The streets behind the main street: ruins at first, and they come back as the town does.
+    func backTown(_ hz: Col) {
+        let core: [BType] = [.market, .tea, .guard, .pen, .bank, .temple]
+        let built = core.filter { g.B($0).level > 0 }.count
+        let grown = Double(min(14, g.bs.prefix(9).reduce(0) { $0 + $1.level }))
+        var i = 0
+        var wx = g.TOWN.0 + 22
+        while wx < g.TOWN.1 - 34 {
+            let n = Double(i)
+            let w = 20 + hashN(n + 2) * 16
+            let h = 20 + hashN(n + 3) * 14 + grown * 0.7
+            let x = wx - cam
+            if x < W + 12 && x + w > -30 {
+                let alive = i % 6 < built
+                let wall = Col.mix(i % 2 == 0 ? MUD : PLA2, hz, 0.4), shade = Col.mix(MUDD, hz, 0.4)
+                if alive {
+                    c.R(x, GY - h, w, h, wall); c.R(x + w - 3.5, GY - h, 3.5, h, shade); c.R(x, GY - h, w, 1, Col.mix(Col(0xfff0c8), hz, 0.3))
+                    var q = 0.0
+                    while q < w - 2 { c.R(x + q, GY - h - 2, 2.6, 2, wall); q += 4.6 }
+                    var cy = 5.0
+                    while cy < h { c.R(x, GY - h + cy, w - 3.5, 0.3, rgba(70, 40, 10, 0.12)); cy += 5 }
+                    if i % 4 == 1 { c.dome(x + w * 0.5, GY - h, w * 0.28, Col.mix(PLA, hz, 0.35)); c.R(x + w * 0.5 - 0.4, GY - h - w * 0.28 - 3, 0.8, 3, Col.mix(GOLD, hz, 0.3)) }
+                    // windows that come on at dusk, each on its own schedule
+                    for k in 0..<2 {
+                        let kx = x + 4 + Double(k) * (w - 13), ky = GY - h + 6 + hashN(n * 5 + Double(k)) * 5
+                        let on = lit && hashN(n * 7 + Double(k) + floor(NOW * 0.12)) > 0.3
+                        c.R(kx - 0.5, ky - 0.5, 4, 6, shade)
+                        c.R(kx, ky, 3, 5, on ? Col.mix(Col(0xffd27a), Col(0xffa53a), 0.5 + 0.5 * sin(NOW * 7 + n + Double(k))) : Col.mix(DARKC, hz, 0.25))
+                        if on { light(kx + 1.5, ky + 2.5, 9, 0.5) }
+                    }
+                    c.arch(x + w * 0.5 - 2.5, GY - 9, 5, 9, Col.mix(Col(0x5a3a22), hz, 0.3))
+                    let curt: [Col] = [RED, TEAL, LAPIS, Col(0xe0a030)]
+                    c.poly(Col.mix(curt[i % 4], hz, 0.3), [x + w * 0.5 - 2.5, GY - 7, x + w * 0.5 + 2.5, GY - 7, x + w * 0.5 + 2.5 + sin(NOW * 2 + n) * 0.8, GY - 1, x + w * 0.5 - 2.5 + sin(NOW * 2 + n) * 0.8, GY - 1])
+                    if i % 3 == 0 && g.dark < 0.9 { c.R(x + w * 0.28, GY - h - 5, 2.4, 4, shade); plume(x + w * 0.28 + 1.2, GY - h - 5, n) }
+                    if i % 5 == 2 && g.dark < 0.4 {
+                        let px = x + w * 0.5 + sin(NOW * 0.4 + n) * w * 0.3
+                        c.R(px - 1, GY - h - 7.5, 2, 5.5, Col.mix(ROBE[i % 5], hz, 0.3)); c.R(px - 0.9, GY - h - 9.6, 1.8, 2.1, Col.mix(TURB[i % 5], hz, 0.3))
+                    }
+                    if i % 2 == 1 {
+                        // a washing line to the next roof
+                        let x1 = x + w, y1 = GY - h + 4, x2 = x + w + 14, y2 = GY - h + 6
+                        c.curve(x1, y1, (x1 + x2) / 2, y1 + 4, x2, y2, 0.3, Col.mix(Col(0x5a3e22), hz, 0.3))
+                        for k in 0..<3 {
+                            let u = 0.22 + Double(k) * 0.28
+                            let lx = lerp(x1, x2, u), ly = lerp(y1, y2, u) + 4 * sin(PI * u) * 0.9
+                            let sw = sin(NOW * 2.6 + n + Double(k)) * 0.9
+                            c.poly(Col.mix(curt[(i + k) % 4], hz, 0.25), [lx - 1.6, ly, lx + 1.6, ly, lx + 1.6 + sw, ly + 4.4, lx - 1.6 + sw, ly + 4.4])
+                        }
+                    }
+                } else {
+                    var q = 0.0
+                    while q < w {
+                        let hh = h * (0.2 + 0.5 * hashN(n * 9 + q))
+                        c.R(x + q, GY - hh, 5.05, hh, Int(q / 5) % 2 == 0 ? shade : Col.mix(MUD2, hz, 0.4))
+                        c.R(x + q, GY - hh, 5.05, 0.7, Col.mix(Col(0xd9b680), hz, 0.4))
+                        q += 5
+                    }
+                }
+            }
+            wx += w + 6 + hashN(n + 9) * 12
+            i += 1
+        }
+    }
+
+    func groundExtra() {
+        var i = Int(floor(cam / 23))
+        let last = Int((cam + W) / 23) + 2
+        while i < last {
+            let n = Double(i)
+            let wx = n * 23 + hashN(n + 40) * 15
+            let x = wx - cam
+            let inTown = wx > g.TOWN.0 + 8 && wx < g.TOWN.1 - 8
+            if inTown {
+                // worn paving along the street
+                let y = GY + 1.5 + hashN(n + 41) * 5
+                c.R(x, y, 5 + hashN(n + 42) * 4, 1.6, rgba(150, 118, 76, 0.4)); c.R(x, y, 5 + hashN(n + 42) * 4, 0.4, rgba(255, 236, 196, 0.35))
+            } else if hashN(n + 43) < 0.4 && wx < g.NILE - 20 {
+                let y = GY + 1 + hashN(n + 44) * (H - GY - 12)
+                for k in 0..<4 {
+                    let a = -1.9 + Double(k) * 0.42 + sin(NOW * 1.7 + n) * 0.12
+                    c.seg(x, y, x + cos(a) * 4.5, y + sin(a) * 4.5, 0.45, Col(0xa89048))
+                }
+            }
+            i += 1
+        }
+    }
+
+    /// The Nile: water all the way to the far bank, moving light, boats, reeds, a wading bird, a fish now and then.
+    func nileExtra(_ hz: Col) {
+        let x = g.NILE - cam
+        if x > W + 10 { return }
+        let wd = W - x + 12
+        c.vfill(x + 2, GY - 9, wd, 9.5, [(0, Col.mix(Col(0xb4dce6), hz, 0.35)), (1, Col(0x6fb6c8))])
+        c.R(x + 2, GY - 10.6, wd, 1.8, Col.mix(Col(0x6a9a4a), hz, 0.45))
+        for i in 0..<7 {
+            let n = Double(i)
+            let px = x + 16 + n * 37 + hashN(n + 80) * 14
+            if px > W + 8 { continue }
+            let col = Col.mix(Col(0x2c5c2e), hz, 0.5)
+            c.seg(px, GY - 10, px + 0.6, GY - 16, 0.6, col)
+            for k in 0..<4 { let a = -PI * (0.1 + Double(k) * 0.27); c.seg(px + 0.6, GY - 16, px + 0.6 + cos(a) * 3.6, GY - 16 + sin(a) * 2 + 1.4, 0.55, col) }
+        }
+        // bands of light sliding downstream
+        for i in 0..<16 {
+            let n = Double(i)
+            let yy = GY + 1.5 + hashN(n + 90) * (H - GY - 3)
+            let u = (NOW * (5 + hashN(n) * 9) + hashN(n + 91) * 300).truncatingRemainder(dividingBy: wd + 40)
+            c.R(x + u - 20, yy, 9 + hashN(n + 92) * 18, 0.6, rgba(255, 255, 255, 0.16 + 0.2 * hashN(n + 93)))
+        }
+        // the sun (or moon) laid on the water
+        let t = g.t
+        let lx = t < 0.7 ? W * (0.06 + 0.88 * clampD(t / 0.66, 0, 1.06)) : W * (0.1 + 0.8 * (t - 0.64) / 0.36)
+        if lx > x + 6 {
+            for q in 0..<12 {
+                let n = Double(q)
+                if sin(NOW * 8 + n * 2.3) < 0.1 { continue }
+                let yy = GY - 7 + n * (H - GY + 6) / 12
+                let sp = 2 + n * 0.9
+                c.R(lx - sp + hashN(n + floor(NOW * 5)) * sp * 2, yy, 1.6 + n * 0.3, 0.6, g.dark > 0.5 ? rgba(220, 230, 255, 0.55) : rgba(255, 246, 200, 0.75))
+            }
+        }
+        // feluccas working the far water
+        for i in 0..<2 {
+            let n = Double(i)
+            let span = wd + 80
+            let bx = x + (NOW * (3 + n * 1.5) + n * 140).truncatingRemainder(dividingBy: span) - 40
+            if bx < x + 6 { continue }
+            let by = GY - 3.2 - n * 2.4 + sin(NOW * 1.4 + n) * 0.3
+            let sc = 1 - n * 0.25
+            c.poly(Col(0x5e3a1e), [bx - 6 * sc, by - 1.2, bx + 7 * sc, by - 1.2, bx + 5 * sc, by + 0.8, bx - 4 * sc, by + 0.8])
+            c.seg(bx, by - 1.2, bx, by - 10 * sc, 0.4, Col(0x5a3e22))
+            c.poly(Col(0xf6efdc), [bx + 0.4, by - 10 * sc, bx + 6 * sc, by - 3, bx + 0.4, by - 2])
+            c.R(bx - 5 * sc, by + 1.2, 11 * sc, 0.4, rgba(255, 255, 255, 0.4))
+        }
+        // foam along the bank, reeds, and an ibis working the shallows
+        var fy = GY + 1.0
+        while fy < H { c.R(x - 0.5 + sin(NOW * 2 + fy * 0.6) * 1.3, fy, 2.6, 0.5, rgba(255, 255, 255, 0.55)); fy += 2.4 }
+        for i in 0..<10 {
+            let n = Double(i)
+            let rx = x - 5 + hashN(n + 95) * 9, ry = GY + 2 + n * (H - GY - 4) / 10
+            let sw = sin(NOW * 1.8 + n) * 1.2
+            c.seg(rx, ry, rx + sw, ry - 8 - hashN(n + 96) * 5, 0.6, Col(0x4d8a3c))
+            if i % 2 == 0 { c.R(rx + sw - 0.6, ry - 10 - hashN(n + 96) * 5, 1.2, 3, Col(0x6a4a2a)) }
+        }
+        let ix = x + 13, iy = GY + 7
+        let peck = max(0, sin(NOW * 0.9)) > 0.8 ? 3.0 : 0.0
+        c.seg(ix - 1, iy, ix - 1, iy + 5, 0.4, Col(0x2a2a2a)); c.seg(ix + 1.4, iy, ix + 1.4, iy + 5, 0.4, Col(0x2a2a2a))
+        c.ell(ix, iy - 1.4, 3.4, 2, Col(0xf8f6ee)); c.R(ix - 3.6, iy - 1.8, 1.6, 1.4, Col(0x2a2a2a))
+        c.curve(ix + 2.4, iy - 2, ix + 4.4, iy - 5 + peck, ix + 4.6, iy - 6 + peck * 1.6, 0.9, Col(0xf8f6ee))
+        c.curve(ix + 4.6, iy - 6 + peck * 1.6, ix + 6.6, iy - 5.6 + peck * 1.8, ix + 7.6, iy - 3.6 + peck * 2, 0.5, Col(0x2a2a2a))
+        // a fish, every so often
+        let cycle = NOW * 0.16
+        let ph = cycle - floor(cycle)
+        if ph < 0.1 && wd > 70 {
+            let k = ph / 0.1
+            let jx = x + 46 + hashN(floor(cycle)) * (wd - 70), base = GY + 9 + hashN(floor(cycle) + 5) * 10
+            c.save()
+            c.translate(jx + (k - 0.5) * 12, base - sin(PI * k) * 9); c.rotate((k - 0.5) * 2.2)
+            c.ell(0, 0, 2.8, 1.1, Col(0xc8d8e0)); c.poly(Col(0x9fb8c8), [-2.4, 0, -4.4, -1.4, -4.4, 1.4])
+            c.restore()
+            c.ellStroke(jx - 6, base, 2 + k * 5, 0.8, 0.4, rgba(255, 255, 255, 0.7 * (1 - k)))
+            if k > 0.7 { c.ellStroke(jx + 6, base, (k - 0.7) * 18, 0.9, 0.4, rgba(255, 255, 255, 0.8)) }
+        }
+    }
+
+    /// Lilies, ducks, dragonflies and a moored skiff on the creek.
+    func creekExtra(_ x: Double) {
+        c.poly(Col(0x6a4426), [x - 2, GY - 12.4, x + 5, GY - 12.4, x + 4, GY - 11, x - 1, GY - 11])
+        c.seg(x + 1.4, GY - 12.4, x + 1.4, GY - 17, 0.35, Col(0x5a3e22)); c.poly(Col(0xf6efdc), [x + 1.6, GY - 17, x + 4.4, GY - 13.4, x + 1.6, GY - 13])
+        for i in 0..<6 {
+            let n = Double(i)
+            let k = 0.15 + hashN(n + 110) * 0.8
+            let yy = GY + 5 + k * (H - GY - 8)
+            let hw = 36 + k * 22
+            let lx = x - hw * 0.8 + hashN(n + 111) * hw * 1.6 + sin(NOW * 0.5 + n) * 1.2
+            c.ell(lx, yy, 2.6 + k, 1 + k * 0.3, Col(0x4d8a3c)); c.poly(Col(0x3a7896), [lx, yy, lx + 2.6 + k, yy - 0.5, lx + 2.6 + k, yy + 0.5])
+            if i % 2 == 0 { c.circ(lx - 0.6, yy - 0.5, 0.9, Col(0xf8e6f0)) }
+        }
+        for i in 0..<2 {
+            let n = Double(i)
+            let yy = GY + 16 + n * 7
+            let span = 76 + n * 16
+            let u = (NOW * (3 + n) + n * 40).truncatingRemainder(dividingBy: span * 2)
+            let dir: Double = u < span ? 1 : -1
+            let dx = x - span / 2 + (u < span ? u : span * 2 - u)
+            c.ell(dx, yy, 2.6, 1.4, Col(0x8a6a44)); c.circ(dx + dir * 2.4, yy - 1.4, 1.1, Col(0x2c5c2e)); c.R(dx + dir * 3.2 - 0.4, yy - 1.5, 1, 0.5, Col(0xe0a030))
+            c.ellStroke(dx - dir * 2.5, yy + 0.6, 3.5, 0.7, 0.3, rgba(255, 255, 255, 0.5))
+        }
+        if g.dark < 0.4 {
+            for i in 0..<3 {
+                let n = Double(i)
+                let fx = x + sin(NOW * 1.3 + n * 2.1) * 30 + sin(NOW * 5.1 + n) * 4, fy = GY - 4 + cos(NOW * 1.7 + n * 1.3) * 5
+                c.R(fx - 1.6, fy, 3.2, 0.4, Col(0x2a6a8a)); c.R(fx - 0.9, fy - 0.9, 1.8, 0.4, rgba(255, 255, 255, 0.7))
+            }
+        }
+    }
+
+    /// What a living building has around it: washing, pots, steam, braziers, carved bands.
+    func dress(_ b: Building, _ x: Double, _ L: Int) {
+        let w = b.w
+        switch b.type {
+        case .market:
+            let rug: [Col] = [Col(0x8f2a1c), LAPIS, Col(0x7a4a8a)]
+            for k in 0..<2 {
+                let rx = x + 22 + Double(k) * 25
+                let sw = sin(NOW * 1.8 + Double(k) * 2) * 0.7
+                c.poly(rug[k], [rx, GY - 22, rx + 5, GY - 22, rx + 5 + sw, GY - 11, rx + sw, GY - 11])
+                for q in 0..<3 { c.R(rx + sw * Double(q) / 3, GY - 20 + Double(q) * 3, 5, 0.8, GOLD) }
+            }
+            c.ell(x + 2, GY - 2.4, 2.2, 2.6, Col(0xb5673a)); c.R(x + 0.8, GY - 5.6, 2.4, 1, Col(0x8f4e2a)); c.ell(x + w - 3, GY - 1.8, 1.8, 2, Col(0xc98a4a))
+            c.R(x + w - 12, GY - 3, 6, 3, Col(0x4a3a2a)); if g.dark < 0.95 { plume(x + w - 9, GY - 3, b.x, 0.8, Col(0xe8e2d8)) }
+            for q in 0..<4 { c.circ(x + 34 + Double(q) * 2.4, GY - 8 + Double(q % 2), 1.1, q % 2 == 0 ? Col(0xd9822a) : Col(0xc7402a)) }
+        case .tea:
+            plume(x + 52, GY - 5, b.x + 1, 0.5)
+            c.R(x + 51, GY - 6.4, 2.4, 2.2, Col(0xc9a45a)); c.seg(x + 53.4, GY - 5.8, x + 54.6, GY - 6.6, 0.5, Col(0xc9a45a))
+            let sw = sin(NOW * 1.5 + b.x) * 1.2
+            c.seg(x + 33, GY - 21, x + 33 + sw, GY - 17.4, 0.3, Col(0x5a3e22)); c.R(x + 32 + sw, GY - 17.4, 2, 2.6, lit ? Col(0xffd27a) : Col(0xe0a030))
+            if lit { light(x + 33 + sw, GY - 16, 13, 0.6) }
+            c.R(x + 3, GY - 3, 5, 3, Col(0x4d8a3c)); c.R(x + 2.4, GY - 1.2, 6.2, 1.2, Col(0xb5673a)); c.circ(x + 5.4, GY - 4, 1, RED)
+        case .guard:
+            c.seg(x + 24, GY, x + 24, GY - 12, 0.9, WOOD); c.seg(x + 20.5, GY - 9, x + 27.5, GY - 9, 0.9, WOOD); c.circ(x + 24, GY - 13.4, 1.8, Col(0xd9c9a0))
+            c.R(x + 22.4, GY - 9, 3.2, 5, Col(0xb89a54))
+            if lit { fire(x + 5, GY - 20, 0.45); fire(x + 23, GY - 20, 0.45) }
+            c.R(x + 4.4, GY - 20, 1.2, 4, Col(0x4a3a2a)); c.R(x + 22.4, GY - 20, 1.2, 4, Col(0x4a3a2a))
+            glyphs(x + 26, GY - 27, 28, 1, b.x)
+        case .pen:
+            c.R(x + 3, GY - 4, 7, 4, Col(0xd9b85a)); c.R(x + 3, GY - 4, 7, 0.6, Col(0xf0d88a)); c.R(x + 5.2, GY - 4, 0.5, 4, Col(0x8a6a2a))
+            for q in 0..<5 { c.R(x + 47 + Double(q) * 3.6 + sin(NOW * 2 + Double(q)) * 0.6, GY - 11.5, 2, 0.4, rgba(255, 255, 255, 0.6)) }
+            for k in 0..<2 {
+                let hx = x + 14 + Double(k) * 30 + sin(NOW * 0.5 + Double(k) * 3) * 4
+                let peck = sin(NOW * 6 + Double(k) * 2) > 0.5 ? 1.2 : 0.0
+                c.ell(hx, GY - 2, 1.8, 1.4, k == 0 ? Col(0xf0ece2) : Col(0xb5673a)); c.circ(hx + 1.6, GY - 3.2 + peck, 0.9, k == 0 ? Col(0xf0ece2) : Col(0xb5673a))
+                c.R(hx + 2.3, GY - 3.2 + peck, 0.7, 0.4, Col(0xe0a030)); c.R(hx + 1.3, GY - 4.3 + peck, 0.7, 0.6, RED)
+            }
+        case .temple:
+            glyphs(x + 4, GY - 26, 19, 3, b.x); glyphs(x + w - 23, GY - 26, 19, 3, b.x + 5)
+            for sx in [x + 22.0, x + w - 24] {
+                c.R(sx, GY - 8, 2.4, 8, STONE2); c.R(sx - 1, GY - 9.4, 4.4, 1.6, Col(0x4a3a2a))
+                if lit { fire(sx + 1.2, GY - 9.4, 0.6) } else { plume(sx + 1.2, GY - 9.4, sx, 0.45, Col(0xd8d0e0)) }
+            }
+            c.R(x + 27, GY - 1.6, w - 54, 1.6, Col(0xe6d2a2)); c.R(x + 25, GY - 0.8, w - 50, 0.8, STONE2)
+        case .bank:
+            glyphs(x + 6, GY - 27, 13, 2, b.x); glyphs(x + 37, GY - 27, 13, 2, b.x + 3)
+            for sx in [x + 14.0, x + 40] {
+                c.R(sx, GY - 5, 3, 5, STONE2); c.ell(sx + 1.5, GY - 6.6, 2.4, 1.8, Col(0xc9a45a)); c.circ(sx + 2.6, GY - 8.2, 1.3, Col(0xc9a45a))
+            }
+            if sin(NOW * 2.4) > 0.86 { c.R(x + 25.6, GY - 13.4, 4.8, 0.5, Col(0xffffff)); c.R(x + 27.7, GY - 15.5, 0.5, 4.8, Col(0xffffff)) }
+        default:
+            break
+        }
+    }
+    func wellExtra(_ x: Double) {
+        let bob = sin(NOW * 1.1) * 1.6
+        c.seg(x + 7.5, GY - 18.5, x + 7.5, GY - 10 + bob, 0.4, Col(0xe6d2a2)); c.R(x + 6, GY - 10 + bob, 3, 2.5, WOOD); c.R(x + 6, GY - 10 + bob, 3, 0.6, Col(0x9fd8e8))
+        c.R(x + 1, GY - 5.2, 13, 0.6, rgba(70, 40, 10, 0.25)); c.R(x + 1, GY - 3, 13, 0.6, rgba(70, 40, 10, 0.25))
+        c.ell(x - 4, GY + 1.6, 5, 1, rgba(90, 120, 130, 0.35))
+        if sin(NOW * 3 + x) > 0.75 { c.R(x + 4, GY - 7.4, 1, 1, Col(0xffffff)) }
+        for k in 0..<2 {
+            let px = x + 2 + Double(k) * 9
+            let hop = max(0, sin(NOW * 0.6 + Double(k) * 2.2) - 0.9) * 40
+            c.ell(px, GY - 21.6 - hop, 1.5, 1, Col(0x9aa0aa)); c.R(px + 1, GY - 22.8 - hop, 1, 1, Col(0x9aa0aa))
+        }
+        c.ell(x + 20, GY - 1.6, 2, 2.4, Col(0xb5673a)); c.R(x + 19, GY - 4.6, 2, 0.9, Col(0x8f4e2a))
+    }
+    func gateExtra(_ x: Double, _ L: Int) {
+        c.R(x + 3, GY - 9.4, 8, 0.8, Col(0x3a3a3a)); c.R(x + 3, GY - 4.6, 8, 0.8, Col(0x3a3a3a))
+        for q in 0..<4 { c.R(x + 3.8 + Double(q) * 2, GY - 9.2, 0.5, 0.5, Col(0xc8c8c0)); c.R(x + 3.8 + Double(q) * 2, GY - 4.4, 0.5, 0.5, Col(0xc8c8c0)) }
+        c.circ(x + 6.2, GY - 6.6, 0.7, GOLD); c.circ(x + 7.8, GY - 6.6, 0.7, GOLD)
+        if L > 2 { glyphs(x + 1.5, GY - 24, 11, 2, x) }
+    }
+    func ruinExtra(_ x: Double, _ w: Double, _ seed: Double) {
+        for k in 0..<3 {
+            let n = Double(k)
+            let cx = x + 4 + hashN(seed + n) * (w - 8)
+            c.seg(cx, GY - 2, cx + 1.4, GY - 6, 0.3, rgba(40, 24, 10, 0.55)); c.seg(cx + 1.4, GY - 6, cx + 0.4, GY - 9.5, 0.3, rgba(40, 24, 10, 0.55))
+            let bx = x - 6 + hashN(seed + n + 7) * (w + 10)
+            c.R(bx, GY - 2.4, 4.4, 2.4, MUD2); c.R(bx, GY - 2.4, 4.4, 0.5, Col(0xd9b680)); c.R(bx + 3.2, GY - 2.4, 1.2, 2.4, MUDD)
+            let wx = x + hashN(seed + n + 13) * w
+            for q in 0..<3 {
+                let a = -1.9 + Double(q) * 0.55 + sin(NOW * 1.6 + n + seed) * 0.14
+                c.seg(wx, GY - 0.5, wx + cos(a) * 4, GY - 0.5 + sin(a) * 4, 0.4, Col(0x8a8a3a))
+            }
+        }
+        c.poly(Col(0xa8603a), [x + w * 0.7, GY, x + w * 0.7 + 1, GY - 3.4, x + w * 0.7 + 3, GY - 1.6, x + w * 0.7 + 5, GY - 3, x + w * 0.7 + 6, GY])
+        // a lizard that suns itself and bolts
+        let cyc = NOW * 0.11 + seed
+        let u = cyc - floor(cyc)
+        if g.dark < 0.4 {
+            let lx = x + w * 0.2 + (u < 0.8 ? 0 : (u - 0.8) / 0.2 * 26), ly = GY - 1
+            c.R(lx - 2.4, ly - 0.7, 4.8, 1.1, Col(0x6a7a3a)); c.R(lx + 2.2, ly - 1, 1.5, 1.1, Col(0x6a7a3a)); c.seg(lx - 2.4, ly, lx - 5.2, ly + 0.4 + sin(NOW * 9) * 0.3, 0.4, Col(0x6a7a3a))
+        }
+    }
+    func campExtra(_ cp: Camp) {
+        let x = cp.x - cam
+        if x > W + 50 || x < -50 { return }
+        for k in 0..<5 {
+            let kx = x - 14 + Double(k) * 6.4
+            c.poly(GOLD.alpha(0.8), [kx, GY - 3, kx + 1.6, GY - 5, kx + 3.2, GY - 3, kx + 1.6, GY - 1.6])
+        }
+        c.seg(x + 2, GY - 14, x + 2, GY - 20, 0.5, WOOD)
+        let f = sin(NOW * 5 + cp.x) * 1
+        c.poly(RED, [x + 2, GY - 20, x + 8, GY - 18.8 + f, x + 2, GY - 17.4])
+        c.seg(x + 26.5, GY, x + 30, GY - 8, 0.5, Col(0x3a2a1c)); c.seg(x + 33.5, GY, x + 30, GY - 8, 0.5, Col(0x3a2a1c))
+        c.ell(x + 30, GY - 5, 2.2, 1.6, Col(0x2a2422)); plume(x + 30, GY - 6.6, cp.x, 0.5)
+        c.R(x + 24, GY - 1.4, 12, 0.5, GOLD.alpha(0.7))
+        for q in 0..<7 { c.R(x + 24 + Double(q) * 1.9, GY + 0.4, 0.5, 1, RED) }
+        c.ell(x + 41, GY - 2.4, 1.6, 2.2, Col(0x9a5a3a)); c.ell(x - 26, GY - 2, 2, 2.4, Col(0xb5673a)); c.R(x - 27, GY - 5, 2, 0.9, Col(0x8f4e2a))
+    }
+    func urnExtra(_ u: Urn) {
+        if u.open { return }
+        let x = u.x - cam
+        if x > W + 10 || x < -10 { return }
+        for q in 0..<4 { c.poly(LAPIS, [x - 3 + Double(q) * 1.6, GY - 5.4, x - 2.2 + Double(q) * 1.6, GY - 6.6, x - 1.4 + Double(q) * 1.6, GY - 5.4]) }
+        c.arcStroke(x - 3, GY - 6.4, 1.3, PI * 0.5, PI * 1.5, 0.5, Col(0x8f4e2a)); c.arcStroke(x + 3, GY - 6.4, 1.3, -PI * 0.5, PI * 0.5, 0.5, Col(0x8f4e2a))
+        c.ell(x - 1.4, GY - 4.6, 0.7, 2.2, rgba(255, 255, 255, 0.25))
+    }
+    func quarryExtra() {
+        let x = g.QUARRY - cam
+        if x > W + 60 || x < -60 { return }
+        c.seg(x - 22, GY, x - 16, GY - 17, 0.6, WOOD); c.seg(x - 18, GY, x - 12, GY - 17, 0.6, WOOD)
+        for q in 0..<5 { c.seg(x - 21.3 + Double(q) * 1.2, GY - 2 - Double(q) * 3.2, x - 17.3 + Double(q) * 1.2, GY - 2 - Double(q) * 3.2, 0.5, WOOD) }
+        for q in 0..<6 { c.seg(x - 30 + Double(q) * 5, GY - 4 - hashN(Double(q) + 3) * 8, x - 28 + Double(q) * 5, GY - 6 - hashN(Double(q) + 3) * 8, 0.35, rgba(70, 40, 10, 0.4)) }
+        c.R(x + 30, GY - 5, 11, 4, Col(0x7a5632)); c.R(x + 30, GY - 5, 11, 0.8, Col(0xa87c4a)); c.circ(x + 32.5, GY - 1, 1.6, Col(0x3a2a1c)); c.circ(x + 38.5, GY - 1, 1.6, Col(0x3a2a1c))
+        c.R(x + 32, GY - 8, 6, 3, STONE); c.R(x + 32, GY - 8, 6, 0.6, Col(0xecd6a4))
+        c.seg(x + 41, GY - 4, x + 47, GY - 5.6, 0.5, WOOD)
+        c.R(x + 12, GY - 4.4, 9, 0.4, rgba(70, 40, 10, 0.3)); c.R(x + 16.4, GY - 7, 0.4, 7, rgba(70, 40, 10, 0.3))
+        pennant(x - 4, GY - 20, Col(0xe0a030), 6)
+    }
+    func goatExtra(_ gt: Goat) {
+        let x = gt.x - cam, d = gt.dir
+        if x < -10 || x > W + 10 { return }
+        let s = gt.kid ? 0.7 : 1.0
+        let hx = x + d * 4 * s, hy = GY - 6.5 * s
+        c.seg(hx - d * 0.6, hy, hx - d * 1.8, hy - 2 * s, 0.5, Col(0x5a4a3a)); c.seg(hx, hy, hx - d * 0.8, hy - 2.4 * s, 0.5, Col(0x5a4a3a))
+        c.R(hx + d * 0.6 - 0.25, hy + 0.6, 0.5, 0.5, Col(0x1c1008))
+        if !gt.kid { c.R(hx + d * 0.4 - 0.3, hy + 2.2 * s, 0.6, 1.4, Col(0xf0ece2)) }
+        c.seg(x - d * 3 * s, GY - 4.6 * s, x - d * 4.2 * s, GY - 5.8 * s + sin(NOW * 6 + gt.x) * 0.5, 0.6, Col(0xe8e0d0))
+        c.R(x - 2 * s, GY - 5 * s, 4 * s, 0.6, rgba(255, 255, 255, 0.4)); c.R(x - 1, GY - 3.6 * s, 2.4 * s, 1, rgba(120, 100, 80, 0.3))
+    }
+    /// Carving, lamps, cargo and rigging on the far places.
+    func siteExtras() {
+        let sp = g.B(.sphinx)
+        if !sp.gone && sp.level > 0 {
+            let x = sp.x - cam
+            if x < W + 20 && x + sp.w > -20 {
+                glyphs(x + 10, GY - 11, 44, 2, sp.x)
+                c.R(x + 58, GY - 3, 24, 0.5, STONE2); for q in 0..<4 { c.R(x + 62 + Double(q) * 4.6, GY - 7, 0.4, 4, STONE2) }
+                c.R(x + 59.5, GY - 17, 5, 3, STONE2); c.R(x + 56, GY - 19, 13, 0.6, GOLD)
+                if sin(NOW * 0.7) > 0.93 { c.R(x + 65, GY - 31, 2, 2, Col(0xfff3b0)); light(x + 66, GY - 30, 10, 0.4) }
+                for q in 0..<3 { c.seg(x + 20 + Double(q) * 14, GY - 15, x + 19 + Double(q) * 14, GY - 6 - hashN(Double(q)) * 4, 0.35, rgba(110, 78, 36, 0.3)) }
+            }
+        }
+        let tb = g.B(.tomb)
+        if !tb.gone {
+            let x = tb.x - cam
+            if x < W + 20 && x + tb.w > -40 {
+                c.poly(GOLD, [x + 23, GY - 33.4, x + 25, GY - 36, x + 27, GY - 33.4])
+                let u = (NOW * 0.5).truncatingRemainder(dividingBy: 1)
+                c.alpha(0.4 * (1 - u)); c.ell(x + 25 + u * 14, GY - 36 - u * 3, 3 + u * 6, 0.8, SAND); c.alpha(1)
+                if tb.level > 0 {
+                    glyphs(x + 14, GY - 13, 4, 3, tb.x); glyphs(x + 31, GY - 13, 4, 3, tb.x + 2)
+                    if lit { fire(x + 16, GY - 15, 0.5); fire(x + 32.5, GY - 15, 0.5) }
+                    for q in 0..<3 { c.R(x + 16 + Double(q) * 6, GY, 5, 1, STONE2) }
+                }
+            }
+        }
+        let hm = g.B(.hermit)
+        if !hm.gone {
+            let x = hm.x - cam
+            if x < W + 20 && x + hm.w > -20 {
+                for q in 0..<3 {
+                    let sw = sin(NOW * 2 + Double(q)) * 0.8
+                    c.seg(x + 14 + Double(q) * 4, GY - 16, x + 14 + Double(q) * 4 + sw, GY - 12.6, 0.25, Col(0x5a3e22))
+                    c.R(x + 13.4 + Double(q) * 4 + sw, GY - 12.6, 1.2, 1.4, q == 1 ? TEAL : GOLD)
+                }
+                c.ell(x + 6, GY - 2.4, 2.2, 2.6, Col(0xb5673a)); c.ell(x + 42, GY - 1.8, 1.8, 2, Col(0x9a5a3a))
+                c.R(x + 28, GY - 0.8, 9, 0.8, Col(0x8f2a1c)); c.R(x + 28, GY - 0.8, 9, 0.25, GOLD)
+            }
+        }
+        let bt = g.B(.btemple)
+        if !bt.gone && bt.level > 0 {
+            let x = bt.x - cam
+            if x < W + 20 && x + bt.w > -20 {
+                glyphs(x + 6, GY - 39, 78, 1, bt.x)
+                for sx in [x + 1.0, x + 85] { c.R(sx, GY - 9, 4, 9, STONE2); c.R(sx - 1, GY - 10.6, 6, 1.8, Col(0x4a3a2a)); if lit { fire(sx + 2, GY - 10.6, 0.7) } }
+                c.circ(x + 45, GY - 44.4, 3, GOLD); c.poly(GOLD, [x + 39, GY - 44.4, x + 45, GY - 46, x + 51, GY - 44.4, x + 45, GY - 43])
+            }
+        }
+        let dk = g.B(.dock)
+        let x = dk.x - cam
+        if dk.level > 0 && x < W + 40 {
+            c.R(x + 8, GY - 6.4, 5, 4, Col(0x8a6434)); c.R(x + 8, GY - 6.4, 5, 0.7, Col(0xb08854)); c.R(x + 14, GY - 5.2, 4, 2.8, Col(0x7a5632)); c.R(x + 10, GY - 9.4, 4, 3, Col(0x9a7444))
+            c.ell(x + 24, GY - 3.4, 2.4, 1, Col(0xc9a876)); c.ell(x + 24, GY - 4, 2, 0.8, Col(0xa88856))
+            c.seg(x + 58, GY - 2.4, x + 58, GY - 16, 0.9, WOOD); c.seg(x + 58, GY - 16, x + 61.5, GY - 16, 0.6, WOOD)
+            let sw = sin(NOW * 1.4) * 0.7
+            c.seg(x + 61.5, GY - 16, x + 61.5 + sw, GY - 13.4, 0.3, Col(0x5a3e22)); c.R(x + 60.4 + sw, GY - 13.4, 2.2, 2.8, lit ? Col(0xffd27a) : Col(0xe0a030))
+            if lit { light(x + 61.5 + sw, GY - 12, 22, 0.8) }
+            let away = (g.trip ?? 0) * 26
+            let bx = x + 78 + away, by = GY + 3 + sin(NOW * 1.6) * 0.6
+            if g.trip == nil { c.curve(x + 66, GY - 2, x + 64, GY + 3, bx - 15, by - 4, 0.4, Col(0xc9a876)) }
+            c.seg(bx - 1, by - 27, bx + 12.6, by - 12.4, 0.5, RED); c.seg(bx - 1, by - 22, bx + 8.4, by - 11.4, 0.4, rgba(181, 65, 46, 0.5))
+            c.poly(RED, [bx - 2, by - 30, bx - 2, by - 33, bx - 7 + sin(NOW * 5) * 0.8, by - 31.6])
+            c.R(bx - 15, by + 1.6, 30, 0.5, rgba(255, 255, 255, 0.45)); c.R(bx - 10, by - 3.4, 20, 0.5, GOLD)
+            c.R(bx + 6, by - 6.6, 4, 2.6, Col(0x8a6434)); c.R(bx + 2, by - 6, 3, 2, Col(0xb5673a))
+        }
+    }
+
     // ---------- the far places, the dock and the things to find
     func cliffs(_ hz: Col) {
         let rock = Col.mix(Col(0xb8693e), hz, 0.35), shade = Col.mix(Col(0x8a4a2a), hz, 0.35)
@@ -1049,6 +1527,7 @@ final class Renderer {
             c.seg(rx, yy, rx + sin(NOW * 2 + n + 2) * 0.9, yy - 6 - hashN(n + 5) * 4, 0.7, Col(0x4d8a3c))
             if i % 3 == 0 { c.R(lx - 0.6, yy - 9, 1.4, 3, Col(0x6a4a2a)); c.R(rx - 0.6, yy - 9, 1.4, 3, Col(0x6a4a2a)) }
         }
+        creekExtra(x)
         // the plank bridge the road crosses on
         for px in [-34.0, -12, 12, 34] {
             c.R(x + px - 0.9, GY + 2, 1.8, 9 + abs(px) * 0.08, Col(0x4a2e18))
