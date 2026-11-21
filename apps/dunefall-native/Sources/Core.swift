@@ -37,13 +37,13 @@ func rgba(_ r: Double, _ g: Double, _ b: Double, _ a: Double) -> Col {
 
 let SAND = Col(0xe6c588), SAND2 = Col(0xd4ad6c), WOOD = Col(0x7a5632), DARKC = Col(0x3a2a1c)
 let GOLD = Col(0xf2c14e), TEAL = Col(0x2fa7a0), RED = Col(0xb5412e), LAPIS = Col(0x2c4f9e)
-let MUD = Col(0xc9a26c), MUD2 = Col(0xb08854), MUDD = Col(0x86663f)
-let PLA = Col(0xeedfbc), PLA2 = Col(0xcdb88c), STONE = Col(0xd2b47e), STONE2 = Col(0xa98652)
+var MUD = Col(0xc9a26c), MUD2 = Col(0xb08854), MUDD = Col(0x86663f)
+var PLA = Col(0xeedfbc), PLA2 = Col(0xcdb88c), STONE = Col(0xd2b47e), STONE2 = Col(0xa98652)
 let ROBE: [Col] = [Col(0xe8dcc0), Col(0xc9d6c2), Col(0xd9b99a), Col(0xb9c4d9), Col(0xe2c9a0)]
 let TURB: [Col] = [Col(0xf3ead2), RED, LAPIS, Col(0xe0a030), TEAL]
 let SKIN: [Col] = [Col(0xb8804e), Col(0x9a6a40), Col(0xc9925e)]
 
-enum BType: Int { case market, tea, `guard`, pen, well, temple, gw, ge, bank }
+enum BType: Int { case market, tea, `guard`, pen, well, temple, gw, ge, bank, dock, sphinx, tomb, grove, hermit, btemple }
 enum Role { case folk, digger, `guard`, herder }
 
 struct Def {
@@ -55,6 +55,7 @@ struct Def {
     let tool: Role?
     let gate: Bool
     let h: [Double]
+    var far = false
 }
 
 let DEF: [BType: Def] = [
@@ -66,8 +67,80 @@ let DEF: [BType: Def] = [
     .temple: Def(name: "TEMPLE", w: 72, cost: [12, 18], pay: 4, tier: true, tool: nil, gate: false, h: [16, 46, 58]),
     .gw: Def(name: "WEST GATE", w: 14, cost: [4, 8, 14], pay: 0, tier: true, tool: nil, gate: true, h: [4, 16, 26, 36]),
     .ge: Def(name: "EAST GATE", w: 14, cost: [4, 8, 14], pay: 0, tier: true, tool: nil, gate: true, h: [4, 16, 26, 36]),
-    .bank: Def(name: "TREASURY", w: 56, cost: [10, 16], pay: 0, tier: true, tool: nil, gate: false, h: [12, 32, 40])
+    .bank: Def(name: "TREASURY", w: 56, cost: [10, 16], pay: 0, tier: true, tool: nil, gate: false, h: [12, 32, 40]),
+    .dock: Def(name: "DOCK", w: 56, cost: [20, 6], pay: 0, tier: false, tool: nil, gate: false, h: [8, 14, 14], far: true),
+    .sphinx: Def(name: "SPHINX", w: 84, cost: [10], pay: 0, tier: false, tool: nil, gate: false, h: [26, 40], far: true),
+    .tomb: Def(name: "TOMB", w: 50, cost: [14], pay: 0, tier: false, tool: nil, gate: false, h: [22, 22], far: true),
+    .grove: Def(name: "DATE GROVE", w: 70, cost: [5], pay: 0, tier: false, tool: nil, gate: false, h: [30, 36], far: true),
+    .hermit: Def(name: "HERMIT", w: 44, cost: [6, 6, 6], pay: 0, tier: false, tool: nil, gate: false, h: [30, 30, 30, 30], far: true),
+    .btemple: Def(name: "BURIED TEMPLE", w: 90, cost: [12], pay: 0, tier: false, tool: nil, gate: false, h: [20, 46], far: true)
 ]
+
+// The five towns: each has its own street plan, its own country around it, and its own thing to find.
+enum Feat: Int { case pyramid, oasis, cliff, port, temple }
+let TOWNS = ["DUNEFALL", "KHEPRI WELLS", "SETHAT", "AMBER GATE", "THE LAST CATARACT"]
+let TOWNSUB = ["Under the pyramids", "The oasis town", "Under the red cliffs", "The river port", "The city of old temples"]
+let BOSSTEXT = ["The warlord rides with them tonight.", "The Poisoner. He is making for the well: stop him before he reaches it.",
+                "The Stone Lord. He stands off and rolls boulders at your gate.", "River pirates. They are landing at the dock while the raid comes from the west.",
+                "The High Priest. He raises the dead, then comes for the gate himself."]
+struct TownCfg {
+    let feat: Feat
+    let ox: Double
+    let bx: [BType: Double]
+    let sites: [BType: Double]
+    let oasis: Double
+    let past: (Double, Double)
+    let quarry: Double
+    let camps: [(Double, Int)]
+    let urns: [(Double, Int)]
+}
+let TCFG: [TownCfg] = [
+    TownCfg(feat: .pyramid, ox: 0, bx: [.bank: 1338, .market: 1408, .tea: 1500, .guard: 1700, .temple: 1778, .pen: 1866],
+            sites: [.sphinx: 600, .tomb: 78, .grove: 2450], oasis: 2485, past: (2080, 2200), quarry: 985,
+            camps: [(430, 3), (1130, 2), (2320, 2), (2860, 3)], urns: [(250, 6), (860, 4), (2230, 4), (2650, 6)]),
+    TownCfg(feat: .oasis, ox: 0, bx: [.tea: 1326, .market: 1412, .guard: 1512, .temple: 1694, .pen: 1786, .bank: 1888],
+            sites: [.grove: 2050, .hermit: 150], oasis: 2085, past: (2240, 2380), quarry: 900,
+            camps: [(520, 3), (1120, 2), (2500, 3), (2820, 2)], urns: [(330, 6), (760, 5), (2640, 6)]),
+    TownCfg(feat: .cliff, ox: 0, bx: [.guard: 1330, .bank: 1416, .temple: 1490, .pen: 1700, .market: 1806, .tea: 1896],
+            sites: [.tomb: 78, .grove: 2450], oasis: 2485, past: (2080, 2200), quarry: 985,
+            camps: [(470, 2), (1130, 3), (2320, 2), (2860, 3)], urns: [(640, 5), (860, 4), (2230, 5), (2700, 6)]),
+    TownCfg(feat: .port, ox: 640, bx: [.market: 1326, .bank: 1424, .pen: 1500, .tea: 1694, .guard: 1782, .temple: 1866],
+            sites: [.btemple: 880], oasis: -9999, past: (2700, 2820), quarry: 1500,
+            camps: [(420, 3), (1080, 3), (1680, 2), (2900, 2)], urns: [(250, 6), (640, 5), (1300, 5), (1760, 4)]),
+    TownCfg(feat: .temple, ox: 0, bx: [.temple: 1330, .tea: 1420, .market: 1510, .bank: 1694, .guard: 1772, .pen: 1862],
+            sites: [.sphinx: 600, .tomb: 78, .grove: 2450], oasis: 2485, past: (2080, 2200), quarry: 985,
+            camps: [(430, 3), (1130, 3), (2320, 3), (2860, 3)], urns: [(250, 7), (860, 5), (2230, 5), (2650, 7)])
+]
+let PALS: [[UInt32]] = [
+    [0xc9a26c, 0xb08854, 0x86663f, 0xeedfbc, 0xcdb88c, 0xd2b47e, 0xa98652], [0xf0e6d0, 0xd6c8a8, 0xa8997a, 0xfbf6ea, 0xdcd2bc, 0xe8dcc0, 0xc0b08c],
+    [0xd08a5c, 0xb06a40, 0x7e4426, 0xe6b08a, 0xc48a62, 0xcf8a5a, 0xa85a36], [0xb89464, 0x96744a, 0x6a4e2e, 0xe4d4b0, 0xc2ae84, 0xc9b084, 0x9c8258],
+    [0xdcc696, 0xbfa672, 0x8e7848, 0xf0e2bc, 0xd2c092, 0xe0cc9a, 0xb49a66]
+]
+func usePalette(_ i: Int) {
+    let q = PALS[i % 5]
+    MUD = Col(q[0]); MUD2 = Col(q[1]); MUDD = Col(q[2]); PLA = Col(q[3]); PLA2 = Col(q[4]); STONE = Col(q[5]); STONE2 = Col(q[6])
+}
+
+/// A camera move with a caption: the game holds still while it plays.
+final class Cine {
+    let k: String
+    let text: String
+    let dur: Double
+    let fx: Double
+    let zoom: Double
+    var t = 0.0
+    init(k: String, text: String, dur: Double, fx: Double, zoom: Double) { self.k = k; self.text = text; self.dur = dur; self.fx = fx; self.zoom = zoom }
+}
+final class Storm {
+    var t = 0.0
+    let dur = 38.0
+    var front: Double
+    var leak = 0.0
+    var raided = false
+    init(front: Double) { self.front = front }
+}
+struct Rock { var x: Double; var dir: Double; var rot = 0.0; var t = 0.0; var dead = false }
+
 let GHP: [Double] = [0, 16, 34, 60]
 
 protocol Walker: AnyObject {
@@ -98,6 +171,7 @@ final class Building {
     var badges = 0
     var rin = 0
     var claim = 0
+    var gone = false
     var building = false
     var robbed = false
     var progress = 0.0
@@ -194,7 +268,7 @@ final class Nomad: Walker {
     }
 }
 
-enum RaidKind: Int { case bandit, rider, boss }
+enum RaidKind: Int { case bandit, rider, boss, mummy }
 enum RaidState { case raid, flee }
 final class Raider: Walker {
     let id: Int
@@ -205,6 +279,8 @@ final class Raider: Walker {
     var hp: Int
     let maxHp: Int
     var burn = 0.0
+    var bcd = 1.5
+    var raised = 0
     var state = RaidState.raid
     var loot = 0
     var walk = 0.0
@@ -223,6 +299,7 @@ final class Raider: Walker {
         case .bandit: return 38
         case .rider: return 70
         case .boss: return 28
+        case .mummy: return 17
         }
     }
     /// coins knocked from the purse
@@ -231,9 +308,10 @@ final class Raider: Walker {
         case .bandit: return 3
         case .rider: return 4
         case .boss: return 5
+        case .mummy: return 0
         }
     }
-    var gateDmg: Double { return kind == .boss ? 4 : 2 }
+    var gateDmg: Double { return (kind == .boss || kind == .mummy) ? 4 : 2 }
 }
 
 /// A signpost that sells one upgrade at a time.
@@ -290,6 +368,11 @@ struct SaveData: Codable {
     var up: [String]
     var urns: [Bool]
     var seen: [String]
+    var town: Int?
+    var day0: Int?
+    var relics: [String]?
+    var ankh: Bool?
+    var stats: [Int]?
 }
 
 final class Goat: Walker {
@@ -341,7 +424,7 @@ struct Ring { var x: Double; var t: Double }
 struct Stuck { var x: Double; var ang: Double; var t: Double }
 struct Fallen { var x: Double; var t: Double; var dir: Double }
 struct Footprint { var x: Double; var t: Double }
-struct RaidPlan { var t: Double; var side: Double; var kind: RaidKind; var hp: Int }
+struct RaidPlan { var t: Double; var side: Double; var kind: RaidKind; var hp: Int; var boat = false }
 
 struct Input {
     var stick = 0.0
@@ -350,7 +433,7 @@ struct Input {
     var reload = false
 }
 
-enum GameState { case title, play, over }
+enum GameState { case title, play, over, end }
 
 let HINTS: [String: String] = [
     "start": "Ride out to the tents and tap the screen to toss a coin to a nomad.",
@@ -384,5 +467,34 @@ let HINTS: [String: String] = [
     "bank1": "The treasury. Coins tossed here are safe from raiders, and building work is paid from it first.",
     "caravan": "A caravan is coming in from the west. It pays the bazaar, and a coin or four hires its guard.",
     "merc": "A caravan guard takes your coin and stays.",
-    "warlord": "The warlord is down. His purse is yours."
+    "warlord": "The warlord is down. His purse is yours.",
+    "well2x": "The obelisk is raised. The dock by the Nile can now be built.",
+    "dock1": "The dock is built. Six coins buys passage downriver on the felucca, when you are ready to leave.",
+    "sphinx1": "The Sphinx is dug out. It pays two coins each dawn and turns back half the raiders from the west.",
+    "tomb1": "The tomb is open: gold, and an ankh that will save you once. But the dead walk every third night.",
+    "grove1": "The date grove is tended. Coins fall by the oasis each dawn.",
+    "btemple1": "The buried temple is dug out. It pays three coins each dawn.",
+    "btemple0": "The storm has uncovered the top of something very old, west of town.",
+    "hermit0": "A hermit. For six coins he parts with something old.",
+    "relic_scarab": "A scarab. Three coins find you every dawn, in every town.",
+    "relic_lamp": "An old lamp. The hermit says it shows what is true.",
+    "relic_charm": "A storm charm. The haboob cannot push you or pick your purse.",
+    "poison": "The well is poisoned. Your villagers earn nothing in the morning.",
+    "poisoned": "The well ran foul last night: no coins from your villagers this morning.",
+    "mummy": "The dead are stirring in the tomb tonight. They break gates and take villagers.",
+    "ankh": "The ankh shatters and the raiders scatter. It will not save you twice.",
+    "storm": "A haboob is rolling in from the west. Hard riding inside it, but the wind uncovers old things.",
+    "stormcoin": "The wind is tearing coins from your purse. Get inside the walls.",
+    "stormover": "The haboob has passed. Look for what it uncovered out in the dunes.",
+    "stormraid": "Riders are using the dust for cover: two raiders, from the west.",
+    "rock": "A boulder knocks coins from your purse.",
+    "fish": "A fishing spot: look for the net rack. Stop on it and you cast a line. Each fish sells for a coin.",
+    "fish2": "A coin for the fish. Stay put for more: the water restocks each morning.",
+    "fishbig": "A Nile perch. Three coins.",
+    "fished": "Fished out for today. Come back in the morning.",
+    "dig": "A sunken tomb. Stop here and you go down. You can carry out one relic at a time.",
+    "digfull": "Your hands are full. Sell this relic in town first.",
+    "digrest": "The air below is bad. Three trips a day is all anyone can stand.",
+    "digdone": "The sunken tomb is empty now.",
+    "dock0": "No boat will stop at half a town. Rebuild everything and raise the obelisk first."
 ]

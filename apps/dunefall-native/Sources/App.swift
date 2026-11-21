@@ -61,6 +61,15 @@ final class GameViewController: UIViewController {
     private let soundBtn = UIButton(type: .system)
     private let quitBtn = UIButton(type: .system)
     private var userPaused = false
+    private let freeBtn = UIButton(type: .system)
+    private let barTop = UIView()
+    private let barBottom = UIView()
+    private let caption = UILabel()
+    private let endBox = UIView()
+    private let endName = UILabel()
+    private let endStats = UILabel()
+    private let sailBtn = UIButton(type: .system)
+    private let endNewBtn = UIButton(type: .system)
     private var tStick = 0.0
     private var tToss = false
     private var tFire = false
@@ -214,7 +223,32 @@ final class GameViewController: UIViewController {
         button(quitBtn, "Save and quit to title")
         quitBtn.titleLabel?.font = serif(17)
         quitBtn.addTarget(self, action: #selector(quitTapped), for: .touchUpInside)
-        for v in [pauseName, resumeBtn, soundBtn, quitBtn] as [UIView] { pauseBox.addSubview(v) }
+        button(freeBtn, "Free a worker to build")
+        freeBtn.titleLabel?.font = serif(17)
+        freeBtn.addTarget(self, action: #selector(freeTapped), for: .touchUpInside)
+        for v in [pauseName, resumeBtn, soundBtn, freeBtn, quitBtn] as [UIView] { pauseBox.addSubview(v) }
+        for bar in [barTop, barBottom] {
+            bar.backgroundColor = .black
+            bar.isUserInteractionEnabled = false
+            bar.isHidden = true
+            view.addSubview(bar)
+        }
+        style(caption, 16, cream, .center)
+        caption.numberOfLines = 2
+        barBottom.addSubview(caption)
+        endBox.backgroundColor = ink.withAlphaComponent(0.6)
+        style(endName, 34, gold, .center)
+        endName.text = "The river remembers"
+        style(endStats, 15, cream, .center)
+        endStats.numberOfLines = 0
+        button(sailBtn, "Sail on to a sixth town")
+        sailBtn.titleLabel?.font = serif(17)
+        sailBtn.addTarget(self, action: #selector(sailOn), for: .touchUpInside)
+        button(endNewBtn, "New game")
+        endNewBtn.addTarget(self, action: #selector(ride), for: .touchUpInside)
+        for v in [endName, endStats, sailBtn, endNewBtn] as [UIView] { endBox.addSubview(v) }
+        endBox.isHidden = true
+        view.addSubview(endBox)
         pauseBox.isHidden = true
         view.addSubview(pauseBox)
 
@@ -264,7 +298,20 @@ final class GameViewController: UIViewController {
         pauseName.frame = CGRect(x: 20, y: b.height * 0.1, width: b.width - 40, height: 44)
         resumeBtn.frame = CGRect(x: b.width * 0.5 - 130, y: b.height * 0.1 + 56, width: 260, height: 46)
         soundBtn.frame = CGRect(x: b.width * 0.5 - 130, y: b.height * 0.1 + 110, width: 260, height: 46)
-        quitBtn.frame = CGRect(x: b.width * 0.5 - 130, y: b.height * 0.1 + 164, width: 260, height: 46)
+        pauseName.frame = CGRect(x: 20, y: b.height * 0.04, width: b.width - 40, height: 40)
+        resumeBtn.frame = CGRect(x: b.width * 0.5 - 270, y: b.height * 0.04 + 52, width: 260, height: 46)
+        soundBtn.frame = CGRect(x: b.width * 0.5 + 10, y: b.height * 0.04 + 52, width: 260, height: 46)
+        freeBtn.frame = CGRect(x: b.width * 0.5 - 270, y: b.height * 0.04 + 108, width: 260, height: 46)
+        quitBtn.frame = CGRect(x: b.width * 0.5 + 10, y: b.height * 0.04 + 108, width: 260, height: 46)
+        let barH = b.height * 0.13
+        barTop.frame = CGRect(x: 0, y: 0, width: b.width, height: barH)
+        barBottom.frame = CGRect(x: 0, y: b.height - barH - 8, width: b.width, height: barH + 8)
+        caption.frame = CGRect(x: 30, y: 0, width: b.width - 60, height: barH)
+        endBox.frame = b
+        endName.frame = CGRect(x: 20, y: b.height * 0.05, width: b.width - 40, height: 42)
+        endStats.frame = CGRect(x: 20, y: b.height * 0.05 + 44, width: b.width - 40, height: b.height * 0.45)
+        sailBtn.frame = CGRect(x: b.width * 0.5 - 250, y: b.height - bottom - 62, width: 260, height: 46)
+        endNewBtn.frame = CGRect(x: b.width * 0.5 + 30, y: b.height - bottom - 62, width: 200, height: 46)
         titleNote.frame = CGRect(x: 20, y: b.height - bottom - 26, width: b.width - 40, height: 18)
 
         overBox.frame = b
@@ -296,6 +343,7 @@ final class GameViewController: UIViewController {
             let args = ProcessInfo.processInfo.arguments
             if args.contains("-demo-play") { game.demo("play") }
             if args.contains("-demo-night") { game.demo("night") }
+            if args.contains("-demo-port") { game.demo("port") }
         }
     }
 
@@ -318,6 +366,7 @@ final class GameViewController: UIViewController {
     @objc private func pauseTapped() {
         if game.state != .play { return }
         userPaused = true
+        freeBtn.setTitle("Free a worker to build", for: .normal)
         pauseBox.isHidden = false
         clearTouches()
     }
@@ -325,6 +374,13 @@ final class GameViewController: UIViewController {
         userPaused = false
         pauseBox.isHidden = true
         last = 0
+    }
+    @objc private func freeTapped() {
+        let done = game.releaseOne()
+        freeBtn.setTitle(done ? "Freed one. Free another" : "Nobody to free", for: .normal)
+    }
+    @objc private func sailOn() {
+        game.nextTown()
     }
     @objc private func soundTapped() {
         sound.muted = !sound.muted
@@ -396,16 +452,26 @@ final class GameViewController: UIViewController {
         if l.text != text { l.text = text }
     }
     private func updateHUD() {
-        let playing = game.state == .play
+        let cut = game.state == .play && game.scene != nil
+        let sailing = game.state == .play && game.trip != nil
+        let playing = game.state == .play && !cut && !sailing
+        barTop.isHidden = !cut
+        barBottom.isHidden = !cut
+        if cut, let sc = game.scene { set(caption, sc.text) }
+        endBox.isHidden = game.state != .end
+        if game.state == .end {
+            let st = game.stats
+            set(endStats, "Towns rebuilt: \(st[3])\nDays on the road: \(game.day)\nBuildings raised: \(st[0])\nNomads who joined you: \(st[1])\nRaiders brought down: \(st[2])\nRelics: \(game.relics.isEmpty ? "none" : game.relics.sorted().joined(separator: ", "))\nCoins in hand: \(game.player.coins + game.bank)")
+        }
         titleBox.isHidden = game.state != .title
         overBox.isHidden = game.state != .over
-        for v in [purse, dayLabel, pad, fireBtn, pauseBtn] as [UIView] { v.isHidden = game.state == .title }
+        for v in [purse, dayLabel, pad, fireBtn, pauseBtn] as [UIView] { v.isHidden = !playing && game.state != .over }
         if game.state == .over && dawnBtn.isHidden == (loadSave() != nil) { view.setNeedsLayout() }
         let p = game.player
         let arrows = p.rl > 0 ? "restringing" : String(repeating: "|", count: max(0, p.ammo))
-        let vault = game.B(.bank).level > 0 ? "    Vault \(game.bank)" : ""
+        let vault = (game.B(.bank).level > 0 ? "    Vault \(game.bank)" : "") + (game.ankh ? "    Ankh" : "")
         set(purse, "Coins \(p.coins)\(vault)    Arrows \(arrows)    Free hands \(game.head(.folk))")
-        set(dayLabel, game.dark > 0.5 ? "Night \(game.day)" : "Day \(game.day)")
+        set(dayLabel, game.dark > 0.5 ? "Night \(game.ln)" : "Day \(game.ln)")
         if playing, let line = game.infoLine() {
             set(info, line.0 + "   " + line.1)
             info.isHidden = false
@@ -413,8 +479,8 @@ final class GameViewController: UIViewController {
         let showHint = playing && game.hintT > 0
         if showHint { set(hint, game.hintText) } else if playing && game.t < 0.2 && !game.report.isEmpty { set(hint, game.report) }
         hint.isHidden = !(showHint || (playing && game.t < 0.2 && !game.report.isEmpty))
-        if playing && game.cardT > 0 {
-            set(card, game.cardText + "\nBring the town back")
+        if game.state == .play && !cut && game.cardT > 0 {
+            set(card, game.cardText + "\n" + game.cardSub)
             card.alpha = CGFloat(min(1, game.cardT))
             card.isHidden = false
         } else { card.isHidden = true }
@@ -435,6 +501,8 @@ final class GameViewController: UIViewController {
     }
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         if game.state != .play || userPaused { return }
+        if game.scene != nil { game.skipScene(); return }
+        if game.trip != nil { return }
         for t in touches {
             let p = t.location(in: view)
             if p.y < 30 && p.x < view.bounds.width * 0.6 { game.input.reload = true; continue }

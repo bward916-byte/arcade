@@ -98,7 +98,7 @@ final class Renderer {
         c.save()
         c.alpha(1)
         c.blend(.normal)
-        if g.state == .title {
+        if g.state == .title || g.state == .end {
             title()
             c.restore()
             return
@@ -106,14 +106,23 @@ final class Renderer {
         let hz = skyAt(g.t).1
         sky()
         if g.shake > 0 { c.translate(rnd(-1, 1) * g.shake * 4, rnd(-1, 1) * g.shake * 3) }
-        farPyramid(150, 62, 58, hz); farPyramid(232, 46, 44, hz); farPyramid(292, 30, 30, hz)
-        farPyramid(520, 40, 40, hz); farPyramid(700, 54, 50, hz); farPyramid(762, 28, 27, hz)
+        if g.zoom > 1.001 {
+            let zx = clampD((g.scene?.fx ?? g.player.x) - cam, W * 0.25, W * 0.75)
+            c.translate(zx, GY + 8); c.scale(g.zoom, g.zoom); c.translate(-zx, -GY - 8)
+        }
+        if g.feat == .cliff { cliffs(hz) } else {
+            if g.feat != .oasis { farPyramid(150, 62, 58, hz); farPyramid(232, 46, 44, hz); farPyramid(292, 30, 30, hz) }
+            if g.feat != .port { farPyramid(520, 40, 40, hz) }
+            farPyramid(700, 54, 50, hz)
+            if g.feat != .oasis { farPyramid(762, 28, 27, hz) }
+        }
         dunes(0.12, 14, 16, Col.mix(Col(0xecd3a0), hz, 0.35), Col.mix(Col(0xc39c62), hz, 0.35), 1.3, 0.012, false)
         dunes(0.28, 6, 18, Col(0xebcd90), Col(0xbd9052), 4.1, 0.017, true)
         dunes(0.55, 0, 13, SAND, Col(0xb3854a), 7.7, 0.023, true)
         ground()
         nile()
         quarry()
+        sites()
         for cp in g.camps { camp(cp) }
         for u in g.urns { urn(u) }
         let palms: [Double] = [330, 560, 930, 1210, 2040, 2260, 2590, 2780, 2960]
@@ -157,7 +166,7 @@ final class Renderer {
         }
         c.alpha(1)
         for r in g.raiders { raider(r) }
-        drawPlayer()
+        if g.trip == nil { drawPlayer() }
         front(g.B(.gw)); front(g.B(.ge))
         for b in g.bs { slots(b) }
         for b in g.bs where b.building {
@@ -205,6 +214,36 @@ final class Renderer {
             }
         }
         c.alpha(1)
+        for rk in g.rocks {
+            let x = rk.x - cam
+            if x < -12 || x > W + 12 { continue }
+            c.ell(x, GY + 0.4, 6.4, 1.1, rgba(40, 20, 8, 0.35))
+            c.save()
+            c.translate(x, GY - 5.6); c.rotate(rk.rot)
+            c.circ(0, 0, 5.8, Col(0x8f4e2a)); c.circ(-1, -1.2, 4.4, Col(0xb06a40)); c.R(-3.4, -0.4, 3, 0.7, Col(0x5e2e16)); c.R(0.6, 1.6, 3.2, 0.7, Col(0x5e2e16))
+            c.restore()
+        }
+        if g.carry > 0 {
+            let x = g.player.x - cam, y = GY - 38 + sin(NOW * 3)
+            c.ell(x, y, 3, 3.6, GOLD); c.R(x - 1.4, y - 5.4, 2.8, 2, GOLD); c.R(x - 3.4, y - 0.6, 6.8, 1, LAPIS)
+            let sx = g.sellX - cam, by = GY - 52 + sin(NOW * 5) * 2.5
+            c.poly(GOLD, [sx - 4, by, sx + 4, by, sx, by + 6]); c.R(sx - 1.2, by - 6, 2.4, 6, GOLD)
+        }
+        // the haboob: a wall of dust coming from the west, and the air inside it
+        if let st = g.storm {
+            let fx = st.front - cam
+            let k = g.stormK(g.player.x)
+            if fx > -40 {
+                let edge = min(fx, W + 20)
+                c.R(-9, -9, edge + 9, H + 18, rgba(176, 122, 66, 0.5 + 0.22 * k))
+                var y = -6.0
+                var n = 0.0
+                while y < GY + 12 {
+                    c.circ(edge + sin(NOW * 0.8 + n) * 5, y, 15 + hashN(n) * 9, rgba(196, 142, 80, 0.75))
+                    y += 13; n += 1
+                }
+            }
+        }
         // dusk colour, then night with pools of firelight cut out of it
         let warm = g.warmth(g.t)
         if warm > 0 { c.R(-9, -9, W + 18, H + 18, rgba(255, 118, 48, warm * 0.16)) }
@@ -223,6 +262,7 @@ final class Renderer {
             c.blend(.normal)
         }
         if g.flash > 0 { c.R(-9, -9, W + 18, H + 18, rgba(255, 244, 214, g.flash * 0.5)) }
+        if g.fade > 0 { c.R(-20, -20, W + 40, H + 40, rgba(0, 0, 0, g.fade)) }
         c.restore()
     }
 
@@ -780,6 +820,191 @@ final class Renderer {
         }
     }
 
+    // ---------- the far places, the dock and the things to find
+    func cliffs(_ hz: Col) {
+        let rock = Col.mix(Col(0xb8693e), hz, 0.35), shade = Col.mix(Col(0x8a4a2a), hz, 0.35)
+        for i in 0..<9 {
+            let n = Double(i)
+            let x = n * 120 - cam * 0.07 - 60 + hashN(n + 3) * 30
+            if x < -140 || x > W + 20 { continue }
+            let w = 90 + hashN(n + 5) * 50, h = 40 + hashN(n + 7) * 34
+            c.poly(rock, [x, GY - 14, x + 8, GY - 14 - h, x + w - 10, GY - 14 - h + 4, x + w, GY - 14])
+            c.poly(shade, [x + w * 0.62, GY - 14, x + w * 0.66, GY - 14 - h + 3, x + w - 10, GY - 14 - h + 4, x + w, GY - 14])
+            var q = 8.0
+            while q < h { c.R(x + 6, GY - 14 - q, w - 14, 0.6, rgba(70, 30, 14, 0.2)); q += 9 }
+        }
+    }
+    func sites() {
+        if g.OASIS > 0 { oasis() }
+        let sp = g.B(.sphinx); if !sp.gone { sphinx(sp) }
+        let tb = g.B(.tomb); if !tb.gone { tomb(tb) }
+        let hm = g.B(.hermit); if !hm.gone { hermit(hm) }
+        let bt = g.B(.btemple); if !bt.gone { btemple(bt) }
+        dock(g.B(.dock))
+        fishing()
+        digSite()
+    }
+    private func rising(_ b: Building, _ x: Double) {
+        if b.building { scaffold(b, x, b.def.h[min(b.level + 1, b.def.h.count - 1)], 0) }
+    }
+    func sphinx(_ b: Building) {
+        let x = b.x - cam
+        if x > W + 20 || x + b.w < -20 { return }
+        if b.level == 0 {
+            c.poly(SAND2, [x - 6, GY, x + 20, GY - 9, x + 58, GY - 12, x + 90, GY])
+            c.R(x + 57, GY - 22, 13, 12, STONE); c.R(x + 57, GY - 22, 13, 1.5, Col(0xecd6a4)); c.R(x + 67, GY - 18, 1.5, 1.5, DARKC)
+            c.poly(SAND, [x + 50, GY, x + 62, GY - 11, x + 78, GY])
+        } else {
+            c.ell(x + 42, GY + 1, 44, 2.4, rgba(60, 34, 8, 0.25))
+            c.R(x + 6, GY - 15, 56, 15, STONE); c.ell(x + 12, GY - 12, 11, 12, STONE); c.R(x + 6, GY - 3, 56, 3, STONE2)
+            c.R(x + 58, GY - 7, 24, 7, STONE); c.R(x + 58, GY - 7, 24, 1.2, Col(0xecd6a4)); c.R(x + 78, GY - 6, 4, 6, STONE2)
+            c.poly(LAPIS, [x + 50, GY - 14, x + 54, GY - 40, x + 70, GY - 40, x + 74, GY - 14])
+            for i in 0..<5 { c.R(x + 52, GY - 37 + Double(i) * 5, 20, 1.4, GOLD) }
+            c.R(x + 56, GY - 36, 13, 17, STONE); c.R(x + 65, GY - 31, 2, 2, DARKC); c.R(x + 67, GY - 26, 3, 1.2, STONE2); c.R(x + 61, GY - 20, 5, 6, STONE2)
+        }
+        rising(b, x)
+    }
+    func tomb(_ b: Building) {
+        let x = b.x - cam
+        if x > W + 20 || x + b.w < -40 { return }
+        c.poly(STONE, [x - 6, GY, x + 25, GY - 36, x + 56, GY])
+        c.poly(STONE2, [x + 25, GY - 36, x + 56, GY, x + 34, GY])
+        var q = 6.0
+        while q < 34 { c.R(x - 6 + q * 0.86, GY - q, 31 - q * 0.86 + 9 - q * 0.26, 0.5, rgba(110, 78, 36, 0.25)); q += 6 }
+        if b.level > 0 {
+            c.R(x + 19, GY - 14, 10, 14, DARKC); c.R(x + 18, GY - 16, 12, 2, GOLD)
+            c.R(x + 21, GY - 10, 6, 10, rgba(255, 190, 90, 0.35))
+            light(x + 24, GY - 7, 14, 0.5)
+        } else {
+            c.R(x + 19, GY - 9, 10, 9, DARKC)
+            c.poly(SAND, [x + 8, GY, x + 20, GY - 8, x + 30, GY - 5, x + 40, GY])
+        }
+        rising(b, x)
+    }
+    func oasis() {
+        let x = g.OASIS - cam
+        if x > W + 70 || x < -70 { return }
+        let b = g.B(.grove)
+        c.ell(x - 4, GY + 5, 30, 4.4, Col(0x4a9ab8)); c.ell(x - 8, GY + 4.2, 18, 2, Col(0x9fd8e8))
+        let tended = b.level > 0
+        palm(x - 26, 30, 1.1, 21, tended); palm(x + 22, 34, 1.2, 22, tended); palm(x + 44, 24, 0.9, 23, tended)
+        if tended { palm(x - 44, 26, 1, 24, true); palm(x + 4, 38, 1.25, 25, true) }
+        for i in 0..<6 {
+            let n = Double(i)
+            c.seg(x - 30 + n * 11, GY + 1, x - 30 + n * 11 + sin(NOW * 2 + n), GY - 5 - hashN(n) * 3, 0.6, Col(0x4d8a3c))
+        }
+        if !b.gone { rising(b, b.x - cam) }
+    }
+    func hermit(_ b: Building) {
+        let x = b.x - cam
+        if x > W + 20 || x + b.w < -20 { return }
+        c.poly(Col(0x9c8258), [x - 4, GY, x + 4, GY - 20, x + 20, GY - 30, x + 38, GY - 22, x + 48, GY])
+        c.poly(Col(0x7a6240), [x + 20, GY - 30, x + 38, GY - 22, x + 48, GY, x + 32, GY])
+        c.arch(x + 12, GY - 16, 14, 16, DARKC)
+        fire(x + 34, GY - 1, 0.7)
+        var o = PersonOpt(robe: Col(0xf3ead2), turban: Col(0xf3ead2), skin: SKIN[1])
+        o.beard = Col(0xf0ece2); o.tool = .staff
+        person(b.x + 22, 0, o)
+        for i in 0..<3 {
+            c.circ(x + 14 + Double(i) * 8, GY - 36, 2.2, i < b.level ? rgba(28, 19, 12, 0.3) : GOLD)
+        }
+    }
+    func btemple(_ b: Building) {
+        let x = b.x - cam
+        if x > W + 20 || x + b.w < -20 { return }
+        if b.level == 0 {
+            c.poly(SAND2, [x - 8, GY, x + 20, GY - 8, x + 60, GY - 10, x + 98, GY])
+            for i in 0..<4 {
+                let cx = x + 12 + Double(i) * 22
+                let h = 6 + hashN(Double(i) + 4) * 9
+                c.R(cx, GY - 8 - h, 6, h + 4, Col(0xe6d2a2)); c.R(cx - 1, GY - 10 - h, 8, 2.4, TEAL)
+            }
+        } else {
+            c.R(x, GY - 4, 90, 4, STONE2)
+            c.R(x + 4, GY - 40, 82, 6, STONE); c.R(x + 4, GY - 40, 82, 1.2, GOLD); c.R(x + 4, GY - 36, 82, 1.6, TEAL)
+            c.poly(STONE, [x + 2, GY - 40, x + 45, GY - 50, x + 88, GY - 40])
+            c.R(x + 14, GY - 34, 62, 30, DARKC)
+            for i in 0..<5 {
+                let cx = x + 8 + Double(i) * 18
+                c.R(cx, GY - 34, 6, 30, Col(0xecdcb0)); c.R(cx + 4.4, GY - 34, 1.6, 30, rgba(90, 60, 20, 0.3)); c.R(cx - 1, GY - 35, 8, 2.4, TEAL)
+            }
+            if lit { light(x + 45, GY - 16, 30, 0.8) }
+        }
+        rising(b, x)
+    }
+    func dock(_ b: Building) {
+        let x = b.x - cam
+        if x > W + 40 { return }
+        if b.level == 0 {
+            for i in 0..<4 { c.R(x + 6 + Double(i) * 14, GY - 4 - Double(i % 2) * 3, 2, 8, WOOD) }
+        } else {
+            c.R(x - 2, GY - 2.4, 82, 2.4, Col(0x8a6434)); c.R(x - 2, GY - 2.4, 82, 0.6, Col(0xd8ba88))
+            for i in 0..<9 { c.R(x + Double(i) * 9, GY - 2.4, 0.6, 2.4, Col(0x5e3a1e)) }
+            for i in 0..<3 { c.R(x + 62 + Double(i) * 8, GY, 1.6, 8, Col(0x5e3a1e)) }
+            // the felucca, waiting or under way
+            let away = (g.trip ?? 0) * 26
+            let bx = x + 78 + away, by = GY + 3 + sin(NOW * 1.6) * 0.6
+            c.poly(Col(0x6a4426), [bx - 16, by - 4, bx + 18, by - 4, bx + 13, by + 2, bx - 11, by + 2])
+            c.R(bx - 16, by - 5, 34, 1.2, Col(0xd8ba88))
+            c.seg(bx - 2, by - 4, bx - 2, by - 30, 1, WOOD)
+            c.poly(Col(0xf6efdc), [bx - 1, by - 30, bx + 16, by - 9, bx - 1, by - 7])
+            c.seg(bx - 2, by - 30, bx - 12, by - 5, 0.4, Col(0x5a3e22))
+            if g.trip != nil {
+                rider(bx - 6, by - 2, 1, RiderOpt(robe: Col(0xf6efdc), skin: Col(0xb8804e), turban: GOLD, sash: TEAL, veil: nil, fl: 0.4, jewel: true))
+            }
+        }
+        rising(b, x)
+    }
+    func fishing() {
+        let spots = g.fishSpots()
+        for i in 0..<2 {
+            let fx = spots[i]
+            if fx <= 0 { continue }
+            let x = fx - cam
+            if x < -70 || x > W + 70 { continue }
+            let s = i == 1 ? x - 26 : x + 30
+            c.R(s - 11, GY - 24, 1.4, 24, WOOD); c.R(s + 11, GY - 24, 1.4, 24, WOOD); c.R(s - 12.6, GY - 25, 26, 1.4, WOOD)
+            for q in 0..<9 {
+                let k = Double(q) / 8
+                let nx = s - 9.6 + k * 20
+                c.seg(nx, GY - 23.6, nx + sin(NOW * 1.6 + Double(q) * 0.5) * 0.7, GY - 12.6 + 7 * sin(PI * k), 0.35, rgba(246, 236, 206, 0.85))
+            }
+            for q in 0..<min(4, g.rodN[i]) {
+                let hx = s - 7 + Double(q) * 4.8, hy = GY - 11 + Double(q % 2) * 2
+                c.ell(hx, hy, 1.3, 3, Col(0x9fb8c8)); c.poly(Col(0x7f98a8), [hx, hy + 2.6, hx - 1.6, hy + 5, hx + 1.6, hy + 5])
+            }
+            if g.rodSpot == i {
+                let p = g.player
+                let hx = p.x - cam + p.dir * 5, hy = GY - 23
+                let tipx = hx + p.dir * 17, tipy = GY - 38
+                let wx = (i == 1 ? g.NILE + 12 : fx - 13) - cam, wy = GY + (i == 1 ? 1.6 : 6) + sin(NOW * 3) * 0.8
+                c.curve(hx, hy, hx + p.dir * 9, hy - 11, tipx, tipy, 1.1, Col(0x3a2410))
+                c.curve(tipx, tipy, (tipx + wx) / 2, GY - 10, wx, wy, 0.45, rgba(255, 255, 255, 0.95))
+                c.circ(wx, wy, 2, RED)
+                c.ellStroke(wx, wy + 1.4, 4.6 + sin(NOW * 3) * 1.6, 1, 0.5, rgba(255, 255, 255, 0.5))
+            } else if g.rodN[i] > 0 && abs(g.player.x - fx) < 46 {
+                let by = GY - 34 + sin(NOW * 5) * 1.6
+                c.poly(GOLD, [x - 3, by, x + 3, by, x, by + 5]); c.R(x - 7, GY + 0.2, 14, 1, GOLD)
+            }
+        }
+    }
+    func digSite() {
+        let dx = g.digX
+        if dx <= 0 { return }
+        let x = dx - cam
+        if x < -70 || x > W + 70 { return }
+        c.poly(Col(0xb08854), [x - 34, GY, x - 22, GY - 7, x + 22, GY - 7, x + 34, GY])
+        c.R(x - 15, GY - 34, 30, 28, Col(0x3a2814)); c.R(x - 11, GY - 30, 22, 30, Col(0x0c0604))
+        c.R(x - 18, GY - 38, 36, 5, Col(0xc9a45a)); c.R(x - 18, GY - 38, 36, 1, Col(0xe8d08a))
+        c.R(x - 17, GY - 33, 5, 27, Col(0xb99a64)); c.R(x + 12, GY - 33, 5, 27, Col(0xa98652))
+        for q in 0..<max(0, 6 - g.digN) { c.R(x - 8.6 + Double(q) * 3.4, GY - 44, 2.4, 2.8, GOLD) }
+        if g.digT > 0 {
+            let k = clampD(g.digT / (3 + Double(g.digN) * 0.7), 0, 1)
+            c.R(x - 14, GY - 50, 28, 3, rgba(28, 19, 12, 0.75)); c.R(x - 13.4, GY - 49.4, 26.8 * k, 1.8, GOLD)
+            light(x, GY - 18, 34, 0.7)
+        }
+    }
+
     // ---------- the country around the town
     func camp(_ cp: Camp) {
         let x = cp.x - cam
@@ -857,6 +1082,16 @@ final class Renderer {
 
     func raider(_ r: Raider) {
         let fl = r.hurt > 0
+        if r.kind == .mummy {
+            let wrap = fl ? Col(0xffffff) : Col(0xd8d0b8)
+            var o = PersonOpt(robe: wrap, turban: wrap, skin: Col(0xc8c0a6))
+            o.dir = r.dir; o.moving = r.moving; o.walk = r.walk * 0.5; o.veil = wrap; o.sash = Col(0xa89c7c)
+            if r.stag > 0 { o.lean = -r.dir * 0.3 * min(1, r.stag * 4) }
+            person(r.x, 0, o)
+            c.R(r.x - cam + r.dir * 1.2 - 0.6, GY - 18.6, 1.2, 1.2, Col(0x7dffb0))
+            light(r.x - cam, GY - 17, 9, 0.4)
+            return
+        }
         let robe = fl ? Col(0xffffff) : Col(0x2a2422)
         if r.kind == .boss {
             let x = r.x - cam
