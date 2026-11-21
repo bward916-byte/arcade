@@ -1,0 +1,20 @@
+run 4  commit c1ea1e94f308ad1556de315f6177ad589c1e69fe
+compile: success   testflight: success
+---- compile errors
+** ARCHIVE SUCCEEDED **
+---- export
+** EXPORT SUCCEEDED **
+---- upload
+Running altool at path '/Applications/Xcode_26.6.app/Contents/SharedFrameworks/ContentDelivery.framework/Resources/altool'...
+
+2026-11-21 20:21:22.275  INFO: [ContentDelivery.Uploader.8DD05C340] 
+==========================================
+UPLOAD SUCCEEDED with no errors, 1 warning
+Delivery UUID: c0136474-f5ef-4107-afb0-bf763da80e09
+Transferred 674627 bytes in 0.065 seconds (10.4MB/s, 83.054Mbps)
+==========================================
+2026-11-21 20:21:22.287  WARN: [altool.8DD05C340] SDK version issue. This app was built with the iOS 26.5 SDK. Starting April 2027, iOS and iPadOS apps must be built with the iOS 27 SDK or later, included in Xcode 27 or later, in order to be uploaded to App Store Connect or submitted for distribution. (90725)
+   server_warning : 
+      code : 90725
+      description : SDK version issue. This app was built with the iOS 26.5 SDK. Starting April 2027, iOS and iPadOS apps must be built with the iOS 27 SDK or later, included in Xcode 27 or later, in order to be uploaded to App Store Connect or submitted for distribution.
+No errors, 1 warnings, uploading archive at '/Users/runner/work/_temp/export/Campfire.ipa'.
