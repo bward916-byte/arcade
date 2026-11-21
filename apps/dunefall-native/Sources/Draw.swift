@@ -355,14 +355,73 @@ final class Renderer {
         let x = fx - cam * 0.07, y = GY - 16
         if x < -w || x > W + w { return }
         let sp = x + w * 0.3
-        let lc = Col.mix(Col(0xe2ba7a), hz, 0.4), dc = Col.mix(Col(0x9c7440), hz, 0.4)
-        c.poly(Col.mix(lc, hz, 0.15), [x - w, y, x, y - h, sp, y])
-        c.poly(Col.mix(dc, hz, 0.15), [x, y - h, x + w, y, sp, y])
-        c.seg(x, y - h, sp, y, 0.5, rgba(255, 240, 200, 0.35))
+        let lc = Col.mix(Col.mix(Col(0xe2ba7a), hz, 0.4), hz, 0.15), dc = Col.mix(Col.mix(Col(0x9c7440), hz, 0.4), hz, 0.15)
+        // the small ones have lost their tops
+        let cut = h < 32 ? 0.2 : 0.0
+        let yt = y - h * (1 - cut)
+        let rmx = x + (sp - x) * cut
+        c.poly(lc, [x - w, y, x - w * cut, yt, rmx, yt + 0.5, sp, y])
+        c.poly(dc, [rmx, yt + 0.5, x + w * cut, yt + 1.2, x + w, y, sp, y])
+        if cut > 0 {
+            c.R(x - w * cut + 1, yt - 1, 2, 1.2, lc); c.R(rmx + 1, yt - 0.4, 1.6, 1.2, dc)
+        }
+        // courses of stone
+        var q = 3.0
+        while q < h * (1 - cut) - 1 {
+            let k = 1 - q / h
+            let xl = x - w * k, xm = x + (sp - x) * k, xr = x + w * k
+            c.R(xl, y - q, xm - xl, 0.4, rgba(120, 84, 40, 0.15))
+            c.R(xm, y - q, xr - xm, 0.4, rgba(50, 30, 12, 0.14))
+            // a block standing proud of the edge, or one fallen out
+            let e = hashN(fx + q * 1.7)
+            if e > 0.6 { c.R(xl - 0.7, y - q - 1, 1.1, 1, lc) }
+            if e < 0.25 { c.R(xr - 0.6, y - q - 1, 1.2, 1, dc) }
+            q += 3.5
+        }
+        c.seg(rmx, yt + 0.5, sp, y, 0.5, rgba(255, 240, 200, 0.35))
+        // what is left of the smooth casing at the top
+        if h > 50 {
+            let k = 0.2
+            let cap = Col.mix(lc, Col(0xfff4d8), 0.3), capd = Col.mix(dc, Col(0xfff4d8), 0.18)
+            c.poly(cap, [x, y - h, x - w * k, y - h * (1 - k), x - w * k * 0.4, y - h * (1 - k) + 2, x + (sp - x) * k, y - h * (1 - k) - 1])
+            c.poly(capd, [x, y - h, x + (sp - x) * k, y - h * (1 - k) - 1, x + w * k * 0.7, y - h * (1 - k) + 1.6, x + w * k, y - h * (1 - k)])
+        }
+        // missing blocks, stains and pale patches
+        for i in 0..<Int(h / 3.5) {
+            let n = fx + Double(i) * 3.1
+            let qq = (0.06 + hashN(n) * 0.72) * h
+            let k = 1 - qq / h
+            let xl = x - w * k, xm = x + (sp - x) * k, xr = x + w * k
+            let v = hashN(n + 7.7)
+            let px = xl + 1 + v * (xr - xl - 3)
+            let sw = 0.8 + hashN(n + 2.2) * 1.8
+            if hashN(n + 4.4) > 0.3 {
+                c.R(px, y - qq, sw, 0.7, px < xm ? rgba(96, 62, 26, 0.3) : rgba(40, 22, 8, 0.3))
+            } else {
+                c.R(px, y - qq, sw, 0.6, rgba(255, 244, 212, 0.3))
+            }
+        }
+        // the robbers' breach, with its spill of rubble
+        if h > 36 {
+            let qq = h * (0.22 + hashN(fx) * 0.12)
+            let k = 1 - qq / h
+            let bx = x - w * k + (w * k) * (0.45 + hashN(fx + 1) * 0.3)
+            c.R(bx, y - qq - 2, 2.4, 2.2, rgba(40, 22, 8, 0.6)); c.R(bx - 0.4, y - qq - 2.6, 3.2, 0.6, Col.mix(lc, Col(0xfff4d8), 0.25))
+            c.poly(rgba(110, 76, 36, 0.22), [bx + 0.4, y - qq, bx + 2, y - qq, bx + 5, y - qq + 9, bx - 3, y - qq + 9])
+        }
+        // a long crack down the shaded side
+        let cx0 = x + w * 0.22
+        c.seg(cx0, y - h * 0.66, cx0 + 1.5, y - h * 0.5, 0.35, rgba(30, 16, 6, 0.3)); c.seg(cx0 + 1.5, y - h * 0.5, cx0 + 0.6, y - h * 0.36, 0.35, rgba(30, 16, 6, 0.3))
     }
 
     func dunes(_ par: Double, _ base: Double, _ amp: Double, _ cl: Col, _ cd: Col, _ seed: Double, _ f: Double, _ rip: Bool) {
         let off = cam * par
+        func hgt(_ wx: Double) -> Double {
+            let a1 = (1 - abs(sin(wx * f + seed))) * 0.6
+            let a2 = (0.5 + 0.5 * sin(wx * f * 2.3 + seed * 2)) * 0.28
+            let a3 = (0.5 + 0.5 * sin(wx * f * 0.37 + seed * 5)) * 0.4
+            return GY - base - amp * (a1 + a2 + a3)
+        }
         var cols: [Col] = []
         for k in 0..<5 { cols.append(Col.mix(cl, cd, Double(k) * 0.25)) }
         var py = -1.0
@@ -370,10 +429,7 @@ final class Renderer {
         var x = -2.0
         while x <= W + 2 {
             let wx = x + off
-            let a1 = (1 - abs(sin(wx * f + seed))) * 0.6
-            let a2 = (0.5 + 0.5 * sin(wx * f * 2.3 + seed * 2)) * 0.28
-            let a3 = (0.5 + 0.5 * sin(wx * f * 0.37 + seed * 5)) * 0.4
-            let y = GY - base - amp * (a1 + a2 + a3)
+            let y = hgt(wx)
             if first { py = y; first = false }
             let k = clampD((y - py) * 1.5 + 0.12, 0, 1)
             c.R(x, y, 2.05, GY - y, cols[Int((k * 4).rounded())])
@@ -383,6 +439,39 @@ final class Renderer {
             }
             py = y
             x += 2
+        }
+        // specks on the sand: pebbles, stones, scrub, wind streaks and the odd glint
+        let step = 6.0
+        let sc = 0.55 + par
+        let rock = Col.mix(cd, Col(0x6a4a2a), 0.45), scrub = Col.mix(cd, Col(0x6a7038), 0.6)
+        var i = Int(floor((off - 6) / step))
+        let last = Int((off + W + 6) / step)
+        while i <= last {
+            let n = Double(i) + seed * 31
+            let r = hashN(n)
+            if r < 0.56 {
+                let wx = Double(i) * step + hashN(n + 0.5) * step
+                let y = hgt(wx), room = GY - y
+                if room > 3 {
+                    let sx = wx - off
+                    let yy = y + 1.2 + hashN(n + 1.7) * max(0, min(room - 2.4, amp * 0.8))
+                    if r < 0.2 {
+                        c.R(sx, yy, 0.7 + sc * 0.6, 0.5, rgba(96, 62, 24, 0.3)); c.R(sx, yy - 0.4, 0.7 + sc * 0.6, 0.3, rgba(255, 244, 208, 0.3))
+                    } else if r < 0.3 {
+                        c.ell(sx, yy, 1.3 * sc, 0.75 * sc, rock); c.R(sx - 0.7 * sc, yy - 0.7 * sc, sc, 0.3, rgba(255, 240, 200, 0.35))
+                        c.R(sx + 1.2 * sc, yy + 0.2, 1.6 * sc, 0.4, rgba(60, 34, 8, 0.2))
+                    } else if r < 0.4 {
+                        c.seg(sx, yy, sx - 1.2 * sc, yy - 2.2 * sc, 0.4, scrub); c.seg(sx, yy, sx + 0.2, yy - 2.8 * sc, 0.4, scrub); c.seg(sx, yy, sx + 1.4 * sc, yy - 2 * sc, 0.4, scrub)
+                    } else if r < 0.48 {
+                        c.R(sx, yy, 3 + 4 * sc, 0.35, rgba(255, 246, 214, 0.28))
+                    } else if sin(NOW * 1.5 + n) > 0.8 {
+                        c.R(sx, yy, 0.6, 0.6, rgba(255, 255, 240, 0.7))
+                    } else {
+                        c.R(sx, yy, 0.6, 0.4, rgba(255, 246, 214, 0.3))
+                    }
+                }
+            }
+            i += 1
         }
     }
 
@@ -1547,25 +1636,6 @@ final class Renderer {
     }
     /// Carving, lamps, cargo and rigging on the far places.
     func siteExtras() {
-        let sp = g.B(.sphinx)
-        if !sp.gone && sp.level > 0 {
-            let x = sp.x - cam
-            if x < W + 20 && x + sp.w > -20 {
-                glyphs(x + 10, GY - 11, 44, 2, sp.x)
-                c.R(x + 58, GY - 3, 24, 0.5, STONE2); for q in 0..<4 { c.R(x + 62 + Double(q) * 4.6, GY - 7, 0.4, 4, STONE2) }
-                c.R(x + 59.5, GY - 17, 5, 3, STONE2); c.R(x + 56, GY - 19, 13, 0.6, GOLD)
-                if sin(NOW * 0.7) > 0.93 { c.R(x + 65, GY - 31, 2, 2, Col(0xfff3b0)); light(x + 66, GY - 30, 10, 0.4) }
-                for q in 0..<3 { c.seg(x + 20 + Double(q) * 14, GY - 15, x + 19 + Double(q) * 14, GY - 6 - hashN(Double(q)) * 4, 0.35, rgba(110, 78, 36, 0.3)) }
-                if sp.level > 1 {
-                    for q in 0..<5 { c.R(x + 52, GY - 37 + Double(q) * 5, 4, 1.6, Col(0xffe08a)); c.R(x + 69, GY - 37 + Double(q) * 5, 3, 1.6, Col(0xffe08a)) }
-                    c.R(x + 54, GY - 40.8, 16, 1.4, GOLD); c.R(x + 61, GY - 43, 2, 2.6, GOLD)
-                    c.R(x + 55, GY - 18.4, 15, 1.6, GOLD); c.R(x + 60, GY - 16.8, 5, 2, TEAL); c.R(x + 68.4, GY - 28, 1.6, 3, STONE)
-                    c.R(x + 6, GY - 15.6, 56, 1, GOLD)
-                    for sx in [x + 60.0, x + 78] { c.R(sx, GY - 9.4, 2, 2.4, Col(0x4a3a2a)); if lit { fire(sx + 1, GY - 9.4, 0.55) } else { plume(sx + 1, GY - 9.4, sx, 0.4, Col(0xd8d0e0)) } }
-                    for q in 0..<5 { c.circ(x + 62 + Double(q) * 3.4, GY - 0.8, 0.8, q % 2 == 0 ? RED : Col(0xf8f6ee)) }
-                }
-            }
-        }
         let tb = g.B(.tomb)
         if !tb.gone {
             let x = tb.x - cam
@@ -1721,22 +1791,97 @@ final class Renderer {
     private func rising(_ b: Building, _ x: Double) {
         if b.building { scaffold(b, x, b.def.h[min(b.level + 1, b.def.h.count - 1)], 0) }
     }
+    /// The Sphinx in profile, looking east. Drawn around its own origin at the west end of the plinth.
     func sphinx(_ b: Building) {
         let x = b.x - cam
         if x > W + 20 || x + b.w < -20 { return }
-        if b.level == 0 {
-            c.poly(SAND2, [x - 6, GY, x + 20, GY - 9, x + 58, GY - 12, x + 90, GY])
-            c.R(x + 57, GY - 22, 13, 12, STONE); c.R(x + 57, GY - 22, 13, 1.5, Col(0xecd6a4)); c.R(x + 67, GY - 18, 1.5, 1.5, DARKC)
-            c.poly(SAND, [x + 50, GY, x + 62, GY - 11, x + 78, GY])
+        let L = b.level
+        let hi = Col(0xecd6a4), line = rgba(110, 78, 36, 0.4)
+        if L == 0 {
+            // buried to the chin
+            c.poly(SAND2, [x - 8, GY, x + 18, GY - 9, x + 50, GY - 16, x + 92, GY])
+            c.poly(STONE, [x + 12, GY - 6, x + 22, GY - 11, x + 38, GY - 10.5, x + 44, GY - 6]); c.seg(x + 22, GY - 11, x + 38, GY - 10.5, 0.6, hi)
+            c.save(); c.translate(x, GY + 13); sphinxHead(0); c.restore()
+            c.poly(SAND, [x + 4, GY, x + 20, GY - 7, x + 44, GY - 9, x + 57, GY - 13.5, x + 70, GY - 11, x + 88, GY])
+            c.seg(x + 44, GY - 9, x + 57, GY - 13.5, 0.5, rgba(255, 244, 208, 0.5))
         } else {
-            c.ell(x + 42, GY + 1, 44, 2.4, rgba(60, 34, 8, 0.25))
-            c.R(x + 6, GY - 15, 56, 15, STONE); c.ell(x + 12, GY - 12, 11, 12, STONE); c.R(x + 6, GY - 3, 56, 3, STONE2)
-            c.R(x + 58, GY - 7, 24, 7, STONE); c.R(x + 58, GY - 7, 24, 1.2, Col(0xecd6a4)); c.R(x + 78, GY - 6, 4, 6, STONE2)
-            c.poly(LAPIS, [x + 50, GY - 14, x + 54, GY - 40, x + 70, GY - 40, x + 74, GY - 14])
-            for i in 0..<5 { c.R(x + 52, GY - 37 + Double(i) * 5, 20, 1.4, GOLD) }
-            c.R(x + 56, GY - 36, 13, 17, STONE); c.R(x + 65, GY - 31, 2, 2, DARKC); c.R(x + 67, GY - 26, 3, 1.2, STONE2); c.R(x + 61, GY - 20, 5, 6, STONE2)
+            c.ell(x + 42, GY + 1, 46, 2.4, rgba(60, 34, 8, 0.25))
+            c.save(); c.translate(x, GY)
+            // plinth
+            c.R(2, -3, 82, 3, STONE2); c.R(2, -3, 82, 0.6, L > 1 ? GOLD : hi)
+            for q in 0..<9 { c.R(8 + Double(q) * 9, -2.2, 0.35, 2.2, rgba(60, 34, 8, 0.25)) }
+            // tail, curled up over the haunch
+            c.curve(9, -5, 0, -14, 9, -21.5, 1.3, STONE2); c.circ(9.6, -21.6, 1.2, STONE2)
+            // haunch and body
+            c.ell(17, -12.5, 11, 9.5, STONE)
+            c.poly(STONE, [10, -3, 12, -19, 20, -22, 36, -20.5, 50, -23, 58, -24, 60, -3])
+            c.R(26, -6.4, 28, 3.4, STONE2)
+            // folded hind leg and paw
+            c.ell(20, -5.6, 10, 2.6, STONE); c.R(22, -5, 12, 2, STONE); c.ell(34, -4.4, 2.6, 1.6, STONE)
+            c.curve(26, -18, 31, -10, 24, -6, 0.5, line); c.R(10, -3.6, 26, 0.6, STONE2)
+            // chest
+            c.poly(STONE, [48, -3, 49, -23, 58, -25, 61, -14, 60, -3])
+            c.poly(STONE2, [58.6, -23, 61, -14, 60.2, -8, 58.6, -8])
+            // forelegs stretched out in front
+            c.R(54, -8, 25, 5, STONE); c.ell(79, -5.5, 3, 2.5, STONE)
+            c.R(54, -8, 25, 0.7, hi); c.R(54, -3.8, 27, 0.8, STONE2)
+            for q in 0..<3 { c.R(79.4 + Double(q) * 0.9, -5.6, 0.3, 2.4, STONE2) }
+            c.curve(50, -21, 45, -13, 53, -7.5, 0.5, line)
+            // light along the back
+            c.seg(12.6, -19.4, 20, -22, 0.6, hi); c.seg(20, -22, 36, -20.5, 0.6, hi); c.seg(36, -20.5, 49, -23, 0.6, hi)
+            // weathered beds in the rock
+            for q in 0..<3 { c.R(13 + Double(q) * 2, -9 - Double(q) * 4, 38 - Double(q) * 3, 0.35, rgba(110, 78, 36, 0.22)) }
+            if L == 1 {
+                c.seg(30, -20, 28.5, -12, 0.35, rgba(90, 60, 26, 0.5)); c.seg(42, -21.4, 43.6, -15, 0.35, rgba(90, 60, 26, 0.5))
+                c.R(37, -8.6, 3, 2, STONE2); c.R(66, -8, 2.4, 1.2, STONE2)
+                c.poly(SAND, [0, 0, 6, -4, 14, 0]); c.poly(SAND, [70, 0, 80, -2.4, 88, 0])
+            } else {
+                c.poly(GOLD, [49.6, -23.4, 58, -25.4, 58.6, -23.2, 49.6, -21.2]); c.R(53, -23.6, 2, 1.6, TEAL)
+                c.R(73, -8, 1.4, 5, GOLD); c.R(30, -6.4, 1.4, 3.4, GOLD)
+                c.R(10.6, -4.2, 26, 0.6, GOLD)
+            }
+            sphinxHead(L)
+            c.restore()
+            if sin(NOW * 0.7) > 0.93 { c.R(x + 61, GY - 33.6, 1.2, 0.9, Col(0xfff3b0)); light(x + 62, GY - 33, 10, 0.4) }
+            if L > 1 {
+                for sx in [x - 4.0, x + 87] {
+                    c.R(sx, GY - 7, 2, 7, Col(0x4a3a2a)); c.R(sx - 1, GY - 8.2, 4, 1.4, Col(0x6a5238))
+                    if lit { fire(sx + 1, GY - 8.2, 0.55) } else { plume(sx + 1, GY - 8.2, sx, 0.4, Col(0xd8d0e0)) }
+                }
+                for q in 0..<5 { c.circ(x + 62 + Double(q) * 3.4, GY - 0.8, 0.8, q % 2 == 0 ? RED : Col(0xf8f6ee)) }
+            }
         }
         rising(b, x)
+    }
+    /// Head and striped headcloth in profile. Level 1 is worn and has lost its nose; level 2 is restored.
+    private func sphinxHead(_ L: Int) {
+        let cloth: Col = L > 1 ? LAPIS : STONE2
+        let stripe: Col = L > 1 ? GOLD : rgba(110, 78, 36, 0.35)
+        c.poly(cloth, [43, -19, 47, -35, 52, -40, 59, -39.5, 61, -36.5, 57.5, -34, 57, -27, 60, -17, 55, -17, 53.5, -24, 49, -20])
+        for q in 0..<6 {
+            let yy = -37.0 + Double(q) * 2.3
+            let xb = yy < -35 ? 47 + (-35 - yy) : 47 - (yy + 35) / 4
+            c.R(xb + 0.5, yy, 56.6 - xb, 0.7, stripe)
+        }
+        c.R(54.6, -22.5, 3.6, 0.7, stripe); c.R(55, -20.2, 3.9, 0.7, stripe); c.R(55.2, -18, 4.2, 0.7, stripe)
+        var f: [Double] = [57.5, -36, 62.5, -36.5, 63.2, -34, 62.8, -33]
+        if L > 1 { f += [65.4, -30.6, 63.4, -29.8] } else { f += [63.3, -31.6, 63, -29.8] }
+        f += [64, -28.6, 63.6, -27.6, 63.8, -26.4, 62.6, -25, 58.5, -25, 57, -27, 57.5, -34]
+        c.poly(STONE, f)
+        c.R(58.4, -25.2, 3.8, 1.4, STONE2)
+        c.R(58, -29.4, 2, 3.2, rgba(110, 78, 36, 0.18))
+        c.R(57.4, -32.4, 1.3, 2.6, STONE2)
+        c.R(60, -34.8, 2.8, 0.5, STONE2); c.R(60.6, -33.7, 1.8, 0.9, Col(0x2a1a0c))
+        c.R(62.4, -28.4, 1.6, 0.4, STONE2)
+        c.R(57.3, -37.2, 5.6, 1, L > 1 ? GOLD : STONE)
+        if L > 1 {
+            c.R(59, -33.3, 1.6, 0.4, LAPIS)
+            c.R(62, -39.8, 1.2, 2.8, GOLD); c.R(62.8, -40.6, 1.4, 1.2, GOLD)
+            c.poly(LAPIS, [61.2, -25, 63.4, -25, 63, -18.5, 61.6, -18.5]); c.R(61.4, -22.8, 1.8, 0.5, GOLD); c.R(61.5, -20.6, 1.6, 0.5, GOLD)
+        } else {
+            c.R(62.7, -31.7, 0.8, 1.3, STONE2)
+            c.seg(52, -38, 54, -31, 0.35, rgba(90, 60, 26, 0.5))
+        }
     }
     func tomb(_ b: Building) {
         let x = b.x - cam
