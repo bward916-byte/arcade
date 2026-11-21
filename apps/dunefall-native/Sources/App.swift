@@ -270,7 +270,7 @@ final class GameViewController: UIViewController {
         dayLabel.frame = CGRect(x: b.width - right - 210, y: 6, width: 160, height: 22)
         pauseBtn.frame = CGRect(x: b.width - right - 40, y: 4, width: 38, height: 28)
         hint.frame = CGRect(x: b.width * 0.5 - 250, y: 32, width: 500, height: 40)
-        let infoW = min(b.width - 330, 560)
+        let infoW = min(b.width - 2 * (left + 160), 560)
         info.frame = CGRect(x: b.width * 0.5 - infoW / 2, y: b.height - bottom - 44, width: infoW, height: 30)
         info.numberOfLines = 2
         info.adjustsFontSizeToFitWidth = true
