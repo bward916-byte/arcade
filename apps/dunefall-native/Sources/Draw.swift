@@ -119,12 +119,15 @@ final class Renderer {
             if g.feat != .oasis { farPyramid(762, 28, 27, hz) }
         }
         dunes(0.12, 14, 16, Col.mix(Col(0xecd3a0), hz, 0.35), Col.mix(Col(0xc39c62), hz, 0.35), 1.3, 0.012, false)
+        c.vfill(0, GY - 46, W, 46, [(0, rgba(hz.r * 255, hz.g * 255, hz.b * 255, 0)), (1, rgba(hz.r * 255, hz.g * 255, hz.b * 255, 0.3))])
         dunes(0.28, 6, 18, Col(0xebcd90), Col(0xbd9052), 4.1, 0.017, true)
+        c.vfill(0, GY - 22, W, 22, [(0, rgba(hz.r * 255, hz.g * 255, hz.b * 255, 0)), (1, rgba(hz.r * 255, hz.g * 255, hz.b * 255, 0.16))])
         farLife(hz)
         dunes(0.55, 0, 13, SAND, Col(0xb3854a), 7.7, 0.023, true)
         backTown(hz)
         ground()
         groundExtra()
+        groundAir()
         critters()
         nile()
         nileExtra(hz)
@@ -283,6 +286,8 @@ final class Renderer {
         // soft dark corners, then the map strip and the raid warnings
         c.linear(-9, -9, 60, H + 18, -9, 0, 51, 0, [(0, rgba(20, 10, 30, 0.22)), (1, rgba(20, 10, 30, 0))])
         c.linear(W - 51, -9, 60, H + 18, W - 51, 0, W + 9, 0, [(0, rgba(20, 10, 30, 0)), (1, rgba(20, 10, 30, 0.22))])
+        c.vfill(-9, H - 22, W + 18, 31, [(0, rgba(20, 10, 30, 0)), (1, rgba(20, 10, 30, 0.2))])
+        c.vfill(-9, -9, W + 18, 27, [(0, rgba(20, 10, 30, 0.16)), (1, rgba(20, 10, 30, 0))])
         if g.state == .play && g.scene == nil && g.trip == nil { minimap() }
         if g.fade > 0 { c.R(-20, -20, W + 40, H + 40, rgba(0, 0, 0, g.fade)) }
         c.restore()
@@ -299,6 +304,16 @@ final class Renderer {
                 let tw = 0.6 + 0.4 * sin(NOW * s.f + s.p)
                 c.R(s.x * W, s.y * (GY - 12), s.s, s.s, rgba(255, 248, 226, a * s.b * tw))
             }
+            // the river of stars, slanting across the sky
+            c.save()
+            c.translate(W * 0.52, GY * 0.36); c.rotate(-0.34)
+            c.ell(0, 0, W * 0.75, 13, rgba(170, 180, 255, a * 0.05)); c.ell(0, 0, W * 0.62, 7, rgba(214, 210, 255, a * 0.06)); c.ell(W * 0.06, 1, W * 0.3, 3, rgba(255, 236, 226, a * 0.06))
+            for i in 0..<70 {
+                let n = Double(i)
+                let u = hashN(n + 500) * 2 - 1, v = (hashN(n + 501) + hashN(n + 502) - 1) * 9 * (1 - abs(u) * 0.6)
+                c.R(u * W * 0.66, v, 0.5, 0.5, rgba(255, 250, 236, a * (0.25 + 0.5 * hashN(n + 503)) * (0.7 + 0.3 * sin(NOW * 2 + n))))
+            }
+            c.restore()
         }
         let t = g.t
         if t < 0.7 {
@@ -560,6 +575,20 @@ final class Renderer {
             cy += 4; row += 1
         }
         c.R(x - 0.6, y + h - 2.2, w + 1.2, 2.2, rgba(70, 40, 10, 0.22)); c.R(x, y, 1, h, rgba(255, 240, 206, 0.25))
+        if h > 10 && w > 8 {
+            c.vfill(x, y + 1.2, w, min(4, h * 0.2), [(0, rgba(70, 40, 10, 0.2)), (1, rgba(70, 40, 10, 0))])
+            for i in 0..<max(1, Int(w / 14)) {
+                let k = Double(i)
+                let sx = x + 2 + hashN(seed + k * 3.3 + 11) * (w - 6)
+                let len = min(h - 4, 5 + hashN(seed + k * 4.1 + 12) * h * 0.45)
+                c.vfill(sx, y + 1.2, 1 + hashN(seed + k + 13), len, [(0, rgba(70, 40, 10, 0.2)), (1, rgba(70, 40, 10, 0))])
+            }
+            if hashN(seed + 21) < 0.6 && h > 16 && w > 16 {
+                let px = x + 3 + hashN(seed + 22) * (w - 13), py = y + h * 0.35 + hashN(seed + 23) * h * 0.4
+                c.R(px, py, 6, 3.4, rgba(120, 76, 36, 0.22)); c.R(px + 1, py - 1, 3.6, 1, rgba(120, 76, 36, 0.22)); c.R(px + 1.4, py + 3.4, 3, 0.9, rgba(120, 76, 36, 0.22))
+                c.R(px, py + 1.6, 6, 0.3, rgba(60, 34, 8, 0.3)); c.R(px + 3, py, 0.3, 1.6, rgba(60, 34, 8, 0.3))
+            }
+        }
         let n = Int(w * h / 70)
         for i in 0..<max(0, n) {
             let k = Double(i)
@@ -679,6 +708,11 @@ final class Renderer {
         if b.building && L >= 1 {
             let nh = b.def.h[min(L + 1, b.def.h.count - 1)]
             scaffold(b, x, nh, (b.def.gate || t == .well) ? 0 : b.tall)
+        }
+        if plain && L >= 1 {
+            c.poly(rgba(236, 206, 146, 0.75), [x - 4, GY + 0.6, x - 1, GY - 1.6, x + 5, GY - 0.4, x + 9, GY + 0.6])
+            c.poly(rgba(236, 206, 146, 0.75), [x + w - 10, GY + 0.6, x + w - 3, GY - 0.6, x + w + 1, GY - 2, x + w + 5, GY + 0.6])
+            c.R(x - 1, GY - 1.7, 3, 0.4, rgba(255, 244, 208, 0.6)); c.R(x + w - 1, GY - 2.1, 2.6, 0.4, rgba(255, 244, 208, 0.6))
         }
         if b.robbed && L > 0 && plain {
             fire(x + w * 0.28, GY - b.tall + 3, 1.2); fire(x + w * 0.7, GY - b.tall * 0.62, 1); fire(x + w * 0.5, GY - 6, 0.8)
@@ -1285,6 +1319,16 @@ final class Renderer {
                     while q < w - 2 { c.R(x + q, GY - h - 2, 2.6, 2, wall); q += 4.6 }
                     var cy = 5.0
                     while cy < h { c.R(x, GY - h + cy, w - 3.5, 0.3, rgba(70, 40, 10, 0.12)); cy += 5 }
+                    var bq = 2.0
+                    while bq < w - 5 { c.R(x + bq, GY - h + 2.6, 0.9, 0.9, shade); bq += 3.6 }
+                    c.vfill(x, GY - 8, w, 8, [(0, rgba(70, 40, 10, 0)), (1, rgba(70, 40, 10, 0.22))])
+                    c.vfill(x, GY - h + 1, w - 3.5, 4, [(0, rgba(70, 40, 10, 0.16)), (1, rgba(70, 40, 10, 0))])
+                    if i % 3 == 2 {
+                        let lx = x + w - 7
+                        c.seg(lx, GY, lx + 1.5, GY - h - 2, 0.35, shade); c.seg(lx + 2.4, GY, lx + 3.9, GY - h - 2, 0.35, shade)
+                        var ly = 3.0
+                        while ly < h { c.R(lx + ly / h * 1.5, GY - ly, 2.6, 0.3, shade); ly += 3.2 }
+                    }
                     if i % 4 == 1 { c.dome(x + w * 0.5, GY - h, w * 0.28, Col.mix(PLA, hz, 0.35)); c.R(x + w * 0.5 - 0.4, GY - h - w * 0.28 - 3, 0.8, 3, Col.mix(GOLD, hz, 0.3)) }
                     // windows that come on at dusk, each on its own schedule
                     for k in 0..<2 {
@@ -1325,6 +1369,39 @@ final class Renderer {
             }
             wx += w + 6 + hashN(n + 9) * 12
             i += 1
+        }
+    }
+
+    /// Cloud shadows sliding over the sand, grains on the wind, and the shimmer over hot ground.
+    func groundAir() {
+        let day = 1 - g.dark
+        if day > 0.1 && g.rain == nil {
+            for i in 0..<3 {
+                let n = Double(i)
+                let span = W + 360
+                var sx = (hashN(n + 610) * span + NOW * (4 + n * 1.5) - cam * 0.9).truncatingRemainder(dividingBy: span)
+                if sx < 0 { sx += span }
+                sx -= 180
+                c.ell(sx, GY + 10 + n * 6, 80 + n * 22, 7 + n * 2, rgba(50, 30, 60, 0.07 * day))
+                c.ell(sx + 30, GY + 13 + n * 6, 50 + n * 14, 5 + n, rgba(50, 30, 60, 0.05 * day))
+            }
+        }
+        for i in 0..<9 {
+            let n = Double(i)
+            let span = W + 80
+            var sx = (hashN(n + 620) * span + NOW * (26 + hashN(n + 621) * 30) - cam).truncatingRemainder(dividingBy: span)
+            if sx < 0 { sx += span }
+            sx -= 40
+            let y = GY + 2 + hashN(n + 622) * (H - GY - 8)
+            c.R(sx, y + sin(NOW * 3 + n) * 0.6, 9 + hashN(n + 623) * 14, 0.4, rgba(255, 244, 214, 0.1 + 0.1 * hashN(n + 624)))
+        }
+        let heat = max(0, 1 - abs(g.t - 0.33) / 0.2) * day
+        if heat > 0.05 && g.rain == nil {
+            for i in 0..<14 {
+                let n = Double(i)
+                let sx = hashN(n + 630) * W + sin(NOW * 1.7 + n * 2.1) * 5
+                c.R(sx, GY - 1 - hashN(n + 631) * 4 + sin(NOW * 2.3 + n) * 0.5, 10 + hashN(n + 632) * 16, 0.4, rgba(255, 255, 255, 0.13 * heat))
+            }
         }
     }
 
@@ -2552,6 +2629,26 @@ final class Renderer {
             let rx = (hashN(n + 70) * W + NOW * Double(4 + i % 4) * 2).truncatingRemainder(dividingBy: W + 40) - 20
             c.R(rx, hy + 3 + hashN(n + 71) * H * 0.26, 8 + hashN(n) * 14, 0.6, rgba(255, 236, 200, 0.28))
         }
+        // feluccas on the far water, and ibis going home
+        for i in 0..<3 {
+            let n = Double(i)
+            let span = W + 120
+            let fx = (hashN(n + 700) * span + NOW * (2.5 + n)).truncatingRemainder(dividingBy: span) - 60
+            let fy = hy + 5 + n * 5, sc = 0.8 + n * 0.35
+            let ink = Col(0x4a2e4a)
+            c.poly(ink, [fx - 6.5 * sc, fy - 2, fx - 5 * sc, fy - 1, fx + 6 * sc, fy - 1, fx + 8 * sc, fy - 2.4, fx + 5 * sc, fy + 1, fx - 4 * sc, fy + 1])
+            c.poly(rgba(255, 232, 196, 0.9), [fx - 4.5 * sc, fy - 3, fx + 3 * sc, fy - 11 * sc, fx + 5.4 * sc, fy - 2.4])
+            c.seg(fx - 4.5 * sc, fy - 3, fx + 3 * sc, fy - 11 * sc, 0.4, ink)
+            c.poly(rgba(74, 46, 74, 0.25), [fx - 4 * sc, fy + 1.6, fx + 3 * sc, fy + 6 * sc, fx + 5 * sc, fy + 1.6])
+            c.R(fx - 7 * sc, fy + 1.2, 15 * sc, 0.4, rgba(255, 244, 210, 0.45))
+        }
+        for i in 0..<7 {
+            let n = Double(i)
+            let bx2 = (NOW * 11).truncatingRemainder(dividingBy: W + 160) - 80 + Double(i % 4) * 9 - Double(i / 4) * 5
+            let by2 = H * 0.2 + abs(n - 3) * 3.2 + sin(NOW * 0.5) * 3
+            let fl = sin(NOW * 6 + n * 0.7) * 1.6
+            c.seg(bx2 - 3, by2 - fl, bx2, by2, 0.5, rgba(60, 36, 60, 0.7)); c.seg(bx2, by2, bx2 + 3, by2 - fl, 0.5, rgba(60, 36, 60, 0.7))
+        }
         // the dune you stand on
         var dune: [Double] = [0, H]
         var dx = 0.0
@@ -2559,6 +2656,21 @@ final class Renderer {
         dune.append(W); dune.append(H)
         c.poly(Col(0xc9925a), dune)
         c.vfill(0, H * 0.66, W, H * 0.34, [(0, rgba(60, 30, 40, 0)), (1, rgba(60, 30, 40, 0.6))])
+        for k in 1..<7 {
+            let off = Double(k) * 6 + Double(k * k) * 0.8
+            dx = 0
+            while dx < W {
+                let wob = sin(dx * 0.05 + Double(k) * 1.7) * 1.6
+                c.seg(dx, crest(dx) + off + wob, dx + 4, crest(dx + 4) + off + sin((dx + 4) * 0.05 + Double(k) * 1.7) * 1.6, 0.4, rgba(90, 50, 40, 0.14))
+                dx += 4
+            }
+        }
+        for i in 0..<40 {
+            let n = Double(i)
+            let px2 = hashN(n + 720) * W
+            let py2 = crest(px2) + 3 + hashN(n + 721) * H * 0.2
+            if hashN(n + 722) < 0.5 { c.R(px2, py2, 1.2, 0.6, rgba(70, 40, 36, 0.3)); c.R(px2, py2 - 0.4, 1.2, 0.3, rgba(255, 236, 200, 0.3)) } else if sin(NOW * 1.8 + n) > 0.75 { c.R(px2, py2, 0.6, 0.6, rgba(255, 250, 230, 0.7)) }
+        }
         dx = 0
         while dx < W { c.seg(dx, crest(dx), dx + 4, crest(dx + 4), 0.8, rgba(255, 236, 190, 0.8)); dx += 4 }
         let keepCam = cam
@@ -2610,5 +2722,17 @@ final class Renderer {
         c.poly(rgba(236, 170, 112, a), [x - w, hy, x, hy - hh, x + w * 0.25, hy])
         c.poly(rgba(122, 74, 98, a), [x + w * 0.25, hy, x, hy - hh, x + w, hy])
         c.poly(rgba(255, 226, 170, a * 0.8), [x - w * 0.12, hy - hh * 0.88, x, hy - hh, x + w * 0.03, hy - hh * 0.88])
+        var q = hh * 0.07
+        while q < hh * 0.86 {
+            let k = 1 - q / hh
+            c.R(x - w * k, hy - q, w * k * 1.25, 0.35, rgba(150, 90, 60, 0.16 * a))
+            c.R(x + w * 0.25 * k, hy - q, w * k * 0.75, 0.35, rgba(40, 20, 50, 0.16 * a))
+            if hashN(x + q) > 0.55 {
+                let px = x - w * k + hashN(x + q * 2) * w * k * 1.1
+                c.R(px, hy - q - 1.2, 1.8 + hashN(x + q * 3) * 2, 0.9, rgba(120, 66, 60, 0.22 * a))
+            }
+            q += hh * 0.075
+        }
+        c.seg(x, hy - hh, x + w * 0.25, hy, 0.5, rgba(255, 236, 200, 0.3 * a))
     }
 }
