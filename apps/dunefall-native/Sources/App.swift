@@ -270,7 +270,9 @@ final class GameViewController: UIViewController {
         dayLabel.frame = CGRect(x: b.width - right - 210, y: 6, width: 160, height: 22)
         pauseBtn.frame = CGRect(x: b.width - right - 40, y: 4, width: 38, height: 28)
         hint.frame = CGRect(x: b.width * 0.5 - 250, y: 32, width: 500, height: 40)
-        info.frame = CGRect(x: b.width * 0.5 - 150, y: b.height - bottom - 30, width: 300, height: 24)
+        info.frame = CGRect(x: b.width * 0.5 - 230, y: b.height - bottom - 30, width: 460, height: 24)
+        info.adjustsFontSizeToFitWidth = true
+        info.minimumScaleFactor = 0.6
         card.frame = CGRect(x: 0, y: b.height * 0.22, width: b.width, height: 80)
 
         pad.frame = CGRect(x: left + 16, y: b.height - bottom - 78, width: 132, height: 60)
