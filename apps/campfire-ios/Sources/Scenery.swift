@@ -112,7 +112,7 @@ struct DesertBanner: View {
 
 // Where each camping area sits on the sketch, on a 360 by 400 sheet. lx is which side its name goes on.
 private let areaSpots: [String: (x: Double, y: Double, lx: Double, ly: Double)] = [
-    "plomosa": (238, 66, 14, 4), "hijolly": (200, 98, 14, 4), "domerock": (58, 176, 0, 26), "scaddan": (300, 178, 0, 26),
+    "plomosa": (238, 66, 14, 4), "hijolly": (200, 98, 14, 4), "domerock": (58, 176, 0, 26), "scaddan": (300, 178, 0, -18),
     "lpnorth": (206, 214, 14, 4), "lpwest": (154, 232, -14, 4), "lptyson": (154, 286, -14, 4), "lpsouth": (206, 268, 14, 4),
     "roadrunner": (154, 356, -14, 4)
 ]
