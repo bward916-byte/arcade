@@ -146,6 +146,8 @@ final class GameViewController: UIViewController {
         style(info, 14, cream, .center); plate(info)
         style(hint, 14, cream, .center); plate(hint)
         hint.numberOfLines = 2
+        purse.adjustsFontSizeToFitWidth = true
+        purse.minimumScaleFactor = 0.7
         style(card, 30, gold, .center)
         card.numberOfLines = 2
         for l in [purse, dayLabel, info, hint, card] { view.addSubview(l) }
@@ -224,7 +226,9 @@ final class GameViewController: UIViewController {
         quitBtn.titleLabel?.font = serif(17)
         quitBtn.addTarget(self, action: #selector(quitTapped), for: .touchUpInside)
         button(freeBtn, "Free a worker to build")
-        freeBtn.titleLabel?.font = serif(17)
+        freeBtn.titleLabel?.font = serif(15)
+        freeBtn.titleLabel?.numberOfLines = 2
+        freeBtn.titleLabel?.textAlignment = .center
         freeBtn.addTarget(self, action: #selector(freeTapped), for: .touchUpInside)
         for v in [pauseName, resumeBtn, soundBtn, freeBtn, quitBtn] as [UIView] { pauseBox.addSubview(v) }
         for bar in [barTop, barBottom] {
@@ -382,7 +386,7 @@ final class GameViewController: UIViewController {
     @objc private func pauseTapped() {
         if game.state != .play { return }
         userPaused = true
-        freeBtn.setTitle("Free a worker to build", for: .normal)
+        freeBtn.setTitle("Free a worker to build" + crew(), for: .normal)
         pauseBox.isHidden = false
         clearTouches()
     }
@@ -393,7 +397,10 @@ final class GameViewController: UIViewController {
     }
     @objc private func freeTapped() {
         let done = game.releaseOne()
-        freeBtn.setTitle(done ? "Freed one. Free another" : "Nobody to free", for: .normal)
+        freeBtn.setTitle((done ? "Freed one. Free another" : "Nobody to free") + crew(), for: .normal)
+    }
+    private func crew() -> String {
+        return "\n\(game.folk.count) people: \(game.head(.folk)) free, \(game.head(.digger)) diggers, \(game.head(.herder)) herders, \(game.head(.guard)) guards"
     }
     @objc private func sailOn() {
         game.nextTown()
@@ -486,7 +493,7 @@ final class GameViewController: UIViewController {
         let p = game.player
         let arrows = p.rl > 0 ? "restringing" : String(repeating: "|", count: max(0, p.ammo))
         let vault = (game.B(.bank).level > 0 ? "    Vault \(game.bank)" : "") + (game.ankh ? "    Ankh" : "")
-        set(purse, "Coins \(p.coins)\(vault)    Arrows \(arrows)    Free hands \(game.head(.folk))")
+        set(purse, "Coins \(p.coins)\(vault)    Arrows \(arrows)    People \(game.folk.count) of \(game.popCap), \(game.head(.folk)) free")
         set(dayLabel, game.dark > 0.5 ? "Night \(game.ln)" : "Day \(game.ln)")
         if playing, let line = game.infoLine() {
             set(info, line.0 + "   " + line.1)
@@ -496,14 +503,15 @@ final class GameViewController: UIViewController {
             info.isHidden = false
         } else { info.isHidden = true }
         let showHint = playing && game.hintT > 0
-        if showHint { set(hint, game.hintText) } else if playing && game.t < 0.2 && !game.report.isEmpty { set(hint, game.report) }
+        if showHint { set(hint, game.hintPin ? game.hintText + "  (tap to close)" : game.hintText) } else if playing && game.t < 0.2 && !game.report.isEmpty { set(hint, game.report) }
         hint.isHidden = game.cardT > 0 || !(showHint || (playing && game.t < 0.2 && !game.report.isEmpty))
         if game.state == .play && !cut && game.cardT > 0 {
             set(card, game.cardText + "\n" + game.cardSub)
             card.alpha = CGFloat(min(1, game.cardT))
             card.isHidden = false
         } else { card.isHidden = true }
-        fireBtn.alpha = game.input.fire ? 1 : (p.rl > 0 ? 0.4 : 0.8)
+        let atDock = abs(p.x - game.B(.dock).x - 60) < 90 && !game.raiders.contains(where: { abs($0.x - p.x) < 260 })
+        fireBtn.alpha = game.input.fire ? 1 : (atDock ? 0.25 : (p.rl > 0 ? 0.4 : 0.8))
     }
 
     // ---------- touch: left side is the stick, the two round buttons toss a coin and loose an arrow
@@ -524,6 +532,14 @@ final class GameViewController: UIViewController {
         if game.trip != nil { return }
         for t in touches {
             let p = t.location(in: view)
+            if !hint.isHidden && hint.frame.insetBy(dx: 0, dy: -8).contains(p) {
+                // a tap holds the memo on screen; a second tap puts it away
+                if game.hintPin { game.hintPin = false; game.hintT = 0 } else {
+                    if game.hintT <= 0 { game.hintText = game.report }
+                    game.hintT = 9; game.hintPin = true
+                }
+                continue
+            }
             if p.y < 30 && p.x < view.bounds.width * 0.6 { game.input.reload = true; continue }
             if p.x < view.bounds.width * 0.4 {
                 if stickTouch == nil { stickTouch = t; moveStick(p) }

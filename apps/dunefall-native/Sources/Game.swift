@@ -126,6 +126,7 @@ final class Game {
     var seen = Set<String>()
     var hintText = ""
     var hintT = 0.0
+    var hintPin = false
     var cardText = ""
     var cardT = 0.0
 
@@ -360,7 +361,8 @@ final class Game {
         guard let s = text ?? HINTS[k] else { return }
         seen.insert(k)
         hintText = s
-        hintT = 5.5
+        hintT = 9
+        hintPin = false
     }
 
     /// What a coin would do where the player stands: a title and a line for the HUD.
@@ -376,7 +378,8 @@ final class Game {
             case .tool:
                 if let b = tg.b {
                     let what = b.def.tool == .digger ? "digger" : (b.def.tool == .guard ? "guard" : "herder")
-                    return ("TOOL RACK", "A coin outfits a " + what)
+                    let wait = head(.folk) == 0 ? ". Nobody is free to take it: hire a nomad, or free a worker from the pause menu" : ""
+                    return ("TOOL RACK", "\(b.badges + b.rin) of 3 waiting. A coin outfits a " + what + wait)
                 }
             case .slot:
                 if let b = tg.b {
@@ -388,6 +391,9 @@ final class Game {
             case .bank:
                 return ("TREASURY", bank > 0 ? "Toss to deposit, or with an empty purse to draw five" : "Toss to deposit")
             }
+        }
+        for b in bs where b.def.tool != nil && b.level > 0 && abs(x - rackX(b)) < 10 {
+            return ("TOOL RACK", "Full. The tools wait for free hands" + (head(.folk) == 0 ? ": hire a nomad, or free a worker from the pause menu" : ""))
         }
         if let z = zoneOf(x) {
             if z.building { return (z.def.name, head(.folk) > 0 ? "Being built" : "Nobody free to build") }
@@ -623,7 +629,7 @@ final class Game {
         if let cv = caravan, cv.stopped, !cv.sold, B(.market).level > 0, abs(x - cv.x - 22) < 12 {
             return cv.paid + cv.inc < 4 ? Target(k: .merc, b: nil, shop: nil) : nil
         }
-        for b in bs where b.def.tool != nil && b.level > 0 && abs(x - rackX(b)) < 8 {
+        for b in bs where b.def.tool != nil && b.level > 0 && abs(x - rackX(b)) < 10 {
             return b.badges + b.rin < 3 ? Target(k: .tool, b: b, shop: nil) : nil
         }
         guard let b = zoneOf(x), !b.building else { return nil }
@@ -752,7 +758,7 @@ final class Game {
     func update(_ dt0: Double) {
         var dt = dt0
         NOW += dt
-        if cardT > 0 { cardT -= dt } else if hintT > 0 { hintT -= dt }
+        if cardT > 0 { cardT -= dt } else if hintT > 0 && !hintPin { hintT -= dt }
         if state == .title || state == .end { return }
         if state == .over {
             updWorld(dt)
@@ -1199,14 +1205,16 @@ final class Game {
                 let jobs = bs.filter { $0.building && (!night || inTown($0)) }
                 let job = jobs.min { abs($0.x - f.x) < abs($1.x - f.x) }
                 var rack: Building? = nil
-                if job == nil && !night {
+                if !night {
                     rack = bs.first { b in
                         if b.badges <= 0 { return false }
                         if b.claim == 0 || b.claim == f.id { return true }
                         return !folk.contains(where: { $0.id == b.claim && $0.role == .folk })
                     }
                 }
-                if let job = job {
+                // a waiting tool is taken first unless this is the only free pair of hands
+                if job != nil && rack != nil && head(.folk) < 2 { rack = nil }
+                if let job = job, rack == nil {
                     tx = job.mid + Double((f.id % 5) - 2) * 6
                     sp = inTown(job) ? 46 : 70
                     if abs(f.x - tx) < 2 {

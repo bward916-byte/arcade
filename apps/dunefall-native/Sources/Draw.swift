@@ -1393,10 +1393,14 @@ final class Renderer {
             if bx < x + 6 { continue }
             let by = GY - 3.2 - n * 2.4 + sin(NOW * 1.4 + n) * 0.3
             let sc = 1 - n * 0.25
-            c.poly(Col(0x5e3a1e), [bx - 6 * sc, by - 1.2, bx + 7 * sc, by - 1.2, bx + 5 * sc, by + 0.8, bx - 4 * sc, by + 0.8])
-            c.seg(bx, by - 1.2, bx, by - 10 * sc, 0.4, Col(0x5a3e22))
-            c.poly(Col(0xf6efdc), [bx + 0.4, by - 10 * sc, bx + 6 * sc, by - 3, bx + 0.4, by - 2])
+            c.alpha(clampD((bx - x - 6) / 16, 0, 1))
+            c.poly(Col(0x5e3a1e), [bx - 6.5 * sc, by - 2, bx - 5 * sc, by - 1.2, bx + 6 * sc, by - 1.2, bx + 8 * sc, by - 2.4, bx + 5 * sc, by + 0.8, bx - 4 * sc, by + 0.8])
+            c.seg(bx - sc, by - 1.2, bx - sc, by - 7 * sc, 0.4, Col(0x5a3e22))
+            c.poly(Col(0xf6efdc), [bx - 4.5 * sc, by - 3.4, bx + 3 * sc, by - 10 * sc, bx + 5.4 * sc, by - 2.6])
+            c.seg(bx - 4.5 * sc, by - 3.4, bx + 3 * sc, by - 10 * sc, 0.4, Col(0x5a3e22))
+            c.poly(rgba(246, 239, 220, 0.22), [bx - 4 * sc, by + 1.4, bx + 3 * sc, by + 5 * sc, bx + 5 * sc, by + 1.4])
             c.R(bx - 5 * sc, by + 1.2, 11 * sc, 0.4, rgba(255, 255, 255, 0.4))
+            c.alpha(1)
         }
         // foam along the bank, reeds, and an ibis working the shallows
         var fy = GY + 1.0
@@ -1710,8 +1714,8 @@ final class Renderer {
             let away = (g.trip ?? 0) * 26
             let bx = x + 78 + away, by = GY + 3 + sin(NOW * 1.6) * 0.6
             if g.trip == nil { c.curve(x + 66, GY - 2, x + 64, GY + 3, bx - 15, by - 4, 0.4, Col(0xc9a876)) }
-            c.seg(bx - 1, by - 27, bx + 12.6, by - 12.4, 0.5, RED); c.seg(bx - 1, by - 22, bx + 8.4, by - 11.4, 0.4, rgba(181, 65, 46, 0.5))
-            c.poly(RED, [bx - 2, by - 30, bx - 2, by - 33, bx - 7 + sin(NOW * 5) * 0.8, by - 31.6])
+            c.seg(bx - 4, by - 10.4, bx + 10, by - 26.5, 0.6, RED); c.seg(bx + 2, by - 9.6, bx + 12, by - 21, 0.4, rgba(181, 65, 46, 0.5))
+            c.poly(RED, [bx + 9, by - 34, bx + 9, by - 37, bx + 4 + sin(NOW * 5) * 0.8, by - 35.6])
             c.R(bx - 15, by + 1.6, 30, 0.5, rgba(255, 255, 255, 0.45)); c.R(bx - 10, by - 3.4, 20, 0.5, GOLD)
             c.R(bx + 6, by - 6.6, 4, 2.6, Col(0x8a6434)); c.R(bx + 2, by - 6, 3, 2, Col(0xb5673a))
         }
@@ -2006,11 +2010,14 @@ final class Renderer {
             // the felucca, waiting or under way
             let away = (g.trip ?? 0) * 26
             let bx = x + 78 + away, by = GY + 3 + sin(NOW * 1.6) * 0.6
-            c.poly(Col(0x6a4426), [bx - 16, by - 4, bx + 18, by - 4, bx + 13, by + 2, bx - 11, by + 2])
-            c.R(bx - 16, by - 5, 34, 1.2, Col(0xd8ba88))
-            c.seg(bx - 2, by - 4, bx - 2, by - 30, 1, WOOD)
-            c.poly(Col(0xf6efdc), [bx - 1, by - 30, bx + 16, by - 9, bx - 1, by - 7])
-            c.seg(bx - 2, by - 30, bx - 12, by - 5, 0.4, Col(0x5a3e22))
+            c.poly(Col(0x6a4426), [bx - 18, by - 6.5, bx - 14, by - 4, bx + 14, by - 4, bx + 20, by - 8, bx + 14, by + 2, bx - 12, by + 2])
+            c.R(bx - 14, by - 5, 28, 1.2, Col(0xd8ba88))
+            c.seg(bx - 2, by - 4, bx - 2, by - 24, 1, WOOD)
+            // lateen sail on its long slanted yard
+            c.poly(Col(0xf6efdc), [bx - 12, by - 11, bx + 8, by - 33, bx + 14.5, by - 18, bx + 13, by - 8])
+            c.poly(rgba(150, 120, 80, 0.22), [bx + 8, by - 33, bx + 14.5, by - 18, bx + 13, by - 8, bx + 9.5, by - 14])
+            c.seg(bx - 13, by - 10, bx + 9, by - 34, 0.8, WOOD)
+            c.seg(bx + 13, by - 8, bx + 16, by - 5, 0.3, Col(0x5a3e22)); c.seg(bx - 13, by - 10, bx - 15, by - 5, 0.3, Col(0x5a3e22))
             if g.trip != nil {
                 rider(bx - 6, by - 2, 1, RiderOpt(robe: Col(0xf6efdc), skin: Col(0xb8804e), turban: GOLD, sash: TEAL, veil: nil, fl: 0.4, jewel: true))
             }
@@ -2183,6 +2190,17 @@ final class Renderer {
             return
         }
         let robe = fl ? Col(0xffffff) : Col(0x2a2422)
+        // a red glow and a marker overhead, so raiders never pass for townsfolk
+        let gx = r.x - cam
+        if gx > -30 && gx < W + 30 {
+            let pulse = 0.5 + 0.5 * sin(NOW * 5 + Double(r.id))
+            let gr: Double = r.kind == .boss ? 30 : (r.kind == .rider ? 21 : 15)
+            let gh: Double = r.kind == .boss ? 46 : (r.kind == .rider ? 34 : 23)
+            c.glow(gx, GY - gr * 0.6, gr, rgba(255, 60, 40, 0.3 + 0.16 * pulse), rgba(255, 60, 40, 0))
+            c.ell(gx, GY + 0.6, gr * 0.45, 1.3, rgba(255, 50, 30, 0.45))
+            c.poly(Col(0xff4030), [gx - 2.2, GY - gh - 3 - pulse, gx + 2.2, GY - gh - 3 - pulse, gx, GY - gh - pulse])
+            light(gx, GY - gr * 0.6, gr * 0.8, 0.35)
+        }
         if r.kind == .boss {
             let x = r.x - cam
             c.save()
