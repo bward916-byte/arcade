@@ -42,7 +42,6 @@ final class GameViewController: UIViewController {
     private let card = UILabel()
     private let pad = UIView()
     private let knob = UIView()
-    private let tossBtn = UILabel()
     private let fireBtn = UILabel()
     private let titleBox = UIView()
     private let titleName = UILabel()
@@ -76,7 +75,6 @@ final class GameViewController: UIViewController {
     private var tossTouch: UITouch?
     private var fireTouch: UITouch?
     private var padCenter = CGPoint.zero
-    private var tossCenter = CGPoint.zero
     private var fireCenter = CGPoint.zero
 
     private let cream = UIColor(red: 0.96, green: 0.92, blue: 0.82, alpha: 1)
@@ -152,9 +150,22 @@ final class GameViewController: UIViewController {
         knob.layer.borderWidth = 2
         pad.addSubview(knob)
         view.addSubview(pad)
-        round(tossBtn, "Coin")
-        round(fireBtn, "Bow")
-        view.addSubview(tossBtn)
+        round(fireBtn, "")
+        // a drawn bow and arrow on the one button; a coin is tossed by tapping anywhere else
+        let bow = UIBezierPath()
+        bow.addArc(withCenter: CGPoint(x: 24, y: 32), radius: 20, startAngle: -1.25, endAngle: 1.25, clockwise: true)
+        let tipX = 24 + 20 * cos(1.25), tipY = 20 * sin(1.25)
+        bow.move(to: CGPoint(x: tipX, y: 32 - tipY)); bow.addLine(to: CGPoint(x: tipX, y: 32 + tipY))
+        bow.move(to: CGPoint(x: 14, y: 32)); bow.addLine(to: CGPoint(x: 54, y: 32))
+        bow.move(to: CGPoint(x: 46, y: 25)); bow.addLine(to: CGPoint(x: 54, y: 32)); bow.addLine(to: CGPoint(x: 46, y: 39))
+        let bowLayer = CAShapeLayer()
+        bowLayer.path = bow.cgPath
+        bowLayer.strokeColor = ink.cgColor
+        bowLayer.fillColor = UIColor.clear.cgColor
+        bowLayer.lineWidth = 3
+        bowLayer.lineCap = .round
+        bowLayer.lineJoin = .round
+        fireBtn.layer.addSublayer(bowLayer)
         view.addSubview(fireBtn)
 
         style(titleName, 64, gold, .center)
@@ -233,11 +244,8 @@ final class GameViewController: UIViewController {
         knob.frame = CGRect(x: 66 - 23, y: 30 - 23, width: 46, height: 46)
         knob.layer.cornerRadius = 23
         padCenter = CGPoint(x: pad.frame.midX, y: pad.frame.midY)
-        tossBtn.frame = CGRect(x: b.width - right - 166, y: b.height - bottom - 74, width: 64, height: 64)
-        fireBtn.frame = CGRect(x: b.width - right - 84, y: b.height - bottom - 96, width: 64, height: 64)
-        tossBtn.layer.cornerRadius = 32
+        fireBtn.frame = CGRect(x: b.width - right - 84, y: b.height - bottom - 84, width: 64, height: 64)
         fireBtn.layer.cornerRadius = 32
-        tossCenter = CGPoint(x: tossBtn.frame.midX, y: tossBtn.frame.midY)
         fireCenter = CGPoint(x: fireBtn.frame.midX, y: fireBtn.frame.midY)
 
         titleBox.frame = b
@@ -391,7 +399,7 @@ final class GameViewController: UIViewController {
         let playing = game.state == .play
         titleBox.isHidden = game.state != .title
         overBox.isHidden = game.state != .over
-        for v in [purse, dayLabel, pad, tossBtn, fireBtn, pauseBtn] as [UIView] { v.isHidden = game.state == .title }
+        for v in [purse, dayLabel, pad, fireBtn, pauseBtn] as [UIView] { v.isHidden = game.state == .title }
         if game.state == .over && dawnBtn.isHidden == (loadSave() != nil) { view.setNeedsLayout() }
         let p = game.player
         let arrows = p.rl > 0 ? "restringing" : String(repeating: "|", count: max(0, p.ammo))
@@ -410,7 +418,6 @@ final class GameViewController: UIViewController {
             card.alpha = CGFloat(min(1, game.cardT))
             card.isHidden = false
         } else { card.isHidden = true }
-        tossBtn.alpha = game.input.toss ? 1 : 0.8
         fireBtn.alpha = game.input.fire ? 1 : (p.rl > 0 ? 0.4 : 0.8)
     }
 
@@ -431,13 +438,14 @@ final class GameViewController: UIViewController {
         for t in touches {
             let p = t.location(in: view)
             if p.y < 30 && p.x < view.bounds.width * 0.6 { game.input.reload = true; continue }
-            if p.x < view.bounds.width * 0.45 {
+            if p.x < view.bounds.width * 0.4 {
                 if stickTouch == nil { stickTouch = t; moveStick(p) }
                 continue
             }
-            let dt = hypot(p.x - tossCenter.x, p.y - tossCenter.y)
             let df = hypot(p.x - fireCenter.x, p.y - fireCenter.y)
-            if dt <= df && dt < 80 && tossTouch == nil { tossTouch = t; tToss = true } else if df < 80 && fireTouch == nil { fireTouch = t; tFire = true }
+            if df < 52 {
+                if fireTouch == nil { fireTouch = t; tFire = true }
+            } else if tossTouch == nil { tossTouch = t; tToss = true }
         }
     }
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {

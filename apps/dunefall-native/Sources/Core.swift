@@ -353,7 +353,7 @@ struct Input {
 enum GameState { case title, play, over }
 
 let HINTS: [String: String] = [
-    "start": "Ride out to the tents and toss a coin to a nomad.",
+    "start": "Ride out to the tents and tap the screen to toss a coin to a nomad.",
     "urn": "An old urn under the sand. Ride over coins to pick them up.",
     "recruit": "A nomad joins you. Ride up to a ruin in town and toss coins to rebuild it.",
     "funded": "Paid for. Your villagers will work until it is done.",
