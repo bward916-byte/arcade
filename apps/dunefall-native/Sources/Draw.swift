@@ -525,6 +525,7 @@ final class Renderer {
         case .well: well(b, x, L)
         case .gw, .ge: gate(b, x, L)
         case .bank: treasury(b, x, L)
+        default: break
         }
         if b.building && L >= 1 {
             let nh = b.def.h[min(L + 1, b.def.h.count - 1)]
