@@ -346,6 +346,7 @@ final class GameViewController: UIViewController {
             if args.contains("-demo-play") { game.demo("play") }
             if args.contains("-demo-night") { game.demo("night") }
             if args.contains("-demo-port") { game.demo("port") }
+            if args.contains("-demo-oasis") { game.demo("oasis") }
             if args.contains("-demo-intro") { sound.start(); game.start() }
             if args.contains("-demo-fires") { game.start(); game.update(5.2); game.update(0.05) }
         }

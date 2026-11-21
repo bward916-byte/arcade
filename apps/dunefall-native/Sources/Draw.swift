@@ -976,13 +976,55 @@ final class Renderer {
         let x = g.OASIS - cam
         if x > W + 70 || x < -70 { return }
         let b = g.B(.grove)
-        c.ell(x - 4, GY + 5, 30, 4.4, Col(0x4a9ab8)); c.ell(x - 8, GY + 4.2, 18, 2, Col(0x9fd8e8))
-        let tended = b.level > 0
-        palm(x - 26, 30, 1.1, 21, tended); palm(x + 22, 34, 1.2, 22, tended); palm(x + 44, 24, 0.9, 23, tended)
-        if tended { palm(x - 44, 26, 1, 24, true); palm(x + 4, 38, 1.25, 25, true) }
-        for i in 0..<6 {
+        let sk = skyAt(g.t)
+        let wc = Col.mix(sk.0, Col(0x247896), 0.55), wl = Col.mix(sk.1, Col(0x62bacc), 0.5)
+        // the far reach, running down from the horizon
+        c.poly(Col(0x7aa24a), [x - 12, GY - 24, x + 12, GY - 24, x + 50, GY + 1, x - 50, GY + 1])
+        c.poly(wc, [x - 5, GY - 23, x + 5, GY - 23, x + 38, GY + 1, x - 38, GY + 1])
+        c.alpha(0.55); c.poly(wl, [x - 2, GY - 23, x + 1, GY - 23, x + 8, GY + 1, x - 20, GY + 1]); c.alpha(1)
+        // the near reach, across the road and off the bottom of the screen
+        c.poly(Col(0x8fb85a), [x - 52, GY, x - 38, GY, x - 62, H, x - 80, H])
+        c.poly(Col(0x8fb85a), [x + 38, GY, x + 52, GY, x + 80, H, x + 62, H])
+        c.poly(wc, [x - 38, GY, x + 38, GY, x + 62, H, x - 62, H])
+        c.alpha(0.5); c.poly(wl, [x - 20, GY, x + 8, GY, x + 14, H, x - 34, H]); c.alpha(1)
+        for i in 0..<5 {
             let n = Double(i)
-            c.seg(x - 30 + n * 11, GY + 1, x - 30 + n * 11 + sin(NOW * 2 + n), GY - 5 - hashN(n) * 3, 0.6, Col(0x4d8a3c))
+            let u = (NOW * 0.22 + n * 0.2).truncatingRemainder(dividingBy: 1)
+            let hw = 5 + u * 33
+            c.R(x - hw * 0.6 + hashN(n + 60) * hw, GY - 22 + u * 22, 2 + u * 5, 0.4, rgba(255, 255, 255, 0.45))
+        }
+        for i in 0..<10 {
+            let n = Double(i)
+            let u = (NOW * 0.16 + hashN(n + 70)).truncatingRemainder(dividingBy: 1)
+            let hw = 38 + u * 24
+            c.R(x - hw * 0.8 + hashN(n + 71) * hw * 1.5, GY + 3 + u * (H - GY - 4), 5 + u * 8, 0.6, rgba(255, 255, 255, 0.4 * sin(PI * u)))
+        }
+        for i in 0..<7 {
+            let n = Double(i)
+            let k = n / 6
+            let lx = x - 40 - k * 20 + hashN(n) * 3, rx = x + 40 + k * 20 - hashN(n + 3) * 3
+            let yy = GY + 2 + k * (H - GY - 8)
+            c.seg(lx, yy, lx + sin(NOW * 2 + n) * 0.9, yy - 6 - hashN(n + 4) * 4, 0.7, Col(0x4d8a3c))
+            c.seg(rx, yy, rx + sin(NOW * 2 + n + 2) * 0.9, yy - 6 - hashN(n + 5) * 4, 0.7, Col(0x4d8a3c))
+            if i % 3 == 0 { c.R(lx - 0.6, yy - 9, 1.4, 3, Col(0x6a4a2a)); c.R(rx - 0.6, yy - 9, 1.4, 3, Col(0x6a4a2a)) }
+        }
+        // the plank bridge the road crosses on
+        for px in [-34.0, -12, 12, 34] {
+            c.R(x + px - 0.9, GY + 2, 1.8, 9 + abs(px) * 0.08, Col(0x4a2e18))
+            c.ell(x + px, GY + 11 + abs(px) * 0.08, 3, 0.7, rgba(255, 255, 255, 0.3))
+        }
+        c.R(x - 46, GY - 0.4, 92, 3, Col(0x8a6434)); c.R(x - 46, GY - 0.4, 92, 0.8, Col(0xb08854)); c.R(x - 46, GY + 2.2, 92, 0.6, Col(0x4a2e18))
+        for q in 0..<23 { c.R(x - 46 + Double(q) * 4, GY - 0.4, 0.5, 2.6, Col(0x5e3a1e)) }
+        for px in [-45.0, -22, 0, 22, 44] { c.R(x + px - 0.6, GY - 9, 1.2, 9, Col(0x5e3a1e)) }
+        for q in 0..<4 {
+            let x0 = x - 45 + Double(q) * 22.3
+            c.curve(x0, GY - 8.6, x0 + 11, GY - 5.6, x0 + 22.3, GY - 8.6, 0.5, Col(0xc9a876))
+        }
+        let tended = b.level > 0
+        palm(x - 56, 34, 1.1, 7, false); palm(x + 54, 28, 1, 11, false); palm(x + 68, 22, 0.8, 13, false)
+        if tended {
+            let offs: [Double] = [-74, -62, -50, 48, 62, 76]
+            for i in 0..<6 { palm(x + offs[i], 24 + hashN(Double(i) + 20) * 14, 0.9, 30 + Double(i), true) }
         }
         if !b.gone { rising(b, b.x - cam) }
     }
@@ -1270,6 +1312,7 @@ final class Renderer {
             let lf = o.moving ? max(0, cos(an)) * 1.2 : 0
             c.seg(s * 0.8, -4.4, fx, -0.8 - lf, 1.15, o.skin)
             c.R(fx - 0.8 + d * 0.3, -0.9 - lf, 1.8, 0.9, Col(0x4a3320))
+            c.R(fx - 0.2 + d * 0.3, -1.6 - lf, 0.5, 0.8, Col(0x2a1a10)); c.R(fx - 0.8 + d * 0.3, -0.2 - lf, 1.8, 0.25, Col(0x2a1a10))
         }
         // a dark outline behind, then the robe
         c.poly(rgba(50, 28, 10, 0.55), [-2.7, top - 0.4, 2.7, top - 0.4, 3.9 + hem * 0.4, -1.3, -3.9 + hem * 0.4, -1.3])
@@ -1282,6 +1325,13 @@ final class Renderer {
         c.R(d > 0 ? -2.2 : 0.9, -10.2 - br, 1.3, 8.2, sh)
         c.seg(0.4, -9.6 - br, 0.7 + hem * 0.6, -2.2, 0.4, sh)
         c.R(-2.1, top, 4.2, 0.6, rgba(255, 255, 255, 0.18))
+        // a trimmed hem, a placket, a fold or two, and the open neck
+        c.poly(o.turban.alpha(0.9), [-3.2 + hem * 0.5, -2.7, 3.2 + hem * 0.5, -2.9, 3.25 + hem * 0.5, -2, 1.2 + hem, -1.5, -1 + hem, -1.9, -3.25 + hem * 0.5, -1.7])
+        c.R(-3 + hem * 0.5, -3.3, 6, 0.3, rgba(255, 244, 214, 0.5))
+        c.seg(-1.3, -8.4 - br, -1.7 + hem * 0.5, -3.2, 0.3, rgba(60, 30, 0, 0.2))
+        c.seg(1.4, -8.8 - br, 1.9 + hem * 0.5, -3.3, 0.3, rgba(255, 255, 255, 0.16))
+        c.poly(o.skin, [-0.8, top, 0.8, top, 0, top + 1.7])
+        c.R(-0.2, top + 1.6, 0.4, 3.4, rgba(60, 30, 0, 0.22))
         if let s = o.sash { c.R(-2.45, -7 - br, 4.9, 1.1, s); c.R(d * 1.1 - 0.45, -7 - br, 0.9, 3.2 + hem * 0.4, s) }
         let ax = d * 2.5, ay = -8.6 - br, sy = -9.6 - br
         let swinging = o.tool == .hammer && o.ham > 0
@@ -1299,13 +1349,19 @@ final class Renderer {
         }
         // head: a face with an eye and a nose, so nobody is a blank box
         c.R(-1.6, -14.2 - br, 3.2, 3.5, o.skin)
-        c.R(d * 0.85 - 0.35, -13.1 - br, 0.7, 0.7, Col(0x2a1a10))
-        c.R(d * 1.6 - 0.3, -12.5 - br, 0.6, 0.9, o.skin)
+        c.R(d * 0.7 - 0.6, -13.25 - br, 1.2, 0.9, Col(0xf6f0e0))
+        c.R(d * 0.95 - 0.3, -13.2 - br, 0.6, 0.8, Col(0x2a1a10))
+        c.R(d * 0.7 - 0.7, -13.9 - br, 1.4, 0.35, Col(0x3a2416))
+        c.R(d * 1.6 - 0.3, -12.5 - br, 0.6, 0.9, o.skin); c.R(d * 1.5 - 0.3, -11.9 - br, 0.5, 0.3, rgba(60, 30, 0, 0.3))
+        c.R(-d * 1.3 - 0.4, -13 - br, 0.8, 1.2, Col.mix(o.skin, Col(0x3a2416), 0.3))
+        if o.veil == nil && o.beard == nil { c.R(d * 0.8 - 0.4, -11.7 - br, 1, 0.3, Col(0x6a3a28)) }
         c.R(-1.6, -11.2 - br, 3.2, 0.5, rgba(60, 30, 0, 0.25))
         if let bd = o.beard { c.R(d > 0 ? -0.9 : -1.7, -11.9 - br, 2.6, 1.4, bd) }
         if let v = o.veil { c.R(-1.75, -12.5 - br, 3.5, 2.1, v) }
         c.R(-2.25, -16.1 - br, 4.5, 2.6, o.turban); c.R(-1.6, -16.8 - br, 3.2, 0.9, o.turban)
         c.R(-2.25, -14.7 - br, 4.5, 0.5, rgba(0, 0, 0, 0.16)); c.R(-d * 0.5 - 0.4, -16.4 - br, 0.9, 0.9, rgba(255, 255, 255, 0.3))
+        c.seg(-2.2, -15.3 - br, 2.2, -15.9 - br, 0.3, rgba(0, 0, 0, 0.18)); c.seg(-2, -14.9 - br, 2.2, -15.2 - br, 0.25, rgba(255, 255, 255, 0.22))
+        if o.sash != nil { c.R(d * 1.2 - 0.45, -15.9 - br, 0.9, 0.9, GOLD) }
         let tw = sin(NOW * 8 + x) * 0.5 * (tr + 0.3)
         c.poly(o.turban, [-d * 2, -15.4 - br, -d * (3.3 + tr * 0.8), -13.6 - br + tw, -d * (2.7 + tr * 0.4), -10.8 - br, -d * 2, -12.6 - br])
         let sw = o.ham > 0 ? sin(o.ham * 24) * 3 : 0
@@ -1370,8 +1426,15 @@ final class Renderer {
             let FX = lerp(fx, hx + d * (fr ? -0.6 : 0.6), kn), FY = lerp(fy, GY, kn)
             c.seg(hx, by + 1, KX, KY, 2.5, cc); c.seg(KX, KY, FX, FY - 0.6, 1.7, cc); c.circ(KX, KY, 1.3, cc)
             c.R(FX - 1.2 + d * 0.4, FY - 1.1, 2.6, 1.1, Col(0x3a2610))
+            c.R(FX + d * 0.4 - 0.15, FY - 1.1, 0.3, 0.8, Col(0x1c1008)); c.R(KX - 0.7, KY - 0.5, 1.4, 1, fr ? Col.mix(cc, Col(0x3a2610), 0.45) : cc)
         }
         c.ell(sx, by - 1, 10.5, 4.9, col); c.ell(sx + d * 0.6, by + 1.5, 8.6, 2.5, dk); c.ell(sx + d * 8.3, by + 1.2, 2.3, 3.2, dk)
+        c.ell(sx - d * 1.5, by - 3.7, 7, 1.3, lt.alpha(0.5))
+        for q in 0..<4 {
+            let n = Double(q)
+            c.seg(sx + d * (7.6 + n * 0.5), by + 1 + n * 0.9, sx + d * (8.4 + n * 0.5), by + 3 + n * 0.8, 0.5, lt)
+            c.seg(sx - d * 9.4 + d * n * 0.3, by - 2 + n, sx - d * 10.2 + d * n * 0.3, by - 1 + n, 0.45, dk)
+        }
         for hxo in [-4.8, 2.8] {
             let hx = sx + d * hxo
             let sg = sin(ph * 2 + hxo) * 0.4 * amp
@@ -1391,6 +1454,15 @@ final class Renderer {
         c.R(hx + d * 3.2 - (d < 0 ? 0.8 : 0), hy + 0.2, 0.8, 0.8, Col(0x2a1a10))
         c.R(hx - d * 2.4 - 0.6, hy - 3.3, 1.2, 1.9, dk); c.R(hx - d * 0.6 - 1, hy - 2.4, 2.2, 1, dk)
         c.R(hx + d * 0.7 - 0.4, hy - 1, 0.8, 0.8, Col(0x1c1008)); c.R(hx + d * 0.9 - 0.2, hy - 1, 0.3, 0.3, Col(0xffffff))
+        c.seg(hx + d * 0.1, hy - 1.5, hx + d * 1.4, hy - 1.8, 0.35, Col(0x1c1008))
+        c.R(hx + d * 3.5 - 0.25, hy - 0.2, 0.5, 0.5, Col(0x1c1008)); c.seg(hx + d * 1.3, hy + 1.4, hx + d * 3.7, hy + 1.2, 0.35, Col(0x3a2610))
+        c.R(hx - d * 2.4 - 0.3, hy - 2.9, 0.6, 1.1, Col(0xd9a070))
+        c.ell(hx + d * 3, hy + 0.9, 1, 0.8, lt)
+        for q in 0..<5 {
+            let k = Double(q) / 4
+            let mx = lerp(sx + d * 9, hx - d * 2.2, k), my = lerp(by - 3.4, hy - 1.2, k)
+            c.seg(mx, my, mx - d * 0.9, my - 1.5 - sin(NOW * 3 + k * 4) * 0.2, 0.55, dk)
+        }
         let tailY = by + 3.6 + sin(ph * 2) * amp
         c.seg(sx - d * 10, by - 2.4, sx - d * 12, tailY, 0.9, dk); c.R(sx - d * 12 - 0.7, tailY - 0.2, 1.4, 1.8, Col(0x3a2610))
         if let ld = o.load {
@@ -1405,6 +1477,18 @@ final class Renderer {
                 let n = Double(i)
                 c.R(bx + 0.4 + n * 2, by - 1.1, 0.8, 1.7 + sin(ph * 2 + n) * 0.5 * amp, GOLD)
             }
+            // the rest of the tack: woven blanket, girth, saddlebag and waterskin, halter, brow band, chin tassel, a collar of bells
+            for q in 0..<3 { c.poly(GOLD, [bx + 1.4 + Double(q) * 2.2, by - 6.4, bx + 2 + Double(q) * 2.2, by - 5.8, bx + 1.4 + Double(q) * 2.2, by - 5.2, bx + 0.8 + Double(q) * 2.2, by - 5.8]) }
+            c.R(bx, by - 3.6, 7.2, 0.4, Col(0xfff3b8))
+            c.R(sx - d - 0.5, by - 1.2, 1, 5.6, Col(0x5e3a1e)); c.R(sx - d - 0.5, by + 2.4, 1, 0.8, GOLD)
+            let bagX = sx - d * 6.8
+            c.R(bagX - 2.2, by - 3.8, 4.4, 4.8, Col(0x8a5a34)); c.R(bagX - 2.2, by - 3.8, 4.4, 1.6, Col(0x6a4426)); c.R(bagX - 0.4, by - 2.6, 0.8, 0.8, GOLD)
+            c.ell(sx - d * 4.6, by + 2.6, 1.5, 2.2, Col(0x6a4a2a)); c.R(sx - d * 4.6 - 0.3, by, 0.6, 1.2, Col(0x3a2610))
+            c.seg(hx - d * 1.8, hy - 1.7, hx + d * 1.4, hy - 1.4, 0.55, GOLD)
+            c.R(hx + d * 1.5 - 0.3, hy - 1.3, 0.6, 3, RED); c.seg(hx - d * 1.6, hy + 0.6, hx + d * 1.6, hy + 1.2, 0.45, RED)
+            c.R(hx + d * 0.6 - 0.35, hy + 2, 0.7, 2 + sin(ph * 2) * 0.5 * amp, RED); c.R(hx + d * 0.6 - 0.35, hy + 2, 0.7, 0.5, GOLD)
+            c.seg(sx + d * 9, by - 4.8, sx + d * 10.4, by + 2.8, 1, RED); c.seg(sx + d * 9.3, by - 4.8, sx + d * 10.7, by + 2.8, 0.3, GOLD)
+            for q in 0..<3 { c.circ(sx + d * (10 + Double(q) * 0.25), by - 2 + Double(q) * 2.2 + sin(ph * 2 + Double(q)) * 0.3 * amp, 0.7, GOLD) }
         }
         if let top = top { top(by) }
         c.restore()
@@ -1416,9 +1500,18 @@ final class Renderer {
         c.translate(sx, by - 2); c.scale(1.2, 1.2); c.translate(-sx, -(by - 2))
         let y = by - 8
         c.R(sx + d * 1.4 - 0.6, y + 1, 1.3, 5.5, o.robe); c.R(sx + d * 1.6 - 0.6, y + 6, 1.6, 1, Col(0x6a4e2c))
+        if o.jewel {
+            let wv = sin(NOW * 7) * (0.4 + o.fl * 1.4)
+            c.poly(Col(0x8f2a1c), [sx - d * 1.4, y - 7.2, sx - d * (5 + o.fl * 5), y - 4 + wv, sx - d * (4.4 + o.fl * 4), y + 1.6 + wv * 0.6, sx - d * 2, y + 1.2])
+            c.poly(RED, [sx - d * 1.4, y - 7.2, sx - d * (4.6 + o.fl * 4.6), y - 4.4 + wv, sx - d * (3.6 + o.fl * 3.4), y - 0.4 + wv * 0.6, sx - d * 1.8, y - 0.6])
+        }
         c.poly(o.robe, [sx - 2.4, y - 7.5, sx + 2.2, y - 7.5, sx + 2.8, y + 1.5, sx - 3, y + 1.5])
+        c.R(sx - d * 2.4 - (d < 0 ? 1.2 : 0), y - 7.2, 1.2, 8.4, rgba(60, 30, 0, 0.2)); c.R(sx - 0.2, y - 6.6, 0.4, 7.6, rgba(60, 30, 0, 0.18))
+        if o.jewel { c.R(sx - 2.1, y - 7.7, 4.2, 0.8, GOLD); c.R(sx + d * 0.2 - 0.5, y - 6.8, 1, 1, TEAL) }
         if let s = o.sash { c.R(sx - 2.6, y - 2.6, 5.2, 1.1, s) }
         c.R(sx - 1.5, y - 10.6, 3, 3.1, o.skin); c.R(sx + d * 0.9 - 0.3, y - 9.5, 0.6, 0.6, Col(0x2a1a10))
+        c.R(sx + d * 0.7 - 0.6, y - 10.1, 1.3, 0.3, Col(0x3a2416)); c.R(sx + d * 1.5 - 0.25, y - 9, 0.5, 0.8, o.skin); c.R(sx + d * 0.8 - 0.35, y - 8.2, 0.8, 0.25, Col(0x6a3a28))
+        c.R(sx - 2.1, y - 11.1, 4.2, 0.35, rgba(0, 0, 0, 0.2))
         if let v = o.veil { c.R(sx - 1.5, y - 9, 3, 1.5, v) }
         c.R(sx - 2.1, y - 12.4, 4.2, 2.3, o.turban); c.R(sx - 1.5, y - 13, 3, 0.8, o.turban)
         let fl = o.fl

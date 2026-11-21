@@ -1810,6 +1810,21 @@ final class Game {
 
     // ---------- set scenes for the simulator screenshots
     func demo(_ k: String) {
+        if k == "oasis" {
+            reset(1)
+            state = .play
+            t = 0.3
+            for bt in [BType.market, .tea, .gw, .ge] { B(bt).level = 1 }
+            for j in 0..<3 {
+                let f = Folk(id: nextId, x: OASIS - 110 + Double(j) * 16, dir: 1, role: j == 2 ? .guard : .folk)
+                nextId += 1
+                folk.append(f)
+            }
+            player.x = OASIS - 64
+            player.coins = 9
+            cam = clampD(player.x - W / 2 + 24, 0, WORLD - W)
+            return
+        }
         if k == "port" {
             reset(3)
             state = .play
