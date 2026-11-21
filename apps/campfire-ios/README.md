@@ -7,3 +7,5 @@ A native Swift app that reads the ads from the live site. This trial has the For
 - The build result (compile errors, upload outcome, screenshots) is pushed to the `campfire-ios-buildlog` branch.
 
 It lives on the `campfire-ios` branch of the arcade repo because the signing secrets (`ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8`) are already here. The website itself is in the quartzsite-campfire repo.
+
+The App Store Connect record "Quartzsite Campfire" was created on Nov 21, 2026.
