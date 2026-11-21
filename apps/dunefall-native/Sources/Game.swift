@@ -52,6 +52,8 @@ final class Game {
     var digT = 0.0
     var carry = 0
     var cardSub = ""
+    var introFires = false
+    var hidePlayer = false
     var rain: Double?
     var rainAt = -1.0
     var lush = false
@@ -166,7 +168,23 @@ final class Game {
         hares = (0..<5).map { newHare($0) }
         for i in 0..<camps.count { for _ in 0..<camps[i].cap { addNomad(i, fromEdge: false) } }
         player.ammo = maxAmmo
+        player.x = startX()
+        introFires = false; hidePlayer = false
         cam = clampD(player.x - W / 2, 0, WORLD - W)
+    }
+
+    /// Open ground near the well, well clear of anything that takes coins.
+    func startX() -> Double {
+        var best = WELL_X - 50, bestGap = -1.0
+        var x = WELL_X - 110
+        while x <= WELL_X + 110 {
+            var gap = 999.0
+            for b in bs where !b.gone { gap = min(gap, x < b.x ? b.x - x : (x > b.x + b.w ? x - b.x - b.w : 0)) }
+            for sh in shops { gap = min(gap, abs(x - shopX(sh.k))) }
+            if gap > bestGap { bestGap = gap; best = x }
+            x += 4
+        }
+        return best
     }
 
     func card(_ a: String, _ b: String) { cardText = a; cardSub = b; cardT = 3.6 }
@@ -176,10 +194,21 @@ final class Game {
         state = .play
         t = 0.08
         if intro {
-            sceneQueue = [Cine(k: "intro2", text: "The bazaar emptied. The sand took the rest.", dur: 3.8, fx: 900, zoom: 1.2),
-                          Cine(k: "intro3", text: "But there is gold under these dunes, and people who would stay.", dur: 3.8, fx: WELL_X, zoom: 1)]
-            cam = 0
-            scene = Cine(k: "intro1", text: "The caravans stopped coming when the river changed its course.", dur: 3.8, fx: 300, zoom: 1.3)
+            // The fall of the town, told in three shots: the storm and the riders, the fires, and the one who comes back.
+            sceneQueue = [Cine(k: "intro2", text: "They burned what the sand did not bury. The bazaar went dark, and stayed dark.", dur: 5, fx: WELL_X + 70, zoom: 1.18),
+                          Cine(k: "intro3", text: "Years later, one rider comes back: eight coins, and a long memory.", dur: 5.2, fx: startX() - 250, zoom: 1.3)]
+            scene = Cine(k: "intro1", text: "First the river left. Then the storm came, and the riders came with it.", dur: 5, fx: 520, zoom: 1.12)
+            t = 0.645
+            cam = 40
+            hidePlayer = true
+            storm = Storm(front: 150)
+            for i in 0..<5 {
+                let r = Raider(id: 800 + i, kind: i == 2 ? .boss : .rider, x: 300 - Double(i) * 46, side: 1, hp: 3)
+                r.state = .flee
+                raiders.append(r)
+            }
+            snd?.horn()
+            buzz(2)
         } else {
             card("DUNEFALL", "Bring the town back")
             hint("start")
@@ -195,11 +224,52 @@ final class Game {
     func endScene() {
         guard let sc = scene else { return }
         scene = nil
-        if !sceneQueue.isEmpty { scene = sceneQueue.removeFirst(); return }
-        if sc.k == "intro3" { card("DUNEFALL", "Bring the town back"); hint("start") }
+        if !sceneQueue.isEmpty {
+            let nx = sceneQueue.removeFirst()
+            scene = nx
+            if nx.k == "intro2" {
+                t = 0.8
+                storm = nil
+                raiders = []
+                introFires = true
+                cam = clampD(WELL_X - W / 2 - 130, 0, WORLD - W)
+                snd?.rob(); snd?.gong()
+                buzz(2)
+            } else if nx.k == "intro3" {
+                t = 0.03
+                introFires = false
+                hidePlayer = false
+                player.x = startX() - 250
+                player.dir = 1
+                cam = clampD(player.x - W / 2, 0, WORLD - W)
+                snd?.dawn()
+            }
+            return
+        }
+        if sc.k.hasPrefix("intro") { finishIntro() }
+    }
+    private func finishIntro() {
+        sceneQueue = []
+        scene = nil
+        t = 0.08
+        storm = nil
+        raiders = []
+        parts = []
+        introFires = false
+        hidePlayer = false
+        player.x = startX()
+        player.vx = 0
+        player.dir = 1
+        shake = 0
+        cam = clampD(player.x - W / 2, 0, WORLD - W)
+        snd?.fanfare()
+        buzz(3)
+        card("DUNEFALL", "Bring the town back")
+        hint("start")
     }
     func skipScene() {
-        if let sc = scene, sc.t > 0.6 { endScene() }
+        guard let sc = scene, sc.t > 0.6 else { return }
+        if sc.k.hasPrefix("intro") { finishIntro() } else { endScene() }
     }
 
     // ---------- sailing on
@@ -655,8 +725,7 @@ final class Game {
     func update(_ dt0: Double) {
         var dt = dt0
         NOW += dt
-        if hintT > 0 { hintT -= dt }
-        if cardT > 0 { cardT -= dt }
+        if cardT > 0 { cardT -= dt } else if hintT > 0 { hintT -= dt }
         if state == .title || state == .end { return }
         if state == .over {
             updWorld(dt)
@@ -667,7 +736,34 @@ final class Game {
             sc.t += dt
             dark = darkness(t)
             updWorld(dt); updFolk(dt * 0.5)
-            cam = lerp(cam, clampD(sc.fx - W / 2, 0, WORLD - W), 1 - pow(0.02, dt))
+            var pan = 0.02
+            if sc.k == "intro1" {
+                updRaiders(dt)
+                shake = max(shake, 0.07)
+                pan = 0.45
+                if chance(dt * 30) { puff(cam + rnd(0, W), rnd(0, 30), rnd(140, 240), rnd(-4, 12), rnd(0.5, 1.1), Col(0xf0d6a0), 2.8, 0.35) }
+            } else if sc.k == "intro2" {
+                pan = 0.6
+                sc.fx += 9 * dt
+                if chance(dt * 40) {
+                    var e = Part(x: cam + rnd(0, W), h: rnd(4, 40), vx: rnd(8, 30), vh: rnd(14, 40), max: rnd(1, 2.2), col: chance(0.5) ? Col(0xffc24a) : Col(0xe8602a), grav: 4)
+                    e.lit = true
+                    parts.append(e)
+                }
+                if chance(dt * 6) { puff(cam + rnd(0, W), rnd(20, 50), rnd(6, 16), rnd(8, 18), rnd(1.5, 3), Col(0x2a2422), 5, 0.3) }
+            } else if sc.k == "intro3" {
+                let p = player
+                let goal = startX()
+                if p.x < goal - 2 {
+                    p.vx = 96
+                    p.x = min(goal, p.x + p.vx * dt)
+                    p.phase += p.vx * dt * 0.075
+                    if chance(dt * 12) { dust(p.x - 8, 0, 1) }
+                } else { p.vx = 0 }
+                sc.fx = p.x + 30
+                pan = 0.05
+            }
+            cam = lerp(cam, clampD(sc.fx - W / 2, 0, WORLD - W), 1 - pow(pan, dt))
             zoom = lerp(zoom, sc.zoom, 1 - pow(0.03, dt))
             if sc.t > sc.dur { endScene() }
             return

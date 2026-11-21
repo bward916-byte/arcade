@@ -126,7 +126,7 @@ final class Cine {
     let k: String
     let text: String
     let dur: Double
-    let fx: Double
+    var fx: Double
     let zoom: Double
     var t = 0.0
     init(k: String, text: String, dur: Double, fx: Double, zoom: Double) { self.k = k; self.text = text; self.dur = dur; self.fx = fx; self.zoom = zoom }

@@ -166,7 +166,7 @@ final class Renderer {
         }
         c.alpha(1)
         for r in g.raiders { raider(r) }
-        if g.trip == nil { drawPlayer() }
+        if g.trip == nil && !g.hidePlayer { drawPlayer() }
         front(g.B(.gw)); front(g.B(.ge))
         for b in g.bs { slots(b) }
         for b in g.bs where b.building {
@@ -271,6 +271,10 @@ final class Renderer {
             c.blend(.normal)
         }
         if g.flash > 0 { c.R(-9, -9, W + 18, H + 18, rgba(255, 244, 214, g.flash * 0.5)) }
+        // soft dark corners, then the map strip and the raid warnings
+        c.linear(-9, -9, 60, H + 18, -9, 0, 51, 0, [(0, rgba(20, 10, 30, 0.22)), (1, rgba(20, 10, 30, 0))])
+        c.linear(W - 51, -9, 60, H + 18, W - 51, 0, W + 9, 0, [(0, rgba(20, 10, 30, 0)), (1, rgba(20, 10, 30, 0.22))])
+        if g.state == .play && g.scene == nil && g.trip == nil { minimap() }
         if g.fade > 0 { c.R(-20, -20, W + 40, H + 40, rgba(0, 0, 0, g.fade)) }
         c.restore()
     }
@@ -463,6 +467,7 @@ final class Renderer {
         }
         c.R(x + w * 0.44, GY - h * 0.42, 7, h * 0.42, DARKC)
         c.poly(SAND2, [x - 8, GY, x + w * 0.2, GY - 5, x + w * 0.5, GY - 2, x + w * 0.8, GY - 6, x + w + 8, GY])
+        if g.introFires { fire(x + w * 0.28, GY - h * 0.55, 1.5); fire(x + w * 0.72, GY - h * 0.3, 1.2); fire(x + w * 0.5, GY - 3, 1) }
     }
     /// A wall going up: bricks laid course by course inside a timber frame.
     func scaffold(_ b: Building, _ x: Double, _ h: Double, _ base: Double) {
@@ -562,6 +567,15 @@ final class Renderer {
         }
         let aw: [Col] = [RED, TEAL, Col(0xe0a030)]
         for k in 0..<3 { awning(x + 3 + Double(k) * 25, GY - 23, 21, 6, aw[k], PLA, b.x + Double(k)) }
+        // a string of lanterns across the stalls
+        c.curve(x + 2, GY - 27, x + w / 2, GY - 23, x + w - 2, GY - 27, 0.35, Col(0x5a3e22))
+        let lamp: [Col] = [RED, GOLD, TEAL, Col(0xe0a030)]
+        for q in 0..<7 {
+            let k = Double(q) / 6
+            let lx = x + 4 + k * (w - 8), ly = GY - 27 + 4 * sin(PI * k) + 1
+            c.R(lx - 1, ly, 2, 2.6, lit ? Col(0xffd27a) : lamp[q % 4])
+            if lit && q % 2 == 0 { light(lx, ly + 1, 11, 0.55) }
+        }
         let goods: [Col] = [Col(0xc7402a), Col(0xe0a030), Col(0x7a9a3a), Col(0x8a4a8a), Col(0xd9c070)]
         for i in 0..<5 {
             let sx = x + 5 + Double(i) * 15
@@ -649,6 +663,17 @@ final class Renderer {
         if lit { c.R(x + 29, GY - 22, w - 58, 22, rgba(255, 190, 100, 0.45)); light(x + w / 2, GY - 14, 30, 1) }
         for cx in [x + 29, x + w - 33] {
             c.R(cx, GY - 26, 4, 26, Col(0xe6d2a2)); c.R(cx - 1, GY - 28, 6, 2.5, TEAL); c.R(cx - 0.5, GY - 1.5, 5, 1.5, STONE2)
+        }
+        // doves on the pylons by day
+        if g.dark < 0.3 {
+            for q in 0..<4 {
+                let n = Double(q)
+                let hop = max(0, sin(NOW * 0.7 + n * 1.9) - 0.86) * 60
+                let dx = x + 5 + n * 7 + (q > 1 ? w - 44 : 0)
+                let dy = GY - h - 5.4 - hop
+                c.ell(dx, dy, 1.7, 1.1, Col(0xf6f2e8)); c.R(dx + 1.2, dy - 1.4, 1.2, 1.2, Col(0xf6f2e8))
+                if hop > 0 { c.seg(dx - 2.4, dy - 1 - sin(NOW * 30) * 1.4, dx + 1.6, dy - 0.4, 0.6, Col(0xf6f2e8)) }
+            }
         }
     }
 
@@ -825,7 +850,8 @@ final class Renderer {
     func slots(_ b: Building) {
         let cost = g.costOf(b)
         if cost == 0 || b.building { return }
-        if abs(g.player.x - b.mid) > b.w / 2 + 46 && b.paid + b.incoming == 0 { return }
+        if abs(g.player.x - b.mid) > b.w / 2 + 14 && b.paid + b.incoming == 0 { return }
+        if g.scene != nil { return }
         for i in 0..<cost {
             let s = g.slotPos(b, i, cost)
             let x = s.x - cam, y = GY - s.h
@@ -1068,6 +1094,33 @@ final class Renderer {
             c.R(x - 14, GY - 50, 28, 3, rgba(28, 19, 12, 0.75)); c.R(x - 13.4, GY - 49.4, 26.8 * k, 1.8, GOLD)
             light(x, GY - 18, 34, 0.7)
         }
+    }
+
+    /// The whole valley in one strip along the bottom edge, and red arrows when raiders are off screen.
+    func minimap() {
+        let x0 = W * 0.31, w = W * 0.38, y = H - 4.6
+        let span = g.NILE + 60
+        func mx(_ wx: Double) -> Double { return x0 + clampD(wx / span, 0, 1) * w }
+        c.R(x0 - 1.5, y - 1.4, w + 3, 4.2, rgba(28, 19, 12, 0.6))
+        c.R(x0, y, w, 1.4, rgba(230, 197, 136, 0.35))
+        c.R(mx(g.TOWN.0), y - 0.4, mx(g.TOWN.1) - mx(g.TOWN.0), 2.2, rgba(246, 236, 206, 0.6))
+        c.R(mx(g.NILE), y - 0.4, x0 + w - mx(g.NILE), 2.2, Col(0x4a9ab8))
+        for b in g.bs where b.def.far && !b.gone { c.R(mx(b.mid) - 0.6, y - 0.8, 1.2, 3, b.level > 0 ? GOLD : rgba(242, 193, 78, 0.45)) }
+        for d in g.nomads { c.R(mx(d.x) - 0.4, y + 0.2, 0.9, 0.9, Col(0x6f8fd8)) }
+        if let st = g.storm { c.R(x0, y - 0.4, max(0, mx(st.front) - x0), 2.2, rgba(176, 122, 66, 0.7)) }
+        if let cv = g.caravan { c.R(mx(cv.x) - 0.7, y - 0.2, 1.4, 1.6, TEAL) }
+        var left = false, right = false
+        let blink = sin(NOW * 9) > -0.3
+        for r in g.raiders where r.state == .raid {
+            if blink { c.R(mx(r.x) - 0.7, y - 0.6, 1.4, 2.6, Col(0xff4a34)) }
+            if r.x < cam - 6 { left = true }
+            if r.x > cam + W + 6 { right = true }
+        }
+        c.R(mx(g.player.x) - 0.9, y - 1.2, 1.8, 3.8, Col(0xffffff)); c.R(mx(g.player.x) - 0.5, y - 0.6, 1, 2.6, GOLD)
+        let pulse = 0.55 + 0.35 * sin(NOW * 7)
+        let my = GY - 34
+        if left { c.poly(rgba(255, 74, 52, pulse), [10, my - 7, 3, my, 10, my + 7, 8, my]) }
+        if right { c.poly(rgba(255, 74, 52, pulse), [W - 10, my - 7, W - 3, my, W - 10, my + 7, W - 8, my]) }
     }
 
     // ---------- the country around the town

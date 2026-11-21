@@ -270,7 +270,7 @@ final class GameViewController: UIViewController {
         dayLabel.frame = CGRect(x: b.width - right - 210, y: 6, width: 160, height: 22)
         pauseBtn.frame = CGRect(x: b.width - right - 40, y: 4, width: 38, height: 28)
         hint.frame = CGRect(x: b.width * 0.5 - 250, y: 32, width: 500, height: 40)
-        info.frame = CGRect(x: b.width * 0.5 - 230, y: b.height - bottom - 30, width: 460, height: 24)
+        info.frame = CGRect(x: b.width * 0.5 - 230, y: b.height - bottom - 44, width: 460, height: 24)
         info.adjustsFontSizeToFitWidth = true
         info.minimumScaleFactor = 0.6
         card.frame = CGRect(x: 0, y: b.height * 0.22, width: b.width, height: 80)
@@ -346,6 +346,8 @@ final class GameViewController: UIViewController {
             if args.contains("-demo-play") { game.demo("play") }
             if args.contains("-demo-night") { game.demo("night") }
             if args.contains("-demo-port") { game.demo("port") }
+            if args.contains("-demo-intro") { sound.start(); game.start() }
+            if args.contains("-demo-fires") { game.start(); game.update(5.2); game.update(0.05) }
         }
     }
 
@@ -480,7 +482,7 @@ final class GameViewController: UIViewController {
         } else { info.isHidden = true }
         let showHint = playing && game.hintT > 0
         if showHint { set(hint, game.hintText) } else if playing && game.t < 0.2 && !game.report.isEmpty { set(hint, game.report) }
-        hint.isHidden = !(showHint || (playing && game.t < 0.2 && !game.report.isEmpty))
+        hint.isHidden = game.cardT > 0 || !(showHint || (playing && game.t < 0.2 && !game.report.isEmpty))
         if game.state == .play && !cut && game.cardT > 0 {
             set(card, game.cardText + "\n" + game.cardSub)
             card.alpha = CGFloat(min(1, game.cardT))
