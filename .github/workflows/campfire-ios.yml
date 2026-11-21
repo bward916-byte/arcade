@@ -63,7 +63,7 @@ jobs:
           xcrun simctl boot "$UDID"
           xcrun simctl bootstatus "$UDID" -b
           xcrun simctl install "$UDID" "$APP"
-          for shot in list ad post guide shows alerts map; do
+          for shot in list ad post guide areamap shows alerts map; do
             xcrun simctl terminate "$UDID" com.brianward.quartzsitecampfire 2>/dev/null || true
             if [ "$shot" = list ]; then
               xcrun simctl launch "$UDID" com.brianward.quartzsitecampfire

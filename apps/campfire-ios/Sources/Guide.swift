@@ -62,6 +62,7 @@ struct GuideArea: Codable, Identifiable {
 }
 
 struct Show: Codable, Hashable {
+    var b: [String]? // the badge: month, then days
     let n: String   // name
     let w: String   // when
     let p: String   // place
@@ -105,11 +106,12 @@ final class GuideStore: ObservableObject {
 
 struct GuideView: View {
     @EnvironmentObject private var guide: GuideStore
-    @State private var section = "start"
+    @State private var section = ProcessInfo.processInfo.arguments.contains("-demo-areamap") ? "areamap" : "start"
+    private let icons = ["start": "flag", "areamap": "map", "camping": "tent", "wash": "water.waves", "services": "wrench.and.screwdriver", "rocks": "diamond", "mines": "hammer", "trips": "car", "town": "building.2"]
     @State private var search = ""
 
     private let sections: [Category] = [
-        Category(id: "start", name: "Start here"), Category(id: "camping", name: "Camping"), Category(id: "wash", name: "Washes"),
+        Category(id: "start", name: "Start here"), Category(id: "areamap", name: "Map"), Category(id: "camping", name: "Camping"), Category(id: "wash", name: "Washes"),
         Category(id: "services", name: "Services"), Category(id: "rocks", name: "Rockhounding"),
         Category(id: "mines", name: "Gold and ghost camps"), Category(id: "trips", name: "Trips and trails"), Category(id: "town", name: "Town")
     ]
@@ -133,13 +135,18 @@ struct GuideView: View {
             List {
                 if search.isEmpty {
                     Section {
+                        DesertBanner(title: "Quartzsite Guide", subtitle: "Camping, services, rocks and day trips")
+                    }
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
+                    Section {
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 8) {
                                 ForEach(sections) { s in
                                     Button {
                                         section = s.id
                                     } label: {
-                                        Text(s.name)
+                                        Label(s.name, systemImage: icons[s.id] ?? "circle")
                                             .font(.subheadline.weight(.semibold))
                                             .padding(.horizontal, 14)
                                             .padding(.vertical, 8)
@@ -165,6 +172,9 @@ struct GuideView: View {
                             ProgressView().frame(maxWidth: .infinity)
                         }
                     }
+                }
+                if search.isEmpty && section == "areamap", let data = guide.data {
+                    AreaMapSection(data: data)
                 }
                 if search.isEmpty && section == "camping", let areas = guide.data?.areas {
                     Section("Camping areas") {
@@ -195,6 +205,8 @@ struct GuideView: View {
                 }
             }
             .listStyle(.insetGrouped)
+            .scrollContentBackground(.hidden)
+            .background(Theme.page)
             .navigationTitle("Guide")
             .searchable(text: $search, prompt: "Search the guide")
             .refreshable { await guide.load() }
@@ -210,7 +222,23 @@ struct ShowsView: View {
         NavigationStack {
             List {
                 if let shows = guide.data?.shows {
+                    Section {
+                        DesertBanner(title: "Show season", subtitle: "Gem, rock and RV shows all winter")
+                    }
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
                     ForEach(shows, id: \.self) { show in
+                        HStack(alignment: .top, spacing: 12) {
+                        VStack(spacing: 0) {
+                            Text(show.b?.first ?? "").font(.system(size: 10, weight: .heavy)).foregroundColor(.white)
+                                .frame(maxWidth: .infinity).padding(.vertical, 3).background(show.s == "ok" ? Theme.primary : Theme.accent)
+                            Text((show.b?.count ?? 0) > 1 ? show.b![1] : "").font(.system(size: 13, weight: .heavy, design: .rounded))
+                                .minimumScaleFactor(0.6).lineLimit(1).padding(.vertical, 6).padding(.horizontal, 2)
+                        }
+                        .frame(width: 58)
+                        .background(Theme.card)
+                        .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).stroke(Color.black.opacity(0.15)))
                         VStack(alignment: .leading, spacing: 4) {
                             Text(show.n).font(.headline)
                             Text(show.w).font(.subheadline.weight(.semibold)).foregroundColor(Theme.primary)
@@ -220,6 +248,7 @@ struct ShowsView: View {
                                 .font(.caption.weight(.semibold))
                                 .foregroundColor(show.s == "ok" ? Theme.primary : Theme.accent)
                         }
+                        }
                         .padding(.vertical, 4)
                     }
                 } else if guide.failed {
@@ -228,6 +257,8 @@ struct ShowsView: View {
                     ProgressView().frame(maxWidth: .infinity)
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(Theme.page)
             .navigationTitle("Shows")
             .refreshable { await guide.load() }
         }

@@ -9,6 +9,11 @@ struct AlertsView: View {
     var body: some View {
         NavigationStack {
             List {
+                Section {
+                    DesertBanner(title: "Alerts", subtitle: "Weather warnings and local news")
+                }
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
                 if failed {
                     Text("The alerts did not load. Check your signal and pull down to try again.").foregroundColor(.secondary)
                 } else if !loaded {
@@ -38,6 +43,8 @@ struct AlertsView: View {
                     .padding(.vertical, 4)
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(Theme.page)
             .navigationTitle("Alerts")
             .refreshable { await load() }
             .task { await load() }

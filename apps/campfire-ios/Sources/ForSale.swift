@@ -51,6 +51,8 @@ struct ForSaleView: View {
         NavigationStack(path: $path) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
+                    DesertBanner(title: "Quartzsite Campfire", subtitle: "Buy, sell and trade around Quartzsite")
+                        .padding(.horizontal)
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 8) {
                             chip("All", "")
