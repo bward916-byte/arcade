@@ -1370,7 +1370,7 @@ final class Renderer {
         for i in 0..<16 {
             let n = Double(i)
             let yy = GY + 1.5 + hashN(n + 90) * (H - GY - 3)
-            let u = (NOW * (5 + hashN(n) * 9) + hashN(n + 91) * 300).truncatingRemainder(dividingBy: wd + 40)
+            let u = (NOW * (5 + hashN(n) * 9) + hashN(n + 91) * 300).truncatingRemainder(dividingBy: 520)
             c.R(x + u - 20, yy, 9 + hashN(n + 92) * 18, 0.6, rgba(255, 255, 255, 0.16 + 0.2 * hashN(n + 93)))
         }
         // the sun (or moon) laid on the water
@@ -1388,7 +1388,7 @@ final class Renderer {
         // feluccas working the far water
         for i in 0..<2 {
             let n = Double(i)
-            let span = wd + 80
+            let span = 560.0
             let bx = x + (NOW * (3 + n * 1.5) + n * 140).truncatingRemainder(dividingBy: span) - 40
             if bx < x + 6 { continue }
             let by = GY - 3.2 - n * 2.4 + sin(NOW * 1.4 + n) * 0.3
@@ -1423,7 +1423,7 @@ final class Renderer {
         let ph = cycle - floor(cycle)
         if ph < 0.1 && wd > 70 {
             let k = ph / 0.1
-            let jx = x + 46 + hashN(floor(cycle)) * (wd - 70), base = GY + 9 + hashN(floor(cycle) + 5) * 10
+            let jx = x + 46 + hashN(floor(cycle)) * 110, base = GY + 9 + hashN(floor(cycle) + 5) * 10
             c.save()
             c.translate(jx + (k - 0.5) * 12, base - sin(PI * k) * 9); c.rotate((k - 0.5) * 2.2)
             c.ell(0, 0, 2.8, 1.1, Col(0xc8d8e0)); c.poly(Col(0x9fb8c8), [-2.4, 0, -4.4, -1.4, -4.4, 1.4])
