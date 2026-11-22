@@ -5506,18 +5506,19 @@ const FOES = {
   corsair: { name: 'The Red Corsair', td: 'red', scale: 1, len: 34, beam: 8.6, hull: 170, speed: 13.5, turn: 0.7, guns: 5, dmg: 7, reload: 4.2, loot: 6, gold: 250, crew: 26, bounty: true },
 };
 const ISLES = [
-  { key: 'isleP', name: 'Gallows Cay', kind: 'port', x: -300, y: 320 },
+  { key: 'isleP', name: 'Gallows Cay', kind: 'port', town: 'gallows', x: -300, y: 320 },
   { key: 'isleA', name: 'Driftwood Isle', kind: 'wild', x: 330, y: -270 },
   { key: 'isleB', name: 'Fort islet', kind: 'fort', x: -380, y: -120 },
-  { key: 'isleC', name: '', kind: 'bare', x: 300, y: 270 },
-  { key: 'isleC', name: '', kind: 'bare', x: 40, y: -420 },
+  { key: 'isleP', name: 'Santa Marta', kind: 'port', town: 'marta', x: 340, y: 290 },
+  { key: 'isleP', name: 'Port Sovereign', kind: 'port', town: 'sovereign', x: 20, y: -440 },
+  { key: 'isleP', name: 'Heron\'s Rest', kind: 'port', town: 'heron', x: 500, y: 20 },
 ];
-const ROCKS = [[60, -120], [-120, 60], [130, 20], [-240, -260], [470, 20], [40, 200], [520, -480], [-520, -380], [-120, 300], [200, -150]];
+const ROCKS = [[60, -120], [-120, 60], [130, 20], [-240, -260], [440, -140], [40, 200], [520, -480], [-520, -380], [-120, 300], [200, -150]];
 const WORLD_R = 680;
 
 const SEA_FS = `
 precision highp float;
-uniform vec2 uRes; uniform vec2 uCam; uniform float uS; uniform float uK; uniform float uT; uniform vec4 uIsl[5]; uniform vec3 uRock[10]; uniform float uNight; uniform float uStorm;
+uniform vec2 uRes; uniform vec2 uCam; uniform float uS; uniform float uK; uniform float uT; uniform vec4 uIsl[6]; uniform vec3 uRock[10]; uniform float uNight; uniform float uStorm;
 float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
 float noise(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*f*(f*(f*6.0-15.0)+10.0);
   return mix(mix(hash(i),hash(i+vec2(1,0)),f.x), mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x), f.y); }
@@ -5533,7 +5534,7 @@ void main(){
   vec3 n = normalize(vec3(-g.x, -g.y, 1.0));
   vec3 V = normalize(vec3(0.0, 0.5736, 0.8192)), L = normalize(vec3(-0.42, -0.36, 0.83));
   float sh = 0.0, shore = 0.0, dmin = 9.0;
-  for(int i=0;i<5;i++){ vec2 q = p - uIsl[i].xy; float d = length(q)/uIsl[i].z*(1.0 + 0.1*sin(3.0*atan(q.y,q.x) + uIsl[i].w));
+  for(int i=0;i<6;i++){ vec2 q = p - uIsl[i].xy; float d = length(q)/uIsl[i].z*(1.0 + 0.1*sin(3.0*atan(q.y,q.x) + uIsl[i].w));
     dmin = min(dmin, d); sh = max(sh, 1.0 - smoothstep(1.0, 2.0, d)); shore = max(shore, smoothstep(1.16, 1.01, d)); }
   float rk = 0.0; for(int i=0;i<10;i++){ float d = length(p - uRock[i].xy)/uRock[i].z; rk = max(rk, smoothstep(1.9, 1.05, d)); sh = max(sh, 0.6*(1.0 - smoothstep(1.0, 2.6, d))); }
   vec3 deep = vec3(0.035, 0.22, 0.36), mid = vec3(0.05, 0.36, 0.48), shallow = vec3(0.17, 0.62, 0.6), sandy = vec3(0.62, 0.72, 0.58);
@@ -5562,7 +5563,7 @@ const Sea = {
     this.rocks = ROCKS.map(r => ({ x: r[0], y: r[1], r: 8.5 }));
     const P0 = ISLES[0], A = ISLES[1], dp = (META.isleP.dock_deg || -45) * Math.PI / 180, pr = (META.isleP.pier_r || P0.R * 1.42) + 10;
     const ax = -A.x, ay = -A.y, al = Math.hypot(ax, ay);
-    this.rings = [{ x: P0.x + Math.cos(dp) * pr, y: P0.y + Math.sin(dp) * pr, isle: P0 }, { x: A.x + ax / al * A.R * 1.32, y: A.y + ay / al * A.R * 1.32, isle: A }];
+    this.rings = [{ x: P0.x + Math.cos(dp) * pr, y: P0.y + Math.sin(dp) * pr, isle: P0 }, { x: A.x + ax / al * A.R * 1.32, y: A.y + ay / al * A.R * 1.32, isle: A }]; for (const il of ISLES) if (il.kind === 'port' && il !== P0) this.rings.push({ x: il.x + Math.cos(dp) * pr, y: il.y + Math.sin(dp) * pr, isle: il });
     this.fort = ISLES[2]; this.reset(); },
   resize(w, h) { this.dpr = Math.min(2, devicePixelRatio || 1); for (const c of [GL.gl.canvas, this.fx]) { c.width = Math.round(w * this.dpr); c.height = Math.round(h * this.dpr); } this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0); },
   reset() { SeaX.reset(); this.ships = []; this.balls = []; this.loot = []; this.parts = new Parts(); this.fortHp = 80; this.spawnT = 40;
@@ -5661,7 +5662,7 @@ const Sea = {
     } else if (!play) { Pl.v = Math.max(0, Pl.v - 6 * dt); Pl.w = 0; }
     // enemies: patrol, then close and turn broadside
     for (const e of this.ships) { if (e.player || e.sink) continue; const T = e.T, dx = Pl.x - e.x, dy = Pl.y - e.y, dist = Math.hypot(dx, dy), bearing = Math.atan2(dx, -dy); let want, vm;
-      const safe = Math.hypot(Pl.x - this.rings[0].x, Pl.y - this.rings[0].y) < 120;
+      const safe = this.rings.some(r => r.isle.kind === 'port' && Math.hypot(Pl.x - r.x, Pl.y - r.y) < 120);
       if (e.state === 'patrol') { if (!e.wp || Math.hypot(e.wp[0] - e.x, e.wp[1] - e.y) < 40) { for (let t = 0; t < 20; t++) { const a = Math.random() * TAU, r = Math.random() * 520; e.wp = [Math.cos(a) * r, Math.sin(a) * r]; if (this.clear(e.wp[0], e.wp[1], 40)) break; } }
         want = Math.atan2(e.wp[0] - e.x, -(e.wp[1] - e.y)); vm = T.speed * (T.flee ? 0.7 : 0.5); if (play && !Pl.sink && !safe && dist < (T.bounty ? 340 : 230)) e.state = 'engage'; }
       else { if (dist > (T.bounty ? 520 : 380) || Pl.sink || !play || safe) e.state = 'patrol';
@@ -5720,7 +5721,7 @@ const Sea = {
       if (dead) this.balls.splice(i, 1); }
     // flotsam
     for (let i = this.loot.length - 1; i >= 0; i--) { const l = this.loot[i]; if (play && !Pl.sink && Math.hypot(l.x - Pl.x, l.y - Pl.y) < Pl.T.len * 0.5 + 4) {
-        if (G.cargo < G.hold) { G.cargo++; this.loot.splice(i, 1); Sfx.pickup(); toast('Cargo hauled aboard. Hold ' + G.cargo + ' / ' + G.hold, 1500); } else if ((this.hintT -= dt) < 0) { this.hintT = 4; toast('The hold is full. Sell at Gallows Cay.'); } } }
+        if (G.cargo < G.hold) { G.cargo++; this.loot.splice(i, 1); Sfx.pickup(); toast('Cargo hauled aboard. Hold ' + G.cargo + ' / ' + G.hold, 1500); } else if ((this.hintT -= dt) < 0) { this.hintT = 4; toast('The hold is full. Sell at any port.'); } } }
     if (play) { this.spawnT -= dt; if (this.spawnT <= 0) { this.spawnT = 32; const foes = this.ships.filter(s => !s.player && !s.sink), nm = foes.filter(s => s.T.flee).length, nw = foes.length - nm - (foes.some(s => s.T.bounty) ? 1 : 0);
         let kind = null; if (nm < 1 && Math.random() < 0.6) kind = 'merchant'; else if (nw < 2 + (G.tier >= 1 ? 1 : 0)) kind = G.tier >= 1 && G.kills >= 2 && Math.random() < 0.4 ? 'brig' : 'sloop';
         if (kind) for (let t = 0; t < 30; t++) { const a = Math.random() * TAU, x = Math.cos(a) * 600, y = Math.sin(a) * 600;
@@ -5948,11 +5949,12 @@ const Land = {
   init(canvas, fxCanvas) { Land3.init(canvas, fxCanvas); if (Land3.ready) Hero.init(); },
   resize(w, h) { Land3.resize(w, h); },
   enter(key) {
+    if (key === 'port') { LEVELS.port = Town.level(G.town); if (typeof G.portChest !== 'object' || !G.portChest) G.portChest = G.portChest ? { gallows: true } : {}; }
     const lv = this.lv = LEVELS[key]; this.key = key; this.t = 0; this.fx = []; this.tapTarget = null; this.tapAct = null;
     this.duel = null; this.p = { x: lv.start[0], z: lv.start[1], y: lv.h(lv.start[0], lv.start[1]), vx: 0, vz: 0, head: 0, speed: 0, slashT: 0, parryT: 0, hitDone: false, hurtT: 0, inv: 0, walk: 0 };
     this.items = lv.items.map((it, i) => ({ type: it[0], x: it[1], z: it[2], id: key + i, taken: !!G.isleDone.items[key + i] }));
     this.foes = lv.foes.map((f, i) => ({ x: f[0], z: f[1], hx: f[0], hz: f[1], rad: f[2], id: key + 'f' + i, hp: 3, head: 0, state: G.isleDone.foes[key + 'f' + i] ? 'dead' : 'walk', t: 0, walk: 0, cd: 0, wp: null, kx: 0, kz: 0 }));
-    this.chestOpen = key === 'port' ? G.portChest : G.isleDone.chest; G.hp = 5; this.zone = null;
+    this.chestOpen = key === 'port' ? !!G.portChest[G.town || 'gallows'] : G.isleDone.chest; G.hp = 5; this.zone = null;
     Land3.build(key, lv); if (Game.intro) { this.p.x = -14; this.p.z = 0.2; this.p.head = Math.PI / 2; Land3.camX = this.p.x; Land3.camZ = this.p.z; } else Land3.startCine('in');
   },
   leaving() { return !!Land3.cine || !!Game.intro; },
@@ -6019,8 +6021,8 @@ const Land = {
     if (G.hp <= 0) { const lost = Math.round(G.gold * 0.2); G.gold -= lost; toast('You come to by the boat' + (lost ? ', ' + lost + ' gold lighter.' : '.')); G.hp = 5; p.x = this.lv.start[0]; p.z = this.lv.start[1]; p.vx = p.vz = 0; } },
   act(a) {
     const p = this.p;
-    if (a === 'chest') { if (this.chestOpen) return; this.chestOpen = true; const g = this.key === 'port' ? 50 : 90; G.gold += g; Sfx.gold(); this.text(p.x, p.z, '+' + g + ' gold', '#ffe2a0'); FX3.coins(this.lv.chest[0], this.lv.h(this.lv.chest[0], this.lv.chest[1]) + 0.6, this.lv.chest[1], 26);
-      if (this.key === 'port') { G.portChest = true; toast('A rumor note: a wreck lies on the far cove of Driftwood Isle.', 4200); } else G.isleDone.chest = true; }
+    if (a === 'chest') { if (this.chestOpen) return; this.chestOpen = true; const g = this.key === 'port' ? this.lv.town.chestGold : 90; G.gold += g; Sfx.gold(); this.text(p.x, p.z, '+' + g + ' gold', '#ffe2a0'); FX3.coins(this.lv.chest[0], this.lv.h(this.lv.chest[0], this.lv.chest[1]) + 0.6, this.lv.chest[1], 26);
+      if (this.key === 'port') { G.portChest[G.town || 'gallows'] = true; toast(this.lv.town.chestNote, 4800); } else G.isleDone.chest = true; }
     else if (a === 'talk') { const f = (this.tapAct && this.tapAct.folk) || (this.zone && this.zone.folk); if (f) { toast(f.name + ': “' + f.lines[f.said % f.lines.length] + '”', 5000); f.said++; f.rest = 4; Sfx.ui(); } }
     else if (a === 'water') { if (G.water >= 99.5) toast('The casks are already full.', 1500); else { G.water = 100; Sfx.pickup(); this.text(p.x, p.z, 'Casks filled'); } }
     else if (a === 'dig') FX3.doDig(); else if (a === 'trade') UI.openTrade(); else if (a === 'tavern') UI.openTavern(); else if (a === 'leave') Land3.startCine('out');
@@ -6112,7 +6114,7 @@ const Land3 = {
   terrain(lv) {
     const port = lv.kind === 'port', b = lv.bounds, W = 110, D = 70, cx = (b[0] + b[1]) / 2, g = new THREE.PlaneGeometry(W, D, port ? 140 : 220, port ? 90 : 140); g.rotateX(-Math.PI / 2); const pos = g.attributes.position, col = [], gk = [];
     for (let i = 0; i < pos.count; i++) { const x = pos.getX(i) + cx, z = pos.getZ(i); let y, c;
-      if (port) { const onQuay = x > -4.1 && z < 7.4 && z > -40; y = onQuay ? 1.9 : -1.6; if (z < -1.0 && x > -4.1) y = 1.9 + smooth((-z - 9) / 10) * 3 + vnoise(x * .2, z * .2, 1) * .25 * smooth((-z - 9) / 6); c = onQuay ? [0.62, 0.58, 0.5] : [0.4, 0.4, 0.38]; if (z < -9) c = [0.33, 0.42, 0.24]; }
+      if (port) { const onQuay = x > -4.1 && z < 7.4 && z > -40; y = onQuay ? 1.9 : -1.6; if (z < -1.0 && x > -4.1) y = 1.9 + smooth((-z - 9) / 10) * 3 + vnoise(x * .2, z * .2, 1) * .25 * smooth((-z - 9) / 6); const TP = lv.town.pal; c = onQuay ? TP.quay : [0.4, 0.4, 0.38]; if (z < -9) c = TP.hill; }
       else { const d = seaD(x, z), n = vnoise(x * 0.8, z * 0.8, 2), n2 = vnoise(x * 0.25, z * 0.25, 9); y = lv.h(x, z);
         const wet = smooth((d + 2.1) / 1.1), jg = smooth((-8.6 - z) / 2.5), gr = Math.max(Isle.grassAt(x, z, y) * (1 - wet), jg), sand = [0.86 - n2 * 0.08, 0.8 - n2 * 0.08, 0.68 - n2 * 0.07], gv = 0.78 + n2 * 0.4 - jg * 0.4;
         c = [0, 1, 2].map(k => lerp(lerp(sand[k], [0.56, 0.48, 0.37][k], wet), gv * [1, 1, 0.92][k], gr)); gk.push(gr);
@@ -6121,7 +6123,7 @@ const Land3 = {
     g.computeVertexNormals(); if (!port) { const nr = g.attributes.normal; for (let i = 0; i < pos.count; i++) { const k = smooth((0.88 - nr.getY(i)) / 0.2) * (pos.getY(i) > 0.3 ? 1 : 0) * (1 - smooth((-8.6 - pos.getZ(i)) / 2.5)), r = 0.3 + vnoise(pos.getX(i) * 2, pos.getZ(i) * 2, 5) * 0.12; col[i * 3] = lerp(col[i * 3], r, k); col[i * 3 + 1] = lerp(col[i * 3 + 1], r * 0.96, k); col[i * 3 + 2] = lerp(col[i * 3 + 2], r * 0.9, k); } }
     g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
     if (!port) g.setAttribute('aGrass', new THREE.Float32BufferAttribute(gk, 1));
-    const m = new THREE.Mesh(g, port ? new THREE.MeshStandardMaterial({ vertexColors: true, map: this.tex.stone, roughness: 1 }) : Isle.groundMat(this)); m.receiveShadow = true; this.group.add(m);
+    const m = new THREE.Mesh(g, port ? new THREE.MeshStandardMaterial({ vertexColors: true, map: this.tex[lv.town.pal.tex || 'stone'], roughness: 1 }) : Isle.groundMat(this)); m.receiveShadow = true; this.group.add(m);
   },
   pier(x0, x1, y, z, w) { const len = x1 - x0; const deck = this.box(len, 0.22, w, this.mat.deck, (x0 + x1) / 2, y - 0.11, z); deck.material = this.mat.deck;
     for (let x = x0 + 0.6; x < x1; x += 2.2) for (const s of [-1, 1]) { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.18, y + 2.2, 8), this.mat.wood); p.position.set(x, (y - 2.2) / 2 - 0.1, z + s * (w / 2 - 0.25)); p.castShadow = true; this.group.add(p); }
@@ -6163,9 +6165,11 @@ const Land3 = {
       const lp = leaf.geometry.attributes.position; for (let k = 0; k < lp.count; k++) { const u = (lp.getX(k) + len / 2) / len, v = lp.getY(k); lp.setZ(k, -Math.abs(v) * 0.5 * (1 - u * 0.5)); lp.setY(k, v * (1 - u * 0.65) - u * u * droop + Math.sin(u * 3.1) * 0.35 * (low ? 0.3 : 1)); } leaf.geometry.translate(len / 2, 0, 0); leaf.geometry.computeVertexNormals();
       leaf.position.set(px, py + 0.1, 0); leaf.rotation.y = a; leaf.userData.rz = low ? -0.25 : rand(0.0, 0.3); leaf.rotation.z = leaf.userData.rz; leaf.castShadow = true; leaf.userData.leaf = true; g.add(leaf); }
     g.rotation.y = rand(0, TAU); g.position.set(x, y, z); this.group.add(g); return g; },
-  house(x0, x1, y0, h, z0, z1, roof, door) { const w = x1 - x0, d = z1 - z0, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
-    this.box(w, h, d, this.mat.wall, cx, y0 + h / 2, cz); const sh = new THREE.Shape(); sh.moveTo(-w / 2 - 0.5, 0); sh.lineTo(w / 2 + 0.5, 0); sh.lineTo(0, h * 0.42); sh.closePath();
-    const r = new THREE.Mesh(new THREE.ExtrudeGeometry(sh, { depth: d + 0.7, bevelEnabled: false }), roof === 'thatch' ? this.mat.thatch : this.mat.hullDark); r.position.set(cx, y0 + h - 0.02, z0 - 0.35); r.castShadow = r.receiveShadow = true; this.group.add(r);
+  roofMat(k) { const C = { red: 0x7c2c18, slate: 0x3c4148, flat: 0x6a655c }; if (k === 'thatch') return this.mat.thatch; if (!C[k]) return this.mat.hullDark; return this.mat['roof_' + k] || (this.mat['roof_' + k] = new THREE.MeshStandardMaterial({ color: C[k], roughness: 0.9, side: THREE.DoubleSide })); },
+  wallMat(c) { if (c === undefined) return this.mat.wall; return this.mat['wall_' + c] || (this.mat['wall_' + c] = new THREE.MeshStandardMaterial({ map: this.tex.wall, color: c, roughness: 0.9 })); },
+  house(x0, x1, y0, h, z0, z1, roof, door, wall) { const w = x1 - x0, d = z1 - z0, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
+    this.box(w, h, d, this.wallMat(wall), cx, y0 + h / 2, cz); const sh = new THREE.Shape(); sh.moveTo(-w / 2 - 0.5, 0); sh.lineTo(w / 2 + 0.5, 0); sh.lineTo(0, h * 0.42); sh.closePath();
+    const r = new THREE.Mesh(new THREE.ExtrudeGeometry(sh, { depth: d + 0.7, bevelEnabled: false }), this.roofMat(roof)); if (roof === 'flat') r.scale.y = 0.12; r.position.set(cx, y0 + h - 0.02, z0 - 0.35); r.castShadow = r.receiveShadow = true; this.group.add(r);
     if (door !== undefined) { this.box(1.1, 2.2, 0.15, this.mat.hull, door, y0 + 1.1, z1 + 0.02, false); this.box(1.6, 0.12, 0.6, this.mat.wood, door, y0 + 2.35, z1 + 0.25, false); }
     for (let wx = x0 + 1.4; wx < x1 - 0.8; wx += 2.6) if (door === undefined || Math.abs(wx - door) > 1.2) { this.box(0.8, 1.0, 0.1, this.mat.window || (this.mat.window = new THREE.MeshStandardMaterial({ color: 0x2a2a30, roughness: .4, emissive: 0xffb050, emissiveIntensity: 0 })), wx, y0 + h * 0.55, z1 + 0.04, false); this.box(0.9, 1.1, 0.06, this.mat.wood, wx, y0 + h * 0.55, z1 + 0.03, false); } },
   lantern(x, y, z, light) { const l = new THREE.Mesh(new THREE.SphereGeometry(0.14, 8, 6), this.mat.lantern); l.position.set(x, y, z); this.group.add(l); this.box(0.22, 0.32, 0.22, this.mat.iron, x, y, z, false).material = new THREE.MeshStandardMaterial({ color: 0x222, transparent: true, opacity: 0.35 });
@@ -6222,7 +6226,7 @@ const Land3 = {
     this.group.add(root); return R; },
   // --- scene assembly
   // --- scene assembly (top-down layouts)
-  build(key, lv) { if (!this.ready) return; if (this.group) this.scene.remove(this.group); this.group = new THREE.Group(); this.scene.add(this.group); this.t = 0; FX3.lights = []; Hero.n = 0;
+  build(key, lv) { if (!this.ready) return; if (this.group) this.scene.remove(this.group); this.group = new THREE.Group(); this.scene.add(this.group); this.t = 0; FX3.lights = []; FX3.flags = []; FX3.fountain = null; Hero.n = 0;
     const port = key === 'port'; this.scene.background = new THREE.Color(port ? 0x2a2440 : 0x9ccbe8); this.scene.fog = new THREE.Fog(port ? 0x1a1630 : 0xa8d0e6, 30, 90);
     this.sunDir = port ? [-14, 16, 8] : [14, 30, 12]; this.sun.intensity = port ? 0.55 : 2.2; this.sun.color.set(port ? 0xffb080 : 0xfff1d6); this.hemi.intensity = port ? 0.4 : 0.9; this.hemi.color.set(port ? 0x6a5a8a : 0xbfd8ee); this.waterMat.uniforms.uNight.value = port ? 0.55 : 0; this.waterMat.uniforms.uIsle.value = port ? 0 : 1;
     this.terrain(lv);
@@ -6230,10 +6234,7 @@ const Land3 = {
     if (port) {
       this.pier(-24, -4.1, 1.75, 0, 3.0); this.box(0.4, 1.0, 9.6, this.mat.stone, -4.0, 2.4, 0, false).position.z = -0.1; for (const z of [-3.5, 3.5]) this.box(0.4, 1.0, 5.6, this.mat.stone, -4.0, 2.4, z, false); // pier gap in the quay wall
       this.box(47, 0.6, 0.5, this.mat.stone, 0, 2.1, 7.5, false);
-      this.house(-3.3, 3.1, 1.9, 2.9, -7.5, -1.2, 'tile', 0.5); this.house(4.1, 13.1, 1.9, 4.0, -8, -1.3, 'thatch', 8.6); this.house(13.9, 22.6, 1.9, 3.4, -8, -1.3, 'tile', 18.2); this.house(-1, 9, 6.3, 3.0, -9.5, -3, 'thatch');
-      for (const gl of [[0.5, -1.0], [8.6, -1.1], [18.2, -1.1], [-5.5, 0.9], [13.5, -1.1]]) this.lantern(gl[0], 4.1, gl[1], true);
-      for (const c of lv.circles) { const m = this.box(1, 1, 1, this.mat.wood, c[0], 1.9 + 0.45, c[1]); m.geometry = new THREE.CylinderGeometry(c[2], c[2] * 0.9, 0.9, 10); }
-      for (const [x, z] of [[-1.5, 3.2], [-0.6, 3.2], [-1.05, 4.1], [15.4, 3.6], [16.3, 3.6]]) this.box(0.85, 0.85, 0.85, this.mat.crate, x, 2.35, z);
+      Town.build(this, lv);
       this.shipG = this.ship(G.tier); const d = this.shipG.userData; this.shipG.position.set(-6.8 - d.L / 2, 0, -(1.5 + d.B / 2 + 0.9)); this.group.add(this.shipG);
       const A = new THREE.Vector3(-8.0, d.H + 0.95, this.shipG.position.z + d.B / 2), Bp = new THREE.Vector3(-7.4, 1.8, -0.4), v = Bp.clone().sub(A);
       this.gang = this.box(v.length(), 0.08, 0.8, this.mat.deck, (A.x + Bp.x) / 2, (A.y + Bp.y) / 2, (A.z + Bp.z) / 2); this.gang.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), v.normalize());
@@ -6247,15 +6248,7 @@ const Land3 = {
     this.foeRigs = Land.foes.map((f, i) => { const r = this.rig({ skin: 0xc99a74, shirt: 0x5a2a28, pants: 0x4a4038, boot: 0x241e1a, hat: 'bandana', band: 0xb02a22, vest: 0x2a2420, sash: 0x3a3a3a, patch: i % 2 === 0 }, { sword: true }); r.poser = new Motion.Poser(); return r; });
     // life: townsfolk on the quay, a dog by the tavern, gulls; grass, ferns and flowers on the island
     Flora.init(); this.folk = []; this.gullList = Flora.gulls(this.group, port ? 5 : 8, port ? 6 : 10, port ? 2 : 0, port ? 9 : 7);
-    if (port) { const looks = [{ skin: 0xd9a784, shirt: 0x6a7a9a, pants: 0x4a3a2a, boot: 0x2a2320, hat: 0x3a2a1a, vest: 0x3a3a3a, sash: 0x5a5a5a, hair: 0x4a3020 }, { skin: 0x8a5a3a, shirt: 0xb8a070, pants: 0x3a3a4a, boot: 0x2a2320, hat: 'bandana', band: 0x3a6a8a, vest: 0x5a4a30, sash: 0x3a3a3a, hair: 0x1a1a1a }, { skin: 0xe8c8a8, shirt: 0x8a3a3a, pants: 0x2a2a3a, boot: 0x2a2320, hat: 0x5a3a1a, vest: 0x2a2420, sash: 0x8a7a40, hair: 0x6a4a2a, beard: false }];
-      const names = [['Old Pell', ['Your father owed me two shillings. Keep them, boy. Bring me a story instead.', 'The navy brig patrols east of the fort. Give her a wide berth in that boat.', 'Timber mends a hull. The isle has it for the carrying.']], ['Marisol', ['Fresh mangoes, three for a penny. Your crew will thank you at sea.', 'The merchantmen out of the east run heavy. And they run, full stop.', 'A squall is a gift to a small boat with a smart captain. Everyone else slows down.']], ['Brother Anselm', ['Your father is in the Lord\'s hands now. You are in your own.', 'Water first, then food, then gold. Men forget that order and die of it.', 'The Red Corsair drinks at this very tavern some nights. Not tonight.']]];
-      [[2, 3.5, 9, 4.5], [12, 2.0, 20, 5.5], [-1, 1.0, 3, 4]].forEach((w, i) => { const r = this.rig(looks[i], {}); r.poser = new Motion.Poser(); this.folk.push({ r, x: w[0] + 2, z: (w[1] + w[3]) / 2, box: w, wp: null, head: 0, walk: 0, rest: rand(0, 4), name: names[i][0], lines: names[i][1], said: 0 }); });
-      // a market stall: counter, awning on poles, fruit; and a fisherman at the pier end with a rod
-      { const sx = 13.5, sz = 3.2; this.box(2.6, 0.9, 0.9, this.mat.wood, sx, 1.9 + 0.45, sz); for (const px of [-1.2, 1.2]) this.box(0.08, 2.4, 0.08, this.mat.wood, sx + px, 1.9 + 1.2, sz - 0.5, false); const aw = this.box(3.0, 0.05, 1.6, new THREE.MeshStandardMaterial({ color: 0xb8432a, roughness: .9, side: THREE.DoubleSide }), sx, 1.9 + 2.35, sz - 0.1, false); aw.rotation.x = 0.25;
-        const fruit = [0xf2a93b, 0xd94a3a, 0x8fc24a, 0xf6d35a]; for (let k = 0; k < 14; k++) { const f = new THREE.Mesh(new THREE.SphereGeometry(0.09, 7, 6), new THREE.MeshStandardMaterial({ color: fruit[k % 4], roughness: .6 })); f.position.set(sx - 1.0 + (k % 7) * 0.33, 1.9 + 0.98 + Math.floor(k / 7) * 0.05, sz - 0.2 + Math.floor(k / 7) * 0.3); f.castShadow = true; this.group.add(f); }
-        this.box(0.8, 0.5, 0.5, this.mat.crate, sx + 1.7, 1.9 + 0.25, sz + 0.1); }
-      { const r = this.rig({ skin: 0xb98a6a, shirt: 0x6a6a5a, pants: 0x3a3a3a, boot: 0x2a2320, hat: 0x7a6a3a, vest: 0x3a2a1a, sash: 0x4a4a4a, hair: 0x9a9a9a }, {}); r.poser = new Motion.Poser(); r.poser.set('sit'); this.fisher = r; const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.02, 2.6, 5), this.mat.wood); rod.position.set(0.9, 0.9, 0.3); rod.rotation.z = -0.9; r.group.add(rod); const bucket = this.box(0.3, 0.3, 0.3, this.mat.iron, -22.3, 1.75 + 0.15, 0.9); bucket.geometry = new THREE.CylinderGeometry(0.16, 0.13, 0.3, 10); }
-      const dog = new THREE.Group(), dm = new THREE.MeshStandardMaterial({ color: 0x8a6a3a, roughness: .9 }); const body = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 6), dm); body.scale.set(1.8, 0.9, 0.9); body.position.y = 0.32; dog.add(body); const hd = new THREE.Mesh(new THREE.SphereGeometry(0.14, 8, 6), dm); hd.position.set(0.42, 0.42, 0); dog.add(hd); for (const [x, z] of [[0.25, 0.1], [0.25, -0.1], [-0.25, 0.1], [-0.25, -0.1]]) { const lg = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.03, 0.3, 6), dm); lg.position.set(x, 0.15, z); dog.add(lg); } const tl = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.035, 0.3, 6), dm); tl.position.set(-0.42, 0.42, 0); tl.rotation.z = -0.9; dog.add(tl); dog.position.set(10.2, 1.9, 0.5); dog.rotation.y = -0.6; dog.traverse(m => { if (m.isMesh) m.castShadow = true; }); this.group.add(dog); this.dog = { g: dog, tail: tl }; }
+    if (port) Town.people(this, lv);
     else { Isle.build(this, lv); this.dog = null; }
     this.camX = lv.start[0]; this.camZ = lv.start[1]; this.camY = lv.h(lv.start[0], lv.start[1]); this.dist = 46; this.el = 55 * Math.PI / 180; this.az = 0; FX3.build(key, lv);
   },
@@ -6433,20 +6426,11 @@ const FX3 = {
     this.flySpots = lv.palms.map(p => [p[0], lv.h(p[0], p[1]) + 1.2, p[1]]);
     this.light(0); },
   sign(text, x, y, z) { const L3 = Land3, c = document.createElement('canvas'); c.width = 256; c.height = 80; const g = c.getContext('2d'); g.fillStyle = '#4a3220'; g.fillRect(0, 0, 256, 80); g.strokeStyle = '#2a1a0e'; g.lineWidth = 6; g.strokeRect(3, 3, 250, 74); for (let i = 0; i < 30; i++) { g.fillStyle = 'rgba(0,0,0,' + (0.05 + Math.random() * 0.1) + ')'; g.fillRect(0, Math.random() * 80, 256, 1); }
-    g.font = '700 38px Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#e8d8a8'; g.fillText(text, 128, 42); const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding;
+    let fs = 38; g.font = '700 38px Georgia, serif'; while (fs > 16 && g.measureText(text).width > 226) { fs -= 2; g.font = '700 ' + fs + 'px Georgia, serif'; } g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#e8d8a8'; g.fillText(text, 128, 42); const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding;
     const grp = new THREE.Group(); grp.position.set(x, y, z); const bd = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.47, 0.05), [L3.mat.wood, L3.mat.wood, L3.mat.wood, L3.mat.wood, new THREE.MeshStandardMaterial({ map: t, roughness: .9 }), L3.mat.wood]); bd.position.y = -0.38; bd.castShadow = true; grp.add(bd);
     for (const sx of [-0.55, 0.55]) { const ch = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.16, 4), L3.mat.iron); ch.position.set(sx, -0.08, 0); grp.add(ch); } for (const sx of [-0.55, 0.55]) { const arm = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.75), L3.mat.iron); arm.position.set(x + sx, y, z - 0.33); L3.group.add(arm); } L3.group.add(grp); this.signs.push(grp); },
-  port(lv) { const L3 = Land3, G3 = L3.group; this.signs = []; this.sign('SHIPWRIGHT', 0.5, 4.75, -0.55); this.sign('TAVERN', 8.6, 4.9, -0.65);
-    // tavern chimney, with smoke
-    L3.box(0.8, 1.9, 0.8, L3.mat.stone, 11.2, 7.3, -5.2); this.smokeAt = [11.2, 8.3, -5.2];
-    // cobbles and clutter: coils of rope, a handcart, nets drying, an anchor
-    const coil = (x, z) => { for (let k = 0; k < 3; k++) { const t = new THREE.Mesh(new THREE.TorusGeometry(0.3 - k * 0.03, 0.05, 6, 14), L3.mat.rope); t.rotation.x = Math.PI / 2; t.position.set(x, 1.95 + k * 0.09, z); t.castShadow = true; G3.add(t); } }; coil(-2.6, 1.6); coil(6.6, 5.8); coil(-12, 0.9);
-    { const cart = new THREE.Group(); const bed = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.12, 0.9), L3.mat.wood); bed.position.y = 0.55; cart.add(bed); for (const s of [-1, 1]) { const w = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.36, 0.07, 12), L3.mat.wood); w.rotation.x = Math.PI / 2; w.position.set(-0.2, 0.36, s * 0.5); cart.add(w); const side = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.3, 0.05), L3.mat.wood); side.position.set(0, 0.76, s * 0.43); cart.add(side); }
-      const hd = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.05, 0.05), L3.mat.wood); hd.position.set(1.25, 0.5, 0.35); hd.rotation.z = -0.25; cart.add(hd); const hd2 = hd.clone(); hd2.position.z = -0.35; cart.add(hd2); for (let k = 0; k < 4; k++) { const sack = new THREE.Mesh(new THREE.SphereGeometry(0.26, 8, 6), new THREE.MeshStandardMaterial({ color: 0xb8a070, roughness: 1 })); sack.scale.set(1.2, 0.8, 1); sack.position.set(-0.45 + (k % 2) * 0.55, 0.78 + Math.floor(k / 2) * 0.28, (k % 2 ? 0.12 : -0.12)); cart.add(sack); }
-      cart.position.set(17.5, 1.9, 5.6); cart.rotation.y = 0.5; cart.traverse(m => { if (m.isMesh) m.castShadow = true; }); G3.add(cart); }
-    { const net = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 1.3, 16, 6), new THREE.MeshStandardMaterial({ color: 0x8a7a5a, roughness: 1, wireframe: true })); const np = net.geometry.attributes.position; for (let i = 0; i < np.count; i++) np.setZ(i, Math.sin(np.getX(i) * 2) * 0.12 - Math.pow(np.getX(i) / 1.6, 2) * 0.0 + (0.65 - np.getY(i)) * 0.12); net.position.set(-13.5, 2.75, -1.25); G3.add(net);
-      for (const px of [-15.1, -11.9]) L3.box(0.08, 1.9, 0.08, L3.mat.wood, px, 2.7, -1.3, false); L3.box(3.3, 0.06, 0.06, L3.mat.wood, -13.5, 3.42, -1.3, false); }
-    { const an = new THREE.Group(), im = L3.mat.iron; const sh = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.3, 6), im); sh.position.y = 0.65; an.add(sh); const arc = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.05, 6, 12, Math.PI), im); arc.rotation.z = Math.PI; arc.position.y = 0.42; an.add(arc); const st = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.7, 6), im); st.rotation.x = Math.PI / 2; st.position.y = 1.2; an.add(st); const ring = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.025, 6, 10), im); ring.position.y = 1.38; an.add(ring); an.position.set(3.6, 1.95, 6.2); an.rotation.set(1.25, 0.6, 0.2); an.traverse(m => { if (m.isMesh) m.castShadow = true; }); G3.add(an); }
+  port(lv) { const L3 = Land3, G3 = L3.group; this.signs = []; const TW = lv.town; for (const h of TW.houses) if (h.sign) this.sign(h.sign, h.door, 1.9 + Math.min(h.h, 3.0) - 0.1, (h.z1 || -1.25) + 0.65);
+    if (TW.chimney) { const c = TW.chimney; L3.box(0.8, 1.9, 0.8, L3.mat.stone, c[0], c[1], c[2]); this.smokeAt = [c[0], c[1] + 1, c[2]]; }
     // the ship: a flag on a staff at the stern, and mooring lines to the pier
     const s = L3.shipG, d = s.userData; { const staff = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.04, 2.2, 6), L3.mat.wood); staff.position.set(-d.L * 0.46, d.H + 1.9, 0); s.add(staff);
       const fg = new THREE.PlaneGeometry(1.3, 0.8, 10, 4); fg.translate(-0.65, 0, 0); const c = document.createElement('canvas'); c.width = 64; c.height = 40; const g = c.getContext('2d'); g.fillStyle = '#16161a'; g.fillRect(0, 0, 64, 40); g.fillStyle = '#e8e2d0'; g.beginPath(); g.arc(32, 17, 8, 0, TAU); g.fill(); g.fillRect(27, 22, 10, 6); g.fillStyle = '#16161a'; g.fillRect(28, 15, 3, 3); g.fillRect(33, 15, 3, 3); g.strokeStyle = '#e8e2d0'; g.lineWidth = 3; g.beginPath(); g.moveTo(18, 28); g.lineTo(46, 36); g.moveTo(46, 28); g.lineTo(18, 36); g.stroke();
@@ -6505,6 +6489,8 @@ const FX3 = {
     if (glow > 0.4) { for (const l of this.lights) if (Math.random() < dt * 2.5) this.P(this.glow, l.pl.position.x + rand(-0.5, 0.5), l.pl.position.y + rand(-0.4, 0.3), l.pl.position.z + rand(-0.3, 0.5), rand(-0.6, 0.6), rand(-0.3, 0.3), rand(-0.6, 0.6), rand(0.8, 1.6), 0.045, 0.045, [1, 0.95, 0.8], 0.9, { wob: 9 });
       if (this.flySpots.length && Math.random() < dt * 5 * glow) { const s = this.flySpots[Math.floor(Math.random() * this.flySpots.length)]; this.P(this.glow, s[0] + rand(-2.5, 2.5), s[1] + rand(-0.8, 1.5), s[2] + rand(-2.5, 2.5), rand(-0.3, 0.3), rand(-0.1, 0.1), rand(-0.3, 0.3), rand(3, 6), 0.07, 0.07, [0.75, 1, 0.4], 1, { wob: 2, blink: 4 }); } }
     for (const s of this.signs) s.rotation.x = Math.sin(t * 1.6 + s.position.x) * 0.09;
+    for (const fl of this.flags || []) { const a = fl.geometry.attributes.position, b = fl.userData.base; for (let i = 0; i < a.count; i++) { const x = b[i * 3], k = x / 2.2; a.setZ(i, Math.sin(x * 3.2 - t * 5) * 0.2 * k); a.setY(i, b[i * 3 + 1] + Math.sin(x * 2 - t * 3.4) * 0.07 * k - k * k * 0.16); } a.needsUpdate = true; fl.geometry.computeVertexNormals(); }
+    if (this.fountain && Math.random() < dt * 40) { const f = this.fountain; this.P(this.glow, f[0], f[1], f[2], rand(-0.5, 0.5), rand(1.6, 2.4), rand(-0.5, 0.5), rand(0.5, 0.8), 0.06, 0.03, [0.75, 0.9, 1], 0.6, { g: 7, floor: 2.35 }); }
     if (this.flag) { const a = this.flag.geometry.attributes.position, b = this.flag.userData.base; for (let i = 0; i < a.count; i++) { const x = b[i * 3], k = -x / 1.3; a.setZ(i, Math.sin(x * 5 + t * 6) * 0.14 * k); a.setY(i, b[i * 3 + 1] + Math.sin(x * 3 + t * 4) * 0.05 * k - k * k * 0.12); } a.needsUpdate = true; this.flag.geometry.computeVertexNormals(); }
     for (const c of this.crabs) { const d = Math.hypot(c.x - p.x, c.z - p.z); c.t -= dt; if (d < 2.6 && c.run <= 0) { c.run = 1.2; c.head = Math.atan2(c.x - p.x, c.z - p.z) + rand(-0.5, 0.5); } const sp = c.run > 0 ? 3.2 : (c.t < 1 ? 0.5 : 0); c.run -= dt; if (c.t <= 0) { c.t = rand(1.5, 4); c.head = rand(0, TAU); }
       if (sp) { const nx = c.x + Math.sin(c.head) * sp * dt, nz = c.z + Math.cos(c.head) * sp * dt; if (Land.free(nx, nz, 0.25) && nz > 0.6) { c.x = nx; c.z = nz; } else c.head += Math.PI * 0.7; } c.g.position.set(c.x, lv.h(c.x, c.z) + Math.abs(Math.sin(t * 22)) * (sp ? 0.02 : 0), c.z); c.g.rotation.y = c.head; }
@@ -6664,6 +6650,112 @@ const Isle = {
   },
 };
 
+// ==== 04i_town.js
+// ---- Towns: four ports on one quay footprint, each with its own buildings, colours, landmark, people, prices and services
+const LOOK = (skin, shirt, pants, hat, hair, extra) => Object.assign({ skin, shirt, pants, boot: 0x2a2320, hat, vest: 0x3a3a3a, sash: 0x5a5a5a, hair }, extra || {});
+const Town = {
+  defs: {
+    gallows: { name: 'Gallows Cay', greet: 'Gallows Cay. No flag asks questions here.', goal: 'Sell plunder, repair, restock. Cast off from the pier.', shop: 'The shipwright', inn: 'The tavern',
+      pal: { quay: [0.62, 0.58, 0.5], hill: [0.33, 0.42, 0.24], tex: 'stone' },
+      houses: [{ x0: -3.3, x1: 3.1, h: 2.9, z0: -7.5, z1: -1.2, roof: 'tile', door: 0.5, role: 'trade', sign: 'SHIPWRIGHT' }, { x0: 4.1, x1: 13.1, h: 4.0, z1: -1.3, roof: 'thatch', door: 8.6, role: 'tavern', sign: 'TAVERN' }, { x0: 13.9, x1: 22.6, h: 3.4, z1: -1.3, roof: 'tile', door: 18.2 }, { x0: -1, x1: 9, y0: 6.3, h: 3.0, z0: -9.5, z1: -3, roof: 'thatch', back: true }],
+      lamps: [[-5.5, 0.9], [13.5, -1.1]], chimney: [11.2, 7.3, -5.2], barrels: [[5.5, 0.9, 0.5], [19.2, 0.7, 0.5], [16.4, 4.6, 0.6], [-1.6, 5.8, 0.45]], crates: [[-1.5, 3.2], [-0.6, 3.2], [-1.05, 4.1], [15.4, 3.6], [16.3, 3.6]],
+      props: [['stall', 13.5, 3.2, 0xb8432a], ['cart', 17.5, 5.6, 0.5], ['net', -13.5, -1.3], ['anchor', 3.6, 6.2], ['coil', -2.6, 1.6], ['coil', 6.6, 5.8], ['coil', -12, 0.9], ['gibbet', 21.3, 5.6]], fisher: true, dog: [10.2, 0.5],
+      palms: [[-2.6, 6.6, 4.5], [11, 6.4, 5], [23, 1, 4]], chest: [21.2, 2.2], chestGold: 50, chestNote: 'A rumor note: a wreck lies on the far cove of Driftwood Isle.',
+      price: { sell: 45, food: 0.5, water: 0.3, repair: 1.5, hire: 40, ship: 1, fit: 1 }, sells: { ship: true, guns: true, fit: true, bounty: true },
+      rumors: ['Merchantmen run rather than fight. Cripple one and board it for the whole hold.', 'A squall slows every ship. Fight in it only if you must.', 'Ships with few hands left lose a boarding. Hire at the tavern first.', 'They say the fort islet keeps a strongbox. Guns will open it.', 'A navy brig hunts whoever sinks a privateer.', 'Rocks will hole a fast ship. Reef the sails near them.', 'The spring on Driftwood Isle never runs dry.', 'Santa Marta pays best for plunder. Port Sovereign pays worst and asks where you got it.'],
+      folk: [{ name: 'Old Pell', box: [2, 3.5, 9, 4.5], look: LOOK(0xd9a784, 0x6a7a9a, 0x4a3a2a, 0x3a2a1a, 0x4a3020), lines: ['Your father owed me two shillings. Keep them, boy. Bring me a story instead.', 'The navy brig patrols east of the fort. Give her a wide berth in that boat.', 'Timber mends a hull. The isle has it for the carrying.'] },
+        { name: 'Marisol', box: [12, 2.0, 20, 5.5], look: LOOK(0x8a5a3a, 0xb8a070, 0x3a3a4a, 'bandana', 0x1a1a1a, { band: 0x3a6a8a }), lines: ['Fresh mangoes, three for a penny. Your crew will thank you at sea.', 'The merchantmen out of the east run heavy. And they run, full stop.', 'A squall is a gift to a small boat with a smart captain. Everyone else slows down.'] },
+        { name: 'Brother Anselm', box: [-1, 1.0, 3, 4], look: LOOK(0xe8c8a8, 0x8a3a3a, 0x2a2a3a, 0x5a3a1a, 0x6a4a2a, { beard: false }), lines: ['Your father is in the Lord\'s hands now. You are in your own.', 'Water first, then food, then gold. Men forget that order and die of it.', 'The Red Corsair drinks at this very tavern some nights. Not tonight.'] }] },
+    sovereign: { name: 'Port Sovereign', greet: 'Port Sovereign. The Crown\'s dockyard: fine work, hard questions.', goal: 'The best yard on the sea, and the worst price for plunder.', shop: 'The Royal Dockyard', inn: 'The King\'s Arms',
+      pal: { quay: [0.74, 0.74, 0.72], hill: [0.4, 0.44, 0.36], tex: 'stone' },
+      houses: [{ x0: -3.3, x1: 4.6, h: 4.6, roof: 'red', door: 0.6, role: 'trade', sign: 'ROYAL DOCKYARD', wall: 0xf4f0e6 }, { x0: 5.6, x1: 11.6, h: 3.6, roof: 'red', door: 8.6, role: 'tavern', sign: 'KING\'S ARMS', wall: 0xf4f0e6 }, { x0: 12.6, x1: 22.6, h: 5.4, roof: 'slate', door: 17.6, sign: 'CUSTOM HOUSE', wall: 0xe9e2d2 }],
+      lamps: [[-5.5, 0.9], [4.9, -1.1], [12.1, -1.1], [22.4, -1.0]], barrels: [[14.2, 0.2, 0.5], [15.3, 0.2, 0.5]], crates: [[2.6, 5.2], [3.5, 5.2], [2.6, 6.1], [3.5, 6.1], [3.05, 5.65, 1], [-2.2, 0.2], [-1.3, 0.2]],
+      props: [['fortwall'], ['cannon', 6.5, 6.6], ['cannon', 10.5, 6.6], ['cannon', 14.5, 6.6], ['shot', 8.5, 6.5], ['shot', 12.5, 6.5], ['flagpole', -2.6, 6.2], ['lighthouse', 21.2, 5.6], ['coil', -12, 0.9]], fisher: false, dog: null,
+      palms: [], chest: [22.0, 1.6], chestGold: 80, chestNote: 'A purser\'s ledger: the navy brig sails the same loop every day, east of the fort.', extraCircles: [[21.2, 5.6, 1.2]],
+      price: { sell: 30, food: 0.6, water: 0.3, repair: 1.0, hire: 60, ship: 0.85, fit: 0.8 }, sells: { ship: true, guns: true, fit: true, bounty: true },
+      rumors: ['The Crown pays for the Corsair\'s head and asks nothing about the hand that brings it.', 'Dockyard guns are true-bored. Buy them here and nowhere else.', 'A brig takes twenty hands to fight properly. Fewer, and she is a target.', 'Sink a privateer in sight of the fort and the garrison will not lift a finger for you.'],
+      folk: [{ name: 'Sergeant Hale', box: [5, 4.6, 16, 5.6], look: LOOK(0xe2b58c, 0xa82828, 0xe8e4d8, 0x16161a, 0x3a2a1a, { beard: false }), lines: ['State your business and keep your blade sheathed.', 'That boat has seen things, I think. I have not seen them. Move along.', 'The dockyard closes for nobody with coin.'] },
+        { name: 'Mr. Whitcombe', box: [13, 0.2, 21, 2.0], look: LOOK(0xf0d0b8, 0x2a3a5a, 0x2a2a30, 0x16161a, 0x8a8a88), lines: ['Duty is owed on all goods landed. All goods. I am looking at your hold.', 'Thirty a bale, and be glad I do not ask for the bill of lading.', 'A sloop from this yard will outlast two from anywhere else.'] },
+        { name: 'Midshipman Crewe', box: [-2, 2.5, 3, 4.5], look: LOOK(0xe8c0a0, 0x2a3a6a, 0xe8e4d8, 0x16161a, 0xc8a050, { beard: false }), lines: ['I am fourteen and I have a commission. What have you got?', 'The Corsair took my uncle\'s ship. Two hundred and fifty is not enough.', 'Wind on the beam, always. They teach us that first.'] }] },
+    marta: { name: 'Santa Marta', greet: 'Santa Marta. Everything has a price and somebody shouting it.', goal: 'The best prices for plunder on the sea. Bring a full hold.', shop: 'The chandler', inn: 'La Cantina',
+      pal: { quay: [0.78, 0.6, 0.46], hill: [0.36, 0.5, 0.24], tex: 'stone' },
+      houses: [{ x0: -3.3, x1: 2.5, h: 3.4, roof: 'red', door: -0.4, role: 'trade', sign: 'CHANDLER', wall: 0xe0a850 }, { x0: 3.3, x1: 8.3, h: 4.6, roof: 'red', door: 5.8, wall: 0xd98a80 }, { x0: 9.1, x1: 15.5, h: 3.8, roof: 'flat', door: 12.3, role: 'tavern', sign: 'CANTINA', wall: 0x6aaea8 }, { x0: 16.3, x1: 22.6, h: 4.9, roof: 'red', door: 19.4, wall: 0xe8cf70 }, { x0: 2, x1: 11, y0: 6.3, h: 3.4, z0: -9.8, z1: -3.2, roof: 'red', back: true, wall: 0xf2ead8 }],
+      lamps: [[2.9, -1.1], [8.7, -1.1], [15.9, -1.1], [-5.5, 0.9]], chimney: [14.2, 6.0, -5], barrels: [[0.9, 5.9, 0.5], [20.6, 0.3, 0.5]], crates: [[21.6, 5.4], [20.7, 5.4], [21.15, 5.4, 1]],
+      props: [['stall', 3.6, 3.3, 0xb8432a], ['stall', 9.2, 2.6, 0x2f6f9f], ['stall', 15.2, 3.4, 0xd8b23a], ['fountain', 12.2, 5.6], ['bunting', -3, 22.5, -0.9, 5.6], ['bunting', 1, 19, 6.9, 4.4], ['belltower', 15.5, -10.5], ['pots', 2.9, -0.7], ['pots', 15.9, -0.7], ['pots', 8.7, -0.7], ['cart', 19.2, 3.2, -0.8]], fisher: false, dog: [6.8, 5.6],
+      palms: [[-2.6, 6.6, 5], [5.5, 6.7, 4.6], [23, 1, 4.5], [18.5, 6.6, 5.4], [23, 5.5, 5]], chest: [0.4, 0.3], chestGold: 70, chestNote: 'A trader\'s tally: Heron\'s Rest sells timber for next to nothing.', extraCircles: [[12.2, 5.6, 1.15]],
+      price: { sell: 62, food: 0.8, water: 0.5, repair: 1.8, hire: 35, ship: 1.2, fit: 1.1 }, sells: { ship: true, guns: false, fit: true, bounty: false },
+      rumors: ['Sell here, repair elsewhere. Santa Marta carpenters charge by the nail.', 'A deeper hold pays for itself in two voyages to this market.', 'The merchantmen you see leaving here are full. The ones arriving are fuller.', 'Nobody in Santa Marta will sell you a gun. Too many customers have been shot.'],
+      folk: [{ name: 'Doña Inés', box: [2, 4.2, 8, 5.4], look: LOOK(0xc98e63, 0xb8432a, 0x3a2a3a, 0xe8d8a8, 0x1a1210, { beard: false }), lines: ['Sixty-two a bale, and I do not ask where it sailed from.', 'You are small for a captain. Your purse is not small. We will be friends.', 'Buy a deeper hold. I say this for both our sakes.'] },
+        { name: 'Tomás', box: [9, 3.4, 15, 4.4], look: LOOK(0x8a5630, 0xe8e4da, 0x4a5a6a, 'bandana', 0x17100c, { band: 0xd8b23a }), lines: ['Oranges! Limes! A crew with limes keeps its teeth.', 'The cantina hires cheap. They are cheap for a reason, but they pull an oar.', 'Watch the stilt village folk. They know every shoal on this sea.'] },
+        { name: 'Father Benedicto', box: [15, 1.0, 21, 2.6], look: LOOK(0xe8bd9a, 0x2a2420, 0x2a2420, 0x2a2420, 0xb0b0ae), lines: ['The bell rings at dusk for those still at sea.', 'I buried a boy your age last winter. Mind the squalls.', 'God made the wind free. The chandler charges for everything else.'] }] },
+    heron: { name: 'Heron\'s Rest', greet: 'Heron\'s Rest. Smoke, nets and the smell of low tide.', goal: 'Cheap food, water, timber and hands. No yard for ships or guns.', shop: 'The boatwright', inn: 'The smokehouse',
+      pal: { quay: [0.78, 0.68, 0.52], hill: [0.2, 0.34, 0.18], tex: 'deck' },
+      houses: [{ x0: -3.0, x1: 1.0, h: 2.3, z0: -5.6, roof: 'thatch', door: -1.0, role: 'trade', sign: 'BOATWRIGHT', wall: 0xa88458 }, { x0: 2.3, x1: 6.0, h: 2.1, z0: -5.2, roof: 'thatch', door: 4.1, wall: 0x9a7a52 }, { x0: 7.4, x1: 12.6, h: 2.7, z0: -6.4, roof: 'thatch', door: 10, role: 'tavern', sign: 'SMOKEHOUSE', wall: 0x8a6a48 }, { x0: 14, x1: 17.4, h: 2.0, z0: -5, roof: 'thatch', door: 15.7, wall: 0xa88458 }, { x0: 18.7, x1: 22.4, h: 2.3, z0: -5.6, roof: 'thatch', door: 20.5, wall: 0x9a7a52 }],
+      lamps: [[-5.5, 0.9]], lampDoors: ['trade', 'tavern'], chimney: [11.6, 5.2, -4.2], barrels: [[6.7, 0.2, 0.45], [13.3, 0.3, 0.45], [18, 0.2, 0.45]], crates: [[13.2, 5.9]],
+      props: [['mangroves'], ['rack', 3.5, 4.6], ['rack', 16.5, 5.2], ['boat', 8.2, 5.6, 0.25], ['boat', 20.6, 3.4, -1.1], ['net', -13.5, -1.3], ['net', 11, 6.9], ['pots2', 1.2, 2.6], ['pots2', 14.3, 2.2], ['coil', -2.6, 1.6], ['coil', 5.6, 2.2], ['anchor', 22, 6.2]], fisher: true, dog: null,
+      palms: [[23, 1, 4], [-2.6, 6.6, 4]], chest: [22.2, 0.4], chestGold: 40, chestNote: 'A scrap of sailcloth with a chart inked on it: bottles drift thickest between the isle and the fort.',
+      price: { sell: 38, food: 0.25, water: 0.12, repair: 1.1, hire: 25, ship: 1, fit: 1, timber: 14 }, sells: { ship: false, guns: false, fit: false, bounty: false, timber: true },
+      rumors: ['Gulls over empty water mean fish under it. Sail through.', 'Timber aboard mends the hull on its own, out of a fight. Carry some.', 'A bottle in the swell is worth turning for.', 'Hands hired here know the sea and nothing about fighting. They cost the same either way.'],
+      folk: [{ name: 'Granny Oake', box: [2, 2.4, 8, 3.6], look: LOOK(0xa8703f, 0x6a6a5a, 0x3a3026, 'bandana', 0xe4e2dc, { band: 0x7a8a96, beard: false }), lines: ['Smoked mullet keeps a month. Take a barrel.', 'Your boat was built in this village. I know the sheer of her.', 'We do not sell guns. We do not need guns. We need the tide.'] },
+        { name: 'Little Wren', box: [12, 3.0, 19, 4.4], look: LOOK(0x8a5630, 0xb8a070, 0x4a5a6a, 0x7a6a3a, 0x17100c, { beard: false }), lines: ['I can swim under your boat and back. Want to see?', 'Planks are fourteen. Da cuts them from the mangrove.', 'The big ships cannot come in here. Too shallow. That is why we are still here.'] },
+        { name: 'Eb the netmaker', box: [-2, 1.0, 2, 2.2], look: LOOK(0xc98e63, 0x3a8a8a, 0x3a3a3a, 0x7a6a3a, 0x6e4a26), lines: ['Mind the nets.', 'Smokehouse hires at twenty-five. Hungry lads, good with an oar.', 'Storm coming by the look of the herons. Or not. Herons lie.'] }] },
+  },
+  cur() { return this.defs[G.town] || this.defs.gallows; },
+  // the walk map for a town
+  level(id) { const T = this.defs[id] || this.defs.gallows, zones = [{ x: -7.4, z: 0, r: 1.5, label: 'Cast off', act: 'leave' }];
+    for (const h of T.houses) if (h.role) zones.push({ x: h.door, z: (h.z1 || -1.25) + 0.7, r: 1.3, label: h.role === 'trade' ? 'Trade at ' + T.shop.replace(/^The /, 'the ') : 'Enter ' + T.inn.replace(/^The /, 'the '), act: h.role });
+    return { kind: 'port', town: T, bounds: [-23, 23, -1.0, 7.4], start: [-6.2, 0.4], dusk: true, h: () => 1.9, water: (x, z) => (x < -4.1 && Math.abs(z) > 1.45) || z > 7.4 || x < -23,
+      rects: T.houses.filter(h => !h.back).map(h => [h.x0, h.x1, -8, h.z1 || -1.25]), circles: T.barrels.concat(T.extraCircles || []), zones, chest: T.chest, items: [], foes: [], palms: T.palms }; },
+  build(L3, lv) { const T = lv.town; L3.fisher = null; L3.dog = null;
+    for (const h of T.houses) L3.house(h.x0, h.x1, h.y0 || 1.9, h.h, h.z0 || -8, h.z1 || -1.25, h.roof, h.door, h.wall);
+    for (const h of T.houses) if (h.door !== undefined && (!T.lampDoors || T.lampDoors.includes(h.role))) L3.lantern(h.door, 4.1, (h.z1 || -1.25) + 0.2, true); for (const l of T.lamps) L3.lantern(l[0], 4.1, l[1], true);
+    for (const c of T.barrels) { const m = L3.box(1, 1, 1, L3.mat.wood, c[0], 1.9 + 0.45, c[1]); m.geometry = new THREE.CylinderGeometry(c[2], c[2] * 0.9, 0.9, 10); }
+    for (const c of T.crates) L3.box(0.85, 0.85, 0.85, L3.mat.crate, c[0], 2.35 + (c[2] || 0) * 0.85, c[1]);
+    for (const p of T.props) this.P[p[0]](L3, p[1], p[2], p[3], p[4]); },
+  people(L3, lv) { const T = lv.town; T.folk.forEach(f => { const r = L3.rig(f.look, {}); r.poser = new Motion.Poser(); const w = f.box; L3.folk.push({ r, x: w[0] + 2, z: (w[1] + w[3]) / 2, box: w, wp: null, head: 0, walk: 0, rest: rand(0, 4), name: f.name, lines: f.lines, said: 0 }); });
+    if (T.fisher) this.P.fisher(L3); if (T.dog) this.P.dog(L3, T.dog[0], T.dog[1]); },
+  // ---- set pieces
+  P: {
+    add(L3, g, x, y, z, ry) { g.position.set(x, y, z); g.rotation.y = ry || 0; g.traverse(m => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } }); L3.group.add(g); return g; },
+    m(geo, mat, x, y, z) { const q = new THREE.Mesh(geo, mat); q.position.set(x || 0, y || 0, z || 0); return q; },
+    stall(L3, sx, sz, col) { L3.box(2.6, 0.9, 0.9, L3.mat.wood, sx, 1.9 + 0.45, sz); for (const px of [-1.2, 1.2]) L3.box(0.08, 2.4, 0.08, L3.mat.wood, sx + px, 1.9 + 1.2, sz - 0.5, false); const aw = L3.box(3.0, 0.05, 1.6, new THREE.MeshStandardMaterial({ color: col, roughness: .9, side: THREE.DoubleSide }), sx, 1.9 + 2.35, sz - 0.1, false); aw.rotation.x = 0.25;
+        const fruit = [0xf2a93b, 0xd94a3a, 0x8fc24a, 0xf6d35a]; for (let k = 0; k < 14; k++) { const f = new THREE.Mesh(new THREE.SphereGeometry(0.09, 7, 6), new THREE.MeshStandardMaterial({ color: fruit[k % 4], roughness: .6 })); f.position.set(sx - 1.0 + (k % 7) * 0.33, 1.9 + 0.98 + Math.floor(k / 7) * 0.05, sz - 0.2 + Math.floor(k / 7) * 0.3); f.castShadow = true; L3.group.add(f); }
+        L3.box(0.8, 0.5, 0.5, L3.mat.crate, sx + 1.7, 1.9 + 0.25, sz + 0.1); },
+    fisher(L3) { const r = L3.rig({ skin: 0xb98a6a, shirt: 0x6a6a5a, pants: 0x3a3a3a, boot: 0x2a2320, hat: 0x7a6a3a, vest: 0x3a2a1a, sash: 0x4a4a4a, hair: 0x9a9a9a }, {}); r.poser = new Motion.Poser(); r.poser.set('sit'); L3.fisher = r; const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.02, 2.6, 5), L3.mat.wood); rod.position.set(0.9, 0.9, 0.3); rod.rotation.z = -0.9; r.group.add(rod); const bucket = L3.box(0.3, 0.3, 0.3, L3.mat.iron, -22.3, 1.75 + 0.15, 0.9); bucket.geometry = new THREE.CylinderGeometry(0.16, 0.13, 0.3, 10); },
+    dog(L3, x, z) { const dog = new THREE.Group(), dm = new THREE.MeshStandardMaterial({ color: 0x8a6a3a, roughness: .9 }); const body = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 6), dm); body.scale.set(1.8, 0.9, 0.9); body.position.y = 0.32; dog.add(body); const hd = new THREE.Mesh(new THREE.SphereGeometry(0.14, 8, 6), dm); hd.position.set(0.42, 0.42, 0); dog.add(hd); for (const [x, z] of [[0.25, 0.1], [0.25, -0.1], [-0.25, 0.1], [-0.25, -0.1]]) { const lg = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.03, 0.3, 6), dm); lg.position.set(x, 0.15, z); dog.add(lg); } const tl = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.035, 0.3, 6), dm); tl.position.set(-0.42, 0.42, 0); tl.rotation.z = -0.9; dog.add(tl); dog.position.set(x, 1.9, z); dog.rotation.y = -0.6; dog.traverse(m => { if (m.isMesh) m.castShadow = true; }); L3.group.add(dog); L3.dog = { g: dog, tail: tl }; },
+    coil(L3, x, z) { for (let k = 0; k < 3; k++) { const t = new THREE.Mesh(new THREE.TorusGeometry(0.3 - k * 0.03, 0.05, 6, 14), L3.mat.rope); t.rotation.x = Math.PI / 2; t.position.set(x, 1.95 + k * 0.09, z); t.castShadow = true; L3.group.add(t); } },
+    cart(L3, x, z, ry) { const g = new THREE.Group(), W = L3.mat.wood, P = Town.P; g.add(P.m(new THREE.BoxGeometry(1.6, 0.12, 0.9), W, 0, 0.55, 0)); for (const s of [-1, 1]) { const w = P.m(new THREE.CylinderGeometry(0.36, 0.36, 0.07, 12), W, -0.2, 0.36, s * 0.5); w.rotation.x = Math.PI / 2; g.add(w, P.m(new THREE.BoxGeometry(1.6, 0.3, 0.05), W, 0, 0.76, s * 0.43)); const hd = P.m(new THREE.BoxGeometry(1.0, 0.05, 0.05), W, 1.25, 0.5, s * 0.35); hd.rotation.z = -0.25; g.add(hd); }
+      const sk = new THREE.MeshStandardMaterial({ color: 0xb8a070, roughness: 1 }); for (let k = 0; k < 4; k++) { const s = P.m(new THREE.SphereGeometry(0.26, 8, 6), sk, -0.45 + (k % 2) * 0.55, 0.78 + Math.floor(k / 2) * 0.28, k % 2 ? 0.12 : -0.12); s.scale.set(1.2, 0.8, 1); g.add(s); } P.add(L3, g, x, 1.9, z, ry); },
+    net(L3, x, z) { const net = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 1.3, 16, 6), new THREE.MeshStandardMaterial({ color: 0x8a7a5a, roughness: 1, wireframe: true })), np = net.geometry.attributes.position; for (let i = 0; i < np.count; i++) np.setZ(i, Math.sin(np.getX(i) * 2) * 0.12 + (0.65 - np.getY(i)) * 0.12); net.position.set(x, 2.75, z + 0.05); L3.group.add(net);
+      for (const px of [-1.6, 1.6]) L3.box(0.08, 1.9, 0.08, L3.mat.wood, x + px, 2.7, z, false); L3.box(3.3, 0.06, 0.06, L3.mat.wood, x, 3.42, z, false); },
+    anchor(L3, x, z) { const g = new THREE.Group(), I = L3.mat.iron, P = Town.P; g.add(P.m(new THREE.CylinderGeometry(0.05, 0.05, 1.3, 6), I, 0, 0.65, 0)); const arc = P.m(new THREE.TorusGeometry(0.42, 0.05, 6, 12, Math.PI), I, 0, 0.42, 0); arc.rotation.z = Math.PI; g.add(arc); const st = P.m(new THREE.CylinderGeometry(0.04, 0.04, 0.7, 6), I, 0, 1.2, 0); st.rotation.x = Math.PI / 2; g.add(st, P.m(new THREE.TorusGeometry(0.1, 0.025, 6, 10), I, 0, 1.38, 0)); P.add(L3, g, x, 1.95, z, 0.6); g.rotation.x = 1.25; g.rotation.z = 0.2; },
+    // Gallows Cay's namesake: an empty iron cage on a post at the end of the quay
+    gibbet(L3, x, z) { const g = new THREE.Group(), W = L3.mat.wood, I = L3.mat.iron, P = Town.P; g.add(P.m(new THREE.BoxGeometry(0.22, 4.4, 0.22), W, 0, 2.2, 0), P.m(new THREE.BoxGeometry(1.7, 0.18, 0.18), W, 0.7, 4.3, 0)); const br = P.m(new THREE.BoxGeometry(1.1, 0.12, 0.12), W, 0.35, 3.85, 0); br.rotation.z = 0.8; g.add(br, P.m(new THREE.CylinderGeometry(0.015, 0.015, 0.7, 4), I, 1.35, 3.9, 0));
+      for (let k = 0; k < 6; k++) { const a = k / 6 * 6.283; g.add(P.m(new THREE.CylinderGeometry(0.012, 0.012, 1.2, 4), I, 1.35 + Math.cos(a) * 0.22, 2.95, Math.sin(a) * 0.22)); } for (const y of [2.35, 2.95, 3.55]) { const r = P.m(new THREE.TorusGeometry(0.22, 0.014, 4, 12), I, 1.35, y, 0); r.rotation.x = Math.PI / 2; g.add(r); } P.add(L3, g, x, 1.9, z, 2.4); },
+    // Port Sovereign: curtain wall with towers behind the town, a battery on the quay, the ensign, a light
+    fortwall(L3) { const S = L3.mat.stone, y0 = 1.9; L3.box(34, 5.5, 1.6, S, 8, y0 + 2.75 + 2.5, -10.2); for (let x = -8; x <= 24.1; x += 1.6) L3.box(0.8, 0.7, 1.6, S, x, y0 + 8.35, -10.2, false); for (const x of [-9.5, 8, 25.5]) { const t = L3.box(1, 1, 1, S, x, y0 + 6.2, -10.2); t.geometry = new THREE.CylinderGeometry(2.2, 2.5, 9, 12); const c = L3.box(1, 1, 1, L3.roofMat('slate'), x, y0 + 12.1, -10.2); c.geometry = new THREE.ConeGeometry(2.6, 2.8, 12); }
+      L3.box(40, 4.2, 6, new THREE.MeshStandardMaterial({ color: 0x6f7a58, roughness: 1 }), 8, y0 + 2.1, -11.5, false); },
+    cannon(L3, x, z) { const g = new THREE.Group(), P = Town.P, W = L3.mat.wood, I = L3.mat.iron; g.add(P.m(new THREE.BoxGeometry(0.7, 0.3, 1.0), W, 0, 0.3, 0)); for (const sx of [-1, 1]) for (const sz of [-0.3, 0.3]) { const w = P.m(new THREE.CylinderGeometry(0.17, 0.17, 0.1, 10), W, sx * 0.4, 0.17, sz); w.rotation.z = Math.PI / 2; g.add(w); } const b = P.m(new THREE.CylinderGeometry(0.13, 0.19, 1.7, 10), I, 0, 0.62, 0.35); b.rotation.x = Math.PI / 2 - 0.08; g.add(b); P.add(L3, g, x, 1.9, z, 0); },
+    shot(L3, x, z) { const I = L3.mat.iron; for (const [dx, dy, dz] of [[0, 0, 0], [0.2, 0, 0], [0.1, 0, 0.17], [0.1, 0.16, 0.06]]) { const s = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 6), I); s.position.set(x + dx, 2.0 + dy, z + dz); s.castShadow = true; L3.group.add(s); } },
+    flagpole(L3, x, z) { const P = Town.P, g = new THREE.Group(); g.add(P.m(new THREE.CylinderGeometry(0.05, 0.08, 7.5, 8), L3.mat.wood, 0, 3.75, 0), P.m(new THREE.SphereGeometry(0.11, 8, 6), L3.mat.gold, 0, 7.55, 0)); const c = document.createElement('canvas'); c.width = 96; c.height = 60; const q = c.getContext('2d'); q.fillStyle = '#a82020'; q.fillRect(0, 0, 96, 60); q.fillStyle = '#f2eee2'; q.fillRect(0, 0, 44, 30); q.fillStyle = '#a82020'; q.fillRect(18, 0, 8, 30); q.fillRect(0, 11, 44, 8);
+      const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; const fg = new THREE.PlaneGeometry(2.2, 1.35, 10, 4); fg.translate(1.1, 0, 0); const fl = new THREE.Mesh(fg, new THREE.MeshStandardMaterial({ map: t, side: THREE.DoubleSide, roughness: 0.9 })); fl.position.set(0, 6.7, 0); fl.userData.base = fg.attributes.position.array.slice(); g.add(fl); P.add(L3, g, x, 1.9, z, 0); FX3.flags.push(fl); },
+    lighthouse(L3, x, z) { const P = Town.P, g = new THREE.Group(), white = new THREE.MeshStandardMaterial({ color: 0xf2efe6, roughness: 0.8 }), red = new THREE.MeshStandardMaterial({ color: 0xa82a22, roughness: 0.8 }); g.add(P.m(new THREE.CylinderGeometry(0.85, 1.15, 3, 14), white, 0, 1.5, 0), P.m(new THREE.CylinderGeometry(0.7, 0.85, 2.2, 14), red, 0, 4.1, 0), P.m(new THREE.CylinderGeometry(0.6, 0.7, 2, 14), white, 0, 6.2, 0), P.m(new THREE.CylinderGeometry(0.95, 0.95, 0.12, 14), L3.mat.iron, 0, 7.25, 0), P.m(new THREE.CylinderGeometry(0.42, 0.42, 0.9, 10), L3.mat.lantern, 0, 7.8, 0), P.m(new THREE.ConeGeometry(0.7, 0.8, 12), red, 0, 8.65, 0));
+      P.add(L3, g, x, 1.9, z, 0); const pl = new THREE.PointLight(0xffd890, 1.6, 22, 2); pl.position.set(x, 9.7, z); L3.group.add(pl); FX3.lights.push({ pl, mesh: g }); },
+    // Santa Marta: a fountain in the square, bunting overhead, a bell tower on the hill, flowers by the doors
+    fountain(L3, x, z) { const P = Town.P, g = new THREE.Group(), S = L3.mat.stone; g.add(P.m(new THREE.CylinderGeometry(1.1, 1.15, 0.45, 18), S, 0, 0.22, 0), P.m(new THREE.CylinderGeometry(0.16, 0.22, 1.3, 10), S, 0, 0.9, 0), P.m(new THREE.CylinderGeometry(0.5, 0.2, 0.18, 14), S, 0, 1.55, 0)); const w = P.m(new THREE.CylinderGeometry(0.98, 0.98, 0.04, 18), new THREE.MeshStandardMaterial({ color: 0x3a8ab0, roughness: 0.1, transparent: true, opacity: 0.85 }), 0, 0.43, 0); g.add(w); P.add(L3, g, x, 1.9, z, 0); w.castShadow = false; FX3.fountain = [x, 3.55, z]; },
+    bunting(L3, x0, x1, z, y) { const cols = [0x9a2a18, 0xa8902a, 0x1f6070, 0xb0aca0, 0x2a6a3a], n = Math.floor((x1 - x0) / 0.55), cv = new THREE.QuadraticBezierCurve3(new THREE.Vector3(x0, 1.9 + y, z), new THREE.Vector3((x0 + x1) / 2, 1.9 + y - 1.1, z), new THREE.Vector3(x1, 1.9 + y, z)); L3.group.add(new THREE.Mesh(new THREE.TubeGeometry(cv, 30, 0.015, 4), L3.mat.rope));
+      const tri = new THREE.BufferGeometry(); tri.setAttribute('position', new THREE.Float32BufferAttribute([-0.16, 0, 0, 0.16, 0, 0, 0, -0.36, 0], 3)); tri.computeVertexNormals(); for (let i = 1; i < n; i++) { const p = cv.getPoint(i / n), f = new THREE.Mesh(tri, new THREE.MeshStandardMaterial({ color: cols[i % 5], side: THREE.DoubleSide, roughness: 0.9 })); f.position.copy(p); L3.group.add(f); } for (const x of [x0, x1]) L3.box(0.09, y, 0.09, L3.mat.wood, x, 1.9 + y / 2, z, false); },
+    belltower(L3, x, z) { const wall = L3.wallMat(0xf2ead8), y0 = 6.3; L3.box(2.6, 8, 2.6, wall, x, y0 + 4, z); for (const s of [-1, 1]) { L3.box(0.5, 1.8, 0.5, wall, x + s * 1.05, y0 + 8.9, z + 1.05); L3.box(0.5, 1.8, 0.5, wall, x + s * 1.05, y0 + 8.9, z - 1.05); } const cap = L3.box(1, 1, 1, L3.roofMat('red'), x, y0 + 10.9, z); cap.geometry = new THREE.ConeGeometry(2.2, 2.2, 4); cap.rotation.y = Math.PI / 4; const bell = L3.box(1, 1, 1, L3.mat.gold, x, y0 + 8.9, z); bell.geometry = new THREE.CylinderGeometry(0.25, 0.55, 0.8, 10); },
+    pots(L3, x, z) { const P = Town.P, clay = new THREE.MeshStandardMaterial({ color: 0xa85a38, roughness: 0.9 }); for (const [dx, c] of [[-0.9, 0xd8432a], [0.9, 0xe870a0]]) { const g = new THREE.Group(); g.add(P.m(new THREE.CylinderGeometry(0.2, 0.14, 0.34, 10), clay, 0, 0.17, 0), P.m(new THREE.SphereGeometry(0.26, 8, 6), new THREE.MeshStandardMaterial({ color: 0x3d7a35, roughness: 1 }), 0, 0.5, 0)); for (let k = 0; k < 6; k++) g.add(P.m(new THREE.SphereGeometry(0.06, 6, 5), new THREE.MeshStandardMaterial({ color: c, roughness: 0.7 }), Math.cos(k) * 0.2, 0.55 + (k % 3) * 0.08, Math.sin(k * 2) * 0.2)); P.add(L3, g, x + dx, 1.9, z, 0); } },
+    // Heron's Rest: mangrove behind, fish racks, upturned boats, crab pots
+    mangroves(L3) { Flora.init(); const rng = mulberry(77), R = (a, b) => a + rng() * (b - a), TR = [], CN = [], tc = new THREE.Color(); for (let i = 0; i < 46; i++) { const x = R(-8, 28), z = R(-22, -6.6), y = 1.9 + Math.max(0, (-z - 9) * 0.25), s = R(1.2, 2.2), th = s * R(1.1, 1.6); TR.push({ x, y: y - 0.3, z, s: 0.2 * s, sy: th, ry: R(0, 6.3), c: 0x6a5a48 }); for (let k = 0; k < 3; k++) { tc.setHSL(R(0.24, 0.31), R(0.35, 0.5), R(0.16, 0.28)); CN.push({ x: x + R(-0.8, 0.8) * s, y: y + th + R(-0.2, 0.5), z: z + R(-0.8, 0.8) * s, s: s * R(0.8, 1.1), ry: R(0, 6.3), c: tc.getHex() }); } }
+      Flora.inst(L3.group, Flora.geo.trunk, Flora.mat.trunk, TR, true); Flora.inst(L3.group, Flora.geo.canopy, Flora.mat.leaf, CN, true, Flora.mat.leafDepth); const reed = new THREE.MeshStandardMaterial({ color: 0x8a9a4a, roughness: 1 }); for (let i = 0; i < 70; i++) { const x = R(-3.5, 23), z = R(-1.1, -0.9) - (rng() < 0.5 ? 0 : 6.5), r = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.02, R(0.8, 1.6), 4), reed); r.position.set(x, 2.4, z); r.rotation.z = R(-0.15, 0.15); if (!Land.free(x, z + 0.5, 0.1) || z < -2) L3.group.add(r); } },
+    rack(L3, x, z) { const W = L3.mat.wood, fish = new THREE.MeshStandardMaterial({ color: 0xa8b0b4, roughness: 0.5, metalness: 0.3 }); for (const s of [-1.3, 1.3]) { L3.box(0.07, 1.9, 0.07, W, x + s, 2.85, z - 0.25, false).rotation.x = -0.14; L3.box(0.07, 1.9, 0.07, W, x + s, 2.85, z + 0.25, false).rotation.x = 0.14; } L3.box(2.8, 0.06, 0.06, W, x, 3.75, z, false); for (let k = 0; k < 8; k++) { const f = new THREE.Mesh(new THREE.SphereGeometry(0.1, 6, 5), fish); f.scale.set(0.45, 1.9, 0.9); f.position.set(x - 1.1 + k * 0.31, 3.5, z); f.castShadow = true; L3.group.add(f); } },
+    boat(L3, x, z, ry) { const P = Town.P, g = new THREE.Group(), hull = P.m(new THREE.SphereGeometry(1, 14, 8, 0, 6.283, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ map: L3.tex.wood, color: 0x8a7a66, roughness: 0.9 }), 0, 0, 0); hull.scale.set(1.7, 0.55, 0.62); g.add(hull, P.m(new THREE.BoxGeometry(3.3, 0.07, 0.07), L3.mat.hullDark, 0, 0.55, 0)); P.add(L3, g, x, 1.9, z, ry); },
+    pots2(L3, x, z) { const wk = new THREE.MeshStandardMaterial({ color: 0x7a6038, roughness: 1, wireframe: true }), P = Town.P; for (const [dx, dz, dy] of [[0, 0, 0], [0.62, 0.1, 0], [0.3, 0.5, 0], [0.3, 0.2, 0.42]]) { const c = P.m(new THREE.CylinderGeometry(0.26, 0.3, 0.42, 10, 3), wk, x + dx, 2.11 + dy, z + dz); L3.group.add(c); } },
+  },
+};
+
 // ==== 05_ui.js
 // ---- HUD, panels and touch controls
 const UI = {
@@ -6690,7 +6782,7 @@ const UI = {
     let prompt = '', key = this.touch ? '' : 'Space';
     if (sea) { const P = Sea.P;
       $('place').textContent = 'Open water';
-      $('goal').textContent = G.bounty === 1 ? 'The Red Corsair is out there. Check the chart.' : G.tier === 0 && G.gold >= 300 ? 'You can afford a sloop. Dock at Gallows Cay.' : G.water < 30 ? 'Water is low. Land at Driftwood Isle to the north-east.' : G.hull < G.hullMax * 0.45 ? 'The hull is failing. Make for Gallows Cay.' : G.cargo > 0 ? 'Cargo aboard. Sell it at Gallows Cay.' : (G.tier === 0 ? 'A longboat can outrun a ship, not outgun one. Scavenge flotsam.' : 'Hunt a sail, or scavenge the isles.');
+      $('goal').textContent = G.bounty === 1 ? 'The Red Corsair is out there. Check the chart.' : G.tier === 0 && G.gold >= 300 ? 'You can afford a sloop. Gallows Cay or Port Sovereign will sell you one.' : G.water < 30 ? 'Water is low. Land at Driftwood Isle to the north-east.' : G.hull < G.hullMax * 0.45 ? 'The hull is failing. Make for the nearest port.' : G.cargo > 0 ? 'Cargo aboard. Santa Marta pays best; any port will buy.' : (G.tier === 0 ? 'A longboat can outrun a ship, not outgun one. Scavenge flotsam.' : 'Hunt a sail, or scavenge the isles.');
       $('hullV').textContent = Math.round(G.hull) + ' / ' + G.hullMax; this.bar('hullB', G.hull / G.hullMax * 100, G.hull < G.hullMax * 0.4);
       $('crewV').textContent = G.crew + ' / ' + G.crewMax; this.bar('crewB', G.crew / G.crewMax * 100, G.crew < G.crewMax * 0.4);
       $('foodV').textContent = Math.round(G.food) + '%'; this.bar('foodB', G.food, G.food < 25);
@@ -6703,8 +6795,8 @@ const UI = {
       
       $('btnA').textContent = Sea.near ? 'Land' : Sea.board ? 'Board' : 'Fire'; $('btnX').textContent = 'Port'; $('btnB').textContent = 'Stbd'; $('btnA').classList.remove('dim'); $('btnB').classList.remove('dim'); $('btnX').hidden = $('btnB').hidden = !P.T.guns;
     } else {
-      $('place').textContent = G.mode === 'port' ? 'Gallows Cay' : 'Driftwood Isle';
-      $('goal').textContent = G.mode === 'port' ? 'Sell plunder, repair, restock. Cast off from the pier.' : (G.water < 99 ? 'Climb to the spring and fill the casks.' : 'Casks are full. Salvage what you can, then row back.');
+      $('place').textContent = G.mode === 'port' ? Town.cur().name : 'Driftwood Isle';
+      $('goal').textContent = G.mode === 'port' ? Town.cur().goal : (G.water < 99 ? 'Climb to the spring and fill the casks.' : 'Casks are full. Salvage what you can, then row back.');
       let h = ''; for (let i = 0; i < 5; i++) h += '<i class="' + (i < G.hp ? 'f' : '') + '"></i>'; if ($('hearts').dataset.v !== String(G.hp)) { $('hearts').innerHTML = h; $('hearts').dataset.v = G.hp; }
       $('lfood').textContent = 'Food ' + Math.round(G.food) + '%'; $('lwater').textContent = 'Water ' + Math.round(G.water) + '%';
       if (Land.zone && !this.panelOpen && !Land.duel) { prompt = Land.zone.label; key = this.touch ? '' : 'Space'; }
@@ -6725,27 +6817,28 @@ const UI = {
   closePanel() { this.panelOpen = false; $('panel').hidden = true; },
   openTrade() {
     const pay = (cost, fn) => () => { if (G.gold < cost) return; G.gold -= cost; fn(); this.openTrade(); };
-    const dmg = G.hullMax - G.hull, tUse = Math.min(G.timber, Math.ceil(dmg / 12)), rep = Math.max(0, Math.ceil((dmg - tUse * 12) * 1.5));
-    const fc = Math.ceil((100 - G.food) * 0.5), wc = Math.ceil((100 - G.water) * 0.3), T = TIERS[G.tier], N = TIERS[G.tier + 1], gc = 150 * (G.guns + 1);
+    const dmg = G.hullMax - G.hull, tUse = Math.min(G.timber, Math.ceil(dmg / 12)), TW = Town.cur(), PR = TW.price, SV = TW.sells, rep = Math.max(0, Math.ceil((dmg - tUse * 12) * PR.repair));
+    const fc = Math.ceil((100 - G.food) * PR.food), wc = Math.ceil((100 - G.water) * PR.water), T = TIERS[G.tier], N = TIERS[G.tier + 1], gc = Math.round(150 * (G.guns + 1) * PR.fit), sp = N ? Math.round(N.price * PR.ship) : 0, pk = Math.round(220 * PR.fit), hk = Math.round(180 * PR.fit);
     const rows = [
-      ['Sell cargo × ' + G.cargo, '+' + G.cargo * 45, () => { G.gold += G.cargo * 45; G.sold += G.cargo; G.cargo = 0; this.openTrade(); }, G.cargo === 0],
+      ['Sell cargo × ' + G.cargo + ' · ' + PR.sell + ' a bale', '+' + G.cargo * PR.sell, () => { G.gold += G.cargo * PR.sell; G.sold += G.cargo; G.cargo = 0; this.openTrade(); }, G.cargo === 0],
       ['Repair hull ' + Math.round(G.hull) + ' → ' + G.hullMax + (tUse ? ' · uses ' + tUse + ' timber' : ''), rep ? rep + ' gold' : 'free', pay(rep, () => { G.hull = G.hullMax; G.timber -= tUse; }), dmg < 1 || G.gold < rep],
       ['Food to full', fc + ' gold', pay(fc, () => { G.food = 100; }), fc === 0 || G.gold < fc],
       ['Water to full', wc + ' gold', pay(wc, () => { G.water = 100; }), wc === 0 || G.gold < wc],
     ];
-    if (N) rows.push(['Buy a ' + N.name.toLowerCase() + ' · ' + N.guns + ' guns a side, hold ' + N.hold, N.price + ' gold', pay(N.price, () => { G.tier++; Sea.applyTier(); toast('Your new ' + N.name.toLowerCase() + ' waits at the pier.', 3000); }), G.gold < N.price]);
-    if (T.guns) rows.push(['More guns · ' + (T.guns + G.guns) + ' → ' + (T.guns + G.guns + 1) + ' a side', G.guns >= 2 ? 'fitted' : gc + ' gold', pay(gc, () => { G.guns++; }), G.guns >= 2 || G.gold < gc]);
-    rows.push(['Reinforced planking · hull +25', G.plank >= 2 ? 'fitted' : '220 gold', pay(220, () => { G.plank++; G.hullMax += 25; G.hull += 25; }), G.plank >= 2 || G.gold < 220]);
-    rows.push(['Deeper hold · cargo +6', G.holdUp >= 2 ? 'fitted' : '180 gold', pay(180, () => { G.holdUp++; G.hold += 6; }), G.holdUp >= 2 || G.gold < 180]);
-    this.panel('Shipwright & provisioner', T.name + ' · purse ' + G.gold + ' gold', rows);
+    if (SV.timber) rows.push(['Buy timber · mends 12 hull a plank', PR.timber + ' gold', pay(PR.timber, () => { G.timber++; }), G.gold < PR.timber]);
+    if (N && SV.ship) rows.push(['Buy a ' + N.name.toLowerCase() + ' · ' + N.guns + ' guns a side, hold ' + N.hold, sp + ' gold', pay(sp, () => { G.tier++; Sea.applyTier(); toast('Your new ' + N.name.toLowerCase() + ' waits at the pier.', 3000); }), G.gold < sp]);
+    if (T.guns && SV.guns) rows.push(['More guns · ' + (T.guns + G.guns) + ' → ' + (T.guns + G.guns + 1) + ' a side', G.guns >= 2 ? 'fitted' : gc + ' gold', pay(gc, () => { G.guns++; }), G.guns >= 2 || G.gold < gc]);
+    if (SV.fit) rows.push(['Reinforced planking · hull +25', G.plank >= 2 ? 'fitted' : pk + ' gold', pay(pk, () => { G.plank++; G.hullMax += 25; G.hull += 25; }), G.plank >= 2 || G.gold < pk]);
+    if (SV.fit) rows.push(['Deeper hold · cargo +6', G.holdUp >= 2 ? 'fitted' : hk + ' gold', pay(hk, () => { G.holdUp++; G.hold += 6; }), G.holdUp >= 2 || G.gold < hk]);
+    this.panel(TW.shop, T.name + ' · purse ' + G.gold + ' gold', rows);
   },
   openTavern() {
-    const rumors = ['Merchantmen run rather than fight. Cripple one and board it for the whole hold.', 'A squall slows every ship. Fight in it only if you must.', 'Ships with few hands left lose a boarding. Hire at the tavern first.', 'They say the fort islet keeps a strongbox. Guns will open it.', 'A navy brig hunts whoever sinks a privateer.', 'Rocks will hole a fast ship. Reef the sails near them.', 'The spring on Driftwood Isle never runs dry.'];
-    this.panel('The tavern', 'Crew ' + G.crew + ' / ' + G.crewMax + ' · Purse ' + G.gold + ' gold', [
-      ['Hire a hand', '40 gold', () => { G.gold -= 40; G.crew++; this.openTavern(); }, G.crew >= G.crewMax || G.gold < 40],
+    const TW = Town.cur(), rumors = TW.rumors, hp = TW.price.hire;
+    this.panel(TW.inn, 'Crew ' + G.crew + ' / ' + G.crewMax + ' · Purse ' + G.gold + ' gold', [
+      ['Hire a hand', hp + ' gold', () => { G.gold -= hp; G.crew++; this.openTavern(); }, G.crew >= G.crewMax || G.gold < hp],
       ['Buy a round and listen', '10 gold', () => { G.gold -= 10; toast(rumors[Math.floor(Math.random() * rumors.length)], 4200); this.openTavern(); }, G.gold < 10],
       [G.bounty === 2 ? 'The Red Corsair · bounty paid' : 'Take the bounty on the Red Corsair', G.bounty === 2 ? 'done' : G.bounty === 1 ? 'posted' : '250 gold', () => { G.bounty = 1; toast('The Corsair is marked on your chart. A brig and a full crew are advised.', 5000); this.openTavern(); }, G.bounty !== 0 || G.tier < 1],
-    ]);
+    ].filter((r, i) => i < 2 || TW.sells.bounty));
   },
 };
 
@@ -6755,16 +6848,16 @@ const UI = {
 const Demo = {
   on: false, i: -1, t: 0, step: null, s: {}, STEPS: [],
   cap(s) { const el = $('introCap'); if (el.textContent === s) return; el.textContent = s; el.classList.remove('show'); void el.offsetWidth; el.classList.add('show'); },
-  start(ch, fast) { this.fast = !!fast; this.on = true; this.i = -1; this.t = 0; this.s = {}; this.wait = 0; const C = this.CH; this.STEPS = fast ? [].concat(...[1, 2, 4, 5, 0, 3].map(i => C[i].steps)) : ch === undefined || ch < 0 ? [].concat(...C.map(c => c.steps)) : C[ch].steps;
+  start(ch, fast) { this.fast = !!fast; this.on = true; this.i = -1; this.t = 0; this.s = {}; this.wait = 0; const C = this.CH; this.STEPS = fast ? [].concat(...[2, 3, 5, 6, 0, 1, 4].map(i => C[i].steps)) : ch === undefined || ch < 0 ? [].concat(...C.map(c => c.steps)) : C[ch].steps;
     $('introSkip').textContent = fast ? 'fast reel · 4× speed · tap to stop' : 'demo · tap to stop'; $('intro').hidden = false; document.body.classList.add('demo'); try { localStorage.removeItem('saltwake2'); } catch (e) { /* ignore */ } this.next(); },
   end() { this.on = false; this.fast = false; $('intro').hidden = true; $('introSkip').textContent = 'tap to skip'; document.body.classList.remove('demo', 'intro'); Game.intro = null; UI.closePanel(); Land3.cine = null; Sea.chart = false; Sea.stormOn = false; Sea.storm = 0; Sea.tapGo = Sea.tapFoe = null; G.mode = 'title'; Game.show(); },
   next() { this.i++; this.t = 0; this.step = this.STEPS[this.i] || null; if (!this.step) return this.end(); this.cap(this.step.cap || ''); if (this.step.init) this.step.init(); },
   tick(dt) { if (!this.on || !this.step) return; $('intro').hidden = false; const s = this.step; if (s.mode && G.mode !== s.mode) { if (G.mode === 'over') Game.revive(); this.wait = (this.wait || 0) + dt; if (this.wait > 30) this.next(); return; } this.wait = 0; this.t += dt; let done = false; try { done = s.run(dt, this.t); } catch (e) { console.error(e); done = true; } if (done || this.t > (s.max || 40)) this.next(); },
   // set-up: a fresh save, then drop straight into the sea or onto a shore
-  fresh(tier) { const T = TIERS[tier || 0]; Object.assign(G, { gold: 60, tier: tier || 0, plank: 0, holdUp: 0, hull: T.hull, hullMax: T.hull, crew: T.crew, crewMax: T.crew, food: 70, water: 45, timber: 0, cargo: 0, hold: T.hold, guns: 0, kills: 0, sold: 0, portChest: false, bounty: 0, wreck: null, map: 0, hp: 5, digT: -999, isleDone: { chest: false, items: {}, foes: {} } });
+  fresh(tier) { const T = TIERS[tier || 0]; Object.assign(G, { gold: 60, tier: tier || 0, plank: 0, holdUp: 0, hull: T.hull, hullMax: T.hull, crew: T.crew, crewMax: T.crew, food: 70, water: 45, timber: 0, cargo: 0, hold: T.hold, guns: 0, kills: 0, sold: 0, portChest: false, bounty: 0, wreck: null, map: 0, hp: 5, digT: -999, town: 'gallows', isleDone: { chest: false, items: {}, foes: {} } });
     Game.intro = null; Game.pending = null; document.body.classList.remove('intro'); UI.closePanel(); Land3.cine = null; Sea.reset(); Sea.day = 0.12; Sea.near = null; this.s = {}; },
   toSea(tier) { this.fresh(tier); Sea.P.T = TIERS[G.tier]; G.mode = 'sea'; $('land').classList.remove('in'); $('landfx').classList.remove('in'); Game.show(); const P = Sea.P; P.x += Math.sin(P.th) * 60; P.y -= Math.cos(P.th) * 60; Sea.camX = P.x; Sea.camY = P.y; },
-  toLand(key, calm) { this.fresh(0); Game.ring = Sea.rings[key === 'port' ? 0 : 1]; Game.apply(key); $('land').classList.add('in'); $('landfx').classList.add('in'); if (calm) { Land.foes = []; (Land3.foeRigs || []).forEach(r => { r.group.visible = false; }); } },
+  toLand(key, calm, town) { this.fresh(0); Game.ring = key === 'port' ? Sea.rings.find(r => r.isle.town === (town || 'gallows')) : Sea.rings[1]; Game.apply(key); $('land').classList.add('in'); $('landfx').classList.add('in'); if (calm) { Land.foes = []; (Land3.foeRigs || []).forEach(r => { r.group.visible = false; }); } },
   // helpers
   ahead(d) { const P = Sea.P; Sea.tapGo = [P.x + Math.sin(P.th) * d, P.y - Math.cos(P.th) * d]; },
   walkLand(x, z) { const L = Land; if (!L.tapTarget || Math.hypot(L.tapTarget[0] - x, L.tapTarget[1] - z) > 0.5) L.tap(x, z); return Math.hypot(L.p.x - x, L.p.z - z) < 1.2; },
@@ -6782,6 +6875,11 @@ const Demo = {
       { cap: 'Night falls over the cay. Lanterns, lit windows, moths, a dog asleep by the door.', mode: 'port', run: (dt, t) => { Sea.day = lerp(Sea.day, 0.5, Math.min(1, dt * 0.8)); Demo.walkLand(10.2, 1.6); return t > 8; }, max: 10 },
       { cap: 'Back down to the water. The sea does not care how old you are.', mode: 'port', run: () => Demo.walkLand(-7.4, 0) && (Land.act('leave'), true), max: 30 },
       { cap: 'Cast off.', mode: 'sea', run: (dt, t) => { Demo.ahead(120); return t > 5; }, max: 8 },
+    ] },
+    { name: 'Other ports', steps: [
+      { cap: 'Port Sovereign. The Crown\'s dockyard: cheap ships and guns, a poor price for plunder, and a battery on the quay.', mode: 'port', init: () => Demo.toLand('port', false, 'sovereign'), run: (dt, t) => { if (Land3.cine) return false; Demo.walkLand(t < 9 ? 12 : 20, t < 9 ? 5.2 : 3.4); return t > 14; }, max: 18 },
+      { cap: 'Santa Marta. Market stalls, a fountain, and the best price for a full hold anywhere.', mode: 'port', init: () => Demo.toLand('port', false, 'marta'), run: (dt, t) => { if (Land3.cine) return false; Demo.walkLand(t < 9 ? 7 : 16, t < 9 ? 4.6 : 4.8); return t > 14; }, max: 18 },
+      { cap: 'Heron\'s Rest. A stilt village in the mangroves: cheap food, water, timber and hands, and no questions.', mode: 'port', init: () => Demo.toLand('port', false, 'heron'), run: (dt, t) => { if (Land3.cine) return false; Demo.walkLand(t < 9 ? 6 : 17, t < 9 ? 3.4 : 3.6); return t > 14; }, max: 18 },
     ] },
     { name: 'Sailing', steps: [
       { cap: 'Point the bow and the hands do the rest. Wind on the beam is fastest; dead upwind she crawls.', init: () => Demo.toSea(0), mode: 'sea', run: (dt, t) => { Demo.ahead(120); return t > 8; }, max: 10 },
@@ -6820,8 +6918,8 @@ const Game = {
     $('fade').classList.add('on'); setTimeout(() => { this.apply(mode); $('fade').classList.remove('on'); this.pending = null; }, 430); },
   apply(mode) {
     UI.closePanel();
-    if (mode === 'island' || mode === 'port') { this.ring = Sea.near || this.ring || Sea.rings[mode === 'port' ? 0 : 1]; Land.enter(mode); G.mode = mode;
-      if (mode === 'port') { G.isleDone = { chest: false, items: {}, foes: {} }; saveGame(); toast('Gallows Cay. No flag asks questions here.'); } else toast('Driftwood Isle. The spring is up the cliff.'); }
+    if (mode === 'island' || mode === 'port') { this.ring = Sea.near || this.ring || Sea.rings[mode === 'port' ? 0 : 1]; if (mode === 'port') G.town = (this.ring.isle && this.ring.isle.town) || 'gallows'; Land.enter(mode); G.mode = mode;
+      if (mode === 'port') { G.isleDone = { chest: false, items: {}, foes: {} }; saveGame(); toast(Town.cur().greet); } else toast('Driftwood Isle. The spring is up the cliff.'); }
     else { if (G.mode === 'island' || G.mode === 'port') {
         if (G.timber > 0 && G.hull < G.hullMax) { const use = Math.min(G.timber, Math.ceil((G.hullMax - G.hull) / 12)); G.hull = Math.min(G.hullMax, G.hull + use * 12); G.timber -= use; toast('Timber patched the hull to ' + Math.round(G.hull) + '%'); }
         Sea.leaveLand(this.ring || Sea.rings[0]); }
@@ -6831,7 +6929,7 @@ const Game = {
   show() { const land = G.mode === 'island' || G.mode === 'port'; $('sea').hidden = land; $('seafx').hidden = land; $('land').hidden = !land; $('landfx').hidden = !land; $('labels').hidden = G.mode !== 'sea'; $('title').hidden = G.mode !== 'title'; $('over').hidden = G.mode !== 'over'; },
   start(cont) { if (!cont) { try { localStorage.removeItem('saltwake2'); } catch (e) { /* ignore */ } } Sea.P.T = TIERS[G.tier];
     if (cont || !Land3.ready) { G.mode = 'sea'; this.show(); toast(UI.touch ? 'Push the stick where you want to sail. Land at a gold ring.' : 'Point the arrow keys where you want to sail. Space fires, or lands at a gold ring.', 4500); return; }
-    this.intro = { t: 0, i: -1 }; this.ring = Sea.rings[0]; G.mode = 'port'; Land.enter('port'); this.show(); $('land').classList.add('in'); $('landfx').classList.add('in'); $('intro').hidden = false; document.body.classList.add('intro'); },
+    this.intro = { t: 0, i: -1 }; this.ring = Sea.rings[0]; G.town = 'gallows'; G.mode = 'port'; Land.enter('port'); this.show(); $('land').classList.add('in'); $('landfx').classList.add('in'); $('intro').hidden = false; document.body.classList.add('intro'); },
   INTRO: [[0.6, 'Gallows Cay, 1721.'], [4.2, 'Your father\'s sloop went down off the fort last winter. The navy called it justice.'], [8.6, 'He left you a cutlass too short for your arm, a longboat, and four hands who still answer to his name.'], [13.2, 'You are fourteen. The sea does not care.']],
   tickIntro(dt) { const I = this.intro; I.t += dt; const el = $('intro'), cap = $('introCap'); let i = -1; for (let k = 0; k < this.INTRO.length; k++) if (I.t >= this.INTRO[k][0]) i = k;
     if (i !== I.i) { I.i = i; cap.textContent = i >= 0 ? this.INTRO[i][1] : ''; cap.classList.remove('show'); void cap.offsetWidth; cap.classList.add('show'); }
