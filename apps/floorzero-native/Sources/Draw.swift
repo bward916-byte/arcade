@@ -712,19 +712,20 @@ final class Renderer {
         let t = g.t
         let f = g.floor
         let x = 16 + g.safeL
-        cv.RR(x - 8, 8, 250, 92, 12, BLACK.alpha(0.5))
+        cv.RR(x - 8, 8, 250, 100, 12, BLACK.alpha(0.5))
         let label = f.kind == .roof ? "ROOF" : (f.kind == .street ? "STREET" : "FLOOR \(f.n)")
-        cv.text(label, x, 38, 28, g.tw.hue, 0, 3)
-        cv.text("\(g.tw.who) · \(g.tw.building)", x + 232, 26, 10, WHITE.alpha(0.7), 2, 1)
-        cv.text(f.kind == .roof || f.kind == .street ? "" : g.zone(f.n).name, x + 232, 40, 10, WHITE.alpha(0.5), 2, 1)
-        bar(cv, x, 48, 234, 16, g.hero.hp / g.hero.maxHp, g.hero.hp < g.hero.maxHp * 0.3 ? HOT : Col(0x7fd67a))
-        bar(cv, x, 70, 234, 12, g.meter / 100, g.meter >= 100 ? GOLD : Col(0xb89a50))
+        let place: String = f.kind == .roof || f.kind == .street ? g.tw.building : "\(g.tw.building) · \(g.zone(f.n).name)"
+        cv.text("\(g.tw.who) · \(place)", x, 24, 10, WHITE.alpha(0.65), 0, 1)
+        cv.text(label, x, 52, 27, g.tw.hue, 0, 3)
+        let hpCol: Col = g.hero.hp < g.hero.maxHp * 0.3 ? HOT : Col(0x7fd67a)
+        bar(cv, x, 60, 234, 16, g.hero.hp / g.hero.maxHp, hpCol)
+        bar(cv, x, 82, 234, 12, g.meter / 100, g.meter >= 100 ? GOLD : Col(0xb89a50))
         // what you carry
         var ix = x
         for u in UPS where g.lv(u.id) > 0 {
-            cv.RR(ix - 2, 106, 30, 30, 8, BLACK.alpha(0.5))
-            cv.text(u.icon, ix + 13, 128, 17, WHITE, 1, 1)
-            for l in 0..<g.lv(u.id) { cv.R(ix + 2 + Double(l) * 9, 138, 7, 3, u.sup ? Col(0xff8ad8) : GOLD) }
+            cv.RR(ix - 2, 114, 30, 30, 8, BLACK.alpha(0.5))
+            cv.text(u.icon, ix + 13, 136, 17, WHITE, 1, 1)
+            for l in 0..<g.lv(u.id) { cv.R(ix + 2 + Double(l) * 9, 146, 7, 3, u.sup ? Col(0xff8ad8) : GOLD) }
             ix += 34
         }
         // one goal

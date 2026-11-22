@@ -169,6 +169,7 @@ final class Game {
     var introT = 0.0
     var endT = 0.0
     let introLen = 9.0
+    var introFreeze = false
 
     var shake = 0.0
     var flash = 0.0
@@ -302,8 +303,8 @@ final class Game {
             f.doorB = f.wallX + 250
         }
         // who is here
-        var count = 3 + Int(Double(max(0, k)) * 0.11)
-        if count > 11 { count = 11 }
+        var count = 4 + Int(Double(max(0, k)) * 0.13)
+        if count > 14 { count = 14 }
         if f.kind == .roof { count = 3 }
         if f.kind == .street { count = 12 }
         let pr = min(0.38, 0.15 + Double(max(0, k)) * 0.005)
@@ -449,7 +450,7 @@ final class Game {
         case .title: break
         case .intro:
             let before = Int(introT / 1.8)
-            introT += dt
+            if !introFreeze { introT += dt }
             if Int(introT / 1.8) != before && introT < introLen { snd?.stamp(); buzz(1) }
             if introT >= introLen { startTower(0) }
         case .card:
@@ -608,7 +609,7 @@ final class Game {
         let h = hero
         let f = floor
         for z in f.zeds {
-            if !z.alive { z.deadT += dt; continue }
+            if !z.alive { z.deadT += dt; z.flash = max(0, z.flash - dt * 6); continue }
             z.flash = max(0, z.flash - dt * 5)
             z.cd -= dt
             if z.burn > 0 {
@@ -1079,9 +1080,10 @@ final class Game {
         case "play": ups = ["smg": 2, "nade": 1, "drone": 1]; floorN = 70
         case "fire": ups = ["smg": 1, "flame": 1]; floorN = 78
         case "dogs": ups = ["shotgun": 2, "tesla": 1, "minigun": 1, "smg": 2]; floorN = 54
-        case "boss": ups = ["smg": 3, "minigun": 2, "orbital": 2, "nade": 2, "armor": 2]; floorN = 32
+        case "boss": ups = ["smg": 1, "nade": 1, "armor": 2]; floorN = 32
         case "hole": floorN = 82
-        case "lift": ups = ["smg": 3, "minigun": 3, "tesla": 2]; floorN = 75
+        case "street": ups = ["smg": 2, "shotgun": 2, "flame": 2, "tesla": 1]; floorN = 0
+        case "lift": ups = ["smg": 1]; floorN = 75
         case "pick": floorN = 78; picksDue = 1; ups = ["smg": 2, "nade": 1, "armor": 1]
         default: floorN = 84
         }
@@ -1091,7 +1093,10 @@ final class Game {
         fixEntry()
         for z in floor.zeds { z.aware = true }
         announce()
-        if what == "pick" { rollPick(); mode = .pick; pickT = 0 } else { mode = .play; auto = true }
+        if what == "fire" { hero.x = floor.wallX - 330; meter = 40 }
+        if what == "lift" { hero.x = floor.liftX - 260 }
+        if what == "hole" { floorN = 82; hero.x = floor.holeX - (floor.exitRight ? 300 : -300); hero.face = floor.exitRight ? 1 : -1 }
+        if what == "pick" { rollPick(); mode = .pick; pickT = 0 } else { mode = .play; auto = what == "play" || what == "dogs" || what == "boss" }
     }
 
     /// Plays all three towers with the bot, no drawing, and reports how it went.
