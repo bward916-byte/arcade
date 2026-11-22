@@ -662,9 +662,9 @@ let cw=0,ch=0,dpr=1;
 // The game is landscape-only. When the screen is upright the whole canvas is turned on its side,
 // so the picture is always wide: hold the phone sideways.
 let ROT=false,VW=0,VH=0;
-function resize(){dpr=Math.min(window.devicePixelRatio||1,2);const vv=window.visualViewport;VW=Math.round(Math.min(innerWidth,vv&&vv.width||innerWidth,document.documentElement.clientWidth||innerWidth));VH=Math.round(Math.min(innerHeight,vv&&vv.height||innerHeight,document.documentElement.clientHeight||innerHeight));
-  ROT=VH>VW*1.05;if(ROT){cw=VH-22;ch=VW;cv.style.transform='translate('+VW+'px,0) rotate(90deg)';}else{cw=VW;ch=VH;cv.style.transform='none';}
-  cv.style.width=cw+'px';cv.style.height=ch+'px';cv.width=Math.floor(cw*dpr);cv.height=Math.floor(ch*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);}
+function resize(){dpr=Math.min(window.devicePixelRatio||1,2);const vv=window.visualViewport;VW=Math.round(Math.min(innerWidth,vv&&vv.width||innerWidth,(document.documentElement||{}).clientWidth||innerWidth));VH=Math.round(Math.min(innerHeight,vv&&vv.height||innerHeight,(document.documentElement||{}).clientHeight||innerHeight));
+  const st=cv.style||{};ROT=VH>VW*1.05;if(ROT){cw=VH-22;ch=VW;st.transform='translate('+VW+'px,0) rotate(90deg)';}else{cw=VW;ch=VH;st.transform='none';}
+  st.width=cw+'px';st.height=ch+'px';cv.width=Math.floor(cw*dpr);cv.height=Math.floor(ch*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);}
 function mapE(e){return ROT?{clientX:e.clientY,clientY:VW-e.clientX,pointerId:e.pointerId,pointerType:e.pointerType}:e;}
 addEventListener('resize',resize);addEventListener('orientationchange',()=>setTimeout(resize,250));if(window.visualViewport)visualViewport.addEventListener('resize',resize);resize();
 const clamp=(v,a,b)=>v<a?a:v>b?b:v, rnd=(a,b)=>a+Math.random()*(b-a), lerp=(a,b,k)=>a+(b-a)*k, pick=a=>a[Math.floor(Math.random()*a.length)];
