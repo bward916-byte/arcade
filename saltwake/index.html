@@ -5385,6 +5385,16 @@ function toast(msg, ms) {
 }
 
 
+// ==== 01b_shore.js
+// ---- Driftwood Isle's coastline: one signed distance (metres, + is out to sea), shared by the walk map, the terrain and the water shader
+const smax = (a, b) => Math.log(Math.exp(1.6 * a) + Math.exp(1.6 * b)) / 1.6;
+function seaD(x, z) { const s = z - (3.5 + 0.7 * Math.sin(0.35 * x) + 0.35 * Math.sin(0.9 * x + 1.0)), w = (-6.2 + 0.4 * Math.sin(z * 0.8)) - x, c = Math.min(-3.8 + 0.5 * Math.sin(z * 0.7) - x, -1.5 - z), e = x - (29.5 + 0.8 * Math.sin(z * 0.5)); return smax(smax(s, w), smax(c, e)); }
+const SEAD_GLSL = `float smax(float a, float b){ return log(exp(1.6*a)+exp(1.6*b))/1.6; }
+float seaD(vec2 p){ float x = p.x, z = p.y; float s = z-(3.5+0.7*sin(0.35*x)+0.35*sin(0.9*x+1.0)), w = (-6.2+0.4*sin(z*0.8))-x, c = min(-3.8+0.5*sin(z*0.7)-x, -1.5-z), e = x-(29.5+0.8*sin(z*0.5)); return smax(smax(s,w), smax(c,e)); }`;
+function isleH(x, z) { const d = seaD(x, z); if (d >= 0) return -1.8 * smooth(d / 5);
+  const base = 0.35 + 4.4 * smooth((x - 1) / 9) * smooth((-z - 0.5) / 4.5) + 0.25 * vnoise(x * 0.5, z * 0.5, 4), back = z < -9.2 ? 8 * smooth((-9.2 - z) / 8) + vnoise(x * 0.3, z * 0.3, 7) * 1.6 * smooth((-9.5 - z) / 3) : 0;
+  return 0.02 + (base + back - 0.02) * smooth(-d / 2.2); }
+
 // ==== 02_fx.js
 // ---- shared rendering helpers for the top-down sea: particles, puff sprites, a tiny WebGL fullscreen-shader runner
 const GRAV = 22;
@@ -5925,9 +5935,9 @@ const LEVELS = {
     zones: [{ x: -7.4, z: 0, r: 1.5, label: 'Cast off', act: 'leave' }, { x: 0.5, z: -0.5, r: 1.3, label: 'Trade with the shipwright', act: 'trade' }, { x: 8.6, z: -0.6, r: 1.3, label: 'Enter the tavern', act: 'tavern' }],
     chest: [21.2, 2.2], items: [], foes: [], palms: [[-2.6, 6.6, 4.5], [11, 6.4, 5], [23, 1, 4]] },
   island: { kind: 'island', bounds: [-6, 27, -9.5, 3.4], start: [-4.6, 0.4], dusk: false,
-    h: (x, z) => 0.35 + 4.4 * smooth((x - 1) / 9) * smooth((-z - 0.5) / 4.5) + 0.25 * vnoise(x * 0.5, z * 0.5, 4),
-    water: (x, z) => z > 3.4 || x < -6 || (x < -3.8 && z < -1.5) || z < -9.5,
-    rects: [], circles: [[-1.5, -4, 0.4], [3, 1.6, 0.4], [7, -7.5, 0.4], [14, 1.4, 0.4], [18.5, -8.2, 0.4], [23.5, -2, 0.4], [9.5, -1.5, 0.35], [21, 1.6, 0.4], [13.5, -6.5, 1.1]],
+    h: (x, z) => isleH(x, z),
+    water: (x, z) => seaD(x, z) > -0.25 || z < -9.5,
+    rects: [], circles: [[-1.5, -4, 0.4], [3, 1.6, 0.4], [7, -7.5, 0.4], [14, 1.4, 0.4], [18.5, -8.2, 0.4], [23.5, -2, 0.4], [9.5, -1.5, 0.35], [21, 1.6, 0.4], [13.5, -6.5, 1.1], [23.4, 1.5, 0.7], [24.6, 2.0, 0.7]],
     zones: [{ x: -5.0, z: 0.4, r: 1.5, label: 'Row back to the ship', act: 'leave' }, { x: 13.5, z: -6.5, r: 2.0, label: 'Fill the water casks', act: 'water' }],
     chest: [25, -7.5], items: [['timber', -2.2, 2.2], ['coco', 3.4, 0.4], ['coco', 15.5, -0.3], ['timber', 10.5, -5.5], ['coco', 19.5, -6.5], ['timber', 23, 0.8], ['timber', 6.5, -3.8]],
     foes: [[6, -1, 3.5], [22.5, -7.5, 3]], palms: [[-1.5, -4, 4.5], [3, 1.6, 4], [7, -7.5, 5], [14, 1.4, 4.2], [18.5, -8.2, 5.5], [23.5, -2, 4.8], [9.5, -1.5, 3.6], [21, 1.6, 4.4]] },
@@ -6061,9 +6071,10 @@ const Land3 = {
   },
   makeWater() {
     const geo = new THREE.PlaneGeometry(420, 420, 1, 1); geo.rotateX(-Math.PI / 2);
-    const mat = this.waterMat = new THREE.ShaderMaterial({ transparent: true, uniforms: { uT: { value: 0 }, uSun: { value: new THREE.Vector3(-.4, .7, .5).normalize() }, uCam: { value: new THREE.Vector3() }, uNight: { value: 0 } },
+    const mat = this.waterMat = new THREE.ShaderMaterial({ transparent: true, uniforms: { uT: { value: 0 }, uSun: { value: new THREE.Vector3(-.4, .7, .5).normalize() }, uCam: { value: new THREE.Vector3() }, uNight: { value: 0 }, uIsle: { value: 0 } },
       vertexShader: 'varying vec3 vW; void main(){ vec4 w = modelMatrix*vec4(position,1.0); vW = w.xyz; gl_Position = projectionMatrix*viewMatrix*w; }',
-      fragmentShader: `precision highp float; varying vec3 vW; uniform float uT; uniform vec3 uSun; uniform vec3 uCam; uniform float uNight;
+      fragmentShader: `precision highp float; varying vec3 vW; uniform float uT; uniform vec3 uSun; uniform vec3 uCam; uniform float uNight; uniform float uIsle;
+      ${SEAD_GLSL}
       float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
       float noise(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f); return mix(mix(hash(i),hash(i+vec2(1,0)),f.x), mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x), f.y); }
       void main(){ vec2 p = vW.xz; vec2 g = vec2(0.0); float hs = 0.0;
@@ -6076,7 +6087,12 @@ const Land3 = {
         vec3 sky = mix(vec3(0.72, 0.84, 0.94), vec3(0.05,0.07,0.16), uNight); base = mix(base, base*vec3(0.15,0.2,0.35), uNight);
         vec3 col = mix(base, sky, F*0.9); vec3 Hh = normalize(uSun + V); col += vec3(1.0,0.95,0.8)*pow(max(dot(n, Hh), 0.0), 300.0)*(1.0-uNight)*0.8;
         float cap = smoothstep(0.17, 0.24, hs); col = mix(col, vec3(0.9,0.95,0.95), cap*0.35);
-        gl_FragColor = vec4(col, 0.93); }` });
+        float al = 0.93;
+        if (uIsle > 0.5) { float d = seaD(p); float sh = 1.0 - smoothstep(0.0, 8.0, d); vec3 tq = mix(vec3(0.16,0.62,0.6), vec3(0.03,0.12,0.2), uNight); col = mix(col, mix(tq, sky, F*0.6), sh*0.75); al = mix(0.93, 0.3, smoothstep(3.0, 0.0, d));
+          float nn = noise(p*1.3 + uT*0.2); float lap = d - (0.25 + 0.28*sin(uT*0.9 + p.x*0.35 + p.y*0.2)); float foam = smoothstep(0.5, 0.0, abs(lap)) * (0.55 + 0.45*nn);
+          float roll = smoothstep(0.86, 1.0, sin(d*1.5 + uT*1.1 + nn*1.6)) * smoothstep(7.0, 1.0, d) * smoothstep(0.2, 1.2, d) * (0.4 + 0.6*nn);
+          float fm = clamp(foam + roll*0.7, 0.0, 1.0) * (1.0 - 0.6*uNight); col = mix(col, vec3(0.97,0.99,1.0), fm); al = max(al, fm*0.95); }
+        gl_FragColor = vec4(col, al); }` });
     const m = new THREE.Mesh(geo, mat); m.position.y = 0; m.receiveShadow = true; return m;
   },
   // --- builders
@@ -6086,13 +6102,16 @@ const Land3 = {
       pos.setXYZ(i, x + (rng() - .5) * .35, y + (rng() - .5) * .3, zz + (rng() - .5) * .5); } g.computeVertexNormals();
     const m = new THREE.Mesh(g, [this.mat.rock, this.mat.rock, this.mat.moss, this.mat.rock, this.mat.rock, this.mat.rock]); m.position.set((x0 + x1) / 2, (y0 + y1) / 2, z); m.castShadow = m.receiveShadow = true; this.group.add(m); return m; },
   terrain(lv) {
-    const port = lv.kind === 'port', b = lv.bounds, W = 110, D = 70, cx = (b[0] + b[1]) / 2, g = new THREE.PlaneGeometry(W, D, 140, 90); g.rotateX(-Math.PI / 2); const pos = g.attributes.position, col = [];
+    const port = lv.kind === 'port', b = lv.bounds, W = 110, D = 70, cx = (b[0] + b[1]) / 2, g = new THREE.PlaneGeometry(W, D, port ? 140 : 220, port ? 90 : 140); g.rotateX(-Math.PI / 2); const pos = g.attributes.position, col = [];
     for (let i = 0; i < pos.count; i++) { const x = pos.getX(i) + cx, z = pos.getZ(i); let y, c;
       if (port) { const onQuay = x > -4.1 && z < 7.4 && z > -40; y = onQuay ? 1.9 : -1.6; if (z < -1.0 && x > -4.1) y = 1.9 + smooth((-z - 9) / 10) * 3 + vnoise(x * .2, z * .2, 1) * .25 * smooth((-z - 9) / 6); c = onQuay ? [0.62, 0.58, 0.5] : [0.4, 0.4, 0.38]; if (z < -9) c = [0.33, 0.42, 0.24]; }
-      else { const w = lv.water(x, z) ? smooth(Math.max(z - 3.4, -6 - x, (x < -3.8 ? -1.5 - z : -9), -9.5 - z) / 2.5) : 0; y = lv.h(x, z) * (1 - w) + (-1.8) * w;
-        const gr = clamp((y - 1.2) * 0.5, 0, 1); c = [lerp(0.86, 0.36, gr), lerp(0.78, 0.56, gr), lerp(0.6, 0.26, gr)]; }
+      else { const d = seaD(x, z), n = vnoise(x * 0.8, z * 0.8, 2), n2 = vnoise(x * 0.25, z * 0.25, 9); y = lv.h(x, z);
+        const wet = smooth((d + 1.3) / 1.2), gr = clamp((y - 1.15) * 0.55 + (n - 0.5) * 0.7, 0, 1) * (1 - wet), jg = smooth((-8.6 - z) / 2.5), sand = [0.9 - n2 * 0.08, 0.81 - n2 * 0.08, 0.62 - n2 * 0.06], grass = [0.2 + n2 * 0.12, 0.42 + n2 * 0.1, 0.1 + n * 0.05];
+        c = [0, 1, 2].map(k => lerp(lerp(lerp(sand[k], [0.6, 0.52, 0.38][k], wet), grass[k], gr), [0.1, 0.2, 0.07][k], jg * (1 - wet)));
+        if (d > 0) { const dp = smooth(d / 5); c = [lerp(0.6, 0.42, dp), lerp(0.55, 0.47, dp), lerp(0.4, 0.4, dp)]; } }
       pos.setX(i, x); pos.setY(i, y); col.push(c[0], c[1], c[2]); }
-    g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.computeVertexNormals();
+    g.computeVertexNormals(); if (!port) { const nr = g.attributes.normal; for (let i = 0; i < pos.count; i++) { const k = smooth((0.88 - nr.getY(i)) / 0.2) * (pos.getY(i) > 0.3 ? 1 : 0) * (1 - smooth((-8.6 - pos.getZ(i)) / 2.5)), r = 0.3 + vnoise(pos.getX(i) * 2, pos.getZ(i) * 2, 5) * 0.12; col[i * 3] = lerp(col[i * 3], r, k); col[i * 3 + 1] = lerp(col[i * 3 + 1], r * 0.96, k); col[i * 3 + 2] = lerp(col[i * 3 + 2], r * 0.9, k); } }
+    g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
     const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ vertexColors: true, map: port ? this.tex.stone : this.tex.sand, roughness: 1 })); m.receiveShadow = true; this.group.add(m);
   },
   pier(x0, x1, y, z, w) { const len = x1 - x0; const deck = this.box(len, 0.22, w, this.mat.deck, (x0 + x1) / 2, y - 0.11, z); deck.material = this.mat.deck;
@@ -6123,11 +6142,18 @@ const Land3 = {
         const sail = new THREE.Mesh(sg, this.mat.sail); sail.rotation.y = Math.PI / 2; sail.position.set(mx * L - 0.3, H + mh * yk - mh * 0.12, 0); sail.castShadow = true; sail.userData.sail = true; g.add(sail); } }
     if (tier > 0) { const bow = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.1, L * 0.3, 6), this.mat.wood); bow.rotation.z = -Math.PI / 2 - 0.25; bow.position.set(L / 2 + L * 0.12, H + 0.9, 0); g.add(bow); }
     g.userData = { L, B, H, draft }; this.shipDetail(g, tier, prof); return g; },
-  palm(x, y, z, h) { const g = new THREE.Group(); const seg = 7; let px = 0, py = 0, lean = rand(-0.08, 0.08);
-    for (let i = 0; i < seg; i++) { const s = new THREE.Mesh(new THREE.CylinderGeometry(0.1 + (seg - i) * 0.015, 0.13 + (seg - i) * 0.015, h / seg + 0.1, 8), (Flora.init(), this.mat.palmBark || (this.mat.palmBark = new THREE.MeshStandardMaterial({ map: Flora.tex.bark, color: 0xc8b090, roughness: 0.95 })))); s.position.set(px, py + h / seg / 2, 0); s.rotation.z = -lean * i; s.castShadow = true; g.add(s); px += Math.sin(lean * i) * h / seg; py += Math.cos(lean * i) * h / seg; }
-    for (let i = 0; i < 9; i++) { const a = i / 9 * TAU, leaf = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 0.9, 6, 1), (Flora.init(), Flora.mat.frond)); leaf.customDepthMaterial = Flora.mat.frondDepth; const lp = leaf.geometry.attributes.position; for (let k = 0; k < lp.count; k++) { const u = (lp.getX(k) + 1.3) / 2.6; lp.setY(k, lp.getY(k) * (1 - u * 0.6) - u * u * 1.4); } leaf.geometry.computeVertexNormals();
-      leaf.position.set(px, py + 0.1, 0); leaf.rotation.y = a; leaf.rotation.z = -0.1; leaf.geometry.translate(1.3, 0, 0); leaf.castShadow = true; leaf.userData.leaf = true; g.add(leaf); }
-    g.position.set(x, y, z); this.group.add(g); return g; },
+  palm(x, y, z, h) { Flora.init(); const g = new THREE.Group(), bark = this.mat.palmBark || (this.mat.palmBark = new THREE.MeshStandardMaterial({ map: Flora.tex.bark, color: 0xb8a080, roughness: 0.95 }));
+    // a trunk that leans and then curves back up toward the light, swollen at the foot
+    const la = rand(0, TAU), ln = rand(0.25, 0.75) * h * 0.22, top = new THREE.Vector3(Math.cos(la) * ln, h, 0), cv = new THREE.CatmullRomCurve3([new THREE.Vector3(0, -0.3, 0), new THREE.Vector3(Math.cos(la) * ln * 0.25, h * 0.3, 0), new THREE.Vector3(Math.cos(la) * ln * 0.75, h * 0.7, 0), top]);
+    const tg = new THREE.TubeGeometry(cv, 18, 0.13, 9), tp = tg.attributes.position, tn = tg.attributes.normal; for (let i = 0; i < tp.count; i++) { const u = Math.floor(i / 10) / 18, k = 0.55 * Math.pow(1 - u, 4) + 0.1 * (1 - u) + 0.05 * Math.sin(u * 60); tp.setXYZ(i, tp.getX(i) + tn.getX(i) * k * 0.3, tp.getY(i) + tn.getY(i) * k * 0.3, tp.getZ(i) + tn.getZ(i) * k * 0.3); }
+    tg.computeVertexNormals(); const tr = new THREE.Mesh(tg, bark); tr.castShadow = true; g.add(tr); const px = top.x, py = top.y;
+    const hub = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 6), bark); hub.position.set(px, py, 0); g.add(hub);
+    for (let i = 0; i < 4; i++) { const a = rand(0, TAU), c = new THREE.Mesh(new THREE.SphereGeometry(0.13, 8, 6), this.mat.coco); c.position.set(px + Math.cos(a) * 0.2, py - 0.22, Math.sin(a) * 0.2); c.castShadow = true; g.add(c); }
+    // two tiers of fronds: the young ones stand up, the old ones hang
+    for (let i = 0; i < 15; i++) { const low = i >= 9, a = i / (low ? 6 : 9) * TAU + rand(-0.2, 0.2), len = rand(2.5, 3.3) * (low ? 0.9 : 1), droop = low ? rand(2.0, 2.6) : rand(0.9, 1.6), leaf = new THREE.Mesh(new THREE.PlaneGeometry(len, 1.0, 8, 2), Flora.mat.frond); leaf.customDepthMaterial = Flora.mat.frondDepth;
+      const lp = leaf.geometry.attributes.position; for (let k = 0; k < lp.count; k++) { const u = (lp.getX(k) + len / 2) / len, v = lp.getY(k); lp.setZ(k, -Math.abs(v) * 0.5 * (1 - u * 0.5)); lp.setY(k, v * (1 - u * 0.65) - u * u * droop + Math.sin(u * 3.1) * 0.35 * (low ? 0.3 : 1)); } leaf.geometry.translate(len / 2, 0, 0); leaf.geometry.computeVertexNormals();
+      leaf.position.set(px, py + 0.1, 0); leaf.rotation.y = a; leaf.userData.rz = low ? -0.25 : rand(0.0, 0.3); leaf.rotation.z = leaf.userData.rz; leaf.castShadow = true; leaf.userData.leaf = true; g.add(leaf); }
+    g.rotation.y = rand(0, TAU); g.position.set(x, y, z); this.group.add(g); return g; },
   house(x0, x1, y0, h, z0, z1, roof, door) { const w = x1 - x0, d = z1 - z0, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
     this.box(w, h, d, this.mat.wall, cx, y0 + h / 2, cz); const sh = new THREE.Shape(); sh.moveTo(-w / 2 - 0.5, 0); sh.lineTo(w / 2 + 0.5, 0); sh.lineTo(0, h * 0.42); sh.closePath();
     const r = new THREE.Mesh(new THREE.ExtrudeGeometry(sh, { depth: d + 0.7, bevelEnabled: false }), roof === 'thatch' ? this.mat.thatch : this.mat.hullDark); r.position.set(cx, y0 + h - 0.02, z0 - 0.35); r.castShadow = r.receiveShadow = true; this.group.add(r);
@@ -6189,7 +6215,7 @@ const Land3 = {
   // --- scene assembly (top-down layouts)
   build(key, lv) { if (!this.ready) return; if (this.group) this.scene.remove(this.group); this.group = new THREE.Group(); this.scene.add(this.group); this.t = 0; FX3.lights = []; Hero.n = 0;
     const port = key === 'port'; this.scene.background = new THREE.Color(port ? 0x2a2440 : 0x9ccbe8); this.scene.fog = new THREE.Fog(port ? 0x1a1630 : 0xa8d0e6, 30, 90);
-    this.sunDir = port ? [-14, 16, 8] : [14, 30, 12]; this.sun.intensity = port ? 0.55 : 2.2; this.sun.color.set(port ? 0xffb080 : 0xfff1d6); this.hemi.intensity = port ? 0.4 : 0.9; this.hemi.color.set(port ? 0x6a5a8a : 0xbfd8ee); this.waterMat.uniforms.uNight.value = port ? 0.55 : 0;
+    this.sunDir = port ? [-14, 16, 8] : [14, 30, 12]; this.sun.intensity = port ? 0.55 : 2.2; this.sun.color.set(port ? 0xffb080 : 0xfff1d6); this.hemi.intensity = port ? 0.4 : 0.9; this.hemi.color.set(port ? 0x6a5a8a : 0xbfd8ee); this.waterMat.uniforms.uNight.value = port ? 0.55 : 0; this.waterMat.uniforms.uIsle.value = port ? 0 : 1;
     this.terrain(lv);
     for (const pm of lv.palms) this.palm(pm[0], lv.h(pm[0], pm[1]) - 0.1, pm[1], pm[2]);
     if (port) {
@@ -6203,9 +6229,6 @@ const Land3 = {
       const A = new THREE.Vector3(-8.0, d.H + 0.95, this.shipG.position.z + d.B / 2), Bp = new THREE.Vector3(-7.4, 1.8, -0.4), v = Bp.clone().sub(A);
       this.gang = this.box(v.length(), 0.08, 0.8, this.mat.deck, (A.x + Bp.x) / 2, (A.y + Bp.y) / 2, (A.z + Bp.z) / 2); this.gang.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), v.normalize());
     } else {
-      const sp = lv.zones[1]; const pool = new THREE.Mesh(new THREE.CircleGeometry(1.5, 18), new THREE.MeshStandardMaterial({ color: 0x3a8ab0, roughness: .15, transparent: true, opacity: .85 })); pool.rotation.x = -Math.PI / 2; pool.position.set(sp.x, lv.h(sp.x, sp.z) + 0.06, sp.z); this.group.add(pool);
-      for (let i = 0; i < 10; i++) { const a = i / 10 * TAU, rx = sp.x + Math.cos(a) * rand(1.5, 1.9), rz = sp.z + Math.sin(a) * rand(1.5, 1.9), r = new THREE.Mesh(new THREE.DodecahedronGeometry(rand(0.25, 0.45), 0), this.mat.rock); r.position.set(rx, lv.h(rx, rz) + 0.1, rz); r.castShadow = true; this.group.add(r); }
-      for (let i = 0; i < 16; i++) { const rx = rand(-5, 26), rz = rand(-9, 3); if (lv.water(rx, rz)) continue; const r = new THREE.Mesh(new THREE.DodecahedronGeometry(rand(0.15, 0.4), 0), this.mat.rock); r.position.set(rx, lv.h(rx, rz), rz); r.castShadow = true; this.group.add(r); }
       this.shipG = this.ship(G.tier); this.shipG.position.set(-9.6, -0.3, 0.4); this.shipG.rotation.y = 0.15; this.group.add(this.shipG);
     }
     const chest = new THREE.Group(); chest.position.set(lv.chest[0], lv.h(lv.chest[0], lv.chest[1]), lv.chest[1]); const cb = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.5, 0.55), this.mat.wood); cb.position.y = 0.25; cb.castShadow = true; chest.add(cb); const lid = new THREE.Group(); lid.position.set(0, 0.5, -0.27); const lm = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.22, 0.55), this.mat.wood); lm.position.set(0, 0.11, 0.27); lid.add(lm); const gold = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.1, 0.4), this.mat.gold); gold.position.y = 0.52; chest.add(gold); chest.add(lid); this.chest = { g: chest, lid }; this.group.add(chest);
@@ -6224,11 +6247,7 @@ const Land3 = {
         this.box(0.8, 0.5, 0.5, this.mat.crate, sx + 1.7, 1.9 + 0.25, sz + 0.1); }
       { const r = this.rig({ skin: 0xb98a6a, shirt: 0x6a6a5a, pants: 0x3a3a3a, boot: 0x2a2320, hat: 0x7a6a3a, vest: 0x3a2a1a, sash: 0x4a4a4a, hair: 0x9a9a9a }, {}); r.poser = new Motion.Poser(); r.poser.set('sit'); this.fisher = r; const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.02, 2.6, 5), this.mat.wood); rod.position.set(0.9, 0.9, 0.3); rod.rotation.z = -0.9; r.group.add(rod); const bucket = this.box(0.3, 0.3, 0.3, this.mat.iron, -22.3, 1.75 + 0.15, 0.9); bucket.geometry = new THREE.CylinderGeometry(0.16, 0.13, 0.3, 10); }
       const dog = new THREE.Group(), dm = new THREE.MeshStandardMaterial({ color: 0x8a6a3a, roughness: .9 }); const body = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 6), dm); body.scale.set(1.8, 0.9, 0.9); body.position.y = 0.32; dog.add(body); const hd = new THREE.Mesh(new THREE.SphereGeometry(0.14, 8, 6), dm); hd.position.set(0.42, 0.42, 0); dog.add(hd); for (const [x, z] of [[0.25, 0.1], [0.25, -0.1], [-0.25, 0.1], [-0.25, -0.1]]) { const lg = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.03, 0.3, 6), dm); lg.position.set(x, 0.15, z); dog.add(lg); } const tl = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.035, 0.3, 6), dm); tl.position.set(-0.42, 0.42, 0); tl.rotation.z = -0.9; dog.add(tl); dog.position.set(10.2, 1.9, 0.5); dog.rotation.y = -0.6; dog.traverse(m => { if (m.isMesh) m.castShadow = true; }); this.group.add(dog); this.dog = { g: dog, tail: tl }; }
-    else { const L = [], F = [], FL = [], rng = mulberry(5), R = (a, b) => a + rng() * (b - a), tc = new THREE.Color();
-      for (let i = 0; i < 1600; i++) { const x = R(-5, 27), z = R(-9.5, 3.2); if (lv.water(x, z)) continue; const y = lv.h(x, z), gr = clamp((y - 1.0) * 0.6, 0, 1); if (rng() > 0.25 + gr * 0.7) continue; tc.set(0xc9b56a).lerp(new THREE.Color(0x7fb052), gr).offsetHSL(R(-0.02, 0.02), 0, R(-0.06, 0.06)); L.push({ x, y: y - 0.02, z, s: R(0.6, 1.1), ry: R(0, TAU), c: tc.getHex() }); }
-      for (let i = 0; i < 160; i++) { const x = R(-2, 27), z = R(-9.5, 2); if (lv.water(x, z) || lv.h(x, z) < 1.5) continue; F.push({ x, y: lv.h(x, z) - 0.03, z, s: R(0.6, 1.1), ry: R(0, TAU), c: 0x8fc060 }); }
-      for (let i = 0; i < 60; i++) { const x = R(-2, 27), z = R(-9.5, 2); if (lv.water(x, z) || lv.h(x, z) < 1.5) continue; FL.push({ x, y: lv.h(x, z) + R(0.2, 0.4), z, s: R(0.05, 0.08), c: [0xff5a6a, 0xffd34a, 0xffffff, 0xff8ad0][i % 4] }); }
-      Flora.inst(this.group, Flora.geo.grass, Flora.mat.grass, L); Flora.inst(this.group, Flora.geo.fern, Flora.mat.fern, F); Flora.inst(this.group, new THREE.IcosahedronGeometry(1, 0), Flora.mat.flower, FL); this.dog = null; }
+    else { Isle.build(this, lv); this.dog = null; }
     this.camX = lv.start[0]; this.camZ = lv.start[1]; this.camY = lv.h(lv.start[0], lv.start[1]); this.dist = 46; this.el = 55 * Math.PI / 180; this.az = 0; FX3.build(key, lv);
   },
   // landing: the figure walks off the ship while the camera eases down from the chart height; casting off is the reverse
@@ -6241,7 +6260,7 @@ const Land3 = {
     const t = (y - o.y) / dir.y; if (t < 0) return; Land.tap(o.x + dir.x * t, o.z + dir.z * t); },
   update(dt) { if (!this.ready || !this.group) return; this.t += dt; const lv = Land.lv, p = Land.p; this.waterMat.uniforms.uT.value = this.t;
     if (this.shipG) { const s = this.shipG; s.position.y = (Land.key === 'port' ? 0 : -0.3) + Math.sin(this.t * 0.9) * 0.05; s.rotation.z = Math.sin(this.t * 0.7) * 0.012; for (const m of s.children) if (m.userData.sail) m.rotation.z = Math.sin(this.t * 1.3 + m.position.y) * 0.02; }
-    for (const c of this.group.children) if (c.children && c.children.length && c.children[c.children.length - 1].userData.leaf) for (const l of c.children) if (l.userData.leaf) l.rotation.z = -0.1 + Math.sin(this.t * 1.7 + l.rotation.y * 3) * 0.05;
+    for (const c of this.group.children) if (c.children && c.children.length && c.children[c.children.length - 1].userData.leaf) for (const l of c.children) if (l.userData.leaf) l.rotation.z = (l.userData.rz === undefined ? -0.1 : l.userData.rz) + Math.sin(this.t * 1.7 + l.rotation.y * 3) * 0.05;
     if (this.chest) this.chest.lid.rotation.x = lerp(this.chest.lid.rotation.x, Land.chestOpen ? -1.9 : 0, Math.min(1, dt * 4));
     this.itemMeshes.forEach((m, i) => { m.visible = !Land.items[i].taken; m.rotation.y = this.t * 0.6; });
     const P = this.player, po = P.poser; let px = p.x, py = p.y, pz = p.z, head = p.head, st = 'idle', tt = Land.t;
@@ -6428,7 +6447,7 @@ const FX3 = {
   island(lv) { const L3 = Land3, G3 = L3.group; this.signs = [];
     const sp = lv.zones.find(z => z.act === 'water'); this.mistAt = [sp.x, lv.h(sp.x, sp.z) + 0.2, sp.z];
     // a campfire by the landing: lit at dusk, and a place to rest
-    { const cx = -1.8, cz = 2.2, cy = lv.h(cx, cz); for (let k = 0; k < 8; k++) { const a = k / 8 * TAU, st = new THREE.Mesh(Flora.geo.rocks[k % 5], Flora.mat.rock); st.scale.setScalar(0.2); st.position.set(cx + Math.cos(a) * 0.55, cy + 0.05, cz + Math.sin(a) * 0.55); st.castShadow = true; G3.add(st); }
+    { const cx = -1.8, cz = 1.2, cy = lv.h(cx, cz); for (let k = 0; k < 8; k++) { const a = k / 8 * TAU, st = new THREE.Mesh(Flora.geo.rocks[k % 5], Flora.mat.rock); st.scale.setScalar(0.2); st.position.set(cx + Math.cos(a) * 0.55, cy + 0.05, cz + Math.sin(a) * 0.55); st.castShadow = true; G3.add(st); }
       for (let k = 0; k < 4; k++) { const lg = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.75, 6), L3.mat.wood); lg.position.set(cx, cy + 0.14, cz); lg.rotation.z = 1.15; lg.rotation.y = k * 0.8; G3.add(lg); }
       const pl = new THREE.PointLight(0xff9040, 0, 9, 2); pl.position.set(cx, cy + 0.7, cz); G3.add(pl); const seat = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.22, 1.5, 8), L3.mat.wood); seat.rotation.z = Math.PI / 2; seat.position.set(cx + 0.2, cy + 0.2, cz + 1.2); seat.castShadow = true; G3.add(seat); this.fire = { x: cx, y: cy, z: cz, pl, restT: 0 }; }
     // crabs on the wet sand
@@ -6454,6 +6473,7 @@ const FX3 = {
     const sd = [[14, 30, 12], [-22, 9, 10], [10, 24, -8]]; L3.sunDir = [0, 1, 2].map(i => lerp(lerp(sd[0][i], sd[1][i], dk), sd[2][i], n)); L3.waterMat.uniforms.uNight.value = n * 0.6 + dk * 0.15;
     const glow = this.glowK = clamp(n + dk * 0.8, 0, 1); this.lights.forEach((l, i) => { l.pl.intensity = 1.6 * glow * (0.85 + 0.15 * Math.sin(L3.t * 9 + i * 2.1) + 0.08 * Math.sin(L3.t * 23 + i)); l.mesh.visible = true; });
     if (L3.mat.window) { L3.mat.window.emissiveIntensity = glow * 1.1; } this.stars.material.opacity = n * 0.9; this.stars.position.copy(L3.cam.position); this.moon.material.opacity = n; this.moon.position.set(L3.cam.position.x - 60, 70, L3.cam.position.z - 120);
+    if (L3.sky && L3.sky.parent === L3.group) { const u = L3.sky.material.uniforms; mix(u.uTop.value, 0x3f86d0, 0x5a6aa8, 0x04060e); u.uHor.value.copy(L3.scene.background); u.uSun.value.set(L3.sunDir[0], L3.sunDir[1], L3.sunDir[2]).normalize(); L3.sky.position.set(L3.cam.position.x, 0, L3.cam.position.z); } if (L3.fallsTex) L3.fallsTex.offset.x = -L3.t * 0.9;
     if (this.fire) this.fire.pl.intensity = (0.5 + 1.6 * glow) * (0.85 + 0.15 * Math.sin(L3.t * 11) + 0.1 * Math.sin(L3.t * 27)); },
   // combat feel
   shake(a) { this.shakeA = Math.max(this.shakeA, a); }, stop(t) { this.stopT = Math.max(this.stopT, t); }, slow(t) { this.slowT = Math.max(this.slowT, t); },
@@ -6567,6 +6587,56 @@ const Hero = {
     g.position.set(0, 0, 0); g.rotation.set(0, 0, 0); g.scale.setScalar(1); g.updateMatrixWorld(true);
     h.pose(dt, { speed: A.v / (A.scale || 1), facing: 'right', grounded: true, crouch: st === 'sit' });
     g.position.set(x, y, z); g.rotation.y = yaw; g.scale.setScalar(A.scale || 1); },
+};
+
+// ==== 04h_isle.js
+// ---- Driftwood Isle set dressing: a spring under a rock face, jungle climbing the hill behind, boulders, a wreck on the sand, tide-line litter, sky
+const Isle = {
+  build(L3, lv) { const G3 = L3.group, rng = mulberry(5), R = (a, b) => a + rng() * (b - a), M = L3.mat, FM = Flora.mat, FG = Flora.geo, tc = new THREE.Color(), RM = Isle.rockMat || (Isle.rockMat = (() => { const m = FM.rock.clone(); m.color.set(0x6f6a62); return m; })());
+    const rock = (x, z, s, sink, sy) => { const m = new THREE.Mesh(FG.rocks[Math.floor(rng() * 5)], RM); m.scale.set(s, s * (sy || R(0.6, 0.95)), s * R(0.8, 1.2)); m.rotation.y = R(0, TAU); m.position.set(x, lv.h(x, z) - s * (sink === undefined ? 0.3 : sink), z); m.castShadow = m.receiveShadow = true; G3.add(m); return m; };
+    // sky dome; FX3 tints it through the day
+    L3.sky = Flora.sky(G3, 0x3f86d0, 0xbfe0f2, [14, 30, 12]); L3.sky.scale.setScalar(1.1);
+    // the spring: a pool under a rock face, water sheeting down it
+    const sp = lv.zones.find(z => z.act === 'water'), py = lv.h(sp.x, sp.z);
+    { const sh = new THREE.Shape(); for (let i = 0; i <= 24; i++) { const a = i / 24 * TAU, r = 1.45 + 0.25 * Math.sin(a * 3 + 1) + 0.12 * Math.sin(a * 5); i ? sh.lineTo(Math.cos(a) * r, Math.sin(a) * r) : sh.moveTo(Math.cos(a) * r, Math.sin(a) * r); }
+      const pool = new THREE.Mesh(new THREE.ShapeGeometry(sh), new THREE.MeshStandardMaterial({ color: 0x2f7f96, roughness: 0.08, metalness: 0.2, transparent: true, opacity: 0.86 })); pool.rotation.x = -Math.PI / 2; pool.position.set(sp.x, py + 0.07, sp.z); G3.add(pool);
+      const bed = new THREE.Mesh(new THREE.CircleGeometry(1.9, 20), new THREE.MeshStandardMaterial({ color: 0x3a3428, roughness: 1 })); bed.rotation.x = -Math.PI / 2; bed.position.set(sp.x, py + 0.03, sp.z); G3.add(bed);
+      for (let i = 0; i < 14; i++) { const a = i / 14 * TAU + R(-0.15, 0.15), r = R(1.6, 2.0); if (Math.sin(a) > 0.75) continue; rock(sp.x + Math.cos(a) * r, sp.z + Math.sin(a) * r, R(0.3, 0.55), 0.25); }
+      for (let i = 0; i < 9; i++) { const x = sp.x + R(-3.2, 3.2), z = sp.z - R(1.9, 3.1), m = rock(x, z, R(1.1, 1.9), 0.2, R(1.1, 1.7)); m.position.y = py + R(-0.2, 1.3); }
+      const ft = Flora.tex.foam.clone(); ft.needsUpdate = true; ft.wrapS = ft.wrapT = THREE.RepeatWrapping; ft.repeat.set(1, 3); ft.rotation = Math.PI / 2; L3.fallsTex = ft;
+      const fl = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 3.4, 1, 6), new THREE.MeshBasicMaterial({ map: ft, color: 0xe8f6ff, transparent: true, opacity: 0.8, depthWrite: false, side: THREE.DoubleSide })); const fp = fl.geometry.attributes.position; for (let i = 0; i < fp.count; i++) fp.setZ(i, Math.pow((1.7 - fp.getY(i)) / 3.4, 2) * 0.9); fl.position.set(sp.x, py + 1.75, sp.z - 2.0); G3.add(fl); }
+    // boulders: loose on the slopes, a headland closing the east end, a broken line where the hill starts
+    for (let i = 0; i < 16; i++) { const x = R(-4, 26), z = R(-9, 2.6); if (lv.water(x, z) || Math.hypot(x - sp.x, z - sp.z) < 3) continue; rock(x, z, R(0.18, 0.55)); }
+    for (let i = 0; i < 16; i++) rock(R(27.6, 31), R(-9, 4.5), R(0.9, 2.2), 0.35, R(0.8, 1.3));
+    for (let x = -5; x < 28; x += R(1.2, 2.4)) rock(x, R(-10.6, -9.9), R(0.6, 1.5), 0.3, R(0.8, 1.4));
+    // jungle on the hill behind: trunks with layered canopies, thick undergrowth
+    { const TR = [], CN = [], CO = [], FB = []; for (let i = 0; i < 70; i++) { const x = R(-14, 40), z = R(-33, -10.8), y = lv.h(x, z), s = R(1.6, 3.0), th = s * R(1.5, 2.4); if (seaD(x, z) > -1) continue; TR.push({ x, y: y - 0.3, z, s: 0.22 * s, sy: th, ry: R(0, TAU), c: 0x8a7458 });
+        for (let k = 0; k < 4; k++) { const a = R(0, TAU), r = k ? s * 0.55 : 0; tc.setHSL(R(0.25, 0.34), R(0.4, 0.6), R(0.2, 0.36)); CN.push({ x: x + Math.cos(a) * r, y: y + th + R(-0.2, 0.9) * s * 0.4, z: z + Math.sin(a) * r, s: s * R(0.8, 1.15), ry: R(0, TAU), c: tc.getHex() }); } CO.push({ x, y: y + th, z, s: s * 0.9, c: 0x1c3416 }); }
+      for (let i = 0; i < 260; i++) { const x = R(-12, 36), z = R(-22, -9.7); if (seaD(x, z) > -0.8) continue; tc.setHSL(R(0.24, 0.33), R(0.4, 0.6), R(0.22, 0.4)); FB.push({ x, y: lv.h(x, z) - 0.05, z, s: R(0.9, 1.9), ry: R(0, TAU), c: tc.getHex() }); }
+      for (let i = 0; i < 40; i++) { const x = R(-12, 36), z = R(-20, -10); if (seaD(x, z) > -0.8) continue; tc.setHSL(R(0.25, 0.33), 0.5, R(0.22, 0.34)); CN.push({ x, y: lv.h(x, z) + 0.5, z, s: R(0.7, 1.2), ry: R(0, TAU), c: tc.getHex() }); }
+      Flora.inst(G3, FG.trunk, FM.trunk, TR, true); Flora.inst(G3, FG.canopy, FM.leaf, CN, true, FM.leafDepth); Flora.inst(G3, FG.core, FM.core, CO, true); Flora.inst(G3, FG.fern, FM.fern, FB); }
+    for (const x of [-3.5, 2, 8.5, 16, 20.5, 26]) L3.palm(x + R(-0.6, 0.6), lv.h(x, -10.4) - 0.1, -10.4 + R(-0.4, 0.4), R(4.5, 7));
+    // ground cover where people walk: grass thickens with height, dune grass thin on the sand, ferns and flowers up top
+    { const L = [], F = [], FL = []; for (let i = 0; i < 2600; i++) { const x = R(-5.5, 28), z = R(-9.6, 3.6), d = seaD(x, z); if (d > -1.6) continue; const y = lv.h(x, z), gr = clamp((y - 1.0) * 0.6, 0, 1); if (rng() > 0.035 + gr * 0.85 || Math.hypot(x - sp.x, z - sp.z) < 2.3) continue;
+        tc.set(0xbfb070).lerp(new THREE.Color(0x6fa548), gr).offsetHSL(R(-0.02, 0.02), 0, R(-0.06, 0.06)); L.push({ x, y: y - 0.02, z, s: R(0.5, 0.9) * (0.75 + gr * 0.5), ry: R(0, TAU), c: tc.getHex() }); }
+      for (let i = 0; i < 120; i++) { const x = R(-2, 27), z = R(-9.5, 2); if (lv.water(x, z) || lv.h(x, z) < 1.6 || Math.hypot(x - sp.x, z - sp.z) < 2.8) continue; F.push({ x, y: lv.h(x, z) - 0.03, z, s: R(0.6, 1.2), ry: R(0, TAU), c: 0xa8d878 }); }
+      for (let i = 0; i < 70; i++) { const x = R(-2, 27), z = R(-9.5, 2); if (lv.water(x, z) || lv.h(x, z) < 1.5) continue; FL.push({ x, y: lv.h(x, z) + R(0.2, 0.4), z, s: R(0.05, 0.08), c: [0xff5a6a, 0xffd34a, 0xffffff, 0xff8ad0][i % 4] }); }
+      Flora.inst(G3, FG.grass, FM.grass, L); Flora.inst(G3, FG.fern, FM.fern, F); Flora.inst(G3, new THREE.IcosahedronGeometry(1, 0), FM.flower, FL); }
+    // the tide line: weed, shells, a starfish or two, bleached driftwood
+    { const weed = new THREE.MeshStandardMaterial({ color: 0x2f3a1c, roughness: 1 }), SH = [], bone = new THREE.MeshStandardMaterial({ color: 0x82776a, roughness: 1 });
+      for (let x = -5; x < 28; x += R(0.5, 1.4)) { let z = 2; for (let k = 0; k < 30; k++) { if (seaD(x, z) > -0.75) break; z += 0.1; } if (rng() < 0.55) { const w = new THREE.Mesh(new THREE.CircleGeometry(R(0.15, 0.45), 7), weed); w.rotation.x = -Math.PI / 2; w.rotation.z = R(0, TAU); w.scale.y = R(0.3, 0.6); w.position.set(x, lv.h(x, z) + 0.015, z + R(-0.15, 0.15)); G3.add(w); }
+        for (let k = 0; k < 2; k++) SH.push({ x: x + R(-0.5, 0.5), y: lv.h(x, z - 0.4) + 0.02, z: z - R(0.1, 1.2), s: R(0.03, 0.06), sy: 0.02, ry: R(0, TAU), c: [0xf4ece0, 0xf0c8c0, 0xe8dcc0, 0xd8c0a8][Math.floor(rng() * 4)] }); }
+      Flora.inst(G3, new THREE.SphereGeometry(1, 6, 4), new THREE.MeshStandardMaterial({ roughness: 0.5 }), SH);
+      const star = new THREE.Shape(); for (let i = 0; i < 10; i++) { const a = i / 10 * TAU, r = i % 2 ? 0.07 : 0.2; i ? star.lineTo(Math.cos(a) * r, Math.sin(a) * r) : star.moveTo(Math.cos(a) * r, Math.sin(a) * r); }
+      for (const [x, z] of [[5.5, 2.5], [12.5, 2.3], [19, 2.9]]) { const m = new THREE.Mesh(new THREE.ExtrudeGeometry(star, { depth: 0.03, bevelEnabled: false }), new THREE.MeshStandardMaterial({ color: 0xd8642a, roughness: 0.8 })); m.rotation.x = -Math.PI / 2; m.rotation.z = R(0, TAU); m.position.set(x, lv.h(x, z) + 0.01, z); G3.add(m); }
+      for (const [x, z, len, ry] of [[8, 2.3, 2.4, 0.3], [16.5, 2.6, 1.7, -0.5], [1, 2.9, 1.3, 1.1], [26, 0.5, 2.0, 0.9]]) { const m = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.14, len, 7), bone); m.rotation.z = Math.PI / 2 + R(-0.06, 0.06); m.rotation.y = ry; m.position.set(x, lv.h(x, z) + 0.08, z); m.castShadow = true; G3.add(m); const br = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.06, len * 0.4, 5), bone); br.position.set(x + Math.cos(ry) * len * 0.2, lv.h(x, z) + 0.22, z - Math.sin(ry) * len * 0.2); br.rotation.set(0.5, ry, 0.9); G3.add(br); } }
+    // the wreck Old Pell's note talks about: keel and ribs of a boat, half under the sand
+    { const w = new THREE.Group(), dark = new THREE.MeshStandardMaterial({ map: L3.tex.wood, color: 0x6a5a4a, roughness: 1 }); const keel = new THREE.Mesh(new THREE.BoxGeometry(4.6, 0.22, 0.2), dark); keel.position.y = 0.05; w.add(keel);
+      for (let i = 0; i < 8; i++) { const u = i / 7, wd = 0.95 * Math.sin(Math.PI * (0.15 + u * 0.75)), hh = i === 2 || i === 5 ? 0.5 : R(0.8, 1.25); for (const sd of [-1, 1]) { if (sd > 0 && i > 4) continue; const cv = new THREE.QuadraticBezierCurve3(new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0.05, sd * wd), new THREE.Vector3(0, hh, sd * wd * 1.1)), rb = new THREE.Mesh(new THREE.TubeGeometry(cv, 8, 0.06, 5), dark); rb.position.x = -2.1 + u * 4.2; rb.castShadow = true; w.add(rb); } }
+      for (let k = 0; k < 3; k++) { const pl = new THREE.Mesh(new THREE.BoxGeometry(R(1.4, 2.6), 0.04, 0.2), dark); pl.position.set(R(-1, 1), 0.3 + k * 0.25, -0.98 - k * 0.04); pl.rotation.x = 0.25; pl.castShadow = true; w.add(pl); }
+      const stem = new THREE.Mesh(new THREE.BoxGeometry(0.18, 1.5, 0.18), dark); stem.position.set(2.35, 0.6, 0); stem.rotation.z = -0.35; stem.castShadow = true; w.add(stem);
+      w.position.set(24, lv.h(24, 1.75) - 0.12, 1.75); w.rotation.set(0.12, -0.4, 0.05); G3.add(w); }
+  },
 };
 
 // ==== 05_ui.js
