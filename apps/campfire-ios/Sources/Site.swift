@@ -34,7 +34,7 @@ struct SiteError: LocalizedError {
 
 // Everything the app asks the website for.
 enum Site {
-    static let base = URL(string: "https://quartzsitecampfire.runasp.net")!
+    static let base = URL(string: "https://qcampfire.com")!
 
     static let cats: [Category] = [
         Category(id: "rv", name: "RV parts and solar"), Category(id: "camp", name: "Camping gear"),

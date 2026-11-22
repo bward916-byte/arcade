@@ -75,8 +75,11 @@ struct Pin: Codable, Identifiable {
     let name: String
     let lat: Double
     let lon: Double
-    let kind: String
+    let kind: String   // ltva, free, see, svc, food or med
     let area: String
+    var text: String?  // what the guide says about the place
+    var list: String?  // which guide list it is in
+    var map: String?   // Google Maps link
 }
 
 // Loads the guide once for all tabs. A copy is kept on the phone so it opens with no signal.
