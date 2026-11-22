@@ -206,12 +206,13 @@ struct DesertBanner: View {
              Color(red: 0.18, green: 0.12, blue: 0.28), Color(red: 0.11, green: 0.08, blue: 0.16), 0.84)
 
         // The tent: a wide striped roof with two peaks, and a lit doorway.
-        let left = w * 0.46, right = w * 0.94, eave = h * 0.60, floor = h * 0.86
-        let peaks = [CGPoint(x: left + (right - left) * 0.30, y: h * 0.30), CGPoint(x: left + (right - left) * 0.70, y: h * 0.30)]
+        let left = w * 0.52, right = w * 0.95, eave = h * 0.62, floor = h * 0.86
+        // The peaks sit below the title and subtitle so the words stay readable.
+        let peaks = [CGPoint(x: left + (right - left) * 0.30, y: h * 0.44), CGPoint(x: left + (right - left) * 0.70, y: h * 0.44)]
         let white = Color(red: 0.98, green: 0.95, blue: 0.88), red = Color(red: 0.78, green: 0.22, blue: 0.20)
         var roof = Path()
         roof.move(to: CGPoint(x: left, y: eave)); roof.addLine(to: peaks[0])
-        roof.addQuadCurve(to: peaks[1], control: CGPoint(x: (left + right) / 2, y: h * 0.46))
+        roof.addQuadCurve(to: peaks[1], control: CGPoint(x: (left + right) / 2, y: h * 0.56))
         roof.addLine(to: CGPoint(x: right, y: eave)); roof.closeSubpath()
         ctx.fill(roof, with: .color(white))
         for i in stride(from: 0, to: 8, by: 2) {
