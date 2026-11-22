@@ -35,6 +35,13 @@ final class GameViewController: UIViewController {
     private var demoDone = false
 
     private let stage = UIView()
+    private let hud = HudBar()
+    private lazy var pausePanel = panel()
+    private lazy var jumpPanel = panel()
+    private lazy var overPanel = panel()
+    private lazy var endPanel = panel()
+    private let jumpTowns = UILabel()
+    private let jumpScenes = UILabel()
     private let purse = UILabel()
     private let dayLabel = UILabel()
     private let info = UILabel()
@@ -127,8 +134,38 @@ final class GameViewController: UIViewController {
     }
     private func plate(_ l: UILabel) {
         l.backgroundColor = ink.withAlphaComponent(0.78)
-        l.layer.cornerRadius = 8
+        l.layer.cornerRadius = 10
+        l.layer.borderColor = gold.withAlphaComponent(0.4).cgColor
+        l.layer.borderWidth = 1
         l.layer.masksToBounds = true
+    }
+    /// The dark, gold-edged card every menu sits on.
+    private func panel() -> UIView {
+        let v = UIView()
+        v.backgroundColor = UIColor(red: 0.15, green: 0.105, blue: 0.07, alpha: 0.96)
+        v.layer.cornerRadius = 18
+        v.layer.borderColor = gold.withAlphaComponent(0.85).cgColor
+        v.layer.borderWidth = 2
+        v.isUserInteractionEnabled = false
+        return v
+    }
+    /// The one button a menu most wants pressed.
+    private func primary(_ b: UIButton, _ size: CGFloat = 20) {
+        b.setTitleColor(ink, for: .normal)
+        b.titleLabel?.font = serif(size)
+        b.backgroundColor = gold
+        b.layer.cornerRadius = 12
+        b.layer.borderColor = ink.cgColor
+        b.layer.borderWidth = 2
+    }
+    /// Everything else: quiet, outlined in gold.
+    private func secondary(_ b: UIButton, _ size: CGFloat = 15) {
+        b.setTitleColor(cream, for: .normal)
+        b.titleLabel?.font = serif(size)
+        b.backgroundColor = ink.withAlphaComponent(0.66)
+        b.layer.cornerRadius = 12
+        b.layer.borderColor = gold.withAlphaComponent(0.75).cgColor
+        b.layer.borderWidth = 1.5
     }
     private func round(_ l: UILabel, _ text: String) {
         style(l, 15, ink, .center)
@@ -169,7 +206,8 @@ final class GameViewController: UIViewController {
         purse.minimumScaleFactor = 0.7
         style(card, 30, gold, .center)
         card.numberOfLines = 2
-        for l in [purse, dayLabel, info, hint, card] { view.addSubview(l) }
+        for l in [info, hint, card] { view.addSubview(l) }
+        view.addSubview(hud)
 
         pad.isUserInteractionEnabled = false
         pad.backgroundColor = ink.withAlphaComponent(0.45)
@@ -210,10 +248,13 @@ final class GameViewController: UIViewController {
         for v in [titleName, titleTag, titleNote, goBtn] as [UIView] { titleBox.addSubview(v) }
         view.addSubview(titleBox)
 
-        overBox.backgroundColor = ink.withAlphaComponent(0.72)
-        style(overName, 34, gold, .center)
+        overBox.backgroundColor = UIColor(white: 0, alpha: 0.45)
+        style(overName, 28, gold, .center)
         overName.text = "Run out of town"
-        style(overText, 16, cream, .center)
+        style(overText, 15, cream, .center)
+        overText.numberOfLines = 2
+        overText.adjustsFontSizeToFitWidth = true
+        overText.minimumScaleFactor = 0.7
         overText.text = "The raiders caught you with an empty purse."
         button(againBtn, "New game")
         againBtn.addTarget(self, action: #selector(ride), for: .touchUpInside)
@@ -229,13 +270,18 @@ final class GameViewController: UIViewController {
         contBtn.addTarget(self, action: #selector(resumeSave), for: .touchUpInside)
         titleBox.addSubview(contBtn)
 
-        button(pauseBtn, "II")
-        pauseBtn.titleLabel?.font = serif(15)
-        pauseBtn.backgroundColor = gold.withAlphaComponent(0.8)
+        button(pauseBtn, "")
+        pauseBtn.backgroundColor = gold.withAlphaComponent(0.9)
+        let bars = CAShapeLayer()
+        let bp = UIBezierPath(roundedRect: CGRect(x: 9.5, y: 8.5, width: 4, height: 13), cornerRadius: 1.5)
+        bp.append(UIBezierPath(roundedRect: CGRect(x: 16.5, y: 8.5, width: 4, height: 13), cornerRadius: 1.5))
+        bars.path = bp.cgPath
+        bars.fillColor = ink.cgColor
+        pauseBtn.layer.addSublayer(bars)
         pauseBtn.addTarget(self, action: #selector(pauseTapped), for: .touchUpInside)
         view.addSubview(pauseBtn)
-        pauseBox.backgroundColor = ink.withAlphaComponent(0.78)
-        style(pauseName, 34, gold, .center)
+        pauseBox.backgroundColor = UIColor(white: 0, alpha: 0.45)
+        style(pauseName, 26, gold, .center)
         pauseName.text = "Paused"
         button(resumeBtn, "Resume")
         resumeBtn.addTarget(self, action: #selector(resumeTapped), for: .touchUpInside)
@@ -251,8 +297,10 @@ final class GameViewController: UIViewController {
         freeBtn.addTarget(self, action: #selector(freeTapped), for: .touchUpInside)
         button(detailBtn, "Detail: full")
         detailBtn.addTarget(self, action: #selector(detailTapped), for: .touchUpInside)
-        style(ruleLabel, 14, cream, .center)
-        ruleLabel.numberOfLines = 3
+        style(ruleLabel, 12, cream.withAlphaComponent(0.85), .center)
+        ruleLabel.numberOfLines = 2
+        ruleLabel.adjustsFontSizeToFitWidth = true
+        ruleLabel.minimumScaleFactor = 0.7
         button(sharpBtn, "Sharpness: high")
         sharpBtn.addTarget(self, action: #selector(sharpTapped), for: .touchUpInside)
         for v in [pauseName, resumeBtn, soundBtn, freeBtn, quitBtn, detailBtn, ruleLabel, sharpBtn] as [UIView] { pauseBox.addSubview(v) }
@@ -264,10 +312,14 @@ final class GameViewController: UIViewController {
         moreBtn.titleLabel?.font = serif(15)
         moreBtn.addTarget(self, action: #selector(moreTapped), for: .touchUpInside)
         titleBox.addSubview(moreBtn)
-        jumpBox.backgroundColor = ink.withAlphaComponent(0.9)
-        style(jumpName, 20, gold, .center)
-        jumpName.text = "Start at any town, or watch a scene"
-        jumpBox.addSubview(jumpName)
+        jumpBox.backgroundColor = UIColor(white: 0, alpha: 0.45)
+        style(jumpName, 24, gold, .center)
+        jumpName.text = "Towns and scenes"
+        style(jumpTowns, 13, cream.withAlphaComponent(0.8), .left)
+        jumpTowns.text = "Start at a town (for testing)"
+        style(jumpScenes, 13, cream.withAlphaComponent(0.8), .left)
+        jumpScenes.text = "Watch a scene"
+        for v in [jumpName, jumpTowns, jumpScenes] { jumpBox.addSubview(v) }
         for i in 0..<15 {
             let bt = UIButton(type: .system)
             let name = i < 5 ? "\(i + 1). " + TOWNS[i].capitalized : (i < 14 ? sceneNames[i - 5] : "Close")
@@ -290,10 +342,12 @@ final class GameViewController: UIViewController {
         style(caption, 16, cream, .center)
         caption.numberOfLines = 2
         barBottom.addSubview(caption)
-        endBox.backgroundColor = ink.withAlphaComponent(0.6)
-        style(endName, 34, gold, .center)
+        endBox.backgroundColor = UIColor(white: 0, alpha: 0.4)
+        style(endName, 28, gold, .center)
         endName.text = "The river remembers"
-        style(endStats, 15, cream, .center)
+        style(endStats, 14, cream, .center)
+        endStats.adjustsFontSizeToFitWidth = true
+        endStats.minimumScaleFactor = 0.7
         endStats.numberOfLines = 0
         button(sailBtn, "Sail on to a sixth town")
         sailBtn.titleLabel?.font = serif(17)
@@ -306,6 +360,17 @@ final class GameViewController: UIViewController {
         pauseBox.isHidden = true
         view.addSubview(pauseBox)
         view.addSubview(jumpBox)
+        pauseBox.insertSubview(pausePanel, at: 0)
+        jumpBox.insertSubview(jumpPanel, at: 0)
+        overBox.insertSubview(overPanel, at: 0)
+        endBox.insertSubview(endPanel, at: 0)
+        for bt in [resumeBtn, contBtn, dawnBtn, sailBtn] { primary(bt) }
+        sailBtn.titleLabel?.font = serif(16)
+        dawnBtn.titleLabel?.font = serif(17)
+        for bt in [soundBtn, detailBtn, sharpBtn, quitBtn, hardBtn, moreBtn, endNewBtn] { secondary(bt) }
+        secondary(freeBtn, 13)
+        for bt in jumpBtns { secondary(bt, 13) }
+        for bt in [soundBtn, detailBtn, sharpBtn, quitBtn, hardBtn, moreBtn, endNewBtn, freeBtn] { bt.titleLabel?.adjustsFontSizeToFitWidth = true }
 
         game.onBuzz = { [weak self] k in self?.buzz(k) }
         game.onDawn = { [weak self] in self?.save() }
@@ -321,10 +386,12 @@ final class GameViewController: UIViewController {
         let s = view.safeAreaInsets
         let left = max(s.left, 12), right = max(s.right, 12), bottom = max(s.bottom, 8)
         stage.frame = b
-        purse.frame = CGRect(x: left + 4, y: 6, width: b.width * 0.6, height: 22)
-        dayLabel.frame = CGRect(x: b.width - right - 210, y: 6, width: 160, height: 22)
-        pauseBtn.frame = CGRect(x: b.width - right - 40, y: 4, width: 38, height: 28)
-        hint.frame = CGRect(x: b.width * 0.5 - 250, y: 32, width: 500, height: 40)
+        hud.frame = CGRect(x: 0, y: 0, width: b.width, height: 36)
+        hud.leftInset = left + 2
+        hud.rightInset = right + 40
+        pauseBtn.frame = CGRect(x: b.width - right - 34, y: 2.5, width: 30, height: 30)
+        pauseBtn.layer.cornerRadius = 15
+        hint.frame = CGRect(x: b.width * 0.5 - 250, y: 38, width: 500, height: 40)
         let infoW = min(b.width - 2 * (left + 160), 560)
         info.frame = CGRect(x: b.width * 0.5 - infoW / 2, y: b.height - bottom - 44, width: infoW, height: 30)
         info.numberOfLines = 2
@@ -346,52 +413,80 @@ final class GameViewController: UIViewController {
         titleTag.frame = CGRect(x: 20, y: b.height * 0.06 + 74, width: b.width - 40, height: 24)
         let saved = loadSave() != nil
         contBtn.isHidden = !saved
-        if saved {
-            contBtn.frame = CGRect(x: b.width * 0.5 - 190, y: b.height - bottom - 78, width: 180, height: 48)
-            goBtn.frame = CGRect(x: b.width * 0.5 + 10, y: b.height - bottom - 78, width: 180, height: 48)
-        } else {
-            goBtn.frame = CGRect(x: b.width * 0.5 - 90, y: b.height - bottom - 78, width: 180, height: 48)
-        }
-        goBtn.setTitle(saved ? "New game" : "Ride in", for: .normal)
-        pauseBox.frame = b
-        pauseName.frame = CGRect(x: 20, y: b.height * 0.1, width: b.width - 40, height: 44)
-        resumeBtn.frame = CGRect(x: b.width * 0.5 - 130, y: b.height * 0.1 + 56, width: 260, height: 46)
-        soundBtn.frame = CGRect(x: b.width * 0.5 - 130, y: b.height * 0.1 + 110, width: 260, height: 46)
-        pauseName.frame = CGRect(x: 20, y: b.height * 0.04, width: b.width - 40, height: 40)
-        resumeBtn.frame = CGRect(x: b.width * 0.5 - 270, y: b.height * 0.04 + 52, width: 260, height: 46)
-        soundBtn.frame = CGRect(x: b.width * 0.5 + 10, y: b.height * 0.04 + 52, width: 260, height: 46)
-        freeBtn.frame = CGRect(x: b.width * 0.5 - 270, y: b.height * 0.04 + 108, width: 260, height: 46)
-        quitBtn.frame = CGRect(x: b.width * 0.5 + 10, y: b.height * 0.04 + 108, width: 260, height: 46)
-        detailBtn.frame = CGRect(x: b.width * 0.5 - 270, y: b.height * 0.04 + 164, width: 260, height: 46)
-        sharpBtn.frame = CGRect(x: b.width * 0.5 + 10, y: b.height * 0.04 + 164, width: 260, height: 46)
-        ruleLabel.frame = CGRect(x: 20, y: b.height * 0.04 + 216, width: b.width - 40, height: 44)
-        hardBtn.frame = CGRect(x: b.width - right - 176, y: b.height - bottom - 78, width: 164, height: 48)
         hardBtn.isHidden = !hardOpen
-        moreBtn.frame = CGRect(x: left + 12, y: b.height - bottom - 78, width: 170, height: 48)
-        jumpBox.frame = b
-        jumpName.frame = CGRect(x: 20, y: b.height * 0.06, width: b.width - 40, height: 28)
-        let gw = (b.width - left - right - 24 - 4 * 8) / 5
-        for (i, bt) in jumpBtns.enumerated() {
-            let row = i / 5, col = i % 5
-            bt.frame = CGRect(x: left + 12 + CGFloat(col) * (gw + 8), y: b.height * 0.06 + 44 + CGFloat(row) * 58 + (row > 0 ? 14 : 0), width: gw, height: 46)
+        goBtn.setTitle(saved ? "New game" : "Ride in", for: .normal)
+        if saved { secondary(goBtn, 16) } else { primary(goBtn) }
+        // one centred row, the main button widest
+        var row: [(UIButton, CGFloat)] = [(moreBtn, 168)]
+        if saved { row.append((contBtn, 190)) }
+        row.append((goBtn, saved ? 140 : 190))
+        if hardOpen { row.append((hardBtn, 150)) }
+        let gap: CGFloat = 10
+        let total = row.reduce(CGFloat(0)) { $0 + $1.1 } + gap * CGFloat(row.count - 1)
+        let fit = min(1, (b.width - left - right - 16) / total)
+        var rx = (b.width - total * fit) / 2
+        for (bt, w) in row {
+            bt.frame = CGRect(x: rx, y: b.height - bottom - 76, width: w * fit, height: 48)
+            rx += (w + gap) * fit
         }
+        titleNote.frame = CGRect(x: 20, y: b.height - bottom - 24, width: b.width - 40, height: 18)
+
+        pauseBox.frame = b
+        let pw = min(b.width - left - right - 16, 600), ph = min(b.height - 12, 272)
+        let px = (b.width - pw) / 2, py = (b.height - ph) / 2
+        pausePanel.frame = CGRect(x: px, y: py, width: pw, height: ph)
+        pauseName.frame = CGRect(x: px, y: py + 10, width: pw, height: 32)
+        ruleLabel.frame = CGRect(x: px + 20, y: py + 44, width: pw - 40, height: 36)
+        resumeBtn.frame = CGRect(x: px + 20, y: py + 88, width: pw - 40, height: 46)
+        let tw = (pw - 40 - 16) / 3
+        for (i, bt) in [soundBtn, detailBtn, sharpBtn].enumerated() {
+            bt.frame = CGRect(x: px + 20 + CGFloat(i) * (tw + 8), y: py + 144, width: tw, height: 46)
+        }
+        let fw = (pw - 48) * 0.6
+        freeBtn.frame = CGRect(x: px + 20, y: py + 200, width: fw, height: 56)
+        quitBtn.frame = CGRect(x: px + 28 + fw, y: py + 200, width: pw - 48 - fw, height: 56)
+
+        jumpBox.frame = b
+        let jw = b.width - left - right - 16, jh = min(b.height - 12, 250)
+        let jx = (b.width - jw) / 2, jy = (b.height - jh) / 2
+        jumpPanel.frame = CGRect(x: jx, y: jy, width: jw, height: jh)
+        jumpName.frame = CGRect(x: jx, y: jy + 10, width: jw, height: 30)
+        jumpTowns.frame = CGRect(x: jx + 18, y: jy + 44, width: 260, height: 18)
+        jumpScenes.frame = CGRect(x: jx + 18, y: jy + 116, width: 260, height: 18)
+        let gw = (jw - 32 - 4 * 8) / 5
+        for (i, bt) in jumpBtns.enumerated() {
+            if i == 14 { bt.frame = CGRect(x: jx + jw - 92, y: jy + 10, width: 78, height: 30); continue }
+            let r = i < 5 ? 0 : (i < 10 ? 1 : 2), col = i < 5 ? i : (i - 5) % 5
+            let y = r == 0 ? jy + 66 : jy + 138 + CGFloat(r - 1) * 50
+            bt.frame = CGRect(x: jx + 16 + CGFloat(col) * (gw + 8), y: y, width: gw, height: 42)
+        }
+
         let barH = b.height * 0.13
         barTop.frame = CGRect(x: 0, y: 0, width: b.width, height: barH)
         barBottom.frame = CGRect(x: 0, y: b.height - barH - 8, width: b.width, height: barH + 8)
         caption.frame = CGRect(x: 30, y: 0, width: b.width - 60, height: barH)
+
         endBox.frame = b
-        endName.frame = CGRect(x: 20, y: b.height * 0.05, width: b.width - 40, height: 42)
-        endStats.frame = CGRect(x: 20, y: b.height * 0.05 + 44, width: b.width - 40, height: b.height * 0.45)
-        sailBtn.frame = CGRect(x: b.width * 0.5 - 250, y: b.height - bottom - 62, width: 260, height: 46)
-        endNewBtn.frame = CGRect(x: b.width * 0.5 + 30, y: b.height - bottom - 62, width: 200, height: 46)
-        titleNote.frame = CGRect(x: 20, y: b.height - bottom - 26, width: b.width - 40, height: 18)
+        let ew = min(b.width - left - right - 16, 560), eh = min(b.height - 12, 320)
+        let ex = (b.width - ew) / 2, ey = (b.height - eh) / 2
+        endPanel.frame = CGRect(x: ex, y: ey, width: ew, height: eh)
+        endName.frame = CGRect(x: ex, y: ey + 12, width: ew, height: 36)
+        endStats.frame = CGRect(x: ex + 20, y: ey + 50, width: ew - 40, height: eh - 50 - 70)
+        let sw2 = (ew - 48) * 0.58
+        sailBtn.frame = CGRect(x: ex + 20, y: ey + eh - 60, width: sw2, height: 46)
+        endNewBtn.frame = CGRect(x: ex + 28 + sw2, y: ey + eh - 60, width: ew - 48 - sw2, height: 46)
 
         overBox.frame = b
-        overName.frame = CGRect(x: 20, y: b.height * 0.24, width: b.width - 40, height: 44)
-        overText.frame = CGRect(x: 20, y: b.height * 0.24 + 48, width: b.width - 40, height: 24)
+        let ow = min(b.width - left - right - 16, 520), oh: CGFloat = 190
+        let ox = (b.width - ow) / 2, oy = (b.height - oh) / 2
+        overPanel.frame = CGRect(x: ox, y: oy, width: ow, height: oh)
+        overName.frame = CGRect(x: ox, y: oy + 14, width: ow, height: 38)
+        overText.frame = CGRect(x: ox + 16, y: oy + 58, width: ow - 32, height: 44)
         dawnBtn.isHidden = !saved
-        dawnBtn.frame = CGRect(x: b.width * 0.5 - 230, y: b.height * 0.24 + 92, width: 240, height: 48)
-        againBtn.frame = saved ? CGRect(x: b.width * 0.5 + 30, y: b.height * 0.24 + 92, width: 180, height: 48) : CGRect(x: b.width * 0.5 - 90, y: b.height * 0.24 + 92, width: 180, height: 48)
+        if saved { secondary(againBtn, 16) } else { primary(againBtn) }
+        let dw = (ow - 48) * 0.6
+        dawnBtn.frame = CGRect(x: ox + 20, y: oy + oh - 64, width: dw, height: 48)
+        againBtn.frame = saved ? CGRect(x: ox + 28 + dw, y: oy + oh - 64, width: ow - 48 - dw, height: 48) : CGRect(x: ox + ow / 2 - 100, y: oy + oh - 64, width: 200, height: 48)
         rebuild()
     }
 
@@ -423,6 +518,8 @@ final class GameViewController: UIViewController {
             if args.contains("-demo-scene") { game.demo("scene") }
             if args.contains("-demo-cliff") { game.demo("cliff") }
             if args.contains("-demo-last") { game.demo("last") }
+            if args.contains("-demo-pause") { game.demo("play"); pauseTapped() }
+            if args.contains("-demo-jump") { moreTapped() }
             if args.contains("-demo-econ") {
                 let bot = Game()
                 bot.W = game.W; bot.H = game.H; bot.GY = game.GY
@@ -626,13 +723,22 @@ final class GameViewController: UIViewController {
         if game.state == .title { set(titleNote, best > 0 ? "Best run: \(best)" : "") }
         titleBox.isHidden = game.state != .title
         overBox.isHidden = game.state != .over
-        for v in [purse, dayLabel, pad, fireBtn, pauseBtn] as [UIView] { v.isHidden = !playing && game.state != .over }
+        for v in [hud, pad, fireBtn, pauseBtn] as [UIView] { v.isHidden = !playing && game.state != .over }
         if game.state == .over && dawnBtn.isHidden == (loadSave() != nil) { view.setNeedsLayout() }
         let p = game.player
-        let arrows = p.rl > 0 ? "restringing" : String(repeating: "|", count: max(0, p.ammo))
-        let vault = (game.B(.bank).level > 0 ? "    Vault \(game.bank)" : "") + (game.ankh ? "    Ankh" : "")
-        set(purse, "Coins \(p.coins)\(vault)    Arrows \(arrows)    People \(game.folk.count) of \(game.popCap), \(game.head(.folk)) free")
-        set(dayLabel, game.dark > 0.5 ? "Night \(game.ln)" : "Day \(game.ln)")
+        hud.coins = p.coins
+        hud.vault = game.B(.bank).level > 0 ? game.bank : -1
+        hud.arrows = p.ammo
+        hud.arrowMax = max(6, p.ammo)
+        hud.restring = p.rl > 0
+        hud.people = game.folk.count
+        hud.cap = game.popCap
+        hud.free = game.head(.folk)
+        hud.ankh = game.ankh
+        hud.night = game.dark > 0.5
+        hud.dayText = (game.dark > 0.5 ? "Night " : "Day ") + "\(game.ln)"
+        hud.frac = game.t
+        hud.refresh()
         if playing, let line = game.infoLine() {
             set(info, line.0 + "   " + line.1)
             info.textAlignment = .center
