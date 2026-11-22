@@ -1077,6 +1077,7 @@ function updIsland(dt){
   const k=I.kid;
   if(!I.rowing){const d=k.tx-k.x,inp=hero.input;
     if(Math.abs(d)>5){inp.dir=Math.sign(d);inp.run=Math.abs(d)>70||!!demo;fpT-=dt;if(fpT<=0&&(I.kid.x>70&&I.kid.x<590||I.kid.x>3290)){fpT=inp.run?0.2:0.3;FP.push({x:I.kid.x,t:0,s:FP.length%2});if(FP.length>60)FP.shift();}if(I.kid.x>70&&Math.random()<dt*(inp.run?9:4))dust(I.kid.x-inp.dir*3,groundLand(I.kid.x)-1,1,I.kid.x<600||I.kid.x>3280?'232,214,170':'150,132,100',10);}else inp.dir=0;
+    if(I.fishing&&!I.rowing&&inp.dir===0)hero.H.dir=-1; // always face the water where the line lands
     hero.H.armPose=I.fishing?[1.05,0.75]:(I.haul&&I.haul.phase==='carry')?[2.85,0.25]:null;
     hero.update(dt*(demo?1.5:1));updNPCs(dt);
     k.x=hero.H.x/SF;k.face=hero.H.dir;}
