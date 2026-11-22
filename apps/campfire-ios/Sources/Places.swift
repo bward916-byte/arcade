@@ -20,6 +20,15 @@ let pinGroups: [PinGroup] = [
     PinGroup(id: "med", name: "Medical", kinds: ["med"], symbol: "cross.fill", color: UIColor(red: 179 / 255, green: 38 / 255, blue: 30 / 255, alpha: 1)),
     PinGroup(id: "see", name: "Sights and trips", kinds: ["see"], symbol: "binoculars.fill", color: UIColor(red: 109 / 255, green: 74 / 255, blue: 168 / 255, alpha: 1))]
 
+// The picture on a pin. The site names an icon for each kind of place; this is the matching Apple symbol.
+func pinSymbol(_ pin: Pin) -> String {
+    let names: [String: String] = ["tent": "tent.fill", "gem": "diamond.fill", "tire": "circle.circle.fill", "drop": "drop.fill", "pump": "fuelpump.fill",
+        "mail": "envelope.fill", "cart": "cart.fill", "fork": "fork.knife", "wrench": "wrench.fill", "cross": "cross.fill", "bus": "bus.fill",
+        "heart": "heart.fill", "flame": "flame.fill", "mark": "binoculars.fill"]
+    if let icon = pin.icon, let symbol = names[icon] { return symbol }
+    return pin.kind == "see" ? "diamond.fill" : pinGroup(pin.kind).symbol
+}
+
 func pinGroup(_ kind: String) -> PinGroup {
     pinGroups.first { $0.kinds.contains(kind) } ?? pinGroups[4]
 }
@@ -214,7 +223,7 @@ struct CampMap: UIViewRepresentable {
             view.annotation = mark
             let group = pinGroup(mark.pin.kind)
             view.markerTintColor = group.color
-            view.glyphImage = UIImage(systemName: group.symbol)
+            view.glyphImage = UIImage(systemName: pinSymbol(mark.pin))
             view.displayPriority = mark.pin.area.isEmpty ? .defaultHigh : .required
             view.titleVisibility = .adaptive
             return view
@@ -351,7 +360,7 @@ struct PlacesView: View {
                     picked = pin
                 } label: {
                     HStack(spacing: 10) {
-                        Image(systemName: pinGroup(pin.kind).symbol).foregroundColor(.white).font(.caption)
+                        Image(systemName: pinSymbol(pin)).foregroundColor(.white).font(.caption)
                             .frame(width: 26, height: 26).background(Color(pinGroup(pin.kind).color)).clipShape(Circle())
                         Text(pin.name).foregroundColor(.primary)
                     }

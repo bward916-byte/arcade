@@ -80,6 +80,7 @@ struct Pin: Codable, Identifiable {
     var text: String?  // what the guide says about the place
     var list: String?  // which guide list it is in
     var map: String?   // Google Maps link
+    var icon: String?  // the website's icon name for this kind of place: tire, pump, mail and so on
 }
 
 // Loads the guide once for all tabs. The last copy is kept on the phone, and a copy ships inside the app, so it opens with no signal.
