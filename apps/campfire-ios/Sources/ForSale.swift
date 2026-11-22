@@ -51,7 +51,7 @@ struct ForSaleView: View {
         NavigationStack(path: $path) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
-                    DesertBanner(title: "Quartzsite Campfire", subtitle: "Buy, sell and trade around Quartzsite")
+                    DesertBanner(title: "Quartzsite Campfire", subtitle: "Buy, sell and trade around Quartzsite", scene: "market")
                         .padding(.horizontal)
                     Button {
                         posting = true

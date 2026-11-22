@@ -10,7 +10,7 @@ struct AlertsView: View {
         NavigationStack {
             List {
                 Section {
-                    DesertBanner(title: "Alerts", subtitle: "Weather warnings and local news")
+                    DesertBanner(title: "Alerts", subtitle: "Weather warnings and local news", scene: "storm")
                 }
                 .listRowInsets(EdgeInsets())
                 .listRowBackground(Color.clear)

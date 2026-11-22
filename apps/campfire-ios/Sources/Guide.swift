@@ -256,7 +256,7 @@ struct ShowsView: View {
             List {
                 if let shows = guide.data?.shows {
                     Section {
-                        DesertBanner(title: "Show season", subtitle: "Gem, rock and RV shows all winter")
+                        DesertBanner(title: "Show season", subtitle: "Gem, rock and RV shows all winter", scene: "bigtop")
                     }
                     .listRowInsets(EdgeInsets())
                     .listRowBackground(Color.clear)
