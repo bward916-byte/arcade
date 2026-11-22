@@ -369,7 +369,11 @@ final class GameViewController: UIViewController {
         dawnBtn.titleLabel?.font = serif(17)
         for bt in [soundBtn, detailBtn, sharpBtn, quitBtn, hardBtn, moreBtn, endNewBtn] { secondary(bt) }
         secondary(freeBtn, 13)
-        for bt in jumpBtns { secondary(bt, 13) }
+        for bt in jumpBtns {
+            secondary(bt, 13)
+            bt.titleLabel?.minimumScaleFactor = 0.7
+            bt.contentEdgeInsets = UIEdgeInsets(top: 0, left: 8, bottom: 0, right: 8)
+        }
         for bt in [soundBtn, detailBtn, sharpBtn, quitBtn, hardBtn, moreBtn, endNewBtn, freeBtn] { bt.titleLabel?.adjustsFontSizeToFitWidth = true }
 
         game.onBuzz = { [weak self] k in self?.buzz(k) }
