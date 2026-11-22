@@ -826,7 +826,7 @@ final class GameViewController: UIViewController {
         if game.state == .title { set(titleNote, best > 0 ? "Best run: \(best)" : "") }
         titleBox.isHidden = game.state != .title
         overBox.isHidden = game.state != .over
-        for v in [hud, pad, fireBtn, pauseBtn] as [UIView] { v.isHidden = !playing && game.state != .over }
+        for v in [hud, pad, fireBtn, pauseBtn] as [UIView] { v.isHidden = !playing }
         if game.state == .over && dawnBtn.isHidden == (loadSave() != nil) { view.setNeedsLayout() }
         let p = game.player
         hud.coins = p.coins

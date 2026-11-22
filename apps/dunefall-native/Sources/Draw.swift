@@ -454,12 +454,13 @@ final class Renderer {
             c.R(x, fy + 2, pw, ph - (fy + 2 - y), Col(0xd8b074))
             for i in 0..<5 { let bx = x + pw - 62 + Double(i) * 12, bh = 10 + hashN(Double(i) + 860) * 12; c.R(bx, fy + 2 - bh, 10, bh, Col(0xa8845a)); c.R(bx, fy + 2 - bh, 10, 1, Col(0xd8b88a)); c.R(bx + 3.4, fy - 4, 3, 6, Col(0x5a4028)) }
             c.dome(x + pw - 24, fy + 2 - 20, 6, Col(0xa8845a))
-            for r in 0..<7 {
+            c.R(x, y, 16, ph, Col(0x9a6a38))
+            for r in 0..<6 {
                 for q in 0..<6 {
                     let k = Double(r * 6 + q)
-                    let bx = x + 6 + Double(q) * 13 + sin(NOW * 0.9 + k) * 3 + Double(r) * 2.4, by = y + 6 + Double(r) * 10
-                    c.circ(bx, by, 10 + hashN(k + 870) * 5, r % 2 == 0 ? Col(0x9a6a38) : Col(0xb07e46))
-                    c.circ(bx - 2, by - 2.4, 6, rgba(226, 180, 120, 0.5))
+                    let bx = x + 12 + Double(q) * 12 + sin(NOW * 0.9 + k) * 2 + Double(r) * 2, by = y + 11 + Double(r) * 10.4
+                    c.circ(bx, by, 8 + hashN(k + 870) * 2.6, r % 2 == 0 ? Col(0x9a6a38) : Col(0xb07e46))
+                    c.circ(bx - 1.6, by - 2, 4.6, rgba(226, 180, 120, 0.5))
                 }
             }
             for i in 0..<14 { let k = Double(i); let u = (NOW * 0.7 + hashN(k + 880)).truncatingRemainder(dividingBy: 1); c.R(x + 84 + u * 60, y + 8 + hashN(k + 881) * (ph - 16), 6 + hashN(k + 882) * 8, 0.4, rgba(110, 70, 30, 0.6 * (1 - u))) }
@@ -491,8 +492,8 @@ final class Renderer {
             }
             for i in 0..<9 {
                 let k = Double(i)
-                let bx = x + k * 18 - 2, bh = 12 + hashN(k + 897) * 14
-                c.R(bx, fy + 8 - bh, 17, bh + 8, Col(0x1c1a3a)); c.R(bx + 3, fy + 8 - bh + 4, 3, 4, Col(0xffd27a)); if i % 2 == 0 { c.R(bx + 10, fy + 8 - bh + 7, 3, 4, Col(0xffd27a)) }
+                let bx = x + k * 17.34, bh = 12 + hashN(k + 897) * 14
+                c.R(bx, fy + 8 - bh, 17.4, bh + 6, Col(0x1c1a3a)); c.R(bx + 3, fy + 8 - bh + 4, 3, 4, Col(0xffd27a)); if i % 2 == 0 { c.R(bx + 10, fy + 8 - bh + 7, 3, 4, Col(0xffd27a)) }
                 if i % 3 == 1 { c.dome(bx + 8.5, fy + 8 - bh, 5, Col(0x1c1a3a)) }
             }
             for i in 0..<5 { figure(x + 30 + Double(i) * 22, fy + 12 - abs(sin(NOW * 5 + Double(i))) * 1.4, Col(0x2a2444), Col(0x2a2444)) }
