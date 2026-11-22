@@ -136,23 +136,30 @@ final class Sound {
         (0.42, Array("........D......."), 0.16), (0.15, Array("D.DtD.t.D.DtDtt."), 0.34)
     ]
     /// mode: 0 day, 1 dusk, 2 night, 3 raid. `dv` is how loud the day drum is (nearer the bazaar, louder).
-    func music(_ now: Double, _ mode: Int, _ dv: Double) {
+    /// Each town plays the same band in its own key, pace, lead voice and mode.
+    func music(_ now: Double, _ mode: Int, _ dv: Double, _ town: Int = 0) {
         if muted || !running || now < seqT { return }
         let m = patterns[max(0, min(3, mode))]
-        seqT = (seqT < now - 1 ? now : seqT) + m.0
+        let tw = ((town % 5) + 5) % 5
+        let tr = [1.0, 1.1225, 0.8909, 1.1892, 0.7937][tw]
+        let lead = [1, 0, 1, 2, 0][tw]
+        seqT = (seqT < now - 1 ? now : seqT) + m.0 * [1.0, 0.9, 1.1, 0.85, 1.2][tw]
         seqI = (seqI + 1) % 16
         let ch = m.1[seqI]
         let raid = mode == 3
-        if ch == "D" { tone(raid ? 70 : 94, 0.15, 0, 0.1 * dv, raid ? 44 : 56) } else if ch == "t" { noise(0.03, 0.05 * dv, 3000, 2) }
+        if ch == "D" { tone((raid ? 70 : 94) * tr, 0.15, 0, 0.1 * dv, (raid ? 44 : 56) * tr) } else if ch == "t" { noise(0.03, 0.05 * dv, 3000, 2) }
         if seqI == 0 {
-            if raid { tone(73.4, 2.3, 3, 0.028); tone(77.8, 2.3, 3, 0.016) } else if mode == 2 { tone(73.4, 3, 0, 0.035) } else if mode == 1 { tone(73.4, 2.6, 0, 0.04) }
+            if raid { tone(73.4 * tr, 2.3, 3, 0.028); tone(77.8 * tr, 2.3, 3, 0.016) } else if mode == 2 { tone(73.4 * tr, 3, 0, 0.035) } else if mode == 1 { tone(73.4 * tr, 2.6, 0, 0.04) }
         }
         if Double.random(in: 0..<1) < m.2 && (!raid || seqI % 2 == 0) {
-            let steps = [-2, -1, -1, 1, 1, 2]
+            let steps = tw == 1 ? [-1, -1, -1, 1, 1, 1] : (tw == 2 ? [-3, -2, -1, 1, 2, 3] : [-2, -1, -1, 1, 1, 2])
             noteI = max(raid ? 0 : 1, min(raid ? 5 : HIJAZ.count - 1, noteI + steps[Int.random(in: 0..<6)]))
-            let f = HIJAZ[noteI]
+            var f = HIJAZ[noteI] * tr
+            // the oasis brightens the mode; the last town darkens it
+            if tw == 1 && [1, 5, 8].contains(noteI) { f *= 1.0595 }
+            if tw == 4 && [2, 9].contains(noteI) { f /= 1.0595 }
             switch mode {
-            case 0: tone(f, 0.5, 1, 0.04); tone(f * 2.003, 0.25, 0, 0.012)
+            case 0: tone(f, 0.5, lead, 0.04); tone(f * 2.003, 0.25, 0, 0.012)
             case 1: tone(f * 2, 1.3, 0, 0.035, f * 2.01); tone(f * 2 * 1.006, 1.3, 0, 0.014)
             case 2: tone(f * 2, 1.6, 0, 0.022, f * 2.004)
             default: tone(f, 0.22, 3, 0.03); tone(f * 0.5, 0.22, 2, 0.012)

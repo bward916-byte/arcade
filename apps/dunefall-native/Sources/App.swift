@@ -70,6 +70,15 @@ final class GameViewController: UIViewController {
     private let endStats = UILabel()
     private let sailBtn = UIButton(type: .system)
     private let endNewBtn = UIButton(type: .system)
+    private let detailBtn = UIButton(type: .system)
+    private let ruleLabel = UILabel()
+    private let hardBtn = UIButton(type: .system)
+    private var hardOn = false
+    private var scored = false
+    private var slowT = 0.0
+    private let autoLow = !ProcessInfo.processInfo.arguments.contains(where: { $0.hasPrefix("-demo") })
+    private var best: Int { return UserDefaults.standard.integer(forKey: "dunefall.best") }
+    private var hardOpen: Bool { return UserDefaults.standard.bool(forKey: "dunefall.hardOpen") }
     private var tStick = 0.0
     private var tToss = false
     private var tFire = false
@@ -230,7 +239,16 @@ final class GameViewController: UIViewController {
         freeBtn.titleLabel?.numberOfLines = 2
         freeBtn.titleLabel?.textAlignment = .center
         freeBtn.addTarget(self, action: #selector(freeTapped), for: .touchUpInside)
-        for v in [pauseName, resumeBtn, soundBtn, freeBtn, quitBtn] as [UIView] { pauseBox.addSubview(v) }
+        button(detailBtn, "Detail: full")
+        detailBtn.addTarget(self, action: #selector(detailTapped), for: .touchUpInside)
+        style(ruleLabel, 14, cream, .center)
+        ruleLabel.numberOfLines = 3
+        for v in [pauseName, resumeBtn, soundBtn, freeBtn, quitBtn, detailBtn, ruleLabel] as [UIView] { pauseBox.addSubview(v) }
+        button(hardBtn, "Hard mode: off")
+        hardBtn.titleLabel?.font = serif(15)
+        hardBtn.addTarget(self, action: #selector(hardTapped), for: .touchUpInside)
+        titleBox.addSubview(hardBtn)
+        if UserDefaults.standard.object(forKey: "dunefall.low") != nil { game.low = UserDefaults.standard.bool(forKey: "dunefall.low") }
         for bar in [barTop, barBottom] {
             bar.backgroundColor = .black
             bar.isUserInteractionEnabled = false
@@ -311,6 +329,10 @@ final class GameViewController: UIViewController {
         soundBtn.frame = CGRect(x: b.width * 0.5 + 10, y: b.height * 0.04 + 52, width: 260, height: 46)
         freeBtn.frame = CGRect(x: b.width * 0.5 - 270, y: b.height * 0.04 + 108, width: 260, height: 46)
         quitBtn.frame = CGRect(x: b.width * 0.5 + 10, y: b.height * 0.04 + 108, width: 260, height: 46)
+        detailBtn.frame = CGRect(x: b.width * 0.5 - 270, y: b.height * 0.04 + 164, width: 260, height: 46)
+        ruleLabel.frame = CGRect(x: b.width * 0.5 + 10, y: b.height * 0.04 + 160, width: 260, height: 58)
+        hardBtn.frame = CGRect(x: b.width - right - 176, y: b.height - bottom - 78, width: 164, height: 48)
+        hardBtn.isHidden = !hardOpen
         let barH = b.height * 0.13
         barTop.frame = CGRect(x: 0, y: 0, width: b.width, height: barH)
         barBottom.frame = CGRect(x: 0, y: b.height - barH - 8, width: b.width, height: barH + 8)
@@ -354,10 +376,14 @@ final class GameViewController: UIViewController {
             if args.contains("-demo-port") { game.demo("port") }
             if args.contains("-demo-oasis") { game.demo("oasis") }
             if args.contains("-demo-desert") { game.demo("desert") }
+            if args.contains("-demo-scene") { game.demo("scene") }
             if args.contains("-demo-econ") {
                 let bot = Game()
                 bot.W = game.W; bot.H = game.H; bot.GY = game.GY
-                let text = bot.botRun(days: 34)
+                var text = bot.botRun(days: 34)
+                let bot2 = Game()
+                bot2.W = game.W; bot2.H = game.H; bot2.GY = game.GY
+                text += "\n" + bot2.botRun(days: 20, hard: true)
                 if let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
                     try? text.write(to: dir.appendingPathComponent("econ.txt"), atomically: true, encoding: .utf8)
                 }
@@ -376,7 +402,17 @@ final class GameViewController: UIViewController {
 
     @objc private func ride() {
         sound.start()
+        game.hard = hardOn && hardOpen
         game.start()
+    }
+    @objc private func hardTapped() {
+        hardOn = !hardOn
+        hardBtn.setTitle(hardOn ? "Hard mode: on" : "Hard mode: off", for: .normal)
+    }
+    @objc private func detailTapped() {
+        game.low = !game.low
+        UserDefaults.standard.set(game.low, forKey: "dunefall.low")
+        detailBtn.setTitle(game.low ? "Detail: low" : "Detail: full", for: .normal)
     }
     @objc private func resumeSave() {
         guard let d = loadSave() else { return }
@@ -387,6 +423,8 @@ final class GameViewController: UIViewController {
         if game.state != .play { return }
         userPaused = true
         freeBtn.setTitle("Free a worker to build" + crew(), for: .normal)
+        detailBtn.setTitle(game.low ? "Detail: low" : "Detail: full", for: .normal)
+        ruleLabel.text = game.townName + (game.hard ? " (hard)" : "") + "\n" + TOWNRULE[game.town % 5]
         pauseBox.isHidden = false
         clearTouches()
     }
@@ -464,6 +502,15 @@ final class GameViewController: UIViewController {
         if paused { return }
         readInput()
         if userPaused { return }
+        // if the phone cannot keep up for a few seconds, drop the small detail once and say so
+        if autoLow && !game.low && game.state == .play && UserDefaults.standard.object(forKey: "dunefall.low") == nil {
+            slowT = max(0, slowT + (raw > 1.0 / 38 ? raw : -raw * 0.5))
+            if slowT > 3 {
+                game.low = true
+                UserDefaults.standard.set(true, forKey: "dunefall.low")
+                game.hint("lowdetail", again: true, "Low detail is on to keep things smooth. You can change it in the pause menu.")
+            }
+        }
         game.update(min(0.05, max(0, raw)))
         guard let r = renderer, let cv = canvas else { return }
         r.draw()
@@ -484,8 +531,17 @@ final class GameViewController: UIViewController {
         endBox.isHidden = game.state != .end
         if game.state == .end {
             let st = game.stats
-            set(endStats, "Towns rebuilt: \(st[3])\nDays on the road: \(game.day)\nBuildings raised: \(st[0])\nNomads who joined you: \(st[1])\nRaiders brought down: \(st[2])\nRelics: \(game.relics.isEmpty ? "none" : game.relics.sorted().joined(separator: ", "))\nCoins in hand: \(game.player.coins + game.bank)")
+            set(endStats, "Towns rebuilt: \(st[3])\nDays on the road: \(game.day)\nBuildings raised: \(st[0])\nNomads who joined you: \(st[1])\nRaiders brought down: \(st[2])\nRelics: \(game.relics.isEmpty ? "none" : game.relics.sorted().joined(separator: ", "))\nCoins in hand: \(game.player.coins + game.bank)\nScore: \(game.score)\(game.hard ? " (hard)" : "")   Best: \(max(best, game.score))")
         }
+        if game.state == .end || game.state == .over {
+            if !scored {
+                scored = true
+                if game.score > best { UserDefaults.standard.set(game.score, forKey: "dunefall.best") }
+                if game.state == .end && !hardOpen { UserDefaults.standard.set(true, forKey: "dunefall.hardOpen"); view.setNeedsLayout() }
+            }
+            if game.state == .over { set(overText, "Caught with an empty purse.   Score \(game.score), best \(best)") }
+        } else if game.state == .play { scored = false }
+        if game.state == .title { set(titleNote, best > 0 ? "Best run: \(best)" : "") }
         titleBox.isHidden = game.state != .title
         overBox.isHidden = game.state != .over
         for v in [purse, dayLabel, pad, fireBtn, pauseBtn] as [UIView] { v.isHidden = !playing && game.state != .over }
