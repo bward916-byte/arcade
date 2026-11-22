@@ -287,3 +287,23 @@ struct AreaMapSection: View {
         }
     }
 }
+
+// Shows that a row of chips keeps going: the right edge fades out under an arrow.
+extension View {
+    func swipeHint() -> some View {
+        overlay(alignment: .trailing) {
+            HStack(spacing: 0) {
+                LinearGradient(colors: [Theme.page.opacity(0), Theme.page], startPoint: .leading, endPoint: .trailing)
+                    .frame(width: 28)
+                Image(systemName: "chevron.right")
+                    .font(.footnote.weight(.bold))
+                    .foregroundColor(Theme.primary)
+                    .frame(width: 26)
+                    .frame(maxHeight: .infinity)
+                    .background(Theme.page)
+            }
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+        }
+    }
+}

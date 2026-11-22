@@ -159,8 +159,10 @@ struct GuideView: View {
                                     .buttonStyle(.plain)
                                 }
                             }
-                            .padding(.horizontal)
+                            .padding(.leading)
+                            .padding(.trailing, 48)
                         }
+                        .swipeHint()
                     }
                     .listRowInsets(EdgeInsets())
                     .listRowBackground(Color.clear)

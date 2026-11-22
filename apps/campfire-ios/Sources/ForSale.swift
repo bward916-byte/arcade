@@ -69,8 +69,10 @@ struct ForSaleView: View {
                             chip("All", "")
                             ForEach(Site.cats) { c in chip(c.name, c.id) }
                         }
-                        .padding(.horizontal)
+                        .padding(.leading)
+                        .padding(.trailing, 48)
                     }
+                    .swipeHint()
                     Text("Meet in person, in daylight, and pay cash. Never send money, gift cards or codes to someone you have not met.")
                         .font(.footnote)
                         .padding(10)
