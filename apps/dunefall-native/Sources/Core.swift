@@ -240,6 +240,10 @@ final class Player {
     var idle = 0.0
     var kneelT = 0.0
     var kneelK = 0.0
+    /// The camel rears when a raider comes at it from close by.
+    var rearT = 0.0
+    var rearCd = 0.0
+    var rearK = 0.0
     var aim = 1.0
     var st = 0
 }
@@ -390,6 +394,7 @@ struct SaveData: Codable {
     var ankh: Bool?
     var stats: [Int]?
     var hard: Bool?
+    var looted: Bool?
 }
 
 final class Goat: Walker {
@@ -453,6 +458,13 @@ struct Input {
 enum GameState { case title, play, over, end }
 
 let HINTS: [String: String] = [
+    "cave1": "The cave tomb is open, but spears guard the way in. Ride through when they drop. The gold is at the door.",
+    "cave2": "Gold from the cave, and an ankh that will save you once.",
+    "clouds": "Clouds are building. That almost never happens here.",
+    "duston": "A brown line is growing on the western horizon. Something is coming.",
+    "shelter": "Inside the walls the storm cannot touch your purse.",
+    "fest": "Fireworks. The town is celebrating what you built.",
+    "ufotake": "Nobody came, so it helped itself: one animal from your herd is gone.",
     "start": "Ride out to the tents and tap the screen to toss a coin to a nomad.",
     "urn": "An old urn under the sand. Ride over coins to pick them up.",
     "recruit": "A nomad joins you. Ride up to a ruin in town and toss coins to rebuild it.",
@@ -529,6 +541,6 @@ let HINTS: [String: String] = [
     "ufogone": "It is gone. The sand under it is glass, and it was looking at the tomb.",
     "deep0": "The tomb door hums. Stand here a while.",
     "star": "A star of cold metal. The visitor will come back for it, and pay.",
-    "trap": "The old way to the tomb is trapped. Cross the plates while the spikes are down.",
+    "trap": "Spears. Cross the plates while they are down.",
     "dock0": "No boat will stop at half a town. Rebuild everything and raise the obelisk first."
 ]

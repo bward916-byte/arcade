@@ -69,11 +69,13 @@ final class Game {
     var ufoSeen = false
     var deepT = 0.0
     var trapCd = 0.0
+    /// The cliffs town's cave tomb has given up its gold.
+    var looted = false
     var devils: [Devil] = []
     func trapXs() -> [Double] {
         let tb = B(.tomb)
-        if feat != .cliff || tb.gone || tb.level > 0 { return [] }
-        return [tb.x + 90, tb.x + 130, tb.x + 170]
+        if feat != .cliff || tb.gone || tb.level == 0 || looted { return [] }
+        return [tb.x + 90, tb.x + 145, tb.x + 200]
     }
     func trapUp(_ i: Int) -> Bool { return sin(NOW * 1.6 + Double(i) * 2.1) > 0.2 }
     var ln: Int { return day - day0 }
@@ -170,7 +172,7 @@ final class Game {
         ankh = false; poison = false; rocks = []; storm = nil; stormAt = -1; trip = nil; scene = nil; sceneQueue = []; zoom = 1; fade = 0
         rodN = [5, 8]; rodT = 0; rodSpot = -1; digN = 0; digToday = 0; digT = 0; carry = 0
         flooded = false
-        rain = nil; rainAt = -1; lush = false; ecl = nil; eclAt = -1; omen = false; fest = 0; festDone = false; ufo = nil; deepT = 0; trapCd = 0
+        rain = nil; rainAt = -1; lush = false; ecl = nil; eclAt = -1; omen = false; fest = 0; festDone = false; ufo = nil; deepT = 0; trapCd = 0; looted = false
         devils = [Devil(x: 520, dir: 1, a: 260, b: max(420, 1296 + ox - 130)), Devil(x: min(2900, 1992 + ox + 220), dir: -1, a: min(2700, 1992 + ox + 110), b: 2990)]
         camps = cf.camps.map { Camp(x: $0.0, cap: $0.1) }
         urns = cf.urns.map { Urn(x: $0.0, n: $0.1) }
@@ -378,31 +380,31 @@ final class Game {
     func infoLine() -> (String, String)? {
         if state != .play { return nil }
         let x = player.x
+        let idle = head(.folk) == 0 ? ". Nobody is free: hire a nomad or release a worker" : ""
         if let tg = target(x) {
             switch tg.k {
             case .shop:
-                if let sh = tg.shop, let it = shopItem(sh.k) { return (it.name.uppercased(), "\(sh.paid + sh.inc) of \(it.cost) coins. " + it.text) }
+                if let sh = tg.shop, let it = shopItem(sh.k) { return (it.name.uppercased(), it.text) }
             case .merc:
-                if let cv = caravan { return ("CARAVAN", "\(cv.paid + cv.inc) of 4 coins hires a guard") }
+                if caravan != nil { return ("CARAVAN", "Hires a guard for the night") }
             case .tool:
                 if let b = tg.b {
                     let what = b.def.tool == .digger ? "digger" : (b.def.tool == .guard ? "guard" : "herder")
-                    let wait = head(.folk) == 0 ? ". Nobody is free to take it: hire a nomad, or free a worker from the pause menu" : ""
-                    return ("TOOL RACK", "\(b.badges + b.rin) of 3 waiting. A coin outfits a " + what + wait)
+                    return ("TOOL RACK", "A coin outfits a " + what + idle)
                 }
             case .slot:
                 if let b = tg.b {
-                    if b.type == .dock && b.level > 0 { return ("FELUCCA", "\(b.paid + b.incoming) of \(costOf(b)) coins. You sail on with \(fare) coins") }
-                    return (b.def.name, "\(b.paid + b.incoming) of \(costOf(b)) coins\n" + perk(b))
+                    if b.type == .dock && b.level > 0 { return ("FELUCCA", "You sail on with \(fare) coins") }
+                    return (b.def.name, perk(b))
                 }
             case .mend:
                 if let b = tg.b { return (b.def.name, "A coin patches the gate") }
             case .bank:
-                return ("TREASURY", bank > 0 ? "Toss to deposit, or with an empty purse to draw five" : "Toss to deposit")
+                return ("TREASURY", bank > 0 ? "Toss to deposit. With an empty purse, toss to draw five" : "Toss to deposit")
             }
         }
         for b in bs where b.def.tool != nil && b.level > 0 && abs(x - rackX(b)) < 10 {
-            return ("TOOL RACK", "Full. The tools wait for free hands" + (head(.folk) == 0 ? ": hire a nomad, or free a worker from the pause menu" : ""))
+            return ("TOOL RACK", "Full" + (idle.isEmpty ? ": the tools wait for free hands" : idle))
         }
         if let z = zoneOf(x) {
             if z.building { return (z.def.name, head(.folk) > 0 ? "Being built" : "Nobody free to build") }
@@ -411,7 +413,21 @@ final class Game {
         }
         return nil
     }
-
+    /// The numbers that go with the info line: level reached, top level, coins in, coins needed. Level is -1 where there is none.
+    func infoMeter() -> (level: Int, top: Int, paid: Int, cost: Int)? {
+        if state != .play { return nil }
+        if let tg = target(player.x) {
+            switch tg.k {
+            case .slot: if let b = tg.b { return (b.type == .dock && b.level > 0 ? -1 : b.level, b.def.cost.count, b.paid + b.incoming, costOf(b)) }
+            case .shop: if let sh = tg.shop, let it = shopItem(sh.k) { return (-1, 0, sh.paid + sh.inc, it.cost) }
+            case .merc: if let cv = caravan { return (-1, 0, cv.paid + cv.inc, 4) }
+            case .tool: if let b = tg.b { return (-1, 0, b.badges + b.rin, 3) }
+            default: break
+            }
+        }
+        if let z = zoneOf(player.x), z.level > 0 || z.building { return (z.level, z.def.cost.count, 0, 0) }
+        return nil
+    }
     /// What paying for a building's next level gets you, for the line at the bottom of the screen.
     func perk(_ b: Building) -> String {
         let L = b.level, pay = b.def.pay * (L + 1)
@@ -426,7 +442,7 @@ final class Game {
         case .gw, .ge: return "Strength \(GHP[min(L + 1, GHP.count - 1)])" + (L == 2 ? ", with archers on the wall" : (L == 3 ? ", and faster archers" : ""))
         case .dock: return L == 0 ? "Two coins each dawn, and a boat downriver" : "Sail to the next town"
         case .sphinx: return L == 0 ? "Two coins each dawn. Turns back half the western raiders" : "Four coins each dawn. Turns back two in three"
-        case .tomb: return L == 0 ? "Gold and an ankh, but the dead will walk" : "Seals the dead in for good"
+        case .tomb: return L == 0 ? (feat == .cliff ? "Opens the cave. Spears guard the gold inside" : "Gold and an ankh, but the dead will walk") : "Seals the dead in for good"
         case .grove: return "\(3 * (L + 1)) coins of dates each dawn"
         case .btemple: return L == 0 ? "A hoard of gold, then 3 coins each dawn" : "Six coins each dawn"
         case .hermit: return "A relic"
@@ -619,7 +635,7 @@ final class Game {
         }
         if boss { raid.append(RaidPlan(t: 0.79, side: port ? 1 : s0, kind: .boss, hp: d >> 2, boat: port)) }
         if port { for i in 0..<3 { raid.append(RaidPlan(t: 0.795 + Double(i) * 0.006, side: 1, kind: .bandit, hp: d >> 3, boat: true)) } }
-        let dead = B(.tomb).level == 1 && ln % 3 == 0
+        let dead = B(.tomb).level == 1 && ln % 3 == 0 && (feat != .cliff || looted)
         if dead { for i in 0..<min(2 + (ln >> 2), 5) { raid.append(RaidPlan(t: 0.75 + Double(i) * 0.02, side: -1, kind: .mummy, hp: d >> 3)) } }
         hadNight = true; nightN = raid.count; nightDown = 0; nightGates = 0; nightLost = 0
         let know = B(.temple).level > 0
@@ -755,6 +771,7 @@ final class Game {
             festDone = true
             fest = 14
             for f in folk { f.cheer = 6 }
+            showScene("fest", "The whole town is rebuilt. Tonight they celebrate.", 3.6, 1.15, WELL_X)
             hint("festival", again: true)
         }
         switch b.type {
@@ -779,7 +796,11 @@ final class Game {
             hint("sphinx\(L)", again: true)
             if L == 1 { showScene("sphinx", "The Sphinx looks east again.", 3.4, 1.3, b.mid) }
         case .tomb:
-            if L == 1 {
+            if L == 1 && feat == .cliff {
+                // the cave tomb: opening it only clears the door. The gold waits past the spears.
+                hint("cave1", again: true)
+                showScene("cave", "The cave tomb is open. The way in is trapped.", 3.6, 1.25, b.mid + 90)
+            } else if L == 1 {
                 ankh = true
                 for _ in 0..<18 { coin(b.x + 25, 6, rnd(-50, 50), rnd(60, 110), true) }
                 hint("tomb1")
@@ -972,6 +993,15 @@ final class Game {
         p.kneelT = max(0, p.kneelT - dt)
         let kneelWant: Double = (sp < 4 && d == 0 && (p.kneelT > 0 || p.idle > 7)) ? 1 : 0
         p.kneelK = lerp(p.kneelK, kneelWant, 1 - pow(0.004, dt))
+        p.rearCd -= dt
+        p.rearT = max(0, p.rearT - dt)
+        if p.rearCd <= 0 && raiders.contains(where: { $0.state == .raid && abs($0.x - p.x) < 36 && ($0.x - p.x) * $0.dir < 0 }) {
+            p.rearT = 0.75
+            p.rearCd = 3.5
+            snd?.hit(0.6)
+            buzz(1)
+        }
+        p.rearK = lerp(p.rearK, p.rearT > 0 ? 1 : 0, 1 - pow(0.0015, dt))
         p.phase += sp * dt * 0.075
         p.toss -= dt; p.cd -= dt; p.gcd -= dt; p.draw -= dt
         if sp > 60 && chance(dt * 14) { dust(p.x - p.dir * 8, 0, 1) }
@@ -1634,6 +1664,8 @@ final class Game {
 
     func updWorld(_ dt: Double) {
         // rain, the eclipse, the festival, the night visitor, the trapped road
+        if rainAt > 0 && rain == nil && state == .play && t > rainAt - 0.06 { hint("clouds") }
+        if stormAt > 0 && storm == nil && state == .play && t > stormAt - 0.07 { hint("duston") }
         if rainAt > 0 && t >= rainAt && rain == nil && state == .play { rain = 0; rainAt = -1; lush = true; hint("rain", again: true) }
         if let r = rain {
             rain = r + dt
@@ -1654,6 +1686,7 @@ final class Game {
             festT -= dt
             if festT <= 0 {
                 festT = rnd(0.35, 0.8)
+                hint("fest")
                 let fx = WELL_X + rnd(-170, 170), fh = rnd(46, 84)
                 let cols: [Col] = [RED, GOLD, TEAL, Col(0xfff3b0), Col(0xd96ad0)]
                 let cc = cols[Int.random(in: 0..<5)]
@@ -1678,10 +1711,28 @@ final class Game {
                     u.gt += dt
                     if u.gt > 1 { u.gt = 0; u.n += 1; coin(u.x + rnd(-8, 8), 40, rnd(-10, 10), 0, true); hint("ufo2") }
                 }
-                if u.t > 18 || dark < 0.4 { u.phase = 2 }
+                if u.t > 18 || dark < 0.4 {
+                    u.phase = 2
+                    if u.n == 0 && !herd.isEmpty {
+                        let gone = herd.removeLast()
+                        spark(gone.x, 20, 10)
+                        hint("ufotake", again: true)
+                    }
+                }
             } else {
                 u.h += 90 * dt
                 if u.h > 200 { ufo = nil; hint("ufogone") }
+            }
+        }
+        if feat == .cliff && !looted && state == .play && scene == nil {
+            let ct = B(.tomb)
+            if ct.level > 0 && player.x < ct.x + 44 {
+                looted = true
+                ankh = true
+                for _ in 0..<26 { coin(ct.x + 40, 8, rnd(0, 80), rnd(60, 120), true) }
+                hint("cave2", again: true)
+                showScene("tomb", "The cave gives up its gold, and an ankh.", 4.5, 1.3, ct.x + 40)
+                onDawn?()
             }
         }
         trapCd -= dt
@@ -1689,8 +1740,9 @@ final class Game {
         for i in 0..<traps.count where trapCd <= 0 && trapUp(i) && abs(player.x - traps[i]) < 7 {
             trapCd = 1.2
             let p = player
-            if p.coins > 0 { p.coins -= 1; coin(p.x, 12, -p.dir * rnd(30, 60), rnd(50, 80), true) }
-            p.vx = -p.dir * 150
+            for _ in 0..<min(2, p.coins) { p.coins -= 1; coin(p.x + 22, 10, rnd(20, 60), rnd(50, 80), true) }
+            p.vx = 200
+            p.x += 7
             shake = 0.3
             buzz(2)
             snd?.hit(1)
@@ -1719,6 +1771,7 @@ final class Game {
             let k = stormK(p.x)
             let open = p.x < TOWN.0 || p.x > TOWN.1 || !(B(.gw).level > 0 || B(.ge).level > 0)
             if k > 0.2 { shake = max(shake, 0.05 * k) }
+            if k > 0.5 && !open && trip == nil { hint("shelter") }
             if k > 0.5 && open && !relics.contains("charm") && trip == nil {
                 p.x = min(NILE - 14, p.x + 26 * k * dt)
                 st.leak += dt
@@ -1900,6 +1953,11 @@ final class Game {
             "tomb": (0, .tomb, "Gold, an ankh, and something that should have stayed asleep.", 1.3),
             "deep": (0, .tomb, "Under the tomb, a room no mason ever cut. Its keeper left one thing behind.", 1.35),
             "btemple": (3, .btemple, "A temple nobody has seen for a thousand years.", 1.3),
+            "cave": (2, .tomb, "The cave tomb is open. The way in is trapped.", 1.25),
+            "fest": (0, .well, "The whole town is rebuilt. Tonight they celebrate.", 1.15),
+            "eclipse": (0, nil, "The sun is going out.", 1.2),
+            "ufo": (0, nil, "Something is coming down out of the sky.", 1.2),
+            "haboob": (0, nil, "Haboob. Get everyone inside.", 1.2),
             "raid": (0, nil, "They always come after dark.", 1.25)]
         guard let s = spec[k] else { return }
         reset(s.0)
@@ -2005,7 +2063,7 @@ final class Game {
         }
         var d = SaveData(day: day, coins: player.coins, bank: bank, levels: bs.map { $0.level }, roles: roles, herd: herd.count,
                          up: Array(up), urns: urns.map { $0.open }, seen: Array(seen))
-        d.town = town; d.day0 = day0; d.relics = Array(relics); d.ankh = ankh; d.stats = stats; d.hard = hard
+        d.town = town; d.day0 = day0; d.relics = Array(relics); d.ankh = ankh; d.stats = stats; d.hard = hard; d.looted = looted
         return d
     }
     func restore(_ d: SaveData) {
@@ -2022,6 +2080,7 @@ final class Game {
         ankh = d.ankh ?? false
         if let st = d.stats, st.count == 4 { stats = st }
         hard = d.hard ?? false
+        looted = d.looted ?? false
         for i in 0..<min(bs.count, d.levels.count) {
             let b = bs[i]
             b.level = min(d.levels[i], b.def.cost.count)
@@ -2041,6 +2100,13 @@ final class Game {
     }
 
     /// Takes one worker off their job, so there is someone free to build.
+    /// Sends one worker of this trade back to being a plain villager, free to build.
+    func release(_ r: Role) -> Bool {
+        guard let f = folk.first(where: { $0.role == r }) else { return false }
+        f.role = .folk
+        spark(f.x, 12, 6)
+        return true
+    }
     func releaseOne() -> Bool {
         for r in [Role.digger, .herder, .guard] {
             if let f = folk.first(where: { $0.role == r }) { f.role = .folk; spark(f.x, 12, 6); return true }
@@ -2115,6 +2181,24 @@ final class Game {
         }
         start(intro: false)
         hintT = 0; cardT = 0
+        if k == "cave" {
+            reset(2)
+            state = .play
+            t = 0.3
+            B(.tomb).level = 1
+            player.x = B(.tomb).x + 250
+            player.coins = 9
+            cam = clampD(player.x - W / 2 - 60, 0, WORLD - W)
+            return
+        }
+        if k.hasPrefix("pan-") {
+            t = 0.3
+            player.x = B(.temple).mid
+            cam = clampD(player.x - W / 2, 0, WORLD - W)
+            scene = Cine(k: String(k.dropFirst(4)), text: "A look at this scene's picture.", dur: 600, fx: player.x, zoom: 1.2)
+            scene?.t = 2
+            return
+        }
         if k == "scene" {
             t = 0.3
             player.x = B(.temple).mid

@@ -19,6 +19,8 @@ final class HudBar: UIView {
     var frac = 0.0
     var leftInset: CGFloat = 12
     var rightInset: CGFloat = 60
+    /// Where the people pill was last drawn, so a tap on it can open the jobs list.
+    private(set) var peopleRect = CGRect.zero
 
     private var sig = ""
     private let ink = UIColor(red: 0.11, green: 0.075, blue: 0.047, alpha: 1)
@@ -152,6 +154,7 @@ final class HudBar: UIView {
         let ft = "\(free) free"
         w = 28 + width(pt, 16) + 8 + width(ft, 12) + 12
         pill(x, w)
+        peopleRect = CGRect(x: x - 4, y: 0, width: w + 8, height: 40)
         personIcon(x + 15, cy)
         text(pt, x + 27, cy, 16, cream)
         text(ft, x + 27 + width(pt, 16) + 8, cy + 0.5, 12, free > 0 ? gold : cream.withAlphaComponent(0.6))
@@ -189,5 +192,87 @@ final class HudBar: UIView {
             }
             text(dayText, dx + 32, cy, 15, cream)
         }
+    }
+}
+
+/// The card at the bottom of the screen: what you are standing at, how far along it is, and one line on what a coin does.
+final class InfoCard: UIView {
+    private var title = ""
+    private var line = ""
+    private var level = -1
+    private var top = 0
+    private var paid = 0
+    private var cost = 0
+    private var sig = ""
+    private let ink = UIColor(red: 0.11, green: 0.075, blue: 0.047, alpha: 1)
+    private let gold = UIColor(red: 0.95, green: 0.76, blue: 0.31, alpha: 1)
+    private let cream = UIColor(red: 0.97, green: 0.93, blue: 0.84, alpha: 1)
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        isOpaque = false
+        backgroundColor = .clear
+        isUserInteractionEnabled = false
+        contentMode = .redraw
+    }
+    required init?(coder: NSCoder) { fatalError("not used") }
+
+    func show(_ title: String, _ line: String, level: Int = -1, top: Int = 0, paid: Int = 0, cost: Int = 0) {
+        let s = "\(title)|\(line)|\(level)|\(top)|\(paid)|\(cost)"
+        if s == sig { return }
+        sig = s
+        self.title = title; self.line = line; self.level = level; self.top = top; self.paid = paid; self.cost = cost
+        setNeedsDisplay()
+    }
+    private func font(_ s: CGFloat) -> UIFont {
+        return UIFont(name: "Georgia-Bold", size: s) ?? UIFont.boldSystemFont(ofSize: s)
+    }
+    private func width(_ t: String, _ size: CGFloat) -> CGFloat {
+        return (t as NSString).size(withAttributes: [.font: font(size)]).width
+    }
+    override func draw(_ rect: CGRect) {
+        let r = bounds.insetBy(dx: 0.5, dy: 0.5)
+        let bg = UIBezierPath(roundedRect: r, cornerRadius: 12)
+        ink.withAlphaComponent(0.8).setFill()
+        bg.fill()
+        gold.withAlphaComponent(0.5).setStroke()
+        bg.lineWidth = 1
+        bg.stroke()
+
+        // top row: the name, level pips, and coins paid of coins needed on the right
+        let ty: CGFloat = 13
+        var x: CGFloat = 14
+        let ta: [NSAttributedString.Key: Any] = [.font: font(13), .foregroundColor: gold, .kern: 0.8]
+        let ts = title as NSString
+        let tsz = ts.size(withAttributes: ta)
+        ts.draw(at: CGPoint(x: x, y: ty - tsz.height / 2), withAttributes: ta)
+        x += tsz.width + 10
+        if level >= 0 && top > 0 {
+            for i in 0..<top {
+                (i < level ? gold : cream.withAlphaComponent(0.25)).setFill()
+                UIBezierPath(roundedRect: CGRect(x: x + CGFloat(i) * 9, y: ty - 3.5, width: 7, height: 7), cornerRadius: 2).fill()
+            }
+        }
+        if cost > 0 {
+            let ct = "\(paid)/\(cost)"
+            let cw = width(ct, 14)
+            let cx = bounds.width - 14 - cw
+            let ca: [NSAttributedString.Key: Any] = [.font: font(14), .foregroundColor: cream]
+            (ct as NSString).draw(at: CGPoint(x: cx, y: ty - 8.5), withAttributes: ca)
+            gold.setFill()
+            UIBezierPath(ovalIn: CGRect(x: cx - 17, y: ty - 6, width: 12, height: 12)).fill()
+            UIColor(red: 0.7, green: 0.48, blue: 0.12, alpha: 1).setStroke()
+            let ring = UIBezierPath(ovalIn: CGRect(x: cx - 15, y: ty - 4, width: 8, height: 8))
+            ring.lineWidth = 1
+            ring.stroke()
+        }
+        // second row: one line, shrunk a little if it is long, cut with an ellipsis if it still will not fit
+        let avail = bounds.width - 28
+        var size: CGFloat = 13
+        while size > 10.5 && width(line, size) > avail { size -= 0.5 }
+        let ps = NSMutableParagraphStyle()
+        ps.lineBreakMode = .byTruncatingTail
+        let la: [NSAttributedString.Key: Any] = [.font: font(size), .foregroundColor: cream, .paragraphStyle: ps]
+        (line as NSString).draw(in: CGRect(x: 14, y: 25, width: avail, height: 18), withAttributes: la)
     }
 }

@@ -36,6 +36,15 @@ final class GameViewController: UIViewController {
 
     private let stage = UIView()
     private let hud = HudBar()
+    private let infoCard = InfoCard()
+    private let jobsBox = UIView()
+    private lazy var jobsPanel = panel()
+    private let jobsName = UILabel()
+    private let jobsNote = UILabel()
+    private var jobRows: [UILabel] = []
+    private var jobBtns: [UIButton] = []
+    private let jobsClose = UIButton(type: .system)
+    private var jobsFromPause = false
     private lazy var pausePanel = panel()
     private lazy var jumpPanel = panel()
     private lazy var overPanel = panel()
@@ -206,7 +215,8 @@ final class GameViewController: UIViewController {
         purse.minimumScaleFactor = 0.7
         style(card, 30, gold, .center)
         card.numberOfLines = 2
-        for l in [info, hint, card] { view.addSubview(l) }
+        for l in [hint, card] { view.addSubview(l) }
+        view.addSubview(infoCard)
         view.addSubview(hud)
 
         pad.isUserInteractionEnabled = false
@@ -290,11 +300,11 @@ final class GameViewController: UIViewController {
         button(quitBtn, "Save and quit to title")
         quitBtn.titleLabel?.font = serif(17)
         quitBtn.addTarget(self, action: #selector(quitTapped), for: .touchUpInside)
-        button(freeBtn, "Free a worker to build")
+        button(freeBtn, "People and jobs")
         freeBtn.titleLabel?.font = serif(15)
         freeBtn.titleLabel?.numberOfLines = 2
         freeBtn.titleLabel?.textAlignment = .center
-        freeBtn.addTarget(self, action: #selector(freeTapped), for: .touchUpInside)
+        freeBtn.addTarget(self, action: #selector(jobsFromMenu), for: .touchUpInside)
         button(detailBtn, "Detail: full")
         detailBtn.addTarget(self, action: #selector(detailTapped), for: .touchUpInside)
         style(ruleLabel, 12, cream.withAlphaComponent(0.85), .center)
@@ -360,6 +370,39 @@ final class GameViewController: UIViewController {
         pauseBox.isHidden = true
         view.addSubview(pauseBox)
         view.addSubview(jumpBox)
+        // the jobs list: one row per trade, with a button that sends one of them back to plain villager
+        jobsBox.backgroundColor = UIColor(white: 0, alpha: 0.45)
+        jobsBox.addSubview(jobsPanel)
+        style(jobsName, 24, gold, .center)
+        jobsName.text = "People and jobs"
+        style(jobsNote, 12, cream.withAlphaComponent(0.85), .center)
+        jobsNote.numberOfLines = 2
+        jobsNote.text = "Releasing someone makes them a plain villager again, free to build."
+        jobsBox.addSubview(jobsName); jobsBox.addSubview(jobsNote)
+        for i in 0..<4 {
+            let l = UILabel()
+            style(l, 15, cream, .left)
+            l.numberOfLines = 2
+            l.adjustsFontSizeToFitWidth = true
+            l.minimumScaleFactor = 0.7
+            jobsBox.addSubview(l)
+            jobRows.append(l)
+            if i < 3 {
+                let bt = UIButton(type: .system)
+                button(bt, "Release one")
+                secondary(bt, 14)
+                bt.tag = i
+                bt.addTarget(self, action: #selector(releaseTapped(_:)), for: .touchUpInside)
+                jobsBox.addSubview(bt)
+                jobBtns.append(bt)
+            }
+        }
+        button(jobsClose, "Done")
+        primary(jobsClose, 18)
+        jobsClose.addTarget(self, action: #selector(jobsDone), for: .touchUpInside)
+        jobsBox.addSubview(jobsClose)
+        jobsBox.isHidden = true
+        view.addSubview(jobsBox)
         pauseBox.insertSubview(pausePanel, at: 0)
         jumpBox.insertSubview(jumpPanel, at: 0)
         overBox.insertSubview(overPanel, at: 0)
@@ -398,6 +441,19 @@ final class GameViewController: UIViewController {
         hint.frame = CGRect(x: b.width * 0.5 - 250, y: 38, width: 500, height: 40)
         let infoW = min(b.width - 2 * (left + 160), 560)
         info.frame = CGRect(x: b.width * 0.5 - infoW / 2, y: b.height - bottom - 44, width: infoW, height: 30)
+        let cardW = min(b.width - 2 * (left + 168), 440)
+        infoCard.frame = CGRect(x: b.width * 0.5 - cardW / 2, y: b.height - bottom - 62, width: cardW, height: 46)
+        jobsBox.frame = b
+        let qw = min(b.width - left - right - 16, 520), qh = min(b.height - 12, 316)
+        let qx = (b.width - qw) / 2, qy = (b.height - qh) / 2
+        jobsPanel.frame = CGRect(x: qx, y: qy, width: qw, height: qh)
+        jobsName.frame = CGRect(x: qx, y: qy + 10, width: qw, height: 30)
+        for (i, l) in jobRows.enumerated() {
+            l.frame = CGRect(x: qx + 22, y: qy + 46 + CGFloat(i) * 44, width: qw - 44 - 150, height: 40)
+            if i < 3 { jobBtns[i].frame = CGRect(x: qx + qw - 22 - 140, y: qy + 48 + CGFloat(i) * 44, width: 140, height: 36) }
+        }
+        jobsNote.frame = CGRect(x: qx + 20, y: qy + qh - 84, width: qw - 40, height: 30)
+        jobsClose.frame = CGRect(x: qx + qw / 2 - 90, y: qy + qh - 52, width: 180, height: 40)
         info.numberOfLines = 2
         info.adjustsFontSizeToFitWidth = true
         info.minimumScaleFactor = 0.6
@@ -524,6 +580,18 @@ final class GameViewController: UIViewController {
             if args.contains("-demo-last") { game.demo("last") }
             if args.contains("-demo-pause") { game.demo("play"); pauseTapped() }
             if args.contains("-demo-jump") { moreTapped() }
+            if args.contains("-demo-jobs") { game.demo("play"); openJobs(fromPause: false) }
+            if args.contains("-demo-over") { game.demo("play"); game.state = .over }
+            if args.contains("-demo-end") { game.demo("play"); game.state = .end }
+            if args.contains("-demo-cave") { game.demo("cave") }
+            if args.contains("-demo-title2") {
+                UserDefaults.standard.set(true, forKey: "dunefall.hardOpen")
+                UserDefaults.standard.set(4320, forKey: "dunefall.best")
+                game.demo("play"); save(); game.reset(); view.setNeedsLayout()
+            }
+            for key in ["raid", "cave", "fest", "obelisk", "sphinx", "eclipse", "ufo", "haboob", "btemple0", "bazaar", "temple", "deep", "btemple"] where args.contains("-demo-pan-" + key) {
+                game.demo("pan-" + key)
+            }
             if args.contains("-demo-econ") {
                 let bot = Game()
                 bot.W = game.W; bot.H = game.H; bot.GY = game.GY
@@ -571,6 +639,37 @@ final class GameViewController: UIViewController {
         hardOn = !hardOn
         hardBtn.setTitle(hardOn ? "Hard mode: on" : "Hard mode: off", for: .normal)
     }
+    // ---------- the jobs list
+    private let jobRoles: [Role] = [.digger, .herder, .guard]
+    private func refreshJobs() {
+        let what = ["Diggers", "Herders", "Guards"]
+        let does = ["bring gold from the quarry", "keep goats that pay each dawn", "hold the gates at night"]
+        for i in 0..<3 {
+            let n = game.head(jobRoles[i])
+            jobRows[i].text = "\(what[i]): \(n)\n" + does[i]
+            jobBtns[i].isEnabled = n > 0
+            jobBtns[i].alpha = n > 0 ? 1 : 0.35
+        }
+        jobRows[3].text = "Free hands: \(game.head(.folk)) of \(game.folk.count) people\nThey build, and take tools from the racks"
+    }
+    private func openJobs(fromPause: Bool) {
+        if game.state != .play { return }
+        jobsFromPause = fromPause
+        userPaused = true
+        clearTouches()
+        refreshJobs()
+        pauseBox.isHidden = true
+        jobsBox.isHidden = false
+    }
+    @objc private func jobsFromMenu() { openJobs(fromPause: true) }
+    @objc private func releaseTapped(_ sender: UIButton) {
+        if game.release(jobRoles[sender.tag]) { buzz(1) }
+        refreshJobs()
+    }
+    @objc private func jobsDone() {
+        jobsBox.isHidden = true
+        if jobsFromPause { pauseBox.isHidden = false; freeBtn.setTitle("People and jobs" + crew(), for: .normal) } else { userPaused = false; last = 0 }
+    }
     private func sharpName() -> String { return "Sharpness: " + ["low", "medium", "high"][max(0, min(2, sharp))] }
     @objc private func sharpTapped() {
         sharp = sharp <= 0 ? 2 : sharp - 1
@@ -592,7 +691,7 @@ final class GameViewController: UIViewController {
     @objc private func pauseTapped() {
         if game.state != .play { return }
         userPaused = true
-        freeBtn.setTitle("Free a worker to build" + crew(), for: .normal)
+        freeBtn.setTitle("People and jobs" + crew(), for: .normal)
         detailBtn.setTitle(game.low ? "Detail: low" : "Detail: full", for: .normal)
         sharpBtn.setTitle(sharpName(), for: .normal)
         ruleLabel.text = game.townName + (game.hard ? " (hard)" : "") + "\n" + TOWNRULE[game.town % 5]
@@ -743,14 +842,14 @@ final class GameViewController: UIViewController {
         hud.dayText = (game.dark > 0.5 ? "Night " : "Day ") + "\(game.ln)"
         hud.frac = game.t
         hud.refresh()
+        info.isHidden = true
         if playing, let line = game.infoLine() {
-            set(info, line.0 + "   " + line.1)
-            info.textAlignment = .center
-            info.isHidden = false
+            if let m = game.infoMeter() { infoCard.show(line.0, line.1, level: m.level, top: m.top, paid: m.paid, cost: m.cost) } else { infoCard.show(line.0, line.1) }
+            infoCard.isHidden = false
         } else if playing && !game.raiders.contains(where: { $0.state == .raid }) {
-            if let st = game.tourStep { set(info, "Step \(st + 1) of 6: " + game.nextGoal()) } else { set(info, "Next: " + game.nextGoal()) }
-            info.isHidden = false
-        } else { info.isHidden = true }
+            if let st = game.tourStep { infoCard.show("STEP \(st + 1) OF 6", game.nextGoal()) } else { infoCard.show("NEXT", game.nextGoal()) }
+            infoCard.isHidden = false
+        } else { infoCard.isHidden = true }
         let showHint = playing && game.hintT > 0
         if showHint { set(hint, game.hintPin ? game.hintText + "  (tap to close)" : game.hintText) } else if playing && game.t < 0.2 && !game.report.isEmpty { set(hint, game.report) }
         hint.isHidden = game.cardT > 0 || !(showHint || (playing && game.t < 0.2 && !game.report.isEmpty))
@@ -781,6 +880,10 @@ final class GameViewController: UIViewController {
         if game.trip != nil { return }
         for t in touches {
             let p = t.location(in: view)
+            if !hud.isHidden && game.state == .play && game.scene == nil && hud.peopleRect.contains(p) {
+                openJobs(fromPause: false)
+                return
+            }
             if !hint.isHidden && hint.frame.insetBy(dx: 0, dy: -8).contains(p) {
                 // a tap holds the memo on screen; a second tap puts it away
                 if game.hintPin { game.hintPin = false; game.hintT = 0 } else {

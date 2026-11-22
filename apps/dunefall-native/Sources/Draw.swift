@@ -32,6 +32,7 @@ struct CamelOpt {
     var saddle: Col? = nil
     var kneel = 0.0
     var graze = 0.0
+    var rear = 0.0
     var col = Col(0x8a5a32)
     var dk = Col(0x5a391c)
     var lt = Col(0xad7a48)
@@ -333,6 +334,170 @@ final class Renderer {
         c.R(px - 2.4, fy - 10, 4.8, 10, robe); c.R(px - 2.4, fy - 6.4, 4.8, 1, GOLD)
         c.circ(px, fy - 12, 2.1, Col(0xb8804e)); c.R(px - 2.4, fy - 14.8, 4.8, 2.2, turb)
     }
+    /// Tiny riders on a ridge, for the raid picture.
+    private func rideMark(_ px: Double, _ py: Double, _ s: Double, _ col: Col) {
+        c.ell(px, py - 5 * s, 5.4 * s, 2.6 * s, col)
+        for lx in [-3.6, -1.6, 2, 3.8] { c.seg(px + lx * s, py - 4 * s, px + lx * s, py, 0.8 * s, col) }
+        c.seg(px + 4 * s, py - 6 * s, px + 7 * s, py - 10.5 * s, 1.5 * s, col); c.ell(px + 8 * s, py - 11 * s, 1.9 * s, 1.2 * s, col)
+        c.RR(px - 1.6 * s, py - 13 * s, 3.2 * s, 6.4 * s, s, col); c.circ(px, py - 14.2 * s, 1.6 * s, col)
+    }
+    /// The outdoor and night-sky pictures.
+    private func morePanels(_ kind: Int, _ x: Double, _ y: Double, _ pw: Double, _ ph: Double, _ fy: Double) {
+        let sx = x + pw / 2
+        let ink = Col(0x1c130c)
+        func stars(_ n: Int) {
+            for i in 0..<n {
+                let k = Double(i)
+                c.R(x + hashN(k + 840) * pw, y + hashN(k + 841) * (ph * 0.6), 0.6, 0.6, rgba(255, 250, 230, 0.4 + 0.5 * hashN(k + 842) * (0.7 + 0.3 * sin(NOW * 2 + k))))
+            }
+        }
+        func dune(_ col: Col, _ h: Double, _ ph0: Double) {
+            var p: [Double] = [x, y + ph]
+            var q = 0.0
+            while q <= pw { p.append(x + q); p.append(fy + 4 - h * (0.5 + 0.5 * sin(q * 0.045 + ph0))); q += 4 }
+            p.append(x + pw); p.append(y + ph)
+            c.poly(col, p)
+        }
+        switch kind {
+        case 5:
+            // the cave: a passage of spears, and the chest in the light at the end
+            c.vfill(x, y, pw, ph, [(0, Col(0x2a120a)), (1, Col(0x5a2814))])
+            c.poly(Col(0x3a180c), [x, y, x + 40, y, x + 58, fy, x, fy]); c.poly(Col(0x3a180c), [x + pw, y, x + pw - 40, y, x + pw - 58, fy, x + pw, fy])
+            c.poly(Col(0x7a4426), [x + 58, fy, x + pw - 58, fy, x + pw, y + ph, x, y + ph])
+            c.glow(sx, fy - 12, 34, rgba(255, 204, 116, 0.55), rgba(255, 204, 116, 0))
+            c.R(sx - 11, fy - 30, 22, 30, ink); c.R(sx - 13, fy - 33, 26, 3.4, Col(0xe0a274))
+            c.RR(sx - 5, fy - 8, 10, 8, 1.4, Col(0x6a4426)); c.R(sx - 5, fy - 8, 10, 1.6, GOLD); c.R(sx - 1, fy - 5.6, 2, 2.8, GOLD)
+            for i in 0..<4 {
+                let k = Double(i)
+                let px = x + 26 + k * 34 + (i > 1 ? 4 : 0), py = fy + 4 + Double(i % 2) * 5
+                let up = clampD(0.5 + sin(NOW * 2 + k * 1.7), 0, 1)
+                c.R(px - 8, py, 16, 1.8, Col(0x4a2414)); c.R(px - 8, py, 16, 0.5, Col(0xc98052))
+                for q in 0..<5 {
+                    let qx = px - 6 + Double(q) * 3
+                    c.seg(qx, py, qx, py - 20 * up, 0.8, Col(0x9aa0a0)); c.poly(Col(0xe4e4dc), [qx - 1, py - 20 * up, qx, py - 24 * up, qx + 1, py - 20 * up])
+                }
+            }
+            flame(x + 50, fy - 22, 1); flame(x + pw - 50, fy - 22, 1)
+        case 6:
+            // the obelisk against the sun, and the town come out to see it
+            c.vfill(x, y, pw, ph, [(0, Col(0x6fb6d8)), (1, Col(0xf6e2b0))])
+            c.glow(sx, fy - 30, 44, rgba(255, 244, 200, 0.9), rgba(255, 244, 200, 0)); c.circ(sx, fy - 30, 11, Col(0xfff6d8))
+            for i in 0..<10 { let a = Double(i) * 0.628 + NOW * 0.1; c.seg(sx + cos(a) * 14, fy - 30 + sin(a) * 14, sx + cos(a) * 40, fy - 30 + sin(a) * 40, 0.6, rgba(255, 250, 220, 0.35)) }
+            dune(Col(0xe6c88c), 8, 1); dune(Col(0xf2dca4), 3, 3)
+            c.poly(STONE, [sx - 4.6, fy + 2, sx - 2.8, fy - 46, sx + 2.8, fy - 46, sx + 4.6, fy + 2]); c.poly(STONE2, [sx + 1, fy + 2, sx + 0.6, fy - 46, sx + 2.8, fy - 46, sx + 4.6, fy + 2])
+            c.poly(GOLD, [sx - 2.8, fy - 46, sx, fy - 52, sx + 2.8, fy - 46]); c.R(sx - 6.6, fy + 0.6, 13.2, 3, STONE2)
+            for q in 0..<7 { c.R(sx - 1.6, fy - 40 + Double(q) * 5.4, 2.2, 2.6, rgba(90, 60, 26, 0.5)) }
+            let robes: [Col] = [TEAL, Col(0xf6efdc), RED, Col(0x7a4a8a), Col(0xe0a030), Col(0xf6efdc)]
+            for i in 0..<6 {
+                let px = x + 18 + Double(i) * 12 + (i > 2 ? 62 : 0), hop = abs(sin(NOW * 5 + Double(i))) * 1.6
+                figure(px, fy + 5 - hop, robes[i], i % 2 == 0 ? Col(0xf6efdc) : RED)
+                c.seg(px, fy - 4 - hop, px + (i > 2 ? -3 : 3), fy - 9 - hop, 0.7, Col(0xb8804e))
+            }
+        case 7:
+            // the Sphinx at sunrise, clear of the sand
+            c.vfill(x, y, pw, ph, [(0, Col(0xe8926a)), (0.6, Col(0xf8d48a)), (1, Col(0xfbe8b8))])
+            c.glow(x + pw - 30, fy - 6, 46, rgba(255, 240, 190, 0.9), rgba(255, 240, 190, 0)); c.circ(x + pw - 30, fy - 4, 12, Col(0xfff6d8))
+            c.poly(Col(0xd8a868), [x + 4, fy + 4, x + 34, fy - 34, x + 64, fy + 4]); c.poly(Col(0xb88848), [x + 34, fy - 34, x + 64, fy + 4, x + 44, fy + 4])
+            dune(Col(0xe6c88c), 6, 2)
+            c.save()
+            c.translate(sx - 40, fy + 6); c.scale(1.06, 1.06)
+            c.ell(42, 1, 44, 2.2, rgba(60, 34, 8, 0.25))
+            c.R(2, -3, 82, 3, STONE2); c.curve(9, -5, 0, -14, 9, -21.5, 1.3, STONE2)
+            c.ell(17, -12.5, 11, 9.5, STONE); c.poly(STONE, [10, -3, 12, -19, 20, -22, 36, -20.5, 50, -23, 58, -24, 60, -3])
+            c.R(26, -6.4, 28, 3.4, STONE2); c.ell(20, -5.6, 10, 2.6, STONE)
+            c.poly(STONE, [48, -3, 49, -23, 58, -25, 61, -14, 60, -3]); c.R(54, -8, 25, 5, STONE); c.ell(79, -5.5, 3, 2.5, STONE)
+            c.seg(12.6, -19.4, 20, -22, 0.6, Col(0xfff0c8)); c.seg(20, -22, 36, -20.5, 0.6, Col(0xfff0c8)); c.seg(36, -20.5, 49, -23, 0.6, Col(0xfff0c8))
+            sphinxHead(2)
+            c.restore()
+        case 8:
+            // riders on the ridge with torches, under the moon
+            c.vfill(x, y, pw, ph, [(0, Col(0x0c1030)), (1, Col(0x2a2a5a))])
+            stars(40)
+            c.glow(x + 30, y + 20, 26, rgba(220, 230, 255, 0.5), rgba(220, 230, 255, 0)); c.circ(x + 30, y + 20, 8, Col(0xeef0ff)); c.circ(x + 33.4, y + 18, 7, Col(0x121638))
+            dune(Col(0x1c1a3a), 26, 0.6)
+            for i in 0..<5 {
+                let k = Double(i)
+                let px = x + 30 + k * 26, py = fy + 4 - 26 * (0.5 + 0.5 * sin((px - x) * 0.045 + 0.6)) + 1
+                rideMark(px, py, 0.8 + 0.08 * Double(i % 2), Col(0x080814))
+                flame(px - 3, py - 15, 0.55)
+            }
+            dune(Col(0x10102a), 8, 2.4)
+        case 9:
+            // the sun going out
+            c.vfill(x, y, pw, ph, [(0, Col(0x1a1630)), (1, Col(0x6a4a52))])
+            stars(18)
+            c.glow(sx, y + 28, 40, rgba(255, 226, 170, 0.75), rgba(255, 226, 170, 0))
+            for i in 0..<14 {
+                let a = Double(i) * 0.449 + NOW * 0.06
+                let r1 = 22 + 6 * hashN(Double(i) + 850)
+                c.seg(sx + cos(a) * 13, y + 28 + sin(a) * 13, sx + cos(a) * r1, y + 28 + sin(a) * r1, 0.6, rgba(255, 240, 210, 0.6))
+            }
+            c.circ(sx, y + 28, 12.6, Col(0xfff0c8)); c.circ(sx + 1.2 - sin(NOW * 0.3) * 0.8, y + 28, 12.2, Col(0x0c0a18))
+            dune(Col(0x4a3440), 12, 1.2); dune(Col(0x2e2230), 5, 3)
+            c.poly(Col(0x3a2a36), [x + 96, fy + 2, x + 118, fy - 22, x + 140, fy + 2])
+            for i in 0..<4 { figure(x + 22 + Double(i) * 9, fy + 6, Col(0x241c2a), Col(0x241c2a)); c.seg(x + 22 + Double(i) * 9, fy - 4, x + 26 + Double(i) * 9, fy - 10, 0.7, Col(0x241c2a)) }
+        case 10:
+            // the visitor
+            c.vfill(x, y, pw, ph, [(0, Col(0x080c24)), (1, Col(0x1c2848))])
+            stars(46)
+            dune(Col(0x1a2038), 12, 0.4); dune(Col(0x10142a), 5, 2)
+            let uy = y + 24 + sin(NOW * 2) * 1.5
+            c.poly(rgba(150, 255, 220, 0.16 + 0.05 * sin(NOW * 7)), [sx - 7, uy + 4, sx + 7, uy + 4, sx + 30, fy + 8, sx - 30, fy + 8])
+            c.glow(sx, uy, 30, rgba(150, 255, 220, 0.4), rgba(150, 255, 220, 0))
+            c.ell(sx, uy - 3.4, 8, 5, Col(0x9ad8e8)); c.ell(sx - 2, uy - 5, 3, 1.6, rgba(255, 255, 255, 0.6))
+            c.ell(sx, uy, 22, 4.6, Col(0x8a94a8)); c.ell(sx, uy - 1, 22, 3, Col(0xc4cad8)); c.ell(sx, uy + 1.6, 14, 2, Col(0x5a6278))
+            for i in 0..<7 { let on = Int(NOW * 6) % 7 == i; c.circ(sx - 18 + Double(i) * 6, uy + 0.4, 1, on ? Col(0xfff3b0) : Col(0x5ad8c0)) }
+            c.ell(sx, fy + 7, 26, 2.4, rgba(150, 255, 220, 0.3))
+        case 11:
+            // the haboob coming down on the town
+            c.vfill(x, y, pw, ph, [(0, Col(0xc89a5c)), (1, Col(0xe8c890))])
+            c.R(x, fy + 2, pw, ph - (fy + 2 - y), Col(0xd8b074))
+            for i in 0..<5 { let bx = x + pw - 62 + Double(i) * 12, bh = 10 + hashN(Double(i) + 860) * 12; c.R(bx, fy + 2 - bh, 10, bh, Col(0xa8845a)); c.R(bx, fy + 2 - bh, 10, 1, Col(0xd8b88a)); c.R(bx + 3.4, fy - 4, 3, 6, Col(0x5a4028)) }
+            c.dome(x + pw - 24, fy + 2 - 20, 6, Col(0xa8845a))
+            for r in 0..<7 {
+                for q in 0..<6 {
+                    let k = Double(r * 6 + q)
+                    let bx = x + 6 + Double(q) * 13 + sin(NOW * 0.9 + k) * 3 + Double(r) * 2.4, by = y + 6 + Double(r) * 10
+                    c.circ(bx, by, 10 + hashN(k + 870) * 5, r % 2 == 0 ? Col(0x9a6a38) : Col(0xb07e46))
+                    c.circ(bx - 2, by - 2.4, 6, rgba(226, 180, 120, 0.5))
+                }
+            }
+            for i in 0..<14 { let k = Double(i); let u = (NOW * 0.7 + hashN(k + 880)).truncatingRemainder(dividingBy: 1); c.R(x + 84 + u * 60, y + 8 + hashN(k + 881) * (ph - 16), 6 + hashN(k + 882) * 8, 0.4, rgba(110, 70, 30, 0.6 * (1 - u))) }
+        case 12:
+            // the storm has stripped the sand off something old
+            c.vfill(x, y, pw, ph, [(0, Col(0xb8a078)), (1, Col(0xf0dca8))])
+            dune(Col(0xd8b878), 12, 0.3)
+            for sg in [-1.0, 1.0] {
+                let px = sx + sg * 15
+                c.poly(STONE, [px - 12, fy + 6, px - 9.4, fy - 22, px + 9.4, fy - 22, px + 12, fy + 6]); c.poly(STONE2, [px + 5, fy + 6, px + 5.6, fy - 22, px + 9.4, fy - 22, px + 12, fy + 6])
+                c.R(px - 10.4, fy - 23.6, 20.8, 2, STONE)
+                for q in 0..<3 { c.R(px - 6, fy - 16 + Double(q) * 6, 9, 0.5, rgba(90, 60, 26, 0.35)) }
+            }
+            c.R(sx - 3.4, fy - 10, 6.8, 16, Col(0x3a2a1a))
+            c.poly(STONE, [sx + 46, fy + 6, sx + 47.4, fy - 28, sx + 50.6, fy - 28, sx + 52, fy + 6]); c.poly(GOLD, [sx + 47.4, fy - 28, sx + 49, fy - 31.6, sx + 50.6, fy - 28])
+            dune(Col(0xe8cc94), 7, 2.2)
+            for i in 0..<12 { let k = Double(i); let u = (NOW * 0.5 + hashN(k + 890)).truncatingRemainder(dividingBy: 1); c.R(x + hashN(k + 891) * pw + u * 20, fy - 20 + hashN(k + 892) * 24, 7, 0.4, rgba(255, 244, 214, 0.5 * (1 - u))) }
+        default:
+            // fireworks over the rooftops
+            c.vfill(x, y, pw, ph, [(0, Col(0x0c1030)), (1, Col(0x3a2a5a))])
+            stars(26)
+            let cols: [Col] = [RED, GOLD, TEAL, Col(0xfff3b0), Col(0xd96ad0)]
+            for i in 0..<4 {
+                let k = Double(i)
+                let u = (NOW * 0.5 + k * 0.27).truncatingRemainder(dividingBy: 1)
+                let bx = x + 26 + k * 36, by = y + 16 + hashN(k + 895) * 16
+                c.glow(bx, by, 16 * u + 4, cols[i].alpha(0.35 * (1 - u)), cols[i].alpha(0))
+                for q in 0..<12 { let a = Double(q) * 0.5236; c.seg(bx + cos(a) * 3 * u, by + sin(a) * 3 * u, bx + cos(a) * 15 * u, by + sin(a) * 15 * u + u * u * 3, 0.6, cols[(i + q % 2) % 5].alpha(1 - u)) }
+            }
+            for i in 0..<9 {
+                let k = Double(i)
+                let bx = x + k * 18 - 2, bh = 12 + hashN(k + 897) * 14
+                c.R(bx, fy + 8 - bh, 17, bh + 8, Col(0x1c1a3a)); c.R(bx + 3, fy + 8 - bh + 4, 3, 4, Col(0xffd27a)); if i % 2 == 0 { c.R(bx + 10, fy + 8 - bh + 7, 3, 4, Col(0xffd27a)) }
+                if i % 3 == 1 { c.dome(bx + 8.5, fy + 8 - bh, 5, Col(0x1c1a3a)) }
+            }
+            for i in 0..<5 { figure(x + 30 + Double(i) * 22, fy + 12 - abs(sin(NOW * 5 + Double(i))) * 1.4, Col(0x2a2444), Col(0x2a2444)) }
+        }
+    }
     func scenePanel() {
         guard let sc = g.scene else { return }
         var kind = -1
@@ -342,6 +507,15 @@ final class Renderer {
         case "tomb": kind = 2
         case "deep": kind = 3
         case "btemple": kind = 4
+        case "cave": kind = 5
+        case "obelisk": kind = 6
+        case "sphinx": kind = 7
+        case "raid": kind = 8
+        case "eclipse": kind = 9
+        case "ufo": kind = 10
+        case "haboob": kind = 11
+        case "btemple0": kind = 12
+        case "fest": kind = 13
         default: break
         }
         if kind < 0 { return }
@@ -418,6 +592,8 @@ final class Renderer {
                     c.R(sx + 14 + hashN(n + 802) * 20 + u * 8, y + u * (ph - 8), 0.6, 0.6, rgba(255, 250, 230, 0.7))
                 }
             }
+        } else if kind >= 5 {
+            morePanels(kind, x, y, pw, ph, fy)
         } else {
             // the tomb, and the room under it
             c.vfill(x, y, pw, ph, [(0, Col(0x14101c)), (1, Col(0x3a2c20))])
@@ -2331,10 +2507,11 @@ final class Renderer {
             let x = traps[i] - cam
             if x < -12 || x > W + 12 { continue }
             c.R(x - 6, GY - 0.6, 12, 1.4, Col(0x6a5a48)); c.R(x - 6, GY - 0.6, 12, 0.4, Col(0x9a8a70))
+            for q in 0..<5 { c.R(x - 5.6 + Double(q) * 2.6, GY - 0.4, 1, 1, Col(0x1c0c06)) }
             if g.trapUp(i) {
-                for q in 0..<4 {
-                    let sx = x - 4.5 + Double(q) * 3
-                    c.poly(Col(0xc8c8c0), [sx - 1, GY - 0.6, sx, GY - 7.5, sx + 1, GY - 0.6])
+                for q in 0..<5 {
+                    let sx = x - 5.1 + Double(q) * 2.6
+                    c.seg(sx, GY, sx, GY - 13, 0.7, Col(0x9aa0a0)); c.poly(Col(0xe4e4dc), [sx - 0.9, GY - 13, sx, GY - 17, sx + 0.9, GY - 13])
                 }
             }
         }
@@ -2451,7 +2628,74 @@ final class Renderer {
             c.seg(52, -38, 54, -31, 0.35, rgba(90, 60, 26, 0.5))
         }
     }
+    /// The cliffs town's tomb: a temple front cut into the red rock, four seated kings and a dark door.
+    func cliffTomb(_ b: Building) {
+        let x0 = -40 - cam, xe = b.x + 168 - cam, hh = GY - 2, dx = b.x + 19 - cam
+        if x0 > W || xe < -80 { return }
+        c.poly(Col(0xb0623a), [x0, GY, x0, GY - hh, xe - 20, GY - hh, xe - 8, GY - hh * 0.86, xe - 14, GY - hh * 0.66, xe + 2, GY - hh * 0.5, xe - 4, GY - hh * 0.3, xe + 10, GY - hh * 0.12, xe + 16, GY])
+        c.poly(Col(0x8a4628), [xe - 20, GY - hh, xe - 8, GY - hh * 0.86, xe - 14, GY - hh * 0.66, xe + 2, GY - hh * 0.5, xe - 4, GY - hh * 0.3, xe + 10, GY - hh * 0.12, xe + 16, GY, xe + 58, GY, xe + 40, GY - hh * 0.2, xe + 34, GY - hh * 0.5, xe + 22, GY - hh * 0.8, xe + 14, GY - hh])
+        for q in 1..<14 {
+            let k = Double(q)
+            c.R(x0, GY - hh * k / 14 + sin(k * 2.1) * 1.5, xe - x0 - 12 + Double((q * 53) % 16), 0.8, rgba(70, 28, 12, 0.13 + 0.07 * Double(q % 3)))
+        }
+        for i in 0..<16 {
+            let n = Double(i)
+            c.R(x0 + 16 + hashN(n + 33) * 250, GY - 8 - hashN(n + 34) * (hh - 14), 6 + hashN(n) * 8, 2.4, rgba(60, 24, 10, 0.28))
+        }
+        // the recess, in deep shadow at the top
+        let fw = 150.0, fx = dx - 69, fh = min(104, GY - 20)
+        c.R(fx, GY - fh, fw, fh, Col(0xc47c4e))
+        c.vfill(fx, GY - fh, fw, 34, [(0, rgba(40, 14, 6, 0.75)), (1, rgba(40, 14, 6, 0))])
+        c.R(fx, GY - fh, 4, fh, rgba(40, 14, 6, 0.55)); c.R(fx + fw - 4, GY - fh, 4, fh, rgba(40, 14, 6, 0.35))
+        c.R(fx - 3, GY - fh - 4, fw + 6, 5, Col(0xd99a6c)); c.R(fx - 3, GY - fh - 4, fw + 6, 1, Col(0xf0c49c))
+        // a frieze of little figures, and a niche with a standing god over the door
+        var gi = 0.0
+        while gi < fw - 12 { c.RR(fx + 7 + gi, GY - fh + 7, 3.4, 7, 1, Col(0xa85a36)); c.circ(fx + 8.7 + gi, GY - fh + 5.6, 1.7, Col(0xa85a36)); gi += 8 }
+        c.R(fx + 4, GY - fh + 16, fw - 8, 1.6, Col(0xe0a274)); c.R(fx + 4, GY - fh + 18.4, fw - 8, 1, Col(0x8a4628))
+        c.R(dx - 3, GY - fh + 22, 18, 26, Col(0x5a2814)); c.RR(dx + 1, GY - fh + 29, 10, 19, 2, Col(0xc98052)); c.circ(dx + 6, GY - fh + 26.4, 3.4, Col(0xc98052))
+        c.R(dx + 2, GY - fh + 22.4, 8, 2.4, Col(0xb06a40)); c.circ(dx + 6, GY - fh + 21.6, 2.2, GOLD)
+        // four seated kings, two each side of the door
+        for sx in [fx + 8, fx + 38, fx + 90, fx + 120] {
+            let top = GY - 58
+            c.R(sx - 1, GY - 12, 24, 12, Col(0xa85a36)); c.R(sx, GY - 16, 22, 5, Col(0xb8693e))
+            c.RR(sx + 3, top + 18, 16, 26, 2, Col(0xcf8a5a)); c.R(sx + 15, top + 18, 4, 26, Col(0xa85a36))
+            c.RR(sx + 5, top + 4, 12, 13, 3, Col(0xcf8a5a)); c.RR(sx + 3, top, 16, 5, 1.5, Col(0xb8693e))
+            c.R(sx + 2, top + 4, 3.4, 16, Col(0xb8693e)); c.R(sx + 16.6, top + 4, 3.4, 16, Col(0xb8693e))
+            c.R(sx + 7, top + 9, 2, 1.4, Col(0x4a1c0c)); c.R(sx + 12.6, top + 9, 2, 1.4, Col(0x4a1c0c)); c.R(sx + 8.4, top + 13, 5, 0.9, Col(0x8a4628))
+            c.R(sx + 9.4, top + 15, 3, 4, Col(0xb8693e)); c.R(sx + 3, top + 34, 16, 3, Col(0xa85a36))
+            c.RR(sx + 4, top + 38, 5, 8, 1, Col(0xc98052)); c.RR(sx + 13, top + 38, 5, 8, 1, Col(0xc98052))
+            c.R(sx + 3, top + 24, 2.6, 12, Col(0xb8693e)); c.R(sx + 16.4, top + 24, 2.6, 12, Col(0xb8693e))
+        }
+        c.R(dx - 6, GY - 36, 24, 36, Col(0xa85a36)); c.R(dx - 8, GY - 40, 28, 4.4, Col(0xe0a274)); c.R(dx - 8, GY - 40, 28, 1, Col(0xf0c49c))
+        c.R(dx, GY - 30, 12, 30, Col(0x120805))
+        for i in 0..<9 {
+            let n = Double(i)
+            c.RR(fx + 8 + hashN(n + 60) * (fw - 20), GY - 2 - hashN(n + 61) * 3, 4 + hashN(n) * 5, 3, 1, i % 2 == 1 ? Col(0x8a4628) : Col(0xb8693e))
+        }
+        c.poly(Col(0xb8693e), [xe - 30, GY, xe + 4, GY - 13, xe + 30, GY - 7, xe + 62, GY]); c.poly(Col(0x9a5632), [xe + 4, GY - 13, xe + 30, GY - 7, xe + 62, GY, xe + 22, GY])
+        if b.level == 0 {
+            // still walled up
+            c.R(dx, GY - 30, 12, 30, Col(0x9a5632))
+            var q = 3.0
+            while q < 30 { c.R(dx, GY - q, 12, 0.6, Col(0x7e4426)); q += 5 }
+            c.circ(dx + 6, GY - 16, 3, Col(0x7e4426)); c.circ(dx + 6, GY - 16, 1.6, Col(0xb8693e))
+            c.poly(Col(0xb8693e), [dx - 16, GY, dx - 3, GY - 9, dx + 13, GY - 6, dx + 28, GY])
+        } else {
+            c.R(dx - 11.5, GY - 20, 1, 20, WOOD); c.R(dx + 22.5, GY - 20, 1, 20, WOOD)
+            fire(dx - 11, GY - 20, 0.7); fire(dx + 23, GY - 20, 0.7)
+            if !g.looted {
+                // the chest, just inside the door
+                c.RR(dx + 2, GY - 7, 8, 7, 1, Col(0x6a4426)); c.R(dx + 2, GY - 7, 8, 1.4, GOLD); c.R(dx + 5.2, GY - 5, 1.6, 2.4, GOLD)
+                light(dx + 6, GY - 5, 12, 0.6)
+                if sin(NOW * 3) > 0.5 { c.R(dx + 3, GY - 9, 5, 0.5, Col(0xffffff)); c.R(dx + 5.2, GY - 11, 0.5, 5, Col(0xffffff)) }
+            } else if lit {
+                c.R(dx + 1, GY - 28, 10, 28, rgba(120, 255, 170, 0.14 + 0.08 * sin(NOW * 3)))
+            }
+        }
+        rising(b, b.x - cam)
+    }
     func tomb(_ b: Building) {
+        if g.feat == .cliff { cliffTomb(b); return }
         let x = b.x - cam
         if x > W + 20 || x + b.w < -40 { return }
         c.poly(STONE, [x - 6, GY, x + 25, GY - 36, x + 56, GY])
@@ -2968,9 +3212,11 @@ final class Renderer {
         c.poly(rgba(60, 34, 8, 0.2), [sx - 11, GY, sx + 11, GY, sx + 11 + sl, GY + 4.5, sx - 11 + sl, GY + 4.5])
         c.ell(sx, GY + 0.4, 13, 1.4, rgba(50, 28, 8, 0.32))
         c.save()
-        if o.gallop {
+        if o.gallop || o.rear > 0.01 {
+            // gallop rocks the body; rearing lifts the front end around the hind legs
             let px = sx - d * 6.5, py = by + 2
-            c.translate(px, py); c.rotate(-d * sin(ph * 2) * 0.075 * min(1, amp)); c.translate(-px, -py)
+            let rock = o.gallop ? sin(ph * 2) * 0.075 * min(1, amp) : 0
+            c.translate(px, py); c.rotate(-d * (o.rear * 0.44 + rock)); c.translate(-px, -py)
         }
         let swing: Double = o.gallop ? 6 : (o.trot ? 5.2 : 4.2)
         let lift: Double = o.trot ? 3.6 : 2.4
@@ -3089,7 +3335,7 @@ final class Renderer {
         let gal = (g.up.contains("racer") || g.B(.pen).level >= 2) && sp > 125
         let trot = !gal && sp > 70
         var co = CamelOpt()
-        co.trot = trot; co.gallop = gal; co.saddle = RED; co.kneel = p.kneelK
+        co.trot = trot; co.gallop = gal; co.saddle = RED; co.kneel = p.kneelK; co.rear = p.rearK
         if p.kneelK <= 0.1 { co.graze = clampD((p.idle - 2.5) / 1.2, 0, 1) * (0.5 + 0.5 * sin(NOW * 0.7)) }
         camel(p.x, d, p.phase, gal ? 1.15 : amp, co) { by in
             self.rider(sx - d, by, d, RiderOpt(robe: Col(0xf6efdc), skin: Col(0xb8804e), turban: GOLD, sash: TEAL, veil: nil, fl: clampD(sp / 110, 0, 1), jewel: true))
