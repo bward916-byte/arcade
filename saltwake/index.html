@@ -6073,9 +6073,9 @@ const Land3 = {
   },
   makeWater() {
     const geo = new THREE.PlaneGeometry(420, 420, 1, 1); geo.rotateX(-Math.PI / 2);
-    const mat = this.waterMat = new THREE.ShaderMaterial({ transparent: true, uniforms: { uT: { value: 0 }, uSun: { value: new THREE.Vector3(-.4, .7, .5).normalize() }, uCam: { value: new THREE.Vector3() }, uNight: { value: 0 }, uIsle: { value: 0 } },
+    const mat = this.waterMat = new THREE.ShaderMaterial({ transparent: true, uniforms: { uT: { value: 0 }, uSun: { value: new THREE.Vector3(-.4, .7, .5).normalize() }, uCam: { value: new THREE.Vector3() }, uNight: { value: 0 }, uIsle: { value: 0 }, uTint: { value: new THREE.Vector4(0, 0, 0, 0) } },
       vertexShader: 'varying vec3 vW; void main(){ vec4 w = modelMatrix*vec4(position,1.0); vW = w.xyz; gl_Position = projectionMatrix*viewMatrix*w; }',
-      fragmentShader: `precision highp float; varying vec3 vW; uniform float uT; uniform vec3 uSun; uniform vec3 uCam; uniform float uNight; uniform float uIsle;
+      fragmentShader: `precision highp float; varying vec3 vW; uniform float uT; uniform vec3 uSun; uniform vec3 uCam; uniform float uNight; uniform float uIsle; uniform vec4 uTint;
       ${SEAD_GLSL}
       float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
       float noise(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f); return mix(mix(hash(i),hash(i+vec2(1,0)),f.x), mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x), f.y); }
@@ -6086,11 +6086,11 @@ const Land3 = {
         vec3 n = normalize(vec3(-g.x, 1.0, -g.y)); vec3 V = normalize(uCam - vW);
         float F = 0.04 + 0.96*pow(1.0 - max(dot(n, V), 0.0), 4.0);
         vec3 deep = vec3(0.04, 0.22, 0.32), shallow = vec3(0.12, 0.5, 0.52); vec3 base = mix(deep, shallow, 0.5 + 0.5*noise(p*0.05));
-        vec3 sky = mix(vec3(0.72, 0.84, 0.94), vec3(0.05,0.07,0.16), uNight); base = mix(base, base*vec3(0.15,0.2,0.35), uNight);
+        vec3 sky = mix(vec3(0.72, 0.84, 0.94), vec3(0.05,0.07,0.16), uNight); base = mix(base, uTint.rgb * (0.75 + 0.5*noise(p*0.08)), uTint.a); base = mix(base, base*vec3(0.15,0.2,0.35), uNight);
         vec3 col = mix(base, sky, F*0.9); vec3 Hh = normalize(uSun + V); col += vec3(1.0,0.95,0.8)*pow(max(dot(n, Hh), 0.0), 300.0)*(1.0-uNight)*0.8;
         float cap = smoothstep(0.17, 0.24, hs); col = mix(col, vec3(0.9,0.95,0.95), cap*0.35);
         float al = 0.93;
-        if (uIsle > 0.5) { float d = seaD(p); float n1 = noise(p*0.35 + vec2(uT*0.05, 0.0));
+        if (uIsle > 0.5) { float d = uIsle > 1.5 ? max(max(p.y - (7.0 + 1.6*sin(p.x*0.17 + 0.6)), -6.4 - p.x), p.x - 50.0) : seaD(p); float n1 = noise(p*0.35 + vec2(uT*0.05, 0.0));
           float sw = 0.5 + 0.5*sin(uT*0.75 + n1*5.0 + p.x*0.12); float dd = d + 0.9*sw; if (dd < 0.0) discard;
           float depth = smoothstep(0.0, 9.0, d + 0.9);
           vec3 wc = mix(vec3(0.62,0.86,0.78), vec3(0.10,0.58,0.62), smoothstep(0.0, 0.4, depth)); wc = mix(wc, wc*vec3(0.15,0.2,0.35), uNight);
@@ -6124,7 +6124,7 @@ const Land3 = {
     g.computeVertexNormals(); if (!port) { const nr = g.attributes.normal; for (let i = 0; i < pos.count; i++) { const k = smooth((0.88 - nr.getY(i)) / 0.2) * (pos.getY(i) > 0.3 ? 1 : 0) * (1 - smooth((-8.6 - pos.getZ(i)) / 2.5)), r = 0.3 + vnoise(pos.getX(i) * 2, pos.getZ(i) * 2, 5) * 0.12; col[i * 3] = lerp(col[i * 3], r, k); col[i * 3 + 1] = lerp(col[i * 3 + 1], r * 0.96, k); col[i * 3 + 2] = lerp(col[i * 3 + 2], r * 0.9, k); } }
     g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
     if (!port) g.setAttribute('aGrass', new THREE.Float32BufferAttribute(gk, 1));
-    const m = new THREE.Mesh(g, port ? new THREE.MeshStandardMaterial({ vertexColors: true, map: this.tex[lv.town.pal.tex || 'stone'], roughness: 1 }) : Isle.groundMat(this)); m.receiveShadow = true; this.group.add(m);
+    const m = new THREE.Mesh(g, port ? new THREE.MeshStandardMaterial({ vertexColors: true, map: lv.town.layout ? this.fineTex(lv.town.pal.tex || 'stone') : this.tex[lv.town.pal.tex || 'stone'], roughness: 1 }) : Isle.groundMat(this)); m.receiveShadow = true; this.group.add(m);
   },
   pier(x0, x1, y, z, w) { const len = x1 - x0; const deck = this.box(len, 0.22, w, this.mat.deck, (x0 + x1) / 2, y - 0.11, z); deck.material = this.mat.deck;
     for (let x = x0 + 0.6; x < x1; x += 2.2) for (const s of [-1, 1]) { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.18, y + 2.2, 8), this.mat.wood); p.position.set(x, (y - 2.2) / 2 - 0.1, z + s * (w / 2 - 0.25)); p.castShadow = true; this.group.add(p); }
@@ -6166,7 +6166,10 @@ const Land3 = {
       const lp = leaf.geometry.attributes.position; for (let k = 0; k < lp.count; k++) { const u = (lp.getX(k) + len / 2) / len, v = lp.getY(k); lp.setZ(k, -Math.abs(v) * 0.5 * (1 - u * 0.5)); lp.setY(k, v * (1 - u * 0.65) - u * u * droop + Math.sin(u * 3.1) * 0.35 * (low ? 0.3 : 1)); } leaf.geometry.translate(len / 2, 0, 0); leaf.geometry.computeVertexNormals();
       leaf.position.set(px, py + 0.1, 0); leaf.rotation.y = a; leaf.userData.rz = low ? -0.25 : rand(0.0, 0.3); leaf.rotation.z = leaf.userData.rz; leaf.castShadow = true; leaf.userData.leaf = true; g.add(leaf); }
     g.rotation.y = rand(0, TAU); g.position.set(x, y, z); this.group.add(g); return g; },
-  roofMat(k) { const C = { red: 0x7c2c18, slate: 0x3c4148, flat: 0x6a655c }; if (k === 'thatch') return this.mat.thatch; if (!C[k]) return this.mat.hullDark; return this.mat['roof_' + k] || (this.mat['roof_' + k] = new THREE.MeshStandardMaterial({ color: C[k], roughness: 0.9, side: THREE.DoubleSide })); },
+  fineTex(k) { const n = k + '_fine'; if (!this.tex[n]) { const t = this.tex[n] = this.tex[k].clone(); t.needsUpdate = true; t.repeat.set(30, 19); } return this.tex[n]; },
+  roofMat(k) { const C = { red: 0xb04a2a, slate: 0x59606a, flat: 0x8a8478, tile: 0x6a4a34 }; if (k === 'thatch') return this.mat.thatch; if (!C[k]) k = 'tile';
+    if (!this.tex.roof) { const rng = mulberry(8); this.tex.roof = this.canvasTex(256, (c, n) => { c.fillStyle = '#8a8a8a'; c.fillRect(0, 0, n, n); for (let r = 0; r < 8; r++) for (let i = -1; i < 9; i++) { const x = i * 32 + (r % 2) * 16, y = r * 32, v = 105 + rng() * 80; c.fillStyle = 'rgb(' + v + ',' + v + ',' + v + ')'; c.beginPath(); c.moveTo(x + 1, y); c.lineTo(x + 31, y); c.lineTo(x + 31, y + 22); c.quadraticCurveTo(x + 16, y + 36, x + 1, y + 22); c.closePath(); c.fill(); c.strokeStyle = 'rgba(0,0,0,0.45)'; c.lineWidth = 2; c.stroke(); } }, 1); this.tex.roof.repeat.set(0.9, 0.9); }
+    return this.mat['roof_' + k] || (this.mat['roof_' + k] = new THREE.MeshStandardMaterial({ color: C[k], map: k === 'flat' ? null : this.tex.roof, roughness: 0.85, side: THREE.DoubleSide })); },
   wallMat(c) { if (c === undefined) return this.mat.wall; return this.mat['wall_' + c] || (this.mat['wall_' + c] = new THREE.MeshStandardMaterial({ map: this.tex.wall, color: c, roughness: 0.9 })); },
   house(x0, x1, y0, h, z0, z1, roof, door, wall) { const w = x1 - x0, d = z1 - z0, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
     this.box(w, h, d, this.wallMat(wall), cx, y0 + h / 2, cz); const sh = new THREE.Shape(); sh.moveTo(-w / 2 - 0.5, 0); sh.lineTo(w / 2 + 0.5, 0); sh.lineTo(0, h * 0.42); sh.closePath();
@@ -6229,7 +6232,7 @@ const Land3 = {
   // --- scene assembly (top-down layouts)
   build(key, lv) { if (!this.ready) return; if (this.group) this.scene.remove(this.group); this.group = new THREE.Group(); this.scene.add(this.group); this.t = 0; FX3.lights = []; FX3.flags = []; FX3.fountain = null; Hero.n = 0;
     const port = key === 'port'; this.scene.background = new THREE.Color(port ? 0x2a2440 : 0x9ccbe8); this.scene.fog = new THREE.Fog(port ? 0x1a1630 : 0xa8d0e6, 30, 90);
-    this.sunDir = port ? [-14, 16, 8] : [14, 30, 12]; this.sun.intensity = port ? 0.55 : 2.2; this.sun.color.set(port ? 0xffb080 : 0xfff1d6); this.hemi.intensity = port ? 0.4 : 0.9; this.hemi.color.set(port ? 0x6a5a8a : 0xbfd8ee); this.waterMat.uniforms.uNight.value = port ? 0.55 : 0; this.waterMat.uniforms.uIsle.value = port ? 0 : 1;
+    this.sunDir = port ? [-14, 16, 8] : [14, 30, 12]; this.sun.intensity = port ? 0.55 : 2.2; this.sun.color.set(port ? 0xffb080 : 0xfff1d6); this.hemi.intensity = port ? 0.4 : 0.9; this.hemi.color.set(port ? 0x6a5a8a : 0xbfd8ee); this.waterMat.uniforms.uNight.value = port ? 0.55 : 0; this.waterMat.uniforms.uIsle.value = port ? (lv.town.surf ? 2 : 0) : 1; { const tw = port && lv.town.water; this.waterMat.uniforms.uTint.value.set(tw ? tw[0] : 0, tw ? tw[1] : 0, tw ? tw[2] : 0, tw ? tw[3] : 0); }
     this.terrain(lv);
     for (const pm of lv.palms) this.palm(pm[0], lv.h(pm[0], pm[1]) - 0.1, pm[1], pm[2]);
     if (port) {
@@ -6463,7 +6466,7 @@ const FX3 = {
   // time of day on land follows the sea's clock
   light(dt) { const L3 = Land3, n = Sea.night(), dk = Sea.dusk() * (1 - n), c = this._c || (this._c = new THREE.Color()), c2 = this._c2 || (this._c2 = new THREE.Color()); Sea.day = (Sea.day + dt / 420) % 1;
     const mix = (target, a, b, d) => target.set(a).lerp(c2.set(b), dk).lerp(c2.set(d), n); mix(L3.scene.background, 0x9ccbe8, 0xe9a877, 0x12172c); mix(L3.scene.fog.color, 0xa8d0e6, 0xd9a080, 0x0e1226);
-    mix(L3.sun.color, 0xfff1d6, 0xffa060, 0x8fa8ff); L3.sun.intensity = lerp(lerp(2.2, 1.3, dk), 0.5, n); mix(L3.hemi.color, 0xbfd8ee, 0xc9a0a0, 0x3a4a7a); L3.hemi.intensity = lerp(lerp(0.9, 0.62, dk), 0.36, n);
+    mix(L3.sun.color, 0xfff1d6, 0xffa060, 0x8fa8ff); L3.sun.intensity = lerp(lerp(1.9, 1.3, dk), 0.5, n); mix(L3.hemi.color, 0xbfd8ee, 0xc9a0a0, 0x3a4a7a); L3.hemi.intensity = lerp(lerp(0.72, 0.6, dk), 0.36, n);
     const sd = [[14, 30, 12], [-22, 9, 10], [10, 24, -8]]; L3.sunDir = [0, 1, 2].map(i => lerp(lerp(sd[0][i], sd[1][i], dk), sd[2][i], n)); L3.waterMat.uniforms.uNight.value = n * 0.6 + dk * 0.15;
     const glow = this.glowK = clamp(n + dk * 0.8, 0, 1); this.lights.forEach((l, i) => { l.pl.intensity = 1.6 * glow * (0.85 + 0.15 * Math.sin(L3.t * 9 + i * 2.1) + 0.08 * Math.sin(L3.t * 23 + i)); l.mesh.visible = true; });
     if (L3.mat.window) { L3.mat.window.emissiveIntensity = glow * 1.1; } this.stars.material.opacity = n * 0.9; this.stars.position.copy(L3.cam.position); this.moon.material.opacity = n; this.moon.position.set(L3.cam.position.x - 60, 70, L3.cam.position.z - 120);
@@ -6502,7 +6505,7 @@ const FX3 = {
     if (this.shakeA > 0.001) { const a = this.shakeA * this.shakeA * 0.9; L3.cam.position.x += rand(-a, a); L3.cam.position.y += rand(-a, a); L3.cam.position.z += rand(-a, a); this.shakeA = Math.max(0, this.shakeA - dt * 2.2); } this.hurtA = Math.max(0, this.hurtA - dt * 1.6);
   },
   // drawn on the 2D overlay: a red edge when hurt or near death
-  overlay(c, W, H) { const low = G.hp <= 2 ? 0.25 + 0.15 * Math.sin(Land3.t * 5) : 0, a = Math.max(this.hurtA * 0.6, low); if (a < 0.01) return; const g = c.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.max(W, H) * 0.72); g.addColorStop(0, 'rgba(160,20,10,0)'); g.addColorStop(1, 'rgba(160,20,10,' + a.toFixed(2) + ')'); c.fillStyle = g; c.fillRect(0, 0, W, H); },
+  overlay(c, W, H) { { const v = c.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.45, W / 2, H / 2, Math.max(W, H) * 0.75); v.addColorStop(0, 'rgba(10,14,24,0)'); v.addColorStop(1, 'rgba(10,14,24,0.34)'); c.fillStyle = v; c.fillRect(0, 0, W, H); } const low = G.hp <= 2 ? 0.25 + 0.15 * Math.sin(Land3.t * 5) : 0, a = Math.max(this.hurtA * 0.6, low); if (a < 0.01) return; const g = c.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.max(W, H) * 0.72); g.addColorStop(0, 'rgba(160,20,10,0)'); g.addColorStop(1, 'rgba(160,20,10,' + a.toFixed(2) + ')'); c.fillStyle = g; c.fillRect(0, 0, W, H); },
 };
 
 // ==== 04f_ship.js
@@ -6722,13 +6725,18 @@ const Town = {
     if (T.fisher) this.P.fisher(L3); if (T.dog) this.P.dog(L3, T.dog[0], T.dog[1]); },
   // drop classic set pieces (built for the 1.9 m quay) onto ground at another height
   put(L3, y, fn) { const n0 = L3.group.children.length; fn(this.P); for (let i = n0; i < L3.group.children.length; i++) L3.group.children[i].position.y += y - 1.9; },
-  lamp(L3, lv, x, z) { const y = lv.h(x, z); L3.box(0.1, 2.5, 0.1, L3.mat.iron, x, y + 1.25, z, false); L3.lantern(x, y + 2.65, z, true); },
+  lamp(L3, lv, x, z) { const y = lv.h(x, z); L3.box(0.1, 2.5, 0.1, L3.mat.iron, x, y + 1.25, z, false); this.lampN = (this.lampN || 0) + 1; L3.lantern(x, y + 2.65, z, this.lampN % 2 === 0); },
   // a house that can face any way: front is local +z, door in the middle of it
   hut(L3, lv, h) { const ry = h.ry || 0, fx = Math.sin(ry), fz = Math.cos(ry), w = h.w, d = h.d, H = h.h, y = h.y !== undefined ? h.y : lv.h(h.x + fx * (d / 2 + 0.6), h.z + fz * (d / 2 + 0.6)), g = new THREE.Group(), P = this.P, wall = L3.wallMat(h.wall);
     const ext = h.stilts ? 0 : 3; g.add(P.m(new THREE.BoxGeometry(w, H + ext, d), wall, 0, (H - ext) / 2, 0)); const sh = new THREE.Shape(); sh.moveTo(-w / 2 - 0.5, 0); sh.lineTo(w / 2 + 0.5, 0); sh.lineTo(0, Math.max(1.1, H * 0.42)); sh.closePath();
     const rf = P.m(new THREE.ExtrudeGeometry(sh, { depth: d + 0.7, bevelEnabled: false }), L3.roofMat(h.roof), 0, H - 0.02, -d / 2 - 0.35); if (h.roof === 'flat') rf.scale.y = 0.12; g.add(rf);
     if (h.door !== false) g.add(P.m(new THREE.BoxGeometry(1.1, 2.2, 0.15), L3.mat.hull, 0, 1.1, d / 2 + 0.02), P.m(new THREE.BoxGeometry(1.6, 0.12, 0.6), L3.mat.wood, 0, 2.35, d / 2 + 0.25));
     const wm = L3.mat.window || (L3.mat.window = new THREE.MeshStandardMaterial({ color: 0x2a2a30, roughness: .4, emissive: 0xffb050, emissiveIntensity: 0 })); if (w > 4.4) for (const wx of [-w / 2 + 1.2, w / 2 - 1.2]) g.add(P.m(new THREE.BoxGeometry(0.8, 1.0, 0.1), wm, wx, Math.min(H * 0.55, 2.2), d / 2 + 0.04), P.m(new THREE.BoxGeometry(0.9, 1.1, 0.06), L3.mat.wood, wx, Math.min(H * 0.55, 2.2), d / 2 + 0.03));
+    if (!h.stilts) g.add(P.m(new THREE.BoxGeometry(w + 0.16, 0.55, d + 0.16), L3.mat.stone, 0, 0.27, 0)); const trim = L3.mat['trim_' + (h.trim || 0)] || (L3.mat['trim_' + (h.trim || 0)] = new THREE.MeshStandardMaterial({ color: h.trim || 0x3d5a4c, roughness: 0.8 }));
+    if (h.door !== false) g.add(P.m(new THREE.BoxGeometry(1.36, 2.36, 0.1), L3.mat.wood, 0, 1.16, d / 2 + 0.005), P.m(new THREE.BoxGeometry(1.5, 0.16, 0.5), L3.mat.stone, 0, 0.08, d / 2 + 0.25));
+    if (w > 4.4) for (const wx of [-w / 2 + 1.2, w / 2 - 1.2]) for (const s of [-1, 1]) { const st = P.m(new THREE.BoxGeometry(0.36, 1.04, 0.07), trim, wx + s * 0.63, Math.min(H * 0.55, 2.2), d / 2 + 0.06); st.rotation.y = -s * 0.25; g.add(st); }
+    if (h.chim) g.add(P.m(new THREE.BoxGeometry(0.6, 1.6, 0.6), L3.mat.stone, w * 0.28, H + 0.9, -d * 0.2));
+    if (H > 4.3 && w > 4.4) for (const wx of [-w / 2 + 1.2, w / 2 - 1.2]) g.add(P.m(new THREE.BoxGeometry(0.7, 0.8, 0.1), wm, wx, H - 0.9, d / 2 + 0.04), P.m(new THREE.BoxGeometry(0.8, 0.9, 0.06), L3.mat.wood, wx, H - 0.9, d / 2 + 0.03));
     if (h.stilts) for (const sx of [-1, 1]) for (const sz of [-1, 1]) g.add(P.m(new THREE.CylinderGeometry(0.09, 0.11, 4, 6), L3.mat.wood, sx * (w / 2 - 0.2), -2, sz * (d / 2 - 0.2)));
     P.add(L3, g, h.x, y, h.z, ry); const W = (lx, lz) => [h.x + fz * lx + fx * lz, h.z - fx * lx + fz * lz];
     if (h.lamp !== false) { const q = W(0.95, d / 2 + 0.25); L3.lantern(q[0], y + 2.3, q[1], !!(h.role || h.lamp)); }
@@ -6790,7 +6798,7 @@ const Town = {
       if (x >= 9.5 && x < 16 && z > -2.6 && z <= 3.6) return [1.9 + 2.7 * clamp((x - 9.5) / 6.5, 0, 1), 0.66, 0.65, 0.62];
       if (x < 9.5 && z > -2.6 && z <= 4.2) return [1.9, lo[0], lo[1], lo[2]]; return [-1.6, 0.4, 0.4, 0.38]; },
     walk(x, z) { return (x < 9.6 && z >= -1.9 && z <= 3.9) || (x >= 9.5 && x <= 16.3 && z >= -1.9 && z <= 3.2) || (x >= 16.2 && x <= 34.4 && z >= -12.4 && z <= 7.2) || (x >= -3.4 && x < 16.3 && z >= -12.4 && z <= -3.5); },
-    houses: [{ x: 22, z: -9.6, w: 8, d: 5, h: 3.8, ry: 0, roof: 'red', wall: 0xf4f0e6, role: 'tavern', sign: 'KING\'S ARMS' }, { x: 31.2, z: -2, w: 9.5, d: 5.4, h: 5.6, ry: -Math.PI / 2, roof: 'slate', wall: 0xe9e2d2, sign: 'GOVERNOR' }, { x: 3.5, z: -9.8, w: 11, d: 4.4, h: 3.2, ry: 0, roof: 'red', wall: 0xf4f0e6, sign: 'BARRACKS', lamp: true }],
+    houses: [{ x: 22, z: -9.6, w: 8, d: 5, h: 3.8, ry: 0, roof: 'red', wall: 0xf4f0e6, role: 'tavern', sign: 'KING\'S ARMS', trim: 0x1f3a5a, chim: true }, { x: 31.2, z: -2, w: 9.5, d: 5.4, h: 5.6, ry: -Math.PI / 2, roof: 'slate', wall: 0xe9e2d2, sign: 'GOVERNOR' }, { x: 3.5, z: -9.8, w: 11, d: 4.4, h: 3.2, ry: 0, roof: 'red', wall: 0xf4f0e6, sign: 'BARRACKS', lamp: true }],
     zones: [[3, -1.3, 'trade']], circles: [[32.4, 5.3, 1.35], [12.6, -9.4, 1.7], [25, 0.5, 0.3], [20.5, 3.4, 0.5]],
     build(L3, lv, T) { const S = L3.mat.stone, B = (w, h, d, x, y, z, m) => L3.box(w, h, d, m || S, x, y, z);
       B(20.4, 6.4, 0.7, 6.05, 1.4, -2.75); crenel(L3, -4, 16, -3.0, 4.95); B(0.7, 6.4, 4.9, 16.2, 1.4, 5.75); B(13.7, 0.5, 0.5, 2.75, 1.66, 4.25); B(0.5, 0.5, 6.2, 9.7, 1.66, 1.2).visible = false;
@@ -6804,6 +6812,8 @@ const Town = {
       for (const [x, z, s] of [[-2.4, 3.2, 0], [-1.5, 3.2, 0], [-1.95, 3.2, 1], [6.6, 3.3, 0], [7.5, 3.3, 0], [7.5, 2.4, 0]]) L3.box(0.85, 0.85, 0.85, L3.mat.crate, x, 2.35 + s * 0.85, z);
       { const m = L3.box(1, 1, 1, L3.mat.wood, 20.5, 5.05, 3.4); m.geometry = new THREE.CylinderGeometry(0.5, 0.45, 0.9, 10); } T.P.coil(L3, 6.2, -0.9); T.P.anchor(L3, -2.6, -1.2);
       for (const [x, z] of [[17, -2.6], [17, 3.6], [28, 6.2], [18.5, -11.4], [10, -4.2], [-2.6, -4.2], [8.6, 3.4]]) T.lamp(L3, lv, x, z);
+      { const ban = new THREE.MeshStandardMaterial({ color: 0x8a1c1c, roughness: 0.9, side: THREE.DoubleSide }), gold = L3.mat.gold; for (const x of [2, 9, 22, 29]) { const b = L3.box(1.3, 3.2, 0.05, ban, x, 6.2, -12.8, false); L3.box(1.5, 0.1, 0.1, L3.mat.wood, x, 7.85, -12.8, false); const e = L3.box(0.5, 0.5, 0.06, gold, x, 6.6, -12.76, false); e.rotation.z = Math.PI / 4; }
+        for (const [x, z, ry] of [[-1.5, 5.6, 0.1], [4.5, 5.9, -0.08]]) { const h = new THREE.Mesh(new THREE.SphereGeometry(1, 12, 6, 0, TAU, Math.PI / 2, Math.PI / 2), new THREE.MeshStandardMaterial({ map: L3.tex.wood, color: 0x6a7a8a, roughness: 0.9, side: THREE.DoubleSide })); h.scale.set(2.3, 0.6, 0.62); h.position.set(x, 0.42, z); h.rotation.y = ry; h.castShadow = true; L3.group.add(h); for (const tx of [-0.8, 0, 0.8]) { const th = L3.box(0.1, 0.05, 1.0, L3.mat.wood, x + tx, 0.3, z, false); th.rotation.y = ry; } } }
       B(44, 5, 9, 15.5, 1.6, -18.6, new THREE.MeshStandardMaterial({ color: 0x6f7a58, roughness: 1 })); } };
 
   // ================= Santa Marta: no quay at all. A beach, a round market square, houses climbing the hill in an arc, a church above.
@@ -6813,14 +6823,14 @@ const Town = {
   D.marta.folk[0].box = [10, -6.5, 20, 0.5]; D.marta.folk[1].box = [8, 2, 22, 4.2]; D.marta.folk[2].box = [10, -9, 20, -7];
   const arc = (a, o) => { const r = a * Math.PI / 180, x = MC[0] + 11.4 * Math.cos(r), z = MC[1] - 11.4 * Math.sin(r); return Object.assign({ x, z, ry: Math.atan2(-Math.cos(r), Math.sin(r)), w: 5.6, d: 4.6 }, o); };
   D.marta.layout = { bounds: [-23, 35.5, -15.5, 9],
-    ground(x, z) { const d = z - shore(x), pl = Math.hypot(x - MC[0], z - MC[1]), n = vnoise(x * 0.5, z * 0.5, 2); let y = lerp(hill(x, z), -0.05, smooth((d + 5.5) / 5.5)); if (d > 0) y = -0.05 - 1.6 * smooth(d / 5);
+    ground(x, z) { const d = Math.max(z - shore(x), x - 50), pl = Math.hypot(x - MC[0], z - MC[1]), n = vnoise(x * 0.5, z * 0.5, 2); let y = lerp(hill(x, z), -0.05, smooth((d + 6.4) / 5.5)); if (d > 0) y = -0.05 - 1.6 * smooth(d / 5);
       if (x < -4.1) { const k = smooth((x + 8.5) / 4.4); y = Math.min(y, 1.5) * k - 1.6 * (1 - k); }
-      const wet = smooth((d + 1.6) / 1.4), gr = smooth((-z - 8.5) / 4) * (0.6 + 0.4 * n); let c = [0.88 - n * 0.08, 0.8 - n * 0.08, 0.64 - n * 0.06]; c = c.map((v, i) => lerp(lerp(v, [0.6, 0.52, 0.4][i], wet), [0.34, 0.5, 0.22][i], gr));
+      const wet = smooth((d + 2.2) / 1.2), gr = smooth((-z - 8.5) / 4) * (0.6 + 0.4 * n); let c = [0.88 - n * 0.08, 0.8 - n * 0.08, 0.64 - n * 0.06]; c = c.map((v, i) => lerp(lerp(v, [0.6, 0.52, 0.4][i], wet), [0.34, 0.5, 0.22][i], gr));
       const ring = Math.abs(pl - 6.6) < 0.35, k2 = 1 - smooth((pl - 6.4) / 0.5); if (k2 > 0) { const spoke = Math.abs(Math.sin(Math.atan2(z - MC[1], x - MC[0]) * 6)) < 0.08 || Math.abs(pl - 3.3) < 0.18; c = c.map((v, i) => lerp(v, (spoke ? [0.5, 0.44, 0.38] : [0.62, 0.36, 0.26])[i] * (0.9 + n * 0.2), k2)); } if (ring) c = [0.55, 0.5, 0.44];
       const path = Math.abs(z - (MC[1] + 6.4) * smooth((x + 3) / 9) * 0 - lerp(0, MC[1] + 5.5, smooth((x + 3) / 12))) < 1.1 && x < 10 && x > -4; if (path && k2 <= 0) c = c.map((v, i) => lerp(v, [0.7, 0.58, 0.46][i], 0.6));
       return [y, c[0], c[1], c[2]]; },
     walk(x, z) { return x <= 35.5 && z >= -15.5 && z - shore(x) < -0.6; },
-    houses: [arc(22, { h: 4.2, roof: 'red', wall: 0xe8cf70 }), arc(56, { h: 3.6, roof: 'flat', wall: 0x6aaea8, role: 'tavern', sign: 'CANTINA' }), arc(90, { h: 4.8, roof: 'red', wall: 0xd98a80, w: 6.2 }), arc(124, { h: 3.6, roof: 'red', wall: 0xe0a850, role: 'trade', sign: 'CHANDLER' }), arc(158, { h: 4.2, roof: 'red', wall: 0x9ab87a }), { x: 30, z: -11.5, ry: -1.0, w: 5, d: 4.2, h: 3.4, roof: 'red', wall: 0xf2ead8 }, { x: 0, z: -9.5, ry: 0.7, w: 5, d: 4.2, h: 3.2, roof: 'thatch', wall: 0xd8c8a0 }],
+    houses: [arc(22, { h: 4.6, roof: 'red', wall: 0xe8cf70, trim: 0x2f5f7a, chim: true }), arc(56, { h: 3.6, roof: 'flat', wall: 0x6aaea8, role: 'tavern', sign: 'CANTINA' }), arc(90, { h: 4.8, roof: 'red', wall: 0xd98a80, w: 6.2, trim: 0xf2ead8 }), arc(124, { h: 3.6, roof: 'red', wall: 0xe0a850, role: 'trade', sign: 'CHANDLER' }), arc(158, { h: 4.6, roof: 'red', wall: 0x9ab87a, trim: 0x7a3a2a, chim: true }), { x: 30, z: -11.5, ry: -1.0, w: 5, d: 4.2, h: 3.4, roof: 'red', wall: 0xf2ead8 }, { x: 0, z: -9.5, ry: 0.7, w: 5, d: 4.2, h: 3.2, roof: 'thatch', wall: 0xd8c8a0 }],
     circles: [[MC[0], MC[1], 1.2], [4.5, 4.4, 1.3], [16, 5.2, 1.3], [30.5, 3.6, 1.3]],
     build(L3, lv, T) { const G = (x, z) => lv.h(x, z), white = L3.wallMat(0xf2ead8), cy = G(15, -15.4) + 0.6;
       L3.box(4.2, 0.3, 5, L3.mat.stone, -2.2, 1.77, 0); T.put(L3, G(MC[0], MC[1]), P => P.fountain(L3, MC[0], MC[1]));
@@ -6841,11 +6851,11 @@ const Town = {
   const WK = [[-4.1, 31, -1.3, 1.3], [3, 5.2, -9, -1.3], [0, 9, -13.6, -9], [9, 11.2, 1.3, 8], [6, 15, 8, 12.6], [17.5, 19.7, -10, -1.3], [14.5, 23.5, -14, -10], [24.5, 26.7, 1.3, 7], [22, 30.5, 7, 11.2], [9, 14.5, -12.4, -10.6], [27, 33, -3.6, 3.6]];
   Object.assign(D.heron, { houses: [], barrels: [], crates: [], props: [], lamps: [], chimney: [13.4, 5.6, 10.6], palms: [], dog: null, fisher: true, chest: [32, 2.6], fog: [26, 84, 0x9fb89a],
     goal: 'A village on stilts. Follow the boardwalks: boatwright to the north, smokehouse to the south.' });
-  D.heron.pal.tex = 'sand'; D.marta.pal.tex = 'sand';
+  D.heron.pal.tex = 'sand'; D.marta.pal.tex = 'sand'; D.marta.surf = true; D.heron.water = [0.16, 0.27, 0.16, 0.8]; D.sovereign.water = [0.05, 0.2, 0.3, 0.45];
   D.heron.folk[0].box = [6.6, 8.6, 9.4, 12]; D.heron.folk[1].box = [15, -13.4, 19.6, -10.6]; D.heron.folk[2].box = [11.5, -0.8, 17, 0.8];
   D.heron.layout = { deck: true, bounds: [-23, 33, -13.6, 12.6],
     ground(x, z) { const n = vnoise(x * 0.3, z * 0.3, 8), bank = smooth((-z - 15) / 5) + smooth((z - 14) / 5) + smooth((x - 34.5) / 4), y = -1.5 + n * 0.5 + Math.min(1, bank) * 2.3; return [x < -4.1 ? Math.min(y, -1.2) : y, 0.26 + n * 0.08, 0.3 + n * 0.08, 0.2]; },
-    walk(x, z) { for (const r of WK) if (inR(r, x, z, 0.12)) return true; return false; },
+    walk(x, z) { for (const r of WK) { const w = r[1] - r[0], d = r[3] - r[2], ex = w > d && d <= 2.7 ? 0.5 : 0, ez = d > w && w <= 2.7 ? 0.5 : 0; if (x >= r[0] + 0.12 - ex && x <= r[1] - 0.12 + ex && z >= r[2] + 0.12 - ez && z <= r[3] - 0.12 + ez) return true; } return false; },
     houses: [{ x: 2.3, z: -11.4, ry: Math.PI / 2, w: 3.8, d: 3.2, h: 2.3, y: 1.9, roof: 'thatch', wall: 0xa88458, role: 'trade', sign: 'BOATWRIGHT', stilts: true }, { x: 12.6, z: 10.4, ry: -Math.PI / 2, w: 3.9, d: 3.6, h: 2.6, y: 1.9, roof: 'thatch', wall: 0x8a6a48, role: 'tavern', sign: 'SMOKEHOUSE', stilts: true },
       { x: 21.6, z: -12.1, ry: -Math.PI / 2, w: 3.4, d: 3.0, h: 2.1, y: 1.9, roof: 'thatch', wall: 0x9a7a52, stilts: true }, { x: 28.4, z: 9.2, ry: -Math.PI / 2, w: 3.6, d: 3.2, h: 2.2, y: 1.9, roof: 'thatch', wall: 0xa88458, stilts: true }],
     circles: [[31.4, -2, 1.0], [7.2, -12.4, 0.9]],
