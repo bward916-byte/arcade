@@ -322,7 +322,7 @@ final class Renderer {
         c.save()
         c.alpha(a)
         let pw = 156.0, ph = 74.0
-        let x = ((W - pw) / 2).rounded(), y = 27.0
+        let x = ((W - pw) / 2).rounded(), y = 31.0
         let fy = y + ph - 14
         let ink = Col(0x1c130c)
         c.R(x - 3, y - 3, pw + 6, ph + 6, ink); c.R(x - 2, y - 2, pw + 4, ph + 4, GOLD); c.R(x - 1, y - 1, pw + 2, ph + 2, ink)

@@ -599,12 +599,12 @@ final class Game {
         if B(.tea).level > 0 { arrivals() }
         let last = feat == .temple
         if ln < 2 && !last { return }
-        let d = ln + town + min(town, (ln - 1) >> 1) + (hard ? 2 : 0)
+        let d = ln + town + (hard ? 2 : 0)
         if omen { hint("omen", again: true); return }
         let boss = last ? (ln >= 4 && ln % 2 == 0) : (ln >= 5 && ln % 3 == 1)
         let port = boss && feat == .port
         let s0: Double = port ? -1 : (chance(0.5) ? 1 : -1)
-        let n = min(1 + Int(floor(Double(d) * (hard ? 1.0 : 0.85))), hard ? 18 : 14)
+        let n = min(1 + Int(floor(Double(d) * (hard ? 1.0 : 0.8))), (hard ? 16 : 12) + min(town, 4))
         let sph = B(.sphinx).level > 0
         for i in 0..<n {
             let odd = town > 0 ? (i % 3 != 0) : (i % 2 != 0)
