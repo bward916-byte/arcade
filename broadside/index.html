@@ -755,10 +755,17 @@ newVoyage();
 
 // ---------- audio ----------
 let AC=null;
-function audio(){if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){}}if(AC&&AC.state==='suspended')AC.resume().catch(()=>{});seaAmb();}
+let SIL=null;
+function audio(){if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){}}
+  try{if(navigator.audioSession)navigator.audioSession.type='playback';}catch(e){}
+  // iPhone: a looping silent clip keeps game audio playing even with the ring/silent switch on
+  if(!SIL){try{const n=4410,b=new Uint8Array(44+n),v=new DataView(b.buffer),w=(o,t)=>{for(let i=0;i<t.length;i++)b[o+i]=t.charCodeAt(i);};w(0,'RIFF');v.setUint32(4,36+n,true);w(8,'WAVEfmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,44100,true);v.setUint32(28,44100,true);v.setUint16(32,1,true);v.setUint16(34,8,true);w(36,'data');v.setUint32(40,n,true);b.fill(128,44);SIL=new Audio(URL.createObjectURL(new Blob([b],{type:'audio/wav'})));SIL.loop=true;SIL.setAttribute('playsinline','');}catch(e){SIL={play(){return Promise.resolve();},paused:false};}}
+  try{if(SIL.paused){const pr=SIL.play();if(pr&&pr.catch)pr.catch(()=>{});}}catch(e){}
+  if(AC&&AC.state!=='running')AC.resume().catch(()=>{});seaAmb();}
+if(typeof addEventListener==='function')for(const ev of ['touchend','pointerup','click','keydown'])addEventListener(ev,()=>{try{audio();}catch(e){}},{passive:true});
 function tone(f,dur,vol,type,slide){if(!AC)return;try{const o=AC.createOscillator(),g=AC.createGain(),n=AC.currentTime;o.type=type||'sine';o.frequency.setValueAtTime(f,n);if(slide)o.frequency.exponentialRampToValueAtTime(f*slide,n+dur);g.gain.setValueAtTime(0.0001,n);g.gain.exponentialRampToValueAtTime(vol,n+0.008);g.gain.exponentialRampToValueAtTime(0.0001,n+dur);o.connect(g);g.connect(AC.destination);o.start(n);o.stop(n+dur+0.02);}catch(e){}}
-function jingle(){[523,659,784,1047].forEach((f,i)=>setTimeout(()=>tone(f,0.28,0.07,'triangle'),i*90));}
-let SEA_ON=false;function seaAmb(){if(!AC||SEA_ON)return;try{SEA_ON=true;const n=AC.sampleRate*4,b=AC.createBuffer(1,n,AC.sampleRate),d=b.getChannelData(0);let l=0;for(let i=0;i<n;i++){l=l*0.985+(Math.random()*2-1)*0.015;d[i]=l*6*(0.55+0.45*Math.sin(i/n*Math.PI*2));}const s=AC.createBufferSource();s.buffer=b;s.loop=true;const f=AC.createBiquadFilter();f.type='lowpass';f.frequency.value=900;const g=AC.createGain();g.gain.value=0.05;s.connect(f);f.connect(g);g.connect(AC.destination);s.start();}catch(e){}}
+function jingle(){[523,659,784,1047].forEach((f,i)=>setTimeout(()=>tone(f,0.28,0.14,'triangle'),i*90));}
+let SEA_ON=false;function seaAmb(){if(!AC||SEA_ON)return;try{SEA_ON=true;const n=AC.sampleRate*4,b=AC.createBuffer(1,n,AC.sampleRate),d=b.getChannelData(0);let l=0;for(let i=0;i<n;i++){l=l*0.985+(Math.random()*2-1)*0.015;d[i]=l*6*(0.55+0.45*Math.sin(i/n*Math.PI*2));}const s=AC.createBufferSource();s.buffer=b;s.loop=true;const f=AC.createBiquadFilter();f.type='lowpass';f.frequency.value=900;const g=AC.createGain();g.gain.value=0.11;s.connect(f);f.connect(g);g.connect(AC.destination);s.start();}catch(e){}}
 function boom(vol,dur,lp){if(!AC)return;try{const n=AC.sampleRate*dur,b=AC.createBuffer(1,n,AC.sampleRate),d=b.getChannelData(0);for(let i=0;i<n;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/n,2.5);const s=AC.createBufferSource();s.buffer=b;const f=AC.createBiquadFilter();f.type='lowpass';f.frequency.value=lp;const g=AC.createGain();g.gain.value=vol;s.connect(f);f.connect(g);g.connect(AC.destination);s.start();}catch(e){}}
 
 // ---------- particles ----------
@@ -1119,7 +1126,7 @@ function doSpot(sp){const k=I.kid;
   else if(sp.id==='wright'){if(I.mates<6){isay(`A sloop needs six hands. You have ${I.mates}. Buy rounds at the tavern.`);return;}I.chart=true;I.kid.tx=I.kid.x;}
 }
 function refund(u){const n=I.paid[u.id]||0;if(!n)return;I.coins+=n;I.paid[u.id]=0;for(let i=0;i<Math.min(n,14);i++)I.rc.push({t:-i*0.05,id:u.id});isay(`${costOf(u)-n} more needed — your coins come back.`);}
-function payCoin(u){tone(1250+Math.min(900,(I.paid[u.id]||0)*28),0.09,0.035,'triangle');I.coins--;I.paid[u.id]=(I.paid[u.id]||0)+1;I.cp.push({t:0,id:u.id});if(I.paid[u.id]>=costOf(u)){I.done[u.id]=true;I.pour=null;u.apply();}}
+function payCoin(u){tone(1250+Math.min(900,(I.paid[u.id]||0)*28),0.09,0.09,'triangle');I.coins--;I.paid[u.id]=(I.paid[u.id]||0)+1;I.cp.push({t:0,id:u.id});if(I.paid[u.id]>=costOf(u)){I.done[u.id]=true;I.pour=null;u.apply();}}
 function upgradesHere(){return UPG.filter(u=>!I.done[u.id]&&u.req()&&Math.abs(I.kid.x-u.x)<70);}
 function islandPointerUp(){if(I&&I.pour&&!I.done[I.pour.id])refund(I.pour);if(I)I.pour=null;}
 function islandTap(x,y){
