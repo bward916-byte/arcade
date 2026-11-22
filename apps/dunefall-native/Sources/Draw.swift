@@ -622,23 +622,42 @@ final class Renderer {
             let a3 = (0.5 + 0.5 * sin(wx * f * 0.37 + seed * 5)) * 0.4
             return GY - base - amp * (a1 + a2 + a3)
         }
-        var cols: [Col] = []
-        for k in 0..<5 { cols.append(Col.mix(cl, cd, Double(k) * 0.25)) }
-        var py = -1.0
-        var first = true
-        var x = -2.0
-        while x <= W + 2 {
-            let wx = x + off
-            let y = hgt(wx)
-            if first { py = y; first = false }
-            let k = clampD((y - py) * 1.5 + 0.12, 0, 1)
-            c.R(x, y, 2.05, GY - y, cols[Int((k * 4).rounded())])
-            if y < py - 0.05 { c.R(x, y, 2.05, 0.8, rgba(255, 244, 208, 0.45)) } else if rip {
-                var q = 3.0
-                while q < amp { c.R(x, y + q + sin(wx * 0.09 + q) * 1.2, 2.05, 0.45, rgba(120, 80, 30, 0.13)); q += 3.5 }
+        // a smooth crest line, with the lee side of every dune lying in shadow
+        var xs: [Double] = [], ys: [Double] = []
+        var x = -70.0
+        while x <= W + 70 { xs.append(x); ys.append(hgt(x + off)); x += 2 }
+        let n = xs.count
+        var body: [Double] = [xs[0], GY + 1]
+        for i in 0..<n { body.append(xs[i]); body.append(ys[i]) }
+        body.append(xs[n - 1]); body.append(GY + 1)
+        c.poly(Col.mix(cl, cd, 0.08), body)
+        let shade = Col.mix(cl, cd, 0.78), soft = Col.mix(cl, cd, 0.4)
+        var pi = 1
+        while pi < n - 1 {
+            if ys[pi] <= ys[pi - 1] && ys[pi] < ys[pi + 1] {
+                var j = pi + 1
+                while j < n - 1 && ys[j + 1] >= ys[j] { j += 1 }
+                let run = xs[j] - xs[pi]
+                var sh: [Double] = [], sf: [Double] = []
+                for k in pi...j { sh.append(xs[k]); sh.append(ys[k]) }
+                sf = sh
+                sh.append(xs[j] + run * 0.45); sh.append(GY + 1); sh.append(xs[pi] + run * 0.5); sh.append(GY + 1)
+                sf.append(xs[j] + run * 0.45); sf.append(GY + 1); sf.append(xs[pi] + run * 0.22); sf.append(GY + 1)
+                c.poly(soft, sf)
+                c.poly(shade, sh)
+                pi = j
+            } else { pi += 1 }
+        }
+        for k in 0..<(n - 1) where ys[k + 1] < ys[k] - 0.02 {
+            c.seg(xs[k], ys[k], xs[k + 1], ys[k + 1], 0.6, rgba(255, 244, 208, 0.5))
+            if rip && !g.low && k % 2 == 0 {
+                var q = 3.5
+                while q < amp {
+                    let wob = sin((xs[k] + off) * 0.09 + q) * 1.2
+                    if ys[k] + q + wob < GY - 1 { c.seg(xs[k], ys[k] + q + wob, xs[k + 1] + 1.6, ys[k + 1] + q + wob, 0.35, rgba(120, 80, 30, 0.14)) }
+                    q += 3.5
+                }
             }
-            py = y
-            x += 2
         }
         // specks on the sand: pebbles, stones, scrub, wind streaks and the odd glint
         let step = 6.0
