@@ -106,6 +106,7 @@ final class GuideStore: ObservableObject {
 
 struct GuideView: View {
     @EnvironmentObject private var guide: GuideStore
+    @State private var suggesting = false
     @State private var section = ProcessInfo.processInfo.arguments.contains("-demo-areamap") ? "areamap" : "start"
     private let icons = ["start": "flag", "areamap": "map", "camping": "tent", "wash": "water.waves", "services": "wrench.and.screwdriver", "rocks": "diamond", "mines": "hammer", "trips": "car", "town": "building.2"]
     @State private var search = ""
@@ -203,11 +204,21 @@ struct GuideView: View {
                 if !search.isEmpty && lists.isEmpty && guide.data != nil {
                     Text("Nothing in the guide matches.").foregroundColor(.secondary)
                 }
+                Section {
+                    Button {
+                        suggesting = true
+                    } label: {
+                        Label("Suggest a fix or a missing place", systemImage: "square.and.pencil")
+                    }
+                } footer: {
+                    Text("No account needed. Each suggestion is checked before the guide changes.")
+                }
             }
             .listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
             .background(Theme.page)
             .navigationTitle("Guide")
+            .sheet(isPresented: $suggesting) { SuggestSheet() }
             .searchable(text: $search, prompt: "Search the guide")
             .refreshable { await guide.load() }
         }

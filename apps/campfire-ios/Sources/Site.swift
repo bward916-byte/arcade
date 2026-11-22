@@ -144,6 +144,20 @@ enum Site {
     }
 
     // A buyer's message. The site emails it to the seller; the seller's address is never shown.
+    // Sends a correction or a missing listing to the owner. No account needed.
+    static func suggest(kind: String, listing: String, details: String) async throws {
+        let url = base.appendingPathComponent("api").appendingPathComponent("suggest")
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.httpBody = try JSONSerialization.data(withJSONObject: ["kind": kind, "listing": listing, "details": details])
+        let (data, response) = try await URLSession.shared.data(for: req)
+        if let http = response as? HTTPURLResponse, http.statusCode >= 400 {
+            let body = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+            throw SiteError(message: body?["error"] as? String ?? "That did not send. Try again in a moment.")
+        }
+    }
+
     static func contact(id: String, message: String, from: String) async throws {
         let url = base.appendingPathComponent("api").appendingPathComponent("ads").appendingPathComponent(id).appendingPathComponent("contact")
         var req = URLRequest(url: url)

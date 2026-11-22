@@ -53,6 +53,17 @@ struct ForSaleView: View {
                 VStack(alignment: .leading, spacing: 14) {
                     DesertBanner(title: "Quartzsite Campfire", subtitle: "Buy, sell and trade around Quartzsite")
                         .padding(.horizontal)
+                    Button {
+                        posting = true
+                    } label: {
+                        VStack(spacing: 2) {
+                            Label("Post an ad", systemImage: "plus.circle.fill").font(.headline)
+                            Text("Free. No account or password needed.").font(.caption)
+                        }
+                        .frame(maxWidth: .infinity).padding(.vertical, 10)
+                    }
+                    .buttonStyle(.borderedProminent).tint(Theme.primary)
+                    .padding(.horizontal)
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 8) {
                             chip("All", "")
@@ -72,7 +83,7 @@ struct ForSaleView: View {
                             .foregroundColor(.secondary)
                             .padding(.horizontal)
                     } else if store.loaded && shown.isEmpty {
-                        Text(store.listings.isEmpty ? "No ads yet." : "Nothing matches. Try another category or clear the search.")
+                        Text(store.listings.isEmpty ? "No ads yet. Be the first: tap Post an ad." : "Nothing matches. Try another category or clear the search.")
                             .foregroundColor(.secondary)
                             .padding(.horizontal)
                     } else if !store.loaded {
