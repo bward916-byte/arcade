@@ -38,6 +38,7 @@ final class GameViewController: UIViewController {
     private let hud = HudBar()
     private let infoCard = InfoCard()
     private let dawnCard = DawnCard()
+    private var demoDawn = false
     private let endSum = SummaryView()
     private let overSum = SummaryView()
     private let jobsBox = UIView()
@@ -599,7 +600,7 @@ final class GameViewController: UIViewController {
                 game.t = 0.1
                 game.dawnIncome = [("villagers", 2), ("bazaar", 6), ("teahouse", 4), ("goats", 3), ("dates", 6), ("sphinx", 2), ("dock", 2)]
                 game.dawnNight = (7, 5, 1, 2)
-                game.hintT = 0
+                demoDawn = true
             }
             if args.contains("-demo-ridge") {
                 game.demo("night")
@@ -882,7 +883,8 @@ final class GameViewController: UIViewController {
         if showHint { set(hint, game.hintPin ? game.hintText + "  (tap to close)" : game.hintText) }
         hint.isHidden = game.cardT > 0 || !showHint
         // the morning's account takes the same spot when no message is up
-        let showDawn = playing && !showHint && game.cardT <= 0 && game.t < 0.2 && (!game.dawnIncome.isEmpty || game.dawnNight != nil)
+        if demoDawn { hint.isHidden = true }
+        let showDawn = playing && (demoDawn || !showHint) && game.cardT <= 0 && game.t < 0.2 && (!game.dawnIncome.isEmpty || game.dawnNight != nil)
         if showDawn {
             dawnCard.show(day: game.ln, income: game.dawnIncome, night: game.dawnNight)
             let dw = min(view.bounds.width - 2 * max(view.safeAreaInsets.left, 12) - 40, 460), dh = dawnCard.wantHeight
