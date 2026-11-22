@@ -82,7 +82,7 @@ struct Pin: Codable, Identifiable {
     var map: String?   // Google Maps link
 }
 
-// Loads the guide once for all tabs. A copy is kept on the phone so it opens with no signal.
+// Loads the guide once for all tabs. The last copy is kept on the phone, and a copy ships inside the app, so it opens with no signal.
 @MainActor
 final class GuideStore: ObservableObject {
     @Published var data: GuideData?
@@ -94,6 +94,11 @@ final class GuideStore: ObservableObject {
 
     func load() async {
         if data == nil, let saved = try? Data(contentsOf: cacheFile), let old = try? JSONDecoder().decode(GuideData.self, from: saved) {
+            data = old
+        }
+        // First launch with no signal: use the copy of the guide that ships inside the app.
+        if data == nil, let url = Bundle.main.url(forResource: "guide", withExtension: "json"),
+           let packed = try? Data(contentsOf: url), let old = try? JSONDecoder().decode(GuideData.self, from: packed) {
             data = old
         }
         do {

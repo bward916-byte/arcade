@@ -28,6 +28,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # The app ships with a copy of the guide so a first launch works with no signal. Take the newest one from the site;
+      # if the site does not answer, the copy already in the repo is used.
+      - name: Refresh the guide packed inside the app
+        run: |
+          if curl -fsS --max-time 30 https://qcampfire.com/api/guide -o /tmp/guide.json && grep -q '"lists"' /tmp/guide.json; then cp /tmp/guide.json Resources/guide.json; fi
+          ls -l Resources/guide.json
+
       - name: Make the Xcode project
         run: |
           brew install xcodegen
