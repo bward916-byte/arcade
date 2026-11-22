@@ -73,6 +73,12 @@ final class GameViewController: UIViewController {
     private let detailBtn = UIButton(type: .system)
     private let ruleLabel = UILabel()
     private let hardBtn = UIButton(type: .system)
+    private let moreBtn = UIButton(type: .system)
+    private let jumpBox = UIView()
+    private let jumpName = UILabel()
+    private var jumpBtns: [UIButton] = []
+    private let sceneKeys = ["intro", "bazaar", "temple", "obelisk", "sphinx", "tomb", "deep", "btemple", "raid"]
+    private let sceneNames = ["Intro", "Bazaar", "Temple", "Obelisk", "Sphinx", "Tomb", "Deep room", "Buried temple", "First raid"]
     private var hardOn = false
     private var scored = false
     private var slowT = 0.0
@@ -248,6 +254,26 @@ final class GameViewController: UIViewController {
         hardBtn.titleLabel?.font = serif(15)
         hardBtn.addTarget(self, action: #selector(hardTapped), for: .touchUpInside)
         titleBox.addSubview(hardBtn)
+        button(moreBtn, "Towns and scenes")
+        moreBtn.titleLabel?.font = serif(15)
+        moreBtn.addTarget(self, action: #selector(moreTapped), for: .touchUpInside)
+        titleBox.addSubview(moreBtn)
+        jumpBox.backgroundColor = ink.withAlphaComponent(0.9)
+        style(jumpName, 20, gold, .center)
+        jumpName.text = "Start at any town, or watch a scene"
+        jumpBox.addSubview(jumpName)
+        for i in 0..<15 {
+            let bt = UIButton(type: .system)
+            let name = i < 5 ? "\(i + 1). " + TOWNS[i].capitalized : (i < 14 ? sceneNames[i - 5] : "Close")
+            button(bt, name)
+            bt.titleLabel?.font = serif(13)
+            bt.titleLabel?.adjustsFontSizeToFitWidth = true
+            bt.tag = i
+            bt.addTarget(self, action: #selector(jumpTapped(_:)), for: .touchUpInside)
+            jumpBox.addSubview(bt)
+            jumpBtns.append(bt)
+        }
+        jumpBox.isHidden = true
         if UserDefaults.standard.object(forKey: "dunefall.low") != nil { game.low = UserDefaults.standard.bool(forKey: "dunefall.low") }
         for bar in [barTop, barBottom] {
             bar.backgroundColor = .black
@@ -273,6 +299,7 @@ final class GameViewController: UIViewController {
         view.addSubview(endBox)
         pauseBox.isHidden = true
         view.addSubview(pauseBox)
+        view.addSubview(jumpBox)
 
         game.onBuzz = { [weak self] k in self?.buzz(k) }
         game.onDawn = { [weak self] in self?.save() }
@@ -333,6 +360,14 @@ final class GameViewController: UIViewController {
         ruleLabel.frame = CGRect(x: b.width * 0.5 + 10, y: b.height * 0.04 + 160, width: 260, height: 58)
         hardBtn.frame = CGRect(x: b.width - right - 176, y: b.height - bottom - 78, width: 164, height: 48)
         hardBtn.isHidden = !hardOpen
+        moreBtn.frame = CGRect(x: left + 12, y: b.height - bottom - 78, width: 170, height: 48)
+        jumpBox.frame = b
+        jumpName.frame = CGRect(x: 20, y: b.height * 0.06, width: b.width - 40, height: 28)
+        let gw = (b.width - left - right - 24 - 4 * 8) / 5
+        for (i, bt) in jumpBtns.enumerated() {
+            let row = i / 5, col = i % 5
+            bt.frame = CGRect(x: left + 12 + CGFloat(col) * (gw + 8), y: b.height * 0.06 + 44 + CGFloat(row) * 58 + (row > 0 ? 14 : 0), width: gw, height: 46)
+        }
         let barH = b.height * 0.13
         barTop.frame = CGRect(x: 0, y: 0, width: b.width, height: barH)
         barBottom.frame = CGRect(x: 0, y: b.height - barH - 8, width: b.width, height: barH + 8)
@@ -404,6 +439,21 @@ final class GameViewController: UIViewController {
         sound.start()
         game.hard = hardOn && hardOpen
         game.start()
+    }
+    @objc private func moreTapped() {
+        jumpBox.isHidden = false
+    }
+    @objc private func jumpTapped(_ sender: UIButton) {
+        jumpBox.isHidden = true
+        let i = sender.tag
+        if i >= 14 { return }
+        sound.start()
+        if i < 5 {
+            game.hard = hardOn && hardOpen
+            game.jump(i)
+        } else {
+            game.viewScene(sceneKeys[i - 5])
+        }
     }
     @objc private func hardTapped() {
         hardOn = !hardOn
@@ -553,9 +603,10 @@ final class GameViewController: UIViewController {
         set(dayLabel, game.dark > 0.5 ? "Night \(game.ln)" : "Day \(game.ln)")
         if playing, let line = game.infoLine() {
             set(info, line.0 + "   " + line.1)
+            info.textAlignment = .center
             info.isHidden = false
         } else if playing && !game.raiders.contains(where: { $0.state == .raid }) {
-            set(info, "Next: " + game.nextGoal())
+            if let st = game.tourStep { set(info, "Step \(st + 1) of 6: " + game.nextGoal()) } else { set(info, "Next: " + game.nextGoal()) }
             info.isHidden = false
         } else { info.isHidden = true }
         let showHint = playing && game.hintT > 0

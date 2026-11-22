@@ -287,7 +287,7 @@ final class Renderer {
         c.linear(W - 51, -9, 60, H + 18, W - 51, 0, W + 9, 0, [(0, rgba(20, 10, 30, 0)), (1, rgba(20, 10, 30, 0.22))])
         c.vfill(-9, H - 22, W + 18, 31, [(0, rgba(20, 10, 30, 0)), (1, rgba(20, 10, 30, 0.2))])
         c.vfill(-9, -9, W + 18, 27, [(0, rgba(20, 10, 30, 0.16)), (1, rgba(20, 10, 30, 0))])
-        if g.state == .play && g.scene == nil && g.trip == nil { minimap() }
+        if g.state == .play && g.scene == nil && g.trip == nil { minimap(); tourArrow() }
         if g.fade > 0 { c.R(-20, -20, W + 40, H + 40, rgba(0, 0, 0, g.fade)) }
         c.restore()
         scenePanel()
@@ -838,8 +838,7 @@ final class Renderer {
             c.R(x - 1, GY, w + 2, 1.6, rgba(60, 34, 8, 0.3))
         }
         if L == 0 && plain {
-            ruin(x, w, b.def.h[0] + 8, b.x)
-            ruinExtra(x, w, b.x)
+            plot(b, x)
             if b.building { scaffold(b, x, b.def.h[1], 0) }
             c.restore()
             return
@@ -876,6 +875,54 @@ final class Renderer {
             fire(x + w * 0.28, GY - b.tall + 3, 1.2); fire(x + w * 0.7, GY - b.tall * 0.62, 1); fire(x + w * 0.5, GY - 6, 0.8)
         }
         c.restore()
+    }
+
+    /// An unbuilt plot: low footings and a timber frame the size of what will stand there,
+    /// so it reads as a place to build and not as one more house in the background.
+    func plot(_ b: Building, _ x: Double) {
+        let w = b.w, h = b.def.h[1]
+        ruin(x, w, 6, b.x)
+        let post = Col(0x9a7040), dark = Col(0x5a3e22)
+        c.R(x + 2, GY - h, w - 4, h, rgba(255, 240, 200, 0.08 + 0.03 * sin(NOW * 2 + b.x)))
+        let n = max(2, Int(w / 26) + 1)
+        for i in 0..<n {
+            let px = x + 2 + Double(i) * (w - 5.6) / Double(n - 1)
+            c.R(px, GY - h, 1.6, h, post); c.R(px + 1.1, GY - h, 0.5, h, dark)
+        }
+        c.R(x + 1, GY - h - 0.4, w - 2, 1.8, post); c.R(x + 1, GY - h + 1, w - 2, 0.4, dark)
+        c.R(x + 2, GY - h * 0.52, w - 4, 1, post); c.R(x + 2, GY - h * 0.52 + 0.8, w - 4, 0.3, dark)
+        let br = min(h * 0.4, 10)
+        c.seg(x + 3.6, GY - h + br, x + 3.6 + br, GY - h + 0.8, 0.6, dark); c.seg(x + w - 3.6, GY - h + br, x + w - 3.6 - br, GY - h + 0.8, 0.6, dark)
+        // the doorway to come, marked out in chalk
+        let dx = x + w * 0.5
+        for q in 0..<4 { c.R(dx - 4.4, GY - 3 - Double(q) * 3, 0.5, 2, rgba(255, 250, 230, 0.7)); c.R(dx + 3.9, GY - 3 - Double(q) * 3, 0.5, 2, rgba(255, 250, 230, 0.7)) }
+        for q in 0..<3 { c.R(dx - 3.4 + Double(q) * 2.6, GY - 13.4, 1.6, 0.5, rgba(255, 250, 230, 0.7)) }
+        // a line of builders' flags along the top beam
+        var fx = x + 5.0
+        var k = 0
+        while fx < w + x - 5 {
+            let sw = sin(NOW * 3 + fx) * 0.6
+            c.poly(k % 2 == 0 ? RED : TEAL, [fx, GY - h + 1.4, fx + 3, GY - h + 1.4, fx + 1.5 + sw, GY - h + 4.6])
+            fx += 6.5; k += 1
+        }
+    }
+    /// The tour's bouncing arrow over whatever the next step is, or at the screen edge pointing the way.
+    func tourArrow() {
+        if g.tourStep == nil { return }
+        let gl = g.goal()
+        guard let wx = gl.1 else { return }
+        let x = wx - cam, bob = sin(NOW * 5) * 2
+        let ink = Col(0x1c130c)
+        if x < 10 || x > W - 10 {
+            let dir: Double = x < 10 ? -1 : 1
+            let ex = (x < 10 ? 14 : W - 14) + dir * bob, ey = GY - 44.0
+            c.poly(ink, [ex + dir * 7, ey, ex - dir * 4, ey - 8, ex - dir * 4, ey + 8])
+            c.poly(GOLD, [ex + dir * 5, ey, ex - dir * 3, ey - 6, ex - dir * 3, ey + 6])
+            return
+        }
+        let y = GY - gl.2 - 24 + bob
+        c.R(x - 2.6, y - 14, 5.2, 7, ink); c.poly(ink, [x - 6.4, y - 8, x + 6.4, y - 8, x, y + 1.4])
+        c.R(x - 1.6, y - 13, 3.2, 6, GOLD); c.poly(GOLD, [x - 4.6, y - 7.2, x + 4.6, y - 7.2, x, y - 0.4])
     }
 
     func market(_ b: Building, _ x: Double, _ L: Int) {

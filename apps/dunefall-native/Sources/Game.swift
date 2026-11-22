@@ -230,6 +230,7 @@ final class Game {
     func endScene() {
         guard let sc = scene else { return }
         scene = nil
+        if preview { preview = false; reset(); return }
         if !sceneQueue.isEmpty {
             let nx = sceneQueue.removeFirst()
             scene = nx
@@ -389,7 +390,7 @@ final class Game {
             case .slot:
                 if let b = tg.b {
                     if b.type == .dock && b.level > 0 { return ("FELUCCA", "\(b.paid + b.incoming) of \(costOf(b)) coins. You sail on with \(fare) coins") }
-                    return (b.def.name, "\(b.paid + b.incoming) of \(costOf(b)) coins. " + perk(b))
+                    return (b.def.name, "\(b.paid + b.incoming) of \(costOf(b)) coins\n" + perk(b))
                 }
             case .mend:
                 if let b = tg.b { return (b.def.name, "A coin patches the gate") }
@@ -1829,34 +1830,90 @@ final class Game {
     }
 
     // ---------- one line of advice: what would help most right now
-    func nextGoal() -> String {
+    func nextGoal() -> String { return goal().0 }
+    /// The first steps of the first town, counted off: nomad, bazaar, digger, west gate, camel yard, herder.
+    var tourStep: Int? {
+        if town != 0 || ln > 6 || state != .play { return nil }
+        let m = B(.market), pn = B(.pen), gw = B(.gw)
+        let done = [!folk.isEmpty, m.level > 0 || m.building, head(.digger) > 0 || m.badges > 0, gw.level > 0 || gw.building,
+                    pn.level > 0 || pn.building, head(.herder) > 0 || pn.badges > 0]
+        let n = done.filter { $0 }.count
+        return n >= 6 ? nil : n
+    }
+    /// What to do next: the advice, where it is, and how tall the thing there stands.
+    func goal() -> (String, Double?, Double) {
         let p = player
         func way(_ x: Double) -> String { return x < p.x - 40 ? "to the west" : (x > p.x + 40 ? "to the east" : "right here") }
         func open(_ k: BType) -> Bool { let b = B(k); return b.level == 0 && !b.building }
+        func top(_ b: Building) -> Double { return b.level == 0 ? b.def.h[1] : b.tall }
         if folk.isEmpty {
-            if p.coins < 3, let u = urns.filter({ !$0.open }).min(by: { abs($0.x - p.x) < abs($1.x - p.x) }) { return "Ride over the old urn \(way(u.x)) for coins" }
-            if let n = nomads.min(by: { abs($0.x - p.x) < abs($1.x - p.x) }) { return "Toss a coin to a nomad at the tents \(way(n.x)): they join you and build" }
+            if p.coins < 3, let u = urns.filter({ !$0.open }).min(by: { abs($0.x - p.x) < abs($1.x - p.x) }) { return ("Ride over the old urn \(way(u.x)) for coins", u.x, 10) }
+            if let n = nomads.min(by: { abs($0.x - p.x) < abs($1.x - p.x) }) { return ("Toss a coin to a nomad at the tents \(way(n.x))", n.x, 16) }
         }
-        let m = B(.market)
-        if open(.market) { return "Rebuild the bazaar \(way(m.mid)) for \(costOf(m)) coins: it pays every morning" }
-        if m.level > 0 && head(.digger) == 0 && m.badges == 0 { return "Toss a coin on the tool rack left of the bazaar: a digger mines gold at the quarry" }
-        if head(.digger) > 0 && coins.contains(where: { $0.st == .ground && abs($0.x - QUARRY) < 60 }) { return "Your diggers have gold waiting at the quarry \(way(QUARRY))" }
-        if open(.gw) && ln >= 1 { return "Raise the west gate for \(costOf(B(.gw))) coins before the raiders come at night" }
-        if open(.pen) { return "Rebuild the camel yard \(way(B(.pen).mid)) for \(costOf(B(.pen))) coins: goats pay each dawn" }
-        if B(.pen).level > 0 && head(.herder) == 0 && B(.pen).badges == 0 { return "Toss a coin on the crook rack right of the camel yard: a herder's goats pay each dawn" }
-        if open(.tea) { return "Rebuild the teahouse for \(costOf(B(.tea))) coins: it pays, and hides villagers at night" }
-        if open(.ge) { return "Raise the east gate for \(costOf(B(.ge))) coins" }
-        if open(.guard) { return "Rebuild the barracks for \(costOf(B(.guard))) coins, then put a coin on its spear rack for a guard" }
-        if B(.guard).level > 0 && head(.guard) == 0 && B(.guard).badges == 0 { return "Toss a coin on the spear rack right of the barracks: a guard holds the gate" }
-        if open(.well) { return "Rebuild the well for \(costOf(B(.well))) coins: then every building can rise a level" }
-        if open(.bank) { return "Rebuild the treasury for \(costOf(B(.bank))) coins: coins kept there are safe from raiders" }
-        if open(.temple) { return "Rebuild the temple for \(costOf(B(.temple))) coins: it pays well, and its gong warns you of raids" }
-        let w = B(.well)
-        if w.level == 1 && !w.building { return "Raise the obelisk at the well for \(costOf(w)) coins: it unlocks the top levels and the dock" }
+        let m = B(.market), pn = B(.pen), gd = B(.guard), gw = B(.gw), ge = B(.ge), te = B(.tea), w = B(.well), bk = B(.bank), tp = B(.temple)
+        if open(.market) { return ("Rebuild the bazaar \(way(m.mid)): it pays every morning", m.mid, top(m)) }
+        if m.level > 0 && head(.digger) == 0 && m.badges == 0 { return ("A coin on the tool rack left of the bazaar makes a digger", rackX(m), 14) }
+        if head(.digger) > 0 && coins.contains(where: { $0.st == .ground && abs($0.x - QUARRY) < 60 }) { return ("Your diggers have gold waiting at the quarry \(way(QUARRY))", QUARRY, 14) }
+        if open(.gw) && ln >= 1 { return ("Raise the west gate before the raiders come at night", gw.mid, top(gw)) }
+        if open(.pen) { return ("Rebuild the camel yard \(way(pn.mid)): goats pay each dawn", pn.mid, top(pn)) }
+        if pn.level > 0 && head(.herder) == 0 && pn.badges == 0 { return ("A coin on the crook rack right of the camel yard makes a herder", rackX(pn), 14) }
+        if open(.tea) { return ("Rebuild the teahouse: it pays, and hides your people at night", te.mid, top(te)) }
+        if open(.ge) { return ("Raise the east gate", ge.mid, top(ge)) }
+        if open(.guard) { return ("Rebuild the barracks, then put a coin on its spear rack", gd.mid, top(gd)) }
+        if gd.level > 0 && head(.guard) == 0 && gd.badges == 0 { return ("A coin on the spear rack right of the barracks makes a guard", rackX(gd), 14) }
+        if open(.well) { return ("Rebuild the well: then every building can rise a level", w.mid, top(w)) }
+        if open(.bank) { return ("Rebuild the treasury: coins kept there are safe from raiders", bk.mid, top(bk)) }
+        if open(.temple) { return ("Rebuild the temple: it pays well, and its gong warns of raids", tp.mid, top(tp)) }
+        if w.level == 1 && !w.building { return ("Raise the obelisk at the well: it unlocks the top levels and the dock", w.mid, top(w)) }
         let dk = B(.dock)
-        if dk.level == 0 && !dk.building && todo().isEmpty { return "Build the dock at the Nile, far to the east, for \(costOf(dk)) coins" }
-        if dk.level > 0 { return "Pay the felucca 6 coins at the dock to sail on, or keep raising the town: higher levels pay more" }
-        return "Raise any building another level: higher levels pay more each morning"
+        if dk.level == 0 && !dk.building && todo().isEmpty { return ("Build the dock at the Nile, far to the east", dk.mid, top(dk)) }
+        if dk.level > 0 { return ("Pay the felucca at the dock to sail on, or keep raising the town", dk.mid, top(dk)) }
+        return ("Raise any building another level: higher levels pay more", nil, 0)
+    }
+
+    // ---------- jumping straight to a town, or to a cutscene, from the title
+    var preview = false
+    func jump(_ tn: Int) {
+        reset(tn)
+        state = .play
+        t = 0.08
+        player.coins = 10 + 6 * tn
+        fade = 1
+        card(townName, TOWNSUB[town % 5])
+        hint("rule\(town)", again: true, TOWNRULE[town % 5])
+        onDawn?()
+    }
+    func viewScene(_ k: String) {
+        if k == "intro" { start(intro: true); return }
+        let spec: [String: (Int, BType?, String, Double)] = [
+            "bazaar": (0, .market, "The bazaar is open again.", 1.25),
+            "temple": (0, .temple, "The temple lamps are lit again.", 1.25),
+            "obelisk": (0, .well, "The obelisk stands. Travellers will see it for miles.", 1.35),
+            "sphinx": (0, .sphinx, "The Sphinx looks east again.", 1.3),
+            "tomb": (0, .tomb, "Gold, an ankh, and something that should have stayed asleep.", 1.3),
+            "deep": (0, .tomb, "Under the tomb, a room no mason ever cut. Its keeper left one thing behind.", 1.35),
+            "btemple": (3, .btemple, "A temple nobody has seen for a thousand years.", 1.3),
+            "raid": (0, nil, "They always come after dark.", 1.25)]
+        guard let s = spec[k] else { return }
+        reset(s.0)
+        state = .play
+        t = k == "raid" ? 0.76 : 0.3
+        hintT = 0; cardT = 0
+        var fx = startX()
+        if let bt = s.1 {
+            let b = B(bt)
+            b.gone = false
+            b.level = bt == .well ? 2 : 1
+            fx = b.mid
+        }
+        if k == "raid" {
+            fx = B(.gw).x - 40
+            for i in 0..<4 { raiders.append(Raider(id: 700 + i, kind: i == 3 ? .rider : .bandit, x: fx - 30 - Double(i) * 22, side: -1, hp: 1)) }
+        }
+        player.x = fx + 24
+        cam = clampD(fx - W / 2, 0, WORLD - W)
+        scene = Cine(k: k, text: s.2, dur: 6, fx: fx, zoom: s.3)
+        preview = true
     }
 
     // ---------- a bot that plays the game, to see what the economy does
