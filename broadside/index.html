@@ -655,6 +655,8 @@ return {H,F,input,update,draw:drawBody,place,hands,headFrame,setLook:v=>{FL=v;},
 
 // ---------- setup ----------
 const cv=document.getElementById('c'),ctx=cv.getContext('2d');
+// browsers throw on a negative radius; clamp so one odd frame can never stop the game
+{const e0=ctx.ellipse.bind(ctx),a0=ctx.arc.bind(ctx);ctx.ellipse=(x,y,rx,ry,r,a,b,c)=>e0(x,y,rx>0?rx:0,ry>0?ry:0,r||0,a,b,!!c);ctx.arc=(x,y,r,a,b,c)=>a0(x,y,r>0?r:0,a,b,!!c);}
 let cw=0,ch=0,dpr=1;
 function resize(){dpr=Math.min(window.devicePixelRatio||1,2);cw=innerWidth;ch=innerHeight;cv.width=Math.floor(cw*dpr);cv.height=Math.floor(ch*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);}
 addEventListener('resize',resize);resize();
@@ -1688,7 +1690,7 @@ function drawBackSea(){ctx.fillStyle=mix('#0b1e2a','#27566a',light);ctx.fillRect
   if(mode==='island'&&I){const k=cam.scale;const mx=((t*6)%2400)-1200,X=sx(mx*0.35+cam.cx*0.65),Y=sy(-34)-2;ctx.save();ctx.translate(X,Y);ctx.scale(k*0.5,k*0.5);ctx.fillStyle=mix('#0a1422','#3a3a3a',light);ctx.beginPath();ctx.moveTo(-30,0);ctx.lineTo(30,0);ctx.lineTo(24,8);ctx.lineTo(-26,8);ctx.fill();ctx.fillRect(-12,-40,2,40);ctx.fillRect(10,-36,2,36);ctx.fillStyle=mix('#1a1a1a','#e8e0d0',light);ctx.beginPath();ctx.moveTo(-11,-38);ctx.lineTo(8,-38);ctx.lineTo(6,-12);ctx.lineTo(-11,-12);ctx.fill();ctx.beginPath();ctx.moveTo(11,-34);ctx.lineTo(26,-34);ctx.lineTo(24,-12);ctx.lineTo(11,-12);ctx.fill();ctx.restore();}
   {const hz=ctx.createLinearGradient(0,sy(-72),0,sy(-30));hz.addColorStop(0,'rgba(230,236,240,0)');hz.addColorStop(0.75,`rgba(230,236,240,${0.10+0.22*light})`);hz.addColorStop(1,'rgba(230,236,240,0)');ctx.fillStyle=hz;ctx.fillRect(0,sy(-72),cw,sy(-30)-sy(-72));}
   // far whale spout now and then
-  if(mode!=='battle'){const ph=(t*0.05)%1;if(ph<0.07){const wx=cam.cx+320+Math.sin(Math.floor(t*0.05)*7)*200,X=sx(wx*0.5+cam.cx*0.5),Y=sy(-36),u=ph/0.07;ctx.fillStyle=mix('#0a1622','#22323c',light);ctx.beginPath();ctx.ellipse(X,Y,26*cam.scale,5*cam.scale*Math.sin(u*Math.PI),0,Math.PI,0);ctx.fill();ctx.strokeStyle=`rgba(240,248,255,${0.7*Math.sin(u*Math.PI)})`;ctx.lineWidth=1.5;for(let i=-2;i<=2;i++){ctx.beginPath();ctx.moveTo(X-8*cam.scale,Y-4*cam.scale);ctx.quadraticCurveTo(X-8*cam.scale+i*3,Y-(14+u*8)*cam.scale,X-8*cam.scale+i*7,Y-(10+u*10)*cam.scale);ctx.stroke();}}}
+  if(mode!=='battle'){const ph=(t*0.05)%1;if(ph>=0&&ph<0.07){const wx=cam.cx+320+Math.sin(Math.floor(t*0.05)*7)*200,X=sx(wx*0.5+cam.cx*0.5),Y=sy(-36),u=ph/0.07;ctx.fillStyle=mix('#0a1622','#22323c',light);ctx.beginPath();ctx.ellipse(X,Y,26*cam.scale,5*cam.scale*Math.sin(u*Math.PI),0,Math.PI,0);ctx.fill();ctx.strokeStyle=`rgba(240,248,255,${0.7*Math.sin(u*Math.PI)})`;ctx.lineWidth=1.5;for(let i=-2;i<=2;i++){ctx.beginPath();ctx.moveTo(X-8*cam.scale,Y-4*cam.scale);ctx.quadraticCurveTo(X-8*cam.scale+i*3,Y-(14+u*8)*cam.scale,X-8*cam.scale+i*7,Y-(10+u*10)*cam.scale);ctx.stroke();}}}
   seaPath(backWave,ch);{const bg=ctx.createLinearGradient(0,sy(-44),0,sy(10));bg.addColorStop(0,mix('#0e2733','#3f8494',light));bg.addColorStop(1,mix('#0b202c','#27606f',light));ctx.fillStyle=bg;}ctx.fill();
   ctx.strokeStyle=`rgba(225,242,246,${0.12+0.2*light})`;ctx.lineWidth=1.2;ctx.beginPath();{const xa=cam.cx-cw/2/cam.scale-50,xb=cam.cx+cw/2/cam.scale+50;for(let x=xa;x<=xb;x+=10)(x===xa?ctx.moveTo:ctx.lineTo).call(ctx,sx(x),sy(backWave(x)));}ctx.stroke();
   // rolling mid-swells between the horizon and the near water
@@ -2117,7 +2119,8 @@ function clearSave(){try{localStorage.removeItem(SAVE_KEY);}catch(e){}}
 addEventListener('visibilitychange',()=>{if(document.hidden)saveGame();});
 // ---------- loop ----------
 let last=performance.now();
-function frame(now){const dt=Math.min(0.05,(now-last)/1000);last=now;update(dt);draw();if(!demo){saveT+=dt;if(saveT>4){saveT=0;saveGame();}}requestAnimationFrame(frame);}
+let frameErrs=0;
+function frame(now){const dt=Math.max(0,Math.min(0.05,(now-last)/1000));last=now;try{update(dt);draw();if(!demo){saveT+=dt;if(saveT>4){saveT=0;saveGame();}}}catch(e){try{for(let i=0;i<40;i++)ctx.restore();ctx.setTransform(dpr,0,0,dpr,0,0);ctx.globalAlpha=1;ctx.globalCompositeOperation='source-over';}catch(_){}if(frameErrs++<5&&typeof console!=='undefined')console.error(e);}requestAnimationFrame(frame);}
 requestAnimationFrame(frame);
 </script>
 </body>
