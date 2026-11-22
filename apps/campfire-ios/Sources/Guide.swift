@@ -175,6 +175,18 @@ struct GuideView: View {
                     .listRowInsets(EdgeInsets())
                     .listRowBackground(Color.clear)
                 }
+                if search.isEmpty && section == "start" {
+                    Section {
+                        NavigationLink {
+                            QuestionsView()
+                        } label: {
+                            Label("Ask a question or help answer one", systemImage: "questionmark.bubble")
+                                .font(.subheadline.weight(.semibold))
+                        }
+                    } footer: {
+                        Text("Campers ask and answer each other here. No account needed.")
+                    }
+                }
                 if guide.data == nil {
                     Section {
                         if guide.failed {

@@ -158,6 +158,66 @@ enum Site {
         }
     }
 
+    // ---- Questions campers ask each other ----
+
+    private static func send(_ parts: [String], _ body: [String: Any], _ fallback: String) async throws -> [String: Any] {
+        var url = base.appendingPathComponent("api")
+        for p in parts { url = url.appendingPathComponent(p) }
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.httpBody = try JSONSerialization.data(withJSONObject: body)
+        let (data, response) = try await URLSession.shared.data(for: req)
+        let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] ?? [:]
+        if let http = response as? HTTPURLResponse, http.statusCode >= 400 {
+            throw SiteError(message: json["error"] as? String ?? fallback)
+        }
+        return json
+    }
+
+    static func questions() async throws -> [Question] {
+        let url = base.appendingPathComponent("api").appendingPathComponent("questions")
+        let (data, response) = try await URLSession.shared.data(from: url)
+        if let http = response as? HTTPURLResponse, http.statusCode >= 400 { throw SiteError(message: "Questions did not load.") }
+        guard let rows = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] else { return [] }
+        var out: [Question] = []
+        for row in rows {
+            guard let id = row["id"] as? String, let d = row["data"] as? [String: Any], let text = d["text"] as? String else { continue }
+            var answers: [QAnswer] = []
+            for a in d["answers"] as? [[String: Any]] ?? [] {
+                guard let aid = a["id"] as? String, let atext = a["text"] as? String else { continue }
+                answers.append(QAnswer(id: aid, text: atext, name: a["name"] as? String ?? "", ts: (a["ts"] as? NSNumber)?.doubleValue ?? 0,
+                                       guide: a["guide"] as? Bool ?? false, title: a["title"] as? String ?? "",
+                                       up: (a["up"] as? NSNumber)?.intValue ?? 0, said: (a["said"] as? NSNumber)?.intValue ?? 1))
+            }
+            out.append(Question(id: id, text: text, name: d["name"] as? String ?? "", ts: (d["ts"] as? NSNumber)?.doubleValue ?? 0,
+                                edited: d["edited"] != nil, answers: answers))
+        }
+        return out
+    }
+
+    // A new question. The site hands back a private key so this phone can edit or delete it later.
+    static func ask(text: String, name: String, email: String) async throws -> (id: String, key: String) {
+        let r = try await send(["questions"], ["text": text, "name": name, "email": email], "That did not post. Check your signal and try again.")
+        return (r["id"] as? String ?? "", r["key"] as? String ?? "")
+    }
+
+    static func answer(question: String, text: String, name: String, email: String) async throws -> (id: String, key: String) {
+        let r = try await send(["questions", question, "answer"], ["text": text, "name": name, "email": email], "That did not post. Check your signal and try again.")
+        return (r["aid"] as? String ?? "", r["key"] as? String ?? "")
+    }
+
+    // One thanks per visitor; the site keeps the real count.
+    static func thanks(question: String, answer: String) async throws -> Int {
+        let r = try await send(["questions", question, "thanks"], ["aid": answer], "That did not go through.")
+        return (r["up"] as? NSNumber)?.intValue ?? 0
+    }
+
+    // Edit or delete this phone's own question or answer.
+    static func mine(question: String, answer: String, key: String, action: String, text: String) async throws {
+        _ = try await send(["questions", question, "mine"], ["key": key, "aid": answer, "action": action, "text": text], "That did not save. Try again.")
+    }
+
     static func contact(id: String, message: String, from: String) async throws {
         let url = base.appendingPathComponent("api").appendingPathComponent("ads").appendingPathComponent(id).appendingPathComponent("contact")
         var req = URLRequest(url: url)
