@@ -515,8 +515,8 @@ final class Duel {
         for (i, mx) in [W * 0.16, W * 0.5, W * 0.84].enumerated() {
             let top = i == 1 ? -10.0 : H * 0.04
             c.R(mx - 5, top, 10, H * 0.66 - top, spar)
-            c.R(mx - 70, H * 0.12 + Double(i) * 6, 140, 5, spar)
-            c.RR(mx - 64, H * 0.12 + Double(i) * 6 + 4, 128, 9, 4, Col(0x7a1b12))
+            c.R(mx - 70, H * 0.27 + Double(i) * 6, 140, 5, spar)
+            c.RR(mx - 64, H * 0.27 + Double(i) * 6 + 4, 128, 9, 4, Col(0x7a1b12))
             c.seg(mx, top + 20, mx - 110, H * 0.6, 1.2, spar.alpha(0.8))
             c.seg(mx, top + 20, mx + 110, H * 0.6, 1.2, spar.alpha(0.8))
             for j in 1..<7 {

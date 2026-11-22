@@ -73,7 +73,7 @@ extension Game {
         var tw = 0.0
         for l in lines { tw = max(tw, textW(l, size, FONT)) }
         let w = tw + 32, h = Double(lines.count) * 19 + 14
-        let x = (W - w) / 2, y = 40.0
+        let x = (W - w) / 2, y = mode == .duel ? 100.0 : 40.0
         c.save()
         c.alpha(a)
         c.RR(x + 2, y + 3, w, h, 9, Col(0x000000, 0.35))

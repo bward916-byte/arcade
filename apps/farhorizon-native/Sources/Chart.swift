@@ -261,7 +261,7 @@ extension Game {
                 c.circ(p.0, p.1, opt ? 5 : 3.6, been ? Col(0xef4a36) : Col(0xfff6d8))
                 if !opt {
                     let ly = i == self.leg ? p.1 - 22 : p.1 + 17
-                    c.textS(n.n, clampD(p.0, 60, W - 60), ly, 12, been ? Col(0xffd9c9) : Col(0xfff6d8), 0, FONTB)
+                    c.textS(n.n, clampD(p.0, safeL + 50, W - safeR - 50), ly, 12, been ? Col(0xffd9c9) : Col(0xfff6d8), 0, FONTB)
                 }
             }
         }
@@ -288,6 +288,6 @@ extension Game {
             hits.append(Hit(x: bx, y: min(by, p.1 - 16), w: bw, h: bh + 34, act: { [unowned self] in self.pickPort(r) }))
             hits.append(Hit(x: p.0 - 22, y: p.1 - 22, w: 44, h: 44, act: { [unowned self] in self.pickPort(r) }))
         }
-        c.textS("Tap your next port", W / 2, top + 22, 16, Col(0xffe08a), 0, FONTD)
+        c.textS("Tap your next port", W / 2, H - safeB - 8, 16, Col(0xffe08a), 0, FONTD)
     }
 }
