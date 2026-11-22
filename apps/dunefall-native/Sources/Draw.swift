@@ -1499,12 +1499,15 @@ final class Renderer {
         if cost == 0 || b.building { return }
         if abs(g.player.x - b.mid) > b.w / 2 + 14 && b.paid + b.incoming == 0 { return }
         if g.scene != nil { return }
-        for i in 0..<cost {
+        // above 24 coins each slot stands for a share of the price, so the grid never climbs into the sky
+        let shown = min(cost, 24)
+        for i in 0..<shown {
             let s = g.slotPos(b, i, cost)
             let x = s.x - cam, y = GY - s.h
+            let full = cost <= 24 ? i < b.paid : Double(b.paid) >= Double(i + 1) * Double(cost) / 24
             c.circ(x, y, 2.3, rgba(28, 19, 12, 0.75))
-            c.circ(x, y, 1.7, i < b.paid ? GOLD : rgba(242, 193, 78, 0.22))
-            if i < b.paid { c.R(x - 0.9, y - 0.9, 0.8, 0.8, Col(0xfff3b8)) }
+            c.circ(x, y, 1.7, full ? GOLD : rgba(242, 193, 78, 0.22))
+            if full { c.circ(x - 0.5, y - 0.5, 0.45, Col(0xfff3b8)) }
         }
     }
 
@@ -2474,12 +2477,24 @@ final class Renderer {
         // the far reach, running down from the horizon
         c.poly(Col(0x7aa24a), [x - 12, GY - 24, x + 12, GY - 24, x + 50, GY + 1, x - 50, GY + 1])
         c.poly(wc, [x - 5, GY - 23, x + 5, GY - 23, x + 38, GY + 1, x - 38, GY + 1])
-        c.alpha(0.55); c.poly(wl, [x - 2, GY - 23, x + 1, GY - 23, x + 8, GY + 1, x - 20, GY + 1]); c.alpha(1)
+        let deep = Col.mix(wc, Col(0x10384a), 0.35).alpha(0.5), edge = Col(0x5a8a3a)
+        for k in 0..<3 {
+            let f = 0.6 - Double(k) * 0.17
+            c.poly(wl.alpha(0.2), [x - 5 * f, GY - 23, x + 5 * f, GY - 23, x + 38 * f - 5, GY + 1, x - 38 * f - 5, GY + 1])
+        }
+        c.poly(deep, [x - 5, GY - 23, x - 3.8, GY - 23, x - 30, GY + 1, x - 38, GY + 1]); c.poly(deep, [x + 5, GY - 23, x + 3.8, GY - 23, x + 30, GY + 1, x + 38, GY + 1])
+        c.seg(x - 5, GY - 23, x - 38, GY + 1, 0.5, edge); c.seg(x + 5, GY - 23, x + 38, GY + 1, 0.5, edge)
         // the near reach, across the road and off the bottom of the screen
         c.poly(Col(0x8fb85a), [x - 52, GY, x - 38, GY, x - 62, H, x - 80, H])
         c.poly(Col(0x8fb85a), [x + 38, GY, x + 52, GY, x + 80, H, x + 62, H])
         c.poly(wc, [x - 38, GY, x + 38, GY, x + 62, H, x - 62, H])
-        c.alpha(0.5); c.poly(wl, [x - 20, GY, x + 8, GY, x + 14, H, x - 34, H]); c.alpha(1)
+        for k in 0..<3 {
+            let f = 0.6 - Double(k) * 0.17
+            c.poly(wl.alpha(0.2), [x - 38 * f - 5, GY, x + 38 * f - 5, GY, x + 62 * f - 9, H, x - 62 * f - 9, H])
+        }
+        c.poly(deep, [x - 38, GY, x - 30, GY, x - 50, H, x - 62, H]); c.poly(deep, [x + 38, GY, x + 30, GY, x + 50, H, x + 62, H])
+        c.seg(x - 38, GY, x - 62, H, 0.6, edge); c.seg(x + 38, GY, x + 62, H, 0.6, edge)
+        c.seg(x - 52, GY, x - 80, H, 0.5, Col(0xb6d07a)); c.seg(x + 52, GY, x + 80, H, 0.5, Col(0xb6d07a))
         for i in 0..<5 {
             let n = Double(i)
             let u = (NOW * 0.22 + n * 0.2).truncatingRemainder(dividingBy: 1)

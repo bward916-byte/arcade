@@ -651,8 +651,11 @@ final class Game {
     }
 
     // ---------- tossing coins
-    func slotPos(_ b: Building, _ i: Int, _ n: Int) -> (x: Double, h: Double) {
-        let cols = max(1, min(n, 8))
+    /// Where coin slot i of n sits over a building. Big prices show at most 24 slots, in two rows of twelve.
+    func slotPos(_ b: Building, _ i0: Int, _ n0: Int) -> (x: Double, h: Double) {
+        let n = max(1, min(n0, 24))
+        let i = i0 % n
+        let cols = n > 16 ? 12 : max(1, min(n, 8))
         let row = i / cols
         let inRow = min(cols, n - row * cols)
         let rows = Int(ceil(Double(n) / Double(cols)))
