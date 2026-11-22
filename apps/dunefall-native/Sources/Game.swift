@@ -89,6 +89,9 @@ final class Game {
     var shake = 0.0
     var flash = 0.0
     var report = ""
+    /// What the morning brought, source by source, and how last night went: the dawn card draws these.
+    var dawnIncome: [(String, Int)] = []
+    var dawnNight: (n: Int, down: Int, gates: Int, lost: Int)?
     var input = Input()
     var snd: Sound?
     /// 0 a light tap, 1 a knock, 2 a heavy blow, 3 success
@@ -151,7 +154,7 @@ final class Game {
         WELL_X = 1655 + ox; TOWN = (1296 + ox, 1992 + ox); QUARRY = cf.quarry; PAST = cf.past; OASIS = cf.oasis
         if !keep { stats = [0, 0, 0, 0]; relics = []; up = []; ended = false; seen = []; day = 1; day0 = 0; ufoDone = false; ufoSeen = false }
         state = .title
-        t = 0.62; dark = 0; nextId = 1; shake = 0; flash = 0; report = ""
+        t = 0.62; dark = 0; nextId = 1; shake = 0; flash = 0; report = ""; dawnIncome = []; dawnNight = nil
         player = Player()
         player.x = WELL_X - 22
         func at(_ k: BType) -> Double { return (cf.bx[k] ?? 1400) + ox }
@@ -547,7 +550,8 @@ final class Game {
             if nightGates > 0 { s += "\(nightGates) gate" + (nightGates > 1 ? "s" : "") + " broken" } else { s += "the gates held" }
             if nightLost > 0 { s += ", \(nightLost) robbed" }
             report = s
-        } else { report = "" }
+            dawnNight = (nightN, nightDown, nightGates, nightLost)
+        } else { report = ""; dawnNight = nil }
         hadNight = false
         rodN = [5, 8]; digToday = 0
         let want = (town == 0 && ln <= 5) ? 5 : 3
@@ -594,6 +598,11 @@ final class Game {
         let big = B(.pen).level >= 3
         if herd.count < min(big ? 12 : 8, head(.herder) * (big ? 3 : 2)) { herd.append(Goat(x: rnd(PAST.0 + 8, PAST.1 - 8))) }
         if !income.isEmpty { report = "This morning: " + income.joined(separator: ", ") + ". " + report }
+        dawnIncome = income.map { item in
+            let parts = item.split(separator: " ")
+            let n = Int(parts.last ?? "") ?? 0
+            return (parts.dropLast().joined(separator: " "), n)
+        }
         bank += min(3 * B(.bank).level, bank >> 3)
         carAt = ln % 3 == 0 ? 0.13 : -1
         raid = []

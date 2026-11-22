@@ -276,3 +276,248 @@ final class InfoCard: UIView {
         (line as NSString).draw(in: CGRect(x: 14, y: 25, width: avail, height: 18), withAttributes: la)
     }
 }
+
+/// The morning's account: what each source paid, the total, and how last night went.
+final class DawnCard: UIView {
+    private var day = 0
+    private var income: [(String, Int)] = []
+    private var night: (n: Int, down: Int, gates: Int, lost: Int)?
+    private var sig = ""
+    private let ink = UIColor(red: 0.11, green: 0.075, blue: 0.047, alpha: 1)
+    private let gold = UIColor(red: 0.95, green: 0.76, blue: 0.31, alpha: 1)
+    private let cream = UIColor(red: 0.97, green: 0.93, blue: 0.84, alpha: 1)
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        isOpaque = false
+        backgroundColor = .clear
+        isUserInteractionEnabled = false
+        contentMode = .redraw
+    }
+    required init?(coder: NSCoder) { fatalError("not used") }
+
+    /// Three sources to a row.
+    var wantHeight: CGFloat {
+        let rows = CGFloat((income.count + 2) / 3)
+        return 38 + rows * 24 + (night != nil ? 34 : 0) + 8
+    }
+    func show(day: Int, income: [(String, Int)], night: (n: Int, down: Int, gates: Int, lost: Int)?) {
+        var s = "\(day)"
+        for it in income { s += "|\(it.0)\(it.1)" }
+        if let n = night { s += "|\(n.n),\(n.down),\(n.gates),\(n.lost)" }
+        if s == sig { return }
+        sig = s
+        self.day = day; self.income = income; self.night = night
+        setNeedsDisplay()
+    }
+    private func font(_ s: CGFloat) -> UIFont {
+        return UIFont(name: "Georgia-Bold", size: s) ?? UIFont.boldSystemFont(ofSize: s)
+    }
+    private func put(_ t: String, _ x: CGFloat, _ cy: CGFloat, _ size: CGFloat, _ col: UIColor, right: Bool = false) -> CGFloat {
+        let a: [NSAttributedString.Key: Any] = [.font: font(size), .foregroundColor: col]
+        let str = t as NSString
+        let sz = str.size(withAttributes: a)
+        str.draw(at: CGPoint(x: right ? x - sz.width : x, y: cy - sz.height / 2), withAttributes: a)
+        return sz.width
+    }
+    private func coin(_ cx: CGFloat, _ cy: CGFloat, _ r: CGFloat) {
+        gold.setFill()
+        UIBezierPath(ovalIn: CGRect(x: cx - r, y: cy - r, width: r * 2, height: r * 2)).fill()
+        UIColor(red: 0.7, green: 0.48, blue: 0.12, alpha: 1).setStroke()
+        let ring = UIBezierPath(ovalIn: CGRect(x: cx - r + 1.6, y: cy - r + 1.6, width: r * 2 - 3.2, height: r * 2 - 3.2))
+        ring.lineWidth = 1
+        ring.stroke()
+    }
+    override func draw(_ rect: CGRect) {
+        let r = bounds.insetBy(dx: 0.5, dy: 0.5)
+        let bg = UIBezierPath(roundedRect: r, cornerRadius: 14)
+        ink.withAlphaComponent(0.84).setFill()
+        bg.fill()
+        gold.withAlphaComponent(0.6).setStroke()
+        bg.lineWidth = 1.2
+        bg.stroke()
+
+        // header: a small rising sun, the day, and the morning's total on the right
+        let hy: CGFloat = 19
+        gold.setFill()
+        UIBezierPath(arcCenter: CGPoint(x: 24, y: hy + 5), radius: 7, startAngle: .pi, endAngle: 0, clockwise: true).fill()
+        gold.setStroke()
+        let rays = UIBezierPath()
+        for i in 0..<5 {
+            let a = CGFloat.pi + CGFloat(i) * .pi / 4
+            rays.move(to: CGPoint(x: 24 + cos(a) * 9.5, y: hy + 5 + sin(a) * 9.5)); rays.addLine(to: CGPoint(x: 24 + cos(a) * 13, y: hy + 5 + sin(a) * 13))
+        }
+        rays.lineWidth = 1.6
+        rays.lineCapStyle = .round
+        rays.stroke()
+        UIBezierPath(rect: CGRect(x: 12, y: hy + 5, width: 24, height: 1.4)).fill()
+        _ = put("DAWN OF DAY \(day)", 44, hy, 14, gold)
+        let total = income.reduce(0) { $0 + $1.1 }
+        if total > 0 {
+            let w = put("+\(total)", bounds.width - 14, hy, 17, cream, right: true)
+            coin(bounds.width - 14 - w - 12, hy, 7)
+        }
+        cream.withAlphaComponent(0.2).setFill()
+        UIRectFill(CGRect(x: 12, y: 34, width: bounds.width - 24, height: 1))
+
+        // the sources, three to a row: amount in gold, then the name
+        let colW = (bounds.width - 28) / 3
+        for (i, it) in income.enumerated() {
+            let cx = 14 + CGFloat(i % 3) * colW, cy = 50 + CGFloat(i / 3) * 24
+            let w = put("\(it.1)", cx, cy, 15, gold)
+            _ = put(it.0.prefix(1).uppercased() + it.0.dropFirst(), cx + w + 6, cy, 12.5, cream)
+        }
+
+        // last night, as four short facts
+        if let n = night {
+            let top = 38 + CGFloat((income.count + 2) / 3) * 24
+            cream.withAlphaComponent(0.2).setFill()
+            UIRectFill(CGRect(x: 12, y: top + 2, width: bounds.width - 24, height: 1))
+            let ny = top + 19
+            var x: CGFloat = 14
+            x += put("LAST NIGHT", x, ny, 11, gold) + 12
+            let facts: [(String, String, Bool)] = [("\(n.n)", "raiders", false), ("\(n.down)", "brought down", false),
+                                                   (n.gates > 0 ? "\(n.gates)" : "", n.gates > 0 ? "gate\(n.gates > 1 ? "s" : "") broken" : "gates held", n.gates > 0),
+                                                   ("\(n.lost)", "robbed", n.lost > 0)]
+            let bad = UIColor(red: 1, green: 0.5, blue: 0.4, alpha: 1)
+            for f in facts {
+                if !f.0.isEmpty { x += put(f.0, x, ny, 14, f.2 ? bad : cream) + 4 }
+                x += put(f.1, x, ny + 0.5, 11.5, cream.withAlphaComponent(0.75)) + 12
+            }
+        }
+    }
+}
+
+/// The end-of-run summary: a night picture of riders with lanterns across the top, then the numbers as tiles.
+final class SummaryView: UIView {
+    private var title = ""
+    private var sub = ""
+    private var tiles: [(String, String)] = []
+    private var footer = ""
+    private var sig = ""
+    private let gold = UIColor(red: 0.95, green: 0.76, blue: 0.31, alpha: 1)
+    private let cream = UIColor(red: 0.97, green: 0.93, blue: 0.84, alpha: 1)
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        isOpaque = false
+        backgroundColor = .clear
+        isUserInteractionEnabled = false
+        contentMode = .redraw
+    }
+    required init?(coder: NSCoder) { fatalError("not used") }
+
+    func show(title: String, sub: String, tiles: [(String, String)], footer: String) {
+        var s = title + sub + footer
+        for t in tiles { s += t.0 + t.1 }
+        if s == sig { return }
+        sig = s
+        self.title = title; self.sub = sub; self.tiles = tiles; self.footer = footer
+        setNeedsDisplay()
+    }
+    private func font(_ s: CGFloat) -> UIFont {
+        return UIFont(name: "Georgia-Bold", size: s) ?? UIFont.boldSystemFont(ofSize: s)
+    }
+    private func centred(_ t: String, _ cx: CGFloat, _ cy: CGFloat, _ size: CGFloat, _ col: UIColor) {
+        let a: [NSAttributedString.Key: Any] = [.font: font(size), .foregroundColor: col]
+        let str = t as NSString
+        let sz = str.size(withAttributes: a)
+        str.draw(at: CGPoint(x: cx - sz.width / 2, y: cy - sz.height / 2), withAttributes: a)
+    }
+    /// A camel and rider in silhouette, feet at (x, y), carrying a lantern.
+    private func rider(_ cg: CGContext, _ x: CGFloat, _ y: CGFloat, _ s: CGFloat) {
+        let dark = UIColor(red: 0.03, green: 0.03, blue: 0.08, alpha: 1)
+        dark.setFill(); dark.setStroke()
+        UIBezierPath(ovalIn: CGRect(x: x - 9 * s, y: y - 13 * s, width: 18 * s, height: 8 * s)).fill()
+        let legs = UIBezierPath()
+        for lx in [-6, -3, 3.4, 6.4] as [CGFloat] { legs.move(to: CGPoint(x: x + lx * s, y: y - 7 * s)); legs.addLine(to: CGPoint(x: x + lx * s, y: y)) }
+        legs.move(to: CGPoint(x: x + 7 * s, y: y - 10 * s)); legs.addLine(to: CGPoint(x: x + 12 * s, y: y - 18 * s))
+        legs.lineWidth = 1.6 * s
+        legs.lineCapStyle = .round
+        legs.stroke()
+        UIBezierPath(ovalIn: CGRect(x: x + 10.6 * s, y: y - 20.6 * s, width: 6 * s, height: 3.6 * s)).fill()
+        UIBezierPath(roundedRect: CGRect(x: x - 2.8 * s, y: y - 22 * s, width: 5.6 * s, height: 10 * s), cornerRadius: 2 * s).fill()
+        UIBezierPath(ovalIn: CGRect(x: x - 2.6 * s, y: y - 26.6 * s, width: 5.2 * s, height: 5.2 * s)).fill()
+        // the lantern and its glow
+        let lc = CGPoint(x: x + 5 * s, y: y - 17 * s)
+        let cols = [UIColor(red: 1, green: 0.8, blue: 0.45, alpha: 0.75).cgColor, UIColor(red: 1, green: 0.8, blue: 0.45, alpha: 0).cgColor] as CFArray
+        if let gr = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: cols, locations: [0, 1]) {
+            cg.drawRadialGradient(gr, startCenter: lc, startRadius: 0, endCenter: lc, endRadius: 15 * s, options: [])
+        }
+        UIColor(red: 1, green: 0.95, blue: 0.72, alpha: 1).setFill()
+        UIBezierPath(ovalIn: CGRect(x: lc.x - 1.4 * s, y: lc.y - 1.8 * s, width: 2.8 * s, height: 3.6 * s)).fill()
+    }
+    override func draw(_ rect: CGRect) {
+        guard let cg = UIGraphicsGetCurrentContext() else { return }
+        let w = bounds.width
+        let artH: CGFloat = 86
+        // the picture: night sky, a moon, a ridge, and the lantern train crossing it
+        cg.saveGState()
+        UIBezierPath(roundedRect: CGRect(x: 3, y: 3, width: w - 6, height: artH + 14), cornerRadius: 15).addClip()
+        cg.clip(to: CGRect(x: 0, y: 0, width: w, height: artH + 3))
+        let sky = [UIColor(red: 0.05, green: 0.06, blue: 0.19, alpha: 1).cgColor, UIColor(red: 0.2, green: 0.18, blue: 0.38, alpha: 1).cgColor] as CFArray
+        if let gr = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: sky, locations: [0, 1]) {
+            cg.drawLinearGradient(gr, start: CGPoint(x: 0, y: 0), end: CGPoint(x: 0, y: artH + 3), options: [])
+        }
+        for i in 0..<46 {
+            let hx = CGFloat((i * 7919) % 997) / 997, hyy = CGFloat((i * 104729) % 991) / 991
+            UIColor(white: 1, alpha: 0.35 + 0.5 * CGFloat(i % 5) / 5).setFill()
+            UIRectFill(CGRect(x: 6 + hx * (w - 12), y: 6 + hyy * (artH * 0.6), width: 1.2, height: 1.2))
+        }
+        let mc = CGPoint(x: w - 54, y: 28)
+        let halo = [UIColor(red: 0.86, green: 0.9, blue: 1, alpha: 0.45).cgColor, UIColor(red: 0.86, green: 0.9, blue: 1, alpha: 0).cgColor] as CFArray
+        if let gr = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: halo, locations: [0, 1]) {
+            cg.drawRadialGradient(gr, startCenter: mc, startRadius: 0, endCenter: mc, endRadius: 30, options: [])
+        }
+        UIColor(red: 0.93, green: 0.94, blue: 1, alpha: 1).setFill()
+        UIBezierPath(ovalIn: CGRect(x: mc.x - 10, y: mc.y - 10, width: 20, height: 20)).fill()
+        UIColor(red: 0.08, green: 0.09, blue: 0.24, alpha: 1).setFill()
+        UIBezierPath(ovalIn: CGRect(x: mc.x - 5.5, y: mc.y - 12, width: 18, height: 18)).fill()
+        func ridge(_ h: CGFloat, _ ph: CGFloat, _ x: CGFloat) -> CGFloat { return artH - 6 - h * (0.5 + 0.5 * sin(x * 0.016 + ph)) }
+        let back = UIBezierPath()
+        back.move(to: CGPoint(x: 0, y: artH + 4))
+        var x: CGFloat = 0
+        while x <= w { back.addLine(to: CGPoint(x: x, y: ridge(34, 0.8, x))); x += 6 }
+        back.addLine(to: CGPoint(x: w, y: artH + 4))
+        UIColor(red: 0.11, green: 0.1, blue: 0.23, alpha: 1).setFill()
+        back.fill()
+        let n = max(4, Int(w / 86))
+        for i in 0..<n {
+            let rx = 40 + CGFloat(i) * (w - 110) / CGFloat(n - 1)
+            rider(cg, rx, ridge(34, 0.8, rx) + 1.5, 0.92)
+        }
+        let front = UIBezierPath()
+        front.move(to: CGPoint(x: 0, y: artH + 4))
+        x = 0
+        while x <= w { front.addLine(to: CGPoint(x: x, y: ridge(12, 2.6, x) + 6)); x += 6 }
+        front.addLine(to: CGPoint(x: w, y: artH + 4))
+        UIColor(red: 0.06, green: 0.06, blue: 0.16, alpha: 1).setFill()
+        front.fill()
+        cg.restoreGState()
+        gold.withAlphaComponent(0.7).setFill()
+        UIRectFill(CGRect(x: 3, y: artH + 3, width: w - 6, height: 1.5))
+
+        // words and numbers
+        centred(title, w / 2, artH + 24, 24, gold)
+        var y = artH + 44
+        if !sub.isEmpty { centred(sub, w / 2, artH + 48, 13, cream.withAlphaComponent(0.9)); y = artH + 64 }
+        let cols = min(4, max(1, tiles.count))
+        let gap: CGFloat = 8
+        let tw = (w - 40 - gap * CGFloat(cols - 1)) / CGFloat(cols)
+        for (i, t) in tiles.enumerated() {
+            let tx = 20 + CGFloat(i % cols) * (tw + gap), ty = y + CGFloat(i / cols) * 50
+            let box = UIBezierPath(roundedRect: CGRect(x: tx, y: ty, width: tw, height: 44), cornerRadius: 9)
+            UIColor(white: 1, alpha: 0.06).setFill()
+            box.fill()
+            gold.withAlphaComponent(0.35).setStroke()
+            box.lineWidth = 1
+            box.stroke()
+            centred(t.0, tx + tw / 2, ty + 15, 19, gold)
+            centred(t.1, tx + tw / 2, ty + 33, 10.5, cream.withAlphaComponent(0.85))
+        }
+        if !footer.isEmpty {
+            let rows = CGFloat((tiles.count + cols - 1) / cols)
+            centred(footer, w / 2, y + rows * 50 + 8, 13, cream)
+        }
+    }
+}

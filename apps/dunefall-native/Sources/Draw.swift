@@ -130,6 +130,7 @@ final class Renderer {
         dunes(0.28, 6, 18, Col(0xebcd90), Col(0xbd9052), 4.1, 0.017, true)
         c.vfill(0, GY - 22, W, 22, [(0, rgba(hz.r * 255, hz.g * 255, hz.b * 255, 0)), (1, rgba(hz.r * 255, hz.g * 255, hz.b * 255, 0.16))])
         if !g.low { farLife(hz) }
+        ridgeRiders()
         dunes(0.55, 0, 13, SAND, Col(0xb3854a), 7.7, 0.023, true)
         backTown(hz)
         ground()
@@ -335,11 +336,40 @@ final class Renderer {
         c.circ(px, fy - 12, 2.1, Col(0xb8804e)); c.R(px - 2.4, fy - 14.8, 4.8, 2.2, turb)
     }
     /// Tiny riders on a ridge, for the raid picture.
-    private func rideMark(_ px: Double, _ py: Double, _ s: Double, _ col: Col) {
+    private func rideMark(_ px: Double, _ py: Double, _ s: Double, _ col: Col, _ f: Double = 1) {
         c.ell(px, py - 5 * s, 5.4 * s, 2.6 * s, col)
         for lx in [-3.6, -1.6, 2, 3.8] { c.seg(px + lx * s, py - 4 * s, px + lx * s, py, 0.8 * s, col) }
-        c.seg(px + 4 * s, py - 6 * s, px + 7 * s, py - 10.5 * s, 1.5 * s, col); c.ell(px + 8 * s, py - 11 * s, 1.9 * s, 1.2 * s, col)
+        c.seg(px + f * 4 * s, py - 6 * s, px + f * 7 * s, py - 10.5 * s, 1.5 * s, col); c.ell(px + f * 8 * s, py - 11 * s, 1.9 * s, 1.2 * s, col)
         c.RR(px - 1.6 * s, py - 13 * s, 3.2 * s, 6.4 * s, s, col); c.circ(px, py - 14.2 * s, 1.6 * s, col)
+    }
+    /// The top of a dune layer at a screen x, by the same rule dunes() draws with.
+    private func duneTop(_ sx: Double, _ par: Double, _ base: Double, _ amp: Double, _ seed: Double, _ f: Double) -> Double {
+        let wx = sx + cam * par
+        let a1 = (1 - abs(sin(wx * f + seed))) * 0.6
+        let a2 = (0.5 + 0.5 * sin(wx * f * 2.3 + seed * 2)) * 0.28
+        let a3 = (0.5 + 0.5 * sin(wx * f * 0.37 + seed * 5)) * 0.4
+        return GY - base - amp * (a1 + a2 + a3)
+    }
+    /// Before a raid, riders with torches gather on the far ridge. With a temple you see which side; without one they show on both.
+    func ridgeRiders() {
+        if g.dark < 0.45 || g.low { return }
+        let plans = g.raid.filter { !$0.boat && $0.kind != .mummy }
+        if plans.isEmpty { return }
+        let n = min(6, plans.count)
+        let know = g.B(.temple).level > 0
+        let side = plans[0].side
+        let prog = clampD((g.t - 0.7) / 0.08, 0, 1)
+        let ink = Col(0x0a0a18)
+        for i in 0..<n {
+            let k = Double(i)
+            let sd: Double = know ? side : (i % 2 == 0 ? -1 : 1)
+            let off = 16 + k * (know ? 15 : 9) + prog * 26 + sin(NOW * 0.3 + k) * 2
+            let px = sd < 0 ? off : W - off
+            let py = duneTop(px, 0.28, 6, 18, 4.1, 0.017) + 0.6
+            rideMark(px, py, 0.5, ink, -sd)
+            flame(px + sd * 1.6, py - 7.6, 0.34)
+            light(px, py - 6, 9, 0.55)
+        }
     }
     /// The outdoor and night-sky pictures.
     private func morePanels(_ kind: Int, _ x: Double, _ y: Double, _ pw: Double, _ ph: Double, _ fy: Double) {
@@ -1762,6 +1792,11 @@ final class Renderer {
             c.ell(cx, y, 2.6, 1.2, col); c.circ(cx - 0.2, y - 1.3, 1, col); c.seg(cx + 2.2, y, cx + 3.4, y - 2.4, 0.6, col)
             c.seg(cx - 1.6, y + 0.8, cx - 1.6 + st, y + 3.4, 0.45, col); c.seg(cx + 1.6, y + 0.8, cx + 1.6 - st, y + 3.4, 0.45, col)
             if i % 2 == 0 { c.R(cx - 0.6, y - 4.2, 1.2, 2.6, col) }
+            if lit {
+                // each camel carries a lantern after dark
+                c.glow(cx + 1, y - 2.6, 5, rgba(255, 204, 116, 0.7), rgba(255, 204, 116, 0)); c.circ(cx + 1, y - 2.6, 0.5, Col(0xfff3b8))
+                light(cx, y - 2, 7, 0.5)
+            }
         }
     }
 
@@ -3412,6 +3447,14 @@ final class Renderer {
             let n = Double(i)
             let rx = (hashN(n + 70) * W + NOW * Double(4 + i % 4) * 2).truncatingRemainder(dividingBy: W + 40) - 20
             c.R(rx, hy + 3 + hashN(n + 71) * H * 0.26, 8 + hashN(n) * 14, 0.6, rgba(255, 236, 200, 0.28))
+        }
+        // a lantern train coming home along the far bank
+        for i in 0..<6 {
+            let k = Double(i)
+            let px = (W * 0.06 + k * 12 + NOW * 1.2).truncatingRemainder(dividingBy: W * 0.5)
+            rideMark(px, hy + 0.6, 0.42, Col(0x4a2e4a))
+            c.glow(px + 2.4, hy - 3.4, 5, rgba(255, 214, 130, 0.8), rgba(255, 214, 130, 0)); c.circ(px + 2.4, hy - 3.4, 0.45, Col(0xfff3b8))
+            c.R(px + 1.4, hy + 1.6, 2, 3, rgba(255, 214, 130, 0.25))
         }
         // feluccas on the far water, and ibis going home
         for i in 0..<3 {

@@ -37,6 +37,9 @@ final class GameViewController: UIViewController {
     private let stage = UIView()
     private let hud = HudBar()
     private let infoCard = InfoCard()
+    private let dawnCard = DawnCard()
+    private let endSum = SummaryView()
+    private let overSum = SummaryView()
     private let jobsBox = UIView()
     private lazy var jobsPanel = panel()
     private let jobsName = UILabel()
@@ -217,6 +220,8 @@ final class GameViewController: UIViewController {
         card.numberOfLines = 2
         for l in [hint, card] { view.addSubview(l) }
         view.addSubview(infoCard)
+        view.addSubview(dawnCard)
+        dawnCard.isHidden = true
         view.addSubview(hud)
 
         pad.isUserInteractionEnabled = false
@@ -407,6 +412,9 @@ final class GameViewController: UIViewController {
         jumpBox.insertSubview(jumpPanel, at: 0)
         overBox.insertSubview(overPanel, at: 0)
         endBox.insertSubview(endPanel, at: 0)
+        endBox.insertSubview(endSum, aboveSubview: endPanel)
+        overBox.insertSubview(overSum, aboveSubview: overPanel)
+        for l in [endName, endStats, overName, overText] { l.isHidden = true }
         for bt in [resumeBtn, contBtn, dawnBtn, sailBtn] { primary(bt) }
         sailBtn.titleLabel?.font = serif(16)
         dawnBtn.titleLabel?.font = serif(17)
@@ -527,9 +535,10 @@ final class GameViewController: UIViewController {
         caption.frame = CGRect(x: 30, y: 0, width: b.width - 60, height: barH)
 
         endBox.frame = b
-        let ew = min(b.width - left - right - 16, 560), eh = min(b.height - 12, 320)
+        let ew = min(b.width - left - right - 16, 580), eh = min(b.height - 12, 330)
         let ex = (b.width - ew) / 2, ey = (b.height - eh) / 2
         endPanel.frame = CGRect(x: ex, y: ey, width: ew, height: eh)
+        endSum.frame = endPanel.frame
         endName.frame = CGRect(x: ex, y: ey + 12, width: ew, height: 36)
         endStats.frame = CGRect(x: ex + 20, y: ey + 50, width: ew - 40, height: eh - 50 - 70)
         let sw2 = (ew - 48) * 0.58
@@ -537,9 +546,10 @@ final class GameViewController: UIViewController {
         endNewBtn.frame = CGRect(x: ex + 28 + sw2, y: ey + eh - 60, width: ew - 48 - sw2, height: 46)
 
         overBox.frame = b
-        let ow = min(b.width - left - right - 16, 520), oh: CGFloat = 190
+        let ow = min(b.width - left - right - 16, 540), oh: CGFloat = min(b.height - 12, 290)
         let ox = (b.width - ow) / 2, oy = (b.height - oh) / 2
         overPanel.frame = CGRect(x: ox, y: oy, width: ow, height: oh)
+        overSum.frame = overPanel.frame
         overName.frame = CGRect(x: ox, y: oy + 14, width: ow, height: 38)
         overText.frame = CGRect(x: ox + 16, y: oy + 58, width: ow - 32, height: 44)
         dawnBtn.isHidden = !saved
@@ -584,6 +594,17 @@ final class GameViewController: UIViewController {
             if args.contains("-demo-over") { game.demo("play"); game.state = .over }
             if args.contains("-demo-end") { game.demo("play"); game.state = .end }
             if args.contains("-demo-cave") { game.demo("cave") }
+            if args.contains("-demo-dawn") {
+                game.demo("play")
+                game.t = 0.1
+                game.dawnIncome = [("villagers", 2), ("bazaar", 6), ("teahouse", 4), ("goats", 3), ("dates", 6), ("sphinx", 2), ("dock", 2)]
+                game.dawnNight = (7, 5, 1, 2)
+            }
+            if args.contains("-demo-ridge") {
+                game.demo("night")
+                game.t = 0.74
+                for i in 0..<6 { game.raid.append(RaidPlan(t: 0.9 + Double(i) * 0.01, side: -1, kind: .bandit, hp: 0)) }
+            }
             if args.contains("-demo-title2") {
                 UserDefaults.standard.set(true, forKey: "dunefall.hardOpen")
                 UserDefaults.standard.set(4320, forKey: "dunefall.best")
@@ -813,7 +834,10 @@ final class GameViewController: UIViewController {
         endBox.isHidden = game.state != .end
         if game.state == .end {
             let st = game.stats
-            set(endStats, "Towns rebuilt: \(st[3])\nDays on the road: \(game.day)\nBuildings raised: \(st[0])\nNomads who joined you: \(st[1])\nRaiders brought down: \(st[2])\nRelics: \(game.relics.isEmpty ? "none" : game.relics.sorted().joined(separator: ", "))\nCoins in hand: \(game.player.coins + game.bank)\nScore: \(game.score)\(game.hard ? " (hard)" : "")   Best: \(max(best, game.score))")
+            endSum.show(title: "The river remembers", sub: "",
+                        tiles: [("\(st[3])", "Towns rebuilt"), ("\(game.day)", "Days on the road"), ("\(st[0])", "Buildings raised"), ("\(st[1])", "Nomads joined"),
+                                ("\(st[2])", "Raiders brought down"), ("\(game.relics.count)", "Relics"), ("\(game.player.coins + game.bank)", "Coins in hand"), ("\(game.score)", game.hard ? "Score (hard)" : "Score")],
+                        footer: "Best run \(max(best, game.score))")
         }
         if game.state == .end || game.state == .over {
             if !scored {
@@ -821,7 +845,10 @@ final class GameViewController: UIViewController {
                 if game.score > best { UserDefaults.standard.set(game.score, forKey: "dunefall.best") }
                 if game.state == .end && !hardOpen { UserDefaults.standard.set(true, forKey: "dunefall.hardOpen"); view.setNeedsLayout() }
             }
-            if game.state == .over { set(overText, "Caught with an empty purse.   Score \(game.score), best \(best)") }
+            if game.state == .over {
+                overSum.show(title: "Run out of town", sub: "The raiders caught you with an empty purse.",
+                             tiles: [("\(game.ln)", "Days held"), ("\(game.stats[3])", "Towns rebuilt"), ("\(game.score)", "Score"), ("\(best)", "Best run")], footer: "")
+            }
         } else if game.state == .play { scored = false }
         if game.state == .title { set(titleNote, best > 0 ? "Best run: \(best)" : "") }
         titleBox.isHidden = game.state != .title
@@ -851,8 +878,17 @@ final class GameViewController: UIViewController {
             infoCard.isHidden = false
         } else { infoCard.isHidden = true }
         let showHint = playing && game.hintT > 0
-        if showHint { set(hint, game.hintPin ? game.hintText + "  (tap to close)" : game.hintText) } else if playing && game.t < 0.2 && !game.report.isEmpty { set(hint, game.report) }
-        hint.isHidden = game.cardT > 0 || !(showHint || (playing && game.t < 0.2 && !game.report.isEmpty))
+        if showHint { set(hint, game.hintPin ? game.hintText + "  (tap to close)" : game.hintText) }
+        hint.isHidden = game.cardT > 0 || !showHint
+        // the morning's account takes the same spot when no message is up
+        let showDawn = playing && !showHint && game.cardT <= 0 && game.t < 0.2 && (!game.dawnIncome.isEmpty || game.dawnNight != nil)
+        if showDawn {
+            dawnCard.show(day: game.ln, income: game.dawnIncome, night: game.dawnNight)
+            let dw = min(view.bounds.width - 2 * max(view.safeAreaInsets.left, 12) - 40, 460), dh = dawnCard.wantHeight
+            let fr = CGRect(x: (view.bounds.width - dw) / 2, y: 40, width: dw, height: dh)
+            if dawnCard.frame != fr { dawnCard.frame = fr }
+        }
+        dawnCard.isHidden = !showDawn
         if game.state == .play && !cut && game.cardT > 0 {
             set(card, game.cardText + "\n" + game.cardSub)
             card.alpha = CGFloat(min(1, game.cardT))
@@ -883,6 +919,10 @@ final class GameViewController: UIViewController {
             if !hud.isHidden && game.state == .play && game.scene == nil && hud.peopleRect.contains(p) {
                 openJobs(fromPause: false)
                 return
+            }
+            if !dawnCard.isHidden && dawnCard.frame.contains(p) {
+                game.dawnIncome = []; game.dawnNight = nil
+                continue
             }
             if !hint.isHidden && hint.frame.insetBy(dx: 0, dy: -8).contains(p) {
                 // a tap holds the memo on screen; a second tap puts it away
