@@ -6848,17 +6848,19 @@ const UI = {
 const Demo = {
   on: false, i: -1, t: 0, step: null, s: {}, STEPS: [],
   cap(s) { const el = $('introCap'); if (el.textContent === s) return; el.textContent = s; el.classList.remove('show'); void el.offsetWidth; el.classList.add('show'); },
-  start(ch, fast) { this.fast = !!fast; this.on = true; this.i = -1; this.t = 0; this.s = {}; this.wait = 0; const C = this.CH; this.STEPS = fast ? [].concat(...[2, 3, 5, 6, 0, 1, 4].map(i => C[i].steps)) : ch === undefined || ch < 0 ? [].concat(...C.map(c => c.steps)) : C[ch].steps;
-    $('introSkip').textContent = fast ? 'fast reel · 4× speed · tap to stop' : 'demo · tap to stop'; $('intro').hidden = false; document.body.classList.add('demo'); try { localStorage.removeItem('saltwake2'); } catch (e) { /* ignore */ } this.next(); },
+  start(ch, fast) { this.fast = !!fast; this.on = true; this.i = -1; this.t = 0; this.s = {}; this.wait = 0; const C = this.CH; this.STEPS = fast ? [].concat(...[2, 8, 3, 7, 9, 10, 4, 5, 6, 0, 1, 11].map(i => C[i].steps)) : ch === undefined || ch < 0 ? [].concat(...C.map(c => c.steps)) : C[ch].steps;
+    $('introSkip').textContent = fast ? 'fast demo · 5× speed · tap to stop' : 'demo · tap to stop'; $('intro').hidden = false; document.body.classList.add('demo'); try { localStorage.removeItem('saltwake2'); } catch (e) { /* ignore */ } this.next(); },
   end() { this.on = false; this.fast = false; $('intro').hidden = true; $('introSkip').textContent = 'tap to skip'; document.body.classList.remove('demo', 'intro'); Game.intro = null; UI.closePanel(); Land3.cine = null; Sea.chart = false; Sea.stormOn = false; Sea.storm = 0; Sea.tapGo = Sea.tapFoe = null; G.mode = 'title'; Game.show(); },
-  next() { this.i++; this.t = 0; this.step = this.STEPS[this.i] || null; if (!this.step) return this.end(); this.cap(this.step.cap || ''); if (this.step.init) this.step.init(); },
-  tick(dt) { if (!this.on || !this.step) return; $('intro').hidden = false; const s = this.step; if (s.mode && G.mode !== s.mode) { if (G.mode === 'over') Game.revive(); this.wait = (this.wait || 0) + dt; if (this.wait > 30) this.next(); return; } this.wait = 0; this.t += dt; let done = false; try { done = s.run(dt, this.t); } catch (e) { console.error(e); done = true; } if (done || this.t > (s.max || 40)) this.next(); },
+  next() { this.i++; this.t = 0; if (UI.panelOpen) UI.closePanel(); if (Land.p) { Land.tapTarget = null; Land.tapAct = null; } this.step = this.STEPS[this.i] || null; if (!this.step) return this.end(); this.cap(this.step.cap || ''); if (this.step.init) this.step.init(); },
+  tick(dt) { if (!this.on || !this.step) return; $('intro').hidden = false; const s = this.step; if (s.mode && G.mode !== s.mode) { if (G.mode === 'over') Game.revive(); this.wait = (this.wait || 0) + dt; if (this.wait > 30) this.next(); return; } this.wait = 0; this.t += dt; if (UI.panelOpen && !s.panel) { UI.closePanel(); Land.tapTarget = null; Land.tapAct = null; } let done = false; try { done = s.run(dt, this.t); } catch (e) { console.error(e); done = true; } const mx = s.max || 40; if (done || this.t > (this.fast && mx <= 40 ? Math.min(mx, 20) : mx)) this.next(); },
   // set-up: a fresh save, then drop straight into the sea or onto a shore
   fresh(tier) { const T = TIERS[tier || 0]; Object.assign(G, { gold: 60, tier: tier || 0, plank: 0, holdUp: 0, hull: T.hull, hullMax: T.hull, crew: T.crew, crewMax: T.crew, food: 70, water: 45, timber: 0, cargo: 0, hold: T.hold, guns: 0, kills: 0, sold: 0, portChest: false, bounty: 0, wreck: null, map: 0, hp: 5, digT: -999, town: 'gallows', isleDone: { chest: false, items: {}, foes: {} } });
     Game.intro = null; Game.pending = null; document.body.classList.remove('intro'); UI.closePanel(); Land3.cine = null; Sea.reset(); Sea.day = 0.12; Sea.near = null; this.s = {}; },
   toSea(tier) { this.fresh(tier); Sea.P.T = TIERS[G.tier]; G.mode = 'sea'; $('land').classList.remove('in'); $('landfx').classList.remove('in'); Game.show(); const P = Sea.P; P.x += Math.sin(P.th) * 60; P.y -= Math.cos(P.th) * 60; Sea.camX = P.x; Sea.camY = P.y; },
-  toLand(key, calm, town) { this.fresh(0); Game.ring = key === 'port' ? Sea.rings.find(r => r.isle.town === (town || 'gallows')) : Sea.rings[1]; Game.apply(key); $('land').classList.add('in'); $('landfx').classList.add('in'); if (calm) { Land.foes = []; (Land3.foeRigs || []).forEach(r => { r.group.visible = false; }); } },
+  toLand(key, calm, town, tier) { this.fresh(tier || 0); Game.ring = key === 'port' ? Sea.rings.find(r => r.isle.town === (town || 'gallows')) : Sea.rings[1]; Game.apply(key); $('land').classList.add('in'); $('landfx').classList.add('in'); if (calm) { Land.foes = []; (Land3.foeRigs || []).forEach(r => { r.group.visible = false; }); } },
   // helpers
+  open(tier) { this.toSea(tier); const P = Sea.P; Sea.ships = [P]; Sea.loot = []; return P; },
+  at(P, d, a) { return [P.x + Math.sin(P.th + (a || 0)) * d, P.y - Math.cos(P.th + (a || 0)) * d]; },
   ahead(d) { const P = Sea.P; Sea.tapGo = [P.x + Math.sin(P.th) * d, P.y - Math.cos(P.th) * d]; },
   walkLand(x, z) { const L = Land; if (!L.tapTarget || Math.hypot(L.tapTarget[0] - x, L.tapTarget[1] - z) > 0.5) L.tap(x, z); return Math.hypot(L.p.x - x, L.p.z - z) < 1.2; },
   fightLand() { const L = Land, f = L.duel; G.hp = Math.max(G.hp, 3); if (!f) return true; if (f.state === 'windup' && f.t > 0.2 && L.p.parryT <= 0 && L.p.slashT <= 0) Pad.hit.X = true; else if (!L.tapAct || L.tapAct.foe !== f) L.tap(f.x, f.z); return false; },
@@ -6868,9 +6870,9 @@ const Demo = {
       { cap: 'The pier. Old Pell fishes off the end most mornings; the longboat waits alongside.', mode: 'port', run: (dt, t) => Demo.walkLand(-19, 0.2) && t > 4, max: 25 },
       { cap: 'Up the quay. Walk with the stick, or tap where you want to go.', mode: 'port', run: () => Demo.walkLand(-2.5, 3.5), max: 25 },
       { cap: 'Townsfolk have things to say. Walk up and talk.', mode: 'port', run: (dt, t) => { const f = Land3.folk[2], s = Demo.s; if (s.talk1 === undefined) { if (f.said > 0) s.talk1 = t; else Demo.walkLand(f.x, f.z); return false; } return t - s.talk1 > 5; }, max: 30 },
-      { cap: 'The shipwright. Plunder sells here; hull, guns, planking and hold space are bought here.', mode: 'port', run: (dt, t) => { const s = Demo.s; if (Demo.walkLand(0.5, -0.5)) { if (!UI.panelOpen && s.pt === undefined) { G.gold = 420; UI.openTrade(); s.pt = t; } if (s.pt !== undefined && t - s.pt > 4) { UI.closePanel(); return true; } } return false; }, max: 30 },
+      { cap: 'The shipwright. Plunder sells here; hull, guns, planking and hold space are bought here.', mode: 'port', panel: true, run: (dt, t) => { const s = Demo.s; if (Demo.walkLand(0.5, -0.5)) { if (!UI.panelOpen && s.pt === undefined) { G.gold = 420; UI.openTrade(); s.pt = t; } if (s.pt !== undefined && t - s.pt > 4) { UI.closePanel(); return true; } } return false; }, max: 30 },
       { cap: 'Marisol\'s stall. Fruit for the crew, and gossip about who sails heavy.', mode: 'port', run: (dt, t) => { const f = Land3.folk[1], s = Demo.s; if (s.talk2 === undefined) { if (f.said > 0) s.talk2 = t; else Demo.walkLand(f.x, f.z); return false; } return t - s.talk2 > 5; }, max: 30 },
-      { cap: 'The tavern: hands for hire, rumours for a round, and the Corsair\'s bounty on the wall.', mode: 'port', run: (dt, t) => { const s = Demo.s; if (Demo.walkLand(8.6, -0.6)) { if (!UI.panelOpen && s.tv === undefined) { UI.openTavern(); s.tv = t; } if (s.tv !== undefined && t - s.tv > 4) { UI.closePanel(); return true; } } return false; }, max: 30 },
+      { cap: 'The tavern: hands for hire, rumours for a round, and the Corsair\'s bounty on the wall.', mode: 'port', panel: true, run: (dt, t) => { const s = Demo.s; if (Demo.walkLand(8.6, -0.6)) { if (!UI.panelOpen && s.tv === undefined) { UI.openTavern(); s.tv = t; } if (s.tv !== undefined && t - s.tv > 4) { UI.closePanel(); return true; } } return false; }, max: 30 },
       { cap: 'Every town keeps a secret. This one is behind the barrels.', mode: 'port', run: (dt, t) => { const lv = Land.lv, s = Demo.s; if (Land.chestOpen) return s.ct !== undefined && t - s.ct > 3; if (Demo.walkLand(lv.chest[0], lv.chest[1] + 0.6)) { Land.act('chest'); s.ct = t; } return false; }, max: 30 },
       { cap: 'Night falls over the cay. Lanterns, lit windows, moths, a dog asleep by the door.', mode: 'port', run: (dt, t) => { Sea.day = lerp(Sea.day, 0.5, Math.min(1, dt * 0.8)); Demo.walkLand(10.2, 1.6); return t > 8; }, max: 10 },
       { cap: 'Back down to the water. The sea does not care how old you are.', mode: 'port', run: () => Demo.walkLand(-7.4, 0) && (Land.act('leave'), true), max: 30 },
@@ -6899,10 +6901,33 @@ const Demo = {
     { name: 'The island', steps: [
       { cap: 'Driftwood Isle. Timber and coconuts lie where the tide left them.', mode: 'island', init: () => Demo.toLand('island', true), run: (dt, t) => !Land3.cine && Demo.walkLand(-2.2, 2.2) && t > 6, max: 20 },
       { cap: 'Turned sand under crossed sticks. Somebody meant to come back for it.', mode: 'island', run: (dt, t) => { const d = FX3.dig, s = Demo.s; if (!d) return true; if (Land.duel) { Demo.fightLand(); return false; } if (d.done) { if (s.dg === undefined) s.dg = t; return t - s.dg > 3; } if (Demo.walkLand(d.x, d.z)) { s.dc = (s.dc || 0) - dt; if (s.dc <= 0) { Land.act('dig'); s.dc = 0.9; } } return false; }, max: 40 },
+      { cap: 'The spring under the rock face. Full casks buy you days at sea.', mode: 'island', run: (dt, t) => { const s = Demo.s; if (s.wt !== undefined) return t - s.wt > 2.5; if (Demo.walkLand(13.5, -5.2)) { Land.act('water'); s.wt = t; } return false; }, max: 30 },
+      { cap: 'And somebody\'s strongbox, up where the gulls nest.', mode: 'island', run: (dt, t) => { const lv = Land.lv, s = Demo.s; if (Land.chestOpen) return s.ict !== undefined && t - s.ict > 2.5; if (Demo.walkLand(lv.chest[0], lv.chest[1] + 0.7)) { Land.act('chest'); s.ict = t; } return false; }, max: 30 },
       { cap: 'Dusk. A fire on the beach; sit by it a while and wounds close.', mode: 'island', run: (dt, t) => { Sea.day = lerp(Sea.day, 0.5, Math.min(1, dt * 0.6)); if (Land.duel) { Demo.fightLand(); return false; } Demo.walkLand(FX3.fire.x + 0.9, FX3.fire.z + 0.5); return t > 11; }, max: 25 },
     ] },
     { name: 'A duel', steps: [
       { cap: 'Not everyone here is glad to see you. Cut on the opening; parry when he winds up.', mode: 'island', init: () => Demo.toLand('island'), run: (dt, t) => { const f = Land.foes[0], s = Demo.s; if (Land3.cine) return false; if (!f || f.state === 'dead') { if (s.dn === undefined) s.dn = t; return t - s.dn > 3; } if (Land.duel) Demo.fightLand(); else Demo.walkLand(f.x, f.z); return false; }, max: 60 },
+    ] },
+    { name: 'Boarding', steps: [
+      { cap: 'A crippled merchantman. Come alongside slowly and board: more hands than they have wins the whole hold.', mode: 'sea', init: () => { const P = Demo.open(1), q = Demo.at(P, 120); G.crewMax = 20; G.crew = 20; const e = Demo.s.foe = Sea.add({ kind: 'merchant', x: q[0], y: q[1], th: P.th }); e.hull = e.hullMax * 0.3; },
+        run: (dt, t) => { const e = Demo.s.foe, s = Demo.s, P = Sea.P; if (s.bd !== undefined) return t - s.bd > 5; if (!Sea.ships.includes(e) || e.sink) return true; e.v = 0; e.hull = Math.min(e.hull, e.hullMax * 0.3); G.hull = Math.max(G.hull, 50); if (Sea.board) { Pad.hit.A = true; s.bd = t; } else { Sea.tapGo = [e.x, e.y]; if (Math.hypot(e.x - P.x, e.y - P.y) < 45) P.v = Math.min(P.v, 6); } return false; }, max: 45 },
+    ] },
+    { name: 'Fishing and salvage', steps: [
+      { cap: 'Gulls wheeling over empty water mean a shoal under it. Sail through for food.', mode: 'sea', init: () => { const P = Demo.open(0), q = Demo.at(P, 90, 0.3); G.food = 40; SeaX.shoals = [{ x: q[0], y: q[1], t: 0, life: 99 }]; Demo.s.q = q; }, run: (dt, t) => { Sea.tapGo = Demo.s.q; return (G.food > 45 && t > 4) || t > 16; }, max: 18 },
+      { cap: 'A wreck marked on the chart. Heave to over it and the divers go down.', mode: 'sea', init: () => { const P = Sea.P, q = Demo.at(P, 90, -0.5); SeaX.wreck = G.wreck = { x: q[0], y: q[1] }; Demo.s.w = q; }, run: (dt, t) => { const P = Sea.P, q = Demo.s.w, s = Demo.s; if (!SeaX.wreck) { if (s.wd === undefined) s.wd = t; return t - s.wd > 3.5; } if (Math.hypot(q[0] - P.x, q[1] - P.y) < 11) { Sea.tapGo = null; P.v *= 0.9; } else Sea.tapGo = q; return false; }, max: 30 },
+      { cap: 'Timber aboard, and out of a fight the carpenter patches the hull a plank at a time.', mode: 'sea', init: () => { G.timber = 3; G.hull = Math.round(G.hullMax * 0.4); Sea.P.hull = G.hull; SeaX.carpT = 1; }, run: (dt, t) => { Demo.ahead(120); return t > 9; }, max: 11 },
+    ] },
+    { name: 'The fort', steps: [
+      { cap: 'The fort islet. Its guns reach a long way, but a brig\'s broadsides can silence it, and there is a strongbox inside.', mode: 'sea', init: () => { const P = Demo.open(2), f = Sea.fort; G.guns = 2; P.x = f.x + 150; P.y = f.y + 40; P.th = 0; Sea.camX = P.x; Sea.camY = P.y; },
+        run: (dt, t) => { const P = Sea.P, f = Sea.fort, s = Demo.s, a = Math.atan2(P.y - f.y - 4, P.x - f.x - 4) + 0.5; G.hull = Math.max(G.hull, 70); P.hull = G.hull; if (Sea.fortHp <= 0) { if (s.fd === undefined) s.fd = t; return t - s.fd > 3.5; } Sea.tapGo = [f.x + 4 + Math.cos(a) * 95, f.y + 4 + Math.sin(a) * 95]; if (Math.hypot(P.x - f.x - 4, P.y - f.y - 4) < 125) Pad.hit.A = true; return false; }, max: 60 },
+    ] },
+    { name: 'The Red Corsair', steps: [
+      { cap: 'The Red Corsair, two hundred and fifty on his head. A brig, extra guns and a full crew are the least you want.', mode: 'sea', init: () => { const P = Demo.open(2), q = Demo.at(P, 170); G.guns = 2; G.bounty = 1; Demo.s.foe = Sea.add({ kind: 'corsair', x: q[0], y: q[1], th: P.th + 2.4 }); },
+        run: (dt, t) => { const e = Demo.s.foe, s = Demo.s; G.hull = Math.max(G.hull, 60); Sea.P.hull = G.hull; if (!e || e.sink || !Sea.ships.includes(e)) { if (s.dn === undefined) s.dn = t; return t - s.dn > 5; } Sea.tapFoe = e; Sea.tapGo = null; return false; }, max: 90 },
+    ] },
+    { name: 'Bigger ships', steps: [
+      { cap: 'A sloop at the pier: three guns a side, a dozen hands. The boy is taller and the blade is longer.', mode: 'port', init: () => Demo.toLand('port', false, 'gallows', 1), run: (dt, t) => { if (Land3.cine) return false; Demo.walkLand(t < 6 ? -13 : -3, t < 6 ? 0.2 : 3); return t > 10; }, max: 14 },
+      { cap: 'The brig: five guns a side, twenty hands. He has grown into his father\'s coat.', mode: 'port', init: () => Demo.toLand('port', false, 'sovereign', 2), run: (dt, t) => { if (Land3.cine) return false; Demo.walkLand(t < 6 ? -14 : -3, t < 6 ? 0.2 : 3); return t > 10; }, max: 14 },
     ] },
   ],
 };
@@ -6941,7 +6966,7 @@ const Game = {
   tick(t) {
     const dt = Math.min(0.05, (t - this.last) / 1000 || 0.016); this.last = t; G.t += dt; pollPad(); if (Demo.on) { Pad.x = Pad.y = 0; Pad.hit = {}; } if (Pad.hit.mute) toast(Sfx.toggle() ? 'Sound off' : 'Sound on', 1200);
     if (G.mode === "title" && Pad.hit.A && !Demo.on) this.start(this.had); else if (G.mode === 'over' && Pad.hit.A) this.revive();
-    for (let k = 0, n = Demo.on && Demo.fast ? 4 : 1; k < n; k++) { if (k) Pad.hit = {}; if (Demo.on) Demo.tick(dt); if (this.intro) this.tickIntro(dt);
+    for (let k = 0, n = Demo.on && Demo.fast ? 5 : 1; k < n; k++) { if (k) Pad.hit = {}; if (Demo.on) Demo.tick(dt); if (this.intro) this.tickIntro(dt);
       if (G.mode === 'island' || G.mode === 'port') Land.update(dt * FX3.scale(dt)); else Sea.update(dt); }
     if (G.mode === 'island' || G.mode === 'port') Land.render(); else Sea.render();
     UI.update(dt);
@@ -6954,7 +6979,7 @@ const Game = {
     $('btnCont').hidden = !had; $('btnCont').addEventListener('click', () => this.start(true));
     $('btnRevive').addEventListener('click', () => this.revive());
     $('intro').addEventListener('pointerdown', () => { if (this.intro && !Demo.on) this.intro.skip = true; });
-    { const dl = $('demoList'); [['Fast gameplay reel', -2], ['Whole tour', -1]].concat(Demo.CH.map((c, i) => [c.name, i])).forEach(([n, i]) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'cta alt sm'; b.textContent = n; b.addEventListener('click', e => { e.stopPropagation(); setTimeout(() => Demo.start(i, i === -2), 50); }); dl.appendChild(b); }); $('btnDemo').addEventListener('click', e => { e.stopPropagation(); dl.hidden = !dl.hidden; }); }
+    { const dl = $('demoList'); [['Fast demo: everything', -2], ['Whole tour', -1]].concat(Demo.CH.map((c, i) => [c.name, i])).forEach(([n, i]) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'cta alt sm'; b.textContent = n; b.addEventListener('click', e => { e.stopPropagation(); setTimeout(() => Demo.start(i, i === -2), 50); }); dl.appendChild(b); }); $('btnDemo').addEventListener('click', e => { e.stopPropagation(); dl.hidden = !dl.hidden; }); }
     G.mode = 'title'; this.show(); requestAnimationFrame(tt => this.frame(tt));
     window.__game = { G, Sea, SeaX, Land, UI, Game, Pad, Demo, Hero, sim(sec) { for (let t = 0; t < sec; t += 1 / 30) { Pad.hit = {}; if (G.mode === 'island' || G.mode === 'port') Land.update(1 / 30); else Sea.update(1 / 30); } } };
   },
