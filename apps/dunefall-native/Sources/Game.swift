@@ -127,6 +127,8 @@ final class Game {
     var hintText = ""
     var hintT = 0.0
     var hintPin = false
+    /// The river is over the pasture today (the port town, every fourth dawn).
+    var flooded = false
     /// Hard mode: bigger raids and dearer building. Opened by finishing the game once.
     var hard = false
     /// Low detail: the renderer skips the small life and weathering.
@@ -167,6 +169,7 @@ final class Game {
         bank = 0; shops = [Shop(.guard), Shop(.pen)]; caravan = nil; carAt = -1; crowd = []; slow = 0
         ankh = false; poison = false; rocks = []; storm = nil; stormAt = -1; trip = nil; scene = nil; sceneQueue = []; zoom = 1; fade = 0
         rodN = [5, 8]; rodT = 0; rodSpot = -1; digN = 0; digToday = 0; digT = 0; carry = 0
+        flooded = false
         rain = nil; rainAt = -1; lush = false; ecl = nil; eclAt = -1; omen = false; fest = 0; festDone = false; ufo = nil; deepT = 0; trapCd = 0
         devils = [Devil(x: 520, dir: 1, a: 260, b: max(420, 1296 + ox - 130)), Devil(x: min(2900, 1992 + ox + 220), dir: -1, a: min(2700, 1992 + ox + 110), b: 2990)]
         camps = cf.camps.map { Camp(x: $0.0, cap: $0.1) }
@@ -553,6 +556,7 @@ final class Game {
         if sphN > 0 { for _ in 0..<sphN { coin(B(.sphinx).x + 70, 4, rnd(-20, 20), rnd(40, 70), true) }; income.append("sphinx \(sphN)") }
         if B(.well).level >= 3 { for _ in 0..<2 { coin(WELL_X + 6, 8, rnd(-16, 16), rnd(40, 60), true) }; income.append("fountain 2") }
         let flood = feat == .port && ln > 1 && ln % 4 == 0
+        flooded = flood
         if B(.dock).level > 0 {
             let dn = flood ? 6 : 2
             for _ in 0..<dn { coin(B(.dock).x + 34, 6, rnd(-16, 16), rnd(40, 60), true) }
