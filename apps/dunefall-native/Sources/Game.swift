@@ -2074,6 +2074,26 @@ final class Game {
             cam = clampD(player.x - W / 2 + 24, 0, WORLD - W)
             return
         }
+        if k == "cliff" || k == "last" {
+            reset(k == "cliff" ? 2 : 4)
+            state = .play
+            t = 0.3
+            for bt in [BType.market, .tea, .guard, .pen, .temple, .bank, .gw, .ge, .well] {
+                let b = B(bt); b.level = 2
+                if b.def.gate { b.hp = GHP[2] * (bt == .gw ? 0.3 : 1) }
+            }
+            let roles: [Role] = [.folk, .digger, .guard, .herder, .folk]
+            for j in 0..<5 {
+                let f = Folk(id: nextId, x: WELL_X - 70 + Double(j) * 30, dir: j % 2 == 0 ? 1 : -1, role: roles[j])
+                nextId += 1
+                folk.append(f)
+            }
+            for j in 0..<3 { herd.append(Goat(x: WELL_X + 40 + Double(j) * 14)) }
+            player.x = WELL_X + 10
+            player.coins = 20
+            cam = clampD(player.x - W / 2, 0, WORLD - W)
+            return
+        }
         if k == "port" {
             reset(3)
             state = .play

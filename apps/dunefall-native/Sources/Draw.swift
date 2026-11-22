@@ -132,6 +132,7 @@ final class Renderer {
         dunes(0.55, 0, 13, SAND, Col(0xb3854a), 7.7, 0.023, true)
         backTown(hz)
         ground()
+        groundRipples()
         groundExtra()
         wetGround()
         if !g.low { groundAir(); critters() }
@@ -1781,12 +1782,24 @@ final class Renderer {
                         let kx = x + 4 + Double(k) * (w - 13), ky = GY - h + 6 + hashN(n * 5 + Double(k)) * 5
                         let on = lit && hashN(n * 7 + Double(k) + floor(NOW * 0.12)) > 0.3
                         c.R(kx - 0.5, ky - 0.5, 4, 6, shade)
+                        c.R(kx - 1.7, ky, 1, 5, Col.mix(TEAL, hz, 0.45)); c.R(kx + 3.7, ky, 1, 5, Col.mix(TEAL, hz, 0.45)); c.R(kx - 1.2, ky + 5.2, 5.4, 0.7, shade)
                         c.R(kx, ky, 3, 5, on ? Col.mix(Col(0xffd27a), Col(0xffa53a), 0.5 + 0.5 * sin(NOW * 7 + n + Double(k))) : Col.mix(DARKC, hz, 0.25))
                         if on { light(kx + 1.5, ky + 2.5, 9, 0.5) }
                     }
                     c.arch(x + w * 0.5 - 2.5, GY - 9, 5, 9, Col.mix(Col(0x5a3a22), hz, 0.3))
                     let curt: [Col] = [RED, TEAL, LAPIS, Col(0xe0a030)]
                     c.poly(Col.mix(curt[i % 4], hz, 0.3), [x + w * 0.5 - 2.5, GY - 7, x + w * 0.5 + 2.5, GY - 7, x + w * 0.5 + 2.5 + sin(NOW * 2 + n) * 0.8, GY - 1, x + w * 0.5 - 2.5 + sin(NOW * 2 + n) * 0.8, GY - 1])
+                    if i % 3 == 1 {
+                        // a striped awning over the door
+                        let mx = x + w * 0.5
+                        c.poly(Col.mix(curt[(i + 1) % 4], hz, 0.3), [mx - 6, GY - 13, mx + 6, GY - 13, mx + 7.4, GY - 9.6, mx - 7.4, GY - 9.6])
+                        for k in 0..<3 { c.R(mx - 4.4 + Double(k) * 3.6, GY - 13, 1.6, 3.4, Col.mix(Col(0xf6efdc), hz, 0.3)) }
+                        c.R(mx - 7.4, GY - 9.8, 14.8, 0.5, shade)
+                    } else if i % 3 == 2 && h > 26 {
+                        // a wooden balcony under the upper window
+                        c.R(x + 2, GY - h + 13, 9, 0.8, Col.mix(WOOD, hz, 0.35)); c.R(x + 2, GY - h + 10.4, 9, 0.5, Col.mix(WOOD, hz, 0.35))
+                        for k in 0..<5 { c.R(x + 2.4 + Double(k) * 2, GY - h + 10.4, 0.5, 2.8, Col.mix(WOOD, hz, 0.35)) }
+                    }
                     if i % 3 == 0 && g.dark < 0.9 { c.R(x + w * 0.28, GY - h - 5, 2.4, 4, shade); plume(x + w * 0.28 + 1.2, GY - h - 5, n) }
                     if i % 5 == 2 && g.dark < 0.4 {
                         let px = x + w * 0.5 + sin(NOW * 0.4 + n) * w * 0.3
@@ -1848,6 +1861,23 @@ final class Renderer {
                 let sx = hashN(n + 630) * W + sin(NOW * 1.7 + n * 2.1) * 5
                 c.R(sx, GY - 1 - hashN(n + 631) * 4 + sin(NOW * 2.3 + n) * 0.5, 10 + hashN(n + 632) * 16, 0.4, rgba(255, 255, 255, 0.13 * heat))
             }
+        }
+    }
+
+    /// Long soft ripples the wind has drawn across the open sand.
+    func groundRipples() {
+        if g.low { return }
+        var ri = Int(floor(cam / 46)) - 1
+        let rl = Int((cam + W) / 46) + 1
+        while ri <= rl {
+            let n = Double(ri)
+            let wx = n * 46 + hashN(n + 980) * 30
+            let x = wx - cam, y = GY + 5 + hashN(n + 981) * (H - GY - 12), len = 18 + hashN(n + 982) * 26
+            if wx < g.TOWN.0 - 20 || wx > g.TOWN.1 + 20 {
+                c.curve(x, y, x + len * 0.5, y - 1.6 - hashN(n + 983) * 1.4, x + len, y, 0.4, rgba(150, 110, 60, 0.22))
+                c.curve(x + 2, y + 1.1, x + len * 0.5, y - 0.4, x + len - 2, y + 1.1, 0.3, rgba(255, 244, 214, 0.3))
+            }
+            ri += 1
         }
     }
 
@@ -2346,7 +2376,8 @@ final class Renderer {
             for q in 0..<9 { c.R(8 + Double(q) * 9, -2.2, 0.35, 2.2, rgba(60, 34, 8, 0.25)) }
             // tail, curled up over the haunch
             c.curve(9, -5, 0, -14, 9, -21.5, 1.3, STONE2); c.circ(9.6, -21.6, 1.2, STONE2)
-            // haunch and body
+            // haunch and body, with a darker edge so it stands off the dunes
+            c.ell(17, -12.5, 11.8, 10.3, rgba(120, 84, 40, 0.55)); c.poly(rgba(120, 84, 40, 0.55), [9.2, -3, 11.2, -19.7, 20, -22.8, 36, -21.3, 50, -23.8, 58.6, -24.8, 60.8, -3])
             c.ell(17, -12.5, 11, 9.5, STONE)
             c.poly(STONE, [10, -3, 12, -19, 20, -22, 36, -20.5, 50, -23, 58, -24, 60, -3])
             c.R(26, -6.4, 28, 3.4, STONE2)
@@ -2673,9 +2704,23 @@ final class Renderer {
         if x < -10 || x > W + 10 { return }
         let s = gt.kid ? 0.7 : 1.0
         let wk = gt.moving ? sin(gt.walk * 12) : 0
-        c.R(x - 3 * s, GY - 5 * s, 6 * s, 3 * s, Col(0xe8e0d0))
-        c.R(x - 2.6 * s + wk * 0.6, GY - 2 * s, 0.8, 2 * s, Col(0x5a4a3a)); c.R(x + 1.8 * s - wk * 0.6, GY - 2 * s, 0.8, 2 * s, Col(0x5a4a3a))
-        c.R(x + d * 3 * s - (d < 0 ? 2 * s : 0), GY - 6.5 * s, 2 * s, 2.2 * s, Col(0xd8ccb4))
+        let coat = Col(0xe8e0d0), sh = Col(0xc4b89e), dark = Col(0x5a4a3a)
+        c.ell(x, GY + 0.3, 4.4 * s, 0.8, rgba(50, 28, 8, 0.28))
+        c.roundCaps(true)
+        for (i, lx) in [-2.2, -1.2, 1.4, 2.4].enumerated() {
+            let sw = (i % 2 == 0 ? wk : -wk) * 0.8
+            c.seg(x + lx * s, GY - 2.6 * s, x + lx * s + sw, GY - 0.4, 0.7 * s, i % 2 == 0 ? dark : Col(0x7a6a56))
+        }
+        c.ell(x, GY - 4 * s, 3.6 * s, 2.1 * s, coat); c.ell(x - d * 0.6 * s, GY - 3.1 * s, 3 * s, 1.1 * s, sh)
+        c.seg(x - d * 3.3 * s, GY - 4.8 * s, x - d * 4.3 * s, GY - 5.8 * s + wk * 0.3, 0.7 * s, coat)
+        let hx = x + d * 3.8 * s, hy = GY - 6.2 * s + (gt.moving ? 0 : sin(NOW * 1.5 + gt.x) * 0.4)
+        c.seg(x + d * 2.6 * s, GY - 4.6 * s, hx, hy, 1.6 * s, coat)
+        c.ell(hx + d * 0.6 * s, hy, 1.7 * s, 1.2 * s, Col(0xd8ccb4))
+        c.circ(hx + d * 1.1 * s, hy - 0.2 * s, 0.3 * s, Col(0x1c120a))
+        c.seg(hx - d * 0.4 * s, hy - 0.9 * s, hx - d * 1.6 * s, hy - 2.6 * s, 0.5 * s, dark)
+        c.seg(hx - d * 0.9 * s, hy - 0.2 * s, hx - d * 1.9 * s, hy + 0.5 * s, 0.6 * s, sh)
+        if !gt.kid { c.seg(hx + d * 1.6 * s, hy + 0.9 * s, hx + d * 1.4 * s, hy + 2 * s, 0.4 * s, sh) }
+        c.roundCaps(false)
     }
     func hare(_ h: Hare) {
         let x = h.x - cam
@@ -2686,8 +2731,8 @@ final class Renderer {
         let c1 = Col(0x8a5a34), c2 = Col(0x6a4226)
         c.ell(x, GY + 0.3, 5.2, 1, rgba(50, 28, 8, 0.32))
         c.ell(x, y - 3.8, 5.2, 3.3, c1); c.ell(x - d * 1.8, y - 3, 3.4, 2.9, c2); c.circ(x + d * 4.4, y - 6.4, 2.5, c1)
-        c.R(x + d * 3.2 - 0.6, y - 13.4, 1.3, 6, c2); c.R(x + d * 4.9 - 0.6, y - 14, 1.3, 6.4, c1)
-        c.R(x + d * 5.1, y - 7, 0.9, 0.9, Col(0x1c120a)); c.circ(x - d * 5.2, y - 4.4, 1.6, Col(0xfff8ea))
+        c.RR(x + d * 3.2 - 0.6, y - 13.4, 1.3, 6, 0.65, c2); c.RR(x + d * 4.9 - 0.6, y - 14, 1.3, 6.4, 0.65, c1)
+        c.circ(x + d * 5.5, y - 6.6, 0.5, Col(0x1c120a)); c.circ(x - d * 5.2, y - 4.4, 1.6, Col(0xfff8ea))
         c.R(x - d * 3.4, y - 1.2, 3.2, 1.2, c2); c.R(x + d * 1.6, y - 1.2, 2, 1.2, c2)
     }
 

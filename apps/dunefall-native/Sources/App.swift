@@ -421,6 +421,8 @@ final class GameViewController: UIViewController {
             if args.contains("-demo-oasis") { game.demo("oasis") }
             if args.contains("-demo-desert") { game.demo("desert") }
             if args.contains("-demo-scene") { game.demo("scene") }
+            if args.contains("-demo-cliff") { game.demo("cliff") }
+            if args.contains("-demo-last") { game.demo("last") }
             if args.contains("-demo-econ") {
                 let bot = Game()
                 bot.W = game.W; bot.H = game.H; bot.GY = game.GY
