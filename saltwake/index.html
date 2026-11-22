@@ -6114,7 +6114,8 @@ const Land3 = {
   terrain(lv) {
     const port = lv.kind === 'port', b = lv.bounds, W = 110, D = 70, cx = (b[0] + b[1]) / 2, g = new THREE.PlaneGeometry(W, D, port ? 140 : 220, port ? 90 : 140); g.rotateX(-Math.PI / 2); const pos = g.attributes.position, col = [], gk = [];
     for (let i = 0; i < pos.count; i++) { const x = pos.getX(i) + cx, z = pos.getZ(i); let y, c;
-      if (port) { const onQuay = x > -4.1 && z < 7.4 && z > -40; y = onQuay ? 1.9 : -1.6; if (z < -1.0 && x > -4.1) y = 1.9 + smooth((-z - 9) / 10) * 3 + vnoise(x * .2, z * .2, 1) * .25 * smooth((-z - 9) / 6); const TP = lv.town.pal; c = onQuay ? TP.quay : [0.4, 0.4, 0.38]; if (z < -9) c = TP.hill; }
+      if (port && lv.town.layout) { const q = lv.town.layout.ground(x, z); y = q[0]; c = [q[1], q[2], q[3]]; }
+      else if (port) { const onQuay = x > -4.1 && z < 7.4 && z > -40; y = onQuay ? 1.9 : -1.6; if (z < -1.0 && x > -4.1) y = 1.9 + smooth((-z - 9) / 10) * 3 + vnoise(x * .2, z * .2, 1) * .25 * smooth((-z - 9) / 6); const TP = lv.town.pal; c = onQuay ? TP.quay : [0.4, 0.4, 0.38]; if (z < -9) c = TP.hill; }
       else { const d = seaD(x, z), n = vnoise(x * 0.8, z * 0.8, 2), n2 = vnoise(x * 0.25, z * 0.25, 9); y = lv.h(x, z);
         const wet = smooth((d + 2.1) / 1.1), jg = smooth((-8.6 - z) / 2.5), gr = Math.max(Isle.grassAt(x, z, y) * (1 - wet), jg), sand = [0.86 - n2 * 0.08, 0.8 - n2 * 0.08, 0.68 - n2 * 0.07], gv = 0.78 + n2 * 0.4 - jg * 0.4;
         c = [0, 1, 2].map(k => lerp(lerp(sand[k], [0.56, 0.48, 0.37][k], wet), gv * [1, 1, 0.92][k], gr)); gk.push(gr);
@@ -6232,8 +6233,8 @@ const Land3 = {
     this.terrain(lv);
     for (const pm of lv.palms) this.palm(pm[0], lv.h(pm[0], pm[1]) - 0.1, pm[1], pm[2]);
     if (port) {
-      this.pier(-24, -4.1, 1.75, 0, 3.0); this.box(0.4, 1.0, 9.6, this.mat.stone, -4.0, 2.4, 0, false).position.z = -0.1; for (const z of [-3.5, 3.5]) this.box(0.4, 1.0, 5.6, this.mat.stone, -4.0, 2.4, z, false); // pier gap in the quay wall
-      this.box(47, 0.6, 0.5, this.mat.stone, 0, 2.1, 7.5, false);
+      this.pier(-24, -4.1, 1.75, 0, 3.0); if (!lv.town.layout) { this.box(0.4, 1.0, 9.6, this.mat.stone, -4.0, 2.4, 0, false).position.z = -0.1; for (const z of [-3.5, 3.5]) this.box(0.4, 1.0, 5.6, this.mat.stone, -4.0, 2.4, z, false); // pier gap in the quay wall
+      this.box(47, 0.6, 0.5, this.mat.stone, 0, 2.1, 7.5, false); }
       Town.build(this, lv);
       this.shipG = this.ship(G.tier); const d = this.shipG.userData; this.shipG.position.set(-6.8 - d.L / 2, 0, -(1.5 + d.B / 2 + 0.9)); this.group.add(this.shipG);
       const A = new THREE.Vector3(-8.0, d.H + 0.95, this.shipG.position.z + d.B / 2), Bp = new THREE.Vector3(-7.4, 1.8, -0.4), v = Bp.clone().sub(A);
@@ -6425,11 +6426,11 @@ const FX3 = {
     // fireflies drift round the palms after dark
     this.flySpots = lv.palms.map(p => [p[0], lv.h(p[0], p[1]) + 1.2, p[1]]);
     this.light(0); },
-  sign(text, x, y, z) { const L3 = Land3, c = document.createElement('canvas'); c.width = 256; c.height = 80; const g = c.getContext('2d'); g.fillStyle = '#4a3220'; g.fillRect(0, 0, 256, 80); g.strokeStyle = '#2a1a0e'; g.lineWidth = 6; g.strokeRect(3, 3, 250, 74); for (let i = 0; i < 30; i++) { g.fillStyle = 'rgba(0,0,0,' + (0.05 + Math.random() * 0.1) + ')'; g.fillRect(0, Math.random() * 80, 256, 1); }
+  sign(text, x, y, z, ry) { const L3 = Land3, c = document.createElement('canvas'); c.width = 256; c.height = 80; const g = c.getContext('2d'); g.fillStyle = '#4a3220'; g.fillRect(0, 0, 256, 80); g.strokeStyle = '#2a1a0e'; g.lineWidth = 6; g.strokeRect(3, 3, 250, 74); for (let i = 0; i < 30; i++) { g.fillStyle = 'rgba(0,0,0,' + (0.05 + Math.random() * 0.1) + ')'; g.fillRect(0, Math.random() * 80, 256, 1); }
     let fs = 38; g.font = '700 38px Georgia, serif'; while (fs > 16 && g.measureText(text).width > 226) { fs -= 2; g.font = '700 ' + fs + 'px Georgia, serif'; } g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#e8d8a8'; g.fillText(text, 128, 42); const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding;
-    const grp = new THREE.Group(); grp.position.set(x, y, z); const bd = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.47, 0.05), [L3.mat.wood, L3.mat.wood, L3.mat.wood, L3.mat.wood, new THREE.MeshStandardMaterial({ map: t, roughness: .9 }), L3.mat.wood]); bd.position.y = -0.38; bd.castShadow = true; grp.add(bd);
-    for (const sx of [-0.55, 0.55]) { const ch = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.16, 4), L3.mat.iron); ch.position.set(sx, -0.08, 0); grp.add(ch); } for (const sx of [-0.55, 0.55]) { const arm = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.75), L3.mat.iron); arm.position.set(x + sx, y, z - 0.33); L3.group.add(arm); } L3.group.add(grp); this.signs.push(grp); },
-  port(lv) { const L3 = Land3, G3 = L3.group; this.signs = []; const TW = lv.town; for (const h of TW.houses) if (h.sign) this.sign(h.sign, h.door, 1.9 + Math.min(h.h, 3.0) - 0.1, (h.z1 || -1.25) + 0.65);
+    const out = new THREE.Group(); out.position.set(x, y, z); out.rotation.y = ry || 0; L3.group.add(out); const grp = new THREE.Group(); out.add(grp); grp.userData.ph = x; const bd = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.47, 0.05), [L3.mat.wood, L3.mat.wood, L3.mat.wood, L3.mat.wood, new THREE.MeshStandardMaterial({ map: t, roughness: .9 }), L3.mat.wood]); bd.position.y = -0.38; bd.castShadow = true; grp.add(bd);
+    for (const sx of [-0.55, 0.55]) { const ch = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.16, 4), L3.mat.iron); ch.position.set(sx, -0.08, 0); grp.add(ch); } for (const sx of [-0.55, 0.55]) { const arm = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.75), L3.mat.iron); arm.position.set(sx, 0, -0.33); out.add(arm); } this.signs.push(grp); },
+  port(lv) { const L3 = Land3, G3 = L3.group; this.signs = []; const TW = lv.town; for (const s of lv.signs || []) this.sign(s[0], s[1], s[2], s[3], s[4]); for (const h of TW.houses) if (h.sign) this.sign(h.sign, h.door, 1.9 + Math.min(h.h, 3.0) - 0.1, (h.z1 || -1.25) + 0.65);
     if (TW.chimney) { const c = TW.chimney; L3.box(0.8, 1.9, 0.8, L3.mat.stone, c[0], c[1], c[2]); this.smokeAt = [c[0], c[1] + 1, c[2]]; }
     // the ship: a flag on a staff at the stern, and mooring lines to the pier
     const s = L3.shipG, d = s.userData; { const staff = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.04, 2.2, 6), L3.mat.wood); staff.position.set(-d.L * 0.46, d.H + 1.9, 0); s.add(staff);
@@ -6467,6 +6468,7 @@ const FX3 = {
     const glow = this.glowK = clamp(n + dk * 0.8, 0, 1); this.lights.forEach((l, i) => { l.pl.intensity = 1.6 * glow * (0.85 + 0.15 * Math.sin(L3.t * 9 + i * 2.1) + 0.08 * Math.sin(L3.t * 23 + i)); l.mesh.visible = true; });
     if (L3.mat.window) { L3.mat.window.emissiveIntensity = glow * 1.1; } this.stars.material.opacity = n * 0.9; this.stars.position.copy(L3.cam.position); this.moon.material.opacity = n; this.moon.position.set(L3.cam.position.x - 60, 70, L3.cam.position.z - 120);
     if (L3.sky && L3.sky.parent === L3.group) { const u = L3.sky.material.uniforms; mix(u.uTop.value, 0x3f86d0, 0x5a6aa8, 0x04060e); u.uHor.value.copy(L3.scene.background); u.uSun.value.set(L3.sunDir[0], L3.sunDir[1], L3.sunDir[2]).normalize(); L3.sky.position.set(L3.cam.position.x, 0, L3.cam.position.z); } if (L3.fallsTex) L3.fallsTex.offset.x = -L3.t * 0.9;
+    { const tw = Land.key === 'port' && Land.lv && Land.lv.town, fg = L3.scene.fog; if (tw && tw.fog) { fg.near = tw.fog[0]; fg.far = tw.fog[1]; if (tw.fog[2]) { fg.color.lerp(c2.set(tw.fog[2]), 0.45 * (1 - n)); L3.scene.background.lerp(c2, 0.3 * (1 - n)); } } else { fg.near = 30; fg.far = 90; } }
     if (this.fire) this.fire.pl.intensity = (0.5 + 1.6 * glow) * (0.85 + 0.15 * Math.sin(L3.t * 11) + 0.1 * Math.sin(L3.t * 27)); },
   // combat feel
   shake(a) { this.shakeA = Math.max(this.shakeA, a); }, stop(t) { this.stopT = Math.max(this.stopT, t); }, slow(t) { this.slowT = Math.max(this.slowT, t); },
@@ -6488,7 +6490,7 @@ const FX3 = {
     // lantern moths and fireflies at night
     if (glow > 0.4) { for (const l of this.lights) if (Math.random() < dt * 2.5) this.P(this.glow, l.pl.position.x + rand(-0.5, 0.5), l.pl.position.y + rand(-0.4, 0.3), l.pl.position.z + rand(-0.3, 0.5), rand(-0.6, 0.6), rand(-0.3, 0.3), rand(-0.6, 0.6), rand(0.8, 1.6), 0.045, 0.045, [1, 0.95, 0.8], 0.9, { wob: 9 });
       if (this.flySpots.length && Math.random() < dt * 5 * glow) { const s = this.flySpots[Math.floor(Math.random() * this.flySpots.length)]; this.P(this.glow, s[0] + rand(-2.5, 2.5), s[1] + rand(-0.8, 1.5), s[2] + rand(-2.5, 2.5), rand(-0.3, 0.3), rand(-0.1, 0.1), rand(-0.3, 0.3), rand(3, 6), 0.07, 0.07, [0.75, 1, 0.4], 1, { wob: 2, blink: 4 }); } }
-    for (const s of this.signs) s.rotation.x = Math.sin(t * 1.6 + s.position.x) * 0.09;
+    for (const s of this.signs) s.rotation.x = Math.sin(t * 1.6 + (s.userData.ph || 0)) * 0.09;
     for (const fl of this.flags || []) { const a = fl.geometry.attributes.position, b = fl.userData.base; for (let i = 0; i < a.count; i++) { const x = b[i * 3], k = x / 2.2; a.setZ(i, Math.sin(x * 3.2 - t * 5) * 0.2 * k); a.setY(i, b[i * 3 + 1] + Math.sin(x * 2 - t * 3.4) * 0.07 * k - k * k * 0.16); } a.needsUpdate = true; fl.geometry.computeVertexNormals(); }
     if (this.fountain && Math.random() < dt * 40) { const f = this.fountain; this.P(this.glow, f[0], f[1], f[2], rand(-0.5, 0.5), rand(1.6, 2.4), rand(-0.5, 0.5), rand(0.5, 0.8), 0.06, 0.03, [0.75, 0.9, 1], 0.6, { g: 7, floor: 2.35 }); }
     if (this.flag) { const a = this.flag.geometry.attributes.position, b = this.flag.userData.base; for (let i = 0; i < a.count; i++) { const x = b[i * 3], k = -x / 1.3; a.setZ(i, Math.sin(x * 5 + t * 6) * 0.14 * k); a.setY(i, b[i * 3 + 1] + Math.sin(x * 3 + t * 4) * 0.05 * k - k * k * 0.12); } a.needsUpdate = true; this.flag.geometry.computeVertexNormals(); }
@@ -6702,11 +6704,15 @@ const Town = {
   },
   cur() { return this.defs[G.town] || this.defs.gallows; },
   // the walk map for a town
-  level(id) { const T = this.defs[id] || this.defs.gallows, zones = [{ x: -7.4, z: 0, r: 1.5, label: 'Cast off', act: 'leave' }];
+  level(id) { const T = this.defs[id] || this.defs.gallows, zones = [{ x: -7.4, z: 0, r: 1.5, label: 'Cast off', act: 'leave' }], Ly = T.layout;
+    if (Ly) { const circles = (Ly.circles || []).slice(), lab = r => r === 'trade' ? 'Trade at ' + T.shop.replace(/^The /, 'the ') : 'Enter ' + T.inn.replace(/^The /, 'the ');
+      for (const h of Ly.houses) { const fx = Math.sin(h.ry || 0), fz = Math.cos(h.ry || 0), n = Math.max(1, Math.round(h.w / h.d)); if (h.role) zones.push({ x: h.x + fx * (h.d / 2 + 0.9), z: h.z + fz * (h.d / 2 + 0.9), r: 1.3, label: lab(h.role), act: h.role }); for (let i = 0; i < n; i++) { const o = (i + 0.5) / n * h.w - h.w / 2; circles.push([h.x + fz * o, h.z - fx * o, h.d / 2]); } }
+      for (const z of Ly.zones || []) zones.push({ x: z[0], z: z[1], r: 1.3, label: lab(z[2]), act: z[2] });
+      return { kind: 'port', town: T, bounds: Ly.bounds, start: [-6.2, 0.4], dusk: true, h: (x, z) => x < -4.1 || Ly.deck ? 1.9 : Ly.ground(x, z)[0], water: (x, z) => x < -4.1 ? (Math.abs(z) > 1.45 || x < -23) : !Ly.walk(x, z), rects: [], circles, zones, chest: T.chest, items: [], foes: [], palms: T.palms, signs: [] }; }
     for (const h of T.houses) if (h.role) zones.push({ x: h.door, z: (h.z1 || -1.25) + 0.7, r: 1.3, label: h.role === 'trade' ? 'Trade at ' + T.shop.replace(/^The /, 'the ') : 'Enter ' + T.inn.replace(/^The /, 'the '), act: h.role });
     return { kind: 'port', town: T, bounds: [-23, 23, -1.0, 7.4], start: [-6.2, 0.4], dusk: true, h: () => 1.9, water: (x, z) => (x < -4.1 && Math.abs(z) > 1.45) || z > 7.4 || x < -23,
       rects: T.houses.filter(h => !h.back).map(h => [h.x0, h.x1, -8, h.z1 || -1.25]), circles: T.barrels.concat(T.extraCircles || []), zones, chest: T.chest, items: [], foes: [], palms: T.palms }; },
-  build(L3, lv) { const T = lv.town; L3.fisher = null; L3.dog = null;
+  build(L3, lv) { const T = lv.town; L3.fisher = null; L3.dog = null; if (T.layout) { for (const h of T.layout.houses) this.hut(L3, lv, h); T.layout.build(L3, lv, this); return; }
     for (const h of T.houses) L3.house(h.x0, h.x1, h.y0 || 1.9, h.h, h.z0 || -8, h.z1 || -1.25, h.roof, h.door, h.wall);
     for (const h of T.houses) if (h.door !== undefined && (!T.lampDoors || T.lampDoors.includes(h.role))) L3.lantern(h.door, 4.1, (h.z1 || -1.25) + 0.2, true); for (const l of T.lamps) L3.lantern(l[0], 4.1, l[1], true);
     for (const c of T.barrels) { const m = L3.box(1, 1, 1, L3.mat.wood, c[0], 1.9 + 0.45, c[1]); m.geometry = new THREE.CylinderGeometry(c[2], c[2] * 0.9, 0.9, 10); }
@@ -6714,6 +6720,19 @@ const Town = {
     for (const p of T.props) this.P[p[0]](L3, p[1], p[2], p[3], p[4]); },
   people(L3, lv) { const T = lv.town; T.folk.forEach(f => { const r = L3.rig(f.look, {}); r.poser = new Motion.Poser(); const w = f.box; L3.folk.push({ r, x: w[0] + 2, z: (w[1] + w[3]) / 2, box: w, wp: null, head: 0, walk: 0, rest: rand(0, 4), name: f.name, lines: f.lines, said: 0 }); });
     if (T.fisher) this.P.fisher(L3); if (T.dog) this.P.dog(L3, T.dog[0], T.dog[1]); },
+  // drop classic set pieces (built for the 1.9 m quay) onto ground at another height
+  put(L3, y, fn) { const n0 = L3.group.children.length; fn(this.P); for (let i = n0; i < L3.group.children.length; i++) L3.group.children[i].position.y += y - 1.9; },
+  lamp(L3, lv, x, z) { const y = lv.h(x, z); L3.box(0.1, 2.5, 0.1, L3.mat.iron, x, y + 1.25, z, false); L3.lantern(x, y + 2.65, z, true); },
+  // a house that can face any way: front is local +z, door in the middle of it
+  hut(L3, lv, h) { const ry = h.ry || 0, fx = Math.sin(ry), fz = Math.cos(ry), w = h.w, d = h.d, H = h.h, y = h.y !== undefined ? h.y : lv.h(h.x + fx * (d / 2 + 0.6), h.z + fz * (d / 2 + 0.6)), g = new THREE.Group(), P = this.P, wall = L3.wallMat(h.wall);
+    const ext = h.stilts ? 0 : 3; g.add(P.m(new THREE.BoxGeometry(w, H + ext, d), wall, 0, (H - ext) / 2, 0)); const sh = new THREE.Shape(); sh.moveTo(-w / 2 - 0.5, 0); sh.lineTo(w / 2 + 0.5, 0); sh.lineTo(0, Math.max(1.1, H * 0.42)); sh.closePath();
+    const rf = P.m(new THREE.ExtrudeGeometry(sh, { depth: d + 0.7, bevelEnabled: false }), L3.roofMat(h.roof), 0, H - 0.02, -d / 2 - 0.35); if (h.roof === 'flat') rf.scale.y = 0.12; g.add(rf);
+    if (h.door !== false) g.add(P.m(new THREE.BoxGeometry(1.1, 2.2, 0.15), L3.mat.hull, 0, 1.1, d / 2 + 0.02), P.m(new THREE.BoxGeometry(1.6, 0.12, 0.6), L3.mat.wood, 0, 2.35, d / 2 + 0.25));
+    const wm = L3.mat.window || (L3.mat.window = new THREE.MeshStandardMaterial({ color: 0x2a2a30, roughness: .4, emissive: 0xffb050, emissiveIntensity: 0 })); if (w > 4.4) for (const wx of [-w / 2 + 1.2, w / 2 - 1.2]) g.add(P.m(new THREE.BoxGeometry(0.8, 1.0, 0.1), wm, wx, Math.min(H * 0.55, 2.2), d / 2 + 0.04), P.m(new THREE.BoxGeometry(0.9, 1.1, 0.06), L3.mat.wood, wx, Math.min(H * 0.55, 2.2), d / 2 + 0.03));
+    if (h.stilts) for (const sx of [-1, 1]) for (const sz of [-1, 1]) g.add(P.m(new THREE.CylinderGeometry(0.09, 0.11, 4, 6), L3.mat.wood, sx * (w / 2 - 0.2), -2, sz * (d / 2 - 0.2)));
+    P.add(L3, g, h.x, y, h.z, ry); const W = (lx, lz) => [h.x + fz * lx + fx * lz, h.z - fx * lx + fz * lz];
+    if (h.lamp !== false) { const q = W(0.95, d / 2 + 0.25); L3.lantern(q[0], y + 2.3, q[1], !!(h.role || h.lamp)); }
+    if (h.sign) { const q = W(0, d / 2 + 0.65); lv.signs.push([h.sign, q[0], y + Math.min(H, 3.0) - 0.1, q[1], ry]); } },
   // ---- set pieces
   P: {
     add(L3, g, x, y, z, ry) { g.position.set(x, y, z); g.rotation.y = ry || 0; g.traverse(m => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } }); L3.group.add(g); return g; },
@@ -6755,6 +6774,102 @@ const Town = {
     pots2(L3, x, z) { const wk = new THREE.MeshStandardMaterial({ color: 0x7a6038, roughness: 1, wireframe: true }), P = Town.P; for (const [dx, dz, dy] of [[0, 0, 0], [0.62, 0.1, 0], [0.3, 0.5, 0], [0.3, 0.2, 0.42]]) { const c = P.m(new THREE.CylinderGeometry(0.26, 0.3, 0.42, 10, 3), wk, x + dx, 2.11 + dy, z + dz); L3.group.add(c); } },
   },
 };
+
+// ==== 04j_layouts.js
+// ---- Three towns that are not Gallows Cay: each has its own ground, walk map and buildings. Only the pier they share.
+(function () {
+  const D = Town.defs, inR = (r, x, z, m) => x >= r[0] + m && x <= r[1] - m && z >= r[2] + m && z <= r[3] - m, crenel = (L3, x0, x1, z, y, alongZ) => { for (let v = x0; v <= x1 + 0.01; v += 1.6) L3.box(alongZ ? 0.6 : 0.8, 0.7, alongZ ? 0.8 : 0.6, L3.mat.stone, alongZ ? z : v, y, alongZ ? v : z, false); };
+
+  // ================= Port Sovereign: a fortress on two levels. Dock below, ramp up, parade ground and ramparts above.
+  Object.assign(D.sovereign, { houses: [], barrels: [], crates: [], props: [], lamps: [], chimney: null, palms: [], dog: null, fisher: false, chest: [33.2, -11.2], fog: [34, 110],
+    goal: 'A fortress: the dockyard gate is in the wall by the dock, the King\'s Arms is up the ramp.' });
+  D.sovereign.folk[0].box = [18, -3, 28, 5]; D.sovereign.folk[1].box = [-2, -0.8, 8, 3.4]; D.sovereign.folk[2].box = [-2, -8, 2.5, -4.4];
+  D.sovereign.layout = { bounds: [-23, 34.4, -12.4, 7.4],
+    ground(x, z) { const lo = [0.6, 0.6, 0.58], up = [0.72, 0.71, 0.68]; if (x < -4.1) return [-1.6, 0.4, 0.4, 0.38];
+      if ((x >= 16 && x <= 35 && z >= -13 && z <= 8) || (x < 16 && z >= -13 && z <= -2.6)) { const k = 0.9 + 0.2 * vnoise(x * 0.4, z * 0.4, 3), par = x > 18 && x < 33 && z > -4.5 && z < 5.5 ? 0.88 : 1; return [4.6, up[0] * k * par, up[1] * k * par, up[2] * k * par]; }
+      if (x >= 9.5 && x < 16 && z > -2.6 && z <= 3.6) return [1.9 + 2.7 * clamp((x - 9.5) / 6.5, 0, 1), 0.66, 0.65, 0.62];
+      if (x < 9.5 && z > -2.6 && z <= 4.2) return [1.9, lo[0], lo[1], lo[2]]; return [-1.6, 0.4, 0.4, 0.38]; },
+    walk(x, z) { return (x < 9.6 && z >= -1.9 && z <= 3.9) || (x >= 9.5 && x <= 16.3 && z >= -1.9 && z <= 3.2) || (x >= 16.2 && x <= 34.4 && z >= -12.4 && z <= 7.2) || (x >= -3.4 && x < 16.3 && z >= -12.4 && z <= -3.5); },
+    houses: [{ x: 22, z: -9.6, w: 8, d: 5, h: 3.8, ry: 0, roof: 'red', wall: 0xf4f0e6, role: 'tavern', sign: 'KING\'S ARMS' }, { x: 31.2, z: -2, w: 9.5, d: 5.4, h: 5.6, ry: -Math.PI / 2, roof: 'slate', wall: 0xe9e2d2, sign: 'GOVERNOR' }, { x: 3.5, z: -9.8, w: 11, d: 4.4, h: 3.2, ry: 0, roof: 'red', wall: 0xf4f0e6, sign: 'BARRACKS', lamp: true }],
+    zones: [[3, -1.3, 'trade']], circles: [[32.4, 5.3, 1.35], [12.6, -9.4, 1.7], [25, 0.5, 0.3], [20.5, 3.4, 0.5]],
+    build(L3, lv, T) { const S = L3.mat.stone, B = (w, h, d, x, y, z, m) => L3.box(w, h, d, m || S, x, y, z);
+      B(20.4, 6.4, 0.7, 6.05, 1.4, -2.75); crenel(L3, -4, 16, -3.0, 4.95); B(0.7, 6.4, 4.9, 16.2, 1.4, 5.75); B(13.7, 0.5, 0.5, 2.75, 1.66, 4.25); B(0.5, 0.5, 6.2, 9.7, 1.66, 1.2).visible = false;
+      B(19.6, 6.6, 0.7, 25.7, 1.5, 8.3); crenel(L3, 16.6, 34.6, 8.3, 5.15); B(0.7, 6.6, 21.8, 35.2, 1.5, -2.5); crenel(L3, -12.6, 7.4, 35.2, 5.15, true); B(0.7, 6.4, 11.2, -4.3, 1.4, -8.1); crenel(L3, -12.6, -3.4, -4.3, 4.95, true);
+      B(41, 10, 1.3, 15.5, 3.2, -13.5); crenel(L3, -4, 35, -13.5, 8.55); for (const tx of [-4.4, 15.5, 35.3]) { const t = B(1, 1, 1, tx, 5, -13.6); t.geometry = new THREE.CylinderGeometry(2.3, 2.6, 13, 14); const c = L3.box(1, 1, 1, L3.roofMat('slate'), tx, 13, -13.6); c.geometry = new THREE.ConeGeometry(2.8, 3, 14); }
+      // the dockyard gate in the wall
+      B(2.6, 3.0, 0.3, 3, 3.4, -2.36, L3.mat.hullDark); B(0.5, 3.2, 0.5, 1.5, 3.5, -2.3); B(0.5, 3.2, 0.5, 4.5, 3.5, -2.3); B(3.6, 0.5, 0.5, 3, 5.2, -2.3); lv.signs.push(['ROYAL DOCKYARD', 3, 5.75, -1.75, 0]); L3.lantern(5.1, 4.2, -2.2, true); L3.lantern(0.9, 4.2, -2.2, true);
+      // powder magazine, parade ground, battery, light
+      { const m = B(1, 1, 1, 12.6, 6.0, -9.4); m.geometry = new THREE.CylinderGeometry(1.5, 1.6, 2.8, 14); const c = L3.box(1, 1, 1, L3.roofMat('slate'), 12.6, 8.2, -9.4); c.geometry = new THREE.ConeGeometry(1.9, 1.7, 14); }
+      T.put(L3, 4.6, P => { P.flagpole(L3, 25, 0.5); P.lighthouse(L3, 32.4, 5.3); for (const x of [19, 23, 27]) { P.cannon(L3, x, 7.2); P.shot(L3, x + 1.6, 7.0); } for (const x of [-1.5, 7, 12.8]) P.cannon(L3, x, -3.9); });
+      for (const [x, z, s] of [[-2.4, 3.2, 0], [-1.5, 3.2, 0], [-1.95, 3.2, 1], [6.6, 3.3, 0], [7.5, 3.3, 0], [7.5, 2.4, 0]]) L3.box(0.85, 0.85, 0.85, L3.mat.crate, x, 2.35 + s * 0.85, z);
+      { const m = L3.box(1, 1, 1, L3.mat.wood, 20.5, 5.05, 3.4); m.geometry = new THREE.CylinderGeometry(0.5, 0.45, 0.9, 10); } T.P.coil(L3, 6.2, -0.9); T.P.anchor(L3, -2.6, -1.2);
+      for (const [x, z] of [[17, -2.6], [17, 3.6], [28, 6.2], [18.5, -11.4], [10, -4.2], [-2.6, -4.2], [8.6, 3.4]]) T.lamp(L3, lv, x, z);
+      B(44, 5, 9, 15.5, 1.6, -18.6, new THREE.MeshStandardMaterial({ color: 0x6f7a58, roughness: 1 })); } };
+
+  // ================= Santa Marta: no quay at all. A beach, a round market square, houses climbing the hill in an arc, a church above.
+  const shore = x => 7 + 1.6 * Math.sin(x * 0.17 + 0.6), MC = [15, -3], hill = (x, z) => 1.9 + 4.2 * smooth((-z - 6) / 14) + 0.18 * vnoise(x * 0.3, z * 0.3, 6) * smooth((-z - 6) / 4);
+  Object.assign(D.marta, { houses: [], barrels: [], crates: [], props: [], lamps: [], chimney: null, fisher: false, dog: [10.5, 1.8], chest: [31.5, -1.5], fog: [36, 120, 0xf2d8b0],
+    goal: 'A beach town: the square is straight up from the pier, the chandler and cantina face it.', palms: [[2, 4.2, 5], [7, 5.2, 5.6], [21, 4.6, 5], [27.5, 3.4, 5.4], [33, 1, 4.6], [0.5, -4.5, 4.8], [29, -7, 5], [24, 2.2, 4.4], [-1.5, 2.6, 4.6]] });
+  D.marta.folk[0].box = [10, -6.5, 20, 0.5]; D.marta.folk[1].box = [8, 2, 22, 4.2]; D.marta.folk[2].box = [10, -9, 20, -7];
+  const arc = (a, o) => { const r = a * Math.PI / 180, x = MC[0] + 11.4 * Math.cos(r), z = MC[1] - 11.4 * Math.sin(r); return Object.assign({ x, z, ry: Math.atan2(-Math.cos(r), Math.sin(r)), w: 5.6, d: 4.6 }, o); };
+  D.marta.layout = { bounds: [-23, 35.5, -15.5, 9],
+    ground(x, z) { const d = z - shore(x), pl = Math.hypot(x - MC[0], z - MC[1]), n = vnoise(x * 0.5, z * 0.5, 2); let y = lerp(hill(x, z), -0.05, smooth((d + 5.5) / 5.5)); if (d > 0) y = -0.05 - 1.6 * smooth(d / 5);
+      if (x < -4.1) { const k = smooth((x + 8.5) / 4.4); y = Math.min(y, 1.5) * k - 1.6 * (1 - k); }
+      const wet = smooth((d + 1.6) / 1.4), gr = smooth((-z - 8.5) / 4) * (0.6 + 0.4 * n); let c = [0.88 - n * 0.08, 0.8 - n * 0.08, 0.64 - n * 0.06]; c = c.map((v, i) => lerp(lerp(v, [0.6, 0.52, 0.4][i], wet), [0.34, 0.5, 0.22][i], gr));
+      const ring = Math.abs(pl - 6.6) < 0.35, k2 = 1 - smooth((pl - 6.4) / 0.5); if (k2 > 0) { const spoke = Math.abs(Math.sin(Math.atan2(z - MC[1], x - MC[0]) * 6)) < 0.08 || Math.abs(pl - 3.3) < 0.18; c = c.map((v, i) => lerp(v, (spoke ? [0.5, 0.44, 0.38] : [0.62, 0.36, 0.26])[i] * (0.9 + n * 0.2), k2)); } if (ring) c = [0.55, 0.5, 0.44];
+      const path = Math.abs(z - (MC[1] + 6.4) * smooth((x + 3) / 9) * 0 - lerp(0, MC[1] + 5.5, smooth((x + 3) / 12))) < 1.1 && x < 10 && x > -4; if (path && k2 <= 0) c = c.map((v, i) => lerp(v, [0.7, 0.58, 0.46][i], 0.6));
+      return [y, c[0], c[1], c[2]]; },
+    walk(x, z) { return x <= 35.5 && z >= -15.5 && z - shore(x) < -0.6; },
+    houses: [arc(22, { h: 4.2, roof: 'red', wall: 0xe8cf70 }), arc(56, { h: 3.6, roof: 'flat', wall: 0x6aaea8, role: 'tavern', sign: 'CANTINA' }), arc(90, { h: 4.8, roof: 'red', wall: 0xd98a80, w: 6.2 }), arc(124, { h: 3.6, roof: 'red', wall: 0xe0a850, role: 'trade', sign: 'CHANDLER' }), arc(158, { h: 4.2, roof: 'red', wall: 0x9ab87a }), { x: 30, z: -11.5, ry: -1.0, w: 5, d: 4.2, h: 3.4, roof: 'red', wall: 0xf2ead8 }, { x: 0, z: -9.5, ry: 0.7, w: 5, d: 4.2, h: 3.2, roof: 'thatch', wall: 0xd8c8a0 }],
+    circles: [[MC[0], MC[1], 1.2], [4.5, 4.4, 1.3], [16, 5.2, 1.3], [30.5, 3.6, 1.3]],
+    build(L3, lv, T) { const G = (x, z) => lv.h(x, z), white = L3.wallMat(0xf2ead8), cy = G(15, -15.4) + 0.6;
+      L3.box(4.2, 0.3, 5, L3.mat.stone, -2.2, 1.77, 0); T.put(L3, G(MC[0], MC[1]), P => P.fountain(L3, MC[0], MC[1]));
+      [[10.3, -0.2, 0xb8432a], [19.6, -0.3, 0x2f6f9f], [12.2, -6.6, 0xd8b23a], [18.4, -6.3, 0x3d8a55]].forEach(s => T.put(L3, G(s[0], s[1]), P => P.stall(L3, s[0], s[1], s[2])));
+      T.put(L3, G(15, 2.6), P => { P.bunting(L3, 8.2, 21.8, 2.6, 4.6); }); T.put(L3, G(15, -8.6), P => P.bunting(L3, 8.6, 21.4, -8.8, 5.2));
+      for (let k = 0; k < 8; k++) { const a = k / 8 * TAU + 0.4; T.lamp(L3, lv, MC[0] + Math.cos(a) * 7.3, MC[1] + Math.sin(a) * 7.3); }
+      // boats hauled up the sand, nets, a cart on the path
+      [[4.5, 4.4, 0.4], [16, 5.2, -0.2], [30.5, 3.6, 1.0]].forEach(b => T.put(L3, G(b[0], b[1]) - 0.05, P => P.boat(L3, b[0], b[1], b[2]))); T.put(L3, G(24, 5), P => P.net(L3, 24, 5)); T.put(L3, G(4, -1.8), P => P.cart(L3, 4, -1.8, 0.3)); T.put(L3, G(26.5, -1), P => { P.pots(L3, 26.5, -1); }); T.put(L3, G(3.6, -6.2), P => P.pots(L3, 3.6, -6.2));
+      for (const [x, z] of [[8.6, -5.2], [21.6, -5]]) { const m = L3.box(1, 1, 1, L3.mat.wood, x, G(x, z) + 0.45, z); m.geometry = new THREE.CylinderGeometry(0.45, 0.4, 0.9, 10); }
+      // the church on the hill
+      L3.box(8, 8, 13, white, 15, cy + 2.5, -23); const rf = L3.box(1, 1, 1, L3.roofMat('red'), 15, cy + 6.5, -23); rf.geometry = new THREE.CylinderGeometry(0.01, 5.6, 3.2, 4); rf.rotation.y = Math.PI / 4; rf.scale.z = 1.7; L3.box(1.6, 3, 0.2, L3.mat.hullDark, 15, cy + 0.6, -16.45);
+      L3.box(3.2, 15, 3.2, white, 21, cy + 6, -18.5); for (const s of [-1, 1]) for (const q of [-1, 1]) L3.box(0.5, 2, 0.5, white, 21 + s * 1.35, cy + 14.5, -18.5 + q * 1.35); const cap = L3.box(1, 1, 1, L3.roofMat('red'), 21, cy + 16.9, -18.5); cap.geometry = new THREE.ConeGeometry(2.7, 2.8, 4); cap.rotation.y = Math.PI / 4; const bell = L3.box(1, 1, 1, L3.mat.gold, 21, cy + 14.4, -18.5); bell.geometry = new THREE.CylinderGeometry(0.3, 0.65, 0.95, 10);
+      // green hill behind, dotted with trees
+      Flora.init(); const rng = mulberry(41), R = (a, b) => a + rng() * (b - a), TR = [], CN = [], tc = new THREE.Color(); for (let i = 0; i < 34; i++) { const x = R(-12, 44), z = R(-34, -17.5); if (Math.abs(x - 16) < 8 && z > -30) continue; const y = G(x, z), s = R(1.3, 2.3), th = s * R(1.2, 1.8); TR.push({ x, y: y - 0.3, z, s: 0.2 * s, sy: th, ry: R(0, 6.3), c: 0x8a7458 }); for (let k = 0; k < 3; k++) { tc.setHSL(R(0.23, 0.31), R(0.4, 0.6), R(0.24, 0.38)); CN.push({ x: x + R(-0.7, 0.7) * s, y: y + th + R(-0.2, 0.5), z: z + R(-0.7, 0.7) * s, s: s * R(0.8, 1.1), ry: R(0, 6.3), c: tc.getHex() }); } }
+      Flora.inst(L3.group, Flora.geo.trunk, Flora.mat.trunk, TR, true); Flora.inst(L3.group, Flora.geo.canopy, Flora.mat.leaf, CN, true, Flora.mat.leafDepth); } };
+
+  // ================= Heron's Rest: no ground at all. Boardwalks on stilts over the swamp, huts on platforms, mangroves standing in the water.
+  const WK = [[-4.1, 31, -1.3, 1.3], [3, 5.2, -9, -1.3], [0, 9, -13.6, -9], [9, 11.2, 1.3, 8], [6, 15, 8, 12.6], [17.5, 19.7, -10, -1.3], [14.5, 23.5, -14, -10], [24.5, 26.7, 1.3, 7], [22, 30.5, 7, 11.2], [9, 14.5, -12.4, -10.6], [27, 33, -3.6, 3.6]];
+  Object.assign(D.heron, { houses: [], barrels: [], crates: [], props: [], lamps: [], chimney: [13.4, 5.6, 10.6], palms: [], dog: null, fisher: true, chest: [32, 2.6], fog: [26, 84, 0x9fb89a],
+    goal: 'A village on stilts. Follow the boardwalks: boatwright to the north, smokehouse to the south.' });
+  D.heron.pal.tex = 'sand'; D.marta.pal.tex = 'sand';
+  D.heron.folk[0].box = [6.6, 8.6, 9.4, 12]; D.heron.folk[1].box = [15, -13.4, 19.6, -10.6]; D.heron.folk[2].box = [11.5, -0.8, 17, 0.8];
+  D.heron.layout = { deck: true, bounds: [-23, 33, -13.6, 12.6],
+    ground(x, z) { const n = vnoise(x * 0.3, z * 0.3, 8), bank = smooth((-z - 15) / 5) + smooth((z - 14) / 5) + smooth((x - 34.5) / 4), y = -1.5 + n * 0.5 + Math.min(1, bank) * 2.3; return [x < -4.1 ? Math.min(y, -1.2) : y, 0.26 + n * 0.08, 0.3 + n * 0.08, 0.2]; },
+    walk(x, z) { for (const r of WK) if (inR(r, x, z, 0.12)) return true; return false; },
+    houses: [{ x: 2.3, z: -11.4, ry: Math.PI / 2, w: 3.8, d: 3.2, h: 2.3, y: 1.9, roof: 'thatch', wall: 0xa88458, role: 'trade', sign: 'BOATWRIGHT', stilts: true }, { x: 12.6, z: 10.4, ry: -Math.PI / 2, w: 3.9, d: 3.6, h: 2.6, y: 1.9, roof: 'thatch', wall: 0x8a6a48, role: 'tavern', sign: 'SMOKEHOUSE', stilts: true },
+      { x: 21.6, z: -12.1, ry: -Math.PI / 2, w: 3.4, d: 3.0, h: 2.1, y: 1.9, roof: 'thatch', wall: 0x9a7a52, stilts: true }, { x: 28.4, z: 9.2, ry: -Math.PI / 2, w: 3.6, d: 3.2, h: 2.2, y: 1.9, roof: 'thatch', wall: 0xa88458, stilts: true }],
+    circles: [[31.4, -2, 1.0], [7.2, -12.4, 0.9]],
+    build(L3, lv, T) { const W = L3.mat.wood, rng = mulberry(23), R = (a, b) => a + rng() * (b - a), P = T.P;
+      for (const r of WK) { const w = r[1] - r[0], d = r[3] - r[2]; const dk = L3.box(w, 0.2, d, L3.mat.deck, (r[0] + r[1]) / 2, 1.8, (r[2] + r[3]) / 2); dk.material = L3.mat.deck;
+        for (let x = r[0] + 0.3; x <= r[1] - 0.2; x += Math.max(2.4, w / Math.ceil(w / 3))) for (const z of [r[2] + 0.25, r[3] - 0.25]) { const p = L3.box(1, 1, 1, W, x, 0.2, z); p.geometry = new THREE.CylinderGeometry(0.11, 0.13, 3.4, 6); }
+        if (d > w) for (let z = r[2] + 1.5; z < r[3] - 1; z += 2.6) for (const x of [r[0] + 0.25, r[1] - 0.25]) { const p = L3.box(1, 1, 1, W, x, 0.2, z); p.geometry = new THREE.CylinderGeometry(0.11, 0.13, 3.4, 6); } }
+      // rope rails with posts along the open sides of the main walk
+      for (let x = -3; x < 26; x += 3) for (const z of [-1.2, 1.2]) { if (!lv.water(x, z * 1.6)) continue; L3.box(0.08, 0.9, 0.08, W, x, 2.35, z, false); }
+      // boatwright's slip with a hull on it, drying racks, pots, nets, a lookout at the far end
+      T.P.boat(L3, 7.2, -12.4, 0.2); T.P.rack(L3, 17.2, -12.6); T.P.rack(L3, 24.6, 9.6); T.P.pots2(L3, 7, 9); T.P.pots2(L3, 15.4, -11); T.P.net(L3, 3.6, -13.3); T.P.coil(L3, 20, 0.6); T.P.coil(L3, 8.4, -9.8);
+      for (const [x, z] of [[1, 0.9], [14, -0.9], [22.5, 8.2]]) { const m = L3.box(1, 1, 1, W, x, 2.35, z); m.geometry = new THREE.CylinderGeometry(0.42, 0.38, 0.9, 10); }
+      { const g = new THREE.Group(); for (const sx of [-1, 1]) for (const sz of [-1, 1]) g.add(P.m(new THREE.CylinderGeometry(0.09, 0.11, 5.2, 6), W, sx * 0.8, 2.6, sz * 0.8)); g.add(P.m(new THREE.BoxGeometry(2.2, 0.12, 2.2), L3.mat.deck, 0, 3.6, 0)); const rf = P.m(new THREE.ConeGeometry(1.9, 1.3, 4), L3.mat.thatch, 0, 5.8, 0); rf.rotation.y = Math.PI / 4; g.add(rf); for (let k = 0; k < 5; k++) g.add(P.m(new THREE.BoxGeometry(0.5, 0.05, 0.08), W, 0.8, 0.5 + k * 0.6, 0)); P.add(L3, g, 31.4, 1.9, -2, 0); }
+      for (const [x, z] of [[4.1, -1.2], [10.1, 1.2], [18.6, -1.2], [25.6, 1.2], [29, -3.2], [4.5, -9.4], [10.4, 8.4], [19, -10.4]]) T.lamp(L3, lv, x, z);
+      // canoes on the water, lily pads, herons, and mangroves standing in the swamp
+      const seaLily = (x, z) => { for (const r of WK) if (inR(r, x, z, -0.6)) return true; return false; }, wet = (x, z) => { for (const r of WK) if (inR(r, x, z, -3)) return false; return true; }, canoe = new THREE.MeshStandardMaterial({ map: L3.tex.wood, color: 0x8a7a66, roughness: 0.9, side: THREE.DoubleSide });
+      for (const [x, z, ry] of [[7, 2.6, 0.1], [14, -3, 1.2], [21.5, 3.2, -0.2], [12, -7.5, 0.5], [28.5, -6, 2]]) { const h = new THREE.Mesh(new THREE.SphereGeometry(1, 12, 6, 0, TAU, Math.PI / 2, Math.PI / 2), canoe); h.scale.set(1.7, 0.45, 0.42); h.position.set(x, 0.32, z); h.rotation.y = ry; h.castShadow = true; L3.group.add(h); const th = L3.box(0.08, 0.05, 0.7, W, x, 0.25, z, false); th.rotation.y = ry; }
+      const pad = new THREE.MeshStandardMaterial({ color: 0x3f7a3a, roughness: 0.8 }), pg = new THREE.CircleGeometry(1, 9, 0.5, 5.6); for (let i = 0; i < 90; i++) { const x = R(-3, 34), z = R(-15, 14); if (seaLily(x, z)) continue; const m = new THREE.Mesh(pg, pad); m.rotation.x = -Math.PI / 2; m.rotation.z = R(0, 6.3); m.scale.setScalar(R(0.15, 0.32)); m.position.set(x, 0.14, z); L3.group.add(m); if (rng() < 0.2) { const f = new THREE.Mesh(new THREE.SphereGeometry(0.07, 6, 5), new THREE.MeshStandardMaterial({ color: 0xf4e8f0, roughness: 0.6 })); f.position.set(x, 0.2, z); L3.group.add(f); } }
+      const hw = new THREE.MeshStandardMaterial({ color: 0xeef0f0, roughness: 0.7 }), hl = new THREE.MeshStandardMaterial({ color: 0x3a3a34, roughness: 0.8 }); for (const [x, z, ry] of [[8.5, 4.5, 1], [22, -5.5, -2], [2, -5, 0.3], [30, 5.6, 2.4]]) { const g = new THREE.Group(), b = P.m(new THREE.SphereGeometry(0.2, 8, 6), hw, 0, 0.95, 0); b.scale.set(1.6, 0.8, 0.8); g.add(b); for (const s of [-0.06, 0.06]) g.add(P.m(new THREE.CylinderGeometry(0.012, 0.012, 0.95, 4), hl, 0.02, 0.47, s)); const nk = P.m(new THREE.CylinderGeometry(0.03, 0.045, 0.6, 5), hw, 0.3, 1.25, 0); nk.rotation.z = -0.45; g.add(nk, P.m(new THREE.SphereGeometry(0.07, 6, 5), hw, 0.44, 1.55, 0)); const bk = P.m(new THREE.ConeGeometry(0.025, 0.26, 5), new THREE.MeshStandardMaterial({ color: 0xd8a030 }), 0.6, 1.53, 0); bk.rotation.z = -Math.PI / 2; g.add(bk); P.add(L3, g, x, -0.1, z, ry); }
+      Flora.init(); const TR = [], CN = [], RT = [], tc = new THREE.Color(); for (let i = 0; i < 260 && TR.length < 70; i++) { const x = R(-10, 44), z = R(-30, 26); if (!wet(x, z) || (x < -3 && Math.abs(z) < 12)) continue; if (z > 4 && z < 14 && x > 2 && x < 32 && rng() < 0.6) continue; const s = R(1.1, 2.1), th = s * R(1.4, 2.0); TR.push({ x, y: 0.5, z, s: 0.17 * s, sy: th, ry: R(0, 6.3), c: 0x6a5a48 }); for (let k = 0; k < 5; k++) { const a = k / 5 * TAU + R(0, 1); RT.push({ x: x + Math.cos(a) * 0.5 * s, y: -0.6, z: z + Math.sin(a) * 0.5 * s, s: 0.05 * s, sy: 1.7, rz: Math.cos(a) * 0.6, rx: -Math.sin(a) * 0.6, c: 0x5a4a3a }); }
+        for (let k = 0; k < 3; k++) { tc.setHSL(R(0.24, 0.31), R(0.35, 0.5), R(0.17, 0.3)); CN.push({ x: x + R(-0.8, 0.8) * s, y: 0.5 + th + R(-0.2, 0.5), z: z + R(-0.8, 0.8) * s, s: s * R(0.8, 1.15), ry: R(0, 6.3), c: tc.getHex() }); } }
+      Flora.inst(L3.group, Flora.geo.trunk, Flora.mat.trunk, TR, true); Flora.inst(L3.group, Flora.geo.trunk, Flora.mat.trunk, RT, false); Flora.inst(L3.group, Flora.geo.canopy, Flora.mat.leaf, CN, true, Flora.mat.leafDepth);
+      const reed = new THREE.MeshStandardMaterial({ color: 0x8a9a4a, roughness: 1 }), RD = []; for (let i = 0; i < 500 && RD.length < 260; i++) { const x = R(-3, 35), z = R(-16, 15); if (!wet(x, z)) continue; if (vnoise(x * 0.5, z * 0.5, 5) < 0.55) continue; RD.push({ x, y: -0.2, z, s: 0.02, sy: R(1.2, 2.0), rz: R(-0.12, 0.12), c: 0x8a9a4a }); } Flora.inst(L3.group, new THREE.CylinderGeometry(1, 1.4, 1, 4).translate(0, 0.5, 0), reed, RD); } };
+})();
 
 // ==== 05_ui.js
 // ---- HUD, panels and touch controls
@@ -6859,6 +6974,7 @@ const Demo = {
   toSea(tier) { this.fresh(tier); Sea.P.T = TIERS[G.tier]; G.mode = 'sea'; $('land').classList.remove('in'); $('landfx').classList.remove('in'); Game.show(); const P = Sea.P; P.x += Math.sin(P.th) * 60; P.y -= Math.cos(P.th) * 60; Sea.camX = P.x; Sea.camY = P.y; },
   toLand(key, calm, town, tier) { this.fresh(tier || 0); Game.ring = key === 'port' ? Sea.rings.find(r => r.isle.town === (town || 'gallows')) : Sea.rings[1]; Game.apply(key); $('land').classList.add('in'); $('landfx').classList.add('in'); if (calm) { Land.foes = []; (Land3.foeRigs || []).forEach(r => { r.group.visible = false; }); } },
   // helpers
+  tour(t) { const zs = Land.lv.zones, q = t < 12 ? zs[1] : zs[2] || zs[1], fx = q.x > Land.p.x ? -1.6 : 1.6; this.walkLand(q.x + (Math.abs(q.x - Land.p.x) > 3 ? 0 : 0), q.z + 1.7 * Math.sign(Land.p.z - q.z || 1)); },
   open(tier) { this.toSea(tier); const P = Sea.P; Sea.ships = [P]; Sea.loot = []; return P; },
   at(P, d, a) { return [P.x + Math.sin(P.th + (a || 0)) * d, P.y - Math.cos(P.th + (a || 0)) * d]; },
   ahead(d) { const P = Sea.P; Sea.tapGo = [P.x + Math.sin(P.th) * d, P.y - Math.cos(P.th) * d]; },
@@ -6879,9 +6995,9 @@ const Demo = {
       { cap: 'Cast off.', mode: 'sea', run: (dt, t) => { Demo.ahead(120); return t > 5; }, max: 8 },
     ] },
     { name: 'Other ports', steps: [
-      { cap: 'Port Sovereign. The Crown\'s dockyard: cheap ships and guns, a poor price for plunder, and a battery on the quay.', mode: 'port', init: () => Demo.toLand('port', false, 'sovereign'), run: (dt, t) => { if (Land3.cine) return false; Demo.walkLand(t < 9 ? 12 : 20, t < 9 ? 5.2 : 3.4); return t > 14; }, max: 18 },
-      { cap: 'Santa Marta. Market stalls, a fountain, and the best price for a full hold anywhere.', mode: 'port', init: () => Demo.toLand('port', false, 'marta'), run: (dt, t) => { if (Land3.cine) return false; Demo.walkLand(t < 9 ? 7 : 16, t < 9 ? 4.6 : 4.8); return t > 14; }, max: 18 },
-      { cap: 'Heron\'s Rest. A stilt village in the mangroves: cheap food, water, timber and hands, and no questions.', mode: 'port', init: () => Demo.toLand('port', false, 'heron'), run: (dt, t) => { if (Land3.cine) return false; Demo.walkLand(t < 9 ? 6 : 17, t < 9 ? 3.4 : 3.6); return t > 14; }, max: 18 },
+      { cap: 'Port Sovereign. A fortress on two levels: the dockyard gate by the water, a ramp up to the parade ground, guns on every wall.', mode: 'port', init: () => Demo.toLand('port', false, 'sovereign'), run: (dt, t) => { if (Land3.cine) return false; Demo.tour(t); return t > 24; }, max: 28 },
+      { cap: 'Santa Marta. A beach, a round market square, houses climbing the hill to the church. The best price for a full hold anywhere.', mode: 'port', init: () => Demo.toLand('port', false, 'marta'), run: (dt, t) => { if (Land3.cine) return false; Demo.tour(t); return t > 24; }, max: 28 },
+      { cap: 'Heron\'s Rest. No ground at all: boardwalks on stilts over the swamp. Cheap food, water, timber and hands.', mode: 'port', init: () => Demo.toLand('port', false, 'heron'), run: (dt, t) => { if (Land3.cine) return false; Demo.tour(t); return t > 24; }, max: 28 },
     ] },
     { name: 'Sailing', steps: [
       { cap: 'Point the bow and the hands do the rest. Wind on the beam is fastest; dead upwind she crawls.', init: () => Demo.toSea(0), mode: 'sea', run: (dt, t) => { Demo.ahead(120); return t > 8; }, max: 10 },
