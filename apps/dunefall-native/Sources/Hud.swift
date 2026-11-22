@@ -479,12 +479,12 @@ final class SummaryView: UIView {
         var x: CGFloat = 0
         while x <= w { back.addLine(to: CGPoint(x: x, y: ridge(34, 0.8, x))); x += 6 }
         back.addLine(to: CGPoint(x: w, y: artH + 4))
-        UIColor(red: 0.11, green: 0.1, blue: 0.23, alpha: 1).setFill()
+        UIColor(red: 0.17, green: 0.16, blue: 0.36, alpha: 1).setFill()
         back.fill()
-        let n = max(4, Int(w / 86))
+        let n = max(4, Int(w / 100))
         for i in 0..<n {
             let rx = 40 + CGFloat(i) * (w - 110) / CGFloat(n - 1)
-            rider(cg, rx, ridge(34, 0.8, rx) + 1.5, 0.92)
+            rider(cg, rx, ridge(34, 0.8, rx) + 1.5, 1.25)
         }
         let front = UIBezierPath()
         front.move(to: CGPoint(x: 0, y: artH + 4))

@@ -63,7 +63,7 @@ jobs:
           xcrun simctl boot "$UDID"
           xcrun simctl bootstatus "$UDID" -b
           xcrun simctl install "$UDID" "$APP"
-          for shot in title play dawn ridge over end jobs cave; do
+          for shot in title play dawn ridge end; do
             xcrun simctl terminate "$UDID" com.brianward.dunefall 2>/dev/null || true
             if [ "$shot" = title ]; then
               xcrun simctl launch "$UDID" com.brianward.dunefall

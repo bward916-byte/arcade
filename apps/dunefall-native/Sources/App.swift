@@ -599,6 +599,7 @@ final class GameViewController: UIViewController {
                 game.t = 0.1
                 game.dawnIncome = [("villagers", 2), ("bazaar", 6), ("teahouse", 4), ("goats", 3), ("dates", 6), ("sphinx", 2), ("dock", 2)]
                 game.dawnNight = (7, 5, 1, 2)
+                game.hintT = 0
             }
             if args.contains("-demo-ridge") {
                 game.demo("night")

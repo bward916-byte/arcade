@@ -363,12 +363,12 @@ final class Renderer {
         for i in 0..<n {
             let k = Double(i)
             let sd: Double = know ? side : (i % 2 == 0 ? -1 : 1)
-            let off = 16 + k * (know ? 15 : 9) + prog * 26 + sin(NOW * 0.3 + k) * 2
+            let off = 46 + k * (know ? 15 : 9) + prog * 26 + sin(NOW * 0.3 + k) * 2
             let px = sd < 0 ? off : W - off
             let py = duneTop(px, 0.28, 6, 18, 4.1, 0.017) + 0.6
-            rideMark(px, py, 0.5, ink, -sd)
-            flame(px + sd * 1.6, py - 7.6, 0.34)
-            light(px, py - 6, 9, 0.55)
+            rideMark(px, py, 0.62, ink, -sd)
+            flame(px + sd * 2, py - 9.4, 0.42)
+            light(px, py - 7, 11, 0.6)
         }
     }
     /// The outdoor and night-sky pictures.
