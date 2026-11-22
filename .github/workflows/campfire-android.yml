@@ -1,0 +1,36 @@
+name: Campfire Android
+
+# The native Android app: compiles on GitHub and keeps the installable file (APK) for download.
+on:
+  workflow_dispatch:
+  push:
+    branches: [campfire-android]
+    paths:
+      - 'apps/campfire-android/**'
+      - '.github/workflows/campfire-android.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/campfire-android
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+      # The app ships with a copy of the guide. Take the newest from the site; if the site does not answer, the copy in the repo is used.
+      - name: Refresh the guide packed inside the app
+        run: |
+          if curl -fsS --max-time 30 https://qcampfire.com/api/guide -o /tmp/guide.json && grep -q '"lists"' /tmp/guide.json; then cp /tmp/guide.json app/src/main/assets/guide.json; fi
+      - name: Compile
+        run: gradle assembleDebug --no-daemon --console=plain
+      - uses: actions/upload-artifact@v4
+        with:
+          name: campfire-android-debug
+          path: apps/campfire-android/app/build/outputs/apk/debug/app-debug.apk
