@@ -247,7 +247,7 @@ function drawArm(sh,other,near,run){
   const rel=H.mv*clamp(H.dir*(pose(other).A[0]-H.x)/L,-0.7,0.7), r=run*H.mv, d=H.dir;
   const ang=H.lean*0.4+rel*lerp(0.95,1.6,r)+lerp(0.06,-0.1,r);
   let flex=lerp(0.18+0.35*Math.max(0,rel),1.35+0.3*Math.max(0,rel),r);
-  let angA=ang;if(H.armPose){H.armK=H.armK===undefined?0:H.armK;angA=lerp(ang,H.armPose[0]+(near?0.08:-0.08),H.armK);flex=lerp(flex,H.armPose[1],H.armK);}
+  let angA=ang;if(H.armPose){H.armK=H.armK===undefined?0:H.armK;const ap=(!near&&H.armPoseFar)||H.armPose;angA=lerp(ang,ap[0]+(near?0.08:-0.08),H.armK);flex=lerp(flex,ap[1],H.armK);}
   const E=[sh[0]+d*Math.sin(angA)*UA,sh[1]+Math.cos(angA)*UA], a2=angA+flex;
   const Wr=[E[0]+d*Math.sin(a2)*FA,E[1]+Math.cos(a2)*FA];
   const m=near?1:0.78, skin=shade(FL.skin,m), shirt=shade(FL.shirt,m);
@@ -255,7 +255,8 @@ function drawArm(sh,other,near,run){
   limb2(E,Wr,[[-0.06,2.5],[0.18,2.9],[0.5,2.4],[0.85,1.85],[1.02,1.75]],[[-0.06,2.6],[0.15,3.0],[0.45,2.5],[0.85,1.9],[1.02,1.8]],skin,d);
   // upper arm: biceps in front, triceps behind, rounded deltoid at the top
   limb2(sh,E,[[-0.14,3.5],[0.1,3.9],[0.45,3.2],[0.8,2.6],[1.04,2.4]],[[-0.14,3.6],[0.12,3.8],[0.45,3.3],[0.8,2.7],[1.04,2.5]],skin,d);
-  drawHand(Wr,Math.atan2(Wr[1]-E[1],Wr[0]-E[0]),skin,clamp(r*1.2,0,1));
+  if(near&&H.held)H.held(Wr,E,d);
+  drawHand(Wr,Math.atan2(Wr[1]-E[1],Wr[0]-E[0]),skin,H.held&&near?1:clamp(r*1.2,0,1));
   // short sleeve with a hem and a fold
   const sl=limb2(sh,lerp2(sh,E,0.56),[[-0.12,3.9],[0.12,4.3],[0.6,4.1],[1.0,3.9]],[[-0.12,4.0],[0.12,4.3],[0.6,4.1],[1.0,3.9]],shirt,d);
   fold(sl.at(0.97,3.5),sl.at(1.02,0),sl.at(0.97,-3.5),shade(shirt,0.58),0.45);
@@ -725,14 +726,14 @@ function updBoarding(dt){
       if(B.theirs<=0){B.phase='duel';B.t=0;B.duel={p:0,dir:1,spd:1.0,zone:rnd(0.3,0.7),me:3,him:3,cool:0,swing:0,tapped:false,msg:'Tap when the blade crosses the gold'};setBanner('THE CAPTAIN DRAWS HIS SWORD',2.5);}
       else if(B.ours.length===0){winner='enemy';mode='over';V.log='Your boarders were cut down to a man.';}
     }
-  } else {const d=B.duel;d.cool=Math.max(0,d.cool-dt);d.swing*=Math.pow(0.02,dt);
+  } else {const d=B.duel;d.cool=Math.max(0,d.cool-dt);d.swing*=Math.pow(0.02,dt);d.at=(d.at===undefined?9:d.at)+dt;
     d.p+=d.dir*d.spd*dt;
-    if(d.p>1||d.p<0){d.p=clamp(d.p,0,1);d.dir=-d.dir;if(!d.tapped&&B.t>2&&!demo&&Math.random()<0.35){d.me--;d.swing=-1;shake=6;d.msg='He lunges — you are hit!';clash();if(d.me<=0)duelLose();}d.tapped=false;}
+    if(d.p>1||d.p<0){d.p=clamp(d.p,0,1);d.dir=-d.dir;if(!d.tapped&&B.t>2&&!demo&&Math.random()<0.35){d.me--;d.swing=-1;d.at=0;d.kind='him';shake=6;d.msg='He lunges — you are hit!';clash();if(d.me<=0)duelLose();}d.tapped=false;}
   }
 }
 function duelTap(){const d=B.duel;if(!d||d.cool>0)return;d.tapped=true;d.cool=0.45;
-  if(Math.abs(d.p-d.zone)<0.09){d.him--;d.swing=1;shake=4;d.msg=pick(['Touché!','A cut across the arm!','He staggers back!']);d.zone=rnd(0.15,0.85);d.spd+=0.3;clash();boom(.25,.12,3000);if(d.him<=0)capture();}
-  else{if(!demo)d.me--;d.swing=-1;shake=6;d.msg='Parried — and he strikes back!';clash();if(d.me<=0)duelLose();}}
+  if(Math.abs(d.p-d.zone)<0.09){d.him--;d.swing=1;d.at=0;d.kind='me';shake=4;d.msg=pick(['Touché!','A cut across the arm!','He staggers back!']);d.zone=rnd(0.15,0.85);d.spd+=0.3;clash();boom(.25,.12,3000);if(d.him<=0)capture();}
+  else{if(!demo)d.me--;d.swing=-1;d.at=0;d.kind='parry';shake=6;d.msg='Parried — and he strikes back!';clash();if(d.me<=0)duelLose();}}
 function duelLose(){winner='enemy';mode='over';V.log="Run through by the Black Sail's captain.";}
 function capture(){
   const g=Math.round(rnd(90,180));V.gold+=g;V.food=Math.min(100,V.food+25);V.water=Math.min(100,V.water+20);V.rum=Math.min(100,V.rum+30);V.hull=Math.max(1,player.hp);allMorale(15);
@@ -1800,8 +1801,8 @@ function startShore(){newVoyage();V.crew.forEach(c=>{c.role='guns';c.fat=0;});V.
 function shoreEnd(win){enemy=null;balls=[];player=mkShip(-150,1,{});I.raid=null;mode='island';enterIsland();if(win){const g=30+threat()*5;I.coins+=g;I.raidIn=4+Math.floor(rnd(0,3));isay(`She goes down in the bay. ${g} coins wash ashore with the wreckage.`);}else resolveRaid(false,true);}
 const DUEL_ME={hat:0,sick:0,beard:true},DUEL_HIM={hat:1,sick:0,beard:true,skin:'#c48a5a'};
 const CREWRIG=new WeakMap();let FDT=0.016;
-function crewFig(c,x,y,working,sc){let r=CREWRIG.get(c);if(!r){r=makeStride(ctx,()=>0,{x:0,xmin:-1e7,xmax:1e7});const lk=r.randomLook();lk.hat=c.hat===1?'fedora':'none';lk.shirt=c.shirt||pick(ERA_SHIRTS);lk.pants=c.pants||pick(ERA_PANTS);if(c.skin)lk.skin=c.skin;lk.beard=c.beard?'beard':lk.beard;r.setLook(lk);r.lastX=x;r.seed=Math.random()*9;CREWRIG.set(c,r);}
-  const dx=x-r.lastX;r.lastX=x;const moving=Math.abs(dx)>0.03;r.input.dir=moving?Math.sign(dx):0;r.input.run=false;const ph=t*5+r.seed;r.H.armPose=!moving&&working?[1.15+0.6*Math.sin(ph),0.6+0.3*Math.cos(ph)]:(c.sick>0?[0.2,1.6]:null);r.update(FDT);
+function crewFig(c,x,y,working,sc,face){let r=CREWRIG.get(c);if(!r){r=makeStride(ctx,()=>0,{x:0,xmin:-1e7,xmax:1e7});const lk=r.randomLook();lk.hat=c.hat===1?'fedora':'none';lk.shirt=c.shirt||pick(ERA_SHIRTS);lk.pants=c.pants||pick(ERA_PANTS);if(c.skin)lk.skin=c.skin;lk.beard=c.beard?'beard':lk.beard;r.setLook(lk);r.lastX=x;r.seed=Math.random()*9;CREWRIG.set(c,r);}
+  const dx=x-r.lastX;r.lastX=x;const moving=Math.abs(dx)>0.03;r.input.dir=face?0:moving?Math.sign(dx):0;r.input.run=false;const ph=t*5+r.seed;if(face)r.H.dir=face;else r.H.armPose=!moving&&working?[1.15+0.6*Math.sin(ph),0.6+0.3*Math.cos(ph)]:(c.sick>0?[0.2,1.6]:null);r.update(FDT);if(face)r.H.dir=face;
   ctx.save();ctx.translate(x,y);ctx.scale(sc,sc);ctx.translate(-r.H.x,0);r.draw();ctx.restore();}
 function drawShip(s,crew){if(s.shore){drawBattery(s);return;}
   const w=hullW(s),h=s.hgt,X=sx(s.x),Y=sy(shipY(s));
@@ -1969,10 +1970,31 @@ function drawDuel(){
   ctx.fillStyle='rgba(8,14,22,0.85)';ctx.fillRect(X,Y,W,H);ctx.strokeStyle='#d8b86a';ctx.lineWidth=2;ctx.strokeRect(X+.5,Y+.5,W-1,H-1);
   ctx.fillStyle='#ffd27a';ctx.font='bold 18px Georgia';ctx.textAlign='center';ctx.fillText("CAPTAIN'S DUEL",cw/2,Y+26);
   // fencers
-  const fy=Y+H*0.62,k=2.6,lung=d.swing*18;
-  const me=DUEL_ME,him=DUEL_HIM;
-  me.skin='#e8b88f';me.shirt='#d9d2c0';him.shirt='#1a1a1e';him.hat=1;crewFig(me,cw/2-64+Math.max(0,lung),fy,false,0.62);{const r=CREWRIG.get(me);r.H.dir=1;r.H.armPose=[1.35+d.swing*0.25,0.15];}crewFig(him,cw/2+64+Math.min(0,lung),fy,false,0.62);{const r=CREWRIG.get(him);r.H.dir=-1;r.H.armPose=[1.35-d.swing*0.25,0.15];}
-  ctx.strokeStyle='#dde';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(cw/2-62+Math.max(0,lung),fy-30);ctx.lineTo(cw/2-62+Math.max(0,lung)+46+Math.max(0,lung)*0.3,fy-36);ctx.moveTo(cw/2+62+Math.min(0,lung),fy-30);ctx.lineTo(cw/2+62+Math.min(0,lung)-46+Math.min(0,lung)*0.3,fy-36);ctx.stroke();
+  const fy=Y+H*0.62,me=DUEL_ME,him=DUEL_HIM,a=d.at===undefined?9:d.at,SS=x=>{x=clamp(x,0,1);return x*x*(3-2*x);};
+  me.skin='#e8b88f';me.shirt='#d9d2c0';him.shirt='#1a1a1e';him.hat=1;
+  // each man is either on guard, attacking (wind up, cut, recover), parrying, or reeling from a hit
+  const guard=ph=>({ang:1.28+0.07*Math.sin(t*3+ph),flex:0.55,tilt:0.55+0.08*Math.sin(t*4+ph),dx:Math.sin(t*1.7+ph)*3,lean:0.06,slash:0});
+  const attack=u=>{if(u<0.14){const q=SS(u/0.14);return{ang:lerp(1.28,2.75,q),flex:lerp(0.55,1.0,q),tilt:lerp(0.55,1.1,q),dx:-5*q,lean:-0.08*q,slash:0};}
+    if(u<0.3){const q=SS((u-0.14)/0.16);return{ang:lerp(2.75,0.95,q),flex:lerp(1.0,0.08,q),tilt:lerp(1.1,-0.15,q),dx:lerp(-5,30,q),lean:lerp(-0.08,0.3,q),slash:1};}
+    const q=SS((u-0.3)/0.4);return{ang:lerp(0.95,1.28,q),flex:lerp(0.08,0.55,q),tilt:lerp(-0.15,0.55,q),dx:lerp(30,0,q),lean:lerp(0.3,0.06,q),slash:0};};
+  const parry=u=>{const q=SS(u/0.2)*(1-SS((u-0.34)/0.25));return{ang:lerp(1.28,2.05,q),flex:lerp(0.55,0.85,q),tilt:lerp(0.55,1.35,q),dx:-4*q,lean:-0.05*q,slash:0};};
+  const reel=u=>{const q=u<0.22?0:Math.sin(clamp((u-0.22)/0.55,0,1)*Math.PI);return{ang:lerp(1.28,0.45,q),flex:lerp(0.55,0.9,q),tilt:0.55+0.5*q,dx:-20*q,lean:-0.3*q,slash:0,hit:q};};
+  let pm=guard(0),ph2=guard(2),spark=0,hitOn=0;
+  if(a<0.85){if(d.kind==='me'){pm=attack(a);ph2=reel(a);hitOn=1;}else if(d.kind==='him'){ph2=attack(a);pm=reel(a);hitOn=-1;}
+    else if(d.kind==='parry'){if(a<0.34){pm=attack(a);ph2=parry(a);pm.dx=Math.min(pm.dx,14);spark=a>0.22&&a<0.34?1:0;}else{ph2=attack(a-0.34);pm=reel(a-0.34);hitOn=-1;}}}
+  const sword=(col)=>function(Wr,E,dd){const st=this,fa=Math.atan2(Wr[1]-E[1],Wr[0]-E[0]),an=fa-dd*st.tilt,c=Math.cos(an),sn=Math.sin(an),Lb=64,nx=-sn,ny=c,tip=[Wr[0]+c*Lb,Wr[1]+sn*Lb];
+    if(st.slash){st.trail=st.trail||[];st.trail.push([Wr[0],Wr[1],tip[0],tip[1]]);if(st.trail.length>7)st.trail.shift();}else if(st.trail&&st.trail.length)st.trail.shift();
+    if(st.trail&&st.trail.length>1){for(let q=1;q<st.trail.length;q++){const A=st.trail[q-1],Bq=st.trail[q];ctx.fillStyle=`rgba(235,240,255,${0.07*q})`;ctx.beginPath();ctx.moveTo(A[0],A[1]);ctx.lineTo(A[2],A[3]);ctx.lineTo(Bq[2],Bq[3]);ctx.lineTo(Bq[0],Bq[1]);ctx.fill();}}
+    const g=ctx.createLinearGradient(Wr[0]+nx*2,Wr[1]+ny*2,Wr[0]-nx*2,Wr[1]-ny*2);g.addColorStop(0,'#f4f6fa');g.addColorStop(0.5,'#aab2c0');g.addColorStop(1,'#5c6470');ctx.fillStyle=g;
+    ctx.beginPath();ctx.moveTo(Wr[0]+c*3+nx*1.9,Wr[1]+sn*3+ny*1.9);ctx.quadraticCurveTo(Wr[0]+c*Lb*0.6+nx*(2.4-dd*3),Wr[1]+sn*Lb*0.6+ny*(2.4-dd*3),tip[0]-nx*dd*4,tip[1]-ny*dd*4);ctx.quadraticCurveTo(Wr[0]+c*Lb*0.6-nx*(1.2+dd*3),Wr[1]+sn*Lb*0.6-ny*(1.2+dd*3),Wr[0]+c*3-nx*1.9,Wr[1]+sn*3-ny*1.9);ctx.closePath();ctx.fill();
+    ctx.strokeStyle=col;ctx.lineWidth=2.4;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(Wr[0]+c*3+nx*5,Wr[1]+sn*3+ny*5);ctx.lineTo(Wr[0]+c*3-nx*5,Wr[1]+sn*3-ny*5);ctx.stroke();
+    ctx.lineWidth=1.6;ctx.beginPath();ctx.moveTo(Wr[0]+c*3+nx*dd*5,Wr[1]+sn*3+ny*dd*5);ctx.quadraticCurveTo(Wr[0]-c*4+nx*dd*8,Wr[1]-sn*4+ny*dd*8,Wr[0]-c*7,Wr[1]-sn*7);ctx.stroke();
+    ctx.strokeStyle='#3a2512';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(Wr[0]-c*7,Wr[1]-sn*7);ctx.lineTo(Wr[0]+c*3,Wr[1]+sn*3);ctx.stroke();ctx.lineCap='butt';st.tip=tip;};
+  const SC=Math.min(0.62,H*0.0024);
+  for(const [c,pz,face,x0] of [[me,pm,1,cw/2-78*SC],[him,ph2,-1,cw/2+78*SC]]){let r=CREWRIG.get(c);if(r){const st=r.H;st.armPose=[pz.ang,pz.flex];st.armPoseFar=[-0.55,0.9];st.tilt=pz.tilt;st.slash=pz.slash;st.lean=pz.lean;if(!st.held)st.held=sword(c===me?'#d8b86a':'#8a8f98');}
+    crewFig(c,x0+face*pz.dx,fy,false,SC,face);
+    if(pz.hit>0.05){ctx.fillStyle=`rgba(200,30,30,${0.75*pz.hit})`;for(let q=0;q<6;q++){ctx.beginPath();ctx.arc(x0+face*pz.dx-face*(6+q*5*pz.hit),fy-115*SC*0.62-q*3+Math.sin(q*9)*7,2.4-q*0.25,0,7);ctx.fill();}}}
+  if(spark){const X0=cw/2+6,Y0=fy-115*SC*0.78;ctx.strokeStyle='rgba(255,236,170,0.95)';ctx.lineWidth=1.6;for(let q=0;q<9;q++){const an=q*0.7+t*20,r0=4,r1=10+((q*7)%9);ctx.beginPath();ctx.moveTo(X0+Math.cos(an)*r0,Y0+Math.sin(an)*r0);ctx.lineTo(X0+Math.cos(an)*r1,Y0+Math.sin(an)*r1);ctx.stroke();}ctx.fillStyle='rgba(255,250,220,0.9)';ctx.beginPath();ctx.arc(X0,Y0,3.5,0,7);ctx.fill();}
   // hearts
   const heart=(x,y,n,col)=>{for(let i=0;i<3;i++){ctx.fillStyle=i<n?col:'rgba(255,255,255,0.15)';ctx.beginPath();ctx.arc(x+i*16,y,6,0,7);ctx.fill();}};
   heart(cw/2-110,Y+50,d.me,'#49a05a');heart(cw/2+78,Y+50,d.him,'#c0392b');
