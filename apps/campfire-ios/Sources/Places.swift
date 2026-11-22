@@ -24,7 +24,7 @@ let pinGroups: [PinGroup] = [
 func pinSymbol(_ pin: Pin) -> String {
     let names: [String: String] = ["tent": "tent.fill", "gem": "diamond.fill", "tire": "circle.circle.fill", "drop": "drop.fill", "pump": "fuelpump.fill",
         "mail": "envelope.fill", "cart": "cart.fill", "fork": "fork.knife", "wrench": "wrench.fill", "cross": "cross.fill", "bus": "bus.fill",
-        "heart": "heart.fill", "flame": "flame.fill", "mark": "binoculars.fill"]
+        "heart": "heart.fill", "flame": "flame.fill", "spot": "binoculars.fill"]
     if let icon = pin.icon, let symbol = names[icon] { return symbol }
     return pin.kind == "see" ? "diamond.fill" : pinGroup(pin.kind).symbol
 }
