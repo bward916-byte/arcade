@@ -74,6 +74,10 @@ final class GameViewController: UIViewController {
     private let ruleLabel = UILabel()
     private let hardBtn = UIButton(type: .system)
     private let moreBtn = UIButton(type: .system)
+    private let sharpBtn = UIButton(type: .system)
+    /// 2 draws at the screen's own resolution, 1 at half of it, 0 at the old blocky size.
+    private var sharp = UserDefaults.standard.object(forKey: "dunefall.sharp") == nil ? 2 : UserDefaults.standard.integer(forKey: "dunefall.sharp")
+    private var curScale = 0
     private let jumpBox = UIView()
     private let jumpName = UILabel()
     private var jumpBtns: [UIButton] = []
@@ -249,7 +253,9 @@ final class GameViewController: UIViewController {
         detailBtn.addTarget(self, action: #selector(detailTapped), for: .touchUpInside)
         style(ruleLabel, 14, cream, .center)
         ruleLabel.numberOfLines = 3
-        for v in [pauseName, resumeBtn, soundBtn, freeBtn, quitBtn, detailBtn, ruleLabel] as [UIView] { pauseBox.addSubview(v) }
+        button(sharpBtn, "Sharpness: high")
+        sharpBtn.addTarget(self, action: #selector(sharpTapped), for: .touchUpInside)
+        for v in [pauseName, resumeBtn, soundBtn, freeBtn, quitBtn, detailBtn, ruleLabel, sharpBtn] as [UIView] { pauseBox.addSubview(v) }
         button(hardBtn, "Hard mode: off")
         hardBtn.titleLabel?.font = serif(15)
         hardBtn.addTarget(self, action: #selector(hardTapped), for: .touchUpInside)
@@ -357,7 +363,8 @@ final class GameViewController: UIViewController {
         freeBtn.frame = CGRect(x: b.width * 0.5 - 270, y: b.height * 0.04 + 108, width: 260, height: 46)
         quitBtn.frame = CGRect(x: b.width * 0.5 + 10, y: b.height * 0.04 + 108, width: 260, height: 46)
         detailBtn.frame = CGRect(x: b.width * 0.5 - 270, y: b.height * 0.04 + 164, width: 260, height: 46)
-        ruleLabel.frame = CGRect(x: b.width * 0.5 + 10, y: b.height * 0.04 + 160, width: 260, height: 58)
+        sharpBtn.frame = CGRect(x: b.width * 0.5 + 10, y: b.height * 0.04 + 164, width: 260, height: 46)
+        ruleLabel.frame = CGRect(x: 20, y: b.height * 0.04 + 216, width: b.width - 40, height: 44)
         hardBtn.frame = CGRect(x: b.width - right - 176, y: b.height - bottom - 78, width: 164, height: 48)
         hardBtn.isHidden = !hardOpen
         moreBtn.frame = CGRect(x: left + 12, y: b.height - bottom - 78, width: 170, height: 48)
@@ -395,9 +402,11 @@ final class GameViewController: UIViewController {
         let dpr = Double(view.window?.screen.scale ?? UIScreen.main.scale)
         let sc = max(2.0, 2 * (sh * dpr / 370).rounded())
         let w = Int(ceil(sw * dpr / sc)), h = Int(ceil(sh * dpr / sc))
-        if w == curW && h == curH && renderer != nil { return }
-        guard let cv = Canvas(w: w, h: h, scale: 2), let ov = Canvas(w: w, h: h, scale: 1) else { return }
-        curW = w; curH = h
+        let isc = Int(sc)
+        let ps = sharp >= 2 ? isc : (sharp == 1 ? max(2, isc / 2) : 2)
+        if w == curW && h == curH && ps == curScale && renderer != nil { return }
+        guard let cv = Canvas(w: w, h: h, scale: ps), let ov = Canvas(w: w, h: h, scale: 1) else { return }
+        curW = w; curH = h; curScale = ps
         canvas = cv; overlay = ov
         game.W = Double(w); game.H = Double(h)
         game.GY = Double(h) - clampD((Double(h) * 0.24).rounded(), 30, 46)
@@ -459,6 +468,14 @@ final class GameViewController: UIViewController {
         hardOn = !hardOn
         hardBtn.setTitle(hardOn ? "Hard mode: on" : "Hard mode: off", for: .normal)
     }
+    private func sharpName() -> String { return "Sharpness: " + ["low", "medium", "high"][max(0, min(2, sharp))] }
+    @objc private func sharpTapped() {
+        sharp = sharp <= 0 ? 2 : sharp - 1
+        UserDefaults.standard.set(sharp, forKey: "dunefall.sharp")
+        UserDefaults.standard.set(true, forKey: "dunefall.sharpUser")
+        sharpBtn.setTitle(sharpName(), for: .normal)
+        rebuild()
+    }
     @objc private func detailTapped() {
         game.low = !game.low
         UserDefaults.standard.set(game.low, forKey: "dunefall.low")
@@ -474,6 +491,7 @@ final class GameViewController: UIViewController {
         userPaused = true
         freeBtn.setTitle("Free a worker to build" + crew(), for: .normal)
         detailBtn.setTitle(game.low ? "Detail: low" : "Detail: full", for: .normal)
+        sharpBtn.setTitle(sharpName(), for: .normal)
         ruleLabel.text = game.townName + (game.hard ? " (hard)" : "") + "\n" + TOWNRULE[game.town % 5]
         pauseBox.isHidden = false
         clearTouches()
@@ -552,13 +570,25 @@ final class GameViewController: UIViewController {
         if paused { return }
         readInput()
         if userPaused { return }
-        // if the phone cannot keep up for a few seconds, drop the small detail once and say so
-        if autoLow && !game.low && game.state == .play && UserDefaults.standard.object(forKey: "dunefall.low") == nil {
-            slowT = max(0, slowT + (raw > 1.0 / 38 ? raw : -raw * 0.5))
-            if slowT > 3 {
-                game.low = true
-                UserDefaults.standard.set(true, forKey: "dunefall.low")
-                game.hint("lowdetail", again: true, "Low detail is on to keep things smooth. You can change it in the pause menu.")
+        // if the phone cannot keep up for a few seconds, step the sharpness down, then the small detail, and say so
+        if autoLow && game.state == .play && game.scene == nil {
+            let canSharp = sharp > 0 && !UserDefaults.standard.bool(forKey: "dunefall.sharpUser")
+            let canLow = !game.low && UserDefaults.standard.object(forKey: "dunefall.low") == nil
+            if canSharp || canLow {
+                slowT = max(0, slowT + (raw > 1.0 / 38 ? raw : -raw * 0.5))
+                if slowT > 3 {
+                    slowT = 0
+                    if canSharp {
+                        sharp -= 1
+                        UserDefaults.standard.set(sharp, forKey: "dunefall.sharp")
+                        rebuild()
+                        game.hint("sharp\(sharp)", again: true, "Sharpness lowered to keep things smooth. You can change it in the pause menu.")
+                    } else {
+                        game.low = true
+                        UserDefaults.standard.set(true, forKey: "dunefall.low")
+                        game.hint("lowdetail", again: true, "Low detail is on to keep things smooth. You can change it in the pause menu.")
+                    }
+                }
             }
         }
         game.update(min(0.05, max(0, raw)))

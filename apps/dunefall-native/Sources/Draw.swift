@@ -21,6 +21,9 @@ struct PersonOpt {
     var ham = 0.0
     var torch = false
     var lean = 0.0
+    /// 0 turban, 1 bronze helmet, 2 wide straw hat
+    var hat = 0
+    var pack = false
 }
 
 struct CamelOpt {
@@ -2452,9 +2455,9 @@ final class Renderer {
         case .folk:
             o.tool = .hammer
             if f.id % 2 == 1 { o.sash = TURB[(f.id + 2) % 5] }
-        case .digger: o.robe = Col(0xd9b99a); o.tool = .pick
-        case .guard: o.robe = Col(0xe8dcc0); o.turban = RED; o.sash = RED; o.tool = .spear; o.torch = lit
-        case .herder: o.robe = Col(0x8a6a44); o.tool = .staff
+        case .digger: o.robe = Col(0xd9b99a); o.tool = .pick; o.pack = true
+        case .guard: o.robe = Col(0xe8dcc0); o.turban = RED; o.sash = RED; o.tool = .spear; o.torch = lit; o.hat = 1
+        case .herder: o.robe = Col(0x8a6a44); o.tool = .staff; o.hat = 2
         }
         person(f.x, f.cheer > 0 ? abs(sin(f.cheer * 11)) * 3 : 0, o)
     }
@@ -2531,6 +2534,7 @@ final class Renderer {
         c.translate(sx, y)
         if o.lean != 0 { c.rotate(o.lean) }
         c.scale(PS, PS)
+        c.roundCaps(true)
         let br: Double = o.moving ? abs(cos(ph)) * 0.5 : sin(NOW * 2 + x) * 0.12
         let tr: Double = o.moving ? 1 : 0
         let hem = sin(NOW * 4 + x) * 0.25 - (o.moving ? d * 0.5 : 0)
@@ -2541,12 +2545,20 @@ final class Renderer {
             let fx = s * 0.9 + (o.moving ? sin(an) * 2.1 : 0)
             let lf = o.moving ? max(0, cos(an)) * 1.2 : 0
             c.seg(s * 0.8, -4.4, fx, -0.8 - lf, 1.15, o.skin)
-            c.R(fx - 0.8 + d * 0.3, -0.9 - lf, 1.8, 0.9, Col(0x4a3320))
+            c.RR(fx - 0.9 + d * 0.3, -1 - lf, 2, 1, 0.45, Col(0x4a3320))
             c.R(fx - 0.2 + d * 0.3, -1.6 - lf, 0.5, 0.8, Col(0x2a1a10)); c.R(fx - 0.8 + d * 0.3, -0.2 - lf, 1.8, 0.25, Col(0x2a1a10))
         }
         // a dark outline behind, then the robe
         c.poly(rgba(50, 28, 10, 0.55), [-2.7, top - 0.4, 2.7, top - 0.4, 3.9 + hem * 0.4, -1.3, -3.9 + hem * 0.4, -1.3])
-        c.R(-1.9, -14 - br, 3.8, 3.5, rgba(50, 28, 10, 0.5))
+        c.RR(-1.9, -14.4 - br, 3.8, 3.9, 1.5, rgba(50, 28, 10, 0.5))
+        if o.pack {
+            c.RR(-d * 4.2 - 1.5, -9.4 - br, 3, 4.2, 0.8, Col(0xb58a52)); c.R(-d * 4.2 - 1.5, -8.2 - br, 3, 0.4, Col(0x7a5632)); c.R(-d * 4.2 - 1.5, -6.8 - br, 3, 0.4, Col(0x7a5632))
+            c.seg(-d * 3, -9.6 - br, -d * 1.2, -9.8 - br, 0.4, Col(0x5a3e22))
+        }
+        if !o.cheer {
+            let fsw = o.moving ? sin(ph) * 1.7 : 0
+            c.seg(-d * 0.9, -9.4 - br, -d * 0.9 + fsw, -5.6 - br, 1.1, Col.mix(o.robe, Col(0x3a2416), 0.3)); c.circ(-d * 0.9 + fsw, -5.3 - br, 0.55, Col.mix(o.skin, Col(0x3a2416), 0.25))
+        }
         if tr > 0.05 {
             let wv = sin(NOW * 9 + x) * 0.7
             c.poly(o.robe, [-d * 1.8, -8.5 - br, -d * 4.6, -4 + wv, -d * 3.5, -1.8, -d * 1.8, -2.2])
@@ -2566,34 +2578,48 @@ final class Renderer {
         let ax = d * 2.5, ay = -8.6 - br, sy = -9.6 - br
         let swinging = o.tool == .hammer && o.ham > 0
         if o.cheer {
-            for s in [-1.0, 1.0] { c.seg(s * 2, sy, s * 3.9, sy - 5, 1.15, o.robe); c.R(s * 3.9 - 0.55, sy - 6, 1.1, 1.1, o.skin) }
+            for s in [-1.0, 1.0] { c.seg(s * 2, sy, s * 3.9, sy - 5, 1.15, o.robe); c.circ(s * 3.9, sy - 5.5, 0.7, o.skin) }
         } else if o.tool == .none || (o.tool == .hammer && !swinging) {
             let asw = o.moving ? sin(ph + PI) * 1.9 : 0
             c.seg(d * 0.3, sy, d * 0.3 + asw, -5.4 - br, 1.2, o.robe)
             c.seg(d * 0.3, sy, d * 0.3 + asw, -5.4 - br, 1.2, sh)
-            c.R(d * 0.3 + asw - 0.5, -5.5 - br, 1, 1, o.skin)
+            c.circ(d * 0.3 + asw, -5.1 - br, 0.65, o.skin)
         } else {
             c.seg(d * 0.6, sy, ax, ay + 0.4, 1.2, o.robe)
             c.seg(d * 0.6, sy, ax, ay + 0.4, 1.2, sh)
-            c.R(ax - 0.5, ay - 0.2, 1, 1, o.skin)
+            c.circ(ax, ay + 0.3, 0.65, o.skin)
         }
         // head: a face with an eye and a nose, so nobody is a blank box
-        c.R(-1.6, -14.2 - br, 3.2, 3.5, o.skin)
-        c.R(d * 0.7 - 0.6, -13.25 - br, 1.2, 0.9, Col(0xf6f0e0))
-        c.R(d * 0.95 - 0.3, -13.2 - br, 0.6, 0.8, Col(0x2a1a10))
+        c.RR(-1.6, -14.2 - br, 3.2, 3.6, 1.25, o.skin)
+        c.ell(d * 0.75, -12.8 - br, 0.62, 0.48, Col(0xf6f0e0))
+        c.circ(d * 0.98, -12.78 - br, 0.34, Col(0x2a1a10))
         c.R(d * 0.7 - 0.7, -13.9 - br, 1.4, 0.35, Col(0x3a2416))
         c.R(d * 1.6 - 0.3, -12.5 - br, 0.6, 0.9, o.skin); c.R(d * 1.5 - 0.3, -11.9 - br, 0.5, 0.3, rgba(60, 30, 0, 0.3))
         c.R(-d * 1.3 - 0.4, -13 - br, 0.8, 1.2, Col.mix(o.skin, Col(0x3a2416), 0.3))
         if o.veil == nil && o.beard == nil { c.R(d * 0.8 - 0.4, -11.7 - br, 1, 0.3, Col(0x6a3a28)) }
         c.R(-1.6, -11.2 - br, 3.2, 0.5, rgba(60, 30, 0, 0.25))
-        if let bd = o.beard { c.R(d > 0 ? -0.9 : -1.7, -11.9 - br, 2.6, 1.4, bd) }
-        if let v = o.veil { c.R(-1.75, -12.5 - br, 3.5, 2.1, v) }
-        c.R(-2.25, -16.1 - br, 4.5, 2.6, o.turban); c.R(-1.6, -16.8 - br, 3.2, 0.9, o.turban)
-        c.R(-2.25, -14.7 - br, 4.5, 0.5, rgba(0, 0, 0, 0.16)); c.R(-d * 0.5 - 0.4, -16.4 - br, 0.9, 0.9, rgba(255, 255, 255, 0.3))
-        c.seg(-2.2, -15.3 - br, 2.2, -15.9 - br, 0.3, rgba(0, 0, 0, 0.18)); c.seg(-2, -14.9 - br, 2.2, -15.2 - br, 0.25, rgba(255, 255, 255, 0.22))
-        if o.sash != nil { c.R(d * 1.2 - 0.45, -15.9 - br, 0.9, 0.9, GOLD) }
-        let tw = sin(NOW * 8 + x) * 0.5 * (tr + 0.3)
-        c.poly(o.turban, [-d * 2, -15.4 - br, -d * (3.3 + tr * 0.8), -13.6 - br + tw, -d * (2.7 + tr * 0.4), -10.8 - br, -d * 2, -12.6 - br])
+        if let bd = o.beard { c.RR(d > 0 ? -0.9 : -1.7, -12 - br, 2.6, 1.7, 0.7, bd) }
+        if let v = o.veil { c.RR(-1.75, -12.5 - br, 3.5, 2.2, 0.7, v) }
+        if o.hat == 1 {
+            // a bronze helmet with a cheek guard and a red crest
+            let bz = Col(0xc98a3a)
+            c.RR(-2.2, -16.6 - br, 4.4, 3, 1.6, bz); c.R(-2.2, -14.6 - br, 4.4, 0.6, Col(0x8a5a22))
+            c.R(-d * 1.9 - 0.5, -14.2 - br, 1, 2.2, bz); c.ell(-d * 0.5, -16.2 - br, 1, 0.5, rgba(255, 244, 200, 0.5))
+            c.poly(RED, [-1.4, -16.5 - br, 0, -18.6 - br + sin(NOW * 6 + x) * 0.2, 1.4, -16.5 - br]); c.R(-0.3, -17.4 - br, 0.6, 1, Col(0x8f2a1c))
+        } else if o.hat == 2 {
+            // a wide straw hat against the sun
+            let st = Col(0xe0c070)
+            c.ell(0, -14.9 - br, 4.2, 0.9, Col(0xb89448)); c.ell(0, -15.2 - br, 4, 0.8, st)
+            c.RR(-1.7, -17.2 - br, 3.4, 2.4, 1.3, st); c.R(-1.7, -15.7 - br, 3.4, 0.5, RED)
+            c.seg(-1, -16.8 - br, -0.4, -15.9 - br, 0.2, Col(0xb89448)); c.seg(0.6, -17 - br, 1, -15.9 - br, 0.2, Col(0xb89448))
+        } else {
+            c.RR(-2.3, -16.4 - br, 4.6, 2.9, 1.3, o.turban); c.ell(0, -16.4 - br, 1.8, 0.9, o.turban)
+            c.RR(-2.3, -14.8 - br, 4.6, 0.6, 0.3, rgba(0, 0, 0, 0.16)); c.circ(-d * 0.5, -16 - br, 0.5, rgba(255, 255, 255, 0.3))
+            c.seg(-2.1, -15.3 - br, 2.1, -15.9 - br, 0.3, rgba(0, 0, 0, 0.18)); c.seg(-1.9, -14.9 - br, 2.1, -15.2 - br, 0.25, rgba(255, 255, 255, 0.22))
+            if o.sash != nil { c.circ(d * 1.2, -15.5 - br, 0.5, GOLD) }
+            let tw = sin(NOW * 8 + x) * 0.5 * (tr + 0.3)
+            c.poly(o.turban, [-d * 2, -15.4 - br, -d * (3.3 + tr * 0.8), -13.6 - br + tw, -d * (2.7 + tr * 0.4), -10.8 - br, -d * 2, -12.6 - br])
+        }
         let sw = o.ham > 0 ? sin(o.ham * 24) * 3 : 0
         switch o.tool {
         case .hammer:
@@ -2617,6 +2643,7 @@ final class Renderer {
         case .none:
             break
         }
+        c.roundCaps(false)
         c.restore()
         if o.torch {
             let tx = sx + d * 3.5 * PS, ty = y - 14 * PS
@@ -2739,14 +2766,14 @@ final class Renderer {
         c.R(sx - d * 2.4 - (d < 0 ? 1.2 : 0), y - 7.2, 1.2, 8.4, rgba(60, 30, 0, 0.2)); c.R(sx - 0.2, y - 6.6, 0.4, 7.6, rgba(60, 30, 0, 0.18))
         if o.jewel { c.R(sx - 2.1, y - 7.7, 4.2, 0.8, GOLD); c.R(sx + d * 0.2 - 0.5, y - 6.8, 1, 1, TEAL) }
         if let s = o.sash { c.R(sx - 2.6, y - 2.6, 5.2, 1.1, s) }
-        c.R(sx - 1.5, y - 10.6, 3, 3.1, o.skin); c.R(sx + d * 0.9 - 0.3, y - 9.5, 0.6, 0.6, Col(0x2a1a10))
+        c.RR(sx - 1.5, y - 10.6, 3, 3.2, 1.15, o.skin); c.ell(sx + d * 0.75, y - 9.2, 0.55, 0.42, Col(0xf6f0e0)); c.circ(sx + d * 0.95, y - 9.2, 0.3, Col(0x2a1a10))
         c.R(sx + d * 0.7 - 0.6, y - 10.1, 1.3, 0.3, Col(0x3a2416)); c.R(sx + d * 1.5 - 0.25, y - 9, 0.5, 0.8, o.skin); c.R(sx + d * 0.8 - 0.35, y - 8.2, 0.8, 0.25, Col(0x6a3a28))
         c.R(sx - 2.1, y - 11.1, 4.2, 0.35, rgba(0, 0, 0, 0.2))
-        if let v = o.veil { c.R(sx - 1.5, y - 9, 3, 1.5, v) }
-        c.R(sx - 2.1, y - 12.4, 4.2, 2.3, o.turban); c.R(sx - 1.5, y - 13, 3, 0.8, o.turban)
+        if let v = o.veil { c.RR(sx - 1.6, y - 9, 3.2, 1.7, 0.6, v) }
+        c.RR(sx - 2.15, y - 12.7, 4.3, 2.6, 1.2, o.turban); c.ell(sx, y - 12.7, 1.6, 0.8, o.turban)
         let fl = o.fl
         c.poly(o.turban, [sx - d * 2, y - 12, sx - d * (4 + fl * 3), y - 11 + sin(NOW * 9) * fl, sx - d * (3 + fl * 2), y - 8.5, sx - d * 2, y - 9.5])
-        if o.jewel { c.R(sx + d - 0.4, y - 12, 0.9, 0.9, TEAL) }
+        if o.jewel { c.circ(sx + d, y - 11.6, 0.55, TEAL); c.circ(sx + d - 0.15, y - 11.75, 0.2, Col(0xd8fff4)) }
         c.restore()
     }
 

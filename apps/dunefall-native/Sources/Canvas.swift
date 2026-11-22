@@ -45,6 +45,14 @@ final class Canvas {
         setFill(c)
         cg.fill(CGRect(x: x, y: y, width: w, height: h))
     }
+    /// A rectangle with rounded corners.
+    func RR(_ x: Double, _ y: Double, _ w: Double, _ h: Double, _ r: Double, _ c: Col) {
+        if w <= 0 || h <= 0 { return }
+        setFill(c)
+        let rr = CGFloat(max(0, min(r, min(w, h) / 2)))
+        cg.addPath(CGPath(roundedRect: CGRect(x: x, y: y, width: w, height: h), cornerWidth: rr, cornerHeight: rr, transform: nil))
+        cg.fillPath()
+    }
     func poly(_ c: Col, _ p: [Double]) {
         if p.count < 6 { return }
         setFill(c)
