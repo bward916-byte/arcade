@@ -175,9 +175,13 @@ enum Site {
         return json
     }
 
+    // Everyone's checked questions, plus this phone's own posts that are still waiting for the check (found by their keys).
     static func questions() async throws -> [Question] {
-        let url = base.appendingPathComponent("api").appendingPathComponent("questions")
-        let (data, response) = try await URLSession.shared.data(from: url)
+        var req = URLRequest(url: base.appendingPathComponent("api").appendingPathComponent("questions").appendingPathComponent("list"))
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.httpBody = try JSONSerialization.data(withJSONObject: ["keys": MyPosts.allKeys()])
+        let (data, response) = try await URLSession.shared.data(for: req)
         if let http = response as? HTTPURLResponse, http.statusCode >= 400 { throw SiteError(message: "Questions did not load.") }
         guard let rows = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] else { return [] }
         var out: [Question] = []
@@ -188,10 +192,11 @@ enum Site {
                 guard let aid = a["id"] as? String, let atext = a["text"] as? String else { continue }
                 answers.append(QAnswer(id: aid, text: atext, name: a["name"] as? String ?? "", ts: (a["ts"] as? NSNumber)?.doubleValue ?? 0,
                                        guide: a["guide"] as? Bool ?? false, title: a["title"] as? String ?? "",
-                                       up: (a["up"] as? NSNumber)?.intValue ?? 0, said: (a["said"] as? NSNumber)?.intValue ?? 1))
+                                       up: (a["up"] as? NSNumber)?.intValue ?? 0, said: (a["said"] as? NSNumber)?.intValue ?? 1,
+                                       waiting: a["waiting"] as? Bool ?? false))
             }
             out.append(Question(id: id, text: text, name: d["name"] as? String ?? "", ts: (d["ts"] as? NSNumber)?.doubleValue ?? 0,
-                                edited: d["edited"] != nil, answers: answers))
+                                edited: d["edited"] != nil, waiting: d["waiting"] as? Bool ?? false, answers: answers))
         }
         return out
     }

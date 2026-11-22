@@ -10,6 +10,7 @@ struct QAnswer: Identifiable {
     let title: String
     var up: Int
     let said: Int
+    let waiting: Bool   // not passed by the check yet, so only its poster sees it
 }
 
 struct Question: Identifiable {
@@ -18,6 +19,7 @@ struct Question: Identifiable {
     let name: String
     let ts: Double
     let edited: Bool
+    let waiting: Bool
     var answers: [QAnswer]
 }
 
@@ -25,6 +27,7 @@ struct Question: Identifiable {
 enum MyPosts {
     private static let keysName = "askKeys", thanksName = "askThanks"
     static func key(_ id: String) -> String? { (UserDefaults.standard.dictionary(forKey: keysName) as? [String: String])?[id] }
+    static func allKeys() -> [String] { Array((UserDefaults.standard.dictionary(forKey: keysName) as? [String: String] ?? [:]).values) }
     static func keep(_ id: String, _ key: String) {
         var all = UserDefaults.standard.dictionary(forKey: keysName) as? [String: String] ?? [:]
         all[id] = key
@@ -120,12 +123,14 @@ struct QuestionsView: View {
                 Section {
                     DisclosureGroup {
                         Text(byline(q)).font(.footnote).foregroundColor(.secondary)
+                        if q.waiting { Text("Only you can see this until a quick check passes it.").font(.footnote).italic().foregroundColor(.secondary) }
                         mine(question: q.id, answer: "", text: q.text, joined: false)
                         ForEach(ordered(q.answers)) { a in
                             VStack(alignment: .leading, spacing: 6) {
                                 if a.guide { Text("From the guide: " + a.title).font(.subheadline.weight(.semibold)).foregroundColor(Theme.primary) }
                                 Text(a.text).font(.subheadline).textSelection(.enabled)
                                 Text(byline(a)).font(.footnote).foregroundColor(.secondary)
+                                if a.waiting { Text("Only you can see this until a quick check passes it.").font(.footnote).italic().foregroundColor(.secondary) }
                                 Button {
                                     thank(q.id, a.id)
                                 } label: {
@@ -218,7 +223,7 @@ struct QuestionsView: View {
                 let made = try await Site.ask(text: text, name: name, email: email)
                 MyPosts.keep(made.id, made.key)
                 asking = ""
-                note = "Posted. Campers can answer below."
+                note = "Posted. You can see it now; other campers will see it after a quick check."
                 await load()
             } catch let error as SiteError { note = error.message }
             catch { note = "That did not post. Check your signal and try again." }
