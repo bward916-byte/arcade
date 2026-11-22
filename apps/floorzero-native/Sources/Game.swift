@@ -1,0 +1,1137 @@
+import Foundation
+
+enum Mode { case title, intro, card, play, pick, ride, dead, ending }
+enum ZKind { case zed, runner, dog, rat, bloater, boss }
+enum FloorKind { case normal, hole, wall, lift, roof, street }
+enum RideKind { case stairs, hole, lift }
+
+final class Zed {
+    let id: Int
+    let kind: ZKind
+    var x: Double
+    var face = -1.0
+    var hp: Double
+    var maxHp: Double
+    var alive = true
+    var deadT = 0.0
+    var walk = 0.0
+    var atkT = -1.0
+    var atkHit = false
+    var cd = 0.0
+    var aware = false
+    var burn = 0.0
+    var burnDps = 0.0
+    var kvx = 0.0
+    var stun = 0.0
+    var flash = 0.0
+    var seed: Double
+    var speed: Double
+    var reach: Double
+    var dmg: Double
+    var windup: Double
+    var rate: Double
+    var sight: Double
+    var scale: Double
+    var look: Int
+    init(id: Int, kind: ZKind, x: Double, depth: Int, seed: Double) {
+        self.id = id; self.kind = kind; self.x = x; self.seed = seed
+        look = Int(seed * 97) % 5
+        let d = Double(depth)
+        var h = 34.0, sp = 62.0, re = 62.0, dm = 10.0, wu = 0.38, ra = 1.0, si = 520.0, sc = 1.0
+        switch kind {
+        case .zed: h = 34; sp = 62 + seed * 22; re = 62; dm = 10; wu = 0.38; ra = 1.0; si = 520; sc = 1.0
+        case .runner: h = 22; sp = 190 + seed * 40; re = 58; dm = 8; wu = 0.26; ra = 0.8; si = 640; sc = 0.95
+        case .dog: h = 20; sp = 330 + seed * 50; re = 54; dm = 6; wu = 0.2; ra = 0.6; si = 700; sc = 1.0
+        case .rat: h = 5; sp = 220 + seed * 60; re = 30; dm = 2; wu = 0.15; ra = 0.5; si = 700; sc = 1.0
+        case .bloater: h = 170; sp = 48; re = 84; dm = 20; wu = 0.6; ra = 1.5; si = 520; sc = 1.45
+        case .boss: h = 620; sp = 74; re = 104; dm = 22; wu = 0.6; ra = 1.3; si = 2000; sc = 1.7
+        }
+        h *= 1 + d * 0.012
+        hp = h
+        maxHp = h
+        speed = sp
+        reach = re + seed * 18
+        dmg = dm
+        windup = wu
+        rate = ra
+        sight = si
+        scale = sc
+    }
+}
+
+struct Item {
+    var x: Double
+    var kind: Int      // 0 medkit, 1 barrel, 2 sample, 3 valve
+    var used = false
+}
+struct Prop {
+    var x: Double
+    var kind: Int
+}
+
+final class Floor {
+    let n: Int
+    var kind = FloorKind.normal
+    var exitX = 0.0
+    var exitRight = true
+    var fireStairs = false
+    var holeX = 0.0
+    var liftX = 900.0
+    var wallX = 0.0
+    var doorA = 0.0
+    var doorB = 0.0
+    var wallSide = 0.0
+    var zeds: [Zed] = []
+    var items: [Item] = []
+    var props: [Prop] = []
+    var pools: [(Double, Double)] = []
+    var pack = 0        // 1 dogs, 2 rats
+    var boss = false
+    init(_ n: Int) { self.n = n }
+}
+
+struct Part { var x: Double; var y: Double; var vx: Double; var vy: Double; var t: Double; var life: Double; var size: Double; var col: Col; var grav: Double; var glow: Bool }
+struct Floater { var x: Double; var y: Double; var text: String; var col: Col; var t: Double; var size: Double }
+struct Ring { var x: Double; var y: Double; var r: Double; var t: Double; var life: Double; var col: Col }
+struct Tracer { var x0: Double; var y0: Double; var x1: Double; var y1: Double; var t: Double; var life: Double; var col: Col; var w: Double; var bolt: Bool }
+struct Boom { var x: Double; var y: Double; var r: Double; var t: Double; var life: Double }
+struct Nade { var x0: Double; var x1: Double; var t: Double; var dur: Double; var r: Double; var dmg: Double }
+struct Wave { var x: Double; var dir: Double; var left: Double; var dmg: Double; var hit: Set<Int> }
+struct Beam { var x: Double; var t: Double; var done: Bool; var r: Double; var dmg: Double }
+struct Slash { var x: Double; var y: Double; var face: Double; var t: Double; var big: Double; var col: Col }
+
+struct Input {
+    var move = 0.0
+    var attack = false
+    var power = false
+}
+
+final class Hero {
+    var x = 300.0
+    var face = 1.0
+    var hp = 100.0
+    var maxHp = 100.0
+    var walk = 0.0
+    var moving = false
+    var atkT = -1.0
+    var atkI = 0
+    var atkHit = false
+    var comboT = 0.0
+    var hurtT = 0.0
+    var inv = 0.0
+}
+
+final class Game {
+    var mode = Mode.title
+    var t = 0.0
+    var W = 960.0
+    var safeL = 0.0
+    var safeR = 0.0
+    var input = Input()
+    var snd: Sound?
+    var haptic = 0
+    var auto = false
+
+    var tower = 0
+    var floorN = 84
+    var floor = Floor(84)
+    var hero = Hero()
+    var ups: [String: Int] = [:]
+    var picksDue = 0
+    var pickOpts: [Int] = []
+    var pickT = 0.0
+    var meter = 0.0
+    var hasSample = false
+    var valveShut = false
+    var deaths = 0
+    var kills = 0
+    var playT = 0.0
+    var hits = 0
+    var hitsT = 0.0
+
+    var supT = -1.0
+    var supDur = 0.0
+    var supType = 0
+    var supName = ""
+    var supX0 = 0.0
+    var supStep = 0
+    var supHit = Set<Int>()
+    var supI = 0
+    var nameT = 0.0
+
+    var rideKind = RideKind.stairs
+    var rideT = 0.0
+    var rideDur = 0.0
+    var rideTo = 0
+    var rideFrom = 0
+    var deadT = 0.0
+    var cardT = 0.0
+    var introT = 0.0
+    var endT = 0.0
+    let introLen = 9.0
+
+    var shake = 0.0
+    var flash = 0.0
+    var flashCol = WHITE
+    var hitStop = 0.0
+    var msg = ""
+    var msgT = 0.0
+    var sayCd = 0.0
+
+    var parts: [Part] = []
+    var floaters: [Floater] = []
+    var rings: [Ring] = []
+    var tracers: [Tracer] = []
+    var booms: [Boom] = []
+    var nades: [Nade] = []
+    var waves: [Wave] = []
+    var beams: [Beam] = []
+    var slashes: [Slash] = []
+    var droneA = 0.0
+    var cdSmg = 0.0, cdShot = 0.0, cdNade = 2.0, cdDrone = 0.0, cdMini = 0.0, cdTesla = 1.0, cdOrb = 3.0, cdFlame = 0.0
+    var flameOn = false
+    private var nextId = 1
+
+    var tw: Tower { return TOWERS[tower] }
+    var depth: Int { return max(0, tw.top - floorN) }
+    func lv(_ id: String) -> Int { return ups[id] ?? 0 }
+    var upTotal: Int { var n = 0; for (_, v) in ups { n += v }; return n }
+    var hasSave: Bool { return UserDefaults.standard.object(forKey: "fz.floor") != nil }
+    var goal: String {
+        if tower != 0 || (hasSample && valveShut) { return "REACH THE STREET" }
+        return hasSample ? "SHUT THE WATER · FLOOR 12" : "GET THE SAMPLE · FLOOR 32"
+    }
+
+    func say(_ s: String, _ secs: Double = 3) { msg = s; msgT = secs }
+    func buzz(_ n: Int) { haptic = max(haptic, n) }
+
+    // ---------- starting, saving
+    func newGame() {
+        clearSave()
+        introT = 0
+        mode = .intro
+        snd?.stamp()
+    }
+    func startTower(_ i: Int) {
+        tower = i
+        ups = [:]
+        picksDue = 0
+        meter = 0
+        hero = Hero()
+        supT = -1
+        clearFx()
+        if i == 0 { hasSample = false; valveShut = false }
+        floorN = tw.top + 1
+        floor = makeFloor(floorN, entry: 300)
+        hero.x = 300
+        cardT = 0
+        mode = .card
+        snd?.stamp()
+        save()
+    }
+    func save() {
+        let d = UserDefaults.standard
+        d.set(tower, forKey: "fz.tower")
+        d.set(floorN, forKey: "fz.floor")
+        d.set(ups, forKey: "fz.ups")
+        d.set(hasSample, forKey: "fz.sample")
+        d.set(valveShut, forKey: "fz.valve")
+        d.set(deaths, forKey: "fz.deaths")
+        d.set(hero.x, forKey: "fz.x")
+    }
+    func clearSave() {
+        let d = UserDefaults.standard
+        for k in ["fz.tower", "fz.floor", "fz.ups", "fz.sample", "fz.valve", "fz.deaths", "fz.x"] { d.removeObject(forKey: k) }
+        deaths = 0; kills = 0; playT = 0
+    }
+    func resume() {
+        let d = UserDefaults.standard
+        tower = max(0, min(2, d.integer(forKey: "fz.tower")))
+        floorN = max(0, min(tw.top + 1, d.integer(forKey: "fz.floor")))
+        ups = (d.dictionary(forKey: "fz.ups") as? [String: Int]) ?? [:]
+        hasSample = d.bool(forKey: "fz.sample")
+        valveShut = d.bool(forKey: "fz.valve")
+        deaths = d.integer(forKey: "fz.deaths")
+        hero = Hero()
+        hero.maxHp = 100 + 25 * Double(lv("hp"))
+        hero.hp = hero.maxHp
+        let x = d.double(forKey: "fz.x")
+        hero.x = x > 0 ? x : 300
+        supT = -1; meter = 50; picksDue = 0
+        clearFx()
+        floor = makeFloor(floorN, entry: hero.x)
+        fixEntry()
+        mode = .play
+        say("FLOOR \(floorN) — \(zone(floorN).name)")
+    }
+    func clearFx() {
+        parts = []; floaters = []; rings = []; tracers = []; booms = []; nades = []; waves = []; beams = []; slashes = []
+    }
+
+    func zone(_ n: Int) -> Zone {
+        for z in tw.zones where n >= z.from { return z }
+        return tw.zones[tw.zones.count - 1]
+    }
+
+    // ---------- floors
+    func descTarget(_ n: Int, _ d: Int) -> Int {
+        var to = max(0, n - d)
+        if tower == 0 {
+            if n > 32 && to < 32 { to = 32 }
+            if n > 12 && to < 12 { to = 12 }
+        }
+        return to
+    }
+    func makeFloor(_ n: Int, entry: Double) -> Floor {
+        let top = tw.top
+        let k = top - n
+        var rng = Rng(tower * 7919 + n * 131 + 17)
+        let f = Floor(n)
+        f.exitRight = ((top + 1 - n) % 2 == 0)
+        f.exitX = f.exitRight ? FLOOR_W - 150 : 150
+        let bossFloor = tower == 0 && n == 32
+        let valveFloor = tower == 0 && n == 12
+        if n > top { f.kind = .roof } else if n <= 0 { f.kind = .street } else if bossFloor || valveFloor { f.kind = .normal } else if n % 9 == 3 { f.kind = .lift } else if k % 10 == 5 && n > 6 { f.kind = .wall } else if k % 5 == 1 && n > 3 { f.kind = .hole }
+        if f.kind == .hole {
+            f.holeX = f.exitRight ? 1240 : 560
+            f.fireStairs = (k / 5) % 2 == 0
+        }
+        if f.kind == .wall {
+            f.wallX = 900 + rng.r(-120, 120)
+            f.doorA = f.wallX - 250
+            f.doorB = f.wallX + 250
+        }
+        // who is here
+        var count = 3 + Int(Double(max(0, k)) * 0.11)
+        if count > 11 { count = 11 }
+        if f.kind == .roof { count = 3 }
+        if f.kind == .street { count = 12 }
+        let pr = min(0.38, 0.15 + Double(max(0, k)) * 0.005)
+        let pd = min(0.14, max(0, Double(k - 6) * 0.006))
+        func spot(_ r: inout Rng) -> Double {
+            var x = r.r(220, FLOOR_W - 220)
+            if abs(x - entry) < 380 { x = entry + (entry < FLOOR_W / 2 ? 1 : -1) * r.r(400, 900) }
+            return clampD(x, 120, FLOOR_W - 120)
+        }
+        for _ in 0..<count {
+            let r = rng.next()
+            var kind = ZKind.zed
+            if r < pr { kind = .runner } else if r > 1 - pd { kind = .dog } else if k > 14 && r > 0.5 && r < 0.56 { kind = .bloater }
+            if f.kind == .roof { kind = .zed }
+            f.zeds.append(Zed(id: nextId, kind: kind, x: spot(&rng), depth: max(0, k), seed: rng.next()))
+            nextId += 1
+        }
+        if k > 8 && n > 1 && f.kind != .lift && !bossFloor {
+            if k % 11 == 7 {
+                f.pack = 1
+                for _ in 0..<(4 + k / 25) { f.zeds.append(Zed(id: nextId, kind: .dog, x: spot(&rng), depth: k, seed: rng.next())); nextId += 1 }
+            } else if k % 13 == 9 {
+                f.pack = 2
+                for _ in 0..<14 { f.zeds.append(Zed(id: nextId, kind: .rat, x: spot(&rng), depth: k, seed: rng.next())); nextId += 1 }
+            }
+        }
+        if bossFloor && !hasSample {
+            f.boss = true
+            let b = Zed(id: nextId, kind: .boss, x: FLOOR_W / 2, depth: k, seed: 0.5)
+            nextId += 1
+            b.aware = true
+            f.zeds.append(b)
+        }
+        if bossFloor && hasSample { f.zeds = [] }
+        if valveFloor && !valveShut { f.items.append(Item(x: FLOOR_W / 2, kind: 3)) }
+        if f.kind != .roof {
+            if rng.next() < 0.32 { f.items.append(Item(x: rng.r(300, FLOOR_W - 300), kind: 0)) }
+            if rng.next() < 0.4 { f.items.append(Item(x: rng.r(350, FLOOR_W - 350), kind: 1)) }
+            if rng.next() < 0.18 { f.items.append(Item(x: rng.r(350, FLOOR_W - 350), kind: 1)) }
+        }
+        var px = 260.0
+        while px < FLOOR_W - 200 {
+            if rng.next() < 0.6 { f.props.append(Prop(x: px + rng.r(-40, 40), kind: rng.i(5))) }
+            px += 210
+        }
+        if f.kind == .wall {
+            let half = 85.0 + 70
+            for z in f.zeds where abs(z.x - f.wallX) < half { z.x = f.wallX + (z.x < f.wallX ? -1 : 1) * (half + 20) }
+            for i in 0..<f.items.count where abs(f.items[i].x - f.wallX) < half { f.items[i].x = f.wallX + (f.items[i].x < f.wallX ? -1 : 1) * (half + 30) }
+            f.props = f.props.filter { abs($0.x - f.wallX) > 330 }
+        }
+        if f.kind == .hole { f.props = f.props.filter { abs($0.x - f.holeX) > 120 }; for i in 0..<f.items.count where abs(f.items[i].x - f.holeX) < 110 { f.items[i].x += 200 } }
+        if f.kind == .lift { f.props = f.props.filter { abs($0.x - f.liftX) > 130 } }
+        return f
+    }
+    /// After landing, make sure the hero is not standing in a hazard.
+    func fixEntry() {
+        let f = floor
+        hero.x = clampD(hero.x, 80, FLOOR_W - 80)
+        if f.kind == .wall && abs(hero.x - f.wallX) < 130 {
+            hero.x = f.wallX + (f.exitRight ? 1 : -1) * 170
+        }
+        if f.kind == .hole && abs(hero.x - f.holeX) < 70 { hero.x = f.holeX + (f.exitRight ? -1 : 1) * 110 }
+        if f.kind == .lift && abs(hero.x - f.liftX) < 70 { hero.x = f.liftX + (f.exitRight ? -1 : 1) * 120 }
+        f.wallSide = sgn(hero.x - f.wallX)
+    }
+
+    func startRide(_ kind: RideKind, to: Int) {
+        rideKind = kind
+        rideFrom = floorN
+        rideTo = to
+        rideT = 0
+        rideDur = kind == .stairs ? 0.5 : (kind == .hole ? 0.8 : 1.5)
+        mode = .ride
+        input = Input()
+        if kind == .hole { snd?.drop(); buzz(2) } else if kind == .lift { snd?.ding() } else { snd?.door() }
+    }
+    func arrive() {
+        let old = floorN
+        floorN = rideTo
+        let top = tw.top
+        if floorN < old {
+            for fl in floorN..<old where fl >= 1 && (top - fl) % 6 == 1 { picksDue += 1 }
+        }
+        clearFx()
+        floor = makeFloor(floorN, entry: hero.x)
+        fixEntry()
+        hero.atkT = -1
+        supT = -1
+        if rideKind == .hole { shake = 14; puff(hero.x, 0, 14, Col(0x8a8478)); buzz(3) }
+        announce()
+        save()
+        if picksDue > 0 { rollPick(); mode = .pick; pickT = 0 } else { mode = .play }
+    }
+    func announce() {
+        let f = floor
+        let n = f.n
+        switch f.kind {
+        case .roof: say("THE ROOF. THE STAIRS ARE THAT WAY  ▶", 4)
+        case .street: say("THE STREET. GET TO THE PLAZA.", 4)
+        case .wall: say("FLOOR \(n) — FIRE. CUT THROUGH THE OFFICES.", 4)
+        case .hole: say(f.fireStairs ? "FLOOR \(n) — STAIRS ON FIRE. DROP THROUGH THE FLOOR." : "FLOOR \(n) — STAIRS GONE. DROP THROUGH THE FLOOR.", 4)
+        case .lift: say("FLOOR \(n) — STAIRS BLOCKED. CLEAR IT. TAKE THE ELEVATOR.", 4)
+        case .normal:
+            if f.boss { say("FLOOR 32 — DR. MARR.", 4) } else if tower == 0 && n == 12 && !valveShut { say("FLOOR 12 — THE WATER MAIN. SHUT IT.", 4) } else if f.pack == 1 { say("FLOOR \(n) — DOGS. THEY ARE FAST.") } else if f.pack == 2 { say("FLOOR \(n) — RATS.") } else { say("FLOOR \(n) — \(zone(n).name)", 2.2) }
+        }
+    }
+
+    // ---------- upgrades
+    func rollPick() {
+        let deep = upTotal >= 4
+        var ok: [Int] = []
+        for i in 0..<UPS.count where lv(UPS[i].id) < 3 && (!UPS[i].sup || deep) { ok.append(i) }
+        ok.shuffle()
+        if let g = ok.firstIndex(where: { UPS[$0].gun }), g > 0 { ok.swapAt(0, g) }
+        if deep && ok.count > 2 && !UPS[ok[0]].sup && !UPS[ok[1]].sup && chance(0.6) {
+            if let s = ok.firstIndex(where: { UPS[$0].sup }), s > 1 { ok.swapAt(1, s) }
+        }
+        pickOpts = Array(ok.prefix(2))
+        if pickOpts.isEmpty { picksDue = 0 }
+    }
+    func choosePick(_ i: Int) {
+        if mode != .pick || i < 0 || i >= pickOpts.count || pickT < 0.35 { return }
+        let u = UPS[pickOpts[i]]
+        ups[u.id] = lv(u.id) + 1
+        if u.id == "hp" { hero.maxHp = 100 + 25 * Double(lv("hp")); hero.hp = hero.maxHp }
+        snd?.pick(); buzz(2)
+        picksDue -= 1
+        save()
+        if picksDue > 0 { rollPick(); pickT = 0 }
+        if picksDue <= 0 || pickOpts.isEmpty { picksDue = 0; mode = .play; say("\(u.name)  ·  LEVEL \(lv(u.id))") }
+    }
+
+    // ---------- the frame
+    func update(_ dtRaw: Double) {
+        let dt = min(dtRaw, 1.0 / 20)
+        t += dt
+        shake = max(0, shake - dt * 40)
+        flash = max(0, flash - dt * 3)
+        if msgT > 0 { msgT -= dt }
+        if sayCd > 0 { sayCd -= dt }
+        switch mode {
+        case .title: break
+        case .intro:
+            let before = Int(introT / 1.8)
+            introT += dt
+            if Int(introT / 1.8) != before && introT < introLen { snd?.stamp(); buzz(1) }
+            if introT >= introLen { startTower(0) }
+        case .card:
+            cardT += dt
+            if cardT > 2.4 { mode = .play; announce() }
+        case .play:
+            if hitStop > 0 { hitStop -= dtRaw; return }
+            playT += dt
+            if auto { bot() }
+            updatePlay(dt)
+        case .pick:
+            pickT += dt
+            if auto && pickT > 0.6 { choosePick(0) }
+        case .ride:
+            rideT += dt
+            updateFx(dt)
+            if rideT >= rideDur { arrive() }
+        case .dead:
+            deadT += dt
+            updateFx(dt)
+            if deadT > 2.0 { respawn() }
+        case .ending:
+            endT += dt
+        }
+    }
+    func tapAdvance() {
+        if mode == .intro {
+            let next = ((introT / 1.8).rounded(.down) + 1) * 1.8
+            introT = next
+            if introT >= introLen { startTower(0) } else { snd?.stamp() }
+        } else if mode == .card && cardT > 0.4 { cardT = 9 } else if mode == .ending && endT > 1.5 { mode = .title }
+    }
+
+    func respawn() {
+        hero.hp = hero.maxHp
+        hero.inv = 1.5
+        hero.atkT = -1
+        supT = -1
+        meter = max(meter, 60)
+        clearFx()
+        hero.x = floor.exitRight ? 150 : FLOOR_W - 150
+        floor = makeFloor(floorN, entry: hero.x)
+        fixEntry()
+        mode = .play
+        say("BACK ON YOUR FEET.")
+    }
+
+    var dmgMul: Double { return (1 + 0.25 * Double(lv("dmg"))) * (1 + Double(depth) * 0.006) }
+
+    private func updatePlay(_ dt: Double) {
+        let f = floor
+        let h = hero
+        if hitsT > 0 { hitsT -= dt; if hitsT <= 0 { hits = 0 } }
+        if nameT > 0 { nameT -= dt }
+        h.inv = max(0, h.inv - dt)
+        h.hurtT = max(0, h.hurtT - dt)
+        if h.comboT > 0 { h.comboT -= dt }
+
+        // moving
+        let sup = supT >= 0
+        var mv = input.move
+        if abs(mv) < 0.2 { mv = 0 }
+        let sp = 265 * (1 + 0.08 * Double(lv("adren"))) * (h.atkT >= 0 ? 0.35 : 1)
+        if !sup {
+            h.moving = mv != 0
+            if mv != 0 {
+                h.x += sgn(mv) * sp * dt
+                h.walk += sp * dt
+                if h.atkT < 0 { h.face = sgn(mv) }
+            }
+        } else { h.moving = false }
+
+        // swinging
+        if input.attack && h.atkT < 0 && !sup {
+            h.atkI = h.comboT > 0 ? (h.atkI + 1) % 3 : 0
+            h.atkT = 0
+            h.atkHit = false
+            if mv == 0, let z = nearest(170) { h.face = z.x >= h.x ? 1 : -1 }
+            snd?.swing()
+        }
+        if h.atkT >= 0 {
+            let dur = h.atkI == 2 ? 0.36 : 0.25
+            h.atkT += dt
+            if !h.atkHit && h.atkT >= dur * 0.42 {
+                h.atkHit = true
+                let reach = h.atkI == 2 ? 135.0 : 112.0
+                let base = h.atkI == 2 ? 26.0 : 15.0
+                var n = 0
+                for z in f.zeds where z.alive {
+                    let dx = (z.x - h.x) * h.face
+                    if dx > -24 && dx < reach { hit(z, base * dmgMul, h.face, h.atkI == 2 ? 460 : 170); n += 1 }
+                }
+                for i in 0..<f.items.count where f.items[i].kind == 1 && !f.items[i].used {
+                    let dx = (f.items[i].x - h.x) * h.face
+                    if dx > -10 && dx < reach { f.items[i].used = true; explode(f.items[i].x, 170, 90) }
+                }
+                slashes.append(Slash(x: h.x, y: -92, face: h.face, t: 0, big: h.atkI == 2 ? 1.35 : 1, col: tw.hue))
+                if n > 0 {
+                    hitStop = h.atkI == 2 ? 0.07 : 0.035
+                    shake = max(shake, h.atkI == 2 ? 9 : 4)
+                    addMeter(3 * Double(n))
+                    snd?.hit(h.atkI == 2 ? 1 : 0.7)
+                    buzz(h.atkI == 2 ? 2 : 1)
+                }
+            }
+            if h.atkT >= dur { h.atkT = -1; h.comboT = 0.45 }
+        }
+
+        // power move
+        if input.power && !sup && meter >= 100 { startSuper() }
+        input.power = false
+        if supT >= 0 { updateSuper(dt) }
+
+        // the fire wall
+        if f.kind == .wall {
+            let e = 85.0 + 24
+            if abs(h.x - f.wallX) >= e { f.wallSide = sgn(h.x - f.wallX) } else {
+                let sd = f.wallSide != 0 ? f.wallSide : (h.x < f.wallX ? -1 : 1)
+                h.x = f.wallX + sd * e
+                if supT < 0 { hurtHero(10 * dt, f.wallX, quiet: true) }
+                if sayCd <= 0 { sayCd = 4; say("TOO HOT. CUT THROUGH THE OFFICES.") }
+            }
+            for z in f.zeds where z.alive && abs(z.x - f.wallX) < 85 { z.burn = max(z.burn, 1.5); z.burnDps = max(z.burnDps, 22) }
+            if chance(dt * 40) { parts.append(Part(x: f.wallX + rnd(-85, 85), y: -rnd(0, 220), vx: rnd(-20, 20), vy: -rnd(90, 220), t: 0, life: rnd(0.35, 0.6), size: rnd(6, 13), col: Col(0xff9a30), grav: 0, glow: true)) }
+        }
+        h.x = clampD(h.x, 70, FLOOR_W - 70)
+
+        updateZeds(dt)
+        updateArsenal(dt)
+        updateFx(dt)
+        interact()
+        if h.hp <= 0 && mode == .play {
+            mode = .dead
+            deadT = 0
+            deaths += 1
+            snd?.dead(); buzz(3)
+            flash = 0.6; flashCol = BLOOD
+        }
+    }
+
+    func addMeter(_ v: Double) { meter = min(100, meter + v * (1 + 0.25 * Double(lv("adren")))) }
+    func nearest(_ r: Double, facing: Bool = false) -> Zed? {
+        var best: Zed? = nil
+        var bd = r
+        for z in floor.zeds where z.alive {
+            let d = abs(z.x - hero.x)
+            if facing && (z.x - hero.x) * hero.face < 0 { continue }
+            if d < bd { bd = d; best = z }
+        }
+        return best
+    }
+    var aliveCount: Int { var n = 0; for z in floor.zeds where z.alive { n += 1 }; return n }
+
+    // ---------- zombies
+    private func updateZeds(_ dt: Double) {
+        let h = hero
+        let f = floor
+        for z in f.zeds {
+            if !z.alive { z.deadT += dt; continue }
+            z.flash = max(0, z.flash - dt * 5)
+            z.cd -= dt
+            if z.burn > 0 {
+                z.burn -= dt
+                z.hp -= z.burnDps * dt
+                if chance(dt * 14) { parts.append(Part(x: z.x + rnd(-12, 12), y: -rnd(20, 120) * z.scale, vx: rnd(-20, 20), vy: -rnd(60, 140), t: 0, life: 0.4, size: rnd(4, 8), col: Col(0xffa030), grav: 0, glow: true)) }
+                if z.hp <= 0 { kill(z, 0); continue }
+            }
+            let dx = h.x - z.x
+            let ad = abs(dx)
+            if !z.aware && ad < z.sight { z.aware = true }
+            if z.kvx != 0 {
+                z.x += z.kvx * dt
+                z.kvx *= pow(0.004, dt)
+                if abs(z.kvx) < 12 { z.kvx = 0 }
+            }
+            z.x = clampD(z.x, 60, FLOOR_W - 60)
+            if z.stun > 0 { z.stun -= dt; continue }
+            if z.atkT >= 0 {
+                z.atkT += dt
+                if !z.atkHit && z.atkT >= z.windup {
+                    z.atkHit = true
+                    if ad < z.reach + 22 { hurtHero(z.dmg * (1 + Double(depth) * 0.004), z.x, quiet: false) }
+                }
+                if z.atkT > z.windup + 0.28 { z.atkT = -1; z.cd = z.rate }
+                continue
+            }
+            if z.aware {
+                z.face = dx >= 0 ? 1 : -1
+                if ad > z.reach {
+                    z.x += z.face * z.speed * dt
+                    z.walk += z.speed * dt
+                } else if z.cd <= 0 {
+                    z.atkT = 0
+                    z.atkHit = false
+                }
+            } else {
+                z.walk += 8 * dt
+            }
+        }
+        f.zeds.removeAll { !$0.alive && $0.deadT > 7 }
+    }
+    func hit(_ z: Zed, _ dmg: Double, _ dir: Double, _ knock: Double) {
+        if !z.alive { return }
+        z.hp -= dmg
+        z.flash = 1
+        z.aware = true
+        let heavy = z.kind == .bloater || z.kind == .boss
+        z.kvx = dir * knock * (heavy ? 0.25 : 1)
+        z.stun = heavy ? 0.06 : 0.2
+        if z.atkT >= 0 && !heavy { z.atkT = -1; z.cd = 0.3 }
+        hits += 1; hitsT = 1.6
+        let top = z.kind == .rat ? -14.0 : (z.kind == .dog ? -50.0 : -110.0 * z.scale)
+        if floaters.count < 14 && dmg >= 3 { floaters.append(Floater(x: z.x + rnd(-12, 12), y: top - 30, text: "-\(Int(dmg.rounded()))", col: Col(0xff8a7a), t: 0, size: dmg > 40 ? 22 : 15)) }
+        let nb = z.kind == .rat ? 3 : 7
+        if parts.count < 260 {
+            for _ in 0..<nb { parts.append(Part(x: z.x, y: top + rnd(0, 40), vx: dir * rnd(40, 260) + rnd(-60, 60), vy: -rnd(40, 260), t: 0, life: rnd(0.4, 0.8), size: rnd(3, 6), col: BLOOD, grav: 900, glow: false)) }
+        }
+        if z.hp <= 0 { kill(z, dir) }
+    }
+    func kill(_ z: Zed, _ dir: Double) {
+        if !z.alive { return }
+        z.alive = false
+        z.deadT = 0
+        z.face = dir != 0 ? -dir : z.face
+        kills += 1
+        addMeter(z.kind == .rat ? 3 : 12)
+        if z.kind != .rat { floor.pools.append((z.x, rnd(26, 44))) }
+        if floor.pools.count > 30 { floor.pools.removeFirst() }
+        if z.kind == .bloater {
+            explode(z.x, 150, 45, toxic: true)
+            if abs(hero.x - z.x) < 110 { hurtHero(14, z.x, quiet: false) }
+        }
+        if z.kind == .boss {
+            floor.items.append(Item(x: z.x, kind: 2))
+            explode(z.x, 260, 0)
+            shake = 26; flash = 0.8; flashCol = MINT
+            say("MARR IS DOWN. TAKE THE SAMPLE.", 5)
+            buzz(3)
+        }
+    }
+    func hurtHero(_ dmg: Double, _ fromX: Double, quiet: Bool) {
+        let h = hero
+        if supT >= 0 || mode != .play { return }
+        if !quiet && h.inv > 0 { return }
+        h.hp -= dmg * (1 - 0.2 * Double(lv("armor")))
+        if !quiet {
+            h.inv = 0.45
+            h.hurtT = 0.25
+            shake = max(shake, 8)
+            flash = 0.25; flashCol = BLOOD
+            snd?.bite(); buzz(2)
+            for _ in 0..<6 { parts.append(Part(x: h.x, y: -rnd(70, 130), vx: sgn(h.x - fromX) * rnd(40, 200), vy: -rnd(40, 200), t: 0, life: 0.5, size: 4, col: BLOOD, grav: 900, glow: false)) }
+        }
+    }
+
+    // ---------- explosions and bursts
+    func puff(_ x: Double, _ y: Double, _ n: Int, _ c: Col) {
+        for _ in 0..<n { parts.append(Part(x: x + rnd(-20, 20), y: y - rnd(0, 30), vx: rnd(-160, 160), vy: -rnd(20, 180), t: 0, life: rnd(0.4, 0.9), size: rnd(5, 11), col: c, grav: 200, glow: false)) }
+    }
+    func explode(_ x: Double, _ r: Double, _ dmg: Double, toxic: Bool = false) {
+        booms.append(Boom(x: x, y: -40, r: r, t: 0, life: 0.5))
+        rings.append(Ring(x: x, y: -40, r: r * 1.3, t: 0, life: 0.35, col: toxic ? Col(0x8cff7a) : Col(0xffd9a0)))
+        shake = max(shake, 14)
+        snd?.boom(); buzz(3)
+        if parts.count < 300 {
+            for _ in 0..<14 { parts.append(Part(x: x, y: -30, vx: rnd(-420, 420), vy: -rnd(80, 520), t: 0, life: rnd(0.4, 0.9), size: rnd(4, 9), col: toxic ? Col(0x8cff7a) : Col(0xffb040), grav: 700, glow: true)) }
+        }
+        if dmg <= 0 { return }
+        for z in floor.zeds where z.alive {
+            let d = abs(z.x - x)
+            if d < r { hit(z, dmg * (1 - 0.5 * d / r), z.x >= x ? 1 : -1, 520) }
+        }
+        let f = floor
+        for i in 0..<f.items.count where f.items[i].kind == 1 && !f.items[i].used && abs(f.items[i].x - x) < r {
+            f.items[i].used = true
+            let bx = f.items[i].x
+            nades.append(Nade(x0: bx, x1: bx, t: 0, dur: 0.18, r: 170, dmg: 90))
+        }
+    }
+    func burst(_ x: Double, _ r: Double, _ dmg: Double, _ col: Col) {
+        rings.append(Ring(x: x, y: -80, r: r, t: 0, life: 0.4, col: col))
+        shake = max(shake, 16)
+        for z in floor.zeds where z.alive && abs(z.x - x) < r { hit(z, dmg, z.x >= x ? 1 : -1, 560) }
+        let f = floor
+        for i in 0..<f.items.count where f.items[i].kind == 1 && !f.items[i].used && abs(f.items[i].x - x) < r {
+            f.items[i].used = true
+            explode(f.items[i].x, 170, 90)
+        }
+        snd?.blast(); buzz(3)
+    }
+
+    // ---------- power moves: sixteen names a hero, five kinds of move
+    func startSuper() {
+        meter = 0
+        let deck = tw.deck
+        supName = deck[supI % deck.count]
+        supType = (supI * 3 + tower) % 5
+        supI += 1
+        supT = 0
+        supStep = 0
+        supHit = []
+        supX0 = hero.x
+        supDur = [0.42, 0.75, 0.55, 0.85, 0.8][supType]
+        nameT = 1.5
+        hero.atkT = -1
+        if let z = nearest(600) { hero.face = z.x >= hero.x ? 1 : -1 }
+        flash = 0.35; flashCol = tw.hue
+        hitStop = 0.09
+        shake = 10
+        snd?.power(); buzz(3)
+    }
+    private func updateSuper(_ dt: Double) {
+        let h = hero
+        let f = floor
+        let P = 58 * dmgMul * (1 + Double(depth) * 0.008)
+        let prev = supT
+        supT += dt
+        let u = supT / supDur
+        switch supType {
+        case 0:      // a dash straight through them
+            let nx = clampD(supX0 + h.face * 480 * easeOut(u * 1.25), 70, FLOOR_W - 70)
+            let a = min(h.x, nx) - 50, b = max(h.x, nx) + 50
+            for z in f.zeds where z.alive && z.x > a && z.x < b && !supHit.contains(z.id) {
+                supHit.insert(z.id)
+                hit(z, P * 1.1, h.face, 520)
+            }
+            if chance(dt * 60) { slashes.append(Slash(x: h.x, y: -90, face: h.face, t: 0, big: 1.5, col: tw.hue)) }
+            h.x = nx
+        case 1:      // spin: two rings
+            if supStep == 0 && u > 0.25 { supStep = 1; burst(h.x, 250, P * 0.8, tw.hue) }
+            if supStep == 1 && u > 0.65 { supStep = 2; burst(h.x, 320, P * 0.9, WHITE) }
+        case 2:      // a shockwave along the floor, both ways
+            if supStep == 0 && u > 0.3 {
+                supStep = 1
+                waves.append(Wave(x: h.x, dir: 1, left: 700, dmg: P * 1.0, hit: []))
+                waves.append(Wave(x: h.x, dir: -1, left: 700, dmg: P * 1.0, hit: []))
+                shake = 20
+                snd?.boom()
+            }
+        case 3:      // drag them in, then blow them away
+            if u < 0.55 {
+                for z in f.zeds where z.alive && abs(z.x - h.x) < 560 && abs(z.x - h.x) > 44 {
+                    z.x += sgn(h.x - z.x) * 640 * dt
+                    z.stun = 0.2
+                }
+            } else if supStep == 0 { supStep = 1; burst(h.x, 240, P * 1.5, tw.hue) }
+        default:     // a flurry
+            let a = Int(prev / 0.08), b = Int(supT / 0.08)
+            if b != a {
+                for z in f.zeds where z.alive {
+                    let dx = (z.x - h.x) * h.face
+                    if dx > -30 && dx < 220 { hit(z, P * 0.24, h.face, 60) }
+                }
+                slashes.append(Slash(x: h.x + h.face * rnd(0, 60), y: -rnd(50, 130), face: h.face, t: 0, big: rnd(0.8, 1.4), col: b % 2 == 0 ? tw.hue : WHITE))
+                snd?.swing()
+            }
+            if supStep == 0 && u > 0.9 { supStep = 1; burst(h.x + h.face * 80, 200, P * 0.8, tw.hue) }
+        }
+        if supT >= supDur { supT = -1; h.inv = 0.4 }
+    }
+
+    // ---------- the automatic weapons
+    private func gunHit(_ z: Zed, _ dmg: Double, _ col: Col, _ w: Double, fromY: Double = -96, fromX: Double? = nil) {
+        let ty = z.kind == .rat ? -10.0 : (z.kind == .dog ? -40.0 : -90.0 * z.scale)
+        tracers.append(Tracer(x0: fromX ?? (hero.x + hero.face * 30), y0: fromY, x1: z.x, y1: ty, t: 0, life: 0.07, col: col, w: w, bolt: false))
+        hit(z, dmg, z.x >= hero.x ? 1 : -1, 40)
+    }
+    private func updateArsenal(_ dt: Double) {
+        let h = hero
+        let f = floor
+        let scale = 1 + Double(depth) * 0.008
+        var l = lv("smg")
+        if l > 0 {
+            cdSmg -= dt
+            if cdSmg <= 0, let z = nearest(560) { cdSmg = 0.17; gunHit(z, (4 + 3 * Double(l)) * scale, Col(0xffe6a0), 2); snd?.shot() }
+        }
+        l = lv("minigun")
+        if l > 0 {
+            cdMini -= dt
+            if cdMini <= 0, let z = nearest(760) { cdMini = 0.055; gunHit(z, (4 + 2 * Double(l)) * scale, Col(0xffc060), 2.5, fromY: -84); if chance(0.3) { snd?.shot() } }
+        }
+        l = lv("shotgun")
+        if l > 0 {
+            cdShot -= dt
+            if cdShot <= 0, let z0 = nearest(250) {
+                cdShot = 1.5 - 0.2 * Double(l)
+                let dir = z0.x >= h.x ? 1.0 : -1.0
+                for z in f.zeds where z.alive {
+                    let dx = (z.x - h.x) * dir
+                    if dx > 0 && dx < 270 { hit(z, (22 + 10 * Double(l)) * scale, dir, 420) }
+                }
+                for i in 0..<5 { tracers.append(Tracer(x0: h.x + dir * 30, y0: -96, x1: h.x + dir * 270, y1: -150 + Double(i) * 28, t: 0, life: 0.09, col: Col(0xfff0c0), w: 3, bolt: false)) }
+                shake = max(shake, 6)
+                snd?.blast(); buzz(1)
+            }
+        }
+        l = lv("nade")
+        if l > 0 {
+            cdNade -= dt
+            if cdNade <= 0, let z = nearest(640) {
+                cdNade = 3.2 - 0.5 * Double(l)
+                nades.append(Nade(x0: h.x, x1: z.x, t: 0, dur: 0.55, r: 130 + 15 * Double(l), dmg: (50 + 20 * Double(l)) * scale))
+            }
+        }
+        l = lv("flame")
+        flameOn = false
+        if l > 0, nearest(240, facing: true) != nil {
+            flameOn = true
+            for z in f.zeds where z.alive {
+                let dx = (z.x - h.x) * h.face
+                if dx > 0 && dx < 240 { z.burn = max(z.burn, 2.5); z.burnDps = max(z.burnDps, 14 * Double(l) * scale); z.aware = true }
+            }
+            if parts.count < 300 {
+                for _ in 0..<2 { parts.append(Part(x: h.x + h.face * 40, y: -92, vx: h.face * rnd(260, 520), vy: rnd(-90, 60), t: 0, life: rnd(0.25, 0.45), size: rnd(7, 14), col: Col(0xff9a30), grav: -120, glow: true)) }
+            }
+        }
+        l = lv("drone")
+        if l > 0 {
+            droneA += dt * 2.2
+            cdDrone -= dt
+            if cdDrone <= 0, let z = nearest(430) {
+                cdDrone = 0.9 / Double(l)
+                gunHit(z, 18 * scale, Col(0x7dd3ff), 2.5, fromY: -190 + sin(droneA * 2) * 8, fromX: h.x + cos(droneA) * 70)
+                snd?.shot()
+            }
+        }
+        l = lv("tesla")
+        if l > 0 {
+            cdTesla -= dt
+            if cdTesla <= 0, let z0 = nearest(460) {
+                cdTesla = 1.2
+                var px = h.x, py = -100.0
+                var cur: Zed? = z0
+                var used = Set<Int>()
+                var n = 0
+                while let z = cur, n < 3 + l {
+                    used.insert(z.id)
+                    tracers.append(Tracer(x0: px, y0: py, x1: z.x, y1: -80 * z.scale, t: 0, life: 0.18, col: Col(0xa8e8ff), w: 3.5, bolt: true))
+                    hit(z, (30 + 10 * Double(l)) * scale, 0, 0)
+                    z.stun = 0.5
+                    px = z.x; py = -80 * z.scale
+                    n += 1
+                    var best: Zed? = nil
+                    var bd = 300.0
+                    for q in f.zeds where q.alive && !used.contains(q.id) {
+                        let d = abs(q.x - px)
+                        if d < bd { bd = d; best = q }
+                    }
+                    cur = best
+                }
+                snd?.zap()
+            }
+        }
+        l = lv("orbital")
+        if l > 0 {
+            cdOrb -= dt
+            if cdOrb <= 0 && aliveCount >= 2 {
+                cdOrb = 7 - Double(l)
+                var bx = h.x, bn = 0
+                for z in f.zeds where z.alive {
+                    var c = 0
+                    for q in f.zeds where q.alive && abs(q.x - z.x) < 150 { c += 1 }
+                    if c > bn { bn = c; bx = z.x }
+                }
+                beams.append(Beam(x: bx, t: 0, done: false, r: 160, dmg: 200 * scale))
+            }
+        }
+    }
+
+    // ---------- effects
+    func updateFx(_ dt: Double) {
+        for i in 0..<parts.count {
+            parts[i].t += dt
+            parts[i].vy += parts[i].grav * dt
+            parts[i].x += parts[i].vx * dt
+            parts[i].y += parts[i].vy * dt
+            if parts[i].y > 0 && parts[i].grav > 0 { parts[i].y = 0; parts[i].vx *= 0.5; parts[i].vy = 0 }
+        }
+        parts.removeAll { $0.t > $0.life }
+        for i in 0..<floaters.count { floaters[i].t += dt; floaters[i].y -= 50 * dt }
+        floaters.removeAll { $0.t > 0.8 }
+        for i in 0..<rings.count { rings[i].t += dt }
+        rings.removeAll { $0.t > $0.life }
+        for i in 0..<tracers.count { tracers[i].t += dt }
+        tracers.removeAll { $0.t > $0.life }
+        for i in 0..<booms.count { booms[i].t += dt }
+        booms.removeAll { $0.t > $0.life }
+        for i in 0..<slashes.count { slashes[i].t += dt }
+        slashes.removeAll { $0.t > 0.18 }
+        var blown: [Nade] = []
+        for i in 0..<nades.count { nades[i].t += dt; if nades[i].t >= nades[i].dur { blown.append(nades[i]) } }
+        nades.removeAll { $0.t >= $0.dur }
+        for n in blown { explode(n.x1, n.r, n.dmg) }
+        for i in 0..<waves.count {
+            let step = 950 * dt
+            waves[i].x += waves[i].dir * step
+            waves[i].left -= step
+            for z in floor.zeds where z.alive && abs(z.x - waves[i].x) < 46 && !waves[i].hit.contains(z.id) {
+                waves[i].hit.insert(z.id)
+                hit(z, waves[i].dmg, waves[i].dir, 520)
+            }
+            if chance(dt * 50) { parts.append(Part(x: waves[i].x, y: 0, vx: rnd(-60, 60), vy: -rnd(120, 360), t: 0, life: 0.4, size: rnd(5, 9), col: Col(0xd9d0bc), grav: 600, glow: false)) }
+        }
+        waves.removeAll { $0.left <= 0 || $0.x < 40 || $0.x > FLOOR_W - 40 }
+        for i in 0..<beams.count {
+            beams[i].t += dt
+            if !beams[i].done && beams[i].t > 0.55 {
+                beams[i].done = true
+                explode(beams[i].x, beams[i].r, beams[i].dmg)
+                flash = 0.3; flashCol = Col(0xbfe8ff)
+                shake = 22
+            }
+        }
+        beams.removeAll { $0.t > 1.0 }
+    }
+
+    // ---------- doors, holes, lifts, things on the floor
+    private func interact() {
+        let f = floor
+        let h = hero
+        for i in 0..<f.items.count where !f.items[i].used {
+            let it = f.items[i]
+            if abs(it.x - h.x) > 34 { continue }
+            if it.kind == 0 && h.hp < h.maxHp - 1 {
+                f.items[i].used = true
+                h.hp = min(h.maxHp, h.hp + 35)
+                floaters.append(Floater(x: h.x, y: -170, text: "+35", col: MINT, t: 0, size: 20))
+                snd?.heal(); buzz(1)
+            } else if it.kind == 2 {
+                f.items[i].used = true
+                hasSample = true
+                say("YOU HAVE THE SAMPLE. KEEP GOING DOWN.", 4)
+                snd?.pick(); buzz(2); save()
+            } else if it.kind == 3 {
+                f.items[i].used = true
+                valveShut = true
+                say("THE WATER IS OFF. NOW THE STREET.", 4)
+                rings.append(Ring(x: it.x, y: -80, r: 260, t: 0, life: 0.6, col: MINT))
+                snd?.pick(); buzz(2); save()
+            }
+        }
+        if supT >= 0 { return }
+        if f.kind == .wall {
+            let pairs: [(Double, Double, Double)] = [(f.doorA, f.doorB, 1), (f.doorB, f.doorA, -1)]
+            for (from, to, sd) in pairs where abs(h.x - from) < 30 && (h.x - f.wallX) * sd < 0 && input.move * sd > 0 {
+                puff(h.x, 0, 8, Col(0x8a8478))
+                h.x = to + sd * 64
+                h.face = sd
+                f.wallSide = sd
+                shake = max(shake, 9)
+                flash = 0.15; flashCol = MINT
+                puff(h.x, 0, 10, Col(0x8a8478))
+                floaters.append(Floater(x: h.x, y: -210, text: "THROUGH THE OFFICES", col: MINT, t: 0, size: 18))
+                snd?.door(); buzz(2)
+                return
+            }
+        }
+        if f.kind == .hole {
+            if abs(h.x - f.holeX) < 34 { startRide(.hole, to: descTarget(f.n, 2)); return }
+            if abs(h.x - f.exitX) < 60 && sayCd <= 0 { sayCd = 3; say(f.fireStairs ? "THE STAIRS ARE BURNING. USE THE HOLE." : "THE STAIRS ARE GONE. USE THE HOLE.") }
+            return
+        }
+        if f.kind == .lift {
+            if abs(h.x - f.liftX) < 40 {
+                if aliveCount == 0 { startRide(.lift, to: descTarget(f.n, 3)) } else if sayCd <= 0 { sayCd = 2.5; say("CLEAR THE FLOOR FIRST.  \(aliveCount) LEFT") }
+            } else if abs(h.x - f.exitX) < 60 && sayCd <= 0 { sayCd = 3; say("STAIRS BLOCKED. TAKE THE ELEVATOR.") }
+            return
+        }
+        if abs(h.x - f.exitX) < 38 {
+            if tower == 0 && f.n == 32 && !hasSample {
+                if sayCd <= 0 { sayCd = 3; say(aliveBoss ? "MARR FIRST." : "TAKE THE SAMPLE FIRST.") }
+                return
+            }
+            if tower == 0 && f.n == 12 && !valveShut {
+                if sayCd <= 0 { sayCd = 3; say("SHUT THE WATER MAIN FIRST.") }
+                return
+            }
+            if f.kind == .street { towerDone(); return }
+            startRide(.stairs, to: f.n - 1)
+        }
+    }
+    var aliveBoss: Bool { return floor.zeds.contains(where: { $0.alive && $0.kind == .boss }) }
+
+    func towerDone() {
+        snd?.ding(); buzz(3)
+        if tower < 2 { startTower(tower + 1) } else {
+            let d = UserDefaults.standard
+            d.removeObject(forKey: "fz.floor")
+            endT = 0
+            mode = .ending
+        }
+    }
+
+    // ---------- a simple player for screenshots and the balance run
+    var botStuck = 0.0
+    private func bot() {
+        let f = floor
+        let h = hero
+        var target = f.exitX
+        if f.kind == .hole { target = f.holeX }
+        if f.kind == .lift { target = aliveCount == 0 ? f.liftX : (nearestAny()?.x ?? f.liftX) }
+        if f.boss && aliveBoss { target = nearestAny()?.x ?? target }
+        for it in f.items where !it.used && (it.kind == 2 || it.kind == 3) { target = it.x }
+        for it in f.items where !it.used && it.kind == 0 && h.hp < h.maxHp * 0.6 && abs(it.x - h.x) < 500 { target = it.x }
+        if f.kind == .wall && (h.x - f.wallX) * (target - f.wallX) < 0 { target = h.x < f.wallX ? f.doorA : f.doorB }
+        var mv = sgn(target - h.x)
+        input.attack = false
+        if let z = nearest(120) {
+            h.face = z.x >= h.x ? 1 : -1
+            input.attack = true
+            if z.kind == .bloater || aliveCountNear(160) > 3 { mv = -h.face } else { mv = 0 }
+            if f.kind == .wall { mv = 0 }
+        }
+        if meter >= 100 && aliveCountNear(420) >= 2 { input.power = true }
+        if meter >= 100 && aliveBoss { input.power = true }
+        input.move = mv
+    }
+    func nearestAny() -> Zed? { return nearest(4000) }
+    func aliveCountNear(_ r: Double) -> Int { var n = 0; for z in floor.zeds where z.alive && abs(z.x - hero.x) < r { n += 1 }; return n }
+
+    func demo(_ what: String) {
+        clearSave()
+        tower = 0
+        hero = Hero()
+        ups = [:]
+        switch what {
+        case "play": ups = ["smg": 2, "nade": 1, "drone": 1]; floorN = 70
+        case "fire": ups = ["smg": 1, "flame": 1]; floorN = 78
+        case "dogs": ups = ["shotgun": 2, "tesla": 1, "minigun": 1, "smg": 2]; floorN = 54
+        case "boss": ups = ["smg": 3, "minigun": 2, "orbital": 2, "nade": 2, "armor": 2]; floorN = 32
+        case "hole": floorN = 82
+        case "lift": ups = ["smg": 3, "minigun": 3, "tesla": 2]; floorN = 75
+        case "pick": floorN = 78; picksDue = 1; ups = ["smg": 2, "nade": 1, "armor": 1]
+        default: floorN = 84
+        }
+        hero.x = 420
+        meter = 100
+        floor = makeFloor(floorN, entry: hero.x)
+        fixEntry()
+        for z in floor.zeds { z.aware = true }
+        announce()
+        if what == "pick" { rollPick(); mode = .pick; pickT = 0 } else { mode = .play; auto = true }
+    }
+
+    /// Plays all three towers with the bot, no drawing, and reports how it went.
+    func botRun(_ simMinutes: Double) -> String {
+        var out = "bot run\n"
+        clearSave()
+        auto = true
+        tower = 0
+        startTower(0)
+        var lastTower = 0
+        var lastDeaths = 0
+        var t0 = 0.0
+        var sim = 0.0
+        let dt = 1.0 / 30
+        var lowFloor = floorN
+        var stuckT = 0.0
+        var lastFloor = floorN
+        var stuckNote = ""
+        while sim < simMinutes * 60 && mode != .ending {
+            update(dt)
+            sim += dt
+            if mode == .card { cardT = 9 }
+            if floorN != lastFloor { lastFloor = floorN; stuckT = 0 } else { stuckT += dt }
+            if stuckT > 120 && stuckNote.isEmpty { stuckNote = "stuck on tower \(tower) floor \(floorN) kind \(floor.kind) x \(Int(hero.x)) alive \(aliveCount)\n" }
+            lowFloor = min(lowFloor, floorN)
+            if tower != lastTower {
+                out += "\(TOWERS[lastTower].who): done in \(String(format: "%.1f", (sim - t0) / 60)) min, deaths \(deaths - lastDeaths)\n"
+                lastTower = tower; lastDeaths = deaths; t0 = sim; lowFloor = floorN
+            }
+        }
+        if mode == .ending {
+            out += "\(TOWERS[lastTower].who): done in \(String(format: "%.1f", (sim - t0) / 60)) min, deaths \(deaths - lastDeaths)\n"
+            out += "FINISHED all three in \(String(format: "%.1f", sim / 60)) min, deaths \(deaths), kills \(kills)\n"
+        } else {
+            out += "NOT finished: tower \(tower) floor \(floorN) (lowest \(lowFloor)), deaths \(deaths), kills \(kills), upgrades \(ups)\n"
+        }
+        out += stuckNote
+        auto = false
+        clearSave()
+        mode = .title
+        return out
+    }
+}
