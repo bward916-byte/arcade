@@ -113,9 +113,9 @@ map:`<svg ${X}><rect x="2" y="3" width="16" height="14" rx="1" fill="#e2cf9a" st
 IC.quest=`<svg ${X}><path d="M10 2.5v9" stroke="#ffd257" stroke-width="3.6" stroke-linecap="round"/><circle cx="10" cy="16.5" r="2.1" fill="#ffd257"/></svg>`;IC.wheel=`<svg ${X}><circle cx="10" cy="10" r="6" fill="none" stroke="#caa46a" stroke-width="2"/><g stroke="#caa46a" stroke-width="1.6"><path d="M10 1v18M1 10h18M3.6 3.6l12.8 12.8M16.4 3.6L3.6 16.4"/></g><circle cx="10" cy="10" r="2" fill="#e8b93a"/></svg>`;IC.eye=`<svg ${X}><path d="M1 10c3-5 6-7 9-7s6 2 9 7c-3 5-6 7-9 7s-6-2-9-7z" fill="#f1e7cf" stroke="#5a3a17"/><circle cx="10" cy="10" r="3.6" fill="#2f6f8f"/><circle cx="10" cy="10" r="1.6" fill="#111"/></svg>`;IC.hammer=`<svg ${X}><path d="M4 17L12 8" stroke="#a8743c" stroke-width="2.6" stroke-linecap="round"/><path d="M9 3l8 6-2.5 3-8-6z" fill="#9aa2a8" stroke="#4a545a"/></svg>`;IC.arms=`<svg ${X}><path d="M3 17L15 3l2 0 0 2L5 19z" fill="#dfe4e8" stroke="#5a646a"/><path d="M17 17L5 3 3 3l0 2 12 14z" fill="#dfe4e8" stroke="#5a646a"/><path d="M2 14l4 4M18 14l-4 4" stroke="#e8b93a" stroke-width="2"/></svg>`;IC.crate=`<svg ${X}><rect x="2" y="3" width="16" height="14" rx="1" fill="#a8743c" stroke="#5a3a17"/><path d="M2 3l16 14M18 3L2 17" stroke="#5a3a17"/></svg>`;const IMG={};for(const k in IC){IMG[k]=new Image();IMG[k].src='data:image/svg+xml;utf8,'+encodeURIComponent(IC[k]);}
 
 const SHIPS=[
- {name:'Sloop',cost:300,speed:1.3,hold:120,hull:70,crew:6,masts:1,len:.8,desc:'Fast, small hold'},
+ {name:'Sloop',cost:300,speed:1.3,hold:120,hull:70,crew:6,masts:1,len:.8,desc:'Fast, cheap to feed'},
  {name:'Brig',cost:500,speed:1,hold:200,hull:100,crew:10,masts:2,len:1,desc:'Balanced'},
- {name:'Galleon',cost:650,speed:.8,hold:320,hull:140,crew:16,masts:3,len:1.22,desc:'Slow, tough, big hold'}];
+ {name:'Galleon',cost:560,speed:.8,hold:320,hull:140,crew:14,masts:3,len:1.22,desc:'Slow, tough, many mouths'}];
 const GOODS=[{k:'food',n:'Food',p:4},{k:'water',n:'Water',p:2},{k:'planks',n:'Planks',p:8},{k:'bait',n:'Bait',p:3},{k:'powder',n:'Powder',p:10},{k:'arms',n:'Blades',p:12}];
 const STAGES=[[{n:'Port Haven',pm:1,x:.05,y:.5,tp:{sugar:.7,spice:1,silk:1.2}}],
  [{n:'Gull Cay',pm:1.2,x:.24,y:.26,tp:{sugar:1.3,spice:.7,silk:1}},{n:'Shark Tooth Key',pm:1.3,x:.23,y:.74,tp:{sugar:1.1,spice:1.2,silk:.75}}],
@@ -126,7 +126,7 @@ const STAGES=[[{n:'Port Haven',pm:1,x:.05,y:.5,tp:{sugar:.7,spice:1,silk:1.2}}],
 const portAt=i=>STAGES[i][S.path[i]||0];
 const LEG=[260,300,280,340,320],DAYLEN=3.2;
 let S,M=null,PT=[],G={sx:0,sy:0,ex:0,ey:0,hudH:40,L:200,px:0,py:0,rx:0,ry:0};const Z={z:1,x:0,y:0};
-function newGame(){S={mode:'title',gold:1200,food:0,water:0,planks:0,bait:0,powder:0,crew:0,hull:0,ship:null,day:1,leg:0,dist:0,legLen:1,route:'sea',half:false,dayT:0,tod:.12,map:false,sinceEvent:0,lastEv:'',up:{hull:0,sail:0,hold:0,guns:0,fig:0,dye:0},path:[0,0,0,0,0,0],men:[],log:[],sugar:0,spice:0,silk:0,blk:false,fleet:false,battles:0,wx:0,wxT:0,vis:null,wind:1,scroll:0,loot:0,cargo:0,quest:null,act:null,focus:null,zT:1,shake:0,bossEv:false,boltT:0,sxk:.4,brk:0,arms:0,fought:false,warned:false,roles:{helm:0,rig:0,look:0,gun:0,cook:0,carp:0,fish:0}};M=null;}
+function newGame(){S={mode:'title',gold:1100,sea:0,halfDays:0,dead:[],food:0,water:0,planks:0,bait:0,powder:0,crew:0,hull:0,ship:null,day:1,leg:0,dist:0,legLen:1,route:'sea',half:false,dayT:0,tod:.12,map:false,sinceEvent:0,lastEv:'',up:{hull:0,sail:0,hold:0,guns:0,fig:0,dye:0},path:[0,0,0,0,0,0],men:[],log:[],sugar:0,spice:0,silk:0,blk:false,fleet:false,battles:0,wx:0,wxT:0,vis:null,wind:1,scroll:0,loot:0,cargo:0,quest:null,act:null,focus:null,zT:1,shake:0,bossEv:false,boltT:0,sxk:.4,brk:0,arms:0,fought:false,warned:false,roles:{helm:0,rig:0,look:0,gun:0,cook:0,carp:0,fish:0}};M=null;}
 const holdMax=()=>S.ship.hold+S.up.hold*60,hullMax=()=>S.ship.hull+S.up.hull*30,holdUsed=()=>S.food+S.water+S.planks+S.bait+S.powder+S.cargo+S.arms+S.sugar+S.spice+S.silk;
 function addGood(k,n){const a=Math.max(0,Math.min(n,Math.floor(holdMax()-holdUsed())));S[k]+=a;return a;}
 
@@ -139,7 +139,7 @@ function loadGame(){const o=LS.get('fh_save2');if(!o||o.ship==null||!SHIPS[o.shi
 function endCard(title,html){S.endT=title;S.endH=html;card(title,html,[["Captain's log",()=>showLog(0)],['Sail again',showTitle]]);}
 function showLog(pg){const per=H<480?4:7,n=S.log.length,pages=Math.max(1,Math.ceil(n/per));pg=clamp(pg,0,pages-1);
  const ic=t=>/pirate|blockade|Red Mary|boarding/i.test(t)?IC.arms:/gold|treasure|plunder|wreck/i.test(t)?IC.gold:/port|sailed|Aurelia/i.test(t)?IC.hull:/storm|spout|fog|becalmed/i.test(t)?IC.day:/whale|dolphin|fish|kraken/i.test(t)?IC.bait:IC.crew;
- let s=`<h2>Captain's log</h2><p style="margin:0 0 6px;font-size:14px">${S.ship.name} · ${S.day} days · ${S.gold} gold · ${S.crew} crew · page ${pg+1}/${pages}</p>`;
+ let s=`<h2>Captain's log</h2><p style="margin:0 0 6px;font-size:14px">${S.ship.name} · ${S.day} days · ${S.gold} gold · ${S.crew} crew · page ${pg+1}/${pages}</p>`+(S.dead&&S.dead.length?`<p style="margin:0 0 6px;font-size:13.5px;font-style:italic">Lost: ${S.dead.join(', ')}</p>`:'');
  S.log.slice(pg*per,pg*per+per).forEach(t=>s+=`<div class="row" style="padding:4px 8px"><span>${ic(t)}</span><span class="nm" style="font-size:14.5px;line-height:1.15">${t}</span></div>`);
  s+='<div class="btns"><button data-a="prev"'+(pg?'':' disabled')+'>Back</button><button data-a="next"'+(pg<pages-1?'':' disabled')+'>Next</button><button data-a="close" class="go">Close</button></div>';
  panel(s,{prev:()=>showLog(pg-1),next:()=>showLog(pg+1),close:()=>endCard(S.endT,S.endH)});}
@@ -152,7 +152,7 @@ function syncMen(){while(S.men.length<S.crew)S.men.push(newMan());while(S.men.le
  if(!S.postInit&&S.men.length){S.postInit=true;const pool=S.men.slice();for(const m of pool)m.post=null;for(const r of ROLES)for(let i=0;i<S.roles[r.k];i++){let j=pool.findIndex(m=>m.sk===r.k);if(j<0)j=0;if(pool[j]){pool[j].post=r.k;pool.splice(j,1);}}}
  for(const m of S.men)if(m.post===undefined)m.post=null;syncRoles();}
 function posted(){const out={idle:[]};for(const r of ROLES)out[r.k]=[];for(const m of S.men)(m.post?out[m.post]:out.idle).push(m);return out;}
-const E=k=>{let n=0;for(const m of S.men)if(m.post===k)n+=m.sk===k?1.5:1;return n;};
+
 const roleName=k=>ROLES.find(r=>r.k===k).n;
 
 /* ---------- ship look ---------- */
@@ -248,11 +248,19 @@ function drawChart(){const c=ctx,F='"IM Fell English",Georgia',PF='"Pirata One",
 /* ---------- audio ---------- */
 let AC,NB;
 function sfx(type){try{if(!AC){AC=new(window.AudioContext||window.webkitAudioContext)();NB=AC.createBuffer(1,AC.sampleRate*.5,AC.sampleRate);const d=NB.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;MG=AC.createGain();MG.gain.value=MU.on?1:0;MG.connect(AC.destination);startAmb();}if(AC.state==='suspended')AC.resume();
- const t=AC.currentTime,g=AC.createGain();g.connect(MG);
- const osc=(f0,f1,d,ty,v)=>{const o=AC.createOscillator();o.type=ty;o.frequency.setValueAtTime(f0,t);o.frequency.exponentialRampToValueAtTime(f1,t+d);g.gain.setValueAtTime(v,t);g.gain.exponentialRampToValueAtTime(.001,t+d);o.connect(g);o.start(t);o.stop(t+d);};
- const noise=(fr,ty,d,v)=>{const s=AC.createBufferSource(),f=AC.createBiquadFilter();s.buffer=NB;f.type=ty;f.frequency.value=fr;s.connect(f);f.connect(g);g.gain.setValueAtTime(v,t);g.gain.exponentialRampToValueAtTime(.001,t+d);s.start(t);s.stop(t+d);};
- if(type==='coin')osc(900,1500,.15,'square',.06);else if(type==='boom')noise(300,'lowpass',.45,.6);else if(type==='splash')noise(1800,'highpass',.3,.15);
- else if(type==='bad')osc(220,80,.35,'sawtooth',.1);else if(type==='good')osc(500,1000,.25,'triangle',.12);else osc(520,480,.05,'sine',.08);}catch(e){}}
+ const t=AC.currentTime,osc=(f0,f1,d,ty,v,dl)=>{const o=AC.createOscillator(),g=AC.createGain(),s0=t+(dl||0);g.connect(MG);o.type=ty;o.frequency.setValueAtTime(f0,s0);o.frequency.exponentialRampToValueAtTime(f1,s0+d);g.gain.setValueAtTime(v,s0);g.gain.exponentialRampToValueAtTime(.001,s0+d);o.connect(g);o.start(s0);o.stop(s0+d);},
+  noise=(fr,ty,d,v,dl)=>{const sc=AC.createBufferSource(),f=AC.createBiquadFilter(),g=AC.createGain(),s0=t+(dl||0);g.connect(MG);sc.buffer=NB;sc.loop=true;f.type=ty;f.frequency.value=fr;sc.connect(f);f.connect(g);g.gain.setValueAtTime(v,s0);g.gain.exponentialRampToValueAtTime(.001,s0+d);sc.start(s0);sc.stop(s0+d);};
+ if(type==='coin'){osc(900,1500,.12,'square',.05);osc(1350,2000,.14,'square',.04,.07);}
+ else if(type==='boom'){noise(300,'lowpass',.45,.6);osc(110,45,.3,'sine',.3);}
+ else if(type==='cannon'){noise(420,'lowpass',.7,.7);osc(150,36,.55,'sine',.5);noise(2500,'highpass',.08,.2);}
+ else if(type==='clang'){osc(2400,2300,.25,'square',.05);osc(3350,3200,.3,'triangle',.06);noise(5000,'highpass',.06,.2);}
+ else if(type==='thunder'){noise(120,'lowpass',1.8,.7);noise(400,'lowpass',.5,.35,.05);}
+ else if(type==='gull'){osc(1500,1100,.18,'sine',.035);osc(1600,1050,.22,'sine',.035,.24);osc(1500,1000,.25,'sine',.03,.5);}
+ else if(type==='dig'){noise(900,'bandpass',.16,.3);osc(180,90,.1,'sine',.15);}
+ else if(type==='splash'){noise(1800,'highpass',.3,.15);noise(600,'bandpass',.2,.12,.03);}
+ else if(type==='bad')osc(220,80,.35,'sawtooth',.1);
+ else if(type==='good'){osc(523,523,.12,'triangle',.11);osc(784,784,.24,'triangle',.11,.11);}
+ else osc(520,480,.05,'sine',.08);}catch(e){}}
 
 /* ---------- UI ---------- */
 let handlers={},barH={};
@@ -269,7 +277,7 @@ let toastT;function toast(t){if(!t)return;const e=$('toast');e.textContent=t;{co
 let hudStr='';
 function hud(){const e=$('hud');if(S.ship)syncMen();if(!S.ship||S.mode==='title'||S.mode==='pick'){if(hudStr){e.style.display='none';hudStr='';}return;}
  const it=(k,v,low)=>`<span class="${low?'low':''}">${IC[k]} <b>${v}</b></span>`;
- const s=it('day','Day '+S.day)+it('gold',S.gold)+it('food',Math.ceil(S.food),S.food<4)+it('water',Math.ceil(S.water),S.water<4)+it('planks',S.planks)+it('bait',S.bait)+it('powder',S.powder)+it('arms',S.arms)+it('crew',S.crew,S.crew<=S.ship.crew/3)+it('hull',Math.ceil(S.hull)+'<i><u style="width:'+clamp(S.hull/hullMax()*100,0,100)+'%"></u></i>',S.hull<hullMax()*.3)+(S.sugar+S.spice+S.silk?it('crate',S.sugar+S.spice+S.silk):'')+(S.map?it('map','Map'):'')+(S.quest?it('quest',S.quest.name+(S.quest.type==='fish'?' '+Math.min(2,S.quest.prog)+'/2':'')):'');
+ const s=it('day','Day '+S.day)+it('gold',S.gold)+it('food',Math.ceil(S.food),S.food<4)+it('water',Math.ceil(S.water),S.water<4)+it('planks',S.planks)+it('bait',S.bait)+it('powder',S.powder)+it('arms',S.arms)+it('crew',S.crew+(S.men.some(m=>!fit(m))?' <small style="color:#ff9a8a">−'+S.men.filter(m=>!fit(m)).length+'</small>':''),S.crew<=S.ship.crew/3||S.men.filter(fit).length<=S.ship.crew/2)+it('hull',Math.ceil(S.hull)+'<i><u style="width:'+clamp(S.hull/hullMax()*100,0,100)+'%"></u></i>',S.hull<hullMax()*.3)+(S.sugar+S.spice+S.silk?it('crate',S.sugar+S.spice+S.silk):'')+(S.map?it('map','Map'):'')+(S.quest?it('quest',S.quest.name+(S.quest.type==='fish'?' '+Math.min(2,S.quest.prog)+'/2':'')):'');
  if(s!==hudStr){hudStr=s;e.innerHTML=s;e.style.display='flex';G.hudH=e.offsetHeight;}}
 
 /* ---------- flow ---------- */
@@ -291,30 +299,47 @@ function showMarket(pm,title,auto,done){const bought={},port=portAt(S.leg);let t
    let tip='';if(S.leg<5){let best=null;for(const g of TG)for(const q of STAGES[S.leg+1]){const m=tSell(g,q)-tBuy(g,port);if(!best||m>best.m)best={m,g,q};}if(best&&best.m>0)tip=`${best.g.n} bought here sells for ${tSell(best.g,best.q)} in ${best.q.n}.`;}
    s+=`<p class="tip">+ buys 5, − sells 5. ${tip}</p>`;}
   s+=`<p class="st">${IC.gold} ${S.gold} &nbsp;·&nbsp; Hold ${Math.ceil(holdUsed())}/${holdMax()}</p><div class="btns">`+(auto&&tab==='sup'?'<button data-a="auto">Stock for me</button>':'')+'<button data-a="done" class="go">Done</button></div>';
-  h.auto=()=>{const per=S.crew/5,want={water:Math.ceil(per*14),food:Math.ceil(per*14),planks:6,bait:6,powder:5,arms:Math.ceil(S.crew*.7)};
+  h.auto=()=>{const per=S.crew*.35,want={water:Math.ceil(per*9),food:Math.ceil(per*10),planks:6,bait:6,powder:5,arms:Math.ceil(S.crew*.7)};
    for(const k of['water','food','planks','bait','powder','arms']){const pr=Math.round(GOODS.find(g=>g.k===k).p*pm);const n=Math.max(0,Math.min(want[k]-S[k],Math.floor(S.gold/pr),Math.floor(holdMax()-holdUsed())));S[k]+=n;S.gold-=n*pr;bought[k]=(bought[k]||0)+n;}render();};
   h.done=()=>{if(done()!==false&&S.mode==='port')closePanel();};panel(s,h);mkt=true;};render();}
 function chooseRoute(){openChart();}
-function startLeg(r){S.route=r;S.dist=0;S.legLen=LEG[S.leg]*(r==='sea'?.85:1.15);S.dayT=0;S.sinceEvent=0;logIt('Sailed from '+portAt(S.leg).n+' for '+portAt(S.leg+1).n);resume();saveGame();}
+const WAGE=5,wagesDue=()=>S.crew*WAGE;
+function payWages(){const due=wagesDue();if(S.gold>=due){S.gold-=due;const t='Wages paid: '+due+' gold';toast(t);logIt(t);return;}
+ const short=Math.ceil((due-S.gold)/WAGE),gone=[];S.gold=0;for(let i=0;i<short;i++)if(S.crew>2&&Math.random()<.6){const p=S.men.filter(fit),m=p.length?p[RI(0,p.length-1)]:S.men[0];if(m){S.men.splice(S.men.indexOf(m),1);S.crew--;gone.push(m.n);}}syncRoles();
+ const t=short+(short>1?' men':' man')+' went unpaid'+(gone.length?' — '+gone.join(', ')+(gone.length>1?' desert':' deserts'):' — they grumble but stay');toast(t);logIt(t);sfx('bad');}
+function startLeg(r){if(S.leg>0)payWages();S.route=r;S.dist=0;S.legLen=LEG[S.leg]*(r==='sea'?.85:1.15);S.dayT=0;S.sinceEvent=0;logIt('Sailed from '+portAt(S.leg).n+' for '+portAt(S.leg+1).n);resume();saveGame();}
 function sailBar(){setBar([['Rations: '+(S.half?'Half':'Full'),()=>{S.half=!S.half;sailBar();}],['Stop & fish',()=>{if(S.bait<1){toast('No bait');return;}passDays(1);if(S.mode!=='end')startFish();},''],['Crew',openShip]]);}
 function resume(){if(S.mode==='end')return;S.mode='sail';S.vis=null;S.wxT=0;M=null;S.focus=null;S.act=null;S.bossEv=false;S.fleet=false;closePanel();sailBar();}
 function done(msg){toast(msg);resume();}
-function dmg(n){S.hull=Math.max(0,S.hull-n);if(S.hull<=0)gameOver('Your ship broke apart and sank.');}
-function loseCrew(msg){syncMen();const p=posted(),pool=p.idle.length?p.idle:S.men,v=pool[RI(0,pool.length-1)],nm=v?v.n:'A sailor';if(v)S.men.splice(S.men.indexOf(v),1);S.crew--;trimRoles();const t=/a sailor/i.test(msg)?msg.replace(/a sailor/i,nm):nm+' — '+msg.charAt(0).toLowerCase()+msg.slice(1);toast(t);logIt(t);sfx('bad');if(S.crew<=0)gameOver('The last of your crew is gone.');}
-function consume(m){const u=S.crew/5*(S.half?.5:1)*(m||1);S.food=Math.max(0,S.food-u*(1-.15*E('cook')));S.water=Math.max(0,S.water-u);
- if(S.water<=0)loseCrew('No water — a sailor dies');else if(S.food<=0){if(Math.random()<.6)loseCrew('Starving — a sailor dies');}
- else if(S.half&&Math.random()<.07)loseCrew('Weak from half rations — a sailor dies');}
+function dmg(n){try{navigator.vibrate&&navigator.vibrate(70);}catch(e){}S.hull=Math.max(0,S.hull-n);if(S.hull<=0)gameOver('Your ship broke apart and sank.');}
+function loseCrew(msg){syncMen();const p=posted(),pool=p.idle.length?p.idle:S.men,v=pool[RI(0,pool.length-1)],nm=v?v.n:'A sailor';if(v){S.men.splice(S.men.indexOf(v),1);(S.dead=S.dead||[]).push(v.n);}S.crew--;trimRoles();const t=/a sailor/i.test(msg)?msg.replace(/a sailor/i,nm):nm+' — '+msg.charAt(0).toLowerCase()+msg.slice(1);toast(t);logIt(t);sfx('bad');if(S.crew<=0)gameOver('The last of your crew is gone.');}
+const fit=m=>!m.st||m.st==='ok',knows=(m,k)=>m.sk===k||m.sk2===k;
+const E=k=>{let n=0;for(const m of S.men)if(m.post===k&&fit(m))n+=knows(m,k)?1.5:1;return n;};
+function killMan(m,how){const i=S.men.indexOf(m);if(i<0)return;S.men.splice(i,1);S.crew--;(S.dead=S.dead||[]).push(m.n);syncRoles();const t=m.n+' '+how;toast(t);logIt(t);sfx('bad');if(S.crew<=0)gameOver('The last of your crew is gone.');}
+function layUp(m,st,days,why){if(!m||!fit(m))return false;m.st=st;m.d=days;m.post=null;syncRoles();const t=m.n+(st==='hurt'?' is wounded':' falls sick')+(why?' — '+why:'');toast(t);logIt(t);sfx('bad');return true;}
+function hurtOne(why,post){syncMen();const pool=S.men.filter(fit);if(!pool.length)return;const c=post?pool.filter(m=>m.post===post):[],p=c.length?c:pool;layUp(p[RI(0,p.length-1)],'hurt',RI(3,5),why);}
+function sickOne(why){syncMen();const pool=S.men.filter(fit);if(!pool.length){const m=S.men[RI(0,S.men.length-1)];if(m)killMan(m,'dies — '+why);return;}layUp(pool[RI(0,pool.length-1)],'sick',RI(4,6),why);}
+function crewDay(){const cook=E('cook')>0;for(const m of S.men.slice()){if(m.st==='hurt'){if(--m.d<=0){m.st='ok';toast(m.n+' is back on his feet');}}
+  else if(m.st==='sick'){if(Math.random()<.09*(S.food<=0||S.water<=0?2.5:1)*(cook?.6:1)){killMan(m,'dies of fever');if(S.mode==='end')return;}else if(--m.d<=0){m.st='ok';toast(m.n+' has recovered');}}
+  else if(m.post){m.xp=m.xp||{};m.xp[m.post]=(m.xp[m.post]||0)+1;if(m.xp[m.post]===6&&!knows(m,m.post)&&!m.sk2){m.sk2=m.post;const t=m.n+' has learned the '+roleName(m.post).toLowerCase()+' ★';toast(t);logIt(t);}}}}
+function consume(m){const u=S.crew*.35*(S.half?.5:1)*(m||1);S.food=Math.max(0,S.food-u*(1-.15*Math.min(2,E('cook'))));S.water=Math.max(0,S.water-u);S.sea=(S.sea||0)+1;{const rot=S.food*.02*(S.sea>5?2:1)*(E('cook')>0?.5:1);S.food-=rot;S.rot=(S.rot||0)+rot;if(S.rot>=4){toast(Math.floor(S.rot)+' food spoiled in the hold');S.rot-=Math.floor(S.rot);}}S.halfDays=S.half?(S.halfDays||0)+1:0;
+ const sk=S.men.find(x=>x.st==='sick');
+ if(S.water<=0){if(sk&&Math.random()<.6)killMan(sk,'dies of thirst');else sickOne('no water');}
+ else if(S.food<=0){if(Math.random()<.6){if(sk&&Math.random()<.5)killMan(sk,'starves');else sickOne('no food');}}
+ else if(S.half&&Math.random()<.14)sickOne('weak on half rations');
+ else if(S.sea>9&&Math.random()<.12*(E('cook')>0?.5:1))sickOne('scurvy, too long at sea');
+ if(S.mode!=='end')crewDay();}
 function passDays(n){for(let i=0;i<n&&S.mode!=='end';i++){S.day++;consume();}}
-function dps(){return 42*S.ship.speed*(1+.15*S.up.sail)*(S.crew<S.ship.crew/2?.75:1)*S.wind*(1+.08*E('helm')+.04*E('rig'));}
+function dps(){return 42*S.ship.speed*(1+.15*S.up.sail)*(S.men.filter(fit).length<S.ship.crew/2?.75:1)*S.wind*(1+.08*E('helm')+.04*E('rig'));}
 function nextDay(){if(S.demo){S.day++;return;}S.day++;consume();if(S.mode==='end')return;saveGame();if(S.leg===4&&!S.blk&&S.dist>S.legLen*.55){S.blk=true;doEvent('blockade');return;}if(S.roles.carp&&S.hull<hullMax())S.hull=Math.min(hullMax(),S.hull+3*E('carp'));for(let i=0;i<S.roles.fish;i++)if(S.bait>0&&Math.random()<.55){addGood('food',2);if(Math.random()<.25)S.bait--;}S.wind=R(.8,1.2);S.sinceEvent++;if(S.sinceEvent>=3||Math.random()<.4)rollEvent();}
-function arrive(){S.leg++;S.dist=0;setBar([]);sfx('good');let qm='';const q=S.quest;
+function arrive(){S.leg++;S.dist=0;S.sea=0;if((S.halfDays||0)>=3&&S.crew>2){const p=S.men.filter(fit),m=p[RI(0,p.length-1)];if(m){S.men.splice(S.men.indexOf(m),1);S.crew--;syncRoles();const t=m.n+' deserts in port — sick of half rations';setTimeout(()=>toast(t),1500);logIt(t);}}S.halfDays=0;setBar([]);sfx('good');let qm='';const q=S.quest;
  if(q){const ok=q.type==='delivery'||(q.type==='fish'&&q.prog>=2)||(q.type==='rescue'&&q.done);if(ok){S.gold+=q.reward;qm=`<br>Quest complete — ${q.name}: +${q.reward} gold`;logIt('Quest done: '+q.name);}else qm=`<br>Quest failed — ${q.name}`;S.cargo=0;S.quest=null;}
  S.vis='port';S.focus='isle';S.zT=1.7;logIt('Made port at '+portAt(S.leg).n);
  if(S.leg>=5){let cg=0;for(const g of TG){cg+=S[g.k]*tSell(g,portAt(5));S[g.k]=0;}S.gold+=cg;if(cg)qm+=`<br>Cargo sold on the quay: +${cg} gold`;
   S.mode='end';const sc=S.gold+S.crew*50+Math.ceil(S.hull)+Math.max(0,(45-S.day)*20);LS.del('fh_save2');
   const b=(LS.get('fh_best')||[]).concat([{sc,ship:S.ship.name,day:S.day}]).sort((x,y)=>y.sc-x.sc).slice(0,5);LS.set('fh_best',b);const best=b[0].sc===sc;
   endCard('Santa Aurelia!',`You made port on day ${S.day} with ${S.crew} crew and ${S.gold} gold.${qm}<br>Score: <b>${sc}</b>${best?' — your best voyage yet!':' · best '+b[0].sc}`);return;}
- S.mode='event';saveGame(true);card(portAt(S.leg).n,'Day '+S.day+'. Land at last.'+qm,[['Go ashore',()=>startPort(S.leg)]]);}
+ S.mode='event';saveGame(true);card(portAt(S.leg).n,'Day '+S.day+'. Land at last.'+qm+'<br>Wages of '+wagesDue()+' gold fall due when you sail.',[['Go ashore',()=>startPort(S.leg)]]);}
 function gameOver(why){S.mode='end';M=null;setBar([]);sfx('bad');LS.del('fh_save2');logIt(why);endCard('Lost at sea',`${why}<br>Day ${S.day}, ${Math.round((S.leg+Math.min(1,S.dist/S.legLen))/5*100)}% of the way.`);}
 
 /* ---------- events ---------- */
@@ -346,7 +371,7 @@ function doEvent(k){S.mode='event';S.vis=k;S.lastEv=k;setBar([]);logIt(EVT[k]||k
  else if(k==='wreck')card('Wreckage','A broken hull drifts ahead, half under.',[['Salvage the deck',()=>act('prop',2.8,()=>{const r=Math.random();if(r<.25)done('+'+addGood('planks',6)+' planks');else if(r<.5){const g=RI(40,120);S.gold+=g;sfx('coin');done('A strongbox! +'+g+' gold');}else if(r<.75)done('+'+addGood('food',8)+' food');else if(r<.9)done('+'+addGood('powder',3)+' powder');else{dmg(8);sfx('bad');done('The wreck rolls and gouges your hull');}}),false,'safe, small find'],['Dive the hold',startDive,false,'risky, big find'],['Sail on',on]]);
  else if(k==='island')card('Land ho!',S.map?'It matches your treasure map!':'An uncharted island.',[['Go ashore',()=>act('isle',2.4,startIsland),false,'costs a day'],['Sail on',on]]);
  else if(k==='calm')card('Becalmed','The sails hang limp. Not a breath of wind.',[['Man the oars',()=>{consume();done('Extra rations used');},false,'extra rations'],['Wait for wind',()=>{passDays(2);done('Lost 2 days');},false,'lose 2 days']]);
- else if(k==='sick')card('Fever aboard','Half the watch is laid out on deck.',[['Rest a day',()=>{passDays(1);done('The crew recovers');},false,'lose 1 day'],['Press on',()=>{if(Math.random()<.5)loseCrew('The fever takes a sailor');resume();},false,'risk a sailor']]);
+ else if(k==='sick')card('Fever aboard','Half the watch is laid out on deck.',[['Rest a day',()=>{sickOne('the fever');passDays(1);done('Rest and broth — only one man down');},false,'lose 1 day · one falls sick'],['Press on',()=>{sickOne('the fever');if(S.mode!=='end'&&Math.random()<.5)sickOne('the fever');resume();},false,'more will fall sick']]);
  else if(k==='merchant'){const buy=(g,n,c)=>()=>{if(S.gold<c){toast('Not enough gold');return;}const a=addGood(g,n);if(!a){toast('Hold is full');return;}S.gold-=c;toast('+'+a+' '+g);mer();};
   const mer=()=>card('Merchant ship','They offer to trade.',[['Food ×10',buy('food',10,50),false,'50 gold'],['Water ×10',buy('water',10,30),false,'30 gold'],['Planks ×5',buy('planks',5,50),false,'50 gold'],['Sail on',on]]);mer();}
  else if(k==='bottle')card('Something in the water','A corked bottle bobs in the swell.',[['Fish it out',()=>act('prop',2.3,()=>{S.vis=null;if(!S.map){S.map=true;sfx('good');card('A treasure map!','An island is marked on the route ahead.',[['Chart the course',on]]);}else{S.gold+=30;sfx('coin');done('A few coins inside: +30 gold');}})],['Sail on',on]]);
@@ -485,26 +510,26 @@ function drawSea(dt){const c=ctx,hz=H*.52,t=S.tod;
   const pp=(S.leg+clamp(S.dist/S.legLen,0,1))/5,mxp=lerp(x0,x1,Math.min(1,pp));c.fillStyle='#fff';c.beginPath();c.moveTo(mxp+8,y);c.lineTo(mxp-6,y-7);c.lineTo(mxp-6,y+7);c.fill();
   c.fillStyle='rgba(255,243,212,.85)';c.font=12*Math.min(US,1.2)+'px "IM Fell English",Georgia';c.textAlign='center';if(S.leg<5&&S.mode!=='end'&&S.vis!=='port')c.fillText(portAt(S.leg+1).n+' — '+Math.max(0,Math.ceil(S.legLen-S.dist))+' leagues',W/2,y+20);}
  // battle gauge
- if(S.mode==='battle'&&M&&!M.over){const bw=Math.min(W*.8,420),bx=(W-bw)/2,by=H-116,bh=18;gauge(c,bx,by,bw,bh,1,'#b0452e','#5a160e');{const z0=clamp(M.zc-M.zw/2,0,1),z1=clamp(M.zc+M.zw/2,0,1),g2=c.createLinearGradient(0,by,0,by+bh);g2.addColorStop(0,'#b4f5b0');g2.addColorStop(1,'#2f9a4a');c.save();c.fillStyle=g2;c.shadowColor='#7dff9a';c.shadowBlur=12;c.fillRect(bx+z0*bw,by,(z1-z0)*bw,bh);c.restore();const nx=bx+M.n*bw;c.fillStyle='#fff6d8';c.strokeStyle='#2a1808';c.lineWidth=1.5;c.fillRect(nx-1.5,by-5,3,bh+10);c.beginPath();c.moveTo(nx,by+bh+3);c.lineTo(nx-8,by+bh+15);c.lineTo(nx+8,by+bh+15);c.closePath();c.fill();c.stroke();}c.fillStyle='#fff3d4';c.font='14px "IM Fell English",Georgia';c.textAlign='center';c.fillText('Fire when the marker is in the green',W/2,by-12);}
+ if(S.mode==='battle'&&M&&!M.over){const bw=Math.min(W*.8,420),bx=(W-bw)/2,by=H-116,bh=18;gauge(c,bx,by,bw,bh,1,'#b0452e','#5a160e');{const z0=clamp(M.zc-M.zw/2,0,1),z1=clamp(M.zc+M.zw/2,0,1),g2=c.createLinearGradient(0,by,0,by+bh);g2.addColorStop(0,'#b4f5b0');g2.addColorStop(1,'#2f9a4a');c.save();c.fillStyle=g2;c.shadowColor='#7dff9a';c.shadowBlur=12;c.fillRect(bx+z0*bw,by,(z1-z0)*bw,bh);c.restore();const nx=bx+M.n*bw;c.fillStyle='#fff6d8';c.strokeStyle='#2a1808';c.lineWidth=1.5;c.fillRect(nx-1.5,by-5,3,bh+10);c.beginPath();c.moveTo(nx,by+bh+3);c.lineTo(nx-8,by+bh+15);c.lineTo(nx+8,by+bh+15);c.closePath();c.fill();c.stroke();}c.fillStyle='#fff3d4';c.font='14px "IM Fell English",Georgia';c.textAlign='center';c.save();c.shadowColor='#000';c.shadowBlur=5;c.fillText('Fire when the marker is in the green',W/2,by-30);c.font='italic 12px "IM Fell English",Georgia';c.fillText('Round holes her hull · Chain slows her guns · Grape thins her crew',W/2,by-12,W-16);c.restore();}
 }
 
 /* ---------- battle ---------- */
-function startBattle(){closePanel();S.mode='battle';S.vis='pirates';S.focus=null;const boss=S.bossEv&&!S.fleet;S.battles++;M={ehp:S.fleet?6:boss?5:3,max:S.fleet?6:boss?5:3,boss,n:0,dir:1,spd:.85,zc:R(.3,.7),zw:.12+.05*S.crew/S.ship.crew+.05*E('gun')+.03*S.up.guns,balls:[],et:2.6,cool:0,over:false,sunk:0};setBar([['FIRE',fire,'go']]);}
-function fire(){if(!M||M.over||M.cool>0)return;if(S.powder<1){toast('No powder!');return;}S.powder--;M.cool=.7;const d=M.n-M.zc;M.balls.push({t:0,d:.9,hit:Math.abs(d)<M.zw/2,en:false,over:d>0});sfx('boom');puff(G.sx+G.L*.3,G.sy-G.L*.1,10,'rgba(230,230,230,.8)',40,0,7*US,.8);flashFx(G.sx+G.L*.34,G.sy-G.L*.1,30*US,'rgba(255,190,80,.9)');}
-function updBattle(dt){if(!M)return;if(M.sunk){M.sunk+=dt*.6;return;}M.n+=M.dir*M.spd*dt;if(M.n>1){M.n=1;M.dir=-1;}if(M.n<0){M.n=0;M.dir=1;}M.cool-=dt;
- if(!M.over){M.et-=dt;if(M.et<=0){M.et=R(2.6,3.8)*(S.fleet?.6:1);M.balls.push({t:0,d:1,hit:Math.random()<.5,en:true});sfx('boom');puff(G.ex-G.L*.15,G.ey-G.L*.06,8,'rgba(210,210,210,.8)',30,0,5*US,.7);flashFx(G.ex-G.L*.17,G.ey-G.L*.06,20*US,'rgba(255,190,80,.9)');}}
+function startBattle(){closePanel();S.mode='battle';S.vis='pirates';S.focus=null;const boss=S.bossEv&&!S.fleet;S.battles++;M={ehp:S.fleet?6:boss?5:3,max:S.fleet?6:boss?5:3,boss,n:0,dir:1,spd:.85,zc:R(.3,.7),zw:.12+.05*S.crew/S.ship.crew+.05*E('gun')+.03*S.up.guns,balls:[],et:2.6,cool:0,over:false,sunk:0,chain:0,grape:0};setBar([['Round shot',()=>fire('round'),'go'],['Chain',()=>fire('chain')],['Grape',()=>fire('grape')]]);}
+function fire(kind){if(!M||M.over||M.cool>0)return;if(S.powder<1){toast('No powder!');return;}S.powder--;M.cool=.7;const d=M.n-M.zc;M.balls.push({t:0,d:.9,hit:Math.abs(d)<M.zw/2,en:false,over:d>0,kind:typeof kind==='string'?kind:'round'});sfx('cannon');puff(G.sx+G.L*.3,G.sy-G.L*.1,10,'rgba(230,230,230,.8)',40,0,7*US,.8);flashFx(G.sx+G.L*.34,G.sy-G.L*.1,30*US,'rgba(255,190,80,.9)');}
+function updBattle(dt){if(!M)return;if(M.sunk){M.sunk+=dt*.6;return;}if(M.ehp<M.max&&Math.random()<dt*(M.max-M.ehp)*5){puff(G.ex+R(-.16,.16)*G.L,G.ey-G.L*.14,1,'rgba(38,38,44,.5)',22,-70,9*US,1.7);if(M.ehp<=1)puff(G.ex+R(-.1,.1)*G.L,G.ey-G.L*.1,1,'rgba(255,150,50,.8)',30,-90,5*US,.6);}M.n+=M.dir*M.spd*dt;if(M.n>1){M.n=1;M.dir=-1;}if(M.n<0){M.n=0;M.dir=1;}M.cool-=dt;
+ if(!M.over){M.et-=dt;if(M.et<=0){M.et=R(2.6,3.8)*(S.fleet?.6:1)*(1+M.chain*.35);M.balls.push({t:0,d:1,hit:Math.random()<Math.max(.2,.5-M.grape*.1),en:true});sfx('cannon');puff(G.ex-G.L*.15,G.ey-G.L*.06,8,'rgba(210,210,210,.8)',30,0,5*US,.7);flashFx(G.ex-G.L*.17,G.ey-G.L*.06,20*US,'rgba(255,190,80,.9)');}}
  for(let i=M.balls.length-1;i>=0;i--){const b=M.balls[i];b.t+=dt;if(b.t<b.d)continue;M.balls.splice(i,1);
   if(b.hit){sfx('boom');flashFx(b.x,b.y,52*US,'rgba(255,170,60,.9)');puff(b.x,b.y,8,'rgba(50,50,55,.6)',45,-50,9*US,1.3);puff(b.x,b.y,16,'#ffb347',120,200,4*US,.6);puff(b.x,b.y,8,'#5a3a1c',150,300,3*US,.8);
-   if(b.en){S.shake=.3;dmg(RI(5,9));if(S.mode==='end')return;}else{M.ehp--;M.zc=R(.25,.75);M.spd*=1.3;if(M.ehp<=0){M.over=true;setBar([]);let g=RI(90,220),ttl='Victory!';if(S.fleet){g+=200;ttl='The blockade is broken!';}if(M.boss&&S.quest){g+=S.quest.reward;ttl='The Red Mary is sunk!';}S.focus='enemy';S.zT=1.7;sfx('good');const bm=M,bq=M.boss;
+   if(b.en){S.shake=.3;dmg(RI(5,9));if(S.mode==='end')return;if(Math.random()<.35)hurtOne('hit by splinters','gun');}else if(b.kind==='chain'){M.chain++;M.zc=R(.25,.75);M.spd*=.82;toast('Her rigging is shredded — her guns fall behind');}else if(b.kind==='grape'){M.grape++;M.zc=R(.25,.75);toast('Grape sweeps her deck — fewer hands to fight');}else{M.ehp--;M.zc=R(.25,.75);M.spd*=1.3;if(M.ehp<=0){M.over=true;setBar([]);let g=RI(90,220),ttl='Victory!';if(S.fleet){g+=200;ttl='The blockade is broken!';}if(M.boss&&S.quest){g+=S.quest.reward;ttl='The Red Mary is sunk!';}S.focus='enemy';S.zT=1.7;sfx('good');const bm=M,bq=M.boss;
     const sink=()=>{bm.sunk=.01;logIt('Sank a pirate ship');if(bq)S.quest=null;S.gold+=g;const p=addGood('powder',2);card(ttl,'She goes down by the head.<br>Plunder: '+g+' gold'+(p?', '+p+' powder':''),[['Sail on',resume]]);};
-    card('She strikes her colours','Her guns are silent. Board her for the full prize, or send her to the bottom.',[['Board her',()=>startBoard(bq?g-(S.quest?S.quest.reward:0):g,bq?7:5),false,S.arms<1?'no blades · very risky':'double plunder · risk crew'],['Sink her',sink,false,g+' gold']]);return;}}}
+    card('She strikes her colours','Her guns are silent. Board her for the full prize, or send her to the bottom.',[['Board her',()=>startBoard(bq?g-(S.quest?S.quest.reward:0):g,Math.max(2,(bq?7:5)-bm.grape*2)),false,S.arms<1?'no blades · very risky':'double plunder · risk crew'],['Sink her',sink,false,g+' gold']]);return;}}}
   else{sfx('splash');puff(b.x,b.y+10,14,'rgba(255,255,255,.8)',90,260,3*US,.6);for(let k=0;k<14;k++)PT.push({x:b.x+R(-5,5)*US,y:b.y+10,vx:R(-16,16),vy:R(-260,-110),g:420,r:R(2,4.5)*US,l:0,m:R(.6,1),col:'rgba(255,255,255,.85)'});}}
  if(!M.over&&S.powder<1&&!M.balls.some(b=>!b.en)){M.over=true;setBar([]);const l=Math.round(S.gold*.25);S.gold-=l;dmg(10);if(S.mode==='end')return;card('Out of powder','You break away, but they take their share.<br>Lost '+l+' gold.',[['Sail on',resume]]);}}
 
 /* ---------- storm ---------- */
 function startStorm(reef){closePanel();setBar([]);S.mode='storm';M={t:0,x:W/2,vx:0,tx:W/2,rocks:[],picks:[],sp:1.2,row:0,shake:0,flash:0,reef:reef===true,fleet:reef==='fleet',dur:reef===true?16:reef==='fleet'?20:24,gust:0,gd:1,gn:R(3,4.5),trail:[],tt:0,got:0,lastG:W/2};toast(M.fleet?'Steer between the ships!':M.reef?'Thread the channel — mind the current':'Hold her steady — watch for gusts');}
 const stormV=()=>H*.36+M.t*7;
-function updStorm(dt){M.t+=dt;M.sp-=dt;M.shake=Math.max(0,M.shake-dt);M.flash=Math.max(0,M.flash-dt);if(!M.reef&&Math.random()<dt*.25){M.flash=.25;M.bx=R(0,W);}
+function updStorm(dt){M.t+=dt;M.sp-=dt;M.shake=Math.max(0,M.shake-dt);M.flash=Math.max(0,M.flash-dt);if(!M.reef&&Math.random()<dt*.25){M.flash=.25;M.bx=R(0,W);sfx('thunder');}
  M.gn-=dt;if(M.gn<=0&&M.t<M.dur-4){M.gd=M.x>W/2?-1:1;if(Math.random()<.3)M.gd=-M.gd;M.gust=1.8;M.gn=R(4.5,7);sfx('splash');}M.gust=Math.max(0,M.gust-dt);
  const push=M.gust>0?M.gd*Math.sin(Math.min(1,(1.8-M.gust)/.4)*1.57)*Math.min(1,M.gust/.4)*(M.reef?130:190)*US:0;
  if(M.sp<=0&&M.t<M.dur-3.5){M.row++;const wide=W>H?1.25:1,gapW=clamp(156-M.t*1.6,112,156)*US*wide;
@@ -517,7 +542,7 @@ function updStorm(dt){M.t+=dt;M.sp-=dt;M.shake=Math.max(0,M.shake-dt);M.flash=Ma
  const v=stormV(),sy=H*.72;
  for(let i=M.picks.length-1;i>=0;i--){const p=M.picks[i];p.y+=v*dt;if(Math.hypot(p.x-M.x,p.y-sy)<36*US){M.picks.splice(i,1);const a=addGood(p.k,p.k==='planks'?2:3);M.got+=a;sfx('coin');toast(a?'Fished out '+a+' '+p.k:'Hold is full');}else if(p.y>H+60)M.picks.splice(i,1);}
  for(let i=M.rocks.length-1;i>=0;i--){const r=M.rocks[i];r.y+=v*dt;const ex=(r.x-M.x)/(r.r*(M.fleet?.85:.95)+11*US),ey=(r.y-sy)/(r.r*(M.fleet?1.55:.95)+25*US);
-  if(ex*ex+ey*ey<1){M.rocks.splice(i,1);M.shake=.35;M.vx+=(M.x>=r.x?1:-1)*240*US;sfx('boom');puff(r.x,r.y,14,'#fff',140,200,3*US,.5);puff(M.x,sy-10*US,8,'#8a6a3a',120,200,3*US,.6);dmg(M.fleet?9:M.reef?6:Math.max(4,7-1.5*E('rig')));if(S.mode==='end')return;}else if(r.y>H+60)M.rocks.splice(i,1);}
+  if(ex*ex+ey*ey<1){M.rocks.splice(i,1);M.shake=.35;M.vx+=(M.x>=r.x?1:-1)*240*US;sfx('boom');puff(r.x,r.y,14,'#fff',140,200,3*US,.5);puff(M.x,sy-10*US,8,'#8a6a3a',120,200,3*US,.6);dmg(M.fleet?9:M.reef?6:Math.max(4,7-1.5*E('rig')));if(S.mode==='end')return;if(Math.random()<.25)hurtOne(M.fleet?'hit by shot':'thrown across the deck');}else if(r.y>H+60)M.rocks.splice(i,1);}
  if(M.t>M.dur){const rf=M.reef;S.mode='event';S.vis=null;S.wxT=0;sfx('good');if(rf)S.dist+=40;if(M.fleet)logIt('Ran the blockade');card(M.fleet?'Through the line':rf?'Through the shoals':'Clear skies',M.fleet?'Shot howls overhead, but you are through. Santa Aurelia lies ahead.':rf?'Clean through. You saved 40 leagues.':'You came through the storm.',[['Sail on',resume]]);}}
 function drawStorm(){const c=ctx,v=stormV(),sy=H*.72,heel=clamp(M.vx/(420*US),-1,1),gp=M.gust>0?M.gd*Math.min(1,M.gust/.4,(1.8-M.gust)/.3):0;c.save();if(M.shake>0)c.translate(R(-6,6)*M.shake*3,R(-6,6)*M.shake*3);
  let g=c.createLinearGradient(0,0,0,H);g.addColorStop(0,M.reef?'#3cc4d0':M.fleet?'#1c2a44':'#1d3442');g.addColorStop(1,M.reef?'#147f9e':M.fleet?'#0a1226':'#0c1c27');c.fillStyle=g;c.fillRect(-20,-20,W+40,H+40);
@@ -642,7 +667,7 @@ function drawWater(c,x,y,w,h){const g=c.createLinearGradient(0,y,0,y+h);g.addCol
  c.fillStyle='#fff';for(let i=0;i<40;i++){const k=(T*.7+i*.37)%1;if(k<.25){c.globalAlpha=Math.sin(k/.25*Math.PI)*.7;c.fillRect(x+((i*419.3)%w),y+((i*263.1)%h),2.5,2.5);}}c.globalAlpha=1;}
 
 /* ---------- port ---------- */
-function portRumour(){const L=['Storms run worst on the open sea. The coast is slower but kinder.','They say a kraken hunts the deep water. Cut its arms, then go for the eye.','A man at the post he knows best does the work of one and a half.','Keep a lookout posted in fog, or the rocks will find you.','Buy bait. A full line beats an empty belly.','Pirates board ships that carry no powder. Keep blades for the crew.','A treasure map doubles what the island gives up.','The well water is free, Captain. Fill your casks.'],nx=STAGES[Math.min(5,P.i+1)],G={sugar:'Sugar',spice:'Spice',silk:'Silk'};
+function portRumour(){const L=['Storms run worst on the open sea. The coast is slower but kinder.','They say a kraken hunts the deep water. Cut its arms, then go for the eye.','A man at the post he knows best does the work of one and a half.','Keep a lookout posted in fog, or the rocks will find you.','Buy bait. A full line beats an empty belly.','Pirates board ships that carry no powder. Keep blades for the crew.','A treasure map doubles what the island gives up.','The well water is free, Captain. Fill your casks.','Food rots at sea, faster after the first week. A cook in the galley keeps it longer.','Pay your men when you sail, or they will find another ship.'],nx=STAGES[Math.min(5,P.i+1)],G={sugar:'Sugar',spice:'Spice',silk:'Silk'};
  for(const n of nx)for(const k in G){if(n.tp[k]>=1.3)L.push(G[k]+' sells dear at '+n.n+'. Buy it here if the price is fair.');if(n.tp[k]<=.75)L.push(G[k]+' is cheap at '+n.n+'.');}return L[RI(0,L.length-1)];}
 function portLandmark(c,t){const x=550,y=62;c.save();c.fillStyle='#8fae62';c.beginPath();c.ellipse(x,y+4,120,52,0,0,6.28);c.fill();c.fillStyle='rgba(0,0,0,.28)';
  if(t===0){c.fillRect(x-34,y-14,86,52);c.fillStyle='#f3ead2';c.fillRect(x-44,y-24,80,48);let g=c.createLinearGradient(0,y-24,0,y+24);g.addColorStop(0,'#7d3320');g.addColorStop(.5,'#a8492c');g.addColorStop(1,'#7d3320');c.fillStyle=g;c.fillRect(x-48,y-22,62,44);c.strokeStyle='rgba(255,240,210,.5)';c.lineWidth=2;c.beginPath();c.moveTo(x-48,y);c.lineTo(x+14,y);c.stroke();c.fillStyle='#e9dcbc';c.fillRect(x+14,y-16,30,32);c.fillStyle='#8b6a3c';c.fillRect(x+18,y-12,22,24);c.fillStyle='#e8b93a';c.fillRect(x+27,y-9,4,18);c.fillRect(x+22,y-3,14,4);}
@@ -717,16 +742,16 @@ function startPort(i){closePanel();S.mode='port';S.vis=null;S.focus=null;const r
  const yx=fx(220)+(flip?-120:120);P.yx=yx;c.strokeStyle='#6b4a26';c.lineWidth=4;c.beginPath();c.ellipse(yx,775,46,16,0,0,6.28);c.stroke();for(let k=-3;k<=3;k++){c.beginPath();c.moveTo(yx+k*12,762);c.lineTo(yx+k*12,788);c.stroke();}
  // well
  c.fillStyle='rgba(0,0,0,.25)';c.beginPath();c.arc(556,407,28,0,6.28);c.fill();c.fillStyle='#8d8d86';c.beginPath();c.arc(550,400,27,0,6.28);c.fill();c.fillStyle='#1c5f8a';c.beginPath();c.arc(550,400,18,0,6.28);c.fill();c.fillStyle='#5c4020';c.fillRect(520,397,60,6);
- setBar([['Set sail',()=>leavePort(),'go']]);toast(portAt(i).n+' — tap to walk, tap townsfolk for news');}
+ setBar([['Set sail'+(i>0?' · wages '+wagesDue()+'g':''),()=>leavePort(),'go']]);toast(portAt(i).n+' — tap to walk, tap townsfolk for news');}
 function portOk(x,y,m){m=m==null?10:m;const land=x>25&&x<PW-25&&y>75&&y<820,pier=Math.abs(x-550)<30&&y>=800&&y<1034;if(!land&&!pier)return false;
  for(const b of P.solids)if(x>b.x-m&&x<b.x+b.w+m&&y>b.y-m&&y<b.y+b.h+m)return false;if(Math.hypot(x-550,y-400)<30+m)return false;return true;}
 function leavePort(){closePanel();chooseRoute();}
 function portSpot(k){const pm=portAt(P.i).pm;
  if(k==='quest'){const q=QUESTS[P.i];card(q.name,q.ask+' Reward: '+q.reward+' gold.',[['Accept',()=>{if(q.type==='delivery'){if(holdMax()-holdUsed()<20)return toast('Make room in your hold first');S.cargo=20;}S.quest=Object.assign({prog:0,done:false},q);P.spots=P.spots.filter(s=>s.k!=='quest');sfx('good');toast('Quest accepted');closePanel();}],['Not now',closePanel]]);return;}
  if(k==='market')showMarket(pm,'Market',false,()=>{});
- else if(k==='dock')card('Your ship','Ready to cast off?',[['Set sail',leavePort],['Stay',closePanel]]);
+ else if(k==='dock')card('Your ship','Ready to cast off?'+(S.leg>0?' The crew is owed '+wagesDue()+' gold in wages'+(S.gold<wagesDue()?' — more than you have. Unpaid men may desert.':'.'):''),[['Set sail',leavePort],['Stay',closePanel]]);
  else if(k==='well'){if(P.wellUsed)toast('The bucket comes up empty');else{P.wellUsed=true;const a=addGood('water',15);toast(a?'+'+a+' fresh water':'Hold is full');sfx('good');}}
- else if(k==='tavern'){const t=()=>card('Tavern','Sailors, rumours and old maps.',[['Hire '+(P.rec=P.rec||newMan()).n,()=>{if(S.gold<40)return toast('Not enough gold');S.gold-=40;S.men.push(P.rec);S.crew++;toast(P.rec.n+' signs on');P.rec=null;t();},S.crew>=S.ship.crew,S.crew>=S.ship.crew?'crew full':roleName(P.rec.sk).toLowerCase()+' hand · 40 gold'],['Treasure map',()=>{if(S.gold<120)return toast('Not enough gold');S.gold-=120;S.map=true;toast('The island lies on your next leg');t();},S.map,S.map?'you have one':'120 gold'],['Roll the bones',()=>{if(S.gold<30)return toast('Not enough gold');const d=()=>RI(1,6),a=d()+d(),b=d()+d();S.gold-=30;if(a>b){S.gold+=70;sfx('coin');}else sfx('bad');toast('You '+a+' · House '+b+' — '+(a>b?'you win 70!':'you lose'));t();},false,'30 gold · win 70'],['Leave',closePanel]]);t();}
+ else if(k==='tavern'){const t=()=>card('Tavern','Sailors, rumours and old maps.',[['Hire '+(P.rec=P.rec||newMan()).n,()=>{if(S.gold<40)return toast('Not enough gold');S.gold-=40;S.men.push(P.rec);S.crew++;toast(P.rec.n+' signs on');P.rec=null;t();},S.crew>=S.ship.crew,S.crew>=S.ship.crew?'crew full':roleName(P.rec.sk).toLowerCase()+' hand · 40 gold'],['Treasure map',()=>{if(S.gold<120)return toast('Not enough gold');S.gold-=120;S.map=true;toast('The island lies on your next leg');t();},S.map,S.map?'you have one':'120 gold'],['Roll the bones',()=>{if(S.gold<30)return toast('Not enough gold');const d=()=>RI(1,6),a=d()+d(),b=d()+d();S.gold-=30;if(a>b){S.gold+=70;sfx('coin');}else sfx('bad');toast('You '+a+' · House '+b+' — '+(a>b?'you win 70!':'you lose'));t();},false,'30 gold · win 70'],['Send for the surgeon',()=>{const n=S.men.filter(m=>!fit(m)).length,c=n*20;if(S.gold<c)return toast('Not enough gold');S.gold-=c;for(const m of S.men)if(!fit(m)){m.st='ok';m.d=0;}toast('The surgeon patches up '+n+(n>1?' men':' man'));sfx('good');t();},!S.men.some(m=>!fit(m)),S.men.some(m=>!fit(m))?S.men.filter(m=>!fit(m)).length+' laid up · '+S.men.filter(m=>!fit(m)).length*20+' gold':'all hands well'],['Leave',closePanel]]);t();}
  else if(k==='yard'){const y=()=>{const need=Math.ceil(hullMax()-S.hull),rc=Math.ceil(need*1.5);const up=(key,name,sub,cost,max)=>[name,()=>{if(S.gold<cost)return toast('Not enough gold');S.gold-=cost;S.up[key]=(S.up[key]||0)+1;if(key==='hull')S.hull+=30;toast(name+' fitted');y();},(S.up[key]||0)>=(max||1),(S.up[key]||0)>=(max||1)?'fitted':sub+' · '+cost+' gold'];
    card('Shipwright','',[['Repair hull',()=>{if(S.gold<1)return toast('Not enough gold');const pts=Math.min(need,Math.floor(S.gold/1.5));S.hull+=pts;S.gold-=Math.ceil(pts*1.5);toast('Hull repaired');y();},need<1,need<1?'no damage':rc+' gold'],up('hull','Copper hull','+30 hull',180),up('sail','Finer sails','+15% speed',180),up('hold','Bigger hold','+60 hold',180),up('guns','Extra cannon','easier aim',150,2),up('fig','Figurehead','luck outrunning pirates',120),
     ['Dye the sails',()=>{if(S.gold<40)return toast('Not enough gold');S.gold-=40;S.up.dye=((S.up.dye||0)+1)%DYES.length;toast('Sails: '+DYEN[S.up.dye]);y();},false,DYEN[((S.up.dye||0)+1)%DYES.length]+' · 40 gold'],['Leave',closePanel]]);};y();}}
@@ -801,7 +826,7 @@ function finishIsland(){if(I.over)return;I.over=true;setBar([]);S.mode='event';S
  card('Back aboard',parts.length?'You carried off '+parts.join(', ')+'.':'You leave empty-handed.',[['Sail on',resume]]);}
 function updIsland(dt){const w=I.w;I.t+=dt;if(I.t>=I.max){toast('The sun is setting');finishIsland();return;}
  if(I.chest){I.chest.t+=dt;if(I.chest.t>.9&&!I.chest.paid){I.chest.paid=true;const g=I.chest.g;S.gold+=g;I.got.gold+=g;sfx('good');toast('Treasure! +'+g+' gold');logIt('Dug up '+g+' gold in buried treasure');puff(I.chest.x,I.chest.y-12,34,'#ffd257',170,220,3,1.1);flashFx(I.chest.x,I.chest.y,120,'rgba(255,220,100,.9)');}}
- if(I.dig>0){const pd=I.dig;I.dig-=dt;if(Math.floor(pd/.6)!==Math.floor(I.dig/.6)||pd===1.8){sfx('splash');puff(w.x+16,w.y+2,8,'#8a6a3a',90,200,3,.55);}
+ if(I.dig>0){const pd=I.dig;I.dig-=dt;if(Math.floor(pd/.6)!==Math.floor(I.dig/.6)||pd===1.8){sfx('dig');puff(w.x+16,w.y+2,8,'#8a6a3a',90,200,3,.55);}
   if(I.dig<=0){I.dig=0;const d=Math.hypot(w.x-I.tr.x,w.y-I.tr.y),hit=d<42&&!I.found;I.holes.push({x:w.x,y:w.y,hit});
    if(hit){I.found=true;I.chest={x:w.x,y:w.y,t:0,g:RI(140,260)*(I.rich?2.5:1)|0};sfx('boom');toast('The shovel strikes wood!');}
    else{sfx('splash');toast(I.found?'Nothing more here':d<100?'Loose soil — very close!':d<230?'Old footprints… getting warm':'Nothing but roots and sand');}}return;}
@@ -899,7 +924,7 @@ function updKraken(dt){M.t+=dt;M.sp-=dt;const hd=M.head,head=M.ph==='head';
   if(!head&&!M.manDone&&M.chop>=3&&S.crew>3){M.manDone=true;q.man=true;q.thick=false;q.hp=1;q.ox=R(-.2,.25);q.life=3.4;toast('It has a man — cut him free!');}
   M.tents.push(q);}
  for(let i=M.tents.length-1;i>=0;i--){const q=M.tents[i];q.t+=dt;q.hurt=Math.max(0,q.hurt-dt);if(q.cut){q.cut+=dt;if(q.cut>.5)M.tents.splice(i,1);continue;}
-  if(q.t>=q.life){M.tents.splice(i,1);S.shake=.4;sfx('boom');puff(G.sx+q.ox*G.L,G.sy-G.L*.1,12,'#5a3a1c',150,300,3*US,.7);if(q.man){loseCrew('Dragged under by the kraken');toast('He is gone');}else dmg(6);if(S.mode==='end')return;}}
+  if(q.t>=q.life){M.tents.splice(i,1);S.shake=.4;sfx('boom');puff(G.sx+q.ox*G.L,G.sy-G.L*.1,12,'#5a3a1c',150,300,3*US,.7);if(q.man){loseCrew('Dragged under by the kraken');toast('He is gone');}else{dmg(6);if(S.mode!=='end'&&Math.random()<.3)hurtOne('crushed by the kraken');}if(S.mode==='end')return;}}
  if(head){hd.t+=dt;hd.up+=(1-hd.up)*Math.min(1,dt*2);hd.hurt=Math.max(0,hd.hurt-dt);hd.ot-=dt;if(hd.ot<=0){hd.openT=!hd.openT;hd.ot=hd.openT?1.6:R(.8,1.2);}hd.open+=((hd.openT&&hd.hurt<=0?1:0)-hd.open)*Math.min(1,dt*9);
   if(hd.hp<=0&&hd.hurt<=.25){krakenEnd(true);return;}
   if(hd.t>16&&hd.hp>0){S.shake=.6;sfx('boom');dmg(8);if(S.mode==='end')return;krakenEnd(false,'With a last blow to the hull it slides back into the dark.');return;}}
@@ -924,19 +949,21 @@ function underBG(c,top){let g=c.createLinearGradient(0,0,0,top);g.addColorStop(0
  const gv=c.createLinearGradient(0,H*.6,0,H);gv.addColorStop(0,'rgba(2,14,30,0)');gv.addColorStop(1,'rgba(2,14,30,.45)');c.fillStyle=gv;c.fillRect(0,H*.6,W,H*.4);}
 
 /* ---------- wreck dive ---------- */
-function startDive(){closePanel();S.mode='dive';S.vis=null;S.focus=null;M={t:0,air:1,cd:0,d:{x:W/2,y:0,tx:W/2,ty:0,dir:1.57,wt:0},items:[],sharks:[],carry:0,bank:0,bub:[],top:G.hudH+54};M.d.y=M.d.ty=M.top+18;
+function startDive(){closePanel();S.mode='dive';S.vis=null;S.focus=null;M={t:0,air:1,cd:0,d:{x:W/2,y:0,tx:W/2,ty:0,dir:1.57,wt:0},items:[],sharks:[],carry:0,bank:0,bub:[],top:G.hudH+54,heavy:false,clams:[]};M.d.y=M.d.ty=M.top+18;
  for(let i=0;i<20;i++)M.bub.push([Math.random(),Math.random(),R(1,4)]);
  const fl=H-44*US;for(let i=0;i<6;i++)M.items.push({x:W*(.08+.84*(i+R(.25,.75))/6),y:fl-R(0,26*US),v:i===2||i===3?RI(110,180):RI(25,60),big:i===2||i===3});
  for(let i=0;i<2;i++)M.sharks.push({x:R(0,W),y:M.top+(H-M.top)*(.42+.26*i),dir:i?1:-1,v:R(65,95)*US,w:110*US,k:3,col:'#6d7780',ph:i*3});
+ for(let i=0;i<2;i++)M.clams.push({x:W*(i?.84:.14)+R(-12,12)*US,y:H-40*US,ph:R(0,3),got:false});
  setBar([]);}
 function endDive(lost){if(S.mode!=='dive')return;const b=M.bank;S.gold+=b;S.mode='event';S.vis='wreck';S.focus='prop';S.zT=2;setBar([]);sfx(lost?'bad':'good');
  card(lost?'Out of air':'Back aboard',lost?'The diver is hauled up gasping, hands empty.'+(b?' Earlier hauls: '+b+' gold.':''):b?'The wreck gave up '+b+' gold.':'You come up with nothing.',[['Sail on',resume]]);}
 function updDive(dt){M.t+=dt;const d=M.d,top=M.top,surf=d.y<top+34;M.cd=Math.max(0,M.cd-dt);
- const dx=d.tx-d.x,dy=d.ty-d.y,ds=Math.hypot(dx,dy);if(ds>3){const st=Math.min(ds,170*US*dt);d.x+=dx/ds*st;d.y+=dy/ds*st;d.dir=Math.atan2(dy,dx);d.wt+=dt*9;}
+ const dx=d.tx-d.x,dy=d.ty-d.y,ds=Math.hypot(dx,dy);if(ds>3){const st=Math.min(ds,(M.heavy?105:170)*US*dt);d.x+=dx/ds*st;d.y+=dy/ds*st;d.dir=Math.atan2(dy,dx);d.wt+=dt*9;}
  if(!surf&&Math.random()<dt*5)puff(d.x,d.y-6,1,'rgba(255,255,255,.5)',14,-70,2.5,.9);
- if(surf){M.air=Math.min(1,M.air+dt*.9);if(M.carry){M.bank+=M.carry;toast('Hauled up '+M.carry+' gold');M.carry=0;sfx('coin');}}else M.air-=dt/20;
- for(let i=M.items.length-1;i>=0;i--){const it=M.items[i];if(Math.hypot(it.x-d.x,it.y-d.y)<30*US){M.carry+=it.v;M.items.splice(i,1);sfx('good');}}
- for(const s of M.sharks){s.x+=s.v*s.dir*dt;if(s.x<-s.w)s.dir=1;if(s.x>W+s.w)s.dir=-1;s.y+=Math.sin(T+s.ph)*10*dt;if(!M.cd&&Math.hypot(s.x-d.x,s.y-d.y)<42*US){M.cd=1.5;M.air-=.25;sfx('bad');toast(M.carry?'Shark! You drop the loot':'Shark!');M.carry=0;puff(d.x,d.y,10,'rgba(255,255,255,.6)',80,-40,3,.6);}}
+ if(surf){M.air=Math.min(1,M.air+dt*.9);if(M.carry){M.bank+=M.carry;toast('Hauled up '+M.carry+' gold');M.carry=0;M.heavy=false;sfx('coin');}}else M.air-=dt/20;
+ for(let i=M.items.length-1;i>=0;i--){const it=M.items[i];if(Math.hypot(it.x-d.x,it.y-d.y)<30*US){M.carry+=it.v;if(it.big){M.heavy=true;toast('A heavy chest — swim it up slowly');}M.items.splice(i,1);sfx('good');}}
+ for(const cl of M.clams)if(!cl.got&&Math.hypot(cl.x-d.x,cl.y-d.y)<30*US){if(Math.sin(T*1.6+cl.ph)>.25){cl.got=true;M.carry+=90;sfx('good');toast('A pearl!');}else if(!cl.w||T-cl.w>2){cl.w=T;toast('The clam is shut — wait for it to open');}}
+ for(const s of M.sharks){s.x+=s.v*s.dir*dt;if(s.x<-s.w)s.dir=1;if(s.x>W+s.w)s.dir=-1;s.y+=Math.sin(T+s.ph)*10*dt;if(!M.cd&&Math.hypot(s.x-d.x,s.y-d.y)<42*US){M.cd=1.5;M.air-=.25;sfx('bad');toast(M.carry?'Shark! You drop the loot':'Shark!');M.carry=0;M.heavy=false;puff(d.x,d.y,10,'rgba(255,255,255,.6)',80,-40,3,.6);}}
  if(M.air<=0)endDive(true);}
 function drawDive(){const c=ctx,top=M.top,d=M.d;underBG(c,top);underExtras(c,top);
  const s=US*clamp(W/420,1,1.8);c.save();c.translate(W/2,H-20*US);c.rotate(-.1);c.fillStyle='#16282f';c.beginPath();c.moveTo(-110*s,0);c.quadraticCurveTo(-122*s,-40*s,-82*s,-46*s);c.lineTo(72*s,-40*s);c.quadraticCurveTo(112*s,-30*s,122*s,0);c.closePath();c.fill();
@@ -945,6 +972,7 @@ function drawDive(){const c=ctx,top=M.top,d=M.d;underBG(c,top);underExtras(c,top
  for(const it of M.items){const p=.5+.5*Math.sin(T*4+it.x),u=US;const g=c.createRadialGradient(it.x,it.y,0,it.x,it.y,26*u);g.addColorStop(0,'rgba(255,225,120,'+(.35+.2*p)+')');g.addColorStop(1,'rgba(255,225,120,0)');c.fillStyle=g;c.fillRect(it.x-26*u,it.y-26*u,52*u,52*u);
   if(it.big){c.fillStyle='#6b4423';c.fillRect(it.x-12*u,it.y-8*u,24*u,16*u);c.fillStyle='#8a5a2c';c.fillRect(it.x-12*u,it.y-12*u,24*u,6*u);c.fillStyle='#e8b93a';c.fillRect(it.x-12*u,it.y-7*u,24*u,2.5*u);c.fillRect(it.x-2*u,it.y-8*u,4*u,6*u);}
   else{c.fillStyle='#e8b93a';c.strokeStyle='#8a6410';c.lineWidth=1;for(let k=0;k<4;k++){c.beginPath();c.ellipse(it.x+(k-1.5)*6*u,it.y+(k%2)*3*u,5*u,3*u,0,0,6.28);c.fill();c.stroke();}}}
+ for(const cl of M.clams){const op=cl.got?1:clamp(Math.sin(T*1.6+cl.ph)*1.6+.3,0,1),u=US;c.save();c.translate(cl.x,cl.y);c.fillStyle='#6f7f8a';c.beginPath();c.ellipse(0,4*u,17*u,8*u,0,0,Math.PI);c.fill();if(op>.2&&!cl.got){c.save();c.shadowColor='#fff';c.shadowBlur=14;c.fillStyle='#fdfbf2';c.beginPath();c.arc(0,1*u,4.5*u,0,6.28);c.fill();c.restore();}c.rotate(-op*.9);c.fillStyle='#8d9da8';c.beginPath();c.ellipse(0,2*u,17*u,9*u,0,Math.PI,0);c.fill();c.strokeStyle='rgba(40,55,65,.5)';c.lineWidth=1;for(let k=-2;k<=2;k++){c.beginPath();c.moveTo(k*5*u,2*u);c.lineTo(k*6.5*u,-6*u);c.stroke();}c.restore();}
  for(const f of M.sharks)drawFishOne(c,f);
  c.fillStyle='#3a2412';c.beginPath();c.ellipse(W/2,top+2,70*US,22*US,0,0,Math.PI);c.fill();c.fillStyle='rgba(255,255,255,.5)';c.fillRect(0,top-1,W,2);
  c.save();c.translate(d.x,d.y);c.rotate(d.dir);const u=US,kk=Math.sin(d.wt)*5*u;c.strokeStyle='#1d2a33';c.lineWidth=4*u;c.lineCap='round';c.beginPath();c.moveTo(-8*u,-2.5*u);c.lineTo(-22*u,-3*u+kk);c.moveTo(-8*u,2.5*u);c.lineTo(-22*u,3*u-kk);c.stroke();
@@ -953,8 +981,9 @@ function drawDive(){const c=ctx,top=M.top,d=M.d;underBG(c,top);underExtras(c,top
  c.fillStyle='#e3b58a';c.beginPath();c.arc(13*u,0,5*u,0,6.28);c.fill();c.fillStyle='#7fd3ea';c.fillRect(13*u,-3*u,4*u,6*u);c.restore();
  if(M.carry){c.fillStyle='#ffd257';c.font='bold '+14*US+'px "IM Fell English",Georgia';c.textAlign='center';c.fillText('+'+M.carry,d.x,d.y-18*US);}
  drawPT(c);
+ {const dk=clamp((d.y-top)/(H-top),0,1)*.72,r0=70*US,r1=300*US,g=c.createRadialGradient(d.x,d.y,r0,d.x,d.y,r1);g.addColorStop(0,'rgba(2,10,24,0)');g.addColorStop(1,'rgba(2,10,24,'+dk+')');c.fillStyle=g;c.fillRect(0,top,W,H-top);const gl=c.createRadialGradient(d.x,d.y,0,d.x,d.y,r0*1.3);gl.addColorStop(0,'rgba(255,235,170,'+dk*.22+')');gl.addColorStop(1,'rgba(255,235,170,0)');c.fillStyle=gl;c.fillRect(d.x-r0*1.3,d.y-r0*1.3,r0*2.6,r0*2.6);}
  const y=top-24,bw=W*.42,bx=W*.14;gauge(c,bx,y,bw,10,clamp(M.air,0,1),M.air<.3?'#ffa08a':'#b5ecff',M.air<.3?'#c8402a':'#3fa3cf');c.fillStyle='#fff3d4';c.font=12*US+'px "IM Fell English",Georgia';c.textAlign='left';c.fillText('AIR',bx-34*US,y+10);{const r=M.btn=[W-132,top-36,124,30];c.fillStyle='#1c5540';c.strokeStyle='#7fd3aa';c.lineWidth=1.5;{const gb=c.createLinearGradient(0,r[1],0,r[1]+r[3]);gb.addColorStop(0,'#ffe69a');gb.addColorStop(.5,'#e6ae3c');gb.addColorStop(1,'#b47a16');c.fillStyle=gb;c.strokeStyle='#fff2c0';c.shadowColor='rgba(0,0,0,.5)';c.shadowBlur=8;c.shadowOffsetY=3;rr(c,r[0],r[1],r[2],r[3],15);c.fill();c.shadowColor='transparent';c.stroke();}c.fillStyle='#2a1706';c.textAlign='center';c.font='14px "IM Fell English",Georgia';c.fillText('Done · '+M.bank+' gold',r[0]+r[2]/2,r[1]+20);c.fillStyle='#fff3d4';}
- if(M.t<5){c.textAlign='center';c.font=18*US+'px "IM Fell English",Georgia';c.fillText('Tap to swim down to the gold',W/2,H*.42);c.font=14*US+'px "IM Fell English",Georgia';c.fillText('Surface to breathe and bank it. Avoid sharks.',W/2,H*.42+24*US);}}
+ if(M.t<5){c.textAlign='center';c.font=18*US+'px "IM Fell English",Georgia';c.fillText('Tap to swim down to the gold',W/2,H*.42);c.font=14*US+'px "IM Fell English",Georgia';c.fillText('Surface to breathe and bank it. Chests are heavy. Avoid sharks.',W/2,H*.42+24*US,W-12);}}
 
 /* ---------- town + island life ---------- */
 function skyBirds(c,w,h,cols){cols.forEach((col,i)=>{const x=((T*(60+i*14)+i*400)%(w+300))-150,y=h*(.25+.22*i)+Math.sin(T*.7+i*2)*60,f=Math.sin(T*8+i)*7;
@@ -989,9 +1018,9 @@ let SV=null;
 function openShip(){closePanel();syncMen();S.mode='ship';SV={sel:null,men:[],mainX:S.ship.masts===1?4:S.ship.masts===2?-8:0,z:1,fx:9,fy:-20,hx:-12,hy:0,follow:null,allT:0,px:0,py:0,bx:{}};const cols=['#2f5f8f','#8c3b2e','#d9cdb0','#3a7a6d','#6a4a2a','#7a5a8a'];
  S.men.forEach((m,i)=>SV.men.push({ref:m,x:R(-27,3),y:0,tx:R(-27,3),ty:0,role:null,slot:0,wt:R(0,6),col:cols[i%6],skin:i%3?'#e3b58a':'#b98a5e',idleT:0,dir:1,sx:-99,sy:-99}));svAssign(true);svBar();}
 function svBar(){setBar([['Best posts',autoPost],['Back to sea',closeShip,'go']]);}
-function autoPost(){for(const m of S.men)m.post=null;for(const m of S.men){const r=ROLES.find(q=>q.k===m.sk);if(S.men.filter(x=>x.post===m.sk).length<r.max)m.post=m.sk;}
- for(const k of['helm','rig','cook','look','gun']){if(!S.men.some(m=>m.post===k)){const f=S.men.find(m=>!m.post)||S.men.find(m=>m.post!=='helm'&&S.men.filter(x=>x.post===m.post).length>1);if(f)f.post=k;}}syncRoles();SV.sel=null;SV.allT=3.5;SV.px=SV.py=0;svAssign();sfx('good');toast('Every hand sent to the post he knows best');}
-function svSend(k){const sm=SV.sel;if(!sm)return;if(k){const r=ROLES.find(q=>q.k===k);if(sm.ref.post!==k&&S.men.filter(m=>m.post===k).length>=r.max){toast(r.n+' is full — move someone off first');return;}}sm.ref.post=k;syncRoles();SV.sel=null;SV.follow=sm;SV.px=SV.py=0;svAssign();sfx();{const r=ROLES.find(q=>q.k===k);toast(sm.ref.n.split(' ')[0]+(r?' → '+r.n+' · '+r.s+(sm.ref.sk===k?' ★':''):' stands down'));}}
+function autoPost(){for(const m of S.men)m.post=null;for(const m of S.men){if(!fit(m))continue;const r=ROLES.find(q=>q.k===m.sk);if(S.men.filter(x=>x.post===m.sk).length<r.max)m.post=m.sk;}for(const m of S.men)if(fit(m)&&!m.post&&m.sk2&&S.men.filter(x=>x.post===m.sk2).length<ROLES.find(q=>q.k===m.sk2).max)m.post=m.sk2;
+ for(const k of['helm','rig','cook','look','gun']){if(!S.men.some(m=>m.post===k)){const f=S.men.find(m=>!m.post&&fit(m))||S.men.find(m=>m.post!=='helm'&&S.men.filter(x=>x.post===m.post).length>1);if(f)f.post=k;}}syncRoles();SV.sel=null;SV.allT=3.5;SV.px=SV.py=0;svAssign();sfx('good');toast('Every hand sent to the post he knows best');}
+function svSend(k){const sm=SV.sel;if(!sm)return;if(k&&!fit(sm.ref)){toast(sm.ref.n.split(' ')[0]+' is '+(sm.ref.st==='hurt'?'wounded':'sick')+' — '+sm.ref.d+' more day'+(sm.ref.d>1?'s':''));return;}if(k){const r=ROLES.find(q=>q.k===k);if(sm.ref.post!==k&&S.men.filter(m=>m.post===k).length>=r.max){toast(r.n+' is full — move someone off first');return;}}sm.ref.post=k;syncRoles();SV.sel=null;SV.follow=sm;SV.px=SV.py=0;svAssign();sfx();{const r=ROLES.find(q=>q.k===k);toast(sm.ref.n.split(' ')[0]+(r?' → '+r.n+' · '+r.s+(knows(sm.ref,k)?' ★':''):' stands down'));}}
 function closeShip(){SV=null;resume();}
 function svSpot(k,s){const m=SV.mainX;return k==='helm'?{x:-39,y:-8}:k==='rig'?{x:m+(s?-5:5),y:s?-24:-34}:k==='look'?{x:m,y:-49}:k==='gun'?{x:10+s*7,y:0}:k==='fish'?{x:35-s*5,y:0}:k==='cook'?{x:-33+s*7,y:20}:{x:-9+s*6,y:20};}
 function svAssign(snap){for(const r of ROLES){let n=0;for(const m of SV.men)if(m.ref.post===r.k)m.slot=n++;}for(const m of SV.men){m.role=m.ref.post;if(m.role){const p=svSpot(m.role,m.slot);m.tx=p.x;m.ty=p.y;if(snap){m.x=p.x;m.y=p.y;}}else{m.ty=0;if(m.tx>3||m.tx<-27)m.tx=R(-27,3);if(snap)m.y=0;}}}
@@ -1056,15 +1085,16 @@ function drawShipView(){const c=ctx,{u,ox,oy}=svGeom(),X=x=>ox+x*u,Y=y=>oy+y*u,n
  c.strokeStyle='rgba(255,255,255,.55)';c.lineWidth=1.5;c.beginPath();for(let x=0;x<=W+12;x+=12){const y=Y(9.5)+Math.sin(x*.02+T*1.6)*1.2*u;x?c.lineTo(x,y):c.moveTo(x,y);}c.stroke();
  // posts: outlined areas on the ship
  const BX={off:[-29.5,-12,4.5,0],helm:[-47,-20,-31,-8],rig:[mx-11,-40,mx+11,-18],look:[mx-6.5,-61,mx+6.5,-47],gun:[6,-12,25,0],fish:[27,-12,41,0],cook:[-41,2,-20,20],carp:[-12.6,2,.2,20]},sel=SV.sel,fs=Math.round(clamp(u*1.2+8,12,18)),F='"IM Fell English",Georgia';SV.bx={};
- for(const r of[{k:'off',n:'Off duty',s:'resting on deck'}].concat(ROLES)){const b=BX[r.k],off=r.k==='off',n=off?S.men.filter(m=>!m.post).length:S.roles[r.k],x0=X(b[0]),y0=Y(b[1]),w=(b[2]-b[0])*u,h=(b[3]-b[1])*u,best=sel&&sel.ref.sk===r.k,full=!off&&n>=r.max;SV.bx[r.k]=[x0,y0,w,h];
+ for(const r of[{k:'off',n:'Off duty',s:'resting on deck'}].concat(ROLES)){const b=BX[r.k],off=r.k==='off',n=off?S.men.filter(m=>!m.post).length:S.roles[r.k],x0=X(b[0]),y0=Y(b[1]),w=(b[2]-b[0])*u,h=(b[3]-b[1])*u,best=sel&&knows(sel.ref,r.k),full=!off&&n>=r.max;SV.bx[r.k]=[x0,y0,w,h];
   if(!off)for(let sl=n;sl<r.max;sl++){const p=svSpot(r.k,sl);c.save();c.globalAlpha=.6;c.setLineDash([3,3]);c.strokeStyle='#fff';c.lineWidth=1.2;c.strokeRect(X(p.x)-1.3*u,Y(p.y)-6*u,2.6*u,6*u);c.beginPath();c.arc(X(p.x),Y(p.y)-7.2*u,1.3*u,0,6.28);c.stroke();c.restore();}
   c.save();if(n&&!off){c.fillStyle='rgba(110,230,140,.13)';rr(c,x0,y0,w,h,5);c.fill();}if(!n||off)c.setLineDash([6,5]);c.strokeStyle=best?'#ffd257':n&&!off?'#8fe89a':off?'#cfe6ff':'#ffe08a';c.lineWidth=best?3.5+Math.sin(T*6)*1:sel?2.6:2;if(best){c.shadowColor='#ffd257';c.shadowBlur=14;}else if(sel&&!full){c.shadowColor=c.strokeStyle;c.shadowBlur=6;}rr(c,x0,y0,w,h,5);c.stroke();c.restore();
   const lab=r.n+(off?' '+n:' '+n+'/'+r.max)+(best?' ★':sel&&full&&sel.ref.post!==r.k?' full':''),l2='';c.font=fs+'px '+F;let tw=c.measureText(lab).width;if(l2){c.font=(fs-2)+'px '+F;tw=Math.max(tw,c.measureText(l2).width);}tw+=10;const lh=fs+6,ly=b[1]>0?y0+h-lh*.35:y0-lh*.65,lx=clamp(x0+w/2-tw/2,2,W-tw-2);
   c.fillStyle=best?'#7a5510':n&&!off?'#1f6a3a':'#3a2414';c.strokeStyle=best?'#ffd257':n&&!off?'#8fe89a':'#ffe08a';c.lineWidth=1;rr(c,lx,ly,tw,lh,6);c.fill();c.stroke();c.textAlign='left';c.fillStyle='#fff6d8';c.font=fs+'px '+F;c.fillText(lab,lx+5,ly+fs+1);if(l2){c.fillStyle='#ffe9b0';c.font='italic '+(fs-2)+'px '+F;c.fillText(l2,lx+5,ly+fs*2+1);}}
- for(const m of SV.men){m.sx=X(m.x);m.sy=Y(m.y)-4*u;if(m.ref.post&&m.ref.post===m.ref.sk){c.fillStyle='#ffd257';c.font=Math.round(u*3.4)+'px Georgia';c.textAlign='center';c.fillText('★',m.sx,Y(m.y)-9.4*u);}if(0){const t=m.ref.n.split(' ')[0],nf=Math.round(Math.max(12,u*1.5)),ny=Y(m.y)+u*1.6+nf*(.9+(SV.men.indexOf(m)%3)*.95);c.font=nf+'px '+F;c.textAlign='center';c.lineWidth=3;c.strokeStyle='rgba(20,12,6,.75)';c.lineJoin='round';c.strokeText(t,m.sx,ny);c.fillStyle='#fff6d8';c.fillText(t,m.sx,ny);}}
+ for(const m of SV.men){m.sx=X(m.x);m.sy=Y(m.y)-4*u;if(!fit(m.ref)){const bx=m.sx,by=Y(m.y)-10*u,br=2.6*u;c.fillStyle='#fff';c.strokeStyle='#b0281c';c.lineWidth=1.5;c.beginPath();c.arc(bx,by,br,0,6.28);c.fill();c.stroke();c.fillStyle=m.ref.st==='hurt'?'#d0281c':'#3f9a4a';c.fillRect(bx-br*.6,by-br*.2,br*1.2,br*.4);c.fillRect(bx-br*.2,by-br*.6,br*.4,br*1.2);}
+  if(m.ref.post&&knows(m.ref,m.ref.post)){c.fillStyle='#ffd257';c.font=Math.round(u*3.4)+'px Georgia';c.textAlign='center';c.fillText('★',m.sx,Y(m.y)-9.4*u);}if(0){const t=m.ref.n.split(' ')[0],nf=Math.round(Math.max(12,u*1.5)),ny=Y(m.y)+u*1.6+nf*(.9+(SV.men.indexOf(m)%3)*.95);c.font=nf+'px '+F;c.textAlign='center';c.lineWidth=3;c.strokeStyle='rgba(20,12,6,.75)';c.lineJoin='round';c.strokeText(t,m.sx,ny);c.fillStyle='#fff6d8';c.fillText(t,m.sx,ny);}}
  if(sel){c.save();c.strokeStyle='#fff';c.lineWidth=2.5;c.shadowColor='#fff';c.shadowBlur=10;c.setLineDash([5,4]);c.lineDashOffset=-T*20;c.beginPath();c.ellipse(sel.sx,sel.sy,4.2*u,6.6*u,0,0,6.28);c.stroke();c.restore();
   const t=sel.ref.n;c.font='bold '+fs+'px '+F;const tw=c.measureText(t).width+12,tx=clamp(sel.sx-tw/2,2,W-tw-2),ty=sel.sy+7.5*u;c.fillStyle='rgba(20,12,6,.9)';c.strokeStyle='#fff';c.lineWidth=1;rr(c,tx,ty,tw,fs+7,6);c.fill();c.stroke();c.fillStyle='#fff';c.textAlign='left';c.fillText(t,tx+6,ty+fs+1);}
-  {const hs=Math.round(15*Math.min(US,1.15)),hy=G.hudH+10,t1=sel?sel.ref.n+' — '+roleName(sel.ref.sk).toLowerCase()+' hand':'Tap a sailor to give him a post',t2=sel?'Tap an outlined post. Gold is his best.':'Drag to look around · ★ = at his best post';c.font='bold '+hs+'px '+F;let tw=c.measureText(t1).width;c.font=(hs-2)+'px '+F;tw=Math.max(tw,c.measureText(t2).width)+26;
+  {const hs=Math.round(15*Math.min(US,1.15)),hy=G.hudH+10,t1=sel?sel.ref.n+' — '+(fit(sel.ref)?roleName(sel.ref.sk).toLowerCase()+' hand'+(sel.ref.sk2?' · also '+roleName(sel.ref.sk2).toLowerCase():''):(sel.ref.st==='hurt'?'wounded':'sick')+', '+sel.ref.d+' more day'+(sel.ref.d>1?'s':'')):'Tap a sailor to give him a post',t2=sel?'Tap an outlined post. Gold is his best.':'Drag to look around · ★ = at his best post';c.font='bold '+hs+'px '+F;let tw=c.measureText(t1).width;c.font=(hs-2)+'px '+F;tw=Math.max(tw,c.measureText(t2).width)+26;
   c.fillStyle='rgba(42,26,12,.9)';c.strokeStyle='#d2a455';c.lineWidth=1.5;rr(c,W/2-tw/2,hy,tw,hs*2+16,10);c.fill();c.stroke();c.textAlign='center';c.fillStyle='#ffe08a';c.font='bold '+hs+'px '+F;c.fillText(t1,W/2,hy+hs+4);c.fillStyle='#fff1cf';c.font=(hs-2)+'px '+F;c.fillText(t2,W/2,hy+hs*2+7);}}
 function tapShip(e){const x=e.clientX,y=e.clientY;let hit=null;for(const k in SV.bx){const b=SV.bx[k];if(x>b[0]&&x<b[0]+b[2]&&y>b[1]&&y<b[1]+b[3]){hit=k;break;}}
  let near=null,nd=Math.max(30,svGeom().u*5);for(const m of SV.men){const d=Math.hypot(x-m.sx,y-m.sy);if(d<nd){nd=d;near=m;}}
@@ -1126,16 +1156,16 @@ function startBoard(g,n){closePanel();setBar([]);S.mode='board';S.fought=true;M=
 function boardParry(){const p=M.p;if(M.ph!=='duel'||p.cd>0||p.st==='hurt'||p.st==='lunge')return;p.par=M.pw;p.cd=.55;p.st='parry';p.t=.35;sfx();}
 function boardLunge(){const p=M.p,e=M.e;if(M.ph!=='duel'||p.st==='hurt'||p.st==='lunge'||p.cd>.3)return;p.st='lunge';p.t=.34;p.cd=.5;const cx=W/2+Math.min(H*.3,W*.44)*.15,cy=H*.7-Math.min(H*.3,W*.44)*.55;
  if(e.st==='stag'||(e.st==='wind'&&!e.feint&&e.t>e.wd*.62)){e.hp--;e.st='hit';e.t=.45;sfx('boom');S.shake=.2;flashFx(cx,cy,60*US,'rgba(255,230,150,.9)');puff(cx,cy,14,'#b02a2a',140,260,3.5*US,.6);}
- else if(e.st==='guard'){M.clash=.25;sfx('splash');puff(W/2,cy,6,'#ffe9a0',120,0,2.5*US,.3);e.t=Math.min(e.t,.22);if(M.tip<2){M.tip++;toast('Blocked — parry first, then lunge');}}}
+ else if(e.st==='guard'){M.clash=.25;sfx('clang');puff(W/2,cy,6,'#ffe9a0',120,0,2.5*US,.3);e.t=Math.min(e.t,.22);if(M.tip<2){M.tip++;toast('Blocked — parry first, then lunge');}}}
 function tapBoard(e){if(!e||e.clientX<W/2)boardParry();else boardLunge();}
 function boardAuto(){const e=M.e;if(e.st==='wind'&&!e.feint&&e.t<M.pw*.7)boardParry();else if(e.st==='stag'&&e.t<.8)boardLunge();}
 function updBoard(dt){if(M.ph!=='duel')return;const e=M.e,p=M.p;p.par=Math.max(0,p.par-dt);p.cd=Math.max(0,p.cd-dt);M.clash=Math.max(0,M.clash-dt);e.t-=dt;p.t-=dt;if(p.st!=='guard'&&p.t<=0)p.st='guard';
  if(e.st==='guard'){if(e.t<=0){e.st='wind';e.wd=Math.max(.44,.82-M.k*.05-(e.boss?.08:0));e.t=e.wd;e.feint=M.k>=1&&Math.random()<.25;}}
  else if(e.st==='wind'){if(e.feint&&e.t<e.wd*.45){e.st='guard';e.t=R(.2,.45);e.feint=false;}
   else if(e.t<=0){e.st='strike';e.t=.3;const s=Math.min(H*.3,W*.44),cy=H*.7-s*.6;
-   if(p.par>0){M.clash=.3;e.st='stag';e.t=1.05;p.st='parry';p.t=.3;sfx('boom');flashFx(W/2,cy,50*US,'rgba(255,240,190,.95)');puff(W/2,cy,16,'#ffe9a0',200,120,2.6*US,.4);}
+   if(p.par>0){M.clash=.3;e.st='stag';e.t=1.05;p.st='parry';p.t=.3;sfx('clang');flashFx(W/2,cy,50*US,'rgba(255,240,190,.95)');puff(W/2,cy,16,'#ffe9a0',200,120,2.6*US,.4);}
    else{p.st='hurt';p.t=.5;p.hp--;sfx('bad');S.shake=.3;flashFx(W/2-s*.25,cy,60*US,'rgba(255,90,60,.9)');puff(W/2-s*.25,cy,10,'#b02a2a',120,260,3*US,.6);
-    if(p.hp<=0){M.lost++;loseCrew('A sailor is cut down');if(S.mode==='end')return;if(M.lost>=3){M.ph='done';S.mode='event';logIt('Driven back from a boarding');card('Driven back','Your boarders are thrown back over the rail. You cut the grapples and run.',[['Sail on',resume]]);return;}p.hp=3;toast('Another sailor steps up');}}}}
+    if(p.hp<=0){M.lost++;if(Math.random()<.5)loseCrew('A sailor is cut down');else hurtOne('cut down in the boarding');if(S.mode==='end')return;if(M.lost>=3){M.ph='done';S.mode='event';logIt('Driven back from a boarding');card('Driven back','Your boarders are thrown back over the rail. You cut the grapples and run.',[['Sail on',resume]]);return;}p.hp=3;toast('Another sailor steps up');}}}}
  else if(e.st==='strike'){if(e.t<=0){e.st='guard';e.t=R(.6,1.3)*Math.max(.55,1-M.k*.07);}}
  else if(e.st==='stag'){if(e.t<=0){e.st='guard';e.t=R(.4,.9);}}
  else if(e.st==='hit'){if(e.t<=0){if(e.hp<=0){e.st='dead';e.t=.75;}else{e.st='guard';e.t=R(.5,1);}}}
@@ -1193,7 +1223,7 @@ function startAmb(){if(AMB||!AC)return;const b=AC.createBuffer(1,AC.sampleRate*2
     if(b%tr.be===0){const o=AC.createOscillator(),g=AC.createGain();o.type=tr.bw||'sine';o.frequency.value=hz(tr.bass[(b/tr.be|0)%tr.bass.length]);g.gain.setValueAtTime(tr.bv||.07,tb);g.gain.setTargetAtTime(0,tb+tr.u*tr.be*.5,.12);o.connect(g);g.connect(mg);o.start(tb);o.stop(tb+tr.u*tr.be+.6);}
     if(tr.drum&&b%tr.drum===0){const s=AC.createBufferSource(),f=AC.createBiquadFilter(),g=AC.createGain(),sn=(b/tr.drum|0)%2===1;s.buffer=NB;f.type=sn?'bandpass':'lowpass';f.frequency.value=sn?1400:160;g.gain.setValueAtTime(sn?.05:.22,tb);g.gain.exponentialRampToValueAtTime(.001,tb+(sn?.09:.2));s.connect(f);f.connect(g);g.connect(mg);s.start(tb);s.stop(tb+.25);}}
    AMB.beat+=len;AMB.next+=dur;AMB.i++;}
-  if(now>AMB.creak){AMB.creak=now+R(5,11);if(Math.random()<.6){const o=AC.createOscillator(),g=AC.createGain(),f2=AC.createBiquadFilter();o.type='sawtooth';o.frequency.setValueAtTime(R(70,95),now);o.frequency.linearRampToValueAtTime(R(50,65),now+.35);f2.type='bandpass';f2.frequency.value=320;g.gain.setValueAtTime(0,now);g.gain.linearRampToValueAtTime(.05,now+.08);g.gain.linearRampToValueAtTime(0,now+.4);o.connect(f2);f2.connect(g);g.connect(MG);o.start(now);o.stop(now+.45);}
+  if(now>AMB.creak){AMB.creak=now+R(5,11);if(Math.random()<.3&&(S.mode==='port'||(S.mode==='sail'&&!isNight()&&S.wx<.4)))sfx('gull');if(Math.random()<.6){const o=AC.createOscillator(),g=AC.createGain(),f2=AC.createBiquadFilter();o.type='sawtooth';o.frequency.setValueAtTime(R(70,95),now);o.frequency.linearRampToValueAtTime(R(50,65),now+.35);f2.type='bandpass';f2.frequency.value=320;g.gain.setValueAtTime(0,now);g.gain.linearRampToValueAtTime(.05,now+.08);g.gain.linearRampToValueAtTime(0,now+.4);o.connect(f2);f2.connect(g);g.connect(MG);o.start(now);o.stop(now+.45);}
    else for(let k=0;k<2;k++){const o=AC.createOscillator(),g=AC.createGain(),t=now+k*.22;o.type='sine';o.frequency.setValueAtTime(1900,t);o.frequency.exponentialRampToValueAtTime(1300,t+.16);g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.025,t+.03);g.gain.linearRampToValueAtTime(0,t+.17);o.connect(g);g.connect(MG);o.start(t);o.stop(t+.2);}}},120);}
 function setMute(){const b=$('mute');b.style.opacity=MU.on?1:.45;b.textContent=MU.on?'♪':'♪̸';if(MG)MG.gain.value=MU.on?1:0;}
 $('mute').addEventListener('click',()=>{MU.on=!MU.on;LS.set('fh_mute',MU.on?0:1);sfx();setMute();});setMute();
