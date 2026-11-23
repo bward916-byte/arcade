@@ -31,6 +31,8 @@ struct Pose {
     var fade = 0.0
     /// Falls on his face, toward the man who struck him, instead of on his back.
     var fwd = false
+    /// The life has gone out of him: eyes shut, arms loose at his sides, legs together.
+    var limp = 0.0
     /// Teeth bared: he is in the middle of a blow.
     var grit = false
 }
@@ -816,7 +818,8 @@ final class Duel {
                 let drop = clampD((q - 0.4) / 0.22, 0, 1)
                 ep.fwd = true
                 ep.ang = lerp(1.2, 0.4, reel)
-                ep.lean = -0.45 * reel * (1 - sink) + 0.5 * sink
+                ep.lean = -0.45 * reel * (1 - sink) + 0.3 * sink * (1 - drop)
+                ep.limp = sink
                 ep.crouch = 0.17 * sink * (1 - drop)
                 ep.fall = drop * drop
                 eOff = s * (0.18 + 0.14 * reel)
@@ -828,7 +831,7 @@ final class Duel {
         case .drag:
             ep.noSword = true
             ep.fall = 1; ep.fwd = true
-            ep.ang = 0.4; ep.lean = 0.5
+            ep.ang = 0.4; ep.lean = 0; ep.limp = 1
             eOff = s * 0.32 + dragShift(g)
         default:
             break
@@ -878,7 +881,7 @@ final class Duel {
             // these are choreographed frame by frame; easing would smear them
             se.ang = ep.ang; se.lean = ep.lean; se.crouch = ep.crouch; se.reach = ep.reach; se.pang = ep.ang
         }
-        se.noSword = ep.noSword; se.walking = ep.walking; se.step = ep.step; se.dy = ep.dy; se.fade = ep.fade; se.fwd = ep.fwd
+        se.noSword = ep.noSword; se.walking = ep.walking; se.step = ep.step; se.dy = ep.dy; se.fade = ep.fade; se.fwd = ep.fwd; se.limp = ep.limp
         sp.noSword = false; sp.walking = false; sp.dy = 0; sp.fade = 0
         pp = sp; ep = se; pOff = sOffP; eOff = sOffE
         let (px, _) = playerXY(g)
@@ -1386,7 +1389,7 @@ final class Duel {
         if p.fade > 0 { c.alpha(1 - min(1, p.fade)) }
         if p.fall > 0 {
             // he goes over backward and ends flat on the planks, not faded away
-            c.translate(0, -min(1, p.fall) * s * 0.07)
+            c.translate(0, -min(1, p.fall) * s * (p.fwd ? 0.135 : 0.07))
             c.rotate((p.fwd ? dir : -dir) * p.fall * 1.5)
         }
         if p.walking { c.translate(0, -abs(sin(p.step)) * s * 0.018) }
@@ -1444,8 +1447,13 @@ final class Duel {
             bfX = -s * 0.17 * sw
             ffX = s * 0.17 * sw
         }
+        if p.limp > 0 {
+            // the fighting stance lets go
+            bfX = lerp(bfX, -s * 0.05, p.limp)
+            ffX = lerp(ffX, s * 0.03, p.limp)
+        }
         let bkX = (hipX + bfX) / 2 - s * 0.02, bkY = hipY / 2 - s * 0.02
-        let fkX = (hipX + ffX) / 2 + s * 0.07, fkY = hipY / 2 - s * 0.03 + crouch * 0.4
+        let fkX = (hipX + ffX) / 2 + s * 0.07 * (1 - p.limp), fkY = hipY / 2 - s * 0.03 + crouch * 0.4
 
         // ---- the skirts of a long coat hang behind the legs and swing with the body
         if long {
@@ -1475,8 +1483,8 @@ final class Duel {
             c.curve(hipX - s * 0.07, hipY - s * 0.01, ex - s * 0.03, hipY + s * 0.07, ex - s * 0.06 + sw - p.reach * s * 0.05, hipY + s * 0.17 + Double(i) * s * 0.02, s * 0.034, ink)
             c.curve(hipX - s * 0.07, hipY - s * 0.01, ex - s * 0.03, hipY + s * 0.07, ex - s * 0.06 + sw - p.reach * s * 0.05, hipY + s * 0.17 + Double(i) * s * 0.02, s * 0.022, sash.shade(0.85))
         }
-        let baX = shX - s * 0.2 - p.reach * s * 0.03, baY = shY + s * 0.2 - p.reach * s * 0.1
-        let bex = shX - s * 0.13, bey = shY + s * 0.13
+        let baX = lerp(shX - s * 0.2 - p.reach * s * 0.03, shX - s * 0.05, p.limp), baY = lerp(shY + s * 0.2 - p.reach * s * 0.1, shY + s * 0.29, p.limp)
+        let bex = lerp(shX - s * 0.13, shX - s * 0.06, p.limp), bey = lerp(shY + s * 0.13, shY + s * 0.16, p.limp)
         limb(shX - s * 0.05, shY + s * 0.04, bex, bey, s * 0.075 * wide, s * 0.062 * wide, bare ? skin.shade(0.82) : coat.shade(0.7))
         limb(bex, bey, baX, baY, s * 0.06 * wide, s * 0.046 * wide, bare ? skin.shade(0.82) : (long ? coat.shade(0.7) : shirt.shade(0.8)))
         c.circ(baX, baY, s * 0.036 + ol, ink); c.circ(baX, baY, s * 0.036, skin.shade(0.88))
@@ -1618,9 +1626,15 @@ final class Duel {
         c.arcStroke(hdX, hdY, hr * 0.94, PI * 0.75, PI * 1.25, max(1, s * 0.01), Col(0xffc070, 0.4))
         // eye and brow: your man steady, theirs scowling
         let ex = hdX + hr * 0.52, ey = hdY - hr * 0.05
-        c.ell(ex, ey, hr * 0.2, hr * 0.14, Col(0xffffff))
-        c.circ(ex + hr * 0.07, ey, hr * 0.09, Col(0x16100a))
-        c.seg(ex - hr * 0.26, ey - hr * (st == 0 ? 0.26 : 0.34), ex + hr * 0.3, ey - hr * (st == 0 ? 0.3 : 0.14), max(1.2, s * 0.016), hair.shade(0.7))
+        if p.limp > 0.4 {
+            // eyes shut, the scowl gone
+            c.curve(ex - hr * 0.2, ey, ex, ey + hr * 0.1, ex + hr * 0.2, ey, max(1, s * 0.011), Col(0x16100a))
+            c.seg(ex - hr * 0.26, ey - hr * 0.26, ex + hr * 0.3, ey - hr * 0.26, max(1.2, s * 0.016), hair.shade(0.7))
+        } else {
+            c.ell(ex, ey, hr * 0.2, hr * 0.14, Col(0xffffff))
+            c.circ(ex + hr * 0.07, ey, hr * 0.09, Col(0x16100a))
+            c.seg(ex - hr * 0.26, ey - hr * (st == 0 ? 0.26 : 0.34), ex + hr * 0.3, ey - hr * (st == 0 ? 0.3 : 0.14), max(1.2, s * 0.016), hair.shade(0.7))
+        }
         if st == 1 {
             // a patch over the other eye, and its cord
             c.seg(hdX - hr * 0.9, hdY - hr * 0.5, hdX + hr * 0.95, hdY - hr * 0.2, max(1, s * 0.008), ink)
@@ -1693,7 +1707,7 @@ final class Duel {
 
         // ---- the sword arm: shoulder, elbow, wrist; then the hilt and the blade
         let armLen = s * (0.24 + max(-0.3, p.reach) * 0.07)
-        let armA = p.ang * 0.62 - 0.12
+        let armA = lerp(p.ang * 0.62 - 0.12, 1.5, p.limp)
         let hx = shX + cos(armA) * armLen, hy = shY + s * 0.04 + sin(armA) * armLen
         let sx0 = shX + s * 0.02, sy0 = shY + s * 0.04
         let bend = s * 0.07 * (1 - clampD(p.reach, 0, 1) * 0.85)
