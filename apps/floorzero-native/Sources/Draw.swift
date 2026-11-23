@@ -43,6 +43,7 @@ extension Game {
     var contRect: Rect4 { return Rect4(x: W / 2 - 150, y: 462, w: 300, h: 40) }
     var resumeRect: Rect4 { return Rect4(x: W / 2 - 150, y: 210, w: 300, h: 64) }
     var quitRect: Rect4 { return Rect4(x: W / 2 - 150, y: 296, w: 300, h: 54) }
+    var musicRect: Rect4 { return Rect4(x: W / 2 - 150, y: 372, w: 300, h: 46) }
     func pickRect(_ i: Int) -> Rect4 {
         let cw = 300.0, gap = 44.0
         let n = Double(max(1, pickOpts.count))
@@ -848,7 +849,10 @@ final class Renderer {
         let q = g.quitRect
         cv.RR(q.x, q.y, q.w, q.h, 14, WHITE.alpha(0.14))
         cv.text("QUIT TO TITLE", g.W / 2, q.y + 34, 18, WHITE, 1, 2)
-        cv.text("Your floor is saved.", g.W / 2, q.y + 86, 13, WHITE.alpha(0.6), 1, 1)
+        let m = g.musicRect
+        cv.RR(m.x, m.y, m.w, m.h, 14, WHITE.alpha(0.14))
+        cv.text((g.snd?.musicOn ?? true) ? "MUSIC: ON" : "MUSIC: OFF", g.W / 2, m.y + 30, 16, WHITE, 1, 2)
+        cv.text("Your floor is saved.", g.W / 2, m.y + 74, 13, WHITE.alpha(0.6), 1, 1)
     }
 
     private func ride(_ g: Game, _ cv: Canvas) {

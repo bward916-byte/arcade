@@ -409,7 +409,7 @@ final class Game {
         case .hole: say(f.fireStairs ? "FLOOR \(n) — STAIRS ON FIRE. DROP THROUGH THE FLOOR." : "FLOOR \(n) — STAIRS GONE. DROP THROUGH THE FLOOR.", 4)
         case .lift: say("FLOOR \(n) — STAIRS BLOCKED. CLEAR IT. TAKE THE ELEVATOR.", 4)
         case .normal:
-            if f.boss { say("FLOOR 32 — DR. MARR.", 4) } else if tower == 0 && n == 12 && !valveShut { say("FLOOR 12 — THE WATER MAIN. SHUT IT.", 4) } else if f.pack == 1 { say("FLOOR \(n) — DOGS. THEY ARE FAST.") } else if f.pack == 2 { say("FLOOR \(n) — RATS.") } else { say("FLOOR \(n) — \(zone(n).name)", 2.2) }
+            if f.boss { snd?.roar(); say("FLOOR 32 — DR. MARR.", 4) } else if tower == 0 && n == 12 && !valveShut { say("FLOOR 12 — THE WATER MAIN. SHUT IT.", 4) } else if f.pack == 1 { say("FLOOR \(n) — DOGS. THEY ARE FAST.") } else if f.pack == 2 { say("FLOOR \(n) — RATS.") } else { say("FLOOR \(n) — \(zone(n).name)", 2.2) }
         }
     }
 
@@ -506,6 +506,11 @@ final class Game {
         if hitsT > 0 { hitsT -= dt; if hitsT <= 0 { hits = 0 } }
         if nameT > 0 { nameT -= dt }
         h.inv = max(0, h.inv - dt)
+        groanCd -= dt
+        if groanCd < -5 && aliveCount > 0 && chance(dt * 0.5) { groanCd = 1.5; snd?.groan(rnd(0.7, 1.3)) }
+        heartCd -= dt
+        if h.hp < h.maxHp * 0.3 && heartCd <= 0 { heartCd = 0.85; snd?.heart(); buzz(1) }
+        if floor.kind == .wall && abs(h.x - floor.wallX) < 600 && chance(dt * 14) { snd?.crackle() }
         h.hurtT = max(0, h.hurtT - dt)
         if h.comboT > 0 { h.comboT -= dt }
 
@@ -552,7 +557,7 @@ final class Game {
                     hitStop = h.atkI == 2 ? 0.07 : 0.035
                     shake = max(shake, h.atkI == 2 ? 9 : 4)
                     addMeter(3 * Double(n))
-                    snd?.hit(h.atkI == 2 ? 1 : 0.7)
+                    if h.atkI == 2 { snd?.bigHit() } else { snd?.hit(0.8) }
                     buzz(h.atkI == 2 ? 2 : 1)
                 }
             }
@@ -620,7 +625,10 @@ final class Game {
             }
             let dx = h.x - z.x
             let ad = abs(dx)
-            if !z.aware && ad < z.sight { z.aware = true }
+            if !z.aware && ad < z.sight {
+                z.aware = true
+                if groanCd <= 0 { groanCd = 1.4; if z.kind == .dog { snd?.bark() } else if z.kind == .rat { snd?.squeak() } else if z.kind == .boss { snd?.roar() } else { snd?.groan(0.8 + z.seed * 0.6) } }
+            }
             if z.kvx != 0 {
                 z.x += z.kvx * dt
                 z.kvx *= pow(0.004, dt)
@@ -645,6 +653,7 @@ final class Game {
                 } else if z.cd <= 0 {
                     z.atkT = 0
                     z.atkHit = false
+                    if z.kind == .dog && chance(0.5) { snd?.bark() }
                 }
             } else {
                 z.walk += 8 * dt
@@ -688,6 +697,7 @@ final class Game {
             explode(z.x, 260, 0)
             shake = 26; flash = 0.8; flashCol = MINT
             say("MARR IS DOWN. TAKE THE SAMPLE.", 5)
+            snd?.roar()
             buzz(3)
         }
     }
@@ -1035,7 +1045,7 @@ final class Game {
     var aliveBoss: Bool { return floor.zeds.contains(where: { $0.alive && $0.kind == .boss }) }
 
     func towerDone() {
-        snd?.ding(); buzz(3)
+        snd?.win(); buzz(3)
         if tower < 2 { startTower(tower + 1) } else {
             let d = UserDefaults.standard
             d.removeObject(forKey: "fz.floor")
@@ -1046,6 +1056,18 @@ final class Game {
 
     // ---------- a simple player for screenshots and the balance run
     var botStuck = 0.0
+    var groanCd = 2.0
+    var heartCd = 0.0
+    var musicLevel: Int {
+        switch mode {
+        case .play, .dead:
+            if supT >= 0 || aliveBoss { return 3 }
+            for z in floor.zeds where z.alive && z.aware && abs(z.x - hero.x) < 900 { return 2 }
+            return 1
+        case .ride, .card: return 1
+        default: return 0
+        }
+    }
     private func bot() {
         let f = floor
         let h = hero

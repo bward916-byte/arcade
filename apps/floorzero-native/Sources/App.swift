@@ -50,6 +50,7 @@ final class GameViewController: UIViewController {
         stage.layer.contentsGravity = .resize
         view.addSubview(stage)
         game.snd = sound
+        sound.musicOn = !UserDefaults.standard.bool(forKey: "fz.musicOff")
         let l = CADisplayLink(target: self, selector: #selector(tick(_:)))
         l.add(to: .main, forMode: .common)
         link = l
@@ -96,6 +97,7 @@ final class GameViewController: UIViewController {
         last = now
         guard let cv = canvas else { return }
         if !renderer.paused { game.update(raw) }
+        sound.intensity = renderer.paused ? 0 : game.musicLevel
         if game.haptic > 0 {
             if game.haptic >= 3 { tapHeavy.impactOccurred() } else if game.haptic == 2 { tapMedium.impactOccurred() } else { tapLight.impactOccurred() }
             game.haptic = 0
@@ -119,7 +121,7 @@ final class GameViewController: UIViewController {
         for t in touches {
             let (x, y) = gp(t)
             if renderer.paused {
-                if game.resumeRect.has(x, y) { renderer.paused = false } else if game.quitRect.has(x, y) { renderer.paused = false; game.save(); game.auto = false; game.mode = .title }
+                if game.musicRect.has(x, y) { sound.musicOn = !sound.musicOn; UserDefaults.standard.set(!sound.musicOn, forKey: "fz.musicOff") } else if game.resumeRect.has(x, y) { renderer.paused = false } else if game.quitRect.has(x, y) { renderer.paused = false; game.save(); game.auto = false; game.mode = .title }
                 continue
             }
             switch game.mode {
