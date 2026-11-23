@@ -576,6 +576,9 @@ extension Game {
         } else if deckEv && omen {
             zT = 3; fyT = H * 0.55
         }
+        if sceneK == "plank" && acting {
+            zT = 1.9; fxT = W * 0.66; fyT = card != nil ? H * 0.36 : H * 0.52
+        }
         if sceneK == "bottle" && acting && play == nil {
             // look off the bow, where it is bobbing
             zT = 2.1; fxT = W * 0.26; fyT = card != nil ? H * 0.34 : H * 0.5
@@ -597,8 +600,11 @@ extension Game {
         c.translate(camFx, camFy); c.scale(camZ, camZ); c.translate(-pv.0, -pv.1)
         let theme = play?.theme ?? sceneK
         let slenW = min(W * 0.3, 280) * ship.len
-        let near = omen ? min(1, omenT / Game.omenLen) : 1
-        if theme == "pirates" || theme == "blockade" {
+        let near = omen && sceneK != "plank" ? min(1, omenT / Game.omenLen) : 1
+        if theme == "plank" {
+            // the prize, lying astern with her sails clewed up
+            drawShip(c, W * 0.42 - slenW * 0.5 - 150, wy - 6, min(W * 0.3, 280) * 0.7, 2, enemy: true, furled: true)
+        } else if theme == "pirates" || theme == "blockade" {
             // she comes up from astern, growing as she closes
             drawShip(c, -W * 0.1 + W * 0.2 * near, wy - 14 + 8 * near, min(W * 0.3, 280) * (0.35 + 0.4 * near), theme == "blockade" ? 3 : 2, enemy: true)
         } else if theme == "merchant" {
@@ -735,7 +741,7 @@ extension Game {
         }
         drawProgress(c)
         if sceneK.isEmpty { c.textS(lifeCaption(), W / 2, 96, 12.5, CREAM.alpha(0.92), 0, FONTI) }
-        let bw = 150.0, by = H - safeB - 50
+        let bw = 172.0, by = H - safeB - 50
         btn(c, W / 2 - bw - 6, by, bw, 44, half ? "Rations: half" : "Rations: full", half ? "saves food, risks sickness" : "tap to halve") { [unowned self] in
             self.half = !self.half
         }
@@ -744,6 +750,25 @@ extension Game {
             if self.over { return }
             self.playFish()
         }
+        // what each button means, drawn on it: a pie, whole or cut in half; a fish on the hook
+        let pxc = W / 2 - bw - 6 + 24, pyc = by + 22
+        c.ell(pxc, pyc + 9, 13, 3, Col(0x000000, 0.25))
+        c.circ(pxc, pyc, 12.5, Col(0xe8e0cc)); c.circStroke(pxc, pyc, 12.5, 1, Col(0x8a7a5a))
+        if half {
+            c.arcFill(pxc, pyc, 10, PI / 2, PI * 1.5, Col(0xc98a3a)); c.arcFill(pxc, pyc, 7.5, PI / 2, PI * 1.5, Col(0xe8b860))
+            c.seg(pxc, pyc - 10, pxc, pyc + 10, 1.2, Col(0x8a1a1a))
+            for j in 0..<3 { c.circ(pxc + 4 + Double(j) * 2.5, pyc + 3 - Double(j % 2) * 5, 0.9, Col(0xc98a3a)) }
+        } else {
+            c.circ(pxc, pyc, 10, Col(0xc98a3a)); c.circ(pxc, pyc, 7.5, Col(0xe8b860))
+            for j in 0..<4 { let a = Double(j) * PI / 2 + 0.4; c.seg(pxc + cos(a) * 2, pyc + sin(a) * 2, pxc + cos(a) * 6, pyc + sin(a) * 6, 1, Col(0x8a5a2c)) }
+            for j in 0..<2 { let ph = (T * 0.6 + Double(j) * 0.5).truncatingRemainder(dividingBy: 1); c.curve(pxc - 3 + Double(j) * 6, pyc - 9 - ph * 8, pxc - 1 + Double(j) * 6, pyc - 13 - ph * 8, pxc - 3 + Double(j) * 6, pyc - 17 - ph * 8, 1, Col(0xffffff, 0.6 * (1 - ph))) }
+        }
+        let fxc = W / 2 + 6 + 24, swing = sin(T * 2.4) * 0.3
+        c.save(); c.translate(fxc, by + 8); c.rotate(swing)
+        if bait < 1 { c.alpha(0.45) }
+        c.seg(0, 0, 0, 14, 0.9, Col(0xfff6d8)); c.arcStroke(0, 16, 2.2, 0, PI, 1, Col(0xc8c8cc))
+        c.ell(1, 22, 4.2, 8, Col(0x6fb0d8)); c.ell(2.2, 22, 2, 6, Col(0xdfeaf2)); c.poly(Col(0x4a8ab0), [1, 29, -4, 35, 6, 35]); c.circ(0.5, 17.5, 0.9, Col(0x0c1014))
+        c.restore()
     }
 
     // ---------- the end

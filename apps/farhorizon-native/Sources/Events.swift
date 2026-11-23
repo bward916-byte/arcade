@@ -41,7 +41,11 @@ extension Game {
         "spout": ("A waterspout!", "A twisting column is walking across the sea"),
         "spar": ("A crack like a gunshot", "The main yard has carried away"),
         "stowaway": ("A shout from the hold", "The cooper has found someone in a cask"),
-        "catch": ("The stern line goes bar-tight", "Something big is coming over the rail")
+        "catch": ("The stern line goes bar-tight", "Something big is coming over the rail"),
+        "scurvy": ("The watch is slow to turn out", "Loose teeth, black gums, no strength in them"),
+        "foulwater": ("A stink from the casks", "The water has gone green"),
+        "weevils": ("The bread is moving", "Weevils in the biscuit, and worse in the flour"),
+        "plank": ("The prize is yours!", "Her crew go over the side, one at a time")
     ]
     func startOmen(_ k: String) {
         omenK = k
@@ -70,7 +74,8 @@ extension Game {
             ("sick", 0.9, 0.9), ("merchant", 1, 2.2), ("bottle", 0.8, 0.8), ("leak", 1.1, 0.9), ("castaway", 0.8, 0.8),
             ("ghost", 1.2, 0.6), ("dolphins", 1, 1.6), ("fog", 1, 1.2), ("overboard", 0.8, 0.7),
             ("fall", 1.1, 1.0), ("brawl", 1.0, 1.0), ("galley", 0.9, 0.9), ("rats", 0.9, 1.0),
-            ("whale", 1.0, 0.6), ("spout", 0.9, 0.6), ("spar", 1.0, 0.9), ("stowaway", 0.7, 0.9), ("catch", 0.9, 1.1)
+            ("whale", 1.0, 0.6), ("spout", 0.9, 0.6), ("spar", 1.0, 0.9), ("stowaway", 0.7, 0.9), ("catch", 0.9, 1.1),
+            ("scurvy", 1.0, 0.5), ("foulwater", 0.9, 0.7), ("weevils", 0.9, 0.8)
         ]
         var total = 0.0
         for t in table where t.0 != lastEv { total += route == 1 ? t.1 : t.2 }
@@ -226,6 +231,49 @@ extension Game {
                 Opt("Leave them to it", "they will eat") { [unowned self] in
                     self.food = max(0, self.food - 6)
                     self.done("They get fat on your stores: -6 food")
+                }
+            ])
+        case "plank":
+            show(pendTitle, pendText, [Opt("Sail on") { [unowned self] in self.done("") }])
+        case "scurvy":
+            logIt("Scurvy aboard")
+            show("Scurvy", "Too long on salt meat. Half the watch can barely haul, and it will get worse.", [
+                Opt("Fresh food for the sick", food >= 5 ? "the best of the stores · -5 food" : "there is not enough food", off: food < 5) { [unowned self] in
+                    self.food = max(0, self.food - 5)
+                    self.done("Onions, lime juice and the last of the fruit. They mend slowly: -5 food")
+                },
+                Opt("Work them regardless", "two will go down") { [unowned self] in
+                    self.toastText = ""
+                    self.sickOne("scurvy")
+                    if !self.over { self.sickOne("scurvy") }
+                    if !self.over { self.done("Two men cannot rise from their hammocks") }
+                }
+            ])
+        case "foulwater":
+            logIt("The water went bad")
+            let lost = Int((water * 0.3).rounded())
+            show("Foul water", "Three casks have turned. The smell alone would drop a horse.", [
+                Opt("Pour it over the side", "-\(lost) water") { [unowned self] in
+                    self.water = max(0, self.water - Double(lost))
+                    self.done("Green water over the rail: -\(lost) water")
+                },
+                Opt("Drink it anyway", "someone will sicken") { [unowned self] in
+                    self.toastText = ""
+                    self.sickOne("bad water")
+                    if !self.over { self.done(self.toastText.isEmpty ? "They hold their noses and drink" : self.toastText) }
+                }
+            ])
+        case "weevils":
+            logIt("Weevils in the bread")
+            let lost = Int((food * 0.25).rounded())
+            show("Weevils", "The biscuit is alive, and the flour has gone grey with them.", [
+                Opt("Throw out the worst", "-\(lost) food") { [unowned self] in
+                    self.food = max(0, self.food - Double(lost))
+                    self.done("A quarter of the bread goes to the fish: -\(lost) food")
+                },
+                Opt("Pick them out", "all hands · lose \(SUNS) days") { [unowned self] in
+                    self.passDays(1)
+                    if !self.over { self.done("Every biscuit rapped on the table, every sack sieved") }
                 }
             ])
         case "whale":
@@ -412,7 +460,11 @@ extension Game {
         var t = "Her deck is cleared and her hold is yours.\nPlunder: \(g) gold"
         if pw > 0 { t += ", \(pw) powder" }
         if bl > 0 { t += ", \(bl) blades" }
-        show(d.boss ? "The Red Mary is taken!" : "The prize is yours", t, [Opt("Sail on") { [unowned self] in self.done("") }])
+        // first the cheering, and her crew sent over the side; then the count of the plunder
+        pendTitle = d.boss ? "The Red Mary is taken!" : "The prize is yours"
+        pendText = t
+        card = nil
+        startOmen("plank")
     }
     func duelLost(_ d: Duel) {
         duel = nil

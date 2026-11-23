@@ -101,7 +101,11 @@ final class Game {
     var sceneK = ""
     var sceneT = 0.0
     /// Things that happen on the deck itself; everything else is far off and wants the wide view.
-    static let deckScenes: Set<String> = ["sick", "leak", "calm", "fall", "brawl", "galley", "rats", "spar", "stowaway", "catch", "bottle"]
+    static let deckScenes: Set<String> = ["sick", "leak", "calm", "fall", "brawl", "galley", "rats", "spar", "stowaway", "catch", "bottle", "scurvy", "foulwater", "weevils", "plank"]
+    /// How fast the voyage is running: it eases down as something comes into view and back up afterwards.
+    var pace = 1.0
+    var pendTitle = ""
+    var pendText = ""
     /// How far along the leg each event falls, so they are spread over the passage and never bunch up.
     var evMarks: [Double] = []
     // what the crew has got through since the last port
@@ -585,6 +589,9 @@ final class Game {
         if mode == .sail && !sceneK.isEmpty && play == nil {
             if sceneK == "fall" && sceneWas < 0.9 && sceneT >= 0.9 { snd?.thud(); shake = max(shake, 0.25); buzz?(true) }
             if sceneK == "brawl" && card == nil && Int(sceneWas / 0.55) != Int(sceneT / 0.55) { snd?.thud() }
+            if sceneK == "plank" {
+                for i in 0..<3 { let tf = 0.4 + Double(i) * 1.15 + 1.45; if sceneWas < tf && sceneT >= tf { snd?.splash(); snd?.good() } }
+            }
         }
         updateWeather(dt)
 
@@ -632,7 +639,10 @@ final class Game {
             } else if card == nil, !omenK.isEmpty {
                 // time all but stops while the thing comes into view
                 omenT += dt
-                scroll += dt * 16 * ship.speed
+                pace = max(0, pace - dt / 0.6)
+                scroll += dt * (16 + 54 * pace) * ship.speed
+                dayT = min(DAYLEN - 0.02, dayT + dt * pace)
+                tod = (dayT / DAYLEN * Double(SUNS)).truncatingRemainder(dividingBy: 1)
                 if omenT >= Game.omenLen {
                     let k = omenK
                     omenK = ""
@@ -640,12 +650,15 @@ final class Game {
                 }
             } else if card == nil {
                 sceneK = ""
-                dayT += dt
+                // she gathers way again after whatever stopped her
+                pace = min(1, pace + dt / 0.8)
+                let sd = dt * (0.1 + 0.9 * pace)
+                dayT += sd
                 tod = (dayT / DAYLEN * Double(SUNS)).truncatingRemainder(dividingBy: 1)
-                dist += dps() * dt / DAYLEN
-                scroll += dt * 70 * ship.speed
+                dist += dps() * sd / DAYLEN
+                scroll += sd * 70 * ship.speed
                 // stores go down steadily as she sails, not in one bite at the end of the watch
-                let ate = ration() * dt / DAYLEN
+                let ate = ration() * sd / DAYLEN
                 let f0 = food, w0 = water
                 food = max(0, food - ate * (1 - 0.15 * min(2, E("cook"))))
                 water = max(0, water - ate)
@@ -667,7 +680,8 @@ final class Game {
         }
         var mood = "sea"
         if mode == .duel { mood = "battle" } else if mode == .port || mode == .market || mode == .tavern { mood = "port" } else if mode == .end { mood = "night" } else if mode == .sail {
-            mood = isNight ? "night" : (leg % 2 == 1 ? "sea2" : "sea")
+            // one tune for the whole passage: the sun goes round too fast to change it with the hour
+            mood = leg % 2 == 1 ? "sea2" : "sea"
         }
         if play?.theme == "storm" || play?.theme == "run" { mood = "battle" }
         snd?.music(T, mood)
@@ -726,6 +740,9 @@ final class Game {
         if name == "evstow" { startOmen("stowaway"); sceneT = 2; omenK = ""; event("stowaway"); camZ = 2.6 }
         if name == "evcatch" { startOmen("catch"); sceneT = 2; omenT = 1.6; Game.omenHold = true; camZ = 2.6 }
         if name == "omen" { startOmen("pirates"); omenT = 1.6; Game.omenHold = true }
+        if name == "evplank" { startOmen("plank"); sceneT = 2.0; omenT = 1.6; Game.omenHold = true; camZ = 1.9 }
+        if name == "evscurvy" { startOmen("scurvy"); sceneT = 2; omenK = ""; event("scurvy"); camZ = 2.6 }
+        if name == "acts" { deckForce = 9; camZ = 2.6; half = true }
         if name == "yard2" { leg = 1; mode = .port; gold = 900; shipwright(); cardT = 9 }
         if name == "yard" { leg = 1; mode = .port; shipwright() }
         if name == "decklife" { ups = ["sails": 2, "hull": 1, "guns": 1]; deckForce = 5; seaForce = 0 }

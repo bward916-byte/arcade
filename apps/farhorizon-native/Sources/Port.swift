@@ -115,7 +115,10 @@ extension Game {
             }
         }
         // ---- hills behind the town
-        c.pathFill(Col(0x4d7f52).shade(dark * 0.9)) { p in
+        let pt = leg * 2 + path[leg]
+        let hillA = [Col(0x4d7f52), Col(0xb89a5a), Col(0x35604a), Col(0x7a8a8a), Col(0x8a9a4a)][pt % 5]
+        let hillB = [Col(0x5f9450), Col(0xd0b06a), Col(0x3f7450), Col(0x98a8a4), Col(0xa8b450)][pt % 5]
+        c.pathFill(hillA.shade(dark * 0.9)) { p in
             p.move(to: CGPoint(x: W * 0.3, y: hz + 4))
             p.addQuadCurve(to: CGPoint(x: W * 0.56, y: hz - 122), control: CGPoint(x: W * 0.4, y: hz - 96))
             p.addQuadCurve(to: CGPoint(x: W * 0.8, y: hz - 92), control: CGPoint(x: W * 0.68, y: hz - 150))
@@ -123,7 +126,7 @@ extension Game {
             p.addLine(to: CGPoint(x: W + 10, y: hz + 4))
             p.closeSubpath()
         }
-        c.pathFill(Col(0x5f9450).shade(dark)) { p in
+        c.pathFill(hillB.shade(dark)) { p in
             p.move(to: CGPoint(x: W * 0.36, y: hz + 4))
             p.addQuadCurve(to: CGPoint(x: W * 0.64, y: hz - 82), control: CGPoint(x: W * 0.48, y: hz - 76))
             p.addQuadCurve(to: CGPoint(x: W + 10, y: hz - 58), control: CGPoint(x: W * 0.84, y: hz - 96))
@@ -193,8 +196,11 @@ extension Game {
 
         // ---- the town: a back row on the slope, then the big houses along the waterfront
         func house(_ hx: Double, _ base: Double, _ hw: Double, _ hh: Double, _ k: Int) {
-            let wall = [Col(0xf3ead2), Col(0xf0d8b0), Col(0xe8c8c0), Col(0xd8e4e8), Col(0xf6e6a8)][k % 5].shade(dark)
-            let roof = [Col(0xb8452c), Col(0x8a5a36), Col(0xa63a2a), Col(0x6b4a3a)][k % 4].shade(dark)
+            // each town builds in its own stone and tiles its own way
+            let townWall = [Col(0xf3ead2), Col(0xe8c090), Col(0xffffff), Col(0xc8b8a0), Col(0xf0d0c8), Col(0xd0dce0)][pt % 6]
+            let townRoof = [Col(0xb8452c), Col(0x7a5030), Col(0x3a6a9a), Col(0x4a4a52), Col(0x9a3a4a), Col(0x4a7a4a)][pt % 6]
+            let wall = Col.mix([Col(0xf3ead2), Col(0xf0d8b0), Col(0xe8c8c0), Col(0xd8e4e8), Col(0xf6e6a8)][k % 5], townWall, 0.6).shade(dark)
+            let roof = Col.mix([Col(0xb8452c), Col(0x8a5a36), Col(0xa63a2a), Col(0x6b4a3a)][k % 4], townRoof, 0.7).shade(dark)
             c.R(hx, base - hh, hw, hh, wall)
             c.R(hx + hw * 0.62, base - hh, hw * 0.38, hh, Col(0x000000, 0.1))
             c.poly(roof, [hx - 3, base - hh, hx + hw / 2, base - hh - hw * 0.34, hx + hw + 3, base - hh])

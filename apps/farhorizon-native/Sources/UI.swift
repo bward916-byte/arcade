@@ -376,7 +376,27 @@ extension Game {
         c.RRStroke(x, 6, w, 24, 12, 1, warn ? Col(0xff7a5a) : Col(0xd2a455, 0.8))
         icon(c, k, x + 15, 18, 18)
         c.text(txt, x + 28, 22.5, size, warn ? Col(0xffb0a0) : CREAM, -1, FONT)
+        if card == nil && sum == nil {
+            hits.append(Hit(x: x, y: 0, w: w, h: 34, act: { [unowned self] in self.toast(self.about(k)) }))
+        }
         return x + w + 5
+    }
+
+    /// What each thing along the top is for, said when it is tapped.
+    func about(_ k: String) -> String {
+        let per = max(0.01, ration())
+        switch k {
+        case "day": return "Day \(cal) of the voyage. Wages fall due each time you sail"
+        case "gold": return "Gold: buys stores, repairs and upgrades, and pays the crew"
+        case "food": return "Food: the crew eats every day. About \(Int(food / per) * SUNS) days left"
+        case "water": return "Water: the crew drinks every day. About \(Int(water / per) * SUNS) days left"
+        case "planks": return "Planks: mend leaks and broken spars at sea"
+        case "bait": return "Bait: lets you stop and fish for food"
+        case "powder": return "Powder: a broadside before boarding thins the pirates"
+        case "arms": return "Blades: armed hands fight better when you are boarded"
+        case "crew": return "Crew: \(crew) hands aboard" + (laidUp() > 0 ? ", \(laidUp()) sick or wounded" : ", all fit")
+        default: return "Hull: how sound she is. Repair at a shipwright"
+        }
     }
 
     func drawHUD(_ c: Canvas) {
