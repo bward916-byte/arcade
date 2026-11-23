@@ -333,26 +333,36 @@ struct PlacesView: View {
             .ignoresSafeArea(edges: .bottom)
             .overlay(alignment: .top) {
                 VStack(spacing: 0) {
-                    HStack(spacing: 8) {
+                    VStack(spacing: 8) {
                         Button {
                             finding = true
                             landAnswer = nil
                             locateCount += 1
                         } label: {
-                            Label("Am I on BLM land?", systemImage: "location.fill").font(.subheadline.weight(.bold)).frame(maxWidth: .infinity).padding(.vertical, 10)
+                            HStack(spacing: 14) {
+                                LocatorPing()
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Am I on BLM land?").font(.title3.weight(.bold))
+                                    Text("Tap to see whose land you are standing on").font(.caption.weight(.semibold)).opacity(0.9)
+                                }
+                            }
+                            .frame(maxWidth: .infinity).padding(.vertical, 12)
                         }
-                        .background(Theme.primary).foregroundColor(.white).cornerRadius(10)
+                        .background(Theme.primary).foregroundColor(.white).cornerRadius(16)
+                        .shadow(color: Theme.primary.opacity(0.35), radius: 6, y: 3)
                         Button {
                             hintSeen = true
                             layering = true
                         } label: {
-                            Label("Layers · \(layerCount) on", systemImage: "square.3.layers.3d").font(.subheadline.weight(.bold)).frame(maxWidth: .infinity).padding(.vertical, 10)
+                            Label("Layers · \(layerCount) on", systemImage: "square.3.layers.3d").font(.subheadline.weight(.bold))
+                                .padding(.horizontal, 28).padding(.vertical, 9)
                         }
                         .background(Color(.systemBackground)).foregroundColor(Theme.primary).cornerRadius(10)
                         .overlay(RoundedRectangle(cornerRadius: 10).stroke(Theme.primary, lineWidth: 2))
                     }
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
+                    .frame(maxWidth: .infinity)
                     .background(Theme.page)
                     if finding {
                         Text("Finding where you are…").font(.footnote).padding(.horizontal, 12).padding(.bottom, 8)
@@ -561,5 +571,26 @@ struct PlacesView: View {
                 .frame(width: 46, height: 46).background(.regularMaterial).clipShape(Circle()).shadow(radius: 2)
         }
         .accessibilityLabel(label)
+    }
+}
+
+// The moving picture on the "Am I on BLM land?" button: rings spreading out from a dot, like a locator. Still when the phone asks for less motion.
+struct LocatorPing: View {
+    @Environment(\.accessibilityReduceMotion) private var still
+    @State private var out = false
+
+    var body: some View {
+        ZStack {
+            ForEach(0..<3, id: \.self) { n in
+                Circle().stroke(Color.white, lineWidth: 3)
+                    .scaleEffect(still ? 0.8 : (out ? 1.1 : 0.25))
+                    .opacity(still ? (n == 0 ? 0.7 : 0) : (out ? 0 : 0.95))
+                    .animation(still ? nil : .easeOut(duration: 2.4).repeatForever(autoreverses: false).delay(Double(n) * 0.8), value: out)
+            }
+            Circle().fill(Color.white).frame(width: 14, height: 14)
+        }
+        .frame(width: 42, height: 42)
+        .onAppear { out = true }
+        .accessibilityHidden(true)
     }
 }
