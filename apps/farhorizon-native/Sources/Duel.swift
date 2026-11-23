@@ -20,6 +20,7 @@ struct Pose {
     var twoHand = false
     /// Where the blade pointed a frame ago: the gap between then and now is drawn as a blur.
     var pang = -0.45
+    var blur = false
     /// Teeth bared: he is in the middle of a blow.
     var grit = false
 }
@@ -725,6 +726,7 @@ final class Duel {
         func follow(_ cur: inout Pose, _ tg: Pose, _ rate: Double) {
             let k = 1 - exp(-rate * dtv)
             cur.pang = cur.ang
+            cur.blur = true
             cur.ang += (tg.ang - cur.ang) * k
             cur.reach += (tg.reach - cur.reach) * k
             cur.lean += (tg.lean - cur.lean) * (1 - exp(-rate * 0.7 * dtv))
@@ -1482,7 +1484,7 @@ final class Duel {
         let tipX = hx + ca * bl, tipY = hy + sa * bl
         // any quick movement of the sword smears: the space between where it was and where it is
         let sweep = p.ang - p.pang
-        if abs(sweep) > 0.05 && abs(sweep) < 2.6 {
+        if p.blur && abs(sweep) > 0.05 && abs(sweep) < 2.6 {
             let rad = armLen + bl
             let a0 = min(p.ang, p.pang), a1 = max(p.ang, p.pang)
             let al = min(0.42, abs(sweep) * 1.1)
