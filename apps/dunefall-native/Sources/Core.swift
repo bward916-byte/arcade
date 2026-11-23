@@ -155,6 +155,8 @@ final class Ufo {
     init(x: Double) { self.x = x }
 }
 struct Devil { var x: Double; var dir: Double; let a: Double; let b: Double }
+/// A patch of water and palms seen across the midday sand. One in four is really there.
+struct Mirage { var x: Double; var real: Bool; var gone = 0.0 }
 struct Rock { var x: Double; var dir: Double; var rot = 0.0; var t = 0.0; var dead = false }
 
 let GHP: [Double] = [0, 16, 34, 60, 90]
@@ -458,6 +460,8 @@ struct Input {
 enum GameState { case title, play, over, end }
 
 let HINTS: [String: String] = [
+    "mirage": "Only a mirage.",
+    "real": "This one was real.",
     "cave1": "The cave tomb is open, but spears guard the way in. Ride through when they drop. The gold is at the door.",
     "cave2": "Gold from the cave, and an ankh that will save you once.",
     "clouds": "Clouds are building. That almost never happens here.",
@@ -506,7 +510,7 @@ let HINTS: [String: String] = [
     "btemple0": "The storm has uncovered the top of something very old, west of town.",
     "hermit0": "A hermit. For six coins he parts with something old.",
     "relic_scarab": "A scarab. Three coins find you every dawn, in every town.",
-    "relic_lamp": "An old lamp. It shows what is buried: every hidden urn glows, here and in every town, and is marked on the map.",
+    "relic_lamp": "An old lamp. Every hidden urn glows and is marked on the map, and every mirage you ride into is real.",
     "well3": "A fountain garden at the well: two coins each dawn, and room for six more people.",
     "sphinx2": "The Sphinx is restored and gilded. Four coins each dawn, and it turns back two in three raiders from the west.",
     "tomb2": "The tomb is sealed with gold. The dead will not walk again.",

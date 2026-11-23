@@ -24,6 +24,7 @@ struct PersonOpt {
     /// 0 turban, 1 bronze helmet, 2 wide straw hat
     var hat = 0
     var pack = false
+    var lantern = false
 }
 
 struct CamelOpt {
@@ -137,6 +138,7 @@ final class Renderer {
         groundRipples()
         groundExtra()
         wetGround()
+        for m in g.mirages { mirage(m) }
         if !g.low { groundAir(); critters() }
         nile()
         if !g.low { nileExtra(hz) }
@@ -1250,6 +1252,32 @@ final class Renderer {
         default:
             break
         }
+    }
+    /// Water and palms shimmering on the midday sand. A false one thins as you come close.
+    func mirage(_ m: Mirage) {
+        let day = clampD(min(g.t - 0.24, 0.57 - g.t) / 0.05, 0, 1)
+        let near: Double = m.real ? 1 : clampD((abs(m.x - g.player.x) - 30) / 120, 0.25, 1)
+        let a = day * (1 - m.gone) * near
+        if a <= 0.01 { return }
+        let x = m.x - cam
+        if x > W + 60 || x < -60 { return }
+        c.alpha(a * 0.9)
+        for j in 0..<7 {
+            let k = Double(j)
+            c.RR(x - 34 + k * 2.5 + sin(NOW * 3 + k * 1.3) * 3, GY - 9 + k, 68 - k * 5, 1.05, 0.5, j % 2 == 1 ? Col(0x9fd8e8) : Col(0xc8ecf2))
+        }
+        for o in [-18.0, -4, 14] {
+            let wob = sin(NOW * 2.4 + o) * 1.5
+            c.seg(x + o, GY - 9, x + o + wob, GY - 22, 1, Col(0x4a6a4a))
+            for i in 0..<5 {
+                let an = -PI * Double(i) / 4
+                c.curve(x + o + wob, GY - 22, x + o + wob + cos(an) * 3.4, GY - 23 + sin(an) * 2, x + o + wob + cos(an) * 6.4, GY - 20 + sin(an) * 3, 0.8, Col(0x4a7a4a))
+            }
+            c.seg(x + o, GY - 8, x + o - wob, GY - 2, 1, rgba(74, 106, 74, 0.5))
+        }
+        let tx = x + 30 + sin(NOW * 2)
+        c.dome(tx, GY - 12, 5, Col(0xe8d8b8)); c.R(tx - 6, GY - 12, 12, 3, Col(0xe8d8b8))
+        c.alpha(1)
     }
     /// Rain leaves the sand dark and puddled; on flood days the river lies over the pasture.
     func wetGround() {
@@ -3064,6 +3092,7 @@ final class Renderer {
         if f.id % 4 == 0 { o.beard = Col(0x3a2a1c) }
         switch f.role {
         case .folk:
+            o.lantern = lit && f.id % 2 == 0
             o.tool = .hammer
             if f.id % 2 == 1 { o.sash = TURB[(f.id + 2) % 5] }
         case .digger: o.robe = Col(0xd9b99a); o.tool = .pick; o.pack = true
@@ -3256,6 +3285,14 @@ final class Renderer {
         }
         c.roundCaps(false)
         c.restore()
+        if o.lantern {
+            // a small lantern swinging from the hand
+            let lx = sx + d * 3.4 * PS + sin(NOW * 3 + x) * 0.5, ly = y - 5.4 * PS
+            c.seg(sx + d * 2 * PS, y - 7.4 * PS, lx, ly - 1.6, 0.3, Col(0x3a2a1a))
+            c.glow(lx, ly, 6, rgba(255, 204, 116, 0.7), rgba(255, 204, 116, 0))
+            c.RR(lx - 0.8, ly - 1.2, 1.6, 2.4, 0.5, Col(0xffe6a0)); c.R(lx - 1, ly - 1.6, 2, 0.5, Col(0x3a2a1a))
+            light(lx, ly, 12, 0.55)
+        }
         if o.torch {
             let tx = sx + d * 3.5 * PS, ty = y - 14 * PS
             c.seg(sx + d * 2.5 * PS, y - 8.6 * PS, tx, ty, 0.8, WOOD)
@@ -3406,6 +3443,14 @@ final class Renderer {
             cv.R(sx - d * 3.6 - 0.6, y - 6, 1.4, 6, Col(0x6a4426))
             let tip = self.g.up.contains("fire") ? Col(0xffb04a) : PLA
             for i in 0..<min(3, p.ammo) { cv.R(sx - d * 3.6 - 0.6 + Double(i) * 0.5, y - 7.6, 0.4, 1.8, tip) }
+            if self.lit {
+                // a lantern on a pole behind the saddle lights the rider's way
+                let lx = sx - d * 6.4 + sin(NOW * 4 + p.phase) * 0.4, ly = y - 9.5
+                cv.seg(sx - d * 5, y - 1, sx - d * 6.2, y - 11, 0.4, Col(0x4a3a2a))
+                cv.glow(lx, ly + 1.6, 9, rgba(255, 204, 116, 0.75), rgba(255, 204, 116, 0))
+                cv.RR(lx - 1, ly, 2, 3, 0.6, Col(0xffe6a0)); cv.R(lx - 1.3, ly - 0.5, 2.6, 0.6, Col(0x3a2a1a)); cv.R(lx - 1.3, ly + 2.9, 2.6, 0.5, Col(0x3a2a1a))
+                self.light(lx, ly + 1.6, 16, 0.5)
+            }
             let arm = Col(0xf6efdc)
             if p.draw > 0 || p.rl > 0 {
                 let bd = p.draw > 0 ? p.aim : d

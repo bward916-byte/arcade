@@ -132,6 +132,7 @@ final class Game {
     var hintText = ""
     var hintT = 0.0
     var hintPin = false
+    var mirages: [Mirage] = []
     /// The river is over the pasture today (the port town, every fourth dawn).
     var flooded = false
     /// Hard mode: bigger raids and dearer building. Opened by finishing the game once.
@@ -177,6 +178,7 @@ final class Game {
         flooded = false
         rain = nil; rainAt = -1; lush = false; ecl = nil; eclAt = -1; omen = false; fest = 0; festDone = false; ufo = nil; deepT = 0; trapCd = 0; looted = false
         devils = [Devil(x: 520, dir: 1, a: 260, b: max(420, 1296 + ox - 130)), Devil(x: min(2900, 1992 + ox + 220), dir: -1, a: min(2700, 1992 + ox + 110), b: 2990)]
+        pickMirages()
         camps = cf.camps.map { Camp(x: $0.0, cap: $0.1) }
         urns = cf.urns.map { Urn(x: $0.0, n: $0.1) }
         hares = (0..<5).map { newHare($0) }
@@ -543,8 +545,14 @@ final class Game {
     }
 
     // ---------- day and night
+    /// Two spots out in the open desert each day.
+    func pickMirages() {
+        let spots = [300.0, 760, 2600, 2760].filter { $0 < TOWN.0 - 80 || $0 > TOWN.1 + 80 }.shuffled().prefix(2)
+        mirages = spots.map { Mirage(x: $0, real: relics.contains("lamp") || chance(0.25)) }
+    }
     func dawn() {
         snd?.dawn()
+        pickMirages()
         if hadNight && nightN > 0 {
             var s = "Last night: \(nightN) raiders, \(nightDown) brought down, "
             if nightGates > 0 { s += "\(nightGates) gate" + (nightGates > 1 ? "s" : "") + " broken" } else { s += "the gates held" }
@@ -1002,6 +1010,18 @@ final class Game {
         p.kneelT = max(0, p.kneelT - dt)
         let kneelWant: Double = (sp < 4 && d == 0 && (p.kneelT > 0 || p.idle > 7)) ? 1 : 0
         p.kneelK = lerp(p.kneelK, kneelWant, 1 - pow(0.004, dt))
+        // ride into a mirage at midday and it either melts away or turns out to be water
+        if t > 0.26 && t < 0.56 {
+            for i in mirages.indices where mirages[i].gone == 0 && abs(mirages[i].x - p.x) < 46 {
+                mirages[i].gone = 0.01
+                if mirages[i].real {
+                    for _ in 0..<5 { coin(mirages[i].x, 4, rnd(-30, 30), rnd(50, 90), true) }
+                    hint("real", again: true)
+                    buzz(1)
+                } else { hint("mirage", again: true) }
+            }
+        }
+        for i in mirages.indices where mirages[i].gone > 0 { mirages[i].gone = min(1, mirages[i].gone + dt * 0.8) }
         p.rearCd -= dt
         p.rearT = max(0, p.rearT - dt)
         if p.rearCd <= 0 && raiders.contains(where: { $0.state == .raid && abs($0.x - p.x) < 36 && ($0.x - p.x) * $0.dir < 0 }) {
@@ -2190,6 +2210,13 @@ final class Game {
         }
         start(intro: false)
         hintT = 0; cardT = 0
+        if k == "mirage" {
+            t = 0.34
+            mirages = [Mirage(x: 2600, real: false), Mirage(x: 2760, real: true)]
+            player.x = 2470
+            cam = clampD(player.x - W / 2 + 80, 0, WORLD - W)
+            return
+        }
         if k == "cave" {
             reset(2)
             state = .play

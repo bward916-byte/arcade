@@ -595,6 +595,8 @@ final class GameViewController: UIViewController {
             if args.contains("-demo-over") { game.demo("play"); game.state = .over }
             if args.contains("-demo-end") { game.demo("play"); game.state = .end }
             if args.contains("-demo-cave") { game.demo("cave") }
+            if args.contains("-demo-mirage") { game.demo("mirage") }
+            if args.contains("-demo-portnight") { game.demo("port"); game.t = 0.86; game.dark = 1 }
             if args.contains("-demo-dawn") {
                 game.demo("play")
                 game.t = 0.1
