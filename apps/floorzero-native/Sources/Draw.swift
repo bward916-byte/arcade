@@ -852,7 +852,33 @@ final class Renderer {
                 }
             }
         }
+        if f.kind == .safe {
+            let cx = FLOOR_W / 2
+            cv.lighter(true); cv.glow(cx, GY - 140, 520, rgba(90, 255, 160, 0.16 + 0.03 * sin(t * 2))); cv.lighter(false)
+            cv.RR(cx - 130, GY - 268, 260, 44, 8, Col(0x0d1a13)); cv.RRStroke(cx - 130, GY - 268, 260, 44, 8, 3, MINT)
+            cv.text("SAFE ROOM", cx, GY - 238, 26, MINT, 1, 3)
+            cv.text("CHECKPOINT · HEALED", cx, GY - 206, 12, MINT.alpha(0.8), 1, 3)
+            // a cot, crates, a lantern, a barricaded door
+            cv.R(cx - 250, GY - 34, 150, 10, Col(0x4a5a4a)); cv.R(cx - 250, GY - 24, 8, 24, Col(0x2a2a2a)); cv.R(cx - 108, GY - 24, 8, 24, Col(0x2a2a2a)); cv.RR(cx - 250, GY - 46, 40, 14, 6, Col(0xd9dcd6))
+            for i in 0..<3 { let bx = cx + 110 + Double(i % 2) * 64, by = GY - 56 - Double(i / 2) * 56; cv.R(bx, by, 60, 56, Col(0x6a5238)); cv.RRStroke(bx, by, 60, 56, 2, 3, Col(0x3a2c1c)); cv.R(bx + 22, by + 20, 16, 16, HOT); cv.R(bx + 28, by + 23, 4, 10, WHITE); cv.R(bx + 25, by + 26, 10, 4, WHITE) }
+            cv.R(cx - 30, GY - 40, 6, 40, Col(0x2a2a2a)); cv.RR(cx - 39, GY - 66, 24, 28, 6, Col(0xffe6a0)); cv.lighter(true); cv.glow(cx - 27, GY - 52, 120, rgba(255, 220, 140, 0.3)); cv.lighter(false)
+        }
         for it in f.items where !it.used { item(cv, it, t) }
+        if f.gunT >= 0 && f.gunship {
+            // searchlight, and the gunship itself where there is sky to see it against
+            let lx = f.gunX >= 0 ? f.gunX : FLOOR_W / 2 + sin(t * 1.3) * 500
+            cv.lighter(true)
+            cv.poly(rgba(220, 235, 255, f.gunX >= 0 ? 0.16 : 0.07), [lx + 300, GY - 330, lx + 360, GY - 330, lx + 90, GY, lx - 90, GY])
+            cv.ell(lx, GY + 4, 100, 12, rgba(220, 235, 255, 0.16))
+            cv.lighter(false)
+            if f.kind == .street {
+                let hx2 = lx + 320, hy2 = 70 + sin(t * 2) * 8
+                cv.ell(hx2, hy2, 70, 20, Col(0x0b0c10)); cv.R(hx2 - 150, hy2 - 5, 90, 9, Col(0x0b0c10)); cv.poly(Col(0x0b0c10), [hx2 - 150, hy2 - 24, hx2 - 136, hy2 - 24, hx2 - 128, hy2, hx2 - 150, hy2])
+                cv.R(hx2 - 110 * abs(sin(t * 40)) , hy2 - 26, 220 * abs(sin(t * 40)), 4, Col(0x2a2f3b)); cv.R(hx2 - 3, hy2 - 26, 6, 10, Col(0x0b0c10))
+                cv.poly(rgba(140, 200, 230, 0.5), [hx2 + 30, hy2 - 12, hx2 + 62, hy2 - 2, hx2 + 30, hy2 + 4])
+                cv.circ(hx2 + 40, hy2 + 16, 4, HOT.alpha(0.6 + 0.4 * sin(t * 12)))
+            }
+        }
     }
     private func prop(_ cv: Canvas, _ p: Prop, _ z: Zone) {
         let x = p.x
@@ -1262,7 +1288,7 @@ final class Renderer {
         let t = g.t
         let f = g.floor
         let x = 16 + g.safeL
-        cv.RR(x - 8, 8, 250, 100, 12, BLACK.alpha(0.5))
+        cv.RR(x - 8, 8, 250, 104, 12, BLACK.alpha(0.5))
         let label = f.kind == .roof ? "ROOF" : (f.kind == .street ? "STREET" : "FLOOR \(f.n)")
         let place: String = f.kind == .roof || f.kind == .street ? g.tw.building : "\(g.tw.building) · \(g.zone(f.n).name)"
         cv.text("\(g.tw.who) · \(place)", x, 24, 10, WHITE.alpha(0.65), 0, 1)
@@ -1270,6 +1296,7 @@ final class Renderer {
         let hpCol: Col = g.hero.hp < g.hero.maxHp * 0.3 ? HOT : Col(0x7fd67a)
         bar(cv, x, 60, 234, 16, g.hero.hp / g.hero.maxHp, hpCol)
         bar(cv, x, 82, 234, 12, g.meter / 100, g.meter >= 100 ? GOLD : Col(0xb89a50))
+        cv.RR(x, 98, 234, 6, 3, BLACK.alpha(0.6)); cv.RR(x + 1, 99, max(4, 232 * clampD(g.energy / g.energyNeed, 0, 1)), 4, 2, Col(0x7db8ff))
         // what you carry
         var ix = x
         for u in UPS where g.lv(u.id) > 0 {
@@ -1341,7 +1368,7 @@ final class Renderer {
         let a = min(1, g.deadT * 2)
         cv.R(0, 0, g.W, VIEW_H, rgba(60, 0, 0, 0.55 * a))
         cv.stamp("DOWN.", g.W / 2, 260, 96, HOT.alpha(a), 1)
-        cv.text("Getting back up", g.W / 2, 310, 18, WHITE.alpha(a * 0.8), 1, 1)
+        cv.text(g.cpFloor > g.tw.top ? "Back to the roof" : "Back to the safe room on floor \(g.cpFloor)", g.W / 2, 310, 18, WHITE.alpha(a * 0.8), 1, 1)
     }
     private func card(_ g: Game, _ cv: Canvas) {
         let k = min(1, g.cardT / 0.25)
@@ -1396,7 +1423,7 @@ final class Renderer {
         cv.alpha(k)
         cv.stamp("PICK ONE", 0, 0, 46, GOLD, 1)
         cv.restore()
-        cv.text("One every six floors. They stack.", W / 2, 104, 13, WHITE.alpha(0.7 * k), 1, 1)
+        cv.text("Earned with kills. They stack. You lose what you gained since the last safe room if you die.", W / 2, 104, 12, WHITE.alpha(0.7 * k), 1, 1)
         for i in 0..<g.pickOpts.count {
             let u = UPS[g.pickOpts[i]]
             let r = g.pickRect(i)

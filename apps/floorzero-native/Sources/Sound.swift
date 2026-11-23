@@ -357,6 +357,7 @@ final class Sound {
     func ding() { here(); tone(1320, 0.7, 0, 0.07); tone(1760, 0.9, 0, 0.04, 0, 0.12); tone(2640, 0.5, 0, 0.015, 0, 0.12) }
     func liftHum() { tone(58, 1.5, 3, 0.03, 44, 0, vib: 0.02, shape: 1, bus: 3); noise(1.5, 0.03, 200, 1, 0, shape: 1, bus: 3) }
     func stairs() { for i in 0..<4 { noise(0.05, 0.07, 280, 1.2, Double(i) * 0.1); tone(100, 0.05, 0, 0.04, 60, Double(i) * 0.1) } }
+    func rotor() { tone(74, 0.09, 0, 0.11, 46, 0, bus: 3); noise(0.07, 0.05, 420, 1, 0, bus: 3) }
     func wind() { noise(3.0, 0.03, 300, 1.5, 0, sweep: 700, shape: 1, bus: 3) }
     func hum() { tone(60, 3.0, 0, 0.012, 0, 0, shape: 1, bus: 3); tone(120, 3.0, 0, 0.006, 0, 0, shape: 1, bus: 3); noise(3.0, 0.008, 2000, 1, 0, shape: 1, bus: 3) }
     func siren() { tone(620, 2.6, 0, 0.012, 900, 0, vib: 0.0, shape: 1, bus: 3); tone(900, 2.6, 0, 0.012, 620, 2.4, shape: 1, bus: 3) }
