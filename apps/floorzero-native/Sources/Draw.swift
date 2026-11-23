@@ -395,7 +395,7 @@ final class Renderer {
         }
         if h.atkT >= 0 {
             let fin = h.atkI == 2
-            let dur = fin ? 0.4 : (h.atkStyle == 2 ? 0.2 : 0.25)
+            let dur = fin || h.crit >= 0 ? 0.4 : (h.atkStyle == 2 ? 0.2 : 0.25)
             let u = clampD(h.atkT / dur, 0, 1)
             let e = easeOut(min(1, u / 0.55))
             let sw = sin(u * PI)
@@ -413,6 +413,7 @@ final class Renderer {
             case 5: p.armF = lerp(-0.7, 2.9, e); p.lean = 0.3 - 0.5 * e; p.bob = 12 - 12 * e                                 // uppercut
             case 6: p.armF = 1.55; p.elbF = 0.05; p.wpn = 0; p.lean = 0.1; p.hipF = 0.5; p.hipB = -0.5                          // spin
             case 7: p.armF = lerp(4.1, 0.4, easeOut(max(0, u - 0.35) / 0.3)); p.kneeF = 0.9; p.kneeB = 0.9; p.hipF = 0.7; p.bob = u > 0.5 ? 14 : 0   // jump slam
+            case 9: p.armB = 1.5; p.elbB = lerp(1.7, 0.02, e); p.armF = -0.9; p.elbF = 1.3; p.wpn = 1.3; p.lean = 0.3 + 0.25 * sw; p.hipF = 0.9; p.hipB = -0.8   // punch
             case 8: p.armF = lerp(-0.5, 3.3, e); p.lean = 0.25 - 0.55 * e; p.hipF = 0.8; p.bob = 14 - 16 * e                 // launcher
             default: p.armF = lerp(3.5, 1.1, e); p.elbF = 0.3
             }
@@ -1048,6 +1049,17 @@ final class Renderer {
     }
     private func drawZed(_ cv: Canvas, _ z: Zed, _ gy: Double, _ t: Double) {
         if z.gibbed { return }
+        if z.flyT >= 0 {
+            var p = Pose()
+            p.armF = 2.6; p.armB = -2.2; p.hipF = 0.9; p.hipB = -0.7; p.kneeF = 0.8; p.kneeB = 0.5; p.jaw = 1.2; p.head = -0.5
+            cv.lighter(true)
+            for i in 1..<4 { cv.circ(z.x - z.flyVx * 0.02 * Double(i), gy + z.y - 70 - z.flyVy * 0.02 * Double(i), 26 - Double(i) * 5, WHITE.alpha(0.10)) }
+            cv.lighter(false)
+            cv.save(); cv.translate(z.x, gy + z.y - 70); cv.rotate(z.flyRot)
+            figure(cv, 0, 70, 1, z.scale, zedLook(z), p, flash: 0.3)
+            cv.restore()
+            return
+        }
         if z.kind == .crawler {
             crawler(cv, z, gy, t)
             if z.alive && z.hp < z.maxHp { cv.R(z.x - 18, gy - 78, 36, 5, BLACK.alpha(0.6)); cv.R(z.x - 18, gy - 78, 36 * clampD(z.hp / z.maxHp, 0, 1), 5, HOT) }

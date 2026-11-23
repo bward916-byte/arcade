@@ -45,6 +45,10 @@ final class Zed {
     var shield = 0       // blocks left on a riot shield
     var screamCd = 2.5
     var screamT = 0.0
+    var flyT = -1.0      // launched by an over-the-top hit
+    var flyVx = 0.0
+    var flyVy = 0.0
+    var flyRot = 0.0
     init(id: Int, kind: ZKind, x: Double, depth: Int, seed: Double) {
         self.id = id; self.kind = kind; self.x = x; self.seed = seed
         look = Int(seed * 97) % 5
@@ -152,6 +156,7 @@ final class Hero {
     var atkStyle = 0
     var chain = 0
     var jump = 0.0
+    var crit = -1
 }
 
 final class Game {
@@ -651,6 +656,8 @@ final class Game {
                 if st == h.atkStyle { st = (st + 1) % 6 }
                 h.atkStyle = st
             }
+            h.crit = -1
+            if h.chain != 3 && chance(0.2) { h.crit = Int.random(in: 0..<5); h.atkStyle = [4, 9, 1, 5, 7][h.crit] }
             h.atkT = 0
             h.atkHit = false
             if mv == 0, let z = nearest(190) { h.face = z.x >= h.x ? 1 : -1 }
@@ -658,7 +665,7 @@ final class Game {
         }
         if h.atkT >= 0 {
             let fin = h.atkI == 2
-            let dur = fin ? 0.4 : (h.atkStyle == 2 ? 0.2 : 0.25)
+            let dur = fin || h.crit >= 0 ? 0.4 : (h.atkStyle == 2 ? 0.2 : 0.25)
             h.atkT += dt
             h.jump = h.atkStyle == 7 ? sin(clampD(h.atkT / (dur * 0.5), 0, 1) * PI) * 46 : 0
             if h.atkStyle == 2 && h.atkT < dur * 0.4 { h.x += h.face * 260 * dt }
@@ -674,13 +681,17 @@ final class Game {
                 case 6: reach = 150; base = 28; knock = 470; both = true   // spin
                 case 7: reach = 130; base = 32; knock = 480          // jump slam
                 case 8: reach = 124; base = 36; knock = 560          // launcher
+                case 9: reach = 118; base = 20; knock = 300          // punch
                 default: break
                 }
                 var n = 0
+                var struck: [Zed] = []
+                if h.crit >= 0 { reach += 30 }
                 for z in f.zeds where z.alive {
                     let dx = (z.x - h.x) * h.face
                     let inReach: Bool = both ? abs(dx) < reach : (dx > -24 && dx < reach)
                     if inReach {
+                        struck.append(z)
                         hit(z, base * dmgMul, both ? (z.x >= h.x ? 1 : -1) : h.face, knock)
                         if h.atkStyle == 3 { z.stun = max(z.stun, 0.6) }
                         n += 1
@@ -699,6 +710,7 @@ final class Game {
                 default: mode = 0
                 }
                 slashes.append(Slash(x: h.x, y: -92, face: h.face, t: 0, big: fin ? 1.4 : 1, col: tw.hue, mode: mode))
+                if h.crit >= 0 { overTheTop(struck) }
                 if h.atkStyle == 7 {
                     waves.append(Wave(x: h.x, dir: 1, left: 260, dmg: 22 * dmgMul, hit: []))
                     waves.append(Wave(x: h.x, dir: -1, left: 260, dmg: 22 * dmgMul, hit: []))
@@ -748,6 +760,54 @@ final class Game {
         }
     }
 
+    /// One swing in five turns into something ridiculous.
+    private func overTheTop(_ struck: [Zed]) {
+        let h = hero
+        let names = ["EXPLOSIVE KICK", "DYNAMITE PUNCH", "HOME RUN", "SKY UPPERCUT", "METEOR SLAM"]
+        supName = names[h.crit]
+        nameT = 1.2
+        zoom = 1.13
+        slowT = 0.32
+        flash = 0.35; flashCol = tw.hue
+        shake = max(shake, 20)
+        buzz(3)
+        snd?.bigHit()
+        let near = struck.min(by: { abs($0.x - h.x) < abs($1.x - h.x) })
+        switch h.crit {
+        case 0:
+            explode(near?.x ?? (h.x + h.face * 90), 180, 70 * dmgMul)
+            if let z = near { launch(z, h.face * 950, -320) }
+        case 1:
+            explode(h.x + h.face * 90, 200, 90 * dmgMul)
+            nades.append(Nade(x0: h.x + h.face * 250, x1: h.x + h.face * 250, t: 0, dur: 0.14, r: 150, dmg: 50 * dmgMul))
+            nades.append(Nade(x0: h.x + h.face * 400, x1: h.x + h.face * 400, t: 0, dur: 0.26, r: 130, dmg: 40 * dmgMul))
+        case 2:
+            if let z = near { launch(z, h.face * 1350, -160) }
+            snd?.clang()
+        case 3:
+            for z in struck { launch(z, h.face * rnd(20, 120), -rnd(1000, 1250)) }
+            rings.append(Ring(x: h.x + h.face * 60, y: -80, r: 200, t: 0, life: 0.35, col: tw.hue))
+        default:
+            for i in 1...3 {
+                for d in [-1.0, 1.0] {
+                    let x = clampD(h.x + d * Double(i) * 150, 80, FLOOR_W - 80)
+                    nades.append(Nade(x0: x, x1: x, t: 0, dur: 0.06 + Double(i) * 0.09, r: 130, dmg: 45 * dmgMul))
+                }
+            }
+        }
+    }
+    /// Send one flying. It hurts whatever it hits on the way and bursts where it lands.
+    func launch(_ z: Zed, _ vx: Double, _ vy: Double) {
+        if z.kind == .boss || z.kind == .bloater || z.kind == .crow || z.kind == .rat { return }
+        if z.alive { z.hp = 0; kill(z, sgn(vx), false) }
+        if z.kind == .burner { return }
+        z.gibbed = false
+        z.headless = false
+        z.flyT = 0
+        z.flyVx = vx
+        z.flyVy = vy
+        z.y = -20
+    }
     func addMeter(_ v: Double) { meter = min(100, meter + v * (1 + 0.25 * Double(lv("adren")))) }
     func nearest(_ r: Double, facing: Bool = false) -> Zed? {
         var best: Zed? = nil
@@ -792,7 +852,32 @@ final class Game {
             }
         }
         for z in f.zeds {
-            if !z.alive { z.deadT += dt; z.flash = max(0, z.flash - dt * 6); continue }
+            if !z.alive {
+                z.deadT += dt; z.flash = max(0, z.flash - dt * 6)
+                if z.flyT >= 0 && !z.gibbed {
+                    z.flyT += dt
+                    z.x += z.flyVx * dt
+                    z.flyVy += 1500 * dt
+                    z.y += z.flyVy * dt
+                    z.flyRot += dt * 15 * sgn(z.flyVx == 0 ? 1 : z.flyVx)
+                    if parts.count < 520 && chance(dt * 40) { parts.append(Part(x: z.x, y: z.y - 60, vx: rnd(-60, 60), vy: rnd(-40, 120), t: 0, life: 0.5, size: rnd(3, 6), col: BLOOD, grav: 900, glow: false)) }
+                    for q in f.zeds where q.alive && abs(q.x - z.x) < 48 && z.y > -190 { hit(q, 40 * dmgMul, sgn(z.flyVx), 520) }
+                    if z.y < -280 {
+                        // into the ceiling
+                        z.gibbed = true
+                        gore(z, 0, all: true)
+                        floor.splats.append((z.x, 262, 30)); floor.splats.append((z.x + 30, 250, 18))
+                        for _ in 0..<8 { gibs.append(Gib(x: z.x + rnd(-30, 30), y: -290, vx: rnd(-160, 160), vy: rnd(0, 200), rot: rnd(0, 6), vr: rnd(-12, 12), kind: 4, col: Col(0x8a8478), t: 0)) }
+                        shake = max(shake, 12); snd?.at(z.x - h.x); snd?.bigHit(); snd?.here()
+                    } else if z.x < 80 || z.x > FLOOR_W - 80 || (z.y >= 0 && z.flyT > 0.12) {
+                        z.gibbed = true
+                        z.x = clampD(z.x, 80, FLOOR_W - 80)
+                        gore(z, sgn(z.flyVx), all: true)
+                        explode(z.x, 130, 45 * dmgMul)
+                    }
+                }
+                continue
+            }
             z.flash = max(0, z.flash - dt * 5)
             z.cd -= dt
             if z.burn > 0 {
