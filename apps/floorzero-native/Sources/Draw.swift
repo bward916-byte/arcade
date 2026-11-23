@@ -28,6 +28,14 @@ struct Look {
     var coat = false
     var v = 0
     var noHead = false
+    var job = -1
+    var female = false
+    var sleeve: Col? = nil
+    var lower = 0          // 1 skirt, 2 apron, 3 gown
+    var lowerCol = Col(0xffffff)
+    var hat = 0            // 1 chef, 2 hard hat, 3 cap, 4 surgical cap
+    var hatCol = Col(0xffffff)
+    var barefoot = false
 }
 
 struct Rect4 {
@@ -106,8 +114,9 @@ final class Renderer {
         let pantsD = Col.mix(pants, BLACK, 0.3)
         let skinD = Col.mix(skin, BLACK, 0.25)
         let ink = Col(0x0b0c10)
-        let shoe = Col(0x15151a)
+        let shoe: Col = L.barefoot ? skin : Col(0x15151a)
         let bone = Col(0xd8d0bc)
+        let slv = Col.mix(L.sleeve ?? L.shirt, WHITE, fl)
         let zed = L.zombie
         let fat = L.fat
         let hipY = -74.0 + p.bob
@@ -122,7 +131,7 @@ final class Renderer {
         let sy = ny + 9
         // back arm, back leg
         let ab = limb(nx, sy, p.armB, 27, p.armB + p.elbB, 26)
-        limb2(cv, nx, sy, ab, 10.5, shirtD, 8.5, skinD, ink)
+        limb2(cv, nx, sy, ab, 10.5, Col.mix(slv, BLACK, 0.3), 8.5, skinD, ink)
         cv.circ(ab.2, ab.3, 5.6, skinD)
         let lb = limb(0, hipY, p.hipB, 37, p.hipB - p.kneeB, 37)
         limb2(cv, 0, hipY, lb, 15, pantsD, 12, pantsD, ink)
@@ -141,6 +150,38 @@ final class Renderer {
         cv.poly(shirtD, [k1.0, k1.1, k2.0, k2.1, k3.0, k3.1, k4.0, k4.1])
         let bl0 = T(1, -11 * fat), bl1 = T(1, 12 * fat)
         cv.seg(bl0.0, bl0.1, bl1.0, bl1.1, 4, Col.mix(pants, BLACK, 0.45))
+        if L.job >= 0 {
+            switch L.job {
+            case 0:
+                let a0 = T(58, 7), a1 = T(34, 15 * fat), a2 = T(44, 6)
+                cv.poly(Col(0xe8e6e0), [a0.0, a0.1, a1.0, a1.1, a2.0, a2.1])
+                let t1 = T(36, 14 * fat)
+                cv.seg(a0.0, a0.1, t1.0, t1.1, 4, Col(0x8a1c20))
+                let bt = T(18, 15 * fat); cv.circ(bt.0, bt.1, 2, Col(0x0b0c10))
+            case 2:
+                for i in 0..<3 { let b = T(44 - Double(i) * 12, 13 * fat), c = T(44 - Double(i) * 12, 6); cv.circ(b.0, b.1, 2, Col(0x8a8a86)); cv.circ(c.0, c.1, 2, Col(0x8a8a86)) }
+            case 3:
+                let v0 = T(58, 7), v1 = T(44, 12 * fat), v2 = T(50, 3)
+                cv.line(shirtD, 3, [v0.0, v0.1, v1.0, v1.1, v2.0, v2.1])
+                if L.coat { let st = T(40, 15 * fat); cv.ring(st.0, st.1, 5, 2, Col(0x2a2a2a)) }
+            case 4:
+                let bd = T(42, 13 * fat); cv.circ(bd.0, bd.1, 4.5, GOLD); cv.circ(bd.0, bd.1, 2, Col(0x8a6a20))
+                let e0 = T(54, -10 * fat), e1 = T(54, 10 * fat); cv.seg(e0.0, e0.1, e1.0, e1.1, 3, Col(0x0e1420))
+            case 5:
+                let pa = T(42, 12 * fat); cv.R(pa.0 - 5, pa.1 - 3, 10, 6, Col(0xe8e6e0))
+                let z0 = T(56, 6), z1 = T(6, 13 * fat); cv.seg(z0.0, z0.1, z1.0, z1.1, 1.6, Col(0x2a2a2a))
+            case 6:
+                let a0 = T(58, 7), a1 = T(30, 15 * fat), a2 = T(42, 4)
+                cv.poly(Col(0xe8e6e0), [a0.0, a0.1, a1.0, a1.1, a2.0, a2.1])
+                let bw = T(56, 9); cv.poly(Col(0x0b0c10), [bw.0 - 5, bw.1 - 4, bw.0 + 5, bw.1 + 4, bw.0 + 5, bw.1 - 4, bw.0 - 5, bw.1 + 4])
+            case 7:
+                let hd = T(56, -9); cv.circ(hd.0, hd.1, 9, shirtD)
+            case 9:
+                for u in [18.0, 38.0] { let r0 = T(u, -12 * fat), r1 = T(u, 15 * fat); cv.seg(r0.0, r0.1, r1.0, r1.1, 4.5, Col(0xe8e8d0)) }
+                let y0 = T(2, 10 * fat), y1 = T(56, 8); cv.seg(y0.0, y0.1, y1.0, y1.1, 4, Col(0xf0e040))
+            default: break
+            }
+        }
         if fat > 1.3 {
             let belly = T(18, 14 * fat)
             cv.circ(belly.0, belly.1, 15 * fat, shirt)
@@ -166,8 +207,6 @@ final class Renderer {
             cv.circ(s0.0, s0.1, 6 * fat, BLOOD.alpha(0.8))
             let s1 = T(50, 8)
             cv.circ(s1.0, s1.1, 4, BLOOD.alpha(0.7))
-            if L.v == 0 { let t0 = T(55, 9), t1 = T(34, 15 * fat); cv.seg(t0.0, t0.1, t1.0, t1.1, 4.5, Col(0x7a1c20)) }
-            if L.v == 2 { let v0 = T(40, -12 * fat), v1 = T(40, 13 * fat); cv.seg(v0.0, v0.1, v1.0, v1.1, 5, Col(0xd9e04a, 0.85)) }
         } else {
             let col0 = T(58, 7), col1 = T(50, 9)
             cv.seg(col0.0, col0.1, col1.0, col1.1, 4, shirtD)
@@ -179,6 +218,24 @@ final class Renderer {
         if zed && L.v % 2 == 1 { cv.circ(lf.0, lf.1, 7, pants); cv.circ((lf.0 + lf.2) / 2, (lf.1 + lf.3) / 2, 3, BLOOD.alpha(0.8)) }
         cv.seg(lf.2 - 2, lf.3, lf.2 + 12, lf.3, 11, ink)
         cv.seg(lf.2 - 2, lf.3, lf.2 + 12, lf.3, 8, shoe)
+        if L.lower > 0 {
+            let lc = Col.mix(L.lowerCol, WHITE, fl)
+            let w0 = T(4, -12 * fat), w1 = T(4, 13 * fat)
+            let len: Double = L.lower == 3 ? 44 : (L.lower == 2 ? 40 : 30)
+            if L.lower == 2 {
+                // an apron hangs off the front only
+                let top = T(40, 15 * fat)
+                let pts: [Double] = [top.0, top.1, w1.0 + 3, w1.1, w1.0 + 6, hipY + len, w1.0 - 16, hipY + len, w1.0 - 14, w1.1]
+                cv.line(ink, 3.4, pts + [top.0, top.1]); cv.poly(lc, pts)
+                if zed { cv.circ(w1.0 - 4, hipY + 14, 7, BLOOD.alpha(0.8)); cv.circ(w1.0 - 9, hipY + 28, 4, BLOOD.alpha(0.7)) }
+            } else {
+                let sway = (p.hipF - p.hipB) * 5
+                let pts: [Double] = [w0.0, w0.1, w1.0, w1.1, w1.0 + 6 + max(0, sway), hipY + len, w0.0 - 6 + min(0, sway), hipY + len]
+                cv.line(ink, 3.4, pts + [w0.0, w0.1]); cv.poly(lc, pts)
+                cv.poly(Col.mix(lc, BLACK, 0.25), [w0.0, w0.1, w0.0 + 8, w0.1, w0.0 + 2 + min(0, sway), hipY + len, w0.0 - 6 + min(0, sway), hipY + len])
+                if zed { cv.poly(lc, [w0.0 - 6, hipY + len, w0.0 + 2, hipY + len + 9, w0.0 + 8, hipY + len, w0.0 + 15, hipY + len + 7, w0.0 + 20, hipY + len]); cv.circ(w1.0 - 6, hipY + 16, 5, BLOOD.alpha(0.75)) }
+            }
+        }
         // neck and head
         cv.seg(nx, ny, (nx + hx) / 2, (ny + hy) / 2, 12, ink)
         cv.seg(nx, ny, (nx + hx) / 2, (ny + hy) / 2, 9, skinD)
@@ -203,14 +260,39 @@ final class Renderer {
             cv.seg(hx + 1, hy - 9.5, hx + 12, hy - 6.5, 2.8, Col.mix(skin, BLACK, 0.55))
             cv.circ(hx - 2, hy + 6, 3.2, BLOOD.alpha(0.75))
             cv.seg(hx + 2, hy + 9, hx + 5, hy + 15, 1.8, BLOOD.alpha(0.8))
-            if L.v == 3 {
+            if L.hat == 0 && L.v == 3 && !L.female {
                 cv.seg(hx - 6, hy - 13, hx + 3, hy - 14.5, 3, Col(0x7a1c20)); cv.seg(hx - 3, hy - 15, hx - 1, hy - 11, 1.6, bone)
-            } else if L.v == 4 {
-                cv.arcFill(hx, hy, 15.8, PI * 0.95, PI * 1.85, L.hair)
-                cv.seg(hx - 11, hy - 6, hx - 16, hy + 20, 6, L.hair); cv.seg(hx - 6, hy - 10, hx - 9, hy + 22, 4, L.hair)
+            } else if L.female {
+                cv.arcFill(hx, hy, 15.8, PI * 0.95, PI * 1.88, L.hair)
+                if L.v % 3 == 0 {
+                    cv.circ(hx - 15, hy - 8, 8, ink); cv.circ(hx - 15, hy - 8, 6.5, L.hair)             // a bun
+                } else if L.v % 3 == 1 {
+                    cv.seg(hx - 11, hy - 6, hx - 17, hy + 24, 8, L.hair); cv.seg(hx - 5, hy - 10, hx - 9, hy + 22, 5, Col.mix(L.hair, BLACK, 0.2))
+                } else {
+                    cv.seg(hx - 13, hy - 6, hx - 26, hy + 4 + sin(p.bob) * 2, 6, L.hair)                // ponytail
+                }
+                cv.seg(hx + 2, hy - 13, hx + 9, hy - 8, 4, L.hair)
             } else {
                 cv.arcFill(hx, hy, 15.8, PI * 1.02, PI * 1.72, L.hair)
                 cv.seg(hx - 2, hy - 14, hx + 4, hy - 19, 2.6, L.hair); cv.seg(hx - 8, hy - 12, hx - 12, hy - 18, 2.6, L.hair)
+            }
+            let hc = Col.mix(L.hatCol, WHITE, fl)
+            switch L.hat {
+            case 1:
+                cv.save(); cv.translate(hx - 2, hy - 13); cv.rotate(-0.25)
+                cv.RR(-13, -26, 26, 28, 9, ink); cv.RR(-11, -24, 22, 25, 8, hc); cv.circ(-7, -22, 8, hc); cv.circ(7, -22, 8, hc); cv.circ(0, -26, 8, hc)
+                cv.R(-11, -6, 22, 6, Col.mix(hc, BLACK, 0.12)); cv.circ(4, -14, 3, BLOOD.alpha(0.7))
+                cv.restore()
+            case 2:
+                cv.arcFill(hx, hy - 3, 17.5, PI, PI * 2, ink); cv.arcFill(hx, hy - 3, 16, PI, PI * 2, hc)
+                cv.seg(hx - 16, hy - 4, hx + 22, hy - 4, 4.5, ink); cv.seg(hx - 15, hy - 4, hx + 21, hy - 4, 2.6, hc)
+                cv.seg(hx, hy - 18, hx, hy - 6, 2.4, Col.mix(hc, BLACK, 0.2))
+            case 3:
+                cv.arcFill(hx, hy - 4, 16.5, PI, PI * 2, hc); cv.R(hx - 16, hy - 8, 32, 5, Col.mix(hc, BLACK, 0.3))
+                cv.seg(hx + 6, hy - 5, hx + 24, hy - 3, 4, Col(0x0b0c10)); cv.circ(hx + 6, hy - 13, 3, GOLD)
+            case 4:
+                cv.arcFill(hx, hy - 2, 16.2, PI * 0.98, PI * 1.98, hc); cv.seg(hx - 14, hy - 3, hx - 20, hy + 4, 2, hc)
+            default: break
             }
         } else {
             cv.seg(nx, ny, hx, hy, 12, ink); cv.seg(nx, ny, hx, hy, 9, skinD); cv.circ(hx, hy, 16.8, ink)
@@ -251,10 +333,10 @@ final class Renderer {
                 cv.seg(gx, gy, af.2 + 14 * sin(wa), af.3 + 14 * cos(wa), 6, Col(0x3a2a1c))
             }
         }
-        let sleeve: Col = zed && L.v == 1 ? skin : shirt
+        let sleeve: Col = zed && L.v == 1 ? skin : slv
         limb2(cv, nx, sy, af, 11, sleeve, 9, skin, ink)
         if zed && L.v == 1 { cv.circ(nx, sy, 7, shirt) }
-        let cap: Col = zed && L.v == 1 ? shirt : shirtL
+        let cap: Col = zed && L.v == 1 ? shirt : (L.sleeve != nil ? slv : shirtL)
         cv.circ(nx, sy, 6.5, cap)
         cv.circ(af.2, af.3, 6, skin)
         if zed {
@@ -338,9 +420,48 @@ final class Renderer {
         var l = Look(shirt: zShirts[z.look % 5], pants: Col(0x33363c), skin: Col(0x9fb08c), hair: Col(0x2a2a26), eye: Col(0xffe14a))
         l.zombie = true
         l.v = z.look % 5
-        if z.kind == .runner { l.skin = Col(0xb89a8a); l.shirt = Col(0x7a3a36); l.eye = Col(0xff5a4a) }
+        l.female = z.female
+        l.fat = z.fatMul
+        let hairs: [Col] = [Col(0x2a2a26), Col(0x5a3a22), Col(0x8a7a4a), Col(0x6a6a66), Col(0x3a1c14)]
+        l.hair = hairs[(z.look + z.style) % 5]
+        let skins: [Col] = [Col(0x9fb08c), Col(0xa8a890), Col(0x8a9a80), Col(0x7f8f6c)]
+        l.skin = skins[(z.look * 3 + z.style) % 4]
+        if z.kind == .zed || z.kind == .runner || z.kind == .crawler {
+            l.job = z.job
+            switch z.job {
+            case 0:   // suit
+                let suits: [Col] = [Col(0x23283a), Col(0x3a3a40), Col(0x1c1c22), Col(0x4a3a30)]
+                l.shirt = suits[z.look % 4]; l.pants = l.shirt
+                if z.female { l.lower = 1; l.lowerCol = l.shirt }
+            case 1:   // office
+                let tops: [Col] = [Col(0xc9d2dc), Col(0x8aa0c0), Col(0xd9b0b8), Col(0xb8c8a0), Col(0xe0d8c0)]
+                l.shirt = tops[z.look % 5]; l.pants = Col(0x2a2f3c)
+                if z.female { l.lower = 1; l.lowerCol = Col(0x2a2a30) }
+            case 2:   // cook
+                l.shirt = Col(0xe8e6e0); l.pants = Col(0x5a5f68); l.lower = 2; l.lowerCol = Col(0xd0ccc0); l.hat = 1; l.hatCol = Col(0xf2f0ea)
+            case 3:   // medic
+                let scrubs: [Col] = [Col(0x3a9a94), Col(0x4a78b0), Col(0x7a9ad0), Col(0x5aa07a)]
+                l.shirt = scrubs[z.look % 4]; l.pants = l.shirt
+                if z.look % 3 == 0 { l.coat = true; l.shirt = Col(0xdcdcd4) } else { l.hat = 4; l.hatCol = l.shirt }
+            case 4:   // guard
+                l.shirt = Col(0x26324a); l.pants = Col(0x1c2434); l.hat = 3; l.hatCol = Col(0x1c2434)
+            case 5:   // janitor
+                l.shirt = Col(0x5a6a5a); l.pants = Col(0x5a6a5a)
+            case 6:   // waiter
+                l.shirt = Col(0x1c1c22); l.sleeve = Col(0xe8e6e0); l.pants = Col(0x1c1c22)
+                if z.female { l.lower = 2; l.lowerCol = Col(0xe8e6e0) }
+            case 8:   // patient
+                l.shirt = Col(0xa8c4d4); l.lower = 3; l.lowerCol = Col(0xa8c4d4); l.pants = l.skin; l.barefoot = true
+            case 9:   // builder
+                l.shirt = Col(0xe07a20); l.pants = Col(0x3a4a66); l.hat = 2; l.hatCol = Col(0xf0c020)
+            default:  // casual
+                let tees: [Col] = [Col(0x6a4a7a), Col(0x4a6a8a), Col(0x8a4a3a), Col(0x4a7a5a), Col(0x7a7a3a)]
+                l.shirt = tees[z.look % 5]; l.pants = Col(0x3a4a66)
+                if z.female && z.look % 2 == 0 { l.lower = 1; l.lowerCol = Col(0x3a4a66) }
+            }
+        }
+        if z.kind == .runner { l.skin = Col(0xb89a8a); l.eye = Col(0xff5a4a); l.fat = min(l.fat, 0.95) }
         if z.kind == .spitter { l.fat = 1.15; l.skin = Col(0xb7c46a); l.shirt = Col(0x4a5a30); l.eye = Col(0x8cff7a) }
-        if z.kind == .crawler { l.pants = Col(0x5a1216) }
         l.noHead = z.headless
         if z.kind == .bloater { l.fat = 1.9; l.skin = Col(0x9ac06a); l.shirt = Col(0x6a7a3a); l.eye = Col(0xd9ff7a) }
         if z.kind == .boss { l.fat = 1.5; l.skin = Col(0x8cc09a); l.shirt = Col(0xd9dcd6); l.pants = Col(0x2a2f3c); l.coat = true; l.eye = Col(0x7dffb0); l.hair = Col(0x9a9a92) }
@@ -774,8 +895,75 @@ final class Renderer {
         cv.restore()
         if z.hp < z.maxHp { cv.R(z.x - 14, y - 24, 28, 4, BLACK.alpha(0.6)); cv.R(z.x - 14, y - 24, 28 * clampD(z.hp / z.maxHp, 0, 1), 4, HOT) }
     }
+    /// A zombie dragging itself along the floor on its arms.
+    private func crawler(_ cv: Canvas, _ z: Zed, _ gy: Double, _ t: Double) {
+        let L = zedLook(z)
+        let dead = !z.alive
+        let ph = z.walk * 0.075
+        let pull: Double = dead ? 0 : cos(ph)
+        let ink = Col(0x0b0c10)
+        let fl = clampD(z.flash, 0, 1) * 0.85
+        let shirt = Col.mix(L.shirt, WHITE, fl), skin = Col.mix(L.skin, WHITE, fl)
+        let skinD = Col.mix(skin, BLACK, 0.25), shirtD = Col.mix(shirt, BLACK, 0.3)
+        cv.save()
+        cv.translate(z.x, gy)
+        cv.scale(z.face * z.scale, z.scale)
+        if dead { cv.alpha(max(0.15, 1 - z.deadT / 6)) }
+        // what it leaves behind
+        cv.seg(-150, 1, -40, 1, 9, Col(0x5a0c10, 0.55)); cv.seg(-200, 1, -150, 1, 6, Col(0x5a0c10, 0.3))
+        let lurch = pull * 5
+        cv.translate(lurch, 0)
+        let lift: Double = dead ? 0 : 8 + 4 * sin(ph * 2)
+        // trailing legs: one whole and limp, one gone at the knee
+        cv.line(ink, 15.5, [-34, -9, -64, -6 + sin(ph) * 1.5, -92, -5])
+        cv.line(Col(0x33363c), 12, [-34, -9, -64, -6 + sin(ph) * 1.5, -92, -5])
+        cv.seg(-92, -5, -103, -8, 10, ink); cv.seg(-92, -5, -102, -8, 7, Col(0x15151a))
+        cv.seg(-32, -7, -58, -4, 15.5, ink); cv.seg(-32, -7, -58, -4, 12, Col(0x33363c))
+        cv.circ(-60, -4, 6, Col(0x7a1014)); cv.seg(-60, -4, -68, -3, 3, Col(0xd8d0bc))
+        cv.curve(-40, -4, -70, 4 + sin(ph * 2) * 2, -96, -1, 4, Col(0xb0606a)); cv.curve(-50, -3, -80, -8, -112, 0, 3, Col(0x8a3a44))
+        // far arm
+        let reachB = 34 - 26 * pull
+        let shx = 12.0, shy = -22 - lift
+        cv.line(ink, 12, [shx, shy, shx + reachB * 0.5, shy - 14, shx + reachB, -3])
+        cv.line(shirtD, 8.5, [shx, shy, shx + reachB * 0.5, shy - 14]); cv.line(skinD, 7.5, [shx + reachB * 0.5, shy - 14, shx + reachB, -3])
+        // body: hips on the floor, chest pushed up on the arms
+        let body: [Double] = [-38, -18, -10, -24 - lift * 0.6, 16, -32 - lift, 24, -20 - lift, 12, -8 - lift * 0.5, -36, -1]
+        cv.line(ink, 4, body + [-38, -18]); cv.poly(shirt, body)
+        cv.poly(shirtD, [-36, -1, 12, -8 - lift * 0.5, 4, -4, -34, 0])
+        cv.circ(-8, -14 - lift * 0.4, 6, BLOOD.alpha(0.8)); cv.circ(-26, -10, 4.5, BLOOD.alpha(0.75))
+        for i in 0..<3 { let rx = -2.0 + Double(i) * 6; cv.seg(rx, -22 - lift * 0.7, rx - 2, -12 - lift * 0.5, 2.2, Col(0xd8d0bc)) }
+        // head up, looking at you
+        let hx = 36.0, hy = -36 - lift + (dead ? 22 : sin(ph * 2) * 2)
+        cv.seg(20, -26 - lift, hx, hy, 12, ink); cv.seg(20, -26 - lift, hx, hy, 9, skinD)
+        if !z.headless {
+            let open: Double = z.atkT >= 0 ? 1.1 : 0.4 + 0.3 * sin(t * 5 + z.seed * 20)
+            cv.circ(hx, hy, 16.5, ink)
+            cv.poly(skinD, [hx, hy + 7, hx + 13, hy + 7 + open * 7, hx + 11, hy + 13 + open * 9, hx - 3, hy + 14])
+            cv.poly(Col(0x2a0a0c), [hx + 2, hy + 6, hx + 13, hy + 6, hx + 12, hy + 8 + open * 7, hx + 2, hy + 9])
+            cv.circ(hx, hy, 14.5, skin)
+            for i in 0..<3 { cv.R(hx + 4.5 + Double(i) * 3.2, hy + 5.5, 2.2, 3.4, Col(0xd8d0bc)) }
+            cv.circ(hx + 6.5, hy - 3, 5.2, Col(0x14100e)); cv.circ(hx + 7.2, hy - 3, 2.4, L.eye)
+            cv.seg(hx + 1, hy - 9.5, hx + 12, hy - 6.5, 2.8, Col.mix(skin, BLACK, 0.55))
+            if L.female { cv.arcFill(hx, hy, 15.4, PI * 0.95, PI * 1.88, L.hair); cv.seg(hx - 11, hy - 4, hx - 20, hy + 20, 7, L.hair) } else { cv.arcFill(hx, hy, 15.4, PI * 1.02, PI * 1.72, L.hair) }
+            cv.circ(hx - 2, hy + 6, 3, BLOOD.alpha(0.75))
+        } else { cv.circ(hx - 6, hy + 4, 6, Col(0x7a1014)) }
+        // near arm: reach, plant, drag
+        let reachA = 34 + 26 * pull
+        let up: Double = dead ? 0 : max(0, -sin(ph)) * 16
+        cv.line(ink, 13, [shx + 4, shy + 4, shx + 4 + reachA * 0.5, shy - 10 - up * 0.5, shx + 4 + reachA, -3 - up])
+        cv.line(shirt, 9.5, [shx + 4, shy + 4, shx + 4 + reachA * 0.5, shy - 10 - up * 0.5]); cv.line(skin, 8.5, [shx + 4 + reachA * 0.5, shy - 10 - up * 0.5, shx + 4 + reachA, -3 - up])
+        let hxA = shx + 4 + reachA, hyA = -3 - up
+        cv.circ(hxA, hyA, 5.5, skin)
+        for d in [-4.0, 0.0, 4.0] { cv.seg(hxA + 2, hyA + d * 0.3, hxA + 11, hyA + d * 0.8 + 2, 2.2, Col(0x2a2a22)) }
+        cv.restore()
+    }
     private func drawZed(_ cv: Canvas, _ z: Zed, _ gy: Double, _ t: Double) {
         if z.gibbed { return }
+        if z.kind == .crawler {
+            crawler(cv, z, gy, t)
+            if z.alive && z.hp < z.maxHp { cv.R(z.x - 18, gy - 78, 36, 5, BLACK.alpha(0.6)); cv.R(z.x - 18, gy - 78, 36 * clampD(z.hp / z.maxHp, 0, 1), 5, HOT) }
+            return
+        }
         if z.kind == .crow { if z.alive { crow(cv, z, gy, t) }; return }
         if z.kind == .dog || z.kind == .rat {
             if z.alive { cv.ell(z.x, gy + 2, z.kind == .rat ? 14 : 40, z.kind == .rat ? 3 : 6, BLACK.alpha(0.35)) }
@@ -856,6 +1044,8 @@ final class Renderer {
             let a = 1 - p.t / p.life
             if p.glow {
                 cv.lighter(true); cv.circ(p.x, gy + p.y, p.size * (0.5 + a * 0.7), p.col.alpha(a * 0.8)); cv.lighter(false)
+            } else if p.size > 12 {
+                cv.circ(p.x, gy + p.y, p.size * (1.6 - a * 0.6), p.col.alpha(p.col.a * min(1, a * 1.4)))
             } else {
                 cv.R(p.x - p.size / 2, gy + p.y - p.size / 2, p.size, p.size, p.col.alpha(min(1, a * 1.6)))
             }
@@ -895,7 +1085,10 @@ final class Renderer {
                 cv.lighter(false)
             }
         }
-        for b in g.booms {
+        for fr in g.fires {
+            if fr.1 > 0 { flameWall(cv, fr.0, fr.2 * 1.6, 70 * min(1, fr.1), fr.0 * 0.01, g.t) } else { cv.ell(fr.0, gy + 2, fr.2 * 1.2 * min(1, -fr.1), 7, Col(0x6cdc5a, 0.5)); cv.lighter(true); cv.glow(fr.0, gy, fr.2 * 1.2, rgba(120, 255, 100, 0.2 * min(1, -fr.1))); cv.lighter(false) }
+        }
+        for b in g.booms where b.t >= 0 {
             let u = b.t / b.life
             let r = b.r * (0.25 + 0.75 * easeOut(u))
             cv.lighter(true)

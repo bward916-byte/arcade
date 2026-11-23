@@ -39,10 +39,16 @@ final class Zed {
     var gibbed = false
     var style = 0
     var spitCd = 1.5
+    var job = 7          // what they were: suit, office, cook, medic, guard, janitor, waiter, casual, patient, builder
+    var female = false
+    var fatMul = 1.0
     init(id: Int, kind: ZKind, x: Double, depth: Int, seed: Double) {
         self.id = id; self.kind = kind; self.x = x; self.seed = seed
         look = Int(seed * 97) % 5
         style = Int(seed * 53) % 4
+        job = Int(hashN(seed * 7.3) * 10) % 10
+        female = hashN(seed * 3.1) > 0.5
+        fatMul = 0.88 + hashN(seed * 9.1) * 0.42
         let d = Double(depth)
         var h = 34.0, sp = 62.0, re = 62.0, dm = 10.0, wu = 0.38, ra = 1.0, si = 520.0, sc = 1.0
         switch kind {
@@ -65,7 +71,8 @@ final class Zed {
         windup = wu
         rate = ra
         sight = si
-        scale = sc
+        let human = kind == .zed || kind == .runner || kind == .spitter || kind == .crawler
+        scale = human ? sc * (0.88 + hashN(seed * 5.7) * 0.3) : sc
     }
 }
 
@@ -207,6 +214,7 @@ final class Game {
     var beams: [Beam] = []
     var slashes: [Slash] = []
     var gibs: [Gib] = []
+    var fires: [(Double, Double, Double)] = []   // x, seconds left, width
     var globs: [Glob] = []
     var streak = 0
     var streakT = 0.0
@@ -288,7 +296,7 @@ final class Game {
         say("FLOOR \(floorN) — \(zone(floorN).name)")
     }
     func clearFx() {
-        parts = []; floaters = []; rings = []; tracers = []; booms = []; nades = []; waves = []; beams = []; slashes = []; gibs = []; globs = []
+        parts = []; floaters = []; rings = []; tracers = []; booms = []; nades = []; waves = []; beams = []; slashes = []; gibs = []; globs = []; fires = []
     }
 
     func zone(_ n: Int) -> Zone {
@@ -386,7 +394,24 @@ final class Game {
         }
         if f.kind == .hole { f.props = f.props.filter { abs($0.x - f.holeX) > 120 }; for i in 0..<f.items.count where abs(f.items[i].x - f.holeX) < 110 { f.items[i].x += 200 } }
         if f.kind == .lift { f.props = f.props.filter { abs($0.x - f.liftX) > 130 } }
+        for z in f.zeds { dress(z, n) }
         return f
+    }
+    /// Who would have been on this floor when it happened.
+    func dress(_ z: Zed, _ n: Int) {
+        let name = n > tw.top ? "ROOF" : (n <= 0 ? "STREET" : zone(n).name)
+        var jobs: [Int] = [7, 0, 1, 9, 4]
+        switch name {
+        case "OFFICES": jobs = [0, 0, 1, 1, 4, 5]
+        case "HOTEL", "GUEST ROOMS", "PENTHOUSES": jobs = [6, 6, 7, 7, 2, 5, 4]
+        case "BALLROOMS", "CASINO": jobs = [6, 2, 2, 0, 1, 4]
+        case "MEDICAL / LAB", "WARDS", "SURGERY", "LABS", "EMERGENCY": jobs = [3, 3, 3, 8, 8, 5]
+        case "MALL / GARAGE": jobs = [7, 7, 9, 9, 2, 4]
+        case "RESIDENTIAL": jobs = [7, 7, 7, 8, 2, 9]
+        case "LOBBY": jobs = [4, 4, 0, 1, 6, 5]
+        default: break
+        }
+        z.job = jobs[Int(hashN(z.seed * 17.3 + Double(z.id)) * Double(jobs.count)) % jobs.count]
     }
     /// After landing, make sure the hero is not standing in a hazard.
     func fixEntry() {
@@ -709,6 +734,7 @@ final class Game {
                 nextId += 1
                 z.aware = true
                 z.stun = 0.25
+                dress(z, f.n)
                 f.zeds.append(z)
                 puff(x, 0, 10, Col(0x8a7a66))
                 for _ in 0..<5 { gibs.append(Gib(x: x, y: -rnd(40, 150), vx: rnd(-260, 260), vy: -rnd(60, 320), rot: rnd(0, 6), vr: rnd(-12, 12), kind: 4, col: Col(0x6a5238), t: 0)) }
@@ -817,7 +843,8 @@ final class Game {
                 gibs.append(Gib(x: z.x + rnd(-14, 14), y: -rnd(30, 130) * z.scale, vx: dir * rnd(60, 480) + rnd(-260, 260), vy: -rnd(160, 620), rot: rnd(0, 6), vr: rnd(-16, 16), kind: 1 + i % 3, col: i % 3 == 1 ? BLOOD : skin, t: 0))
             }
         }
-        if parts.count < 340 {
+        if parts.count < 520 {
+            for _ in 0..<(all ? 4 : 2) { parts.append(Part(x: z.x + rnd(-20, 20), y: top + rnd(20, 100), vx: dir * rnd(20, 120) + rnd(-50, 50), vy: -rnd(10, 80), t: 0, life: rnd(0.5, 0.9), size: rnd(20, 36), col: Col(0x8a0e12, 0.42), grav: 40, glow: false)) }
             for _ in 0..<(all ? 26 : 12) { parts.append(Part(x: z.x, y: top + rnd(0, 90), vx: dir * rnd(40, 420) + rnd(-180, 180), vy: -rnd(60, 520), t: 0, life: rnd(0.5, 1.1), size: rnd(3, 8), col: BLOOD, grav: 1000, glow: false)) }
         }
     }
@@ -837,6 +864,9 @@ final class Game {
         let nb = z.kind == .rat ? 3 : 11
         if parts.count < 300 {
             for _ in 0..<nb { parts.append(Part(x: z.x, y: top + rnd(0, 40), vx: dir * rnd(40, 320) + rnd(-80, 80), vy: -rnd(40, 320), t: 0, life: rnd(0.4, 0.9), size: rnd(3, 7), col: BLOOD, grav: 900, glow: false)) }
+        }
+        if parts.count < 520 && knock > 100 {
+            for _ in 0..<5 { parts.append(Part(x: z.x - dir * 10, y: top + rnd(10, 50), vx: -dir * rnd(60, 380) + rnd(-140, 140), vy: -rnd(60, 380), t: 0, life: rnd(0.12, 0.3), size: rnd(2, 3.5), col: Col(0xfff6d0), grav: 600, glow: true)) }
         }
         if z.kind != .rat && chance(0.5) {
             floor.splats.append((z.x + dir * rnd(10, 70), rnd(60, 210), rnd(10, 26)))
@@ -902,12 +932,26 @@ final class Game {
     }
     func explode(_ x: Double, _ r: Double, _ dmg: Double, toxic: Bool = false) {
         booms.append(Boom(x: x, y: -40, r: r, t: 0, life: 0.5))
+        // smaller blasts a beat later, around the first
+        for i in 0..<3 { booms.append(Boom(x: x + rnd(-r, r) * 0.6, y: -rnd(20, 150), r: r * rnd(0.35, 0.6), t: -0.06 - Double(i) * 0.07, life: 0.4)) }
         rings.append(Ring(x: x, y: -40, r: r * 1.3, t: 0, life: 0.35, col: toxic ? Col(0x8cff7a) : Col(0xffd9a0)))
-        shake = max(shake, 14)
+        rings.append(Ring(x: x, y: -40, r: r * 2.0, t: 0, life: 0.55, col: WHITE.alpha(0.5)))
+        shake = max(shake, 16)
+        flash = max(flash, 0.18); flashCol = toxic ? Col(0xb8ff9a) : Col(0xffe2b0)
         snd?.boom(); buzz(3)
-        if parts.count < 300 {
-            for _ in 0..<14 { parts.append(Part(x: x, y: -30, vx: rnd(-420, 420), vy: -rnd(80, 520), t: 0, life: rnd(0.4, 0.9), size: rnd(4, 9), col: toxic ? Col(0x8cff7a) : Col(0xffb040), grav: 700, glow: true)) }
+        let hot: Col = toxic ? Col(0x8cff7a) : Col(0xffb040)
+        if parts.count < 520 {
+            // fire, fast sparks, falling embers, rolling smoke
+            for _ in 0..<16 { parts.append(Part(x: x, y: -30, vx: rnd(-420, 420), vy: -rnd(80, 520), t: 0, life: rnd(0.4, 0.9), size: rnd(5, 11), col: hot, grav: 700, glow: true)) }
+            for _ in 0..<22 { let a = rnd(0, PI * 2), sp = rnd(300, 900); parts.append(Part(x: x, y: -50, vx: cos(a) * sp, vy: sin(a) * sp - 200, t: 0, life: rnd(0.25, 0.6), size: rnd(2, 4), col: Col(0xfff2b0), grav: 900, glow: true)) }
+            for _ in 0..<10 { parts.append(Part(x: x + rnd(-r, r) * 0.7, y: -rnd(120, 260), vx: rnd(-60, 60), vy: -rnd(20, 120), t: 0, life: rnd(1.0, 1.8), size: rnd(3, 5), col: Col(0xff8a30), grav: 260, glow: true)) }
+            for _ in 0..<9 { parts.append(Part(x: x + rnd(-r, r) * 0.5, y: -rnd(10, 120), vx: rnd(-70, 70), vy: -rnd(40, 150), t: 0, life: rnd(0.9, 1.7), size: rnd(18, 34), col: toxic ? Col(0x3a5a30, 0.5) : Col(0x26221f, 0.55), grav: -50, glow: false)) }
         }
+        if gibs.count < 90 {
+            for _ in 0..<7 { gibs.append(Gib(x: x + rnd(-20, 20), y: -rnd(10, 80), vx: rnd(-520, 520), vy: -rnd(200, 700), rot: rnd(0, 6), vr: rnd(-18, 18), kind: 4, col: toxic ? Col(0x4a5a30) : (chance(0.5) ? Col(0x3a3a3a) : Col(0x7a1c18)), t: 0)) }
+        }
+        fires.append((x, toxic ? -1.6 : 2.6, r * 0.5))
+        if fires.count > 8 { fires.removeFirst() }
         if dmg <= 0 { return }
         for z in floor.zeds where z.alive {
             let d = abs(z.x - x)
@@ -922,6 +966,11 @@ final class Game {
     }
     func burst(_ x: Double, _ r: Double, _ dmg: Double, _ col: Col) {
         rings.append(Ring(x: x, y: -80, r: r, t: 0, life: 0.4, col: col))
+        rings.append(Ring(x: x, y: -80, r: r * 1.5, t: 0, life: 0.6, col: WHITE.alpha(0.5)))
+        if parts.count < 520 {
+            for _ in 0..<26 { let a = rnd(0, PI * 2), sp = rnd(250, 800); parts.append(Part(x: x, y: -80, vx: cos(a) * sp, vy: sin(a) * sp * 0.6 - 120, t: 0, life: rnd(0.25, 0.6), size: rnd(2, 5), col: col, grav: 500, glow: true)) }
+            for _ in 0..<6 { parts.append(Part(x: x + rnd(-r, r) * 0.5, y: 0, vx: rnd(-90, 90), vy: -rnd(30, 120), t: 0, life: rnd(0.6, 1.1), size: rnd(16, 28), col: Col(0x8a8478, 0.4), grav: -30, glow: false)) }
+        }
         shake = max(shake, 16)
         for z in floor.zeds where z.alive && abs(z.x - x) < r { hit(z, dmg, z.x >= x ? 1 : -1, 560) }
         let f = floor
@@ -1131,6 +1180,11 @@ final class Game {
         booms.removeAll { $0.t > $0.life }
         for i in 0..<slashes.count { slashes[i].t += dt }
         if streakT > 0 { streakT -= dt }
+        for i in 0..<fires.count {
+            fires[i].1 -= dt * (fires[i].1 < 0 ? -1 : 1)
+            if fires[i].1 > 0 { for z in floor.zeds where z.alive && abs(z.x - fires[i].0) < fires[i].2 { z.burn = max(z.burn, 1.2); z.burnDps = max(z.burnDps, 16) } }
+        }
+        fires.removeAll { abs($0.1) < 0.05 }
         for i in 0..<gibs.count {
             gibs[i].t += dt
             gibs[i].vy += 1100 * dt
