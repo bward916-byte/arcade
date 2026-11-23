@@ -803,28 +803,135 @@ final class Renderer {
         cv.restore()
         cv.text(g.tw.building, g.W / 2, 400, 16, WHITE.alpha(0.7), 1, 2)
     }
+    /// What the next level of an upgrade adds, in a few words.
+    private func gain(_ id: String, _ next: Int) -> String {
+        switch id {
+        case "smg": return ["Auto-fire at the nearest", "Harder-hitting rounds", "Rips through a crowd"][next - 1]
+        case "shotgun": return ["Point-blank blast", "Reloads faster", "Twice the punch"][next - 1]
+        case "nade": return ["One grenade every 3 s", "Bigger blast, faster", "Carpet the hallway"][next - 1]
+        case "flame": return ["Burns what's in front", "Hotter fire", "They melt"][next - 1]
+        case "drone": return ["One shot a second", "Fires twice as fast", "Three shots a second"][next - 1]
+        case "minigun": return ["18 rounds a second", "Heavier rounds", "Nothing gets close"][next - 1]
+        case "tesla": return ["Chains through 4", "Chains through 5", "Chains through 6"][next - 1]
+        case "orbital": return ["A strike every 6 s", "Every 5 s", "Every 4 s"][next - 1]
+        case "armor": return ["20% less damage", "40% less damage", "60% less damage"][next - 1]
+        case "hp": return ["+25 health, full heal", "+50 health, full heal", "+75 health, full heal"][next - 1]
+        case "dmg": return ["+25% damage", "+50% damage", "+75% damage"][next - 1]
+        default: return ["Faster, quicker power", "Faster still", "Never stop moving"][next - 1]
+        }
+    }
     private func pick(_ g: Game, _ cv: Canvas) {
         let W = g.W
+        let t = g.t
         let k = min(1, g.pickT * 4)
-        cv.R(0, 0, W, VIEW_H, BLACK.alpha(0.76 * k))
-        cv.text("PICK ONE", W / 2, 72, 36, GOLD, 1, 3)
-        cv.text("One every six floors. They stack.", W / 2, 100, 14, WHITE.alpha(0.75), 1, 1)
+        cv.R(0, 0, W, VIEW_H, BLACK.alpha(0.8 * k))
+        // slow rays behind everything
+        cv.save()
+        cv.translate(W / 2, 300)
+        cv.rotate(t * 0.12)
+        cv.lighter(true)
+        for i in 0..<12 {
+            let a = Double(i) * PI / 6
+            cv.poly(GOLD.alpha(0.035 * k), [0, 0, cos(a) * 900, sin(a) * 900, cos(a + 0.2) * 900, sin(a + 0.2) * 900])
+        }
+        cv.lighter(false)
+        cv.restore()
+        cv.save()
+        cv.translate(W / 2, 74)
+        cv.rotate(-0.03)
+        cv.scale(1 + (1 - k) * 1.2, 1 + (1 - k) * 1.2)
+        cv.alpha(k)
+        cv.stamp("PICK ONE", 0, 0, 46, GOLD, 1)
+        cv.restore()
+        cv.text("One every six floors. They stack.", W / 2, 104, 13, WHITE.alpha(0.7 * k), 1, 1)
         for i in 0..<g.pickOpts.count {
             let u = UPS[g.pickOpts[i]]
             let r = g.pickRect(i)
-            let y = r.y + (1 - k) * 30
-            let edge = u.sup ? Col(0xff6ac8) : Col(0x7db8ff)
-            cv.RR(r.x, y, r.w, r.h, 16, u.sup ? Col(0x2a1638) : Col(0x18202c))
-            cv.RRStroke(r.x, y, r.w, r.h, 16, 3, edge)
-            if u.sup { cv.text("★ SUPER WEAPON ★", r.x + r.w / 2, y + 28, 12, Col(0xffb0e8), 1, 3) }
-            cv.text(u.icon, r.x + r.w / 2, y + 112, 64, WHITE, 1, 1)
-            cv.text(u.name, r.x + r.w / 2, y + 160, 24, u.sup ? Col(0xffb0e8) : Col(0xa8d0ff), 1, 3)
             let l = g.lv(u.id)
-            cv.text(l == 0 ? "NEW" : "LEVEL \(l + 1)", r.x + r.w / 2, y + 184, 13, GOLD, 1, 3)
-            for p in 0..<3 { cv.RR(r.x + r.w / 2 - 34 + Double(p) * 24, y + 194, 20, 5, 2, p <= l ? GOLD : WHITE.alpha(0.2)) }
-            wrap(cv, u.desc, r.x + r.w / 2, y + 232, 16, r.w - 44, WHITE.alpha(0.9))
-            cv.RR(r.x + 30, y + r.h - 62, r.w - 60, 40, 10, WHITE.alpha(0.12))
-            cv.text("TAKE", r.x + r.w / 2, y + r.h - 36, 16, WHITE, 1, 3)
+            let kin = easeOut(clampD((g.pickT - 0.08 - Double(i) * 0.12) / 0.3, 0, 1))
+            let chosen = g.pickChosen == i
+            let other = g.pickChosen >= 0 && !chosen
+            let out = g.pickChosen >= 0 ? clampD(g.pickOutT / 0.45, 0, 1) : 0
+            let edge: Col = u.sup ? Col(0xff6ac8) : (u.gun ? Col(0x7db8ff) : Col(0x8fe08a))
+            let dark: Col = u.sup ? Col(0x2a1238) : (u.gun ? Col(0x131c2c) : Col(0x12241a))
+            let pulse = 0.5 + 0.5 * sin(t * 3.4 + Double(i) * 1.7)
+            let bobY: Double = sin(t * 1.8 + Double(i) * 2) * 4
+            let tilt: Double = (i == 0 ? -0.022 : 0.022) * (1 - (chosen ? out : 0))
+            var sc = 0.86 + 0.14 * kin
+            if chosen { sc *= 1 + 0.12 * sin(out * PI) + 0.05 * out }
+            if other { sc *= 1 - 0.25 * out }
+            cv.save()
+            cv.translate(r.x + r.w / 2, r.y + r.h / 2 + (1 - kin) * 320 + bobY)
+            cv.rotate(tilt)
+            cv.scale(sc, sc)
+            cv.alpha(other ? 1 - out : kin)
+            let hw = r.w / 2, hh = r.h / 2
+            // glow, body, frame
+            cv.lighter(true); cv.glow(0, 0, 250, edge.alpha(0.14 + 0.1 * pulse + (chosen ? 0.4 * out : 0))); cv.lighter(false)
+            cv.RR(-hw + 5, -hh + 8, r.w, r.h, 18, BLACK.alpha(0.5))
+            cv.RR(-hw, -hh, r.w, r.h, 18, dark)
+            cv.save()
+            cv.clipRect(-hw, -hh, r.w, 150)
+            cv.vfill(-hw, -hh, r.w, 150, [(0, edge.alpha(0.34)), (1, edge.alpha(0))])
+            cv.restore()
+            // the emblem
+            cv.save()
+            cv.translate(0, -hh + 92)
+            cv.rotate(t * 0.5)
+            cv.lighter(true)
+            for s in 0..<10 {
+                let a = Double(s) * PI / 5
+                cv.poly(edge.alpha(0.16 + 0.08 * pulse), [0, 0, cos(a) * 74, sin(a) * 74, cos(a + 0.26) * 74, sin(a + 0.26) * 74])
+            }
+            cv.lighter(false)
+            cv.restore()
+            cv.circ(0, -hh + 92, 48, BLACK.alpha(0.45))
+            cv.ring(0, -hh + 92, 48, 3, edge.alpha(0.7 + 0.3 * pulse))
+            cv.text(u.icon, 0, -hh + 113 + sin(t * 2.4 + Double(i)) * 3, 56, WHITE, 1, 1)
+            // name and level
+            cv.stamp(u.name, 0, -hh + 182, 25, WHITE, 1)
+            let pipW = 34.0
+            for p in 0..<3 {
+                let px = -pipW * 1.5 - 4 + Double(p) * (pipW + 4)
+                let fill: Col = p < l ? GOLD : (p == l ? edge.alpha(0.55 + 0.45 * pulse) : WHITE.alpha(0.14))
+                cv.RR(px, -hh + 194, pipW, 7, 3, fill)
+            }
+            cv.text(l == 0 ? "NEW" : "LEVEL \(l)  ▶  \(l + 1)", 0, -hh + 222, 12, GOLD, 1, 3)
+            // what it does, and what this level adds
+            wrap(cv, u.desc, 0, -hh + 246, 14, r.w - 50, WHITE.alpha(0.78))
+            cv.RR(-hw + 22, hh - 104, r.w - 44, 30, 8, edge.alpha(0.16))
+            cv.text(gain(u.id, min(3, l + 1)), 0, hh - 84, 14, edge, 1, 3)
+            // take
+            cv.RR(-hw + 22, hh - 62, r.w - 44, 42, 12, edge.alpha(0.82 + 0.18 * pulse))
+            cv.text("TAKE", 0, hh - 34, 19, BLACK, 1, 3)
+            cv.RRStroke(-hw, -hh, r.w, r.h, 18, 3 + pulse, edge)
+            // a shine sweeping across
+            let sweep = (t * 0.45 + Double(i) * 0.5).truncatingRemainder(dividingBy: 1.6)
+            if sweep < 1 {
+                cv.save()
+                cv.clipRect(-hw + 2, -hh + 2, r.w - 4, r.h - 4)
+                cv.lighter(true)
+                let sx = -hw - 80 + sweep * (r.w + 160)
+                cv.poly(WHITE.alpha(0.10), [sx, -hh, sx + 46, -hh, sx - 30, hh, sx - 76, hh])
+                cv.lighter(false)
+                cv.restore()
+            }
+            // corner ribbon
+            if u.sup || l == 0 {
+                let label = u.sup ? "SUPER" : "NEW"
+                cv.save()
+                cv.clipRect(-hw, -hh, r.w, r.h)
+                cv.translate(hw - 44, -hh + 44)
+                cv.rotate(PI / 4)
+                cv.R(-90, -13, 180, 26, u.sup ? Col(0xff6ac8) : GOLD)
+                cv.text(label, 0, 6, 13, BLACK, 1, 3)
+                cv.restore()
+            }
+            if chosen {
+                cv.lighter(true); cv.RR(-hw, -hh, r.w, r.h, 18, WHITE.alpha(0.5 * (1 - out))); cv.lighter(false)
+                cv.ring(0, 0, 120 + out * 260, 8 * (1 - out) + 1, edge.alpha(1 - out))
+            }
+            cv.restore()
         }
     }
     private func wrap(_ cv: Canvas, _ s: String, _ cx: Double, _ y: Double, _ size: Double, _ maxW: Double, _ c: Col) {

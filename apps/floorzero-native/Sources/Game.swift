@@ -425,13 +425,25 @@ final class Game {
         }
         pickOpts = Array(ok.prefix(2))
         if pickOpts.isEmpty { picksDue = 0 }
+        pickChosen = -1
+        snd?.stamp()
     }
+    var pickChosen = -1
+    var pickOutT = 0.0
     func choosePick(_ i: Int) {
-        if mode != .pick || i < 0 || i >= pickOpts.count || pickT < 0.35 { return }
+        if mode != .pick || i < 0 || i >= pickOpts.count || pickT < 0.45 || pickChosen >= 0 { return }
+        pickChosen = i
+        pickOutT = 0
+        flash = 0.25; flashCol = UPS[pickOpts[i]].sup ? Col(0xff6ac8) : GOLD
+        snd?.pick(); buzz(3)
+    }
+    private func applyPick() {
+        let i = pickChosen
+        pickChosen = -1
+        if i < 0 || i >= pickOpts.count { mode = .play; return }
         let u = UPS[pickOpts[i]]
         ups[u.id] = lv(u.id) + 1
         if u.id == "hp" { hero.maxHp = 100 + 25 * Double(lv("hp")); hero.hp = hero.maxHp }
-        snd?.pick(); buzz(2)
         picksDue -= 1
         save()
         if picksDue > 0 { rollPick(); pickT = 0 }
@@ -464,6 +476,7 @@ final class Game {
         case .pick:
             pickT += dt
             if auto && pickT > 0.6 { choosePick(0) }
+            if pickChosen >= 0 { pickOutT += dt; if pickOutT > 0.45 { applyPick() } }
         case .ride:
             rideT += dt
             updateFx(dt)
