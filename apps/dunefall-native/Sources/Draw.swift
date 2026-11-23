@@ -3445,7 +3445,7 @@ final class Renderer {
             for i in 0..<min(3, p.ammo) { cv.R(sx - d * 3.6 - 0.6 + Double(i) * 0.5, y - 7.6, 0.4, 1.8, tip) }
             if self.lit {
                 // a lantern on a pole behind the saddle lights the rider's way
-                let lx = sx - d * 6.4 + sin(NOW * 4 + p.phase) * 0.4, ly = y - 9.5
+                let lx = sx - d * 6.4 + sin(self.NOW * 4 + p.phase) * 0.4, ly = y - 9.5
                 cv.seg(sx - d * 5, y - 1, sx - d * 6.2, y - 11, 0.4, Col(0x4a3a2a))
                 cv.glow(lx, ly + 1.6, 9, rgba(255, 204, 116, 0.75), rgba(255, 204, 116, 0))
                 cv.RR(lx - 1, ly, 2, 3, 0.6, Col(0xffe6a0)); cv.R(lx - 1.3, ly - 0.5, 2.6, 0.6, Col(0x3a2a1a)); cv.R(lx - 1.3, ly + 2.9, 2.6, 0.5, Col(0x3a2a1a))
