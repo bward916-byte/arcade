@@ -40,6 +40,9 @@ final class Game {
     var card: CardV?
     var hits: [Hit] = []
     var isDown = false
+    var cardT = 9.0          // seconds since the card on screen appeared
+    var uiLock = false       // buttons are not live while a card is still flying in
+    var rings: [(x: Double, y: Double, w: Double, h: Double, t: Double)] = []
     var downX = 0.0
     var downY = 0.0
     var toastText = ""
@@ -103,7 +106,11 @@ final class Game {
     // ---------- small helpers
     func toast(_ s: String) { toastText = s; toastT = 3.2 }
     func logIt(_ s: String) { log.append("Day \(day): \(s)") }
-    func show(_ title: String, _ text: String, _ opts: [Opt]) { card = CardV(title: title, text: text, opts: opts) }
+    func show(_ title: String, _ text: String, _ opts: [Opt]) {
+        card = CardV(title: title, text: text, opts: opts)
+        cardT = 0
+        snd?.whoosh()
+    }
     func puff(_ x: Double, _ y: Double, _ n: Int, _ c: Col, _ speed: Double, _ grav: Double, _ r: Double, _ life: Double) {
         if sparks.count > 260 { return }
         for _ in 0..<n {
@@ -438,6 +445,13 @@ final class Game {
     // ---------- frame
     func update(_ dt: Double) {
         T += dt
+        cardT += dt
+        var ri = rings.count - 1
+        while ri >= 0 {
+            rings[ri].t += dt
+            if rings[ri].t > 0.45 { rings.remove(at: ri) }
+            ri -= 1
+        }
         toastT = max(0, toastT - dt)
         shake = max(0, shake - dt)
         var i = sparks.count - 1
@@ -491,6 +505,9 @@ final class Game {
         isDown = false
         for h in hits.reversed() where h.has(x, y) && h.has(downX, downY) {
             snd?.click()
+            buzz?(false)
+            rings.append((h.x, h.y, h.w, h.h, 0))
+            puff(x, y, 9, Col(0xffe08a), 150, 260, 2.2, 0.4)
             h.act()
             return
         }

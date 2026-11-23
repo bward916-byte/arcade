@@ -127,6 +127,11 @@ extension Canvas {
     func circStroke(_ x: Double, _ y: Double, _ r: Double, _ w: Double, _ c: Col) {
         ellStroke(x, y, r, r, w, c)
     }
+    func clipRR(_ x: Double, _ y: Double, _ w: Double, _ h: Double, _ r: Double) {
+        let rr = CGFloat(max(0, min(r, min(w, h) / 2)))
+        cg.addPath(CGPath(roundedRect: CGRect(x: x, y: y, width: w, height: h), cornerWidth: rr, cornerHeight: rr, transform: nil))
+        cg.clip()
+    }
     func clipRect(_ x: Double, _ y: Double, _ w: Double, _ h: Double) {
         cg.clip(to: CGRect(x: x, y: y, width: w, height: h))
     }

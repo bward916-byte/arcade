@@ -4,18 +4,52 @@ import Foundation
 // Buttons, cards, the top bar and the small icons: everything drawn over the scene.
 
 extension Game {
+    private func easeOutBack(_ k: Double) -> Double {
+        let x = clampD(k, 0, 1) - 1
+        return 1 + 2.4 * x * x * x + 1.4 * x * x
+    }
+    private func easeOut(_ k: Double) -> Double {
+        let x = 1 - clampD(k, 0, 1)
+        return 1 - x * x * x
+    }
+
     /// A button drawn into the canvas. It is live until the next frame.
     func btn(_ c: Canvas, _ x: Double, _ y: Double, _ w: Double, _ h: Double, _ label: String, _ sub: String = "", gold: Bool = false, off: Bool = false, size: Double = 16, _ act: @escaping () -> Void) {
-        let pressed = isDown && !off && downX >= x && downX <= x + w && downY >= y && downY <= y + h
+        let pressed = isDown && !off && !uiLock && downX >= x && downX <= x + w && downY >= y && downY <= y + h
         let dy = pressed ? 2.0 : 0.0
+        // a gold button breathes; any button squeezes under the finger
+        let breathe = gold && !off ? 1 + sin(T * 3.2 + x * 0.01) * 0.012 : 1.0
+        let sc = pressed ? 0.955 : breathe
+        c.save()
+        c.translate(x + w / 2, y + h / 2)
+        c.scale(sc, sc)
+        c.translate(-(x + w / 2), -(y + h / 2))
+        if gold && !off {
+            let g = 0.2 + 0.1 * sin(T * 3.2)
+            c.glow(x + w / 2, y + h / 2, w * 0.62, Col(0xffd257, g), Col(0xffd257, 0))
+        }
         c.RR(x, y + 3, w, h, 10, Col(0x1a0e05))
         if gold {
             c.RRGrad(x, y + dy, w, h, 10, [(0, Col(0xffe69a)), (0.5, Col(0xe6ae3c)), (1, Col(0xb47a16))])
-            c.RRStroke(x, y + dy, w, h, 10, 1.5, Col(0xfff2c0))
         } else {
-            c.RRGrad(x, y + dy, w, h, 10, [(0, Col(0xa37031)), (0.52, Col(0x774a1c)), (1, Col(0x55310f))])
-            c.RRStroke(x, y + dy, w, h, 10, 1.2, Col(0xe3ba68))
+            c.RRGrad(x, y + dy, w, h, 10, pressed ? [(0, Col(0xb98440)), (0.52, Col(0x8a5a26)), (1, Col(0x633a14))] : [(0, Col(0xa37031)), (0.52, Col(0x774a1c)), (1, Col(0x55310f))])
         }
+        // gloss along the top, and a band of light that sweeps across now and then
+        c.save()
+        c.clipRR(x, y + dy, w, h, 10)
+        c.RRGrad(x + 3, y + dy + 2, w - 6, h * 0.42, 8, [(0, Col(0xffffff, gold ? 0.32 : 0.13)), (1, Col(0xffffff, 0))])
+        if !off {
+            let period = gold ? 2.6 : 5.2
+            let ph = ((T + x * 0.004 + y * 0.002) / period).truncatingRemainder(dividingBy: 1)
+            if ph < 0.32 {
+                let sx = x - 50 + (w + 100) * (ph / 0.32)
+                let a = gold ? 0.5 : 0.16
+                c.poly(Col(0xffffff, a), [sx, y + dy, sx + 20, y + dy, sx + 4, y + dy + h, sx - 16, y + dy + h])
+                c.poly(Col(0xffffff, a * 0.5), [sx + 26, y + dy, sx + 32, y + dy, sx + 16, y + dy + h, sx + 10, y + dy + h])
+            }
+        }
+        c.restore()
+        c.RRStroke(x, y + dy, w, h, 10, gold ? 1.5 : 1.2, gold ? Col(0xfff2c0) : Col(0xe3ba68))
         let tc = gold ? Col(0x2a1706) : CREAM
         if sub.isEmpty {
             c.text(label, x + w / 2, y + dy + h / 2 + size * 0.34, size, tc, 0, gold ? FONTB : FONT)
@@ -23,10 +57,18 @@ extension Game {
             c.text(label, x + w / 2, y + dy + h / 2 - 1, size, tc, 0, gold ? FONTB : FONT)
             c.text(sub, x + w / 2, y + dy + h / 2 + size * 0.85, size * 0.74, tc.alpha(0.85), 0, FONTI)
         }
-        if off {
-            c.RR(x, y, w, h + 3, 10, Col(0x120a04, 0.55))
-        } else {
-            hits.append(Hit(x: x, y: y, w: w, h: h, act: act))
+        if off { c.RR(x, y, w, h + 3, 10, Col(0x120a04, 0.55)) }
+        c.restore()
+        if !off && !uiLock { hits.append(Hit(x: x, y: y, w: w, h: h, act: act)) }
+    }
+
+    /// Rings of light that spread from a button just tapped. Drawn over everything.
+    func drawRings(_ c: Canvas) {
+        for r in rings {
+            let k = r.t / 0.45
+            let grow = 16 * easeOut(k)
+            c.RRStroke(r.x - grow, r.y - grow, r.w + grow * 2, r.h + grow * 2, 10 + grow, 3 * (1 - k), Col(0xffe9a0, 0.9 * (1 - k)))
+            c.RR(r.x, r.y, r.w, r.h, 10, Col(0xffffff, 0.35 * max(0, 1 - k * 3)))
         }
     }
 
@@ -37,9 +79,24 @@ extension Game {
         c.RRStroke(x + 4, y + 4, w - 8, h - 8, 11, 1, Col(0xd2a455, 0.35))
     }
 
+    /// A point on the edge of a rectangle, `k` of the way round from the top-left corner.
+    private func edgePoint(_ x: Double, _ y: Double, _ w: Double, _ h: Double, _ k: Double) -> (Double, Double) {
+        let per = 2 * (w + h)
+        var d = (k - floor(k)) * per
+        if d < w { return (x + d, y) }
+        d -= w
+        if d < h { return (x + w, y + d) }
+        d -= h
+        if d < w { return (x + w - d, y + h) }
+        d -= w
+        return (x, y + h - d)
+    }
+
     func drawCard(_ c: Canvas, _ cd: CardV) {
         hits.removeAll(keepingCapacity: true)
-        c.R(0, 0, W, H, Col(0x000000, 0.35))
+        let t = cardT
+        uiLock = t < 0.22
+        c.R(0, 0, W, H, Col(0x000000, 0.42 * easeOut(t / 0.25)))
         let pw = min(W - safeL - safeR - 30, 620)
         let px = (W - pw) / 2
         let lines = wrapText(cd.text, pw - 40, 16, FONT)
@@ -49,33 +106,86 @@ extension Game {
         let bh = 46.0
         let ph = 50 + Double(lines.count) * 20.5 + 12 + Double(rows) * (bh + 8) + 8
         let py = max(38, (H - ph) / 2 + 8)
+
+        // the card springs in from a little above
+        let pop = easeOutBack(t / 0.32)
+        let sc = 0.82 + 0.18 * pop
+        c.save()
+        c.alpha(easeOut(t / 0.16))
+        c.translate(W / 2, py + ph / 2 - 18 * (1 - easeOut(t / 0.3)))
+        c.scale(sc, sc)
+        c.translate(-W / 2, -(py + ph / 2))
+
+        c.glow(W / 2, py + ph / 2, pw * 0.75, Col(0xffc860, 0.1 + 0.03 * sin(T * 2)), Col(0xffc860, 0))
         panel(c, px, py, pw, ph)
+        // brass studs in the corners
+        for (sx, sy) in [(px + 12, py + 12), (px + pw - 12, py + 12), (px + 12, py + ph - 12), (px + pw - 12, py + ph - 12)] {
+            c.circ(sx, sy, 3.2, Col(0x8a6220))
+            c.circ(sx - 0.8, sy - 0.8, 1.6, Col(0xffe9a0))
+        }
+        // two glints run round the frame
+        for i in 0..<2 {
+            let (gx, gy) = edgePoint(px, py, pw, ph, T * 0.11 + Double(i) * 0.5)
+            c.glow(gx, gy, 16, Col(0xfff2c0, 0.75), Col(0xfff2c0, 0))
+            c.circ(gx, gy, 1.6, Col(0xffffff, 0.9))
+        }
+        // the title, with a light passing over it, and a rule that draws itself
         c.text(cd.title, px + 20, py + 34, 24, GOLD, -1, FONTD)
-        c.R(px + 20, py + 42, pw - 40, 1.5, Col(0xd2a455, 0.6))
+        let tw = textW(cd.title, 24, FONTD)
+        let sw = ((T * 0.45).truncatingRemainder(dividingBy: 1)) * (tw + 80) - 40
+        c.save()
+        c.clipRect(px + 20, py + 12, tw, 28)
+        c.glow(px + 20 + sw, py + 26, 22, Col(0xffffff, 0.55), Col(0xffffff, 0))
+        c.restore()
+        let rule = easeOut((t - 0.1) / 0.4)
+        c.R(px + 20, py + 42, (pw - 40) * rule, 1.5, Col(0xd2a455, 0.7))
+        if rule > 0.02 {
+            let ex = px + 20 + (pw - 40) * rule
+            c.poly(GOLD, [ex - 4, py + 42.75, ex, py + 39, ex + 4, py + 42.75, ex, py + 46.5])
+        }
         var ty = py + 64
-        for l in lines {
-            c.text(l, px + 20, ty, 16, CREAM, -1, FONT)
+        for (i, l) in lines.enumerated() {
+            let a = easeOut((t - 0.14 - Double(i) * 0.05) / 0.25)
+            c.save()
+            c.alpha(a)
+            c.text(l, px + 20 + 10 * (1 - a), ty, 16, CREAM, -1, FONT)
+            c.restore()
             ty += 20.5
         }
+        // the choices rise into place one after another
         let by = ty - 4
         let bw = (pw - 40 - Double(cols - 1) * 8) / Double(cols)
+        let after = 0.18 + min(0.3, Double(lines.count) * 0.04)
         for (i, o) in cd.opts.enumerated() {
             let col = i % cols, row = i / cols
-            btn(c, px + 20 + Double(col) * (bw + 8), by + Double(row) * (bh + 8), bw, bh, o.label, o.sub, gold: i == 0 && !o.off, off: o.off, o.act)
+            let a = easeOut((t - after - Double(i) * 0.07) / 0.26)
+            c.save()
+            c.alpha(a)
+            btn(c, px + 20 + Double(col) * (bw + 8), by + Double(row) * (bh + 8) + 14 * (1 - a), bw, bh, o.label, o.sub, gold: i == 0 && !o.off, off: o.off, o.act)
+            c.restore()
         }
+        c.restore()
+        uiLock = false
     }
 
     func drawToast(_ c: Canvas) {
         if toastT <= 0 || toastText.isEmpty { return }
         let a = min(1, toastT * 2)
+        let age = 3.2 - toastT
         let size = 15.0
         let lines = wrapText(toastText, min(W * 0.7, 520), size, FONT)
         var tw = 0.0
         for l in lines { tw = max(tw, textW(l, size, FONT)) }
         let w = tw + 32, h = Double(lines.count) * 19 + 14
         let x = (W - w) / 2, y = mode == .duel ? 100.0 : 40.0
+        // drops in with a little bounce
+        let sc = 0.8 + 0.2 * easeOutBack(age / 0.3)
         c.save()
-        c.alpha(a)
+        c.alpha(a * easeOut(age / 0.15))
+        c.translate(W / 2, y + h / 2 - 16 * (1 - easeOut(age / 0.28)))
+        c.scale(sc, sc)
+        c.translate(-W / 2, -(y + h / 2))
+        c.glow(W / 2, y + h / 2, w * 0.6, Col(0xfff2c0, 0.25 * max(0, 1 - age / 0.6)), Col(0xfff2c0, 0))
         c.RR(x + 2, y + 3, w, h, 9, Col(0x000000, 0.35))
         c.RRGrad(x, y, w, h, 9, [(0, Col(0xfbf3dc)), (1, Col(0xe6d6aa))])
         c.RRStroke(x, y, w, h, 9, 1.5, Col(0x6b4a26))

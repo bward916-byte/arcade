@@ -22,7 +22,9 @@ extension Game {
         c.restore()
         if mode != .title && mode != .pick && mode != .end { drawHUD(c) }
         if let cd = card { drawCard(c, cd) }
+        if card != nil { drawSparks(c) }
         drawToast(c)
+        drawRings(c)
     }
 
     // ---------- sky and sea
