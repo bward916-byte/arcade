@@ -161,11 +161,14 @@ final class PlaceMark: NSObject, MKAnnotation {
 struct CampMap: UIViewRepresentable {
     let pins: [Pin]
     let overlays: [MKMultiPolyline]
+    let land: [MKOverlay]
+    let landKey: String
     let satellite: Bool
     let focus: Pin?
     let focusCount: Int
     let locateCount: Int
     let onPick: (Pin) -> Void
+    let onLocate: (CLLocationCoordinate2D?, Double) -> Void   // nil when the phone will not share its location
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
@@ -189,10 +192,11 @@ struct CampMap: UIViewRepresentable {
             map.removeAnnotations(map.annotations.filter { $0 is PlaceMark })
             map.addAnnotations(pins.map { PlaceMark($0) })
         }
-        let lineKey = overlays.map { $0.title ?? "" }.joined(separator: "|")
+        let lineKey = landKey + "/" + overlays.map { $0.title ?? "" }.joined(separator: "|")
         if lineKey != c.lineKey {
             c.lineKey = lineKey
             map.removeOverlays(map.overlays)
+            map.addOverlays(land, level: .aboveRoads)      // land underneath, route lines on top
             map.addOverlays(overlays, level: .aboveRoads)
         }
         if focusCount != c.focusCount, let pin = focus {
@@ -205,6 +209,15 @@ struct CampMap: UIViewRepresentable {
             c.locator.requestWhenInUseAuthorization()
             map.showsUserLocation = true
             map.setUserTrackingMode(.follow, animated: true)
+            let status = c.locator.authorizationStatus
+            let report = onLocate
+            if status == .denied || status == .restricted {
+                DispatchQueue.main.async { report(nil, 0) }
+            } else if let here = map.userLocation.location {
+                DispatchQueue.main.async { report(here.coordinate, here.horizontalAccuracy) }
+            } else {
+                c.waiting = true
+            }
         }
     }
 
@@ -212,9 +225,22 @@ struct CampMap: UIViewRepresentable {
         var parent: CampMap
         var pinKey = "", lineKey = ""
         var focusCount = 0, locateCount = 0
+        var waiting = false          // asked "where am I" and no position has come back yet
         let locator = CLLocationManager()
 
         init(_ parent: CampMap) { self.parent = parent }
+
+        func mapView(_ mapView: MKMapView, didUpdate userLocation: MKUserLocation) {
+            guard waiting, let here = userLocation.location else { return }
+            waiting = false
+            parent.onLocate(here.coordinate, here.horizontalAccuracy)
+        }
+
+        func mapView(_ mapView: MKMapView, didFailToLocateUserWithError error: Error) {
+            guard waiting else { return }
+            waiting = false
+            parent.onLocate(nil, 0)
+        }
 
         func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
             guard let mark = annotation as? PlaceMark else { return nil }
@@ -234,6 +260,21 @@ struct CampMap: UIViewRepresentable {
         }
 
         func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
+            if let shape = overlay as? MKPolygon, let layer = landLayers.first(where: { $0.id == shape.title }) {
+                let r = MKPolygonRenderer(polygon: shape)
+                r.fillColor = layer.color.withAlphaComponent(layer.fill)
+                r.strokeColor = layer.color
+                r.lineWidth = layer.id == "blm" ? 1 : 2
+                if layer.dashed { r.lineDashPattern = [6, 5] }
+                return r
+            }
+            if let line = overlay as? MKPolyline, let layer = landLayers.first(where: { $0.id == line.title }) {
+                let r = MKPolylineRenderer(polyline: line)
+                r.strokeColor = layer.color
+                r.lineWidth = 2.5
+                r.lineDashPattern = [8, 6]
+                return r
+            }
             guard let multi = overlay as? MKMultiPolyline else { return MKOverlayRenderer(overlay: overlay) }
             let r = MKMultiPolylineRenderer(multiPolyline: multi)
             r.strokeColor = routeColors[multi.title ?? ""] ?? .brown
@@ -256,6 +297,20 @@ struct PlacesView: View {
     @State private var focus: Pin?
     @State private var focusCount = 0
     @State private var locateCount = 0
+    @StateObject private var landStore = LandStore()
+    @State private var landOn: Set<String> = ["blm", "free", "ltva"]            // land layers showing; BLM land from the start
+    @State private var layering = false
+    @State private var landAnswer: LandAnswer?
+    @State private var finding = false
+    @AppStorage("layHint") private var hintSeen = false
+
+    private var landShown: [MKOverlay] {
+        landLayers.filter { landOn.contains($0.id) }.flatMap { landStore.overlays[$0.id] ?? [] }
+    }
+    private var landKey: String {
+        landLayers.filter { landOn.contains($0.id) && landStore.overlays[$0.id] != nil }.map { $0.id }.joined(separator: ",")
+    }
+    private var layerCount: Int { landOn.count + on.count + routes.count }
 
     private var pins: [Pin] {
         (guide.data?.pins ?? []).filter { on.contains(pinGroup($0.kind).id) }
@@ -267,30 +322,60 @@ struct PlacesView: View {
 
     var body: some View {
         NavigationStack {
-            CampMap(pins: pins, overlays: lines, satellite: satellite, focus: focus, focusCount: focusCount, locateCount: locateCount) { pin in
-                picked = pin
-            }
+            CampMap(pins: pins, overlays: lines, land: landShown, landKey: landKey, satellite: satellite, focus: focus, focusCount: focusCount, locateCount: locateCount,
+                    onPick: { pin in picked = pin },
+                    onLocate: { here, accuracy in
+                        finding = false
+                        if let here { landAnswer = landStore.answer(here, accuracy: accuracy) }
+                        else { landAnswer = LandAnswer(onBLM: nil, words: "Your phone did not share its location. Allow location for Campfire in Settings, then tap again.") }
+                    })
+            .task { await landStore.load() }
             .ignoresSafeArea(edges: .bottom)
             .overlay(alignment: .top) {
                 VStack(spacing: 0) {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 8) {
-                            textChip("All", on.count == pinGroups.count) { on = Set(pinGroups.map { $0.id }) }
-                            textChip("None", on.isEmpty) { on = []; picked = nil }
-                            ForEach(pinGroups) { g in
-                                iconChip(g.name, g.symbol, Color(g.color), on.contains(g.id)) {
-                                    if on.contains(g.id) { on.remove(g.id) } else { on.insert(g.id) }
-                                }
-                            }
-                            ForEach(routeLayers) { layer in
-                                lineChip(routeName(layer), Color(layer.color), routes.contains(layer.id)) { toggleRoute(layer.id) }
-                            }
+                    HStack(spacing: 8) {
+                        Button {
+                            finding = true
+                            landAnswer = nil
+                            locateCount += 1
+                        } label: {
+                            Label("Am I on BLM land?", systemImage: "location.fill").font(.subheadline.weight(.bold)).frame(maxWidth: .infinity).padding(.vertical, 10)
                         }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
+                        .background(Theme.primary).foregroundColor(.white).cornerRadius(10)
+                        Button {
+                            hintSeen = true
+                            layering = true
+                        } label: {
+                            Label("Layers · \(layerCount) on", systemImage: "square.3.layers.3d").font(.subheadline.weight(.bold)).frame(maxWidth: .infinity).padding(.vertical, 10)
+                        }
+                        .background(Color(.systemBackground)).foregroundColor(Theme.primary).cornerRadius(10)
+                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Theme.primary, lineWidth: 2))
                     }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
                     .background(Theme.page)
-                    .swipeHint()
+                    if finding {
+                        Text("Finding where you are…").font(.footnote).padding(.horizontal, 12).padding(.bottom, 8)
+                            .frame(maxWidth: .infinity, alignment: .leading).background(Theme.page)
+                    } else if let a = landAnswer {
+                        HStack(alignment: .top, spacing: 8) {
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(a.words).font(.subheadline.weight(.semibold))
+                                Text("You are the blue dot. Edges are approximate; signs and fences on the ground decide.").font(.caption).foregroundColor(.secondary)
+                            }
+                            Spacer(minLength: 0)
+                            Button { landAnswer = nil } label: { Image(systemName: "xmark.circle.fill").foregroundColor(.secondary) }
+                                .accessibilityLabel("Close")
+                        }
+                        .padding(10)
+                        .background(a.onBLM == true ? Theme.soft : Color(.systemBackground))
+                        .overlay(Rectangle().fill(a.onBLM == false ? Theme.accent : Theme.primary).frame(width: 5), alignment: .leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    } else if !hintSeen {
+                        Text("Yellow is BLM land. Tap Layers to show trails, town limits, the reservation and more.")
+                            .font(.caption).foregroundColor(.secondary).padding(.horizontal, 12).padding(.bottom, 6)
+                            .frame(maxWidth: .infinity, alignment: .leading).background(Theme.page)
+                    }
                     if trails.failed {
                         Text("The routes did not load. Check your signal.").font(.caption).padding(6).frame(maxWidth: .infinity).background(Theme.page)
                     } else if !routes.isEmpty {
@@ -304,7 +389,6 @@ struct PlacesView: View {
                 if picked == nil {
                     VStack(spacing: 10) {
                         roundButton(satellite ? "map" : "globe.americas.fill", satellite ? "Show the road map" : "Show satellite") { satellite.toggle() }
-                        roundButton("location.fill", "Where am I") { locateCount += 1 }
                         roundButton("list.bullet", "List of places") { listing = true }
                     }
                     .padding(.trailing, 14)
@@ -346,6 +430,7 @@ struct PlacesView: View {
                 }
             }
             .sheet(isPresented: $listing) { placeList }
+            .sheet(isPresented: $layering) { layerList }
             .navigationTitle("Places")
             .navigationBarTitleDisplayMode(.inline)
         }
@@ -372,6 +457,55 @@ struct PlacesView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { listing = false } } }
         }
+    }
+
+    // Every layer with a plain on/off switch.
+    private var layerList: some View {
+        NavigationStack {
+            List {
+                Section("Land") {
+                    ForEach(landLayers.filter { landStore.overlays[$0.id] != nil }) { layer in
+                        Toggle(isOn: Binding(get: { landOn.contains(layer.id) }, set: { if $0 { landOn.insert(layer.id) } else { landOn.remove(layer.id) } })) {
+                            HStack(spacing: 10) {
+                                RoundedRectangle(cornerRadius: 4).fill(Color(layer.color).opacity(0.45))
+                                    .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color(layer.color), lineWidth: 2)).frame(width: 24, height: 18)
+                                Text(layer.name)
+                            }
+                        }
+                    }
+                }
+                Section("Places") {
+                    ForEach(pinGroups) { g in
+                        Toggle(isOn: Binding(get: { on.contains(g.id) }, set: { if $0 { on.insert(g.id) } else { on.remove(g.id) } })) {
+                            HStack(spacing: 10) {
+                                Image(systemName: g.symbol).font(.system(size: 11, weight: .bold)).foregroundColor(.white)
+                                    .frame(width: 24, height: 24).background(Color(g.color)).clipShape(Circle())
+                                Text(g.name)
+                            }
+                        }
+                    }
+                }
+                Section {
+                    ForEach(routeLayers) { layer in
+                        Toggle(isOn: Binding(get: { routes.contains(layer.id) }, set: { _ in toggleRoute(layer.id) })) {
+                            HStack(spacing: 10) {
+                                Capsule().fill(Color(layer.color)).frame(width: 24, height: 5)
+                                Text(routeName(layer))
+                            }
+                        }
+                    }
+                } header: {
+                    Text("Trails and routes")
+                } footer: {
+                    Text("A line on the map does not mean a route is open, legal for your vehicle or passable.")
+                }
+            }
+            .tint(Theme.primary)
+            .navigationTitle("Map layers")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { layering = false } } }
+        }
+        .presentationDetents([.medium, .large])
     }
 
     private func routeName(_ layer: RouteLayer) -> String {
