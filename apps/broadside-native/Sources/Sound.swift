@@ -14,6 +14,7 @@ final class Sound {
         var low = 0.0
         var band = 0.0
         var q = 1.0
+        var atk = 0.0        // seconds to swell in; 0 is a plucked note
     }
 
     private let engine = AVAudioEngine()
@@ -59,7 +60,8 @@ final class Sound {
                 v.t += dt
                 if v.t < 0 || v.t > v.dur { voices[k] = v; continue }
                 let u = v.t / v.dur
-                let env = v.vol * pow(0.0001 / max(v.vol, 0.0002), u)
+                var env = v.vol * pow(0.0001 / max(v.vol, 0.0002), u)
+                if v.atk > 0 { env = v.vol * min(1, v.t / v.atk) * (1 - u) * (1 - u) }
                 let f = v.f2 > 0 ? v.f * pow(v.f2 / v.f, u) : v.f
                 var x = 0.0
                 if v.wave == 4 {
@@ -92,7 +94,7 @@ final class Sound {
     private func add(_ v: Voice) {
         if muted || !running { return }
         lock.lock()
-        if voices.count < 28 { voices.append(v) }
+        if voices.count < 44 { voices.append(v) }
         lock.unlock()
     }
     func tone(_ f: Double, _ d: Double, _ wave: Int, _ vol: Double, _ f2: Double = 0, _ delay: Double = 0) {
@@ -118,57 +120,114 @@ final class Sound {
     func thunder() { noise(1.8, 0.6, 120, 1) }
     func gull() { tone(1500, 0.18, 0, 0.03, 1100); tone(1600, 0.22, 0, 0.03, 1050, 0.24) }
 
-    // ---------- music: the same step sequencer as the web version, one track per mood
-    private struct Track {
+    /// A note that swells in and fades: pads, strings, the wash of the sea.
+    func swell(_ f: Double, _ d: Double, _ wave: Int, _ vol: Double, _ atk: Double) {
+        var v = Voice(wave: wave, f: f, f2: 0, dur: d, vol: vol, t: 0)
+        v.atk = atk
+        if wave == 4 { v.q = 1.2 }
+        add(v)
+    }
+
+    // ---------- music: a small band in code. Each score has a chord per bar of six beats; over it play a bass,
+    // a held pad, a plucked arpeggio, the melody with a soft double an octave down, and hand percussion.
+    private struct Score {
         let u: Double
         let vol: Double
-        let be: Int
-        let bass: [Int]
-        let wave: Int
-        let drum: Int
-        let notes: [(Int, Int)]
+        let lead: Int
+        let drum: Int        // 0 none, 1 shanty pulse, 2 war drums
+        let chords: [(Int, [Int])]
+        let mel: [(Int, Int)]
     }
-    private let tracks: [String: Track] = [
-        "sea": Track(u: 0.19, vol: 1, be: 3, bass: [38, 45, 38, 45, 41, 45, 38, 38], wave: 1, drum: 0,
-                     notes: [(62, 2), (65, 1), (69, 2), (69, 1), (67, 2), (65, 1), (64, 3), (62, 2), (65, 1), (69, 2), (72, 1), (69, 3), (0, 3), (72, 2), (69, 1), (67, 2), (65, 1), (64, 2), (67, 1), (69, 3), (65, 2), (64, 1), (62, 2), (60, 1), (62, 3), (0, 3)]),
-        "sea2": Track(u: 0.2, vol: 1, be: 4, bass: [41, 48, 46, 48, 41, 48, 36, 41], wave: 1, drum: 0,
-                      notes: [(65, 2), (69, 1), (72, 1), (77, 2), (76, 1), (74, 1), (72, 2), (69, 2), (70, 1), (72, 1), (74, 2), (72, 1), (69, 1), (67, 2), (0, 2), (65, 1), (69, 1), (72, 2), (74, 1), (72, 1), (70, 1), (69, 1), (67, 2), (64, 2), (65, 4), (0, 4)]),
-        "port": Track(u: 0.15, vol: 0.9, be: 3, bass: [43, 50, 43, 50, 48, 50, 43, 43], wave: 2, drum: 3,
-                      notes: [(67, 1), (71, 1), (74, 1), (79, 2), (78, 1), (76, 1), (74, 1), (71, 1), (74, 2), (71, 1), (72, 1), (76, 1), (72, 1), (69, 2), (66, 1), (69, 1), (74, 1), (72, 1), (71, 2), (67, 1), (67, 1), (71, 1), (74, 1), (79, 2), (78, 1), (76, 1), (79, 1), (76, 1), (74, 2), (71, 1), (72, 1), (71, 1), (69, 1), (66, 2), (69, 1), (67, 3), (0, 3)]),
-        "battle": Track(u: 0.16, vol: 0.8, be: 2, bass: [38, 38, 36, 36, 34, 34, 33, 33], wave: 3, drum: 2,
-                        notes: [(62, 1), (62, 1), (65, 1), (62, 1), (69, 2), (67, 1), (65, 1), (64, 1), (62, 1), (60, 2), (62, 1), (62, 1), (65, 1), (69, 1), (72, 2), (70, 1), (69, 1), (67, 1), (65, 1), (64, 2), (62, 1), (57, 1), (62, 2)]),
-        "night": Track(u: 0.3, vol: 0.85, be: 3, bass: [33, 40, 36, 40], wave: 0, drum: 0,
-                       notes: [(69, 2), (72, 1), (76, 3), (74, 2), (72, 1), (71, 3), (69, 2), (67, 1), (64, 3), (69, 3), (0, 3), (72, 2), (76, 1), (79, 3), (77, 2), (76, 1), (74, 3), (72, 2), (71, 1), (69, 3), (0, 3)])
+    private static let Dm: (Int, [Int]) = (38, [62, 65, 69])
+    private static let C: (Int, [Int]) = (36, [60, 64, 67])
+    private static let F: (Int, [Int]) = (41, [60, 65, 69])
+    private static let A: (Int, [Int]) = (33, [61, 64, 69])
+    private static let Bb: (Int, [Int]) = (34, [58, 62, 65])
+    private static let G: (Int, [Int]) = (43, [59, 62, 67])
+    private static let Em: (Int, [Int]) = (40, [59, 64, 67])
+    private static let D: (Int, [Int]) = (38, [57, 62, 66])
+    private static let Am: (Int, [Int]) = (33, [57, 60, 64])
+    private static let E: (Int, [Int]) = (40, [56, 59, 64])
+    private let scores: [String: Score] = [
+        // the title: a rolling shanty in D minor, two eight-bar phrases
+        "title": Score(u: 0.2, vol: 1, lead: 1, drum: 1,
+                       chords: [Dm, Dm, C, Dm, F, C, A, Dm, Bb, F, C, Dm, Bb, F, A, Dm],
+                       mel: [(69, 2), (74, 1), (72, 2), (69, 1), (65, 2), (69, 1), (62, 3), (64, 2), (67, 1), (72, 2), (67, 1), (69, 3), (65, 2), (62, 1),
+                             (65, 2), (69, 1), (72, 2), (77, 1), (76, 2), (72, 1), (67, 3), (69, 2), (65, 1), (64, 2), (61, 1), (62, 5), (0, 1),
+                             (70, 2), (74, 1), (77, 3), (72, 2), (69, 1), (65, 3), (67, 2), (72, 1), (76, 2), (72, 1), (74, 3), (69, 3),
+                             (70, 2), (74, 1), (77, 2), (74, 1), (72, 2), (77, 1), (81, 3), (79, 1), (76, 1), (73, 1), (76, 2), (69, 1), (74, 5), (0, 1)]),
+        // the island by day: unhurried, in G
+        "isle": Score(u: 0.27, vol: 0.8, lead: 1, drum: 0,
+                      chords: [G, Em, C, D, Em, C, D, G],
+                      mel: [(71, 2), (74, 1), (79, 3), (76, 3), (71, 2), (67, 1), (72, 2), (76, 1), (79, 2), (76, 1), (74, 4), (0, 2),
+                            (76, 2), (79, 1), (83, 3), (79, 2), (76, 1), (72, 3), (74, 2), (78, 1), (81, 2), (78, 1), (79, 4), (0, 2)]),
+        // night: slow and bare
+        "night": Score(u: 0.36, vol: 0.75, lead: 0, drum: 0,
+                       chords: [Am, F, C, E],
+                       mel: [(69, 3), (72, 3), (77, 2), (76, 1), (72, 3), (67, 3), (72, 2), (76, 1), (71, 4), (0, 2)]),
+        // a raid
+        "raid": Score(u: 0.15, vol: 0.9, lead: 3, drum: 2,
+                      chords: [Dm, Dm, Bb, A],
+                      mel: [(62, 1), (62, 1), (65, 1), (69, 2), (65, 1), (62, 1), (62, 1), (65, 1), (70, 2), (69, 1),
+                            (70, 1), (70, 1), (74, 1), (77, 2), (74, 1), (73, 2), (69, 1), (64, 3)])
     ]
     private var mood = ""
-    private var noteI = 0
-    private var beat = 0
+    private var unitI = 0
+    private var melI = 0
+    private var melWait = 0
     private var nextT = 0.0
+    private var washT = 0.0
     private func hz(_ n: Int) -> Double { return 440 * pow(2, Double(n - 69) / 12) }
     /// Call every frame with the game clock and the mood to play.
     func music(_ now: Double, _ m: String) {
         if muted || !running { return }
-        guard let tr = tracks[m] else { return }
-        if m != mood { mood = m; noteI = 0; beat = 0; nextT = now + 0.5 }
+        guard let sc = scores[m] else { return }
+        if m != mood { mood = m; unitI = 0; melI = 0; melWait = 0; nextT = now + 0.4 }
+        // the sea, breathing under everything
+        if now > washT {
+            washT = now + 3.2 + Double.random(in: 0...2.5)
+            swell(500 + Double.random(in: 0...500), 3.4, 4, 0.05, 1.3)
+        }
         if now < nextT { return }
-        let nt = tr.notes[noteI % tr.notes.count]
-        let dur = Double(nt.1) * tr.u
-        if nt.0 > 0 {
-            tone(hz(nt.0), dur * 1.1, tr.wave, 0.045 * tr.vol)
-            tone(hz(nt.0) * 2.003, dur * 0.6, 0, 0.012 * tr.vol)
+        let u = sc.u, vol = sc.vol
+        let beat = unitI % 6
+        let chord = sc.chords[(unitI / 6) % sc.chords.count]
+        if beat == 0 {
+            tone(hz(chord.0), u * 5.4, 0, 0.07 * vol)
+            tone(hz(chord.0 + 12), u * 3, 1, 0.018 * vol)
+            for n in chord.1 { swell(hz(n), u * 6.4, 1, 0.017 * vol, u * 1.5) }
+            swell(hz(chord.1[0] + 12) * 1.003, u * 6.4, 0, 0.01 * vol, u * 2)
         }
-        for b in beat..<(beat + nt.1) {
-            let delay = Double(b - beat) * tr.u
-            if b % tr.be == 0 {
-                let bn = tr.bass[(b / tr.be) % tr.bass.count]
-                tone(hz(bn), tr.u * Double(tr.be) * 0.9, 0, 0.06 * tr.vol, 0, delay)
-            }
-            if tr.drum > 0 && b % tr.drum == 0 {
-                tone(90, 0.12, 0, 0.09 * tr.vol, 50, delay)
+        if beat == 3 { tone(hz(chord.0 + 7), u * 2.6, 0, 0.045 * vol) }
+        // plucked arpeggio, up and back through the chord
+        let order = [0, 1, 2, 1, 2, 1]
+        let an = chord.1[order[beat]] + 12
+        tone(hz(an), u * 2.2, 1, (beat == 0 ? 0.026 : 0.019) * vol)
+        // melody, doubled softly an octave down and a shade sharp for width
+        if melWait <= 0 {
+            let nt = sc.mel[melI % sc.mel.count]
+            melI += 1
+            melWait = nt.1
+            if nt.0 > 0 {
+                let d = Double(nt.1) * u
+                tone(hz(nt.0), d * 1.25 + 0.1, sc.lead, 0.05 * vol)
+                tone(hz(nt.0) * 1.004, d * 1.25 + 0.1, 1, 0.022 * vol)
+                tone(hz(nt.0 - 12), d * 1.1, 0, 0.02 * vol)
+                tone(hz(nt.0 + 12) * 1.002, d * 0.5, 0, 0.009 * vol)
+                if nt.1 >= 3 { swell(hz(nt.0 - (chord.1.contains(nt.0 - 3) ? 3 : 4)), d, 1, 0.018 * vol, 0.12) }
             }
         }
-        beat += nt.1
-        noteI += 1
-        nextT = (nextT < now - 1 ? now : nextT) + dur
+        melWait -= 1
+        // percussion
+        if sc.drum == 1 {
+            if beat == 0 { tone(95, 0.16, 0, 0.1 * vol, 52) }
+            if beat == 3 { noise(0.07, 0.035 * vol, 3200, 2) }
+            if beat == 2 || beat == 5 { noise(0.035, 0.016 * vol, 5200, 2) }
+        } else if sc.drum == 2 {
+            if beat % 3 == 0 { tone(80, 0.2, 0, 0.16 * vol, 44); noise(0.12, 0.05 * vol, 300, 1) }
+            if beat == 2 || beat == 4 || beat == 5 { tone(120, 0.09, 0, 0.07 * vol, 70) }
+        }
+        unitI += 1
+        nextT = (nextT < now - 1 ? now : nextT) + u
     }
 }

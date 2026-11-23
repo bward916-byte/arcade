@@ -381,6 +381,7 @@ final class Game {
     // ---------- time
     func update(_ dt: Double) {
         T += dt
+        snd?.music(T, mode == .title ? "title" : (raiding ? "raid" : (light < 0.3 ? "night" : "isle")))
         if mode == .title { return }
         tod += dt / DAY_LEN
         if tod >= 1 {
@@ -394,6 +395,7 @@ final class Game {
         if spinT > 0 { spinT -= dt }
         if shake > 0 { shake = max(0, shake - dt * 6) }
         if raidFlash > 0 { raidFlash -= dt }
+        if light > 0.5 && chance(dt * 0.08) { snd?.gull() }
 
         // walking
         if rowPhase == 0 {
