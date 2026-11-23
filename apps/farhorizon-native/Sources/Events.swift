@@ -3,9 +3,13 @@ import Foundation
 // What happens at sea and in port. Each event is a card with choices; the sword fight is its own scene.
 
 extension Game {
+    /// Ends an event. An outcome is shown as its own card, so the player always sees what happened.
     func done(_ msg: String) {
+        let title = card?.title ?? ""
         card = nil
-        if !msg.isEmpty { toast(msg) }
+        if msg.isEmpty || over { return }
+        toastT = 0
+        show(title, msg, [Opt(mode == .sail ? "Sail on" : "Continue") { [unowned self] in self.card = nil }])
     }
 
     func rollEvent() {
@@ -154,14 +158,16 @@ extension Game {
         case "sick":
             show("Fever aboard", "Half the watch is laid out on deck.", [
                 Opt("Rest a day", "lose 1 day · one falls sick") { [unowned self] in
+                    self.toastText = ""
                     self.sickOne("the fever")
                     self.passDays(1)
-                    if !self.over { self.card = nil }
+                    if !self.over { self.done(self.toastText) }
                 },
                 Opt("Press on", "more will fall sick") { [unowned self] in
+                    self.toastText = ""
                     self.sickOne("the fever")
                     if !self.over && chance(0.5) { self.sickOne("the fever") }
-                    if !self.over { self.card = nil }
+                    if !self.over { self.done(self.toastText) }
                 }
             ])
         case "merchant":
@@ -218,8 +224,9 @@ extension Game {
                         if self.hasMap { self.gold += 80; self.done("+80 gold from the captain's chest") } else { self.hasMap = true; self.done("A chart on the captain's table — a treasure map!") }
                         self.snd?.good()
                     } else {
+                        self.toastText = ""
                         self.loseCrew("Something drags a sailor below")
-                        if !self.over { self.card = nil }
+                        if !self.over { self.done(self.toastText) }
                     }
                 },
                 Opt("Steer clear") { [unowned self] in self.done("") }
@@ -247,7 +254,7 @@ extension Game {
                         self.done("Hauled aboard, coughing and cursing, but alive")
                     } else {
                         self.loseCrew("Lost to the sea")
-                        if !self.over { self.card = nil }
+                        if !self.over { self.done(self.toastText) }
                     }
                 }
             ])

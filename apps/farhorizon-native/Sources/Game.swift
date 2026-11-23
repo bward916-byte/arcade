@@ -508,6 +508,7 @@ final class Game {
         dist = legLen * 0.4; day = 4
         if name == "night" { tod = 0.8 }
         if name == "event" { event("pirates") }
+        if name == "result" { event("ghost"); done("Her hold is full of old silver: +212 gold") }
         if name == "port" { leg = 1; mode = .port }
         if name == "duel" { startDuel(foes: 3, boss: false, prize: 120) }
         if name == "boss" { startDuel(foes: 1, boss: true, prize: 300) }
