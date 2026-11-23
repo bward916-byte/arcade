@@ -2220,6 +2220,85 @@ function drawHairPortrait(x, y, r, a, facing) {
     case 'zombie': ctx.fillStyle = '#2a2622'; for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.arc(x + (i - 1.5) * r * .4, y - r * .75, r * .22, 0, TAU); ctx.fill(); } break;
   }
 }
+// ===== Ashwinter on Platformer Hero: every person in the game is drawn by the 3D kit; the old rig still decides where they are =====
+const HERO = { force: typeof location !== 'undefined' && /[?&]hero=force/.test(location.search), ready: false, failed: false, off: false, pool: [], map: new Map(), ppu: 80 / 1.75, n: 14, lvl: 0, slow: 0, ema: .016, lastNow: 0, lastT: -1 };
+const HWORK = (() => { const S = Math.sin, strike = t => { const q = (S(t * 7) + 1) / 2; return q * q; };
+  return {
+    search: (h, t, k) => { const s = S(t * 6) * k; h._R('Spine1', k * .22); h._R('LeftArm', -k * 1.15 - s * .25); h._R('RightArm', -k * 1.15 + s * .25); h._R('LeftForeArm', -k * .75 + s * .4); h._R('RightForeArm', -k * .75 - s * .4); h._R('Neck', k * .12); },
+    searchLow: (h, t, k) => { const s = S(t * 6) * k; h._crouch(k * 1.05); h._R('Spine', k * .4); h._R('Spine1', k * .35); h._R('Neck', -k * .2); h._R('LeftArm', -k * .95 - s * .28); h._R('RightArm', -k * .95 + s * .28); h._R('LeftForeArm', -k * .5 + s * .3); h._R('RightForeArm', -k * .5 - s * .3); },
+    searchHigh: (h, t, k) => { const s = S(t * 6) * k; h.rootY += k * .05; h._R('Spine1', -k * .1); h._R('Neck', -k * .4); h._R('LeftArm', -k * 2.6 - s * .2); h._R('RightArm', -k * 2.6 + s * .2); h._R('LeftForeArm', -k * .3 + s * .3); h._R('RightForeArm', -k * .3 - s * .3); },
+    hammer: (h, t, k) => { const e = strike(t); h._R('Spine', k * .16); h._R('Neck', k * .12); h._calm(['RightArm', 'RightForeArm'], k * .8); h._R('RightArm', -k * .55); h._R('RightForeArm', -k * (2.2 - 1.35 * e)); h._R('LeftArm', -k * .6); h._R('LeftForeArm', -k * .9); },
+    nail: (h, t, k) => { const e = strike(t); h._R('Spine', k * .1); h._calm(['RightArm', 'RightForeArm'], k * .8); h._R('RightArm', -k * 1.15); h._R('RightForeArm', -k * (1.9 - 1.3 * e)); h._R('LeftArm', -k * 1.35); h._R('LeftForeArm', -k * .35); },
+    cook: (h, t, k) => { h._R('Spine', k * .2); h._R('Neck', k * .18); h._calm(['RightArm', 'RightForeArm'], k * .7); h._R('RightArm', -k * (.7 + .08 * S(t * 3.2))); h._R('RightForeArm', -k * (1.0 + .12 * Math.cos(t * 3.2))); h._U('RightArm', k * .18 * S(t * 3.2)); h._R('LeftArm', -k * .3); h._R('LeftForeArm', -k * .7); },
+    eat: (h, t, k) => { const b = (S(t * 2.4) + 1) / 2; h._calm(['RightArm', 'RightForeArm'], k * .8); h._R('RightArm', -k * (.45 + .3 * b)); h._R('RightForeArm', -k * (1.2 + 1.2 * b)); h._R('Neck', k * .15 * b); h._R('LeftArm', -k * .35); h._R('LeftForeArm', -k * 1.1); },
+    pry: (h, t, k) => { const p = (S(t * 4.2) + 1) / 2; h._crouch(k * (.3 + .2 * p)); h._R('Spine', k * (.3 + .22 * p)); h._R('Neck', -k * .15); for (const Z of ['Left', 'Right']) { h._calm([Z + 'Arm', Z + 'ForeArm'], k * .8); h._R(Z + 'Arm', -k * (1.2 - .3 * p)); h._R(Z + 'ForeArm', -k * (.5 + .35 * p)); } },
+    pick: (h, t, k) => { const j = S(t * 9) * .06; h._crouch(k * .75); h._R('Spine', k * .3); h._R('Neck', -k * .1); for (const Z of ['Left', 'Right']) { h._calm([Z + 'Arm', Z + 'ForeArm'], k * .8); h._R(Z + 'Arm', -k * 1.05); h._R(Z + 'ForeArm', -k * (.8 + (Z === 'Left' ? j : -j))); } },
+    sit: (h, t, k) => { h._crouch(k * 1.25); h._R('Spine', k * .12); h._R('LeftArm', -k * .5); h._R('RightArm', -k * .5); h._R('LeftForeArm', -k * .9); h._R('RightForeArm', -k * .9); },
+    warm: (h, t, k) => { const r = S(t * 5) * .05; h._crouch(k * .5); h._R('Spine', k * .22); for (const Z of ['Left', 'Right']) { h._calm([Z + 'Arm', Z + 'ForeArm'], k * .8); h._R(Z + 'Arm', -k * 1.1); h._R(Z + 'ForeArm', -k * (.45 + (Z === 'Left' ? r : -r))); } },
+    sneak: (h, t, k) => { h._crouch(k * .55); h._R('Spine', k * .3); h._R('Neck', -k * .28); h._R('LeftForeArm', -k * .7); h._R('RightForeArm', -k * .7); },
+    guard: (h, t, k) => { h._R('Spine', k * .08); h._calm(['RightArm', 'RightForeArm'], k * .8); h._R('RightArm', -k * .5); h._R('RightForeArm', -k * 1.7); h._R('LeftArm', -k * .55); h._R('LeftForeArm', -k * 1.5); },
+    aimR: (h, t, k) => { h._R('Spine', k * .05); h._calm(['RightArm', 'RightForeArm', 'LeftArm', 'LeftForeArm'], k * .9); h._R('RightArm', -k * 1.3); h._R('RightForeArm', -k * .28); h._R('LeftArm', -k * 1.5); h._R('LeftForeArm', -k * .12); h._R('Neck', k * .1); },
+    aimP: (h, t, k) => { h._calm(['RightArm', 'RightForeArm', 'LeftArm', 'LeftForeArm'], k * .9); h._R('RightArm', -k * 1.5); h._R('RightForeArm', -k * .08); h._R('LeftArm', -k * 1.4); h._R('LeftForeArm', -k * .35); },
+    kneelAim: (h, t, k) => { h._crouch(k * .95); h._calm(['RightArm', 'RightForeArm', 'LeftArm', 'LeftForeArm'], k * .9); h._R('RightArm', -k * 1.3); h._R('RightForeArm', -k * .28); h._R('LeftArm', -k * 1.5); h._R('LeftForeArm', -k * .12); },
+    cold: (h, t, k) => { const r = S(t * 38) * .015; h._R('Spine', k * (.12 + r)); for (const Z of ['Left', 'Right']) { h._calm([Z + 'Arm', Z + 'ForeArm'], k * .7); h._R(Z + 'Arm', -k * .35); h._R(Z + 'ForeArm', -k * 2.0); } }
+  }; })();
+const HWORK_OF = { search: 'search', dig: 'searchLow', hammer: 'hammer', nail: 'nail', cook: 'cook', eat: 'eat', pry: 'pry', pick: 'pick', sit: 'sit', situp: 'sit', recline: 'sit', warm: 'warm', guard: 'guard', zombieGuard: 'guard', crouch: 'sit' };
+function heroItem(T, name) { const m = (c, sh) => new T.MeshPhongMaterial({ color: c, shininess: sh || 20, specular: 0x333333 }), g = new T.Group(), cyl = (r0, r1, len, c, y) => { const q = new T.Mesh(new T.CylinderGeometry(r0, r1, len, 8), m(c)); q.position.y = y; g.add(q); return q; }, box = (w, hh, d, c, x, y, z, sh) => { const q = new T.Mesh(new T.BoxGeometry(w, hh, d), m(c, sh)); q.position.set(x || 0, y || 0, z || 0); g.add(q); return q; };
+  switch (name) {
+    case 'bat': cyl(3.6, 1.7, 62, '#b08a54', 30); cyl(1.9, 1.9, 5, '#3a2a1e', 0); break;
+    case 'knife': box(2.6, 17, .8, '#cfd4da', 0, 15, 0, 70); box(3, 9, 2, '#2a2420', 0, 2); break;
+    case 'crowbar': cyl(1.2, 1.2, 60, '#30343a', 28); box(1.8, 2, 8, '#30343a', 0, 58, 3.4); break;
+    case 'shovel': cyl(1.4, 1.4, 86, '#7a5a3a', 30); box(15, 20, 1.4, '#6a6d70', 0, 82, 0, 50); break;
+    case 'hammer': cyl(1.3, 1.3, 26, '#8a6a44', 11); box(4, 4, 11, '#5a5d60', 0, 25, 0, 50); break;
+    case 'spoon': cyl(.8, .8, 22, '#8a6a44', 10); box(4, 5, 1.2, '#8a6a44', 0, 22); break;
+    case 'pistol': box(2.4, 6, 3, '#1c1e22', 0, 0, 0); box(2.4, 4, 13, '#2a2c30', 0, 5, 5, 60); break;
+    case 'rifle': box(2.6, 5, 78, '#3a2e22', 0, 3, 16); box(1.6, 2.2, 40, '#22242a', 0, 5.6, 46, 60); box(2.4, 9, 4, '#3a2e22', 0, -3, -2); break;
+    default: return null; }
+  const gun = name === 'pistol' || name === 'rifle'; if (!gun) g.rotation.set(Math.PI / 2, 0, 0); else g.rotation.set(-Math.PI / 2, 0, 0); const hd = new T.Group(); hd.add(g); hd.position.set(0, 9, 3); return hd; }
+function heroLook(a) { const z = a.zombie, st = a.hairStyle, hash = (a.name || '') + (a.id || '') + (a.seed || ''), r = (() => { let s = 7; for (let i = 0; i < hash.length; i++) s = (s * 31 + hash.charCodeAt(i)) >>> 0; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); })();
+  if (z) { const drab = ['#3d3a35', '#2f3430', '#3a2e2a', '#33363c', '#44403a']; return { skin: ['#b89a7e', '#9a7a5e', '#c9a88a', '#7a5a40'][Math.floor(r() * 4)], hair: ['buzz', 'short', 'bald', 'short'][Math.floor(r() * 4)], hairColor: '#1c1612', beard: r() < .5 ? 'stubble' : r() < .5 ? 'full' : 'none', hat: r() < .6 ? 'beanie' : 'none', hatColor: '#22201e', top: a.coat || drab[Math.floor(r() * drab.length)], sleeves: 'long', bottom: '#2d2a28', legs: 'long', shoes: '#1c1a18', belt: true, build: .45 + r() * .4, height: (a.scale || 1), browTilt: .9, mouth: -.6, brow: 1.3 }; }
+  return { skin: a.skin || '#c9a07a', hair: st === 'bald' ? 'bald' : st === 'long' ? 'long' : st === 'wrap' ? 'bun' : st === 'curly' ? 'afro' : st === 'tail' ? 'ponytail' : 'short', hairColor: a.hair || '#2c1c12', beard: a.beard ? 'full' : 'none', hat: a.name === 'Dale' ? 'cap' : a.name === 'Teo' ? 'beanie' : 'none', hatColor: a.name === 'Teo' ? '#8e2a22' : '#2a2c30', glasses: a.name === 'Teo', top: a.coat || '#5b6a52', sleeves: 'long', bottom: a.pants || '#3a3a40', legs: 'long', shoes: '#3a3029', belt: true, build: a.name === 'Marcus' ? .8 : a.name === 'Noor' || a.name === 'Ines' ? .3 : .5, height: (a.scale || 1), mouth: -.1 }; }
+function heroBoot() { if (HERO.booted) return; HERO.booted = true; try { if (!window.THREE || !window.PlatformerHero || !window.SOLDIER_B64) throw new Error('kit not loaded'); const bin = atob(window.SOLDIER_B64), buf = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i); window.SOLDIER_B64 = null;
+    PlatformerHero.loadMany(THREE, buf.buffer, HERO.n, () => ({ size: 240 })).then(list => { HERO.pool = list.map(h => ({ h, owner: null, last: -9, tool: null, pack: null })); HERO.ready = true; }).catch(e => { HERO.failed = true; console.warn('hero', e); }); } catch (e) { HERO.failed = true; console.warn('hero', e); } }
+const heroOn = () => HERO.ready && !HERO.off && EXTRAS.hero !== false && !HEADLESS;
+// a phone that cannot keep up gets a coarser picture first, and the old drawn figures if that is not enough
+function heroGuard() { if (HERO.force) return; const now = performance.now(); if (HERO.lastT === _T) return; HERO.lastT = _T; const d = (now - HERO.lastNow) / 1000; HERO.lastNow = now; if (d > .5 || d <= 0) return; HERO.ema += (d - HERO.ema) * .08; HERO.slow = HERO.ema > .048 ? HERO.slow + d : Math.max(0, HERO.slow - d * 2);
+  if (HERO.slow > 2.5) { HERO.slow = 0; HERO.ema = .02; if (HERO.lvl === 0) { HERO.lvl = 1; try { PlatformerHero.setQuality(1); for (const q of HERO.pool) q.h.o.size = 160; } catch (_) {} } else { HERO.off = true; HERO.why = 'slow'; } } }
+function heroSlot(a, now) { let s = HERO.map.get(a); if (s && s.owner === a) return s; let best = null; for (const q of HERO.pool) { if (!q.owner) { best = q; break; } if (now - q.last > .5 && (!best || q.last < best.last)) best = q; } if (!best) return null; if (best.owner) HERO.map.delete(best.owner);
+  best.owner = a; HERO.map.set(a, best); const h = best.h; h.ko = null; h.action = null; h.queued = null; h.work = null; h.hold(null); best.tool = null; h.stance = 0; h.climbing = false; if (h.clearMarks) h.clearMarks(); h.setLook(heroLook(a)); if (a.zombie || a.drifter) { try { h.mark('dirt', 'body'); h.mark('dirt', 'head'); } catch (_) {} } h.grounded = true; h.blendW = 0; best.fresh = true; best.px = null; best.v = 0; best.atkK = null; best.hurt = false; best.seenAlive = false; if (best.pack) { best.pack.parent.remove(best.pack); best.pack = null; } return best; }
+function heroFree(a) { const s = HERO.map.get(a); if (s) { HERO.map.delete(a); s.owner = null; s.last = -9; } }
+const HSTYLE = { jab: 'jab', slash: 'sideSlash', stab: 'thrust', short: 'slash', butt: 'elbow', chop: 'slash', swing: 'slash', upper: 'uppercut' };
+// one person, one frame, drawn where the old rig says he is. Returns false when the old drawing should be used instead.
+function heroActor(a, pose, extra, tr, c) { heroGuard(); const P = HERO.ppu, x = c.x, y = tr.base - c.y - (a.bedLift || 0), S = 3.4 * P;
+  if (a._corpse && pose === 'dead') { ctx.drawImage(a._corpse, x - S / 2, y - S * .92, S, S); return true; } if (pose !== 'dead') a._corpse = null;
+  { const m = ctx.getTransform(), px = m.a * x + m.e, py = m.d * y + m.f; if (px < -110 * m.a || px > canvas.width + 110 * m.a || py < -40 * m.d || py > canvas.height + 190 * m.d) return true; }   // off the screen: nothing to draw
+  const s = heroSlot(a, _T); if (!s) return false; const h = s.h, ex = extra || {}, dt = clamp(_T - (s.last < 0 ? _T : s.last), .001, .05); s.last = _T;
+  const vx = s.fresh || s.px == null ? 0 : (x - s.px) / dt / P; s.px = x; s.v = s.fresh ? 0 : s.v + (Math.abs(vx) - s.v) * Math.min(1, dt * 10);
+  let speed = s.v < .22 ? 0 : s.v; if (pose === 'run' || (a.zombie && a.state === 'chase' && speed > 1.6)) speed = Math.max(speed * 1.9, 4.4);
+  const dir = (c.facing || a.facing || 1) < 0 ? -1 : 1, ladder = !!(a.onStair && a.onStair.ladder) || pose === 'climb'; let facing = dir < 0 ? 'left' : 'right', work = null, still = true; if (ladder) facing = 'back';
+  const tool = pose === 'dig' || pose === 'sleep' || pose === 'bed' || pose === 'dead' ? null : poseTool(pose, ex, a) || null;
+  if (tool !== s.tool) { s.tool = tool; h.hold(tool ? heroItem(h.T, tool) : null, { pose: 'low' }); }
+  if (!!a.hasPack !== !!s.pack) { if (a.hasPack) { const T = h.T, b = new T.Mesh(new T.BoxGeometry(27, 34, 13), new T.MeshPhongMaterial({ color: '#6b5a40', shininess: 6 })); b.position.set(0, 4, -15); b.frustumCulled = false; (h.bones.Spine2 || h.bones.Spine1).add(b); s.pack = b; } else { s.pack.parent.remove(s.pack); s.pack = null; } }
+  const dead = pose === 'dead', lying = pose === 'sleep' || pose === 'bed';
+  if (dead || lying) { if (!h.ko) { if (dead && s.seenAlive) h.hit({ knockdown: true, out: true, dir: -dir, power: .2, style: (a.x | 0) % 3 ? 'crumple' : 'back', turn: false }); else h.ko = { phase: 'lie', t: 1, out: true, style: 'back', sg: -1 }; h.vx = 0; h.vy = 0; h.grounded = true; }
+    const k = h.ko; k.t += dt; if (k.phase === 'fly' && k.t > (k.style === 'crumple' ? .64 : .5)) { k.phase = 'lie'; k.t = 0; } s.lieT = k.phase === 'lie' ? (s.lieT || 0) + dt : 0; }
+  else { s.seenAlive = true; s.lieT = 0; if (h.ko) { h.ko = null; h._blend(); }
+    if (pose === 'hurt') { if (!s.hurt) { s.hurt = true; h.hit({ dir: -dir, power: .35, zone: 'body', turn: false }); h.vx = 0; } } else s.hurt = false;
+    if (pose === 'attack' || pose === 'zombieAttack' || pose === 'shove') { const k = ex.k || 0; if (s.atkK == null || k < s.atkK - .2) { const mv = pose === 'shove' ? 'shove' : !tool ? 'punch' : HSTYLE[ex.style] || 'slash'; h.action = null; h.play(mv, { facing, speed: 1.3 }); h.vx = 0; } s.atkK = k; } else s.atkK = null;
+    if (pose === 'aimGun' || pose === 'zombieAim') work = ex.kneel ? 'kneelAim' : tool === 'pistol' ? 'aimP' : 'aimR';
+    else if (pose === 'search') { const hh = a.task && a.task.spot ? a.task.spot.hgt || SPOT_H[a.task.spot.id] : null; work = a.searchLow || hh === 'low' ? 'searchLow' : hh === 'high' ? 'searchHigh' : 'search'; }
+    else if (pose === 'guard' || pose === 'zombieGuard') { work = 'guard'; still = speed === 0; }
+    else if (HWORK_OF[pose]) work = HWORK_OF[pose];
+    else if (pose === 'sneak') { work = 'sneak'; still = false; }
+    else if (pose === 'idle' && a.idlePose === 'warm') work = 'warm';
+    else if (pose === 'idle' && !a.zombie && a.cold > .3 && speed === 0) work = 'cold';
+    h.setWork(work ? HWORK[work] : null, still); }
+  h.x = x / P; h.y = 0; h.vx = vx; h.facing = facing; h.climbing = ladder; h.grounded = true;
+  const st = a.onStair && !a.onStair.ladder ? a.onStair : null, x0 = st ? st.x - STAIR_W : 0, slope = FLOOR_H / (STAIR_W * 2);
+  h.pose(dt, { speed, vy: 0, facing, grounded: true, climbing: ladder, climbPhase: ladder ? (a.climbPh || 0) % 1 : undefined, crouch: false, x: x / P, ground: st ? (dx => (clamp(x + dx * P, x0, x0 + STAIR_W * 2) - x) / P * slope) : (dx => 0), stair: st ? { x0: x0 / P, x1: (x0 + STAIR_W * 2) / P, y0: 0, y1: FLOOR_H / P, steps: STAIR_N } : null });
+  s.fresh = false; h.draw(ctx, x, y, P, false);
+  if (dead && s.lieT > 1.6) { const cv = document.createElement('canvas'); cv.width = cv.height = 320; const g = cv.getContext('2d'); g.drawImage(h.canvas, 0, 0, 320, 320); a._corpse = cv; heroFree(a); }   // the dead keep still: one picture of the body, and the figure goes back for someone else to use
+  return true; }
 function drawPerson(a, pose, t, extra) {
   if (EXTRAS.shadows && !HEADLESS && a.alive !== false && a.visible !== false && pose !== 'dead' && pose !== 'sleep' && a.y != null) personShadow(a);
   if (a.dog) { drawDog(a); return; }
@@ -2293,19 +2372,20 @@ function drawPersonRig(a, pose, t, extra) {
     rigIdle(a, tr, dt, hold, ext); if (!c.dead) rigFace(a, a.facing || 1);
   }
   a._lt = _T;
-  if (pose === 'dead') { ctx.fillStyle = 'rgba(70,10,10,.45)'; ctx.beginPath(); ctx.ellipse(X - (a.facing || 1) * 10, tr.base - c.y + 1, 30, 6, 0, 0, TAU); ctx.fill(); }
+  if (pose === 'dead' && !heroOn()) { ctx.fillStyle = 'rgba(70,10,10,.45)'; ctx.beginPath(); ctx.ellipse(X - (a.facing || 1) * 10, tr.base - c.y + 1, 30, 6, 0, 0, TAU); ctx.fill(); }
   { const lk = c.look; if (lk && !a.zombie) { if (lk.bag0 === undefined) lk.bag0 = lk.bag; lk.bag = a.hasPack ? 'backpack' : lk.bag0; lk.bagFull = a.hasPack ? clamp(SC.active ? SC.pack.length / SC.cap : TR.pack ? TR.pack.length / (TR.cap || 10) : 0, 0, 1) : 0; } }   // a pack that fills out as it fills up
   if (pose !== 'dead' && pose !== 'sleep' && pose !== 'bed' && a.visible !== false) castShadow(a.x, tr.base - c.y);
-  ctx.save(); if (a.hurtT > 0) ctx.translate(rnd(-1.3, 1.3), 0); if (a.bedLift) ctx.translate(0, -a.bedLift); c.draw(ctx, 0, tr.base, null, false); ctx.restore();
+  const h3 = heroOn() && heroActor(a, pose, extra, tr, c);   // the 3D figure, where the old rig says to stand
+  if (!h3) { ctx.save(); if (a.hurtT > 0) ctx.translate(rnd(-1.3, 1.3), 0); if (a.bedLift) ctx.translate(0, -a.bedLift); c.draw(ctx, 0, tr.base, null, false); ctx.restore(); }
   if (pose === 'search' && _T - (a._pfT || 0) > .55) { a._pfT = _T; (FX.puffs || (FX.puffs = [])).push({ x: a.x + c.facing * 24, y: tr.base - c.y - 34, d: -c.facing, t: 0 }); }
   if (pose === 'run' && _T - (a._pfT || 0) > .2) { a._pfT = _T; (FX.puffs || (FX.puffs = [])).push({ x: a.x - c.facing * 10, y: tr.base - c.y, d: c.facing, t: 0 }); }
   if (a.alive !== false && pose !== 'dead' && a.visible !== false && G.world && G.phase !== 'title' && (SC.active || TR.active ? outdoorTemp(G.hour) : indoorTemp(G.hour)) < 6) { let mx = a.x + c.facing * 7 * (a.scale || 1), my = tr.base - c.y - 68 * (a.scale || 1); if (c.cur && !c.dead) { const k0 = c.skeleton(c.cur), dy0 = c.curDy != null ? c.curDy : k0.dy; if (k0.headC) { mx = c.x + k0.headC[0] * c.facing * k0.sx + c.facing * 5 * (c.k || 1); my = tr.base - c.y + k0.headC[1] + dy0 + 2.5 * (c.k || 1); } } breathFx(a, mx, my, c.facing, a.scale || 1, pose); }   // breath showing in the cold
-  const tool = poseTool(pose, extra, a); if (tool && !c.dead && handOf(a)) { const h = handOf(a); const F = a.facing || 1; const ang = (tool === 'shovel' ? h.th - Math.PI / 2 : h.th + Math.PI / 2 + wristOf(tool, pose, extra)) * F; drawTool(tool, h.x, h.y, ang, F, a, pose === 'aimGun' || pose === 'zombieAim'); }
-  if (!a.zombie && !c.dead && c.cur) { const k = c.skeleton(c.cur), dy = c.curDy != null ? c.curDy : k.dy, f = c.facing * k.sx, bx = v => c.x + v[0] * f, by = v => tr.base - c.y + v[1] + dy, sc = c.k || 1;
+  const tool = h3 ? null : poseTool(pose, extra, a); if (tool && !c.dead && handOf(a)) { const h = handOf(a); const F = a.facing || 1; const ang = (tool === 'shovel' ? h.th - Math.PI / 2 : h.th + Math.PI / 2 + wristOf(tool, pose, extra)) * F; drawTool(tool, h.x, h.y, ang, F, a, pose === 'aimGun' || pose === 'zombieAim'); }
+  if (!h3 && !a.zombie && !c.dead && c.cur) { const k = c.skeleton(c.cur), dy = c.curDy != null ? c.curDy : k.dy, f = c.facing * k.sx, bx = v => c.x + v[0] * f, by = v => tr.base - c.y + v[1] + dy, sc = c.k || 1;
     if (a.wounded) { const A = k.armN[0], B = k.armN[1]; ctx.strokeStyle = '#e4dccb'; ctx.lineWidth = 4.6 * sc; ctx.lineCap = 'butt'; ctx.beginPath(); ctx.moveTo(lerp(bx(A), bx(B), .38), lerp(by(A), by(B), .38)); ctx.lineTo(lerp(bx(A), bx(B), .72), lerp(by(A), by(B), .72)); ctx.stroke(); ctx.fillStyle = 'rgba(150,30,30,.8)'; circ(lerp(bx(A), bx(B), .55), lerp(by(A), by(B), .55), 1.3 * sc); ctx.fill(); ctx.lineCap = 'round'; }   // a bandaged arm
     const frosty = (CUR_W === G.world && !SC.active && G.phase !== 'title') ? indoorTemp(G.hour) < 7 : true;
     if (false && frosty) { const ph = (_T * .3 + ((Math.abs(a.x) * .013) % 1) + (a.name ? a.name.length * .17 : 0)) % 1; if (ph < .34) { const hx = bx(k.headC) + (a.facing || 1) * (9 + ph * 34) * sc, hy = by(k.headC) + 2 - ph * 10; ctx.fillStyle = `rgba(225,232,240,${((.34 - ph) * .75).toFixed(3)})`; ctx.beginPath(); ctx.ellipse(hx, hy, (4 + ph * 22) * sc, (3 + ph * 12) * sc, 0, 0, TAU); ctx.fill(); } } }   // breath in the cold
-  if (a.idlePose === 'read') { const h = handOf(a); if (h) { ctx.save(); ctx.translate(h.x, h.y - 2); ctx.rotate((a.facing || 1) * .35); ctx.fillStyle = '#cfc3a6'; ctx.fillRect(-7, -4.5, 14, 9); ctx.fillStyle = '#6b5a44'; ctx.fillRect(-.7, -4.5, 1.4, 9); ctx.restore(); } }
+  if (!h3 && a.idlePose === 'read') { const h = handOf(a); if (h) { ctx.save(); ctx.translate(h.x, h.y - 2); ctx.rotate((a.facing || 1) * .35); ctx.fillStyle = '#cfc3a6'; ctx.fillRect(-7, -4.5, 14, 9); ctx.fillStyle = '#6b5a44'; ctx.fillRect(-.7, -4.5, 1.4, 9); ctx.restore(); } }
   if (a.say && a.sayT > 0) { const sx = X, sy = tr.base - c.y - 100 * (a.scale || 1); ctx.fillStyle = 'rgba(20,20,22,.85)'; rr(sx - 16, sy - 16, 32, 32, 8); ctx.fill(); drawIcon(a.say, sx, sy, 20); }
 }
 function poseTool(pose, extra, a) { switch (pose) { case 'dig': return G.inv.shovel ? 'shovel' : null; case 'pry': return 'crowbar'; case 'hammer': case 'nail': return 'hammer'; case 'cook': return 'spoon'; case 'guard': case 'attack': return extra && extra.weapon; case 'aimGun': return extra && extra.weapon || null; case 'zombieAttack': case 'zombieGuard': case 'zombieAim': case 'zombie': case 'zombieIdle': return a.zombie ? a.wpn || 'bat' : null; default: return null; } }
@@ -2648,6 +2728,7 @@ function drawFarFires(gy) {
 }
 // ===== TEN EXTRAS, each on its own switch: set one to false and it is gone from the game =====
 const EXTRAS = {
+  hero: true,       // 0 every person drawn by the Platformer Hero 3D kit (off = the old drawn rig)
   flames: true,     // 1 fire drawn as licking tongues with a hot core and flying embers
   yards: true,      // 2 the forecourt of each place (pumps and canopy, ambulance, and so on) back on the street
   fog: true,        // 3 a new kind of day: fog, lying in the street and haloing every light
@@ -5098,7 +5179,7 @@ function homeCam() { const w = G.world; fitCam({ x0: w.x0 - 120, x1: w.x1 + 120,
 let PREVIEW = false;
 const AUTO_MISSION = true;   // the stealth demo build sets this: straight into the military post
 // ===== REVIEW: every place in turn, lit and whole, with what you are up against there; switches for the extras; pictures saved at a tap =====
-const EXTRA_NAMES = { flames: 'Fire redrawn', yards: 'Forecourts on the street', fog: 'Fog days', cat: 'The cat', puddles: 'Puddles', searchlight: 'Searchlight can spot you', sky: 'Aurora and shooting stars', talk: 'Survivors talk', notes: 'Found notes', dust: 'Plaster dust', pigeons: 'Pigeons', flares: 'Parachute flares', pulse: 'Red pulse when hunted', blackouts: 'Power cuts', rain: 'Rain days', music: 'Music', film: 'Film grain and grade', bloom: 'Light bloom', ao: 'Room corner shading', clouds: 'Clouds', haze: 'Horizon haze', shadows: 'People cast shadows', beam: 'Visible torch beam', bokeh: 'Near snow and rain', foreground: 'Foreground shapes', glints: 'Glints and wet-road light' };
+const EXTRA_NAMES = { hero: '3D people (Platformer Hero)', flames: 'Fire redrawn', yards: 'Forecourts on the street', fog: 'Fog days', cat: 'The cat', puddles: 'Puddles', searchlight: 'Searchlight can spot you', sky: 'Aurora and shooting stars', talk: 'Survivors talk', notes: 'Found notes', dust: 'Plaster dust', pigeons: 'Pigeons', flares: 'Parachute flares', pulse: 'Red pulse when hunted', blackouts: 'Power cuts', rain: 'Rain days', music: 'Music', film: 'Film grain and grade', bloom: 'Light bloom', ao: 'Room corner shading', clouds: 'Clouds', haze: 'Horizon haze', shadows: 'People cast shadows', beam: 'Visible torch beam', bokeh: 'Near snow and rain', foreground: 'Foreground shapes', glints: 'Glints and wet-road light' };
 { const sv = STORE('ashwinter_extras'); if (sv) for (const k in EXTRAS) if (sv[k] === false) EXTRAS[k] = false; }
 function reviewList() { return LOCATIONS.filter(l => !l.haven); }
 function reviewGo(i) { REVIEW.live = 0; const list = reviewList(); REVIEW.i = (i + list.length) % list.length; REVIEW.on = false; startPreview(list[REVIEW.i].id); const w = SC.world; for (const r of w.rooms) r.open = true; SC.player.visible = false; cam.lock = true; cam.minZ = Math.min(cam.minZ || 1, .2);
@@ -5628,6 +5709,8 @@ function init() {
   requestAnimationFrame(frame);
 }
 if (!HEADLESS) window.addEventListener('load', init);
+// the 3D kit loads after the game has started, so the first screen does not wait for it; until it is in, the old figures stand in
+if (!HEADLESS && typeof document !== 'undefined' && !/[?&]hero=0/.test(location.search)) window.addEventListener('load', () => { const L = ['hero/three.min.js', 'hero/hero-kit.js', 'hero/hero-model.js']; (function next(i) { if (i >= L.length) { heroBoot(); return; } const el = document.createElement('script'); el.src = L[i]; el.onload = () => next(i + 1); el.onerror = () => { HERO.failed = true; }; document.head.appendChild(el); })(0); });
 
 </script>
 </body>
