@@ -23,12 +23,218 @@ extension Game {
     }
 
     private func hand(_ c: Canvas, _ x: Double, _ y: Double, _ col: Col, _ dark: Double, lean: Double = 0, hop: Double = 0) {
+        tar(c, x, y, col, dark, lean: lean, hop: hop)
+    }
+
+    /// A sailor seen close: legs that walk, arms that can be put anywhere, a kerchief on his head.
+    /// Arm angles run from straight down (0) round toward the bow (positive) or the stern (negative).
+    func tar(_ c: Canvas, _ x: Double, _ y: Double, _ col: Col, _ dark: Double, lean: Double = 0, hop: Double = 0, walk: Double? = nil, aL: Double? = nil, aR: Double? = nil, hurt: Bool = false, kneel: Bool = false) {
+        let skin = Col(0xe3b58a).shade(dark)
+        let leg = Col(0x2b2a33).shade(dark)
+        let body = col.shade(dark)
         c.save()
         c.translate(x, y - hop)
         c.rotate(lean)
-        c.R(-2, -9, 4, 9, col.shade(dark))
-        c.circ(0, -12, 2.6, Col(0xe3b58a).shade(dark))
+        c.roundCaps(true)
+        let hipY: Double = kneel ? -3.0 : -5.5
+        var lf = -1.4, rf = 1.4, lfy = 0.0, rfy = 0.0
+        if let w = walk {
+            let sw = sin(w)
+            lf = -sw * 2.6; rf = sw * 2.6
+            lfy = -max(0, cos(w)) * 1.2; rfy = -max(0, -cos(w)) * 1.2
+        }
+        if kneel {
+            c.seg(0, hipY, 2.4, -0.7, 1.8, leg); c.seg(2.4, -0.7, -1.0, -0.4, 1.6, leg)
+            c.seg(0, hipY, -2.2, -0.6, 1.8, leg)
+        } else {
+            c.seg(-0.6, hipY, lf, lfy - 0.6, 1.8, leg)
+            c.seg(lf - 0.4, lfy - 0.3, lf + 1.2, lfy - 0.3, 1.2, Col(0x140c06))
+            if hurt {
+                // the bad leg, held up off the deck
+                c.seg(0.6, hipY, 2.8, -3.8, 1.8, leg); c.seg(2.8, -3.8, 1.2, -1.8, 1.6, leg)
+            } else {
+                c.seg(0.6, hipY, rf, rfy - 0.6, 1.8, leg)
+                c.seg(rf - 0.4, rfy - 0.3, rf + 1.2, rfy - 0.3, 1.2, Col(0x140c06))
+            }
+        }
+        let shY = hipY - 5.0
+        c.seg(0, hipY - 0.4, 0, shY + 0.8, 4.0, body)
+        c.seg(-1.5, hipY, 1.5, hipY, 1.3, Col(0x8a1a1a).shade(dark))
+        let sway = sin(T * 2 + x) * 0.12
+        var a0 = -0.2 + sway, a1 = 0.2 + sway
+        if let w = walk { a0 = sin(w) * 0.7; a1 = -sin(w) * 0.7 }
+        if let v = aL { a0 = v }
+        if let v = aR { a1 = v }
+        c.seg(-1.2, shY + 1.2, -1.2 + sin(a0) * 4.6, shY + 1.2 + cos(a0) * 4.6, 1.4, skin)
+        c.seg(1.2, shY + 1.2, 1.2 + sin(a1) * 4.6, shY + 1.2 + cos(a1) * 4.6, 1.4, skin)
+        c.circ(0, shY - 2.0, 2.4, skin)
+        c.arcFill(0, shY - 2.2, 2.5, PI, PI * 2, Col.mix(col, Col(0x8a1a1a), 0.6).shade(dark))
+        c.roundCaps(false)
         c.restore()
+    }
+
+    /// An event played out on the deck, in the ship's own space. It runs from the first cry until the
+    /// card has been answered, so whoever is hurt is still hopping about behind the question.
+    func deckScene(_ c: Canvas, _ mx: [Double], _ dark: Double) -> Bool {
+        let coats = [Col(0x2f5f8f), Col(0x8c3b2e), Col(0xd9cdb0), Col(0x3a7a6d)]
+        let st = sceneT
+        let m0 = mx[mx.count / 2]
+        let dk = -33.0
+        // a mate who runs in from along the deck and then stands by
+        func runner(_ i: Int, _ from: Double, _ to: Double, _ t0: Double, _ t1: Double, kneel: Bool = false, aL: Double? = nil, aR: Double? = nil) {
+            let k = clampD((st - t0) / (t1 - t0), 0, 1)
+            let x = lerp(from, to, k)
+            if k < 1 { tar(c, x, dk, coats[i % 4], dark, lean: to > from ? 0.15 : -0.15, walk: st * 13) } else { tar(c, x, dk, coats[i % 4], dark, aL: aL, aR: aR, kneel: kneel) }
+        }
+        // a man with a bucket, to and fro between the water and where it is wanted
+        func bucket(_ i: Int, _ from: Double, _ to: Double, _ rate: Double) -> (Double, Double) {
+            let ph = (st * rate + Double(i) * 0.37).truncatingRemainder(dividingBy: 1)
+            let k = ph < 0.6 ? ph / 0.6 : 1 - (ph - 0.6) / 0.4
+            let x = lerp(from, to, k)
+            let fwd: Double = (to > from) == (ph < 0.6) ? 1 : -1
+            tar(c, x, dk, coats[i % 4], dark, lean: fwd * 0.15, walk: st * 13, aL: fwd * 1.1, aR: fwd * 1.1)
+            c.RR(x + fwd * 4.2 - 1.6, dk - 8.5, 3.2, 3.2, 0.6, Col(0x6b4a26).shade(dark))
+            return (x, ph)
+        }
+        switch sceneK {
+        case "fall":
+            // the frayed footrope he was standing on
+            c.seg(m0 - 26, -112, m0 - 20 + sin(T * 3) * 2, -100, 0.7, Col(0xfff6d8, 0.8))
+            let fx = m0 - 20
+            if st < 0.3 {
+                tar(c, fx, -110, coats[0], dark, lean: sin(st * 30) * 0.3, aL: -2.8, aR: 2.8)
+            } else if st < 0.9 {
+                let k = (st - 0.3) / 0.6
+                let f0: Double = -2.6 + sin(st * 40) * 0.5, f1: Double = 2.6 + sin(st * 37) * 0.5
+                tar(c, fx - k * 6, lerp(-110, dk, k * k), coats[0], dark, lean: k * 5.2, aL: f0, aR: f1)
+            } else if st < 1.7 {
+                let k = (st - 0.9) / 0.8
+                for j in 0..<5 { c.circ(fx - 6 + (Double(j) - 2) * 4 * (0.4 + k), dk - 1 - k * 3, 1.5 + k * 2.5, Col(0xe8dcc0, 0.6 * (1 - k))) }
+                tar(c, fx - 6, dk - 1.6, coats[0], dark, lean: -PI / 2, aL: -0.4, aR: 0.6)
+            } else {
+                // up, and hopping on the good leg with the other held clear of the deck
+                let hp = abs(sin(st * 7.5))
+                let hx: Double = fx - 6 + sin(st * 1.3) * 5, wave: Double = -2.3 + sin(st * 9) * 0.5
+                tar(c, hx, dk, coats[0], dark, lean: sin(st * 7.5) * 0.12, hop: hp * 3.6, aL: wave, aR: 0.9, hurt: true)
+                for j in 0..<3 {
+                    let a = st * 3 + Double(j) * 2.1, r = 5.5 + sin(st * 11 + Double(j)) * 1.2
+                    let px = fx - 6 + sin(st * 1.3) * 5 + cos(a) * r, py = dk - 19 - hp * 3.6 + sin(a) * 2.2
+                    c.seg(px - 1.3, py, px + 1.3, py, 0.7, Col(0xffe060)); c.seg(px, py - 1.3, px, py + 1.3, 0.7, Col(0xffe060))
+                }
+            }
+            runner(1, -70, fx - 22, 0.9, 1.9, aR: 1.3)
+            runner(2, 72, fx + 12, 1.0, 2.1, aL: -1.3)
+            runner(3, 40, fx + 24, 1.4, 2.6)
+        case "sick":
+            let sx = 14.0
+            if st < 0.9 {
+                tar(c, sx, dk, coats[2], dark, lean: sin(st * 5) * 0.22, aL: -2.7)
+            } else {
+                let k = clampD((st - 0.9) / 0.5, 0, 1)
+                tar(c, sx + k * 3, dk - 1.6 * k, coats[2], dark, lean: k * k * PI / 2, aL: 0.3, aR: 0.5)
+            }
+            let fan: Double = 1.5 + sin(st * 7) * 0.5
+            runner(0, -52, sx - 3, 1.0, 2.0, kneel: true, aR: fan)
+            runner(1, 64, sx + 20, 1.2, 2.2, aL: -1.0)
+            tar(c, -40, dk, coats[3], dark, aR: 1.2)
+            if st > 2.2 {
+                // sweat standing off him
+                for j in 0..<3 {
+                    let ph = (st * 0.8 + Double(j) / 3).truncatingRemainder(dividingBy: 1)
+                    c.circ(sx + 9 + Double(j) * 2.5, dk - 4 - ph * 7, 0.8, Col(0xbfe6ff, 0.9 * (1 - ph)))
+                }
+            }
+        case "brawl":
+            let p = st * 4.2
+            let pa = max(0, sin(p)), pb = max(0, sin(p + PI))
+            let ax: Double = -5 + pa * 1.6 - pb * 1.4, al: Double = 0.12 + pa * 0.22 - pb * 0.3
+            let bx2: Double = 7 - pb * 1.6 + pa * 1.4, bl: Double = -0.12 - pb * 0.22 + pa * 0.3
+            let ah: Double = abs(sin(st * 7)) * 0.8, bh: Double = abs(sin(st * 7 + 1)) * 0.8
+            let aArm: Double = 0.7 + pa * 0.95, bArm: Double = -0.7 - pb * 0.95
+            tar(c, ax, dk, coats[0], dark, lean: al, hop: ah, aL: 1.1, aR: aArm)
+            tar(c, bx2, dk, coats[1], dark, lean: bl, hop: bh, aL: bArm, aR: -1.1)
+            if pa > 0.8 || pb > 0.8 {
+                let bx: Double = pa > 0.8 ? 5 : -3
+                for j in 0..<6 { let a = Double(j) * PI / 3 + st; c.seg(bx + cos(a) * 1.5, dk - 14 + sin(a) * 1.5, bx + cos(a) * 4.5, dk - 14 + sin(a) * 4.5, 0.8, Col(0xffe060)) }
+            }
+            for (j, wx) in [-36.0, -24.0, 26.0, 37.0].enumerated() {
+                let jd = Double(j)
+                let wh: Double = abs(sin(st * 6 + jd * 1.4)) * 2.6, w0: Double = -2.5 + sin(st * 8 + jd) * 0.3, w1: Double = 2.5 + sin(st * 9 + jd) * 0.3
+                tar(c, wx, dk, coats[(j + 2) % 4], dark, hop: wh, aL: w0, aR: w1)
+            }
+        case "galley":
+            // the stove on its side, and the deck round it alight
+            c.R(12, dk - 6, 9, 6, Col(0x2a2a30)); c.R(19, dk - 14, 3, 9, Col(0x2a2a30))
+            c.glow(16, dk - 8, 34, Col(0xff8a20, 0.55 + 0.15 * sin(T * 11)), Col(0xff8a20, 0))
+            for sm in 0..<9 {
+                let ph = (T * 0.45 + Double(sm) / 9).truncatingRemainder(dividingBy: 1)
+                c.circ(16 - ph * 34 + sin(T * 2 + Double(sm)) * 3, dk - 12 - ph * 60, 3 + ph * 11, Col(0x3a3a3e, 0.55 * (1 - ph)))
+            }
+            for f in 0..<7 {
+                let fx = 5 + Double(f) * 3.6
+                let h: Double = 8 + 5 * sin(T * 9 + Double(f) * 1.7) + 3 * sin(T * 15 + Double(f))
+                c.poly(Col(0xff6a18), [fx - 3, dk, fx + sin(T * 7 + Double(f)) * 2, dk - h, fx + 3, dk])
+                c.poly(Col(0xffd257), [fx - 1.6, dk, fx + sin(T * 9 + Double(f)) * 1.2, dk - h * 0.55, fx + 1.6, dk])
+            }
+            for i in 0..<3 {
+                let from: Double = i == 1 ? 66 : -62, to: Double = i == 1 ? 36 : -6
+                let (bx, ph) = bucket(i, from, to, 0.42)
+                if ph > 0.52 && ph < 0.68 {
+                    let dir: Double = to > from ? 1 : -1
+                    c.curve(bx + dir * 5, dk - 8, (bx + 16) / 2, dk - 20, 16, dk - 6, 1.5, Col(0x9fd8ff, 0.9))
+                    for j in 0..<3 { c.circ(16 + (Double(j) - 1) * 3, dk - 8 - Double(j) * 2, 1.2, Col(0xffffff, 0.7)) }
+                }
+            }
+        case "rats":
+            for i in 0..<7 {
+                let dirn: Double = i % 2 == 0 ? 1 : -1
+                let ph = (st * 0.3 * (1 + Double(i) * 0.14) + hashN(Double(i) * 5.3)).truncatingRemainder(dividingBy: 1)
+                let rx = -74 + 148 * (dirn > 0 ? ph : 1 - ph), ry = dk - 1.3 - abs(sin(st * 22 + Double(i))) * 0.6
+                c.curve(rx - dirn * 2.4, ry, rx - dirn * 4.5, ry - 1.5, rx - dirn * 6.5, ry + 0.4, 0.6, Col(0x7a5a50))
+                c.ell(rx, ry, 2.7, 1.4, Col(0x3a3430).shade(dark)); c.circ(rx + dirn * 2.6, ry - 0.2, 1.1, Col(0x3a3430).shade(dark))
+                c.circ(rx + dirn * 2.4, ry - 1.3, 0.6, Col(0x9a7a70))
+            }
+            let cx = sin(st * 1.2) * 42, sw = sin(st * 9)
+            let cd: Double = cos(st * 1.2) > 0 ? 1 : -1
+            let ba: Double = cd * (1.0 + sw * 0.5)
+            tar(c, cx, dk, coats[1], dark, lean: cd * 0.2, walk: st * 13, aL: ba, aR: ba)
+            c.seg(cx + cd * 4, dk - 8, cx + cd * (9 + sw * 3), dk - 1.5, 0.9, Col(0x6b4a26)); c.R(cx + cd * (9 + sw * 3) - 2, dk - 2, 4, 2, Col(0xd9c07a))
+            c.RR(42, dk - 8, 8, 8, 1.5, Col(0x6b4a26).shade(dark)); c.R(42, dk - 6, 8, 1, Col(0x2a1a0c)); c.R(42, dk - 3, 8, 1, Col(0x2a1a0c))
+            tar(c, 46, dk - 8, coats[2], dark, hop: abs(sin(st * 9)) * 2.2, aL: -2.6, aR: 2.6)
+        case "leak":
+            c.RR(-22, dk - 2.5, 18, 2.5, 1, Col(0x1c1108))
+            for j in 0..<12 {
+                let ph = (st * 1.7 + Double(j) / 12).truncatingRemainder(dividingBy: 1)
+                let px = -13 + (hashN(Double(j) * 3.3) - 0.5) * 16 * ph, py = dk - 3 - sin(ph * PI) * (16 + hashN(Double(j)) * 10)
+                c.circ(px, py, 1.1 + ph * 1.2, Col(0xbfe6ff, 0.85 * (1 - ph * 0.7)))
+            }
+            // one on the pump, flat out
+            let pm = sin(st * 10)
+            c.R(13, dk - 9, 3, 9, Col(0x2a2a30)); c.seg(14.5, dk - 9, 8, dk - 10 + pm * 3.5, 1.2, Col(0x3b2412))
+            tar(c, 4, dk, coats[0], dark, lean: 0.2 + pm * 0.12, aL: 1.3 - pm * 0.5, aR: 1.3 - pm * 0.5)
+            c.curve(16, dk - 5, 22, dk - 6, 24, dk, 1.2, Col(0x9fd8ff, 0.8))
+            for i in 1..<3 {
+                let (bx, ph) = bucket(i, -22 - Double(i) * 6, 52, 0.38)
+                if ph > 0.55 && ph < 0.7 { c.curve(bx + 5, dk - 8, bx + 14, dk - 14, bx + 18, dk + 6, 1.5, Col(0x9fd8ff, 0.9)) }
+            }
+        case "calm":
+            tar(c, m0 + 6, dk, coats[0], dark, lean: -0.25, aL: 0.2, aR: 0.4, kneel: true)
+            tar(c, -34, dk - 1.6, coats[1], dark, lean: -PI / 2, aL: 0.2, aR: 0.3)
+            tar(c, 30, dk, coats[2], dark)
+            for n in 0..<3 {
+                let ph = (T * 0.4 + Double(n) / 3).truncatingRemainder(dividingBy: 1)
+                let nx = 34 + ph * 14 + sin(T * 3 + Double(n)) * 3, ny = dk - 16 - ph * 26
+                c.circ(nx, ny, 1.5, Col(0xfff2c0, 1 - ph)); c.seg(nx + 1.4, ny, nx + 1.4, ny - 6, 0.8, Col(0xfff2c0, 1 - ph))
+            }
+            tar(c, 52, dk, coats[3], dark, aR: 2.3 + sin(T * 7) * 0.5)
+        case "overboard":
+            tar(c, -84, -52, coats[0], dark, aL: -1.9 + sin(T * 8) * 0.2)
+            tar(c, -74, -52, coats[1], dark, aL: -2.4 + sin(T * 6) * 0.6, aR: -1.2)
+            tar(c, -30, dk, coats[2], dark, lean: -0.15, walk: T * 13)
+        default:
+            return false
+        }
+        return true
     }
 
     /// Drawn in the ship's own space: the deck runs along y = -33, bow to the right.
@@ -38,6 +244,7 @@ extension Game {
         let m0 = mx[mx.count / 2]
         // the lookout aloft always has his glass out
         c.seg(m0 + 2, -30 - 168 * 0.66 - 5, m0 + 9, -30 - 168 * 0.66 - 7 + sin(T * 0.7) * 1.5, 1.4, Col(0xd9a441))
+        if mode == .sail && !sceneK.isEmpty && deckScene(c, mx, dark) { return }
         switch act {
         case 0:
             // swabbing: two on their knees, brushes going, suds on the planks
@@ -215,6 +422,6 @@ extension Game {
         }
     }
     private func puffOnce(_ x: Double, _ y: Double) {
-        if card == nil && chance(0.2) { puff(x, y, 2, Col(0xffffff, 0.8), 70, 200, 1.8, 0.4) }
+        if card == nil && chance(0.2) { let q = mode == .sail ? camPt(x, y) : (x, y); puff(q.0, q.1, 2, Col(0xffffff, 0.8), 70, 200, 1.8, 0.4) }
     }
 }

@@ -546,20 +546,51 @@ extension Game {
         c.text(line, W / 2, by + bh - 7, 11.5, CREAM.alpha(0.9), 0, FONT)
     }
 
+    /// The point on the ship the camera holds: the middle of the deck, at shoulder height.
+    func camPivot() -> (Double, Double) {
+        let (sx, swy, slen) = shipSpot()
+        return (sx, swy - 40 * slen / 200)
+    }
+    /// Where a point in the sailing scene lands on the screen.
+    func camPt(_ x: Double, _ y: Double) -> (Double, Double) {
+        let pv = camPivot()
+        return (camFx + (x - pv.0) * camZ, camFy + (y - pv.1) * camZ)
+    }
     func drawSail(_ c: Canvas) {
         let hz = H * 0.5
         let wy = hz + (H - hz) * 0.5
         let omen = !omenK.isEmpty && play == nil
         let ok = omen ? min(1, omenT / 0.5) : 0
         let oe = 1 - (1 - ok) * (1 - ok)
-        // the view eases in toward the ship as something comes into sight
-        c.save()
-        if omen {
-            let z = 1 + 0.07 * oe + 0.02 * min(1, omenT / Game.omenLen)
-            c.translate(W * 0.45, wy - 20); c.scale(z, z); c.translate(-W * 0.45, -(wy - 20))
+        // The camera rides close on the deck, where the crew can be seen at their work. It pulls back
+        // only when there is something far off to look at, or a game that needs the whole sea.
+        let pv = camPivot()
+        let acting = omen || card != nil
+        let deckEv = Game.deckScenes.contains(sceneK)
+        var zT = 1.9, fxT = W * 0.5, fyT = H * 0.62
+        if play != nil || (acting && !sceneK.isEmpty && !deckEv) {
+            zT = 1; fxT = pv.0; fyT = pv.1
+            if sceneK == "overboard" && play == nil { zT = 1.35; fxT = W * 0.58; fyT = H * 0.6 }
+        } else if deckEv && card != nil {
+            fyT = H * 0.4
+        } else if deckEv && omen {
+            fyT = H * 0.52
         }
+        if camFx == 0 { camFx = pv.0 + (fxT - pv.0) * (camZ - 1) / 0.9; camFy = pv.1 + (fyT - pv.1) * (camZ - 1) / 0.9 }
+        let ck: Double = play != nil ? 1 : 0.07
+        camZ += (zT - camZ) * ck
+        camFx += (fxT - camFx) * ck
+        camFy += (fyT - camFy) * ck
+        // the sky and far water move much less than the ship does, so the sun and moon stay in sight
+        let zb = 1 + (camZ - 1) * 0.2
+        c.save()
+        c.translate(pv.0 + (camFx - pv.0) * 0.3, pv.1 + (camFy - pv.1) * 0.3); c.scale(zb, zb); c.translate(-pv.0, -pv.1)
         drawSea(c, hz)
         weatherBack(c, hz)
+        seaLifeBack(c, hz, wy)
+        c.restore()
+        c.save()
+        c.translate(camFx, camFy); c.scale(camZ, camZ); c.translate(-pv.0, -pv.1)
         let theme = play?.theme ?? (omen ? omenK : "")
         let near = omen ? min(1, omenT / Game.omenLen) : 1
         if theme == "pirates" || theme == "blockade" {
@@ -620,15 +651,17 @@ extension Game {
                 for a in [-2.5, -1.8, -1.0, -0.3, 0.4] { c.curve(px + 8 + sw, wy - 84, px + 8 + sw + cos(a) * 22, wy - 90 + sin(a) * 20, px + 8 + sw + cos(a) * 40, wy - 76 + sin(a) * 28, 4.5, Col(0x3f7a3c)) }
             }
         }
-        seaLifeBack(c, hz, wy)
         drawShip(c, W * 0.42, wy, min(W * 0.3, 280) * ship.len, ship.masts, life: true)
         foreWave(c, wy + 5, 0, W)
         seaLifeFront(c, hz, wy)
-        if card == nil && chance(0.5) { puff(W * 0.42 + min(W * 0.3, 280) * ship.len * 0.5, wy + 2, 1, Col(0xffffff, 0.8), 40 + rough * 60, 120, 2.2, 0.5) }
+        c.restore()
+        if card == nil && chance(0.5) {
+            let bw = camPt(W * 0.42 + min(W * 0.3, 280) * ship.len * 0.5, wy + 2)
+            puff(bw.0, bw.1, 1, Col(0xffffff, 0.8), (40 + rough * 60) * camZ, 120, 2.2 * camZ, 0.5)
+        }
         weatherFront(c, hz)
         let L = light()
         if L.night > 0.05 { c.R(0, 0, W, H, Col(0x04081a, 0.25 * L.night)) }
-        c.restore()
         if play != nil {
             drawPlay(c)
             return

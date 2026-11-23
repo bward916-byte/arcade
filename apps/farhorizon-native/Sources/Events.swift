@@ -32,11 +32,17 @@ extension Game {
         "ghost": ("Something pale on the water", "No lights. No one at her helm"),
         "dolphins": ("Fins off the bow", "A pod is racing in to meet you"),
         "fog": ("A grey wall ahead", "The horizon is gone"),
-        "overboard": ("A cry, and a splash!", "Man overboard!")
+        "overboard": ("A cry, and a splash!", "Man overboard!"),
+        "fall": ("A scream from aloft!", "A hand has lost his footing on the yard"),
+        "brawl": ("Shouting on deck", "Two of the watch are at each other's throats"),
+        "galley": ("Smoke amidships!", "The galley stove has gone over"),
+        "rats": ("Squealing in the stores", "Rats, and plenty of them")
     ]
     func startOmen(_ k: String) {
         omenK = k
         omenT = 0
+        sceneK = k
+        sceneT = 0
         if k == "storm" { setWeather(3, days: 1) }
         if k == "fog" || k == "ghost" { setWeather(4, days: 1) }
         if k == "dolphins" { seaForce = 0 }
@@ -55,7 +61,8 @@ extension Game {
         let table: [(String, Double, Double)] = [
             ("storm", 3, 1.4), ("pirates", 2.6, 1.3), ("fish", 1.4, 3), ("wreck", 2, 2), ("island", 1.1, 2.4), ("calm", 1.2, 1),
             ("sick", 0.9, 0.9), ("merchant", 1, 2.2), ("bottle", 0.8, 0.8), ("leak", 1.1, 0.9), ("castaway", 0.8, 0.8),
-            ("ghost", 1.2, 0.6), ("dolphins", 1, 1.6), ("fog", 1, 1.2), ("overboard", 0.8, 0.7)
+            ("ghost", 1.2, 0.6), ("dolphins", 1, 1.6), ("fog", 1, 1.2), ("overboard", 0.8, 0.7),
+            ("fall", 1.1, 1.0), ("brawl", 1.0, 1.0), ("galley", 0.9, 0.9), ("rats", 0.9, 1.0)
         ]
         var total = 0.0
         for t in table where t.0 != lastEv { total += route == 1 ? t.1 : t.2 }
@@ -155,6 +162,62 @@ extension Game {
                     self.sickOne("the fever")
                     if !self.over && chance(0.5) { self.sickOne("the fever") }
                     if !self.over { self.done(self.toastText) }
+                }
+            ])
+        case "fall":
+            logIt("A hand fell from the yard")
+            show("A fall from aloft", "He came down forty feet onto the planks. He is up, hopping and cursing, but that leg is broken.", [
+                Opt("Splint it and rest him", "he is laid up for some days") { [unowned self] in
+                    self.toastText = ""
+                    self.hurtOne("a broken leg")
+                    if !self.over { self.done(self.toastText.isEmpty ? "The surgeon sets the bone" : self.toastText) }
+                },
+                Opt("Rum, and back to work", "he may not stand it") { [unowned self] in
+                    if chance(0.55) {
+                        self.done("He hobbles, white in the face, but he stands his watch")
+                    } else {
+                        self.loseCrew("Died of a broken leg")
+                        if !self.over { self.done("The leg goes bad. He is buried at sea two nights later") }
+                    }
+                }
+            ])
+        case "brawl":
+            logIt("A fight on deck")
+            show("A fight on deck", "A missing ration, a hard word, and now two of the watch are swinging at each other with the rest cheering them on.", [
+                Opt("Break it up", "you wade in yourself") { [unowned self] in self.done("They are hauled apart, glaring. It will keep") },
+                Opt("Let them settle it", "one will be hurt") { [unowned self] in
+                    self.toastText = ""
+                    self.hurtOne("a fight on deck")
+                    if !self.over { self.done(self.toastText.isEmpty ? "It ends with a split lip and a handshake" : self.toastText) }
+                },
+                Opt("Fine them both", "+15 gold") { [unowned self] in
+                    self.gold += 15
+                    self.snd?.coin()
+                    self.done("Their pay is docked. They stop, and hate you instead: +15 gold")
+                }
+            ])
+        case "galley":
+            logIt("Fire in the galley")
+            show("Fire in the galley!", "The stove has gone over and the deck is alight. The watch is running with buckets.", [
+                Opt("Use the water casks", water >= 4 ? "lose 4 water" : "there is not enough water", off: water < 4) { [unowned self] in
+                    self.water = max(0, self.water - 4)
+                    self.done("Out, and nothing lost but drinking water: -4 water")
+                },
+                Opt("Smother it with wet canvas", "the planks will scorch") { [unowned self] in
+                    self.dmg(7)
+                    if !self.over { self.done("It is out, but the deck is charred through in places") }
+                }
+            ])
+        case "rats":
+            logIt("Rats in the stores")
+            show("Rats in the stores", "They are all over the deck and deep in the bread.", [
+                Opt("Turn out the hold", "lose \(SUNS) days hunting them") { [unowned self] in
+                    self.passDays(1)
+                    if !self.over { self.done("Every last one goes over the side") }
+                },
+                Opt("Leave them to it", "they will eat") { [unowned self] in
+                    self.food = max(0, self.food - 6)
+                    self.done("They get fat on your stores: -6 food")
                 }
             ])
         case "merchant":

@@ -95,6 +95,15 @@ final class Game {
     var won = false
     // an event is first sighted, with the clock slowed, before it is upon you
     var omenK = ""
+    /// What is being acted out on deck (or seen off the ship), from first sighting until the card is answered.
+    var sceneK = ""
+    var sceneT = 0.0
+    /// Things that happen on the deck itself; everything else is far off and wants the wide view.
+    static let deckScenes: Set<String> = ["sick", "leak", "calm", "fall", "brawl", "galley", "rats"]
+    // the camera: close on the deck while under way, pulling back when there is something far off to see
+    var camZ = 1.0
+    var camFx = 0.0
+    var camFy = 0.0
     var omenT = 0.0
     var festT = 0.0
     var bellT = 6.0
@@ -171,7 +180,7 @@ final class Game {
         dayT = 0; tod = 0.3; hasMap = false; sinceEvent = 0; lastEv = ""; path = [0, 0, 0, 0, 0, 0]
         men = []; log = []; dead = []; sea = 0; halfDays = 0; rot = 0; wind = 1; blk = false; wellUsed = false
         over = false; card = nil; duel = nil; recruit = nil; fights = 0
-        omenK = ""; omenT = 0
+        omenK = ""; omenT = 0; sceneK = ""; sceneT = 0; camZ = 1; camFx = 0
         cargoPay = 0; cargoHold = 0; fareDue = 0; bounty = false; duelPort = false; duelSport = false; portJobs = []; jobsDone = []
         ups = [:]; perkRip = false; perkWind = false; perkFury = false; rainbowT = 0
         play = nil; sum = nil; weather = 0; wxDays = 2; bolts.removeAll(); thunderIn = -1
@@ -550,6 +559,12 @@ final class Game {
     func update(_ dt: Double) {
         T += dt
         cardT += dt
+        let sceneWas = sceneT
+        sceneT += dt
+        if mode == .sail && !sceneK.isEmpty && play == nil {
+            if sceneK == "fall" && sceneWas < 0.9 && sceneT >= 0.9 { snd?.thud(); shake = max(shake, 0.25); buzz?(true) }
+            if sceneK == "brawl" && card == nil && Int(sceneWas / 0.55) != Int(sceneT / 0.55) { snd?.thud() }
+        }
         updateWeather(dt)
 
         rainbowT = max(0, rainbowT - dt)
@@ -603,6 +618,7 @@ final class Game {
                     event(k)
                 }
             } else if card == nil {
+                sceneK = ""
                 dayT += dt
                 tod = (dayT / DAYLEN * Double(SUNS)).truncatingRemainder(dividingBy: 1)
                 dist += dps() * dt / DAYLEN
@@ -667,6 +683,12 @@ final class Game {
         if name == "shark" { playShark() }
         if name == "win" { fights = 4; log = ["Day 3: Ran into a storm", "Day 30: Made port at Gull Cay", "Day 71: Took a pirate ship by boarding", "Day 118: Took the Red Mary"]; finish() }
         if name == "saved" { leg = 2; mode = .port; saveGame(); mode = .title }
+        if name == "deckzoom" { ups = ["sails": 1, "guns": 1]; deckForce = 0; camZ = 1.9 }
+        if name == "evfall" { startOmen("fall"); sceneT = 2.6; omenT = 1.6; Game.omenHold = true; camZ = 1.9 }
+        if name == "evfallcard" { startOmen("fall"); sceneT = 2.6; omenK = ""; event("fall"); camZ = 1.9 }
+        if name == "evbrawl" { startOmen("brawl"); sceneT = 1.3; omenT = 1.6; Game.omenHold = true; camZ = 1.9 }
+        if name == "evgalley" { startOmen("galley"); sceneT = 1.3; omenK = ""; event("galley"); camZ = 1.9 }
+        if name == "evsick" { startOmen("sick"); sceneT = 2.4; omenT = 1.6; Game.omenHold = true; camZ = 1.9 }
         if name == "omen" { startOmen("pirates"); omenT = 1.6; Game.omenHold = true }
         if name == "yard" { leg = 1; mode = .port; shipwright() }
         if name == "decklife" { ups = ["sails": 2, "hull": 1, "guns": 1]; deckForce = 5; seaForce = 0 }

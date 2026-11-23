@@ -96,7 +96,8 @@ extension Game {
         hits.removeAll(keepingCapacity: true)
         let t = cardT
         uiLock = t < 0.22
-        c.R(0, 0, W, H, Col(0x000000, 0.42 * easeOut(t / 0.25)))
+        let low = mode == .sail && play == nil && Game.deckScenes.contains(sceneK)
+        c.R(0, 0, W, H, Col(0x000000, (low ? 0.12 : 0.42) * easeOut(t / 0.25)))
         let pw = min(W - safeL - safeR - 30, 620)
         let px = (W - pw) / 2
         let lines = wrapText(cd.text, pw - 40, 16, FONT)
@@ -105,7 +106,7 @@ extension Game {
         let rows = (n + cols - 1) / cols
         let bh = 46.0
         let ph = 50 + Double(lines.count) * 20.5 + 12 + Double(rows) * (bh + 8) + 8
-        let py = max(38, (H - ph) / 2 + 8)
+        let py = low ? max(38, H - safeB - ph - 6) : max(38, (H - ph) / 2 + 8)
 
         // the card springs in from a little above
         let pop = easeOutBack(t / 0.32)
