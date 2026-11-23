@@ -356,7 +356,7 @@ final class Game {
     var cpPicks = 0
     var energy = 0.0
     var picksTaken = 0
-    var energyNeed: Double { return 60 + 35 * Double(picksTaken) }
+    var energyNeed: Double { return 40 + 35 * Double(picksTaken) }
     func checkpoint(quiet: Bool = false) {
         cpFloor = floorN; cpUps = ups; cpSample = hasSample; cpValve = valveShut; cpEnergy = energy; cpPicks = picksTaken
         hero.hp = hero.maxHp
@@ -386,7 +386,7 @@ final class Game {
         // who is here
         var count = 6 + Int(Double(max(0, k)) * 0.11)
         if count > 15 { count = 15 }
-        if f.kind == .roof { count = 6 }
+        if f.kind == .roof { count = 5 }
         if f.kind == .street { count = 12 }
         let pr = min(0.38, 0.15 + Double(max(0, k)) * 0.005)
         let pd = min(0.14, max(0, Double(k - 6) * 0.006))
@@ -423,7 +423,7 @@ final class Game {
         if f.kind == .roof || (k > 3 && k % 7 == 3 && !bossFloor) {
             for _ in 0..<(f.kind == .roof ? 2 : 3) { f.zeds.append(Zed(id: nextId, kind: .crow, x: spot(&rng), depth: max(0, k), seed: rng.next())); nextId += 1 }
         }
-        f.reserve = f.kind == .street ? 12 : min(11, 5 + max(0, k) / 10)
+        f.reserve = f.kind == .street ? 12 : (k < 3 ? 2 : min(11, 5 + max(0, k) / 10))
         if bossFloor { f.reserve = 0 }
         if f.kind == .safe { f.reserve = 0 }
         if valveFloor && !valveShut { f.items.append(Item(x: FLOOR_W / 2, kind: 3)) }
