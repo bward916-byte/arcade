@@ -1,7 +1,7 @@
 import CoreGraphics
 import Foundation
 
-// Everything Broadside draws in this slice: sky, sea, the pier and beach, the town edge, the player and the HUD.
+// Sky, sea, the far hills, palms, the player and the title. The island itself is in Island.swift.
 
 extension Game {
     func draw(_ c: Canvas) {
@@ -12,18 +12,27 @@ extension Game {
             drawTitle(c, L)
             return
         }
+        c.save()
+        if shake > 0 { c.translate(rnd(-shake, shake), rnd(-shake, shake)) }
         drawFarHills(c, L)
+        drawRidge(c, L)
         drawBackSea(c, L)
+        drawOffshore(c, L)
         drawLand(c, L)
-        drawTown(c, L)
         drawPier(c, L)
-        drawPalms(c, L)
-        if boat { drawRowboat(c, L) }
+        drawScenery(c, L)
+        drawBuildings(c, L)
+        drawThings(c, L)
+        if dog { drawDog(c, L) }
+        if rowPhase == 0 { drawPerson(c, L) }
         drawFishing(c, L)
-        drawPerson(c, L)
         drawFrontSea(c, L)
+        drawEastSea(c, L)
         drawSparks(c)
-        if L < 0.5 { c.R(0, 0, W, H, Col(0x060c1c, 0.34 * (0.5 - L) / 0.5)) }
+        if L < 0.5 { c.R(-10, -10, W + 20, H + 20, Col(0x060c1c, 0.34 * (0.5 - L) / 0.5)) }
+        drawNightLights(c, L)
+        c.restore()
+        drawPops(c)
         drawRings(c, L)
         drawHUD(c, L)
     }
@@ -172,102 +181,6 @@ extension Game {
     }
 
     // ---------- land
-    func drawLand(_ c: Canvas, _ L: Double) {
-        let wx0 = max(0.0, (0 - W / 2) / camS + camX - 20)
-        let wx1 = (W - W / 2) / camS + camX + 20
-        if wx1 < 0 { return }
-        let bot = H + 4
-        // the body of the island: sand low down, earth inland
-        let topY = sy(ground(wx1)) - 10
-        c.pathGrad(topY, bot, [(0, dn(0x2a2418, 0xd9c79a, L)), (0.5, dn(0x1c160e, 0xa98a5c, L)), (1, dn(0x100c08, 0x6a5234, L))]) { p in
-            p.move(to: CGPoint(x: self.sx(wx0), y: bot))
-            let startY: Double = wx0 <= 0 ? 6 : self.ground(wx0)
-            p.addLine(to: CGPoint(x: self.sx(wx0), y: self.sy(startY)))
-            var x = max(wx0, 0)
-            while x <= wx1 {
-                let dip: Double = x < 60 ? (60 - x) / 60 * 12 : 0
-                let gy: Double = self.ground(max(60, x)) + dip
-                p.addLine(to: CGPoint(x: self.sx(x), y: self.sy(gy)))
-                x += 10
-            }
-            p.addLine(to: CGPoint(x: self.sx(wx1), y: bot))
-            p.closeSubpath()
-        }
-        // turf from the top of the beach inland
-        let g0 = max(wx0, 560.0)
-        if wx1 > g0 {
-            c.pathFill(dn(0x12261a, 0x5f9a48, L)) { p in
-                p.move(to: CGPoint(x: self.sx(g0), y: self.sy(self.ground(g0))))
-                var x = g0
-                while x <= wx1 {
-                    p.addLine(to: CGPoint(x: self.sx(x), y: self.sy(self.ground(x)) - 1.5 * self.camS))
-                    x += 10
-                }
-                x = wx1
-                while x >= g0 {
-                    let depth = min(7.0, (x - 560) / 20)
-                    p.addLine(to: CGPoint(x: self.sx(x), y: self.sy(self.ground(x)) + depth * self.camS))
-                    x -= 10
-                }
-                p.closeSubpath()
-            }
-            // grass blades
-            var x = floor(g0 / 9) * 9
-            while x <= wx1 {
-                if x >= 575 {
-                    let h = (3 + hashN(x) * 5) * camS
-                    let sway = sin(T * 1.6 + x * 0.3) * 1.2 * camS
-                    c.seg(sx(x), sy(ground(x)), sx(x) + sway, sy(ground(x)) - h, 1.1, dn(0x183422, 0x7cba58, L))
-                }
-                x += 9
-            }
-        }
-        // pebbles and shells on the sand
-        var s = floor(max(wx0, 70) / 37) * 37
-        while s <= min(wx1, 560) {
-            if s >= 70 {
-                let r = (1 + hashN(s) * 1.6) * camS
-                c.ell(sx(s + hashN(s + 3) * 20), sy(ground(s)) + (3 + hashN(s + 9) * 10) * camS, r * 1.5, r, dn(0x1a1c20, 0x9a9488, L))
-            }
-            s += 37
-        }
-    }
-
-    func drawPier(_ c: Canvas, _ L: Double) {
-        let deck = sy(-22)
-        let x0 = sx(-240), x1 = sx(14)
-        if x1 < -20 || x0 > W + 20 { return }
-        // posts
-        var px0 = -232.0
-        while px0 <= 0 {
-            let X = sx(px0)
-            c.linear(X - 2.6 * camS, deck, 5.2 * camS, H - deck, X - 2.6 * camS, 0, X + 2.6 * camS, 0, [(0, dn(0x1c120a, 0x6e4a26, L)), (1, dn(0x0a0604, 0x2e1c0e, L))])
-            px0 += 33
-        }
-        // cross braces
-        var b = -232.0
-        while b < -10 {
-            c.seg(sx(b), deck + 6 * camS, sx(b + 33), deck + 30 * camS, 1.6 * camS, dn(0x140c06, 0x4a2e14, L))
-            b += 33
-        }
-        // the deck
-        c.vfill(x0, deck - 3 * camS, x1 - x0, 5 * camS, [(0, dn(0x2a1c10, 0x9a7446, L)), (1, dn(0x160e08, 0x5e4226, L))])
-        var pl = -240.0
-        while pl < 14 {
-            c.R(sx(pl), deck - 3 * camS, 1, 5 * camS, Col(0x000000, 0.3))
-            pl += 9
-        }
-        // rail, lantern post and a pair of barrels
-        c.seg(sx(-236), deck - 3 * camS, sx(-236), deck - 20 * camS, 2 * camS, dn(0x1c120a, 0x5a3a1e, L))
-        c.seg(sx(-236), deck - 18 * camS, sx(-200), deck - 18 * camS, 1.4 * camS, dn(0x1c120a, 0x5a3a1e, L))
-        let lx = sx(-96)
-        c.seg(lx, deck - 3 * camS, lx, deck - 38 * camS, 2 * camS, dn(0x100a06, 0x3a2512, L))
-        c.R(lx - 3 * camS, deck - 44 * camS, 6 * camS, 7 * camS, L < 0.5 ? Col(0xffd27a) : Col(0xb89a5a))
-        if L < 0.5 { c.glow(lx, deck - 40 * camS, 46 * camS, Col(0xffc86e, 0.45), Col(0xffc86e, 0)) }
-        drawBarrel(c, -40, -22, 4.6, L)
-        drawBarrel(c, -29, -22, 4.2, L)
-    }
-
     func drawBarrel(_ c: Canvas, _ wx: Double, _ wy: Double, _ r: Double, _ L: Double) {
         let X = sx(wx), Y = sy(wy) - 3 * camS, w = r * camS, hh = r * 2.4 * camS
         c.ell(X + w * 0.25, Y + 0.5, w * 1.25, w * 0.3, Col(0x000000, 0.2))
@@ -278,94 +191,7 @@ extension Game {
         c.ell(X, Y - hh, w, w * 0.24, dn(0x1a120a, 0x8a6a40, L))
     }
 
-    func drawRowboat(_ c: Canvas, _ L: Double) {
-        let wx = -150.0
-        let X = sx(wx), Y = sy(wave(wx)) + 1
-        c.save()
-        c.translate(X, Y)
-        c.rotate(cos(wx * 0.02 + T * 1.2) * 0.04)
-        c.scale(camS, camS)
-        c.pathFill(dn(0x1c120a, 0x7a5230, L)) { p in
-            p.move(to: CGPoint(x: -22, y: -6))
-            p.addQuadCurve(to: CGPoint(x: 24, y: -7), control: CGPoint(x: 0, y: -4))
-            p.addLine(to: CGPoint(x: 16, y: 4))
-            p.addLine(to: CGPoint(x: -15, y: 4))
-            p.closeSubpath()
-        }
-        c.R(-18, -5.5, 36, 1.4, dn(0x2a1c10, 0xb08a58, L))
-        c.seg(-4, -6, -16, -13, 1.2, dn(0x1c120a, 0x5a3a1e, L))
-        c.restore()
-    }
-
     // ---------- the edge of town: market stall and two houses
-    func drawTown(_ c: Canvas, _ L: Double) {
-        drawHouse(c, 1090, 54, 46, Col(0xe2d3b0), Col(0x8a3a2a), L)
-        drawHouse(c, 1210, 44, 36, Col(0xd4c2a4), Col(0x6a4a2a), L)
-        // market stall
-        let wx = 1000.0
-        let X = sx(wx), Y = sy(ground(wx)), k = camS
-        if X < -120 * k || X > W + 120 * k { return }
-        c.R(X - 30 * k, Y - 15 * k, 60 * k, 15 * k, dn(0x1c120a, 0x7a5632, L))
-        c.R(X - 31 * k, Y - 17 * k, 62 * k, 3 * k, dn(0x2a1c10, 0x9a7446, L))
-        c.seg(X - 28 * k, Y - 15 * k, X - 28 * k, Y - 44 * k, 2 * k, dn(0x140c06, 0x4a2e14, L))
-        c.seg(X + 28 * k, Y - 15 * k, X + 28 * k, Y - 44 * k, 2 * k, dn(0x140c06, 0x4a2e14, L))
-        for i in 0..<6 {
-            let fi = Double(i)
-            let col = i % 2 == 0 ? dn(0x4a1414, 0xb0302a, L) : dn(0x4a463c, 0xe8dcc0, L)
-            let ax: Double = X - 33 * k + fi * 11 * k
-            let bx: Double = ax + 11 * k
-            let mx: Double = ax + 5.5 * k
-            let y1: Double = Y - 47 * k
-            let y2: Double = Y - 37 * k
-            let y3: Double = Y - 34 * k
-            c.poly(col, [ax, y1, bx, y1, bx, y2, mx, y3, ax, y2])
-        }
-        // fish laid out on the counter
-        for i in 0..<5 {
-            let fi = Double(i)
-            c.ell(X - 20 * k + fi * 10 * k, Y - 19 * k, 4 * k, 1.5 * k, dn(0x3a4650, 0x9fb8c8, L))
-        }
-        drawBarrel(c, wx + 40, ground(wx + 40) + 3, 4.6, L)
-    }
-
-    func drawHouse(_ c: Canvas, _ wx: Double, _ w: Double, _ h: Double, _ wall: Col, _ roof: Col, _ L: Double) {
-        let X = sx(wx), Y = sy(ground(wx)), k = camS * 1.45
-        if X < -90 * k || X > W + 90 * k { return }
-        let wl = Col.mix(wall.shade(0.25), wall, L)
-        c.R(X - w / 2 * k - 2 * k, Y - 3 * k, w * k + 4 * k, 5 * k, dn(0x1a1c20, 0x8a8478, L))
-        c.linear(X - w / 2 * k, Y - h * k, w * k, h * k - 2 * k, X - w / 2 * k, 0, X + w / 2 * k, 0, [(0, wl), (1, wl.shade(0.72))])
-        let rf = Col.mix(roof.shade(0.3), roof, L)
-        let eave: Double = Y - h * k
-        let ridge: Double = eave - 18 * k
-        let lft: Double = X - w / 2 * k - 4 * k
-        let rgt: Double = X + w / 2 * k + 4 * k
-        c.poly(rf, [lft, eave, X, ridge, rgt, eave])
-        c.poly(rf.shade(0.75), [X, ridge, rgt, eave, X + 2 * k, eave])
-        // door and windows, lit after dark
-        c.arch(X - 4 * k, Y - 16 * k, 8 * k, 14 * k, dn(0x100a06, 0x4a2e14, L))
-        let lit = L < 0.5
-        for dx in [-w * 0.3, w * 0.3] {
-            c.R(X + dx * k - 4 * k, Y - h * 0.62 * k, 8 * k, 9 * k, lit ? Col(0xffcc66) : Col(0x2a2420))
-            c.R(X + dx * k - 0.4 * k, Y - h * 0.62 * k, 0.8 * k, 9 * k, dn(0x100a06, 0x3a2512, L))
-            if lit { c.glow(X + dx * k, Y - h * 0.5 * k, 22 * k, Col(0xffc86e, 0.28), Col(0xffc86e, 0)) }
-        }
-        // chimney smoke
-        let cx = X + w * 0.28 * k, cy = Y - h * k - 14 * k
-        c.R(cx - 3 * k, cy, 6 * k, 12 * k, dn(0x1a1410, 0x7a6a5a, L))
-        for i in 0..<4 {
-            let a = (T * 0.3 + Double(i) * 0.25).truncatingRemainder(dividingBy: 1)
-            c.circ(cx + a * 10 * k + sin(T + Double(i)) * 2 * k, cy - a * 30 * k, (3 + a * 6) * k, Col(0xe0ddd6, 0.32 * (1 - a)))
-        }
-    }
-
-    func drawPalms(_ c: Canvas, _ L: Double) {
-        let list: [(Double, Double, Double)] = [(160, 70, -0.35), (500, 78, 0.4), (640, 84, 0.3), (735, 62, -0.3), (1150, 70, 0.2)]
-        for (wx, h, lean) in list {
-            let X = sx(wx)
-            if X < -90 * camS || X > W + 90 * camS { continue }
-            drawPalm(c, wx, h, lean, L)
-        }
-    }
     func drawPalm(_ c: Canvas, _ wx: Double, _ h: Double, _ lean: Double, _ L: Double) {
         let sw = sin(T * 0.7 + wx) * 0.05 + sin(T * 1.9 + wx) * 0.02
         c.save()
@@ -436,33 +262,15 @@ extension Game {
     }
 
     // ---------- the fishing line
-    func drawFishing(_ c: Canvas, _ L: Double) {
-        if !fishing { return }
-        let hx = sx(px - 13), hy = sy(ground(px)) - 27 * camS
-        let tipX = sx(px - 40), tipY = sy(ground(px)) - 46 * camS
-        c.curve(hx, hy, (hx + tipX) / 2, hy - 14 * camS, tipX, tipY, 1.6 * camS, dn(0x2a1c10, 0x8a5a2a, L))
-        let fwx = -262.0
-        let bob = fishPhase == 1 ? sin(T * 26) * 3.2 : sin(T * 2.2) * 0.8
-        let fx = sx(fwx), fy = sy(wave(fwx) + bob)
-        c.curve(tipX, tipY, (tipX + fx) / 2, (tipY + fy) / 2 + (fishPhase == 1 ? 2 : 14) * camS, fx, fy, 0.8, Col(0xf0f0f0, 0.75))
-        c.circ(fx, fy, 2.2 * camS, Col(0xd03a2a))
-        c.circ(fx, fy - 1.2 * camS, 1.3 * camS, Col(0xf4f0e6))
-        if fishPhase == 1 {
-            for i in 0..<3 {
-                let u = (fishT * 1.4 + Double(i) * 0.33).truncatingRemainder(dividingBy: 1)
-                c.ellStroke(fx, fy, (3 + u * 16) * camS, (1 + u * 3) * camS, 1, Col(0xf0faff, 0.7 * (1 - u)))
-            }
-        }
-    }
-
     // ---------- the player
     func drawPerson(_ c: Canvas, _ L: Double) {
         let moving = abs(speed) > 4
         let amt = min(1.0, abs(speed) / 40)
         let bob = moving ? abs(sin(walkPh)) * 1.1 * amt : sin(T * 1.6) * 0.3
         c.save()
-        c.translate(sx(px), sy(ground(px)))
-        c.scale(camS * face, camS)
+        let grow: Double = [0.74, 0.78, 0.84, 0.9, 0.9, 0.9][min(5, boat)]
+        c.translate(sx(px), sy(groundLand(px)))
+        c.scale(camS * face * grow, camS * grow)
         c.ell(0, 0.6, 9, 1.8, Col(0x000000, 0.16 + 0.12 * L))
         let skin = dn(0x4a3626, 0xe0b088, L)
         let shirt = dn(0x3a382e, 0xd9d2c0, L)
@@ -525,6 +333,13 @@ extension Game {
         if fishing {
             c.seg(0.5, shY, 7, shY + 4, 3.1, shirt)
             c.seg(7, shY + 4, 13, shY + 7, 2.7, skin)
+        } else if haul == 2 {
+            c.seg(0.5, shY, 6, shY - 6, 3.1, shirt)
+            c.seg(6, shY - 6, 4, shY - 14, 2.7, skin)
+            c.R(-9, shY - 31, 18, 16, self.lc(0x8a6238))
+            c.R(-9, shY - 31, 18, 1.4, self.lc(0x4a2e14))
+            c.R(-9, shY - 16.4, 18, 1.4, self.lc(0x4a2e14))
+            c.seg(-9, shY - 31, 9, shY - 15, 1, self.lc(0x4a2e14))
         } else {
             let a2 = -armSwing
             let ax = sin(a2) * 8, ay = shY + cos(a2) * 8
@@ -540,7 +355,7 @@ extension Game {
             let a = min(1.0, capShow / 0.6)
             let gap = 13.0
             let x0 = sx(px) - Double(n - 1) * gap / 2
-            let y = sy(ground(px)) - 62 * camS
+            let y = sy(groundLand(px)) - 62 * camS
             for i in 0..<n {
                 let x = x0 + Double(i) * gap
                 let col = i < fish ? Col(0xbfe0f0, a) : Col(0x101820, 0.55 * a)
@@ -558,133 +373,7 @@ extension Game {
     }
 
     // ---------- the round controls: actions that spin, and coin circles you pour into
-    func drawRings(_ c: Canvas, _ L: Double) {
-        rings = []
-        var used: [Double] = []
-        func place(_ wantX: Double) -> Double {
-            var x = wantX
-            for _ in 0..<6 {
-                var moved = false
-                for u in used where abs(u - x) < 74 {
-                    x = u + (x >= u ? 74 : -74)
-                    moved = true
-                }
-                if !moved { break }
-            }
-            used.append(x)
-            return x
-        }
-        let headY = sy(ground(px)) - 98 * camS
-        // actions
-        var acts: [(String, Double)] = []
-        if abs(px - -215) < 60 { acts.append(("fish", -215)) }
-        if abs(px - 1000) < 60 { acts.append(("market", 1000)) }
-        for (id, wx) in acts {
-            let x = place(sx(wx)), y = max(96.0, headY), r = 22.0
-            rings.append(Ring(id: id, x: x, y: y, r: r, pour: false))
-            let busy = id == "fish" && fishing
-            c.circ(x, y + 3, r + 2, Col(0x000000, 0.28))
-            c.glow(x - 6, y - 8, r * 1.2, Col(0x3c4a5c, 0.95), Col(0x08121c, 0.95))
-            c.circ(x, y, r, Col(0x08121c, 0.55))
-            c.circStroke(x, y, r, 2, busy ? Col(0xfff0c0) : GOLD)
-            c.save()
-            c.translate(x, y)
-            if busy { c.rotate(T * 4) }
-            drawIcon(c, id)
-            c.restore()
-        }
-        // coin circles
-        for u in upgs where !done(u.id) && abs(u.x - px) < 150 {
-            let near = abs(u.x - px) < 70
-            let x = place(sx(u.x)), y = max(110.0, headY - 4), r = 22.0
-            if near { rings.append(Ring(id: u.id, x: x, y: y, r: r, pour: true)) }
-            c.alpha(near ? 1 : 0.5)
-            c.circ(x, y + 3, r + 2, Col(0x000000, 0.28))
-            c.circ(x, y, r, Col(0x101a28, 0.92))
-            let have = paid[u.id] ?? 0
-            if have > 0 {
-                c.arcStroke(x, y, r, -PI / 2, -PI / 2 + 2 * PI * Double(have) / Double(u.cost), 4, GOLD)
-            }
-            c.circStroke(x, y, r, 1.4, GOLD2.alpha(0.8))
-            c.save()
-            c.translate(x, y)
-            drawIcon(c, u.id)
-            c.restore()
-            // coin blanks above, filled as you pour: rows of six, the last row centred
-            if near {
-                let shown = min(12, u.cost)
-                let per = Double(u.cost) / Double(shown)
-                let rows = (shown + 5) / 6
-                for i in 0..<shown {
-                    let row = i / 6
-                    let inRow = row == rows - 1 ? shown - row * 6 : 6
-                    let col = i % 6
-                    let bx = x + (Double(col) - Double(inRow - 1) / 2) * 11
-                    let by = y - r - 12 - Double(rows - 1 - row) * 11
-                    let on = Double(have) >= per * Double(i + 1) - 0.001
-                    c.circ(bx, by, 4.4, on ? Col(0xffd24a) : Col(0x0a1018, 0.75))
-                    c.circStroke(bx, by, 4.4, 1, on ? Col(0x8a6a10) : Col(0xd8b86a, 0.5))
-                }
-            }
-            c.alpha(1)
-        }
-    }
-
-    func drawIcon(_ c: Canvas, _ id: String) {
-        let u = 9.0
-        switch id {
-        case "fish":
-            c.ell(1, 0, u * 0.8, u * 0.42, GOLD)
-            c.poly(GOLD, [-u * 0.6, 0, -u * 1.15, -u * 0.5, -u * 1.15, u * 0.5])
-            c.circ(u * 0.45, -u * 0.08, 1.1, NAVY)
-        case "market":
-            for i in 0..<3 { c.ell(0, u * 0.5 - Double(i) * u * 0.42, u * 0.75, u * 0.26, i == 1 ? Col(0xe0a83a) : GOLD) }
-        case "rod":
-            c.seg(-u * 0.8, u * 0.8, u * 0.7, -u * 0.9, 1.8, GOLD)
-            c.curve(u * 0.7, -u * 0.9, u * 0.9, 0, u * 0.5, u * 0.6, 1, GOLD)
-            c.circ(u * 0.5, u * 0.7, 1.6, GOLD)
-        case "bait":
-            c.curve(-u * 0.8, u * 0.2, -u * 0.2, -u * 0.9, u * 0.2, 0, 2.2, GOLD)
-            c.curve(u * 0.2, 0, u * 0.5, u * 0.7, u * 0.9, -u * 0.2, 2.2, GOLD)
-        case "cart":
-            c.R(-u * 0.8, -u * 0.5, u * 1.5, u * 0.7, GOLD)
-            c.circStroke(-u * 0.3, u * 0.55, u * 0.36, 1.6, GOLD)
-            c.circStroke(u * 0.45, u * 0.55, u * 0.36, 1.6, GOLD)
-            c.seg(u * 0.7, -u * 0.3, u * 1.15, -u * 0.8, 1.6, GOLD)
-        case "boat":
-            c.poly(GOLD, [-u * 0.95, 0, u * 0.95, 0, u * 0.6, u * 0.6, -u * 0.6, u * 0.6])
-            c.seg(0, 0, 0, -u * 0.95, 1.6, GOLD)
-            c.poly(GOLD, [u * 0.15, -u * 0.9, u * 0.8, -u * 0.15, u * 0.15, -u * 0.15])
-        default:
-            c.circ(0, 0, 3, GOLD)
-        }
-    }
-
     // ---------- HUD
-    func drawHUD(_ c: Canvas, _ L: Double) {
-        let pad = max(12.0, safeL)
-        let s = String(coins)
-        let tw = textW(s, 15, FONTB)
-        c.RR(pad - 4, 8, tw + 40, 24, 12, Col(0x08121c, 0.55))
-        c.RRStroke(pad - 4, 8, tw + 40, 24, 12, 1, GOLD2.alpha(0.55))
-        c.glow(pad + 7, 18, 10, Col(0xfff3b0), Col(0xa87a14))
-        c.circ(pad + 9, 20, 8, Col(0xffd24a))
-        c.circStroke(pad + 9, 20, 8, 1, Col(0x8a6a10))
-        c.circStroke(pad + 9, 20, 5, 1, Col(0x8a6a10, 0.6))
-        c.text(s, pad + 24, 25, 15, CREAM, -1, FONTB)
-
-        let part = L > 0.5 ? (tod < 0.5 ? "Morning" : "Afternoon") : (tod < 0.5 ? "Night" : "Evening")
-        c.textS("GULL CAY  ·  DAY " + String(day) + "  ·  " + part, W - max(12.0, safeR), 24, 14, CREAM, 1, FONTB)
-
-        if logT > 0 && !log.isEmpty {
-            let a = min(1.0, logT)
-            let w = min(W - 2 * pad - 180, textW(log, 14) + 36)
-            c.RR(W / 2 - w / 2, 46, w, 30, 15, Col(0x050c14, 0.62 * a))
-            c.RRStroke(W / 2 - w / 2, 46, w, 30, 15, 1, GOLD2.alpha(0.45 * a))
-            c.text(log, W / 2, 66, 14, CREAM.alpha(a))
-        }
-    }
-
     // ---------- title
     func drawTitle(_ c: Canvas, _ L: Double) {
         let horizon = H * 0.62
@@ -715,7 +404,7 @@ extension Game {
         c.R(-4, -4, 8, 8, GOLD)
         c.restore()
         c.text("From a pier and a fishing line to a ship of your own.", W / 2, ty + 46, 16, CREAM)
-        c.text("Native build: the opening on the pier. More of the island follows.", W / 2, ty + 70, 13, CREAM.alpha(0.75))
+        c.text("Native build: the whole home island. The open sea follows.", W / 2, ty + 70, 13, CREAM.alpha(0.75))
         let bw = 190.0, bh = 44.0
         let bx = W / 2 - bw / 2, by = min(H - 64, ty + 94)
         titleBtn = (bx, by, bw, bh)

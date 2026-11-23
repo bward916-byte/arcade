@@ -64,6 +64,36 @@ struct Upg {
     let id: String
     let x: Double
     let cost: Int
+    let icon: String
+    var tier: Int = 0
+    var base: String = ""
+}
+
+/// A building you pay for: where it stands, what it earns a day, how much it adds to the defence.
+struct Bld {
+    let x: Double
+    let inc: Int
+    let def: Int
+}
+
+/// A place where something can be done.
+struct Spot {
+    let id: String
+    let x: Double
+    let near: Double
+}
+
+struct Pop {
+    var x: Double
+    var y: Double
+    var txt: String
+    var t: Double
+}
+
+struct Item {
+    var x: Double
+    var shell: Bool
+    var pick: Bool
 }
 
 /// A round control on screen this frame.
