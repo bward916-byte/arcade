@@ -788,12 +788,12 @@ function debris(x,y){spawn(10,()=>({t:'deb',x,y,vx:rnd(-120,120),vy:rnd(-260,-60
 function hullW(s){return s.len*(1-0.7*s.facing);}
 function shipY(s){return s.shore?-46:wave(s.x)+s.sink*55;}
 function shipTilt(s){if(s.shore)return 0;return Math.atan(waveSlope(s.x))*0.85*(s===player?1-0.7*zoom:1)+s.sink*0.55*s.dir;}
-function guns(s){const g=s.facing<0.5?3:1;return s===player?Math.max(1,Math.min(g,count('guns'))):g;}
+function guns(s){const g=s.facing<0.5?(s===player&&!s.shore?SHIPS[shipTier()].guns:3):1;return s===player?Math.max(1,Math.min(g,count('guns'))):g;}
 function fire(s){
   const n=guns(s),w=hullW(s),y=s.shore?-87:shipY(s)-s.hgt*0.3,tilt=shipTilt(s);
   const elev=s.angle*Math.PI/180-tilt*s.dir, v=380+s.power*440;
   for(let i=0;i<n;i++){
-    const off=(n===1?w*0.42:(-0.25+0.25*i)*w)*(s.shore?1.5:1), gx=s.x+off*s.dir, spread=(i-(n-1)/2)*0.012;
+    const off=(n===1?w*0.42:n<=3?(-0.25+0.25*i)*w:(-0.32+0.62*i/(n-1))*w)*(s.shore?1.5:1), gx=s.x+off*s.dir, spread=(i-(n-1)/2)*0.012;
     balls.push({x:gx,y,vx:Math.cos(elev+spread)*v*s.dir,vy:-Math.sin(elev+spread)*v,o:s,trail:[]});
     smoke(gx+12*s.dir,y,s.dir,7);flash(gx+14*s.dir,y);
   }
@@ -841,7 +841,7 @@ function updBattle(dt){
     b.vx+=wind*0.9*dt;b.vy+=G*dt;b.x+=b.vx*dt;b.y+=b.vy*dt;
     b.trail.push(b.x,b.y);if(b.trail.length>14)b.trail.splice(0,2);
     const tgt=b.o===player?enemy:player;
-    if(hitTest(b,tgt)){tgt.hp=Math.max(0,tgt.hp-(b.o===player&&V.dmg?V.dmg:BALL_DMG));tgt.hitFlash=0.25;debris(b.x,b.y);smoke(b.x,b.y,-b.o.dir,5);flash(b.x,b.y);shake=Math.max(shake,tgt===player?7:4);boom(0.35,0.3,500);balls.splice(i,1);
+    if(hitTest(b,tgt)){tgt.hp=Math.max(0,tgt.hp-(b.o===player&&V.dmg?V.dmg:BALL_DMG)/(tgt===player&&!tgt.shore?SHIPS[shipTier()].tough:1));tgt.hitFlash=0.25;debris(b.x,b.y);smoke(b.x,b.y,-b.o.dir,5);flash(b.x,b.y);shake=Math.max(shake,tgt===player?7:4);boom(0.35,0.3,500);balls.splice(i,1);
       if(tgt.hp<=0&&!winner){winner=tgt===enemy?'player':'enemy';setTimeout(()=>{if(mode!=='battle')return;if(player.shore)shoreEnd(winner==='player');else if(winner==='player')endBattle();else mode='over';},3200);}
       if(mode!=='battle')return;continue;}
     if(b.y>wave(b.x)){splash(b.x,wave(b.x),true);if(b.o===enemy)aiLearn(b.x);boom(0.12,0.4,1600);balls.splice(i,1);continue;}
@@ -938,10 +938,10 @@ function updVoyage(dt){
   else if(V.eventT<=0){const night=light<0.3;const pool=EVENTS.filter(e=>!e.night||night);let tot=pool.reduce((a,e)=>a+e.w,0),r=Math.random()*tot,e=pool[0];for(const x of pool){r-=x.w;if(r<=0){e=x;break;}}openEvent(e);}
   if(V.hull<=0){winner='enemy';mode='over';V.log='She goes down by the head.';}
   else if(n===0){winner='enemy';mode='over';V.log='A ship with no crew is a coffin.';}
-  else if(V.dist>=V.total){mode='arrived';zoomOn=false;}
+  else if(V.dist>=V.total){zoomOn=false;if((V.leg==='settle'||V.leg==='visit')&&!demo)landOn();else mode='arrived';}
   // camera & zoom
   zoom=lerp(zoom,zoomOn?1:0,Math.min(1,dt*3));
-  const farS=Math.min(cw/1400,ch/720),nearS=Math.min(cw/(player.len*1.12),ch/292);
+  const farS=Math.min(cw/1400,ch/720),nearS=Math.min(cw/(player.len*1.12),ch/292)/SHIPS[shipTier()].sc;
   cam.scale=lerp(cam.scale,lerp(farS,nearS,zoom),Math.min(1,dt*3));
   cam.cx=lerp(cam.cx,player.x+lerp(320,8,zoom),Math.min(1,dt*3));
   seaLine=lerp(0.6,0.7,zoom);
@@ -1011,6 +1011,12 @@ const UPG=[
  {id:'wall',x:3270,cost:90,icon:'wall',req:()=>I.done.farm||I.done.mill,apply:()=>built('wall','A palisade guards the east cove. Defence +2.')},
  {id:'dock2',x:3420,cost:100,icon:'skiff',req:()=>I.boat>=1,apply:()=>built('dock2','An east dock for traders. 8 coins a day.')},
  // stage 2 — captain (carry into the voyage)
+ {id:'boat4',x:330,cost:600,icon:'ship',req:()=>I.boat===3,apply:()=>{I.boat=4;setBanner('A brig of your own',3);isay('Five guns a side and room for eight hands. Sign on two more at the tavern.');}},
+ {id:'boat5',x:330,cost:1400,icon:'ship',req:()=>I.boat===4,apply:()=>{I.boat=5;setBanner('A frigate. Commodore.',3);isay('Seven guns a side, three masts, ten hands. Sign on the last two at the tavern.');}},
+ {id:'mate7',x:1300,cost:60,icon:'mate',req:()=>I.mates>=6&&I.boat>=4,apply:()=>{I.mates=7;isay('Tom Fenn, gunner. 7 hands.');}},
+ {id:'mate8',x:1300,cost:70,icon:'mate',req:()=>I.mates>=7&&I.boat>=4,apply:()=>{I.mates=8;isay('Black Bess signs on. A full brig crew.');}},
+ {id:'mate9',x:1300,cost:90,icon:'mate',req:()=>I.mates>=8&&I.boat>=5,apply:()=>{I.mates=9;isay('Old Harrow, forty years at sea. 9 hands.');}},
+ {id:'mate10',x:1300,cost:100,icon:'mate',req:()=>I.mates>=9&&I.boat>=5,apply:()=>{I.mates=10;isay('Jem Stokes makes ten. A frigate crew.');}},
  {id:'provisions',x:1000,cost:60,icon:'barrel',req:()=>I.boat>=3,apply:()=>{I.provisions=1;isay('Salt pork, water and rum stowed. Full holds for the voyage.');}},
  {id:'powder',x:2120,cost:90,icon:'cannon',req:()=>I.boat>=3,apply:()=>{I.powder=1;isay('Powder and shot from the old fort. Your guns hit harder.');}},
  {id:'charts',x:1250,cost:80,icon:'chart',req:()=>I.boat>=3,apply:()=>{I.charts=1;isay('Charts from the old salts. A shorter road to Tortuga Cay.');}},
@@ -1037,7 +1043,7 @@ function buildNPCs(){NPCS=[
 function updNPCs(dt){for(const c of NPCS){if(c.walk){if(c.walk.need&&!I.done[c.walk.need])continue;const x=c.H.x/SF,inp=c.input;if(x>c.walk.b)inp.dir=-1;else if(x<c.walk.a)inp.dir=1;else if(!inp.dir&&Math.random()<dt*0.25)inp.dir=Math.random()<0.5?-1:1;else if(inp.dir&&Math.random()<dt*0.07)inp.dir=0;}
     if(Math.abs(c.H.x-hero.H.x)<900*SF)c.update(dt);}
   updWorkers(dt);
-  while(MATES.length<Math.min(6,I.mates)){const i=MATES.length;MATES.push(mkNPC(1345+i*20,{},i%2?-1:1));}
+  while(MATES.length<Math.min(10,I.mates)){const i=MATES.length;MATES.push(mkNPC(1345+i*20,{},i%2?-1:1));}
   for(const c of MATES)c.update(dt);}
 const WORK={hut:[548,1],mill:[2700,1],farm:[2935,-1],smithy:[3092,1],tower:[2255,-1],dock2:[3432,1]};let WORKERS={};
 function updWorkers(dt){for(const id in WORK){const on=I.done[id]&&!I.dmg[id];if(on&&!WORKERS[id]){WORKERS[id]=mkNPC(WORK[id][0],id==='smithy'?{beard:'beard',shirt:'#3a3a40'}:id==='farm'?{hat:'fedora',shirt:'#b07a2a'}:{},WORK[id][1]);}if(!on&&WORKERS[id])delete WORKERS[id];const c=WORKERS[id];if(!c||Math.abs(c.H.x-hero.H.x)>900*SF)continue;
@@ -1049,21 +1055,35 @@ function enterIsland(){zoom=0;zoomOn=false;cam={cx:I.kid.x+120,scale:Math.min(cw
 // ---- island economy: buildings, income, defence, raids ----
 const BLD={hut:{x:520,inc:3,def:0},mill:{x:2745,inc:6,def:0},farm:{x:2850,inc:5,def:0},smithy:{x:3130,inc:4,def:1},tower:{x:2275,inc:0,def:2},battery:{x:2215,inc:0,def:3},wall:{x:3270,inc:0,def:2},dock2:{x:3420,inc:8,def:0}};
 const GOODS={hut:'salt fish',mill:'timber',farm:'grain',smithy:'iron'};
+const ISLES=[{n:'Gull Cay',note:'home waters',inc:{},thr:0,tint:null},
+ {n:'Timber Key',note:'deep forest · the sawmill pays double, thin soil',inc:{mill:2,farm:0.6},thr:1,tint:'rgba(30,96,84,0.20)'},
+ {n:'Coral Bank',note:'rich fishing · huts and docks pay double, little timber',inc:{hut:2,dock2:1.5,mill:0.6},thr:2,tint:'rgba(255,196,110,0.17)'},
+ {n:'Ironrock',note:'iron in the cliffs · the smithy pays well, bold raiders',inc:{smithy:2.5,farm:0.5},thr:4,tint:'rgba(150,64,44,0.20)'}];
+const SHIPS=[{n:'sloop',crew:6,guns:3,tough:1,sc:1},{n:'brig',crew:8,guns:5,tough:1.4,sc:1.16},{n:'frigate',crew:10,guns:7,tough:1.9,sc:1.32}];
+function shipTier(){if(mode!=='island'&&V&&V.ship!==undefined&&!(player&&player.shore))return V.ship;return Math.max(0,Math.min(2,((I&&I.boat)||0)-3));}
+function isleMul(o,id){return ((ISLES[(o&&o.isle)||0].inc)||{})[id]||1;}
+function prosper(){let n=0;for(const id in BLD)if(I.done[id])n+=lvl(id);return n;}
+function stripIsle(o){const c=Object.assign({},o);c.raid=c.rowing=c.fishing=c.haul=c.pour=c.dive=null;c.cp=[];c.rc=[];c.pops=[];c.prompts=[];c.others=[];c.chartBtns=[];c.chart=false;return c;}
+const GEAR=['rod','bait','cart','fishcart','sack','deal','nets','lantern','hook','provisions','powder','charts','boat'];
+function landOn(){const v=V,old=I_home||I,days=Math.max(1,v.day),rest=(old.others||[]).slice(),mates=Math.min(SHIPS[v.ship||0].crew,v.crew.length);let msg;
+  if(v.leg==='settle'){const k=v.settle;newIsland();I.isle=k;for(const u of UPG)if(!BLD[u.id]&&!u.tier&&old.done[u.id]){I.done[u.id]=true;I.paid[u.id]=u.cost;}for(const f of GEAR)I[f]=old[f];I.day=old.day+days;I.raidIn=6;I.goods=Object.assign({},v.cargo||{});I.others=[stripIsle(old)].concat(rest);msg=ISLES[k].n+': an empty shore, yours to build. '+ISLES[k].note+'.';}
+  else{const tg=rest.splice(v.visit||0,1)[0],away=Math.max(1,old.day+days-(tg.day||1));I=tg;I.others=[stripIsle(old)].concat(rest);I.day=old.day+days;for(const f of GEAR)I[f]=old[f];for(const u of UPG)if(!BLD[u.id]&&!u.tier&&old.done[u.id])I.done[u.id]=true;I.pile=I.pile||{};I.dmg=I.dmg||{};I.lvl=I.lvl||{};I.goods=I.goods||{};income(away);for(const g in (v.cargo||{}))I.goods[g]=(I.goods[g]||0)+v.cargo[g];let rep='';for(let i=0;i<Math.floor(away/6);i++)rep=resolveRaid(true).msg;I.raidIn=4;msg=rep?'While you were away: '+rep:'Back on '+ISLES[I.isle||0].n+' after '+away+' days. Collect at your buildings.';}
+  I.coins=v.gold;I.mates=mates;I_home=null;I.kid.x=I.kid.tx=-200;I.rowing=I.fishing=I.haul=I.pour=null;I.chart=false;enemy=null;balls=[];B=null;tod=0.3;respawnItems();enterIsland();mode='island';setBanner(ISLES[I.isle||0].n,3.5);isay(msg);jingle();}
 const DESTS=[{n:'Tortuga Cay',dist:2600,danger:1,p:{'salt fish':4,timber:6,grain:5,iron:9},note:'near · quiet waters'},{n:'Port Royal',dist:4200,danger:1.5,p:{'salt fish':7,timber:5,grain:9,iron:13},note:'a fair sail · patrolled'},{n:'Skull Reef',dist:6000,danger:2.3,p:{'salt fish':10,timber:12,grain:8,iron:20},note:'far · thick with pirates'}];
 const lvl=id=>(I.lvl&&I.lvl[id])||1;
 for(const id in BLD)for(const n of [2,3]){const u0=UPG.find(z=>z.id===id);UPG.push({id:id+n,x:BLD[id].x,cost:Math.round(u0.cost*(n===2?1.5:2.5)),icon:u0.icon,tier:n,req:()=>I.done[id]&&!I.dmg[id]&&lvl(id)===n-1,apply:()=>{I.lvl[id]=n;built(id,n===2?'Improved. It earns and defends twice as well.':'Finest on the island — three times its first worth.');}});}
 function cargoValue(goods,prices){let v=0;for(const g in goods)v+=(goods[g]||0)*(prices[g]||0);return v;}
 let QUIET=false,PREV=false,viewMenu=false,viewBtns=[],PX={x:0,y:0,r:0};
 function built(id,msg){I.dmg[id]=false;if(QUIET)return;isay(msg);const b=BLD[id]||BLD[id.replace(/[23]$/,'')],bx=b?b.x:I.kid.x;for(let i=0;i<5;i++)dust(bx+(i-2)*16,ground(bx)-2,5,'226,210,176',34);for(let i=0;i<16;i++)FX.push({x:bx+(Math.random()-0.5)*50,y:ground(bx)-30-Math.random()*40,vx:(Math.random()-0.5)*30,vy:-20-Math.random()*30,g:40,life:0,max:0.8+Math.random()*0.6,c:'255,224,130',a:0.95,r:1.3,grow:0});jingle();}
-function costOf(u){return I.dmg[u.id]?Math.ceil(u.cost*0.4):u.cost;}
+function costOf(u){const c=BLD[u.id]||u.tier?Math.round(u.cost*(1+0.3*(I.isle||0))):u.cost;return I.dmg[u.id]?Math.ceil(c*0.4):c;}
 function defence(){let d=Math.floor(I.mates/2)+(I.powder?1:0);for(const id in BLD)if(I.done[id]&&!I.dmg[id])d+=BLD[id].def*lvl(id);return d;}
-function threat(){return 2+Math.floor(I.day/4);}
-function income(days){for(const id in BLD){const b=BLD[id],L=lvl(id);if(!I.done[id]||I.dmg[id])continue;if(b.inc)I.pile[id]=Math.min(b.inc*L*6,(I.pile[id]||0)+b.inc*L*days);const g=GOODS[id];if(g)I.goods[g]=Math.min(12*L,(I.goods[g]||0)+L*days);}}
+function threat(){return 2+Math.floor(I.day/4)+ISLES[I.isle||0].thr;}
+function income(days){for(const id in BLD){const b=BLD[id],L=lvl(id);if(!I.done[id]||I.dmg[id])continue;if(b.inc){const m=isleMul(I,id);I.pile[id]=Math.min(Math.round(b.inc*L*m*6),(I.pile[id]||0)+Math.round(b.inc*L*m*days));}const g=GOODS[id];if(g)I.goods[g]=Math.min(12*L,(I.goods[g]||0)+L*days);}}
 function resolveRaid(quiet,forceLose){const str=threat(),def=defence(),win=!forceLose&&def>=str;let msg;
   if(win){const g=8+str*3;I.coins+=g;msg=`Raiders beaten off — defence ${def} against ${str}. ${g} coins taken from their boats.`;}
   else{const lost=Math.floor(I.coins*0.3);I.coins-=lost;const up=Object.keys(BLD).filter(id=>I.done[id]&&!I.dmg[id]);let burnt='';if(up.length){const id=pick(up);I.dmg[id]=true;I.done[id]=false;I.paid[id]=0;I.pile[id]=0;burnt=' A building burns.';}msg=`Raided — defence ${def} against ${str}. ${lost} coins stolen.${burnt}`;}
   I.raidIn=4+Math.floor(rnd(0,3));if(!quiet)isay(msg);return {win,msg};}
-function newIsland(){I={kid:{x:-150,tx:-150,face:1},coins:0,fish:0,shells:0,boat:0,crates:5,items:[],fishing:null,rowing:null,tales:0,logT:0,log:'',prompts:[],haul:null,hauled:0,dive:null,breath:0,shellV:0,capShow:0,rod:0,bait:0,cart:0,fishcart:0,sack:0,deal:0,mates:0,nets:0,lantern:0,hook:0,provisions:0,powder:0,charts:0,day:1,raidIn:5,raid:null,pile:{},dmg:{},lvl:{},goods:{},chart:false,paid:{},done:{},pour:null,pourAcc:0,cp:[],rc:[],pops:[]};
+function newIsland(){I={isle:0,others:[],kid:{x:-150,tx:-150,face:1},coins:0,fish:0,shells:0,boat:0,crates:5,items:[],fishing:null,rowing:null,tales:0,logT:0,log:'',prompts:[],haul:null,hauled:0,dive:null,breath:0,shellV:0,capShow:0,rod:0,bait:0,cart:0,fishcart:0,sack:0,deal:0,mates:0,nets:0,lantern:0,hook:0,provisions:0,powder:0,charts:0,day:1,raidIn:5,raid:null,pile:{},dmg:{},lvl:{},goods:{},chart:false,paid:{},done:{},pour:null,pourAcc:0,cp:[],rc:[],pops:[]};
   player=mkShip(-150,1,{});tod=0.3;respawnItems();enterIsland();
   isay('A dockhand with a dream and empty pockets. Tap the ground to walk; hold a coin circle to pour coins in.');}
 function isay(m){I.log=m;I.logT=7;}
@@ -1081,7 +1101,7 @@ const SPOTS=[
 ];
 function spotLabel(sp){return typeof sp.l==='function'?sp.l():sp.l;}
 function updIsland(dt){
-  tod=(tod+dt/DAY_LEN)%1;if(tod<dt/DAY_LEN){I.day++;respawnItems();income(1);I.raidIn--;isay(I.raidIn<=0?'Black sails sighted off the headland. They will come tonight.':'A new day on the island.');}
+  tod=(tod+dt/DAY_LEN)%1;if(tod<dt/DAY_LEN){I.day++;respawnItems();income(1);I.raidIn--;let pk=0;for(const o of I.others||[])for(const id in BLD)if(o.done&&o.done[id]&&!(o.dmg||{})[id])pk+=BLD[id].inc*((o.lvl||{})[id]||1)*isleMul(o,id);pk=Math.round(pk*0.3);I.coins+=pk;isay(I.raidIn<=0?'Black sails sighted off the headland. They will come tonight.':pk?'The packet boat brings '+pk+' coins from your other island'+(I.others.length>1?'s.':'.'):'A new day on the island.');}
   const k=I.kid;
   if(!I.rowing){const d=k.tx-k.x,inp=hero.input;
     if(Math.abs(d)>5){inp.dir=Math.sign(d);inp.run=Math.abs(d)>70||!!demo;fpT-=dt;if(fpT<=0&&(I.kid.x>70&&I.kid.x<590||I.kid.x>3290)){fpT=inp.run?0.2:0.3;FP.push({x:I.kid.x,t:0,s:FP.length%2});if(FP.length>60)FP.shift();}if(I.kid.x>70&&Math.random()<dt*(inp.run?9:4))dust(I.kid.x-inp.dir*3,groundLand(I.kid.x)-1,1,I.kid.x<600||I.kid.x>3280?'232,214,170':'150,132,100',10);}else inp.dir=0;
@@ -1134,7 +1154,7 @@ function doSpot(sp){const k=I.kid;
   else if(sp.id==='market'){const g=Math.round((I.fish*4+I.shellV)*(I.deal?1.5:1));if(g){I.coins+=g;isay(`Sold ${I.fish} fish and ${I.shells} finds for ${g} coins.`);I.fish=I.shells=0;I.shellV=0;I.capShow=2.6;}else isay('Nothing to sell. The merchant shoos you off.');}
   else if(sp.id==='tavern'){isay(TALES[I.tales%TALES.length]);I.tales++;}
   else if(sp.id==='look'){isay(pick(['Far out, a black sail crosses the horizon. One day.','Gulls, swell, and nothing but sea to the edge of the world.','A merchantman beats upwind toward Tortuga Cay. Heavy with cargo, no doubt.','The old cannon still points to sea. Someone defended this place once.']));}
-  else if(sp.id==='wright'){if(I.mates<6){isay(`A sloop needs six hands. You have ${I.mates}. Buy rounds at the tavern.`);return;}I.chart=true;I.kid.tx=I.kid.x;}
+  else if(sp.id==='wright'){const sh=SHIPS[shipTier()];if(I.mates<sh.crew){isay(`A ${sh.n} needs ${sh.crew} hands. You have ${I.mates}. Buy rounds at the tavern.`);return;}I.chart=true;I.kid.tx=I.kid.x;}
 }
 function refund(u){const n=I.paid[u.id]||0;if(!n)return;I.coins+=n;I.paid[u.id]=0;for(let i=0;i<Math.min(n,14);i++)I.rc.push({t:-i*0.05,id:u.id});isay(`${costOf(u)-n} more needed — your coins come back.`);}
 function payCoin(u){tone(1250+Math.min(900,(I.paid[u.id]||0)*28),0.09,0.09,'triangle');I.coins--;I.paid[u.id]=(I.paid[u.id]||0)+1;I.cp.push({t:0,id:u.id});if(I.paid[u.id]>=costOf(u)){I.done[u.id]=true;I.pour=null;u.apply();}}
@@ -1142,7 +1162,7 @@ function upgradesHere(){return UPG.filter(u=>!I.done[u.id]&&u.req()&&Math.abs(I.
 function islandPointerUp(){if(I&&I.pour&&!I.done[I.pour.id])refund(I.pour);if(I)I.pour=null;}
 function islandTap(x,y){
   if(ZB.r&&Math.hypot(x-ZB.x,y-ZB.y)<ZB.r){IZ=IZ<1.1?1.25:IZ<1.5?1.6:1;try{localStorage.setItem('broadside.zoom',IZ);}catch(e){}return;}
-  if(I.chart){for(const b of I.chartBtns||[])if(x>=b.x&&x<=b.x+b.w&&y>=b.y&&y<=b.y+b.h){I.chart=false;startVoyageFromIsland(b.d);return;}I.chart=false;return;}
+  if(I.chart){for(const b of I.chartBtns||[])if(x>=b.x&&x<=b.x+b.w&&y>=b.y&&y<=b.y+b.h){if(b.locked){isay(b.locked);I.chart=false;return;}I.chart=false;startVoyageFromIsland(b.d);return;}I.chart=false;return;}
   if(I.rowing)return;
   if(I.fishing){for(const b of I.prompts){if(b._bx!==undefined&&Math.hypot(x-b._bx,y-b._by)<26){doSpot(b);return;}}I.fishing=null;}
   // upgrade circles: tap = one coin, hold = pour
@@ -1154,7 +1174,7 @@ function islandTap(x,y){
   for(const it of I.items){if(Math.abs(wx-it.x)<22&&Math.abs(y-sy(ground(it.x)))<40){I.kid.tx=it.x;it.pick=true;return;}}
   I.kid.tx=clamp(wx,-230,I.done.dock2?XEND+70:XEND);
 }
-function startVoyageFromIsland(dest){dest=dest||DESTS[0];I_home=I;const cargo=Object.assign({},I.goods);I.goods={};const coins=I.coins,mates=I.mates,prov=I.provisions,pow=I.powder,ch=I.charts;newVoyage();V.gold=coins+20;if(prov){V.food=V.water=V.rum=100;}if(pow)V.dmg=16;V.total=Math.round(dest.dist*(ch?0.8:1));V.cargo=cargo;V.prices=dest.p;V.danger=dest.danger;V.eventT=16/dest.danger;{const names=['Quiet Jack','Red Meg','Dutch Pieter','Bones','Mad Annie','Silas Crane'];for(let i=0;i<V.crew.length;i++){V.crew[i].n=names[i];V.crew[i].m=85;}}V.leg='out';V.dest=dest.n;mode='voyage';setBanner('BROADSIDE',3);say('Your first command. Tap the ship to set the watch.');}
+function startVoyageFromIsland(dest){dest=dest||DESTS[0];I_home=I;const cargo=Object.assign({},I.goods);I.goods={};const coins=I.coins,mates=I.mates,prov=I.provisions,pow=I.powder,ch=I.charts;newVoyage();V.gold=coins+20;if(prov){V.food=V.water=V.rum=100;}if(pow)V.dmg=16;V.total=Math.round(dest.dist*(ch?0.8:1));V.cargo=cargo;V.prices=dest.p;V.danger=dest.danger;V.eventT=16/dest.danger;V.ship=Math.max(0,Math.min(2,(I.boat||3)-3));{const sh=SHIPS[V.ship],names=['Quiet Jack','Red Meg','Dutch Pieter','Bones','Mad Annie','Silas Crane','Tom Fenn','Black Bess','Old Harrow','Jem Stokes'];ST.guns.cap=sh.guns;ST.rigging.cap=3+V.ship;while(V.crew.length<sh.crew){const c=mkCrew('',BANDANAS[V.crew.length%BANDANAS.length]);c.role=V.crew.filter(z=>z.role==='guns').length<sh.guns?'guns':'hold';V.crew.push(c);}for(let i=0;i<V.crew.length;i++){V.crew[i].n=names[i];V.crew[i].m=85;}}V.leg=dest.settle!==undefined?'settle':dest.visit!==undefined?'visit':'out';V.settle=dest.settle;V.visit=dest.visit;V.dest=dest.n;mode='voyage';setBanner(V.leg==='settle'?'TO A NEW SHORE':'BROADSIDE',3);say(V.leg==='settle'?'A new island lies ahead. Tap the ship to set the watch.':'Tap the ship to set the watch.');}
 // ---- painterly helpers ----
 let TEX=null;
 function makeTex(w,h,fn){const c=document.createElement('canvas');c.width=w;c.height=h;const g=c.getContext('2d');fn(g,w,h);return ctx.createPattern(c,'repeat');}
@@ -1650,18 +1670,23 @@ function icon(id,u){ctx.lineWidth=1.6;ctx.strokeStyle='#ffd27a';ctx.fillStyle='#
   else if(id==='wall'){for(let i=-2;i<=2;i++){ctx.beginPath();ctx.moveTo(i*u*0.36-u*0.15,u*0.8);ctx.lineTo(i*u*0.36-u*0.15,-u*0.4);ctx.lineTo(i*u*0.36,-u*0.8);ctx.lineTo(i*u*0.36+u*0.15,-u*0.4);ctx.lineTo(i*u*0.36+u*0.15,u*0.8);ctx.fill();}}
   else if(id==='tavern'){ctx.fillRect(-u*0.45,-u*0.4,u*0.75,u*0.9);ctx.beginPath();ctx.arc(u*0.4,0,u*0.25,-1.3,1.3);ctx.stroke();ctx.fillStyle='#fff8e0';ctx.beginPath();ctx.ellipse(-u*0.08,-u*0.45,u*0.45,u*0.18,0,0,7);ctx.fill();}
 }
-function drawChart(){const W=Math.min(cw-24,520),rowH=64,H=70+DESTS.length*(rowH+8),X=cw/2-W/2,Y=Math.max(8,ch/2-H/2);
-  ctx.fillStyle='rgba(0,0,0,0.55)';ctx.fillRect(0,0,cw,ch);const pg=ctx.createLinearGradient(X,Y,X+W,Y+H);pg.addColorStop(0,'#e8d8ae');pg.addColorStop(1,'#c9b382');ctx.fillStyle=pg;ctx.fillRect(X,Y,W,H);ctx.strokeStyle='#5a4020';ctx.lineWidth=3;ctx.strokeRect(X+1.5,Y+1.5,W-3,H-3);
-  ctx.fillStyle='#3a2512';ctx.font='bold 20px Georgia';ctx.textAlign='center';ctx.fillText('WHERE AWAY, CAPTAIN?',cw/2,Y+28);
-  const hold=Object.keys(I.goods).filter(g=>I.goods[g]>0).map(g=>I.goods[g]+' '+g).join(' · ');ctx.font='12px Georgia';ctx.fillText(hold?'In the hold: '+hold:'The hold is empty — island buildings fill it day by day.',cw/2,Y+48,W-20);
-  I.chartBtns=[];DESTS.forEach((d,i)=>{const y=Y+60+i*(rowH+8),x=X+12,w=W-24;I.chartBtns.push({x,y,w,h:rowH,d});ctx.fillStyle='rgba(60,40,16,0.25)';rrect(x,y+2,w,rowH,9);ctx.fill();{const cg=ctx.createLinearGradient(0,y,0,y+rowH);cg.addColorStop(0,'rgba(255,246,214,0.55)');cg.addColorStop(1,'rgba(150,112,60,0.22)');ctx.fillStyle=cg;}rrect(x,y,w,rowH,9);ctx.fill();ctx.strokeStyle='rgba(90,64,32,0.85)';ctx.lineWidth=1.4;ctx.stroke();
-    ctx.textAlign='left';ctx.fillStyle='#3a2512';ctx.font='bold 16px Georgia';ctx.fillText(d.n,x+10,y+21);ctx.font='12px Georgia';ctx.fillStyle='#5a4020';ctx.fillText(d.note,x+10,y+38);
-    ctx.fillText(Object.keys(d.p).map(g=>g+' '+d.p[g]).join('  ·  '),x+10,y+55,w-120);
-    for(let s2=0;s2<3;s2++){ctx.fillStyle=s2<Math.round(d.danger*1.3)?'#8a1a1a':'rgba(90,64,32,0.25)';ctx.beginPath();ctx.arc(x+w-58+s2*14,y+16,4.5,0,7);ctx.fill();}
-    ctx.textAlign='right';ctx.fillStyle='#3a2512';ctx.font='bold 15px Georgia';ctx.fillText('+'+(20+I.mates*4+cargoValue(I.goods,d.p))+' gold',x+w-10,y+44);});
-  ctx.textAlign='center';ctx.fillStyle='#5a4020';ctx.font='11px Georgia';ctx.fillText('tap a port to weigh anchor · tap outside to stay',cw/2,Y+H-8);}
+function drawChart(){const rows=DESTS.map(d=>({d,kind:'trade'})),own=1+(I.others||[]).length;
+  if(own<ISLES.length){const k=own,need=8,have=prosper();rows.push({kind:'settle',d:{n:ISLES[k].n,dist:4400+k*700,danger:1.2+k*0.35,p:{},settle:k,note:ISLES[k].note},locked:have<need?'Build this island up first: '+have+' of '+need+' building levels.':null,have,need});}
+  (I.others||[]).forEach((o,j)=>rows.push({kind:'visit',d:{n:ISLES[o.isle||0].n,dist:3000,danger:1.2,p:{},visit:j,note:'your island · sail back to collect, upgrade and defend'}}));
+  const cols=rows.length>4?2:1,per=Math.ceil(rows.length/cols),W=Math.min(cw-20,cols>1?760:520),rowH=Math.max(44,Math.min(64,(ch-86)/per-8)),H=62+per*(rowH+8)+16,X=cw/2-W/2,Y=Math.max(6,ch/2-H/2),small=rowH<56;
+  ctx.fillStyle='rgba(0,0,0,0.55)';ctx.fillRect(0,0,cw,ch);ctx.fillStyle='rgba(0,0,0,0.4)';rrect(X,Y+4,W,H,12);ctx.fill();const pg=ctx.createLinearGradient(X,Y,X+W,Y+H);pg.addColorStop(0,'#e8d8ae');pg.addColorStop(1,'#c9b382');ctx.fillStyle=pg;rrect(X,Y,W,H,12);ctx.fill();ctx.strokeStyle='#5a4020';ctx.lineWidth=2.5;ctx.stroke();
+  ctx.fillStyle='#3a2512';ctx.font='bold 19px Georgia';ctx.textAlign='center';ctx.fillText('WHERE AWAY, CAPTAIN?',cw/2,Y+26);
+  const hold=Object.keys(I.goods).filter(g=>I.goods[g]>0).map(g=>I.goods[g]+' '+g).join(' · ');ctx.font='12px Georgia';ctx.fillText(hold?'In the hold: '+hold:'The hold is empty — island buildings fill it day by day.',cw/2,Y+44,W-20);
+  I.chartBtns=[];const cwid=(W-24-(cols-1)*10)/cols;rows.forEach((r,i)=>{const d=r.d,x=X+12+Math.floor(i/per)*(cwid+10),y=Y+56+(i%per)*(rowH+8),w=cwid;I.chartBtns.push({x,y,w,h:rowH,d,locked:r.locked});
+    ctx.fillStyle='rgba(60,40,16,0.25)';rrect(x,y+2,w,rowH,9);ctx.fill();{const cg=ctx.createLinearGradient(0,y,0,y+rowH);if(r.kind==='settle'){cg.addColorStop(0,r.locked?'rgba(200,190,170,0.5)':'rgba(255,230,150,0.85)');cg.addColorStop(1,r.locked?'rgba(140,130,110,0.3)':'rgba(214,160,70,0.5)');}else if(r.kind==='visit'){cg.addColorStop(0,'rgba(214,236,224,0.7)');cg.addColorStop(1,'rgba(110,150,130,0.3)');}else{cg.addColorStop(0,'rgba(255,246,214,0.55)');cg.addColorStop(1,'rgba(150,112,60,0.22)');}ctx.fillStyle=cg;}rrect(x,y,w,rowH,9);ctx.fill();ctx.strokeStyle=r.kind==='settle'&&!r.locked?'#8a5a10':'rgba(90,64,32,0.85)';ctx.lineWidth=r.kind==='settle'&&!r.locked?2:1.4;ctx.stroke();
+    ctx.textAlign='left';ctx.fillStyle='#3a2512';ctx.font='bold '+(small?14:16)+'px Georgia';ctx.fillText((r.kind==='settle'?'Settle ':r.kind==='visit'?'Sail to ':'')+d.n,x+10,y+(small?17:21),w-96);ctx.font=(small?11:12)+'px Georgia';ctx.fillStyle='#5a4020';
+    const l2=r.kind==='trade'?Object.keys(d.p).map(g=>g+' '+d.p[g]).join(' · '):r.locked?'needs '+r.need+' building levels here — you have '+r.have:d.note;ctx.fillText(small?l2:d.note,x+10,y+(small?33:38),w-(small?96:20));if(!small)ctx.fillText(r.kind==='trade'?l2:r.locked?l2:'',x+10,y+55,w-110);
+    ctx.textAlign='right';if(r.kind==='trade'){for(let s2=0;s2<3;s2++){ctx.fillStyle=s2<Math.round(d.danger*1.3)?'#8a1a1a':'rgba(90,64,32,0.25)';ctx.beginPath();ctx.arc(x+w-40+s2*13,y+(small?12:16),4.2,0,7);ctx.fill();}const gv=cargoValue(I.goods,d.p)+20+I.mates*4;ctx.fillStyle='#3a2512';ctx.font='bold '+(small?13:15)+'px Georgia';ctx.fillText('+'+gv+' gold',x+w-10,y+rowH-(small?9:22));}
+    else{ctx.fillStyle=r.locked?'#7a6a50':'#3a2512';ctx.font='bold '+(small?12:14)+'px Georgia';ctx.fillText(r.kind==='settle'?(r.locked?'LOCKED':'NEW ISLAND'):'YOURS',x+w-10,y+(small?17:22));}});
+  ctx.textAlign='center';ctx.fillStyle='#5a4020';ctx.font='11px Georgia';ctx.fillText('tap a destination to weigh anchor · tap outside to stay',cw/2,Y+H-7);}
 const WOODS=[[905,74,1],[960,60,2],[1332,78,3],[1505,66,4],[1640,84,5],[1745,70,6],[2330,80,7],[2395,96,8],[2450,72,9],[2640,88,10],[2700,70,11],[2760,94,12],[2960,84,13],[3030,72,14],[3190,90,15],[3215,66,16]];
 let FX=[],FP=[],fpT=0,IZ=1.25,ZB={x:0,y:0,r:0};try{const z=+localStorage.getItem('broadside.zoom');if(z>=0.9&&z<=2)IZ=z;}catch(e){}
+
 function dust(wx,wy,n,c,sp){for(let i=0;i<n;i++)FX.push({x:wx+(Math.random()-0.5)*6,y:wy,vx:(Math.random()-0.5)*(sp||14),vy:-Math.random()*(sp||14)*0.7-2,life:0,max:0.5+Math.random()*0.5,c:c||'216,196,150',r:1.5+Math.random()*2});if(FX.length>160)FX.splice(0,FX.length-160);}
 function rainAmt(){return demo?0:Math.max(0,Math.min(1,(Math.sin(t*0.021-1.5)-0.84)*9));}
 function drawWeather(){const k=cam.scale;
@@ -1720,7 +1745,7 @@ function rrect(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,
 function drawIslandHUD(){const pad=12;drawWeather();if(!demo){const r=17,x=pad+r-3,y=62;ZB={x,y,r:r+6};ctx.fillStyle='rgba(8,14,22,0.55)';ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.fill();ctx.strokeStyle='rgba(216,184,106,0.6)';ctx.lineWidth=1;ctx.stroke();ctx.strokeStyle='#f4e6c8';ctx.lineWidth=2;ctx.beginPath();ctx.arc(x-2,y-2,6.5,0,7);ctx.moveTo(x+3,y+3);ctx.lineTo(x+8,y+8);ctx.stroke();ctx.lineWidth=1.6;ctx.beginPath();ctx.moveTo(x-5,y-2);ctx.lineTo(x+1,y-2);if(IZ<1.5){ctx.moveTo(x-2,y-5);ctx.lineTo(x-2,y+1);}ctx.stroke();}else ZB={x:0,y:0,r:0};{const hold=Object.keys(I.goods).filter(g=>I.goods[g]>0).map(g=>I.goods[g]+' '+g).join(' · ');if(hold){ctx.fillStyle='rgba(244,230,200,0.8)';ctx.font='12px Georgia';ctx.textAlign='left';ctx.fillText('hold: '+hold,pad,42);}}{ctx.font='bold 15px Georgia';const tw=ctx.measureText(''+I.coins).width,pw=tw+40;rrect(pad-4,8,pw,24,12);ctx.fillStyle='rgba(8,14,22,0.55)';ctx.fill();ctx.strokeStyle='rgba(216,184,106,0.55)';ctx.lineWidth=1;ctx.stroke();const cg=ctx.createRadialGradient(pad+6,17,1,pad+8,20,9);cg.addColorStop(0,'#fff3b0');cg.addColorStop(0.6,'#ffd24a');cg.addColorStop(1,'#a87a14');ctx.fillStyle=cg;ctx.beginPath();ctx.arc(pad+9,20,8,0,7);ctx.fill();ctx.strokeStyle='#8a6a10';ctx.lineWidth=1;ctx.stroke();ctx.strokeStyle='rgba(138,106,16,0.6)';ctx.beginPath();ctx.arc(pad+9,20,5,0,7);ctx.stroke();ctx.fillStyle='#f4e6c8';ctx.textAlign='left';ctx.fillText(''+I.coins,pad+24,25);}
 
 
-  ctx.textAlign='right';ctx.fillText('DAY '+I.day+'  ·  '+(light>0.5?(tod<0.5?'Morning':'Afternoon'):(tod<0.5?'Night':'Evening')),cw-pad,24);
+  ctx.textAlign='right';ctx.fillText(ISLES[I.isle||0].n.toUpperCase()+'  ·  DAY '+I.day+'  ·  '+(light>0.5?(tod<0.5?'Morning':'Afternoon'):(tod<0.5?'Night':'Evening')),cw-pad,24);
   {const d=defence(),th=threat(),safe=d>=th;ctx.font='12px Georgia';ctx.fillStyle=safe?'rgba(190,230,190,0.9)':'#ffb0a0';ctx.fillText(`defence ${d}  ·  raiders ${th}  ·  ${I.raidIn<=0?'tonight':'in '+I.raidIn+(I.raidIn===1?' day':' days')}`,cw-pad,42);}
   if(I.logT>0){const TW=Math.min(cw-40,560);{ctx.font='14px Georgia';const w2=Math.min(TW,ctx.measureText(I.log).width+36);rrect(cw/2-w2/2,71,w2,30,15);ctx.fillStyle=`rgba(5,12,20,${Math.min(0.62,I.logT)})`;ctx.fill();ctx.strokeStyle=`rgba(216,184,106,${Math.min(0.45,I.logT)})`;ctx.lineWidth=1;ctx.stroke();}ctx.fillStyle=`rgba(244,230,200,${Math.min(1,I.logT)})`;ctx.font='14px Georgia';ctx.textAlign='center';ctx.fillText(I.log,cw/2,91,TW-20);}}
 
@@ -1858,9 +1883,9 @@ function crewFig(c,x,y,working,sc,face){let r=CREWRIG.get(c);if(!r){r=makeStride
   ctx.save();ctx.translate(x,y);ctx.scale(sc,sc);ctx.translate(-r.H.x,0);r.draw();ctx.restore();}
 function drawShip(s,crew){if(s.shore){drawBattery(s);return;}
   const w=hullW(s),h=s.hgt,X=sx(s.x),Y=sy(shipY(s));
-  ctx.save();ctx.translate(X,Y);ctx.rotate(shipTilt(s));ctx.scale(cam.scale*s.dir,cam.scale);
+  const ssc=s===player?SHIPS[shipTier()].sc:(s.sc||1);ctx.save();ctx.translate(X,Y);ctx.rotate(shipTilt(s));ctx.scale(cam.scale*s.dir*ssc,cam.scale*ssc);
   const edge=s.facing, sh=light<0.45?mix('#000000',s.hull,0.55):s.hull, sailc=mix('#555a66',s.sail,0.35+0.65*light), cut=s===player?zoom:0;
-  const masts=[-0.22,0.2];
+  const masts=ssc>1.25?[-0.3,-0.03,0.24]:[-0.22,0.2];
   for(const m of masts){const mx=m*w,mh=118;
     ctx.strokeStyle='#2a1a0e';ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(mx,-h*0.5);ctx.lineTo(mx,-h*0.5-mh);ctx.stroke();
     const reef=mode==='voyage'&&V.storm>0&&V.mod.some(x=>x.v<1)?0.55:1;
@@ -2092,6 +2117,7 @@ function overlay(){
 }
 let boltT=0,boltX=0;
 function postFX(){
+  if(mode==='island'&&I&&ISLES[I.isle||0].tint){ctx.fillStyle=ISLES[I.isle||0].tint;ctx.fillRect(0,0,cw,ch);}
   if(mode==='voyage'&&V&&V.storm>0){boltT-=FDT;if(boltT<-rnd(2.5,7)){boltT=0.32;boltX=rnd(0.15,0.85)*cw;boom(0.5,1.6,260);shake=Math.max(shake,3);}
     if(boltT>0){const a=boltT/0.32;ctx.fillStyle=`rgba(225,235,255,${0.5*a*a})`;ctx.fillRect(0,0,cw,ch);ctx.strokeStyle=`rgba(255,255,255,${a})`;ctx.lineWidth=2;ctx.beginPath();let x=boltX,y=0;ctx.moveTo(x,y);const sd=Math.floor(boltX);for(let i=0;i<9;i++){x+=(((sd*(i+3)*37)%60)-30);y+=ch*seaLine/9;ctx.lineTo(x,y);if(i===4){ctx.moveTo(x,y);ctx.lineTo(x+40,y+ch*0.09);ctx.moveTo(x,y);}}ctx.stroke();}}
   const dusk=Math.exp(-Math.pow((light-0.3)/0.16,2));
@@ -2113,7 +2139,7 @@ function draw(){
 
 // ---------- input ----------
 const keys={KeyA:'left',ArrowLeft:'left',KeyD:'right',ArrowRight:'right',KeyW:'up',ArrowUp:'up',KeyS:'down',ArrowDown:'down',KeyT:'turn',Space:'fire'};
-function returnHome(){const v=V;if(!I_home){newIsland();mode='island';return;}I=I_home;I_home=null;const days=Math.max(1,v.day);I.coins=v.gold;I.mates=Math.min(6,v.crew.length);I.day+=days;income(days);
+function returnHome(){const v=V;if(!I_home){newIsland();mode='island';return;}I=I_home;I_home=null;const days=Math.max(1,v.day);I.coins=v.gold;I.mates=Math.min(SHIPS[v.ship||0].crew,v.crew.length);I.day+=days;income(days);
   const raids=Math.floor(days/5);let rep='';for(let i=0;i<raids;i++){const r=resolveRaid(true);rep=r.msg;}
   I.kid.x=-200;I.kid.tx=-200;I.rowing=I.fishing=I.haul=I.pour=null;enemy=null;balls=[];B=null;tod=0.3;respawnItems();enterIsland();mode='island';isay(rep?'While you were away: '+rep:`Home after ${days} days. The island kept working — collect at your buildings.`);}
 function begin(){audio();if(mode==='arrived'&&!demo&&(V.arrT||0)<1.4)return;if(mode==='intro'){newIsland();mode='island';}else if(mode==='over'){clearSave();newIsland();mode='island';}else if(mode==='arrived'){if(V.leg==='home'||!I_home){returnHome();return;}const keep=V;newVoyage();V.gold=keep.gold+(keep.profit||0);V.crew=keep.crew;V.crew.forEach(c=>{c.fat=0;c.sick=0;});V.hull=Math.min(100,keep.hull+40);V.sails=Math.min(100,keep.sails+50);V.rudder=100;V.food=90;V.water=90;V.rum=Math.min(100,keep.rum+40);V.day=keep.day;V.dmg=keep.dmg;V.leg='home';V.dest='home';V.total=Math.round(keep.total*0.6);V.danger=keep.danger;say('Holds full of coin. Homeward bound.');mode='voyage';}}
@@ -2143,7 +2169,7 @@ let demoTouchWas=null;
 function startDemo(){newIsland();mode='island';I.coins=38;demoTouchWas=touch;touch=true;demo={i:-1,t:0,speed:1,cap:'',ptr:{x:cw/2,y:ch/2,show:false,press:false,pressT:0},acted:false,dwell:0};nextStep();}
 function pvIsland(tier,x){PREV=true;QUIET=true;newIsland();mode='island';I.coins=999;if(tier>0){for(const u of UPG)if(!u.tier&&!BLD[u.id])I.done[u.id]=true;I.rod=I.bait=I.fishcart=I.deal=I.nets=I.cart=1;I.boat=3;I.mates=6;I.goods={'salt fish':6,timber:5,grain:5,iron:3};for(const id in BLD){dBuild(id);if(tier>1)dBuild(id+'2');if(tier>2)dBuild(id+'3');}}I.kid.x=I.kid.tx=x;tod=0.3;enterIsland();QUIET=false;I.logT=0;}
 function pvSea(){pvIsland(1,-200);startVoyageFromIsland(DESTS[0]);V.eventT=9999;tod=0.3;}
-const PARTS=[['Island: the start',()=>pvIsland(0,-150)],['Island: all built',()=>pvIsland(1,2790)],['Buildings: level 2',()=>pvIsland(2,2790)],['Buildings: level 3',()=>pvIsland(3,2790)],['Fort and battery',()=>pvIsland(3,2240)],['Night raid',()=>{pvIsland(1,2240);startShore();}],['Chart of ports',()=>{pvIsland(1,330);I.chart=true;}],['Voyage',()=>pvSea()],['Aboard ship',()=>{pvSea();zoomOn=true;}],['Sea battle',()=>{pvSea();startBattle(false);}],['Boarding',()=>{pvSea();startBattle(true);startBoarding();}],['Captain duel',()=>{pvSea();startBattle(true);startBoarding();B.theirs=0;}],['Making port',()=>{pvSea();V.dist=V.total-1;}]];
+const PARTS=[['Island: the start',()=>pvIsland(0,-150)],['Island: all built',()=>pvIsland(1,2790)],['Buildings: level 2',()=>pvIsland(2,2790)],['Buildings: level 3',()=>pvIsland(3,2790)],['Fort and battery',()=>pvIsland(3,2240)],['Night raid',()=>{pvIsland(1,2240);startShore();}],['Chart of ports',()=>{pvIsland(1,330);I.chart=true;}],['Voyage',()=>pvSea()],['Aboard ship',()=>{pvSea();zoomOn=true;}],['Sea battle',()=>{pvSea();startBattle(false);}],['Boarding',()=>{pvSea();startBattle(true);startBoarding();}],['Captain duel',()=>{pvSea();startBattle(true);startBoarding();B.theirs=0;}],['Making port',()=>{pvSea();V.dist=V.total-1;}],['Second island',()=>{pvIsland(0,-150);I.isle=1;I.boat=3;I.mates=6;I.coins=400;for(const u of UPG)if(!BLD[u.id]&&!u.tier)I.done[u.id]=true;const o=stripIsle(I);o.isle=0;o.done=Object.assign({},I.done,{hut:1,mill:1,farm:1});o.lvl={mill:2};I.others=[o];}],['Chart: new island',()=>{pvIsland(2,330);I.chart=true;}],['Frigate aboard',()=>{pvIsland(1,-200);I.boat=5;I.mates=10;startVoyageFromIsland(DESTS[0]);V.eventT=9999;zoomOn=true;}],['Frigate battle',()=>{pvIsland(1,-200);I.boat=5;I.mates=10;startVoyageFromIsland(DESTS[0]);V.eventT=9999;touch=true;startBattle(false);}]];
 function exitPreview(){PREV=false;viewMenu=false;enemy=null;balls=[];B=null;winner=null;stopDemo();}
 function drawPreviewUI(){
   if(PREV&&mode!=='intro'){const x=mode==='island'?23:26,y=mode==='island'?106:ch*0.52,r=17;PX={x,y,r:r+7};ctx.fillStyle='rgba(8,14,22,0.6)';ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.fill();ctx.strokeStyle='rgba(216,184,106,0.7)';ctx.lineWidth=1;ctx.stroke();ctx.strokeStyle='#f4e6c8';ctx.lineWidth=2.2;ctx.beginPath();ctx.moveTo(x-6,y-6);ctx.lineTo(x+6,y+6);ctx.moveTo(x+6,y-6);ctx.lineTo(x-6,y+6);ctx.stroke();}else PX={x:0,y:0,r:0};
@@ -2225,7 +2251,7 @@ function saveGame(){if(PREV)return;try{let data=null;
   else if((mode==='voyage'||mode==='battle'||mode==='boarding')&&V){const o=Object.assign({},V);o.ev=null;let h=null;if(I_home){h=Object.assign({},I_home);h.rowing=h.fishing=h.haul=h.pour=h.raid=null;h.cp=[];h.rc=[];h.pops=[];h.prompts=[];}data={mode:'voyage',V:o,tod,I:h};}
   if(data)localStorage.setItem(SAVE_KEY,JSON.stringify(data));}catch(e){}}
 function loadGame(){try{const raw=localStorage.getItem(SAVE_KEY);if(!raw)return false;const d=JSON.parse(raw);
-  if(d.mode==='island'){newIsland();Object.assign(I,d.I);I.dive=null;I.rowing=null;I.fishing=null;I.haul=null;I.pour=null;I.cp=[];I.rc=[];I.pops=[];I.prompts=[];I.kid.tx=I.kid.x;I.lvl=I.lvl||{};I.goods=I.goods||{};I.chart=false;I.pile=I.pile||{};I.dmg=I.dmg||{};if(I.raidIn===undefined)I.raidIn=5;tod=d.tod||0.3;mode='island';enterIsland();isay('Welcome back.');}
+  if(d.mode==='island'){newIsland();Object.assign(I,d.I);I.dive=null;I.rowing=null;I.fishing=null;I.haul=null;I.pour=null;I.cp=[];I.rc=[];I.pops=[];I.prompts=[];I.kid.tx=I.kid.x;I.lvl=I.lvl||{};I.goods=I.goods||{};I.others=I.others||[];I.isle=I.isle||0;I.chart=false;I.pile=I.pile||{};I.dmg=I.dmg||{};if(I.raidIn===undefined)I.raidIn=5;tod=d.tod||0.3;mode='island';enterIsland();isay('Welcome back.');}
   else{I_home=d.I||null;newVoyage();Object.assign(V,d.V);V.ev=null;V.mod=V.mod||[];tod=d.tod||0.3;player.x=600;mode='voyage';say('Welcome back, captain.');}
   return true;}catch(e){return false;}}
 function hasSave(){try{return !!localStorage.getItem(SAVE_KEY);}catch(e){return false;}}
