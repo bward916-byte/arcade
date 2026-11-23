@@ -1288,21 +1288,28 @@ final class Renderer {
         let t = g.t
         let f = g.floor
         let x = 16 + g.safeL
-        cv.RR(x - 8, 8, 250, 104, 12, BLACK.alpha(0.5))
+        cv.RR(x - 8, 8, 250, 124, 12, BLACK.alpha(0.5))
         let label = f.kind == .roof ? "ROOF" : (f.kind == .street ? "STREET" : "FLOOR \(f.n)")
         let place: String = f.kind == .roof || f.kind == .street ? g.tw.building : "\(g.tw.building) · \(g.zone(f.n).name)"
         cv.text("\(g.tw.who) · \(place)", x, 24, 10, WHITE.alpha(0.65), 0, 1)
         cv.text(label, x, 52, 27, g.tw.hue, 0, 3)
         let hpCol: Col = g.hero.hp < g.hero.maxHp * 0.3 ? HOT : Col(0x7fd67a)
-        bar(cv, x, 60, 234, 16, g.hero.hp / g.hero.maxHp, hpCol)
-        bar(cv, x, 82, 234, 12, g.meter / 100, g.meter >= 100 ? GOLD : Col(0xb89a50))
-        cv.RR(x, 98, 234, 6, 3, BLACK.alpha(0.6)); cv.RR(x + 1, 99, max(4, 232 * clampD(g.energy / g.energyNeed, 0, 1)), 4, 2, Col(0x7db8ff))
+        // three bars, each one says what it is
+        bar(cv, x, 60, 234, 20, g.hero.hp / g.hero.maxHp, hpCol)
+        cv.text("♥ HEALTH", x + 8, 75, 11, BLACK.alpha(0.85), 0, 3)
+        cv.text("\(max(0, Int(g.hero.hp.rounded(.up)))) / \(Int(g.hero.maxHp))", x + 226, 75, 11, BLACK.alpha(0.85), 2, 3)
+        let ready = g.meter >= 100
+        bar(cv, x, 84, 234, 18, g.meter / 100, ready ? GOLD : Col(0xb89a50))
+        cv.text(ready ? "⚡ POWER MOVE READY — TAP ⚡" : "⚡ POWER MOVE", x + 8, 97, 10.5, ready && Int(t * 4) % 2 == 0 ? HOT : BLACK.alpha(0.85), 0, 3)
+        bar(cv, x, 106, 234, 18, g.energy / g.energyNeed, Col(0x7db8ff))
+        cv.text("★ NEXT UPGRADE", x + 8, 119, 10.5, BLACK.alpha(0.85), 0, 3)
+        cv.text("kill to fill", x + 226, 119, 10, BLACK.alpha(0.6), 2, 1)
         // what you carry
         var ix = x
         for u in UPS where g.lv(u.id) > 0 {
-            cv.RR(ix - 2, 114, 30, 30, 8, BLACK.alpha(0.5))
-            cv.text(u.icon, ix + 13, 136, 17, WHITE, 1, 1)
-            for l in 0..<g.lv(u.id) { cv.R(ix + 2 + Double(l) * 9, 146, 7, 3, u.sup ? Col(0xff8ad8) : GOLD) }
+            cv.RR(ix - 2, 138, 30, 30, 8, BLACK.alpha(0.5))
+            cv.text(u.icon, ix + 13, 160, 17, WHITE, 1, 1)
+            for l in 0..<g.lv(u.id) { cv.R(ix + 2 + Double(l) * 9, 170, 7, 3, u.sup ? Col(0xff8ad8) : GOLD) }
             ix += 34
         }
         // one goal
@@ -1629,6 +1636,7 @@ final class Renderer {
         cv.stamp("ZERO", 8, 62, 130, GOLD, 1)
         cv.restore()
         cv.text("GET DOWN. ALL THREE OF YOU.", W / 2, 330, 16, WHITE.alpha(0.85), 1, 3)
+        cv.text("build \(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "?")", W - g.safeR - 14, 22, 11, WHITE.alpha(0.5), 2, 1)
         // play
         let r = g.playRect
         cv.save()

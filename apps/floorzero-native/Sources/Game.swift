@@ -79,9 +79,9 @@ final class Zed {
         maxHp = h
         speed = sp
         reach = re + seed * 18
-        dmg = dm * 2.0
-        windup = wu
-        rate = ra
+        dmg = dm * 2.8
+        windup = wu * 0.85
+        rate = ra * 0.75
         sight = si
         let human = kind == .zed || kind == .runner || kind == .spitter || kind == .crawler || kind == .screamer || kind == .burner
         scale = human ? sc * (0.88 + hashN(seed * 5.7) * 0.3) : sc
@@ -423,7 +423,7 @@ final class Game {
         if f.kind == .roof || (k > 3 && k % 7 == 3 && !bossFloor) {
             for _ in 0..<(f.kind == .roof ? 2 : 3) { f.zeds.append(Zed(id: nextId, kind: .crow, x: spot(&rng), depth: max(0, k), seed: rng.next())); nextId += 1 }
         }
-        f.reserve = f.kind == .street ? 10 : min(9, 3 + max(0, k) / 10)
+        f.reserve = f.kind == .street ? 12 : min(11, 5 + max(0, k) / 10)
         if bossFloor { f.reserve = 0 }
         if f.kind == .safe { f.reserve = 0 }
         if valveFloor && !valveShut { f.items.append(Item(x: FLOOR_W / 2, kind: 3)) }
@@ -703,7 +703,7 @@ final class Game {
                 h.atkStyle = st
             }
             h.crit = -1
-            if h.chain != 3 && chance(0.2) { h.crit = Int.random(in: 0..<5); h.atkStyle = [4, 9, 1, 5, 7][h.crit] }
+            if h.chain != 3 && chance(0.14) { h.crit = Int.random(in: 0..<5); h.atkStyle = [4, 9, 1, 5, 7][h.crit] }
             h.atkT = 0
             h.atkHit = false
             if mv == 0, let z = nearest(190) { h.face = z.x >= h.x ? 1 : -1 }
@@ -877,7 +877,7 @@ final class Game {
         // more of them burst out of the doors while you fight
         if f.reserve > 0 {
             f.spawnT -= dt
-            if f.spawnT <= 0 && aliveCount < 9 {
+            if f.spawnT <= 0 && aliveCount < 11 {
                 f.spawnT = aliveCount < 3 ? 0.5 : 1.3
                 f.reserve -= 1
                 var x = 200 + 300 * Double(Int.random(in: 0..<5)) + 33
@@ -1124,7 +1124,7 @@ final class Game {
         z.kvx = dir * knock * (heavy ? 0.25 : 1)
         // a light tap no longer stops them cold: only a hard hit, or luck, breaks an attack
         let hard = abs(knock) >= 240
-        z.stun = max(z.stun, heavy ? 0.06 : (z.kind == .wheel || z.kind == .riot ? 0.08 : (hard ? 0.22 : 0.05)))
+        z.stun = max(z.stun, heavy ? 0.06 : (z.kind == .wheel || z.kind == .riot ? 0.08 : (hard ? 0.22 : 0.0)))
         if z.atkT >= 0 && !heavy && (hard || chance(0.18)) { z.atkT = -1; z.cd = 0.3 }
         hits += 1; hitsT = 1.6
         var top = -110.0 * z.scale
@@ -1197,10 +1197,10 @@ final class Game {
         let h = hero
         if supT >= 0 || mode != .play { return }
         if !quiet && h.inv > 0 { return }
-        h.hp -= dmg * (1 - 0.2 * Double(lv("armor")))
-        dmgTaken += dmg * (1 - 0.2 * Double(lv("armor")))
+        h.hp -= dmg * (1 - 0.15 * Double(lv("armor")))
+        dmgTaken += dmg * (1 - 0.15 * Double(lv("armor")))
         if !quiet {
-            h.inv = 0.35
+            h.inv = 0.25
             h.hurtT = 0.25
             shake = max(shake, 8)
             flash = 0.25; flashCol = BLOOD
@@ -1526,8 +1526,8 @@ final class Game {
             if abs(it.x - h.x) > 34 { continue }
             if it.kind == 0 && h.hp < h.maxHp - 1 {
                 f.items[i].used = true
-                h.hp = min(h.maxHp, h.hp + 30)
-                floaters.append(Floater(x: h.x, y: -170, text: "+30", col: MINT, t: 0, size: 20))
+                h.hp = min(h.maxHp, h.hp + 25)
+                floaters.append(Floater(x: h.x, y: -170, text: "+25", col: MINT, t: 0, size: 20))
                 snd?.heal(); buzz(1)
             } else if it.kind == 2 {
                 f.items[i].used = true
