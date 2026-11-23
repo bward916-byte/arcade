@@ -48,7 +48,7 @@ extension Game {
         let cw = 300.0, gap = 44.0
         let n = Double(max(1, pickOpts.count))
         let x0 = W / 2 - (n * cw + (n - 1) * gap) / 2
-        return Rect4(x: x0 + Double(i) * (cw + gap), y: 128, w: cw, h: 330)
+        return Rect4(x: x0 + Double(i) * (cw + gap), y: 116, w: cw, h: 384)
     }
 }
 
