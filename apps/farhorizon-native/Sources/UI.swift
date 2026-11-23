@@ -163,10 +163,117 @@ extension Game {
             c.save()
             c.alpha(a)
             btn(c, px + 20 + Double(col) * (bw + 8), by + Double(row) * (bh + 8) + 14 * (1 - a), bw, bh, o.label, o.sub, gold: i == 0 && !o.off, off: o.off, o.act)
+            if !o.pic.isEmpty {
+                if o.off { c.alpha(a * 0.45) }
+                optPic(c, o.pic, px + 20 + Double(col) * (bw + 8) + 26, by + Double(row) * (bh + 8) + 14 * (1 - a) + bh / 2, Double(i))
+            }
             c.restore()
         }
         c.restore()
         uiLock = false
+    }
+
+    /// The moving picture on an upgrade's button: what the yard, or the swordmaster, will do for you.
+    func optPic(_ c: Canvas, _ k: String, _ x: Double, _ y: Double, _ seed: Double) {
+        let t = T + seed * 0.4
+        let wood = Col(0x6b4423), dark = Col(0x2a1a0c), steel = Col(0xe6ecf0)
+        c.save()
+        c.translate(x, y)
+        c.RR(-17, -17, 34, 34, 8, Col(0x1c1108, 0.55)); c.RRStroke(-17, -17, 34, 34, 8, 1, Col(0xd2a455, 0.6))
+        c.save()
+        c.clipRR(-16, -16, 32, 32, 7)
+        switch k {
+        case "repair":
+            // a hammer driving a nail into a plank
+            let sw = sin(t * 5)
+            c.R(-14, 7, 28, 6, wood); c.R(-14, 9.5, 28, 0.8, dark)
+            c.R(-0.8, 2 + max(0, -sw) * 2, 1.6, 6, steel)
+            c.save(); c.translate(9, 6); c.rotate(-1.0 + max(0, sw) * 1.0)
+            c.seg(0, 0, 0, -17, 2.4, Col(0x8a6238)); c.RR(-9, -21, 13, 6, 1.5, Col(0x9aa0a8))
+            c.restore()
+            if sw < -0.8 { for sp in 0..<4 { c.circ(-4 + hashN(Double(sp) + floor(t * 5)) * 8, 2 - hashN(Double(sp) * 3) * 6, 1.1, Col(0xffd257)) } }
+        case "sails":
+            // a mast growing a new topsail, the canvas filling
+            let grow = 0.5 + 0.5 * sin(t * 1.4)
+            c.R(-1, -14 - grow * 2, 2, 28 + grow * 2, Col(0x3b2412))
+            let belly = 4 + sin(t * 3) * 1.5
+            c.pathFill(Col(0xf3ead2)) { p in
+                p.move(to: CGPoint(x: -9, y: -2)); p.addLine(to: CGPoint(x: 9, y: -2))
+                p.addQuadCurve(to: CGPoint(x: 9, y: 10), control: CGPoint(x: 9 + belly, y: 4))
+                p.addLine(to: CGPoint(x: -9, y: 10))
+                p.addQuadCurve(to: CGPoint(x: -9, y: -2), control: CGPoint(x: -9 + belly, y: 4))
+            }
+            c.save(); c.alpha(grow)
+            c.pathFill(Col(0xffe9a0)) { p in
+                p.move(to: CGPoint(x: -6, y: -13)); p.addLine(to: CGPoint(x: 6, y: -13))
+                p.addQuadCurve(to: CGPoint(x: 7, y: -4), control: CGPoint(x: 7 + belly * 0.7, y: -8))
+                p.addLine(to: CGPoint(x: -7, y: -4))
+                p.addQuadCurve(to: CGPoint(x: -6, y: -13), control: CGPoint(x: -7 + belly * 0.7, y: -8))
+            }
+            c.restore()
+            for w in 0..<2 { let ph = (t * 0.9 + Double(w) * 0.5).truncatingRemainder(dividingBy: 1); c.seg(-16 + ph * 10, -8 + Double(w) * 12, -10 + ph * 10, -8 + Double(w) * 12, 1, Col(0xffffff, 0.6 * (1 - ph))) }
+        case "hull":
+            // copper plates on the bottom, a gleam running along them
+            c.pathFill(wood) { p in
+                p.move(to: CGPoint(x: -15, y: -6)); p.addLine(to: CGPoint(x: 15, y: -6))
+                p.addQuadCurve(to: CGPoint(x: -11, y: 11), control: CGPoint(x: 10, y: 12)); p.closeSubpath()
+            }
+            for r in 0..<2 { for q in 0..<5 {
+                let px2 = -12 + Double(q) * 5.2 + Double(r) * 2, py2 = 1 + Double(r) * 4.5
+                if px2 < 9 - Double(r) * 5 { c.RR(px2, py2, 4.6, 3.8, 0.8, Col(0xc8763a)); c.circ(px2 + 1, py2 + 1, 0.5, Col(0x6a3a18)) }
+            } }
+            let gl = ((t * 0.6).truncatingRemainder(dividingBy: 1)) * 40 - 20
+            c.poly(Col(0xffffff, 0.55), [gl, -8, gl + 5, -8, gl - 3, 14, gl - 8, 14])
+            c.seg(-16, -7, 16, -7, 1.5, Col(0xd9a441))
+        case "hold":
+            // casks going down the hatch
+            c.R(-15, 6, 30, 9, dark); c.R(-15, 5, 30, 1.5, wood)
+            for b in 0..<2 {
+                let ph = (t * 0.6 + Double(b) * 0.5).truncatingRemainder(dividingBy: 1)
+                let by2 = -18 + ph * 26, bx2 = -6 + Double(b) * 12
+                c.RR(bx2 - 5, by2 - 5, 10, 10, 2.5, Col(0x8a6238)); c.R(bx2 - 5, by2 - 2.5, 10, 1.2, dark); c.R(bx2 - 5, by2 + 1.5, 10, 1.2, dark)
+            }
+            c.R(-15, 9, 30, 6, Col(0x140c06, 0.85))
+        case "guns":
+            // a swivel gun on the rail: it fires, kicks, and the smoke rolls off
+            let ph = (t * 0.7).truncatingRemainder(dividingBy: 1)
+            let kick = ph < 0.15 ? sin(ph / 0.15 * PI) * 3 : 0
+            c.R(-15, 8, 30, 3, wood); c.seg(-3, 8, -3, 2, 2, steel.shade(0.6))
+            c.save(); c.translate(-3 - kick, 1); c.rotate(-0.2 - kick * 0.03)
+            c.RR(-7, -3, 18, 6, 2.5, Col(0x2a2a30)); c.circ(-7, 0, 3.4, Col(0x2a2a30)); c.R(10, -3.5, 2, 7, Col(0xd9a441))
+            c.restore()
+            if ph < 0.12 { c.glow(11, -2, 12, Col(0xffd257, 0.95 * (1 - ph / 0.12)), Col(0xffd257, 0)) }
+            if ph < 0.7 { for sm in 0..<4 { c.circ(10 + ph * 10 + Double(sm) * 2, -3 - ph * 10 - Double(sm) * 1.5, 2 + ph * 5, Col(0xf0f0f0, 0.6 * (1 - ph / 0.7))) } }
+        case "berths":
+            // a hammock swinging, somebody asleep in it
+            let sw = sin(t * 2) * 3
+            c.seg(-14, -10, -14, 12, 1.6, Col(0x3b2412)); c.seg(14, -10, 14, 12, 1.6, Col(0x3b2412))
+            c.curve(-14, -6, sw, 12, 14, -6, 3, Col(0xd9cdb0)); c.curve(-14, -6, sw, 8, 14, -6, 1, Col(0x8a7a5a))
+            c.circ(-6 + sw * 0.5, 0, 2.6, Col(0xe3b58a))
+            for z in 0..<2 { let ph = (t * 0.5 + Double(z) * 0.5).truncatingRemainder(dividingBy: 1); c.text("z", -2 + ph * 8, -4 - ph * 10, 7 + ph * 3, Col(0xffffff, 1 - ph), 0, FONTB) }
+        case "riposte":
+            // one blade turns the other aside and goes through
+            let ph = (t * 0.8).truncatingRemainder(dividingBy: 1)
+            let th = ph < 0.4 ? 0 : min(1, (ph - 0.4) / 0.2)
+            c.seg(12, -12, -4 + th * 4, 4 - th * 8, 2, steel.shade(0.7))
+            c.seg(-13 + th * 8, 10 - th * 6, 3 + th * 9, -2 - th * 6, 2.4, steel)
+            if ph > 0.38 && ph < 0.5 { for j in 0..<6 { let a = Double(j) * PI / 3; c.seg(1 + cos(a) * 2, 0 + sin(a) * 2, 1 + cos(a) * 7, sin(a) * 7, 1, Col(0xffe060)) } }
+        case "wind":
+            // breath coming back: a chest that fills, and air drawn in
+            let br = 0.5 + 0.5 * sin(t * 2.4)
+            c.ell(0, 3, 8 + br * 3, 9 + br * 1.5, Col(0x6ab8ff, 0.85)); c.ell(-2, 0, 3 + br, 4, Col(0xffffff, 0.35))
+            for j in 0..<3 { let ph = (t * 0.8 + Double(j) / 3).truncatingRemainder(dividingBy: 1); c.curve(-16 + ph * 8, -12 + Double(j) * 5, -8 + ph * 6, -15 + Double(j) * 5, -2, -8 + Double(j) * 2, 1.1, Col(0xffffff, 0.8 * (1 - ph))) }
+        default:
+            // fury: a flame
+            for j in 0..<3 {
+                let fx = (Double(j) - 1) * 6
+                let h: Double = 16 + 5 * sin(t * 9 + Double(j) * 2)
+                c.poly(Col(0xff6a18), [fx - 5, 12, fx + sin(t * 7 + Double(j)) * 3, 12 - h, fx + 5, 12])
+                c.poly(Col(0xffd257), [fx - 2.6, 12, fx + sin(t * 9 + Double(j)) * 1.5, 12 - h * 0.55, fx + 2.6, 12])
+            }
+        }
+        c.restore()
+        c.restore()
     }
 
     func drawToast(_ c: Canvas) {

@@ -503,7 +503,7 @@ extension Game {
             let lv = up(y.k)
             let price = y.cost + lv * (y.cost * 3 / 4)
             let maxed = lv >= y.max
-            opts.append(Opt(y.n + (y.max > 1 ? " \(min(y.max, lv + 1))" : ""), maxed ? "fitted" : y.d + " · \(price) gold", off: maxed) { [unowned self] in
+            var yo = Opt(y.n + (y.max > 1 ? " \(min(y.max, lv + 1))" : ""), maxed ? "fitted" : y.d + " · \(price) gold", off: maxed) { [unowned self] in
                 if self.gold < price { self.toast("Not enough gold"); return }
                 self.gold -= price
                 self.ups[y.k] = lv + 1
@@ -512,9 +512,12 @@ extension Game {
                 self.puff(self.W / 2, self.H / 2, 40, Col(0xffd257), 260, 320, 3, 0.8)
                 self.toast(y.n + " fitted")
                 self.shipwright()
-            })
+            }
+            yo.pic = y.k
+            opts.append(yo)
         }
         opts.append(Opt("Leave") { [unowned self] in self.card = nil })
+        opts[0].pic = "repair"
         let fitted = Game.YARD.reduce(0) { $0 + up($1.k) }
         show("Shipwright", (need > 0 ? "She needs \(need) points of work." : "She is sound.") + " The yard can also improve her" + (fitted > 0 ? " further." : "."), opts)
     }
@@ -526,14 +529,16 @@ extension Game {
         ]
         var opts: [Opt] = []
         for a in all {
-            opts.append(Opt(a.0, a.2 ? "learned" : a.1 + " · 90 gold", off: a.2) { [unowned self] in
+            var po = Opt(a.0, a.2 ? "learned" : a.1 + " · 90 gold", off: a.2) { [unowned self] in
                 if self.gold < 90 { self.toast("Not enough gold"); return }
                 self.gold -= 90
                 a.3()
                 self.snd?.clang(); self.snd?.good()
                 self.toast("Learned: " + a.0)
                 self.tavernSword()
-            })
+            }
+            po.pic = a.0 == "The killing riposte" ? "riposte" : (a.0 == "Second wind" ? "wind" : "fury")
+            opts.append(po)
         }
         opts.append(Opt("Leave") { [unowned self] in self.card = nil })
         show("The swordmaster", "An old fencing master drinks here. For a price he will show your boarders a thing or two.", opts)

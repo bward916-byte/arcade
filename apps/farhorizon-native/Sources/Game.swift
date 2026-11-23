@@ -16,6 +16,8 @@ struct Opt {
     let sub: String
     let off: Bool
     let act: () -> Void
+    /// A small moving picture of what the choice gives you, drawn at the left of its button.
+    var pic = ""
     init(_ label: String, _ sub: String = "", off: Bool = false, _ act: @escaping () -> Void) {
         self.label = label; self.sub = sub; self.off = off; self.act = act
     }
@@ -724,6 +726,7 @@ final class Game {
         if name == "evstow" { startOmen("stowaway"); sceneT = 2; omenK = ""; event("stowaway"); camZ = 2.6 }
         if name == "evcatch" { startOmen("catch"); sceneT = 2; omenT = 1.6; Game.omenHold = true; camZ = 2.6 }
         if name == "omen" { startOmen("pirates"); omenT = 1.6; Game.omenHold = true }
+        if name == "yard2" { leg = 1; mode = .port; gold = 900; shipwright(); cardT = 9 }
         if name == "yard" { leg = 1; mode = .port; shipwright() }
         if name == "decklife" { ups = ["sails": 2, "hull": 1, "guns": 1]; deckForce = 5; seaForce = 0 }
         if name == "town" { leg = 1; mode = .port; portJobs = [1, 8, 11]; tod = 0.3; saluteT = 6; saluteN = 3 }
