@@ -1197,6 +1197,7 @@ final class Game {
         if supT >= 0 || mode != .play { return }
         if !quiet && h.inv > 0 { return }
         h.hp -= dmg * (1 - 0.2 * Double(lv("armor")))
+        dmgTaken += dmg * (1 - 0.2 * Double(lv("armor")))
         if !quiet {
             h.inv = 0.35
             h.hurtT = 0.25
@@ -1594,6 +1595,8 @@ final class Game {
 
     // ---------- a simple player for screenshots and the balance run
     var botStuck = 0.0
+    var dmgTaken = 0.0
+    var sloppy = false
     var groanCd = 2.0
     var heartCd = 0.0
     var musicLevel: Int {
@@ -1620,11 +1623,11 @@ final class Game {
         input.attack = false
         if let z = nearest(120) {
             h.face = z.x >= h.x ? 1 : -1
-            input.attack = true
-            if z.kind == .bloater || aliveCountNear(160) > 3 { mv = -h.face } else { mv = 0 }
+            input.attack = !sloppy || Int(t * 2.5) % 3 != 0
+            if !sloppy && (z.kind == .bloater || aliveCountNear(160) > 3) { mv = -h.face } else { mv = 0 }
             if f.kind == .wall { mv = 0 }
         }
-        if meter >= 100 && aliveCountNear(420) >= 2 { input.power = true }
+        if meter >= 100 && aliveCountNear(420) >= 2 && (!sloppy || Int(t) % 4 == 0) { input.power = true }
         if meter >= 100 && aliveBoss { input.power = true }
         input.move = mv
     }
@@ -1672,40 +1675,43 @@ final class Game {
 
     /// Plays all three towers with the bot, no drawing, and reports how it went.
     func botRun(_ simMinutes: Double) -> String {
-        var out = "bot run\n"
+        return botOne(simMinutes, false) + botOne(simMinutes, true)
+    }
+    private func botOne(_ simMinutes: Double, _ slop: Bool) -> String {
+        var out = slop ? "sloppy bot (idles a third of the time, never backs off)\n" : "careful bot\n"
         clearSave()
+        sloppy = slop
         auto = true
         tower = 0
+        dmgTaken = 0
         startTower(0)
         var lastTower = 0
         var lastDeaths = 0
+        var lastDmg = 0.0
         var t0 = 0.0
         var sim = 0.0
         let dt = 1.0 / 30
-        var lowFloor = floorN
-        var stuckT = 0.0
-        var lastFloor = floorN
-        var stuckNote = ""
+        var deathFloors: [Int] = []
+        var seenDeaths = 0
         while sim < simMinutes * 60 && mode != .ending {
+            let fl = floorN
             update(dt)
             sim += dt
             if mode == .card { cardT = 9 }
-            if floorN != lastFloor { lastFloor = floorN; stuckT = 0 } else { stuckT += dt }
-            if stuckT > 120 && stuckNote.isEmpty { stuckNote = "stuck on tower \(tower) floor \(floorN) kind \(floor.kind) x \(Int(hero.x)) alive \(aliveCount)\n" }
-            lowFloor = min(lowFloor, floorN)
+            if deaths > seenDeaths { seenDeaths = deaths; deathFloors.append(fl) }
             if tower != lastTower {
-                out += "\(TOWERS[lastTower].who): done in \(String(format: "%.1f", (sim - t0) / 60)) min, deaths \(deaths - lastDeaths)\n"
-                lastTower = tower; lastDeaths = deaths; t0 = sim; lowFloor = floorN
+                out += "  \(TOWERS[lastTower].who): \(String(format: "%.1f", (sim - t0) / 60)) min, deaths \(deaths - lastDeaths), damage taken \(Int(dmgTaken - lastDmg))\n"
+                lastTower = tower; lastDeaths = deaths; t0 = sim; lastDmg = dmgTaken
             }
         }
         if mode == .ending {
-            out += "\(TOWERS[lastTower].who): done in \(String(format: "%.1f", (sim - t0) / 60)) min, deaths \(deaths - lastDeaths)\n"
-            out += "FINISHED all three in \(String(format: "%.1f", sim / 60)) min, deaths \(deaths), kills \(kills)\n"
+            out += "  \(TOWERS[lastTower].who): \(String(format: "%.1f", (sim - t0) / 60)) min, deaths \(deaths - lastDeaths), damage taken \(Int(dmgTaken - lastDmg))\n"
+            out += "  FINISHED in \(String(format: "%.1f", sim / 60)) min, deaths \(deaths), kills \(kills), died on floors \(deathFloors.prefix(30))\n"
         } else {
-            out += "NOT finished: tower \(tower) floor \(floorN) (lowest \(lowFloor)), deaths \(deaths), kills \(kills), upgrades \(ups)\n"
+            out += "  NOT finished: tower \(tower) floor \(floorN), deaths \(deaths), kills \(kills), damage \(Int(dmgTaken)), upgrades \(ups), died on floors \(deathFloors.prefix(40))\n"
         }
-        out += stuckNote
         auto = false
+        sloppy = false
         clearSave()
         mode = .title
         return out
