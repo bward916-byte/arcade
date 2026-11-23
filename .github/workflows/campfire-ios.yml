@@ -65,10 +65,15 @@ jobs:
             -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath "$RUNNER_TEMP/dd" CODE_SIGNING_ALLOWED=NO 2>&1 | tail -n 15
           APP="$RUNNER_TEMP/dd/Build/Products/Debug-iphonesimulator/Campfire.app"
-          UDID=$(xcrun simctl list devices available | grep -E "iPhone" | head -1 | grep -oE "[0-9A-F-]{36}")
-          echo "simulator $UDID"
+          # A Pro Max simulator gives screenshots at the size the App Store asks for.
+          LINE=$(xcrun simctl list devices available | grep -E "iPhone.*Pro Max" | head -1)
+          if [ -z "$LINE" ]; then LINE=$(xcrun simctl list devices available | grep -E "iPhone" | head -1); fi
+          UDID=$(echo "$LINE" | grep -oE "[0-9A-F-]{36}")
+          echo "simulator $LINE"
+          echo "$LINE" > "$RUNNER_TEMP/simulator.txt"
           xcrun simctl boot "$UDID"
           xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl status_bar "$UDID" override --time "9:41" --batteryState charged --batteryLevel 100 --cellularBars 4 --wifiBars 3 || true
           xcrun simctl install "$UDID" "$APP"
           for shot in list ad post guide areamap shows alerts map; do
             xcrun simctl terminate "$UDID" com.brianward.quartzsitecampfire 2>/dev/null || true
@@ -130,6 +135,10 @@ jobs:
           for f in "$RUNNER_TEMP"/shots/*.png; do
             if [ -f "$f" ]; then sips -Z 1300 "$f" --out "$OUT/$(basename "$f")" >/dev/null 2>&1 || true; fi
           done
+          # Full-size copies for the App Store listing.
+          mkdir -p store
+          cp "$RUNNER_TEMP"/shots/*.png store/ 2>/dev/null || true
+          cp "$RUNNER_TEMP/simulator.txt" store/ 2>/dev/null || true
           git init -q
           git checkout -q -b campfire-ios-buildlog
           git add -A
