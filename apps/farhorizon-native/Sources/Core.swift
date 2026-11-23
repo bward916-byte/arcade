@@ -78,7 +78,10 @@ let STAGES: [[Port]] = [
     [Port(n: "Santa Aurelia", pm: 1, x: 0.97, y: 0.5)]
 ]
 let LEG: [Double] = [260, 300, 280, 340, 320]
-let DAYLEN = 3.6
+/// Seconds for one watch of the voyage: the unit the rules run on (rations, events, weather).
+let DAYLEN = 6.4
+/// Suns that rise and set in one watch. The calendar the player sees counts these.
+let SUNS = 4
 let WAGE = 5
 
 struct Good {

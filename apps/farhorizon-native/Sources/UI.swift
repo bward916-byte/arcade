@@ -273,7 +273,7 @@ extension Game {
 
     func drawHUD(_ c: Canvas) {
         var x = safeL
-        x = pill(c, x, "day", "Day \(day)")
+        x = pill(c, x, "day", "Day \(cal)")
         x = pill(c, x, "gold", "\(gold)")
         x = pill(c, x, "food", "\(Int(food))", warn: food < Double(crew) * 0.7)
         x = pill(c, x, "water", "\(Int(water))", warn: water < Double(crew) * 0.7)

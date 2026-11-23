@@ -69,7 +69,9 @@ extension Game {
             c.circ(sunX, sunY, 17, sc.alpha(1 - L.night))
         }
         if L.night > 0.1 {
-            let mx = W * 0.72, my = hz * 0.28
+            // the moon crosses the night as the sun crossed the day
+            let mk = clampD((tod - 0.64) / 0.34, 0, 1)
+            let mx = W * (0.14 + 0.72 * mk), my = hz - sin(mk * PI) * hz * 0.7 + 8
             c.glow(mx, my, 90, Col(0xcfe0ff, 0.25 * L.night), Col(0xcfe0ff, 0))
             c.circ(mx, my, 13, Col(0xeef3ff, L.night))
             c.circ(mx + 5, my - 3, 11, L.top.alpha(L.night))
@@ -458,7 +460,7 @@ extension Game {
         }
         let by = py + ph - 54
         let bw = (pw - 40 - 12) / 2
-        btn(c, px + 20, by, bw, 44, "Stock for me", "about ten days of supplies") { [unowned self] in self.autoStock() }
+        btn(c, px + 20, by, bw, 44, "Stock for me", "enough for the first passage") { [unowned self] in self.autoStock() }
         btn(c, px + 20 + bw + 12, by, bw, 44, marketPort ? "Done" : "Cast off", gold: true, size: 18) { [unowned self] in self.leaveMarket() }
     }
 
@@ -480,7 +482,7 @@ extension Game {
         // the track: sailed water behind, open water ahead, a tick for each day's run
         c.RR(lx0, ly - 4, lx1 - lx0, 8, 4, Col(0x0a1a2c))
         c.RRGrad(lx0, ly - 4, max(8, (lx1 - lx0) * k), 8, 4, [(0, Col(0x6fd0ff)), (1, Col(0x2a86c8))])
-        let perDay = max(1, dps())
+        let perDay = max(1, dps()) / Double(SUNS)
         var dd = perDay
         while dd < legLen {
             let tx = lx0 + (lx1 - lx0) * dd / legLen
@@ -612,7 +614,7 @@ extension Game {
         btn(c, W / 2 - bw - 6, by, bw, 44, half ? "Rations: half" : "Rations: full", half ? "saves food, risks sickness" : "tap to halve") { [unowned self] in
             self.half = !self.half
         }
-        btn(c, W / 2 + 6, by, bw, 44, "Stop and fish", bait > 0 ? "lose a day · \(bait) bait" : "no bait", off: bait < 1) { [unowned self] in
+        btn(c, W / 2 + 6, by, bw, 44, "Stop and fish", bait > 0 ? "lose \(SUNS) days · \(bait) bait" : "no bait", off: bait < 1) { [unowned self] in
             self.passDays(1)
             if self.over { return }
             self.playFish()

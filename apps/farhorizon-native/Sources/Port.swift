@@ -62,7 +62,7 @@ extension Game {
         let down = laidUp()
         var canUp = false
         for y in Game.YARD where up(y.k) < y.max && gold - wagesDue() >= y.cost + up(y.k) * (y.cost * 3 / 4) { canUp = true }
-        return (days, fd, wd, fd >= days, wd >= days, pct, pct >= 70, Int(Double(ship.hull) - hull) * 2, down, down == 0 && crew >= max(2, ship.crew - 2), gold >= wagesDue(), canUp)
+        return (days * SUNS, fd * SUNS, wd * SUNS, fd >= days, wd >= days, pct, pct >= 70, Int(Double(ship.hull) - hull) * 2, down, down == 0 && crew >= max(2, ship.crew - 2), gold >= wagesDue(), canUp)
     }
 
     /// A small townsperson walking the quay.

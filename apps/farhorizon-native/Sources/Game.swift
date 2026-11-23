@@ -177,7 +177,9 @@ final class Game {
 
     // ---------- small helpers
     func toast(_ s: String) { toastText = s; toastT = 3.2 }
-    func logIt(_ s: String) { log.append("Day \(day): \(s)") }
+    /// The day of the voyage as the player sees it: several suns cross the sky for each step of the rules.
+    var cal: Int { return (day - 1) * SUNS + 1 + (mode == .sail ? min(SUNS - 1, Int(dayT / DAYLEN * Double(SUNS))) : 0) }
+    func logIt(_ s: String) { log.append("Day \(cal): \(s)") }
     func show(_ title: String, _ text: String, _ opts: [Opt]) {
         card = CardV(title: title, text: text, opts: opts)
         evTitle = title
@@ -373,7 +375,7 @@ final class Game {
         card = nil; duel = nil
         endTitle = "Lost at sea"
         let pct = Int(((Double(leg) + min(1, dist / max(1, legLen))) / 5 * 100).rounded())
-        endText = why + "\nDay \(day), \(pct)% of the way."
+        endText = why + "\nDay \(cal), \(pct)% of the way."
         mode = .end
         snd?.bad()
     }
@@ -410,7 +412,8 @@ final class Game {
     }
     func autoStock() {
         let per = Double(crew) * 0.35
-        let want: [(String, Int)] = [("water", Int((per * 9).rounded(.up))), ("food", Int((per * 10).rounded(.up))), ("planks", 6), ("bait", 6), ("powder", 5), ("arms", min(crew, 8))]
+        let watches = Double(Int((LEG[0] / max(1, 42 * ship.speed)).rounded(.up)) + 2)
+        let want: [(String, Int)] = [("water", Int((per * (watches + 1)).rounded(.up))), ("food", Int((per * (watches + 2)).rounded(.up))), ("planks", 6), ("bait", 6), ("powder", 5), ("arms", min(crew, 8))]
         for w in want {
             guard let g = GOODS.first(where: { $0.k == w.0 }) else { continue }
             let p = price(g)
@@ -522,7 +525,7 @@ final class Game {
         rumourHeard = false
         rollPortJobs(); festT = 0; bellT = 5
         if weather == 3 { setWeather(2, days: 1) }
-        sum = LegSum(from: legFrom, to: here.n, days: day - leg0Day, leagues: Int(legLen), events: legEvents, gold: gold - leg0Gold, lost: max(0, leg0Crew - crew), hull: Int((hull / Double(max(1, ship.hull)) * 100).rounded()), fights: fights - leg0Fights, wages: wagesDue())
+        sum = LegSum(from: legFrom, to: here.n, days: (day - leg0Day) * SUNS, leagues: Int(legLen), events: legEvents, gold: gold - leg0Gold, lost: max(0, leg0Crew - crew), hull: Int((hull / Double(max(1, ship.hull)) * 100).rounded()), fights: fights - leg0Fights, wages: wagesDue())
         sumT = 0
         sumRow = -1
         if !portMsg.isEmpty { toast(portMsg) }
@@ -531,7 +534,7 @@ final class Game {
         over = true
         let score = gold + crew * 60 + Int(hull) * 3 - day * 4
         endTitle = "Santa Aurelia!"
-        endText = "You made port on day \(day) with \(crew) hands and \(gold) gold.\nScore: \(max(0, score))" + (dead.isEmpty ? "" : "\nLost on the way: " + dead.joined(separator: ", "))
+        endText = "You made port on day \(cal) with \(crew) hands and \(gold) gold.\nScore: \(max(0, score))" + (dead.isEmpty ? "" : "\nLost on the way: " + dead.joined(separator: ", "))
         mode = .end
         card = nil
         snd?.good()
@@ -586,7 +589,7 @@ final class Game {
                 }
             } else if card == nil {
                 dayT += dt
-                tod = (tod + dt / DAYLEN * 0.22).truncatingRemainder(dividingBy: 1)
+                tod = (dayT / DAYLEN * Double(SUNS)).truncatingRemainder(dividingBy: 1)
                 dist += dps() * dt / DAYLEN
                 scroll += dt * 70 * ship.speed
                 if dist >= legLen {

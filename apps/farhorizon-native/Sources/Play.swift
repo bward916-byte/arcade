@@ -647,9 +647,10 @@ extension Game {
     }
     func offerFare() {
         let next = STAGES[min(5, leg + 1)][path[min(5, leg + 1)]].n
-        show("A passenger", "A lady with three trunks must be in " + next + " within nine days. Ninety gold if you make it; half if you are late.", [
+        let watches = Int((LEG[min(4, leg)] / max(1, 42 * ship.speed)).rounded(.up)) + 2
+        show("A passenger", "A lady with three trunks must be in " + next + " within \(watches * SUNS) days. Ninety gold if you make it; half if you are late.", [
             Opt("Welcome aboard", "90 gold on arrival") { [unowned self] in
-                self.fareDue = 90; self.fareBy = self.day + 9
+                self.fareDue = 90; self.fareBy = self.day + watches
                 self.portJobDone = true
                 self.snd?.good()
                 self.card = nil
@@ -811,7 +812,7 @@ extension Game {
         let vt = 0.7 + 6 * 0.34 + 0.25
         if t > vt {
             let hard = s.lost > 0 || s.hull < 50
-            let swift = !hard && s.days <= Int((Double(s.leagues) / 44).rounded(.up))
+            let swift = !hard && s.days <= Int((Double(s.leagues) / 44).rounded(.up)) * SUNS
             let word = hard ? "A HARD PASSAGE" : (swift ? "A SWIFT PASSAGE" : "A FAIR PASSAGE")
             let vc = hard ? Col(0xff7a5a) : (swift ? Col(0xffe08a) : Col(0x9ff0aa))
             let q = clampD((t - vt) / 0.22, 0, 1)

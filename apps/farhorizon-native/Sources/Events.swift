@@ -75,11 +75,11 @@ extension Game {
             logIt("Ran into a storm")
             show("Storm ahead", "Black clouds are closing fast.", [
                 Opt("Take the helm", "steer her through it yourself") { [unowned self] in self.playStorm() },
-                Opt("Reef sails and wait", "lose 2 days") { [unowned self] in
+                Opt("Reef sails and wait", "lose \(2 * SUNS) days") { [unowned self] in
                     self.passDays(2)
                     if self.over { return }
                     self.dmg(Double(rndI(3, 8)))
-                    if !self.over { self.done("Lost 2 days") }
+                    if !self.over { self.done("Lost \(2 * SUNS) days") }
                 }
             ])
         case "pirates":
@@ -128,7 +128,7 @@ extension Game {
             ])
         case "island":
             show("Land ho!", hasMap ? "It matches your treasure map!" : "An uncharted island.", [
-                Opt("Go ashore", "costs a day · three digs") { [unowned self] in
+                Opt("Go ashore", "costs \(SUNS) days · three digs") { [unowned self] in
                     self.passDays(1)
                     if self.over { return }
                     self.playIsland()
@@ -140,14 +140,14 @@ extension Game {
                     self.consume()
                     if !self.over { self.done("The crew rows her out. Extra rations used") }
                 },
-                Opt("Wait for wind", "lose 2 days") { [unowned self] in
+                Opt("Wait for wind", "lose \(2 * SUNS) days") { [unowned self] in
                     self.passDays(2)
-                    if !self.over { self.done("Lost 2 days") }
+                    if !self.over { self.done("Lost \(2 * SUNS) days") }
                 }
             ])
         case "sick":
             show("Fever aboard", "Half the watch is laid out on deck.", [
-                Opt("Rest a day", "lose 1 day · one falls sick") { [unowned self] in
+                Opt("Rest the crew", "lose \(SUNS) days · one falls sick") { [unowned self] in
                     self.toastText = ""
                     self.sickOne("the fever")
                     self.passDays(1)
@@ -209,7 +209,7 @@ extension Game {
         case "fog":
             show("Fog bank", "Grey fog swallows the ship. Somewhere ahead, surf is breaking.", [
                 Opt("Creep through", E("look") > 0 ? "your lookout gives you longer" : "no lookout posted") { [unowned self] in self.playFog() },
-                Opt("Heave to", "lose 1 day") { [unowned self] in
+                Opt("Heave to", "lose \(SUNS) days") { [unowned self] in
                     self.passDays(1)
                     if !self.over { self.done("The fog lifts by morning") }
                 }
