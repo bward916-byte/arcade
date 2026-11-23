@@ -61,12 +61,29 @@ final class Duel {
     var t = 0.0
     var over = false
 
-    init(foes: Int, boss: Bool, prize: Int, armed: Double) {
+    // The first fights teach the moves: the fight freezes at each cut until the right button is tapped.
+    // lesson 0 = parry high, 1 = parry low, 2 = dodge, 3 = taught. Progress is kept between fights.
+    static let lessonKey = "fh_duelLesson"
+    var lesson = 3
+    var lungeTaught = true
+    var hold = false
+    var holdWant = 0
+
+    init(foes: Int, boss: Bool, prize: Int, armed: Double, teach: Bool = true) {
         self.foes = foes
         self.boss = boss
         self.prize = prize
         pw = 0.2 + 0.16 * armed
+        if teach {
+            lesson = min(3, UserDefaults.standard.integer(forKey: Duel.lessonKey))
+            lungeTaught = lesson > 0
+        }
         setFoe()
+    }
+    var teaching: Bool { return lesson < 3 }
+    private func learned() {
+        lesson += 1
+        UserDefaults.standard.set(lesson, forKey: Duel.lessonKey)
     }
 
     private func setFoe() {
@@ -83,6 +100,7 @@ final class Duel {
         case .duelist: emax = 3
         case .captain: emax = 6
         }
+        if teaching { emax = max(emax, 3) }
         ehp = emax
         est = .enter
         et = 1.0
@@ -135,7 +153,14 @@ final class Duel {
         }
         heavy = chance(ph)
         feint = !heavy && chance(pf)
+        if teaching {
+            // scripted: one high cut, one low cut, one heavy blow
+            feint = false
+            heavy = lesson == 2
+            if lesson == 0 { line = 0 } else if lesson == 1 { line = 1 }
+        }
         wd = heavy ? (kind == .captain ? 0.82 : 0.98) : max(0.42, base - Double(k) * 0.03)
+        if teaching { wd *= 1.25 }
         et = wd
     }
     private func sparks(_ g: Game, _ x: Double, _ y: Double, _ n: Int, _ c: Col) {
@@ -175,6 +200,7 @@ final class Duel {
                 est = .stag
                 et = 1.3
                 g.snd?.whoosh()
+                if teaching && lesson == 2 { learned() }
                 say("He overreaches. Strike!")
             } else {
                 hitPlayer(2, g)
@@ -195,6 +221,7 @@ final class Duel {
             wind = min(1, wind + 0.08)
             pos += 0.06
             if perfect { rip = 1.4; say("Perfect parry — riposte!") }
+            if teaching && lesson == line { learned() }
             g.snd?.clang()
             g.buzz?(false)
             sparks(g, cx, cy, perfect ? 22 : 14, Col(0xffe9a0))
@@ -206,6 +233,7 @@ final class Duel {
 
     func update(_ dt: Double, _ g: Game) {
         if over { return }
+        if hold { t += dt; return }
         var d = dt
         if slow > 0 { slow -= dt; d = dt * 0.3 }
         t += d
@@ -228,12 +256,16 @@ final class Duel {
                 feint = false
                 est = .ready
                 et = rnd(0.18, 0.4)
+            } else if teaching && et < (heavy ? 0.3 : pw * 0.55) && dodge <= 0 && !(par > 0 && !heavy && parLine == line) {
+                hold = true
+                holdWant = heavy ? 2 : line
             } else if et <= 0 {
                 resolve(g)
             }
         case .strike:
             if et <= 0 { est = .ready; et = gap() }
         case .stag:
+            if !lungeTaught && et < 0.75 { hold = true; holdWant = 3 }
             if et <= 0 { est = .ready; et = rnd(0.35, 0.8) }
         case .hit:
             if et <= 0 {
@@ -330,6 +362,12 @@ final class Duel {
             if y < 60 { return }
             let upper = y < r[1].1
             hit = x < g.W / 2 ? (upper ? 0 : 1) : (upper ? 2 : 3)
+        }
+        if hold {
+            if hit != holdWant { say("Not that one"); return }
+            hold = false
+            cd = 0; pst = .ready; wind = max(wind, 0.4)
+            if holdWant == 3 { lungeTaught = true }
         }
         switch hit {
         case 0: parry(0, g)
@@ -473,8 +511,9 @@ final class Duel {
         for (i, q) in r.enumerated() {
             var on = false
             if i == 0 { on = late && line == 0 } else if i == 1 { on = late && line == 1 } else if i == 2 { on = est == .wind && heavy && et < 0.5 } else { on = est == .stag }
+            if hold { on = i == holdWant }
             let need: Double = i < 2 ? 0.1 : (i == 2 ? 0.22 : 0.18)
-            let dim = wind < need
+            let dim = hold ? i != holdWant : wind < need
             let pu = on ? 1 + sin(t * 18) * 0.04 : 1.0
             c.save()
             c.translate(q.0 + q.2 / 2, q.1 + q.3 / 2)
@@ -495,6 +534,30 @@ final class Duel {
             if dim { c.RR(x, y, q.2, q.3 + 3, 12, Col(0x120a04, 0.5)) }
             c.restore()
         }
+        drawLesson(c, g)
+    }
+
+    /// The lesson banner shown while the fight is frozen.
+    func drawLesson(_ c: Canvas, _ g: Game) {
+        if !hold { return }
+        let W = g.W, H = g.H
+        let lines: [(String, String)] = [
+            ("He cuts HIGH", "Tap Parry high to stop it"),
+            ("He thrusts LOW", "Tap Parry low to stop it"),
+            ("A heavy blow — it glows red", "It cannot be parried. Tap Dodge"),
+            ("He is OPEN", "Tap Lunge to strike him")
+        ]
+        let l = lines[holdWant]
+        let bw = min(430.0, W * 0.56), bh = 74.0, bx = W / 2 - bw / 2, by = H * 0.2
+        c.RR(bx, by + 3, bw, bh, 14, Col(0x000000, 0.35))
+        c.RRGrad(bx, by, bw, bh, 14, [(0, Col(0x2c1a0c, 0.96)), (1, Col(0x1a0e05, 0.96))])
+        c.RRStroke(bx, by, bw, bh, 14, 2, Col(0xffd257))
+        c.text(l.0, W / 2, by + 30, 22, Col(0xffe9a0), 0, FONTB)
+        c.text(l.1, W / 2, by + 56, 16, CREAM, 0, FONT)
+        // an arrow bobbing over the button to press
+        let q = rects(g)[holdWant]
+        let ax = q.0 + q.2 / 2, ay = q.1 - 12 + sin(t * 7) * 5
+        c.poly(Col(0xffd257), [ax - 13, ay - 16, ax + 13, ay - 16, ax, ay])
     }
 
     private func kindIndex() -> Int {

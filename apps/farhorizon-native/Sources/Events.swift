@@ -279,13 +279,21 @@ extension Game {
     }
 
     // ---------- the sword fight
-    func startDuel(foes: Int, boss: Bool, prize: Int) {
+    func startDuel(foes: Int, boss: Bool, prize: Int, teach: Bool = true) {
         card = nil
         fights += 1
         let ratio = min(1, Double(arms) / Double(max(1, crew)))
-        duel = Duel(foes: max(1, foes), boss: boss, prize: prize, armed: ratio)
+        let d = Duel(foes: max(1, foes), boss: boss, prize: prize, armed: ratio, teach: teach)
+        duel = d
         mode = .duel
-        toast(boss ? "Her captain steps onto the deck" : "Boarders away!")
+        if d.teaching {
+            // the fight waits behind this card, then walks through each move once
+            show("How to fight", "He shows every cut before it lands.\nHIGH or LOW over his head: tap the matching Parry just before it lands.\nRed glow and DODGE: too heavy to parry. Tap Dodge.\nOPEN: tap Lunge. Lunge at a ready man and he blocks it.\nEvery move costs wind. Lose three sailors and the fight is lost.\nThe first cuts will stop and wait for you.", [
+                Opt("Draw your blade") { [unowned self] in self.card = nil }
+            ])
+        } else {
+            toast(boss ? "Her captain steps onto the deck" : "Boarders away!")
+        }
     }
     func duelSailorDown() {
         if chance(0.5) { loseCrew("A sailor is cut down") } else { hurtOne("cut down in the boarding") }

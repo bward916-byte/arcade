@@ -510,8 +510,10 @@ final class Game {
         if name == "event" { event("pirates") }
         if name == "result" { event("ghost"); done("Her hold is full of old silver: +212 gold") }
         if name == "port" { leg = 1; mode = .port }
-        if name == "duel" { startDuel(foes: 3, boss: false, prize: 120) }
-        if name == "boss" { startDuel(foes: 1, boss: true, prize: 300) }
+        if name == "duel" { UserDefaults.standard.set(0, forKey: Duel.lessonKey); startDuel(foes: 3, boss: false, prize: 120) }
+        if name == "teach" { UserDefaults.standard.set(0, forKey: Duel.lessonKey); startDuel(foes: 3, boss: false, prize: 120); card = nil }
+        if name == "fight" { startDuel(foes: 3, boss: false, prize: 120, teach: false) }
+        if name == "boss" { startDuel(foes: 1, boss: true, prize: 300, teach: false) }
         if name == "end" { finish() }
     }
 }
