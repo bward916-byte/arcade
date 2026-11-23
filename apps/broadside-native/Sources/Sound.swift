@@ -148,7 +148,7 @@ final class Sound {
     private static let D: (Int, [Int]) = (38, [57, 62, 66])
     private static let Am: (Int, [Int]) = (33, [57, 60, 64])
     private static let E: (Int, [Int]) = (40, [56, 59, 64])
-    private let scores: [String: Score] = [
+    private static let scores: [String: Score] = [
         // the title: a rolling shanty in D minor, two eight-bar phrases
         "title": Score(u: 0.2, vol: 1, lead: 1, drum: 1,
                        chords: [Dm, Dm, C, Dm, F, C, A, Dm, Bb, F, C, Dm, Bb, F, A, Dm],
@@ -181,7 +181,7 @@ final class Sound {
     /// Call every frame with the game clock and the mood to play.
     func music(_ now: Double, _ m: String) {
         if muted || !running { return }
-        guard let sc = scores[m] else { return }
+        guard let sc = Sound.scores[m] else { return }
         if m != mood { mood = m; unitI = 0; melI = 0; melWait = 0; nextT = now + 0.4 }
         // the sea, breathing under everything
         if now > washT {
