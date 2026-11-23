@@ -44,7 +44,7 @@ struct SuggestSheet: View {
             .navigationTitle("Suggest a fix")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
+                ToolbarItem(placement: .topBarTrailing) {
                     Button("Close") { dismiss() }
                 }
             }

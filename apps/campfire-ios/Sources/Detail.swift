@@ -134,7 +134,7 @@ struct ContactSheet: View {
             .navigationTitle("Contact the seller")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
+                ToolbarItem(placement: .topBarTrailing) {
                     Button("Close") { dismiss() }
                 }
             }
