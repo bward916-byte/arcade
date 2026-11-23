@@ -6,7 +6,7 @@ import Foundation
 // Every action costs wind, and each hit drives the loser back toward the rail.
 
 enum FoeKind { case deckhand, cutthroat, bruiser, duelist, captain }
-enum EState { case enter, ready, wind, strike, stag, hit, dead }
+enum EState { case enter, ready, wind, strike, stag, hit, dead, drag }
 enum PState { case ready, parry, lunge, dodge, hurt }
 
 struct Pose {
@@ -21,6 +21,14 @@ struct Pose {
     /// Where the blade pointed a frame ago: the gap between then and now is drawn as a blur.
     var pang = -0.45
     var blur = false
+    /// His hand is empty: the sword has been knocked out of it.
+    var noSword = false
+    /// Walking: the phase of his stride.
+    var walking = false
+    var step = 0.0
+    /// Lifted off the deck by this much, and fading by this much (a man going over the side).
+    var dy = 0.0
+    var fade = 0.0
     /// Teeth bared: he is in the middle of a blow.
     var grit = false
 }
@@ -80,6 +88,15 @@ final class Duel {
     var flares: [(x: Double, y: Double, t: Double, big: Double)] = []
     var dust: [(x: Double, y: Double, vx: Double, t: Double, r: Double)] = []
     // the figures ease from pose to pose instead of snapping
+    // a kill is played out: he drops his sword, falls, is dragged clear, and the next man walks up
+    static let deadLen = 1.9
+    static let railLen = 1.4
+    static let dragLen = 2.0
+    static let enterLen = 1.4
+    var overSide = false
+    var fellSnd = false
+    var blade: (x: Double, y: Double, vx: Double, vy: Double, a: Double, va: Double, live: Bool, rest: Bool, heavy: Bool) = (0, 0, 0, 0, 0, 0, false, false, false)
+    var press = [Double](repeating: 0, count: 6)
     var sp = Pose()
     var se = Pose()
     var sOffP = 0.0
@@ -138,7 +155,7 @@ final class Duel {
         if teaching { emax = max(emax, 3) }
         ehp = emax
         est = .enter
-        et = 1.0
+        et = Duel.enterLen
         rage = false
         heavy = false
         feint = false
@@ -277,6 +294,20 @@ final class Duel {
             if dust[k2].t > 0.7 { dust.remove(at: k2) }
             k2 -= 1
         }
+        for i in 0..<press.count { press[i] = max(0, press[i] - dt) }
+        if blade.live && !blade.rest {
+            blade.vy += 1500 * dt
+            blade.x += blade.vx * dt
+            blade.y += blade.vy * dt
+            blade.a += blade.va * dt
+            if blade.y > floor - 6 && blade.vy > 0 {
+                // it rings off the planks, throws a spark or two, and skitters to rest
+                blade.y = floor - 6
+                g.snd?.clang()
+                sparks(g, blade.x, blade.y, 3, Col(0xffe9a0))
+                if abs(blade.vy) < 260 { blade.rest = true; blade.a = 0.08 } else { blade.vy *= -0.34; blade.vx *= 0.5; blade.va *= 0.45 }
+            }
+        }
         // feet scuff the planks as each move begins
         if pst != prevPst {
             let (px, py) = playerXY(g)
@@ -288,12 +319,50 @@ final class Duel {
         if est != prevEst {
             let (fx, fy2) = foeXY(g)
             if est == .strike { kickDust(fx + scaleS(g) * 0.2, fy2, 7, 1) }
-            if est == .dead { kickDust(fx + scaleS(g) * 0.1, fy2, 12, 1) }
+            if est == .dead {
+                // the sword is struck out of his hand and goes spinning
+                kickDust(fx + scaleS(g) * 0.1, fy2, 6, 1)
+                blade = (fx - scaleS(g) * 0.15, fy2 - scaleS(g) * 0.8, overSide ? -160 : rnd(-260, -120), -rnd(420, 560), 0.5, rnd(12, 18) * (chance(0.5) ? 1 : -1), true, false, kind == .bruiser)
+            }
             if est == .stag || est == .hit { kickDust(fx + scaleS(g) * 0.15, fy2, 4, 1) }
             prevEst = est
         }
     }
+    /// How far the body has been hauled along the deck.
+    private func dragShift(_ g: Game) -> Double {
+        if est != .drag { return 0 }
+        let q = 1 - et / Duel.dragLen
+        let k = clampD((q - 0.42) / 0.58, 0, 1)
+        return k * k * (g.W * 0.75)
+    }
+    private func drawBlade(_ c: Canvas, _ g: Game) {
+        if !blade.live { return }
+        let s = scaleS(g)
+        let bl = s * (blade.heavy ? 0.52 : 0.45), bw = s * (blade.heavy ? 0.03 : 0.02)
+        if blade.rest { c.ell(blade.x, blade.y + 5, bl * 0.55, 4, Col(0x000000, 0.3)) }
+        c.save()
+        c.translate(blade.x, blade.y)
+        c.rotate(blade.a)
+        if !blade.rest {
+            // a spinning blade is half blur
+            c.circ(0, 0, bl * 0.55, Col(0xffffff, 0.08)); c.circStroke(0, 0, bl * 0.52, 2, Col(0xffffff, 0.2))
+        }
+        c.pathFill(Col(0x140c06)) { q in
+            q.move(to: CGPoint(x: -bl * 0.35, y: -bw - 1.5)); q.addQuadCurve(to: CGPoint(x: bl * 0.62, y: 0), control: CGPoint(x: bl * 0.2, y: -bw * 3.4))
+            q.addQuadCurve(to: CGPoint(x: -bl * 0.35, y: bw + 1.5), control: CGPoint(x: bl * 0.2, y: bw * 0.6)); q.closeSubpath()
+        }
+        c.pathFill(Col(0xe6ecf0)) { q in
+            q.move(to: CGPoint(x: -bl * 0.35, y: -bw)); q.addQuadCurve(to: CGPoint(x: bl * 0.6, y: 0), control: CGPoint(x: bl * 0.2, y: -bw * 3))
+            q.addQuadCurve(to: CGPoint(x: -bl * 0.35, y: bw), control: CGPoint(x: bl * 0.2, y: bw * 0.4)); q.closeSubpath()
+        }
+        c.seg(-bl * 0.3, -bw * 0.2, bl * 0.45, -bw * 1.2, max(1, s * 0.005), Col(0xffffff, 0.8))
+        c.seg(-bl * 0.36, -s * 0.05, -bl * 0.36, s * 0.05, s * 0.02, Col(0xb8a070))
+        c.seg(-bl * 0.36, 0, -bl * 0.52, 0, s * 0.026, Col(0x4a2d14)); c.circ(-bl * 0.54, 0, s * 0.018, Col(0xb8a070))
+        c.restore()
+        if blade.rest && sin(t * 5) > 0.7 { c.glow(blade.x + bl * 0.4, blade.y, 14, Col(0xffffff, 0.6), Col(0xffffff, 0)) }
+    }
     private func drawFx(_ c: Canvas, _ g: Game) {
+        drawBlade(c, g)
         for d in dust {
             let k = d.t / 0.7
             c.circ(d.x, d.y, d.r * (0.6 + k * 1.6), Col(0xd8c8a8, 0.3 * (1 - k)))
@@ -401,9 +470,17 @@ final class Duel {
     }
 
     var demoClash = false
+    /// For screenshots: freeze the kill sequence at a chosen moment.
+    var demoKill = -1.0
     func update(_ dt: Double, _ g: Game) {
         if over { return }
         updateFx(dt, g)
+        if demoKill >= 0 {
+            t += dt
+            ehp = 0
+            if demoKill < 1 { est = .dead; overSide = false; et = Duel.deadLen * (1 - demoKill); blade.live = true; blade.rest = true; blade.x = g.W * 0.5; blade.y = feetY(g) - 2; blade.a = 0.08 } else { est = .drag; et = Duel.dragLen * (2 - demoKill); blade.live = true; blade.rest = true; blade.x = g.W * 0.5; blade.y = feetY(g) - 2 }
+            return
+        }
         if demoClash {
             // for screenshots: strike sparks over and over, with the blades crossed
             t += dt
@@ -460,10 +537,30 @@ final class Duel {
             if et <= 0 { est = .ready; et = rnd(0.35, 0.8) }
         case .hit:
             if et <= 0 {
-                if ehp <= 0 { est = .dead; et = 0.95 } else { est = .ready; et = rnd(0.4, 0.9) }
+                if ehp <= 0 { est = .dead; et = overSide ? Duel.railLen : Duel.deadLen; fellSnd = false } else { est = .ready; et = rnd(0.4, 0.9) }
             }
         case .dead:
-            if et <= 0 { next(g) }
+            // the body hits the deck, or the water
+            let q = 1 - et / (overSide ? Duel.railLen : Duel.deadLen)
+            if !fellSnd && q > (overSide ? 0.72 : 0.62) {
+                fellSnd = true
+                let (fx, fy2) = foeXY(g)
+                if overSide {
+                    g.snd?.splash(); g.snd?.splash()
+                    g.puff(g.W - 30, fy2 - g.H * 0.2, 40, Col(0xffffff, 0.9), 320, 520, 3.4, 0.9)
+                } else {
+                    g.snd?.thud()
+                    g.shake = max(g.shake, 0.16)
+                    g.buzz?(true)
+                    kickDust(fx + scaleS(g) * 0.75, fy2, 14, 1); kickDust(fx + scaleS(g) * 0.4, fy2, 8, -1)
+                }
+            }
+            if et <= 0 {
+                if overSide { overSide = false; blade.live = false; next(g) } else { est = .drag; et = Duel.dragLen; say("They drag him clear") }
+            }
+        case .drag:
+            if chance(dt * 9) { let (fx, fy2) = foeXY(g); kickDust(fx + scaleS(g) * 0.3 + dragShift(g), fy2, 1, -1) }
+            if et <= 0 { blade.live = false; next(g) }
         }
     }
 
@@ -519,7 +616,7 @@ final class Duel {
             if ehp <= 0 {
                 slow = 0.6
                 say(atRail ? "Over the side with him!" : (n >= 2 ? "A riposte runs him through" : "He is down"))
-                if atRail { g.snd?.splash() }
+                overSide = atRail
                 downed(g)
             } else if n == 2 {
                 say("Riposte!")
@@ -578,7 +675,7 @@ final class Duel {
     }
     private func furyGo(_ g: Game) {
         if fury < 1 { say("Fury is not ready"); return }
-        if est == .dead || est == .enter || pst == .hurt { return }
+        if est == .dead || est == .drag || est == .enter || pst == .hurt { return }
         fury = 0
         flurry = 3
         flT = 0.05
@@ -590,7 +687,7 @@ final class Duel {
     }
     private func kick(_ g: Game) {
         if kickCd > 0 { say("Not yet"); return }
-        if pst == .hurt || est == .dead || est == .enter || est == .hit { return }
+        if pst == .hurt || est == .dead || est == .drag || est == .enter || est == .hit { return }
         if wind < 0.3 { say("Winded"); return }
         if est == .wind && heavy { say("Too late. Dodge!"); return }
         wind -= 0.3
@@ -616,7 +713,7 @@ final class Duel {
         return [(lx, y1, bw, bh), (lx, y2, bw, bh), (rx, y1, bw, bh), (rx, y2, bw, bh), (lx, y0, bw, bh), (rx, y0, bw, bh)]
     }
     func touch(_ x: Double, _ y: Double, _ g: Game) {
-        if over || est == .dead { return }
+        if over || est == .dead || est == .drag { return }
         let r = rects(g)
         var hit = -1
         for (i, q) in r.enumerated() where x >= q.0 - 6 && x <= q.0 + q.2 + 6 && y >= q.1 - 4 && y <= q.1 + q.3 + 4 { hit = i }
@@ -634,7 +731,7 @@ final class Duel {
         }
         if flurry > 0 { return }
         // the button answers the finger
-        if hit >= 0 && hit < r.count { g.rings.append((r[hit].0, r[hit].1, r[hit].2, r[hit].3, 0)) }
+        if hit >= 0 && hit < r.count { g.rings.append((r[hit].0, r[hit].1, r[hit].2, r[hit].3, 0)); press[hit] = 0.22 }
         switch hit {
         case 0: parry(0, g)
         case 1: parry(1, g)
@@ -664,7 +761,14 @@ final class Duel {
         var pOff = 0.0, eOff = 0.0
         switch est {
         case .enter:
-            eOff = s * 0.9 * clampD(et / 1.0, 0, 1)
+            // he shoulders out of the crowd and walks up, blade low, then brings it to guard
+            let q = clampD(1 - et / Duel.enterLen, 0, 1)
+            let e = 1 - (1 - q) * (1 - q)
+            eOff = s * 1.7 * (1 - e)
+            ep.walking = q < 0.86
+            ep.step = t * 9.5
+            ep.ang = lerp(0.95, -0.45, clampD((q - 0.68) / 0.3, 0, 1))
+            ep.lean = 0.1 * (1 - q) + sin(t * 9.5) * 0.03 * (1 - q)
         case .wind:
             let q = clampD(1 - et / wd, 0, 1)
             if heavy {
@@ -693,7 +797,36 @@ final class Duel {
         case .hit:
             ep.ang = 1.2; ep.lean = -0.4; eOff = s * 0.18; ep.flash = flashE
         case .dead:
-            ep.fall = clampD(1 - et / 0.95, 0, 1); ep.ang = 1.4; eOff = s * 0.2
+            ep.noSword = true
+            if overSide {
+                // flung back against the rail and over it, heels last
+                let q = clampD(1 - et / Duel.railLen, 0, 1)
+                ep.ang = -2.2; ep.lean = -0.5
+                eOff = s * (0.2 + 1.5 * q)
+                ep.fall = min(2.1, q * 2.6) / 1.35
+                ep.dy = -sin(min(1, q * 1.25) * PI) * s * 0.42 + max(0, q - 0.55) * s * 1.8
+                ep.fade = clampD((q - 0.72) / 0.2, 0, 1)
+            } else {
+                // reels, the knees go, and he measures his length on the deck
+                let q = clampD(1 - et / Duel.deadLen, 0, 1)
+                let reel = clampD(q / 0.2, 0, 1)
+                let sink = clampD((q - 0.2) / 0.22, 0, 1)
+                let drop = clampD((q - 0.4) / 0.22, 0, 1)
+                ep.ang = lerp(1.2, -2.3, reel)
+                ep.lean = -0.45 * reel + 0.2 * sink
+                ep.crouch = 0.17 * sink * (1 - drop)
+                ep.fall = drop * drop
+                eOff = s * (0.18 + 0.14 * reel)
+                // a short bounce as he lands
+                let land = clampD((q - 0.62) / 0.12, 0, 1)
+                if q > 0.62 && land < 1 { ep.dy = -sin(land * PI) * s * 0.025 }
+                ep.flash = flashE
+            }
+        case .drag:
+            ep.noSword = true
+            ep.fall = 1
+            ep.ang = -2.3; ep.lean = -0.25
+            eOff = s * 0.32 + dragShift(g)
         default:
             break
         }
@@ -737,7 +870,13 @@ final class Duel {
         follow(&se, ep, ep.trail ? 34 : 16)
         let ko = 1 - exp(-18 * dtv)
         sOffP += (pOff - sOffP) * ko
-        sOffE += (eOff - sOffE) * (est == .enter ? 1 : ko)
+        sOffE += (eOff - sOffE) * (est == .enter || est == .drag || est == .dead ? 1 : ko)
+        if est == .dead || est == .drag || est == .enter {
+            // these are choreographed frame by frame; easing would smear them
+            se.ang = ep.ang; se.lean = ep.lean; se.crouch = ep.crouch; se.reach = ep.reach; se.pang = ep.ang
+        }
+        se.noSword = ep.noSword; se.walking = ep.walking; se.step = ep.step; se.dy = ep.dy; se.fade = ep.fade
+        sp.noSword = false; sp.walking = false; sp.dy = 0; sp.fade = 0
         pp = sp; ep = se; pOff = sOffP; eOff = sOffE
         let (px, _) = playerXY(g)
         let (ex, _) = foeXY(g)
@@ -779,6 +918,24 @@ final class Duel {
         c.translate(-(px + ex) / 2, -(fy - s * 0.4))
         fighter(c, px + pOff, fy, s, 1, pp, 0)
         fighter(c, ex + eOff, fy, s * (kind == .bruiser ? 1.08 : (kind == .captain ? 1.05 : 1)), -1, ep, kindIndex())
+        if est == .drag {
+            // a shipmate comes for him: walks in, stoops, takes him under the arms and hauls him clear
+            let q = clampD(1 - et / Duel.dragLen, 0, 1)
+            var dp = Pose()
+            dp.noSword = true
+            let arrive = clampD(q / 0.3, 0, 1)
+            let grip = ex + s * 0.32 + s * 1.08
+            var dxp = lerp(W + s * 0.5, grip, 1 - (1 - arrive) * (1 - arrive))
+            let hauling = q > 0.42
+            if hauling { dxp = grip + dragShift(g) }
+            dp.walking = q < 0.3 || hauling
+            dp.step = t * (hauling ? -8.0 : 9.5)
+            let bend = clampD((q - 0.27) / 0.13, 0, 1)
+            dp.ang = lerp(0.2, 1.3, bend)
+            dp.lean = lerp(0.05, 0.5, bend) - (hauling ? 0.22 : 0)
+            dp.crouch = 0.1 * bend
+            fighter(c, dxp, fy, s * 0.96, -1, dp, 5)
+        }
         g.drawSparks(c)
         c.restore()
 
@@ -863,23 +1020,92 @@ final class Duel {
             if hold { on = i == holdWant }
             let need: Double = i < 2 ? 0.1 : (i == 2 ? 0.22 : (i == 3 ? 0.18 : (i == 5 ? 0.3 : 0)))
             let dim = hold ? i != holdWant : (i == 4 ? fury < 1 : (i == 5 ? (kickCd > 0 || wind < need) : wind < need))
-            let pu = on ? 1 + sin(t * 18) * 0.04 : 1.0
+            // a button breathes, squeezes under the finger and springs back, and throbs when it is the one to press
+            let pk = press[i] / 0.22
+            let squeeze = pk > 0 ? 1 - 0.1 * sin(pk * PI) : 1.0
+            let idle: Double = 1 + sin(t * 2.6 + Double(i) * 1.1) * 0.012
+            let hot: Double = 1 + sin(t * 18) * 0.045
+            let pu: Double = (on ? hot : idle) * squeeze
             c.save()
             c.translate(q.0 + q.2 / 2, q.1 + q.3 / 2)
             c.scale(pu, pu)
             let x = -q.2 / 2, y = -q.3 / 2
             c.RR(x, y + 3, q.2, q.3, 12, Col(0x1a0e05))
-            if on {
-                c.glow(0, 0, q.2 * 0.8, Col(0xffd257, 0.5), Col(0xffd257, 0))
-                c.RRGrad(x, y, q.2, q.3, 12, [(0, Col(0xffe9a0)), (1, Col(0xd49a2a))])
+            let fire = i == 4 && fury >= 1
+            if on || fire {
+                c.glow(0, 0, q.2 * 0.85, fire ? Col(0xff7a20, 0.55 + 0.2 * sin(t * 9)) : Col(0xffd257, 0.5), Col(0xffd257, 0))
+                c.RRGrad(x, y, q.2, q.3, 12, fire ? [(0, Col(0xffd257)), (0.55, Col(0xff8a20)), (1, Col(0xb8300a))] : [(0, Col(0xffe9a0)), (1, Col(0xd49a2a))])
                 c.RRStroke(x, y, q.2, q.3, 12, 2.5, Col(0xfff6d8))
             } else {
-                c.RRGrad(x, y, q.2, q.3, 12, [(0, Col(0x7a5230)), (1, Col(0x3f2613))])
+                c.RRGrad(x, y, q.2, q.3, 12, [(0, Col(0x8a5e36)), (0.5, Col(0x5f3d1c)), (1, Col(0x3a2210))])
                 c.RRStroke(x, y, q.2, q.3, 12, 1.5, Col(0xd2a455))
             }
-            let tc = on ? Col(0x3a2408) : CREAM
-            c.text(names[i].0, 0, -2, 17, tc, 0, FONTB)
-            c.text(names[i].1, 0, 13, 10.5, tc.alpha(0.85), 0, FONTI)
+            // gloss, and a bar of light that crosses now and then
+            c.save()
+            c.clipRR(x, y, q.2, q.3, 12)
+            c.RRGrad(x + 3, y + 2, q.2 - 6, q.3 * 0.42, 9, [(0, Col(0xffffff, on || fire ? 0.34 : 0.14)), (1, Col(0xffffff, 0))])
+            let per: Double = on || fire ? 1.1 : 4.6
+            let ph: Double = ((t + Double(i) * 0.7) / per).truncatingRemainder(dividingBy: 1)
+            if ph < 0.3 && !dim {
+                let sx = x - 40 + (q.2 + 80) * (ph / 0.3)
+                c.poly(Col(0xffffff, on || fire ? 0.5 : 0.2), [sx, y, sx + 18, y, sx + 2, y + q.3, sx - 16, y + q.3])
+            }
+            if fire {
+                // flames lick up the face of it
+                for f in 0..<7 {
+                    let fp = t * (5 + Double(f) * 0.8) + Double(f) * 1.7
+                    let fh = q.3 * (0.35 + 0.3 * (0.5 + 0.5 * sin(fp)))
+                    let fx = x + q.2 * (0.08 + Double(f) * 0.14)
+                    c.poly(Col(0xffe060, 0.55), [fx - 7, y + q.3, fx + sin(fp) * 4, y + q.3 - fh, fx + 7, y + q.3])
+                }
+            }
+            if press[i] > 0 { c.RR(x, y, q.2, q.3, 12, Col(0xffffff, 0.45 * pk)) }
+            if i == 5 && kickCd > 0 {
+                // the boot comes back as the shade drains away
+                c.R(x, y, q.2 * min(1, kickCd / 3), q.3, Col(0x000000, 0.45))
+            }
+            c.restore()
+            let tc = on || fire ? Col(0x3a2408) : CREAM
+            // the moving sign for each move
+            let ix = x + 22, iy = 0.0
+            let steel = on || fire ? Col(0x3a2408) : Col(0xe6ecf0)
+            c.roundCaps(true)
+            switch i {
+            case 0:
+                // a blade thrown up across the body
+                let a = -1.1 + sin(t * 4) * 0.12
+                c.seg(ix - cos(a) * 9, iy - sin(a) * 9 + 4, ix + cos(a) * 11, iy + sin(a) * 11 + 4, 2.6, steel); c.seg(ix - cos(a) * 9 - 4, iy - sin(a) * 9 + 2, ix - cos(a) * 9 + 4, iy - sin(a) * 9 + 6, 2.4, Col(0xd4a52a))
+                c.arcStroke(ix + 2, iy - 2, 13 + sin(t * 4) * 1.5, PI * 1.15, PI * 1.85, 1.8, steel.alpha(0.6))
+            case 1:
+                let a = 0.75 + sin(t * 4 + 1) * 0.12
+                c.seg(ix - cos(a) * 9, iy - sin(a) * 9 - 3, ix + cos(a) * 11, iy + sin(a) * 11 - 3, 2.6, steel); c.seg(ix - cos(a) * 9 - 4, iy - sin(a) * 9 - 5, ix - cos(a) * 9 + 4, iy - sin(a) * 9 - 1, 2.4, Col(0xd4a52a))
+                c.arcStroke(ix + 2, iy + 3, 13 + sin(t * 4 + 1) * 1.5, PI * 0.15, PI * 0.85, 1.8, steel.alpha(0.6))
+            case 2:
+                // a figure slipping aside, with the gap he left
+                let sl = sin(t * 3.2) * 4
+                c.circ(ix - 3 - sl, iy - 7, 3.4, steel); c.seg(ix - 3 - sl, iy - 3, ix - 5 - sl * 1.4, iy + 7, 3, steel)
+                c.seg(ix + 6, iy - 6, ix + 11, iy - 6, 1.6, steel.alpha(0.5)); c.seg(ix + 5, iy, ix + 12, iy, 1.6, steel.alpha(0.5)); c.seg(ix + 6, iy + 6, ix + 11, iy + 6, 1.6, steel.alpha(0.5))
+            case 3:
+                // a point driving home, again and again
+                let th = (t * 1.6).truncatingRemainder(dividingBy: 1)
+                let go = th < 0.3 ? th / 0.3 : max(0, 1 - (th - 0.3) / 0.5)
+                c.seg(ix - 10 + go * 7, iy, ix + 9 + go * 7, iy, 2.8, steel); c.poly(steel, [ix + 8 + go * 7, iy - 4, ix + 15 + go * 7, iy, ix + 8 + go * 7, iy + 4])
+                c.seg(ix - 7 + go * 7, iy - 5, ix - 7 + go * 7, iy + 5, 2.6, Col(0xd4a52a))
+            case 4:
+                // a flame, small while it builds
+                let fs = 0.5 + 0.5 * fury
+                c.poly(Col(0xff7a20), [ix - 7 * fs, iy + 9, ix + sin(t * 9) * 3, iy + 9 - 22 * fs, ix + 7 * fs, iy + 9])
+                c.poly(Col(0xffe060), [ix - 4 * fs, iy + 9, ix + sin(t * 11) * 2, iy + 9 - 13 * fs, ix + 4 * fs, iy + 9])
+            default:
+                // a boot swinging
+                let ka = sin(t * 5) * 0.5
+                c.save(); c.translate(ix - 2, iy - 8); c.rotate(-ka)
+                c.seg(0, 0, 0, 14, 4.5, steel); c.seg(0, 14, 8, 14, 4.5, steel)
+                c.restore()
+            }
+            c.roundCaps(false)
+            c.text(names[i].0, 14, -2, 16.5, tc, 0, FONTB)
+            c.text(names[i].1, 14, 13, 10, tc.alpha(0.85), 0, FONTI)
             if i == 4 && fury < 1 { c.RR(x + 6, y + q.3 - 7, (q.2 - 12) * fury, 3, 1.5, Col(0xff9a3a)) }
             if dim { c.RR(x, y, q.2, q.3 + 3, 12, Col(0x120a04, 0.5)) }
             c.restore()
@@ -1153,11 +1379,14 @@ final class Duel {
         c.save()
         c.translate(x, fy)
         c.ell(0, 2, s * 0.3, s * 0.04, Col(0x000000, 0.4))
+        if p.dy != 0 { c.translate(0, p.dy) }
+        if p.fade > 0 { c.alpha(1 - min(1, p.fade)) }
         if p.fall > 0 {
-            c.alpha(1 - p.fall * 0.6)
-            c.translate(0, p.fall * s * 0.02)
-            c.rotate(-dir * p.fall * 1.35)
+            // he goes over backward and ends flat on the planks, not faded away
+            c.translate(0, -min(1, p.fall) * s * 0.07)
+            c.rotate(-dir * p.fall * 1.5)
         }
+        if p.walking { c.translate(0, -abs(sin(p.step)) * s * 0.018) }
         c.scale(dir, 1)
         c.roundCaps(true)
 
@@ -1205,7 +1434,13 @@ final class Duel {
         let crouch = p.crouch * s
         let hipX = p.reach * s * 0.1, hipY = -s * 0.47 + crouch
         let shX = hipX + sin(p.lean) * s * 0.3, shY = hipY - cos(p.lean) * s * 0.3
-        let bfX = -s * (0.2 + max(0, p.reach) * 0.08), ffX = s * (0.15 + max(0, p.reach) * 0.24)
+        var bfX = -s * (0.2 + max(0, p.reach) * 0.08), ffX = s * (0.15 + max(0, p.reach) * 0.24)
+        if p.walking {
+            // legs scissor as he walks
+            let sw = cos(p.step)
+            bfX = -s * 0.17 * sw
+            ffX = s * 0.17 * sw
+        }
         let bkX = (hipX + bfX) / 2 - s * 0.02, bkY = hipY / 2 - s * 0.02
         let fkX = (hipX + ffX) / 2 + s * 0.07, fkY = hipY / 2 - s * 0.03 + crouch * 0.4
 
@@ -1482,6 +1717,7 @@ final class Duel {
         let rapier = st == 3
         let bl = s * (heavy ? 0.52 : (rapier ? 0.5 : 0.45))
         let tipX = hx + ca * bl, tipY = hy + sa * bl
+        if !p.noSword {
         // any quick movement of the sword smears: the space between where it was and where it is
         let sweep = p.ang - p.pang
         if p.blur && abs(sweep) > 0.05 && abs(sweep) < 2.6 {
@@ -1562,6 +1798,7 @@ final class Duel {
             c.seg(hx + nx * s * 0.055, hy + ny * s * 0.055, hx - nx * s * 0.045, hy - ny * s * 0.045, s * 0.018, gold)
             // the bow that guards the knuckles
             c.curve(hx + nx * s * 0.055, hy + ny * s * 0.055, hx + nx * s * 0.075 - ca * s * 0.05, hy + ny * s * 0.075 - sa * s * 0.05, hx - ca * s * 0.075, hy - sa * s * 0.075, s * 0.014, gold)
+        }
         }
         // the hand, over the grip
         c.circ(hx - ca * s * 0.022, hy - sa * s * 0.022, s * 0.038 + ol, ink)
