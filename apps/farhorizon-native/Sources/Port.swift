@@ -530,11 +530,11 @@ extension Game {
         c.RR(safeL, sy, W - safeL - safeR, 26, 13, Col(0x1c1108, 0.86))
         c.RRStroke(safeL, sy, W - safeL - safeR, 26, 13, 1.2, Col(0xd2a455, 0.85))
         var chx = safeL + 12
-        c.text("Next passage, about \(need.days) days:", chx, sy + 17.5, 12.5, CREAM.alpha(0.85), -1, FONTI)
-        chx += textW("Next passage, about \(need.days) days:", 12.5, FONTI) + 12
+        c.text("Next passage \(need.days) days:", chx, sy + 17.5, 12.5, CREAM.alpha(0.85), -1, FONTI)
+        chx += textW("Next passage \(need.days) days:", 12.5, FONTI) + 10
         let chips: [(String, String, Bool)] = [
-            ("food", "\(need.foodDays) days of food", need.foodOK),
-            ("water", "\(need.waterDays) days of water", need.waterOK),
+            ("food", "food \(need.foodDays)d", need.foodOK),
+            ("water", "water \(need.waterDays)d", need.waterOK),
             ("hull", "hull \(need.hullPct)%", need.hullOK),
             ("crew", need.down > 0 ? "\(need.down) laid up" : "\(crew)/\(ship.crew) hands", need.crewOK),
             ("gold", "wages \(wagesDue())", need.wagesOK)
@@ -554,7 +554,7 @@ extension Game {
                 let r = 3.6 + pulse * 1.2
                 c.seg(mx2 - r, sy + 13 - r, mx2 + r, sy + 13 + r, 2.4, Col(0xff6a50)); c.seg(mx2 + r, sy + 13 - r, mx2 - r, sy + 13 + r, 2.4, Col(0xff6a50))
             }
-            chx += tw + 52
+            chx += tw + 46
         }
 
         // ---- where to go: each door shows what is waiting behind it

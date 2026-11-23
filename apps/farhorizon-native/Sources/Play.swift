@@ -121,7 +121,7 @@ extension Game {
                         shake = 0.25
                         snd?.thud()
                         buzz?(true)
-                        p.say(p.theme == "leak" ? "She's taking water!" : (p.theme == "thief" ? "He ducks away!" : (p.theme == "rats" ? "Into the stores!" : (p.theme == "fire" ? "It has the roof!" : "Struck a rock!"))), false)
+                        p.say(p.theme == "leak" ? "She's taking water!" : (p.theme == "thief" ? "He ducks away!" : (p.theme == "rats" ? "Into the stores!" : (p.theme == "fire" ? "It has the roof!" : (p.theme == "shark" ? "It hits the raft!" : "Struck a rock!")))), false)
                     } else {
                         open += 1
                     }
@@ -153,6 +153,7 @@ extension Game {
                 case "run": p.say(perfect ? "Every stitch drawing!" : "The sails fill", true)
                 case "fish": p.say(perfect ? "A big one!" : "Hooked!", true); snd?.splash(); puff(sx - len * 0.45, wy + 2, 16, Col(0xffffff, 0.9), 160, 300, 2.4, 0.5)
                 case "dock": p.say(perfect ? "Stowed like a master!" : "Aboard she goes", true); snd?.coin()
+                case "row": p.say(perfect ? "All together. She moves!" : "A good stroke", true); snd?.splash()
                 case "strong": p.say(perfect ? "The bell rings clean off its post!" : "The bell rings!", true); snd?.bell()
                 default: p.say("He has the line!", true)
                 }
@@ -165,6 +166,7 @@ extension Game {
                 case "run": p.say("The canvas flogs", false)
                 case "fish": p.say("It slipped the hook", false)
                 case "dock": p.say("The load swings wide!", false)
+                case "row": p.say("The oars clash", false)
                 case "strong": p.say("Not even halfway", false)
                 default: p.say("The line falls short", false); snd?.splash()
                 }
@@ -329,6 +331,13 @@ extension Game {
                         c.RR(tg.x - 7, tg.y - 4 - 20 * pop, 14, 24 * pop, 4, Col(0x23232c))
                         c.circ(tg.x, tg.y - 28 * pop, 7, Col(0x23232c)); c.circ(tg.x + 1, tg.y - 27 * pop, 4, Col(0xe3b58a))
                         c.circ(tg.x + 10, tg.y - 10 * pop, 4.5, Col(0xd9a441)); c.circ(tg.x + 10, tg.y - 10 * pop, 2, Col(0xfff2c0))
+                    } else if p.theme == "shark" {
+                        // a fin cutting in toward the raft
+                        let dir = tg.x > W * 0.78 ? -1.0 : 1.0
+                        let sxx = tg.x - dir * (1 - k) * 40
+                        c.poly(Col(0x3a4650), [sxx - 11, tg.y + 4, sxx + 2 * dir, tg.y - 20, sxx + 11, tg.y + 4])
+                        c.ellStroke(sxx, tg.y + 5, 18, 3, 1.2, Col(0xffffff, 0.6))
+                        c.seg(sxx - dir * 12, tg.y + 5, sxx - dir * 34, tg.y + 7, 1, Col(0xffffff, 0.4))
                     } else if p.theme == "fire" {
                         // flames taking hold of a roof
                         for j in 0..<5 {
@@ -359,7 +368,7 @@ extension Game {
                         c.RR(tg.x - 9, tg.y - 6, 18, 12, 2, Col(0xc9a86a, 0.5 + 0.5 * a))
                         c.circ(tg.x - 6, tg.y - 3, 1.2, Col(0x3a2412)); c.circ(tg.x + 6, tg.y + 3, 1.2, Col(0x3a2412))
                     } else {
-                        c.textS(p.theme == "fire" ? "Doused!" : (p.theme == "thief" || p.theme == "rats" ? "Got him!" : "Clear!"), tg.x, tg.y - 20 - (1 - a) * 14, 15, Col(0x9ff0aa, a), 0, FONTB)
+                        c.textS(p.theme == "shark" ? "Driven off!" : p.theme == "fire" ? "Doused!" : (p.theme == "thief" || p.theme == "rats" ? "Got him!" : "Clear!"), tg.x, tg.y - 20 - (1 - a) * 14, 15, Col(0x9ff0aa, a), 0, FONTB)
                     }
                 } else if tg.state == 2 && tg.age < 0.7 {
                     c.textS("✕", tg.x, tg.y, 26, Col(0xff5a3c, 1 - tg.age / 0.7), 0, FONTB)
@@ -593,6 +602,35 @@ extension Game {
         var s = [3, 6, 4, 1, 0]
         if chance(0.35) { s[4] = 8 }
         playPick("wreck", "An old sailor's gift", "\"Sailed with your father, I did. Take two, with my blessing.\"", s, 2) { return "" }
+    }
+    func playRow() {
+        let p = Play(.timing, "row", "Man the oars", "Call the stroke. Tap on the beat") { [unowned self] p in
+            let miss = p.rounds - p.score
+            if miss >= 2 { self.consume() }
+            if self.over { return }
+            self.done(miss == 0 ? "Four clean strokes and she finds a breeze. Nothing lost" : (miss >= 2 ? "A ragged, thirsty hour at the oars. Extra rations used" : "She creeps out of the calm"))
+        }
+        p.rounds = 4
+        p.zone = 0.24
+        p.speed = 1.0
+        startPlay(p)
+    }
+    func playShark() {
+        let p = Play(.taps, "shark", "Sharks round the raft", "Tap each fin to drive it off with a musket shot") { [unowned self] p in
+            if p.missed >= 2 { self.done("The raft is empty when you reach it"); return }
+            if self.crew < self.ship.crew {
+                self.crew += 1
+                self.syncMen()
+                self.done("Hauled aboard, shaking. He signs on with your crew")
+            } else {
+                self.gold += 60
+                self.snd?.coin()
+                self.done("Hauled aboard, shaking. He pays 60 gold for his life")
+            }
+        }
+        p.total = 5
+        p.life = 1.4
+        startPlay(p)
     }
     func playFire() {
         let p = Play(.taps, "fire", "Fire in the town!", "Your crew forms a bucket chain. Tap each blaze") { [unowned self] p in

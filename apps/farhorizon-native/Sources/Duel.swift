@@ -510,6 +510,8 @@ final class Duel {
             if holdWant == 3 { lungeTaught = true }
         }
         if flurry > 0 { return }
+        // the button answers the finger
+        if hit >= 0 && hit < r.count { g.rings.append((r[hit].0, r[hit].1, r[hit].2, r[hit].3, 0)) }
         switch hit {
         case 0: parry(0, g)
         case 1: parry(1, g)
@@ -766,7 +768,51 @@ final class Duel {
         }
     }
 
+    /// A fight ashore: the waterfront behind, cobbles underfoot, the town looking on.
+    private func drawQuay(_ c: Canvas, _ g: Game) {
+        let W = g.W, H = g.H
+        let hz = H * 0.44
+        g.drawSea(c, hz)
+        // the far side of the harbour
+        c.pathFill(Col(0x5f9450)) { p in
+            p.move(to: CGPoint(x: -10, y: hz + 2))
+            p.addQuadCurve(to: CGPoint(x: W * 0.5, y: hz - 60), control: CGPoint(x: W * 0.2, y: hz - 70))
+            p.addQuadCurve(to: CGPoint(x: W + 10, y: hz - 30), control: CGPoint(x: W * 0.8, y: hz - 90))
+            p.addLine(to: CGPoint(x: W + 10, y: hz + 2))
+            p.closeSubpath()
+        }
+        // houses along the front, shutters open, people at every window
+        var hx = -10.0
+        var i = 0
+        while hx < W + 10 {
+            let hw = 64 + hashN(Double(i) * 2.9) * 40, hh = 90 + hashN(Double(i) * 6.1) * 70
+            let base = H * 0.66
+            let wall = [Col(0xf3ead2), Col(0xf0d8b0), Col(0xe8c8c0), Col(0xd8e4e8), Col(0xf6e6a8)][i % 5]
+            c.R(hx, base - hh, hw, hh, wall.shade(0.85))
+            c.poly([Col(0xb8452c), Col(0x8a5a36), Col(0xa63a2a)][i % 3], [hx - 4, base - hh, hx + hw / 2, base - hh - hw * 0.3, hx + hw + 4, base - hh])
+            for r in 0..<2 {
+                for q in 0..<2 {
+                    let wx = hx + hw * (Double(q) + 0.5) / 2 - 8, wy2 = base - hh + 14 + Double(r) * 34
+                    c.R(wx - 2, wy2 - 2, 20, 24, Col(0x3a2412)); c.R(wx, wy2, 16, 20, Col(0x2a3a4a))
+                    if hashN(Double(i * 7 + r * 3 + q)) > 0.4 { c.circ(wx + 8, wy2 + 12 + sin(g.T * 4 + Double(i + q)) * 1.5, 4.5, Col(0xe3b58a)); c.R(wx + 3, wy2 + 15, 10, 5, [Col(0x2f5f8f), Col(0x8c3b2e), Col(0x3a7a6d)][(i + q) % 3]) }
+                }
+            }
+            hx += hw + 4
+            i += 1
+        }
+        // cobbles
+        c.vfill(0, H * 0.66, W, H * 0.34, [(0, Col(0x8a8378)), (1, Col(0x4a463e))])
+        for r in 0..<7 {
+            let ry = H * 0.66 + Double(r * r) * 2.6 + 4
+            c.R(0, ry, W, 1.2, Col(0x2a2622, 0.45))
+            var cx = (r % 2 == 0 ? 0.0 : 20.0)
+            while cx < W { c.R(cx, ry, 1.2, 6 + Double(r) * 2.4, Col(0x2a2622, 0.35)); cx += 40 + Double(r) * 6 }
+        }
+        c.R(0, 0, W, H, Col(0x0a0604, 0.12))
+    }
+
     private func drawDeck(_ c: Canvas, _ g: Game) {
+        if g.duelPort { drawQuay(c, g); return }
         let W = g.W, H = g.H
         let hz = H * 0.44
         g.drawSea(c, hz)

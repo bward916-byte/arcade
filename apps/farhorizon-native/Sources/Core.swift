@@ -117,6 +117,10 @@ final class Man {
         n = FIRST[Int.random(in: 0..<FIRST.count)] + " " + LAST[Int.random(in: 0..<LAST.count)]
         sk = ROLES[Int.random(in: 0..<ROLES.count)].k
     }
+    init(n: String, sk: String) {
+        self.n = n
+        self.sk = sk
+    }
     var fit: Bool { return st == 0 }
     func knows(_ k: String) -> Bool { return sk == k || sk2 == k }
     var first: String { return String(n.split(separator: " ").first ?? "Sailor") }

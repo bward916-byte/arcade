@@ -91,6 +91,8 @@ final class Game {
     var chatLine = 0
     var chatT = 0.0
     var portMsg = ""
+    var saveT = 1.0
+    var won = false
     // an event is first sighted, with the clock slowed, before it is upon you
     var omenK = ""
     var omenT = 0.0
@@ -374,6 +376,8 @@ final class Game {
         logIt(why)
         card = nil; duel = nil
         endTitle = "Lost at sea"
+        won = false
+        clearSave()
         let pct = Int(((Double(leg) + min(1, dist / max(1, legLen))) / 5 * 100).rounded())
         endText = why + "\nDay \(cal), \(pct)% of the way."
         mode = .end
@@ -534,6 +538,8 @@ final class Game {
         over = true
         let score = gold + crew * 60 + Int(hull) * 3 - day * 4
         endTitle = "Santa Aurelia!"
+        won = true
+        clearSave()
         endText = "You made port on day \(cal) with \(crew) hands and \(gold) gold.\nScore: \(max(0, score))" + (dead.isEmpty ? "" : "\nLost on the way: " + dead.joined(separator: ", "))
         mode = .end
         card = nil
@@ -575,6 +581,15 @@ final class Game {
         case .port:
             if card == nil, play != nil { updatePlay(dt) }
             updateTown(dt)
+            saveT -= dt
+            if saveT <= 0 && card == nil && play == nil { saveT = 4; saveGame() }
+        case .end:
+            // fireworks over Santa Aurelia if you made it
+            if won && chance(dt * 2.2) {
+                let x = rnd(W * 0.05, W * 0.5), y = rnd(30, H * 0.4)
+                puff(x, y, 44, [Col(0xff5a5a), Col(0xffd257), Col(0x7fd8ff), Col(0x9ff0aa), Col(0xff9af0)][rndI(0, 4)], 210, 90, 2.6, 1.2)
+                snd?.noise(0.35, 0.14, 700, 1)
+            }
         case .sail:
             if card == nil, play != nil {
                 updatePlay(dt)
@@ -648,6 +663,10 @@ final class Game {
         if name == "event" { event("pirates") }
         if name == "result" { event("ghost"); done("Her hold is full of old silver: +212 gold") }
         if name == "port" { leg = 1; mode = .port; portJobs = [2, 7, 10] }
+        if name == "raid" { leg = 1; mode = .port; portJob = 7; duelPort = true; startDuel(foes: 5, boss: false, prize: 45, teach: false) }
+        if name == "shark" { playShark() }
+        if name == "win" { fights = 4; log = ["Day 3: Ran into a storm", "Day 30: Made port at Gull Cay", "Day 71: Took a pirate ship by boarding", "Day 118: Took the Red Mary"]; finish() }
+        if name == "saved" { leg = 2; mode = .port; saveGame(); mode = .title }
         if name == "omen" { startOmen("pirates"); omenT = 1.6; Game.omenHold = true }
         if name == "yard" { leg = 1; mode = .port; shipwright() }
         if name == "decklife" { ups = ["sails": 2, "hull": 1, "guns": 1]; deckForce = 5; seaForce = 0 }

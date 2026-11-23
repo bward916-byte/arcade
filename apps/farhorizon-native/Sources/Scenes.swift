@@ -388,15 +388,56 @@ extension Game {
         let hz = H * 0.56
         drawSea(c, hz)
         let wy = hz + (H - hz) * 0.42
-        drawShip(c, W * 0.3, wy, min(W * 0.34, 300), 2)
+        // a far sail, gulls, and something leaping off the bow
+        let fs = W * 0.9 - (T * 4).truncatingRemainder(dividingBy: W * 0.5)
+        c.poly(Col(0xf3ead2, 0.8), [fs - 6, hz, fs - 6, hz - 15, fs + 1, hz - 2]); c.poly(Col(0xf3ead2, 0.8), [fs + 2, hz, fs + 2, hz - 19, fs + 10, hz - 2]); c.poly(Col(0x3f2613), [fs - 11, hz + 1, fs + 12, hz + 1, fs + 8, hz + 4, fs - 8, hz + 4])
+        for i in 0..<5 {
+            let gx = W * 0.45 + cos(T * (0.3 + Double(i) * 0.05) + Double(i) * 1.9) * W * (0.2 + Double(i) * 0.04)
+            let gy = hz * 0.4 + sin(T * (0.42 + Double(i) * 0.04) + Double(i)) * hz * 0.25
+            let fl = sin(T * 7 + Double(i) * 2) * 4
+            c.curve(gx - 8, gy + fl, gx - 4, gy - 3, gx, gy, 1.5, Col(0xffffff, 0.95)); c.curve(gx, gy, gx + 4, gy - 3, gx + 8, gy + fl, 1.5, Col(0xffffff, 0.95))
+        }
+        drawShip(c, W * 0.3, wy, min(W * 0.34, 300), 2, life: true)
         foreWave(c, wy + 4, 0, W)
+        for i in 0..<2 {
+            let ph = (T * 0.5 + Double(i) * 0.4).truncatingRemainder(dividingBy: 1)
+            let dx = W * 0.52 + Double(i) * 34 + ph * 30, base = wy + 18
+            if ph < 0.55 {
+                let k = ph / 0.55
+                c.save(); c.translate(dx, base - sin(k * PI) * 30); c.rotate(-0.9 + k * 1.8)
+                c.ell(0, 0, 14, 4.5, Col(0x5a7a94)); c.ell(2, 1.5, 10, 2.4, Col(0xcfe0ea)); c.poly(Col(0x4a6a84), [-2, -4, 3, -10, 5, -4]); c.poly(Col(0x4a6a84), [-13, 0, -20, -5, -19, 5])
+                c.restore()
+            }
+        }
         let tx = W * 0.68
-        c.text("FAR HORIZON", tx + 2, H * 0.3 + 3, 50, Col(0x000000, 0.55), 0, FONTD)
-        c.text("FAR HORIZON", tx, H * 0.3, 50, GOLD, 0, FONTD)
-        c.textS("Choose a ship. Stock the hold. Reach Santa Aurelia.", tx, H * 0.3 + 30, 16, CREAM, 0, FONTI)
-        btn(c, tx - 110, H * 0.3 + 56, 220, 52, "New voyage", gold: true, size: 20) { [unowned self] in
-            self.newGame()
-            self.mode = .pick
+        let ty = H * 0.27
+        // the name, lifting on the swell, with light running across it
+        let lift = sin(T * 1.3) * 2
+        c.glow(tx, ty - 14 + lift, 230, Col(0xffd257, 0.14 + 0.05 * sin(T * 2)), Col(0xffd257, 0))
+        c.text("FAR HORIZON", tx + 2, ty + 3 + lift, 50, Col(0x000000, 0.55), 0, FONTD)
+        c.text("FAR HORIZON", tx, ty + lift, 50, GOLD, 0, FONTD)
+        let tw = textW("FAR HORIZON", 50, FONTD)
+        let sw = ((T * 0.35).truncatingRemainder(dividingBy: 1)) * (tw + 200) - 100
+        // only the letters catch the light: the name is drawn again, brighter, through a moving slit
+        c.save()
+        c.clipRect(tx - tw / 2 + sw - 16, ty - 46 + lift, 34, 60)
+        c.text("FAR HORIZON", tx, ty + lift, 50, Col(0xfffbe8), 0, FONTD)
+        c.restore()
+        c.R(tx - tw / 2, ty + 12 + lift, tw * min(1, T / 1.2), 2, Col(0xd2a455, 0.8))
+        c.textS("Choose a ship. Stock the hold. Reach Santa Aurelia.", tx, ty + 36, 16, CREAM, 0, FONTI)
+        if hasSave {
+            btn(c, tx - 130, ty + 56, 260, 50, "Continue voyage", saveLine, gold: true, size: 19) { [unowned self] in
+                if !self.loadGame() { self.clearSave() }
+            }
+            btn(c, tx - 130, ty + 114, 260, 40, "New voyage", size: 16) { [unowned self] in
+                self.newGame()
+                self.mode = .pick
+            }
+        } else {
+            btn(c, tx - 110, ty + 60, 220, 52, "New voyage", gold: true, size: 20) { [unowned self] in
+                self.newGame()
+                self.mode = .pick
+            }
         }
     }
 
@@ -526,7 +567,7 @@ extension Game {
             drawShip(c, -W * 0.1 + W * 0.2 * near, wy - 14 + 8 * near, min(W * 0.3, 280) * (0.35 + 0.4 * near), theme == "blockade" ? 3 : 2, enemy: true)
         } else if theme == "merchant" {
             drawShip(c, W * 1.05 - W * 0.22 * near, wy - 16, min(W * 0.3, 280) * 0.5, 2, furled: near > 0.8)
-        } else if theme == "castaway" {
+        } else if theme == "castaway" || theme == "shark" {
             let rx = W * 1.0 - W * 0.22 * near, ry = wy + 16 + sin(T * 2) * 3
             c.RR(rx - 18, ry, 36, 5, 2, Col(0x8a6a44)); c.seg(rx, ry, rx, ry - 20, 1.5, Col(0x5a3d20)); c.poly(Col(0xe8e0c8), [rx, ry - 20, rx + 11, ry - 16, rx, ry - 12])
             c.circ(rx - 7, ry - 9, 3, Col(0xe3b58a)); c.R(rx - 9, ry - 6, 4, 6, Col(0x8c3b2e)); c.seg(rx - 7, ry - 6, rx - 13, ry - 16 + sin(T * 10) * 3, 1.6, Col(0xe3b58a))
@@ -626,19 +667,36 @@ extension Game {
         let hz = H * 0.56
         drawSea(c, hz)
         let wy = hz + (H - hz) * 0.42
-        if hull > 0 { drawShip(c, W * 0.24, wy, 220, ship.masts) }
+        if hull > 0 { drawShip(c, W * 0.22, wy, 220, ship.masts, furled: won, life: !won) }
         foreWave(c, wy + 4, 0, W)
-        let pw = min(W * 0.56, 480), px = W - safeR - pw - 10, py = 30.0
-        let lines = wrapText(endText, pw - 40, 16, FONT)
-        let ph = 60 + Double(lines.count) * 21 + 66
+        if won { c.glow(W * 0.25, hz * 0.4, 260, Col(0xffd257, 0.12 + 0.05 * sin(T * 2)), Col(0xffd257, 0)) }
+        let pw = min(W * 0.58, 500), px = W - safeR - pw - 10, py = 30.0
+        let lines = wrapText(endText, pw - 40, 15.5, FONT)
+        let recent = Array(log.suffix(4))
+        let ph = min(H - 44, 60 + Double(lines.count) * 20 + 50 + Double(recent.count) * 16 + 70)
         panel(c, px, py, pw, ph)
-        c.text(endTitle, px + 20, py + 36, 26, GOLD, -1, FONTD)
-        var y = py + 64
+        c.text(endTitle, px + 20, py + 36, 26, won ? GOLD : Col(0xff9a8a), -1, FONTD)
+        c.R(px + 20, py + 44, (pw - 40) * min(1, T.truncatingRemainder(dividingBy: 1000) / 1.0), 1.5, Col(0xd2a455, 0.7))
+        var y = py + 66
         for l in lines {
-            c.text(l, px + 20, y, 16, CREAM, -1, FONT)
-            y += 21
+            c.text(l, px + 20, y, 15.5, CREAM, -1, FONT)
+            y += 20
         }
-        btn(c, px + 20, py + ph - 58, pw - 40, 46, "Sail again", gold: true, size: 18) { [unowned self] in
+        // the voyage in four numbers
+        let stats: [(String, String)] = [("day", "\(cal) days"), ("gold", "\(gold) gold"), ("crew", "\(crew) hands"), ("arms", "\(fights) fights")]
+        let cw = (pw - 40 - 18) / 4
+        for (i, st) in stats.enumerated() {
+            let sx = px + 20 + Double(i) * (cw + 6)
+            c.RR(sx, y, cw, 30, 8, Col(0x1c1108, 0.7)); c.RRStroke(sx, y, cw, 30, 8, 1, Col(0xd2a455, 0.45))
+            icon(c, st.0, sx + 15, y + 15 + sin(T * 3 + Double(i)) * 1.2, 17)
+            c.text(st.1, sx + 28, y + 20, 12.5, CREAM, -1, FONTB)
+        }
+        y += 46
+        for l in recent {
+            c.text(l, px + 20, y, 12, CREAM.alpha(0.7), -1, FONTI)
+            y += 16
+        }
+        btn(c, px + 20, py + ph - 56, pw - 40, 46, "Sail again", gold: true, size: 18) { [unowned self] in
             self.newGame()
             self.mode = .title
         }

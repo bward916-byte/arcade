@@ -136,10 +136,7 @@ extension Game {
             ])
         case "calm":
             show("Becalmed", "The sails hang limp. Not a breath of wind.", [
-                Opt("Man the oars", "extra rations") { [unowned self] in
-                    self.consume()
-                    if !self.over { self.done("The crew rows her out. Extra rations used") }
-                },
+                Opt("Man the oars", "pull her out on the beat") { [unowned self] in self.playRow() },
                 Opt("Wait for wind", "lose \(2 * SUNS) days") { [unowned self] in
                     self.passDays(2)
                     if !self.over { self.done("Lost \(2 * SUNS) days") }
@@ -186,17 +183,7 @@ extension Game {
             ])
         case "castaway":
             show("Castaway", "A man on a raft waves wildly. A fin circles him.", [
-                Opt("Rescue him") { [unowned self] in
-                    if self.crew < self.ship.crew {
-                        self.crew += 1
-                        self.syncMen()
-                        self.done("He joins your crew")
-                    } else {
-                        self.gold += 40
-                        self.snd?.coin()
-                        self.done("He pays 40 gold for passage")
-                    }
-                }, on
+                Opt("Rescue him", "drive off the sharks") { [unowned self] in self.playShark() }, on
             ])
         case "ghost":
             show("Ghost ship", "A pale ship drifts in the dark with no one at the helm.", [
