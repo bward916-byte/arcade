@@ -58,6 +58,8 @@ final class Game {
     var raidT = -1.0
     var raidDone = false
     var raidFlash = 0.0
+    var heroOn = true
+    var slowWalk = false
     var born: [Int: Double] = [:]
     var rainAmt: Double { return clampD((sin(T * 0.021 - 1.5) - 0.84) * 9, 0, 1) }
 
@@ -412,7 +414,7 @@ final class Game {
         // walking
         if rowPhase == 0 {
             let d = tx - px
-            let top: Double = abs(d) > 70 ? 118 : 62
+            let top: Double = abs(d) > 70 && !slowWalk ? 118 : 62
             let want = abs(d) > 4 ? sgn(d) * min(top, 20 + abs(d) * 1.4) : 0.0
             speed = lerp(speed, want, min(1, dt * 8))
             if abs(speed) > 2 {
@@ -761,6 +763,9 @@ final class Game {
             dog = true; coins = 420; day = 14
         }
         switch name {
+        case "walk": px = 150; tx = 560; slowWalk = true; done.insert("boat1")
+        case "run": px = 900; tx = 1500; done.insert("boat1"); done.insert("boat2")
+        case "oldfig": px = 150; tx = 560; slowWalk = true; done.insert("boat1"); heroOn = false
         case "pier": px = -150
         case "fish": px = -215; fishing = true; fishPhase = 1; fishT = 0.4; face = -1; coins = 6
         case "beach": px = 300; done.insert("boat1"); done.insert("cart"); coins = 55
@@ -777,7 +782,7 @@ final class Game {
         case "burnt": all(1); px = 2790; tod = 0.4; dmg.insert("mill"); done.remove("mill"); pile = [:]
         default: px = -150
         }
-        tx = px
+        if name != "walk" && name != "run" && name != "oldfig" { tx = px }
         dogX = px - 24
         respawnItems()
         snapCam()

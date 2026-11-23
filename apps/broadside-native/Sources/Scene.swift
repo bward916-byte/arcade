@@ -366,6 +366,10 @@ extension Game {
     // ---------- the fishing line
     // ---------- the player
     func drawPerson(_ c: Canvas, _ L: Double) {
+        if heroOn && drawHero(c, L) {
+            drawCapacity(c)
+            return
+        }
         let moving = abs(speed) > 4
         let amt = min(1.0, abs(speed) / 40)
         let bob = moving ? abs(sin(walkPh)) * 1.1 * amt : sin(T * 1.6) * 0.3
@@ -472,6 +476,10 @@ extension Game {
         c.roundCaps(false)
         c.restore()
 
+        drawCapacity(c)
+    }
+
+    func drawCapacity(_ c: Canvas) {
         // how full the hold is: fish shapes over your head, shown for a moment
         if capShow > 0 {
             let n = fishCap
