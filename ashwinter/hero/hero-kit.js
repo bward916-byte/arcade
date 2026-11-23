@@ -4421,7 +4421,7 @@
     // ================= look =================
     setLook(look) {
       const T = this.T, L = this.look = Object.assign({}, DEFAULT_LOOK, this.look || {}, look || {});
-      for (const p of this.parts) { p.parent.remove(p); p.traverse(q => { if (q.geometry && q.geometry !== this._sph) q.geometry.dispose(); if (q.material) { if (q.material.map) q.material.map.dispose(); q.material.dispose(); } }); }
+      for (const p of this.parts) { if (p.parent) p.parent.remove(p); p.traverse(q => { if (q.geometry && q.geometry !== this._sph) q.geometry.dispose(); if (q.material) { if (q.material.map) q.material.map.dispose(); q.material.dispose(); } }); }
       this.parts = []; for (const m of this.own) m.visible = false;
       const SPH = this._sph || (this._sph = new T.SphereGeometry(1, 20, 14)), mat = c => new T.MeshPhongMaterial({ color: c, shininess: 16, specular: 0x1e1e1e });
       const M = { skin: mat(L.skin), top: mat(L.top), bottom: mat(L.bottom), shoes: mat(L.shoes), hair: mat(L.hairColor), hat: mat(L.hatColor), belt: mat('#2a2018'), dark: mat('#1a1a1e') };
