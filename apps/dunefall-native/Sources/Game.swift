@@ -64,6 +64,7 @@ final class Game {
     var fest = 0.0
     var festDone = false
     var festT = 0.0
+    var dateT = 12.0
     var ufo: Ufo?
     var ufoDone = false
     var ufoSeen = false
@@ -580,6 +581,17 @@ final class Game {
             b.robbed = false
             if b.def.gate { b.hp = GHP[b.level] }
         }
+        // what each town is known for
+        if feat == .port && B(.market).level > 0 && !poison {
+            let sn = 2 * B(.market).level
+            for _ in 0..<sn { coin(B(.market).mid, 5, rnd(-40, 40), rnd(55, 90), true) }
+            income.append("ships \(sn)")
+        }
+        if feat == .temple && B(.temple).level > 0 {
+            let pn = B(.temple).def.pay * B(.temple).level
+            for _ in 0..<pn { coin(B(.temple).mid, 5, rnd(-40, 40), rnd(55, 90), true) }
+            income.append("pilgrims \(pn)")
+        }
         let sphN = 2 * B(.sphinx).level
         if sphN > 0 { for _ in 0..<sphN { coin(B(.sphinx).x + 70, 4, rnd(-20, 20), rnd(40, 70), true) }; income.append("sphinx \(sphN)") }
         if B(.well).level >= 3 { for _ in 0..<2 { coin(WELL_X + 6, 8, rnd(-16, 16), rnd(40, 60), true) }; income.append("fountain 2") }
@@ -646,11 +658,12 @@ final class Game {
         let sph = B(.sphinx).level > 0
         for i in 0..<n {
             let odd = town > 0 ? (i % 3 != 0) : (i % 2 != 0)
-            let side = odd ? s0 : -s0
+            // the canyon town is walled in by rock on the west
+            let side: Double = feat == .cliff ? 1 : (odd ? s0 : -s0)
             if side < 0 && sph && (B(.sphinx).level > 1 ? (i % 3 != 0) : (i % 2 == 1)) { continue }
             raid.append(RaidPlan(t: 0.74 + rnd(0, 0.09), side: side, kind: (d >= 4 && (feat == .cliff ? i % 3 != 0 : i % 3 == 2)) ? .rider : .bandit, hp: d / 6))
         }
-        if boss { raid.append(RaidPlan(t: 0.79, side: port ? 1 : s0, kind: .boss, hp: d >> 2, boat: port)) }
+        if boss { raid.append(RaidPlan(t: 0.79, side: (port || feat == .cliff) ? 1 : s0, kind: .boss, hp: d >> 2, boat: port)) }
         if port { for i in 0..<3 { raid.append(RaidPlan(t: 0.795 + Double(i) * 0.006, side: 1, kind: .bandit, hp: d >> 3, boat: true)) } }
         let dead = B(.tomb).level == 1 && ln % 3 == 0 && (feat != .cliff || looted)
         if dead { for i in 0..<min(2 + (ln >> 2), 5) { raid.append(RaidPlan(t: 0.75 + Double(i) * 0.02, side: -1, kind: .mummy, hp: d >> 3)) } }
@@ -1693,6 +1706,15 @@ final class Game {
 
     func updWorld(_ dt: Double) {
         // rain, the eclipse, the festival, the night visitor, the trapped road
+        if feat == .oasis && state == .play && scene == nil && t > 0.08 && t < 0.62 {
+            // ripe dates fall from the palms along the street
+            dateT -= dt
+            if dateT <= 0 {
+                dateT = rnd(13, 21)
+                let px = TOWN.0 + 46 + Double(Int(rnd(0, (TOWN.1 - TOWN.0 - 90) / 46))) * 46
+                coin(px, 36, rnd(-6, 6), 0, true)
+            }
+        }
         if rainAt > 0 && rain == nil && state == .play && t > rainAt - 0.06 { hint("clouds") }
         if stormAt > 0 && storm == nil && state == .play && t > stormAt - 0.07 { hint("duston") }
         if rainAt > 0 && t >= rainAt && rain == nil && state == .play { rain = 0; rainAt = -1; lush = true; hint("rain", again: true) }

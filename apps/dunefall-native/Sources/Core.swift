@@ -81,10 +81,10 @@ enum Feat: Int { case pyramid, oasis, cliff, port, temple }
 let TOWNS = ["DUNEFALL", "KHEPRI WELLS", "SETHAT", "AMBER GATE", "THE LAST CATARACT"]
 let TOWNSUB = ["Under the pyramids", "The oasis town", "Under the red cliffs", "The river port", "The city of old temples"]
 let TOWNRULE = ["The old ground: the Sphinx and a tomb lie under the sand west of town.",
-                "Green country: it rains every third day, and rain doubles the date harvest.",
-                "Rider country: two raiders in three come mounted, and they come fast.",
-                "Flood country: every fourth dawn the river rises. The dock pays triple, the pasture nothing.",
-                "No quiet nights: raids start on the first night, and the High Priest comes every second night."]
+                "The garden town: rain every third day doubles the dates, and the palms in town drop a coin now and then.",
+                "The canyon town: rock walls it in on the west, so every raid comes from the east, most of it mounted.",
+                "The harbour town: ships pay the bazaar extra each dawn. Every fourth dawn the river floods the pasture.",
+                "The holy city: pilgrims double the temple's pay, but there are no quiet nights and the High Priest comes often."]
 let BOSSTEXT = ["The warlord rides with them tonight.", "The Poisoner. He is making for the well: stop him before he reaches it.",
                 "The Stone Lord. He stands off and rolls boulders at your gate.", "River pirates. They are landing at the dock while the raid comes from the west.",
                 "The High Priest. He raises the dead, then comes for the gate himself."]

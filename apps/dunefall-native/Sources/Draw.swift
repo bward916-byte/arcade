@@ -135,9 +135,11 @@ final class Renderer {
         dunes(0.55, 0, 13, SAND, Col(0xb3854a), 7.7, 0.023, true)
         backTown(hz)
         ground()
+        townGround()
         groundRipples()
         groundExtra()
         wetGround()
+        townProps()
         for m in g.mirages { mirage(m) }
         if !g.low { groundAir(); critters() }
         nile()
@@ -1150,6 +1152,7 @@ final class Renderer {
             dress(b, x, L)
             topTier(b, x, L)
             midTier(b, x, L)
+            townTrim(b, x, L)
             // one gold pip by the door for each level raised
             for q in 0..<L { c.R(x + 2 + Double(q) * 2.6, GY - 2.6, 1.6, 1.6, rgba(28, 19, 12, 0.6)); c.R(x + 2.3 + Double(q) * 2.6, GY - 2.3, 1, 1, GOLD) }
         }
@@ -1175,6 +1178,315 @@ final class Renderer {
         c.restore()
     }
 
+    // ---------- what makes each town its own place
+
+    /// The canyon town: one red wall of rock behind the street, with homes cut into it on two levels.
+    func canyonBack(_ hz: Col, _ built: Int) {
+        let x0 = g.TOWN.0 - 60 - cam, x1 = g.TOWN.1 + 60 - cam
+        if x1 < -20 || x0 > W + 20 { return }
+        let rock = Col.mix(Col(0xb0623a), hz, 0.22), dark = Col.mix(Col(0x8a4628), hz, 0.22), lite = Col.mix(Col(0xd08a5c), hz, 0.22)
+        var top: [Double] = [x0 - 30, GY]
+        var wx = g.TOWN.0 - 60
+        while wx <= g.TOWN.1 + 60 {
+            let n = floor(wx / 36)
+            top.append(wx - cam); top.append(GY - 74 - hashN(n + 40) * 26 - (Int(n) % 3 == 0 ? 10 : 0))
+            wx += 18
+        }
+        top.append(x1 + 30); top.append(GY)
+        c.poly(rock, top)
+        var q = 8.0
+        while q < 96 { c.R(max(x0, -4), GY - q + sin(q) * 1.5, min(x1, W + 4) - max(x0, -4), 0.8, rgba(70, 28, 12, 0.14 + 0.06 * Double(Int(q) % 3))); q += 7 }
+        var i = Int(floor((cam + g.TOWN.0 * 0 - 40) / 34))
+        let last = Int((cam + W + 40) / 34)
+        while i <= last {
+            let n = Double(i)
+            let hx = n * 34 + hashN(n + 50) * 8
+            i += 1
+            if hx < g.TOWN.0 - 30 || hx > g.TOWN.1 + 20 { continue }
+            let x = hx - cam
+            let alive = Int(n) % 6 < built
+            // a long crack, and a ledge that runs along the upper homes
+            c.seg(x + 20, GY - 70, x + 17 + hashN(n + 51) * 6, GY - 44, 0.5, rgba(60, 24, 10, 0.4))
+            c.R(x - 2, GY - 33, 36, 2.2, lite); c.R(x - 2, GY - 30.8, 36, 1.4, dark)
+            for lv in 0..<2 {
+                let by = GY - Double(lv) * 33
+                let dx = x + 6 + Double(lv) * 9
+                c.arch(dx, by - 17, 9, 17, Col.mix(Col(0x2a120a), hz, 0.2))
+                c.R(dx - 1.4, by - 18.6, 11.8, 1.6, lite)
+                if alive {
+                    let cloth: [Col] = [RED, TEAL, GOLD, LAPIS]
+                    c.poly(Col.mix(cloth[(i + lv) % 4], hz, 0.3), [dx, by - 17, dx + 9, by - 17, dx + 7.6 + sin(NOW * 2 + n) * 0.6, by - 5, dx + 1.4, by - 5])
+                    c.arch(dx + 14, by - 15, 5, 7, lit ? Col(0xffd27a) : Col.mix(Col(0x2a120a), hz, 0.2))
+                    if lit { light(dx + 16.5, by - 11, 9, 0.5) }
+                    c.R(dx + 13, by - 7.6, 7, 1, lite)
+                    if lv == 1 && g.dark < 0.9 && Int(n) % 2 == 0 { plume(dx + 4, by - 20, n + 3, 0.5) }
+                } else {
+                    c.arch(dx + 14, by - 15, 5, 7, Col.mix(Col(0x2a120a), hz, 0.2))
+                }
+            }
+            // a ladder up to the ledge
+            let lx = x + 27
+            c.seg(lx, GY, lx + 1.2, GY - 33, 0.5, dark); c.seg(lx + 3, GY, lx + 4.2, GY - 33, 0.5, dark)
+            var ly = 3.0
+            while ly < 33 { c.R(lx + ly / 33 * 1.2, GY - ly, 3.2, 0.4, dark); ly += 3.4 }
+        }
+    }
+    /// The holy city: a colonnade the length of the street, colossi, pylons and obelisks. Columns stand as the town is rebuilt.
+    func holyBack(_ hz: Col, _ built: Int) {
+        let stone = Col.mix(STONE, hz, 0.32), shade = Col.mix(STONE2, hz, 0.32), hi = Col.mix(Col(0xfff0c8), hz, 0.3)
+        let x0 = g.TOWN.0 + 16 - cam, x1 = g.TOWN.1 - 16 - cam
+        if x1 < -20 || x0 > W + 20 { return }
+        c.R(x0, GY - 4, x1 - x0, 4, shade); c.R(x0, GY - 4, x1 - x0, 0.8, hi)
+        var i = 0
+        var wx = g.TOWN.0 + 22
+        var beam: [(Double, Double)] = []
+        while wx < g.TOWN.1 - 24 {
+            let n = Double(i), x = wx - cam
+            let up = hashN(n + 60) < 0.3 + Double(built) / 6 * 0.7
+            if x > -20 && x < W + 20 {
+                if i % 9 == 4 {
+                    // a seated colossus
+                    c.R(x - 4, GY - 12, 18, 8, shade); c.RR(x - 1, GY - 40, 12, 28, 2, stone); c.R(x + 8, GY - 40, 3, 28, shade)
+                    c.R(x - 1, GY - 20, 15, 8, stone); c.RR(x + 0.6, GY - 52, 9, 11, 2.6, stone); c.RR(x - 0.8, GY - 55, 11.8, 4.6, 1.4, Col.mix(LAPIS, hz, 0.4))
+                    c.R(x - 1.6, GY - 51, 2.6, 12, Col.mix(LAPIS, hz, 0.4)); c.R(x + 9.4, GY - 51, 2.6, 12, Col.mix(LAPIS, hz, 0.4)); c.R(x + 4, GY - 42, 2.4, 3.4, Col.mix(GOLD, hz, 0.4))
+                    c.R(x + 2.4, GY - 48.6, 1.6, 1, shade); c.R(x + 6.4, GY - 48.6, 1.6, 1, shade)
+                } else if i % 9 == 0 {
+                    // an obelisk
+                    c.poly(stone, [x + 1, GY - 4, x + 2, GY - 62, x + 6, GY - 62, x + 7, GY - 4]); c.poly(shade, [x + 4.6, GY - 4, x + 4.4, GY - 62, x + 6, GY - 62, x + 7, GY - 4])
+                    c.poly(Col.mix(GOLD, hz, 0.35), [x + 2, GY - 62, x + 4, GY - 67, x + 6, GY - 62])
+                    for k in 0..<8 { c.R(x + 3, GY - 56 + Double(k) * 6, 1.8, 2.4, rgba(90, 60, 26, 0.4)) }
+                } else if up {
+                    c.R(x, GY - 40, 6, 36, stone); c.R(x + 4, GY - 40, 2, 36, shade); c.R(x, GY - 40, 0.9, 36, hi)
+                    c.R(x - 1.4, GY - 43, 8.8, 3.4, stone); c.R(x - 1, GY - 6.4, 8, 2.4, shade)
+                    c.R(x, GY - 36, 6, 1.4, Col.mix(LAPIS, hz, 0.4)); c.R(x, GY - 33.6, 6, 1, Col.mix(GOLD, hz, 0.4)); c.R(x, GY - 31.6, 6, 1.4, Col.mix(RED, hz, 0.4))
+                    beam.append((x - 1.4, x + 7.4))
+                } else {
+                    let bh = 6 + hashN(n + 61) * 14
+                    c.R(x, GY - 4 - bh, 6, bh, stone); c.R(x + 4, GY - 4 - bh, 2, bh, shade)
+                    c.poly(stone, [x, GY - 4 - bh, x + 2, GY - 7 - bh, x + 4.4, GY - 5 - bh, x + 6, GY - 4 - bh])
+                    c.RR(x + 7, GY - 7, 5, 3, 1, shade)
+                }
+            }
+            wx += 15; i += 1
+        }
+        // the lintel lies only where two standing columns are neighbours
+        for k in 0..<max(0, beam.count - 1) where beam[k + 1].0 - beam[k].1 < 9 {
+            c.R(beam[k].0, GY - 47, beam[k + 1].1 - beam[k].0, 4.2, stone); c.R(beam[k].0, GY - 47, beam[k + 1].1 - beam[k].0, 0.8, hi)
+            c.R(beam[k].0, GY - 43.6, beam[k + 1].1 - beam[k].0, 0.8, shade)
+        }
+    }
+    /// The harbour town: the river runs behind the street, with ships moored between the houses and a crane on the quay.
+    func harbourBack(_ hz: Col) {
+        let x0 = g.TOWN.0 - 20 - cam, x1 = g.TOWN.1 + 20 - cam
+        if x1 < -20 || x0 > W + 20 { return }
+        let water = Col.mix(Col(0x3f8fb0), hz, 0.3), hull = Col.mix(Col(0x5e3a1e), hz, 0.3), sail = Col.mix(Col(0xf6efdc), hz, 0.3), rope = Col.mix(Col(0x4a3320), hz, 0.3)
+        c.R(max(x0, -4), GY - 15, min(x1, W + 4) - max(x0, -4), 15, water)
+        c.R(max(x0, -4), GY - 15, min(x1, W + 4) - max(x0, -4), 0.8, Col.mix(Col(0xcfeaf2), hz, 0.3))
+        var i = Int(floor((cam - 80) / 96))
+        let last = Int((cam + W + 80) / 96)
+        while i <= last {
+            let n = Double(i)
+            let sxw = n * 96 + hashN(n + 70) * 30
+            i += 1
+            if sxw < g.TOWN.0 + 10 || sxw > g.TOWN.1 - 30 { continue }
+            let x = sxw - cam, bob = sin(NOW * 1.3 + n) * 0.6
+            let mh = 58 + hashN(n + 71) * 16
+            c.poly(hull, [x - 16, GY - 13 + bob, x - 12, GY - 8 + bob, x + 14, GY - 8 + bob, x + 20, GY - 14 + bob, x + 14, GY - 4, x - 12, GY - 4])
+            c.seg(x, GY - 8 + bob, x, GY - mh + bob, 1, rope)
+            if Int(n) % 2 == 0 {
+                c.poly(sail, [x - 11, GY - 20 + bob, x + 8, GY - mh + 2 + bob, x + 13, GY - 16 + bob])
+                c.seg(x - 12, GY - 19 + bob, x + 9, GY - mh + 1 + bob, 0.6, rope)
+            } else {
+                // sail furled on its yard
+                c.seg(x - 10, GY - mh + 10 + bob, x + 10, GY - mh + 6 + bob, 0.8, rope)
+                c.RR(x - 9, GY - mh + 7.4 + bob, 18, 2.6, 1.2, sail)
+                c.seg(x, GY - mh + bob, x - 14, GY - 12 + bob, 0.25, rope); c.seg(x, GY - mh + bob, x + 16, GY - 13 + bob, 0.25, rope)
+            }
+            c.poly(Col.mix(RED, hz, 0.3), [x, GY - mh + bob, x + 6 + sin(NOW * 4 + n), GY - mh + 1.6 + bob, x, GY - mh + 3.2 + bob])
+            if lit { c.glow(x - 13, GY - 16 + bob, 6, rgba(255, 204, 116, 0.8), rgba(255, 204, 116, 0)); light(x - 13, GY - 15, 9, 0.5) }
+        }
+        // the quay crane, lifting a crate
+        let cx = g.TOWN.0 + 250 - cam
+        if cx > -40 && cx < W + 40 {
+            let lift = 8 + sin(NOW * 0.6) * 6
+            c.seg(cx, GY, cx + 6, GY - 52, 1.2, rope); c.seg(cx + 12, GY, cx + 6, GY - 52, 1.2, rope); c.seg(cx + 6, GY - 52, cx + 30, GY - 60, 1.2, rope)
+            c.seg(cx + 30, GY - 60, cx + 30, GY - 34 - lift, 0.35, rope)
+            c.R(cx + 26, GY - 34 - lift, 8, 7, Col.mix(Col(0x9a7040), hz, 0.3)); c.R(cx + 26, GY - 31 - lift, 8, 0.6, rope)
+        }
+    }
+    /// The garden town: tall palms the length of the street, heavy with dates, and flowers at their feet.
+    func gardenBack(_ hz: Col) {
+        var wx = g.TOWN.0 + 46
+        var i = 0
+        while wx < g.TOWN.1 - 30 {
+            let x = wx - cam, n = Double(i)
+            if x > -30 && x < W + 30 {
+                let h = 40 + hashN(n + 80) * 12, lean = (hashN(n + 81) - 0.5) * 8
+                let sway = sin(NOW * 0.9 + n) * 1.2
+                c.curve(x, GY, x + lean * 0.3, GY - h * 0.5, x + lean + sway, GY - h, 2.2, Col.mix(Col(0x7a5632), hz, 0.2))
+                let tx = x + lean + sway, ty = GY - h
+                for k in 0..<7 {
+                    let a = -2.9 + Double(k) * 0.46
+                    c.curve(tx, ty, tx + cos(a) * 9, ty + sin(a) * 9 - 3, tx + cos(a) * 17, ty + sin(a) * 8 + 5, 1.5, Col.mix(k % 2 == 0 ? Col(0x3f8a3a) : Col(0x2f6a2e), hz, 0.18))
+                }
+                c.circ(tx - 1.6, ty + 2.4, 1.6, Col(0xd98a2a)); c.circ(tx + 1.2, ty + 3, 1.6, Col(0xe0a030)); c.circ(tx - 0.2, ty + 4.4, 1.4, Col(0xc47a22))
+                let fl: [Col] = [RED, Col(0xf6efdc), GOLD, Col(0xd96ad0)]
+                for k in 0..<4 { c.circ(x - 5 + Double(k) * 3.4, GY - 1.6 - Double(k % 2), 1, fl[(i + k) % 4]) }
+                c.ell(x, GY - 0.6, 7, 1.4, Col.mix(Col(0x4a8a3a), hz, 0.2))
+            }
+            wx += 46; i += 1
+        }
+    }
+    /// The street itself: grass in the garden town, red rock in the canyon, planks on the quay, flagstones in the holy city.
+    func townGround() {
+        let tx0 = g.TOWN.0 - cam, tx1 = g.TOWN.1 - cam
+        let a = max(tx0, -4), b = min(tx1, W + 4)
+        switch g.feat {
+        case .oasis:
+            let grass = rgba(104, 158, 74, 0.62), clear = rgba(104, 158, 74, 0)
+            c.linear(tx0 - 40, GY, 40, H - GY, tx0 - 40, 0, tx0, 0, [(0, clear), (1, grass)])
+            if b > a { c.R(a, GY, b - a, H - GY, grass); c.R(a, GY, b - a, 1, Col(0x8fc46a)) }
+            c.linear(tx1, GY, 40, H - GY, tx1, 0, tx1 + 40, 0, [(0, grass), (1, clear)])
+            var i = Int(floor((cam + max(0, tx0)) / 7))
+            let last = Int((cam + b) / 7)
+            while i <= last {
+                let n = Double(i), x = n * 7 + hashN(n + 90) * 5 - cam, y = GY + 2 + hashN(n + 91) * (H - GY - 6)
+                if x > a && x < b {
+                    c.seg(x, y, x - 0.8, y - 2.2, 0.4, Col(0x4a8a3a)); c.seg(x, y, x + 0.9, y - 2.6, 0.4, Col(0x5a9a44))
+                    if i % 5 == 0 { c.circ(x + 1.6, y - 1, 0.7, i % 2 == 0 ? Col(0xf6efdc) : Col(0xf2c14e)) }
+                }
+                i += 1
+            }
+        case .cliff:
+            c.R(-4, GY, W + 8, H - GY + 4, rgba(176, 84, 44, 0.3))
+            var i = Int(floor(cam / 23))
+            let last = Int((cam + W) / 23) + 1
+            while i <= last {
+                let n = Double(i), x = n * 23 + hashN(n + 92) * 14 - cam, y = GY + 3 + hashN(n + 93) * (H - GY - 8)
+                c.seg(x, y, x + 5, y + 1.6, 0.4, rgba(80, 30, 12, 0.4)); c.seg(x + 5, y + 1.6, x + 8, y + 0.6, 0.4, rgba(80, 30, 12, 0.4))
+                if i % 3 == 0 { c.RR(x + 10, y - 1, 3.4, 2.2, 1, Col(0x9a5632)); c.R(x + 10.4, y - 1, 2.4, 0.5, Col(0xd08a5c)) }
+                i += 1
+            }
+        case .port:
+            if b > a {
+                c.R(a, GY, b - a, 10, Col(0x8a6238)); c.R(a, GY, b - a, 0.9, Col(0xc49a62)); c.R(a, GY + 10, b - a, 1.6, Col(0x5a3e22))
+                c.R(a, GY + 11.6, b - a, H - GY - 11.6, rgba(60, 110, 140, 0.28))
+                var i = Int(floor((cam + a) / 7))
+                let last = Int((cam + b) / 7)
+                while i <= last {
+                    let x = Double(i) * 7 - cam
+                    if x > a && x < b { c.R(x, GY + 0.9, 0.4, 9, rgba(50, 30, 12, 0.45)); c.R(x + 3, GY + 2 + hashN(Double(i) + 94) * 6, 0.7, 0.7, Col(0x3a2a1a)) }
+                    if i % 6 == 0 && x > a && x < b { c.R(x - 1, GY + 10, 2.4, H - GY - 10, Col(0x4a3320)); c.R(x - 1, GY + 10, 0.7, H - GY - 10, Col(0x7a5632)) }
+                    i += 1
+                }
+            }
+        case .temple:
+            if b > a {
+                c.R(a, GY, b - a, H - GY, rgba(222, 208, 170, 0.7)); c.R(a, GY, b - a, 1, Col(0xfff0c8))
+                var row = 0
+                var y = GY + 4.0
+                while y < H {
+                    c.R(a, y, b - a, 0.5, rgba(110, 90, 50, 0.35))
+                    let step = 14.0 + Double(row) * 3
+                    var k = Int(floor((cam + a) / step))
+                    while Double(k) * step - cam < b {
+                        let x = Double(k) * step + (row % 2 == 0 ? 0 : step / 2) - cam
+                        if x > a && x < b { c.R(x, y - (4 + Double(row) * 1.6), 0.5, 4 + Double(row) * 1.6, rgba(110, 90, 50, 0.3)) }
+                        k += 1
+                    }
+                    y += 5.6 + Double(row) * 1.6; row += 1
+                }
+            }
+        default:
+            break
+        }
+    }
+    /// Things standing on the approach roads, different in every town.
+    func townProps() {
+        if g.low || g.feat == .pyramid { return }
+        func free(_ wx: Double) -> Bool {
+            if g.camps.contains(where: { abs($0.x - wx) < 46 }) || g.urns.contains(where: { abs($0.x - wx) < 22 }) { return false }
+            if abs(wx - g.QUARRY) < 70 { return false }
+            return !g.bs.contains(where: { !$0.gone && wx > $0.x - 30 && wx < $0.x + $0.w + 30 })
+        }
+        for side in [-1.0, 1.0] {
+            for k in 1..<6 {
+                let wx = (side < 0 ? g.TOWN.0 : g.TOWN.1) + side * (34 + Double(k) * 44)
+                let x = wx - cam
+                if x < -30 || x > W + 30 || !free(wx) { continue }
+                let n = wx
+                switch g.feat {
+                case .temple:
+                    // the avenue of sphinxes
+                    let f = -side
+                    c.ell(x, GY + 0.6, 9, 1.4, rgba(60, 34, 8, 0.25))
+                    c.R(x - 8, GY - 3, 16, 3, STONE2); c.R(x - 8, GY - 3, 16, 0.6, Col(0xfff0c8))
+                    c.RR(x - 6, GY - 8, 12, 5, 2, STONE); c.RR(x + f * 3 - 2.4, GY - 13, 4.8, 6, 1.6, STONE)
+                    c.R(x + f * 3 - 3, GY - 13.6, 6, 1.6, LAPIS); c.R(x + f * 5, GY - 5, f * 4, 2, STONE)
+                case .port:
+                    c.R(x - 6, GY - 6, 7, 6, Col(0x9a7040)); c.R(x - 6, GY - 6, 7, 0.8, Col(0xc49a62)); c.R(x - 6, GY - 3.2, 7, 0.5, Col(0x5a3e22))
+                    c.R(x - 4, GY - 11.4, 6, 5.4, Col(0xa87a48)); c.R(x - 4, GY - 11.4, 6, 0.8, Col(0xc49a62))
+                    c.RR(x + 3, GY - 7, 5, 7, 2, Col(0x6a4426)); c.R(x + 3, GY - 5.4, 5, 0.6, Col(0x3a2a1a)); c.R(x + 3, GY - 2.4, 5, 0.6, Col(0x3a2a1a))
+                    if k % 2 == 0 { c.ell(x + 12, GY - 0.8, 4, 1.4, Col(0xb8a070)); c.ell(x + 12, GY - 1.2, 2.4, 0.8, Col(0x8a7448)) }
+                    if !lit && hashN(n) > 0.5 {
+                        let gy = GY - 8 - abs(sin(NOW * 2 + n)) * 2
+                        c.ell(x - 12, gy, 2.4, 1.2, Col(0xf6f6f0)); c.circ(x - 12 - side * 2, gy - 1, 1, Col(0xf6f6f0)); c.R(x - 12 - side * 3.4, gy - 1, 1, 0.5, GOLD)
+                    }
+                case .cliff:
+                    c.ell(x, GY + 0.4, 9, 1.4, rgba(60, 24, 8, 0.25))
+                    c.poly(Col(0x9a5632), [x - 9, GY, x - 6, GY - 7, x + 1, GY - 10, x + 7, GY - 6, x + 10, GY]); c.poly(Col(0xc47c4e), [x - 6, GY - 7, x + 1, GY - 10, x + 3, GY - 6, x - 3, GY - 4])
+                    c.poly(Col(0x7e4426), [x + 6, GY, x + 9, GY - 4, x + 14, GY - 3, x + 16, GY])
+                    if k % 2 == 1 { c.seg(x - 12, GY, x - 13, GY - 5, 0.5, Col(0x6a7038)); c.seg(x - 12, GY, x - 10.6, GY - 6, 0.5, Col(0x6a7038)) }
+                default:
+                    // the garden town: flower beds and a bush
+                    c.ell(x, GY - 2, 7, 3.4, Col(0x3f7d3a)); c.ell(x - 3, GY - 4, 4, 2.6, Col(0x5a9a44))
+                    let fl: [Col] = [RED, Col(0xf6efdc), GOLD, Col(0xd96ad0)]
+                    for q in 0..<5 { c.circ(x - 6 + Double(q) * 3 + hashN(n + Double(q)) * 1.4, GY - 3.6 - hashN(n + Double(q) + 5) * 2.4, 0.9, fl[(k + q) % 4]) }
+                    if k % 2 == 0 && !lit {
+                        let bx = x + 8 + sin(NOW * 1.7 + n) * 6, by = GY - 10 + sin(NOW * 2.9 + n) * 3, fp = abs(sin(NOW * 14 + n)) * 1.6
+                        c.poly(Col(0xf2c14e), [bx, by, bx - fp, by - 1.6, bx - fp * 0.7, by + 1]); c.poly(Col(0xf2c14e), [bx, by, bx + fp, by - 1.6, bx + fp * 0.7, by + 1])
+                    }
+                }
+            }
+        }
+    }
+    /// A touch on every town building in the local style.
+    func townTrim(_ b: Building, _ x: Double, _ L: Int) {
+        if L < 1 { return }
+        let w = b.w, top = GY - b.tall
+        switch g.feat {
+        case .oasis:
+            // a vine up the corner, and a flower box
+            var q = 2.0
+            while q < b.tall - 4 {
+                let vx = x + 1.6 + sin(q * 0.5 + b.x) * 1.4
+                c.circ(vx, GY - q, 1.3, q.truncatingRemainder(dividingBy: 6) < 3 ? Col(0x3f8a3a) : Col(0x5a9a44))
+                q += 2.6
+            }
+            c.R(x + w - 13, GY - 13, 9, 1.6, Col(0x7a5632))
+            for k in 0..<4 { c.circ(x + w - 12 + Double(k) * 2.4, GY - 14, 1, k % 2 == 0 ? RED : Col(0xd96ad0)) }
+        case .cliff:
+            // beam ends under the roof and an ochre band at the foot
+            var q = 4.0
+            while q < w - 3 { c.R(x + q, top + 5, 1.6, 1.6, Col(0x5a3018)); c.R(x + q, top + 5, 1.6, 0.4, Col(0x9a5632)); q += 7 }
+            c.R(x, GY - 4, w, 4, rgba(140, 60, 26, 0.4))
+        case .port:
+            // a blue band, a coil of rope and a net hung to dry
+            c.R(x, top + 6, w, 2.2, Col(0x2f6f9a)); c.R(x, top + 8.2, w, 0.6, Col(0xf6efdc))
+            c.ell(x + 5, GY - 1.2, 3, 1.2, Col(0xb8a070)); c.ell(x + 5, GY - 1.8, 1.8, 0.7, Col(0x8a7448))
+            c.curve(x + w - 16, top + 12, x + w - 9, top + 19, x + w - 2, top + 12, 0.3, Col(0x3a2a1a))
+            for k in 0..<5 { c.seg(x + w - 15 + Double(k) * 3, top + 12.6, x + w - 14 + Double(k) * 2.6, top + 17, 0.25, rgba(58, 42, 26, 0.6)) }
+        case .temple:
+            // a gilded cornice, a painted frieze and a pilaster at each corner
+            c.R(x - 1, top - 1.2, w + 2, 2, GOLD); c.R(x - 1, top + 0.8, w + 2, 0.6, Col(0x8a5a22))
+            var q = 1.0
+            var k = 0
+            while q < w - 3 { c.R(x + q, top + 2.4, 3, 2.6, k % 2 == 0 ? LAPIS : RED); q += 4; k += 1 }
+            c.R(x, top + 5.4, 2.6, b.tall - 5.4, rgba(255, 240, 200, 0.3)); c.R(x + w - 2.6, top + 5.4, 2.6, b.tall - 5.4, rgba(60, 34, 8, 0.2))
+        default:
+            break
+        }
+    }
     /// What the middle levels add: something you can recognise from across the street.
     func midTier(_ b: Building, _ x: Double, _ L: Int) {
         if L < 2 { return }
@@ -2012,6 +2324,10 @@ final class Renderer {
     func backTown(_ hz: Col) {
         let core: [BType] = [.market, .tea, .guard, .pen, .bank, .temple]
         let built = core.filter { g.B($0).level > 0 }.count
+        if g.feat == .cliff { canyonBack(hz, built); return }
+        if g.feat == .temple { holyBack(hz, built); return }
+        if g.feat == .port { harbourBack(hz) }
+        defer { if g.feat == .oasis { gardenBack(hz) } }
         let grown = Double(min(14, g.bs.prefix(9).reduce(0) { $0 + $1.level }))
         var i = 0
         var wx = g.TOWN.0 + 22
@@ -2039,7 +2355,7 @@ final class Renderer {
                         var ly = 3.0
                         while ly < h { c.R(lx + ly / h * 1.5, GY - ly, 2.6, 0.3, shade); ly += 3.2 }
                     }
-                    if i % 4 == 1 { c.dome(x + w * 0.5, GY - h, w * 0.28, Col.mix(PLA, hz, 0.35)); c.R(x + w * 0.5 - 0.4, GY - h - w * 0.28 - 3, 0.8, 3, Col.mix(GOLD, hz, 0.3)) }
+                    if i % 4 == 1 || g.feat == .oasis { c.dome(x + w * 0.5, GY - h, w * 0.28, Col.mix(PLA, hz, 0.35)); c.R(x + w * 0.5 - 0.4, GY - h - w * 0.28 - 3, 0.8, 3, Col.mix(GOLD, hz, 0.3)) }
                     // windows that come on at dusk, each on its own schedule
                     for k in 0..<2 {
                         let kx = x + 4 + Double(k) * (w - 13), ky = GY - h + 6 + hashN(n * 5 + Double(k)) * 5
