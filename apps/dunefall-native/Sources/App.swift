@@ -644,7 +644,7 @@ final class GameViewController: UIViewController {
         game.start()
     }
     @objc private func moreTapped() {
-        jumpBox.isHidden = false
+        present(jumpBox, true)
     }
     @objc private func jumpTapped(_ sender: UIButton) {
         jumpBox.isHidden = true
@@ -682,7 +682,7 @@ final class GameViewController: UIViewController {
         clearTouches()
         refreshJobs()
         pauseBox.isHidden = true
-        jobsBox.isHidden = false
+        present(jobsBox, true)
     }
     @objc private func jobsFromMenu() { openJobs(fromPause: true) }
     @objc private func releaseTapped(_ sender: UIButton) {
@@ -691,7 +691,26 @@ final class GameViewController: UIViewController {
     }
     @objc private func jobsDone() {
         jobsBox.isHidden = true
-        if jobsFromPause { pauseBox.isHidden = false; freeBtn.setTitle("People and jobs" + crew(), for: .normal) } else { userPaused = false; last = 0 }
+        if jobsFromPause { present(pauseBox, true); freeBtn.setTitle("People and jobs" + crew(), for: .normal) } else { userPaused = false; last = 0 }
+    }
+    /// A title for the run, by how far it got and how quickly.
+    private func rank(_ towns: Int, _ days: Int) -> String {
+        if towns >= 5 { return days <= 60 ? "Pharaoh of the river" : "Master builder" }
+        if towns >= 3 { return "Caravan lord" }
+        if towns >= 1 { return "Town founder" }
+        return "Wanderer"
+    }
+    /// Shows or hides a menu or card; showing eases it in.
+    private func present(_ v: UIView, _ on: Bool, rise: CGFloat = 0) {
+        if on == !v.isHidden { return }
+        if !on { v.isHidden = true; return }
+        v.isHidden = false
+        v.alpha = 0
+        if rise != 0 { v.transform = CGAffineTransform(translationX: 0, y: rise) }
+        UIView.animate(withDuration: 0.28, delay: 0, options: [.curveEaseOut, .allowUserInteraction], animations: {
+            v.alpha = 1
+            v.transform = .identity
+        }, completion: nil)
     }
     private func sharpName() -> String { return "Sharpness: " + ["low", "medium", "high"][max(0, min(2, sharp))] }
     @objc private func sharpTapped() {
@@ -718,7 +737,7 @@ final class GameViewController: UIViewController {
         detailBtn.setTitle(game.low ? "Detail: low" : "Detail: full", for: .normal)
         sharpBtn.setTitle(sharpName(), for: .normal)
         ruleLabel.text = game.townName + (game.hard ? " (hard)" : "") + "\n" + TOWNRULE[game.town % 5]
-        pauseBox.isHidden = false
+        present(pauseBox, true)
         clearTouches()
     }
     @objc private func resumeTapped() {
@@ -833,13 +852,13 @@ final class GameViewController: UIViewController {
         barTop.isHidden = !cut
         barBottom.isHidden = !cut
         if cut, let sc = game.scene { set(caption, sc.text) }
-        endBox.isHidden = game.state != .end
+        present(endBox, game.state == .end)
         if game.state == .end {
             let st = game.stats
             endSum.show(title: "The river remembers", sub: "",
                         tiles: [("\(st[3])", "Towns rebuilt"), ("\(game.day)", "Days on the road"), ("\(st[0])", "Buildings raised"), ("\(st[1])", "Nomads joined"),
                                 ("\(st[2])", "Raiders brought down"), ("\(game.relics.count)", "Relics"), ("\(game.player.coins + game.bank)", "Coins in hand"), ("\(game.score)", game.hard ? "Score (hard)" : "Score")],
-                        footer: "Best run \(max(best, game.score))")
+                        footer: (game.score >= best && game.score > 0 ? "New best run!   " : "Best run \(max(best, game.score)).   ") + rank(game.stats[3], game.day))
         }
         if game.state == .end || game.state == .over {
             if !scored {
@@ -849,12 +868,13 @@ final class GameViewController: UIViewController {
             }
             if game.state == .over {
                 overSum.show(title: "Run out of town", sub: "The raiders caught you with an empty purse.",
-                             tiles: [("\(game.ln)", "Days held"), ("\(game.stats[3])", "Towns rebuilt"), ("\(game.score)", "Score"), ("\(best)", "Best run")], footer: "")
+                             tiles: [("\(game.ln)", "Days held"), ("\(game.stats[3])", "Towns rebuilt"), ("\(game.score)", "Score"), ("\(max(best, game.score))", "Best run")],
+                             footer: game.score >= best && game.score > 0 ? "New best run!" : "Keep some coins back: a full purse buys the raiders off.")
             }
         } else if game.state == .play { scored = false }
         if game.state == .title { set(titleNote, best > 0 ? "Best run: \(best)" : "") }
         titleBox.isHidden = game.state != .title
-        overBox.isHidden = game.state != .over
+        present(overBox, game.state == .over)
         for v in [hud, pad, fireBtn, pauseBtn] as [UIView] { v.isHidden = !playing }
         if game.state == .over && dawnBtn.isHidden == (loadSave() != nil) { view.setNeedsLayout() }
         let p = game.player
@@ -889,9 +909,10 @@ final class GameViewController: UIViewController {
             dawnCard.show(day: game.ln, income: game.dawnIncome, night: game.dawnNight)
             let dw = min(view.bounds.width - 2 * max(view.safeAreaInsets.left, 12) - 40, 460), dh = dawnCard.wantHeight
             let fr = CGRect(x: (view.bounds.width - dw) / 2, y: 40, width: dw, height: dh)
-            if dawnCard.frame != fr { dawnCard.frame = fr }
+            if dawnCard.bounds.size != fr.size { dawnCard.bounds = CGRect(origin: .zero, size: fr.size) }
+            dawnCard.center = CGPoint(x: fr.midX, y: fr.midY)
         }
-        dawnCard.isHidden = !showDawn
+        present(dawnCard, showDawn, rise: -12)
         if game.state == .play && !cut && game.cardT > 0 {
             set(card, game.cardText + "\n" + game.cardSub)
             card.alpha = CGFloat(min(1, game.cardT))
@@ -927,7 +948,7 @@ final class GameViewController: UIViewController {
                 game.dawnIncome = []; game.dawnNight = nil
                 continue
             }
-            if !hint.isHidden && hint.frame.insetBy(dx: 0, dy: -8).contains(p) {
+            if !hint.isHidden && hint.frame.insetBy(dx: 0, dy: -8).contains(p) && !demoDawn {
                 // a tap holds the memo on screen; a second tap puts it away
                 if game.hintPin { game.hintPin = false; game.hintT = 0 } else {
                     if game.hintT <= 0 { game.hintText = game.report }

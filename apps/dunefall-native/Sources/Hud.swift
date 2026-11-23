@@ -395,6 +395,8 @@ final class SummaryView: UIView {
     private var tiles: [(String, String)] = []
     private var footer = ""
     private var sig = ""
+    private var clock = 0.0
+    private var timer: Timer?
     private let gold = UIColor(red: 0.95, green: 0.76, blue: 0.31, alpha: 1)
     private let cream = UIColor(red: 0.97, green: 0.93, blue: 0.84, alpha: 1)
 
@@ -406,6 +408,20 @@ final class SummaryView: UIView {
         contentMode = .redraw
     }
     required init?(coder: NSCoder) { fatalError("not used") }
+
+    /// The picture moves only while the summary is on screen.
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        timer?.invalidate()
+        timer = nil
+        if window != nil {
+            timer = Timer.scheduledTimer(withTimeInterval: 1.0 / 15, repeats: true) { [weak self] _ in
+                guard let s = self, !s.isHidden, let sup = s.superview, !sup.isHidden else { return }
+                s.clock += 1.0 / 15
+                s.setNeedsDisplay()
+            }
+        }
+    }
 
     func show(title: String, sub: String, tiles: [(String, String)], footer: String) {
         var s = title + sub + footer
@@ -425,12 +441,13 @@ final class SummaryView: UIView {
         str.draw(at: CGPoint(x: cx - sz.width / 2, y: cy - sz.height / 2), withAttributes: a)
     }
     /// A camel and rider in silhouette, feet at (x, y), carrying a lantern.
-    private func rider(_ cg: CGContext, _ x: CGFloat, _ y: CGFloat, _ s: CGFloat) {
+    private func rider(_ cg: CGContext, _ x: CGFloat, _ y0: CGFloat, _ s: CGFloat, _ ph: CGFloat) {
+        let y = y0 + sin(ph * 2) * 0.5 * s
         let dark = UIColor(red: 0.03, green: 0.03, blue: 0.08, alpha: 1)
         dark.setFill(); dark.setStroke()
         UIBezierPath(ovalIn: CGRect(x: x - 9 * s, y: y - 13 * s, width: 18 * s, height: 8 * s)).fill()
         let legs = UIBezierPath()
-        for lx in [-6, -3, 3.4, 6.4] as [CGFloat] { legs.move(to: CGPoint(x: x + lx * s, y: y - 7 * s)); legs.addLine(to: CGPoint(x: x + lx * s, y: y)) }
+        for (i, lx) in ([-6, -3, 3.4, 6.4] as [CGFloat]).enumerated() { legs.move(to: CGPoint(x: x + lx * s, y: y - 7 * s)); legs.addLine(to: CGPoint(x: x + lx * s + sin(ph + CGFloat(i) * 1.6) * 2.2 * s, y: y0)) }
         legs.move(to: CGPoint(x: x + 7 * s, y: y - 10 * s)); legs.addLine(to: CGPoint(x: x + 12 * s, y: y - 18 * s))
         legs.lineWidth = 1.6 * s
         legs.lineCapStyle = .round
@@ -442,7 +459,7 @@ final class SummaryView: UIView {
         let lc = CGPoint(x: x + 5 * s, y: y - 17 * s)
         let cols = [UIColor(red: 1, green: 0.8, blue: 0.45, alpha: 0.75).cgColor, UIColor(red: 1, green: 0.8, blue: 0.45, alpha: 0).cgColor] as CFArray
         if let gr = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: cols, locations: [0, 1]) {
-            cg.drawRadialGradient(gr, startCenter: lc, startRadius: 0, endCenter: lc, endRadius: 15 * s, options: [])
+            cg.drawRadialGradient(gr, startCenter: lc, startRadius: 0, endCenter: lc, endRadius: (15 + sin(ph * 3.1) * 1.6) * s, options: [])
         }
         UIColor(red: 1, green: 0.95, blue: 0.72, alpha: 1).setFill()
         UIBezierPath(ovalIn: CGRect(x: lc.x - 1.4 * s, y: lc.y - 1.8 * s, width: 2.8 * s, height: 3.6 * s)).fill()
@@ -461,7 +478,7 @@ final class SummaryView: UIView {
         }
         for i in 0..<46 {
             let hx = CGFloat((i * 7919) % 997) / 997, hyy = CGFloat((i * 104729) % 991) / 991
-            UIColor(white: 1, alpha: 0.35 + 0.5 * CGFloat(i % 5) / 5).setFill()
+            UIColor(white: 1, alpha: (0.35 + 0.5 * CGFloat(i % 5) / 5) * (0.75 + 0.25 * CGFloat(sin(clock * 2 + Double(i))))).setFill()
             UIRectFill(CGRect(x: 6 + hx * (w - 12), y: 6 + hyy * (artH * 0.6), width: 1.2, height: 1.2))
         }
         let mc = CGPoint(x: w - 54, y: 28)
@@ -482,9 +499,23 @@ final class SummaryView: UIView {
         UIColor(red: 0.17, green: 0.16, blue: 0.36, alpha: 1).setFill()
         back.fill()
         let n = max(4, Int(w / 100))
+        let span = w + 80
         for i in 0..<n {
-            let rx = 40 + CGFloat(i) * (w - 110) / CGFloat(n - 1)
-            rider(cg, rx, ridge(34, 0.8, rx) + 1.5, 1.25)
+            // the train walks slowly across and comes round again
+            var rx = (CGFloat(i) * span / CGFloat(n) + CGFloat(clock) * 7).truncatingRemainder(dividingBy: span)
+            rx -= 40
+            rider(cg, rx, ridge(34, 0.8, rx) + 1.5, 1.25, CGFloat(clock) * 4 + CGFloat(i) * 1.3)
+        }
+        // now and then, a shooting star
+        let st = clock.truncatingRemainder(dividingBy: 7)
+        if st < 0.6 {
+            let k = CGFloat(st / 0.6)
+            let p0 = CGPoint(x: w * 0.3 + k * 90, y: 12 + k * 26)
+            let trail = UIBezierPath()
+            trail.move(to: p0); trail.addLine(to: CGPoint(x: p0.x - 26, y: p0.y - 7.5))
+            UIColor(white: 1, alpha: 0.8 * (1 - k)).setStroke()
+            trail.lineWidth = 1.2
+            trail.stroke()
         }
         let front = UIBezierPath()
         front.move(to: CGPoint(x: 0, y: artH + 4))
@@ -517,7 +548,7 @@ final class SummaryView: UIView {
         }
         if !footer.isEmpty {
             let rows = CGFloat((tiles.count + cols - 1) / cols)
-            centred(footer, w / 2, y + rows * 50 + 8, 13, cream)
+            centred(footer, w / 2, y + rows * 50 + 8, 13, footer.hasPrefix("New best") ? gold : cream)
         }
     }
 }

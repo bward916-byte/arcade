@@ -336,11 +336,21 @@ final class Renderer {
         c.circ(px, fy - 12, 2.1, Col(0xb8804e)); c.R(px - 2.4, fy - 14.8, 4.8, 2.2, turb)
     }
     /// Tiny riders on a ridge, for the raid picture.
-    private func rideMark(_ px: Double, _ py: Double, _ s: Double, _ col: Col, _ f: Double = 1) {
-        c.ell(px, py - 5 * s, 5.4 * s, 2.6 * s, col)
-        for lx in [-3.6, -1.6, 2, 3.8] { c.seg(px + lx * s, py - 4 * s, px + lx * s, py, 0.8 * s, col) }
-        c.seg(px + f * 4 * s, py - 6 * s, px + f * 7 * s, py - 10.5 * s, 1.5 * s, col); c.ell(px + f * 8 * s, py - 11 * s, 1.9 * s, 1.2 * s, col)
-        c.RR(px - 1.6 * s, py - 13 * s, 3.2 * s, 6.4 * s, s, col); c.circ(px, py - 14.2 * s, 1.6 * s, col)
+    /// A camel and rider in silhouette, feet at (px, py). ph walks the legs and bobs the body.
+    private func rideMark(_ px: Double, _ py: Double, _ s: Double, _ col: Col, _ f: Double = 1, _ ph: Double = 0) {
+        let bob = sin(ph * 2) * 0.35 * s
+        let legs: [Double] = [-3.6, -1.6, 2, 3.8]
+        for (i, lx) in legs.enumerated() {
+            let sw = sin(ph + Double(i) * 1.6) * 1.3 * s
+            c.seg(px + lx * s, py - 4 * s + bob, px + lx * s + sw, py, 0.8 * s, col)
+        }
+        c.ell(px, py - 5 * s + bob, 5.4 * s, 2.6 * s, col)
+        c.ell(px - f * 0.8 * s, py - 7 * s + bob, 2.6 * s, 1.7 * s, col)
+        c.seg(px - f * 5 * s, py - 5.6 * s + bob, px - f * 6.2 * s, py - 2.6 * s + bob, 0.5 * s, col)
+        c.seg(px + f * 4 * s, py - 6 * s + bob, px + f * 7 * s, py - 10.5 * s + bob, 1.5 * s, col)
+        c.ell(px + f * 8 * s, py - 11 * s + bob, 1.9 * s, 1.2 * s, col)
+        c.RR(px - 1.6 * s, py - 13.4 * s + bob, 3.2 * s, 6.6 * s, s, col); c.circ(px, py - 14.6 * s + bob, 1.6 * s, col)
+        c.poly(col, [px - f * 1.2 * s, py - 15.4 * s + bob, px - f * 3.6 * s, py - 13 * s + bob + sin(ph * 1.3) * 0.5 * s, px - f * 1.2 * s, py - 13.4 * s + bob])
     }
     /// The top of a dune layer at a screen x, by the same rule dunes() draws with.
     private func duneTop(_ sx: Double, _ par: Double, _ base: Double, _ amp: Double, _ seed: Double, _ f: Double) -> Double {
@@ -355,7 +365,7 @@ final class Renderer {
         if g.dark < 0.45 || g.low { return }
         let plans = g.raid.filter { !$0.boat && $0.kind != .mummy }
         if plans.isEmpty { return }
-        let n = min(6, plans.count)
+        let n = min(8, plans.count + 2)
         let know = g.B(.temple).level > 0
         let side = plans[0].side
         let prog = clampD((g.t - 0.7) / 0.08, 0, 1)
@@ -363,12 +373,21 @@ final class Renderer {
         for i in 0..<n {
             let k = Double(i)
             let sd: Double = know ? side : (i % 2 == 0 ? -1 : 1)
-            let off = 46 + k * (know ? 15 : 9) + prog * 26 + sin(NOW * 0.3 + k) * 2
+            let off = 46 + k * (know ? 14 : 8) + prog * 30
             let px = sd < 0 ? off : W - off
             let py = duneTop(px, 0.28, 6, 18, 4.1, 0.017) + 0.6
-            rideMark(px, py, 0.62, ink, -sd)
-            flame(px + sd * 2, py - 9.4, 0.42)
-            light(px, py - 7, 11, 0.6)
+            let ph = prog < 1 ? NOW * 5 + k * 1.3 : 0
+            c.ell(px, py + 0.6, 9, 1.6, rgba(255, 170, 70, 0.16))
+            rideMark(px, py, 0.62, ink, -sd, ph)
+            if i == 0 || i == 1 {
+                // the leaders carry a banner
+                let sw = sin(NOW * 4 + k) * 0.7
+                c.seg(px + sd * 0.6, py - 8, px + sd * 0.6, py - 17, 0.35, ink)
+                c.poly(Col(0x8f2a1c), [px + sd * 0.6, py - 17, px + sd * 5 + sw, py - 16, px + sd * 3.4 + sw, py - 14.6, px + sd * 5 + sw, py - 13.4, px + sd * 0.6, py - 13])
+            }
+            flame(px - sd * 2.2, py - 9.6, 0.42)
+            c.R(px - sd * 2.2 - 0.3 + sin(NOW * 2 + k) * 0.6, py - 14 - Double(i % 3), 0.6, 1.6, rgba(200, 190, 210, 0.25))
+            light(px, py - 7, 12, 0.6)
         }
     }
     /// The outdoor and night-sky pictures.
@@ -448,7 +467,7 @@ final class Renderer {
             for i in 0..<5 {
                 let k = Double(i)
                 let px = x + 30 + k * 26, py = fy + 4 - 26 * (0.5 + 0.5 * sin((px - x) * 0.045 + 0.6)) + 1
-                rideMark(px, py, 0.8 + 0.08 * Double(i % 2), Col(0x080814))
+                rideMark(px, py, 0.8 + 0.08 * Double(i % 2), Col(0x080814), 1, NOW * 4 + k * 1.2)
                 flame(px - 3, py - 15, 0.55)
             }
             dune(Col(0x10102a), 8, 2.4)
@@ -1794,8 +1813,9 @@ final class Renderer {
             if i % 2 == 0 { c.R(cx - 0.6, y - 4.2, 1.2, 2.6, col) }
             if lit {
                 // each camel carries a lantern after dark
-                c.glow(cx + 1, y - 2.6, 5, rgba(255, 204, 116, 0.7), rgba(255, 204, 116, 0)); c.circ(cx + 1, y - 2.6, 0.5, Col(0xfff3b8))
-                light(cx, y - 2, 7, 0.5)
+                c.glow(cx + 1, y - 2.6, 7, rgba(255, 204, 116, 0.85), rgba(255, 204, 116, 0)); c.circ(cx + 1, y - 2.6, 0.7, Col(0xfff3b8))
+                c.ell(cx, y + 3.4, 4, 0.7, rgba(255, 190, 90, 0.2))
+                light(cx, y - 2, 10, 0.6)
             }
         }
     }
@@ -2168,6 +2188,12 @@ final class Renderer {
             c.seg(bx - 4.5 * sc, by - 3.4, bx + 3 * sc, by - 10 * sc, 0.4, Col(0x5a3e22))
             c.poly(rgba(246, 239, 220, 0.22), [bx - 4 * sc, by + 1.4, bx + 3 * sc, by + 5 * sc, bx + 5 * sc, by + 1.4])
             c.R(bx - 5 * sc, by + 1.2, 11 * sc, 0.4, rgba(255, 255, 255, 0.4))
+            if lit {
+                // a lantern at the stern, and its light lying on the water
+                c.glow(bx - 5.4 * sc, by - 3.4, 6, rgba(255, 204, 116, 0.85), rgba(255, 204, 116, 0)); c.circ(bx - 5.4 * sc, by - 3.4, 0.6, Col(0xfff3b8))
+                for q in 0..<3 { c.R(bx - 6.4 * sc + sin(NOW * 2 + Double(q) + bx) * 0.6, by + 2 + Double(q) * 1.3, 2.4, 0.4, rgba(255, 204, 116, 0.4 - Double(q) * 0.1)) }
+                light(bx - 5 * sc, by - 2, 10, 0.55)
+            }
             c.alpha(1)
         }
         // foam along the bank, reeds, and an ibis working the shallows
@@ -3452,9 +3478,9 @@ final class Renderer {
         for i in 0..<6 {
             let k = Double(i)
             let px = (W * 0.06 + k * 12 + NOW * 1.2).truncatingRemainder(dividingBy: W * 0.5)
-            rideMark(px, hy + 0.6, 0.42, Col(0x4a2e4a))
-            c.glow(px + 2.4, hy - 3.4, 5, rgba(255, 214, 130, 0.8), rgba(255, 214, 130, 0)); c.circ(px + 2.4, hy - 3.4, 0.45, Col(0xfff3b8))
-            c.R(px + 1.4, hy + 1.6, 2, 3, rgba(255, 214, 130, 0.25))
+            rideMark(px, hy + 0.6, 0.62, Col(0x4a2e4a), 1, NOW * 3 + k)
+            c.glow(px + 3.4, hy - 5, 8, rgba(255, 214, 130, 0.9), rgba(255, 214, 130, 0)); c.circ(px + 3.4, hy - 5, 0.7, Col(0xfff3b8))
+            for q in 0..<4 { c.R(px + 2.4 - Double(q) * 0.3 + sin(NOW * 2 + k + Double(q)) * 0.6, hy + 2 + Double(q) * 1.6, 2 + Double(q) * 0.5, 0.5, rgba(255, 214, 130, 0.45 - Double(q) * 0.09)) }
         }
         // feluccas on the far water, and ibis going home
         for i in 0..<3 {
