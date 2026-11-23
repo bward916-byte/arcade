@@ -441,7 +441,8 @@ final class Game {
         if f.kind == .wall {
             let half = 85.0 + 70
             for z in f.zeds where abs(z.x - f.wallX) < half { z.x = f.wallX + (z.x < f.wallX ? -1 : 1) * (half + 20) }
-            for i in 0..<f.items.count where abs(f.items[i].x - f.wallX) < half { f.items[i].x = f.wallX + (f.items[i].x < f.wallX ? -1 : 1) * (half + 30) }
+            // nothing may sit between an office door and the fire: you could never reach it
+            for i in 0..<f.items.count where abs(f.items[i].x - f.wallX) < 300 { f.items[i].x = f.wallX + (f.items[i].x < f.wallX ? -1 : 1) * rng.r(340, 460) }
             f.props = f.props.filter { abs($0.x - f.wallX) > 330 }
         }
         if f.kind == .hole { f.props = f.props.filter { abs($0.x - f.holeX) > 120 }; for i in 0..<f.items.count where abs(f.items[i].x - f.holeX) < 110 { f.items[i].x += 200 } }
