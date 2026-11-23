@@ -234,7 +234,7 @@ fun AdDetail(ad: Listing, back: () -> Unit) {
 // ---------- Guide ----------
 
 private val sections = listOf("start" to "Start here", "camping" to "Camping", "wash" to "Washes", "services" to "Services", "rocks" to "Rockhounding",
-    "mines" to "Gold and ghost camps", "trips" to "Trips and trails", "town" to "Town")
+    "mines" to "Gold and ghost camps", "trips" to "Trips and trails", "nature" to "Plants and animals", "town" to "Town")
 
 @Composable
 fun GuideScreen(guide: Guide?) {
