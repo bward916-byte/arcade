@@ -688,7 +688,7 @@ final class Game {
         if name == "fight" { startDuel(foes: 6, boss: false, prize: 120, teach: false); duel?.fury = 1; duel?.combo = 3 }
         if name == "kill1" { startDuel(foes: 6, boss: false, prize: 120, teach: false); duel?.demoKill = 0.5 }
         if name == "kill2" { startDuel(foes: 6, boss: false, prize: 120, teach: false); duel?.demoKill = 0.9 }
-        if name == "kill3" { startDuel(foes: 6, boss: false, prize: 120, teach: false); duel?.demoKill = 1.55 }
+        if name == "kill3" { startDuel(foes: 6, boss: false, prize: 120, teach: false); duel?.demoKill = 1.5 }
         if name == "clash" { startDuel(foes: 6, boss: false, prize: 120, teach: false); duel?.demoClash = true }
         if name == "boss" { startDuel(foes: 1, boss: true, prize: 300, teach: false) }
         if name == "end" { finish() }

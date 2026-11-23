@@ -29,6 +29,8 @@ struct Pose {
     /// Lifted off the deck by this much, and fading by this much (a man going over the side).
     var dy = 0.0
     var fade = 0.0
+    /// Falls on his face, toward the man who struck him, instead of on his back.
+    var fwd = false
     /// Teeth bared: he is in the middle of a blow.
     var grit = false
 }
@@ -478,7 +480,7 @@ final class Duel {
         if demoKill >= 0 {
             t += dt
             ehp = 0
-            if demoKill < 1 { est = .dead; overSide = false; et = Duel.deadLen * (1 - demoKill); blade.live = true; blade.rest = true; blade.x = g.W * 0.5; blade.y = feetY(g) - 2; blade.a = 0.08 } else { est = .drag; et = Duel.dragLen * (2 - demoKill); blade.live = true; blade.rest = true; blade.x = g.W * 0.5; blade.y = feetY(g) - 2 }
+            if demoKill < 1 { est = .dead; overSide = false; et = Duel.deadLen * (1 - demoKill); blade.live = true; blade.rest = true; blade.x = g.W * 0.36; blade.y = feetY(g) - 2; blade.a = 0.08 } else { est = .drag; et = Duel.dragLen * (2 - demoKill); blade.live = true; blade.rest = true; blade.x = g.W * 0.36; blade.y = feetY(g) - 2 }
             return
         }
         if demoClash {
@@ -552,14 +554,14 @@ final class Duel {
                     g.snd?.thud()
                     g.shake = max(g.shake, 0.16)
                     g.buzz?(true)
-                    kickDust(fx + scaleS(g) * 0.75, fy2, 14, 1); kickDust(fx + scaleS(g) * 0.4, fy2, 8, -1)
+                    kickDust(fx - scaleS(g) * 0.45, fy2, 14, -1); kickDust(fx - scaleS(g) * 0.1, fy2, 8, 1)
                 }
             }
             if et <= 0 {
                 if overSide { overSide = false; blade.live = false; next(g) } else { est = .drag; et = Duel.dragLen; say("They drag him clear") }
             }
         case .drag:
-            if chance(dt * 9) { let (fx, fy2) = foeXY(g); kickDust(fx + scaleS(g) * 0.3 + dragShift(g), fy2, 1, -1) }
+            if chance(dt * 9) { let (fx, fy2) = foeXY(g); kickDust(fx - scaleS(g) * 0.3 + dragShift(g), fy2, 1, -1) }
             if et <= 0 { blade.live = false; next(g) }
         }
     }
@@ -812,8 +814,9 @@ final class Duel {
                 let reel = clampD(q / 0.2, 0, 1)
                 let sink = clampD((q - 0.2) / 0.22, 0, 1)
                 let drop = clampD((q - 0.4) / 0.22, 0, 1)
-                ep.ang = lerp(1.2, -2.3, reel)
-                ep.lean = -0.45 * reel + 0.2 * sink
+                ep.fwd = true
+                ep.ang = lerp(1.2, 0.4, reel)
+                ep.lean = -0.45 * reel * (1 - sink) + 0.5 * sink
                 ep.crouch = 0.17 * sink * (1 - drop)
                 ep.fall = drop * drop
                 eOff = s * (0.18 + 0.14 * reel)
@@ -824,8 +827,8 @@ final class Duel {
             }
         case .drag:
             ep.noSword = true
-            ep.fall = 1
-            ep.ang = -2.3; ep.lean = -0.25
+            ep.fall = 1; ep.fwd = true
+            ep.ang = 0.4; ep.lean = 0.5
             eOff = s * 0.32 + dragShift(g)
         default:
             break
@@ -875,7 +878,7 @@ final class Duel {
             // these are choreographed frame by frame; easing would smear them
             se.ang = ep.ang; se.lean = ep.lean; se.crouch = ep.crouch; se.reach = ep.reach; se.pang = ep.ang
         }
-        se.noSword = ep.noSword; se.walking = ep.walking; se.step = ep.step; se.dy = ep.dy; se.fade = ep.fade
+        se.noSword = ep.noSword; se.walking = ep.walking; se.step = ep.step; se.dy = ep.dy; se.fade = ep.fade; se.fwd = ep.fwd
         sp.noSword = false; sp.walking = false; sp.dy = 0; sp.fade = 0
         pp = sp; ep = se; pOff = sOffP; eOff = sOffE
         let (px, _) = playerXY(g)
@@ -919,12 +922,12 @@ final class Duel {
         fighter(c, px + pOff, fy, s, 1, pp, 0)
         fighter(c, ex + eOff, fy, s * (kind == .bruiser ? 1.08 : (kind == .captain ? 1.05 : 1)), -1, ep, kindIndex())
         if est == .drag {
-            // a shipmate comes for him: walks in, stoops, takes him under the arms and hauls him clear
+            // a shipmate comes for him: walks in, stoops, takes him by the heels and hauls him clear
             let q = clampD(1 - et / Duel.dragLen, 0, 1)
             var dp = Pose()
             dp.noSword = true
             let arrive = clampD(q / 0.3, 0, 1)
-            let grip = ex + s * 0.32 + s * 1.08
+            let grip = ex + s * 0.32 + s * 0.3
             var dxp = lerp(W + s * 0.5, grip, 1 - (1 - arrive) * (1 - arrive))
             let hauling = q > 0.42
             if hauling { dxp = grip + dragShift(g) }
@@ -1384,7 +1387,7 @@ final class Duel {
         if p.fall > 0 {
             // he goes over backward and ends flat on the planks, not faded away
             c.translate(0, -min(1, p.fall) * s * 0.07)
-            c.rotate(-dir * p.fall * 1.5)
+            c.rotate((p.fwd ? dir : -dir) * p.fall * 1.5)
         }
         if p.walking { c.translate(0, -abs(sin(p.step)) * s * 0.018) }
         c.scale(dir, 1)
