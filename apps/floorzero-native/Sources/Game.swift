@@ -1695,12 +1695,21 @@ final class Game {
         let dt = 1.0 / 30
         var deathFloors: [Int] = []
         var seenDeaths = 0
+        var stuckT = 0.0
+        var lastFloor = floorN
         while sim < simMinutes * 60 && mode != .ending {
             let fl = floorN
             update(dt)
             sim += dt
             if mode == .card { cardT = 9 }
-            if deaths > seenDeaths { seenDeaths = deaths; deathFloors.append(fl) }
+            if deaths > seenDeaths { seenDeaths = deaths; deathFloors.append(fl); stuckT = 0 }
+            if floorN != lastFloor { lastFloor = floorN; stuckT = 0 } else { stuckT += dt }
+            if stuckT > 150 {
+                let f = floor
+                out += "  STUCK floor \(floorN) kind \(f.kind) mode \(mode) heroX \(Int(hero.x)) hp \(Int(hero.hp)) exitX \(Int(f.exitX)) wallX \(Int(f.wallX)) doors \(Int(f.doorA)),\(Int(f.doorB)) holeX \(Int(f.holeX)) alive \(aliveCount) reserve \(f.reserve) atkT \(hero.atkT) supT \(supT) picksDue \(picksDue) move \(input.move) attack \(input.attack)\n"
+                for z in f.zeds where z.alive { out += "    \(z.kind) x \(Int(z.x)) hp \(Int(z.hp)) aware \(z.aware) stun \(z.stun) atkT \(z.atkT) cd \(z.cd) shield \(z.shield)\n" }
+                break
+            }
             if tower != lastTower {
                 out += "  \(TOWERS[lastTower].who): \(String(format: "%.1f", (sim - t0) / 60)) min, deaths \(deaths - lastDeaths), damage taken \(Int(dmgTaken - lastDmg))\n"
                 lastTower = tower; lastDeaths = deaths; t0 = sim; lastDmg = dmgTaken
