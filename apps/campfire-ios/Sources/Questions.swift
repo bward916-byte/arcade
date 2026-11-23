@@ -11,7 +11,7 @@ struct QAnswer: Identifiable {
     var up: Int
     let said: Int
     let waiting: Bool   // not passed by the check yet, so only its poster sees it
-    var photo =       // the poster's account photo, if they have an account with one
+    var photo = ""      // the poster's account photo, if they have an account with one
     var acct = false    // posted from an account
     var mine = false    // posted from the account signed in on this phone
 }
