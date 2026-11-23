@@ -683,12 +683,12 @@ final class Game {
         if name == "shark" { playShark() }
         if name == "win" { fights = 4; log = ["Day 3: Ran into a storm", "Day 30: Made port at Gull Cay", "Day 71: Took a pirate ship by boarding", "Day 118: Took the Red Mary"]; finish() }
         if name == "saved" { leg = 2; mode = .port; saveGame(); mode = .title }
-        if name == "deckzoom" { ups = ["sails": 1, "guns": 1]; deckForce = 0; camZ = 1.9 }
-        if name == "evfall" { startOmen("fall"); sceneT = 2.6; omenT = 1.6; Game.omenHold = true; camZ = 1.9 }
-        if name == "evfallcard" { startOmen("fall"); sceneT = 2.6; omenK = ""; event("fall"); camZ = 1.9 }
-        if name == "evbrawl" { startOmen("brawl"); sceneT = 1.3; omenT = 1.6; Game.omenHold = true; camZ = 1.9 }
-        if name == "evgalley" { startOmen("galley"); sceneT = 1.3; omenK = ""; event("galley"); camZ = 1.9 }
-        if name == "evsick" { startOmen("sick"); sceneT = 2.4; omenT = 1.6; Game.omenHold = true; camZ = 1.9 }
+        if name == "deckzoom" { ups = ["sails": 1, "guns": 1]; deckForce = 0; camZ = 2.6 }
+        if name == "evfall" { startOmen("fall"); sceneT = 2.6; omenT = 1.6; Game.omenHold = true; camZ = 2.6 }
+        if name == "evfallcard" { startOmen("fall"); sceneT = 2.6; omenK = ""; event("fall"); camZ = 2.6 }
+        if name == "evbrawl" { startOmen("brawl"); sceneT = 1.3; omenT = 1.6; Game.omenHold = true; camZ = 2.6 }
+        if name == "evgalley" { startOmen("galley"); sceneT = 1.3; omenK = ""; event("galley"); camZ = 2.6 }
+        if name == "evsick" { startOmen("sick"); sceneT = 2.4; omenT = 1.6; Game.omenHold = true; camZ = 2.6 }
         if name == "omen" { startOmen("pirates"); omenT = 1.6; Game.omenHold = true }
         if name == "yard" { leg = 1; mode = .port; shipwright() }
         if name == "decklife" { ups = ["sails": 2, "hull": 1, "guns": 1]; deckForce = 5; seaForce = 0 }

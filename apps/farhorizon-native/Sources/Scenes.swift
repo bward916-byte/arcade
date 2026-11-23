@@ -567,22 +567,22 @@ extension Game {
         let pv = camPivot()
         let acting = omen || card != nil
         let deckEv = Game.deckScenes.contains(sceneK)
-        var zT = 1.9, fxT = W * 0.5, fyT = H * 0.62
+        var zT = 2.6, fxT = W * 0.5, fyT = H * 0.66
         if play != nil || (acting && !sceneK.isEmpty && !deckEv) {
             zT = 1; fxT = pv.0; fyT = pv.1
             if sceneK == "overboard" && play == nil { zT = 1.35; fxT = W * 0.58; fyT = H * 0.6 }
         } else if deckEv && card != nil {
-            fyT = H * 0.4
+            zT = 3; fyT = H * 0.4
         } else if deckEv && omen {
-            fyT = H * 0.52
+            zT = 3; fyT = H * 0.55
         }
-        if camFx == 0 { camFx = pv.0 + (fxT - pv.0) * (camZ - 1) / 0.9; camFy = pv.1 + (fyT - pv.1) * (camZ - 1) / 0.9 }
+        if camFx == 0 { camFx = pv.0 + (fxT - pv.0) * min(1, (camZ - 1) / 1.6); camFy = pv.1 + (fyT - pv.1) * min(1, (camZ - 1) / 1.6) }
         let ck: Double = play != nil ? 1 : 0.07
         camZ += (zT - camZ) * ck
         camFx += (fxT - camFx) * ck
         camFy += (fyT - camFy) * ck
         // the sky and far water move much less than the ship does, so the sun and moon stay in sight
-        let zb = 1 + (camZ - 1) * 0.2
+        let zb = 1 + (camZ - 1) * 0.12
         c.save()
         c.translate(pv.0 + (camFx - pv.0) * 0.3, pv.1 + (camFy - pv.1) * 0.3); c.scale(zb, zb); c.translate(-pv.0, -pv.1)
         drawSea(c, hz)
@@ -683,7 +683,7 @@ extension Game {
             return
         }
         drawProgress(c)
-        c.textS(lifeCaption(), W / 2, 96, 12.5, CREAM.alpha(0.92), 0, FONTI)
+        if sceneK.isEmpty { c.textS(lifeCaption(), W / 2, 96, 12.5, CREAM.alpha(0.92), 0, FONTI) }
         let bw = 150.0, by = H - safeB - 50
         btn(c, W / 2 - bw - 6, by, bw, 44, half ? "Rations: half" : "Rations: full", half ? "saves food, risks sickness" : "tap to halve") { [unowned self] in
             self.half = !self.half
