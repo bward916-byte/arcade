@@ -284,9 +284,9 @@ extension Game {
             // one pip per try
             for i in 0..<p.rounds {
                 let px = W / 2 + (Double(i) - Double(p.rounds - 1) / 2) * 22
-                c.circ(px, y - 16, 7, Col(0x1c1108))
+                c.circ(px, y - 26, 7, Col(0x1c1108))
                 let m = i < p.marks.count ? p.marks[i] : -1
-                c.circ(px, y - 16, 5.2, m < 0 ? Col(0x000000, 0.4) : (m == 0 ? Col(0xe0402f) : (m == 2 ? Col(0xffe08a) : GREENC)))
+                c.circ(px, y - 26, 5.2, m < 0 ? Col(0x000000, 0.4) : (m == 0 ? Col(0xe0402f) : (m == 2 ? Col(0xffe08a) : GREENC)))
             }
             c.RR(x - 4, y - 4, w + 8, h + 8, 16, Col(0x1c1108, 0.9))
             c.RRStroke(x - 4, y - 4, w + 8, h + 8, 16, 1.6, Col(0xd2a455))
@@ -626,7 +626,7 @@ extension Game {
             if sumRow < 99 { sumRow = 99; snd?.thud(); if !hard { snd?.good() }; shake = 0.12; puff(W / 2, py + 244, 30, vc, 260, 320, 3, 0.7) }
             c.save()
             c.alpha(q)
-            c.translate(W / 2, py + 240)
+            c.translate(W / 2, py + 238)
             c.rotate(-0.04)
             c.scale(2.2 - 1.2 * q, 2.2 - 1.2 * q)
             let tw = textW(word, 22, FONTD) + 36
@@ -639,8 +639,7 @@ extension Game {
             let a = eo((t - (LegSum.fullT - 0.9)) / 0.3)
             c.save()
             c.alpha(a)
-            c.text("Wages of \(s.wages) gold fall due when you sail", W / 2, py + ph - 62, 13, CREAM.alpha(0.85), 0, FONTI)
-            btn(c, px + pw / 2 - 120, py + ph - 54 + 10 * (1 - a), 240, 44, "Go ashore", gold: true, size: 18) { [unowned self] in self.sum = nil }
+            btn(c, px + pw / 2 - 140, py + ph - 58 + 10 * (1 - a), 280, 46, "Go ashore", "wages of \(s.wages) gold fall due when you sail", gold: true, size: 17) { [unowned self] in self.sum = nil }
             c.restore()
         }
     }
