@@ -30,7 +30,37 @@ struct RootView: View {
         return "sale"
     }()
 
+    // A question nobody has answered yet, shown above every tab. A new one is picked each time the tab changes.
+    @State private var asking: String?
+    @State private var waitingCount = 0
+    @State private var answering = false
+
+    private func pickQuestion() async {
+        guard let all = try? await Site.questions() else { return }
+        let open = all.filter { $0.answers.isEmpty && !$0.waiting }
+        waitingCount = open.count
+        asking = open.randomElement()?.text
+    }
+
     var body: some View {
+        VStack(spacing: 0) {
+            if let q = asking {
+                Button {
+                    answering = true
+                } label: {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("A camper is asking: \u{201C}\(q)\u{201D}")
+                            .font(.footnote.weight(.semibold)).lineLimit(2).multilineTextAlignment(.leading)
+                        Text(waitingCount > 1 ? "Can you answer? \(waitingCount - 1) more waiting" : "Can you answer?")
+                            .font(.caption)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 14).padding(.vertical, 8)
+                    .background(Theme.soft.ignoresSafeArea(edges: .top))
+                    .foregroundColor(Theme.primary)
+                }
+                .buttonStyle(.plain)
+            }
         TabView(selection: $tab) {
             ForSaleView().tabItem { Label("For Sale", systemImage: "tag") }.tag("sale")
             GuideView().tabItem { Label("Guide", systemImage: "book") }.tag("guide")
@@ -38,7 +68,16 @@ struct RootView: View {
             AlertsView().tabItem { Label("Alerts", systemImage: "bell") }.tag("alerts")
             PlacesView().tabItem { Label("Map", systemImage: "map") }.tag("map")
         }
+        }
         .environmentObject(guide)
         .task { await guide.load() }
+        .task(id: tab) { await pickQuestion() }
+        .sheet(isPresented: $answering, onDismiss: { Task { await pickQuestion() } }) {
+            NavigationStack {
+                QuestionsView(startOpen: true)
+                    .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Close") { answering = false } } }
+            }
+            .environmentObject(guide)
+        }
     }
 }

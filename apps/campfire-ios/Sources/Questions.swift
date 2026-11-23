@@ -47,7 +47,9 @@ struct QuestionsView: View {
     @State private var rows: [Question] = []
     @State private var loaded = false
     @State private var failed = false
-    @State private var show = "all"
+    @State private var show: String
+    // The "A camper is asking" strip opens this with only the questions that still need an answer.
+    init(startOpen: Bool = false) { _show = State(initialValue: startOpen ? "open" : "all") }
     @State private var asking = ""
     @AppStorage("askName") private var name = ""
     @AppStorage("askEmail") private var email = ""
