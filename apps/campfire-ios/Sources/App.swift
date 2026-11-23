@@ -34,8 +34,9 @@ struct RootView: View {
     @State private var asking: String?
     @State private var waitingCount = 0
     @State private var answering = false
+    @State private var comparing = false     // the free-versus-permit comparison, opened from any mention of BLM or LTVA
     @State private var stripOff = false      // closed with the X: it stays away until the app is opened again
-    @State private var stripShown = false    // it tucks itself away 5 seconds after each tab change
+    @State private var stripShown = false    // it tucks itself away 7.5 seconds after each tab change
 
     private func pickQuestion() async {
         guard let all = try? await Site.questions() else { return }
@@ -80,10 +81,16 @@ struct RootView: View {
         .task { await guide.load() }
         .task { await AccountStore.shared.load() }
         .onReceive(NotificationCenter.default.publisher(for: LandAsk.note)) { _ in tab = "map" }
+        .onReceive(NotificationCenter.default.publisher(for: CampWords.note)) { _ in comparing = true }
+        .environment(\.openURL, OpenURLAction { url in
+            if url.scheme == "campfire" { comparing = true; return .handled }
+            return .systemAction
+        })
+        .sheet(isPresented: $comparing) { CompareView() }
         .task(id: tab) {
             await pickQuestion()
             withAnimation { stripShown = true }
-            try? await Task.sleep(nanoseconds: 5_000_000_000)
+            try? await Task.sleep(nanoseconds: 7_500_000_000)
             if !Task.isCancelled { withAnimation { stripShown = false } }
         }
         .sheet(isPresented: $answering, onDismiss: { Task { await pickQuestion() } }) {

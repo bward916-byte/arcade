@@ -108,7 +108,7 @@ struct QuestionsView: View {
                 TextField("Type a question. Where can I…?", text: $asking, axis: .vertical).lineLimit(2...4)
                 ForEach(matches, id: \.self) { card in
                     DisclosureGroup {
-                        Text(card.text).font(.subheadline)
+                        Text(CampWords.linked(card.text)).font(.subheadline)
                     } label: {
                         Label(card.title, systemImage: "book").font(.subheadline.weight(.semibold))
                     }
@@ -172,7 +172,7 @@ struct QuestionsView: View {
                         ForEach(ordered(q.answers)) { a in
                             VStack(alignment: .leading, spacing: 6) {
                                 if a.guide { Text("From the guide: " + a.title).font(.subheadline.weight(.semibold)).foregroundColor(Theme.primary) }
-                                Text(a.text).font(.subheadline).textSelection(.enabled)
+                                Text(CampWords.linked(a.text)).font(.subheadline).textSelection(.enabled)
                                 HStack(spacing: 6) { if a.acct && !a.guide && a.said <= 1 { Avatar(photo: a.photo, name: a.name, size: 22) }; Text(byline(a)).font(.footnote).foregroundColor(.secondary) }
                                 if a.waiting { Text("Only you can see this until a quick check passes it.").font(.footnote).italic().foregroundColor(.secondary) }
                                 Button {

@@ -209,7 +209,7 @@ struct GuideView: View {
                     Section("Camping areas") {
                         ForEach(areas) { a in
                             DisclosureGroup {
-                                Text(a.text).font(.subheadline)
+                                Text(CampWords.linked(a.text)).font(.subheadline)
                                 CardExtras(map: nil, photo: a.photo)
                             } label: {
                                 Text(a.name).font(.subheadline.weight(.semibold))
@@ -221,7 +221,7 @@ struct GuideView: View {
                     Section(list.label) {
                         ForEach(list.cards, id: \.self) { card in
                             DisclosureGroup {
-                                Text(card.text).font(.subheadline).textSelection(.enabled)
+                                Text(CampWords.linked(card.text)).font(.subheadline).textSelection(.enabled)
                                 CardExtras(map: card.map, photo: card.photo)
                             } label: {
                                 Text(card.title).font(.subheadline.weight(.semibold))

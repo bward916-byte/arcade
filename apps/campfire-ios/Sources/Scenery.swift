@@ -484,7 +484,7 @@ struct AreaMapSection: View {
                             .padding(.horizontal, 8).padding(.vertical, 4)
                             .background(Theme.soft).foregroundColor(Theme.primary).clipShape(Capsule())
                     }
-                    Text(a.text).font(.subheadline)
+                    Text(CampWords.linked(a.text)).font(.subheadline)
                     CardExtras(map: nil, photo: a.photo)
                     if let pin = data.pins.first(where: { $0.area == a.id }),
                        let url = URL(string: "https://www.google.com/maps/dir/?api=1&destination=\(pin.lat),\(pin.lon)") {

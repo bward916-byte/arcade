@@ -424,7 +424,7 @@ struct PlacesView: View {
                             .accessibilityLabel("Close")
                         }
                         if let t = pin.text, !t.isEmpty {
-                            Text(t).font(.subheadline).lineLimit(4)
+                            Text(CampWords.linked(t)).font(.subheadline).lineLimit(4)
                         }
                         Button {
                             let item = MKMapItem(placemark: MKPlacemark(coordinate: CLLocationCoordinate2D(latitude: pin.lat, longitude: pin.lon)))
