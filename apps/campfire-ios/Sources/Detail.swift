@@ -142,6 +142,7 @@ struct ContactSheet: View {
                 if message.isEmpty { message = "Hi, is your \"\(listing.title)\" still available?" }
             }
         }
+        .busy(sending, "Sending to the seller…")
     }
 
     private func send() {

@@ -44,3 +44,32 @@ struct AboutView: View {
         }
     }
 }
+
+// A dimmed screen with a spinner and a few words, shown while something is being sent so the tap is clearly taken.
+struct BusyOverlay: ViewModifier {
+    let on: Bool
+    let words: String
+    func body(content: Content) -> some View {
+        content
+            .overlay {
+                if on {
+                    ZStack {
+                        Color.black.opacity(0.3).ignoresSafeArea()
+                        VStack(spacing: 14) {
+                            ProgressView().controlSize(.large)
+                            Text(words).font(.headline)
+                        }
+                        .padding(28)
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18))
+                    }
+                    .transition(.opacity)
+                }
+            }
+            .animation(.easeInOut(duration: 0.15), value: on)
+            .interactiveDismissDisabled(on)
+    }
+}
+
+extension View {
+    func busy(_ on: Bool, _ words: String) -> some View { modifier(BusyOverlay(on: on, words: words)) }
+}

@@ -106,6 +106,7 @@ struct PostAdView: View {
                 }
             }
         }
+        .busy(sending, picks.isEmpty ? "Posting your ad…" : "Sending your photos and ad…")
     }
 
     private func send() {
