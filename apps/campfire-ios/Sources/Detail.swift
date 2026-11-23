@@ -4,6 +4,8 @@ import SwiftUI
 struct ListingDetail: View {
     let listing: Listing
     @State private var contacting = false
+    @State private var reporting = false
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         ScrollView {
@@ -59,6 +61,13 @@ struct ListingDetail: View {
                         .buttonStyle(.borderedProminent)
                         .controlSize(.large)
                     }
+                    Button(role: .destructive) {
+                        reporting = true
+                    } label: {
+                        Label("Report this ad", systemImage: "flag").font(.footnote)
+                    }
+                    .buttonStyle(.borderless)
+                    .padding(.top, 4)
                 }
                 .padding(.horizontal)
             }
@@ -74,6 +83,14 @@ struct ListingDetail: View {
         }
         .sheet(isPresented: $contacting) {
             ContactSheet(listing: listing)
+        }
+        .confirmationDialog("Report this ad to the owner? It will be hidden on this phone.", isPresented: $reporting, titleVisibility: .visible) {
+            Button("Report and hide", role: .destructive) {
+                Hidden.add(listing.id)
+                Task { await Site.reportAd(listing.id) }
+                dismiss()
+            }
+            Button("Cancel", role: .cancel) {}
         }
     }
 }

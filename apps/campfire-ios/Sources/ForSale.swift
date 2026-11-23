@@ -25,10 +25,13 @@ struct ForSaleView: View {
     @State private var sort = "new"
     @State private var path: [Listing] = []
     @State private var posting = ProcessInfo.processInfo.arguments.contains("-demo-post")
+    @State private var about = false
+    @AppStorage(Hidden.name) private var hiddenRaw = ""
 
     private var shown: [Listing] {
         let q = search.trimmingCharacters(in: .whitespaces).lowercased()
         var list = store.listings.filter { l in
+            !Hidden.has(hiddenRaw, l.id) &&
             (cat.isEmpty || l.cat == cat) &&
             (q.isEmpty || (l.title + " " + l.text + " " + Site.catName(l.cat)).lowercased().contains(q))
         }
@@ -125,8 +128,17 @@ struct ForSaleView: View {
                     }
                     .accessibilityLabel("Sort")
                 }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        about = true
+                    } label: {
+                        Image(systemName: "info.circle")
+                    }
+                    .accessibilityLabel("About, privacy and terms")
+                }
             }
             .sheet(isPresented: $posting) { PostAdView() }
+            .sheet(isPresented: $about) { AboutView() }
             .refreshable { await store.load() }
             .task {
                 await store.load()

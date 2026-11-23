@@ -56,9 +56,22 @@ struct QuestionsView: View {
     @State private var drafts: [String: String] = [:]   // an answer being typed, by question
     @State private var editing = ""                      // id of the question or answer being edited
     @State private var editText = ""
+    @AppStorage(Hidden.name) private var hiddenRaw = ""
+    @State private var backEmail = ""                    // getting back into posts made on another device
+    @State private var backCode = ""
+    @State private var backNote = ""
+    @State private var backSent = false
 
-    private var waiting: [Question] { rows.filter { $0.answers.isEmpty } }
-    private var done: [Question] { rows.filter { !$0.answers.isEmpty } }
+    // Everything except what this phone's owner reported.
+    private var visible: [Question] {
+        rows.filter { !Hidden.has(hiddenRaw, $0.id) }.map { q in
+            var copy = q
+            copy.answers = q.answers.filter { !Hidden.has(hiddenRaw, $0.id) }
+            return copy
+        }
+    }
+    private var waiting: [Question] { visible.filter { $0.answers.isEmpty } }
+    private var done: [Question] { visible.filter { !$0.answers.isEmpty } }
     private var shown: [Question] { show == "open" ? waiting : show == "done" ? done : waiting + done }
 
     // Guide entries that share words with what is being typed.
@@ -96,12 +109,26 @@ struct QuestionsView: View {
             } header: {
                 Text("Ask a question")
             } footer: {
-                Text("You can edit or delete your posts from this phone. Add an email only if you want to do that from another device later.")
+                Text("You can edit or delete your posts from this phone. Add an email only if you want to do that from another device later. By posting you agree to the [terms](https://qcampfire.com/terms): be kind, nothing objectionable.")
+            }
+
+            Section {
+                DisclosureGroup("Posted from another device?") {
+                    Text("If you gave an email when you posted, enter it here. We send a code that lets this phone edit and delete those posts.").font(.footnote).foregroundColor(.secondary)
+                    TextField("you@example.com", text: $backEmail).keyboardType(.emailAddress).textInputAutocapitalization(.never).autocorrectionDisabled()
+                    Button("Email me a code") { sendCode() }.buttonStyle(.borderless)
+                    if backSent {
+                        TextField("6-digit code", text: $backCode).keyboardType(.numberPad).textContentType(.oneTimeCode)
+                        Button("Unlock my posts") { useCode() }.buttonStyle(.borderless)
+                    }
+                    if !backNote.isEmpty { Text(backNote).font(.footnote).foregroundColor(.secondary) }
+                }
+                .font(.subheadline)
             }
 
             Section {
                 Picker("Show", selection: $show) {
-                    Text("All \(rows.count)").tag("all")
+                    Text("All \(visible.count)").tag("all")
                     Text("Needs an answer \(waiting.count)").tag("open")
                     Text("Answered \(done.count)").tag("done")
                 }
@@ -113,7 +140,7 @@ struct QuestionsView: View {
                 if !loaded {
                     if failed { Text("Questions need a signal to load. Pull down to try again.").foregroundColor(.secondary) }
                     else { ProgressView().frame(maxWidth: .infinity) }
-                } else if rows.isEmpty {
+                } else if visible.isEmpty {
                     Text("No questions yet. Be the first.").foregroundColor(.secondary)
                 }
             }
@@ -125,6 +152,7 @@ struct QuestionsView: View {
                         Text(byline(q)).font(.footnote).foregroundColor(.secondary)
                         if q.waiting { Text("Only you can see this until a quick check passes it.").font(.footnote).italic().foregroundColor(.secondary) }
                         mine(question: q.id, answer: "", text: q.text, joined: false)
+                        reportButton(question: q.id, answer: "")
                         ForEach(ordered(q.answers)) { a in
                             VStack(alignment: .leading, spacing: 6) {
                                 if a.guide { Text("From the guide: " + a.title).font(.subheadline.weight(.semibold)).foregroundColor(Theme.primary) }
@@ -139,6 +167,7 @@ struct QuestionsView: View {
                                 .buttonStyle(.borderless).font(.footnote)
                                 .disabled(MyPosts.thanked(a.id))
                                 if !a.guide { mine(question: q.id, answer: a.id, text: a.text, joined: a.said > 1) }
+                                if !a.guide { reportButton(question: q.id, answer: a.id) }
                             }
                             .padding(.vertical, 2)
                         }
@@ -205,6 +234,47 @@ struct QuestionsView: View {
                 }
                 .font(.footnote)
             }
+        }
+    }
+
+    // Report, shown on other people's posts. It tells the owner and hides the post on this phone.
+    @ViewBuilder
+    private func reportButton(question: String, answer: String) -> some View {
+        let id = answer.isEmpty ? question : answer
+        if MyPosts.key(id) == nil {
+            Button(role: .destructive) {
+                Hidden.add(id)
+                note = "Reported, and hidden on this phone. Thank you."
+                Task { await Site.report(question: question, answer: answer) }
+            } label: {
+                Label("Report", systemImage: "flag")
+            }
+            .buttonStyle(.borderless).font(.footnote)
+        }
+    }
+
+    private func sendCode() {
+        let e = backEmail.trimmingCharacters(in: .whitespaces)
+        if e.isEmpty { return }
+        backSent = true
+        backNote = "If posts were made with that address, a code is on its way. Check your inbox, spam and Promotions."
+        Task { await Site.recoverCode(email: e) }
+    }
+
+    private func useCode() {
+        let e = backEmail.trimmingCharacters(in: .whitespaces), c = backCode.trimmingCharacters(in: .whitespaces)
+        if c.isEmpty { return }
+        Task {
+            do {
+                let keys = try await Site.recoverKeys(email: e, code: c)
+                for (id, key) in keys { MyPosts.keep(id, key) }
+                email = e
+                backCode = ""
+                backSent = false
+                backNote = String(keys.count) + " of your posts can now be edited here."
+                await load()
+            } catch let error as SiteError { backNote = error.message }
+            catch { backNote = "That code did not work. Check it, or ask for a new one." }
         }
     }
 

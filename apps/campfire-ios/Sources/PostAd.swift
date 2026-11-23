@@ -76,7 +76,7 @@ struct PostAdView: View {
                     } header: {
                         Text("Your email")
                     } footer: {
-                        Text("Not shown on your ad. We send your publish link here and forward buyers' messages to it. If you reply to a buyer, they will see your address.")
+                        Text("Not shown on your ad. We send your publish link here and forward buyers' messages to it. If you reply to a buyer, they will see your address. By posting you agree to the [terms](https://qcampfire.com/terms): honest, legal, nothing objectionable.")
                     }
                     if !problem.isEmpty {
                         Section { Text(problem).foregroundColor(Theme.accent) }

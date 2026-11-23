@@ -218,6 +218,30 @@ enum Site {
         return (r["up"] as? NSNumber)?.intValue ?? 0
     }
 
+    // Report a question or an answer to the owner.
+    static func report(question: String, answer: String) async {
+        _ = try? await send(["questions", question, "report"], ["aid": answer], "")
+    }
+
+    // Report an ad to the owner.
+    static func reportAd(_ id: String) async {
+        _ = try? await send(["ads", id, "report"], [:], "")
+    }
+
+    // Posted from another device: the site emails a code, and the code brings back the keys for posts made with that email.
+    static func recoverCode(email: String) async {
+        _ = try? await send(["questions", "recover"], ["email": email], "")
+    }
+
+    static func recoverKeys(email: String, code: String) async throws -> [String: String] {
+        let r = try await send(["questions", "recover", "confirm"], ["email": email, "code": code], "That code did not work. Check it, or ask for a new one.")
+        return r["keys"] as? [String: String] ?? [:]
+    }
+
+    static let privacyPage = base.appendingPathComponent("privacy")
+    static let termsPage = base.appendingPathComponent("terms")
+    static let supportPage = base.appendingPathComponent("support")
+
     // Edit or delete this phone's own question or answer.
     static func mine(question: String, answer: String, key: String, action: String, text: String) async throws {
         _ = try await send(["questions", question, "mine"], ["key": key, "aid": answer, "action": action, "text": text], "That did not save. Try again.")
