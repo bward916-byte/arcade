@@ -785,6 +785,9 @@ struct LegSum {
     let hull: Int
     let fights: Int
     let wages: Int
+    let ate: Int
+    let drank: Int
+    let warns: [String]
 }
 
 extension Game {
@@ -794,7 +797,7 @@ extension Game {
         let t = sumT
         func eo(_ k: Double) -> Double { let x = 1 - clampD(k, 0, 1); return 1 - x * x * x }
         c.R(0, 0, W, H, Col(0x000000, 0.5 * eo(t / 0.3)))
-        let pw = min(W - safeL - safeR - 40, 560), ph = min(H - 44, 322.0)
+        let pw = min(W - safeL - safeR - 40, 560), ph = min(H - 40, 340.0)
         let px = (W - pw) / 2, py = max(34, (H - ph) / 2 + 12)
         let pop = eo(t / 0.35)
         c.save()
@@ -819,9 +822,9 @@ extension Game {
         c.text(s.from, lx0, ly + 18, 12, CREAM.alpha(0.8), 0, FONTI)
         // the tally: each line counts up in turn
         let rows: [(String, String, Int, String, Bool)] = [
-            ("day", "Days at sea", s.days, "", false),
-            ("hull", "Leagues sailed", s.leagues, "", false),
-            ("arms", "Events met" + (s.fights > 0 ? " · \(s.fights) fight\(s.fights == 1 ? "" : "s")" : ""), s.events, "", false),
+            ("day", "Days · \(s.events) event\(s.events == 1 ? "" : "s")" + (s.fights > 0 ? " · \(s.fights) fight\(s.fights == 1 ? "" : "s")" : ""), s.days, "", false),
+            ("food", "Food eaten", s.ate, "-", false),
+            ("water", "Water drunk", s.drank, "-", false),
             ("gold", "Gold won or lost", s.gold, s.gold > 0 ? "+" : "", s.gold < 0),
             ("crew", s.lost > 0 ? "Hands lost" : "All hands safe", s.lost, "", s.lost > 0),
             ("planks", "Hull sound", s.hull, "%", s.hull < 50)
@@ -833,7 +836,7 @@ extension Game {
             if a <= 0 { continue }
             if i > sumRow { sumRow = i; snd?.click(); if r.0 == "gold" && s.gold > 0 { snd?.coin() } }
             let col = i % 2, row = i / 2
-            let rx = px + 20 + Double(col) * (colW + 14), ry = py + 88 + Double(row) * 44
+            let rx = px + 20 + Double(col) * (colW + 14), ry = py + 84 + Double(row) * 42
             c.save()
             c.alpha(a)
             c.translate(14 * (1 - a), 0)
@@ -842,7 +845,7 @@ extension Game {
             icon(c, r.0, rx + 20, ry + 19, 22)
             c.text(r.1, rx + 40, ry + 24, 14, CREAM, -1, FONT)
             let n = Int((Double(r.2) * eo((t - st) / 0.6)).rounded())
-            let shown = r.0 == "crew" && s.lost == 0 ? "✓" : r.3.replacingOccurrences(of: "%", with: "") + "\(n)" + (r.3 == "%" ? "%" : "")
+            let shown = r.0 == "crew" && s.lost == 0 ? "✓" : (n == 0 && r.3 == "-" ? "" : r.3.replacingOccurrences(of: "%", with: "")) + "\(n)" + (r.3 == "%" ? "%" : "")
             c.text(shown, rx + colW - 12, ry + 26, 19, r.4 ? Col(0xff9a8a) : GOLD, 1, FONTB)
             c.restore()
         }
@@ -857,12 +860,20 @@ extension Game {
             if sumRow < 99 { sumRow = 99; snd?.thud(); if !hard { snd?.good() }; shake = 0.12; puff(W / 2, py + 244, 30, vc, 260, 320, 3, 0.7) }
             c.save()
             c.alpha(q)
-            c.translate(W / 2, py + 238)
+            c.translate(W / 2, py + 231)
             c.rotate(-0.04)
             c.scale(2.2 - 1.2 * q, 2.2 - 1.2 * q)
             let tw = textW(word, 22, FONTD) + 36
             c.RRStroke(-tw / 2, -20, tw, 34, 6, 2.5, vc)
             c.text(word, 0, 5, 22, vc, 0, FONTD)
+            c.restore()
+        }
+        if t > vt + 0.3 && !s.warns.isEmpty {
+            // what wants seeing to before you sail again
+            let wa = eo((t - vt - 0.3) / 0.3)
+            c.save()
+            c.alpha(wa * (0.8 + 0.2 * sin(T * 5)))
+            c.text("!  " + s.warns.joined(separator: "  ·  "), W / 2, py + 266, 13.5, Col(0xff9a8a), 0, FONTB)
             c.restore()
         }
         c.restore()

@@ -561,8 +561,8 @@ extension Game {
         let ready = need.foodOK && need.waterOK && need.hullOK && need.wagesOK
         let tiles: [(String, String, Int)] = [
             ("Market", !need.foodOK && !need.waterOK ? "buy food and water" : (!need.foodOK ? "you need food" : (!need.waterOK ? "you need water" : "stores are good")), need.foodOK && need.waterOK ? 0 : 1),
-            ("Tavern", need.down > 0 ? "\(need.down) need the surgeon" : (crew < ship.crew ? "\(ship.crew - crew) berths empty" : "crew · maps · lessons"), need.down > 0 ? 1 : (crew < ship.crew ? 2 : 0)),
-            ("Shipwright", !need.hullOK ? "repairs: \(need.repair) gold" : (need.canUpgrade ? "an upgrade you can afford" : "she is sound"), !need.hullOK ? 1 : (need.canUpgrade ? 2 : 0)),
+            ("Tavern", need.down > 0 ? "\(need.down) need the surgeon" : (crew < ship.crew ? "\(ship.crew - crew) berths empty" : "crew · maps"), need.down > 0 ? 1 : (crew < ship.crew ? 2 : 0)),
+            ("Shipwright", !need.hullOK ? "repairs: \(need.repair) gold" : (need.canUpgrade ? "upgrade available" : "she is sound"), !need.hullOK ? 1 : (need.canUpgrade ? 2 : 0)),
             ("Well", wellUsed ? "casks filled" : "free fresh water", wellUsed ? 0 : 2),
             ("Set sail", ready ? "ready for sea" : "not ready yet", ready ? 0 : 1)
         ]
@@ -615,8 +615,12 @@ extension Game {
                 c.restore()
                 c.ellStroke(ix, iy + 13, 12 + sin(T * 3) * 2, 2, 1, Col(0xffffff, 0.5))
             }
-            c.text(tl.0, x + 44, by + 23, 16, ink, -1, FONTB)
-            c.text(tl.1, x + 44, by + 39, 11, (tl.2 == 1 ? Col(0xffb0a0) : ink.alpha(0.85)), -1, FONTI)
+            // the words shrink to fit the door, whatever the width of the screen
+            let room = max(20, bw - 44 - 10)
+            let ts = min(16, 16 * room / max(1, textW(tl.0, 16, FONTB)))
+            let ss = min(11, 11 * room / max(1, textW(tl.1, 11, FONTI)))
+            c.text(tl.0, x + 44, by + 23, ts, ink, -1, FONTB)
+            c.text(tl.1, x + 44, by + 39, ss, (tl.2 == 1 ? Col(0xffb0a0) : ink.alpha(0.85)), -1, FONTI)
             c.restore()
             // a badge on the corner: red and throbbing when it matters, gold when there is something to gain
             if tl.2 > 0 && !dim {

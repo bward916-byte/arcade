@@ -99,7 +99,12 @@ final class Game {
     var sceneK = ""
     var sceneT = 0.0
     /// Things that happen on the deck itself; everything else is far off and wants the wide view.
-    static let deckScenes: Set<String> = ["sick", "leak", "calm", "fall", "brawl", "galley", "rats"]
+    static let deckScenes: Set<String> = ["sick", "leak", "calm", "fall", "brawl", "galley", "rats", "spar", "stowaway", "catch", "bottle"]
+    /// How far along the leg each event falls, so they are spread over the passage and never bunch up.
+    var evMarks: [Double] = []
+    // what the crew has got through since the last port
+    var legAte = 0.0
+    var legDrank = 0.0
     // the camera: close on the deck while under way, pulling back when there is something far off to see
     var camZ = 1.0
     var camFx = 0.0
@@ -339,10 +344,16 @@ final class Game {
         }
     }
     /// One day of eating, drinking, rot and whatever shortage does to the crew.
-    func consume() {
-        let u = Double(crew) * 0.35 * (half ? 0.5 : 1)
-        food = max(0, food - u * (1 - 0.15 * min(2, E("cook"))))
-        water = max(0, water - u)
+    /// What the crew eats and drinks in one watch.
+    func ration() -> Double { return Double(crew) * 0.35 * (half ? 0.5 : 1) }
+    func consume(drain: Bool = true) {
+        if drain {
+            let u = ration()
+            let f0 = food, w0 = water
+            food = max(0, food - u * (1 - 0.15 * min(2, E("cook"))))
+            water = max(0, water - u)
+            legAte += f0 - food; legDrank += w0 - water
+        }
         sea += 1
         halfDays = half ? halfDays + 1 : 0
         let r = food * 0.02 * (sea > 5 ? 2 : 1) * (E("cook") > 0 ? 0.5 : 1)
@@ -477,6 +488,8 @@ final class Game {
         leg0Day = day; leg0Gold = gold; leg0Crew = crew; leg0Fights = fights; legEvents = 0; legFrom = here.n
         legLen = LEG[min(4, leg)] * (route == 1 ? 0.85 : 1.15)
         dist = 0; dayT = 0; sinceEvent = 0
+        legAte = 0; legDrank = 0
+        evMarks = (0..<5).map { (Double($0) + rnd(0.3, 0.72)) / 5 }
         autoPost()
         mode = .sail
         card = nil
@@ -490,7 +503,7 @@ final class Game {
     }
     func nextDay() {
         day += 1
-        consume()
+        consume(drain: false)
         if over { return }
         if leg == 4 && !blk && dist > legLen * 0.55 { blk = true; startOmen("blockade"); return }
         let carp = E("carp")
@@ -505,8 +518,6 @@ final class Game {
         if wasWet && weather < 2 { rainbowT = 16 }
         weatherDay()
         if over { return }
-        sinceEvent += 1
-        if sinceEvent >= 3 || chance(0.4) { rollEvent() }
     }
     func arrive() {
         // what was promised in the last port falls due in this one
@@ -538,7 +549,15 @@ final class Game {
         rumourHeard = false
         rollPortJobs(); festT = 0; bellT = 5
         if weather == 3 { setWeather(2, days: 1) }
-        sum = LegSum(from: legFrom, to: here.n, days: (day - leg0Day) * SUNS, leagues: Int(legLen), events: legEvents, gold: gold - leg0Gold, lost: max(0, leg0Crew - crew), hull: Int((hull / Double(max(1, ship.hull)) * 100).rounded()), fights: fights - leg0Fights, wages: wagesDue())
+        var warns: [String] = []
+        let hullPct = Int((hull / Double(max(1, ship.hull)) * 100).rounded())
+        if water < ration() * 3 { warns.append("water low") }
+        if food < ration() * 3 { warns.append("food low") }
+        if hullPct < 60 { warns.append("hull needs repair") }
+        let laid = men.filter { $0.st != 0 }.count
+        if laid > 0 { warns.append("\(laid) laid up") }
+        if gold < wagesDue() { warns.append("short of wages") }
+        sum = LegSum(from: legFrom, to: here.n, days: (day - leg0Day) * SUNS, leagues: Int(legLen), events: legEvents, gold: gold - leg0Gold, lost: max(0, leg0Crew - crew), hull: hullPct, fights: fights - leg0Fights, wages: wagesDue(), ate: Int(legAte.rounded()), drank: Int(legDrank.rounded()), warns: warns)
         sumT = 0
         sumRow = -1
         if !portMsg.isEmpty { toast(portMsg) }
@@ -623,8 +642,17 @@ final class Game {
                 tod = (dayT / DAYLEN * Double(SUNS)).truncatingRemainder(dividingBy: 1)
                 dist += dps() * dt / DAYLEN
                 scroll += dt * 70 * ship.speed
+                // stores go down steadily as she sails, not in one bite at the end of the watch
+                let ate = ration() * dt / DAYLEN
+                let f0 = food, w0 = water
+                food = max(0, food - ate * (1 - 0.15 * min(2, E("cook"))))
+                water = max(0, water - ate)
+                legAte += f0 - food; legDrank += w0 - water
                 if dist >= legLen {
                     arrive()
+                } else if let m = evMarks.first, dist >= legLen * m {
+                    evMarks.removeFirst()
+                    rollEvent()
                 } else if dayT >= DAYLEN {
                     dayT = 0
                     nextDay()
@@ -689,6 +717,12 @@ final class Game {
         if name == "evbrawl" { startOmen("brawl"); sceneT = 1.3; omenT = 1.6; Game.omenHold = true; camZ = 2.6 }
         if name == "evgalley" { startOmen("galley"); sceneT = 1.3; omenK = ""; event("galley"); camZ = 2.6 }
         if name == "evsick" { startOmen("sick"); sceneT = 2.4; omenT = 1.6; Game.omenHold = true; camZ = 2.6 }
+        if name == "evbottle" { startOmen("bottle"); sceneT = 2; omenT = 1.6; Game.omenHold = true; camZ = 2 }
+        if name == "evwhale" { startOmen("whale"); sceneT = 1.2; omenT = 1.6; Game.omenHold = true }
+        if name == "evspout" { startOmen("spout"); sceneT = 2; omenT = 1.6; Game.omenHold = true }
+        if name == "evspar" { startOmen("spar"); sceneT = 2; omenT = 1.6; Game.omenHold = true; camZ = 2.6 }
+        if name == "evstow" { startOmen("stowaway"); sceneT = 2; omenK = ""; event("stowaway"); camZ = 2.6 }
+        if name == "evcatch" { startOmen("catch"); sceneT = 2; omenT = 1.6; Game.omenHold = true; camZ = 2.6 }
         if name == "omen" { startOmen("pirates"); omenT = 1.6; Game.omenHold = true }
         if name == "yard" { leg = 1; mode = .port; shipwright() }
         if name == "decklife" { ups = ["sails": 2, "hull": 1, "guns": 1]; deckForce = 5; seaForce = 0 }
@@ -700,7 +734,7 @@ final class Game {
         if name == "townnight" { leg = 2; mode = .port; portJobs = [4, 7, 9]; tod = 0.8; festT = 30 }
         if name == "thief" { leg = 1; mode = .port; playThief() }
         if name == "tavern" { leg = 1; mode = .port; tavern() }
-        if name == "summary" { leg = 1; mode = .port; legFrom = "Port Haven"; sum = LegSum(from: "Port Haven", to: here.n, days: 7, leagues: 255, events: 3, gold: 140, lost: 0, hull: 86, fights: 1, wages: wagesDue()); sumT = 0; sumRow = -1 }
+        if name == "summary" { leg = 1; mode = .port; legFrom = "Port Haven"; sum = LegSum(from: "Port Haven", to: here.n, days: 7, leagues: 255, events: 3, gold: 140, lost: 0, hull: 86, fights: 1, wages: wagesDue(), ate: 24, drank: 26, warns: ["water low", "1 laid up"]); sumT = 9; sumRow = -1 }
         if name == "storm" { playStorm(); wxDark = 0.85; wxRain = 1; rough = 1; boltT = 7.6 }
         if name == "leak" { playLeak() }
         if name == "dig" { hasMap = true; playIsland() }

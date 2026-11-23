@@ -576,6 +576,10 @@ extension Game {
         } else if deckEv && omen {
             zT = 3; fyT = H * 0.55
         }
+        if sceneK == "bottle" && acting && play == nil {
+            // look off the bow, where it is bobbing
+            zT = 2.1; fxT = W * 0.26; fyT = card != nil ? H * 0.34 : H * 0.5
+        }
         if camFx == 0 { camFx = pv.0 + (fxT - pv.0) * min(1, (camZ - 1) / 1.6); camFy = pv.1 + (fyT - pv.1) * min(1, (camZ - 1) / 1.6) }
         let ck: Double = play != nil ? 1 : 0.07
         camZ += (zT - camZ) * ck
@@ -591,7 +595,8 @@ extension Game {
         c.restore()
         c.save()
         c.translate(camFx, camFy); c.scale(camZ, camZ); c.translate(-pv.0, -pv.1)
-        let theme = play?.theme ?? (omen ? omenK : "")
+        let theme = play?.theme ?? sceneK
+        let slenW = min(W * 0.3, 280) * ship.len
         let near = omen ? min(1, omenT / Game.omenLen) : 1
         if theme == "pirates" || theme == "blockade" {
             // she comes up from astern, growing as she closes
@@ -604,8 +609,9 @@ extension Game {
             c.circ(rx - 7, ry - 9, 3, Col(0xe3b58a)); c.R(rx - 9, ry - 6, 4, 6, Col(0x8c3b2e)); c.seg(rx - 7, ry - 6, rx - 13, ry - 16 + sin(T * 10) * 3, 1.6, Col(0xe3b58a))
             c.poly(Col(0x3a4650), [rx + 30, ry + 8, rx + 37, ry - 4, rx + 43, ry + 8])
         } else if theme == "bottle" {
-            let bx = W * 0.95 - W * 0.26 * near, byy = wy + 22 + sin(T * 2.4) * 3
-            c.save(); c.translate(bx, byy); c.rotate(0.5 + sin(T * 1.5) * 0.2)
+            let bx = W * 0.42 + slenW * 0.5 + 120 - 78 * near, byy = wy + 2 + sin(T * 2.4) * 3
+            c.ellStroke(bx, byy + 5, 13 + sin(T * 3) * 3, 3, 1, Col(0xffffff, 0.6))
+            c.save(); c.translate(bx, byy); c.rotate(0.5 + sin(T * 1.5) * 0.2); c.scale(1.5, 1.5)
             c.RR(-3.5, -9, 7, 14, 3, Col(0x7fc8a0, 0.9)); c.R(-1.5, -14, 3, 6, Col(0x7fc8a0, 0.9)); c.R(-2, -16, 4, 2.5, Col(0x8a6238))
             c.restore()
             c.glow(bx, byy - 6, 26, Col(0xffffff, 0.5 + 0.4 * sin(T * 8)), Col(0xffffff, 0))
@@ -616,6 +622,51 @@ extension Game {
                 c.curve(gx - 7, gy - 2, gx - 3, gy - 6, gx, gy, 1.4, WHITE); c.curve(gx, gy, gx + 3, gy - 6, gx + 7, gy - 2, 1.4, WHITE)
                 if ph > 0.9 { c.ellStroke(gx, wy + 16, 9, 3, 1.2, Col(0xffffff, 0.7)) }
             }
+        } else if theme == "whale" {
+            // she comes up out of the sea beside the ship, hangs, and goes back in
+            let wx = W * 0.8, base = wy + 10
+            let ph = (sceneT * 0.3).truncatingRemainder(dividingBy: 1)
+            let up = sin(min(1, ph / 0.62) * PI)
+            c.save()
+            c.translate(wx - ph * 30, base - up * 58)
+            c.rotate(-1.0 + min(1, ph / 0.62) * 1.9)
+            c.ell(0, 0, 74, 20, Col(0x24303a)); c.ell(8, 8, 60, 10, Col(0xc8d4da))
+            for g in 0..<5 { c.seg(18 + Double(g) * 8, 6, 26 + Double(g) * 8, 14, 0.8, Col(0x8a98a0)) }
+            c.circ(48, -3, 2.2, Col(0x0c1014)); c.circ(48.6, -3.6, 0.7, WHITE)
+            c.poly(Col(0x1c262e), [10, 10, 30, 34, 34, 12])
+            c.poly(Col(0x24303a), [-70, 0, -98, -20, -90, 0, -98, 20])
+            c.restore()
+            if ph < 0.12 || (ph > 0.55 && ph < 0.8) {
+                let k: Double = ph < 0.12 ? ph / 0.12 : (ph - 0.55) / 0.25
+                for g in 0..<9 { let a = -PI / 2 + (Double(g) - 4) * 0.2; c.seg(wx + cos(a) * 20, base + sin(a) * 10, wx + cos(a) * (30 + 60 * k), base + sin(a) * (20 + 70 * k * (1 - k) * 2), 2.4, Col(0xffffff, 0.8 * (1 - k))) }
+                c.ellStroke(wx, base + 4, 40 + k * 70, 6 + k * 6, 2, Col(0xffffff, 0.7 * (1 - k)))
+            }
+            if ph > 0.8 {
+                let k = (ph - 0.8) / 0.2
+                for g in 0..<6 { let a = -PI / 2 + (Double(g) - 2.5) * 0.14; c.seg(wx - 40, base - 2, wx - 40 + cos(a) * 46 * sin(k * PI), base - 2 + sin(a) * 52 * sin(k * PI), 1.8, Col(0xffffff, 0.8 * (1 - k))) }
+                c.ell(wx - 30, base, 44, 7, Col(0x24303a))
+            }
+        } else if theme == "spout" {
+            // a rope of water from the cloud to the sea, writhing as it comes
+            let cx = W * 1.02 - W * 0.24 * near
+            let top = hz * 0.12, bot = wy - 2
+            c.ell(cx, top, 150, 26, Col(0x2a3038, 0.85)); c.ell(cx - 60, top + 8, 90, 18, Col(0x3a424c, 0.8)); c.ell(cx + 70, top + 6, 100, 20, Col(0x343c46, 0.8))
+            var px = cx, py = top
+            for j in 1...16 {
+                let f = Double(j) / 16
+                let ny = lerp(top, bot, f)
+                let nx = cx + sin(T * 2.4 + f * 5) * (6 + f * 26) + sin(T * 1.1 + f * 2) * 10
+                let wd = lerp(46, 9, sqrt(f))
+                c.seg(px, py, nx, ny, wd, Col(0x56626e, 0.8))
+                c.seg(px - wd * 0.2, py, nx - wd * 0.2, ny, wd * 0.3, Col(0xaab8c4, 0.45))
+                px = nx; py = ny
+            }
+            for g in 0..<12 {
+                let ph2 = (T * 1.4 + Double(g) / 12).truncatingRemainder(dividingBy: 1)
+                let a = Double(g) * 0.52
+                c.circ(px + cos(a) * (10 + ph2 * 46), bot - sin(ph2 * PI) * (10 + hashN(Double(g)) * 22), 3 + ph2 * 5, Col(0xffffff, 0.7 * (1 - ph2)))
+            }
+            c.ellStroke(px, bot + 4, 40 + sin(T * 5) * 6, 6, 2, Col(0xffffff, 0.6))
         } else if theme == "overboard" {
             let mx = W * 0.42 - min(W * 0.3, 280) * ship.len * 0.5 - 30 - 40 * near, my = wy + 22 + sin(T * 3) * 3
             c.ellStroke(mx, my + 4, 16 + sin(T * 4) * 3, 4, 1.2, Col(0xffffff, 0.7))

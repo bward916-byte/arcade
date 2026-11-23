@@ -227,6 +227,71 @@ extension Game {
                 c.circ(nx, ny, 1.5, Col(0xfff2c0, 1 - ph)); c.seg(nx + 1.4, ny, nx + 1.4, ny - 6, 0.8, Col(0xfff2c0, 1 - ph))
             }
             tar(c, 52, dk, coats[3], dark, aR: 2.3 + sin(T * 7) * 0.5)
+        case "spar":
+            // the broken yard, hanging by one tackle and swinging; its sail in ribbons
+            let sw = sin(T * 2.2) * 0.22
+            let ax = m0 - 2.0, ay = -122.0
+            let ex = ax - sin(0.9 + sw) * 46, ey = ay + cos(0.9 + sw) * 46
+            c.seg(ax, ay - 14, ax, ay, 0.8, Col(0xfff6d8, 0.9))
+            c.seg(ax, ay, ex, ey, 3.4, Col(0x3b2412).shade(dark))
+            c.seg(ax, ay, ax + 10, ay - 5, 3.4, Col(0x3b2412).shade(dark))
+            for j in 0..<4 { c.seg(ax + 10, ay - 5, ax + 12 + Double(j) * 1.5, ay - 9 + Double(j) * 2.5, 0.8, Col(0xd9c07a)) }
+            for j in 0..<3 {
+                let f = 0.3 + Double(j) * 0.28
+                let rx = lerp(ax, ex, f), ry = lerp(ay, ey, f)
+                let fl = sin(T * 6 + Double(j) * 1.7) * 6
+                c.poly(Col(0xf3ead2, 0.92).shade(dark), [rx, ry, rx + 9 + fl, ry + 16, rx - 4 + fl * 0.6, ry + 24, rx - 6, ry + 6])
+            }
+            // two on the tackle, leaning back against it; one pointing; one running to help
+            let heave = sin(T * 3.5) * 0.12
+            c.seg(ex, ey, m0 - 34, dk - 9, 0.8, Col(0xfff6d8, 0.85))
+            tar(c, m0 - 36, dk, coats[0], dark, lean: -0.45 + heave, aL: 1.4, aR: 1.4)
+            tar(c, m0 - 45, dk, coats[1], dark, lean: -0.45 + heave, aL: 1.4, aR: 1.4)
+            tar(c, m0 + 20, dk, coats[2], dark, aL: -2.7)
+            runner(3, 72, m0 + 32, 0.4, 1.6, aL: -2.5, aR: 2.5)
+        case "stowaway":
+            // the cask he was in, on its side, and the boy held up by the collar
+            c.RR(18, dk - 9, 12, 9, 2, Col(0x6b4a26).shade(dark)); c.R(18, dk - 7, 12, 1, Col(0x2a1a0c)); c.R(18, dk - 3, 12, 1, Col(0x2a1a0c))
+            c.ell(30, dk - 4.5, 2, 4.5, Col(0x2a1a0c))
+            let k = clampD(st / 1.2, 0, 1)
+            let bx = lerp(26, 4, k)
+            tar(c, bx + 6, dk, coats[0], dark, aL: -1.5, aR: 0.2)
+            c.save()
+            c.translate(bx, dk - 1.5 - abs(sin(st * 9)) * 1.2)
+            c.scale(0.72, 0.72)
+            let kick = sin(st * 11)
+            tar(c, 0, 0, coats[2], dark, lean: kick * 0.15, walk: st * 16, aL: -2.2 + kick * 0.5, aR: 2.2 - kick * 0.5)
+            c.restore()
+            tar(c, -18, dk, coats[1], dark, aL: 0.9, aR: -0.9)
+            runner(3, -66, -32, 0.3, 1.5)
+            tar(c, 46, dk, coats[3], dark, aL: -1.1)
+        case "catch":
+            // it is over the rail and thrashing; nobody wants to be the one to grab it
+            let fl = sin(st * 15), hp = abs(sin(st * 7.5)) * 3.2
+            c.save()
+            c.translate(0, dk - 3.5 - hp)
+            c.rotate(fl * 0.35)
+            c.ell(0, 0, 14, 4.6, Col(0x6a8496).shade(dark)); c.ell(1, 1.6, 11, 2.4, Col(0xdfeaf2).shade(dark))
+            c.poly(Col(0x4a6478).shade(dark), [-13, 0, -21, -6 + fl * 2, -19, 0, -21, 6 + fl * 2])
+            c.poly(Col(0x4a6478).shade(dark), [-2, -4, 3, -9, 6, -4])
+            c.circ(10, -1, 1, Col(0x0c1014))
+            c.restore()
+            for j in 0..<6 {
+                let ph = (st * 2 + Double(j) / 6).truncatingRemainder(dividingBy: 1)
+                let a = -PI / 2 + (Double(j) - 2.5) * 0.4
+                c.circ(cos(a) * 16 * ph, dk - 4 + sin(a) * 14 * ph + ph * ph * 8, 0.9, Col(0xbfe6ff, 0.9 * (1 - ph)))
+            }
+            tar(c, -24, dk, coats[0], dark, lean: -0.2, hop: abs(sin(st * 8)) * 2.5, aL: -2.5, aR: 2.5)
+            tar(c, 24, dk, coats[1], dark, lean: 0.2, hop: abs(sin(st * 8 + 1.2)) * 2.5, aL: -2.5, aR: 2.5)
+            tar(c, 16 + sin(st * 3) * 3, dk, coats[3], dark, lean: -0.5, aL: -1.4, aR: -1.4)
+            c.seg(-84, -58, -118, -80, 1.2, Col(0x6b4a26)); tar(c, -84, -52, coats[2], dark, aL: -1.9)
+        case "bottle":
+            // two in the bows: one pointing, one fishing for it with the boathook
+            tar(c, 62, dk, coats[0], dark, aR: 1.9 + sin(T * 5) * 0.15)
+            let reach = sin(T * 2.4) * 3
+            tar(c, 74, dk, coats[1], dark, lean: 0.35, aL: 1.2, aR: 1.5)
+            c.seg(77, dk - 8, 104 + reach, dk + 22, 0.9, Col(0x6b4a26)); c.arcStroke(104 + reach, dk + 23.5, 1.6, 0, PI, 0.8, Col(0x2a2a30))
+            tar(c, 30, dk, coats[2], dark, lean: 0.15, walk: T * 12)
         case "overboard":
             tar(c, -84, -52, coats[0], dark, aL: -1.9 + sin(T * 8) * 0.2)
             tar(c, -74, -52, coats[1], dark, aL: -2.4 + sin(T * 6) * 0.6, aR: -1.2)

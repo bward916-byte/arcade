@@ -13,7 +13,7 @@ extension Game {
         show(title, msg, [Opt(mode == .sail ? "Sail on" : "Continue") { [unowned self] in self.card = nil }])
     }
 
-    static let omenLen = 2.8
+    static let omenLen = 4.2
     static var omenHold = false
     /// What is seen, and said, as each event comes over the horizon.
     static let OMENS: [String: (String, String)] = [
@@ -36,7 +36,12 @@ extension Game {
         "fall": ("A scream from aloft!", "A hand has lost his footing on the yard"),
         "brawl": ("Shouting on deck", "Two of the watch are at each other's throats"),
         "galley": ("Smoke amidships!", "The galley stove has gone over"),
-        "rats": ("Squealing in the stores", "Rats, and plenty of them")
+        "rats": ("Squealing in the stores", "Rats, and plenty of them"),
+        "whale": ("There she blows!", "A whale, close aboard to starboard"),
+        "spout": ("A waterspout!", "A twisting column is walking across the sea"),
+        "spar": ("A crack like a gunshot", "The main yard has carried away"),
+        "stowaway": ("A shout from the hold", "The cooper has found someone in a cask"),
+        "catch": ("The stern line goes bar-tight", "Something big is coming over the rail")
     ]
     func startOmen(_ k: String) {
         omenK = k
@@ -46,6 +51,8 @@ extension Game {
         if k == "storm" { setWeather(3, days: 1) }
         if k == "fog" || k == "ghost" { setWeather(4, days: 1) }
         if k == "dolphins" { seaForce = 0 }
+        if k == "spout" { setWeather(1, days: 1) }
+        if k == "whale" || k == "catch" { snd?.splash() }
         // a drum, and a held note under it
         snd?.tone(72, 0.7, 0, 0.32, 48)
         snd?.tone(72, 0.6, 0, 0.26, 48, 0.55)
@@ -62,7 +69,8 @@ extension Game {
             ("storm", 3, 1.4), ("pirates", 2.6, 1.3), ("fish", 1.4, 3), ("wreck", 2, 2), ("island", 1.1, 2.4), ("calm", 1.2, 1),
             ("sick", 0.9, 0.9), ("merchant", 1, 2.2), ("bottle", 0.8, 0.8), ("leak", 1.1, 0.9), ("castaway", 0.8, 0.8),
             ("ghost", 1.2, 0.6), ("dolphins", 1, 1.6), ("fog", 1, 1.2), ("overboard", 0.8, 0.7),
-            ("fall", 1.1, 1.0), ("brawl", 1.0, 1.0), ("galley", 0.9, 0.9), ("rats", 0.9, 1.0)
+            ("fall", 1.1, 1.0), ("brawl", 1.0, 1.0), ("galley", 0.9, 0.9), ("rats", 0.9, 1.0),
+            ("whale", 1.0, 0.6), ("spout", 0.9, 0.6), ("spar", 1.0, 0.9), ("stowaway", 0.7, 0.9), ("catch", 0.9, 1.1)
         ]
         var total = 0.0
         for t in table where t.0 != lastEv { total += route == 1 ? t.1 : t.2 }
@@ -218,6 +226,75 @@ extension Game {
                 Opt("Leave them to it", "they will eat") { [unowned self] in
                     self.food = max(0, self.food - 6)
                     self.done("They get fat on your stores: -6 food")
+                }
+            ])
+        case "whale":
+            logIt("A whale alongside")
+            show("A whale alongside", "She surfaces a cable off, longer than the ship, blows, and rolls an eye at you.", [
+                Opt("Lower the boat", "meat and oil, if it goes well") { [unowned self] in
+                    if chance(0.55) {
+                        let a = self.addGood("food", 12)
+                        self.done("Two days of butchery over the side: +\(a) food")
+                    } else {
+                        self.dmg(8)
+                        if !self.over { self.hurtOne("the whale's flukes") }
+                        if !self.over { self.done("Her flukes stave the boat in and crack a strake on the way down") }
+                    }
+                },
+                Opt("Watch her go") { [unowned self] in self.done("The whole watch lines the rail until she sounds") }
+            ])
+        case "spout":
+            logIt("Met a waterspout")
+            show("Waterspout", "A twisting column of water, black at the top, is walking across the sea toward you.", [
+                Opt("Run before it", "lose \(SUNS) days") { [unowned self] in
+                    self.passDays(1)
+                    if !self.over { self.done("It passes a mile astern and falls apart") }
+                },
+                Opt("Hold your course", "it may miss") { [unowned self] in
+                    if chance(0.5) {
+                        self.done("It wanders off to leeward and collapses in rain")
+                    } else {
+                        self.dmg(12)
+                        if !self.over { self.done("It crosses the bow and takes half the rigging with it") }
+                    }
+                }
+            ])
+        case "spar":
+            logIt("Lost a spar")
+            show("A spar carries away", "The main yard has cracked through and hangs by its tackle, sail and all, beating against the mast.", [
+                Opt("Fish it with planks", planks >= 2 ? "use 2 planks" : "not enough planks", off: planks < 2) { [unowned self] in
+                    self.planks -= 2
+                    self.done("Splinted, and swayed back aloft: -2 planks")
+                },
+                Opt("Cut it away", "short canvas · lose \(SUNS) days") { [unowned self] in
+                    self.passDays(1)
+                    if !self.over { self.done("It goes over the side. She crawls until a new one is rigged") }
+                }
+            ])
+        case "stowaway":
+            logIt("Found a stowaway")
+            show("A stowaway", "A boy, half starved, asleep in an empty cask. He says he will work.", [
+                Opt("Sign him on", crew < ship.crew ? "one more hand" : "no berth free", off: crew >= ship.crew) { [unowned self] in
+                    self.crew += 1
+                    self.syncMen()
+                    self.done("He is rated ship's boy and given a hammock")
+                },
+                Opt("Feed him, land him next port", "-2 food") { [unowned self] in
+                    self.food = max(0, self.food - 2)
+                    self.done("He eats like three men and sleeps for a day")
+                }
+            ])
+        case "catch":
+            logIt("Landed a great fish")
+            show("A monster on the line", "It takes four hands to get it over the rail, and now it is beating the deck to pieces.", [
+                Opt("Salt it down", "food for the cask") { [unowned self] in
+                    let a = self.addGood("food", 8)
+                    self.done("Cut, salted and stowed: +\(a) food")
+                },
+                Opt("Feast tonight", "the laid-up mend faster") { [unowned self] in
+                    self.addGood("food", 3)
+                    for m in self.men where m.st != 0 { m.d = max(1, m.d - 2) }
+                    self.done("Fresh fish for all hands: +3 food, and the sick are the better for it")
                 }
             ])
         case "merchant":
