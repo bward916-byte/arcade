@@ -8,6 +8,7 @@ struct PostAdView: View {
     @State private var title = ""
     @State private var price = ""
     @State private var cat = "rv"
+    @State private var wanted = false   // looking for something, not selling it
     @State private var area = "town"
     @State private var details = ""
     @State private var run = "dates"
@@ -38,10 +39,19 @@ struct PostAdView: View {
                     }
                 } else {
                     Section {
-                        TextField("What are you selling", text: $title)
-                        TextField("Price: $80, free, or trade", text: $price)
-                        Picker("Category", selection: $cat) {
-                            ForEach(Site.cats) { c in Text(c.name).tag(c.id) }
+                        Picker("This ad is for", selection: $wanted) {
+                            Text("Selling").tag(false)
+                            Text("Wanted").tag(true)
+                        }
+                        .pickerStyle(.segmented)
+                    }
+                    Section {
+                        TextField(wanted ? "What are you looking for" : "What are you selling", text: $title)
+                        TextField(wanted ? "What you will pay (optional)" : "Price: $80, free, or trade", text: $price)
+                        if !wanted {
+                            Picker("Category", selection: $cat) {
+                                ForEach(Site.cats.filter { $0.id != "wanted" }) { c in Text(c.name).tag(c.id) }
+                            }
                         }
                         Picker("Where", selection: $area) {
                             ForEach(areaOrder, id: \.self) { id in Text(Site.areas[id] ?? id).tag(id) }
@@ -90,7 +100,8 @@ struct PostAdView: View {
             .navigationTitle("Post an ad")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
+                // On the right, clear of the first box, so a tap on "What are you selling" is never taken by this button.
+                ToolbarItem(placement: .topBarTrailing) {
                     Button("Close") { dismiss() }
                 }
             }
@@ -123,7 +134,7 @@ struct PostAdView: View {
                 day.locale = Locale(identifier: "en_US_POSIX")
                 day.dateFormat = "yyyy-MM-dd"
                 var ad: [String: Any] = [
-                    "title": name, "price": price.trimmingCharacters(in: .whitespaces), "cat": cat, "area": area,
+                    "title": name, "price": price.trimmingCharacters(in: .whitespaces), "cat": wanted ? "wanted" : cat, "area": area,
                     "text": details.trimmingCharacters(in: .whitespacesAndNewlines), "run": run, "photos": ids, "email": mail
                 ]
                 if run == "dates" {
