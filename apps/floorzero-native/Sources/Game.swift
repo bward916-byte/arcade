@@ -1,7 +1,7 @@
 import Foundation
 
 enum Mode { case title, intro, card, play, pick, ride, dead, ending }
-enum ZKind { case zed, runner, dog, rat, bloater, boss }
+enum ZKind { case zed, runner, dog, rat, bloater, boss, crawler, spitter, crow }
 enum FloorKind { case normal, hole, wall, lift, roof, street }
 enum RideKind { case stairs, hole, lift }
 
@@ -33,9 +33,16 @@ final class Zed {
     var sight: Double
     var scale: Double
     var look: Int
+    var y = 0.0
+    var atkKind = 0      // 0 swipe, 1 lunge, 2 overhead slam
+    var headless = false
+    var gibbed = false
+    var style = 0
+    var spitCd = 1.5
     init(id: Int, kind: ZKind, x: Double, depth: Int, seed: Double) {
         self.id = id; self.kind = kind; self.x = x; self.seed = seed
         look = Int(seed * 97) % 5
+        style = Int(seed * 53) % 4
         let d = Double(depth)
         var h = 34.0, sp = 62.0, re = 62.0, dm = 10.0, wu = 0.38, ra = 1.0, si = 520.0, sc = 1.0
         switch kind {
@@ -44,6 +51,9 @@ final class Zed {
         case .dog: h = 20; sp = 330 + seed * 50; re = 54; dm = 6; wu = 0.2; ra = 0.6; si = 700; sc = 1.0
         case .rat: h = 5; sp = 220 + seed * 60; re = 30; dm = 2; wu = 0.15; ra = 0.5; si = 700; sc = 1.0
         case .bloater: h = 170; sp = 48; re = 84; dm = 20; wu = 0.6; ra = 1.5; si = 520; sc = 1.45
+        case .crawler: h = 26; sp = 58 + seed * 20; re = 48; dm = 9; wu = 0.3; ra = 0.9; si = 520; sc = 1.0
+        case .spitter: h = 30; sp = 70; re = 60; dm = 8; wu = 0.4; ra = 1.2; si = 760; sc = 1.05
+        case .crow: h = 9; sp = 250 + seed * 60; re = 52; dm = 5; wu = 0.35; ra = 1.4; si = 900; sc = 1.0
         case .boss: h = 620; sp = 74; re = 104; dm = 22; wu = 0.6; ra = 1.3; si = 2000; sc = 1.7
         }
         h *= 1 + d * 0.012
@@ -86,6 +96,9 @@ final class Floor {
     var props: [Prop] = []
     var pools: [(Double, Double)] = []
     var pack = 0        // 1 dogs, 2 rats
+    var reserve = 0     // more of them waiting behind the doors
+    var spawnT = 1.5
+    var splats: [(Double, Double, Double)] = []
     var boss = false
     init(_ n: Int) { self.n = n }
 }
@@ -98,7 +111,9 @@ struct Boom { var x: Double; var y: Double; var r: Double; var t: Double; var li
 struct Nade { var x0: Double; var x1: Double; var t: Double; var dur: Double; var r: Double; var dmg: Double }
 struct Wave { var x: Double; var dir: Double; var left: Double; var dmg: Double; var hit: Set<Int> }
 struct Beam { var x: Double; var t: Double; var done: Bool; var r: Double; var dmg: Double }
-struct Slash { var x: Double; var y: Double; var face: Double; var t: Double; var big: Double; var col: Col }
+struct Slash { var x: Double; var y: Double; var face: Double; var t: Double; var big: Double; var col: Col; var mode = 0 }
+struct Gib { var x: Double; var y: Double; var vx: Double; var vy: Double; var rot: Double; var vr: Double; var kind: Int; var col: Col; var t: Double }
+struct Glob { var x: Double; var y: Double; var vx: Double; var vy: Double; var t: Double }
 
 struct Input {
     var move = 0.0
@@ -119,6 +134,9 @@ final class Hero {
     var comboT = 0.0
     var hurtT = 0.0
     var inv = 0.0
+    var atkStyle = 0
+    var chain = 0
+    var jump = 0.0
 }
 
 final class Game {
@@ -188,6 +206,10 @@ final class Game {
     var waves: [Wave] = []
     var beams: [Beam] = []
     var slashes: [Slash] = []
+    var gibs: [Gib] = []
+    var globs: [Glob] = []
+    var streak = 0
+    var streakT = 0.0
     var droneA = 0.0
     var cdSmg = 0.0, cdShot = 0.0, cdNade = 2.0, cdDrone = 0.0, cdMini = 0.0, cdTesla = 1.0, cdOrb = 3.0, cdFlame = 0.0
     var flameOn = false
@@ -266,7 +288,7 @@ final class Game {
         say("FLOOR \(floorN) — \(zone(floorN).name)")
     }
     func clearFx() {
-        parts = []; floaters = []; rings = []; tracers = []; booms = []; nades = []; waves = []; beams = []; slashes = []
+        parts = []; floaters = []; rings = []; tracers = []; booms = []; nades = []; waves = []; beams = []; slashes = []; gibs = []; globs = []
     }
 
     func zone(_ n: Int) -> Zone {
@@ -303,9 +325,9 @@ final class Game {
             f.doorB = f.wallX + 250
         }
         // who is here
-        var count = 4 + Int(Double(max(0, k)) * 0.13)
-        if count > 14 { count = 14 }
-        if f.kind == .roof { count = 3 }
+        var count = 6 + Int(Double(max(0, k)) * 0.11)
+        if count > 15 { count = 15 }
+        if f.kind == .roof { count = 6 }
         if f.kind == .street { count = 12 }
         let pr = min(0.38, 0.15 + Double(max(0, k)) * 0.005)
         let pd = min(0.14, max(0, Double(k - 6) * 0.006))
@@ -317,7 +339,7 @@ final class Game {
         for _ in 0..<count {
             let r = rng.next()
             var kind = ZKind.zed
-            if r < pr { kind = .runner } else if r > 1 - pd { kind = .dog } else if k > 14 && r > 0.5 && r < 0.56 { kind = .bloater }
+            if r < pr { kind = .runner } else if r > 1 - pd { kind = .dog } else if k > 14 && r > 0.5 && r < 0.56 { kind = .bloater } else if k > 1 && r > 0.6 && r < 0.7 { kind = .crawler } else if k > 9 && r > 0.72 && r < 0.79 { kind = .spitter }
             if f.kind == .roof { kind = .zed }
             f.zeds.append(Zed(id: nextId, kind: kind, x: spot(&rng), depth: max(0, k), seed: rng.next()))
             nextId += 1
@@ -339,11 +361,17 @@ final class Game {
             f.zeds.append(b)
         }
         if bossFloor && hasSample { f.zeds = [] }
+        if f.kind == .roof || (k > 3 && k % 7 == 3 && !bossFloor) {
+            for _ in 0..<(f.kind == .roof ? 2 : 3) { f.zeds.append(Zed(id: nextId, kind: .crow, x: spot(&rng), depth: max(0, k), seed: rng.next())); nextId += 1 }
+        }
+        f.reserve = f.kind == .street ? 10 : min(9, 3 + max(0, k) / 10)
+        if bossFloor { f.reserve = 0 }
         if valveFloor && !valveShut { f.items.append(Item(x: FLOOR_W / 2, kind: 3)) }
         if f.kind != .roof {
             if rng.next() < 0.32 { f.items.append(Item(x: rng.r(300, FLOOR_W - 300), kind: 0)) }
             if rng.next() < 0.4 { f.items.append(Item(x: rng.r(350, FLOOR_W - 350), kind: 1)) }
-            if rng.next() < 0.18 { f.items.append(Item(x: rng.r(350, FLOOR_W - 350), kind: 1)) }
+            if rng.next() < 0.5 { f.items.append(Item(x: rng.r(350, FLOOR_W - 350), kind: 1)) }
+            if rng.next() < 0.3 { f.items.append(Item(x: rng.r(350, FLOOR_W - 350), kind: 1)) }
         }
         var px = 260.0
         while px < FLOOR_W - 200 {
@@ -541,40 +569,77 @@ final class Game {
             }
         } else { h.moving = false }
 
-        // swinging
+        // swinging: a random move each time, and every fourth one is a finisher
         if input.attack && h.atkT < 0 && !sup {
-            h.atkI = h.comboT > 0 ? (h.atkI + 1) % 3 : 0
+            h.chain = h.comboT > 0 ? (h.chain + 1) % 4 : 0
+            h.atkI = h.chain == 3 ? 2 : 0
+            if h.chain == 3 { h.atkStyle = 6 + Int.random(in: 0..<3) } else {
+                var st = Int.random(in: 0..<6)
+                if st == h.atkStyle { st = (st + 1) % 6 }
+                h.atkStyle = st
+            }
             h.atkT = 0
             h.atkHit = false
-            if mv == 0, let z = nearest(170) { h.face = z.x >= h.x ? 1 : -1 }
+            if mv == 0, let z = nearest(190) { h.face = z.x >= h.x ? 1 : -1 }
             snd?.swing()
         }
         if h.atkT >= 0 {
-            let dur = h.atkI == 2 ? 0.36 : 0.25
+            let fin = h.atkI == 2
+            let dur = fin ? 0.4 : (h.atkStyle == 2 ? 0.2 : 0.25)
             h.atkT += dt
-            if !h.atkHit && h.atkT >= dur * 0.42 {
+            h.jump = h.atkStyle == 7 ? sin(clampD(h.atkT / (dur * 0.5), 0, 1) * PI) * 46 : 0
+            if h.atkStyle == 2 && h.atkT < dur * 0.4 { h.x += h.face * 260 * dt }
+            if !h.atkHit && h.atkT >= dur * (fin ? 0.5 : 0.42) {
                 h.atkHit = true
-                let reach = h.atkI == 2 ? 135.0 : 112.0
-                let base = h.atkI == 2 ? 26.0 : 15.0
+                var reach = 112.0, base = 15.0, knock = 170.0
+                var both = false
+                switch h.atkStyle {
+                case 2: reach = 140; base = 14; knock = 240          // thrust
+                case 3: reach = 118; base = 13; knock = 120          // low sweep
+                case 4: reach = 96; base = 12; knock = 430           // kick
+                case 5: reach = 112; base = 18; knock = 260          // uppercut
+                case 6: reach = 150; base = 28; knock = 470; both = true   // spin
+                case 7: reach = 130; base = 32; knock = 480          // jump slam
+                case 8: reach = 124; base = 36; knock = 560          // launcher
+                default: break
+                }
                 var n = 0
                 for z in f.zeds where z.alive {
                     let dx = (z.x - h.x) * h.face
-                    if dx > -24 && dx < reach { hit(z, base * dmgMul, h.face, h.atkI == 2 ? 460 : 170); n += 1 }
+                    let inReach: Bool = both ? abs(dx) < reach : (dx > -24 && dx < reach)
+                    if inReach {
+                        hit(z, base * dmgMul, both ? (z.x >= h.x ? 1 : -1) : h.face, knock)
+                        if h.atkStyle == 3 { z.stun = max(z.stun, 0.6) }
+                        n += 1
+                    }
                 }
                 for i in 0..<f.items.count where f.items[i].kind == 1 && !f.items[i].used {
                     let dx = (f.items[i].x - h.x) * h.face
-                    if dx > -10 && dx < reach { f.items[i].used = true; explode(f.items[i].x, 170, 90) }
+                    if (dx > -10 || both) && abs(dx) < reach { f.items[i].used = true; explode(f.items[i].x, 170, 90) }
                 }
-                slashes.append(Slash(x: h.x, y: -92, face: h.face, t: 0, big: h.atkI == 2 ? 1.35 : 1, col: tw.hue))
+                var mode = 0
+                switch h.atkStyle {
+                case 1, 5, 8: mode = 1
+                case 2: mode = 2
+                case 3, 4: mode = 3
+                case 6: mode = 4
+                default: mode = 0
+                }
+                slashes.append(Slash(x: h.x, y: -92, face: h.face, t: 0, big: fin ? 1.4 : 1, col: tw.hue, mode: mode))
+                if h.atkStyle == 7 {
+                    waves.append(Wave(x: h.x, dir: 1, left: 260, dmg: 22 * dmgMul, hit: []))
+                    waves.append(Wave(x: h.x, dir: -1, left: 260, dmg: 22 * dmgMul, hit: []))
+                    shake = max(shake, 14); snd?.blast()
+                }
                 if n > 0 {
-                    hitStop = h.atkI == 2 ? 0.07 : 0.035
-                    shake = max(shake, h.atkI == 2 ? 9 : 4)
+                    hitStop = fin ? 0.08 : 0.035
+                    shake = max(shake, fin ? 11 : 4)
                     addMeter(3 * Double(n))
-                    if h.atkI == 2 { snd?.bigHit() } else { snd?.hit(0.8) }
-                    buzz(h.atkI == 2 ? 2 : 1)
+                    if fin { snd?.bigHit() } else { snd?.hit(0.8) }
+                    buzz(fin ? 3 : 1)
                 }
             }
-            if h.atkT >= dur { h.atkT = -1; h.comboT = 0.45 }
+            if h.atkT >= dur { h.atkT = -1; h.comboT = 0.5; h.jump = 0 }
         }
 
         // power move
@@ -620,12 +685,37 @@ final class Game {
         }
         return best
     }
+    var threatCount: Int { return aliveCount + floor.reserve }
     var aliveCount: Int { var n = 0; for z in floor.zeds where z.alive { n += 1 }; return n }
 
     // ---------- zombies
     private func updateZeds(_ dt: Double) {
         let h = hero
         let f = floor
+        // more of them burst out of the doors while you fight
+        if f.reserve > 0 {
+            f.spawnT -= dt
+            if f.spawnT <= 0 && aliveCount < 9 {
+                f.spawnT = aliveCount < 3 ? 0.5 : 1.3
+                f.reserve -= 1
+                var x = 200 + 300 * Double(Int.random(in: 0..<5)) + 33
+                if abs(x - h.x) < 260 { x += x < h.x ? -300 : 300 }
+                if f.kind == .wall && abs(x - f.wallX) < 170 { x = f.wallX + (x < f.wallX ? -200 : 200) }
+                x = clampD(x, 120, FLOOR_W - 120)
+                let r = Double.random(in: 0..<1)
+                var kind = ZKind.zed
+                if r < 0.3 { kind = .runner } else if r < 0.42 && depth > 1 { kind = .crawler } else if r < 0.5 && depth > 6 { kind = .dog }
+                let z = Zed(id: nextId, kind: kind, x: x, depth: depth, seed: Double.random(in: 0..<1))
+                nextId += 1
+                z.aware = true
+                z.stun = 0.25
+                f.zeds.append(z)
+                puff(x, 0, 10, Col(0x8a7a66))
+                for _ in 0..<5 { gibs.append(Gib(x: x, y: -rnd(40, 150), vx: rnd(-260, 260), vy: -rnd(60, 320), rot: rnd(0, 6), vr: rnd(-12, 12), kind: 4, col: Col(0x6a5238), t: 0)) }
+                shake = max(shake, 5)
+                snd?.door()
+            }
+        }
         for z in f.zeds {
             if !z.alive { z.deadT += dt; z.flash = max(0, z.flash - dt * 6); continue }
             z.flash = max(0, z.flash - dt * 5)
@@ -634,13 +724,13 @@ final class Game {
                 z.burn -= dt
                 z.hp -= z.burnDps * dt
                 if chance(dt * 14) { parts.append(Part(x: z.x + rnd(-12, 12), y: -rnd(20, 120) * z.scale, vx: rnd(-20, 20), vy: -rnd(60, 140), t: 0, life: 0.4, size: rnd(4, 8), col: Col(0xffa030), grav: 0, glow: true)) }
-                if z.hp <= 0 { kill(z, 0); continue }
+                if z.hp <= 0 { kill(z, 0, false); continue }
             }
             let dx = h.x - z.x
             let ad = abs(dx)
             if !z.aware && ad < z.sight {
                 z.aware = true
-                if groanCd <= 0 { groanCd = 1.4; if z.kind == .dog { snd?.bark() } else if z.kind == .rat { snd?.squeak() } else if z.kind == .boss { snd?.roar() } else { snd?.groan(0.8 + z.seed * 0.6) } }
+                if groanCd <= 0 { groanCd = 1.4; if z.kind == .dog { snd?.bark() } else if z.kind == .rat || z.kind == .crow { snd?.squeak() } else if z.kind == .boss { snd?.roar() } else { snd?.groan(0.8 + z.seed * 0.6) } }
             }
             if z.kvx != 0 {
                 z.x += z.kvx * dt
@@ -648,31 +738,88 @@ final class Game {
                 if abs(z.kvx) < 12 { z.kvx = 0 }
             }
             z.x = clampD(z.x, 60, FLOOR_W - 60)
+            if z.kind == .crow {
+                let dive: Double = z.atkT >= 0 ? sin(min(1, z.atkT / (z.windup + 0.28)) * PI) * 105 : 0
+                z.y = -196 + sin(t * 3 + z.seed * 9) * 12 + dive
+            }
             if z.stun > 0 { z.stun -= dt; continue }
             if z.atkT >= 0 {
                 z.atkT += dt
-                if !z.atkHit && z.atkT >= z.windup {
+                let wu = z.atkKind == 2 ? z.windup * 1.5 : z.windup
+                if z.atkKind == 1 && z.atkT < wu { z.x += z.face * 330 * dt; z.walk += 330 * dt }
+                if z.kind == .crow { z.x += z.face * 240 * dt }
+                let nd = abs(h.x - z.x)
+                if !z.atkHit && z.atkT >= wu {
                     z.atkHit = true
-                    if ad < z.reach + 22 { hurtHero(z.dmg * (1 + Double(depth) * 0.004), z.x, quiet: false) }
+                    let extra: Double = z.atkKind == 2 ? 24 : 0
+                    if nd < z.reach + 22 + extra {
+                        let mul: Double = z.atkKind == 2 ? 1.5 : (z.atkKind == 1 ? 1.2 : 1)
+                        hurtHero(z.dmg * mul * (1 + Double(depth) * 0.004), z.x, quiet: false)
+                    }
+                    if z.atkKind == 2 { shake = max(shake, 6); puff(z.x + z.face * 50, 0, 5, Col(0x8a8478)) }
                 }
-                if z.atkT > z.windup + 0.28 { z.atkT = -1; z.cd = z.rate }
+                if z.atkT > wu + 0.28 { z.atkT = -1; z.cd = z.rate }
                 continue
             }
-            if z.aware {
-                z.face = dx >= 0 ? 1 : -1
-                if ad > z.reach {
+            if !z.aware { z.walk += 8 * dt; continue }
+            z.face = dx >= 0 ? 1 : -1
+            if z.kind == .spitter {
+                z.spitCd -= dt
+                if ad < 230 { z.x -= z.face * z.speed * dt; z.walk += z.speed * dt } else if ad > 430 { z.x += z.face * z.speed * dt; z.walk += z.speed * dt }
+                if z.spitCd <= 0 && ad < 620 {
+                    z.spitCd = 2.3
+                    z.atkT = 0; z.atkHit = true; z.atkKind = 0
+                    let tt = 0.75
+                    globs.append(Glob(x: z.x + z.face * 20, y: -118, vx: (h.x - z.x) / tt, vy: -260, t: 0))
+                    snd?.bite()
+                }
+                continue
+            }
+            if ad > z.reach {
+                let canLunge = z.kind == .zed || z.kind == .runner || z.kind == .dog
+                if canLunge && ad < z.reach + 150 && ad > z.reach + 40 && z.cd <= 0 && chance(dt * 1.6) {
+                    z.atkT = 0; z.atkHit = false; z.atkKind = 1
+                    if z.kind == .dog { snd?.bark() }
+                } else {
                     z.x += z.face * z.speed * dt
                     z.walk += z.speed * dt
-                } else if z.cd <= 0 {
-                    z.atkT = 0
-                    z.atkHit = false
-                    if z.kind == .dog && chance(0.5) { snd?.bark() }
                 }
-            } else {
-                z.walk += 8 * dt
+            } else if z.cd <= 0 {
+                z.atkT = 0
+                z.atkHit = false
+                z.atkKind = (z.kind == .zed || z.kind == .bloater || z.kind == .boss) && chance(0.35) ? 2 : 0
+                if z.kind == .dog && chance(0.5) { snd?.bark() }
             }
         }
-        f.zeds.removeAll { !$0.alive && $0.deadT > 7 }
+        f.zeds.removeAll { !$0.alive && ($0.deadT > 7 || $0.gibbed) }
+        // spit in the air
+        for i in 0..<globs.count {
+            globs[i].t += dt
+            globs[i].vy += 700 * dt
+            globs[i].x += globs[i].vx * dt
+            globs[i].y += globs[i].vy * dt
+            if abs(globs[i].x - h.x) < 30 && globs[i].y > -150 && globs[i].y < -10 {
+                globs[i].t = 9
+                hurtHero(9 * (1 + Double(depth) * 0.004), globs[i].x - globs[i].vx, quiet: false)
+                puff(h.x, -80, 6, Col(0x8cff7a))
+            }
+        }
+        globs.removeAll { $0.t > 3 || $0.y > 0 }
+    }
+    /// Pieces flying off.
+    func gore(_ z: Zed, _ dir: Double, all: Bool) {
+        let skin = z.kind == .runner ? Col(0xb89a8a) : (z.kind == .bloater ? Col(0x9ac06a) : Col(0x9fb08c))
+        let top = -150.0 * z.scale
+        if gibs.count > 70 { gibs.removeFirst(20) }
+        gibs.append(Gib(x: z.x, y: top, vx: dir * rnd(80, 420) + rnd(-120, 120), vy: -rnd(280, 620), rot: 0, vr: rnd(-14, 14), kind: 0, col: skin, t: 0))
+        if all {
+            for i in 0..<6 {
+                gibs.append(Gib(x: z.x + rnd(-14, 14), y: -rnd(30, 130) * z.scale, vx: dir * rnd(60, 480) + rnd(-260, 260), vy: -rnd(160, 620), rot: rnd(0, 6), vr: rnd(-16, 16), kind: 1 + i % 3, col: i % 3 == 1 ? BLOOD : skin, t: 0))
+            }
+        }
+        if parts.count < 340 {
+            for _ in 0..<(all ? 26 : 12) { parts.append(Part(x: z.x, y: top + rnd(0, 90), vx: dir * rnd(40, 420) + rnd(-180, 180), vy: -rnd(60, 520), t: 0, life: rnd(0.5, 1.1), size: rnd(3, 8), col: BLOOD, grav: 1000, glow: false)) }
+        }
     }
     func hit(_ z: Zed, _ dmg: Double, _ dir: Double, _ knock: Double) {
         if !z.alive { return }
@@ -681,33 +828,53 @@ final class Game {
         z.aware = true
         let heavy = z.kind == .bloater || z.kind == .boss
         z.kvx = dir * knock * (heavy ? 0.25 : 1)
-        z.stun = heavy ? 0.06 : 0.2
+        z.stun = max(z.stun, heavy ? 0.06 : 0.2)
         if z.atkT >= 0 && !heavy { z.atkT = -1; z.cd = 0.3 }
         hits += 1; hitsT = 1.6
-        let top = z.kind == .rat ? -14.0 : (z.kind == .dog ? -50.0 : -110.0 * z.scale)
+        var top = -110.0 * z.scale
+        if z.kind == .rat { top = -14 } else if z.kind == .dog { top = -50 } else if z.kind == .crawler { top = -34 } else if z.kind == .crow { top = z.y }
         if floaters.count < 14 && dmg >= 3 { floaters.append(Floater(x: z.x + rnd(-12, 12), y: top - 30, text: "-\(Int(dmg.rounded()))", col: Col(0xff8a7a), t: 0, size: dmg > 40 ? 22 : 15)) }
-        let nb = z.kind == .rat ? 3 : 7
-        if parts.count < 260 {
-            for _ in 0..<nb { parts.append(Part(x: z.x, y: top + rnd(0, 40), vx: dir * rnd(40, 260) + rnd(-60, 60), vy: -rnd(40, 260), t: 0, life: rnd(0.4, 0.8), size: rnd(3, 6), col: BLOOD, grav: 900, glow: false)) }
+        let nb = z.kind == .rat ? 3 : 11
+        if parts.count < 300 {
+            for _ in 0..<nb { parts.append(Part(x: z.x, y: top + rnd(0, 40), vx: dir * rnd(40, 320) + rnd(-80, 80), vy: -rnd(40, 320), t: 0, life: rnd(0.4, 0.9), size: rnd(3, 7), col: BLOOD, grav: 900, glow: false)) }
         }
-        if z.hp <= 0 { kill(z, dir) }
+        if z.kind != .rat && chance(0.5) {
+            floor.splats.append((z.x + dir * rnd(10, 70), rnd(60, 210), rnd(10, 26)))
+            if floor.splats.count > 46 { floor.splats.removeFirst() }
+        }
+        if z.hp <= 0 { kill(z, dir, abs(knock) >= 450) }
     }
-    func kill(_ z: Zed, _ dir: Double) {
+    func kill(_ z: Zed, _ dir: Double, _ heavy: Bool) {
         if !z.alive { return }
         z.alive = false
         z.deadT = 0
         z.face = dir != 0 ? -dir : z.face
         kills += 1
+        streak = streakT > 0 ? streak + 1 : 1
+        streakT = 1.2
+        if streak == 5 || streak == 10 || streak == 20 {
+            floaters.append(Floater(x: hero.x, y: -250, text: streak == 5 ? "MULTI KILL" : (streak == 10 ? "OVERKILL" : "MASSACRE"), col: GOLD, t: -0.6, size: 30))
+            addMeter(10)
+        }
         addMeter(z.kind == .rat ? 3 : 12)
-        if z.kind != .rat { floor.pools.append((z.x, rnd(26, 44))) }
+        if z.kind != .rat { floor.pools.append((z.x, rnd(30, 56))) }
         if floor.pools.count > 30 { floor.pools.removeFirst() }
+        let humanoid = z.kind == .zed || z.kind == .runner || z.kind == .spitter || z.kind == .crawler
+        if humanoid {
+            if heavy && chance(0.6) { z.gibbed = true; gore(z, dir, all: true); floor.pools.append((z.x, rnd(50, 80))) } else if chance(0.4) { z.headless = true; gore(z, dir, all: false) }
+        } else if z.kind == .crow || z.kind == .dog || z.kind == .rat {
+            if heavy || z.kind == .crow { z.gibbed = true; for _ in 0..<5 { gibs.append(Gib(x: z.x, y: z.kind == .crow ? z.y : -30, vx: dir * rnd(40, 380) + rnd(-200, 200), vy: -rnd(120, 480), rot: rnd(0, 6), vr: rnd(-16, 16), kind: z.kind == .crow ? 5 : 2, col: z.kind == .crow ? Col(0x15151a) : BLOOD, t: 0)) } }
+        }
         if z.kind == .bloater {
+            z.gibbed = true
+            gore(z, dir, all: true)
             explode(z.x, 150, 45, toxic: true)
             if abs(hero.x - z.x) < 110 { hurtHero(14, z.x, quiet: false) }
         }
         if z.kind == .boss {
             floor.items.append(Item(x: z.x, kind: 2))
             explode(z.x, 260, 0)
+            gore(z, dir, all: true)
             shake = 26; flash = 0.8; flashCol = MINT
             say("MARR IS DOWN. TAKE THE SAMPLE.", 5)
             snd?.roar()
@@ -837,7 +1004,8 @@ final class Game {
 
     // ---------- the automatic weapons
     private func gunHit(_ z: Zed, _ dmg: Double, _ col: Col, _ w: Double, fromY: Double = -96, fromX: Double? = nil) {
-        let ty = z.kind == .rat ? -10.0 : (z.kind == .dog ? -40.0 : -90.0 * z.scale)
+        var ty = -90.0 * z.scale
+        if z.kind == .rat { ty = -10 } else if z.kind == .dog { ty = -40 } else if z.kind == .crawler { ty = -30 } else if z.kind == .crow { ty = z.y }
         tracers.append(Tracer(x0: fromX ?? (hero.x + hero.face * 30), y0: fromY, x1: z.x, y1: ty, t: 0, life: 0.07, col: col, w: w, bolt: false))
         hit(z, dmg, z.x >= hero.x ? 1 : -1, 40)
     }
@@ -962,6 +1130,19 @@ final class Game {
         for i in 0..<booms.count { booms[i].t += dt }
         booms.removeAll { $0.t > $0.life }
         for i in 0..<slashes.count { slashes[i].t += dt }
+        if streakT > 0 { streakT -= dt }
+        for i in 0..<gibs.count {
+            gibs[i].t += dt
+            gibs[i].vy += 1100 * dt
+            gibs[i].x += gibs[i].vx * dt
+            gibs[i].y += gibs[i].vy * dt
+            gibs[i].rot += gibs[i].vr * dt
+            if gibs[i].y > 0 {
+                gibs[i].y = 0
+                if abs(gibs[i].vy) > 160 { gibs[i].vy *= -0.4; gibs[i].vx *= 0.6; gibs[i].vr *= 0.6 } else { gibs[i].vy = 0; gibs[i].vx *= 0.8; gibs[i].vr = 0 }
+            }
+        }
+        gibs.removeAll { $0.t > 6 }
         slashes.removeAll { $0.t > 0.18 }
         var blown: [Nade] = []
         for i in 0..<nades.count { nades[i].t += dt; if nades[i].t >= nades[i].dur { blown.append(nades[i]) } }
@@ -1038,7 +1219,7 @@ final class Game {
         }
         if f.kind == .lift {
             if abs(h.x - f.liftX) < 40 {
-                if aliveCount == 0 { startRide(.lift, to: descTarget(f.n, 3)) } else if sayCd <= 0 { sayCd = 2.5; say("CLEAR THE FLOOR FIRST.  \(aliveCount) LEFT") }
+                if threatCount == 0 { startRide(.lift, to: descTarget(f.n, 3)) } else if sayCd <= 0 { sayCd = 2.5; say("CLEAR THE FLOOR FIRST.  \(threatCount) LEFT") }
             } else if abs(h.x - f.exitX) < 60 && sayCd <= 0 { sayCd = 3; say("STAIRS BLOCKED. TAKE THE ELEVATOR.") }
             return
         }
@@ -1086,7 +1267,7 @@ final class Game {
         let h = hero
         var target = f.exitX
         if f.kind == .hole { target = f.holeX }
-        if f.kind == .lift { target = aliveCount == 0 ? f.liftX : (nearestAny()?.x ?? f.liftX) }
+        if f.kind == .lift { target = threatCount == 0 ? f.liftX : (nearestAny()?.x ?? f.liftX) }
         if f.boss && aliveBoss { target = nearestAny()?.x ?? target }
         for it in f.items where !it.used && (it.kind == 2 || it.kind == 3) { target = it.x }
         for it in f.items where !it.used && it.kind == 0 && h.hp < h.maxHp * 0.6 && abs(it.x - h.x) < 500 { target = it.x }

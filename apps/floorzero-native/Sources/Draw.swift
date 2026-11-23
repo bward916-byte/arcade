@@ -27,6 +27,7 @@ struct Look {
     var longHair = false
     var coat = false
     var v = 0
+    var noHead = false
 }
 
 struct Rect4 {
@@ -179,10 +180,12 @@ final class Renderer {
         cv.seg(lf.2 - 2, lf.3, lf.2 + 12, lf.3, 11, ink)
         cv.seg(lf.2 - 2, lf.3, lf.2 + 12, lf.3, 8, shoe)
         // neck and head
-        cv.seg(nx, ny, hx, hy, 12, ink)
-        cv.seg(nx, ny, hx, hy, 9, skinD)
-        cv.circ(hx, hy, 16.8, ink)
-        if zed {
+        cv.seg(nx, ny, (nx + hx) / 2, (ny + hy) / 2, 12, ink)
+        cv.seg(nx, ny, (nx + hx) / 2, (ny + hy) / 2, 9, skinD)
+        if L.noHead {
+            cv.circ((nx + hx) / 2, (ny + hy) / 2, 6, Col(0x7a1014)); cv.circ((nx + hx) / 2, (ny + hy) / 2, 2.5, bone)
+        } else if zed {
+            cv.seg(nx, ny, hx, hy, 12, ink); cv.seg(nx, ny, hx, hy, 9, skinD); cv.circ(hx, hy, 16.8, ink)
             // hanging jaw first, then the skull over it
             let open = clampD(p.jaw, 0, 1.2)
             cv.poly(ink, [hx - 2, hy + 5, hx + 15, hy + 5 + open * 7, hx + 13, hy + 15 + open * 9, hx - 5, hy + 16])
@@ -210,6 +213,7 @@ final class Renderer {
                 cv.seg(hx - 2, hy - 14, hx + 4, hy - 19, 2.6, L.hair); cv.seg(hx - 8, hy - 12, hx - 12, hy - 18, 2.6, L.hair)
             }
         } else {
+            cv.seg(nx, ny, hx, hy, 12, ink); cv.seg(nx, ny, hx, hy, 9, skinD); cv.circ(hx, hy, 16.8, ink)
             cv.circ(hx, hy, 15, skin)
             cv.arcFill(hx, hy, 15, PI * 0.2, PI * 0.8, Col.mix(skin, BLACK, 0.12))
             cv.circ(hx + 14.5, hy + 2, 2.6, skin)
@@ -303,21 +307,28 @@ final class Renderer {
             p.lean = 0.05
         }
         if h.atkT >= 0 {
-            let dur = h.atkI == 2 ? 0.36 : 0.25
+            let fin = h.atkI == 2
+            let dur = fin ? 0.4 : (h.atkStyle == 2 ? 0.2 : 0.25)
             let u = clampD(h.atkT / dur, 0, 1)
             let e = easeOut(min(1, u / 0.55))
-            if h.atkI == 1 {
-                p.armF = lerp(0.1, 2.7, e); p.elbF = 0.25; p.wpn = 0.1
-            } else if h.atkI == 2 {
-                p.armF = lerp(4.0, 0.7, e); p.elbF = 0.2; p.wpn = 0.15
-            } else {
-                p.armF = lerp(3.5, 1.1, e); p.elbF = 0.3; p.wpn = 0.1
-            }
-            p.lean = 0.12 + 0.32 * sin(u * PI)
-            p.hipF = 0.5 + 0.25 * sin(u * PI); p.kneeF = 0.4
+            let sw = sin(u * PI)
+            p.lean = 0.12 + 0.32 * sw
+            p.hipF = 0.5 + 0.25 * sw; p.kneeF = 0.4
             p.hipB = -0.45; p.kneeB = 0.15
-            p.bob = 4 + 3 * sin(u * PI)
+            p.bob = 4 + 3 * sw
             p.armB = -0.8
+            p.elbF = 0.25; p.wpn = 0.1
+            switch h.atkStyle {
+            case 1: p.armF = lerp(0.1, 2.7, e)                         // backhand, rising
+            case 2: p.armF = 1.5; p.elbF = lerp(1.7, 0.02, e); p.wpn = 0; p.lean = 0.3 + 0.2 * sw; p.hipF = 0.9; p.hipB = -0.8   // thrust
+            case 3: p.armF = lerp(-0.3, 1.2, e); p.lean = 0.6; p.bob = 16; p.kneeF = 1.0; p.kneeB = 0.9; p.wpn = 0.5          // low sweep
+            case 4: p.hipF = lerp(0.1, 1.6, e); p.kneeF = lerp(1.2, 0.05, e); p.lean = -0.25; p.armF = -0.6; p.elbF = 1.2; p.wpn = 1.2; p.armB = -1.2   // kick
+            case 5: p.armF = lerp(-0.7, 2.9, e); p.lean = 0.3 - 0.5 * e; p.bob = 12 - 12 * e                                 // uppercut
+            case 6: p.armF = 1.55; p.elbF = 0.05; p.wpn = 0; p.lean = 0.1; p.hipF = 0.5; p.hipB = -0.5                          // spin
+            case 7: p.armF = lerp(4.1, 0.4, easeOut(max(0, u - 0.35) / 0.3)); p.kneeF = 0.9; p.kneeB = 0.9; p.hipF = 0.7; p.bob = u > 0.5 ? 14 : 0   // jump slam
+            case 8: p.armF = lerp(-0.5, 3.3, e); p.lean = 0.25 - 0.55 * e; p.hipF = 0.8; p.bob = 14 - 16 * e                 // launcher
+            default: p.armF = lerp(3.5, 1.1, e); p.elbF = 0.3
+            }
         }
         if h.hurtT > 0 { p.lean = -0.3; p.head = -0.3 }
         return p
@@ -328,6 +339,9 @@ final class Renderer {
         l.zombie = true
         l.v = z.look % 5
         if z.kind == .runner { l.skin = Col(0xb89a8a); l.shirt = Col(0x7a3a36); l.eye = Col(0xff5a4a) }
+        if z.kind == .spitter { l.fat = 1.15; l.skin = Col(0xb7c46a); l.shirt = Col(0x4a5a30); l.eye = Col(0x8cff7a) }
+        if z.kind == .crawler { l.pants = Col(0x5a1216) }
+        l.noHead = z.headless
         if z.kind == .bloater { l.fat = 1.9; l.skin = Col(0x9ac06a); l.shirt = Col(0x6a7a3a); l.eye = Col(0xd9ff7a) }
         if z.kind == .boss { l.fat = 1.5; l.skin = Col(0x8cc09a); l.shirt = Col(0xd9dcd6); l.pants = Col(0x2a2f3c); l.coat = true; l.eye = Col(0x7dffb0); l.hair = Col(0x9a9a92) }
         return l
@@ -348,12 +362,31 @@ final class Renderer {
         p.armB = 1.15 + 0.14 * sin(t * 2.7 + z.seed * 11)
         p.elbB = 0.2
         p.jaw = 0.35 + 0.3 * sin(t * 5 + z.seed * 30)
-        if z.atkT >= 0 {
-            p.jaw = 1.1
-            let u = clampD(z.atkT / z.windup, 0, 1.6)
-            if u < 1 { p.armF = lerp(1.4, 2.7, u); p.armB = lerp(1.15, 2.5, u); p.lean = 0.1 } else { p.armF = 0.9; p.armB = 0.8; p.lean = 0.55 }
+        switch z.style {
+        case 1: p.armB = 0.2; p.elbB = 0.3; p.head = 0.5; p.hipB *= 0.4          // one arm, dragging a leg
+        case 2: p.armF = 0.3 + 0.2 * sin(t * 2 + z.seed); p.armB = 0.1; p.lean += 0.12; p.head = -0.2   // arms down, slumped
+        case 3: p.armF = 2.2 + 0.3 * sin(t * 6 + z.seed * 9); p.armB = 1.9 + 0.3 * sin(t * 5); p.head = -0.3   // clawing at the air
+        default: break
         }
-        if z.stun > 0 { p.lean = -0.3; p.head = -0.4; p.armF = 0.4; p.armB = 0.2 }
+        if z.atkT >= 0 {
+            let wu = z.atkKind == 2 ? z.windup * 1.5 : z.windup
+            let u = clampD(z.atkT / wu, 0, 1.6)
+            if z.atkKind == 1 {
+                p.lean = 0.9; p.armF = 1.6; p.armB = 1.5; p.hipF = 1.0; p.kneeF = 0.3; p.hipB = -1.0; p.kneeB = 0.2; p.bob = -10 * sin(min(1, u) * PI)
+            } else if z.atkKind == 2 {
+                if u < 1 { p.armF = lerp(1.4, 3.6, u); p.armB = lerp(1.2, 3.4, u); p.lean = -0.2 * u } else { p.armF = 0.5; p.armB = 0.4; p.lean = 0.75; p.bob = 8 }
+            } else if u < 1 { p.armF = lerp(1.4, 2.7, u); p.armB = lerp(1.15, 2.5, u); p.lean = 0.1 } else { p.armF = 0.9; p.armB = 0.8; p.lean = 0.55 }
+            p.jaw = 1.1
+        }
+        if z.kind == .crawler {
+            let ph2 = z.walk * 0.09
+            p.lean = 1.32; p.bob = 52; p.head = -0.9
+            p.hipF = -1.45; p.kneeF = 0.05; p.hipB = -1.55; p.kneeB = 0.0
+            p.armF = 1.9 + 0.7 * sin(ph2); p.elbF = -0.5; p.armB = 1.9 - 0.7 * sin(ph2); p.elbB = -0.5
+            if z.atkT >= 0 { p.armF = 2.6; p.head = -1.2 }
+        }
+        if z.kind == .spitter && z.atkT >= 0 { p.lean = -0.25 + 0.6 * min(1, z.atkT * 4); p.head = -0.5; p.jaw = 1.2; p.armF = 0.3; p.armB = 0.1 }
+        if z.stun > 0 { p.lean = z.kind == .crawler ? 1.2 : -0.3; p.head = -0.4; p.armF = 0.4; p.armB = 0.2 }
         return p
     }
     func beast(_ cv: Canvas, _ z: Zed, _ y: Double, _ t: Double) {
@@ -580,6 +613,10 @@ final class Renderer {
             if lightsOn { cv.lighter(true); cv.glow(px + 180, GY - 290, 150, rgba(255, 240, 200, 0.10)); cv.lighter(false) }
             px += 300
         }
+        for (sx, sy2, sr) in f.splats where sx > x0 - 60 && sx < x1 + 60 {
+            cv.circ(sx, GY - sy2, sr, Col(0x6a0c12, 0.82)); cv.circ(sx + sr * 0.7, GY - sy2 - sr * 0.4, sr * 0.45, Col(0x6a0c12, 0.8)); cv.circ(sx - sr * 0.8, GY - sy2 + sr * 0.3, sr * 0.35, Col(0x6a0c12, 0.8))
+            cv.seg(sx, GY - sy2, sx, GY - sy2 + sr * 2.4, 3, Col(0x6a0c12, 0.75)); cv.seg(sx + sr * 0.5, GY - sy2, sx + sr * 0.5, GY - sy2 + sr * 1.4, 2.2, Col(0x6a0c12, 0.7))
+        }
         for p in f.props where p.x > x0 - 80 && p.x < x1 + 80 { prop(cv, p, z) }
         // floor and what is under it
         cv.R(x0, GY, W, 22, z.floor)
@@ -610,7 +647,7 @@ final class Renderer {
             for i in 0..<4 { cv.seg(ex - 46, GY - 40 - Double(i) * 40, ex + 46, GY - 70 - Double(i) * 36, 10, Col(0x6a5238)) }
             sign(cv, "BLOCKED", ex, GY - 214, HOT, t, arrow: false)
             let lx = f.liftX
-            let clear = g.aliveCount == 0
+            let clear = g.threatCount == 0
             cv.R(lx - 62, GY - 196, 124, 196, Col(0x2a2e36))
             cv.R(lx - 54, GY - 188, 52, 188, Col(0x8a929c))
             cv.R(lx + 2, GY - 188, 52, 188, Col(0x7c848e))
@@ -704,7 +741,9 @@ final class Renderer {
             if g.supT >= 0 { cv.lighter(true); cv.glow(h.x, gy - 90, 150, g.tw.hue.alpha(0.5)); cv.lighter(false) }
             let hf: Double = h.hurtT > 0 ? 0.6 : 0
             let ha: Double = blink ? 0.45 : 1
-            figure(cv, h.x, gy, h.face, 1, heroLook(g.tw), heroPose(g), flash: hf, alpha: ha)
+            var hface = h.face
+            if h.atkT >= 0 && h.atkStyle == 6 { hface = sin(h.atkT / 0.4 * PI * 4) >= 0 ? h.face : -h.face }
+            figure(cv, h.x, gy - h.jump, hface, 1, heroLook(g.tw), heroPose(g), flash: hf, alpha: ha)
         } else {
             figure(cv, h.x, gy, h.face, 1, heroLook(g.tw), Pose(), fall: min(1, g.deadT * 3))
         }
@@ -715,20 +754,44 @@ final class Renderer {
         effects(g, cv, gy)
         cv.restore()
     }
+    private func crow(_ cv: Canvas, _ z: Zed, _ gy: Double, _ t: Double) {
+        let y = gy + z.y
+        let flap = sin(t * 16 + z.seed * 10)
+        cv.ell(z.x, gy + 2, 16, 3, BLACK.alpha(0.2))
+        cv.save()
+        cv.translate(z.x, y)
+        cv.scale(z.face, 1)
+        if z.atkT >= 0 { cv.rotate(0.5) }
+        let body = z.flash > 0.3 ? Col(0xe8e0d8) : Col(0x14141a)
+        cv.poly(Col(0x0b0b10), [-6, -2, -30, -6 - flap * 22, -14, 4])
+        cv.ell(0, 0, 17, 8, body)
+        cv.poly(body, [-14, -2, -30, 2, -28, 7, -12, 5])
+        cv.circ(14, -5, 7, body)
+        cv.poly(Col(0xc9a24a), [19, -6, 31, -3, 19, -1])
+        cv.poly(Col(0x1c1c24), [2, -3, -16, -4 - flap * 26, 8, 3])
+        cv.circ(16, -6, 2, Col(0xff3a2a))
+        cv.circ(-2, 3, 3.5, Col(0x7a1014))
+        cv.restore()
+        if z.hp < z.maxHp { cv.R(z.x - 14, y - 24, 28, 4, BLACK.alpha(0.6)); cv.R(z.x - 14, y - 24, 28 * clampD(z.hp / z.maxHp, 0, 1), 4, HOT) }
+    }
     private func drawZed(_ cv: Canvas, _ z: Zed, _ gy: Double, _ t: Double) {
+        if z.gibbed { return }
+        if z.kind == .crow { if z.alive { crow(cv, z, gy, t) }; return }
         if z.kind == .dog || z.kind == .rat {
             if z.alive { cv.ell(z.x, gy + 2, z.kind == .rat ? 14 : 40, z.kind == .rat ? 3 : 6, BLACK.alpha(0.35)) }
             beast(cv, z, gy, t)
         } else {
             let a = z.alive ? 1.0 : max(0.15, 1 - z.deadT / 6)
-            if z.alive { cv.ell(z.x, gy + 2, 30 * z.scale, 6, BLACK.alpha(0.35)) }
+            if z.alive { cv.ell(z.x, gy + 2, (z.kind == .crawler ? 46 : 30) * z.scale, 6, BLACK.alpha(0.35)) }
             if z.kind == .boss && z.alive { cv.lighter(true); cv.glow(z.x, gy - 140, 190, rgba(90, 255, 150, 0.22)); cv.lighter(false) }
-            let fall: Double = z.alive ? 0 : min(1, z.deadT * 3.2)
+            if z.kind == .spitter && z.alive { cv.lighter(true); cv.glow(z.x + z.face * 8, gy - 118, 46, rgba(140, 255, 120, 0.3 + 0.2 * sin(t * 6))); cv.lighter(false) }
+            let fall: Double = z.alive ? 0 : (z.kind == .crawler ? 0 : min(1, z.deadT * 3.2))
             figure(cv, z.x, gy, z.face, z.scale, zedLook(z), zedPose(z, t), flash: z.flash, fall: fall, alpha: a)
             if z.burn > 0 && z.alive { cv.lighter(true); cv.glow(z.x, gy - 80 * z.scale, 70 * z.scale, rgba(255, 140, 40, 0.5)); cv.lighter(false) }
         }
         if z.alive && z.hp < z.maxHp && z.kind != .rat {
-            let top = z.kind == .dog ? gy - 96 : gy - 178 * z.scale
+            var top = gy - 178 * z.scale
+            if z.kind == .dog { top = gy - 96 } else if z.kind == .crawler { top = gy - 70 }
             let w = z.kind == .boss ? 120.0 : 36.0
             cv.R(z.x - w / 2, top, w, 5, BLACK.alpha(0.6))
             cv.R(z.x - w / 2, top, w * clampD(z.hp / z.maxHp, 0, 1), 5, z.kind == .boss ? MINT : HOT)
@@ -739,12 +802,51 @@ final class Renderer {
             let u = s.t / 0.18
             cv.save()
             cv.translate(s.x, gy + s.y)
-            cv.scale(s.face, 1)
+            cv.scale(s.face, s.mode == 1 ? -1 : 1)
             cv.lighter(true)
-            cv.arcStroke(10, 0, 96 * s.big, -1.25, 0.85, 16 * (1 - u) + 2, s.col.alpha(0.85 * (1 - u)))
-            cv.arcStroke(10, 0, 96 * s.big, -1.0, 0.6, 5 * (1 - u) + 1, WHITE.alpha(1 - u))
+            if s.mode == 2 {
+                cv.seg(20, 0, 60 + 130 * u, 0, 14 * (1 - u) + 2, s.col.alpha(0.85 * (1 - u)))
+                cv.seg(30, 0, 70 + 130 * u, 0, 4, WHITE.alpha(1 - u))
+            } else if s.mode == 3 {
+                cv.arcStroke(10, 70, 100 * s.big, -0.5, 0.5, 14 * (1 - u) + 2, s.col.alpha(0.85 * (1 - u)))
+                cv.arcStroke(10, 70, 100 * s.big, -0.35, 0.35, 4, WHITE.alpha(1 - u))
+            } else if s.mode == 4 {
+                cv.ellStroke(0, 10, 150 * (0.5 + 0.5 * u), 40 * (0.5 + 0.5 * u), 14 * (1 - u) + 2, s.col.alpha(0.9 * (1 - u)))
+                cv.ellStroke(0, 10, 140 * (0.5 + 0.5 * u), 34 * (0.5 + 0.5 * u), 4, WHITE.alpha(1 - u))
+            } else {
+                cv.arcStroke(10, 0, 96 * s.big, -1.25, 0.85, 16 * (1 - u) + 2, s.col.alpha(0.85 * (1 - u)))
+                cv.arcStroke(10, 0, 96 * s.big, -1.0, 0.6, 5 * (1 - u) + 1, WHITE.alpha(1 - u))
+            }
             cv.lighter(false)
             cv.restore()
+        }
+        for gb in g.gibs {
+            let a = min(1, (6 - gb.t) / 1.5)
+            cv.save()
+            cv.translate(gb.x, gy + gb.y - 5)
+            cv.rotate(gb.rot)
+            cv.alpha(a)
+            switch gb.kind {
+            case 0:
+                cv.circ(0, 0, 16, Col(0x0b0c10)); cv.circ(0, 0, 14, gb.col)
+                cv.circ(5, -2, 4.5, Col(0x14100e)); cv.circ(5.5, -2, 2, Col(0xffe14a))
+                cv.poly(Col(0x7a1014), [-9, 9, 9, 9, 4, 17, -5, 16]); cv.circ(-4, 5, 3, BLOOD)
+            case 1:
+                cv.seg(-13, 0, 13, 0, 12, Col(0x0b0c10)); cv.seg(-13, 0, 13, 0, 8.5, gb.col); cv.circ(-13, 0, 4.5, Col(0x7a1014)); cv.circ(13, 0, 5, gb.col)
+            case 2:
+                cv.poly(Col(0x7a1014), [-10, -6, 8, -9, 12, 4, -2, 10, -12, 3]); cv.seg(-4, -2, 6, 2, 2.4, Col(0xd8d0bc))
+            case 3:
+                cv.seg(-16, 0, 16, 0, 14, Col(0x0b0c10)); cv.seg(-16, 0, 16, 0, 10.5, Col(0x33363c)); cv.seg(14, 0, 24, 3, 8, Col(0x15151a)); cv.circ(-16, 0, 5, Col(0x7a1014))
+            case 4:
+                cv.poly(gb.col, [-12, -4, 12, -6, 10, 5, -11, 4])
+            default:
+                cv.poly(gb.col, [-9, 0, 2, -4, 10, 0, 1, 3])
+            }
+            cv.restore()
+        }
+        for gl in g.globs {
+            cv.lighter(true); cv.glow(gl.x, gy + gl.y, 30, rgba(140, 255, 120, 0.5)); cv.lighter(false)
+            cv.circ(gl.x, gy + gl.y, 8, Col(0x8cff7a)); cv.circ(gl.x - gl.vx * 0.03, gy + gl.y - gl.vy * 0.03, 5, Col(0x8cff7a, 0.6)); cv.circ(gl.x + 2, gy + gl.y - 2, 3, Col(0xe8ffd0))
         }
         for w in g.waves {
             cv.poly(rgba(230, 220, 200, 0.75), [w.x - 30, gy, w.x - w.dir * 10, gy - 150, w.x + w.dir * 26, gy - 60, w.x + w.dir * 44, gy])
@@ -847,6 +949,10 @@ final class Renderer {
         if g.hits >= 3 {
             cv.stamp("\(g.hits)", W - g.safeR - 74, 78, 34, WHITE, 2)
             cv.text("HITS", W - g.safeR - 20, 76, 14, WHITE.alpha(0.9), 2, 3)
+        }
+        if g.hero.hp < g.hero.maxHp * 0.3 {
+            let a = (0.3 + 0.2 * sin(t * 7)) * (1 - g.hero.hp / (g.hero.maxHp * 0.3) * 0.6)
+            cv.vfill(0, 0, W, 90, [(0, BLOOD.alpha(a)), (1, BLOOD.alpha(0))]); cv.vfill(0, VIEW_H - 90, W, 90, [(0, BLOOD.alpha(0)), (1, BLOOD.alpha(a))])
         }
         // pause
         let pr = g.pauseRect
@@ -1236,18 +1342,58 @@ final class Renderer {
             stampIn(cv, "SUNDAY. A PARTY.", t, GOLD, g)
         case 1:
             cv.vfill(0, 0, W, VIEW_H, [(0, Col(0x04100c)), (1, Col(0x0c2a1c))])
-            cv.R(W * 0.55, 260, 260, 220, Col(0x1c2a26)); cv.ell(W * 0.55 + 130, 260, 130, 30, Col(0x16221e))
+            // pipes on the back wall
+            for i in 0..<4 { cv.R(0, 60 + Double(i) * 34, W, 10, Col(0x10241c)); cv.R(120 + Double(i) * 260, 60, 12, 136, Col(0x10241c)) }
+            let vx = W * 0.58, vTop = 300.0
+            // the catwalk he stands on, and its ladder
+            cv.R(vx - 330, vTop - 4, 190, 10, Col(0x2a3a34))
+            var rx2 = vx - 330.0
+            while rx2 < vx - 140 { cv.R(rx2, vTop - 54, 3, 50, Col(0x2a3a34)); rx2 += 30 }
+            cv.R(vx - 330, vTop - 56, 190, 4, Col(0x2a3a34))
+            cv.R(vx - 320, vTop + 6, 6, 260, Col(0x22302a)); cv.R(vx - 286, vTop + 6, 6, 260, Col(0x22302a))
+            for i in 0..<8 { cv.R(vx - 320, vTop + 24 + Double(i) * 30, 40, 4, Col(0x22302a)) }
+            // the vat: a steel drum, open at the top, full of green
+            cv.R(vx - 150, vTop, 300, 260, Col(0x25352f))
+            cv.R(vx - 150, vTop, 26, 260, Col(0x3a4c44)); cv.R(vx + 110, vTop, 40, 260, Col(0x18241f))
+            for i in 0..<3 { cv.R(vx - 154, vTop + 50 + Double(i) * 76, 308, 9, Col(0x101a16)) }
+            cv.poly(GOLD, [vx - 30, vTop + 150, vx + 30, vTop + 150, vx, vTop + 98]); cv.text("!", vx, vTop + 144, 30, BLACK, 1, 3)
+            cv.ell(vx, vTop, 150, 30, Col(0x101a16))
+            cv.ell(vx, vTop + 3, 138, 24, Col(0x1f9a52))
+            cv.ell(vx - 20, vTop + 1, 90, 13, Col(0x56e88a))
             for i in 0..<3 {
-                let u = (T * 0.6 + Double(i) / 3).truncatingRemainder(dividingBy: 1)
-                cv.ellStroke(W * 0.55 + 130, 262, 40 + u * 240, 10 + u * 54, 4 * (1 - u) + 1, rgba(90, 255, 150, 0.8 * (1 - u)))
+                let u = (T * 0.7 + Double(i) / 3).truncatingRemainder(dividingBy: 1)
+                cv.ellStroke(vx - 70, vTop + 3, 12 + u * 60, 3 + u * 12, 3 * (1 - u) + 0.5, rgba(200, 255, 220, 0.9 * (1 - u)))
             }
-            cv.lighter(true); cv.glow(W * 0.55 + 130, 260, 260, rgba(60, 255, 140, 0.35)); cv.lighter(false)
+            for i in 0..<9 {
+                let fi = Double(i)
+                let u = (T * (0.5 + hashN(fi) * 0.5) + hashN(fi + 5)).truncatingRemainder(dividingBy: 1)
+                cv.circ(vx - 110 + hashN(fi + 9) * 220, vTop - 2 - u * 70, 3 + hashN(fi + 2) * 5 * (1 - u), rgba(140, 255, 180, 0.8 * (1 - u)))
+            }
+            cv.lighter(true)
+            cv.glow(vx, vTop - 10, 330, rgba(60, 255, 140, 0.32 + 0.06 * sin(T * 5)))
+            cv.vfill(vx - 140, vTop - 220, 280, 220, [(0, rgba(60, 255, 140, 0)), (1, rgba(60, 255, 140, 0.22))])
+            cv.lighter(false)
+            // Marr on the catwalk, tipping a canister in
             var p = Pose()
-            p.armF = 1.2; p.elbF = 0.3; p.lean = 0.2
+            p.armF = 1.15; p.elbF = 0.35; p.lean = 0.22; p.armB = 0.9; p.elbB = 0.5; p.hipF = 0.2; p.hipB = -0.2
             var l = Look(shirt: Col(0xd9dcd6), pants: Col(0x2a2f3c), skin: Col(0xc9a384), hair: Col(0x9a9a92), eye: Col(0x15151a)); l.coat = true
-            figure(cv, W * 0.55 + 10, 250, 1, 1.0, l, p)
-            for i in 0..<5 { let u = (T * 1.4 + Double(i) * 0.2).truncatingRemainder(dividingBy: 1); cv.circ(W * 0.55 + 66 + u * 30, 190 + u * 70, 4, MINT.alpha(1 - u)) }
-            cv.vfill(0, VIEW_H - 200, W, 200, [(0, rgba(40, 220, 110, 0)), (1, rgba(40, 220, 110, 0.3 * min(1, t / 1.2)))])
+            figure(cv, vx - 214, vTop - 4, 1, 1.0, l, p)
+            let cx = vx - 150.0, cy = vTop - 104.0
+            cv.save()
+            cv.translate(cx, cy)
+            cv.rotate(0.95)
+            cv.RR(-16, -24, 32, 48, 5, Col(0x0b0c10)); cv.RR(-14, -22, 28, 44, 4, Col(0xe8c860)); cv.R(-14, -6, 28, 12, Col(0x15151a))
+            cv.R(-6, 22, 12, 8, Col(0x3a3a3a))
+            cv.restore()
+            // the stream, from the spout down to the surface
+            let sx0 = cx + 22, sy0 = cy + 16, sx1 = vx - 70, sy1 = vTop + 2
+            cv.curve(sx0, sy0, sx0 + 34, sy0 + 20, sx1, sy1, 9, Col(0x56e88a))
+            cv.curve(sx0, sy0, sx0 + 34, sy0 + 20, sx1, sy1, 3.5, Col(0xd0ffe0))
+            for i in 0..<6 {
+                let u = (T * 2.2 + Double(i) * 0.17).truncatingRemainder(dividingBy: 1)
+                cv.circ(sx1 + (hashN(Double(i)) - 0.5) * 60 * u, sy1 - sin(u * PI) * 34, 3.5 * (1 - u) + 1, rgba(180, 255, 200, 1 - u))
+            }
+            cv.vfill(0, VIEW_H - 160, W, 160, [(0, rgba(40, 220, 110, 0)), (1, rgba(40, 220, 110, 0.28 * min(1, t / 1.0)))])
             stampIn(cv, "POISONED WATER.", t, MINT, g)
         case 2:
             let bt = t.truncatingRemainder(dividingBy: 0.9)
