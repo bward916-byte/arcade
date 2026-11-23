@@ -130,7 +130,7 @@ enum Site {
     }
 
     // A new ad. The site emails a link that publishes it. In test mode it hands the link straight back.
-    static func post(ad: [String: Any]) async throws -> String? {
+    static func post(ad: [String: Any]) async throws -> (testLink: String?, id: String?) {
         var req = URLRequest(url: base.appendingPathComponent("api").appendingPathComponent("ads"))
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -140,7 +140,7 @@ enum Site {
         if let http = response as? HTTPURLResponse, http.statusCode >= 400 {
             throw SiteError(message: body?["error"] as? String ?? "That did not go through. Check your signal and try again.")
         }
-        return body?["testLink"] as? String
+        return (body?["testLink"] as? String, body?["id"] as? String)
     }
 
     // A buyer's message. The site emails it to the seller; the seller's address is never shown.

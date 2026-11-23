@@ -143,7 +143,9 @@ struct PostAdView: View {
                     ad["to"] = day.string(from: to)
                 }
                 if let amount = Self.amount(in: price) { ad["amount"] = amount }
-                testLink = try await Site.post(ad: ad)
+                let sent = try await Site.post(ad: ad)
+                testLink = sent.testLink
+                if sent.testLink == nil, let id = sent.id { Waiting.add(id: id, title: name, email: mail) }
                 done = true
             } catch {
                 problem = error.localizedDescription

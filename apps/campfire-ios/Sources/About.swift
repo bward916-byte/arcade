@@ -11,6 +11,37 @@ enum Hidden {
     }
 }
 
+// Ads posted from this phone that are still waiting for the emailed link to be tapped.
+struct WaitingAd: Codable, Identifiable {
+    let id: String
+    let title: String
+    let email: String
+    let ts: Double
+}
+
+enum Waiting {
+    static let name = "waitingAds"
+    static func list(_ raw: String) -> [WaitingAd] {
+        (try? JSONDecoder().decode([WaitingAd].self, from: Data(raw.utf8))) ?? []
+    }
+    static func save(_ ads: [WaitingAd]) {
+        let data = (try? JSONEncoder().encode(Array(ads.suffix(10)))) ?? Data()
+        UserDefaults.standard.set(String(decoding: data, as: UTF8.self), forKey: name)
+    }
+    static func add(id: String, title: String, email: String) {
+        save(list(UserDefaults.standard.string(forKey: name) ?? "") + [WaitingAd(id: id, title: title, email: email, ts: Date().timeIntervalSince1970)])
+    }
+    static func remove(_ id: String) {
+        save(list(UserDefaults.standard.string(forKey: name) ?? "").filter { $0.id != id })
+    }
+    // Drops the ones that are now published, and any older than a week.
+    static func tidy(published: [String]) {
+        let all = list(UserDefaults.standard.string(forKey: name) ?? "")
+        let keep = all.filter { !published.contains($0.id) && $0.ts > Date().timeIntervalSince1970 - 7 * 86400 }
+        if keep.count != all.count { save(keep) }
+    }
+}
+
 // The rules, privacy, terms and how to reach the owner.
 struct AboutView: View {
     @Environment(\.dismiss) private var dismiss

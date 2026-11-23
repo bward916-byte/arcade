@@ -9,6 +9,7 @@ final class Store: ObservableObject {
     func load() async {
         do {
             listings = try await Site.listings()
+            Waiting.tidy(published: listings.map(\.id))
             failed = false
         } catch {
             failed = true
@@ -27,6 +28,7 @@ struct ForSaleView: View {
     @State private var posting = ProcessInfo.processInfo.arguments.contains("-demo-post")
     @State private var about = false
     @AppStorage(Hidden.name) private var hiddenRaw = ""
+    @AppStorage(Waiting.name) private var waitingRaw = ""
 
     private var shown: [Listing] {
         let q = search.trimmingCharacters(in: .whitespaces).lowercased()
@@ -83,6 +85,21 @@ struct ForSaleView: View {
                         .background(Theme.soft)
                         .cornerRadius(10)
                         .padding(.horizontal)
+                    ForEach(Waiting.list(waitingRaw)) { w in
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(w.title).font(.headline)
+                            Text("Not confirmed by email yet").font(.caption.weight(.bold)).foregroundColor(Theme.accent)
+                            Text("Nobody can see this ad yet. Tap the link we sent to \(w.email) to publish it. Nothing in your inbox? Check spam.")
+                                .font(.footnote)
+                            Button("Hide this note") { Waiting.remove(w.id) }.font(.footnote)
+                        }
+                        .padding(12)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Theme.card)
+                        .cornerRadius(14)
+                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.accent.opacity(0.5)))
+                        .padding(.horizontal)
+                    }
                     if store.failed {
                         Text("The ads did not load. Check your signal and pull down to try again.")
                             .foregroundColor(.secondary)
@@ -137,7 +154,7 @@ struct ForSaleView: View {
                     .accessibilityLabel("About, privacy and terms")
                 }
             }
-            .sheet(isPresented: $posting) { PostAdView() }
+            .sheet(isPresented: $posting, onDismiss: { Task { await store.load() } }) { PostAdView() }
             .sheet(isPresented: $about) { AboutView() }
             .refreshable { await store.load() }
             .task {
