@@ -79,7 +79,7 @@ final class Zed {
         maxHp = h
         speed = sp
         reach = re + seed * 18
-        dmg = dm * 1.6
+        dmg = dm * 2.0
         windup = wu
         rate = ra
         sight = si
@@ -1121,8 +1121,10 @@ final class Game {
         z.aware = true
         let heavy = z.kind == .bloater || z.kind == .boss
         z.kvx = dir * knock * (heavy ? 0.25 : 1)
-        z.stun = max(z.stun, heavy ? 0.06 : (z.kind == .wheel || z.kind == .riot ? 0.09 : 0.2))
-        if z.atkT >= 0 && !heavy { z.atkT = -1; z.cd = 0.3 }
+        // a light tap no longer stops them cold: only a hard hit, or luck, breaks an attack
+        let hard = abs(knock) >= 240
+        z.stun = max(z.stun, heavy ? 0.06 : (z.kind == .wheel || z.kind == .riot ? 0.08 : (hard ? 0.22 : 0.1)))
+        if z.atkT >= 0 && !heavy && (hard || chance(0.35)) { z.atkT = -1; z.cd = 0.3 }
         hits += 1; hitsT = 1.6
         var top = -110.0 * z.scale
         if z.kind == .rat { top = -14 } else if z.kind == .dog { top = -50 } else if z.kind == .crawler { top = -34 } else if z.kind == .crow { top = z.y }
