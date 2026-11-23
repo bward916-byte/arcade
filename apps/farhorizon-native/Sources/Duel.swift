@@ -117,6 +117,16 @@ final class Duel {
         }
     }
     func say(_ s: String) { msg = s; msgT = 1.6 }
+    /// A one-time tip in the middle of a fight. Each is shown once, ever.
+    static let tipKey = "fh_duelTips"
+    private func tipOnce(_ bit: Int, _ s: String) {
+        if teaching { return }
+        let seen = UserDefaults.standard.integer(forKey: Duel.tipKey)
+        if seen & (1 << bit) != 0 { return }
+        UserDefaults.standard.set(seen | (1 << bit), forKey: Duel.tipKey)
+        msg = "Tip: " + s
+        msgT = 3.0
+    }
 
     func next(_ g: Game) {
         k += 1
@@ -204,6 +214,7 @@ final class Duel {
                 say("He overreaches. Strike!")
             } else {
                 hitPlayer(2, g)
+                tipOnce(1, "a red glow cannot be parried. Dodge it")
             }
             return
         }
@@ -220,7 +231,7 @@ final class Duel {
             pt = 0.3
             wind = min(1, wind + 0.08)
             pos += 0.06
-            if perfect { rip = 1.4; say("Perfect parry — riposte!") }
+            if perfect { rip = 1.4; say("Perfect parry — riposte!") } else { tipOnce(2, "parry at the last moment for a double-damage riposte") }
             if teaching && lesson == line { learned() }
             g.snd?.clang()
             g.buzz?(false)
@@ -245,6 +256,11 @@ final class Duel {
         if pst != .ready && pt <= 0 { pst = .ready }
         pos += (0 - pos) * d * 0.06
         pos = clampD(pos, -1, 1)
+        if msgT <= 0 && est == .ready {
+            if wind < 0.2 { tipOnce(3, "you are winded. Stand a moment and it comes back") }
+            else if pos > 0.55 { tipOnce(4, "he is nearly at the rail. One more hit sends him over") }
+            else if pos < -0.55 { tipOnce(5, "your back is to the rail. Parry and strike to win ground") }
+        }
         et -= d
         switch est {
         case .enter:
@@ -253,6 +269,7 @@ final class Duel {
             if et <= 0 { beginAttack() }
         case .wind:
             if feint && et < wd * 0.45 {
+                tipOnce(0, "that was a feint. Wait for the real cut")
                 feint = false
                 est = .ready
                 et = rnd(0.18, 0.4)
