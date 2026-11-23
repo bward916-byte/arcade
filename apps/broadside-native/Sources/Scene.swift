@@ -115,9 +115,9 @@ extension Game {
             let fm = Double(m)
             let X = (fm * 520 + 200 - mpar) * camS * 0.6
             let mw = (300 + Double((m * 71) % 140)) * camS * 0.6
-            let mh = (150 + Double((m * 53) % 90)) * camS * 0.6
+            let mh = (86 + Double((m * 53) % 60)) * camS * 0.6
             if X < -mw || X > W + mw { continue }
-            let body = Col.mix(dn(0x121c28, 0x6a8296, L), sky, 0.55)
+            let body = Col.mix(dn(0x121c28, 0x6a8296, L), sky, 0.68)
             c.poly(body, [X - mw, horizon, X - mw * 0.2, horizon - mh * 0.72, X, horizon - mh, X + mw * 0.26, horizon - mh * 0.6, X + mw, horizon])
             c.poly(Col(0xffffff, 0.1 * L), [X, horizon - mh, X - mw * 0.2, horizon - mh * 0.72, X - mw, horizon, X - mw * 0.3, horizon, X - mw * 0.05, horizon - mh * 0.5])
             c.poly(Col(0x000000, 0.08), [X, horizon - mh, X + mw * 0.26, horizon - mh * 0.6, X + mw, horizon, X + mw * 0.2, horizon])
@@ -139,17 +139,6 @@ extension Game {
                 p.addLine(to: CGPoint(x: self.W + 10, y: horizon))
                 p.closeSubpath()
             }
-        }
-        // folds of woodland on the nearer hills
-        let hp = camX * 0.5
-        for i in 0..<46 {
-            let fi = Double(i)
-            let wx = fi * 97 + hashN(fi) * 60
-            let X = (wx - hp) * camS
-            if X < -30 || X > W + 30 { continue }
-            let up = (10 + hashN(fi + 20) * 34) * camS
-            c.dome(X, horizon - up, (7 + hashN(fi + 30) * 9) * camS, Col(0x0a1e14, 0.1 + 0.08 * L))
-            c.dome(X - 2 * camS, horizon - up - 1.5 * camS, (4 + hashN(fi + 30) * 5) * camS, Col(0xc8f0b0, 0.05 * L))
         }
         // haze along the horizon
         c.vfill(0, horizon - 60 * camS, W, 70 * camS, [(0, Col(0xe6ecf0, 0)), (0.8, Col(0xe6ecf0, 0.10 + 0.2 * L)), (1, Col(0xe6ecf0, 0))])
