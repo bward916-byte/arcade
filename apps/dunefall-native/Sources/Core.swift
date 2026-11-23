@@ -407,6 +407,7 @@ final class Goat: Walker {
     var t = 0.0
     var tx: Double
     var kid = true
+    let coat = Double.random(in: 0..<1)
     init(x: Double) { self.x = x; tx = x }
 }
 

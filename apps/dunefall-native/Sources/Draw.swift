@@ -1076,7 +1076,8 @@ final class Renderer {
         c.seg(x + 0.5, GY - h * 0.5, x + b.w - 1.5, GY - h * 0.5, 0.6, WOOD)
         c.seg(x - 15, GY, x + 1, GY - h * k, 1.4, WOOD)
     }
-    func awning(_ x: Double, _ y: Double, _ w: Double, _ d: Double, _ c1: Col, _ c2: Col, _ seed: Double) {
+    func awning(_ x: Double, _ y: Double, _ w: Double, _ d: Double, _ c10: Col, _ c2: Col, _ seed: Double) {
+        let c1 = cloth(c10, seed + 2)
         let fl = sin(NOW * 2.4 + seed) * 0.7
         var i = 0.0
         while i < w {
@@ -1096,10 +1097,40 @@ final class Renderer {
         c.R(x + w / 2 - 0.2, y + 1, 0.4, h - 1, rgba(40, 24, 10, 0.5))
         if lit { light(x + w / 2, y + h / 2, 14, 0.6) }
     }
-    func pennant(_ x: Double, _ y: Double, _ col: Col, _ len: Double) {
+    /// Cloth is never all one dye: the same flag or awning comes out a different colour from place to place and town to town.
+    func cloth(_ base: Col, _ seed: Double) -> Col {
+        let dyes: [Col] = [RED, LAPIS, TEAL, GOLD, Col(0xe07a2a), Col(0x7a4aa8), Col(0xf6efdc), Col(0x3f8a3a), Col(0xd96ad0), Col(0x2f6f9a)]
+        let h = hashN(seed * 0.37 + Double(g.town) * 7.3)
+        let pick = h < 0.3 ? base : dyes[Int(h * 97) % dyes.count]
+        let t = hashN(seed * 0.71 + 5)
+        return t < 0.5 ? Col.mix(pick, Col(0xfff0c8), (0.5 - t) * 0.36) : Col.mix(pick, Col(0x2a160a), (t - 0.5) * 0.3)
+    }
+    /// A small natural variation of a fixed material colour (clay, wood, hide).
+    func shade(_ base: Col, _ seed: Double) -> Col {
+        let t = hashN(seed * 0.53 + 11)
+        return t < 0.5 ? Col.mix(base, Col(0xfff0c8), (0.5 - t) * 0.4) : Col.mix(base, Col(0x2a160a), (t - 0.5) * 0.44)
+    }
+    func pennant(_ x: Double, _ y: Double, _ col0: Col, _ len: Double) {
+        let seed = (x + cam).rounded()
+        let col = cloth(col0, seed), kind = Int(hashN(seed + 3) * 4)
         c.seg(x, y, x, y - 10, 0.7, WOOD)
         let f = sin(NOW * 5 + x) * 1.2
-        c.poly(col, [x, y - 10, x + len, y - 8.5 + f, x, y - 6.5])
+        switch kind {
+        case 1:
+            // swallowtail
+            c.poly(col, [x, y - 10, x + len, y - 9.6 + f, x + len * 0.62, y - 8.2 + f * 0.6, x + len, y - 6.8 + f, x, y - 6.5])
+        case 2:
+            // two colours
+            let c2 = cloth(col0, seed + 19)
+            c.poly(col, [x, y - 10, x + len, y - 8.5 + f, x, y - 6.5])
+            c.poly(c2, [x, y - 8.25, x + len, y - 8.5 + f, x, y - 6.5])
+        case 3:
+            // a square banner with a stripe
+            c.poly(col, [x, y - 10, x + len * 0.8, y - 10 + f * 0.5, x + len * 0.8, y - 5.6 + f * 0.5, x, y - 5.6])
+            c.poly(cloth(col0, seed + 31), [x, y - 8.4, x + len * 0.8, y - 8.4 + f * 0.5, x + len * 0.8, y - 7.2 + f * 0.5, x, y - 7.2])
+        default:
+            c.poly(col, [x, y - 10, x + len, y - 8.5 + f, x, y - 6.5])
+        }
     }
 
     // ---------- the town
@@ -3332,17 +3363,20 @@ final class Renderer {
     func camp(_ cp: Camp) {
         let x = cp.x - cam
         if x > W + 50 || x < -50 { return }
-        c.poly(Col(0x3a2e2a), [x - 22, GY, x - 15, GY - 11, x + 2, GY - 14, x + 15, GY - 10, x + 21, GY])
-        c.poly(Col(0x52403a), [x - 15, GY - 11, x + 2, GY - 14, x, GY, x - 12, GY])
+        let hides: [(Col, Col)] = [(Col(0x3a2e2a), Col(0x52403a)), (Col(0x5a3a26), Col(0x7a5236)), (Col(0x2e3440), Col(0x44506a)), (Col(0x5a2a26), Col(0x7e3e34)), (Col(0x4a4a34), Col(0x6a6a48))]
+        let hd = hides[Int(hashN(cp.x * 0.31 + Double(g.town) * 3) * 50) % hides.count]
+        let trim = cloth(Col(0xc9a04a), cp.x + 7), rug = cloth(RED, cp.x + 13)
+        c.poly(hd.0, [x - 22, GY, x - 15, GY - 11, x + 2, GY - 14, x + 15, GY - 10, x + 21, GY])
+        c.poly(hd.1, [x - 15, GY - 11, x + 2, GY - 14, x, GY, x - 12, GY])
         for k in 0..<4 {
             let n = Double(k)
-            c.seg(x - 16 + n * 9, GY - 10 - Double(k % 2) * 2, x - 18 + n * 10, GY, 0.5, Col(0xc9a04a))
+            c.seg(x - 16 + n * 9, GY - 10 - Double(k % 2) * 2, x - 18 + n * 10, GY, 0.5, trim)
         }
         c.R(x - 6, GY - 8, 7, 8, Col(0x1c1410))
         c.seg(x - 23, GY, x - 15, GY - 11, 0.5, WOOD); c.seg(x + 22, GY, x + 15, GY - 10, 0.5, WOOD)
-        c.R(x + 24, GY - 0.8, 12, 1.2, RED); c.R(x + 26, GY - 0.8, 1, 1.2, GOLD); c.R(x + 33, GY - 0.8, 1, 1.2, GOLD)
+        c.R(x + 24, GY - 0.8, 12, 1.2, rug); c.R(x + 26, GY - 0.8, 1, 1.2, GOLD); c.R(x + 33, GY - 0.8, 1, 1.2, GOLD)
         fire(x + 30, GY - 1, 0.8)
-        c.R(x + 38, GY - 4, 3, 4, Col(0xb5673a))
+        c.R(x + 38, GY - 4, 3, 4, shade(Col(0xb5673a), cp.x))
     }
     func quarry() {
         let x = g.QUARRY - cam
@@ -3359,8 +3393,11 @@ final class Renderer {
         let x = u.x - cam
         if x > W + 10 || x < -10 { return }
         if u.open { c.poly(Col(0xa8603a), [x - 4, GY, x - 3, GY - 3, x - 1, GY - 1, x + 1, GY - 4, x + 4, GY]); return }
-        let clay = Col(0xb5673a)
-        c.ell(x, GY - 3.5, 3.6, 4.5, clay); c.R(x - 1.8, GY - 9.5, 3.6, 2.5, clay); c.R(x - 2.4, GY - 10.2, 4.8, 1.2, Col(0x8f4e2a)); c.R(x - 3.4, GY - 4, 6.8, 1, GOLD)
+        let clays: [Col] = [Col(0xb5673a), Col(0xc98a52), Col(0x9a4e2e), Col(0xd0b088), Col(0x7a6a5a)]
+        let clay = shade(clays[Int(hashN(u.x * 0.23) * 50) % clays.count], u.x)
+        let band = cloth(GOLD, u.x + 4)
+        c.ell(x, GY - 3.5, 3.6, 4.5, clay); c.R(x - 1.8, GY - 9.5, 3.6, 2.5, clay); c.R(x - 2.4, GY - 10.2, 4.8, 1.2, Col.mix(clay, Col(0x2a160a), 0.3)); c.R(x - 3.4, GY - 4, 6.8, 1, band)
+        if hashN(u.x + 9) > 0.5 { c.R(x - 3, GY - 6, 6, 0.6, Col.mix(band, Col(0xfff0c8), 0.4)) }
         c.poly(SAND, [x - 7, GY, x - 2, GY - 2.5, x + 3, GY - 2, x + 7, GY])
         if sin(NOW * 2.5 + u.x) > 0.8 { c.R(x + 1, GY - 7, 1, 1, Col(0xffffff)) }
     }
@@ -3369,7 +3406,9 @@ final class Renderer {
         if x < -10 || x > W + 10 { return }
         let s = gt.kid ? 0.7 : 1.0
         let wk = gt.moving ? sin(gt.walk * 12) : 0
-        let coat = Col(0xe8e0d0), sh = Col(0xc4b89e), dark = Col(0x5a4a3a)
+        let coats: [(Col, Col)] = [(Col(0xe8e0d0), Col(0xc4b89e)), (Col(0xe8e0d0), Col(0xc4b89e)), (Col(0xc9a878), Col(0xa4865a)), (Col(0x8a6444), Col(0x6a4a30)), (Col(0x9a9690), Col(0x76726c)), (Col(0x4a4038), Col(0x322a24))]
+        let ct = coats[Int(gt.coat * Double(coats.count)) % coats.count]
+        let coat = ct.0, sh = ct.1, dark = Col(0x5a4a3a)
         c.ell(x, GY + 0.3, 4.4 * s, 0.8, rgba(50, 28, 8, 0.28))
         c.roundCaps(true)
         for (i, lx) in [-2.2, -1.2, 1.4, 2.4].enumerated() {
