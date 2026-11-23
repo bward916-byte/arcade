@@ -16,6 +16,27 @@ extension Game {
             bellT = rnd(16, 28)
         }
         bellSwing = max(0, bellSwing - dt)
+        // a salute as you come ashore: guns from the quay, a cheer, streamers
+        if saluteN > 0 {
+            saluteT -= dt
+            if saluteT < 4.4 - Double(3 - saluteN) * 0.7 {
+                saluteN -= 1
+                snd?.cannon()
+                shake = max(shake, 0.1)
+                let gx = W * (0.46 + Double(saluteN) * 0.07)
+                puff(gx, quayY() - 6, 26, Col(0xf0f0f0, 0.85), 120, -30, 5, 1.3)
+                puff(gx, quayY() - 6, 8, Col(0xffd257), 200, 100, 2.4, 0.3)
+                for _ in 0..<3 { puff(rnd(W * 0.45, W * 0.95), rnd(60, H * 0.36), 14, [Col(0xff5a5a), Col(0xffd257), Col(0x7fd8ff), Col(0x9ff0aa)][rndI(0, 3)], 120, 160, 2.4, 1.6) }
+                if saluteN == 0 { snd?.wash(2.2, 0.12, 700, 1500, q: 1.2, att: 0.3, rel: 1.4) }
+            }
+        }
+        // someone on the quay always has something to say
+        chatT -= dt
+        if chatT <= 0 {
+            chatT = rnd(2.6, 4.2)
+            chatWho = rndI(0, 12)
+            chatLine = rndI(0, 19)
+        }
         // hammering from the shipyard, and the fireworks of a festival night
         if chance(dt * 0.5) { snd?.tone(190, 0.05, 3, 0.022, 120); snd?.tone(190, 0.05, 3, 0.018, 120, 0.22) }
         if festT > 0 {
@@ -30,6 +51,18 @@ extension Game {
                 snd?.tone(1800, 0.3, 4, 0.03, 4000)
             }
         }
+    }
+
+    /// What the ship needs for the next passage, and whether she has it.
+    func portNeeds() -> (days: Int, foodDays: Int, waterDays: Int, foodOK: Bool, waterOK: Bool, hullPct: Int, hullOK: Bool, repair: Int, down: Int, crewOK: Bool, wagesOK: Bool, canUpgrade: Bool) {
+        let days = Int((LEG[min(4, leg)] / max(1, 42 * ship.speed)).rounded(.up)) + 2
+        let perDay = max(0.1, Double(crew) * 0.35)
+        let fd = Int(food / perDay), wd = Int(water / perDay)
+        let pct = Int((hull / Double(max(1, ship.hull)) * 100).rounded())
+        let down = laidUp()
+        var canUp = false
+        for y in Game.YARD where up(y.k) < y.max && gold - wagesDue() >= y.cost + up(y.k) * (y.cost * 3 / 4) { canUp = true }
+        return (days, fd, wd, fd >= days, wd >= days, pct, pct >= 70, Int(Double(ship.hull) - hull) * 2, down, down == 0 && crew >= max(2, ship.crew - 2), gold >= wagesDue(), canUp)
     }
 
     /// A small townsperson walking the quay.
@@ -66,6 +99,21 @@ extension Game {
         let lampOn = night > 0.25 || wxDark > 0.5
         let warm = Col(0xffd257)
 
+        // every port has its own character
+        let kind = (leg * 2 + path[leg]) % 5
+        let kindName = ["Fishing village", "Garrison town", "Trading city", "Smugglers' cove", "Mill island"][kind]
+        if kind == 3 {
+            // a volcano smoking behind the cove
+            let vx = W * 0.84
+            c.poly(Col(0x4a4048).shade(dark), [vx - 190, hz + 4, vx - 26, hz - 176, vx + 26, hz - 176, vx + 200, hz + 4])
+            c.poly(Col(0x5a4c52).shade(dark), [vx - 26, hz - 176, vx + 26, hz - 176, vx + 60, hz - 110, vx + 6, hz - 136, vx - 30, hz - 100])
+            c.glow(vx, hz - 178, 46, Col(0xff6a20, 0.5 + 0.25 * sin(T * 2.3)), Col(0xff6a20, 0))
+            c.curve(vx - 6, hz - 172, vx - 22, hz - 120, vx - 40, hz - 70, 3, Col(0xff7a30, 0.75 + 0.2 * sin(T * 3)))
+            for sm in 0..<9 {
+                let ph = (T * 0.09 + Double(sm) / 9).truncatingRemainder(dividingBy: 1)
+                c.circ(vx + ph * 90 + sin(T * 0.7 + Double(sm)) * 8, hz - 184 - ph * 120, 12 + ph * 34, Col(0x3a3438, 0.5 * (1 - ph)))
+            }
+        }
         // ---- hills behind the town
         c.pathFill(Col(0x4d7f52).shade(dark * 0.9)) { p in
             p.move(to: CGPoint(x: W * 0.3, y: hz + 4))
@@ -109,6 +157,22 @@ extension Game {
             for i in 0..<3 { c.R(tx - 24 + Double(i) * 20, ty - 2, 7, 3, Col(0x1c1108)) }
         }
 
+        if kind == 4 || kind == 0 {
+            // windmills turning on the ridge
+            for wm in 0..<(kind == 4 ? 3 : 1) {
+                let wx = W * (0.72 + Double(wm) * 0.08), wyy = hz - 96 + Double(wm % 2) * 14
+                c.poly(Col(0xf3ead2).shade(dark), [wx - 8, wyy + 26, wx - 5, wyy - 4, wx + 5, wyy - 4, wx + 8, wyy + 26])
+                c.poly(Col(0x8a5a36).shade(dark), [wx - 7, wyy - 4, wx, wyy - 13, wx + 7, wyy - 4])
+                c.save(); c.translate(wx, wyy - 5); c.rotate(T * (0.9 + rough) + Double(wm))
+                for bl in 0..<4 {
+                    c.rotate(PI / 2)
+                    c.seg(0, 0, 0, -24, 1.4, Col(0x3a2412))
+                    c.poly(Col(0xf7f0dc, 0.92).shade(dark), [1, -6, 7, -7, 7, -23, 1, -23])
+                    _ = bl
+                }
+                c.restore()
+            }
+        }
         // ---- a lighthouse on the point, its beam sweeping at night
         let lhx = W - safeR - 30, lhy = hz - 62
         if lampOn {
@@ -266,7 +330,78 @@ extension Game {
         c.seg(dgx - dgd * 5, qy - 6, dgx - dgd * 9, qy - 11 + sin(T * 14) * 2, 1.4, Col(0x8a5a2c).shade(dark))
         c.seg(dgx - 3, qy - 3, dgx - 3 + sin(T * 16) * 2, qy, 1.3, Col(0x6b4423).shade(dark)); c.seg(dgx + 3, qy - 3, dgx + 3 - sin(T * 16) * 2, qy, 1.3, Col(0x6b4423).shade(dark))
 
+        // a horse and cart making deliveries along the front
+        let cartSpan = W - qx0 + 120
+        let cartX = qx0 - 60 + (T * 22).truncatingRemainder(dividingBy: cartSpan)
+        c.RR(cartX - 16, qy - 14, 26, 9, 2, Col(0x8a6238).shade(dark)); c.R(cartX - 14, qy - 21, 9, 7, Col(0xa8823f).shade(dark)); c.R(cartX - 4, qy - 19, 8, 5, Col(0x6b4423).shade(dark))
+        c.circ(cartX - 9, qy - 4, 4.5, Col(0x2a1a0c)); c.circ(cartX + 4, qy - 4, 4.5, Col(0x2a1a0c)); c.circ(cartX - 9, qy - 4, 1.5, Col(0x8a6238)); c.circ(cartX + 4, qy - 4, 1.5, Col(0x8a6238))
+        c.ell(cartX + 24, qy - 11, 9, 5, Col(0x6b4a2c).shade(dark)); c.seg(cartX + 31, qy - 13, cartX + 36, qy - 20, 4, Col(0x6b4a2c).shade(dark)); c.ell(cartX + 38, qy - 21, 4.5, 2.6, Col(0x6b4a2c).shade(dark))
+        for lg in 0..<4 { c.seg(cartX + 18 + Double(lg) * 4, qy - 8, cartX + 18 + Double(lg) * 4 + sin(T * 9 + Double(lg) * 1.6) * 2.5, qy, 1.5, Col(0x4a3018).shade(dark)) }
+        c.seg(cartX + 10, qy - 10, cartX + 17, qy - 11, 1, Col(0x1c1108))
+        // a street performer: juggling by day, breathing fire after dark
+        let jx = W * 0.57
+        townie(c, jx, qy - 1, 1.3, Col(0xb03a8a), 1, 0.4, carry: 0, dark: dark)
+        if lampOn {
+            let ph = (T * 0.45).truncatingRemainder(dividingBy: 1)
+            if ph < 0.4 {
+                let k2 = ph / 0.4
+                c.glow(jx + 16 + k2 * 14, qy - 30 - k2 * 6, 22 + k2 * 16, Col(0xffa030, 0.8 * (1 - k2)), Col(0xffa030, 0))
+                c.poly(Col(0xffd257, 0.9 * (1 - k2)), [jx + 5, qy - 26, jx + 30 + k2 * 14, qy - 40 - k2 * 6, jx + 30 + k2 * 14, qy - 22])
+            }
+        } else {
+            for bl in 0..<3 {
+                let ph = (T * 1.2 + Double(bl) / 3).truncatingRemainder(dividingBy: 1)
+                c.circ(jx - 7 + ph * 14, qy - 30 - sin(ph * PI) * 22, 2.4, [Col(0xff5a5a), Col(0xffd257), Col(0x7fd8ff)][bl])
+            }
+        }
+        if kind == 1 {
+            // the garrison drilling: a file of redcoats behind a drum and colours
+            let mx0 = qx0 + 40 + (T * 14).truncatingRemainder(dividingBy: W - qx0 - 60)
+            for i in 0..<6 {
+                let sx2 = mx0 - Double(i) * 11
+                if sx2 < qx0 + 6 { continue }
+                townie(c, sx2, qy - 1, 1.15, i == 0 ? Col(0x2f5f8f) : Col(0xc0392b), 1, 1.0, carry: 0, dark: dark)
+                if i > 0 { c.seg(sx2 + 3, qy - 14, sx2 + 5, qy - 30, 1.2, Col(0x3a2412)) }
+            }
+            c.seg(mx0 + 2, qy - 14, mx0 + 2, qy - 40, 1.4, Col(0x3a2412)); c.poly(REDC.shade(dark), [mx0 + 2, qy - 40, mx0 + 18, qy - 36 + sin(T * 6) * 2, mx0 + 2, qy - 31])
+        }
+        if kind == 0 {
+            // nets drying, and a catch being hauled up the wall
+            for i in 0..<3 {
+                let nx = W * (0.74 + Double(i) * 0.06)
+                c.seg(nx, qy, nx, qy - 22, 1.5, Col(0x5a3d20).shade(dark))
+                if i > 0 { c.curve(nx - W * 0.06, qy - 22, nx - W * 0.03, qy - 8, nx, qy - 22, 1, Col(0xc9b88a).shade(dark)); for m in 0..<5 { c.seg(nx - W * 0.06 + Double(m) * W * 0.012, qy - 21, nx - W * 0.06 + Double(m) * W * 0.012 + 3, qy - 12, 0.5, Col(0xc9b88a, 0.8)) } }
+            }
+            let hx2 = qx0 + 70, lift = (0.5 + 0.5 * sin(T * 1.1)) * 14
+            c.seg(hx2, qy - 4, hx2, qy + 30 - lift, 0.9, Col(0xc9b88a))
+            c.arcFill(hx2, qy + 30 - lift, 9, 0, PI, Col(0xc9b88a, 0.7).shade(dark))
+            for f in 0..<3 { c.ell(hx2 - 5 + Double(f) * 5, qy + 32 - lift + sin(T * 12 + Double(f)) * 1.5, 3.5, 1.5, Col(0xcfe0ea)) }
+        }
+        // chatter
+        let lines = ["Fresh fish!", "Mind the cart!", "Welcome, captain!", "Rope! Good rope!", "Oranges, two a penny!", "That's her, the new ship", "Storm coming, I reckon", "Pirates off the cape again", "Lovely day for it", "Out of the way!", "Any work going?", "She's a fine vessel", "Hot pies!", "Who'll buy my eels?", "Watch your purse", "The tide's on the turn", "Three cheers for the captain!", "Is that a parrot?", "Careful with that crate!", "Sing us a shanty!"]
+        if sum == nil && play == nil && chatT > 0.5 {
+            let i = chatWho
+            let sp = 9 + hashN(seed + Double(i) * 3.1) * 16
+            let span = W - qx0 - 20
+            var px = (hashN(seed + Double(i) * 7.7) * span + T * sp * (i % 2 == 0 ? 1 : -1)).truncatingRemainder(dividingBy: span)
+            if px < 0 { px += span }
+            let bxx = clampD(qx0 + 10 + px, qx0 + 60, W - safeR - 70)
+            let tw = textW(lines[chatLine], 12, FONT) + 16
+            let a = min(1, chatT * 2) 
+            c.save()
+            c.alpha(a)
+            c.RR(bxx - tw / 2, qy - 50, tw, 19, 8, Col(0xfbf3dc)); c.RRStroke(bxx - tw / 2, qy - 50, tw, 19, 8, 1, Col(0x6b4a26))
+            c.poly(Col(0xfbf3dc), [bxx - 4, qy - 32, bxx + 4, qy - 32, bxx, qy - 26])
+            c.text(lines[chatLine], bxx, qy - 36.5, 12, Col(0x2a1706), 0, FONT)
+            c.restore()
+        }
+
         // ---- the bay: fishing boats working, a rowing boat ferrying to your ship
+        if kind == 2 {
+            // merchantmen lying at anchor off the trading city
+            drawShip(c, W * 0.64, qy + 70, 120, 3, furled: true)
+            drawShip(c, W * 0.86, qy + 58, 96, 2, furled: true)
+        }
         for i in 0..<3 {
             let bx = W * (0.55 + Double(i) * 0.15) + sin(T * 0.12 + Double(i) * 2) * W * 0.05
             let by = qy + 44 + Double(i) * 16 + sin(T * 1.4 + Double(i)) * 1.5
@@ -279,6 +414,50 @@ extension Game {
             c.poly(sailC, [bx - 1 * sc, by - 31 * sc, bx + 15 * sc + sin(T * 1.7 + Double(i)) * 2, by - 9 * sc, bx - 1 * sc, by - 7 * sc])
             c.circ(bx - 9 * sc, by - 8 * sc, 2.4 * sc, Col(0xe3b58a).shade(dark)); c.R(bx - 11 * sc, by - 6 * sc, 4 * sc, 4 * sc, Col(0x2f5f8f).shade(dark))
             if lampOn { c.circ(bx + 12 * sc, by - 9 * sc, 2, warm); c.glow(bx + 12 * sc, by - 9 * sc, 20, Col(0xffc060, 0.5), Col(0xffc060, 0)) }
+        }
+        // ---- wildlife: a pelican on a pile, crabs on the wall, fish jumping, a turtle, dolphins playing in the bay
+        let pelX = W * 0.3 + 3, pelY = qy + 8
+        c.ell(pelX, pelY - 8, 6, 5, Col(0xf3f0e6).shade(dark)); c.circ(pelX + 4, pelY - 15, 3.2, Col(0xf3f0e6).shade(dark))
+        c.poly(Col(0xe8a83a).shade(dark), [pelX + 6, pelY - 16, pelX + 17, pelY - 12 + sin(T * 0.8) * 1.5, pelX + 6, pelY - 12]); c.circ(pelX + 5, pelY - 16, 0.8, Col(0x000000))
+        c.seg(pelX - 1, pelY - 3, pelX - 1, pelY, 1, Col(0xe8a83a)); c.seg(pelX + 2, pelY - 3, pelX + 2, pelY, 1, Col(0xe8a83a))
+        for i in 0..<3 {
+            let crx2 = qx0 + 40 + Double(i) * W * 0.17 + sin(T * 0.9 + Double(i) * 2.2) * 22, cry = qy + 12 + Double(i % 2) * 6
+            c.ell(crx2, cry, 4.5, 3, Col(0xd8432f).shade(dark))
+            for lg in 0..<3 { c.seg(crx2 - 4, cry + Double(lg) - 1, crx2 - 7 - sin(T * 14 + Double(lg + i)) * 1.5, cry + Double(lg) * 1.5, 0.8, Col(0xd8432f).shade(dark)); c.seg(crx2 + 4, cry + Double(lg) - 1, crx2 + 7 + sin(T * 14 + Double(lg + i)) * 1.5, cry + Double(lg) * 1.5, 0.8, Col(0xd8432f).shade(dark)) }
+            c.circ(crx2 - 6, cry - 4, 1.6, Col(0xd8432f).shade(dark)); c.circ(crx2 + 6, cry - 4, 1.6, Col(0xd8432f).shade(dark))
+        }
+        for i in 0..<4 {
+            let ph = (T * 0.33 + hashN(Double(i) * 2.7)).truncatingRemainder(dividingBy: 1)
+            let cyc = floor(T * 0.33 + hashN(Double(i) * 2.7))
+            let jx2 = W * 0.36 + hashN(Double(i) * 5.1 + cyc) * W * 0.6, jy2 = qy + 46 + hashN(Double(i) * 9.3 + cyc) * 50
+            if ph < 0.3 {
+                let k3 = ph / 0.3
+                c.save(); c.translate(jx2 + k3 * 16, jy2 - sin(k3 * PI) * 18); c.rotate(-0.8 + k3 * 1.6)
+                c.ell(0, 0, 6, 2.2, Col(0xcfe0ea).shade(dark)); c.poly(Col(0xcfe0ea).shade(dark), [-5, 0, -9, -3, -9, 3])
+                c.restore()
+            }
+            if ph < 0.6 { c.ellStroke(jx2 + (ph < 0.3 ? 0 : 16), jy2, 3 + ph * 22, 1 + ph * 5, 1, Col(0xffffff, 0.5 * (1 - ph / 0.6))) }
+        }
+        let tux = W * 0.48 + sin(T * 0.13) * W * 0.1, tuy = qy + 92 + sin(T * 0.9) * 2
+        c.ell(tux, tuy, 9, 5, Col(0x3f6a3c, 0.85)); c.circ(tux + 10 * (cos(T * 0.13) > 0 ? 1 : -1), tuy - 1, 3, Col(0x5a8a4a, 0.85))
+        c.ell(tux - 6, tuy + 4 + sin(T * 3) * 1.5, 4, 1.6, Col(0x5a8a4a, 0.7)); c.ell(tux + 6, tuy + 4 - sin(T * 3) * 1.5, 4, 1.6, Col(0x5a8a4a, 0.7))
+        if Int(T / 17) % 2 == 0 {
+            for i in 0..<2 {
+                let ph = (T * 0.5 + Double(i) * 0.4).truncatingRemainder(dividingBy: 1)
+                let dx = W * 0.8 + Double(i) * 30 - ph * 30, dbase = qy + 104
+                if ph < 0.55 {
+                    let k4 = ph / 0.55
+                    c.save(); c.translate(dx, dbase - sin(k4 * PI) * 26); c.rotate(2.2 - k4 * 1.8 + PI)
+                    c.ell(0, 0, 12, 4, Col(0x5a7a94).shade(dark)); c.poly(Col(0x4a6a84).shade(dark), [-2, -3.5, 3, -9, 4, -3.5]); c.poly(Col(0x4a6a84).shade(dark), [-11, 0, -17, -4, -17, 4])
+                    c.restore()
+                }
+            }
+        }
+        // the swell slapping the quay wall
+        for i in 0..<16 {
+            let fx2 = qx0 + Double(i) * (W - qx0) / 15
+            let up2 = max(0, sin(T * 1.6 + Double(i) * 0.9))
+            c.ell(fx2, qy + 25 - up2 * 3, 14, 1.5 + up2 * 2.5, Col(0xffffff, 0.25 + 0.3 * up2))
         }
         let wy = hz + (H - hz) * 0.4
         let shipX = W * 0.2
@@ -323,33 +502,73 @@ extension Game {
         c.RRStroke(-nw / 2, 8, nw, 34, 7, 1.6, Col(0xd2a455))
         c.text(nm, 0, 33, 24, GOLD, 0, FONTD)
         c.restore()
+        c.textS(kindName + (portMsg.isEmpty ? "" : "  ·  " + portMsg), W / 2, 96, 13, CREAM, 0, FONTI)
 
-        // something is going on in town: a call-out over the quay
-        if sum == nil && card == nil && portJob > 0 && !portJobDone {
-            let jobs: [(String, String)] = [("", ""), ("Work on the docks", "load cargo for pay"), ("Stop, thief!", "a cutpurse on the quay"), ("Rats on the gangway", "save your stores"), ("Festival tonight", "join the town"), ("An old sailor waves", "he has something for you")]
-            let j = jobs[min(5, portJob)]
-            let jw = 210.0, jx = W * 0.66 - jw / 2, jy = qy - 108 + sin(T * 3) * 3
-            c.glow(jx + jw / 2, jy + 22, 150, Col(0xffd257, 0.2 + 0.1 * sin(T * 4)), Col(0xffd257, 0))
-            c.poly(Col(0xe6ae3c), [jx + jw / 2 - 9, jy + 43, jx + jw / 2 + 9, jy + 43, jx + jw / 2, jy + 56])
-            btn(c, jx, jy, jw, 44, "!  " + j.0, j.1, gold: true) { [unowned self] in
-                switch self.portJob {
-                case 1: self.playDock()
-                case 2: self.playThief()
-                case 3: self.playRats()
-                case 4: self.joinFestival()
-                default: self.playBarrels()
-                }
+        // things going on in town: a call-out over the quay for each
+        if sum == nil && card == nil {
+            let jobs: [(String, String)] = [("", ""), ("Dock work", "load cargo for pay"), ("Stop, thief!", "a cutpurse on the quay"), ("Rats!", "save your stores"), ("Festival", "join the town tonight"), ("An old sailor", "has something for you"), ("Fire!", "the town is burning"), ("Pirate raid!", "defend the quay"), ("Tournament", "blunted blades, a purse"), ("Strongman", "ring the bell, win a prize"), ("Cargo", "carry it to the next port"), ("Passenger", "wants passage"), ("Bounty", "the governor's notice")]
+            let open = portJobs.filter { !jobsDone.contains($0) }
+            let jw = min(176.0, (W - qx0 - safeR - 16) / 3 - 8)
+            for (n, j) in open.enumerated() {
+                let jb = jobs[min(12, j)]
+                let jx = qx0 + 14 + Double(n) * (jw + 8), jy = qy - 148 + sin(T * 3 + Double(n) * 1.4) * 3
+                let urgent = j == 6 || j == 7 || j == 2 || j == 3
+                c.glow(jx + jw / 2, jy + 22, 110, (urgent ? Col(0xff5a3c, 0.22 + 0.12 * sin(T * 6)) : Col(0xffd257, 0.16 + 0.08 * sin(T * 4))), Col(0xffd257, 0))
+                c.poly(urgent ? Col(0xd0452c) : Col(0xe6ae3c), [jx + jw / 2 - 8, jy + 41, jx + jw / 2 + 8, jy + 41, jx + jw / 2, jy + 52])
+                btn(c, jx, jy, jw, 42, "!  " + jb.0, jb.1, gold: true, size: 15) { [unowned self] in self.runJob(j) }
+                if urgent { c.RRStroke(jx, jy, jw, 42, 10, 2.5, Col(0xff5a3c, 0.55 + 0.45 * sin(T * 6))) }
             }
         }
 
-        // what you can do ashore
-        let names: [(String, String)] = [("Market", "buy and sell"), ("Tavern", "crew · maps · surgeon"), ("Shipwright", "repairs · upgrades"), ("Well", wellUsed ? "casks filled" : "free water"), ("Set sail", "wages \(wagesDue())g")]
+        // ---- the harbour master's reckoning: what she needs before the next passage
+        let need = portNeeds()
         let gap = 8.0
         let bw = (W - safeL - safeR - gap * 4) / 5
-        let by = H - safeB - 52
-        for (i, nm2) in names.enumerated() {
+        let bh = 54.0
+        let by = H - safeB - bh - 6
+        let sy = by - 32
+        c.RR(safeL, sy, W - safeL - safeR, 26, 13, Col(0x1c1108, 0.86))
+        c.RRStroke(safeL, sy, W - safeL - safeR, 26, 13, 1.2, Col(0xd2a455, 0.85))
+        var chx = safeL + 12
+        c.text("Next passage, about \(need.days) days:", chx, sy + 17.5, 12.5, CREAM.alpha(0.85), -1, FONTI)
+        chx += textW("Next passage, about \(need.days) days:", 12.5, FONTI) + 12
+        let chips: [(String, String, Bool)] = [
+            ("food", "\(need.foodDays) days of food", need.foodOK),
+            ("water", "\(need.waterDays) days of water", need.waterOK),
+            ("hull", "hull \(need.hullPct)%", need.hullOK),
+            ("crew", need.down > 0 ? "\(need.down) laid up" : "\(crew)/\(ship.crew) hands", need.crewOK),
+            ("gold", "wages \(wagesDue())", need.wagesOK)
+        ]
+        for ch in chips {
+            let tw = textW(ch.1, 12.5, FONTB)
+            if chx + tw + 44 > W - safeR - 8 { break }
+            let pulse = ch.2 ? 0.0 : 0.5 + 0.5 * sin(T * 6)
+            if !ch.2 { c.RR(chx - 4, sy + 3, tw + 44, 20, 10, Col(0xc0392b, 0.35 + 0.3 * pulse)) }
+            icon(c, ch.0, chx + 8, sy + 13 + (ch.2 ? 0 : sin(T * 8) * 1.5), 16)
+            c.text(ch.1, chx + 20, sy + 17.5, 12.5, ch.2 ? CREAM : Col(0xffc8b8), -1, FONTB)
+            // a tick, or a cross that throbs
+            let mx2 = chx + tw + 30
+            if ch.2 {
+                c.roundCaps(true); c.seg(mx2 - 4, sy + 13, mx2 - 1, sy + 17, 2.2, GREENC); c.seg(mx2 - 1, sy + 17, mx2 + 5, sy + 9, 2.2, GREENC); c.roundCaps(false)
+            } else {
+                let r = 3.6 + pulse * 1.2
+                c.seg(mx2 - r, sy + 13 - r, mx2 + r, sy + 13 + r, 2.4, Col(0xff6a50)); c.seg(mx2 + r, sy + 13 - r, mx2 - r, sy + 13 + r, 2.4, Col(0xff6a50))
+            }
+            chx += tw + 52
+        }
+
+        // ---- where to go: each door shows what is waiting behind it
+        let ready = need.foodOK && need.waterOK && need.hullOK && need.wagesOK
+        let tiles: [(String, String, Int)] = [
+            ("Market", !need.foodOK && !need.waterOK ? "buy food and water" : (!need.foodOK ? "you need food" : (!need.waterOK ? "you need water" : "stores are good")), need.foodOK && need.waterOK ? 0 : 1),
+            ("Tavern", need.down > 0 ? "\(need.down) need the surgeon" : (crew < ship.crew ? "\(ship.crew - crew) berths empty" : "crew · maps · lessons"), need.down > 0 ? 1 : (crew < ship.crew ? 2 : 0)),
+            ("Shipwright", !need.hullOK ? "repairs: \(need.repair) gold" : (need.canUpgrade ? "an upgrade you can afford" : "she is sound"), !need.hullOK ? 1 : (need.canUpgrade ? 2 : 0)),
+            ("Well", wellUsed ? "casks filled" : "free fresh water", wellUsed ? 0 : 2),
+            ("Set sail", ready ? "ready for sea" : "not ready yet", ready ? 0 : 1)
+        ]
+        for (i, tl) in tiles.enumerated() {
             let x = safeL + Double(i) * (bw + gap)
-            btn(c, x, by, bw, 46, nm2.0, nm2.1, gold: i == 4, off: i == 3 && wellUsed) { [unowned self] in
+            btn(c, x, by, bw, bh, "", "", gold: i == 4 && ready, off: i == 3 && wellUsed) { [unowned self] in
                 switch i {
                 case 0: self.openMarket()
                 case 1: self.tavern()
@@ -357,6 +576,57 @@ extension Game {
                 case 3: self.well()
                 default: self.setSail()
                 }
+            }
+            let dim = i == 3 && wellUsed
+            let ink = i == 4 && ready ? Col(0x2a1706) : CREAM
+            // the moving sign on each door
+            let ix = x + 24, iy = by + bh / 2
+            c.save()
+            if dim { c.alpha(0.45) }
+            switch i {
+            case 0:
+                // a basket, the fruit jostling
+                c.arcFill(ix, iy + 1, 11, 0, PI, Col(0x8a6a44)); c.arcStroke(ix, iy + 1, 11, PI, PI * 2, 1.6, Col(0x6b4a26))
+                for f in 0..<3 { c.circ(ix - 6 + Double(f) * 6, iy - 2 + sin(T * 4 + Double(f) * 2) * 1.5, 3.4, [Col(0xff9a3a), Col(0xd8432f), Col(0x7fc86a)][f]) }
+            case 1:
+                // a mug, the foam rising and a drop running down
+                c.RR(ix - 8, iy - 8, 14, 17, 2.5, Col(0x8a6a44)); c.arcStroke(ix + 7, iy, 5, -PI / 2, PI / 2, 2, Col(0x8a6a44))
+                c.RR(ix - 9, iy - 11 - abs(sin(T * 2.4)) * 2, 16, 6, 3, Col(0xf7f0dc))
+                c.circ(ix - 4, iy - 2 + (T * 8).truncatingRemainder(dividingBy: 12), 1.3, Col(0xf7f0dc, 0.8))
+            case 2:
+                // a hammer coming down, sparks when it lands
+                let sw = sin(T * 5)
+                c.save(); c.translate(ix + 6, iy + 8); c.rotate(-0.9 + max(0, sw) * 0.9)
+                c.seg(0, 0, 0, -17, 2.6, Col(0x8a6238)); c.RR(-7, -22, 14, 7, 1.5, Col(0x9aa0a8))
+                c.restore()
+                if sw < -0.85 { for sp in 0..<4 { c.circ(ix - 6 + hashN(Double(sp) + floor(T * 5)) * 8, iy + 4 - hashN(Double(sp) * 3 + floor(T * 5)) * 8, 1.3, Col(0xffd257)) } }
+                c.R(ix - 12, iy + 8, 14, 3, Col(0x6b4423))
+            case 3:
+                // drops falling into a bucket
+                let ph = (T * 0.9).truncatingRemainder(dividingBy: 1)
+                c.circ(ix, iy - 12 + ph * 14, 2.2, Col(0x6fd0ff, 1 - ph * 0.3))
+                c.poly(Col(0x8a6a44), [ix - 9, iy + 2, ix + 9, iy + 2, ix + 7, iy + 13, ix - 7, iy + 13]); c.ell(ix, iy + 2, 9, 2.6, Col(0x4aa8e8))
+                if ph > 0.85 { c.ellStroke(ix, iy + 2, 4 + (ph - 0.85) * 30, 1.5, 1, Col(0xffffff, 0.8)) }
+            default:
+                // your ship, rocking, a pennant streaming
+                c.save(); c.translate(ix, iy + 2); c.rotate(sin(T * 2) * 0.12)
+                c.poly(Col(0x6b4423), [-12, 2, 13, 2, 9, 9, -9, 9]); c.seg(0, 2, 0, -15, 1.4, Col(0x3b2412))
+                c.poly(Col(0xf3ead2), [1, -14, 11, -1, 1, -1]); c.poly(REDC, [0, -15, -7 - sin(T * 7) * 1.5, -13, 0, -11])
+                c.restore()
+                c.ellStroke(ix, iy + 13, 12 + sin(T * 3) * 2, 2, 1, Col(0xffffff, 0.5))
+            }
+            c.text(tl.0, x + 44, by + 23, 16, ink, -1, FONTB)
+            c.text(tl.1, x + 44, by + 39, 11, (tl.2 == 1 ? Col(0xffb0a0) : ink.alpha(0.85)), -1, FONTI)
+            c.restore()
+            // a badge on the corner: red and throbbing when it matters, gold when there is something to gain
+            if tl.2 > 0 && !dim {
+                let red = tl.2 == 1
+                let r = 9 + (red ? sin(T * 7) * 1.6 : sin(T * 3) * 0.8)
+                c.glow(x + bw - 6, by + 4, 22, (red ? Col(0xff5a3c, 0.6) : Col(0xffd257, 0.5)), Col(0xff5a3c, 0))
+                c.circ(x + bw - 6, by + 4, r, red ? Col(0xd0352c) : Col(0xe6ae3c)); c.circStroke(x + bw - 6, by + 4, r, 1.5, Col(0xfff2c0))
+                c.text(red ? "!" : "+", x + bw - 6, by + 9, 15, red ? WHITE : Col(0x2a1706), 0, FONTB)
+            } else if i == 4 && ready {
+                c.glow(x + bw / 2, by + bh / 2, bw * 0.7, Col(0xffd257, 0.2 + 0.12 * sin(T * 4)), Col(0xffd257, 0))
             }
         }
     }

@@ -7,9 +7,45 @@ extension Game {
     func done(_ msg: String) {
         let title = card?.title ?? evTitle
         card = nil
+        if deckForce < 0 { seaForce = -1 }
         if msg.isEmpty || over { return }
         toastT = 0
         show(title, msg, [Opt(mode == .sail ? "Sail on" : "Continue") { [unowned self] in self.card = nil }])
+    }
+
+    static let omenLen = 2.8
+    static var omenHold = false
+    /// What is seen, and said, as each event comes over the horizon.
+    static let OMENS: [String: (String, String)] = [
+        "storm": ("The glass is falling", "Black cloud piling up to windward"),
+        "pirates": ("Sail ho!", "A black flag astern, and closing fast"),
+        "blockade": ("Red sails ahead", "A great ship stands across the channel"),
+        "fish": ("Gulls diving", "The water ahead is boiling with fish"),
+        "wreck": ("Wreckage", "Something broken is drifting down on you"),
+        "island": ("Land ho!", "A low island lifts over the horizon"),
+        "calm": ("The wind is dying", "The sails slat and hang"),
+        "sick": ("A man goes down", "He drops at his post, burning with fever"),
+        "merchant": ("A sail to leeward", "A merchantman, signalling to speak"),
+        "bottle": ("A glint in the swell", "Something small is bobbing off the bow"),
+        "leak": ("A shout from below!", "Water in the hold"),
+        "castaway": ("A raft!", "Someone is waving from it"),
+        "ghost": ("Something pale on the water", "No lights. No one at her helm"),
+        "dolphins": ("Fins off the bow", "A pod is racing in to meet you"),
+        "fog": ("A grey wall ahead", "The horizon is gone"),
+        "overboard": ("A cry, and a splash!", "Man overboard!")
+    ]
+    func startOmen(_ k: String) {
+        omenK = k
+        omenT = 0
+        if k == "storm" { setWeather(3, days: 1) }
+        if k == "fog" || k == "ghost" { setWeather(4, days: 1) }
+        if k == "dolphins" { seaForce = 0 }
+        // a drum, and a held note under it
+        snd?.tone(72, 0.7, 0, 0.32, 48)
+        snd?.tone(72, 0.6, 0, 0.26, 48, 0.55)
+        snd?.held(k == "dolphins" || k == "fish" || k == "island" || k == "merchant" ? 392 : 147, 2.4, 5, 0.03, att: 0.6, rel: 1.2)
+        if k == "overboard" || k == "bottle" { snd?.splash() }
+        if k == "pirates" || k == "blockade" { snd?.cannon() }
     }
 
     func rollEvent() {
@@ -26,9 +62,9 @@ extension Game {
         var r = rnd(0, total)
         for t in table where t.0 != lastEv {
             r -= route == 1 ? t.1 : t.2
-            if r <= 0 { event(t.0); return }
+            if r <= 0 { startOmen(t.0); return }
         }
-        event("fish")
+        startOmen("fish")
     }
 
     func event(_ k: String) {
@@ -212,18 +248,39 @@ extension Game {
         duel = d
         mode = .duel
         // no briefing: the first fight walks through each move as it comes up
-        toast(d.teaching ? "Watch his blade. The first cuts will wait for you" : (boss ? "Her captain steps onto the deck" : "Boarders away!"))
+        toast(d.teaching ? "Watch his blade. The first cuts will wait for you" : (duelPort ? (duelSport ? "Blunted blades. First to three touches" : "Raiders on the quay!") : (boss ? "Her captain steps onto the deck" : "Boarders away!")))
     }
     func duelSailorDown() {
+        // a tournament is fought with blunted blades: pride is all that is lost
+        if duelSport { toast("A touch! Your man is out of the bout"); return }
         if chance(0.5) { loseCrew("A sailor is cut down") } else { hurtOne("cut down in the boarding") }
     }
     func duelWon(_ d: Duel) {
         duel = nil
+        snd?.good()
+        if duelPort {
+            mode = .port
+            portJobDone = true
+            let sport = duelSport
+            duelPort = false; duelSport = false
+            let g = d.prize * 2
+            gold += g
+            festT = max(festT, 6)
+            if sport {
+                show("Champion of the quay", "The crowd carries your man round the square on their shoulders.\nThe purse: \(g) gold.", [Opt("Take a bow") { [unowned self] in self.card = nil }])
+            } else {
+                let fix = min(Double(ship.hull) - hull, 20)
+                hull += max(0, fix)
+                logIt("Drove pirates off the quay at " + here.n)
+                show("The town is saved", "The raiders run for their boats. The harbour master presses \(g) gold on you, and the yard mends your hull for nothing.", [Opt("Their thanks is enough") { [unowned self] in self.card = nil }])
+            }
+            return
+        }
         mode = .sail
-        let g = d.prize * 2
+        var g = d.prize * 2
+        if bounty { g += 150; bounty = false }
         gold += g
         let pw = addGood("powder", 4), bl = addGood("arms", 2)
-        snd?.good()
         logIt(d.boss ? "Took the Red Mary" : "Took a pirate ship by boarding")
         var t = "Her deck is cleared and her hold is yours.\nPlunder: \(g) gold"
         if pw > 0 { t += ", \(pw) powder" }
@@ -233,6 +290,20 @@ extension Game {
     func duelLost(_ d: Duel) {
         duel = nil
         if over { return }
+        if duelPort {
+            mode = .port
+            portJobDone = true
+            let sport = duelSport
+            duelPort = false; duelSport = false
+            if sport {
+                show("Beaten", "Three touches against you. The crowd is kind about it.", [Opt("Next time") { [unowned self] in self.card = nil }])
+            } else {
+                let loss = min(gold, 60)
+                gold -= loss
+                show("Driven off the quay", "The raiders take what they came for, and \(loss) gold from your own chest.", [Opt("Back to the ship") { [unowned self] in self.card = nil }])
+            }
+            return
+        }
         mode = .sail
         logIt("Driven back from a boarding")
         let loss = min(gold, d.boss ? 200 : 80)

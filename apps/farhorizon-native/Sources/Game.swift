@@ -71,7 +71,29 @@ final class Game {
     var perkFury = false
     var rainbowT = 0.0
     var portJob = 0
-    var portJobDone = false
+    var portJobs: [Int] = []
+    var jobsDone: Set<Int> = []
+    var portJobDone: Bool {
+        get { return jobsDone.contains(portJob) }
+        set { if newValue { jobsDone.insert(portJob) } }
+    }
+    // work taken on in one port and paid for in the next
+    var cargoPay = 0
+    var cargoHold = 0
+    var fareDue = 0
+    var fareBy = 0
+    var bounty = false
+    var duelPort = false
+    var duelSport = false
+    var saluteT = 0.0
+    var saluteN = 0
+    var chatWho = 0
+    var chatLine = 0
+    var chatT = 0.0
+    var portMsg = ""
+    // an event is first sighted, with the clock slowed, before it is upon you
+    var omenK = ""
+    var omenT = 0.0
     var festT = 0.0
     var bellT = 6.0
     var bellSwing = 0.0
@@ -147,6 +169,8 @@ final class Game {
         dayT = 0; tod = 0.3; hasMap = false; sinceEvent = 0; lastEv = ""; path = [0, 0, 0, 0, 0, 0]
         men = []; log = []; dead = []; sea = 0; halfDays = 0; rot = 0; wind = 1; blk = false; wellUsed = false
         over = false; card = nil; duel = nil; recruit = nil; fights = 0
+        omenK = ""; omenT = 0
+        cargoPay = 0; cargoHold = 0; fareDue = 0; bounty = false; duelPort = false; duelSport = false; portJobs = []; jobsDone = []
         ups = [:]; perkRip = false; perkWind = false; perkFury = false; rainbowT = 0
         play = nil; sum = nil; weather = 0; wxDays = 2; bolts.removeAll(); thunderIn = -1
     }
@@ -170,7 +194,7 @@ final class Game {
 
     // ---------- the hold
     var holdMax: Int { return ship.hold }
-    var holdUsed: Int { return Int(food.rounded(.up)) + Int(water.rounded(.up)) + planks + bait + powder + arms }
+    var holdUsed: Int { return Int(food.rounded(.up)) + Int(water.rounded(.up)) + planks + bait + powder + arms + cargoHold }
     func have(_ k: String) -> Int {
         switch k {
         case "food": return Int(food)
@@ -452,7 +476,7 @@ final class Game {
         day += 1
         consume()
         if over { return }
-        if leg == 4 && !blk && dist > legLen * 0.55 { blk = true; event("blockade"); return }
+        if leg == 4 && !blk && dist > legLen * 0.55 { blk = true; startOmen("blockade"); return }
         let carp = E("carp")
         if carp > 0 && hull < Double(ship.hull) { hull = min(Double(ship.hull), hull + 3 * carp) }
         for _ in 0..<postCount("fish") where bait > 0 && chance(0.55) {
@@ -469,6 +493,16 @@ final class Game {
         if sinceEvent >= 3 || chance(0.4) { rollEvent() }
     }
     func arrive() {
+        // what was promised in the last port falls due in this one
+        portMsg = ""
+        if cargoPay > 0 { gold += cargoPay; portMsg = "Cargo delivered: +\(cargoPay) gold. "; logIt("Delivered a merchant's cargo"); cargoPay = 0; cargoHold = 0 }
+        if fareDue > 0 {
+            let late = day > fareBy
+            let f = late ? fareDue / 2 : fareDue
+            gold += f
+            portMsg += late ? "Your passenger pays half for a slow passage: +\(f) gold." : "Your passenger pays in full: +\(f) gold."
+            fareDue = 0
+        }
         leg += 1
         dist = 0; sea = 0
         if halfDays >= 3 && crew > 2 {
@@ -486,7 +520,7 @@ final class Game {
         snd?.good()
         mode = .port
         rumourHeard = false
-        portJob = rndI(1, 5); portJobDone = false; festT = 0; bellT = 5
+        rollPortJobs(); festT = 0; bellT = 5
         if weather == 3 { setWeather(2, days: 1) }
         sum = LegSum(from: legFrom, to: here.n, days: day - leg0Day, leagues: Int(legLen), events: legEvents, gold: gold - leg0Gold, lost: max(0, leg0Crew - crew), hull: Int((hull / Double(max(1, ship.hull)) * 100).rounded()), fights: fights - leg0Fights, wages: wagesDue())
         sumT = 0
@@ -507,6 +541,7 @@ final class Game {
         T += dt
         cardT += dt
         updateWeather(dt)
+
         rainbowT = max(0, rainbowT - dt)
         if sum != nil { sumT += dt }
         var ri = rings.count - 1
@@ -539,6 +574,15 @@ final class Game {
         case .sail:
             if card == nil, play != nil {
                 updatePlay(dt)
+            } else if card == nil, !omenK.isEmpty {
+                // time all but stops while the thing comes into view
+                omenT += dt
+                scroll += dt * 16 * ship.speed
+                if omenT >= Game.omenLen {
+                    let k = omenK
+                    omenK = ""
+                    event(k)
+                }
             } else if card == nil {
                 dayT += dt
                 tod = (tod + dt / DAYLEN * 0.22).truncatingRemainder(dividingBy: 1)
@@ -599,11 +643,16 @@ final class Game {
         if name == "night" { tod = 0.8 }
         if name == "event" { event("pirates") }
         if name == "result" { event("ghost"); done("Her hold is full of old silver: +212 gold") }
-        if name == "port" { leg = 1; mode = .port; portJob = 2 }
+        if name == "port" { leg = 1; mode = .port; portJobs = [2, 7, 10] }
+        if name == "omen" { startOmen("pirates"); omenT = 1.6; Game.omenHold = true }
         if name == "yard" { leg = 1; mode = .port; shipwright() }
         if name == "decklife" { ups = ["sails": 2, "hull": 1, "guns": 1]; deckForce = 5; seaForce = 0 }
-        if name == "town" { leg = 1; mode = .port; portJob = 1; tod = 0.3 }
-        if name == "townnight" { leg = 2; mode = .port; portJob = 4; tod = 0.8; festT = 30 }
+        if name == "town" { leg = 1; mode = .port; portJobs = [1, 8, 11]; tod = 0.3; saluteT = 6; saluteN = 3 }
+        if name == "town2" { leg = 2; path[2] = 1; mode = .port; portJobs = [6, 9, 3]; tod = 0.4 }
+        if name == "town3" { leg = 3; mode = .port; portJobs = [7, 5, 10]; tod = 0.45 }
+        if name == "town4" { leg = 4; mode = .port; portJobs = [2, 9, 11]; tod = 0.5 }
+        if name == "fire" { leg = 1; mode = .port; portJob = 6; playFire() }
+        if name == "townnight" { leg = 2; mode = .port; portJobs = [4, 7, 9]; tod = 0.8; festT = 30 }
         if name == "thief" { leg = 1; mode = .port; playThief() }
         if name == "tavern" { leg = 1; mode = .port; tavern() }
         if name == "summary" { leg = 1; mode = .port; legFrom = "Port Haven"; sum = LegSum(from: "Port Haven", to: here.n, days: 7, leagues: 255, events: 3, gold: 140, lost: 0, hull: 86, fights: 1, wages: wagesDue()); sumT = 0; sumRow = -1 }

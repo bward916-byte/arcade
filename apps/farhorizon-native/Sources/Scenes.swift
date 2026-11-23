@@ -505,10 +505,49 @@ extension Game {
 
     func drawSail(_ c: Canvas) {
         let hz = H * 0.5
+        let wy = hz + (H - hz) * 0.5
+        let omen = !omenK.isEmpty && play == nil
+        let ok = omen ? min(1, omenT / 0.5) : 0
+        let oe = 1 - (1 - ok) * (1 - ok)
+        // the view eases in toward the ship as something comes into sight
+        c.save()
+        if omen {
+            let z = 1 + 0.07 * oe + 0.02 * min(1, omenT / Game.omenLen)
+            c.translate(W * 0.45, wy - 20); c.scale(z, z); c.translate(-W * 0.45, -(wy - 20))
+        }
         drawSea(c, hz)
         weatherBack(c, hz)
-        let wy = hz + (H - hz) * 0.5
-        let theme = play?.theme ?? ""
+        let theme = play?.theme ?? (omen ? omenK : "")
+        let near = omen ? min(1, omenT / Game.omenLen) : 1
+        if theme == "pirates" || theme == "blockade" {
+            // she comes up from astern, growing as she closes
+            drawShip(c, -W * 0.1 + W * 0.2 * near, wy - 14 + 8 * near, min(W * 0.3, 280) * (0.35 + 0.4 * near), theme == "blockade" ? 3 : 2, enemy: true)
+        } else if theme == "merchant" {
+            drawShip(c, W * 1.05 - W * 0.22 * near, wy - 16, min(W * 0.3, 280) * 0.5, 2, furled: near > 0.8)
+        } else if theme == "castaway" {
+            let rx = W * 1.0 - W * 0.22 * near, ry = wy + 16 + sin(T * 2) * 3
+            c.RR(rx - 18, ry, 36, 5, 2, Col(0x8a6a44)); c.seg(rx, ry, rx, ry - 20, 1.5, Col(0x5a3d20)); c.poly(Col(0xe8e0c8), [rx, ry - 20, rx + 11, ry - 16, rx, ry - 12])
+            c.circ(rx - 7, ry - 9, 3, Col(0xe3b58a)); c.R(rx - 9, ry - 6, 4, 6, Col(0x8c3b2e)); c.seg(rx - 7, ry - 6, rx - 13, ry - 16 + sin(T * 10) * 3, 1.6, Col(0xe3b58a))
+            c.poly(Col(0x3a4650), [rx + 30, ry + 8, rx + 37, ry - 4, rx + 43, ry + 8])
+        } else if theme == "bottle" {
+            let bx = W * 0.95 - W * 0.26 * near, byy = wy + 22 + sin(T * 2.4) * 3
+            c.save(); c.translate(bx, byy); c.rotate(0.5 + sin(T * 1.5) * 0.2)
+            c.RR(-3.5, -9, 7, 14, 3, Col(0x7fc8a0, 0.9)); c.R(-1.5, -14, 3, 6, Col(0x7fc8a0, 0.9)); c.R(-2, -16, 4, 2.5, Col(0x8a6238))
+            c.restore()
+            c.glow(bx, byy - 6, 26, Col(0xffffff, 0.5 + 0.4 * sin(T * 8)), Col(0xffffff, 0))
+        } else if theme == "fish" && omen {
+            for i in 0..<7 {
+                let gx = W * 0.78 + sin(T * 1.3 + Double(i) * 1.7) * 60, ph = (T * 0.9 + Double(i) * 0.3).truncatingRemainder(dividingBy: 1)
+                let gy = hz * 0.5 + ph * (wy + 14 - hz * 0.5)
+                c.curve(gx - 7, gy - 2, gx - 3, gy - 6, gx, gy, 1.4, WHITE); c.curve(gx, gy, gx + 3, gy - 6, gx + 7, gy - 2, 1.4, WHITE)
+                if ph > 0.9 { c.ellStroke(gx, wy + 16, 9, 3, 1.2, Col(0xffffff, 0.7)) }
+            }
+        } else if theme == "overboard" {
+            let mx = W * 0.42 - min(W * 0.3, 280) * ship.len * 0.5 - 30 - 40 * near, my = wy + 22 + sin(T * 3) * 3
+            c.ellStroke(mx, my + 4, 16 + sin(T * 4) * 3, 4, 1.2, Col(0xffffff, 0.7))
+            c.circ(mx, my - 4, 5, Col(0xe3b58a))
+            c.seg(mx - 3, my, mx - 10, my - 12 + sin(T * 9) * 3, 2.2, Col(0xe3b58a)); c.seg(mx + 3, my, mx + 10, my - 12 - sin(T * 9) * 3, 2.2, Col(0xe3b58a))
+        }
         if theme == "wreck" {
             // the broken hull you are picking over
             c.save()
@@ -546,8 +585,25 @@ extension Game {
         weatherFront(c, hz)
         let L = light()
         if L.night > 0.05 { c.R(0, 0, W, H, Col(0x04081a, 0.25 * L.night)) }
+        c.restore()
         if play != nil {
             drawPlay(c)
+            return
+        }
+        if omen {
+            // black bars close in top and bottom, and a line says what the lookout has seen
+            let bar = 44 * oe
+            c.R(0, 0, W, 30 + bar * 0.4, Col(0x000000, 0.0))
+            c.vfill(0, H - 76 * oe - safeB, W, 76 * oe + safeB, [(0, Col(0x000000, 0)), (0.35, Col(0x000000, 0.72)), (1, Col(0x000000, 0.86))])
+            c.vfill(0, 30, W, 40 * oe, [(0, Col(0x000000, 0.5 * oe)), (1, Col(0x000000, 0))])
+            let om = Game.OMENS[omenK] ?? ("", "")
+            let ta = clampD((omenT - 0.25) / 0.4, 0, 1)
+            c.save()
+            c.alpha(ta)
+            c.textS(om.0, W / 2 - 16 * (1 - ta), H - safeB - 38, 26, GOLD, 0, FONTD)
+            c.textS(om.1, W / 2 + 16 * (1 - ta), H - safeB - 14, 15, CREAM, 0, FONTI)
+            c.restore()
+            if Game.omenHold { omenT = min(omenT, 1.7) }
             return
         }
         drawProgress(c)

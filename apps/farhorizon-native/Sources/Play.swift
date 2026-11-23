@@ -98,6 +98,9 @@ extension Game {
                 } else if p.theme == "thief" || p.theme == "rats" {
                     x = rnd(W * 0.46, W - safeR - 40)
                     y = quayY() - (p.theme == "thief" ? 14 : 4)
+                } else if p.theme == "fire" {
+                    x = rnd(W * 0.44, W - safeR - 40)
+                    y = quayY() - rnd(26, 58)
                 } else {
                     x = rnd(W * 0.6, W - safeR - 50)
                     y = rnd(wy - 6, H - safeB - 40)
@@ -118,7 +121,7 @@ extension Game {
                         shake = 0.25
                         snd?.thud()
                         buzz?(true)
-                        p.say(p.theme == "leak" ? "She's taking water!" : (p.theme == "thief" ? "He ducks away!" : (p.theme == "rats" ? "Into the stores!" : "Struck a rock!")), false)
+                        p.say(p.theme == "leak" ? "She's taking water!" : (p.theme == "thief" ? "He ducks away!" : (p.theme == "rats" ? "Into the stores!" : (p.theme == "fire" ? "It has the roof!" : "Struck a rock!"))), false)
                     } else {
                         open += 1
                     }
@@ -150,6 +153,7 @@ extension Game {
                 case "run": p.say(perfect ? "Every stitch drawing!" : "The sails fill", true)
                 case "fish": p.say(perfect ? "A big one!" : "Hooked!", true); snd?.splash(); puff(sx - len * 0.45, wy + 2, 16, Col(0xffffff, 0.9), 160, 300, 2.4, 0.5)
                 case "dock": p.say(perfect ? "Stowed like a master!" : "Aboard she goes", true); snd?.coin()
+                case "strong": p.say(perfect ? "The bell rings clean off its post!" : "The bell rings!", true); snd?.bell()
                 default: p.say("He has the line!", true)
                 }
             } else {
@@ -161,6 +165,7 @@ extension Game {
                 case "run": p.say("The canvas flogs", false)
                 case "fish": p.say("It slipped the hook", false)
                 case "dock": p.say("The load swings wide!", false)
+                case "strong": p.say("Not even halfway", false)
                 default: p.say("The line falls short", false); snd?.splash()
                 }
             }
@@ -324,6 +329,17 @@ extension Game {
                         c.RR(tg.x - 7, tg.y - 4 - 20 * pop, 14, 24 * pop, 4, Col(0x23232c))
                         c.circ(tg.x, tg.y - 28 * pop, 7, Col(0x23232c)); c.circ(tg.x + 1, tg.y - 27 * pop, 4, Col(0xe3b58a))
                         c.circ(tg.x + 10, tg.y - 10 * pop, 4.5, Col(0xd9a441)); c.circ(tg.x + 10, tg.y - 10 * pop, 2, Col(0xfff2c0))
+                    } else if p.theme == "fire" {
+                        // flames taking hold of a roof
+                        for j in 0..<5 {
+                            let ph = T * (6 + Double(j)) + Double(j) * 1.9
+                            let fh = (14 + 12 * k) * (0.6 + 0.4 * sin(ph))
+                            let fxx = tg.x + (Double(j) - 2) * 6
+                            c.poly(Col(0xff6a20, 0.9), [fxx - 6, tg.y, fxx + sin(ph) * 3, tg.y - fh, fxx + 6, tg.y])
+                            c.poly(Col(0xffd257, 0.9), [fxx - 3, tg.y, fxx, tg.y - fh * 0.55, fxx + 3, tg.y])
+                        }
+                        c.glow(tg.x, tg.y - 8, 40, Col(0xff8a30, 0.5), Col(0xff8a30, 0))
+                        c.circ(tg.x + sin(T * 2) * 4, tg.y - 30 - k * 14, 6 + k * 6, Col(0x3a3a3a, 0.4))
                     } else if p.theme == "rats" {
                         let rx = tg.x + sin(T * 14 + tg.x) * 3
                         c.ell(rx, tg.y, 10, 5.5, Col(0x5a5560)); c.circ(rx + 9, tg.y - 1, 4, Col(0x5a5560)); c.circ(rx + 10, tg.y - 5, 2, Col(0x8a8590))
@@ -343,13 +359,13 @@ extension Game {
                         c.RR(tg.x - 9, tg.y - 6, 18, 12, 2, Col(0xc9a86a, 0.5 + 0.5 * a))
                         c.circ(tg.x - 6, tg.y - 3, 1.2, Col(0x3a2412)); c.circ(tg.x + 6, tg.y + 3, 1.2, Col(0x3a2412))
                     } else {
-                        c.textS(p.theme == "thief" || p.theme == "rats" ? "Got him!" : "Clear!", tg.x, tg.y - 20 - (1 - a) * 14, 15, Col(0x9ff0aa, a), 0, FONTB)
+                        c.textS(p.theme == "fire" ? "Doused!" : (p.theme == "thief" || p.theme == "rats" ? "Got him!" : "Clear!"), tg.x, tg.y - 20 - (1 - a) * 14, 15, Col(0x9ff0aa, a), 0, FONTB)
                     }
                 } else if tg.state == 2 && tg.age < 0.7 {
                     c.textS("✕", tg.x, tg.y, 26, Col(0xff5a3c, 1 - tg.age / 0.7), 0, FONTB)
                 }
             }
-            c.textS((p.theme == "leak" ? "Plugged " : (p.theme == "thief" || p.theme == "rats" ? "Caught " : "Cleared ")) + "\(p.score) / \(p.total)", W / 2, H - safeB - 22, 16, CREAM, 0, FONTB)
+            c.textS((p.theme == "leak" ? "Plugged " : (p.theme == "fire" ? "Doused " : (p.theme == "thief" || p.theme == "rats" ? "Caught " : "Cleared "))) + "\(p.score) / \(p.total)", W / 2, H - safeB - 22, 16, CREAM, 0, FONTB)
         case .pick:
             let r = pickRects(p)
             for (i, q) in r.enumerated() {
@@ -578,6 +594,106 @@ extension Game {
         if chance(0.35) { s[4] = 8 }
         playPick("wreck", "An old sailor's gift", "\"Sailed with your father, I did. Take two, with my blessing.\"", s, 2) { return "" }
     }
+    func playFire() {
+        let p = Play(.taps, "fire", "Fire in the town!", "Your crew forms a bucket chain. Tap each blaze") { [unowned self] p in
+            self.portJobDone = true
+            if p.missed <= 2 {
+                let g = 40 + p.score * 10
+                self.gold += g
+                self.snd?.coin()
+                self.done(p.missed == 0 ? "Not a house lost. The town empties its pockets: +\(g) gold" : "Most of the street is saved. The town gives \(g) gold in thanks")
+            } else {
+                self.done("Half the street burns before it is out. No one has the heart to thank you")
+            }
+        }
+        p.total = 7
+        p.life = 1.35
+        startPlay(p)
+    }
+    func playStrong() {
+        let p = Play(.timing, "strong", "Ring the bell", "The strongman's hammer. Tap at the top of the swing") { [unowned self] p in
+            self.portJobDone = true
+            let g = p.score >= 3 ? 50 + p.perfect * 10 : (p.score == 2 ? 20 : 0)
+            self.gold += g
+            if g > 0 { self.snd?.coin() }
+            self.done(p.score >= 3 ? "Three for three. The purse is yours: +\(g) gold" : (g > 0 ? "Two out of three wins a small prize: +\(g) gold" : "The strongman keeps his purse"))
+        }
+        p.rounds = 3
+        p.zone = 0.2
+        p.speed = 1.45
+        startPlay(p)
+    }
+    func startRaid() {
+        duelPort = true; duelSport = false
+        startDuel(foes: 5, boss: false, prize: 45)
+    }
+    func startTourney() {
+        duelPort = true; duelSport = true
+        startDuel(foes: 3, boss: false, prize: 40)
+    }
+    func offerCargo() {
+        let next = STAGES[min(5, leg + 1)][path[min(5, leg + 1)]].n
+        let room = holdMax - holdUsed
+        show("A merchant's cargo", "Thirty crates of cloth for " + next + ". He pays 130 gold when they land. They fill 30 of your hold until then." + (room < 30 ? "\nYou have room for only \(room)." : ""), [
+            Opt("Take the cargo", room < 30 ? "not enough room" : "130 gold on delivery", off: room < 30) { [unowned self] in
+                self.cargoPay = 130; self.cargoHold = 30
+                self.portJobDone = true
+                self.snd?.good()
+                self.card = nil
+                self.toast("Cargo stowed for " + next)
+            },
+            Opt("Not this time") { [unowned self] in self.card = nil }
+        ])
+    }
+    func offerFare() {
+        let next = STAGES[min(5, leg + 1)][path[min(5, leg + 1)]].n
+        show("A passenger", "A lady with three trunks must be in " + next + " within nine days. Ninety gold if you make it; half if you are late.", [
+            Opt("Welcome aboard", "90 gold on arrival") { [unowned self] in
+                self.fareDue = 90; self.fareBy = self.day + 9
+                self.portJobDone = true
+                self.snd?.good()
+                self.card = nil
+                self.toast("She has the stern cabin")
+            },
+            Opt("No passengers") { [unowned self] in self.card = nil }
+        ])
+    }
+    func takeBounty() {
+        portJobDone = true
+        bounty = true
+        snd?.good()
+        show("Wanted", "The governor has posted 150 gold for the next pirate crew brought down. You tear the notice from the wall.", [Opt("They are as good as caught") { [unowned self] in self.card = nil }])
+    }
+    /// Three things going on, never the same three.
+    func rollPortJobs() {
+        var pool = [1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12]
+        if isNight || chance(0.3) { pool.append(4); pool.append(4) }
+        pool.shuffle()
+        portJobs = []
+        for j in pool where !portJobs.contains(j) && portJobs.count < 3 { portJobs.append(j) }
+        jobsDone = []
+        portJob = 0
+        saluteT = 5; saluteN = 3
+        chatT = 0
+    }
+    func runJob(_ j: Int) {
+        portJob = j
+        switch j {
+        case 1: playDock()
+        case 2: playThief()
+        case 3: playRats()
+        case 4: joinFestival()
+        case 5: playBarrels()
+        case 6: playFire()
+        case 7: startRaid()
+        case 8: startTourney()
+        case 9: playStrong()
+        case 10: offerCargo()
+        case 11: offerFare()
+        default: takeBounty()
+        }
+    }
+
     func joinFestival() {
         portJobDone = true
         festT = 14
