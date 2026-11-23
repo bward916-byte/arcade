@@ -1298,9 +1298,9 @@ final class Renderer {
         bar(cv, x, 60, 234, 20, g.hero.hp / g.hero.maxHp, hpCol)
         cv.text("♥ HEALTH", x + 8, 75, 11, BLACK.alpha(0.85), 0, 3)
         cv.text("\(max(0, Int(g.hero.hp.rounded(.up)))) / \(Int(g.hero.maxHp))", x + 226, 75, 11, BLACK.alpha(0.85), 2, 3)
-        let ready = g.meter >= 100
-        bar(cv, x, 84, 234, 18, g.meter / 100, ready ? GOLD : Col(0xb89a50))
-        cv.text(ready ? "⚡ POWER MOVE READY — TAP ⚡" : "⚡ POWER MOVE", x + 8, 97, 10.5, ready && Int(t * 4) % 2 == 0 ? HOT : BLACK.alpha(0.85), 0, 3)
+        let full = g.meter >= 100
+        bar(cv, x, 84, 234, 18, g.meter / 100, full ? GOLD : Col(0xb89a50))
+        cv.text(full ? "⚡ POWER MOVE READY — TAP ⚡" : "⚡ POWER MOVE", x + 8, 97, 10.5, full && Int(t * 4) % 2 == 0 ? HOT : BLACK.alpha(0.85), 0, 3)
         bar(cv, x, 106, 234, 18, g.energy / g.energyNeed, Col(0x7db8ff))
         cv.text("★ NEXT UPGRADE", x + 8, 119, 10.5, BLACK.alpha(0.85), 0, 3)
         cv.text("kill to fill", x + 226, 119, 10, BLACK.alpha(0.6), 2, 1)
