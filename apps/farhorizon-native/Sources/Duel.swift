@@ -816,77 +816,186 @@ final class Duel {
         let W = g.W, H = g.H
         let hz = H * 0.44
         g.drawSea(c, hz)
-        // the other ship's rigging against the sky
         let spar = Col(0x1c120a)
-        for (i, mx) in [W * 0.16, W * 0.5, W * 0.84].enumerated() {
-            let top = i == 1 ? -10.0 : H * 0.04
-            c.R(mx - 5, top, 10, H * 0.66 - top, spar)
-            c.R(mx - 70, H * 0.27 + Double(i) * 6, 140, 5, spar)
-            c.RR(mx - 64, H * 0.27 + Double(i) * 6 + 4, 128, 9, 4, Col(0x7a1b12))
-            c.seg(mx, top + 20, mx - 110, H * 0.6, 1.2, spar.alpha(0.8))
-            c.seg(mx, top + 20, mx + 110, H * 0.6, 1.2, spar.alpha(0.8))
-            for j in 1..<7 {
-                let k = Double(j) / 7
-                c.seg(mx - 110 * k, top + 20 + (H * 0.6 - top - 20) * k, mx + 110 * k, top + 20 + (H * 0.6 - top - 20) * k, 0.8, spar.alpha(0.6))
+        let L = g.light()
+        // ---- the pirate ship lashed alongside: her side, masts, red canvas, black flag
+        let side = H * 0.5
+        c.vfill(0, side - 26, W, H * 0.12 + 26, [(0, Col(0x2a1410)), (1, Col(0x120806))])
+        c.R(0, side - 26, W, 4, Col(0x7a1b12)); c.R(0, side - 12, W, 2, Col(0xd4a52a, 0.5))
+        for i in 0..<9 {
+            let gx = W * (0.04 + Double(i) * 0.115)
+            c.RR(gx, side - 6, 22, 16, 2, Col(0x0a0504)); c.RRStroke(gx, side - 6, 22, 16, 2, 1.2, Col(0x7a1b12))
+            c.circ(gx + 11, side + 2, 5, Col(0x1c1c20)); c.circ(gx + 11, side + 2, 2.4, Col(0x000000))
+        }
+        for (i, mx) in [W * 0.14, W * 0.5, W * 0.86].enumerated() {
+            let top = i == 1 ? -14.0 : H * 0.02
+            c.R(mx - 6, top, 12, side - top, spar)
+            c.R(mx - 6, top, 3, side - top, Col(0xffffff, 0.06))
+            // shrouds and ratlines
+            for sd in [-1.0, 1.0] {
+                for k in 0..<3 { c.seg(mx, top + 26, mx + sd * (84 + Double(k) * 16), side - 20, 1.3, spar.alpha(0.85)) }
+                for j in 1..<8 {
+                    let f = Double(j) / 8
+                    let yy = top + 26 + (side - 46 - top) * f
+                    c.seg(mx + sd * 84 * f, yy, mx + sd * 116 * f, yy, 0.9, spar.alpha(0.6))
+                }
+            }
+            // two yards of red canvas, bellying and luffing
+            for lv in 0..<2 {
+                let yy = H * (0.06 + Double(lv) * 0.17) + Double(i) * 5
+                let hw = 92.0 - Double(lv) * 4, sh = H * 0.14
+                let belly = sin(t * 1.3 + Double(i) * 1.7 + Double(lv)) * 9
+                c.R(mx - hw - 8, yy - 3, hw * 2 + 16, 6, spar)
+                c.pathGrad(yy, yy + sh, [(0, Col(0x9a2418)), (1, Col(0x5a110b))]) { q in
+                    q.move(to: CGPoint(x: mx - hw, y: yy + 3))
+                    q.addLine(to: CGPoint(x: mx + hw, y: yy + 3))
+                    q.addQuadCurve(to: CGPoint(x: mx + hw - 6, y: yy + sh), control: CGPoint(x: mx + hw + belly, y: yy + sh * 0.5))
+                    q.addQuadCurve(to: CGPoint(x: mx - hw + 6, y: yy + sh), control: CGPoint(x: mx, y: yy + sh + 10 + belly * 0.6))
+                    q.addQuadCurve(to: CGPoint(x: mx - hw, y: yy + 3), control: CGPoint(x: mx - hw + belly, y: yy + sh * 0.5))
+                }
+                for sm in 1..<5 { c.seg(mx - hw + hw * 2 * Double(sm) / 5, yy + 5, mx - hw + hw * 2 * Double(sm) / 5 + belly * 0.3, yy + sh - 4, 0.8, Col(0x3a0a06, 0.6)) }
+                // shot holes
+                c.circ(mx - hw * 0.4, yy + sh * 0.55, 5, Col(0x2a0805)); c.circ(mx + hw * 0.5, yy + sh * 0.35, 3.5, Col(0x2a0805))
+            }
+            if i == 1 {
+                // the black flag
+                c.pathFill(Col(0x0c0c0e)) { q in
+                    q.move(to: CGPoint(x: mx + 6, y: 2))
+                    for st in 1...7 { q.addLine(to: CGPoint(x: mx + 6 + Double(st) * 9, y: 2 + sin(t * 5 + Double(st) * 0.8) * 3 * Double(st) / 7)) }
+                    for st in stride(from: 7, through: 0, by: -1) { q.addLine(to: CGPoint(x: mx + 6 + Double(st) * 9, y: 34 + sin(t * 5 + Double(st) * 0.8) * 3 * Double(st) / 7)) }
+                    q.closeSubpath()
+                }
+                c.circ(mx + 34, 15, 7, Col(0xf1e7cf)); c.R(mx + 30, 20, 8, 5, Col(0xf1e7cf))
+                c.circ(mx + 31.5, 14, 1.8, Col(0x0c0c0e)); c.circ(mx + 36.5, 14, 1.8, Col(0x0c0c0e))
+                c.seg(mx + 24, 28, mx + 44, 20, 2, Col(0xf1e7cf)); c.seg(mx + 24, 20, mx + 44, 28, 2, Col(0xf1e7cf))
             }
         }
-        // the rail
+        // grappling lines, taut between the ships, hooks bitten into your rail
         let ry = H * 0.58
-        c.R(0, ry, W, 7, Col(0x4a2d14))
-        c.R(0, ry, W, 2, Col(0x8a5a2c))
-        var bx = 8.0
+        for i in 0..<4 {
+            let gx = W * (0.2 + Double(i) * 0.2)
+            c.curve(gx + 30, H * 0.3, gx + 10, H * 0.5, gx, ry - 2, 1.6, Col(0xc9b88a, 0.9))
+            c.arcStroke(gx, ry + 1, 6, PI, PI * 2, 2.4, Col(0x23232a)); c.arcStroke(gx - 7, ry + 1, 4, 0, PI, 2, Col(0x23232a)); c.arcStroke(gx + 7, ry + 1, 4, 0, PI, 2, Col(0x23232a))
+        }
+        // powder smoke drifting between the hulls, sparks rising through it
+        for i in 0..<9 {
+            let span = W + 300
+            var sx = (hashN(Double(i) * 3.3) * span + t * (14 + hashN(Double(i)) * 16)).truncatingRemainder(dividingBy: span)
+            sx -= 150
+            let sy = H * (0.2 + hashN(Double(i) * 7.1) * 0.34)
+            c.ell(sx, sy, 110 + hashN(Double(i) * 2.2) * 70, 26 + hashN(Double(i) * 5.5) * 18, Col(0xd8d0c8, 0.09 + 0.05 * sin(t + Double(i))))
+        }
+        for i in 0..<14 {
+            let ph = (t * (0.18 + hashN(Double(i)) * 0.2) + hashN(Double(i) * 4.4)).truncatingRemainder(dividingBy: 1)
+            let ex2 = hashN(Double(i) * 9.1) * W + sin(t * 2 + Double(i)) * 14
+            c.circ(ex2, H * 0.66 - ph * H * 0.6, 1.6, Col(0xffb040, 0.9 * (1 - ph)))
+        }
+        // ---- your rail: turned balusters, a cap that catches the light
+        c.R(0, ry + 9, W, H * 0.08, Col(0x24150a, 0.55))
+        var bx = 6.0
         while bx < W {
-            c.R(bx, ry + 7, 6, H * 0.08, Col(0x3f2613))
-            bx += 26
+            c.RR(bx, ry + 8, 7, H * 0.085, 2, Col(0x4a2d14))
+            c.ell(bx + 3.5, ry + 8 + H * 0.03, 5.5, 5, Col(0x5a3a1c)); c.ell(bx + 3.5, ry + 8 + H * 0.06, 4.5, 4, Col(0x5a3a1c))
+            c.R(bx + 1, ry + 8, 1.5, H * 0.085, Col(0xffffff, 0.08))
+            bx += 24
         }
-        c.R(0, ry + H * 0.08 + 5, W, 5, Col(0x33200f))
-        // the men fighting along the rail behind you
-        for i in 0..<5 {
-            let x = W * (0.1 + Double(i) * 0.2) + sin(t * 0.7 + Double(i) * 2.1) * 12
-            let y = H * 0.7
-            let sw = sin(t * (5 + Double(i)) + Double(i))
-            let mine = i % 2 == 0
-            c.ell(x, y + 1, 12, 3, Col(0x000000, 0.25))
-            c.R(x - 4, y - 22, 8, 14, mine ? Col(0x25486c) : Col(0x241c20))
-            c.seg(x - 2, y - 8, x - 4, y, 3, Col(0x1a1410)); c.seg(x + 2, y - 8, x + 5, y, 3, Col(0x1a1410))
-            c.circ(x, y - 26, 4.5, Col(0xb98a5e))
-            let dir = mine ? 1.0 : -1.0
-            c.seg(x + dir * 4, y - 18, x + dir * 14, y - 22 - sw * 8, 2.2, Col(0xb98a5e))
-            c.seg(x + dir * 14, y - 22 - sw * 8, x + dir * 28, y - 30 - sw * 14, 1.6, Col(0xdfe6ea))
+        c.RR(-4, ry, W + 8, 10, 3, Col(0x6b4423)); c.R(0, ry, W, 2.5, Col(0xb07a3c)); c.R(0, ry + 8, W, 2, Col(0x24150a))
+        c.R(0, ry + H * 0.085 + 6, W, 6, Col(0x33200f))
+        // the fight goes on along the rail behind you: pairs trading cuts
+        for i in 0..<3 {
+            let x = W * (0.18 + Double(i) * 0.32) + sin(t * 0.7 + Double(i) * 2.1) * 10
+            let y = H * 0.71
+            let ph = t * (3.4 + Double(i) * 0.6) + Double(i) * 1.9
+            var a = Pose(), b2 = Pose()
+            a.ang = -0.5 + sin(ph) * 0.9; a.reach = max(0, sin(ph)) * 0.8; a.lean = 0.05 + max(0, sin(ph)) * 0.2
+            b2.ang = -0.5 + sin(ph + 2.4) * 0.9; b2.reach = max(0, sin(ph + 2.4)) * 0.8; b2.lean = 0.05 + max(0, sin(ph + 2.4)) * 0.2
+            fighter(c, x - H * 0.055, y, H * 0.19, 1, a, 0)
+            fighter(c, x + H * 0.055, y, H * 0.19, -1, b2, i == 1 ? 2 : 5)
+            if sin(ph) > 0.92 { c.glow(x, y - H * 0.12, 16, Col(0xfff0c0, 0.9), Col(0xfff0c0, 0)) }
         }
-        // the deck
-        c.vfill(0, H * 0.67, W, H * 0.33, [(0, Col(0x7a5230)), (1, Col(0x4a2d14))])
-        var py = H * 0.67
-        var gapY = 7.0
+        c.R(0, ry + 10, W, H * 0.67 - ry - 10 + H * 0.06, Col(0x1a0c10, 0.28))
+        // ---- the deck: long planks running to the rail, caulked seams, nail heads, worn and wet
+        let dk = H * 0.67
+        c.vfill(0, dk, W, H - dk, [(0, Col(0x8a5e36)), (0.5, Col(0x6b4423)), (1, Col(0x402612))])
+        var py = dk
+        var gapY = 6.0
+        var row = 0
         while py < H {
-            c.R(0, py, W, 1.3, Col(0x000000, 0.25))
+            c.R(0, py, W, 1.6, Col(0x1c0f06, 0.5))
+            c.R(0, py + 1.6, W, 1, Col(0xffffff, 0.05))
+            // butt joints and nails, staggered row by row
+            let persp = (py - dk) / (H - dk)
+            var jx = (row % 2 == 0 ? 60.0 : 150.0)
+            while jx < W {
+                let x = W / 2 + (jx - W / 2) * (0.82 + persp * 0.43)
+                c.R(x, py, 1.4, gapY, Col(0x1c0f06, 0.4))
+                c.circ(x - 5, py + gapY * 0.3, 1 + persp, Col(0x1c0f06, 0.5)); c.circ(x + 5, py + gapY * 0.3, 1 + persp, Col(0x1c0f06, 0.5))
+                jx += 190
+            }
             py += gapY
             gapY *= 1.32
+            row += 1
         }
-        for i in 0..<12 {
-            let x = W * Double(i) / 11
-            c.seg(W / 2 + (x - W / 2) * 0.82, H * 0.67, W / 2 + (x - W / 2) * 1.25, H, 0.8, Col(0x000000, 0.14))
+        // grain, and a wet sheen where the light comes through the rigging
+        for i in 0..<16 {
+            let gy = dk + hashN(Double(i) * 3.7) * (H - dk), gx = hashN(Double(i) * 8.3) * W
+            c.curve(gx, gy, gx + 40, gy + 2, gx + 90, gy - 1, 0.8, Col(0x2a1608, 0.25))
         }
+        c.ell(W * 0.5, H * 0.86, W * 0.42, H * 0.07, Col(0xffe0a0, 0.07 + 0.02 * sin(t * 0.9)))
+        // the shadow of the rigging sliding across the planks as the ships work
+        let shd = sin(t * 0.5) * 24
+        for i in 0..<6 { c.seg(W * (0.08 + Double(i) * 0.17) + shd, dk, W * (0.02 + Double(i) * 0.19) + shd * 1.6, H, 5, Col(0x000000, 0.07)) }
+        // ---- gear on deck: a gun on its carriage at either side, shot, a cask, a coil of rope
+        for sd in [-1.0, 1.0] {
+            let cx = sd < 0 ? g.safeL * 0.3 + 34 : W - g.safeR * 0.3 - 34
+            let cy = H * 0.75
+            c.ell(cx, cy + 20, 46, 7, Col(0x000000, 0.3))
+            c.poly(Col(0x4a2d14), [cx - 30, cy + 18, cx + 30, cy + 18, cx + 24, cy + 2, cx - 24, cy + 2])
+            c.circ(cx - 20, cy + 16, 8, Col(0x2a1a0c)); c.circ(cx + 20, cy + 16, 8, Col(0x2a1a0c)); c.circ(cx - 20, cy + 16, 3, Col(0x6b4423)); c.circ(cx + 20, cy + 16, 3, Col(0x6b4423))
+            c.save(); c.translate(cx, cy - 2); c.rotate(sd * -0.12)
+            c.RRGrad(-34, -9, 68, 18, 8, [(0, Col(0x4a4a52)), (0.4, Col(0x23232a)), (1, Col(0x0c0c10))])
+            c.RR(sd * 28 - 5, -11, 10, 22, 3, Col(0x1c1c22)); c.R(-34, -5, 68, 1.5, Col(0xffffff, 0.14))
+            c.restore()
+            for b in 0..<3 { c.circ(cx - sd * 46 + Double(b) * 9 - 9, cy + 20, 5, Col(0x1c1c22)); c.circ(cx - sd * 46 + Double(b) * 9 - 10.5, cy + 18.5, 1.5, Col(0xffffff, 0.2)) }
+        }
+        let kx = W * 0.5, ky = dk + 2
+        c.ell(kx, ky + 3, 34, 6, Col(0x000000, 0.25))
+        c.RRGrad(kx - 20, ky - 34, 40, 38, 8, [(0, Col(0x8a6238)), (1, Col(0x4a2d14))])
+        c.R(kx - 21, ky - 26, 42, 3, Col(0x1c1c22)); c.R(kx - 21, ky - 8, 42, 3, Col(0x1c1c22)); c.ell(kx, ky - 34, 20, 4.5, Col(0x6b4423))
+        for r in 0..<4 { c.ellStroke(kx + 52, ky - 2 - Double(r) * 3, 18 - Double(r) * 1.5, 5, 2.6, Col(0xc9b88a)) }
         // lantern light and dusk
-        let L = g.light()
-        c.R(0, 0, W, H, Col(0x1a0c20, 0.12 + 0.2 * L.night))
-        for lx in [W * 0.16, W * 0.84] {
-            c.circ(lx, H * 0.36, 5, Col(0xffd257))
-            c.glow(lx, H * 0.36, 120, Col(0xffb050, 0.3), Col(0xffb050, 0))
+        c.R(0, 0, W, H, Col(0x1a0c20, 0.1 + 0.2 * L.night))
+        for (i, lx) in [W * 0.14, W * 0.86].enumerated() {
+            let sway = sin(t * 1.2 + Double(i) * 2) * 6
+            c.seg(lx, H * 0.27, lx + sway, H * 0.36, 1.2, spar)
+            c.RR(lx + sway - 6, H * 0.36, 12, 16, 3, Col(0x23180c)); c.RR(lx + sway - 4, H * 0.36 + 2.5, 8, 11, 2, Col(0xffd98a))
+            c.glow(lx + sway, H * 0.38, 150, Col(0xffb050, 0.32 + 0.05 * sin(t * 9 + Double(i))), Col(0xffb050, 0))
         }
+        // darker toward the edges, so the eye stays on the two blades
+        c.linear(0, 0, W * 0.22, H, 0, 0, W * 0.22, 0, [(0, Col(0x000000, 0.4)), (1, Col(0x000000, 0))])
+        c.linear(W * 0.78, 0, W * 0.22, H, W * 0.78, 0, W, 0, [(0, Col(0x000000, 0)), (1, Col(0x000000, 0.4))])
     }
 
     /// One swordsman. (x, fy) is the ground between his feet; s is his height; dir is the way he faces.
+    /// style: 0 your sailor, 1 cutthroat, 2 bruiser, 3 duelist, 4 captain, 5 deckhand
     private func fighter(_ c: Canvas, _ x: Double, _ fy: Double, _ s: Double, _ dir: Double, _ p: Pose, _ style: Int) {
-        // colours by who he is: 0 your sailor, 1 cutthroat, 2 bruiser, 3 duelist, 4 captain
-        let shirts: [Col] = [Col(0x2f5f8f), Col(0x3a3a40), Col(0x5a3a24), Col(0x24303a), Col(0x7a1b12), Col(0x6a6048)]
-        let skins: [Col] = [Col(0xe3b58a), Col(0xc99a6e), Col(0xb98a5e), Col(0xd9a878), Col(0xc99a6e), Col(0xd2a070)]
-        let bands: [Col] = [Col(0xb03a2a), Col(0x111111), Col(0x8a1a1a), Col(0x1a1a1a), Col(0x16100a), Col(0x3a5a3a)]
-        let shirt = shirts[style], skin = skins[style], band = bands[style]
-        let wide = style == 2 ? 1.3 : 1.0
+        let st = min(5, max(0, style))
+        let shirt = [Col(0xf1ead8), Col(0x8a8478), Col(0xc9a070), Col(0xf3eee2), Col(0xf3eee2), Col(0xe8e4d8)][st]
+        let coat = [Col(0x2f5f8f), Col(0x26262c), Col(0x5a3a24), Col(0x1f4a52), Col(0x8a1b12), Col(0x3a5a7a)][st]
+        let legC = [Col(0xe8e0cc), Col(0x2b2420), Col(0x3a2a1c), Col(0x23262c), Col(0x16100c), Col(0xb09a6a)][st]
+        let skin = [Col(0xe3b58a), Col(0xc99a6e), Col(0xb98a5e), Col(0xdcae80), Col(0xc99a6e), Col(0xd2a070)][st]
+        let hair = [Col(0x5a3a1c), Col(0x1c1410), Col(0x2a1c12), Col(0x3a2a1c), Col(0x100c0a), Col(0x8a5a2c)][st]
+        let sash = [Col(0xb03a2a), Col(0x6a1a1a), Col(0x8a1a1a), Col(0x7a6a2a), Col(0xd4a52a), Col(0x3a5a3a)][st]
+        let long = st == 3 || st == 4
+        let bare = st == 2
+        let wide = st == 2 ? 1.28 : 1.0
+        let ink = Col(0x140c06)
+        let ol = max(1.2, s * 0.012)
+        let fl = sin(t * 5 + x * 0.02), fl2 = sin(t * 7 + x * 0.03)
+
         c.save()
         c.translate(x, fy)
-        c.ell(0, 2, s * 0.26, s * 0.035, Col(0x000000, 0.35))
+        c.ell(0, 2, s * 0.3, s * 0.04, Col(0x000000, 0.4))
         if p.fall > 0 {
             c.alpha(1 - p.fall * 0.6)
             c.translate(0, p.fall * s * 0.02)
@@ -894,93 +1003,363 @@ final class Duel {
         }
         c.scale(dir, 1)
         c.roundCaps(true)
+
+        // a limb that tapers, inked round its edge
+        func limb(_ x0: Double, _ y0: Double, _ x1: Double, _ y1: Double, _ w0: Double, _ w1: Double, _ col: Col) {
+            let dx = x1 - x0, dy = y1 - y0
+            let len = max(0.001, (dx * dx + dy * dy).squareRoot())
+            let nx = -dy / len, ny = dx / len
+            for pass in 0..<2 {
+                let e = pass == 0 ? ol : 0
+                let cc = pass == 0 ? ink : col
+                let a = w0 / 2 + e, b = w1 / 2 + e
+                c.poly(cc, [x0 + nx * a, y0 + ny * a, x1 + nx * b, y1 + ny * b, x1 - nx * b, y1 - ny * b, x0 - nx * a, y0 - ny * a])
+                c.circ(x0, y0, a, cc); c.circ(x1, y1, b, cc)
+            }
+            // a strip of light down the upper edge
+            c.seg(x0 + nx * w0 * 0.22, y0 + ny * w0 * 0.22 - w0 * 0.12, x1 + nx * w1 * 0.22, y1 + ny * w1 * 0.22 - w1 * 0.12, max(1, w1 * 0.22), Col(0xffffff, 0.13))
+        }
+        func boot(_ ax: Double, _ ay: Double, _ fx: Double) {
+            // shaft, turned-down cuff, foot and heel
+            limb(ax, ay, fx, -s * 0.045, s * 0.082 * wide, s * 0.07 * wide, Col(0x1c120a))
+            c.pathFill(ink) { q in
+                q.move(to: CGPoint(x: fx - s * 0.05, y: -s * 0.075)); q.addLine(to: CGPoint(x: fx + s * 0.05, y: -s * 0.07))
+                q.addQuadCurve(to: CGPoint(x: fx + s * 0.13, y: -s * 0.002), control: CGPoint(x: fx + s * 0.13, y: -s * 0.05))
+                q.addLine(to: CGPoint(x: fx - s * 0.055, y: 0)); q.closeSubpath()
+            }
+            c.pathFill(Col(0x2a1c10)) { q in
+                q.move(to: CGPoint(x: fx - s * 0.04, y: -s * 0.068)); q.addLine(to: CGPoint(x: fx + s * 0.045, y: -s * 0.062))
+                q.addQuadCurve(to: CGPoint(x: fx + s * 0.118, y: -s * 0.012), control: CGPoint(x: fx + s * 0.115, y: -s * 0.045))
+                q.addLine(to: CGPoint(x: fx - s * 0.045, y: -s * 0.012)); q.closeSubpath()
+            }
+            c.seg(fx + s * 0.02, -s * 0.05, fx + s * 0.09, -s * 0.03, max(1, s * 0.008), Col(0xffffff, 0.2))
+            c.RR(ax - s * 0.058 * wide + (fx - ax) * 0.1, ay - s * 0.012, s * 0.116 * wide, s * 0.04, s * 0.012, Col(0x3a2616))
+            c.RRStroke(ax - s * 0.058 * wide + (fx - ax) * 0.1, ay - s * 0.012, s * 0.116 * wide, s * 0.04, s * 0.012, ol * 0.8, ink)
+        }
+
         let crouch = p.crouch * s
         let hipX = p.reach * s * 0.1, hipY = -s * 0.47 + crouch
         let shX = hipX + sin(p.lean) * s * 0.3, shY = hipY - cos(p.lean) * s * 0.3
-        let legC = Col(0x2b1d12), boot = Col(0x15100a)
-        // legs: the back one braces, the front one steps into the lunge
         let bfX = -s * (0.2 + max(0, p.reach) * 0.08), ffX = s * (0.15 + max(0, p.reach) * 0.24)
         let bkX = (hipX + bfX) / 2 - s * 0.02, bkY = hipY / 2 - s * 0.02
         let fkX = (hipX + ffX) / 2 + s * 0.07, fkY = hipY / 2 - s * 0.03 + crouch * 0.4
-        c.seg(hipX, hipY, bkX, bkY, s * 0.085 * wide, legC); c.seg(bkX, bkY, bfX, -s * 0.03, s * 0.075 * wide, legC)
-        c.seg(bfX - s * 0.03, -s * 0.02, bfX + s * 0.06, -s * 0.02, s * 0.06, boot)
-        c.seg(hipX, hipY, fkX, fkY, s * 0.09 * wide, legC); c.seg(fkX, fkY, ffX, -s * 0.03, s * 0.08 * wide, legC)
-        c.seg(ffX - s * 0.02, -s * 0.02, ffX + s * 0.09, -s * 0.02, s * 0.06, boot)
-        // the back arm, out for balance
-        let baX = shX - s * 0.16, baY = shY + s * 0.16 - p.reach * s * 0.08
-        c.seg(shX - s * 0.03, shY + s * 0.03, baX, baY, s * 0.06 * wide, shirt.shade(0.8))
-        c.circ(baX, baY, s * 0.035, skin)
-        // coat tails for the captain
-        if style == 4 {
-            c.pathFill(Col(0x5a130c)) { q in
-                q.move(to: CGPoint(x: hipX - s * 0.08, y: hipY - s * 0.06))
-                q.addLine(to: CGPoint(x: hipX - s * 0.24, y: hipY + s * 0.2))
-                q.addLine(to: CGPoint(x: hipX - s * 0.06, y: hipY + s * 0.16))
-                q.addLine(to: CGPoint(x: hipX + s * 0.06, y: hipY + s * 0.02))
+
+        // ---- the skirts of a long coat hang behind the legs and swing with the body
+        if long {
+            c.pathFill(ink) { q in
+                q.move(to: CGPoint(x: hipX - s * 0.12, y: hipY - s * 0.08))
+                q.addQuadCurve(to: CGPoint(x: hipX - s * (0.3 + p.reach * 0.04) + fl * s * 0.02, y: hipY + s * 0.3), control: CGPoint(x: hipX - s * 0.26, y: hipY + s * 0.08))
+                q.addLine(to: CGPoint(x: hipX - s * 0.02 + fl2 * s * 0.012, y: hipY + s * 0.27))
+                q.addLine(to: CGPoint(x: hipX + s * 0.1, y: hipY - s * 0.02))
                 q.closeSubpath()
             }
+            c.pathFill(coat.shade(0.62)) { q in
+                q.move(to: CGPoint(x: hipX - s * 0.105, y: hipY - s * 0.07))
+                q.addQuadCurve(to: CGPoint(x: hipX - s * (0.285 + p.reach * 0.04) + fl * s * 0.02, y: hipY + s * 0.285), control: CGPoint(x: hipX - s * 0.245, y: hipY + s * 0.08))
+                q.addLine(to: CGPoint(x: hipX - s * 0.03 + fl2 * s * 0.012, y: hipY + s * 0.255))
+                q.addLine(to: CGPoint(x: hipX + s * 0.09, y: hipY - s * 0.02))
+                q.closeSubpath()
+            }
+            if st == 4 { c.curve(hipX - s * 0.24, hipY + s * 0.1, hipX - s * 0.27, hipY + s * 0.2, hipX - s * 0.28 + fl * s * 0.02, hipY + s * 0.28, s * 0.012, Col(0xd4a52a)) }
         }
-        // body, belt and sash
-        c.seg(hipX, hipY, shX, shY, s * 0.2 * wide, shirt)
-        c.seg(hipX + s * 0.02, hipY - s * 0.02, shX + s * 0.05, shY + s * 0.03, s * 0.07 * wide, shirt.shade(1.25))
-        c.seg(hipX - s * 0.09 * wide, hipY, hipX + s * 0.1 * wide, hipY, s * 0.055, style == 0 ? Col(0xb03a2a) : Col(0x16100a))
-        if style == 4 {
-            c.seg(hipX + s * 0.07, hipY - s * 0.04, shX + s * 0.09, shY + s * 0.06, s * 0.03, Col(0xd4a52a))
+
+        // ---- back leg, then the sash ends, then the back arm
+        limb(hipX - s * 0.03, hipY, bkX, bkY, s * 0.115 * wide, s * 0.09 * wide, legC.shade(0.78))
+        limb(bkX, bkY, bfX, -s * 0.2, s * 0.088 * wide, s * 0.074 * wide, legC.shade(0.78))
+        boot(bfX - s * 0.004, -s * 0.2, bfX)
+        for i in 0..<2 {
+            let ex = hipX - s * (0.1 + Double(i) * 0.04), sw = (i == 0 ? fl : fl2) * s * 0.03
+            c.curve(hipX - s * 0.07, hipY - s * 0.01, ex - s * 0.03, hipY + s * 0.07, ex - s * 0.06 + sw - p.reach * s * 0.05, hipY + s * 0.17 + Double(i) * s * 0.02, s * 0.034, ink)
+            c.curve(hipX - s * 0.07, hipY - s * 0.01, ex - s * 0.03, hipY + s * 0.07, ex - s * 0.06 + sw - p.reach * s * 0.05, hipY + s * 0.17 + Double(i) * s * 0.02, s * 0.022, sash.shade(0.85))
         }
-        // head
-        let hdX = shX + sin(p.lean) * s * 0.1 + s * 0.02, hdY = shY - s * 0.13
-        c.seg(shX, shY, hdX, hdY + s * 0.04, s * 0.06, skin.shade(0.85))
-        c.circ(hdX, hdY, s * 0.082, skin)
-        c.circ(hdX + s * 0.045, hdY - s * 0.01, s * 0.011, Col(0x1a1008))
-        if style == 0 {
-            c.arcFill(hdX, hdY - s * 0.01, s * 0.086, PI * 1.05, PI * 1.98, band)
-            c.seg(hdX - s * 0.08, hdY - s * 0.02, hdX - s * 0.15, hdY + s * 0.04, s * 0.02, band)
-        } else if style == 1 || style == 2 {
-            c.arcFill(hdX, hdY - s * 0.01, s * 0.086, PI * 1.02, PI * 1.98, band)
-            c.seg(hdX - s * 0.01, hdY - s * 0.05, hdX + s * 0.07, hdY + s * 0.01, s * 0.022, Col(0x111111))
-            c.arcFill(hdX + s * 0.01, hdY + s * 0.03, s * 0.07, 0.1, PI * 0.9, Col(0x2a1c12))
+        let baX = shX - s * 0.2 - p.reach * s * 0.03, baY = shY + s * 0.2 - p.reach * s * 0.1
+        let bex = shX - s * 0.13, bey = shY + s * 0.13
+        limb(shX - s * 0.05, shY + s * 0.04, bex, bey, s * 0.075 * wide, s * 0.062 * wide, bare ? skin.shade(0.82) : coat.shade(0.7))
+        limb(bex, bey, baX, baY, s * 0.06 * wide, s * 0.046 * wide, bare ? skin.shade(0.82) : (long ? coat.shade(0.7) : shirt.shade(0.8)))
+        c.circ(baX, baY, s * 0.036 + ol, ink); c.circ(baX, baY, s * 0.036, skin.shade(0.88))
+
+        // ---- front leg
+        limb(hipX + s * 0.03, hipY, fkX, fkY, s * 0.125 * wide, s * 0.095 * wide, legC)
+        limb(fkX, fkY, ffX, -s * 0.2, s * 0.092 * wide, s * 0.078 * wide, legC)
+        if st == 5 || st == 0 { c.seg(hipX + s * 0.05, hipY + s * 0.04, fkX + s * 0.03, fkY - s * 0.02, max(1, s * 0.008), legC.shade(0.7)) }
+        boot(ffX - s * 0.004, -s * 0.2, ffX)
+
+        // ---- the body: broad at the shoulder, drawn in at the waist
+        let wS = s * 0.125 * wide, wH = s * 0.095 * wide
+        func torso(_ grow: Double, _ fill: (CGMutablePath) -> Void) {
+            let q = CGMutablePath()
+            q.move(to: CGPoint(x: hipX - wH - grow, y: hipY + s * 0.02 + grow))
+            q.addQuadCurve(to: CGPoint(x: shX - wS - grow, y: shY + s * 0.03), control: CGPoint(x: (hipX + shX) / 2 - wS * 0.72 - grow, y: (hipY + shY) / 2))
+            q.addQuadCurve(to: CGPoint(x: shX + wS * 0.9 + grow, y: shY + s * 0.02), control: CGPoint(x: shX, y: shY - s * 0.045 - grow))
+            q.addQuadCurve(to: CGPoint(x: hipX + wH + grow, y: hipY + s * 0.02 + grow), control: CGPoint(x: (hipX + shX) / 2 + wS * 0.95 + grow, y: (hipY + shY) / 2 - s * 0.02))
+            q.closeSubpath()
+            fill(q)
+        }
+        torso(ol) { q in c.pathFill(ink) { $0.addPath(q) } }
+        torso(0) { q in c.pathGrad(shY - s * 0.04, hipY + s * 0.02, [(0, shirt), (1, shirt.shade(0.72))]) { $0.addPath(q) } }
+        if st == 5 {
+            // a striped jersey
+            c.save()
+            torso(0) { q in c.cg.addPath(q); c.cg.clip() }
+            for k in 0..<7 { c.seg(hipX - s * 0.2, hipY - Double(k) * s * 0.05, shX + s * 0.2, hipY - Double(k) * s * 0.05 - s * 0.02, s * 0.018, Col(0x2f5f8f)) }
+            c.restore()
+        }
+        // the open neck of the shirt
+        if !bare { c.poly(skin.shade(0.92), [shX + s * 0.0, shY + s * 0.0, shX + s * 0.075, shY + s * 0.005, shX + s * 0.05, shY + s * 0.1]) }
+        if bare {
+            // a leather jerkin over a bare chest, and ink on the arm
+            c.poly(skin, [shX - s * 0.02, shY + s * 0.0, shX + s * 0.09, shY + s * 0.01, shX + s * 0.06, hipY - s * 0.04, shX - s * 0.0, hipY - s * 0.04])
+            c.seg(shX + s * 0.02, shY + s * 0.07, shX + s * 0.075, shY + s * 0.075, max(1, s * 0.008), skin.shade(0.75))
+        }
+        // jacket, vest or coat front: two panels with the shirt showing between
+        if st != 5 {
+            let cf = long ? coat : (bare ? coat : coat)
+            c.pathFill(cf.shade(0.8)) { q in
+                q.move(to: CGPoint(x: shX - wS, y: shY + s * 0.03))
+                q.addQuadCurve(to: CGPoint(x: hipX - wH, y: hipY + s * 0.02), control: CGPoint(x: (hipX + shX) / 2 - wS * 0.72, y: (hipY + shY) / 2))
+                q.addLine(to: CGPoint(x: hipX - wH * 0.1, y: hipY + s * 0.02))
+                q.addLine(to: CGPoint(x: shX - s * 0.005, y: shY + s * 0.0))
+                q.closeSubpath()
+            }
+            c.pathFill(cf) { q in
+                q.move(to: CGPoint(x: shX + wS * 0.9, y: shY + s * 0.02))
+                q.addQuadCurve(to: CGPoint(x: hipX + wH, y: hipY + s * 0.02), control: CGPoint(x: (hipX + shX) / 2 + wS * 0.95, y: (hipY + shY) / 2 - s * 0.02))
+                q.addLine(to: CGPoint(x: hipX + wH * 0.45, y: hipY + s * 0.02))
+                q.addLine(to: CGPoint(x: shX + s * 0.085, y: shY + s * 0.02))
+                q.closeSubpath()
+            }
+            if long {
+                // lapel, and a row of buttons
+                c.poly(cf.shade(1.25), [shX + s * 0.085, shY + s * 0.02, shX + s * 0.12, shY + s * 0.1, shX + s * 0.07, shY + s * 0.13])
+                for k in 0..<4 {
+                    let f = 0.25 + Double(k) * 0.2
+                    c.circ(lerp(shX + s * 0.09, hipX + wH * 0.5, f), lerp(shY + s * 0.06, hipY, f), s * 0.011, st == 4 ? Col(0xffd257) : Col(0xc8c8cc))
+                }
+            }
+            if st == 4 {
+                // gold lace and an epaulette
+                c.curve(shX + s * 0.085, shY + s * 0.03, (hipX + shX) / 2 + wS * 0.6, (hipY + shY) / 2, hipX + wH * 0.5, hipY + s * 0.015, s * 0.012, Col(0xd4a52a))
+                c.ell(shX + wS * 0.75, shY + s * 0.01, s * 0.05, s * 0.022, Col(0xd4a52a))
+                for k in 0..<4 { c.seg(shX + wS * 0.55 + Double(k) * s * 0.022, shY + s * 0.025, shX + wS * 0.55 + Double(k) * s * 0.022, shY + s * 0.055, max(1, s * 0.008), Col(0xffd257)) }
+            }
+            if st == 3 { c.poly(Col(0xffffff), [shX + s * 0.01, shY + s * 0.0, shX + s * 0.075, shY + s * 0.01, shX + s * 0.06, shY + s * 0.075, shX + s * 0.025, shY + s * 0.06]) }
+        }
+        // a baldric across the chest, then the belt, buckle and sash knot
+        if st == 1 || st == 2 || st == 4 {
+            c.seg(shX - wS * 0.6, shY + s * 0.05, hipX + wH * 0.8, hipY - s * 0.02, s * 0.03, Col(0x2a1a0c))
+            c.RR((shX - wS * 0.6 + hipX + wH * 0.8) / 2 - s * 0.018, (shY + s * 0.05 + hipY - s * 0.02) / 2 - s * 0.018, s * 0.036, s * 0.036, 1.5, Col(0xd4a52a))
+        }
+        c.seg(hipX - wH - s * 0.005, hipY, hipX + wH + s * 0.005, hipY, s * 0.062, ink)
+        c.seg(hipX - wH, hipY, hipX + wH, hipY, s * 0.05, st == 0 || st == 5 ? sash : Col(0x2a1a0c))
+        if st == 0 || st == 5 {
+            c.circ(hipX - s * 0.06, hipY, s * 0.03, sash.shade(0.8))
         } else {
-            // a cocked hat; the captain's carries a feather
-            c.pathFill(band) { q in
-                q.move(to: CGPoint(x: hdX - s * 0.16, y: hdY - s * 0.04))
-                q.addQuadCurve(to: CGPoint(x: hdX + s * 0.17, y: hdY - s * 0.05), control: CGPoint(x: hdX, y: hdY - s * 0.02))
-                q.addQuadCurve(to: CGPoint(x: hdX, y: hdY - s * 0.19), control: CGPoint(x: hdX + s * 0.1, y: hdY - s * 0.12))
-                q.addQuadCurve(to: CGPoint(x: hdX - s * 0.16, y: hdY - s * 0.04), control: CGPoint(x: hdX - s * 0.1, y: hdY - s * 0.12))
-            }
-            if style == 4 {
-                c.seg(hdX - s * 0.15, hdY - s * 0.045, hdX + s * 0.16, hdY - s * 0.055, s * 0.014, Col(0xd4a52a))
-                c.curve(hdX - s * 0.04, hdY - s * 0.15, hdX - s * 0.16, hdY - s * 0.3, hdX - s * 0.26, hdY - s * 0.2, s * 0.035, Col(0xf3ead2))
-                c.arcFill(hdX + s * 0.015, hdY + s * 0.035, s * 0.075, 0.1, PI * 0.9, Col(0x16100a))
+            c.RR(hipX + s * 0.01, hipY - s * 0.028, s * 0.056, s * 0.056, 2, Col(0xd4a52a)); c.RR(hipX + s * 0.024, hipY - s * 0.014, s * 0.028, s * 0.028, 1, Col(0x2a1a0c))
+        }
+
+        // ---- neck and head
+        let hdX = shX + sin(p.lean) * s * 0.1 + s * 0.02, hdY = shY - s * 0.13
+        let hr = s * 0.084
+        limb(shX + s * 0.01, shY - s * 0.0, hdX - s * 0.005, hdY + s * 0.05, s * 0.07, s * 0.062, skin.shade(0.82))
+        // hair behind the head: a queue, or a mane for the captain
+        if st == 0 || st == 3 || st == 5 {
+            c.curve(hdX - hr * 0.7, hdY, hdX - hr * 1.5, hdY + hr * 0.6, hdX - hr * 1.5 + fl * s * 0.02, hdY + hr * 1.7, s * 0.034, hair)
+            c.circ(hdX - hr * 1.25, hdY + hr * 0.7, s * 0.017, st == 3 ? Col(0x111111) : sash)
+        } else if st == 4 {
+            for k in 0..<4 {
+                let kd = Double(k)
+                let c1x: Double = hdX - hr * (1.3 + kd * 0.12)
+                let e1x: Double = hdX - hr * (1.0 + kd * 0.2) + fl * s * 0.015, e1y: Double = hdY + hr * (1.9 - kd * 0.2)
+                c.curve(hdX - hr * 0.6, hdY - hr * 0.1, c1x, hdY + hr * 0.7, e1x, e1y, s * 0.036, hair)
             }
         }
-        // the sword arm and the blade
+        c.circ(hdX, hdY, hr + ol, ink)
+        c.poly(ink, [hdX - hr * 0.2, hdY + hr * 0.5, hdX + hr * 0.95 + ol, hdY + hr * 0.25, hdX + hr * 0.72 + ol, hdY + hr * 1.2 + ol, hdX + hr * 0.1, hdY + hr * 1.12 + ol])
+        c.circ(hdX, hdY, hr, skin)
+        // jaw and chin, pushed forward
+        c.poly(skin, [hdX - hr * 0.2, hdY + hr * 0.5, hdX + hr * 0.95, hdY + hr * 0.25, hdX + hr * 0.7, hdY + hr * 1.14, hdX + hr * 0.12, hdY + hr * 1.06])
+        c.ell(hdX + hr * 0.1, hdY + hr * 0.5, hr * 0.8, hr * 0.5, Col(0x000000, 0.06))
+        // ear, nose, mouth
+        c.ell(hdX - hr * 0.28, hdY + hr * 0.12, hr * 0.2, hr * 0.28, skin.shade(0.8))
+        c.poly(skin.shade(0.9), [hdX + hr * 0.86, hdY - hr * 0.05, hdX + hr * 1.2, hdY + hr * 0.32, hdX + hr * 0.84, hdY + hr * 0.38])
+        c.seg(hdX + hr * 0.52, hdY + hr * 0.7, hdX + hr * 0.86, hdY + hr * (st == 0 ? 0.66 : 0.74), max(1, s * 0.01), Col(0x4a2014))
+        // eye and brow: your man steady, theirs scowling
+        let ex = hdX + hr * 0.52, ey = hdY - hr * 0.05
+        c.ell(ex, ey, hr * 0.2, hr * 0.14, Col(0xffffff))
+        c.circ(ex + hr * 0.07, ey, hr * 0.09, Col(0x16100a))
+        c.seg(ex - hr * 0.26, ey - hr * (st == 0 ? 0.26 : 0.34), ex + hr * 0.3, ey - hr * (st == 0 ? 0.3 : 0.14), max(1.2, s * 0.016), hair.shade(0.7))
+        if st == 1 {
+            // a patch over the other eye, and its cord
+            c.seg(hdX - hr * 0.9, hdY - hr * 0.5, hdX + hr * 0.95, hdY - hr * 0.2, max(1, s * 0.008), ink)
+            c.ell(hdX + hr * 0.2, hdY - hr * 0.1, hr * 0.2, hr * 0.17, ink)
+            c.seg(hdX + hr * 0.3, hdY + hr * 0.3, hdX + hr * 0.6, hdY + hr * 0.45, max(1, s * 0.007), Col(0x7a2a1a))
+        }
+        // beard, by the man
+        if st == 2 || st == 4 {
+            c.pathFill(hair) { q in
+                q.move(to: CGPoint(x: hdX - hr * 0.3, y: hdY + hr * 0.3))
+                q.addQuadCurve(to: CGPoint(x: hdX + hr * 0.95, y: hdY + hr * 0.5), control: CGPoint(x: hdX + hr * 0.3, y: hdY + hr * 0.75))
+                q.addQuadCurve(to: CGPoint(x: hdX + hr * (st == 4 ? 0.7 : 0.55), y: hdY + hr * (st == 4 ? 2.0 : 1.7)), control: CGPoint(x: hdX + hr * 1.1, y: hdY + hr * 1.3))
+                q.addQuadCurve(to: CGPoint(x: hdX - hr * 0.3, y: hdY + hr * 0.3), control: CGPoint(x: hdX - hr * 0.2, y: hdY + hr * 1.4))
+            }
+            c.seg(hdX + hr * 0.5, hdY + hr * 0.82, hdX + hr * 0.84, hdY + hr * 0.86, max(1, s * 0.01), Col(0x6a2a1a))
+            if st == 4 { for k in 0..<2 { c.circ(hdX + hr * (0.45 + Double(k) * 0.25), hdY + hr * 1.8, s * 0.008, Col(0xffb040)) } }
+        } else if st == 3 {
+            c.curve(hdX + hr * 0.45, hdY + hr * 0.52, hdX + hr * 0.8, hdY + hr * 0.42, hdX + hr * 1.15, hdY + hr * 0.6, max(1.2, s * 0.014), hair)
+            c.poly(hair, [hdX + hr * 0.5, hdY + hr * 0.95, hdX + hr * 0.75, hdY + hr * 0.92, hdX + hr * 0.62, hdY + hr * 1.35])
+        } else if st == 1 {
+            for k in 0..<6 { c.circ(hdX + hr * (0.2 + Double(k) * 0.12), hdY + hr * (0.8 + Double(k % 2) * 0.12), max(0.6, s * 0.006), hair.alpha(0.7)) }
+        }
+        if st == 1 || st == 2 || st == 4 { c.circStroke(hdX - hr * 0.3, hdY + hr * 0.5, hr * 0.16, max(1, s * 0.008), Col(0xffd257)) }
+        // what he wears on his head
+        if st == 0 || st == 1 || st == 2 {
+            let bc = st == 0 ? sash : (st == 1 ? Col(0x16161a) : Col(0x8a1a1a))
+            c.pathFill(bc) { q in
+                q.move(to: CGPoint(x: hdX - hr * 1.02, y: hdY - hr * 0.12))
+                q.addQuadCurve(to: CGPoint(x: hdX + hr * 1.0, y: hdY - hr * 0.42), control: CGPoint(x: hdX + hr * 0.1, y: hdY - hr * 0.1))
+                q.addQuadCurve(to: CGPoint(x: hdX - hr * 1.02, y: hdY - hr * 0.12), control: CGPoint(x: hdX - hr * 0.2, y: hdY - hr * 1.7))
+            }
+            c.curve(hdX - hr * 0.9, hdY - hr * 0.2, hdX + hr * 0.1, hdY - hr * 0.22, hdX + hr * 0.98, hdY - hr * 0.44, max(1, s * 0.012), bc.shade(0.65))
+            // the knot and its two tails, streaming
+            c.circ(hdX - hr * 0.98, hdY - hr * 0.1, hr * 0.2, bc.shade(0.8))
+            c.curve(hdX - hr * 1.0, hdY - hr * 0.1, hdX - hr * 1.6, hdY + hr * 0.1 + fl * hr * 0.2, hdX - hr * 2.2, hdY + hr * 0.5 + fl * hr * 0.5, s * 0.024, bc)
+            c.curve(hdX - hr * 1.0, hdY - hr * 0.1, hdX - hr * 1.5, hdY - hr * 0.2 + fl2 * hr * 0.2, hdX - hr * 2.0, hdY - hr * 0.1 + fl2 * hr * 0.5, s * 0.02, bc.shade(0.85))
+        } else if st == 5 {
+            // a knitted cap with a bobble
+            c.arcFill(hdX - hr * 0.05, hdY - hr * 0.2, hr * 1.04, PI * 1.02, PI * 1.98, sash)
+            c.RR(hdX - hr * 1.1, hdY - hr * 0.36, hr * 2.1, hr * 0.3, hr * 0.12, sash.shade(0.75))
+            c.circ(hdX - hr * 0.5, hdY - hr * 1.2, hr * 0.2, Col(0xf1ead8))
+        } else {
+            // a cocked hat: black felt, bound with braid; the captain's carries a plume
+            let hc = Col(0x14100e)
+            c.pathFill(ink) { q in
+                q.move(to: CGPoint(x: hdX - hr * 1.95, y: hdY - hr * 0.42))
+                q.addQuadCurve(to: CGPoint(x: hdX + hr * 2.05, y: hdY - hr * 0.62), control: CGPoint(x: hdX, y: hdY - hr * 0.12))
+                q.addQuadCurve(to: CGPoint(x: hdX + hr * 0.1, y: hdY - hr * 2.3), control: CGPoint(x: hdX + hr * 1.3, y: hdY - hr * 1.5))
+                q.addQuadCurve(to: CGPoint(x: hdX - hr * 1.95, y: hdY - hr * 0.42), control: CGPoint(x: hdX - hr * 1.2, y: hdY - hr * 1.4))
+            }
+            c.pathFill(hc) { q in
+                q.move(to: CGPoint(x: hdX - hr * 1.82, y: hdY - hr * 0.48))
+                q.addQuadCurve(to: CGPoint(x: hdX + hr * 1.92, y: hdY - hr * 0.66), control: CGPoint(x: hdX, y: hdY - hr * 0.22))
+                q.addQuadCurve(to: CGPoint(x: hdX + hr * 0.1, y: hdY - hr * 2.15), control: CGPoint(x: hdX + hr * 1.2, y: hdY - hr * 1.45))
+                q.addQuadCurve(to: CGPoint(x: hdX - hr * 1.82, y: hdY - hr * 0.48), control: CGPoint(x: hdX - hr * 1.1, y: hdY - hr * 1.35))
+            }
+            c.curve(hdX - hr * 1.8, hdY - hr * 0.5, hdX, hdY - hr * 0.26, hdX + hr * 1.9, hdY - hr * 0.68, max(1.2, s * 0.016), st == 4 ? Col(0xd4a52a) : Col(0x8a8a90))
+            if st == 4 {
+                for k in 0..<3 {
+                    let kd = Double(k)
+                    let c1x: Double = hdX - hr * (1.6 + kd * 0.3), c1y: Double = hdY - hr * (3.4 - kd * 0.3)
+                    let e1x: Double = hdX - hr * (3.0 + kd * 0.2) + fl * hr * 0.3, e1y: Double = hdY - hr * (2.2 - kd * 0.45)
+                    c.curve(hdX - hr * 0.3, hdY - hr * 1.7, c1x, c1y, e1x, e1y, s * (0.04 - kd * 0.008), k == 0 ? Col(0xf3ead2) : Col(0xd8cdb0))
+                }
+                c.circ(hdX + hr * 0.3, hdY - hr * 1.0, hr * 0.2, Col(0xd4a52a)); c.circ(hdX + hr * 0.3, hdY - hr * 1.0, hr * 0.09, Col(0x8a1b12))
+            } else {
+                c.circ(hdX + hr * 0.3, hdY - hr * 1.0, hr * 0.14, Col(0xc8c8cc))
+            }
+        }
+
+        // ---- the sword arm: shoulder, elbow, wrist; then the hilt and the blade
         let armLen = s * (0.24 + max(-0.3, p.reach) * 0.07)
         let armA = p.ang * 0.62 - 0.12
         let hx = shX + cos(armA) * armLen, hy = shY + s * 0.04 + sin(armA) * armLen
-        c.seg(shX, shY + s * 0.03, hx, hy, s * 0.065 * wide, shirt.shade(1.1))
-        if p.twoHand { c.seg(shX - s * 0.02, shY + s * 0.06, hx - s * 0.02, hy + s * 0.02, s * 0.055 * wide, shirt.shade(0.85)) }
-        c.circ(hx, hy, s * 0.04, skin)
-        let bl = s * (style == 2 ? 0.5 : 0.44)
+        let sx0 = shX + s * 0.02, sy0 = shY + s * 0.04
+        let bend = s * 0.07 * (1 - clampD(p.reach, 0, 1) * 0.85)
+        let elX = (sx0 + hx) / 2 + sin(armA) * bend * -1, elY = (sy0 + hy) / 2 + cos(armA) * bend
+        let armC = bare ? skin : (long || st == 0 ? coat : shirt)
+        if p.twoHand {
+            limb(shX - s * 0.02, shY + s * 0.07, hx - s * 0.03, hy + s * 0.03, s * 0.06 * wide, s * 0.046 * wide, armC.shade(0.8))
+        }
+        limb(sx0, sy0, elX, elY, s * 0.082 * wide, s * 0.066 * wide, armC)
+        limb(elX, elY, hx, hy, s * 0.066 * wide, s * 0.05 * wide, armC)
+        if bare {
+            // an anchor inked on the upper arm, and a leather bracer
+            c.seg((sx0 + elX) / 2, (sy0 + elY) / 2 - s * 0.02, (sx0 + elX) / 2, (sy0 + elY) / 2 + s * 0.02, max(1, s * 0.008), Col(0x2f4a6a, 0.8))
+            c.arcStroke((sx0 + elX) / 2, (sy0 + elY) / 2 + s * 0.012, s * 0.014, 0, PI, max(1, s * 0.008), Col(0x2f4a6a, 0.8))
+            limb(lerp(elX, hx, 0.45), lerp(elY, hy, 0.45), lerp(elX, hx, 0.9), lerp(elY, hy, 0.9), s * 0.064 * wide, s * 0.056 * wide, Col(0x3a2616))
+        } else if long || st == 3 {
+            // a deep cuff, and lace at the wrist
+            limb(lerp(elX, hx, 0.62), lerp(elY, hy, 0.62), lerp(elX, hx, 0.92), lerp(elY, hy, 0.92), s * 0.078, s * 0.074, armC.shade(1.25))
+            c.circ(lerp(elX, hx, 0.98), lerp(elY, hy, 0.98), s * 0.03, Col(0xffffff, 0.9))
+        }
         let ca = cos(p.ang), sa = sin(p.ang)
+        let nx = -sa, ny = ca
+        let heavy = st == 2
+        let rapier = st == 3
+        let bl = s * (heavy ? 0.52 : (rapier ? 0.5 : 0.45))
         let tipX = hx + ca * bl, tipY = hy + sa * bl
+        // the cut, hanging in the air behind the blade
         if p.trail {
-            c.pathStroke(Col(0xffffff, 0.35), s * 0.05) { q in
-                q.addArc(center: CGPoint(x: shX, y: shY), radius: CGFloat(armLen + bl * 0.8), startAngle: CGFloat(p.ang - 0.9), endAngle: CGFloat(p.ang), clockwise: false)
+            for k in 0..<5 {
+                let a0 = p.ang - 1.05 + Double(k) * 0.2
+                c.pathStroke(Col(0xffffff, 0.06 + Double(k) * 0.07), s * (0.2 - Double(k) * 0.03)) { q in
+                    q.addArc(center: CGPoint(x: shX, y: shY), radius: CGFloat(armLen + bl * 0.72), startAngle: CGFloat(a0), endAngle: CGFloat(p.ang), clockwise: false)
+                }
+            }
+            c.pathStroke(Col(0xfff6d8, 0.9), max(1.5, s * 0.012)) { q in
+                q.addArc(center: CGPoint(x: shX, y: shY), radius: CGFloat(armLen + bl), startAngle: CGFloat(p.ang - 0.7), endAngle: CGFloat(p.ang), clockwise: false)
             }
         }
-        let nx = -sa, ny = ca
-        let bw = s * (style == 2 ? 0.032 : 0.022)
-        c.pathFill(Col(0xe8edf1)) { q in
-            q.move(to: CGPoint(x: hx + nx * bw, y: hy + ny * bw))
-            q.addQuadCurve(to: CGPoint(x: tipX, y: tipY), control: CGPoint(x: hx + ca * bl * 0.6 + nx * bw * 2.2, y: hy + sa * bl * 0.6 + ny * bw * 2.2))
-            q.addQuadCurve(to: CGPoint(x: hx - nx * bw, y: hy - ny * bw), control: CGPoint(x: hx + ca * bl * 0.6 - nx * bw * 0.4, y: hy + sa * bl * 0.6 - ny * bw * 0.4))
+        // blade: a dark back, a bright edge, a fuller, a point that catches the light
+        let bw = s * (heavy ? 0.036 : (rapier ? 0.011 : 0.024))
+        let curveK = rapier ? 0.0 : 2.4
+        for pass in 0..<2 {
+            let e = pass == 0 ? ol : 0
+            c.pathFill(pass == 0 ? ink : Col(0xeef2f5)) { q in
+                q.move(to: CGPoint(x: hx + nx * (bw + e), y: hy + ny * (bw + e)))
+                q.addQuadCurve(to: CGPoint(x: tipX + ca * e, y: tipY + sa * e), control: CGPoint(x: hx + ca * bl * 0.6 + nx * (bw * curveK + bw + e), y: hy + sa * bl * 0.6 + ny * (bw * curveK + bw + e)))
+                q.addQuadCurve(to: CGPoint(x: hx - nx * (bw + e), y: hy - ny * (bw + e)), control: CGPoint(x: hx + ca * bl * 0.6 - nx * (bw * 0.4 + e), y: hy + sa * bl * 0.6 - ny * (bw * 0.4 + e)))
+                q.closeSubpath()
+            }
+        }
+        c.pathFill(Col(0x9aa6b0)) { q in
+            q.move(to: CGPoint(x: hx - nx * bw, y: hy - ny * bw))
+            q.addQuadCurve(to: CGPoint(x: tipX, y: tipY), control: CGPoint(x: hx + ca * bl * 0.6 - nx * bw * 0.4, y: hy + sa * bl * 0.6 - ny * bw * 0.4))
+            q.addQuadCurve(to: CGPoint(x: hx, y: hy), control: CGPoint(x: hx + ca * bl * 0.6 + nx * bw * curveK * 0.45, y: hy + sa * bl * 0.6 + ny * bw * curveK * 0.45))
             q.closeSubpath()
         }
-        c.seg(hx + ca * bl * 0.1, hy + sa * bl * 0.1, hx + ca * bl * 0.85, hy + sa * bl * 0.85, s * 0.006, Col(0xffffff, 0.8))
-        c.seg(hx + nx * s * 0.05, hy + ny * s * 0.05, hx - nx * s * 0.05, hy - ny * s * 0.05, s * 0.022, Col(0xd4a52a))
-        c.seg(hx - ca * s * 0.05, hy - sa * s * 0.05, hx, hy, s * 0.028, Col(0x3a2412))
+        if !rapier {
+            let f1x: Double = hx + ca * bl * 0.45 + nx * bw * curveK * 0.5, f1y: Double = hy + sa * bl * 0.45 + ny * bw * curveK * 0.5
+            c.curve(hx + ca * bl * 0.08, hy + sa * bl * 0.08, f1x, f1y, hx + ca * bl * 0.78, hy + sa * bl * 0.78, max(0.8, s * 0.005), Col(0x5a6670, 0.8))
+        }
+        let e0x: Double = hx + nx * bw * 0.6 + ca * bl * 0.1, e0y: Double = hy + ny * bw * 0.6 + sa * bl * 0.1
+        let e1x: Double = hx + ca * bl * 0.55 + nx * bw * (curveK + 0.5), e1y: Double = hy + sa * bl * 0.55 + ny * bw * (curveK + 0.5)
+        c.curve(e0x, e0y, e1x, e1y, hx + ca * bl * 0.92, hy + sa * bl * 0.92, max(0.8, s * 0.006), Col(0xffffff, 0.9))
+        let gl = 0.5 + 0.5 * sin(t * 6 + x * 0.05)
+        if gl > 0.8 || p.trail {
+            let gs = s * 0.045 * (p.trail ? 1.4 : gl)
+            c.seg(tipX - gs, tipY, tipX + gs, tipY, max(1, s * 0.006), Col(0xffffff, 0.9)); c.seg(tipX, tipY - gs, tipX, tipY + gs, max(1, s * 0.006), Col(0xffffff, 0.9))
+            c.glow(tipX, tipY, gs * 1.4, Col(0xffffff, 0.5), Col(0xffffff, 0))
+        }
+        // hilt: grip and pommel, then a cup, a shell or a knuckle-bow according to the weapon
+        let gold = st == 4 || st == 3 ? Col(0xffd257) : (st == 0 ? Col(0xd4a52a) : Col(0x9a8a6a))
+        c.seg(hx - ca * s * 0.07, hy - sa * s * 0.07, hx, hy, s * 0.034, ink)
+        c.seg(hx - ca * s * 0.065, hy - sa * s * 0.065, hx, hy, s * 0.024, Col(0x4a2d14))
+        c.circ(hx - ca * s * 0.075, hy - sa * s * 0.075, s * 0.02, gold)
+        if rapier {
+            c.seg(hx + nx * s * 0.075, hy + ny * s * 0.075, hx - nx * s * 0.075, hy - ny * s * 0.075, s * 0.014, gold)
+            c.ell(hx + ca * s * 0.012, hy + sa * s * 0.012, s * 0.04, s * 0.04, gold.shade(0.85)); c.circ(hx + ca * s * 0.012, hy + sa * s * 0.012, s * 0.022, gold)
+        } else {
+            c.seg(hx + nx * s * 0.06, hy + ny * s * 0.06, hx - nx * s * 0.05, hy - ny * s * 0.05, s * 0.026, ink)
+            c.seg(hx + nx * s * 0.055, hy + ny * s * 0.055, hx - nx * s * 0.045, hy - ny * s * 0.045, s * 0.018, gold)
+            // the bow that guards the knuckles
+            c.curve(hx + nx * s * 0.055, hy + ny * s * 0.055, hx + nx * s * 0.075 - ca * s * 0.05, hy + ny * s * 0.075 - sa * s * 0.05, hx - ca * s * 0.075, hy - sa * s * 0.075, s * 0.014, gold)
+        }
+        // the hand, over the grip
+        c.circ(hx - ca * s * 0.022, hy - sa * s * 0.022, s * 0.038 + ol, ink)
+        c.circ(hx - ca * s * 0.022, hy - sa * s * 0.022, s * 0.038, skin)
+        for k in 0..<3 {
+            let back = 0.04 - Double(k) * 0.016
+            let kx: Double = hx - ca * s * back
+            let ky: Double = hy - sa * s * back
+            c.seg(kx + nx * s * 0.022, ky + ny * s * 0.022, kx + nx * s * 0.036, ky + ny * s * 0.036, max(0.8, s * 0.006), skin.shade(0.7))
+        }
+
+        // struck: the whole man flares white for an instant
         if p.flash > 0 {
-            c.circ(shX, shY + s * 0.1, s * 0.3, Col(0xffffff, min(0.6, p.flash * 1.5)))
+            let a = min(0.75, p.flash * 2)
+            torso(ol) { q in c.pathFill(Col(0xffffff, a)) { $0.addPath(q) } }
+            c.circ(hdX, hdY, hr + ol, Col(0xffffff, a))
+            c.glow(shX, shY + s * 0.1, s * 0.45, Col(0xffffff, a * 0.6), Col(0xffffff, 0))
         }
         c.restore()
     }
