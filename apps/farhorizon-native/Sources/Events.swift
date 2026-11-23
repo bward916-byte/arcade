@@ -49,14 +49,14 @@ extension Game {
         case "pirates":
             logIt("Pirates sighted")
             let tribute = max(40, Int(Double(gold) * 0.25))
-            let n = rndI(3, 4)
+            let n = rndI(5, 7)
             let prize = rndI(90, 200)
             show("Pirates!", "A black flag on the horizon.", [
                 Opt("Fight", powder >= 2 ? "a broadside, then board her" : "no powder · blades only") { [unowned self] in
                     var foes = n
                     if self.powder >= 2 {
                         self.powder -= 2
-                        foes -= 1
+                        foes -= 1 + self.up("guns")
                         self.snd?.cannon()
                         self.toast("Your broadside rakes her deck")
                     }
@@ -72,7 +72,7 @@ extension Game {
             logIt("The Red Mary bars the way")
             show("The Red Mary", "Blood-red sails stand across the channel to Santa Aurelia. Her captain means to take your ship himself.", [
                 Opt("Board her", "cross swords with her captain") { [unowned self] in
-                    self.startDuel(foes: 3, boss: true, prize: 400)
+                    self.startDuel(foes: 6, boss: true, prize: 400)
                 },
                 Opt("Run the line", "heavy damage") { [unowned self] in
                     self.snd?.cannon()
@@ -208,6 +208,7 @@ extension Game {
         fights += 1
         let ratio = min(1, Double(arms) / Double(max(1, crew)))
         let d = Duel(foes: max(1, foes), boss: boss, prize: prize, armed: ratio, teach: teach)
+        d.fury = perkFury ? 0.5 : 0
         duel = d
         mode = .duel
         // no briefing: the first fight walks through each move as it comes up
@@ -278,10 +279,18 @@ extension Game {
         snd?.good()
         toast("The surgeon patches them up")
     }
+    /// What the yards can add to a ship: key, name, what it does, most levels, price of the first.
+    static let YARD: [(k: String, n: String, d: String, max: Int, cost: Int)] = [
+        ("sails", "Taller masts", "+9% speed", 2, 150),
+        ("hull", "Copper sheathing", "+25 hull", 2, 140),
+        ("hold", "Deeper hold", "+50 hold", 2, 120),
+        ("guns", "Swivel guns", "thin boarders more", 2, 160),
+        ("berths", "Extra berths", "+2 crew", 1, 130)
+    ]
     func shipwright() {
         let need = Int(Double(ship.hull) - hull)
         let cost = need * 2
-        show("Shipwright", need > 0 ? "She needs \(need) points of work." : "She is as sound as the day she was launched.", [
+        var opts: [Opt] = [
             Opt("Repair the hull", need > 0 ? "\(cost) gold" : "nothing to mend", off: need <= 0) { [unowned self] in
                 let can = min(need, self.gold / 2)
                 if can <= 0 { self.toast("Not enough gold"); return }
@@ -290,9 +299,46 @@ extension Game {
                 self.snd?.good()
                 self.toast("Hull repaired by \(can)")
                 self.shipwright()
-            },
-            Opt("Leave") { [unowned self] in self.card = nil }
-        ])
+            }
+        ]
+        for y in Game.YARD {
+            let lv = up(y.k)
+            let price = y.cost + lv * (y.cost * 3 / 4)
+            let maxed = lv >= y.max
+            opts.append(Opt(y.n + (y.max > 1 ? " \(min(y.max, lv + 1))" : ""), maxed ? "fitted" : y.d + " · \(price) gold", off: maxed) { [unowned self] in
+                if self.gold < price { self.toast("Not enough gold"); return }
+                self.gold -= price
+                self.ups[y.k] = lv + 1
+                if y.k == "hull" { self.hull += 25 }
+                self.snd?.coin(); self.snd?.good()
+                self.puff(self.W / 2, self.H / 2, 40, Col(0xffd257), 260, 320, 3, 0.8)
+                self.toast(y.n + " fitted")
+                self.shipwright()
+            })
+        }
+        opts.append(Opt("Leave") { [unowned self] in self.card = nil })
+        let fitted = Game.YARD.reduce(0) { $0 + up($1.k) }
+        show("Shipwright", (need > 0 ? "She needs \(need) points of work." : "She is sound.") + " The yard can also improve her" + (fitted > 0 ? " further." : "."), opts)
+    }
+    func tavernSword() {
+        let all: [(String, String, Bool, () -> Void)] = [
+            ("The killing riposte", "a perfect parry hits for 3", perkRip, { [unowned self] in self.perkRip = true }),
+            ("Second wind", "wind returns 40% faster", perkWind, { [unowned self] in self.perkWind = true }),
+            ("Blood up", "fury builds faster, starts half full", perkFury, { [unowned self] in self.perkFury = true })
+        ]
+        var opts: [Opt] = []
+        for a in all {
+            opts.append(Opt(a.0, a.2 ? "learned" : a.1 + " · 90 gold", off: a.2) { [unowned self] in
+                if self.gold < 90 { self.toast("Not enough gold"); return }
+                self.gold -= 90
+                a.3()
+                self.snd?.clang(); self.snd?.good()
+                self.toast("Learned: " + a.0)
+                self.tavernSword()
+            })
+        }
+        opts.append(Opt("Leave") { [unowned self] in self.card = nil })
+        show("The swordmaster", "An old fencing master drinks here. For a price he will show your boarders a thing or two.", opts)
     }
     func well() {
         if wellUsed { toast("The casks are already filled"); return }

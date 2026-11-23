@@ -5,7 +5,7 @@ import Foundation
 // heavy blows cannot be parried and must be dodged; a perfect parry opens a riposte for double damage.
 // Every action costs wind, and each hit drives the loser back toward the rail.
 
-enum FoeKind { case cutthroat, bruiser, duelist, captain }
+enum FoeKind { case deckhand, cutthroat, bruiser, duelist, captain }
 enum EState { case enter, ready, wind, strike, stag, hit, dead }
 enum PState { case ready, parry, lunge, dodge, hurt }
 
@@ -69,6 +69,19 @@ final class Duel {
     var hold = false
     var holdWant = 0
 
+    // fury builds with every parry and hit and is spent on a flurry no one can stop; a boot buys an opening
+    var fury = 0.0
+    var flurry = 0
+    var flT = 0.0
+    var carry = 0
+    var combo = 0
+    var best = 0
+    var kickCd = 0.0
+    var punch = 0.0
+    var banner = ""
+    var bannerT = 0.0
+    var kills = 0
+
     init(foes: Int, boss: Bool, prize: Int, armed: Double, teach: Bool = true) {
         self.foes = foes
         self.boss = boss
@@ -91,10 +104,15 @@ final class Duel {
             kind = .captain
         } else if k == 0 {
             kind = .cutthroat
+        } else if !boss && k == foes - 1 {
+            kind = .duelist
+        } else if k % 3 == 2 {
+            kind = (k / 3) % 2 == 0 ? .bruiser : .duelist
         } else {
-            kind = k % 2 == 1 ? .bruiser : .duelist
+            kind = .deckhand
         }
         switch kind {
+        case .deckhand: emax = 1
         case .cutthroat: emax = 2
         case .bruiser: emax = 3
         case .duelist: emax = 3
@@ -110,6 +128,7 @@ final class Duel {
     }
     var foeName: String {
         switch kind {
+        case .deckhand: return "Deckhand"
         case .cutthroat: return "Cutthroat"
         case .bruiser: return "Bruiser"
         case .duelist: return "Duelist"
@@ -138,12 +157,27 @@ final class Duel {
         setFoe()
         php = min(4, php + 1)
         pos = 0
-        say(kind == .captain ? "The captain himself!" : "Another comes at you")
+        if carry > 0 {
+            // the flurry is not spent: it carries into the next man
+            if carry >= ehp { ehp = 0; est = .hit; et = 0.35; flashE = 0.4; say("And the next, in the same breath!"); downed(g) } else { ehp -= carry; say("He staggers in already bleeding") }
+            carry = 0
+            return
+        }
+        if kind == .captain {
+            say("The captain himself!")
+        } else if kind == .deckhand && chance(0.45) {
+            // some come in swinging
+            est = .ready; et = 0.25
+            say("He comes at you fast!")
+        } else {
+            say(kind == .deckhand ? "A deckhand jumps in" : "Another comes at you")
+        }
     }
 
     private func gap() -> Double {
         var f = 1.0
         switch kind {
+        case .deckhand: f = 1.1
         case .cutthroat: f = 1.0
         case .bruiser: f = 1.15
         case .duelist: f = 0.7
@@ -156,6 +190,7 @@ final class Duel {
         line = chance(0.5) ? 0 : 1
         var ph = 0.0, pf = 0.0, base = 0.8
         switch kind {
+        case .deckhand: ph = 0; pf = 0; base = 0.9
         case .cutthroat: ph = k > 0 ? 0.1 : 0; pf = 0; base = 0.82
         case .bruiser: ph = 0.42; pf = 0; base = 0.86
         case .duelist: ph = 0.08; pf = 0.35; base = 0.6
@@ -176,7 +211,15 @@ final class Duel {
     private func sparks(_ g: Game, _ x: Double, _ y: Double, _ n: Int, _ c: Col) {
         g.puff(x, y, n, c, 220, 300, 2.4, 0.4)
     }
+    private func gain(_ v: Double, _ g: Game) {
+        combo += 1
+        best = max(best, combo)
+        fury = min(1, fury + v * (g.perkFury ? 1.5 : 1) * (1 + 0.08 * Double(min(8, combo))))
+    }
+    private func show(_ s: String) { banner = s; bannerT = 1.6 }
     private func hitPlayer(_ n: Int, _ g: Game) {
+        combo = 0
+        fury = max(0, fury - 0.1)
         php -= n
         pst = .hurt
         pt = 0.5
@@ -211,6 +254,7 @@ final class Duel {
                 et = 1.3
                 g.snd?.whoosh()
                 if teaching && lesson == 2 { learned() }
+                gain(0.22, g)
                 say("He overreaches. Strike!")
             } else {
                 hitPlayer(2, g)
@@ -233,6 +277,7 @@ final class Duel {
             pos += 0.06
             if perfect { rip = 1.4; say("Perfect parry — riposte!") } else { tipOnce(2, "parry at the last moment for a double-damage riposte") }
             if teaching && lesson == line { learned() }
+            gain(perfect ? 0.3 : 0.18, g)
             g.snd?.clang()
             g.buzz?(false)
             sparks(g, cx, cy, perfect ? 22 : 14, Col(0xffe9a0))
@@ -251,7 +296,13 @@ final class Duel {
         par = max(0, par - d); cd = max(0, cd - d); dodge = max(0, dodge - d); rip = max(0, rip - d)
         clash = max(0, clash - d); flashP = max(0, flashP - d); flashE = max(0, flashE - d); msgT = max(0, msgT - d)
         parAge += d
-        if pst == .ready { wind = min(1, wind + 0.24 * d) }
+        if pst == .ready { wind = min(1, wind + 0.24 * d * (g.perkWind ? 1.4 : 1)) }
+        kickCd = max(0, kickCd - d); punch = max(0, punch - d * 4); bannerT = max(0, bannerT - dt)
+        if flurry > 0 {
+            flT -= dt
+            if flT <= 0 { furyHit(g) }
+            return
+        }
         pt -= d
         if pst != .ready && pt <= 0 { pst = .ready }
         pos += (0 - pos) * d * 0.06
@@ -326,9 +377,11 @@ final class Duel {
         let open = est == .stag
         let stop = est == .wind && !heavy && !feint && et > wd * 0.62
         if open || stop {
-            let n = open && rip > 0 ? 2 : 1
+            let n = open && rip > 0 ? (g.perkRip ? 3 : 2) : 1
             rip = 0
             ehp -= n
+            punch = 1
+            gain(0.2, g)
             let atRail = pos >= 0.9
             pos += 0.2 * Double(n)
             if atRail { ehp = 0 }
@@ -342,8 +395,9 @@ final class Duel {
             sparks(g, fx, fy - g.H * 0.26, n == 2 ? 22 : 12, Col(0xffd257))
             if ehp <= 0 {
                 slow = 0.6
-                say(atRail ? "Over the side with him!" : (n == 2 ? "A riposte runs him through" : "He is down"))
+                say(atRail ? "Over the side with him!" : (n >= 2 ? "A riposte runs him through" : "He is down"))
                 if atRail { g.snd?.splash() }
+                downed(g)
             } else if n == 2 {
                 say("Riposte!")
             } else if stop {
@@ -363,11 +417,80 @@ final class Duel {
         }
     }
 
+    /// A man is down: the crowd roars, and the count goes up on screen.
+    private func downed(_ g: Game) {
+        kills += 1
+        g.snd?.wash(1.3, 0.11, 600, 1300, q: 1.2, att: 0.15, rel: 0.9)
+        let left = foes - k - 1
+        if kills == 1 { show("FIRST BLOOD") } else if left == 0 { show(boss ? "THE CAPTAIN FALLS!" : "THE DECK IS YOURS!") } else if left == 1 { show("ONE LEFT!") } else { show(["TWO DOWN", "THREE DOWN", "FOUR DOWN", "FIVE DOWN", "SIX DOWN"][min(4, kills - 2)]) }
+    }
+    /// One cut of the fury flurry. Nothing stops it.
+    private func furyHit(_ g: Game) {
+        flurry -= 1
+        flT = 0.17
+        ehp -= 1
+        pst = .lunge
+        pt = 0.17
+        est = .hit
+        et = 0.4
+        flashE = 0.4
+        punch = 1
+        pos = min(1, pos + 0.1)
+        g.shake = 0.22
+        g.snd?.thud(); g.snd?.clang()
+        g.buzz?(true)
+        let (fx, fy) = foeXY(g)
+        g.puff(fx, fy - g.H * 0.26, 16, Col(0xffb040), 260, 300, 2.8, 0.5)
+        if ehp <= 0 {
+            carry = flurry
+            flurry = 0
+            slow = 0.5
+            say("Cut down!")
+            downed(g)
+        } else if flurry == 0 {
+            say("He reels")
+            est = .stag
+            et = 0.8
+        }
+    }
+    private func furyGo(_ g: Game) {
+        if fury < 1 { say("Fury is not ready"); return }
+        if est == .dead || est == .enter || pst == .hurt { return }
+        fury = 0
+        flurry = 3
+        flT = 0.05
+        slow = 0
+        par = 0
+        show("FURY!")
+        g.snd?.good()
+        g.snd?.wash(0.9, 0.12, 500, 2400, q: 1.5, att: 0.05, rel: 0.6)
+    }
+    private func kick(_ g: Game) {
+        if kickCd > 0 { say("Not yet"); return }
+        if pst == .hurt || est == .dead || est == .enter || est == .hit { return }
+        if wind < 0.3 { say("Winded"); return }
+        if est == .wind && heavy { say("Too late. Dodge!"); return }
+        wind -= 0.3
+        kickCd = 3
+        pst = .lunge
+        pt = 0.25
+        est = .stag
+        et = kind == .captain ? 0.55 : 0.85
+        feint = false
+        pos = min(1, pos + (kind == .bruiser ? 0.1 : 0.2))
+        punch = 0.7
+        g.shake = 0.15
+        g.snd?.thud()
+        g.buzz?(false)
+        gain(0.1, g)
+        say(pos >= 0.9 ? "He is on the rail. Finish it!" : "A boot in the chest. He is open!")
+    }
+
     func rects(_ g: Game) -> [(Double, Double, Double, Double)] {
-        let bw = min(134.0, g.W * 0.17), bh = 54.0
+        let bw = min(134.0, g.W * 0.17), bh = 50.0
         let lx = g.safeL + 4, rx = g.W - g.safeR - bw - 4
-        let y2 = g.H - g.safeB - bh - 6, y1 = y2 - bh - 8
-        return [(lx, y1, bw, bh), (lx, y2, bw, bh), (rx, y1, bw, bh), (rx, y2, bw, bh)]
+        let y2 = g.H - g.safeB - bh - 6, y1 = y2 - bh - 7, y0 = y1 - bh - 7
+        return [(lx, y1, bw, bh), (lx, y2, bw, bh), (rx, y1, bw, bh), (rx, y2, bw, bh), (lx, y0, bw, bh), (rx, y0, bw, bh)]
     }
     func touch(_ x: Double, _ y: Double, _ g: Game) {
         if over || est == .dead { return }
@@ -376,7 +499,7 @@ final class Duel {
         for (i, q) in r.enumerated() where x >= q.0 - 6 && x <= q.0 + q.2 + 6 && y >= q.1 - 4 && y <= q.1 + q.3 + 4 { hit = i }
         if hit < 0 {
             // anywhere else: the left half parries, the right half attacks, split high and low
-            if y < 60 { return }
+            if y < 60 || flurry > 0 { return }
             let upper = y < r[1].1
             hit = x < g.W / 2 ? (upper ? 0 : 1) : (upper ? 2 : 3)
         }
@@ -386,10 +509,13 @@ final class Duel {
             cd = 0; pst = .ready; wind = max(wind, 0.4)
             if holdWant == 3 { lungeTaught = true }
         }
+        if flurry > 0 { return }
         switch hit {
         case 0: parry(0, g)
         case 1: parry(1, g)
         case 2: sidestep(g)
+        case 4: furyGo(g)
+        case 5: kick(g)
         default: lunge(g)
         }
     }
@@ -471,9 +597,39 @@ final class Duel {
             let q = clampD(1 - et / wd, 0, 1)
             c.glow(ex + eOff, fy - s * 0.9, s * 0.5, Col(0xff3a20, 0.55 * q), Col(0xff3a20, 0))
         }
+        // the rest of them, waiting their turn and shouting; your own boarders behind you
+        let waiting = max(0, foes - k - 1)
+        for i in 0..<min(6, waiting) {
+            var cp = Pose()
+            cp.ang = -1.5 + sin(t * 5 + Double(i) * 1.7) * 0.5
+            cp.crouch = abs(sin(t * 4 + Double(i))) * 0.03
+            let big = boss && i == waiting - 1 && waiting <= 6
+            fighter(c, W * 0.7 + Double(i) * W * 0.045 + sin(t * 2 + Double(i)) * 3, fy - 10 - Double(i % 2) * 9, s * (big ? 0.72 : 0.6), -1, cp, big ? 4 : (i % 3 == 2 ? 2 : 5))
+        }
+        for i in 0..<max(0, 3 - lost) {
+            var cp = Pose()
+            cp.ang = -1.4 + sin(t * 4.4 + Double(i) * 2.1) * 0.45
+            fighter(c, W * 0.3 - Double(i) * W * 0.045, fy - 10 - Double(i % 2) * 9, s * 0.6, 1, cp, 0)
+        }
+        c.R(0, 0, W, H, Col(0x0a0604, 0.22))
+        if flurry > 0 || bannerT > 1.2 && banner == "FURY!" {
+            // the world goes gold while the flurry lasts
+            c.R(0, 0, W, H, Col(0xffb040, 0.16))
+            for i in 0..<14 {
+                let a = Double(i) / 14 * PI * 2 + t * 2
+                c.seg(px + s * 0.4 + cos(a) * s * 0.5, fy - s * 0.5 + sin(a) * s * 0.4, px + s * 0.4 + cos(a) * W, fy - s * 0.5 + sin(a) * W, 2, Col(0xffe08a, 0.12))
+            }
+        }
+        // every hit punches the view in a little
+        let zoom = 1 + punch * 0.05
+        c.save()
+        c.translate((px + ex) / 2, fy - s * 0.4)
+        c.scale(zoom, zoom)
+        c.translate(-(px + ex) / 2, -(fy - s * 0.4))
         fighter(c, px + pOff, fy, s, 1, pp, 0)
         fighter(c, ex + eOff, fy, s * (kind == .bruiser ? 1.08 : (kind == .captain ? 1.05 : 1)), -1, ep, kindIndex())
         g.drawSparks(c)
+        c.restore()
 
         // the warning over his head
         let hx = ex + eOff, hy = fy - s * 1.22
@@ -520,17 +676,39 @@ final class Duel {
         g.gauge(c, g.safeL + 10, ny + 28, 110, 7, wind, Col(0xbfe6ff), Col(0x4a8fd0))
         c.textS("wind", g.safeL + 130, ny + 36, 11, CREAM, -1, FONTI)
         c.textS("Pirates left \(foes - k)   ·   Sailors lost \(lost)/3", W / 2, ny, 14, CREAM, 0, FONT)
+        // fury, filling under the wind
+        g.gauge(c, g.safeL + 10, ny + 44, 110, 7, fury, Col(0xffe08a), Col(0xff6a20))
+        c.textS(fury >= 1 ? "FURY READY" : "fury", g.safeL + 130, ny + 52, 11, fury >= 1 ? Col(0xffd257, 0.7 + 0.3 * sin(t * 10)) : CREAM, -1, fury >= 1 ? FONTB : FONTI)
+        if combo >= 2 {
+            let cs = 1 + 0.12 * sin(t * 12)
+            c.save()
+            c.translate(W / 2, ny + 26)
+            c.scale(cs, cs)
+            c.textS("×\(combo) COMBO", 0, 0, 15 + Double(min(6, combo)), combo >= 5 ? Col(0xff9a3a) : Col(0xffe08a), 0, FONTB)
+            c.restore()
+        }
+        if bannerT > 0 && !banner.isEmpty {
+            let q = clampD((1.6 - bannerT) / 0.18, 0, 1)
+            c.save()
+            c.alpha(min(1, bannerT * 2.2))
+            c.translate(W / 2, H * 0.2)
+            c.scale(2.4 - 1.4 * q, 2.4 - 1.4 * q)
+            c.rotate(-0.03)
+            c.text(banner, 2, 3, 34, Col(0x000000, 0.6), 0, FONTD)
+            c.text(banner, 0, 0, 34, banner == "FURY!" ? Col(0xffb040) : Col(0xffe9a0), 0, FONTD)
+            c.restore()
+        }
 
         // the four moves
         let r = rects(g)
         let late = est == .wind && !heavy && !feint && et < pw + 0.06
-        let names: [(String, String)] = [("Parry high", "stop a cut from above"), ("Parry low", "stop a thrust below"), ("Dodge", "slip a heavy blow"), ("Lunge", "when he is open")]
+        let names: [(String, String)] = [("Parry high", "stop a cut from above"), ("Parry low", "stop a thrust below"), ("Dodge", "slip a heavy blow"), ("Lunge", "when he is open"), ("Fury", fury >= 1 ? "three cuts, unstoppable" : "builds as you fight"), ("Kick", kickCd > 0 ? "catching your balance" : "shove him open")]
         for (i, q) in r.enumerated() {
             var on = false
-            if i == 0 { on = late && line == 0 } else if i == 1 { on = late && line == 1 } else if i == 2 { on = est == .wind && heavy && et < 0.5 } else { on = est == .stag }
+            if i == 0 { on = late && line == 0 } else if i == 1 { on = late && line == 1 } else if i == 2 { on = est == .wind && heavy && et < 0.5 } else if i == 3 { on = est == .stag } else if i == 4 { on = fury >= 1 } else { on = false }
             if hold { on = i == holdWant }
-            let need: Double = i < 2 ? 0.1 : (i == 2 ? 0.22 : 0.18)
-            let dim = hold ? i != holdWant : wind < need
+            let need: Double = i < 2 ? 0.1 : (i == 2 ? 0.22 : (i == 3 ? 0.18 : (i == 5 ? 0.3 : 0)))
+            let dim = hold ? i != holdWant : (i == 4 ? fury < 1 : (i == 5 ? (kickCd > 0 || wind < need) : wind < need))
             let pu = on ? 1 + sin(t * 18) * 0.04 : 1.0
             c.save()
             c.translate(q.0 + q.2 / 2, q.1 + q.3 / 2)
@@ -548,6 +726,7 @@ final class Duel {
             let tc = on ? Col(0x3a2408) : CREAM
             c.text(names[i].0, 0, -2, 17, tc, 0, FONTB)
             c.text(names[i].1, 0, 13, 10.5, tc.alpha(0.85), 0, FONTI)
+            if i == 4 && fury < 1 { c.RR(x + 6, y + q.3 - 7, (q.2 - 12) * fury, 3, 1.5, Col(0xff9a3a)) }
             if dim { c.RR(x, y, q.2, q.3 + 3, 12, Col(0x120a04, 0.5)) }
             c.restore()
         }
@@ -579,6 +758,7 @@ final class Duel {
 
     private func kindIndex() -> Int {
         switch kind {
+        case .deckhand: return 5
         case .cutthroat: return 1
         case .bruiser: return 2
         case .duelist: return 3
@@ -653,9 +833,9 @@ final class Duel {
     /// One swordsman. (x, fy) is the ground between his feet; s is his height; dir is the way he faces.
     private func fighter(_ c: Canvas, _ x: Double, _ fy: Double, _ s: Double, _ dir: Double, _ p: Pose, _ style: Int) {
         // colours by who he is: 0 your sailor, 1 cutthroat, 2 bruiser, 3 duelist, 4 captain
-        let shirts: [Col] = [Col(0x2f5f8f), Col(0x3a3a40), Col(0x5a3a24), Col(0x24303a), Col(0x7a1b12)]
-        let skins: [Col] = [Col(0xe3b58a), Col(0xc99a6e), Col(0xb98a5e), Col(0xd9a878), Col(0xc99a6e)]
-        let bands: [Col] = [Col(0xb03a2a), Col(0x111111), Col(0x8a1a1a), Col(0x1a1a1a), Col(0x16100a)]
+        let shirts: [Col] = [Col(0x2f5f8f), Col(0x3a3a40), Col(0x5a3a24), Col(0x24303a), Col(0x7a1b12), Col(0x6a6048)]
+        let skins: [Col] = [Col(0xe3b58a), Col(0xc99a6e), Col(0xb98a5e), Col(0xd9a878), Col(0xc99a6e), Col(0xd2a070)]
+        let bands: [Col] = [Col(0xb03a2a), Col(0x111111), Col(0x8a1a1a), Col(0x1a1a1a), Col(0x16100a), Col(0x3a5a3a)]
         let shirt = shirts[style], skin = skins[style], band = bands[style]
         let wide = style == 2 ? 1.3 : 1.0
         c.save()

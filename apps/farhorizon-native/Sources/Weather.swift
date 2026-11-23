@@ -25,6 +25,25 @@ extension Game {
         else if r < 0.93 { setWeather(3, days: 1) }
         else { setWeather(4, days: 1) }
     }
+    /// What the day's weather does to the ship, beyond how it looks.
+    func weatherDay() {
+        switch weather {
+        case 2:
+            let w = addGood("water", 3)
+            if w > 0 { toast("Rain fills the casks: +\(w) water") }
+        case 3:
+            if E("rig") < 1 {
+                let d = Double(rndI(2, 4))
+                dmg(d)
+                if !over { toast("The gale strains her: \(Int(d)) hull. Post hands to the rigging") }
+            }
+        case 4:
+            dist = max(0, dist - dps() * 0.25)
+            if E("look") < 1 { toast("Fog: you feel your way, slowly. A lookout would help") }
+        default:
+            break
+        }
+    }
     var weatherName: String { return ["Fair", "Overcast", "Rain", "Storm", "Fog"][min(4, max(0, weather))] }
 
     func updateWeather(_ dt: Double) {

@@ -146,7 +146,7 @@ extension Game {
         let down = laidUp()
         let full = crew >= ship.crew
         let gap = 8.0
-        let bw = (W - safeL - safeR - gap * 3) / 4
+        let bw = (W - safeL - safeR - gap * 4) / 5
         let by = H - safeB - 52
         let fy = by - 10
         func cx(_ i: Int) -> Double { return safeL + Double(i) * (bw + gap) + bw / 2 }
@@ -160,6 +160,9 @@ extension Game {
         if recruit != nil { person(c, cx(0), fy, 1.0, coat: Col(0x2f5f8f), hat: 0, phase: 0, armUp: 0.5 + 0.5 * sin(T * 1.3)) }
         person(c, cx(1), fy, 1.0, coat: Col(0x2a2a34), hat: 1, phase: 1.4)
         person(c, cx(2), fy, 1.0, coat: Col(0x6a2a2a), hat: 2, phase: 2.6)
+        // the swordmaster, with his blade point-down in front of him
+        person(c, cx(3), fy, 1.0, coat: Col(0x1f4a3a), hat: 0, phase: 3.9)
+        c.seg(cx(3) + 20, fy - 46, cx(3) + 24, fy - 2, 2, Col(0xdfe6ea)); c.seg(cx(3) + 15, fy - 44, cx(3) + 25, fy - 46, 2.5, Col(0xd9a441))
         c.RR(W / 2 - 96, 44, 192, 26, 5, Col(0x2a1a0c, 0.92)); c.RRStroke(W / 2 - 96, 44, 192, 26, 5, 1.4, Col(0xd2a455))
         c.text(here.n + " Tavern", W / 2, 62, 16, GOLD, 0, FONTD)
         let rec = recruit
@@ -167,14 +170,16 @@ extension Game {
             (rec == nil ? "No one to hire" : "Hire " + (rec?.n ?? ""), rec == nil ? "come back next port" : (full ? "crew full" : roleName(rec?.sk ?? "").lowercased() + " · 40 gold"), rec == nil || full),
             ("Treasure map", hasMap ? "you have one" : "120 gold", hasMap),
             ("Surgeon", down > 0 ? "\(down) laid up · \(down * 20) gold" : "all hands well", down == 0),
+            ("Swordmaster", perkRip && perkWind && perkFury ? "nothing left to teach" : "fighting lessons", perkRip && perkWind && perkFury),
             ("Leave", "back to the quay", false)
         ]
         for (i, nm) in names.enumerated() {
-            btn(c, safeL + Double(i) * (bw + gap), by, bw, 46, nm.0, nm.1, gold: i == 3, off: nm.2) { [unowned self] in
+            btn(c, safeL + Double(i) * (bw + gap), by, bw, 46, nm.0, nm.1, gold: i == 4, off: nm.2) { [unowned self] in
                 switch i {
                 case 0: self.tavernHire()
                 case 1: self.tavernMap()
                 case 2: self.tavernSurgeon()
+                case 3: self.tavernSword()
                 default: self.mode = .port
                 }
             }

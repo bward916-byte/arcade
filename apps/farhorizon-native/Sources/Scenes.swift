@@ -160,7 +160,7 @@ extension Game {
     }
 
     /// A ship seen from the side, bow to the right. (x, wy) is the middle of her waterline; len is her length.
-    func drawShip(_ c: Canvas, _ x: Double, _ wy: Double, _ len: Double, _ masts: Int, enemy: Bool = false, furled: Bool = false) {
+    func drawShip(_ c: Canvas, _ x: Double, _ wy: Double, _ len: Double, _ masts: Int, enemy: Bool = false, furled: Bool = false, life: Bool = false) {
         let u = len / 200
         let L = light()
         let dark = 1 - L.night * 0.45
@@ -346,11 +346,37 @@ extension Game {
         c.seg(-100, -52, -104, -66, 1.5, spar)
         c.circ(-104, -68, 3.5, Col(0xffd257))
         if L.night > 0.2 { c.glow(-104, -68, 34, Col(0xffc060, 0.5 * L.night), Col(0xffc060, 0)) }
-        // a few hands on deck
-        for i in 0..<4 {
-            let px = -40 + Double(i) * 26 + sin(T * 0.6 + Double(i) * 2) * 6
-            c.R(px - 2, -42, 4, 9, [Col(0x2f5f8f), Col(0x8c3b2e), Col(0xd9cdb0), Col(0x3a7a6d)][i].shade(dark))
-            c.circ(px, -45, 2.6, Col(0xe3b58a).shade(dark))
+        // what the yards have added: copper below the waterline, a spritsail and staysail, brass on the guns
+        if !enemy {
+            if up("hull") > 0 {
+                c.curve(-86, 5.5, 0, 7.5, 80, 5.5, up("hull") > 1 ? 5 : 3, Col(0x4fa58a).shade(dark))
+                c.curve(-86, 3.5, 0, 5.5, 80, 3.5, 0.8, Col(0xc98a45).shade(dark))
+            }
+            if up("sails") > 0 && !furled {
+                c.pathGrad(-52, -30, [(0, sail), (1, sailD)]) { p in
+                    p.move(to: CGPoint(x: 100, y: -46)); p.addLine(to: CGPoint(x: 132, y: -60)); p.addQuadCurve(to: CGPoint(x: 124, y: -36), control: CGPoint(x: 136, y: -46)); p.addLine(to: CGPoint(x: 98, y: -30)); p.closeSubpath()
+                }
+                if up("sails") > 1 && mx.count > 1 {
+                    c.pathGrad(-150, -60, [(0, sail), (1, sailD)]) { p in
+                        p.move(to: CGPoint(x: mx[0] + 4, y: -150)); p.addLine(to: CGPoint(x: mx[1] - 6, y: -62)); p.addQuadCurve(to: CGPoint(x: mx[0] + 8, y: -66), control: CGPoint(x: (mx[0] + mx[1]) / 2, y: -52)); p.closeSubpath()
+                    }
+                }
+            }
+            if up("guns") > 0 {
+                for i in 0..<6 { c.circStroke(-50 + Double(i) * 22 + 4, -13.5, 2.8, 1, Col(0xd9a441)) }
+                c.seg(-70, -52, -64, -60, 2.2, Col(0x2a2a30)); c.circ(-70, -52, 2, Col(0xd9a441))
+                if up("guns") > 1 { c.seg(60, -38, 67, -45, 2.2, Col(0x2a2a30)); c.circ(60, -38, 2, Col(0xd9a441)) }
+            }
+        }
+        if life {
+            deckLife(c, mx, dark)
+        } else {
+            // a few hands on deck
+            for i in 0..<4 {
+                let px = -40 + Double(i) * 26 + sin(T * 0.6 + Double(i) * 2) * 6
+                c.R(px - 2, -42, 4, 9, [Col(0x2f5f8f), Col(0x8c3b2e), Col(0xd9cdb0), Col(0x3a7a6d)][i].shade(dark))
+                c.circ(px, -45, 2.6, Col(0xe3b58a).shade(dark))
+            }
         }
         c.restore()
     }
@@ -512,8 +538,10 @@ extension Game {
                 for a in [-2.5, -1.8, -1.0, -0.3, 0.4] { c.curve(px + 8 + sw, wy - 84, px + 8 + sw + cos(a) * 22, wy - 90 + sin(a) * 20, px + 8 + sw + cos(a) * 40, wy - 76 + sin(a) * 28, 4.5, Col(0x3f7a3c)) }
             }
         }
-        drawShip(c, W * 0.42, wy, min(W * 0.3, 280) * ship.len, ship.masts)
+        seaLifeBack(c, hz, wy)
+        drawShip(c, W * 0.42, wy, min(W * 0.3, 280) * ship.len, ship.masts, life: true)
         foreWave(c, wy + 5, 0, W)
+        seaLifeFront(c, hz, wy)
         if card == nil && chance(0.5) { puff(W * 0.42 + min(W * 0.3, 280) * ship.len * 0.5, wy + 2, 1, Col(0xffffff, 0.8), 40 + rough * 60, 120, 2.2, 0.5) }
         weatherFront(c, hz)
         let L = light()
@@ -523,6 +551,7 @@ extension Game {
             return
         }
         drawProgress(c)
+        c.textS(lifeCaption(), W / 2, 96, 12.5, CREAM.alpha(0.92), 0, FONTI)
         let bw = 150.0, by = H - safeB - 50
         btn(c, W / 2 - bw - 6, by, bw, 44, half ? "Rations: half" : "Rations: full", half ? "saves food, risks sickness" : "tap to halve") { [unowned self] in
             self.half = !self.half

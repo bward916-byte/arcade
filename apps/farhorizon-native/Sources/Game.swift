@@ -65,11 +65,18 @@ final class Game {
     var legFrom = ""
     var rumourHeard = false
     // what is going on in this port: 0 nothing, 1 dock work, 2 a thief, 3 rats in the stores, 4 a festival, 5 an old sailor's barrels
+    var ups: [String: Int] = [:]
+    var perkRip = false
+    var perkWind = false
+    var perkFury = false
+    var rainbowT = 0.0
     var portJob = 0
     var portJobDone = false
     var festT = 0.0
     var bellT = 6.0
     var bellSwing = 0.0
+    var deckForce = -1
+    var seaForce = -1
     var cardT = 9.0          // seconds since the card on screen appeared
     var uiLock = false       // buttons are not live while a card is still flying in
     var rings: [(x: Double, y: Double, w: Double, h: Double, t: Double)] = []
@@ -122,7 +129,16 @@ final class Game {
     var chartImg: CGImage?
     var fights = 0
 
-    var ship: ShipDef { return SHIPS[shipI] }
+    /// Your ship as she is now: the hull you bought plus whatever the shipwrights have added since.
+    var ship: ShipDef {
+        var s = SHIPS[shipI]
+        s.speed *= 1 + 0.09 * Double(up("sails"))
+        s.hull += 25 * up("hull")
+        s.hold += 50 * up("hold")
+        s.crew += 2 * up("berths")
+        return s
+    }
+    func up(_ k: String) -> Int { return ups[k] ?? 0 }
     var here: Port { return STAGES[leg][path[leg]] }
 
     func newGame() {
@@ -131,6 +147,7 @@ final class Game {
         dayT = 0; tod = 0.3; hasMap = false; sinceEvent = 0; lastEv = ""; path = [0, 0, 0, 0, 0, 0]
         men = []; log = []; dead = []; sea = 0; halfDays = 0; rot = 0; wind = 1; blk = false; wellUsed = false
         over = false; card = nil; duel = nil; recruit = nil; fights = 0
+        ups = [:]; perkRip = false; perkWind = false; perkFury = false; rainbowT = 0
         play = nil; sum = nil; weather = 0; wxDays = 2; bolts.removeAll(); thunderIn = -1
     }
 
@@ -443,7 +460,11 @@ final class Game {
             if chance(0.25) { bait -= 1 }
         }
         wind = rnd(0.8, 1.2)
+        let wasWet = weather == 2 || weather == 3
         rollWeather()
+        if wasWet && weather < 2 { rainbowT = 16 }
+        weatherDay()
+        if over { return }
         sinceEvent += 1
         if sinceEvent >= 3 || chance(0.4) { rollEvent() }
     }
@@ -486,6 +507,7 @@ final class Game {
         T += dt
         cardT += dt
         updateWeather(dt)
+        rainbowT = max(0, rainbowT - dt)
         if sum != nil { sumT += dt }
         var ri = rings.count - 1
         while ri >= 0 {
@@ -578,6 +600,8 @@ final class Game {
         if name == "event" { event("pirates") }
         if name == "result" { event("ghost"); done("Her hold is full of old silver: +212 gold") }
         if name == "port" { leg = 1; mode = .port; portJob = 2 }
+        if name == "yard" { leg = 1; mode = .port; shipwright() }
+        if name == "decklife" { ups = ["sails": 2, "hull": 1, "guns": 1]; deckForce = 5; seaForce = 0 }
         if name == "town" { leg = 1; mode = .port; portJob = 1; tod = 0.3 }
         if name == "townnight" { leg = 2; mode = .port; portJob = 4; tod = 0.8; festT = 30 }
         if name == "thief" { leg = 1; mode = .port; playThief() }
@@ -589,7 +613,7 @@ final class Game {
         if name == "rain" { setWeather(2, days: 9); wxRain = 0.6; wxDark = 0.6; rough = 0.3 }
         if name == "duel" { UserDefaults.standard.set(0, forKey: Duel.lessonKey); startDuel(foes: 3, boss: false, prize: 120) }
         if name == "teach" { UserDefaults.standard.set(0, forKey: Duel.lessonKey); startDuel(foes: 3, boss: false, prize: 120); card = nil }
-        if name == "fight" { startDuel(foes: 3, boss: false, prize: 120, teach: false) }
+        if name == "fight" { startDuel(foes: 6, boss: false, prize: 120, teach: false); duel?.fury = 1; duel?.combo = 3 }
         if name == "boss" { startDuel(foes: 1, boss: true, prize: 300, teach: false) }
         if name == "end" { finish() }
     }

@@ -49,10 +49,10 @@ let FONTD = "Copperplate-Bold"
 struct ShipDef {
     let name: String
     let cost: Int
-    let speed: Double
-    let hold: Int
-    let hull: Int
-    let crew: Int
+    var speed: Double
+    var hold: Int
+    var hull: Int
+    var crew: Int
     let masts: Int
     let len: Double
     let desc: String

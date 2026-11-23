@@ -343,7 +343,7 @@ extension Game {
         }
 
         // what you can do ashore
-        let names: [(String, String)] = [("Market", "buy and sell"), ("Tavern", "crew · maps · surgeon"), ("Shipwright", "mend the hull"), ("Well", wellUsed ? "casks filled" : "free water"), ("Set sail", "wages \(wagesDue())g")]
+        let names: [(String, String)] = [("Market", "buy and sell"), ("Tavern", "crew · maps · surgeon"), ("Shipwright", "repairs · upgrades"), ("Well", wellUsed ? "casks filled" : "free water"), ("Set sail", "wages \(wagesDue())g")]
         let gap = 8.0
         let bw = (W - safeL - safeR - gap * 4) / 5
         let by = H - safeB - 52
