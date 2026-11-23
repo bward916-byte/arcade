@@ -58,6 +58,8 @@ final class Game {
     var raidT = -1.0
     var raidDone = false
     var raidFlash = 0.0
+    var born: [Int: Double] = [:]
+    var rainAmt: Double { return clampD((sin(T * 0.021 - 1.5) - 0.84) * 9, 0, 1) }
 
     // fishing: 0 wait, 1 fight, 2 land
     var fishing = false
@@ -254,6 +256,13 @@ final class Game {
         snd?.good()
         buzz?(true)
         burst(u.x, groundLand(u.x) - 30, 18, Col(0xffe082))
+        if bld[u.tier > 0 ? u.base : id] != nil {
+            born[Int(u.x)] = T
+            for _ in 0..<26 {
+                sparks.append(Spark(x: u.x + rnd(-44, 44), y: groundLand(u.x) - rnd(0, 6), vx: rnd(-26, 26), vy: rnd(-30, -6), life: 0, max: rnd(0.6, 1.2), r: rnd(2.5, 5), c: Col(0xe2d2b0), grav: 14))
+            }
+            snd?.thud()
+        }
         if u.tier > 0 {
             lvlOf[u.base] = u.tier
             dmg.remove(u.base)
@@ -345,6 +354,7 @@ final class Game {
             let g = 8 + str * 3
             coins += g
             say("Raiders beaten off — defence " + String(def) + " against " + String(str) + ". " + String(g) + " coins taken from their boats.")
+            setBanner("RAIDERS BEATEN OFF")
             snd?.good()
         } else {
             let lost = Int(Double(coins) * 0.3)
@@ -356,6 +366,8 @@ final class Game {
                 burnt = " A building burns."
             }
             say("Raided — defence " + String(def) + " against " + String(str) + ". " + String(lost) + " coins stolen." + burnt)
+            setBanner("THE ISLAND IS RAIDED")
+            buzz?(true)
             snd?.bad()
         }
         raidIn = 4 + Int(rnd(0, 3))
@@ -442,6 +454,12 @@ final class Game {
                 raidFlash = 0.14
                 shake = max(shake, 2)
                 snd?.cannon()
+                let hx = rnd(-250, 120)
+                let wet = hx < 0
+                for _ in 0..<14 {
+                    sparks.append(Spark(x: hx + rnd(-6, 6), y: wet ? 0 : groundLand(hx), vx: rnd(-40, 40), vy: rnd(-130, -50), life: 0, max: rnd(0.5, 1.0), r: rnd(1.4, 2.6), c: wet ? Col(0xe6f6ff) : Col(0xc8b48a), grav: 240))
+                }
+                if wet { snd?.splash() } else { snd?.thud() }
             }
             if !raidDone && raidT > 5 { raidDone = true; resolveRaid() }
             if raidT > 8 { raidT = -1 }
@@ -755,7 +773,7 @@ final class Game {
         case "hut3": all(3); px = 505; tod = 0.4
         case "ship": all(2); px = -200; tod = 0.44
         case "night": all(2); px = 1210; tod = 0.9
-        case "raid": all(1); px = -120; tod = 0.95; raidT = 1.2; raidDone = false; raidFlash = 0.14; pile = [:]
+        case "raid": all(1); px = -120; tod = 0.752; raidIn = 0; pile = [:]
         case "burnt": all(1); px = 2790; tod = 0.4; dmg.insert("mill"); done.remove("mill"); pile = [:]
         default: px = -150
         }

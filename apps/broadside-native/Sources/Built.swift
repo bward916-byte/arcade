@@ -590,11 +590,16 @@ extension Game {
                 let cs = cos(T * 0.9 + sd)
                 if abs(cs) < 0.12 { continue }
                 let len = W * 0.7 * abs(cs), d = sgn(cs)
-                c.pathFill(Col(0xfff4be, 0.16 * a * abs(cs))) { p in
-                    p.move(to: CGPoint(x: X, y: Y))
-                    p.addLine(to: CGPoint(x: X + d * len, y: Y - 26 * k))
-                    p.addLine(to: CGPoint(x: X + d * len, y: Y + 30 * k))
-                    p.closeSubpath()
+                for layer in 0..<5 {
+                    let fl = Double(layer)
+                    let reach = len * (1 - fl * 0.17)
+                    let spread = (30 - fl * 5) * k
+                    c.pathFill(Col(0xfff4be, 0.05 * a * abs(cs))) { p in
+                        p.move(to: CGPoint(x: X, y: Y))
+                        p.addQuadCurve(to: CGPoint(x: X + d * reach, y: Y + spread), control: CGPoint(x: X + d * reach * 0.6, y: Y + spread * 0.4))
+                        p.addQuadCurve(to: CGPoint(x: X + d * reach, y: Y - spread * 0.8), control: CGPoint(x: X + d * reach * 1.08, y: Y))
+                        p.addQuadCurve(to: CGPoint(x: X, y: Y), control: CGPoint(x: X + d * reach * 0.6, y: Y - spread * 0.3))
+                    }
                 }
             }
         }
@@ -946,5 +951,94 @@ extension Game {
         default:
             c.circ(0, 0, 3, g)
         }
+    }
+
+    // ---------- raiders' longboats pulling for the pier, and the fires they light
+    func drawRaidBoats(_ c: Canvas, _ L: Double) {
+        if !raiding { return }
+        let k = camS
+        let u = clampD(raidT / 5, 0, 1)
+        let back = clampD((raidT - 5.4) / 2.6, 0, 1)
+        for i in 0..<3 {
+            let fi = Double(i)
+            let wx = lerp(-600 + fi * 26, -262 - fi * 34, smooth(u)) - back * (220 + fi * 30)
+            if !vis(wx, 60) { continue }
+            c.save()
+            c.translate(sx(wx), sy(wave(wx)) + 1)
+            c.rotate(cos(wx * 0.02 + T * 1.2) * 0.05)
+            c.scale(k * (back > 0 ? -1 : 1), k)
+            c.pathFill(Col(0x14100c)) { p in
+                p.move(to: CGPoint(x: -22, y: -6))
+                p.addQuadCurve(to: CGPoint(x: 24, y: -7), control: CGPoint(x: 0, y: -8))
+                p.addLine(to: CGPoint(x: 15, y: 4))
+                p.addLine(to: CGPoint(x: -14, y: 4))
+                p.closeSubpath()
+            }
+            for m in 0..<4 {
+                let mx = -12 + Double(m) * 8
+                c.R(mx - 1.6, -14, 3.2, 8, Col(0x1c1814))
+                c.circ(mx, -16, 2.2, Col(0x2a2420))
+                let sw = sin(T * 4 + fi + Double(m) * 0.2)
+                c.seg(mx, -11, mx - 9 + sw * 4, 3, 1, Col(0x2a2018))
+            }
+            c.circ(18, -13, 2, Col(0xffb040))
+            c.glow(18, -13, 16, Col(0xffa030, 0.5), Col(0xffa030, 0))
+            c.restore()
+        }
+        // a red wash over everything while the guns are speaking
+        let heat = (raidDone ? max(0, 1 - (raidT - 5) / 3) : min(1, raidT / 1.5)) * (0.07 + 0.04 * sin(T * 9))
+        c.R(-10, -10, W + 20, H + 20, Col(0xff5020, heat))
+    }
+
+    // ---------- rain now and then
+    func drawWeather(_ c: Canvas, _ L: Double) {
+        let rain = rainAmt
+        if rain <= 0 { return }
+        c.R(-10, -10, W + 20, H + 20, Col(0x3a4654, 0.22 * rain))
+        let n = Int(90 * rain)
+        for i in 0..<n {
+            let fi = Double(i)
+            let fall = (T * (1.5 + hashN(fi) * 0.6) + hashN(fi + 7)).truncatingRemainder(dividingBy: 1)
+            let x = hashN(fi + 3) * (W + 80) - fall * 50
+            let y = fall * (H + 40) - 20
+            c.seg(x, y, x - 5, y + 14, 1, Col(0xc8dceb, 0.4))
+        }
+        // rings where it lands on the sea
+        for i in 0..<8 {
+            let fi = Double(i)
+            let u = (T * 1.3 + fi * 0.37).truncatingRemainder(dividingBy: 1)
+            let wx = camX - 300 + hashN(fi + floor(T * 1.3 + fi * 0.37)) * 600
+            if wx > 0 && wx < XEND { continue }
+            c.ellStroke(sx(wx), sy(wave(wx)), (2 + u * 7) * camS, (0.6 + u * 1.6) * camS, 1, Col(0xf0faff, 0.5 * (1 - u) * rain))
+        }
+    }
+
+    // ---------- one quiet line of advice: what is worth doing next
+    func advice() -> String {
+        if raiding { return "" }
+        let b = boat
+        if fish >= fishCap { return "Hold full: sell at the market up in town" }
+        if coins < 8 && fish == 0 && !done.contains("rod") { return "Fish from the end of the pier, or haul crates by the warehouse" }
+        if fish > 0 && coins < 8 && !done.contains("rod") { return "Sell your catch at the market up in town" }
+        if !done.contains("rod") { return "A rod on the pier makes the fish bite faster" }
+        if b == 0 { return "Save 40 coins for a rowboat at the shipwright's shed" }
+        if !done.contains("hut") && !dmg.contains("hut") { return "Build the fisher's hut on the beach: coins every day" }
+        if defence() < threat() && raidIn <= 2 { return "Raiders outgun you: build the watchtower on the headland" }
+        if b == 1 { return "Row out for bigger fish. A skiff is 150 at the shed" }
+        if !dmg.isEmpty { return "A building lies burnt: rebuild it for less than it cost" }
+        if b == 2 && mates < 6 { return "Buy rounds at the tavern to sign on six hands" }
+        if b == 2 { return "A sloop is 300 at the shipwright's shed" }
+        if mates < shipCrew { return "Your " + shipName + " needs " + String(shipCrew) + " hands: the tavern" }
+        if !done.contains("mill") || !done.contains("farm") { return "The east valley has room for a sawmill and a farm" }
+        return ""
+    }
+    func drawAdvice(_ c: Canvas) {
+        let s = advice()
+        if s.isEmpty || rowPhase > 0 || logT > 0.4 { return }
+        let w = textW(s, 12.5) + 40
+        let x = max(12.0, safeL) - 2, y = H - max(10.0, safeB) - 26
+        c.RR(x, y, w, 22, 11, Col(0x050c14, 0.5))
+        c.poly(GOLD.alpha(0.9), [x + 11, y + 6, x + 18, y + 11, x + 11, y + 16])
+        c.text(s, x + 26, y + 15.5, 12.5, CREAM.alpha(0.92), -1)
     }
 }

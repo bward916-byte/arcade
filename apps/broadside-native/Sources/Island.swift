@@ -16,7 +16,7 @@ extension Game {
     /// A day colour, darkened and cooled as the light goes.
     func lc(_ hex: UInt32) -> Col {
         let d = Col(hex)
-        let n = Col(r: d.r * 0.2, g: d.g * 0.25, b: d.b * 0.36, a: 1)
+        let n = Col(r: d.r * 0.3, g: d.g * 0.36, b: d.b * 0.5, a: 1)
         return Col.mix(n, d, light)
     }
     func vis(_ wx: Double, _ m: Double = 130) -> Bool {
@@ -554,7 +554,10 @@ extension Game {
         let wallHex: UInt32 = st.wall == "stone" ? 0xa29c8e : (st.wall == "wood" ? 0x8e6a40 : 0xe6d8b6)
         let roofHex: UInt32 = st.roof == "thatch" ? 0xb89a50 : (st.roof == "wood" ? 0x5e4430 : 0x9a4030)
         let lit = L < 0.5
+        let age = T - (born[Int(wx)] ?? -99)
+        let grow: Double = age < 0.9 ? max(0.05, 1 - pow(1 - age / 0.9, 3)) : 1
         at(c, wx, ground(wx), BS) {
+            if grow < 1 { c.scale(1, grow) }
             let hw = w / 2
             c.ell(4, 1, hw + 10, 3.5, Col(0x000000, 0.2))
             c.R(-hw - 2, -3, w + 4, 4, self.lc(0x77726a))
@@ -921,13 +924,16 @@ extension Game {
                 }
                 c.R(-32, -30, 8, 10, Col(0x2a1a0e))
                 c.R(36, -44, 6, 8, Col(0x2a1a0e))
+                c.poly(self.lc(0x5a3a1e), [-62, 0, -44, 0, -46, -7, -60, -7])
+                c.circ(-58, -3.4, 3.4, self.lc(0x3a2512))
+                c.circ(-48, -3.4, 3.4, self.lc(0x3a2512))
                 c.save()
-                c.translate(-8, -26)
-                c.rotate(-0.35 + PI)
-                c.R(0, -3, 30, 6, Col(0x222226))
+                c.translate(-50, -9)
+                c.rotate(PI + 0.22)
+                c.poly(self.lc(0x34363e), [-6, -3.2, 18, -2.3, 18, 2.3, -6, 3.2])
+                c.R(17, -3, 2.2, 6, self.lc(0x22242a))
+                c.circ(-6.5, 0, 2.2, self.lc(0x34363e))
                 c.restore()
-                c.R(-14, -28, 14, 6, self.lc(0x4a2e14))
-                c.circStroke(-10, -23, 4, 2, self.lc(0x4a2e14))
                 c.circ(-30, -42, 6, self.lc(0x3f7a3a))
                 c.circ(20, -26, 5, self.lc(0x3f7a3a))
                 // flag

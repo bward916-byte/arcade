@@ -28,13 +28,16 @@ extension Game {
         if dog { drawDog(c, L) }
         if rowPhase == 0 { drawPerson(c, L) }
         drawFishing(c, L)
+        drawRaidBoats(c, L)
         drawFrontSea(c, L)
         drawEastSea(c, L)
         drawSparks(c)
-        if L < 0.5 { c.R(-10, -10, W + 20, H + 20, Col(0x060c1c, 0.34 * (0.5 - L) / 0.5)) }
+        if L < 0.5 { c.R(-10, -10, W + 20, H + 20, Col(0x060c1c, 0.2 * (0.5 - L) / 0.5)) }
+        drawWeather(c, L)
         drawNightLights(c, L)
         c.restore()
         drawPops(c)
+        drawAdvice(c)
         drawRings(c, L)
         drawHUD(c, L)
     }
