@@ -399,8 +399,8 @@ extension Game {
         // ---- the bay: fishing boats working, a rowing boat ferrying to your ship
         if kind == 2 {
             // merchantmen lying at anchor off the trading city
-            drawShip(c, W * 0.64, qy + 70, 120, 3, furled: true)
-            drawShip(c, W * 0.86, qy + 58, 96, 2, furled: true)
+            drawShip(c, W * 0.62, qy + 66, 66, 3, furled: true)
+            drawShip(c, W * 0.88, qy + 58, 54, 2, furled: true)
         }
         for i in 0..<3 {
             let bx = W * (0.55 + Double(i) * 0.15) + sin(T * 0.12 + Double(i) * 2) * W * 0.05
@@ -497,12 +497,12 @@ extension Game {
         c.translate(W / 2, 38)
         c.rotate(sway)
         c.seg(-nw / 2 + 14, -6, -nw / 2 + 14, 8, 1.5, Col(0x1c1108)); c.seg(nw / 2 - 14, -6, nw / 2 - 14, 8, 1.5, Col(0x1c1108))
-        c.RR(-nw / 2 + 2, 11, nw, 34, 7, Col(0x000000, 0.3))
-        c.RRGrad(-nw / 2, 8, nw, 34, 7, [(0, Col(0x6b4423)), (1, Col(0x3f2613))])
-        c.RRStroke(-nw / 2, 8, nw, 34, 7, 1.6, Col(0xd2a455))
-        c.text(nm, 0, 33, 24, GOLD, 0, FONTD)
+        c.RR(-nw / 2 + 2, 11, nw, 46, 7, Col(0x000000, 0.3))
+        c.RRGrad(-nw / 2, 8, nw, 46, 7, [(0, Col(0x6b4423)), (1, Col(0x3f2613))])
+        c.RRStroke(-nw / 2, 8, nw, 46, 7, 1.6, Col(0xd2a455))
+        c.text(nm, 0, 32, 24, GOLD, 0, FONTD)
+        c.text(kindName, 0, 47, 12, CREAM.alpha(0.9), 0, FONTI)
         c.restore()
-        c.textS(kindName + (portMsg.isEmpty ? "" : "  ·  " + portMsg), W / 2, 96, 13, CREAM, 0, FONTI)
 
         // things going on in town: a call-out over the quay for each
         if sum == nil && card == nil {
@@ -511,7 +511,7 @@ extension Game {
             let jw = min(176.0, (W - qx0 - safeR - 16) / 3 - 8)
             for (n, j) in open.enumerated() {
                 let jb = jobs[min(12, j)]
-                let jx = qx0 + 14 + Double(n) * (jw + 8), jy = qy - 148 + sin(T * 3 + Double(n) * 1.4) * 3
+                let jx = qx0 + 14 + Double(n) * (jw + 8), jy = qy - 120 + sin(T * 3 + Double(n) * 1.4) * 3
                 let urgent = j == 6 || j == 7 || j == 2 || j == 3
                 c.glow(jx + jw / 2, jy + 22, 110, (urgent ? Col(0xff5a3c, 0.22 + 0.12 * sin(T * 6)) : Col(0xffd257, 0.16 + 0.08 * sin(T * 4))), Col(0xffd257, 0))
                 c.poly(urgent ? Col(0xd0452c) : Col(0xe6ae3c), [jx + jw / 2 - 8, jy + 41, jx + jw / 2 + 8, jy + 41, jx + jw / 2, jy + 52])

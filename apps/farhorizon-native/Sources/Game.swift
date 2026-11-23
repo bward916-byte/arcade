@@ -525,6 +525,7 @@ final class Game {
         sum = LegSum(from: legFrom, to: here.n, days: day - leg0Day, leagues: Int(legLen), events: legEvents, gold: gold - leg0Gold, lost: max(0, leg0Crew - crew), hull: Int((hull / Double(max(1, ship.hull)) * 100).rounded()), fights: fights - leg0Fights, wages: wagesDue())
         sumT = 0
         sumRow = -1
+        if !portMsg.isEmpty { toast(portMsg) }
     }
     func finish() {
         over = true
