@@ -1,7 +1,7 @@
 import Foundation
 
 enum Mode { case title, intro, card, play, pick, ride, dead, ending }
-enum ZKind { case zed, runner, dog, rat, bloater, boss, crawler, spitter, crow }
+enum ZKind { case zed, runner, dog, rat, bloater, boss, crawler, spitter, crow, wheel, riot, burner, screamer }
 enum FloorKind { case normal, hole, wall, lift, roof, street }
 enum RideKind { case stairs, hole, lift }
 
@@ -42,9 +42,13 @@ final class Zed {
     var job = 7          // what they were: suit, office, cook, medic, guard, janitor, waiter, casual, patient, builder
     var female = false
     var fatMul = 1.0
+    var shield = 0       // blocks left on a riot shield
+    var screamCd = 2.5
+    var screamT = 0.0
     init(id: Int, kind: ZKind, x: Double, depth: Int, seed: Double) {
         self.id = id; self.kind = kind; self.x = x; self.seed = seed
         look = Int(seed * 97) % 5
+        if kind == .riot { shield = 5 }
         style = Int(seed * 53) % 4
         job = Int(hashN(seed * 7.3) * 10) % 10
         female = hashN(seed * 3.1) > 0.5
@@ -60,6 +64,10 @@ final class Zed {
         case .crawler: h = 26; sp = 58 + seed * 20; re = 48; dm = 9; wu = 0.3; ra = 0.9; si = 520; sc = 1.0
         case .spitter: h = 30; sp = 70; re = 60; dm = 8; wu = 0.4; ra = 1.2; si = 760; sc = 1.05
         case .crow: h = 9; sp = 250 + seed * 60; re = 52; dm = 5; wu = 0.35; ra = 1.4; si = 900; sc = 1.0
+        case .wheel: h = 40; sp = 210 + seed * 60; re = 72; dm = 11; wu = 0.18; ra = 1.1; si = 760; sc = 1.0
+        case .riot: h = 70; sp = 58; re = 64; dm = 12; wu = 0.4; ra = 1.0; si = 560; sc = 1.08
+        case .burner: h = 30; sp = 124; re = 58; dm = 9; wu = 0.3; ra = 0.9; si = 640; sc = 1.0
+        case .screamer: h = 28; sp = 84; re = 58; dm = 7; wu = 0.36; ra = 1.0; si = 760; sc = 0.98
         case .boss: h = 620; sp = 74; re = 104; dm = 22; wu = 0.6; ra = 1.3; si = 2000; sc = 1.7
         }
         h *= 1 + d * 0.012
@@ -71,7 +79,7 @@ final class Zed {
         windup = wu
         rate = ra
         sight = si
-        let human = kind == .zed || kind == .runner || kind == .spitter || kind == .crawler
+        let human = kind == .zed || kind == .runner || kind == .spitter || kind == .crawler || kind == .screamer || kind == .burner
         scale = human ? sc * (0.88 + hashN(seed * 5.7) * 0.3) : sc
     }
 }
@@ -215,6 +223,11 @@ final class Game {
     var slashes: [Slash] = []
     var gibs: [Gib] = []
     var fires: [(Double, Double, Double)] = []   // x, seconds left, width
+    var pows: [(Double, Double, Double, Double)] = []   // x, y, age, size: a star where a hit lands
+    var zoom = 1.0
+    var slowT = 0.0
+    var heroSlow = 0.0
+    var muzzle = 0.0
     var globs: [Glob] = []
     var streak = 0
     var streakT = 0.0
@@ -296,7 +309,7 @@ final class Game {
         say("FLOOR \(floorN) — \(zone(floorN).name)")
     }
     func clearFx() {
-        parts = []; floaters = []; rings = []; tracers = []; booms = []; nades = []; waves = []; beams = []; slashes = []; gibs = []; globs = []; fires = []
+        parts = []; floaters = []; rings = []; tracers = []; booms = []; nades = []; waves = []; beams = []; slashes = []; gibs = []; globs = []; fires = []; pows = []
     }
 
     func zone(_ n: Int) -> Zone {
@@ -347,7 +360,7 @@ final class Game {
         for _ in 0..<count {
             let r = rng.next()
             var kind = ZKind.zed
-            if r < pr { kind = .runner } else if r > 1 - pd { kind = .dog } else if k > 14 && r > 0.5 && r < 0.56 { kind = .bloater } else if k > 1 && r > 0.6 && r < 0.7 { kind = .crawler } else if k > 9 && r > 0.72 && r < 0.79 { kind = .spitter }
+            if r < pr { kind = .runner } else if r > 1 - pd { kind = .dog } else if k > 14 && r > 0.5 && r < 0.56 { kind = .bloater } else if k > 1 && r > 0.6 && r < 0.7 { kind = .crawler } else if k > 9 && r > 0.72 && r < 0.79 { kind = .spitter } else if r > 0.40 && r < 0.45 { kind = .wheel } else if k > 5 && r > 0.45 && r < 0.5 { kind = .riot } else if k > 7 && r > 0.56 && r < 0.6 { kind = .burner } else if k > 11 && r > 0.79 && r < 0.83 { kind = .screamer }
             if f.kind == .roof { kind = .zed }
             f.zeds.append(Zed(id: nextId, kind: kind, x: spot(&rng), depth: max(0, k), seed: rng.next()))
             nextId += 1
@@ -412,6 +425,7 @@ final class Game {
         default: break
         }
         z.job = jobs[Int(hashN(z.seed * 17.3 + Double(z.id)) * Double(jobs.count)) % jobs.count]
+        if z.kind == .wheel { z.job = hashN(z.seed * 2.2) > 0.3 ? 8 : 7 }
     }
     /// After landing, make sure the hero is not standing in a hazard.
     func fixEntry() {
@@ -525,7 +539,9 @@ final class Game {
             if hitStop > 0 { hitStop -= dtRaw; return }
             playT += dt
             if auto { bot() }
-            updatePlay(dt)
+            zoom += (1 - zoom) * min(1, dt * 7)
+            muzzle = max(0, muzzle - dt * 9)
+            if slowT > 0 { slowT -= dtRaw; updatePlay(dt * 0.35) } else { updatePlay(dt) }
         case .pick:
             pickT += dt
             if auto && pickT > 0.6 { choosePick(0) }
@@ -584,7 +600,8 @@ final class Game {
         let sup = supT >= 0
         var mv = input.move
         if abs(mv) < 0.2 { mv = 0 }
-        let sp = 265 * (1 + 0.08 * Double(lv("adren"))) * (h.atkT >= 0 ? 0.35 : 1)
+        heroSlow = max(0, heroSlow - dt)
+        let sp = 265 * (1 + 0.08 * Double(lv("adren"))) * (h.atkT >= 0 ? 0.35 : 1) * (heroSlow > 0 ? 0.55 : 1)
         if !sup {
             h.moving = mv != 0
             if mv != 0 {
@@ -657,6 +674,7 @@ final class Game {
                     shake = max(shake, 14); snd?.blast()
                 }
                 if n > 0 {
+                    if fin { zoom = 1.07; if n >= 2 { slowT = 0.22 } }
                     hitStop = fin ? 0.08 : 0.035
                     shake = max(shake, fin ? 11 : 4)
                     addMeter(3 * Double(n))
@@ -729,7 +747,7 @@ final class Game {
                 x = clampD(x, 120, FLOOR_W - 120)
                 let r = Double.random(in: 0..<1)
                 var kind = ZKind.zed
-                if r < 0.3 { kind = .runner } else if r < 0.42 && depth > 1 { kind = .crawler } else if r < 0.5 && depth > 6 { kind = .dog }
+                if r < 0.3 { kind = .runner } else if r < 0.42 && depth > 1 { kind = .crawler } else if r < 0.5 && depth > 6 { kind = .dog } else if r < 0.57 { kind = .wheel } else if r < 0.62 && depth > 7 { kind = .burner }
                 let z = Zed(id: nextId, kind: kind, x: x, depth: depth, seed: Double.random(in: 0..<1))
                 nextId += 1
                 z.aware = true
@@ -768,6 +786,30 @@ final class Game {
                 let dive: Double = z.atkT >= 0 ? sin(min(1, z.atkT / (z.windup + 0.28)) * PI) * 105 : 0
                 z.y = -196 + sin(t * 3 + z.seed * 9) * 12 + dive
             }
+            if z.kind == .burner {
+                z.burn = 0
+                if parts.count < 520 && chance(dt * 30) { parts.append(Part(x: z.x + rnd(-14, 14), y: -rnd(20, 150) * z.scale, vx: rnd(-30, 30), vy: -rnd(80, 200), t: 0, life: rnd(0.3, 0.6), size: rnd(5, 11), col: Col(0xff9a30), grav: 0, glow: true)) }
+            }
+            if z.screamT > 0 {
+                z.screamT -= dt
+                if chance(dt * 12) { rings.append(Ring(x: z.x + z.face * 20, y: -190, r: 260, t: 0, life: 0.45, col: Col(0xe8f0ff, 0.7))) }
+                continue
+            }
+            if z.kind == .screamer && z.aware && z.stun <= 0 && z.atkT < 0 {
+                z.screamCd -= dt
+                if z.screamCd <= 0 && ad < 760 {
+                    z.screamCd = 7
+                    z.screamT = 0.9
+                    f.reserve = min(12, f.reserve + 2)
+                    f.spawnT = 0.2
+                    for q in f.zeds where q.alive { q.aware = true }
+                    heroSlow = 1.2
+                    shake = max(shake, 12)
+                    floaters.append(Floater(x: z.x, y: -230, text: "SCREEEEAM", col: Col(0xe8f0ff), t: -0.3, size: 20))
+                    snd?.scream(); buzz(2)
+                    continue
+                }
+            }
             if z.stun > 0 { z.stun -= dt; continue }
             if z.atkT >= 0 {
                 z.atkT += dt
@@ -781,6 +823,8 @@ final class Game {
                     if nd < z.reach + 22 + extra {
                         let mul: Double = z.atkKind == 2 ? 1.5 : (z.atkKind == 1 ? 1.2 : 1)
                         hurtHero(z.dmg * mul * (1 + Double(depth) * 0.004), z.x, quiet: false)
+                        if z.kind == .wheel && supT < 0 && h.inv > 0.4 { h.x = clampD(h.x + z.face * 70, 70, FLOOR_W - 70); shake = max(shake, 10) }
+                        if z.kind == .burner && supT < 0 { hurtHero(5, z.x, quiet: true); for _ in 0..<6 { parts.append(Part(x: h.x + rnd(-12, 12), y: -rnd(30, 130), vx: rnd(-40, 40), vy: -rnd(80, 200), t: 0, life: 0.5, size: rnd(5, 9), col: Col(0xff9a30), grav: 0, glow: true)) } }
                     }
                     if z.atkKind == 2 { shake = max(shake, 6); puff(z.x + z.face * 50, 0, 5, Col(0x8a8478)) }
                 }
@@ -802,7 +846,7 @@ final class Game {
                 continue
             }
             if ad > z.reach {
-                let canLunge = z.kind == .zed || z.kind == .runner || z.kind == .dog
+                let canLunge = z.kind == .zed || z.kind == .runner || z.kind == .dog || z.kind == .burner
                 if canLunge && ad < z.reach + 150 && ad > z.reach + 40 && z.cd <= 0 && chance(dt * 1.6) {
                     z.atkT = 0; z.atkHit = false; z.atkKind = 1
                     if z.kind == .dog { snd?.bark() }
@@ -850,12 +894,20 @@ final class Game {
     }
     func hit(_ z: Zed, _ dmg: Double, _ dir: Double, _ knock: Double) {
         if !z.alive { return }
+        var dmg = dmg
+        if z.kind == .riot && z.shield > 0 && dir == -z.face {
+            if abs(knock) >= 450 { z.shield = 0 } else { z.shield -= 1; dmg *= 0.2 }
+            if parts.count < 520 { for _ in 0..<8 { parts.append(Part(x: z.x + z.face * 34, y: -rnd(60, 140), vx: z.face * rnd(80, 420), vy: -rnd(60, 380), t: 0, life: rnd(0.15, 0.35), size: rnd(2, 4), col: Col(0xdff2ff), grav: 700, glow: true)) } }
+            snd?.zap()
+            if z.shield <= 0 { gibs.append(Gib(x: z.x + z.face * 34, y: -90, vx: z.face * rnd(120, 360), vy: -rnd(260, 480), rot: 0, vr: rnd(-12, 12), kind: 7, col: Col(0x9fb8c8), t: 0)); floaters.append(Floater(x: z.x, y: -200, text: "SHIELD BROKEN", col: Col(0xbfe8ff), t: 0, size: 16)) }
+        }
         z.hp -= dmg
         z.flash = 1
+        if pows.count < 24 { pows.append((z.x - dir * 8, (z.kind == .crow ? z.y : -96 * z.scale) + rnd(-26, 26), 0, min(46, 16 + dmg * 0.5))) }
         z.aware = true
         let heavy = z.kind == .bloater || z.kind == .boss
         z.kvx = dir * knock * (heavy ? 0.25 : 1)
-        z.stun = max(z.stun, heavy ? 0.06 : 0.2)
+        z.stun = max(z.stun, heavy ? 0.06 : (z.kind == .wheel || z.kind == .riot ? 0.09 : 0.2))
         if z.atkT >= 0 && !heavy { z.atkT = -1; z.cd = 0.3 }
         hits += 1; hitsT = 1.6
         var top = -110.0 * z.scale
@@ -889,7 +941,9 @@ final class Game {
         addMeter(z.kind == .rat ? 3 : 12)
         if z.kind != .rat { floor.pools.append((z.x, rnd(30, 56))) }
         if floor.pools.count > 30 { floor.pools.removeFirst() }
-        let humanoid = z.kind == .zed || z.kind == .runner || z.kind == .spitter || z.kind == .crawler
+        let humanoid = z.kind == .zed || z.kind == .runner || z.kind == .spitter || z.kind == .crawler || z.kind == .riot || z.kind == .screamer || z.kind == .wheel
+        if z.kind == .wheel { gibs.append(Gib(x: z.x, y: -40, vx: dir * rnd(160, 420), vy: -rnd(200, 420), rot: 0, vr: rnd(-9, 9), kind: 8, col: Col(0x8a929c), t: 0)); gibs.append(Gib(x: z.x, y: -30, vx: dir * rnd(60, 300) + rnd(-80, 80), vy: -rnd(260, 520), rot: 0, vr: rnd(8, 20), kind: 9, col: Col(0x2a2a2a), t: 0)) }
+        if z.kind == .burner { z.gibbed = true; gore(z, dir, all: true); explode(z.x, 120, 34) }
         if humanoid {
             if heavy && chance(0.6) { z.gibbed = true; gore(z, dir, all: true); floor.pools.append((z.x, rnd(50, 80))) } else if chance(0.4) { z.headless = true; gore(z, dir, all: false) }
         } else if z.kind == .crow || z.kind == .dog || z.kind == .rat {
@@ -937,6 +991,7 @@ final class Game {
         rings.append(Ring(x: x, y: -40, r: r * 1.3, t: 0, life: 0.35, col: toxic ? Col(0x8cff7a) : Col(0xffd9a0)))
         rings.append(Ring(x: x, y: -40, r: r * 2.0, t: 0, life: 0.55, col: WHITE.alpha(0.5)))
         shake = max(shake, 16)
+        zoom = max(zoom, 1.05)
         flash = max(flash, 0.18); flashCol = toxic ? Col(0xb8ff9a) : Col(0xffe2b0)
         snd?.boom(); buzz(3)
         let hot: Col = toxic ? Col(0x8cff7a) : Col(0xffb040)
@@ -997,6 +1052,7 @@ final class Game {
         hero.atkT = -1
         if let z = nearest(600) { hero.face = z.x >= hero.x ? 1 : -1 }
         flash = 0.35; flashCol = tw.hue
+        zoom = 1.1
         hitStop = 0.09
         shake = 10
         snd?.power(); buzz(3)
@@ -1058,6 +1114,10 @@ final class Game {
         tracers.append(Tracer(x0: fromX ?? (hero.x + hero.face * 30), y0: fromY, x1: z.x, y1: ty, t: 0, life: 0.07, col: col, w: w, bolt: false))
         hit(z, dmg, z.x >= hero.x ? 1 : -1, 40)
     }
+    private func casing() {
+        muzzle = 1
+        if gibs.count < 110 { gibs.append(Gib(x: hero.x - hero.face * 6, y: -100, vx: -hero.face * rnd(60, 200), vy: -rnd(160, 320), rot: rnd(0, 6), vr: rnd(-20, 20), kind: 6, col: Col(0xd9b04a), t: 3.5)) }
+    }
     private func updateArsenal(_ dt: Double) {
         let h = hero
         let f = floor
@@ -1065,12 +1125,12 @@ final class Game {
         var l = lv("smg")
         if l > 0 {
             cdSmg -= dt
-            if cdSmg <= 0, let z = nearest(560) { cdSmg = 0.17; gunHit(z, (4 + 3 * Double(l)) * scale, Col(0xffe6a0), 2); snd?.shot() }
+            if cdSmg <= 0, let z = nearest(560) { cdSmg = 0.17; gunHit(z, (4 + 3 * Double(l)) * scale, Col(0xffe6a0), 2); snd?.shot(); casing() }
         }
         l = lv("minigun")
         if l > 0 {
             cdMini -= dt
-            if cdMini <= 0, let z = nearest(760) { cdMini = 0.055; gunHit(z, (4 + 2 * Double(l)) * scale, Col(0xffc060), 2.5, fromY: -84); if chance(0.3) { snd?.shot() } }
+            if cdMini <= 0, let z = nearest(760) { cdMini = 0.055; gunHit(z, (4 + 2 * Double(l)) * scale, Col(0xffc060), 2.5, fromY: -84); casing(); if chance(0.3) { snd?.shot() } }
         }
         l = lv("shotgun")
         if l > 0 {
@@ -1180,6 +1240,8 @@ final class Game {
         booms.removeAll { $0.t > $0.life }
         for i in 0..<slashes.count { slashes[i].t += dt }
         if streakT > 0 { streakT -= dt }
+        for i in 0..<pows.count { pows[i].2 += dt }
+        pows.removeAll { $0.2 > 0.14 }
         for i in 0..<fires.count {
             fires[i].1 -= dt * (fires[i].1 < 0 ? -1 : 1)
             if fires[i].1 > 0 { for z in floor.zeds where z.alive && abs(z.x - fires[i].0) < fires[i].2 { z.burn = max(z.burn, 1.2); z.burnDps = max(z.burnDps, 16) } }
@@ -1352,6 +1414,7 @@ final class Game {
         case "dogs": ups = ["shotgun": 2, "tesla": 1, "minigun": 1, "smg": 2]; floorN = 54
         case "boss": ups = ["smg": 1, "nade": 1, "armor": 2]; floorN = 32
         case "hole": floorN = 82
+        case "types": ups = ["armor": 3]; floorN = 81
         case "street": ups = ["smg": 2, "shotgun": 2, "flame": 2, "tesla": 1]; floorN = 0
         case "lift": ups = ["smg": 1]; floorN = 75
         case "pick": floorN = 78; picksDue = 1; ups = ["smg": 2, "nade": 1, "armor": 1]
@@ -1364,6 +1427,11 @@ final class Game {
         for z in floor.zeds { z.aware = true }
         announce()
         if what == "fire" { hero.x = floor.wallX - 330; meter = 40 }
+        if what == "types" {
+            floor.zeds = []; floor.reserve = 0; hero.x = 700; meter = 0
+            let kinds: [ZKind] = [.wheel, .riot, .screamer, .burner, .crawler, .spitter, .zed, .zed, .crow]
+            for (i, k) in kinds.enumerated() { let z = Zed(id: 9000 + i, kind: k, x: 860 + Double(i) * 105, depth: 2, seed: hashN(Double(i) * 1.37 + 0.2)); z.aware = true; z.face = -1; z.female = i % 2 == 1; z.job = [8, 4, 7, 7, 2, 7, 0, 3, 7][i]; z.speed = 4; floor.zeds.append(z) }
+        }
         if what == "lift" { hero.x = floor.liftX - 260 }
         if what == "hole" { floorN = 82; hero.x = floor.holeX - (floor.exitRight ? 300 : -300); hero.face = floor.exitRight ? 1 : -1 }
         if what == "pick" { rollPick(); mode = .pick; pickT = 0 } else { mode = .play; auto = what == "play" || what == "dogs" || what == "boss" }

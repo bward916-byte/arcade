@@ -292,6 +292,11 @@ final class Renderer {
                 cv.seg(hx + 6, hy - 5, hx + 24, hy - 3, 4, Col(0x0b0c10)); cv.circ(hx + 6, hy - 13, 3, GOLD)
             case 4:
                 cv.arcFill(hx, hy - 2, 16.2, PI * 0.98, PI * 1.98, hc); cv.seg(hx - 14, hy - 3, hx - 20, hy + 4, 2, hc)
+            case 5:
+                cv.circ(hx - 1, hy - 2, 19, ink); cv.circ(hx - 1, hy - 2, 17.5, hc)
+                cv.poly(rgba(150, 200, 230, 0.55), [hx + 2, hy - 10, hx + 18, hy - 8, hx + 19, hy + 8, hx + 4, hy + 10])
+                cv.line(Col(0x0b0c10), 2, [hx + 2, hy - 10, hx + 18, hy - 8, hx + 19, hy + 8, hx + 4, hy + 10])
+                cv.seg(hx - 16, hy - 12, hx + 12, hy - 15, 2.5, Col(0x3a4458)); cv.circ(hx + 8, hy + 3, 3, BLOOD.alpha(0.8))
             default: break
             }
         } else {
@@ -426,7 +431,7 @@ final class Renderer {
         l.hair = hairs[(z.look + z.style) % 5]
         let skins: [Col] = [Col(0x9fb08c), Col(0xa8a890), Col(0x8a9a80), Col(0x7f8f6c)]
         l.skin = skins[(z.look * 3 + z.style) % 4]
-        if z.kind == .zed || z.kind == .runner || z.kind == .crawler {
+        if z.kind == .zed || z.kind == .runner || z.kind == .crawler || z.kind == .wheel {
             l.job = z.job
             switch z.job {
             case 0:   // suit
@@ -462,6 +467,9 @@ final class Renderer {
         }
         if z.kind == .runner { l.skin = Col(0xb89a8a); l.eye = Col(0xff5a4a); l.fat = min(l.fat, 0.95) }
         if z.kind == .spitter { l.fat = 1.15; l.skin = Col(0xb7c46a); l.shirt = Col(0x4a5a30); l.eye = Col(0x8cff7a) }
+        if z.kind == .riot { l.shirt = Col(0x1c2230); l.pants = Col(0x161a24); l.hat = 5; l.hatCol = Col(0x161a24); l.fat = 1.2; l.female = false; l.job = 4 }
+        if z.kind == .burner { l.skin = Col(0x2a2420); l.shirt = Col(0x1a1614); l.pants = Col(0x141210); l.hair = Col(0x0e0c0a); l.eye = Col(0xffa030) }
+        if z.kind == .screamer { l.skin = Col(0xd0d4c8); l.female = true; l.v = 1; l.hair = Col(0x1a1a1e); l.shirt = Col(0xdcdcd8); l.lower = 3; l.lowerCol = Col(0xdcdcd8); l.pants = Col(0xd0d4c8); l.barefoot = true; l.eye = Col(0xffffff); l.fat = 0.9 }
         l.noHead = z.headless
         if z.kind == .bloater { l.fat = 1.9; l.skin = Col(0x9ac06a); l.shirt = Col(0x6a7a3a); l.eye = Col(0xd9ff7a) }
         if z.kind == .boss { l.fat = 1.5; l.skin = Col(0x8cc09a); l.shirt = Col(0xd9dcd6); l.pants = Col(0x2a2f3c); l.coat = true; l.eye = Col(0x7dffb0); l.hair = Col(0x9a9a92) }
@@ -506,6 +514,14 @@ final class Renderer {
             p.armF = 1.9 + 0.7 * sin(ph2); p.elbF = -0.5; p.armB = 1.9 - 0.7 * sin(ph2); p.elbB = -0.5
             if z.atkT >= 0 { p.armF = 2.6; p.head = -1.2 }
         }
+        if z.kind == .wheel {
+            let ph2 = z.walk * 0.05
+            p.bob = 28; p.lean = 0.28; p.head = 0.2
+            p.hipF = 1.45; p.kneeF = 1.45; p.hipB = 1.3; p.kneeB = 1.35
+            p.armF = 0.5 + 0.6 * sin(ph2); p.elbF = 0.5; p.armB = 0.5 + 0.6 * sin(ph2 + 0.4); p.elbB = 0.5
+            if z.atkT >= 0 { p.armF = 1.7; p.armB = 1.5; p.elbF = 0.1; p.lean = 0.55 }
+        }
+        if z.kind == .screamer && z.screamT > 0 { p.lean = -0.3; p.head = -0.7; p.jaw = 1.2; p.armF = -0.6; p.armB = -0.9; p.elbF = -0.4; p.elbB = -0.4 }
         if z.kind == .spitter && z.atkT >= 0 { p.lean = -0.25 + 0.6 * min(1, z.atkT * 4); p.head = -0.5; p.jaw = 1.2; p.armF = 0.3; p.armB = 0.1 }
         if z.stun > 0 { p.lean = z.kind == .crawler ? 1.2 : -0.3; p.head = -0.4; p.armF = 0.4; p.armB = 0.2 }
         return p
@@ -708,6 +724,10 @@ final class Renderer {
         cv.R(x0, GY - 300, W, 300, z.wall)
         cv.R(x0, GY - 312, W, 14, Col.mix(z.floor, BLACK, 0.5))
         cv.R(x0, GY - 14, W, 14, Col.mix(z.wall, BLACK, 0.3))
+        cv.R(x0, GY - 104, W, 90, Col.mix(z.wall, BLACK, 0.13))
+        cv.R(x0, GY - 107, W, 4, Col.mix(z.trim, BLACK, 0.25))
+        var sx2 = (x0 / 100).rounded(.down) * 100
+        while sx2 < x1 { cv.R(sx2, GY - 103, 1.5, 89, Col.mix(z.wall, BLACK, 0.26)); sx2 += 100 }
         let lightsOn = f.n % 4 != 0
         var px = (x0 / 300).rounded(.down) * 300
         while px < x1 + 300 {
@@ -729,9 +749,39 @@ final class Renderer {
             cv.circ(dx + 56, GY - 84, 3.5, GOLD.alpha(0.8))
             let num = f.n * 100 + Int(abs(px) / 150) % 60 + 1
             cv.text("\(num)", dx + 33, GY - 184, 10, WHITE.alpha(0.45), 1, 1)
-            // ceiling light
-            cv.R(px + 150, GY - 300, 60, 5, lightsOn ? Col(0xfff2d0) : Col(0x3a3a3a))
-            if lightsOn { cv.lighter(true); cv.glow(px + 180, GY - 290, 150, rgba(255, 240, 200, 0.10)); cv.lighter(false) }
+            // something on the wall between the door and the next window
+            let hd = hashN(px * 0.013 + Double(f.n) * 1.7)
+            let ox = px + 302
+            if hd < 0.22 {
+                cv.R(ox - 22, GY - 232, 44, 56, Col(0x1a1c22)); cv.R(ox - 19, GY - 229, 38, 50, Col.mix(z.trim, Col(0x7a4a3a), hashN(px)))
+                cv.poly(Col.mix(z.wall, WHITE, 0.3), [ox - 19, GY - 190, ox - 4, GY - 212, ox + 6, GY - 198, ox + 19, GY - 216, ox + 19, GY - 179, ox - 19, GY - 179])
+            } else if hd < 0.4 {
+                cv.RR(ox - 8, GY - 176, 16, 44, 5, Col(0xb8221c)); cv.R(ox - 3, GY - 184, 6, 9, Col(0x2a2a2a)); cv.seg(ox + 3, GY - 180, ox + 12, GY - 166, 2.5, Col(0x1a1a1a)); cv.R(ox - 8, GY - 160, 16, 8, Col(0xe8e6e0))
+            } else if hd < 0.55 {
+                cv.R(ox - 22, GY - 286, 44, 22, Col(0x15171c)); for i in 0..<5 { cv.R(ox - 19, GY - 283 + Double(i) * 4, 38, 2, Col(0x3a3f4a)) }
+            } else if hd < 0.7 {
+                cv.line(Col.mix(z.wall, BLACK, 0.5), 2, [ox - 10, GY - 250, ox - 2, GY - 226, ox - 12, GY - 204, ox + 2, GY - 180, ox - 6, GY - 150])
+                cv.line(Col.mix(z.wall, BLACK, 0.5), 1.5, [ox - 2, GY - 226, ox + 14, GY - 214])
+            } else if hd < 0.82 {
+                for i in 0..<4 { let bx2 = ox - 18 + hashN(px + Double(i)) * 36, by2 = GY - 150 - hashN(px + Double(i) * 3) * 90; cv.circ(bx2, by2, 3.2, Col(0x0b0c10)); cv.ring(bx2, by2, 5, 1.2, Col.mix(z.wall, WHITE, 0.25)) }
+            } else {
+                cv.RR(ox - 20, GY - 240, 40, 26, 3, Col(0x0d1a13)); cv.text("EXIT", ox, GY - 222, 13, MINT, 1, 3)
+                cv.lighter(true); cv.glow(ox, GY - 227, 46, rgba(125, 255, 176, 0.16)); cv.lighter(false)
+            }
+            // ceiling light: a cone of it on the floor; dead floors flicker
+            var on = lightsOn
+            if !lightsOn { on = hashN((t * 11).rounded(.down) + px) > 0.72 }
+            cv.R(px + 146, GY - 302, 68, 7, Col(0x15171c))
+            cv.R(px + 150, GY - 300, 60, 5, on ? Col(0xfff2d0) : Col(0x3a3a3a))
+            if on {
+                cv.lighter(true)
+                cv.glow(px + 180, GY - 290, 150, rgba(255, 240, 200, 0.10))
+                cv.poly(rgba(255, 240, 200, 0.045), [px + 150, GY - 295, px + 210, GY - 295, px + 300, GY, px + 60, GY])
+                cv.ell(px + 180, GY + 6, 120, 9, rgba(255, 240, 200, 0.06))
+                cv.lighter(false)
+            }
+            // firelight from the city falling through the window
+            cv.lighter(true); cv.poly(rgba(255, 130, 60, 0.05), [wx, GY - 90, wx + 120, GY - 90, wx + 190, GY, wx + 40, GY]); cv.lighter(false)
             px += 300
         }
         for (sx, sy2, sr) in f.splats where sx > x0 - 60 && sx < x1 + 60 {
@@ -742,6 +792,9 @@ final class Renderer {
         // floor and what is under it
         cv.R(x0, GY, W, 22, z.floor)
         cv.R(x0, GY, W, 3, Col.mix(z.floor, WHITE, 0.15))
+        var tx2 = (x0 / 75).rounded(.down) * 75
+        while tx2 < x1 { cv.R(tx2, GY + 3, 1.5, 19, Col.mix(z.floor, BLACK, 0.3)); tx2 += 75 }
+        cv.vfill(x0, GY + 3, W, 10, [(0, WHITE.alpha(0.07)), (1, WHITE.alpha(0))])
         cv.R(x0, GY + 22, W, 14, Col(0x101216))
         cv.R(x0, GY + 36, W, VIEW_H - GY - 36, Col.mix(g.zone(f.n - 1).wall, BLACK, 0.55))
         // end walls
@@ -849,6 +902,7 @@ final class Renderer {
         if camFloor != f.n || abs(target - camX) > 700 { camX = target; camFloor = f.n } else { camX += (target - camX) * 0.14 }
         cv.save()
         if g.shake > 0 { cv.translate(rnd(-1, 1) * g.shake, rnd(-1, 1) * g.shake * 0.6) }
+        if g.zoom > 1.001 { cv.translate(W / 2, GY - 60); cv.scale(g.zoom, g.zoom); cv.translate(-W / 2, -(GY - 60)) }
         cv.translate(-camX, 0)
         drawFloor(g, cv, camX - 30, W + 60)
         let gy = GY + 6
@@ -873,7 +927,42 @@ final class Renderer {
             cv.RR(dx - 14, dy - 5, 28, 10, 4, Col(0x3a4250)); cv.R(dx - 22, dy - 8, 44, 2.5, Col(0xc9d2dc, 0.7)); cv.circ(dx, dy + 5, 3, Col(0x7dd3ff))
         }
         effects(g, cv, gy)
+        // things hanging in front of the camera, sliding by faster than the hallway
+        if f.kind != .roof && f.kind != .street {
+            var k = Int((camX * 1.35 - 200) / 520)
+            while true {
+                let fx = Double(k) * 520 + 260
+                let sx = camX + (fx - camX * 1.35)
+                if sx > camX + W + 120 { break }
+                let h1 = hashN(Double(k) * 3.7 + Double(f.n))
+                if h1 > 0.55 {
+                    cv.curve(sx - 90, -10, sx - 20, 70 + h1 * 60, sx + 80, -10, 5, Col(0x050608)); cv.curve(sx - 40, -10, sx + 20, 40 + h1 * 40, sx + 120, -10, 3, Col(0x050608))
+                } else if h1 > 0.25 {
+                    cv.R(sx - 60, 0, 120, 16 + h1 * 30, Col(0x050608)); cv.seg(sx, 16, sx + sin(t * 2 + fx) * 6, 60 + h1 * 60, 3, Col(0x050608))
+                    if h1 > 0.4 && Int(t * 9 + fx).isMultiple(of: 5) { cv.lighter(true); cv.glow(sx + sin(t * 2 + fx) * 6, 64 + h1 * 60, 30, rgba(160, 210, 255, 0.8)); cv.lighter(false) }
+                }
+                k += 1
+            }
+        }
         cv.restore()
+        // screen space: dust in the light, embers, a dark edge
+        cv.lighter(true)
+        let fiery = f.kind == .wall || f.kind == .roof || f.kind == .street || !g.fires.isEmpty
+        for i in 0..<26 {
+            let fi = Double(i)
+            let px = (hashN(fi) * W + t * (6 + hashN(fi + 3) * 14) - camX * 0.2).truncatingRemainder(dividingBy: W)
+            let py = (hashN(fi + 7) * VIEW_H + sin(t * 0.6 + fi) * 20)
+            if fiery && i % 2 == 0 {
+                let u = (t * (0.12 + hashN(fi + 1) * 0.2) + hashN(fi + 5)).truncatingRemainder(dividingBy: 1)
+                cv.circ(px < 0 ? px + W : px, VIEW_H - u * VIEW_H, 2, rgba(255, 170 - u * 90, 60, 0.9 * (1 - u)))
+            } else {
+                cv.circ(px < 0 ? px + W : px, py, 1.4 + hashN(fi + 2) * 1.6, rgba(255, 240, 210, 0.10))
+            }
+        }
+        cv.lighter(false)
+        cv.vfill(0, 0, W, 80, [(0, BLACK.alpha(0.45)), (1, BLACK.alpha(0))])
+        cv.vfill(0, VIEW_H - 70, W, 70, [(0, BLACK.alpha(0)), (1, BLACK.alpha(0.5))])
+        cv.glow(0, VIEW_H / 2, 260, BLACK.alpha(0.3)); cv.glow(W, VIEW_H / 2, 260, BLACK.alpha(0.3))
     }
     private func crow(_ cv: Canvas, _ z: Zed, _ gy: Double, _ t: Double) {
         let y = gy + z.y
@@ -970,12 +1059,40 @@ final class Renderer {
             beast(cv, z, gy, t)
         } else {
             let a = z.alive ? 1.0 : max(0.15, 1 - z.deadT / 6)
-            if z.alive { cv.ell(z.x, gy + 2, (z.kind == .crawler ? 46 : 30) * z.scale, 6, BLACK.alpha(0.35)) }
+            if z.alive { cv.ell(z.x, gy + 2, (z.kind == .wheel ? 48 : 30) * z.scale, 6, BLACK.alpha(0.35)) }
+            if z.kind == .wheel && z.alive {
+                // the chair, behind the rider
+                cv.save(); cv.translate(z.x, gy); cv.scale(z.face, 1)
+                let ink = Col(0x0b0c10), steel = Col(0x8a929c)
+                cv.ring(-10, -30, 30, 7, ink)
+                cv.line(ink, 8, [-22, -96, -18, -44, 24, -44, 40, -12, 52, -9]); cv.line(steel, 4.5, [-22, -96, -18, -44, 24, -44, 40, -12, 52, -9])
+                cv.seg(-22, -94, -34, -96, 7, ink); cv.seg(-22, -94, -33, -96, 4, Col(0x2a2a2a))
+                cv.R(-20, -48, 44, 8, Col(0x3a5a8a)); cv.R(-24, -92, 7, 46, Col(0x3a5a8a))
+                cv.circ(46, -7, 8.5, ink); cv.circ(46, -7, 5.5, Col(0x3a3a3a))
+                cv.restore()
+            }
+            if z.kind == .burner && z.alive { flameWall(cv, z.x, 50, 150 * z.scale, z.seed * 9, t); cv.lighter(true); cv.glow(z.x, gy - 90, 130, rgba(255, 140, 40, 0.4)); cv.lighter(false) }
             if z.kind == .boss && z.alive { cv.lighter(true); cv.glow(z.x, gy - 140, 190, rgba(90, 255, 150, 0.22)); cv.lighter(false) }
             if z.kind == .spitter && z.alive { cv.lighter(true); cv.glow(z.x + z.face * 8, gy - 118, 46, rgba(140, 255, 120, 0.3 + 0.2 * sin(t * 6))); cv.lighter(false) }
             let fall: Double = z.alive ? 0 : (z.kind == .crawler ? 0 : min(1, z.deadT * 3.2))
             figure(cv, z.x, gy, z.face, z.scale, zedLook(z), zedPose(z, t), flash: z.flash, fall: fall, alpha: a)
             if z.burn > 0 && z.alive { cv.lighter(true); cv.glow(z.x, gy - 80 * z.scale, 70 * z.scale, rgba(255, 140, 40, 0.5)); cv.lighter(false) }
+            if z.kind == .wheel && z.alive {
+                // the near wheel, over the rider's hip, turning as it rolls
+                cv.save(); cv.translate(z.x - z.face * 10, gy - 30); cv.rotate(z.walk / 30 * z.face)
+                cv.ring(0, 0, 30, 6.5, Col(0x0b0c10)); cv.ring(0, 0, 30, 3.5, Col(0x2a2a2a)); cv.ring(0, 0, 25, 2, Col(0xc9d2dc))
+                for i in 0..<6 { let a2 = Double(i) * PI / 3; cv.seg(0, 0, cos(a2) * 25, sin(a2) * 25, 1.6, Col(0xc9d2dc)) }
+                cv.circ(0, 0, 5, Col(0x8a929c))
+                cv.restore()
+            }
+            if z.kind == .riot && z.alive && z.shield > 0 {
+                cv.save(); cv.translate(z.x, gy); cv.scale(z.face * z.scale, z.scale)
+                if z.atkT >= 0 { cv.rotate(0.25) }
+                cv.RR(22, -152, 30, 124, 9, rgba(150, 195, 225, 0.42)); cv.RRStroke(22, -152, 30, 124, 9, 3, Col(0x0b0c10)); cv.RRStroke(24, -150, 26, 120, 8, 1.5, rgba(220, 240, 255, 0.7))
+                cv.R(24, -108, 26, 16, Col(0x161a24, 0.85)); cv.text("POLICE", 37, -97, 7, WHITE, 1, 3)
+                for i in 0..<(5 - z.shield) { cv.seg(28 + Double(i) * 4, -140 + Double(i) * 17, 44 - Double(i) * 2, -122 + Double(i) * 15, 1.4, rgba(240, 250, 255, 0.85)) }
+                cv.restore()
+            }
         }
         if z.alive && z.hp < z.maxHp && z.kind != .rat {
             var top = gy - 178 * z.scale
@@ -1027,6 +1144,14 @@ final class Renderer {
                 cv.seg(-16, 0, 16, 0, 14, Col(0x0b0c10)); cv.seg(-16, 0, 16, 0, 10.5, Col(0x33363c)); cv.seg(14, 0, 24, 3, 8, Col(0x15151a)); cv.circ(-16, 0, 5, Col(0x7a1014))
             case 4:
                 cv.poly(gb.col, [-12, -4, 12, -6, 10, 5, -11, 4])
+            case 6:
+                cv.R(-4, -1.5, 8, 3, gb.col); cv.R(2, -1.5, 2, 3, Col(0x8a6a20))
+            case 7:
+                cv.RR(-15, -60, 30, 120, 9, rgba(150, 195, 225, 0.42)); cv.RRStroke(-15, -60, 30, 120, 9, 3, Col(0x0b0c10)); cv.seg(-8, -40, 8, 10, 1.5, WHITE.alpha(0.8)); cv.seg(6, -30, -6, 30, 1.5, WHITE.alpha(0.8))
+            case 8:
+                cv.line(Col(0x0b0c10), 8, [-22, -50, -18, 0, 24, 0, 40, 30]); cv.line(gb.col, 4.5, [-22, -50, -18, 0, 24, 0, 40, 30]); cv.R(-20, -4, 44, 8, Col(0x3a5a8a))
+            case 9:
+                cv.ring(0, 0, 28, 6.5, Col(0x0b0c10)); cv.ring(0, 0, 28, 3.5, gb.col); for i in 0..<6 { let a2 = Double(i) * PI / 3; cv.seg(0, 0, cos(a2) * 25, sin(a2) * 25, 1.6, Col(0xc9d2dc)) }
             default:
                 cv.poly(gb.col, [-9, 0, 2, -4, 10, 0, 1, 3])
             }
@@ -1101,6 +1226,15 @@ final class Renderer {
             let u = r.t / r.life
             cv.ellStroke(r.x, gy + r.y + 70, r.r * easeOut(u), r.r * easeOut(u) * 0.28, 10 * (1 - u) + 1, r.col.alpha(1 - u))
         }
+        cv.lighter(true)
+        for pw in g.pows {
+            let u = pw.2 / 0.14, sz = pw.3 * (0.6 + 0.6 * u), th = sz * 0.16
+            cv.poly(WHITE.alpha(1 - u), [pw.0 - sz, gy + pw.1, pw.0, gy + pw.1 - th, pw.0 + sz, gy + pw.1, pw.0, gy + pw.1 + th])
+            cv.poly(rgba(255, 230, 170, 1 - u), [pw.0 - th, gy + pw.1, pw.0, gy + pw.1 - sz, pw.0 + th, gy + pw.1, pw.0, gy + pw.1 + sz])
+            cv.circ(pw.0, gy + pw.1, sz * 0.3, WHITE.alpha(1 - u))
+        }
+        if g.muzzle > 0 { cv.glow(g.hero.x + g.hero.face * 40, gy - 96, 70, rgba(255, 220, 140, 0.55 * g.muzzle)); cv.poly(rgba(255, 240, 190, g.muzzle), [g.hero.x + g.hero.face * 30, gy - 100, g.hero.x + g.hero.face * 64, gy - 96, g.hero.x + g.hero.face * 30, gy - 92]) }
+        cv.lighter(false)
         for fl in g.floaters {
             cv.text(fl.text, fl.x, gy + fl.y, fl.size, fl.col.alpha(1 - fl.t / 0.8), 1, 3)
         }
