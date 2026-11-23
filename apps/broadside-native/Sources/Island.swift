@@ -144,7 +144,24 @@ extension Game {
             p.addLine(to: CGPoint(x: -52, y: -30))
             p.closeSubpath()
         }
+        for q in 0..<4 {
+            let yy: Double = -2 + Double(q) * 4
+            c.curve(-80 + Double(q) * 3, yy, 0, yy + 1.2, 70 - Double(q) * 4, yy - 2 - Double(q) * 0.6, 0.5, Col(0x000000, 0.22))
+        }
         c.R(-84, -6, 172, 2.2, hl.shade(0.6))
+        c.curve(-84, -14, 0, -15.5, 90, -22, 1.2, Col.mix(Col(0x3a2a14), Col(0xc8a85a), L))
+        // stern gallery with lit windows, and a lantern on the taffrail
+        c.R(-83, -27, 28, 9, hl.shade(0.75))
+        for q in 0..<4 { c.R(-81 + Double(q) * 6.6, -25.4, 4.6, 5.6, L < 0.5 ? Col(0xffcc66) : Col(0x26323e)) }
+        c.R(-85, -37, 1.2, 8, hl.shade(0.6))
+        c.R(-87, -41, 5, 5, L < 0.5 ? Col(0xffd98a) : Col(0xc8b070))
+        // figurehead under the bowsprit
+        c.pathFill(Col.mix(Col(0x3a2a14), Col(0xd8b86a), L)) { p in
+            p.move(to: CGPoint(x: 86, y: -18))
+            p.addQuadCurve(to: CGPoint(x: 98, y: -24), control: CGPoint(x: 95, y: -16))
+            p.addQuadCurve(to: CGPoint(x: 90, y: -24), control: CGPoint(x: 96, y: -27))
+            p.closeSubpath()
+        }
         c.R(-52, -19.5, 120, 2, Col.mix(Col(0x3a2a14), Col(0xd8b86a), L))
         var gx = -40.0
         while gx < 60 {
@@ -191,6 +208,13 @@ extension Game {
                     }
                 }
             }
+            // ratlines up the shrouds, a crow's nest, a masthead pennant
+            for q in 1..<7 {
+                let f = Double(q) / 7
+                c.seg(mx - 34 * (1 - f) * 0.5, -18 - mh * f * 0.5, mx - 34 * (1 - f * 0.5), -18 - mh * f * 0.5, 0.45, Col(0x000000, 0.35))
+            }
+            c.R(mx - 4.5, -18 - mh * 0.84, 9, 3.4, hl.shade(0.7))
+            c.poly(Col.mix(flag.shade(0.4), flag, L), [mx, -18 - mh - 6, mx + 12 + sin(self.T * 4 + mx) * 2, -18 - mh - 4.5, mx, -18 - mh - 2])
             c.seg(mx, -18 - mh, mx - 34, -18, 0.6, Col(0x000000, 0.4))
             c.seg(mx, -18 - mh, mx + 34, -18, 0.6, Col(0x000000, 0.4))
         }

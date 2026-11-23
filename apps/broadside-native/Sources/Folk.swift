@@ -7,6 +7,25 @@ extension Game {
     /// One islander. hat: 0 none, 1 straw, 2 bandana, 3 cap. work swings the near arm as if hammering or hauling.
     func drawFolk(_ c: Canvas, _ wx: Double, _ face: Double, _ sc: Double, _ ph: Double, _ moving: Bool, _ shirtHex: UInt32, _ pantsHex: UInt32, _ hat: Int, _ hatHex: UInt32 = 0xa82020, _ work: Bool = false, _ skinHex: UInt32 = 0xe0b088) {
         if !vis(wx, 30) { return }
+        if heroOn {
+            // the same rig as the player: pick the outfit from what this islander is
+            var name = hat == 1 ? "merchant" : (shirtHex == 0x2c5f7a ? "towns2" : "towns")
+            if hat == 2 { name = (hatHex & 0xff) > 0x60 ? "mate" : "mate2" }
+            if work { name = "worker" }
+            let tall = 46 * sc
+            let frame = moving ? Int(wx / (0.98 * tall) * 16) : Int((T + wx) / 2.4 * 16)
+            if drawSprite(c, name, moving ? 0 : 1, frame, wx, face, tall, light) {
+                if work {
+                    // tool in hand, swung from the shoulder
+                    let X = sx(wx), Y = sy(groundLand(wx)), k = camS * sc
+                    let a = -1.2 + abs(sin(T * 5 + wx)) * 1.1
+                    let hx = X + face * 6 * k, hy = Y - 24 * k
+                    c.seg(hx, hy, hx + face * cos(a) * 11 * k, hy + sin(a) * 11 * k, 1.5 * k, lc(0x5a3a1e))
+                    c.R(hx + face * cos(a) * 11 * k - 2.5 * k, hy + sin(a) * 11 * k - 1.5 * k, 5 * k, 3 * k, lc(0x4a4e54))
+                }
+                return
+            }
+        }
         let bob = moving ? abs(sin(ph)) * 1.0 : sin(T * 1.6 + wx) * 0.3
         c.save()
         c.translate(sx(wx), sy(groundLand(wx)))

@@ -766,6 +766,7 @@ final class Game {
         case "walk": px = 150; tx = 560; slowWalk = true; done.insert("boat1")
         case "run": px = 900; tx = 1500; done.insert("boat1"); done.insert("boat2")
         case "oldfig": px = 150; tx = 560; slowWalk = true; done.insert("boat1"); heroOn = false
+        case "crew": all(2); px = 1330; tod = 0.4
         case "pier": px = -150
         case "fish": px = -215; fishing = true; fishPhase = 1; fishT = 0.4; face = -1; coins = 6
         case "beach": px = 300; done.insert("boat1"); done.insert("cart"); coins = 55
