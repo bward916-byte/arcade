@@ -124,7 +124,7 @@ extension Game {
         }
     }
 
-    func drawAnchoredShip(_ c: Canvas, _ wx: Double, _ sc: Double, _ masts: Int, _ hull: Col, _ sail: Col, _ flag: Col, _ L: Double) {
+    func drawAnchoredShip(_ c: Canvas, _ wx: Double, _ sc: Double, _ masts: Int, _ hull: Col, _ sail: Col, _ flag: Col, _ L: Double, _ full: Bool = false) {
         let tilt = cos(wx * 0.02 + T * 1.2) * 0.025
         c.save()
         c.translate(sx(wx), sy(wave(wx)))
@@ -167,6 +167,30 @@ extension Game {
                     p.closeSubpath()
                 }
             }
+            if full {
+                // set sails, bellied by the wind
+                let belly = 7 + sin(self.T * 1.1 + mx) * 1.5
+                for (fa, fb) in [(0.78, 0.44), (0.42, 0.1)] {
+                    let ya: Double = -18 - mh * fa + 2
+                    let yb: Double = -18 - mh * fb
+                    let wa: Double = 30 - fa * 12
+                    let wb: Double = 30 - fb * 12 + 2
+                    c.pathFill(sl) { p in
+                        p.move(to: CGPoint(x: mx - wa, y: ya))
+                        p.addLine(to: CGPoint(x: mx + wa, y: ya))
+                        p.addQuadCurve(to: CGPoint(x: mx + wb, y: yb), control: CGPoint(x: mx + wb + belly, y: (ya + yb) / 2))
+                        p.addQuadCurve(to: CGPoint(x: mx - wb, y: yb), control: CGPoint(x: mx + belly * 0.6, y: yb + 5))
+                        p.addQuadCurve(to: CGPoint(x: mx - wa, y: ya), control: CGPoint(x: mx - wb + belly * 0.5, y: (ya + yb) / 2))
+                    }
+                    c.pathFill(Col(0x000000, 0.1)) { p in
+                        p.move(to: CGPoint(x: mx - wa, y: ya))
+                        p.addQuadCurve(to: CGPoint(x: mx - wb, y: yb), control: CGPoint(x: mx - wb + belly * 0.5, y: (ya + yb) / 2))
+                        p.addLine(to: CGPoint(x: mx - wb * 0.3, y: yb + 2))
+                        p.addLine(to: CGPoint(x: mx - wa * 0.3, y: ya))
+                        p.closeSubpath()
+                    }
+                }
+            }
             c.seg(mx, -18 - mh, mx - 34, -18, 0.6, Col(0x000000, 0.4))
             c.seg(mx, -18 - mh, mx + 34, -18, 0.6, Col(0x000000, 0.4))
         }
@@ -174,7 +198,12 @@ extension Game {
         let fy: Double = -18 - 118
         let fw = sin(T * 5) * 2
         c.poly(Col.mix(flag.shade(0.4), flag, L), [top, fy, top + 18, fy + 3 + fw, top, fy + 9])
+        if full {
+            let jx = spots[spots.count - 1]
+            c.poly(sl, [jx + 4, -120, 120, -36, jx + 4, -30])
+        }
         c.restore()
+        if full { return }
         // anchor cable
         c.curve(sx(wx - 70 * sc), sy(wave(wx)) + 6 * camS, sx(wx - 90 * sc), sy(40), sx(wx - 104 * sc), sy(70), 1 * camS, Col(0x3c2814, 0.8))
     }

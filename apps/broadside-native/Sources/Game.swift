@@ -407,6 +407,10 @@ final class Game {
                 px = clampD(px + speed * dt, XMIN, xmax)
                 face = sgn(speed)
                 walkPh += dt * abs(speed) * 0.17
+                if px > 70 && chance(dt * (abs(speed) > 80 ? 9 : 4)) {
+                    let sand = px < 600 || px > 3280
+                    sparks.append(Spark(x: px - face * 3, y: groundLand(px) - 1, vx: -face * rnd(4, 14), vy: rnd(-12, -4), life: 0, max: rnd(0.4, 0.8), r: rnd(1.4, 2.6), c: sand ? Col(0xe8d6aa, 0.5) : Col(0x968464, 0.5), grav: 10))
+                }
                 if fishing { fishing = false; say("Line in.") }
             } else if fishing {
                 face = -1

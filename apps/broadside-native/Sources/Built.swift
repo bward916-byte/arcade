@@ -680,6 +680,17 @@ extension Game {
                 c.circStroke(bx, by, 3.9, 1, on ? Col(0x8a6a10) : Col(0xd8b86a, 0.5))
             }
             c.textS(String(cost - have), x, y + r + 15, 12, coins >= cost - have ? CREAM : Col(0xe89a8a), 0, FONTB)
+            if pour == id {
+                let fromX = sx(px), fromY = sy(groundLand(px)) - 40 * camS
+                for q in 0..<4 {
+                    let f = (T * 3.2 + Double(q) * 0.25).truncatingRemainder(dividingBy: 1)
+                    let cx2 = lerp(fromX, x, f)
+                    let cy2 = lerp(fromY, y, f) - sin(f * PI) * 34
+                    c.circ(cx2, cy2, 4.2, Col(0xffd24a))
+                    c.circStroke(cx2, cy2, 4.2, 1, Col(0x8a6a10))
+                }
+                c.circStroke(x, y, r + 4 + sin(T * 14) * 1.5, 2, GOLD.alpha(0.6))
+            }
         }
     }
 
@@ -714,9 +725,25 @@ extension Game {
         let part = L > 0.5 ? (tod < 0.5 ? "Morning" : "Afternoon") : (tod < 0.5 ? "Night" : "Evening")
         c.textS("GULL CAY  ·  DAY " + String(day) + "  ·  " + part, right, 24, 14, CREAM, 1, FONTB)
         if day >= 2 || defence() > 0 {
-            let warn = raidIn <= 1
-            let when = raiding ? "RAID!" : (raidIn <= 0 ? "RAID TONIGHT" : "RAID IN " + String(raidIn) + (raidIn == 1 ? " DAY" : " DAYS"))
-            c.textS("DEFENCE " + String(defence()) + "  ·  RAIDERS " + String(threat()) + "  ·  " + when, right, 42, 11.5, warn ? Col(0xffb4a0) : CREAM.alpha(0.85), 1, FONTB)
+            // shield against black sail, then how long until they come
+            let def = defence(), thr = threat()
+            let when = raiding ? "NOW" : (raidIn <= 0 ? "TONIGHT" : String(raidIn) + (raidIn == 1 ? " DAY" : " DAYS"))
+            let weak = def < thr
+            let w3 = textW(when, 12, FONTB) + 34
+            var rx = right - w3
+            c.RR(rx, 32, w3, 22, 11, Col(raidIn <= 1 ? 0x4a1410 : 0x08121c, 0.6))
+            c.save(); c.translate(rx + 13, 43); c.scale(0.62, 0.62); drawIcon(c, "raid"); c.restore()
+            c.text(when, rx + 25, 47.5, 12, raidIn <= 1 ? Col(0xffc8b8) : CREAM, -1, FONTB)
+            let sd = String(def), st = String(thr)
+            let w4 = textW(sd, 12, FONTB) + textW(st, 12, FONTB) + 62
+            rx -= w4 + 6
+            c.RR(rx, 32, w4, 22, 11, Col(0x08121c, 0.6))
+            if weak { c.RRStroke(rx, 32, w4, 22, 11, 1, Col(0xff8a70, 0.5 + 0.4 * sin(T * 4))) }
+            c.save(); c.translate(rx + 13, 43); c.scale(0.62, 0.62); drawIcon(c, "shield"); c.restore()
+            c.text(sd, rx + 24, 47.5, 12, weak ? Col(0xffc8b8) : CREAM, -1, FONTB)
+            let x2 = rx + 30 + textW(sd, 12, FONTB)
+            c.save(); c.translate(x2 + 9, 43); c.scale(0.62, 0.62); drawIcon(c, "raid"); c.restore()
+            c.text(st, x2 + 21, 47.5, 12, CREAM, -1, FONTB)
         }
 
         if bannerT > 0 {
@@ -731,7 +758,7 @@ extension Game {
             for ln in lines { widest = max(widest, textW(ln, 14)) }
             let w = widest + 36
             let h = Double(lines.count) * 18 + 12
-            let y0 = 52.0
+            let y0 = 60.0
             c.RR(W / 2 - w / 2, y0, w, h, min(15, h / 2), Col(0x050c14, 0.66 * a))
             c.RRStroke(W / 2 - w / 2, y0, w, h, min(15, h / 2), 1, GOLD2.alpha(0.45 * a))
             for (i, ln) in lines.enumerated() {
@@ -898,6 +925,20 @@ extension Game {
                 let cx: Double = Double(i) * u * 0.36
                 c.poly(g, [cx - u * 0.15, u * 0.8, cx - u * 0.15, -u * 0.4, cx, -u * 0.8, cx + u * 0.15, -u * 0.4, cx + u * 0.15, u * 0.8])
             }
+        case "shield":
+            c.pathFill(g) { p in
+                p.move(to: CGPoint(x: -u * 0.75, y: -u * 0.8))
+                p.addLine(to: CGPoint(x: u * 0.75, y: -u * 0.8))
+                p.addQuadCurve(to: CGPoint(x: 0, y: u * 0.95), control: CGPoint(x: u * 0.8, y: u * 0.5))
+                p.addQuadCurve(to: CGPoint(x: -u * 0.75, y: -u * 0.8), control: CGPoint(x: -u * 0.8, y: u * 0.5))
+            }
+            c.R(-0.9, -u * 0.6, 1.8, u * 1.2, dark)
+            c.R(-u * 0.5, -u * 0.2, u * 1.0, 1.8, dark)
+        case "raid":
+            c.poly(Col(0xe8a090), [-u * 0.9, u * 0.35, u * 0.9, u * 0.35, u * 0.6, u * 0.8, -u * 0.65, u * 0.8])
+            c.R(-0.9, -u * 0.95, 1.8, u * 1.3, Col(0xe8a090))
+            c.poly(Col(0xe8a090), [-u * 0.6, -u * 0.8, u * 0.65, -u * 0.8, u * 0.5, u * 0.1, -u * 0.5, u * 0.1])
+            c.circ(0, -u * 0.38, u * 0.2, dark)
         case "tavern":
             c.R(-u * 0.45, -u * 0.4, u * 0.75, u * 0.9, g)
             c.arcStroke(u * 0.4, 0, u * 0.25, -1.3, 1.3, 1.6, g)

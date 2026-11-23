@@ -17,11 +17,13 @@ extension Game {
         drawFarHills(c, L)
         drawRidge(c, L)
         drawBackSea(c, L)
+        drawSeaLife(c, L)
         drawOffshore(c, L)
         drawLand(c, L)
         drawPier(c, L)
         drawScenery(c, L)
         drawBuildings(c, L)
+        drawFolkAll(c, L)
         drawThings(c, L)
         if dog { drawDog(c, L) }
         if rowPhase == 0 { drawPerson(c, L) }
@@ -127,6 +129,52 @@ extension Game {
                     if first { p.move(to: pt); first = false } else { p.addLine(to: pt) }
                     x += 10
                 }
+            }
+        }
+    }
+    func drawSeaLife(_ c: Canvas, _ L: Double) {
+        let k = camS
+        // sun glints across the back sea
+        for i in 0..<26 {
+            let fi = Double(i)
+            let tw = sin(T * (1.4 + hashN(fi) * 2) + fi * 2.1)
+            if tw < 0.3 { continue }
+            let X = (hashN(fi + 5) * (W + 200) - camX * 0.4 * k).truncatingRemainder(dividingBy: W + 200)
+            let xx = X < 0 ? X + W + 200 : X
+            c.R(xx - 100, sy(-46 + hashN(fi + 9) * 40), (6 + hashN(fi + 3) * 12) * k, 1.1, Col(0xfff6d8, (tw - 0.3) * 0.5 * L))
+        }
+        // a merchantman crossing the horizon
+        let span = W + 300
+        var mx = (T * 5 - camX * 0.25 * k).truncatingRemainder(dividingBy: span)
+        if mx < 0 { mx += span }
+        mx -= 150
+        let my = sy(-50)
+        let col = dn(0x0a1420, 0x4a6274, L)
+        c.poly(col, [mx - 16 * k, my - 4 * k, mx + 18 * k, my - 4 * k, mx + 13 * k, my, mx - 13 * k, my])
+        c.poly(col, [mx - 8 * k, my - 5 * k, mx - 9 * k, my - 20 * k, mx + 1 * k, my - 5 * k])
+        c.poly(col, [mx + 3 * k, my - 5 * k, mx + 2 * k, my - 24 * k, mx + 13 * k, my - 5 * k])
+        // dolphins off the pier, now and then
+        let cyc = (T * 0.07).truncatingRemainder(dividingBy: 1)
+        if cyc < 0.18 && rowPhase == 0 {
+            let n = Int(T * 0.07)
+            for d in 0..<2 {
+                let u = cyc / 0.18 * 1.3 - Double(d) * 0.3
+                if u < 0 || u > 1 { continue }
+                let wx = -430 - Double((n * 61) % 120) + u * 46 - Double(d) * 18
+                if !vis(wx, 40) { continue }
+                c.save()
+                c.translate(sx(wx), sy(wave(wx) - sin(u * PI) * 18))
+                c.rotate(-cos(u * PI) * 0.9)
+                c.scale(k, k)
+                c.pathFill(lc(0x5a7a8e)) { p in
+                    p.move(to: CGPoint(x: -11, y: 0))
+                    p.addQuadCurve(to: CGPoint(x: 11, y: -1), control: CGPoint(x: 0, y: -8))
+                    p.addQuadCurve(to: CGPoint(x: -11, y: 0), control: CGPoint(x: 0, y: 4))
+                }
+                c.poly(lc(0x5a7a8e), [-1, -4, 1, -8.5, 4, -3.4])
+                c.poly(lc(0x5a7a8e), [-10, 0, -15, -3.5, -14, 2.5])
+                c.restore()
+                if u < 0.12 || u > 0.88 { c.ellStroke(sx(wx), sy(wave(wx)), 10 * k, 2.4 * k, 1, Col(0xf0faff, 0.6)) }
             }
         }
     }
@@ -328,6 +376,27 @@ extension Game {
             p.closeSubpath()
         }
         c.circ(2.6, headY - 0.2, 0.5, Col(0x1a1008))
+        if stage >= 2 {
+            // captain: a tricorn with gold trim, and a blue coat's collar
+            c.poly(self.lc(0x1c1c24), [-6.5, headY - 2.2, 7.5, headY - 2.2, 4.5, headY - 6.4, -3.5, headY - 6.4])
+            c.poly(self.lc(0x1c1c24), [-6.5, headY - 2.2, -3, headY - 4.6, -5, headY - 1])
+            c.R(-6, headY - 2.9, 13, 0.9, self.lc(0xd8b86a))
+            c.R(-4.4, shY - 2.4, 9, 2.2, self.lc(0x1f3a6a))
+        } else if stage == 1 {
+            // young sailor: a red bandana with its tail flying
+            c.pathFill(self.lc(0xa82020)) { p in
+                p.addArc(center: CGPoint(x: 0.3, y: headY - 0.6), radius: 4.0, startAngle: CGFloat(PI * 1.02), endAngle: CGFloat(PI * 1.98), clockwise: false)
+                p.closeSubpath()
+            }
+            c.seg(-3.4, headY - 1, -7 - sin(T * 6) * 0.8, headY + 1.4, 1.4, self.lc(0xa82020))
+        } else {
+            // dock boy: a flat cap
+            c.pathFill(self.lc(0x6a5a42)) { p in
+                p.addArc(center: CGPoint(x: 0.3, y: headY - 1.6), radius: 3.9, startAngle: CGFloat(PI), endAngle: CGFloat(PI * 2), clockwise: false)
+                p.closeSubpath()
+            }
+            c.R(2.6, headY - 2.2, 4, 1, self.lc(0x4a3e2c))
+        }
         // near arm: swings when walking, holds the rod when fishing
         c.roundCaps(true)
         if fishing {
@@ -378,6 +447,26 @@ extension Game {
     func drawTitle(_ c: Canvas, _ L: Double) {
         let horizon = H * 0.62
         c.vfill(0, horizon, W, H - horizon, [(0, dn(0x0e2733, 0x3f8494, L)), (1, dn(0x081822, 0x15485a, L))])
+        // a far island with its light, on the horizon
+        let ix = W * 0.8
+        c.pathFill(dn(0x0a141c, 0x35586a, L)) { p in
+            p.move(to: CGPoint(x: ix - 170, y: horizon))
+            p.addQuadCurve(to: CGPoint(x: ix - 40, y: horizon - 34), control: CGPoint(x: ix - 120, y: horizon - 30))
+            p.addQuadCurve(to: CGPoint(x: ix + 60, y: horizon - 20), control: CGPoint(x: ix + 10, y: horizon - 40))
+            p.addQuadCurve(to: CGPoint(x: ix + 150, y: horizon), control: CGPoint(x: ix + 110, y: horizon - 6))
+            p.closeSubpath()
+        }
+        c.R(ix + 96, horizon - 34, 5, 30, dn(0x0a141c, 0x8fa6b4, L))
+        c.poly(dn(0x0a141c, 0x35586a, L), [ix + 94, horizon - 34, ix + 98.5, horizon - 40, ix + 103, horizon - 34])
+        let beam = 0.5 + 0.5 * sin(T * 1.3)
+        c.glow(ix + 98.5, horizon - 36, 26 + 30 * beam, Col(0xfff0b4, 0.55 * beam), Col(0xfff0b4, 0))
+        // the sun's road on the water
+        for i in 0..<22 {
+            let fi = Double(i)
+            let yy = horizon + 4 + fi * fi * 0.34
+            let half = (10 + fi * 4.5) * (0.6 + 0.4 * sin(T * 1.7 + fi * 1.3))
+            c.R(W * 0.12 - half + sin(T * 0.8 + fi) * 6, yy, half * 2, 1.4, Col(0xffe6a8, 0.22 * (1 - fi / 24)))
+        }
         for layer in 0..<4 {
             let fl = Double(layer)
             c.pathStroke(Col(0xe1f2f6, 0.14 + 0.1 * fl), 1.4) { p in
@@ -391,9 +480,33 @@ extension Game {
                 }
             }
         }
-        c.R(0, 0, W, H, Col(0x04080e, 0.35))
+        // your ship, under full sail, and a black sail far behind her
+        camS = H / 330 * 0.3
+        baseY = horizon + 3
+        camX = 0 - (W * 0.56 - W / 2) / camS
+        drawAnchoredShip(c, 0, 1, 2, Col(0x16110d), Col(0x2a2622), Col(0x101010), L, true)
+        camS = H / 330 * 0.92
+        baseY = horizon + 40
+        camX = 0 - (W * 0.2 - W / 2) / camS
+        drawAnchoredShip(c, 0, 1, 2, Col(0x6b4423), Col(0xeadfc4), Col(0x1f4a9c), max(L, 0.45), true)
+        // bow wave and wake
+        for i in 0..<6 {
+            let u = (T * 0.5 + Double(i) / 6).truncatingRemainder(dividingBy: 1)
+            c.ell(W * 0.2 + 84 * camS - u * 60, horizon + 52 + u * 6, (8 + u * 26), 2.2 + u * 2, Col(0xf0faff, 0.5 * (1 - u)))
+            c.ell(W * 0.2 - 90 * camS - u * 90, horizon + 54 + u * 4, (10 + u * 30), 2 + u * 2, Col(0xf0faff, 0.3 * (1 - u)))
+        }
+        // gulls
+        for i in 0..<5 {
+            let fi = Double(i)
+            let bx = (T * (18 + fi * 4) + fi * 190).truncatingRemainder(dividingBy: W + 120) - 60
+            let by = H * (0.16 + 0.05 * fi) + sin(T * 0.7 + fi) * 10
+            let f = sin(T * 6 + fi * 2) * 3
+            c.curve(bx - 7, by, bx - 3.5, by - 3 - f, bx, by, 1.4, Col(0xf4f0e6, 0.8))
+            c.curve(bx, by, bx + 3.5, by - 3 - f, bx + 7, by, 1.4, Col(0xf4f0e6, 0.8))
+        }
+        c.vfill(0, 0, W, H * 0.5, [(0, Col(0x04080e, 0.5)), (1, Col(0x04080e, 0))])
         let fs = min(64.0, W * 0.11)
-        let ty = H * 0.34
+        let ty = H * 0.3
         c.text("BROADSIDE", W / 2 + 2, ty + 3, fs, Col(0x000000, 0.6), 0, FONTB)
         c.text("BROADSIDE", W / 2, ty, fs, GOLD, 0, FONTB)
         c.R(W / 2 - fs * 2.3, ty + 14, fs * 2.3 - 12, 1.5, GOLD2.alpha(0.8))
@@ -403,14 +516,15 @@ extension Game {
         c.rotate(PI / 4)
         c.R(-4, -4, 8, 8, GOLD)
         c.restore()
-        c.text("From a pier and a fishing line to a ship of your own.", W / 2, ty + 46, 16, CREAM)
-        c.text("Native build: the whole home island. The open sea follows.", W / 2, ty + 70, 13, CREAM.alpha(0.75))
+        c.textS("From a pier and a fishing line to a ship of your own.", W / 2, ty + 44, 16, CREAM)
         let bw = 190.0, bh = 44.0
-        let bx = W / 2 - bw / 2, by = min(H - 64, ty + 94)
+        let bx = W / 2 - bw / 2, by = min(H - 64, ty + 70)
         titleBtn = (bx, by, bw, bh)
+        let pulse = 0.5 + 0.5 * sin(T * 2.4)
+        c.glow(W / 2, by + bh / 2, 120, Col(0xffd27a, 0.16 + 0.12 * pulse), Col(0xffd27a, 0))
         c.RR(bx, by + 2.5, bw, bh, 10, Col(0x000000, 0.38))
         c.RRGrad(bx, by, bw, bh, 10, [(0, Col(0xf0d48c)), (1, Col(0xb98a34))])
         c.RRStroke(bx, by, bw, bh, 10, 1.3, Col(0xfff3cc))
-        c.text("BEGIN", W / 2, by + bh / 2 + 6, 17, Col(0x2a1c08), 0, FONTB)
+        c.text(done.isEmpty && coins == 0 ? "BEGIN" : "CONTINUE", W / 2, by + bh / 2 + 6, 17, Col(0x2a1c08), 0, FONTB)
     }
 }
