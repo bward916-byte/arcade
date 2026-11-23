@@ -447,7 +447,7 @@ final class Game {
         rideDur = kind == .stairs ? 0.5 : (kind == .hole ? 0.8 : 1.5)
         mode = .ride
         input = Input()
-        if kind == .hole { snd?.drop(); buzz(2) } else if kind == .lift { snd?.ding() } else { snd?.door() }
+        if kind == .hole { snd?.drop(); buzz(2) } else if kind == .lift { snd?.ding(); snd?.liftHum() } else { snd?.door(); snd?.stairs() }
     }
     func arrive() {
         let old = floorN
@@ -461,6 +461,7 @@ final class Game {
         fixEntry()
         hero.atkT = -1
         supT = -1
+        if rideKind == .lift { snd?.ding() }
         if rideKind == .hole { shake = 14; puff(hero.x, 0, 14, Col(0x8a8478)); buzz(3) }
         announce()
         save()
@@ -523,6 +524,8 @@ final class Game {
         t += dt
         shake = max(0, shake - dt * 40)
         flash = max(0, flash - dt * 3)
+        snd?.here()
+        ambience(dt)
         if msgT > 0 { msgT -= dt }
         if sayCd > 0 { sayCd -= dt }
         switch mode {
@@ -556,6 +559,32 @@ final class Game {
             if deadT > 2.0 { respawn() }
         case .ending:
             endT += dt
+        }
+    }
+    var ambT = 2.0
+    var humT = 0.0
+    var stepT = 0.0
+    var stepAlt = false
+    /// The building around you: hum, wind, and things far off.
+    private func ambience(_ dt: Double) {
+        guard let s = snd, mode == .play || mode == .ride || mode == .pick else { return }
+        let f = floor
+        let outside = f.kind == .roof || f.kind == .street
+        humT -= dt
+        if humT <= 0 { humT = 2.2; if outside { s.wind() } else { s.hum() } }
+        if mode == .ride { return }
+        ambT -= dt
+        if ambT <= 0 {
+            ambT = rnd(3, 7)
+            s.pan = rnd(-1, 1); s.near = rnd(0.4, 0.8)
+            let r = Double.random(in: 0..<1)
+            if outside { if r < 0.5 { s.siren() } else { s.moan() } } else if r < 0.4 { s.moan() } else if r < 0.6 { s.creak() } else if r < 0.75 { s.drip() } else if r < 0.85 { s.siren() } else if f.kind == .wall || !fires.isEmpty { s.alarm() }
+            s.here()
+        }
+        if f.kind == .wall && Int(t * 1.5) != Int((t - dt) * 1.5) { s.at(f.wallX - hero.x); s.alarm(); s.here() }
+        // wheels and wings you can hear coming
+        for z in f.zeds where z.alive && z.aware && (z.kind == .wheel || z.kind == .crow) && chance(dt * 1.6) {
+            s.at(z.x - hero.x); if z.kind == .wheel { s.wheel() } else { s.caw() }; s.here()
         }
     }
     func tapAdvance() {
@@ -605,6 +634,8 @@ final class Game {
         if !sup {
             h.moving = mv != 0
             if mv != 0 {
+                stepT -= dt
+                if stepT <= 0 { stepT = 0.26; stepAlt.toggle(); snd?.foot(stepAlt) }
                 h.x += sgn(mv) * sp * dt
                 h.walk += sp * dt
                 if h.atkT < 0 { h.face = sgn(mv) }
@@ -623,7 +654,7 @@ final class Game {
             h.atkT = 0
             h.atkHit = false
             if mv == 0, let z = nearest(190) { h.face = z.x >= h.x ? 1 : -1 }
-            snd?.swing()
+            if h.chain == 3 { snd?.whoosh() } else { snd?.swing() }
         }
         if h.atkT >= 0 {
             let fin = h.atkI == 2
@@ -757,7 +788,7 @@ final class Game {
                 puff(x, 0, 10, Col(0x8a7a66))
                 for _ in 0..<5 { gibs.append(Gib(x: x, y: -rnd(40, 150), vx: rnd(-260, 260), vy: -rnd(60, 320), rot: rnd(0, 6), vr: rnd(-12, 12), kind: 4, col: Col(0x6a5238), t: 0)) }
                 shake = max(shake, 5)
-                snd?.door()
+                snd?.at(x - h.x); snd?.door(); snd?.here()
             }
         }
         for z in f.zeds {
@@ -774,7 +805,7 @@ final class Game {
             let ad = abs(dx)
             if !z.aware && ad < z.sight {
                 z.aware = true
-                if groanCd <= 0 { groanCd = 1.4; if z.kind == .dog { snd?.bark() } else if z.kind == .rat || z.kind == .crow { snd?.squeak() } else if z.kind == .boss { snd?.roar() } else { snd?.groan(0.8 + z.seed * 0.6) } }
+                if groanCd <= 0 { groanCd = 1.0; snd?.at(z.x - h.x); if z.kind == .dog { snd?.bark() } else if z.kind == .rat { snd?.squeak() } else if z.kind == .crow { snd?.caw() } else if z.kind == .wheel { snd?.wheel() } else if z.kind == .boss { snd?.roar() } else { snd?.groan((z.female ? 1.25 : 0.8) + z.seed * 0.5) }; snd?.here() }
             }
             if z.kvx != 0 {
                 z.x += z.kvx * dt
@@ -806,7 +837,7 @@ final class Game {
                     heroSlow = 1.2
                     shake = max(shake, 12)
                     floaters.append(Floater(x: z.x, y: -230, text: "SCREEEEAM", col: Col(0xe8f0ff), t: -0.3, size: 20))
-                    snd?.scream(); buzz(2)
+                    snd?.at(z.x - h.x); snd?.scream(); snd?.here(); buzz(2)
                     continue
                 }
             }
@@ -881,6 +912,7 @@ final class Game {
         let skin = z.kind == .runner ? Col(0xb89a8a) : (z.kind == .bloater ? Col(0x9ac06a) : Col(0x9fb08c))
         let top = -150.0 * z.scale
         if gibs.count > 70 { gibs.removeFirst(20) }
+        snd?.at(z.x - hero.x); snd?.squelch(); if all { snd?.crack() }; snd?.here()
         gibs.append(Gib(x: z.x, y: top, vx: dir * rnd(80, 420) + rnd(-120, 120), vy: -rnd(280, 620), rot: 0, vr: rnd(-14, 14), kind: 0, col: skin, t: 0))
         if all {
             for i in 0..<6 {
@@ -898,7 +930,7 @@ final class Game {
         if z.kind == .riot && z.shield > 0 && dir == -z.face {
             if abs(knock) >= 450 { z.shield = 0 } else { z.shield -= 1; dmg *= 0.2 }
             if parts.count < 520 { for _ in 0..<8 { parts.append(Part(x: z.x + z.face * 34, y: -rnd(60, 140), vx: z.face * rnd(80, 420), vy: -rnd(60, 380), t: 0, life: rnd(0.15, 0.35), size: rnd(2, 4), col: Col(0xdff2ff), grav: 700, glow: true)) } }
-            snd?.zap()
+            snd?.at(z.x - hero.x); snd?.clang(); if z.shield <= 0 { snd?.glass() }; snd?.here()
             if z.shield <= 0 { gibs.append(Gib(x: z.x + z.face * 34, y: -90, vx: z.face * rnd(120, 360), vy: -rnd(260, 480), rot: 0, vr: rnd(-12, 12), kind: 7, col: Col(0x9fb8c8), t: 0)); floaters.append(Floater(x: z.x, y: -200, text: "SHIELD BROKEN", col: Col(0xbfe8ff), t: 0, size: 16)) }
         }
         z.hp -= dmg
@@ -937,6 +969,7 @@ final class Game {
         if streak == 5 || streak == 10 || streak == 20 {
             floaters.append(Floater(x: hero.x, y: -250, text: streak == 5 ? "MULTI KILL" : (streak == 10 ? "OVERKILL" : "MASSACRE"), col: GOLD, t: -0.6, size: 30))
             addMeter(10)
+            snd?.streak(streak)
         }
         addMeter(z.kind == .rat ? 3 : 12)
         if z.kind != .rat { floor.pools.append((z.x, rnd(30, 56))) }
@@ -993,7 +1026,7 @@ final class Game {
         shake = max(shake, 16)
         zoom = max(zoom, 1.05)
         flash = max(flash, 0.18); flashCol = toxic ? Col(0xb8ff9a) : Col(0xffe2b0)
-        snd?.boom(); buzz(3)
+        snd?.at(x - hero.x); snd?.boom(); snd?.here(); buzz(3)
         let hot: Col = toxic ? Col(0x8cff7a) : Col(0xffb040)
         if parts.count < 520 {
             // fire, fast sparks, falling embers, rolling smoke
@@ -1006,6 +1039,7 @@ final class Game {
             for _ in 0..<7 { gibs.append(Gib(x: x + rnd(-20, 20), y: -rnd(10, 80), vx: rnd(-520, 520), vy: -rnd(200, 700), rot: rnd(0, 6), vr: rnd(-18, 18), kind: 4, col: toxic ? Col(0x4a5a30) : (chance(0.5) ? Col(0x3a3a3a) : Col(0x7a1c18)), t: 0)) }
         }
         fires.append((x, toxic ? -1.6 : 2.6, r * 0.5))
+        if !toxic { snd?.fireWhoosh() }
         if fires.count > 8 { fires.removeFirst() }
         if dmg <= 0 { return }
         for z in floor.zeds where z.alive {

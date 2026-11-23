@@ -99,6 +99,7 @@ final class GameViewController: UIViewController {
         guard let cv = canvas else { return }
         if !renderer.paused { game.update(raw) }
         sound.intensity = renderer.paused ? 0 : game.musicLevel
+        sound.theme = game.tower
         if game.haptic > 0 {
             if game.haptic >= 3 { tapHeavy.impactOccurred() } else if game.haptic == 2 { tapMedium.impactOccurred() } else { tapLight.impactOccurred() }
             game.haptic = 0
@@ -122,7 +123,7 @@ final class GameViewController: UIViewController {
         for t in touches {
             let (x, y) = gp(t)
             if renderer.paused {
-                if game.musicRect.has(x, y) { sound.musicOn = !sound.musicOn; UserDefaults.standard.set(!sound.musicOn, forKey: "fz.musicOff") } else if game.resumeRect.has(x, y) { renderer.paused = false } else if game.quitRect.has(x, y) { renderer.paused = false; game.save(); game.auto = false; game.mode = .title }
+                if game.musicRect.has(x, y) { sound.ui(); sound.musicOn = !sound.musicOn; UserDefaults.standard.set(!sound.musicOn, forKey: "fz.musicOff") } else if game.resumeRect.has(x, y) { renderer.paused = false } else if game.quitRect.has(x, y) { renderer.paused = false; game.save(); game.auto = false; game.mode = .title }
                 continue
             }
             switch game.mode {
@@ -134,7 +135,7 @@ final class GameViewController: UIViewController {
                 for i in 0..<game.pickOpts.count where game.pickRect(i).has(x, y) { game.choosePick(i); break }
             case .play:
                 if game.auto { game.auto = false; game.input = Input() }
-                if game.pauseRect.has(x, y) { renderer.paused = true; game.input = Input(); continue }
+                if game.pauseRect.has(x, y) { sound.ui(); renderer.paused = true; game.input = Input(); continue }
                 let pb = game.powBtn
                 let ab = game.atkBtn
                 if hypot(x - pb.0, y - pb.1) < pb.2 + 14 { game.input.power = true; continue }
