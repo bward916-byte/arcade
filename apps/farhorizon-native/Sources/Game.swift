@@ -686,6 +686,7 @@ final class Game {
         if name == "duel" { UserDefaults.standard.set(0, forKey: Duel.lessonKey); startDuel(foes: 3, boss: false, prize: 120) }
         if name == "teach" { UserDefaults.standard.set(0, forKey: Duel.lessonKey); startDuel(foes: 3, boss: false, prize: 120); card = nil }
         if name == "fight" { startDuel(foes: 6, boss: false, prize: 120, teach: false); duel?.fury = 1; duel?.combo = 3 }
+        if name == "clash" { startDuel(foes: 6, boss: false, prize: 120, teach: false); duel?.demoClash = true }
         if name == "boss" { startDuel(foes: 1, boss: true, prize: 300, teach: false) }
         if name == "end" { finish() }
     }

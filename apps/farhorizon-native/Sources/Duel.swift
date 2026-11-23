@@ -18,6 +18,10 @@ struct Pose {
     var flash = 0.0
     var trail = false
     var twoHand = false
+    /// Where the blade pointed a frame ago: the gap between then and now is drawn as a blur.
+    var pang = -0.45
+    /// Teeth bared: he is in the middle of a blow.
+    var grit = false
 }
 
 final class Duel {
@@ -70,6 +74,18 @@ final class Duel {
     var holdWant = 0
 
     // fury builds with every parry and hit and is spent on a flurry no one can stop; a boot buys an opening
+    // sparks struck from the blades: each flies, falls and skips off the planks
+    var emb: [(x: Double, y: Double, vx: Double, vy: Double, life: Double, max: Double, red: Bool)] = []
+    var flares: [(x: Double, y: Double, t: Double, big: Double)] = []
+    var dust: [(x: Double, y: Double, vx: Double, t: Double, r: Double)] = []
+    // the figures ease from pose to pose instead of snapping
+    var sp = Pose()
+    var se = Pose()
+    var sOffP = 0.0
+    var sOffE = 0.0
+    var lastDrawT = 0.0
+    var prevPst = PState.ready
+    var prevEst = EState.enter
     var fury = 0.0
     var flurry = 0
     var flT = 0.0
@@ -209,7 +225,103 @@ final class Duel {
         et = wd
     }
     private func sparks(_ g: Game, _ x: Double, _ y: Double, _ n: Int, _ c: Col) {
-        g.puff(x, y, n, c, 220, 300, 2.4, 0.4)
+        let red = c.r > 0.9 && c.g < 0.5
+        // a shower thrown mostly up and out to both sides, a few straight at the eye
+        for i in 0..<(n * 4) {
+            let a = -PI / 2 + rnd(-1.5, 1.5) + (i % 5 == 0 ? rnd(-0.6, 0.6) : 0)
+            let v = rnd(140, 640) * (i % 7 == 0 ? 1.5 : 1)
+            let life = rnd(0.3, 0.95)
+            emb.append((x + rnd(-4, 4), y + rnd(-4, 4), cos(a) * v, sin(a) * v, life, life, red))
+        }
+        if emb.count > 320 { emb.removeFirst(emb.count - 320) }
+        flares.append((x, y, 0, min(1.6, Double(n) / 12)))
+        g.puff(x, y, max(2, n / 3), c, 160, 200, 3, 0.35)
+    }
+    private func kickDust(_ x: Double, _ y: Double, _ n: Int, _ dir: Double) {
+        for _ in 0..<n { dust.append((x + rnd(-14, 14), y - rnd(0, 6), dir * rnd(10, 70) + rnd(-20, 20), 0, rnd(5, 11))) }
+        if dust.count > 60 { dust.removeFirst(dust.count - 60) }
+    }
+    /// Sparks, flares and dust keep to the real clock, so they hang in the air when the fight slows.
+    private func updateFx(_ dt: Double, _ g: Game) {
+        let floor = feetY(g) + 4
+        var i = emb.count - 1
+        while i >= 0 {
+            emb[i].life -= dt
+            if emb[i].life <= 0 { emb.remove(at: i); i -= 1; continue }
+            emb[i].vy += 1150 * dt
+            emb[i].vx *= (1 - 0.9 * dt)
+            emb[i].x += emb[i].vx * dt
+            emb[i].y += emb[i].vy * dt
+            if emb[i].y > floor && emb[i].vy > 0 {
+                // it skips off the deck and loses heat
+                emb[i].y = floor
+                emb[i].vy *= -0.36
+                emb[i].vx *= 0.62
+                emb[i].life *= 0.7
+            }
+            i -= 1
+        }
+        var j = flares.count - 1
+        while j >= 0 {
+            flares[j].t += dt
+            if flares[j].t > 0.3 { flares.remove(at: j) }
+            j -= 1
+        }
+        var k2 = dust.count - 1
+        while k2 >= 0 {
+            dust[k2].t += dt
+            dust[k2].x += dust[k2].vx * dt
+            dust[k2].vx *= (1 - 2.2 * dt)
+            dust[k2].y -= 9 * dt
+            if dust[k2].t > 0.7 { dust.remove(at: k2) }
+            k2 -= 1
+        }
+        // feet scuff the planks as each move begins
+        if pst != prevPst {
+            let (px, py) = playerXY(g)
+            if pst == .lunge { kickDust(px - scaleS(g) * 0.2, py, 7, -1) }
+            if pst == .dodge { kickDust(px, py, 6, 1) }
+            if pst == .hurt { kickDust(px - scaleS(g) * 0.1, py, 5, -1) }
+            prevPst = pst
+        }
+        if est != prevEst {
+            let (fx, fy2) = foeXY(g)
+            if est == .strike { kickDust(fx + scaleS(g) * 0.2, fy2, 7, 1) }
+            if est == .dead { kickDust(fx + scaleS(g) * 0.1, fy2, 12, 1) }
+            if est == .stag || est == .hit { kickDust(fx + scaleS(g) * 0.15, fy2, 4, 1) }
+            prevEst = est
+        }
+    }
+    private func drawFx(_ c: Canvas, _ g: Game) {
+        for d in dust {
+            let k = d.t / 0.7
+            c.circ(d.x, d.y, d.r * (0.6 + k * 1.6), Col(0xd8c8a8, 0.3 * (1 - k)))
+        }
+        c.roundCaps(true)
+        for e in emb {
+            let k = clampD(e.life / e.max, 0, 1)
+            // white hot, then yellow, orange, and a dull red as it dies
+            let col = e.red ? Col.mix(Col(0x8a1408), Col(0xffb090), k) : (k > 0.7 ? Col.mix(Col(0xffe060), Col(0xffffff), (k - 0.7) / 0.3) : (k > 0.35 ? Col.mix(Col(0xff8a20), Col(0xffe060), (k - 0.35) / 0.35) : Col.mix(Col(0x7a1808), Col(0xff8a20), k / 0.35)))
+            let tx = e.x - e.vx * 0.03, ty = e.y - e.vy * 0.03
+            c.seg(e.x, e.y, tx, ty, 1 + 2.2 * k, col.alpha(min(1, k * 2.4)))
+            if k > 0.55 { c.glow(e.x, e.y, 7, col.alpha(0.5 * k), col.alpha(0)) }
+        }
+        for f in flares {
+            let k = f.t / 0.3
+            let a = 1 - k
+            let len = (50 + 110 * f.big) * (0.35 + k * 0.65)
+            // a four-pointed star with a fainter cross between, and a ring running outward
+            for r in 0..<4 {
+                let ang = Double(r) * PI / 2 + 0.3
+                c.seg(f.x, f.y, f.x + cos(ang) * len, f.y + sin(ang) * len, 3.2 * a, Col(0xffffff, a))
+                let a2 = ang + PI / 4
+                c.seg(f.x, f.y, f.x + cos(a2) * len * 0.5, f.y + sin(a2) * len * 0.5, 2 * a, Col(0xfff0c0, a * 0.8))
+            }
+            c.glow(f.x, f.y, 34 + 60 * f.big * (1 - k * 0.5), Col(0xffffff, a), Col(0xfff0c0, 0))
+            c.circStroke(f.x, f.y, 14 + 150 * f.big * k, 3 * a, Col(0xfff0c0, 0.7 * a))
+        }
+        c.roundCaps(false)
+        _ = g
     }
     private func gain(_ v: Double, _ g: Game) {
         combo += 1
@@ -287,8 +399,18 @@ final class Duel {
         }
     }
 
+    var demoClash = false
     func update(_ dt: Double, _ g: Game) {
         if over { return }
+        updateFx(dt, g)
+        if demoClash {
+            // for screenshots: strike sparks over and over, with the blades crossed
+            t += dt
+            pst = .parry; parLine = 0; est = .strike; et = 0.15; line = 0; heavy = false
+            if emb.count < 60 { let (cx, cy) = clashXY(g); sparks(g, cx, cy, 20, Col(0xffe9a0)); clash = 0.25 }
+            clash = max(0, clash - dt)
+            return
+        }
         if hold { t += dt; return }
         var d = dt
         if slow > 0 { slow -= dt; d = dt * 0.3 }
@@ -592,8 +714,33 @@ final class Duel {
         default:
             break
         }
+        // both men breathe and shift their weight; nobody stands like a statue
+        if pst == .ready { pp.lean += sin(t * 2.1) * 0.014; pp.crouch += (0.5 + 0.5 * sin(t * 2.1)) * 0.012 + abs(sin(t * 3.3)) * 0.006; pOff += sin(t * 1.3) * s * 0.012 }
+        if est == .ready { ep.lean += sin(t * 2.4 + 1) * 0.016; ep.crouch += (0.5 + 0.5 * sin(t * 2.4 + 1)) * 0.012 + abs(sin(t * 3.7)) * 0.007; eOff += sin(t * 1.6 + 2) * s * 0.014 }
+        pp.grit = pst == .lunge || pst == .parry || pst == .hurt
+        ep.grit = est == .strike || est == .hit || (est == .wind && heavy)
+        // and every pose is reached by moving there, quickly for a cut, easily otherwise
+        let dtv = clampD(t - lastDrawT, 0, 0.05)
+        lastDrawT = t
+        func follow(_ cur: inout Pose, _ tg: Pose, _ rate: Double) {
+            let k = 1 - exp(-rate * dtv)
+            cur.pang = cur.ang
+            cur.ang += (tg.ang - cur.ang) * k
+            cur.reach += (tg.reach - cur.reach) * k
+            cur.lean += (tg.lean - cur.lean) * (1 - exp(-rate * 0.7 * dtv))
+            cur.crouch += (tg.crouch - cur.crouch) * (1 - exp(-rate * 0.6 * dtv))
+            cur.fall = tg.fall; cur.flash = tg.flash; cur.trail = tg.trail; cur.twoHand = tg.twoHand; cur.grit = tg.grit
+        }
+        follow(&sp, pp, pp.trail ? 34 : (pst == .parry ? 30 : 16))
+        follow(&se, ep, ep.trail ? 34 : 16)
+        let ko = 1 - exp(-18 * dtv)
+        sOffP += (pOff - sOffP) * ko
+        sOffE += (eOff - sOffE) * (est == .enter ? 1 : ko)
+        pp = sp; ep = se; pOff = sOffP; eOff = sOffE
         let (px, _) = playerXY(g)
         let (ex, _) = foeXY(g)
+        // wet planks hold a smear of each man under his feet
+        c.ell(px + pOff, fy + 10, s * 0.22, s * 0.05, Col(0x0a0604, 0.28)); c.ell(ex + eOff, fy + 10, s * 0.22, s * 0.05, Col(0x0a0604, 0.28))
         // the heavy blow glows red as it gathers
         if est == .wind && heavy {
             let q = clampD(1 - et / wd, 0, 1)
@@ -652,8 +799,11 @@ final class Duel {
         }
         if clash > 0 {
             let (cx, cy) = clashXY(g)
-            c.glow(cx, cy, 50, Col(0xfff0c0, clash * 2.5), Col(0xfff0c0, 0))
+            c.glow(cx, cy, 70, Col(0xfff0c0, clash * 2.5), Col(0xfff0c0, 0))
+            // the flash lights the whole deck for an instant
+            c.R(0, 0, W, H, Col(0xfff0c0, min(0.14, clash * 0.5)))
         }
+        drawFx(c, g)
         if msgT > 0 && !msg.isEmpty {
             c.save()
             c.alpha(min(1, msgT * 2))
@@ -971,6 +1121,11 @@ final class Duel {
             c.RR(lx + sway - 6, H * 0.36, 12, 16, 3, Col(0x23180c)); c.RR(lx + sway - 4, H * 0.36 + 2.5, 8, 11, 2, Col(0xffd98a))
             c.glow(lx + sway, H * 0.38, 150, Col(0xffb050, 0.32 + 0.05 * sin(t * 9 + Double(i))), Col(0xffb050, 0))
         }
+        // shafts of light coming down through the smoke
+        for i in 0..<4 {
+            let rx = W * (0.2 + Double(i) * 0.2) + sin(t * 0.3 + Double(i)) * 20
+            c.poly(Col(0xfff0c8, 0.045), [rx, 0, rx + 46, 0, rx - 60, H, rx - 150, H])
+        }
         // darker toward the edges, so the eye stays on the two blades
         c.linear(0, 0, W * 0.22, H, 0, 0, W * 0.22, 0, [(0, Col(0x000000, 0.4)), (1, Col(0x000000, 0))])
         c.linear(W * 0.78, 0, W * 0.22, H, W * 0.78, 0, W, 0, [(0, Col(0x000000, 0)), (1, Col(0x000000, 0.4))])
@@ -1016,8 +1171,14 @@ final class Duel {
                 c.poly(cc, [x0 + nx * a, y0 + ny * a, x1 + nx * b, y1 + ny * b, x1 - nx * b, y1 - ny * b, x0 - nx * a, y0 - ny * a])
                 c.circ(x0, y0, a, cc); c.circ(x1, y1, b, cc)
             }
-            // a strip of light down the upper edge
-            c.seg(x0 + nx * w0 * 0.22, y0 + ny * w0 * 0.22 - w0 * 0.12, x1 + nx * w1 * 0.22, y1 + ny * w1 * 0.22 - w1 * 0.12, max(1, w1 * 0.22), Col(0xffffff, 0.13))
+            // light along the upper edge, shade along the lower, so the limb reads as round
+            let up: Double = ny < 0 ? 1 : -1
+            let lx0: Double = x0 + nx * up * w0 * 0.24, ly0: Double = y0 + ny * up * w0 * 0.24
+            let lx1: Double = x1 + nx * up * w1 * 0.24, ly1: Double = y1 + ny * up * w1 * 0.24
+            c.seg(lx0, ly0, lx1, ly1, max(1, w1 * 0.2), Col(0xffffff, 0.16))
+            let dx0: Double = x0 - nx * up * w0 * 0.27, dy0: Double = y0 - ny * up * w0 * 0.27
+            let dx1: Double = x1 - nx * up * w1 * 0.27, dy1: Double = y1 - ny * up * w1 * 0.27
+            c.seg(dx0, dy0, dx1, dy1, max(1, w1 * 0.26), Col(0x000000, 0.2))
         }
         func boot(_ ax: Double, _ ay: Double, _ fx: Double) {
             // shaft, turned-down cuff, foot and heel
@@ -1033,6 +1194,8 @@ final class Duel {
                 q.addLine(to: CGPoint(x: fx - s * 0.045, y: -s * 0.012)); q.closeSubpath()
             }
             c.seg(fx + s * 0.02, -s * 0.05, fx + s * 0.09, -s * 0.03, max(1, s * 0.008), Col(0xffffff, 0.2))
+            c.seg(fx - s * 0.04, -s * 0.105, fx + s * 0.045, -s * 0.1, s * 0.016, Col(0x0c0806))
+            c.RR(fx + s * 0.012, -s * 0.114, s * 0.022, s * 0.022, 1, Col(0xb8a070))
             c.RR(ax - s * 0.058 * wide + (fx - ax) * 0.1, ay - s * 0.012, s * 0.116 * wide, s * 0.04, s * 0.012, Col(0x3a2616))
             c.RRStroke(ax - s * 0.058 * wide + (fx - ax) * 0.1, ay - s * 0.012, s * 0.116 * wide, s * 0.04, s * 0.012, ol * 0.8, ink)
         }
@@ -1083,6 +1246,11 @@ final class Duel {
         limb(fkX, fkY, ffX, -s * 0.2, s * 0.092 * wide, s * 0.078 * wide, legC)
         if st == 5 || st == 0 { c.seg(hipX + s * 0.05, hipY + s * 0.04, fkX + s * 0.03, fkY - s * 0.02, max(1, s * 0.008), legC.shade(0.7)) }
         boot(ffX - s * 0.004, -s * 0.2, ffX)
+        // cloth gathers at the knee and where the thigh meets the hip
+        c.curve(fkX - s * 0.04, fkY - s * 0.02, fkX + s * 0.005, fkY + s * 0.012, fkX + s * 0.045, fkY - s * 0.015, max(1, s * 0.008), Col(0x000000, 0.28))
+        c.curve(fkX - s * 0.03, fkY - s * 0.055, fkX + s * 0.01, fkY - s * 0.03, fkX + s * 0.04, fkY - s * 0.05, max(1, s * 0.006), Col(0x000000, 0.18))
+        c.curve(hipX + s * 0.0, hipY + s * 0.05, hipX + s * 0.05, hipY + s * 0.075, hipX + s * 0.09, hipY + s * 0.055, max(1, s * 0.007), Col(0x000000, 0.22))
+        c.curve(bkX - s * 0.035, bkY - s * 0.015, bkX, bkY + s * 0.012, bkX + s * 0.035, bkY - s * 0.012, max(1, s * 0.007), Col(0x000000, 0.25))
 
         // ---- the body: broad at the shoulder, drawn in at the waist
         let wS = s * 0.125 * wide, wH = s * 0.095 * wide
@@ -1157,6 +1325,21 @@ final class Duel {
             c.RR(hipX + s * 0.01, hipY - s * 0.028, s * 0.056, s * 0.056, 2, Col(0xd4a52a)); c.RR(hipX + s * 0.024, hipY - s * 0.014, s * 0.028, s * 0.028, 1, Col(0x2a1a0c))
         }
 
+        // the cloth pulls into folds from the sword shoulder down to the belt, and falls dark on the far side
+        c.save()
+        torso(0) { q in c.cg.addPath(q); c.cg.clip() }
+        c.linear(shX - wS * 1.2, shY - s * 0.06, wS * 2.6, s * 0.4, shX - wS, 0, shX + wS, 0, [(0, Col(0x000000, 0.34)), (0.45, Col(0x000000, 0.05)), (1, Col(0xffffff, 0.08))])
+        for k in 0..<3 {
+            let kd = Double(k)
+            let fx0: Double = shX + wS * (0.5 - kd * 0.35), fy0: Double = shY + s * (0.06 + kd * 0.012)
+            let fx1: Double = hipX + wH * (0.1 - kd * 0.3), fy1: Double = hipY - s * 0.03
+            c.curve(fx0, fy0, (fx0 + fx1) / 2 + s * 0.03, (fy0 + fy1) / 2, fx1, fy1, max(1, s * 0.007), Col(0x000000, 0.2))
+        }
+        c.curve(hipX - wH * 0.6, hipY - s * 0.03, hipX, hipY - s * 0.055, hipX + wH * 0.7, hipY - s * 0.03, max(1, s * 0.008), Col(0x000000, 0.22))
+        c.restore()
+        // lantern light catches his back edge
+        c.curve(hipX - wH, hipY - s * 0.01, (hipX + shX) / 2 - wS * 0.74, (hipY + shY) / 2, shX - wS, shY + s * 0.035, max(1.2, s * 0.012), Col(0xffc070, 0.38))
+
         // ---- neck and head
         let hdX = shX + sin(p.lean) * s * 0.1 + s * 0.02, hdY = shY - s * 0.13
         let hr = s * 0.084
@@ -1182,7 +1365,17 @@ final class Duel {
         // ear, nose, mouth
         c.ell(hdX - hr * 0.28, hdY + hr * 0.12, hr * 0.2, hr * 0.28, skin.shade(0.8))
         c.poly(skin.shade(0.9), [hdX + hr * 0.86, hdY - hr * 0.05, hdX + hr * 1.2, hdY + hr * 0.32, hdX + hr * 0.84, hdY + hr * 0.38])
-        c.seg(hdX + hr * 0.52, hdY + hr * 0.7, hdX + hr * 0.86, hdY + hr * (st == 0 ? 0.66 : 0.74), max(1, s * 0.01), Col(0x4a2014))
+        c.circ(hdX + hr * 0.98, hdY + hr * 0.3, max(0.7, hr * 0.06), Col(0x3a1a10, 0.7))
+        c.ell(hdX + hr * 0.35, hdY + hr * 0.45, hr * 0.3, hr * 0.2, Col(0x8a3a2a, 0.12))
+        c.curve(hdX - hr * 0.1, hdY + hr * 0.95, hdX + hr * 0.3, hdY + hr * 1.2, hdX + hr * 0.7, hdY + hr * 1.1, max(1, s * 0.012), Col(0x000000, 0.18))
+        if p.grit {
+            // teeth bared with the effort
+            c.RR(hdX + hr * 0.5, hdY + hr * 0.62, hr * 0.4, hr * 0.2, hr * 0.05, Col(0x3a140c))
+            c.RR(hdX + hr * 0.54, hdY + hr * 0.64, hr * 0.33, hr * 0.1, hr * 0.03, Col(0xf7f2e4))
+        } else {
+            c.seg(hdX + hr * 0.52, hdY + hr * 0.7, hdX + hr * 0.86, hdY + hr * (st == 0 ? 0.66 : 0.74), max(1, s * 0.01), Col(0x4a2014))
+        }
+        c.arcStroke(hdX, hdY, hr * 0.94, PI * 0.75, PI * 1.25, max(1, s * 0.01), Col(0xffc070, 0.4))
         // eye and brow: your man steady, theirs scowling
         let ex = hdX + hr * 0.52, ey = hdY - hr * 0.05
         c.ell(ex, ey, hr * 0.2, hr * 0.14, Col(0xffffff))
@@ -1287,6 +1480,23 @@ final class Duel {
         let rapier = st == 3
         let bl = s * (heavy ? 0.52 : (rapier ? 0.5 : 0.45))
         let tipX = hx + ca * bl, tipY = hy + sa * bl
+        // any quick movement of the sword smears: the space between where it was and where it is
+        let sweep = p.ang - p.pang
+        if abs(sweep) > 0.05 && abs(sweep) < 2.6 {
+            let rad = armLen + bl
+            let a0 = min(p.ang, p.pang), a1 = max(p.ang, p.pang)
+            let al = min(0.42, abs(sweep) * 1.1)
+            c.pathFill(Col(0xffffff, al * 0.5)) { q in
+                q.move(to: CGPoint(x: shX + cos(a0) * rad * 0.42, y: shY + sin(a0) * rad * 0.42))
+                q.addArc(center: CGPoint(x: shX, y: shY), radius: CGFloat(rad), startAngle: CGFloat(a0), endAngle: CGFloat(a1), clockwise: false)
+                q.addLine(to: CGPoint(x: shX + cos(a1) * rad * 0.42, y: shY + sin(a1) * rad * 0.42))
+                q.addArc(center: CGPoint(x: shX, y: shY), radius: CGFloat(rad * 0.42), startAngle: CGFloat(a1), endAngle: CGFloat(a0), clockwise: true)
+                q.closeSubpath()
+            }
+            c.pathStroke(Col(0xffffff, al), max(1.2, s * 0.01)) { q in
+                q.addArc(center: CGPoint(x: shX, y: shY), radius: CGFloat(rad), startAngle: CGFloat(a0), endAngle: CGFloat(a1), clockwise: false)
+            }
+        }
         // the cut, hanging in the air behind the blade
         if p.trail {
             for k in 0..<5 {
@@ -1324,6 +1534,13 @@ final class Duel {
         let e0x: Double = hx + nx * bw * 0.6 + ca * bl * 0.1, e0y: Double = hy + ny * bw * 0.6 + sa * bl * 0.1
         let e1x: Double = hx + ca * bl * 0.55 + nx * bw * (curveK + 0.5), e1y: Double = hy + sa * bl * 0.55 + ny * bw * (curveK + 0.5)
         c.curve(e0x, e0y, e1x, e1y, hx + ca * bl * 0.92, hy + sa * bl * 0.92, max(0.8, s * 0.006), Col(0xffffff, 0.9))
+        // a glint slides from hilt to point as the steel turns in the light
+        let run = (t * 0.7 + x * 0.003).truncatingRemainder(dividingBy: 1)
+        if run < 0.45 {
+            let f = run / 0.45
+            let gx0: Double = hx + ca * bl * f, gy0: Double = hy + sa * bl * f
+            c.seg(gx0, gy0, gx0 + ca * bl * 0.12, gy0 + sa * bl * 0.12, max(1.5, bw * 1.3), Col(0xffffff, 0.75 * sin(f * PI)))
+        }
         let gl = 0.5 + 0.5 * sin(t * 6 + x * 0.05)
         if gl > 0.8 || p.trail {
             let gs = s * 0.045 * (p.trail ? 1.4 : gl)
