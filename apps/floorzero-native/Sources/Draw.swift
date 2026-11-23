@@ -1089,7 +1089,7 @@ final class Renderer {
                 cv.save(); cv.translate(z.x, gy); cv.scale(z.face * z.scale, z.scale)
                 if z.atkT >= 0 { cv.rotate(0.25) }
                 cv.RR(22, -152, 30, 124, 9, rgba(150, 195, 225, 0.42)); cv.RRStroke(22, -152, 30, 124, 9, 3, Col(0x0b0c10)); cv.RRStroke(24, -150, 26, 120, 8, 1.5, rgba(220, 240, 255, 0.7))
-                cv.R(24, -108, 26, 16, Col(0x161a24, 0.85)); cv.text("POLICE", 37, -97, 7, WHITE, 1, 3)
+                cv.R(24, -108, 26, 16, Col(0x161a24, 0.85)); cv.R(27, -103, 20, 2, WHITE.alpha(0.85)); cv.R(27, -98, 14, 2, WHITE.alpha(0.85))
                 for i in 0..<(5 - z.shield) { cv.seg(28 + Double(i) * 4, -140 + Double(i) * 17, 44 - Double(i) * 2, -122 + Double(i) * 15, 1.4, rgba(240, 250, 255, 0.85)) }
                 cv.restore()
             }
