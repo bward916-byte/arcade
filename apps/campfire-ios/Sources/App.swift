@@ -34,6 +34,8 @@ struct RootView: View {
     @State private var asking: String?
     @State private var waitingCount = 0
     @State private var answering = false
+    @State private var stripOff = false      // closed with the X: it stays away until the app is opened again
+    @State private var stripShown = false    // it tucks itself away 5 seconds after each tab change
 
     private func pickQuestion() async {
         guard let all = try? await Site.questions() else { return }
@@ -44,7 +46,8 @@ struct RootView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            if let q = asking {
+            if let q = asking, stripShown, !stripOff {
+                HStack(spacing: 0) {
                 Button {
                     answering = true
                 } label: {
@@ -56,10 +59,14 @@ struct RootView: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 14).padding(.vertical, 8)
-                    .background(Theme.soft.ignoresSafeArea(edges: .top))
                     .foregroundColor(Theme.primary)
                 }
                 .buttonStyle(.plain)
+                Button { stripOff = true } label: { Image(systemName: "xmark.circle.fill").font(.title3).foregroundColor(Theme.primary.opacity(0.7)).padding(.trailing, 12) }
+                    .accessibilityLabel("Close")
+                }
+                .background(Theme.soft.ignoresSafeArea(edges: .top))
+                .transition(.opacity)
             }
         TabView(selection: $tab) {
             ForSaleView().tabItem { Label("For Sale", systemImage: "tag") }.tag("sale")
@@ -73,7 +80,12 @@ struct RootView: View {
         .task { await guide.load() }
         .task { await AccountStore.shared.load() }
         .onReceive(NotificationCenter.default.publisher(for: LandAsk.note)) { _ in tab = "map" }
-        .task(id: tab) { await pickQuestion() }
+        .task(id: tab) {
+            await pickQuestion()
+            withAnimation { stripShown = true }
+            try? await Task.sleep(nanoseconds: 5_000_000_000)
+            if !Task.isCancelled { withAnimation { stripShown = false } }
+        }
         .sheet(isPresented: $answering, onDismiss: { Task { await pickQuestion() } }) {
             NavigationStack {
                 QuestionsView(startOpen: true)
