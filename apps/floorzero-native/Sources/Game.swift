@@ -716,11 +716,11 @@ final class Game {
             if h.atkStyle == 2 && h.atkT < dur * 0.4 { h.x += h.face * 260 * dt }
             if !h.atkHit && h.atkT >= dur * (fin ? 0.5 : 0.42) {
                 h.atkHit = true
-                var reach = 112.0, base = 15.0, knock = 170.0
+                var reach = 112.0, base = 15.0, knock = 70.0
                 var both = false
                 switch h.atkStyle {
-                case 2: reach = 140; base = 14; knock = 240          // thrust
-                case 3: reach = 118; base = 13; knock = 120          // low sweep
+                case 2: reach = 140; base = 14; knock = 110          // thrust
+                case 3: reach = 118; base = 13; knock = 40           // low sweep
                 case 4: reach = 96; base = 12; knock = 430           // kick
                 case 5: reach = 112; base = 18; knock = 260          // uppercut
                 case 6: reach = 150; base = 28; knock = 470; both = true   // spin
@@ -1029,7 +1029,7 @@ final class Game {
             }
             if ad > z.reach {
                 let canLunge = z.kind == .zed || z.kind == .runner || z.kind == .dog || z.kind == .burner
-                if canLunge && ad < z.reach + 150 && ad > z.reach + 40 && z.cd <= 0 && chance(dt * 1.6) {
+                if canLunge && ad < z.reach + 150 && ad > z.reach + 40 && z.cd <= 0 && chance(dt * 3.2) {
                     z.atkT = 0; z.atkHit = false; z.atkKind = 1
                     if z.kind == .dog { snd?.bark() }
                 } else {
@@ -1123,8 +1123,8 @@ final class Game {
         z.kvx = dir * knock * (heavy ? 0.25 : 1)
         // a light tap no longer stops them cold: only a hard hit, or luck, breaks an attack
         let hard = abs(knock) >= 240
-        z.stun = max(z.stun, heavy ? 0.06 : (z.kind == .wheel || z.kind == .riot ? 0.08 : (hard ? 0.22 : 0.1)))
-        if z.atkT >= 0 && !heavy && (hard || chance(0.35)) { z.atkT = -1; z.cd = 0.3 }
+        z.stun = max(z.stun, heavy ? 0.06 : (z.kind == .wheel || z.kind == .riot ? 0.08 : (hard ? 0.22 : 0.05)))
+        if z.atkT >= 0 && !heavy && (hard || chance(0.18)) { z.atkT = -1; z.cd = 0.3 }
         hits += 1; hitsT = 1.6
         var top = -110.0 * z.scale
         if z.kind == .rat { top = -14 } else if z.kind == .dog { top = -50 } else if z.kind == .crawler { top = -34 } else if z.kind == .crow { top = z.y }
@@ -1621,7 +1621,9 @@ final class Game {
         if f.kind == .wall && (h.x - f.wallX) * (target - f.wallX) < 0 { target = h.x < f.wallX ? f.doorA : f.doorB }
         var mv = sgn(target - h.x)
         input.attack = false
-        if let z = nearest(120) {
+        var foe = nearest(120)
+        if let z0 = foe, f.kind == .wall, (z0.x - f.wallX) * (h.x - f.wallX) < 0 { foe = nil }
+        if let z = foe {
             h.face = z.x >= h.x ? 1 : -1
             input.attack = !sloppy || Int(t * 2.5) % 3 != 0
             if !sloppy && (z.kind == .bloater || aliveCountNear(160) > 3) { mv = -h.face } else { mv = 0 }
