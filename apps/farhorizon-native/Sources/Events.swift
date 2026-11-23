@@ -278,21 +278,6 @@ extension Game {
         snd?.good()
         toast("The surgeon patches them up")
     }
-    func tavernRumour() {
-        let all = [
-            "The open sea is the quicker road, but that is where the black flags hunt.",
-            "Keep a man at the masthead. In fog he buys you time among the rocks.",
-            "Salt pork turns after five days out. A cook in the galley halves the waste.",
-            "A carpenter at his post mends a little of the hull every day at sea.",
-            "The Red Mary lies off Santa Aurelia. Her captain fights hardest when he is nearly beaten.",
-            "Blades for every hand make the parry easier when you are boarded.",
-            "Unpaid men walk. Count the wages before you buy the last cask of powder.",
-            "A gunner and two charges of powder thin a pirate crew before the boarding."
-        ]
-        rumourHeard = true
-        snd?.click()
-        show("The barkeep leans in", all[(leg * 3 + day) % all.count], [Opt("Good to know") { [unowned self] in self.card = nil }])
-    }
     func shipwright() {
         let need = Int(Double(ship.hull) - hull)
         let cost = need * 2

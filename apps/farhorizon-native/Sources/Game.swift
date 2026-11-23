@@ -64,6 +64,12 @@ final class Game {
     var legEvents = 0
     var legFrom = ""
     var rumourHeard = false
+    // what is going on in this port: 0 nothing, 1 dock work, 2 a thief, 3 rats in the stores, 4 a festival, 5 an old sailor's barrels
+    var portJob = 0
+    var portJobDone = false
+    var festT = 0.0
+    var bellT = 6.0
+    var bellSwing = 0.0
     var cardT = 9.0          // seconds since the card on screen appeared
     var uiLock = false       // buttons are not live while a card is still flying in
     var rings: [(x: Double, y: Double, w: Double, h: Double, t: Double)] = []
@@ -459,6 +465,7 @@ final class Game {
         snd?.good()
         mode = .port
         rumourHeard = false
+        portJob = rndI(1, 5); portJobDone = false; festT = 0; bellT = 5
         if weather == 3 { setWeather(2, days: 1) }
         sum = LegSum(from: legFrom, to: here.n, days: day - leg0Day, leagues: Int(legLen), events: legEvents, gold: gold - leg0Gold, lost: max(0, leg0Crew - crew), hull: Int((hull / Double(max(1, ship.hull)) * 100).rounded()), fights: fights - leg0Fights, wages: wagesDue())
         sumT = 0
@@ -504,6 +511,9 @@ final class Game {
         case .title, .pick, .outfit:
             scroll += dt * 50
             if mode == .title { tod = 0.3 + 0.05 * sin(T * 0.07) }
+        case .port:
+            if card == nil, play != nil { updatePlay(dt) }
+            updateTown(dt)
         case .sail:
             if card == nil, play != nil {
                 updatePlay(dt)
@@ -537,7 +547,7 @@ final class Game {
 
     func touchDown(_ x: Double, _ y: Double) {
         isDown = true; downX = x; downY = y
-        if mode == .sail && card == nil && play != nil { tapPlay(x, y); return }
+        if (mode == .sail || mode == .port) && card == nil && play != nil { tapPlay(x, y); return }
         if mode == .duel && card == nil { duel?.touch(x, y, self) }
     }
     func touchMove(_ x: Double, _ y: Double) {}
@@ -567,7 +577,10 @@ final class Game {
         if name == "night" { tod = 0.8 }
         if name == "event" { event("pirates") }
         if name == "result" { event("ghost"); done("Her hold is full of old silver: +212 gold") }
-        if name == "port" { leg = 1; mode = .port }
+        if name == "port" { leg = 1; mode = .port; portJob = 2 }
+        if name == "town" { leg = 1; mode = .port; portJob = 1; tod = 0.3 }
+        if name == "townnight" { leg = 2; mode = .port; portJob = 4; tod = 0.8; festT = 30 }
+        if name == "thief" { leg = 1; mode = .port; playThief() }
         if name == "tavern" { leg = 1; mode = .port; tavern() }
         if name == "summary" { leg = 1; mode = .port; legFrom = "Port Haven"; sum = LegSum(from: "Port Haven", to: here.n, days: 7, leagues: 255, events: 3, gold: 140, lost: 0, hull: 86, fights: 1, wages: wagesDue()); sumT = 0; sumRow = -1 }
         if name == "storm" { playStorm(); wxDark = 0.85; wxRain = 1; rough = 1; boltT = 7.6 }

@@ -146,7 +146,7 @@ extension Game {
         let down = laidUp()
         let full = crew >= ship.crew
         let gap = 8.0
-        let bw = (W - safeL - safeR - gap * 4) / 5
+        let bw = (W - safeL - safeR - gap * 3) / 4
         let by = H - safeB - 52
         let fy = by - 10
         func cx(_ i: Int) -> Double { return safeL + Double(i) * (bw + gap) + bw / 2 }
@@ -167,16 +167,14 @@ extension Game {
             (rec == nil ? "No one to hire" : "Hire " + (rec?.n ?? ""), rec == nil ? "come back next port" : (full ? "crew full" : roleName(rec?.sk ?? "").lowercased() + " · 40 gold"), rec == nil || full),
             ("Treasure map", hasMap ? "you have one" : "120 gold", hasMap),
             ("Surgeon", down > 0 ? "\(down) laid up · \(down * 20) gold" : "all hands well", down == 0),
-            ("Rumours", rumourHeard ? "nothing new tonight" : "ask the barkeep", rumourHeard),
             ("Leave", "back to the quay", false)
         ]
         for (i, nm) in names.enumerated() {
-            btn(c, safeL + Double(i) * (bw + gap), by, bw, 46, nm.0, nm.1, gold: i == 4, off: nm.2) { [unowned self] in
+            btn(c, safeL + Double(i) * (bw + gap), by, bw, 46, nm.0, nm.1, gold: i == 3, off: nm.2) { [unowned self] in
                 switch i {
                 case 0: self.tavernHire()
                 case 1: self.tavernMap()
                 case 2: self.tavernSurgeon()
-                case 3: self.tavernRumour()
                 default: self.mode = .port
                 }
             }

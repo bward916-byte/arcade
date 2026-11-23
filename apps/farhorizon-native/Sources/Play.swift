@@ -57,6 +57,7 @@ extension Game {
     func startPlay(_ p: Play) {
         card = nil
         play = p
+        if mode == .port { evTitle = p.title }
         snd?.whoosh()
     }
     /// Where the ship sits on the sailing screen: middle of the waterline and her length.
@@ -71,7 +72,7 @@ extension Game {
         p.msgT = max(0, p.msgT - dt)
         // the sea keeps moving behind the game
         tod = (tod + dt / DAYLEN * 0.05).truncatingRemainder(dividingBy: 1)
-        scroll += dt * (p.theme == "wreck" || p.theme == "island" || p.theme == "ghost" ? 8 : 70 * ship.speed)
+        scroll += dt * (mode == .port || p.theme == "wreck" || p.theme == "island" || p.theme == "ghost" ? 8 : 70 * ship.speed)
         if p.endT >= 0 {
             p.endT -= dt
             if p.endT < 0 && !p.finished {
@@ -94,6 +95,9 @@ extension Game {
                 if p.theme == "leak" {
                     x = sx + rnd(-0.4, 0.34) * len
                     y = wy - rnd(0.01, 0.085) * len
+                } else if p.theme == "thief" || p.theme == "rats" {
+                    x = rnd(W * 0.46, W - safeR - 40)
+                    y = quayY() - (p.theme == "thief" ? 14 : 4)
                 } else {
                     x = rnd(W * 0.6, W - safeR - 50)
                     y = rnd(wy - 6, H - safeB - 40)
@@ -114,7 +118,7 @@ extension Game {
                         shake = 0.25
                         snd?.thud()
                         buzz?(true)
-                        p.say(p.theme == "leak" ? "She's taking water!" : "Struck a rock!", false)
+                        p.say(p.theme == "leak" ? "She's taking water!" : (p.theme == "thief" ? "He ducks away!" : (p.theme == "rats" ? "Into the stores!" : "Struck a rock!")), false)
                     } else {
                         open += 1
                     }
@@ -145,6 +149,7 @@ extension Game {
                 case "storm": p.say(perfect ? "Dead on the wave!" : "She rides over it", true)
                 case "run": p.say(perfect ? "Every stitch drawing!" : "The sails fill", true)
                 case "fish": p.say(perfect ? "A big one!" : "Hooked!", true); snd?.splash(); puff(sx - len * 0.45, wy + 2, 16, Col(0xffffff, 0.9), 160, 300, 2.4, 0.5)
+                case "dock": p.say(perfect ? "Stowed like a master!" : "Aboard she goes", true); snd?.coin()
                 default: p.say("He has the line!", true)
                 }
             } else {
@@ -155,6 +160,7 @@ extension Game {
                 case "storm": p.say("A sea breaks over the rail!", false); shake = 0.35; puff(sx, wy - len * 0.2, 30, Col(0xffffff, 0.85), 260, 320, 3, 0.7); snd?.splash()
                 case "run": p.say("The canvas flogs", false)
                 case "fish": p.say("It slipped the hook", false)
+                case "dock": p.say("The load swings wide!", false)
                 default: p.say("The line falls short", false); snd?.splash()
                 }
             }
@@ -312,6 +318,16 @@ extension Game {
                             c.seg(tg.x, tg.y, tg.x + cos(a) * l, tg.y + sin(a) * l * 0.8 + l * 0.25, 2.2, Col(0xbfe6ff, 0.9))
                         }
                         c.circ(tg.x, tg.y, 4, Col(0x0a0604))
+                    } else if p.theme == "thief" {
+                        // a hooded figure with a purse, looking for a gap in the crowd
+                        let pop = min(1, tg.age / 0.15)
+                        c.RR(tg.x - 7, tg.y - 4 - 20 * pop, 14, 24 * pop, 4, Col(0x23232c))
+                        c.circ(tg.x, tg.y - 28 * pop, 7, Col(0x23232c)); c.circ(tg.x + 1, tg.y - 27 * pop, 4, Col(0xe3b58a))
+                        c.circ(tg.x + 10, tg.y - 10 * pop, 4.5, Col(0xd9a441)); c.circ(tg.x + 10, tg.y - 10 * pop, 2, Col(0xfff2c0))
+                    } else if p.theme == "rats" {
+                        let rx = tg.x + sin(T * 14 + tg.x) * 3
+                        c.ell(rx, tg.y, 10, 5.5, Col(0x5a5560)); c.circ(rx + 9, tg.y - 1, 4, Col(0x5a5560)); c.circ(rx + 10, tg.y - 5, 2, Col(0x8a8590))
+                        c.curve(rx - 9, tg.y, rx - 18, tg.y - 6, rx - 22, tg.y + 2, 1.3, Col(0xc99a9a)); c.circ(rx + 11, tg.y - 1.5, 0.9, Col(0x000000))
                     } else {
                         // a rock breaking the surface
                         let rise = min(1, tg.age / 0.25)
@@ -327,13 +343,13 @@ extension Game {
                         c.RR(tg.x - 9, tg.y - 6, 18, 12, 2, Col(0xc9a86a, 0.5 + 0.5 * a))
                         c.circ(tg.x - 6, tg.y - 3, 1.2, Col(0x3a2412)); c.circ(tg.x + 6, tg.y + 3, 1.2, Col(0x3a2412))
                     } else {
-                        c.textS("Clear!", tg.x, tg.y - 20 - (1 - a) * 14, 15, Col(0x9ff0aa, a), 0, FONTB)
+                        c.textS(p.theme == "thief" || p.theme == "rats" ? "Got him!" : "Clear!", tg.x, tg.y - 20 - (1 - a) * 14, 15, Col(0x9ff0aa, a), 0, FONTB)
                     }
                 } else if tg.state == 2 && tg.age < 0.7 {
                     c.textS("✕", tg.x, tg.y, 26, Col(0xff5a3c, 1 - tg.age / 0.7), 0, FONTB)
                 }
             }
-            c.textS((p.theme == "leak" ? "Plugged " : "Cleared ") + "\(p.score) / \(p.total)", W / 2, H - safeB - 22, 16, CREAM, 0, FONTB)
+            c.textS((p.theme == "leak" ? "Plugged " : (p.theme == "thief" || p.theme == "rats" ? "Caught " : "Cleared ")) + "\(p.score) / \(p.total)", W / 2, H - safeB - 22, 16, CREAM, 0, FONTB)
         case .pick:
             let r = pickRects(p)
             for (i, q) in r.enumerated() {
@@ -512,6 +528,66 @@ extension Game {
         p.picksLeft = picks
         startPlay(p)
     }
+    // ---------- things that happen ashore
+    func playDock() {
+        let p = Play(.timing, "dock", "Work on the docks", "Swing each load aboard as the crane comes over") { [unowned self] p in
+            let g = p.score * 14 + p.perfect * 8
+            self.gold += g
+            self.portJobDone = true
+            if g > 0 { self.snd?.coin() }
+            self.done(g > 0 ? "The merchant counts out \(g) gold for \(p.score) loads" : "Every load in the harbour. No pay today")
+        }
+        p.rounds = 5
+        p.zone = 0.24
+        p.speed = 1.2
+        startPlay(p)
+    }
+    func playThief() {
+        let p = Play(.taps, "thief", "Stop, thief!", "A cutpurse is working the quay. Tap him when he shows") { [unowned self] p in
+            self.portJobDone = true
+            if p.score >= 3 {
+                let g = 30 + p.score * 10
+                self.gold += g
+                self.snd?.coin()
+                self.done("Collared! The merchants pay \(g) gold for their purses back")
+            } else {
+                let lost = min(self.gold, 25)
+                self.gold -= lost
+                self.done(lost > 0 ? "He is gone into the alleys, and \(lost) of your gold with him" : "He is gone into the alleys")
+            }
+        }
+        p.total = 5
+        p.life = 1.15
+        startPlay(p)
+    }
+    func playRats() {
+        let p = Play(.taps, "rats", "Rats on the gangway", "They are after your stores. Tap each one") { [unowned self] p in
+            self.portJobDone = true
+            let eaten = Double(p.missed * 2)
+            self.food = max(0, self.food - eaten)
+            if p.missed == 0 { self.gold += 20; self.snd?.coin() }
+            self.done(p.missed == 0 ? "Not one got aboard. The harbour master pays a 20 gold bounty" : "\(p.missed) got into the hold: \(Int(eaten)) food spoiled")
+        }
+        p.total = 6
+        p.life = 1.2
+        startPlay(p)
+    }
+    func playBarrels() {
+        portJobDone = true
+        var s = [3, 6, 4, 1, 0]
+        if chance(0.35) { s[4] = 8 }
+        playPick("wreck", "An old sailor's gift", "\"Sailed with your father, I did. Take two, with my blessing.\"", s, 2) { return "" }
+    }
+    func joinFestival() {
+        portJobDone = true
+        festT = 14
+        snd?.good()
+        let f = addGood("food", 6)
+        var healed = ""
+        if let m = men.first(where: { !$0.fit }) { m.st = 0; m.d = 0; healed = " " + m.n + " is back on his feet." ; autoPost() }
+        show("Festival night", "Drums, roast pig and fireworks over the harbour. The crew come back singing.\n+\(f) food from the feast." + healed, [Opt("Watch the fireworks") { [unowned self] in self.card = nil }])
+    }
+
     func playWreck() {
         var s = [4, 3, 1, 0, 7]
         if chance(0.5) { s[3] = 5 }
