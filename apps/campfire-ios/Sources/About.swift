@@ -45,12 +45,17 @@ enum Waiting {
 // The rules, privacy, terms and how to reach the owner.
 struct AboutView: View {
     @Environment(\.dismiss) private var dismiss
+    @ObservedObject private var account = AccountStore.shared
+    @State private var showAccount = false
 
     var body: some View {
         NavigationStack {
             List {
                 Section {
-                    Text("Quartzsite Campfire is a free guide, map, question board and classifieds for campers around Quartzsite, Arizona. It is run by one person. There are no accounts and no passwords.")
+                    Text("Quartzsite Campfire is a free guide, map, question board and classifieds for campers around Quartzsite, Arizona. It is run by one person. You can use everything without an account. An account is optional and has no password.")
+                }
+                Section("My account") {
+                    Button(account.me == nil ? "Sign in or join" : "My account: " + (account.me?.handle ?? "")) { showAccount = true }
                 }
                 Section("Rules for posting") {
                     Text("Be kind. No harassment, hate, sexual content, scams or illegal items.")
@@ -67,6 +72,7 @@ struct AboutView: View {
                     Link("Email info@qcampfire.com", destination: URL(string: "mailto:info@qcampfire.com")!)
                 }
             }
+            .sheet(isPresented: $showAccount) { AccountView() }
             .navigationTitle("About")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

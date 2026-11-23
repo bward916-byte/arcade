@@ -71,6 +71,7 @@ struct RootView: View {
         }
         .environmentObject(guide)
         .task { await guide.load() }
+        .task { await AccountStore.shared.load() }
         .task(id: tab) { await pickQuestion() }
         .sheet(isPresented: $answering, onDismiss: { Task { await pickQuestion() } }) {
             NavigationStack {

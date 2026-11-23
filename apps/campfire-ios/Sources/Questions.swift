@@ -11,6 +11,9 @@ struct QAnswer: Identifiable {
     var up: Int
     let said: Int
     let waiting: Bool   // not passed by the check yet, so only its poster sees it
+    var photo =       // the poster's account photo, if they have an account with one
+    var acct = false    // posted from an account
+    var mine = false    // posted from the account signed in on this phone
 }
 
 struct Question: Identifiable {
@@ -21,6 +24,9 @@ struct Question: Identifiable {
     let edited: Bool
     let waiting: Bool
     var answers: [QAnswer]
+    var photo = ""
+    var acct = false
+    var mine = false
 }
 
 // The private keys this phone was given for its own questions and answers, so their owner can edit or delete them with no account.
@@ -59,6 +65,8 @@ struct QuestionsView: View {
     @State private var editing = ""                      // id of the question or answer being edited
     @State private var editText = ""
     @AppStorage(Hidden.name) private var hiddenRaw = ""
+    @ObservedObject private var account = AccountStore.shared
+    @State private var signingIn = false
     @State private var backEmail = ""                    // getting back into posts made on another device
     @State private var backCode = ""
     @State private var backNote = ""
@@ -95,6 +103,7 @@ struct QuestionsView: View {
 
     var body: some View {
         List {
+            Section { HelpersCard(signedIn: account.me != nil) { signingIn = true } }
             Section {
                 TextField("Type a question. Where can I…?", text: $asking, axis: .vertical).lineLimit(2...4)
                 ForEach(matches, id: \.self) { card in
@@ -104,8 +113,13 @@ struct QuestionsView: View {
                         Label(card.title, systemImage: "book").font(.subheadline.weight(.semibold))
                     }
                 }
-                TextField("Your first name or camp (optional)", text: $name)
-                TextField("Email (optional, never shown)", text: $email).keyboardType(.emailAddress).textInputAutocapitalization(.never).autocorrectionDisabled()
+                if let me = account.me {
+                    HStack(spacing: 8) { Avatar(photo: me.photo, name: me.handle, size: 26); Text("Posting as ") + Text(me.handle).bold() }.font(.subheadline)
+                } else {
+                    TextField("Your first name or camp (optional)", text: $name)
+                    TextField("Email (optional, never shown)", text: $email).keyboardType(.emailAddress).textInputAutocapitalization(.never).autocorrectionDisabled()
+                    Button("Sign in to post with your camp name and photo") { signingIn = true }.buttonStyle(.borderless).font(.footnote)
+                }
                 Button(sending ? "Posting…" : "Ask campers") { ask() }.disabled(sending)
                 if !note.isEmpty { Text(note).font(.footnote).foregroundColor(.secondary) }
             } header: {
@@ -151,15 +165,15 @@ struct QuestionsView: View {
             ForEach(shown) { q in
                 Section {
                     DisclosureGroup {
-                        Text(byline(q)).font(.footnote).foregroundColor(.secondary)
+                        HStack(spacing: 6) { if q.acct { Avatar(photo: q.photo, name: q.name, size: 22) }; Text(byline(q)).font(.footnote).foregroundColor(.secondary) }
                         if q.waiting { Text("Only you can see this until a quick check passes it.").font(.footnote).italic().foregroundColor(.secondary) }
-                        mine(question: q.id, answer: "", text: q.text, joined: false)
-                        reportButton(question: q.id, answer: "")
+                        mine(question: q.id, answer: "", text: q.text, joined: false, own: q.mine)
+                        reportButton(question: q.id, answer: "", own: q.mine)
                         ForEach(ordered(q.answers)) { a in
                             VStack(alignment: .leading, spacing: 6) {
                                 if a.guide { Text("From the guide: " + a.title).font(.subheadline.weight(.semibold)).foregroundColor(Theme.primary) }
                                 Text(a.text).font(.subheadline).textSelection(.enabled)
-                                Text(byline(a)).font(.footnote).foregroundColor(.secondary)
+                                HStack(spacing: 6) { if a.acct && !a.guide && a.said <= 1 { Avatar(photo: a.photo, name: a.name, size: 22) }; Text(byline(a)).font(.footnote).foregroundColor(.secondary) }
                                 if a.waiting { Text("Only you can see this until a quick check passes it.").font(.footnote).italic().foregroundColor(.secondary) }
                                 Button {
                                     thank(q.id, a.id)
@@ -168,8 +182,8 @@ struct QuestionsView: View {
                                 }
                                 .buttonStyle(.borderless).font(.footnote)
                                 .disabled(MyPosts.thanked(a.id))
-                                if !a.guide { mine(question: q.id, answer: a.id, text: a.text, joined: a.said > 1) }
-                                if !a.guide { reportButton(question: q.id, answer: a.id) }
+                                if !a.guide { mine(question: q.id, answer: a.id, text: a.text, joined: a.said > 1, own: a.mine) }
+                                if !a.guide { reportButton(question: q.id, answer: a.id, own: a.mine) }
                             }
                             .padding(.vertical, 2)
                         }
@@ -196,6 +210,7 @@ struct QuestionsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .task { await load() }
         .refreshable { await load() }
+        .sheet(isPresented: $signingIn, onDismiss: { Task { await load() } }) { AccountView() }
     }
 
     // Small pieces of text, worked out here so the screen layout above stays simple.
@@ -217,9 +232,10 @@ struct QuestionsView: View {
 
     // Edit and Delete, shown only on this phone's own posts.
     @ViewBuilder
-    private func mine(question: String, answer: String, text: String, joined: Bool) -> some View {
+    private func mine(question: String, answer: String, text: String, joined: Bool, own: Bool) -> some View {
         let id = answer.isEmpty ? question : answer
-        if let key = MyPosts.key(id), !joined {
+        let key = MyPosts.key(id) ?? ""     // an account owns its posts on any phone, with no key
+        if !key.isEmpty || own, !joined {
             if editing == id {
                 TextField("Your words", text: $editText, axis: .vertical).lineLimit(1...5)
                 HStack {
@@ -241,9 +257,9 @@ struct QuestionsView: View {
 
     // Report, shown on other people's posts. It tells the owner and hides the post on this phone.
     @ViewBuilder
-    private func reportButton(question: String, answer: String) -> some View {
+    private func reportButton(question: String, answer: String, own: Bool) -> some View {
         let id = answer.isEmpty ? question : answer
-        if MyPosts.key(id) == nil {
+        if MyPosts.key(id) == nil && !own {
             Button(role: .destructive) {
                 Hidden.add(id)
                 note = "Reported, and hidden on this phone. Thank you."
