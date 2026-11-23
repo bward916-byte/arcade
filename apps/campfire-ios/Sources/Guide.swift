@@ -176,6 +176,9 @@ struct GuideView: View {
                     .listRowInsets(EdgeInsets())
                     .listRowBackground(Color.clear)
                 }
+                if search.isEmpty && section == "services" {
+                    Section { GPSCard(pins: guide.data?.pins ?? []) } header: { Text("In an emergency") }
+                }
                 if search.isEmpty && (section == "start" || section == "camping") {
                     Section { LandAskButton() }
                         .listRowInsets(EdgeInsets())
