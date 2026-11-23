@@ -14,6 +14,10 @@ final class Sound {
         var low = 0.0
         var band = 0.0
         var q = 1.0
+        var shape = 0        // 0 struck and dying away, 1 swelling in and out
+        var att = 0.008
+        var rel = 0.1
+        var vib = 0.0
     }
 
     private let engine = AVAudioEngine()
@@ -62,8 +66,15 @@ final class Sound {
                 if v.t < 0 || v.t > v.dur { voices[k] = v; continue }
                 let u = v.t / v.dur
                 // a few milliseconds of attack so notes do not click
-                let env = v.vol * pow(0.0001 / max(v.vol, 0.0002), u) * min(1, v.t / 0.008)
-                let f = v.f2 > 0 ? v.f * pow(v.f2 / v.f, u) : v.f
+                var env = 0.0
+                if v.shape == 1 {
+                    let a = min(1, v.t / v.att), r = min(1, (v.dur - v.t) / v.rel)
+                    env = v.vol * a * a * (3 - 2 * a) * r
+                } else {
+                    env = v.vol * pow(0.0001 / max(v.vol, 0.0002), u) * min(1, v.t / 0.008)
+                }
+                var f = v.f2 > 0 ? v.f * pow(v.f2 / v.f, u) : v.f
+                if v.vib > 0 { f *= 1 + v.vib * sin(2 * PI * 5.6 * v.t) * min(1, v.t / 0.25) }
                 var x = 0.0
                 if v.wave == 4 {
                     let white = Double.random(in: -1...1)
@@ -100,7 +111,7 @@ final class Sound {
     private func add(_ v: Voice) {
         if muted || !running { return }
         lock.lock()
-        if voices.count < 44 { voices.append(v) }
+        if voices.count < 64 { voices.append(v) }
         lock.unlock()
     }
     func tone(_ f: Double, _ d: Double, _ wave: Int, _ vol: Double, _ f2: Double = 0, _ delay: Double = 0) {
@@ -113,6 +124,21 @@ final class Sound {
         v.q = 1 / max(0.5, q)
         add(v)
     }
+    /// A held note: swells in, holds, lets go. Used for the tune and the chords.
+    func held(_ f: Double, _ d: Double, _ wave: Int, _ vol: Double, att: Double = 0.02, rel: Double = 0.1, vib: Double = 0, delay: Double = 0) {
+        if vol <= 0.0005 { return }
+        var v = Voice(wave: wave, f: f, f2: 0, dur: d, vol: vol, t: -delay)
+        v.shape = 1; v.att = att; v.rel = max(0.02, rel); v.vib = vib
+        add(v)
+    }
+    /// Noise that swells and fades, sliding from one pitch to another: surf, wind, rain.
+    func wash(_ d: Double, _ vol: Double, _ f: Double, _ f2: Double, q: Double = 0.7, att: Double = 0.6, rel: Double = 1.0, delay: Double = 0) {
+        if vol <= 0.0005 { return }
+        var v = Voice(wave: 4, f: f, f2: f2, dur: d, vol: vol, t: -delay)
+        v.q = 1 / max(0.5, q)
+        v.shape = 1; v.att = att; v.rel = rel
+        add(v)
+    }
     func click() { tone(520, 0.05, 0, 0.07, 480) }
     func coin() { tone(900, 0.12, 2, 0.04, 1500); tone(1350, 0.14, 2, 0.035, 2000, 0.07) }
     func good() { tone(523, 0.14, 1, 0.1); tone(784, 0.26, 1, 0.1, 0, 0.11) }
@@ -123,8 +149,59 @@ final class Sound {
     func whoosh() { noise(0.16, 0.12, 2400, 3) }
     func thud() { noise(0.1, 0.3, 380, 1.5); tone(130, 0.12, 3, 0.07, 70) }
     func splash() { noise(0.3, 0.14, 1800, 2); noise(0.2, 0.1, 600, 1.5) }
-    func thunder() { noise(1.8, 0.6, 120, 1) }
-    func gull() { tone(1500, 0.18, 0, 0.03, 1100); tone(1600, 0.22, 0, 0.03, 1050, 0.24) }
+    func thunder() {
+        noise(0.12, 0.5, 3200, 1)
+        noise(0.5, 0.55, 700, 1)
+        wash(3.4, 0.5, 160, 60, q: 0.8, att: 0.05, rel: 2.6)
+        wash(2.4, 0.3, 90, 50, q: 0.8, att: 0.4, rel: 1.6, delay: 0.7)
+    }
+    func gull() {
+        let n = Int.random(in: 2...4)
+        let base = Double.random(in: 1500...1900)
+        for i in 0..<n {
+            let d = Double(i) * 0.27
+            tone(base * 1.12, 0.09, 5, 0.022, base * 1.35, d)
+            tone(base * 1.3, 0.2, 5, 0.026, base * 0.82, d + 0.07)
+        }
+    }
+    func creak() { tone(96, 0.5, 3, 0.02, 71); tone(142, 0.3, 3, 0.012, 118, 0.2) }
+    func bell() { tone(1320, 1.6, 0, 0.05); tone(1980, 1.1, 0, 0.02); tone(2640, 0.7, 0, 0.012) }
+
+    // ---------- the world around the ship: surf, wind, rain, gulls, timbers
+    private var ambWave = 0.0, ambGull = 4.0, ambRain = 0.0, ambWind = 0.0, ambCreak = 6.0, ambRoom = 0.0
+    func ambient(_ now: Double, sea: Bool, rough: Double, rain: Double, birds: Bool, room: Bool) {
+        if muted || !running { return }
+        if sea && now >= ambWave {
+            // a wave runs up and draws back
+            wash(2.4 + rough, 0.05 + 0.07 * rough, 380, 1500, q: 0.7, att: 1.1, rel: 1.2)
+            wash(1.9, 0.03 + 0.03 * rough, 1700, 600, q: 0.7, att: 0.5, rel: 1.3, delay: 1.5 + rough * 0.5)
+            ambWave = now + Double.random(in: 2.6...3.8) - rough * 0.9
+        }
+        if rain > 0.08 && now >= ambRain {
+            wash(1.5, 0.04 * rain, 5200, 4600, q: 0.5, att: 0.4, rel: 0.6)
+            wash(1.5, 0.02 * rain, 2400, 2600, q: 0.5, att: 0.5, rel: 0.6, delay: 0.3)
+            ambRain = now + 0.85
+        }
+        if rough > 0.45 && now >= ambWind {
+            let f = Double.random(in: 260...420)
+            wash(3.2, 0.06 * rough, f, f * Double.random(in: 1.3...1.9), q: 4, att: 1.2, rel: 1.6)
+            ambWind = now + Double.random(in: 1.8...3)
+        }
+        if birds && now >= ambGull {
+            gull()
+            ambGull = now + Double.random(in: 5...12)
+        }
+        if sea && now >= ambCreak {
+            creak()
+            ambCreak = now + Double.random(in: 6...13) - rough * 3
+        }
+        if room && now >= ambRoom {
+            // a low murmur of voices, a mug set down now and then
+            wash(2.6, 0.035, Double.random(in: 300...520), Double.random(in: 300...520), q: 1.5, att: 0.8, rel: 1.2)
+            if Double.random(in: 0..<1) < 0.4 { tone(2100, 0.08, 0, 0.02, 1900, Double.random(in: 0.2...1.5)); noise(0.05, 0.05, 900, 2) }
+            ambRoom = now + 1.7
+        }
+    }
 
     // ---------- music: a small band per mood — melody, a harmony line, bass, held chords, a plucked accompaniment and drums
     private struct Track {
@@ -191,15 +268,25 @@ final class Sound {
         if at < la { nt = tr.a[at] } else if at < la * 2 { nt = tr.a[at - la]; section = 1 } else if at < la * 2 + lb { nt = tr.b[at - la * 2]; section = 2 } else { nt = tr.a[at - la * 2 - lb]; section = 3 }
         let dur = Double(nt.1) * tr.u
         let v = tr.vol
+        let secStart = at == 0 || at == la || at == la * 2 || at == la * 2 + lb
+        if secStart && tr.drum == 0 { tone(hz(tr.bass[0] + 36), 1.8, 0, 0.018 * v); tone(hz(tr.bass[0] + 43), 1.4, 0, 0.01 * v) }
         if nt.0 > 0 {
-            tone(hz(nt.0), dur * 1.15, tr.lead, 0.042 * v)
-            tone(hz(nt.0) * 2.003, dur * 0.6, 0, 0.01 * v)
+            // the tune: a held, singing note with a little vibrato and a detuned twin for width
+            let long = nt.1 >= 2
+            held(hz(nt.0), dur * 1.02, tr.lead, 0.03 * v, att: 0.025, rel: min(0.14, dur * 0.4), vib: long ? 0.006 : 0)
+            held(hz(nt.0) * 1.004, dur * 1.02, 1, 0.014 * v, att: 0.04, rel: min(0.14, dur * 0.4), vib: long ? 0.006 : 0)
+            tone(hz(nt.0) * 2.003, dur * 0.6, 0, 0.009 * v)
             if section == 1 || section == 3 {
                 // a third below, in key
-                tone(hz(degree(nt.0, -2, tr.scale)), dur * 1.1, 1, 0.022 * v)
+                held(hz(degree(nt.0, -2, tr.scale)), dur, 1, 0.019 * v, att: 0.03, rel: min(0.12, dur * 0.4))
             } else if section == 2 {
-                // the second tune is doubled an octave down
-                tone(hz(nt.0 - 12), dur * 1.1, 1, 0.02 * v)
+                // the second tune is doubled an octave down, and answered an octave up on long notes
+                held(hz(nt.0 - 12), dur, 5, 0.018 * v, att: 0.03, rel: min(0.12, dur * 0.4))
+                if nt.1 >= 3 { tone(hz(degree(nt.0, 2, tr.scale) + 12), tr.u * 1.5, 1, 0.014 * v, 0, tr.u * Double(nt.1 - 1)) }
+            }
+            if section == 3 && nt.1 >= 2 {
+                // a little run fills the long notes on the last time round
+                tone(hz(degree(nt.0, 4, tr.scale)), tr.u * 0.8, 1, 0.012 * v, 0, tr.u)
             }
         }
         for b in beat..<(beat + nt.1) {
@@ -211,10 +298,11 @@ final class Sound {
             if inBeat == 0 {
                 tone(hz(root), tr.u * Double(tr.be) * 0.9, 0, 0.06 * v, 0, delay)
                 // the chord held softly above the bass
-                let hold = tr.u * Double(tr.be) * 1.6
-                tone(hz(root + 12), hold, 0, 0.011 * v, 0, delay)
-                tone(hz(third + 12), hold, 0, 0.011 * v, 0, delay)
-                tone(hz(fifth + 12), hold, 0, 0.011 * v, 0, delay)
+                let hold = tr.u * Double(tr.be) * 1.25
+                held(hz(root + 12), hold, 5, 0.0075 * v, att: 0.12, rel: 0.3, delay: delay)
+                held(hz(third + 12), hold, 0, 0.0085 * v, att: 0.12, rel: 0.3, delay: delay)
+                held(hz(fifth + 12), hold, 0, 0.0085 * v, att: 0.12, rel: 0.3, delay: delay)
+                tone(hz(root + 12), tr.u * 1.2, 1, 0.014 * v, 0, delay)
             } else {
                 // plucked chord notes between the beats
                 let pick = [fifth + 12, third + 24, root + 24][(b + bi) % 3]

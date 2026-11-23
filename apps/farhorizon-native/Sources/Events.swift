@@ -5,7 +5,7 @@ import Foundation
 extension Game {
     /// Ends an event. An outcome is shown as its own card, so the player always sees what happened.
     func done(_ msg: String) {
-        let title = card?.title ?? ""
+        let title = card?.title ?? evTitle
         card = nil
         if msg.isEmpty || over { return }
         toastT = 0
@@ -14,6 +14,7 @@ extension Game {
 
     func rollEvent() {
         sinceEvent = 0
+        legEvents += 1
         // name, weight by the open sea, weight along the coast
         let table: [(String, Double, Double)] = [
             ("storm", 3, 1.4), ("pirates", 2.6, 1.3), ("fish", 1.4, 3), ("wreck", 2, 2), ("island", 1.1, 2.4), ("calm", 1.2, 1),
@@ -37,14 +38,7 @@ extension Game {
         case "storm":
             logIt("Ran into a storm")
             show("Storm ahead", "Black clouds are closing fast.", [
-                Opt("Ride it out", "trust the helm and the rigging") { [unowned self] in
-                    let d = max(2, Double(rndI(5, 14)) - 2.5 * self.E("rig") - 1.5 * self.E("helm"))
-                    self.snd?.thunder()
-                    self.dmg(d)
-                    if self.over { return }
-                    if chance(0.25) { self.hurtOne("thrown across the deck") }
-                    self.done("You came through. The storm cost \(Int(d)) hull")
-                },
+                Opt("Take the helm", "steer her through it yourself") { [unowned self] in self.playStorm() },
                 Opt("Reef sails and wait", "lose 2 days") { [unowned self] in
                     self.passDays(2)
                     if self.over { return }
@@ -55,7 +49,6 @@ extension Game {
         case "pirates":
             logIt("Pirates sighted")
             let tribute = max(40, Int(Double(gold) * 0.25))
-            let ch = clampD(0.42 * ship.speed + 0.12 * E("look"), 0.2, 0.92)
             let n = rndI(3, 4)
             let prize = rndI(90, 200)
             show("Pirates!", "A black flag on the horizon.", [
@@ -69,13 +62,7 @@ extension Game {
                     }
                     self.startDuel(foes: foes, boss: false, prize: prize)
                 },
-                Opt("Run", "\(Int(ch * 100))% chance") { [unowned self] in
-                    if chance(ch) { self.done("You outran them"); return }
-                    self.dmg(10)
-                    if self.over { return }
-                    self.toast("They caught you!")
-                    self.startDuel(foes: n, boss: false, prize: prize)
-                },
+                Opt("Run", "trim the sails and outpace her") { [unowned self] in self.playRun(n, prize) },
                 Opt("Pay tribute", "\(tribute) gold") { [unowned self] in
                     self.gold = max(0, self.gold - tribute)
                     self.done("Paid \(tribute) gold")
@@ -97,51 +84,18 @@ extension Game {
             ])
         case "fish":
             show("Fish running", "Gulls are diving on a big school.", [
-                Opt("Drop lines", bait < 1 ? "no bait" : "\(bait) bait", off: bait < 1) { [unowned self] in
-                    let used = min(3, self.bait)
-                    self.bait -= used
-                    let got = self.addGood("food", Int(Double(used * rndI(3, 6)) * (1 + 0.2 * self.E("fish"))))
-                    self.snd?.splash()
-                    self.done(got > 0 ? "+\(got) food" : "The hold is full")
-                }, on
+                Opt("Drop lines", bait < 1 ? "no bait" : "\(min(3, bait)) casts", off: bait < 1) { [unowned self] in self.playFish() }, on
             ])
         case "wreck":
             show("Wreckage", "A broken hull drifts ahead, half under.", [
-                Opt("Salvage it", "who knows what is left") { [unowned self] in
-                    let r = rnd(0, 1)
-                    if r < 0.25 {
-                        self.done("+\(self.addGood("planks", 6)) planks")
-                    } else if r < 0.5 {
-                        let g = rndI(40, 120)
-                        self.gold += g
-                        self.snd?.coin()
-                        self.done("A strongbox! +\(g) gold")
-                    } else if r < 0.75 {
-                        self.done("+\(self.addGood("food", 8)) food")
-                    } else if r < 0.9 {
-                        self.done("+\(self.addGood("powder", 3)) powder")
-                    } else {
-                        self.dmg(8)
-                        if !self.over { self.done("The wreck rolls and gouges your hull") }
-                    }
-                }, on
+                Opt("Salvage it", "hook three crates") { [unowned self] in self.playWreck() }, on
             ])
         case "island":
             show("Land ho!", hasMap ? "It matches your treasure map!" : "An uncharted island.", [
-                Opt("Go ashore", "costs a day") { [unowned self] in
+                Opt("Go ashore", "costs a day · three digs") { [unowned self] in
                     self.passDays(1)
                     if self.over { return }
-                    if self.hasMap || chance(0.5) {
-                        let g = Int(Double(rndI(140, 260)) * (self.hasMap ? 2.5 : 1))
-                        self.hasMap = false
-                        self.gold += g
-                        self.snd?.good()
-                        self.logIt("Dug up \(g) gold in buried treasure")
-                        self.done("Treasure! +\(g) gold")
-                    } else {
-                        let f = self.addGood("food", 8), w = self.addGood("water", 10)
-                        self.done("No treasure, but coconuts and a spring: +\(f) food, +\(w) water")
-                    }
+                    self.playIsland()
                 }, on
             ])
         case "calm":
@@ -188,10 +142,7 @@ extension Game {
             ])
         case "leak":
             show("Sprung a leak", "Water is spraying through the planks.", [
-                Opt("Patch it", "3 planks", off: planks < 3) { [unowned self] in
-                    self.planks -= 3
-                    self.done("Leak patched")
-                },
+                Opt("All hands below", planks > 0 ? "hammer planks over the leaks" : "no planks · stuff them with canvas") { [unowned self] in self.playLeak() },
                 Opt("Bail and hope", "hull damage") { [unowned self] in
                     self.dmg(10)
                     if !self.over { self.done("Hull damaged") }
@@ -213,22 +164,7 @@ extension Game {
             ])
         case "ghost":
             show("Ghost ship", "A pale ship drifts in the dark with no one at the helm.", [
-                Opt("Board her", "who knows") { [unowned self] in
-                    let r = rnd(0, 1)
-                    if r < 0.45 {
-                        let g = rndI(150, 300)
-                        self.gold += g
-                        self.snd?.coin()
-                        self.done("Her hold is full of old silver: +\(g) gold")
-                    } else if r < 0.7 {
-                        if self.hasMap { self.gold += 80; self.done("+80 gold from the captain's chest") } else { self.hasMap = true; self.done("A chart on the captain's table — a treasure map!") }
-                        self.snd?.good()
-                    } else {
-                        self.toastText = ""
-                        self.loseCrew("Something drags a sailor below")
-                        if !self.over { self.done(self.toastText) }
-                    }
-                },
+                Opt("Board her", "open two hatches") { [unowned self] in self.playGhost() },
                 Opt("Steer clear") { [unowned self] in self.done("") }
             ])
         case "dolphins":
@@ -236,11 +172,7 @@ extension Game {
             show("Dolphins", "A pod races the bow wave and the crew cheers. The ship seems to fly.", [on])
         case "fog":
             show("Fog bank", "Grey fog swallows the ship. Somewhere ahead, surf is breaking.", [
-                Opt("Creep through", E("look") > 0 ? "your lookout calls the rocks" : "no lookout posted") { [unowned self] in
-                    if self.E("look") > 0 || chance(0.4) { self.done("The lookout calls the rocks and you slip by"); return }
-                    self.dmg(Double(rndI(6, 12)))
-                    if !self.over { self.done("Rocks! The hull scrapes hard") }
-                },
+                Opt("Creep through", E("look") > 0 ? "your lookout gives you longer" : "no lookout posted") { [unowned self] in self.playFog() },
                 Opt("Heave to", "lose 1 day") { [unowned self] in
                     self.passDays(1)
                     if !self.over { self.done("The fog lifts by morning") }
@@ -248,15 +180,7 @@ extension Game {
             ])
         default:
             show("Man overboard!", "A wave takes a hand off the rail.", [
-                Opt("Throw a line", "three tries") { [unowned self] in
-                    if chance(0.7 + 0.1 * self.E("helm")) {
-                        self.snd?.good()
-                        self.done("Hauled aboard, coughing and cursing, but alive")
-                    } else {
-                        self.loseCrew("Lost to the sea")
-                        if !self.over { self.done(self.toastText) }
-                    }
-                }
+                Opt("Throw a line", "three tries") { [unowned self] in self.playLine() }
             ])
         }
     }
@@ -321,38 +245,53 @@ extension Game {
     func openMarket() { marketPort = true; mode = .market }
     func tavern() {
         if recruit == nil { recruit = Man() }
-        let rec = recruit ?? Man()
-        let full = crew >= ship.crew
+        mode = .tavern
+        snd?.bell()
+    }
+    func tavernHire() {
+        guard let rec = recruit else { return }
+        if crew >= ship.crew { toast("Your crew is full"); return }
+        if gold < 40 { toast("Not enough gold"); return }
+        gold -= 40
+        men.append(rec)
+        crew += 1
+        recruit = nil
+        autoPost()
+        snd?.coin()
+        toast(rec.n + " signs on")
+    }
+    func tavernMap() {
+        if hasMap { toast("You already carry a map"); return }
+        if gold < 120 { toast("Not enough gold"); return }
+        gold -= 120
+        hasMap = true
+        snd?.coin()
+        show("The old chart", "He slides it across the table and is gone before you look up.\nAn island is marked on your next leg. Go ashore there and dig.", [Opt("Pocket it") { [unowned self] in self.card = nil }])
+    }
+    func tavernSurgeon() {
         let down = laidUp()
-        show("Tavern", "Sailors, rumours and old maps.", [
-            Opt("Hire " + rec.n, full ? "crew full" : roleName(rec.sk).lowercased() + " hand · 40 gold", off: full) { [unowned self] in
-                if self.gold < 40 { self.toast("Not enough gold"); return }
-                self.gold -= 40
-                self.men.append(rec)
-                self.crew += 1
-                self.recruit = nil
-                self.autoPost()
-                self.toast(rec.n + " signs on")
-                self.tavern()
-            },
-            Opt("Treasure map", hasMap ? "you have one" : "120 gold", off: hasMap) { [unowned self] in
-                if self.gold < 120 { self.toast("Not enough gold"); return }
-                self.gold -= 120
-                self.hasMap = true
-                self.toast("The island lies on your next leg")
-                self.tavern()
-            },
-            Opt("Send for the surgeon", down > 0 ? "\(down) laid up · \(down * 20) gold" : "all hands well", off: down == 0) { [unowned self] in
-                if self.gold < down * 20 { self.toast("Not enough gold"); return }
-                self.gold -= down * 20
-                for m in self.men where !m.fit { m.st = 0; m.d = 0 }
-                self.autoPost()
-                self.snd?.good()
-                self.toast("The surgeon patches them up")
-                self.tavern()
-            },
-            Opt("Leave") { [unowned self] in self.card = nil }
-        ])
+        if down == 0 { toast("All hands are well"); return }
+        if gold < down * 20 { toast("Not enough gold"); return }
+        gold -= down * 20
+        for m in men where !m.fit { m.st = 0; m.d = 0 }
+        autoPost()
+        snd?.good()
+        toast("The surgeon patches them up")
+    }
+    func tavernRumour() {
+        let all = [
+            "The open sea is the quicker road, but that is where the black flags hunt.",
+            "Keep a man at the masthead. In fog he buys you time among the rocks.",
+            "Salt pork turns after five days out. A cook in the galley halves the waste.",
+            "A carpenter at his post mends a little of the hull every day at sea.",
+            "The Red Mary lies off Santa Aurelia. Her captain fights hardest when he is nearly beaten.",
+            "Blades for every hand make the parry easier when you are boarded.",
+            "Unpaid men walk. Count the wages before you buy the last cask of powder.",
+            "A gunner and two charges of powder thin a pirate crew before the boarding."
+        ]
+        rumourHeard = true
+        snd?.click()
+        show("The barkeep leans in", all[(leg * 3 + day) % all.count], [Opt("Good to know") { [unowned self] in self.card = nil }])
     }
     func shipwright() {
         let need = Int(Double(ship.hull) - hull)

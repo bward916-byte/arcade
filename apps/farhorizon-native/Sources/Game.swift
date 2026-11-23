@@ -1,7 +1,7 @@
 import CoreGraphics
 import Foundation
 
-enum Mode { case title, pick, outfit, chart, sail, port, market, duel, end }
+enum Mode { case title, pick, outfit, chart, sail, port, market, tavern, duel, end }
 
 struct Hit {
     let x: Double
@@ -40,6 +40,30 @@ final class Game {
     var card: CardV?
     var hits: [Hit] = []
     var isDown = false
+    // weather
+    var weather = 0
+    var wxDays = 2
+    var wxRain = 0.0
+    var wxDark = 0.0
+    var wxFog = 0.0
+    var rough = 0.0
+    var bolts: [Bolt] = []
+    var boltT = 3.0
+    var flashT = 0.0
+    var thunderIn = -1.0
+    // the interactive part of an event, the arrival summary, the last event's title
+    var play: Play?
+    var sum: LegSum?
+    var sumT = 0.0
+    var sumRow = -1
+    var evTitle = ""
+    var leg0Day = 1
+    var leg0Gold = 0
+    var leg0Crew = 0
+    var leg0Fights = 0
+    var legEvents = 0
+    var legFrom = ""
+    var rumourHeard = false
     var cardT = 9.0          // seconds since the card on screen appeared
     var uiLock = false       // buttons are not live while a card is still flying in
     var rings: [(x: Double, y: Double, w: Double, h: Double, t: Double)] = []
@@ -101,6 +125,7 @@ final class Game {
         dayT = 0; tod = 0.3; hasMap = false; sinceEvent = 0; lastEv = ""; path = [0, 0, 0, 0, 0, 0]
         men = []; log = []; dead = []; sea = 0; halfDays = 0; rot = 0; wind = 1; blk = false; wellUsed = false
         over = false; card = nil; duel = nil; recruit = nil; fights = 0
+        play = nil; sum = nil; weather = 0; wxDays = 2; bolts.removeAll(); thunderIn = -1
     }
 
     // ---------- small helpers
@@ -108,6 +133,7 @@ final class Game {
     func logIt(_ s: String) { log.append("Day \(day): \(s)") }
     func show(_ title: String, _ text: String, _ opts: [Opt]) {
         card = CardV(title: title, text: text, opts: opts)
+        evTitle = title
         cardT = 0
         snd?.whoosh()
     }
@@ -385,6 +411,7 @@ final class Game {
     }
     func startLeg() {
         if leg > 0 { payWages() }
+        leg0Day = day; leg0Gold = gold; leg0Crew = crew; leg0Fights = fights; legEvents = 0; legFrom = here.n
         legLen = LEG[min(4, leg)] * (route == 1 ? 0.85 : 1.15)
         dist = 0; dayT = 0; sinceEvent = 0
         autoPost()
@@ -393,7 +420,7 @@ final class Game {
         logIt("Sailed for " + STAGES[leg + 1][path[leg + 1]].n + (route == 1 ? " by the open sea" : " along the coast"))
     }
     func dps() -> Double {
-        var v = 42 * ship.speed * wind
+        var v = 42 * ship.speed * wind * (1 - 0.15 * rough)
         if Double(fitCount()) < Double(ship.crew) / 2 { v *= 0.75 }
         v *= 1 + 0.08 * E("helm") + 0.04 * E("rig")
         return v
@@ -410,6 +437,7 @@ final class Game {
             if chance(0.25) { bait -= 1 }
         }
         wind = rnd(0.8, 1.2)
+        rollWeather()
         sinceEvent += 1
         if sinceEvent >= 3 || chance(0.4) { rollEvent() }
     }
@@ -430,7 +458,11 @@ final class Game {
         logIt("Made port at " + here.n)
         snd?.good()
         mode = .port
-        show(here.n, "Day \(day). Land at last.\nWages of \(wagesDue()) gold fall due when you sail.", [Opt("Go ashore") { [unowned self] in self.card = nil }])
+        rumourHeard = false
+        if weather == 3 { setWeather(2, days: 1) }
+        sum = LegSum(from: legFrom, to: here.n, days: day - leg0Day, leagues: Int(legLen), events: legEvents, gold: gold - leg0Gold, lost: max(0, leg0Crew - crew), hull: Int((hull / Double(max(1, ship.hull)) * 100).rounded()), fights: fights - leg0Fights, wages: wagesDue())
+        sumT = 0
+        sumRow = -1
     }
     func finish() {
         over = true
@@ -446,6 +478,8 @@ final class Game {
     func update(_ dt: Double) {
         T += dt
         cardT += dt
+        updateWeather(dt)
+        if sum != nil { sumT += dt }
         var ri = rings.count - 1
         while ri >= 0 {
             rings[ri].t += dt
@@ -471,7 +505,9 @@ final class Game {
             scroll += dt * 50
             if mode == .title { tod = 0.3 + 0.05 * sin(T * 0.07) }
         case .sail:
-            if card == nil {
+            if card == nil, play != nil {
+                updatePlay(dt)
+            } else if card == nil {
                 dayT += dt
                 tod = (tod + dt / DAYLEN * 0.22).truncatingRemainder(dividingBy: 1)
                 dist += dps() * dt / DAYLEN
@@ -489,20 +525,25 @@ final class Game {
             break
         }
         var mood = "sea"
-        if mode == .duel { mood = "battle" } else if mode == .port || mode == .market { mood = "port" } else if mode == .end { mood = "night" } else if mode == .sail {
+        if mode == .duel { mood = "battle" } else if mode == .port || mode == .market || mode == .tavern { mood = "port" } else if mode == .end { mood = "night" } else if mode == .sail {
             mood = isNight ? "night" : (leg % 2 == 1 ? "sea2" : "sea")
         }
+        if play?.theme == "storm" || play?.theme == "run" { mood = "battle" }
         snd?.music(T, mood)
+        let atSea = mode == .sail || mode == .port || mode == .title || mode == .duel || mode == .end
+        snd?.ambient(T, sea: atSea, rough: rough, rain: mode == .tavern ? wxRain * 0.3 : wxRain, birds: atSea && mode != .duel && !isNight && weather < 2, room: mode == .tavern)
     }
     var isNight: Bool { return tod > 0.7 && tod < 0.95 }
 
     func touchDown(_ x: Double, _ y: Double) {
         isDown = true; downX = x; downY = y
+        if mode == .sail && card == nil && play != nil { tapPlay(x, y); return }
         if mode == .duel && card == nil { duel?.touch(x, y, self) }
     }
     func touchMove(_ x: Double, _ y: Double) {}
     func touchUp(_ x: Double, _ y: Double) {
         isDown = false
+        if sum != nil && card == nil && sumT < LegSum.fullT { sumT = LegSum.fullT; return }
         for h in hits.reversed() where h.has(x, y) && h.has(downX, downY) {
             snd?.click()
             buzz?(false)
@@ -527,6 +568,12 @@ final class Game {
         if name == "event" { event("pirates") }
         if name == "result" { event("ghost"); done("Her hold is full of old silver: +212 gold") }
         if name == "port" { leg = 1; mode = .port }
+        if name == "tavern" { leg = 1; mode = .port; tavern() }
+        if name == "summary" { leg = 1; mode = .port; legFrom = "Port Haven"; sum = LegSum(from: "Port Haven", to: here.n, days: 7, leagues: 255, events: 3, gold: 140, lost: 0, hull: 86, fights: 1, wages: wagesDue()); sumT = 0; sumRow = -1 }
+        if name == "storm" { playStorm(); wxDark = 0.85; wxRain = 1; rough = 1; boltT = 7.6 }
+        if name == "leak" { playLeak() }
+        if name == "dig" { hasMap = true; playIsland() }
+        if name == "rain" { setWeather(2, days: 9); wxRain = 0.6; wxDark = 0.6; rough = 0.3 }
         if name == "duel" { UserDefaults.standard.set(0, forKey: Duel.lessonKey); startDuel(foes: 3, boss: false, prize: 120) }
         if name == "teach" { UserDefaults.standard.set(0, forKey: Duel.lessonKey); startDuel(foes: 3, boss: false, prize: 120); card = nil }
         if name == "fight" { startDuel(foes: 3, boss: false, prize: 120, teach: false) }
