@@ -176,6 +176,11 @@ struct GuideView: View {
                     .listRowInsets(EdgeInsets())
                     .listRowBackground(Color.clear)
                 }
+                if search.isEmpty && (section == "start" || section == "camping") {
+                    Section { LandAskButton() }
+                        .listRowInsets(EdgeInsets())
+                        .listRowBackground(Color.clear)
+                }
                 if search.isEmpty && section == "start" {
                     Section {
                         NavigationLink {

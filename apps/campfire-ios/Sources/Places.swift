@@ -330,6 +330,8 @@ struct PlacesView: View {
                         else { landAnswer = LandAnswer(onBLM: nil, words: "Your phone did not share its location. Allow location for Campfire in Settings, then tap again.") }
                     })
             .task { await landStore.load() }
+            .onAppear { askIfSent() }
+            .onReceive(NotificationCenter.default.publisher(for: LandAsk.note)) { _ in askIfSent() }
             .ignoresSafeArea(edges: .bottom)
             .overlay(alignment: .top) {
                 VStack(spacing: 0) {
@@ -340,7 +342,7 @@ struct PlacesView: View {
                             locateCount += 1
                         } label: {
                             HStack(spacing: 14) {
-                                LocatorPing()
+                                LandArt()
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text("Am I on BLM land?").font(.title3.weight(.bold))
                                     Text("Tap to see whose land you are standing on").font(.caption.weight(.semibold)).opacity(0.9)
@@ -518,6 +520,15 @@ struct PlacesView: View {
         .presentationDetents([.medium, .large])
     }
 
+    // Another tab's "Am I on BLM land?" button sends people here; this asks straight away.
+    private func askIfSent() {
+        guard LandAsk.pending else { return }
+        LandAsk.pending = false
+        finding = true
+        landAnswer = nil
+        locateCount += 1
+    }
+
     private func routeName(_ layer: RouteLayer) -> String {
         if routes.contains(layer.id), trails.loading { return layer.name + " …" }
         if routes.contains(layer.id), let n = trails.counts[layer.id] { return layer.name + " " + String(n) }
@@ -587,10 +598,91 @@ struct LocatorPing: View {
                     .opacity(still ? (n == 0 ? 0.7 : 0) : (out ? 0 : 0.95))
                     .animation(still ? nil : .easeOut(duration: 2.4).repeatForever(autoreverses: false).delay(Double(n) * 0.8), value: out)
             }
-            Circle().fill(Color.white).frame(width: 14, height: 14)
+            Circle().fill(Color(red: 26 / 255, green: 115 / 255, blue: 232 / 255)).frame(width: 9, height: 9).overlay(Circle().stroke(Color.white, lineWidth: 2.5))
         }
         .frame(width: 42, height: 42)
         .onAppear { out = true }
         .accessibilityHidden(true)
+    }
+}
+
+// The question asked from another tab: it opens the Map tab, and the map asks as soon as it shows.
+enum LandAsk {
+    static let note = Notification.Name("askLand")
+    static var pending = false
+    static func go() {
+        pending = true
+        NotificationCenter.default.post(name: note, object: nil)
+    }
+}
+
+// The picture on every "Am I on BLM land?" button: sun, yellow BLM hills, a saguaro and a camper, with locator rings on the camper.
+struct LandArt: View {
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 10).fill(Color(red: 11 / 255, green: 79 / 255, blue: 75 / 255))
+            Circle().fill(Color(red: 1, green: 209 / 255, blue: 102 / 255)).frame(width: 16, height: 16).offset(x: 28, y: -14)
+            Hills(lift: 0).fill(Color(red: 233 / 255, green: 196 / 255, blue: 106 / 255))
+            Hills(lift: 8).fill(Color(red: 212 / 255, green: 165 / 255, blue: 60 / 255))
+            // saguaro
+            Group {
+                RoundedRectangle(cornerRadius: 2.5).frame(width: 5, height: 24).offset(x: -28, y: 6)
+                RoundedRectangle(cornerRadius: 2).frame(width: 4, height: 9).offset(x: -35, y: 4)
+                RoundedRectangle(cornerRadius: 2).frame(width: 9, height: 4).offset(x: -32, y: 9)
+                RoundedRectangle(cornerRadius: 2).frame(width: 4, height: 8).offset(x: -21, y: 1)
+                RoundedRectangle(cornerRadius: 2).frame(width: 9, height: 4).offset(x: -24, y: 5)
+            }
+            .foregroundColor(Color(red: 31 / 255, green: 122 / 255, blue: 77 / 255))
+            // camper
+            RoundedRectangle(cornerRadius: 3).fill(Color.white).frame(width: 24, height: 12).offset(x: 10, y: 12)
+            RoundedRectangle(cornerRadius: 1).fill(Color(red: 125 / 255, green: 211 / 255, blue: 252 / 255)).frame(width: 7, height: 5).offset(x: 5, y: 11)
+            RoundedRectangle(cornerRadius: 1).fill(Color(red: 125 / 255, green: 211 / 255, blue: 252 / 255)).frame(width: 6, height: 5).offset(x: 15, y: 11)
+            Circle().fill(Color.black).frame(width: 6, height: 6).offset(x: 4, y: 19)
+            Circle().fill(Color.black).frame(width: 6, height: 6).offset(x: 17, y: 19)
+            LocatorPing().offset(x: 10, y: 8)
+        }
+        .frame(width: 96, height: 60)
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.white.opacity(0.55), lineWidth: 2))
+        .accessibilityHidden(true)
+    }
+
+    private struct Hills: Shape {
+        let lift: CGFloat
+        func path(in r: CGRect) -> Path {
+            var p = Path()
+            let top = r.height * 0.62 + lift
+            p.move(to: CGPoint(x: 0, y: top + 6))
+            p.addQuadCurve(to: CGPoint(x: r.width * 0.45, y: top + 4), control: CGPoint(x: r.width * 0.22, y: top - 16 + lift))
+            p.addQuadCurve(to: CGPoint(x: r.width, y: top), control: CGPoint(x: r.width * 0.72, y: top + 14 - lift))
+            p.addLine(to: CGPoint(x: r.width, y: r.height))
+            p.addLine(to: CGPoint(x: 0, y: r.height))
+            p.closeSubpath()
+            return p
+        }
+    }
+}
+
+// The same button for other tabs.
+struct LandAskButton: View {
+    var body: some View {
+        Button {
+            LandAsk.go()
+        } label: {
+            HStack(spacing: 14) {
+                LandArt()
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Am I on BLM land?").font(.title3.weight(.bold))
+                    Text("Opens the map and shows whose land you are on").font(.caption.weight(.semibold)).opacity(0.9)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(10)
+            .frame(maxWidth: .infinity)
+            .background(LinearGradient(colors: [Theme.primary, Color(red: 11 / 255, green: 79 / 255, blue: 75 / 255)], startPoint: .topLeading, endPoint: .bottomTrailing))
+            .foregroundColor(.white)
+            .cornerRadius(16)
+        }
+        .buttonStyle(.plain)
     }
 }
