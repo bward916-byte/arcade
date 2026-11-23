@@ -42,16 +42,16 @@ struct RouteLayer: Identifiable {
 
 let routeLayers: [RouteLayer] = [
     RouteLayer(id: "blm", name: "BLM routes", color: UIColor(red: 232 / 255, green: 89 / 255, blue: 12 / 255, alpha: 1)),
-    RouteLayer(id: "off", name: "Off-road tracks", color: UIColor(red: 138 / 255, green: 90 / 255, blue: 43 / 255, alpha: 1)),
-    RouteLayer(id: "hike", name: "Hiking trails", color: UIColor(red: 46 / 255, green: 125 / 255, blue: 50 / 255, alpha: 1))]
+    RouteLayer(id: "off", name: "Off-road tracks", color: UIColor(red: 30 / 255, green: 64 / 255, blue: 175 / 255, alpha: 1)),
+    RouteLayer(id: "hike", name: "Hiking trails", color: UIColor(red: 21 / 255, green: 128 / 255, blue: 61 / 255, alpha: 1))]
 
 // Line colours by overlay title. BLM routes are split three ways, the same as on the website.
 let routeColors: [String: UIColor] = [
     "blm-road": UIColor(red: 232 / 255, green: 89 / 255, blue: 12 / 255, alpha: 1),
     "blm-trail": UIColor(red: 194 / 255, green: 24 / 255, blue: 91 / 255, alpha: 1),
     "blm-limited": UIColor(red: 112 / 255, green: 72 / 255, blue: 232 / 255, alpha: 1),
-    "off": UIColor(red: 138 / 255, green: 90 / 255, blue: 43 / 255, alpha: 1),
-    "hike": UIColor(red: 46 / 255, green: 125 / 255, blue: 50 / 255, alpha: 1)]
+    "off": UIColor(red: 30 / 255, green: 64 / 255, blue: 175 / 255, alpha: 1),
+    "hike": UIColor(red: 21 / 255, green: 128 / 255, blue: 61 / 255, alpha: 1)]
 
 // Loads the route lines from the site the first time a route button is turned on, and keeps a copy on the phone.
 @MainActor
@@ -237,7 +237,9 @@ struct CampMap: UIViewRepresentable {
             guard let multi = overlay as? MKMultiPolyline else { return MKOverlayRenderer(overlay: overlay) }
             let r = MKMultiPolylineRenderer(multiPolyline: multi)
             r.strokeColor = routeColors[multi.title ?? ""] ?? .brown
-            r.lineWidth = 1.6
+            // Hiking trails are short, so they are drawn thick. Off-road tracks are dotted, as on the website.
+            r.lineWidth = multi.title == "hike" ? 4 : 1.6
+            if multi.title == "off" { r.lineDashPattern = [2, 5]; r.lineCap = .round; r.lineWidth = 2 }
             return r
         }
     }
