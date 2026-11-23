@@ -36,6 +36,21 @@ extension Game {
         drawWeather(c, L)
         drawNightLights(c, L)
         c.restore()
+        let duskAmt = exp(-pow((L - 0.3) / 0.2, 2))
+        if duskAmt > 0.02 {
+            c.vfill(0, 0, W, H, [(0, Col(0xff7a3a, 0.02 * duskAmt)), (0.6, Col(0xffa050, 0.16 * duskAmt)), (1, Col(0x8a3a5a, 0.12 * duskAmt))])
+        }
+        if L > 0.5 {
+            let sa = (tod - 0.25) * 2 * PI
+            let bx = W * 0.5 - cos(sa) * W * 0.42, by = H * 0.62 - sin(sa) * H * 0.5
+            c.blend(.plusLighter)
+            c.glow(bx, by, H * 0.9, Col(0xfff0c8, 0.14 * (L - 0.5) * 2), Col(0xfff0c8, 0))
+            c.blend(.normal)
+        }
+        c.vfill(0, 0, W, H * 0.22, [(0, Col(0x02060c, 0.3)), (1, Col(0x02060c, 0))])
+        c.vfill(0, H * 0.8, W, H * 0.2, [(0, Col(0x02060c, 0)), (1, Col(0x02060c, 0.34))])
+        c.linear(0, 0, W * 0.12, H, 0, 0, W * 0.12, 0, [(0, Col(0x02060c, 0.26)), (1, Col(0x02060c, 0))])
+        c.linear(W * 0.88, 0, W * 0.12, H, W * 0.88, 0, W, 0, [(0, Col(0x02060c, 0)), (1, Col(0x02060c, 0.26))])
         drawPops(c)
         drawAdvice(c)
         drawRings(c, L)
@@ -93,6 +108,20 @@ extension Game {
 
     func drawFarHills(_ c: Canvas, _ L: Double) {
         let horizon = sy(-55)
+        // pale mountains behind everything, with the light on one flank
+        let mpar = camX * 0.14
+        let sky = dn(0x0b1a30, 0x7fa0c0, L)
+        for m in 0..<7 {
+            let fm = Double(m)
+            let X = (fm * 520 + 200 - mpar) * camS * 0.6
+            let mw = (300 + Double((m * 71) % 140)) * camS * 0.6
+            let mh = (150 + Double((m * 53) % 90)) * camS * 0.6
+            if X < -mw || X > W + mw { continue }
+            let body = Col.mix(dn(0x121c28, 0x6a8296, L), sky, 0.55)
+            c.poly(body, [X - mw, horizon, X - mw * 0.2, horizon - mh * 0.72, X, horizon - mh, X + mw * 0.26, horizon - mh * 0.6, X + mw, horizon])
+            c.poly(Col(0xffffff, 0.1 * L), [X, horizon - mh, X - mw * 0.2, horizon - mh * 0.72, X - mw, horizon, X - mw * 0.3, horizon, X - mw * 0.05, horizon - mh * 0.5])
+            c.poly(Col(0x000000, 0.08), [X, horizon - mh, X + mw * 0.26, horizon - mh * 0.6, X + mw, horizon, X + mw * 0.2, horizon])
+        }
         for layer in 0..<2 {
             let fl = Double(layer)
             let par = camX * (0.3 + fl * 0.2)
@@ -111,6 +140,17 @@ extension Game {
                 p.closeSubpath()
             }
         }
+        // folds of woodland on the nearer hills
+        let hp = camX * 0.5
+        for i in 0..<46 {
+            let fi = Double(i)
+            let wx = fi * 97 + hashN(fi) * 60
+            let X = (wx - hp) * camS
+            if X < -30 || X > W + 30 { continue }
+            let up = (10 + hashN(fi + 20) * 34) * camS
+            c.dome(X, horizon - up, (7 + hashN(fi + 30) * 9) * camS, Col(0x0a1e14, 0.1 + 0.08 * L))
+            c.dome(X - 2 * camS, horizon - up - 1.5 * camS, (4 + hashN(fi + 30) * 5) * camS, Col(0xc8f0b0, 0.05 * L))
+        }
         // haze along the horizon
         c.vfill(0, horizon - 60 * camS, W, 70 * camS, [(0, Col(0xe6ecf0, 0)), (0.8, Col(0xe6ecf0, 0.10 + 0.2 * L)), (1, Col(0xe6ecf0, 0))])
     }
@@ -118,7 +158,29 @@ extension Game {
     // ---------- sea
     func drawBackSea(_ c: Canvas, _ L: Double) {
         let y0 = sy(-50)
-        c.vfill(0, y0, W, H - y0, [(0, dn(0x0e2733, 0x3f8494, L)), (1, dn(0x0b202c, 0x1f5868, L))])
+        c.vfill(0, y0, W, H - y0, [(0, dn(0x12303e, 0x6aa8b4, L)), (0.1, dn(0x0e2733, 0x3f8c9c, L)), (0.5, dn(0x0c2430, 0x2a7286, L)), (1, dn(0x0b202c, 0x1f5868, L))])
+        c.R(0, y0, W, 1.2, Col(0xffffff, 0.22 * L + 0.05))
+        // the road of light under the sun or the moon
+        let ang = (tod - 0.25) * 2 * PI
+        let day = sin(ang) > 0
+        let lx: Double = day ? W * 0.5 - cos(ang) * W * 0.42 : W * 0.5 + cos(ang) * W * 0.42
+        let road = day ? Col(0xfff0c0) : Col(0xd8e6ff)
+        for i in 0..<16 {
+            let fi = Double(i)
+            let yy = y0 + 2 + fi * fi * 0.42 * camS
+            let half = (5 + fi * 3.4) * camS * (0.55 + 0.45 * sin(T * 2.1 + fi * 1.7))
+            c.R(lx - half + sin(T * 0.9 + fi * 0.8) * 5, yy, half * 2, 1.3, road.alpha((day ? 0.3 : 0.18) * (1 - fi / 18)))
+        }
+        // crests rolling in
+        for i in 0..<34 {
+            let fi = Double(i)
+            let ph = (T * 0.05 + hashN(fi + 2)).truncatingRemainder(dividingBy: 1)
+            let wy = -44 + ph * 40
+            var X = ((hashN(fi) * 1400 - camX * (0.5 + ph * 0.5)) * camS).truncatingRemainder(dividingBy: W + 120)
+            if X < 0 { X += W + 120 }
+            let len = (8 + hashN(fi + 5) * 18) * camS * (0.5 + ph)
+            c.curve(X - 60, sy(wy), X - 60 + len / 2, sy(wy) - 1.6 * camS, X - 60 + len, sy(wy), 1.1, Col(0xf0faff, 0.3 * sin(ph * PI) * (0.4 + 0.6 * L)))
+        }
         for layer in 0..<3 {
             let fl = Double(layer)
             let base = -34 + fl * 10

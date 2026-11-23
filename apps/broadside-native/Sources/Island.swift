@@ -292,6 +292,36 @@ extension Game {
                 c.ell(sx(wx), sy(ground(wx) + d), r, r * 0.65, lc(0x8a8274).alpha(0.8))
             }
         }
+        // grit in the sand, and the wet dark line where the tide has been
+        if wx0 < 640 {
+            for i in 0..<120 {
+                let fi = Double(i)
+                let wx = 4 + hashN(fi * 1.3 + 71) * 640
+                if wx < wx0 || wx > wx1 { continue }
+                let dep = 3 + hashN(fi + 72) * hashN(fi + 73) * 120
+                c.R(sx(wx), sy(ground(wx) + dep), (0.8 + hashN(fi + 74)) * k, 0.8 * k, hashN(fi + 75) > 0.5 ? Col(0x7a5e38, 0.3) : Col(0xfff4d8, 0.3))
+            }
+            c.pathFill(Col(0x6a5030, 0.28)) { p in
+                p.move(to: CGPoint(x: self.sx(-4), y: self.sy(2)))
+                var x = 0.0
+                while x <= 64 {
+                    p.addLine(to: CGPoint(x: self.sx(x), y: self.sy(self.ground(x)) - 0.5))
+                    x += 8
+                }
+                p.addLine(to: CGPoint(x: self.sx(40), y: self.sy(self.ground(40)) + 5 * k))
+                p.addLine(to: CGPoint(x: self.sx(-20), y: self.sy(12)))
+                p.closeSubpath()
+            }
+        }
+        // roots hanging under the turf
+        var rx = (max(880, wx0) / 23).rounded(.up) * 23
+        while rx < min(3310, wx1) {
+            let len = (8 + hashN(rx) * 22) * k
+            let bendX = (hashN(rx + 1) - 0.5) * 12 * k
+            let X = sx(rx), Y = sy(ground(rx)) + 8 * k
+            c.curve(X, Y, X + bendX, Y + len * 0.5, X + bendX * 0.4, Y + len, 0.9 * k, Col(0x1c1208, 0.35))
+            rx += 23
+        }
         // foam on the west shore
         let fo = sin(T * 1.4) * 10
         c.ell(sx(8 + fo), sy(0), 30 * k, 2.5 * k, Col(0xffffff, 0.45))
@@ -339,6 +369,27 @@ extension Game {
                     x -= 8
                 }
                 p.closeSubpath()
+            }
+        }
+        // sunlit lip of the turf, and clumps that hang over its edge
+        if g1 > g0 {
+            c.pathStroke(lc(0x9ad060).alpha(0.7), 1.2 * k) { p in
+                var x = g0 + 20
+                var first = true
+                while x <= g1 - 20 {
+                    let pt = CGPoint(x: self.sx(x), y: self.sy(self.ground(x)) - 0.6 * k)
+                    if first { p.move(to: pt); first = false } else { p.addLine(to: pt) }
+                    x += 8
+                }
+            }
+            var hx = (g0 / 17).rounded(.up) * 17
+            while hx < g1 - 20 {
+                if hx > 900 {
+                    let X = sx(hx), Y = sy(ground(hx)) + (8 + sin(hx * 0.37) * 2.5) * k
+                    c.dome(X, Y + 0.5 * k, (2.5 + hashN(hx + 6) * 2.5) * k, lc(0x4f8a3e))
+                    c.seg(X, Y, X + (hashN(hx) - 0.5) * 3 * k, Y + (3 + hashN(hx + 2) * 4) * k, 0.9 * k, lc(0x3f7a34))
+                }
+                hx += 17
             }
         }
         // the path, worn pale
@@ -510,22 +561,66 @@ extension Game {
     // ---------- trees
     func drawTree(_ c: Canvas, _ wx: Double, _ h: Double, _ seed: Double) {
         if !vis(wx, 90) { return }
-        let sw = sin(T * 0.7 + seed) * 1.2
+        let sw = sin(T * 0.7 + seed) * 1.2 + sin(T * 1.9 + seed * 2) * 0.5
+        let kind = Int(seed) % 3
+        let dark: UInt32 = kind == 1 ? 0x24583a : 0x275c30
+        let mid: UInt32 = kind == 1 ? 0x3a8050 : (kind == 2 ? 0x4a8a3a : 0x3f8a40)
+        let lite: UInt32 = kind == 1 ? 0x68ae78 : (kind == 2 ? 0x8cc058 : 0x74b858)
         at(c, wx, ground(wx), camS) {
-            c.ell(4, 1, h * 0.3, 3, Col(0x000000, 0.14))
-            c.poly(self.lc(0x5a4028), [-3.4, 0, -2.2, -h * 0.55, 2.2, -h * 0.55, 3.6, 0])
-            c.seg(0, -h * 0.4, -h * 0.16, -h * 0.62, 1.8, self.lc(0x5a4028))
-            c.seg(0, -h * 0.45, h * 0.18, -h * 0.66, 1.8, self.lc(0x5a4028))
-            let blobs: [(Double, Double, Double)] = [(-0.24, 0.62, 0.26), (0.24, 0.66, 0.25), (0, 0.84, 0.3), (-0.1, 0.7, 0.26), (0.14, 0.52, 0.2)]
+            // shade on the ground, flared roots, a tapering trunk with bark
+            c.ell(h * 0.1, 1.2, h * 0.42, 3.4, Col(0x000000, 0.16 + 0.1 * self.light))
+            c.pathFill(self.lc(0x5a4028)) { p in
+                p.move(to: CGPoint(x: -6.5, y: 0.5))
+                p.addQuadCurve(to: CGPoint(x: -2.4, y: -h * 0.5), control: CGPoint(x: -2.6, y: -h * 0.1))
+                p.addLine(to: CGPoint(x: 2.4, y: -h * 0.5))
+                p.addQuadCurve(to: CGPoint(x: 7, y: 0.5), control: CGPoint(x: 2.8, y: -h * 0.1))
+                p.closeSubpath()
+            }
+            c.pathFill(Col(0x000000, 0.22)) { p in
+                p.move(to: CGPoint(x: 0.6, y: 0.5))
+                p.addLine(to: CGPoint(x: 0.4, y: -h * 0.5))
+                p.addLine(to: CGPoint(x: 2.4, y: -h * 0.5))
+                p.addQuadCurve(to: CGPoint(x: 7, y: 0.5), control: CGPoint(x: 2.8, y: -h * 0.1))
+                p.closeSubpath()
+            }
+            for q in 0..<5 {
+                let fy = -h * (0.06 + Double(q) * 0.085)
+                c.seg(-1.8 + hashN(seed + Double(q)) * 1.2, fy, -1.2 + hashN(seed + Double(q) + 4) * 1.6, fy - h * 0.05, 0.6, Col(0x000000, 0.28))
+            }
+            c.seg(0, -h * 0.4, -h * 0.17, -h * 0.6, 2.2, self.lc(0x5a4028))
+            c.seg(0, -h * 0.44, h * 0.19, -h * 0.64, 2.2, self.lc(0x4a3420))
+            // the crown: a dark body, mid clumps, then sunlit tops
+            let blobs: [(Double, Double, Double)] = [(-0.3, 0.58, 0.22), (0.3, 0.6, 0.22), (-0.16, 0.74, 0.25), (0.18, 0.76, 0.24), (0, 0.9, 0.24), (-0.02, 0.62, 0.26), (0.36, 0.72, 0.16), (-0.38, 0.7, 0.15)]
             for (i, b) in blobs.enumerated() {
-                let jx = (hashN(seed * 7 + Double(i)) - 0.5) * h * 0.08
-                c.circ(b.0 * h + jx + sw * b.1, -b.1 * h, b.2 * h, self.lc(0x2f6a36))
+                let jx = (hashN(seed * 7 + Double(i)) - 0.5) * h * 0.07
+                c.circ(b.0 * h + jx + sw * b.1, -b.1 * h + b.2 * h * 0.18, b.2 * h * 1.04, self.lc(dark))
             }
             for (i, b) in blobs.enumerated() {
-                let jx = (hashN(seed * 7 + Double(i)) - 0.5) * h * 0.08
-                c.circ(b.0 * h + jx + sw * b.1 - b.2 * h * 0.22, -b.1 * h - b.2 * h * 0.26, b.2 * h * 0.66, self.lc(0x4f9448))
+                let jx = (hashN(seed * 7 + Double(i)) - 0.5) * h * 0.07
+                c.circ(b.0 * h + jx + sw * b.1 - b.2 * h * 0.1, -b.1 * h - b.2 * h * 0.08, b.2 * h * 0.86, self.lc(mid))
             }
-            c.circ(-0.12 * h + sw, -0.9 * h, 0.1 * h, self.lc(0x7ab85a).alpha(0.7))
+            for (i, b) in blobs.enumerated() where i != 5 {
+                let jx = (hashN(seed * 7 + Double(i)) - 0.5) * h * 0.07
+                let bx = b.0 * h + jx + sw * b.1 - b.2 * h * 0.3
+                let by = -b.1 * h - b.2 * h * 0.36
+                c.circ(bx, by, b.2 * h * 0.5, self.lc(lite).alpha(0.85))
+                c.circ(bx - b.2 * h * 0.16, by - b.2 * h * 0.18, b.2 * h * 0.22, self.lc(0xc8e890).alpha(0.5))
+            }
+            // leaf clusters picked out along the shaded side, and fruit or blossom
+            for q in 0..<14 {
+                let fq = Double(q)
+                let lx = (hashN(seed + fq * 3.1) - 0.5) * h * 0.78 + sw * 0.7
+                let ly = -h * (0.5 + hashN(seed + fq * 1.7) * 0.5)
+                c.arcStroke(lx, ly, h * 0.045, PI * 1.1, PI * 1.9, 0.8, Col(0x0c2814, 0.3))
+            }
+            if kind != 1 {
+                for q in 0..<6 {
+                    let fq = Double(q)
+                    let lx = (hashN(seed * 3 + fq) - 0.5) * h * 0.66 + sw * 0.7
+                    let ly = -h * (0.56 + hashN(seed * 5 + fq) * 0.36)
+                    c.circ(lx, ly, kind == 2 ? 1.5 : 1.2, kind == 2 ? self.lc(0xd84030) : self.lc(0xfff0f4))
+                }
+            }
         }
     }
     func drawCypress(_ c: Canvas, _ wx: Double, _ h: Double) {
@@ -580,6 +675,19 @@ extension Game {
                     bx += 5
                 }
             }
+            // weather stains rising from the ground, corner stones, the shadow under the eaves
+            c.vfill(-hw, -9, w, 7, [(0, Col(0x2a2418, 0)), (1, Col(0x2a2418, 0.22))])
+            if st.wall != "wood" {
+                var qy = 4.0
+                var flip = false
+                while qy < h - 6 {
+                    c.R(-hw, -qy - 5, flip ? 5 : 7.5, 5, self.lc(0x8a8478).alpha(0.75))
+                    c.R(hw - (flip ? 7.5 : 5), -qy - 5, flip ? 7.5 : 5, 5, self.lc(0x6e6a60).alpha(0.75))
+                    flip = !flip
+                    qy += 5.6
+                }
+            }
+            c.vfill(-hw, -h, w, 7, [(0, Col(0x000000, 0.3)), (1, Col(0x000000, 0))])
             if st.timber {
                 let beam = self.lc(0x4a3220)
                 c.R(-hw, -h, 2.4, h - 2, beam)
@@ -605,7 +713,24 @@ extension Game {
                     q += 3
                 }
             }
-            c.R(-hw - 5, -h - 0.5, w + 10, 1.6, rf.shade(0.55))
+            // tiles or shingles in courses, a ridge cap, the eave board
+            if st.roof != "thatch" {
+                for q in 1..<5 {
+                    let f = Double(q) / 5
+                    let half = (hw + 5) * (1 - f)
+                    var tx = -half + 2
+                    var n = q
+                    while tx < half {
+                        c.R(tx, -h - st.rh * f, 0.5, st.rh / 5, Col(0x000000, n % 2 == 0 ? 0.16 : 0.08))
+                        tx += 4.4
+                        n += 1
+                    }
+                }
+            }
+            c.seg(-(hw + 5) * 0.985, -h - 0.4, 0, -h - st.rh - 0.2, 0.9, Col(0xffffff, 0.16 * self.light))
+            c.circ(0, -h - st.rh, 1.3, rf.shade(0.6))
+            c.R(-hw - 5, -h - 0.5, w + 10, 1.9, rf.shade(0.5))
+            c.R(-hw - 5, -h + 1.4, w + 10, 0.7, Col(0x000000, 0.25))
             if st.chimney {
                 let cx = hw * 0.55
                 c.R(cx - 3, -h - st.rh * 0.5 - 12, 6, 14, self.lc(0x7a6a5a))
@@ -615,15 +740,37 @@ extension Game {
                     c.circ(cx + a * 10 + sin(self.T + Double(i)) * 2, -h - st.rh * 0.5 - 14 - a * 30, 3 + a * 6, Col(0xe0ddd6, 0.3 * (1 - a)))
                 }
             }
-            // door and windows, lit after dark
-            c.arch(-4.5, -15, 9, 15, self.lc(0x4a2e14))
-            c.circ(2.4, -7, 0.7, Col(0xd8b86a))
+            // door: step, frame, planks, ring handle
+            c.R(-7, -1.6, 14, 1.6, self.lc(0x8a8478))
+            c.arch(-5.5, -16.2, 11, 16.2, self.lc(0x3a2512))
+            c.arch(-4.5, -15, 9, 15, self.lc(0x6a4424))
+            c.R(-1.7, -13, 0.5, 13, Col(0x000000, 0.3))
+            c.R(1.3, -13, 0.5, 13, Col(0x000000, 0.3))
+            c.R(-4.5, -11, 9, 0.9, self.lc(0x2a2a30))
+            c.R(-4.5, -4.5, 9, 0.9, self.lc(0x2a2a30))
+            c.circStroke(2.6, -7.4, 0.9, 0.5, Col(0xd8b86a))
+            if lit { c.R(-4.5, -1.2, 9, 1.2, Col(0xffc86e, 0.5)) }
+            // windows: frame, glass, glazing bars, sill and shutters
+            let shutter: UInt32 = st.wall == "stone" ? 0x4a6a4a : (st.wall == "wood" ? 0x7a3028 : 0x3a5a7a)
             for (dx, dy) in st.wins {
+                c.R(dx - 8.6, dy - 6, 3.4, 12, self.lc(shutter))
+                c.R(dx + 5.2, dy - 6, 3.4, 12, self.lc(shutter).shade(0.8))
+                for q in 0..<4 {
+                    c.R(dx - 8.6, dy - 4.4 + Double(q) * 2.9, 3.4, 0.5, Col(0x000000, 0.28))
+                    c.R(dx + 5.2, dy - 4.4 + Double(q) * 2.9, 3.4, 0.5, Col(0x000000, 0.28))
+                }
                 c.R(dx - 5, dy - 6, 10, 12, self.lc(0x4a3220))
-                c.R(dx - 4, dy - 5, 8, 10, lit ? Col(0xffcc66) : Col(0x2a2c34))
+                if lit {
+                    c.vfill(dx - 4, dy - 5, 8, 10, [(0, Col(0xffe08a)), (1, Col(0xffb040))])
+                } else {
+                    c.vfill(dx - 4, dy - 5, 8, 10, [(0, self.lc(0x3a4e62)), (1, self.lc(0x1e2a38))])
+                    c.poly(Col(0xffffff, 0.16 * self.light), [dx - 4, dy - 5, dx - 0.5, dy - 5, dx - 4, dy + 1])
+                }
                 c.R(dx - 0.4, dy - 5, 0.8, 10, self.lc(0x4a3220))
                 c.R(dx - 4, dy - 0.4, 8, 0.8, self.lc(0x4a3220))
-                if lit { c.glow(dx, dy, 16, Col(0xffc86e, 0.3), Col(0xffc86e, 0)) }
+                c.R(dx - 6, dy + 6, 12, 1.5, self.lc(0x8a8478))
+                c.R(dx - 5, dy + 7.5, 10, 2.5, Col(0x000000, 0.14))
+                if lit { c.glow(dx, dy, 18, Col(0xffc86e, 0.34), Col(0xffc86e, 0)) }
             }
         }
     }

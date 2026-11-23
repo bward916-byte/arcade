@@ -577,6 +577,16 @@ extension Game {
             c.glow(X, Y + 2 * k, 40 * k, Col(0xffcd78, 0.18 * a), Col(0xffcd78, 0))
         }
         if vis(-229, 80) { c.glow(sx(-229), sy(-22) - 38 * k, 60 * k, Col(0xffc864, 0.45 * a), Col(0xffb450, 0)) }
+        var marks: [(Double, Col)] = [(-229, Col(0xffc864))]
+        if done.contains("light") { marks.append((-338, Col(0xfff4be))) }
+        if done.contains("dock2") && lvl("dock2") > 2 { marks.append((3500, Col(0xffc864))); marks.append((3560, Col(0xffc864))) }
+        for (wx, col) in marks where vis(wx, 60) {
+            for i in 0..<9 {
+                let fi = Double(i)
+                let half = (3 + fi * 1.6) * k * (0.6 + 0.4 * sin(T * 3 + fi * 1.9))
+                c.R(sx(wx) - half + sin(T * 1.3 + fi) * 2 * k, sy(wave(wx) + 3 + fi * 3.6), half * 2, 1.2 * k, col.alpha(0.3 * a * (1 - fi / 10)))
+            }
+        }
         for lx in [1226.0, 1274] where vis(lx, 40) {
             let X = sx(lx), Y = sy(ground(1250)) - 30 * k
             c.glow(X, Y, 28 * k, Col(0xffbe5a, 0.5 * a), Col(0xffbe5a, 0))
