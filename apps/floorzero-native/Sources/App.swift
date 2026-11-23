@@ -69,7 +69,8 @@ final class GameViewController: UIViewController {
         game.safeL = Double(view.safeAreaInsets.left) * k
         game.safeR = Double(view.safeAreaInsets.right) * k
         let px = Double(h) * Double(UIScreen.main.scale)
-        let scale = px / VIEW_H >= 1.7 ? 2 : 1
+        // draw at the screen's real pixel size, so nothing is stretched
+        let scale = min(2.4, max(1.0, px / VIEW_H))
         canvas = Canvas(w: Int(gw), h: Int(VIEW_H), scale: scale)
         if !started {
             started = true

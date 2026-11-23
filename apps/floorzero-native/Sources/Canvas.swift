@@ -9,17 +9,19 @@ final class Canvas {
     private let space = CGColorSpaceCreateDeviceRGB()
     private var fonts: [Int: UIFont] = [:]
 
-    init?(w: Int, h: Int, scale: Int) {
-        pxW = max(1, w * scale)
-        pxH = max(1, h * scale)
+    init?(w: Int, h: Int, scale: Double) {
+        pxW = max(1, Int((Double(w) * scale).rounded()))
+        pxH = max(1, Int((Double(h) * scale).rounded()))
         let info = CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue
         let rgb = CGColorSpaceCreateDeviceRGB()
-        guard let c = CGContext(data: nil, width: max(1, w * scale), height: max(1, h * scale), bitsPerComponent: 8, bytesPerRow: 0, space: rgb, bitmapInfo: info) else { return nil }
+        guard let c = CGContext(data: nil, width: max(1, Int((Double(w) * scale).rounded())), height: max(1, Int((Double(h) * scale).rounded())), bitsPerComponent: 8, bytesPerRow: 0, space: rgb, bitmapInfo: info) else { return nil }
         cg = c
         cg.translateBy(x: 0, y: CGFloat(pxH))
         cg.scaleBy(x: CGFloat(scale), y: -CGFloat(scale))
         cg.setLineCap(.round)
         cg.setLineJoin(.round)
+        cg.setShouldAntialias(true)
+        cg.interpolationQuality = .high
     }
 
     func image() -> CGImage? { return cg.makeImage() }
