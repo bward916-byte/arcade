@@ -4354,7 +4354,7 @@
       const mk = () => { const c = document.createElement('canvas'), r = new T.WebGLRenderer({ canvas: c, alpha: true, antialias: true }); r.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2)); r.setClearColor(0x000000, 0); return { canvas: c, renderer: r, size: 0, shared: o.shared }; };
       const sh = this._sh = o.shared ? (PlatformerHero._shared || (PlatformerHero._shared = mk())) : mk();
       this.canvas = sh.canvas; this.renderer = sh.renderer; this._dirty = true;
-      this.scene = new T.Scene(); this.scene.add(new T.HemisphereLight(0xffffff, 0x4a4656, 0.74));
+      this.scene = new T.Scene(); this.scene.add(new T.HemisphereLight(0xffffff, 0x8c8078, 0.74));
       const key = new T.DirectionalLight(0xfff1dc, 0.68); key.position.set(2.5, 4, 5); this.scene.add(key);
       const fill = new T.DirectionalLight(0x9db8ff, 0.3); fill.position.set(-4, 1.5, 2.5); this.scene.add(fill);
       const v = o.view; this.camera = new T.OrthographicCamera(-v / 2, v / 2, v * 0.92, -v * 0.08, 0.1, 50); this.camera.position.set(0, 0, 12);
@@ -4460,7 +4460,7 @@
       const H = new T.Group(); H.scale.setScalar(L.headSize); add('Head', H); this.headG = H; this.marksN = { head: 0, body: 0 };
       M.nose = (() => { const c = new T.Color(L.skin); c.multiplyScalar(.93); return new T.MeshPhongMaterial({ color: c, shininess: 14, specular: 0x1a1512 }); })(); const F = { jaw: L.jaw == null ? .5 : L.jaw, chin: L.chin == null ? .5 : L.chin, cheek: L.cheek == null ? .5 : L.cheek, ridge: L.browRidge == null ? .4 : L.browRidge, nose: L.noseSize || 1, noseW: L.noseWidth || 1, noseL: L.noseLength || 1, hook: L.noseBridge || 0, ears: L.earSize || 1 }; const rx = 8.9 * (L.faceWidth || 1), ry = 11.9 * (L.faceLength || 1), rz = 10.0, cy = 11.2, cz = 1.2, tex = new T.CanvasTexture(this._face(L)), tex2 = new T.CanvasTexture(this._face(L, true)); tex.anisotropy = tex2.anisotropy = 8;
       if (this.faceTex) for (const t of this.faceTex) t.dispose(); this.faceTex = [tex, tex2]; this.blinkT = 2 + Math.random() * 3;
-      const headShape = g => { const p = g.attributes.position, ss = (a, b, v) => { const t = clamp((v - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); }, taper = lerp(.52, .12, F.jaw);
+      const headShape = (g, plain) => { const p = g.attributes.position, ss = (a, b, v) => { const t = clamp((v - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); }, taper = lerp(.52, .12, F.jaw);
         for (let i = 0; i < p.count; i++) { let x = p.getX(i), y = p.getY(i), z = p.getZ(i);
           if (y < 0) { const k = -y, sq = F.jaw * .1 * Math.sin(Math.min(1, k / .75) * Math.PI);                 // a wide jaw holds its width down to the angle, then turns in
             x *= 1 - taper * k * k + sq; z *= z > 0 ? 1 - .1 * k * k : 1 - .3 * k;
@@ -4470,12 +4470,16 @@
             { const d2 = (ax - .6) * (ax - .6) / .05 + (y + .1) * (y + .1) / .03, w = Math.exp(-d2) * (F.cheek - .3) * .13; x += sx * w * .8; z += w; }                                            // cheekbones
             { const d2 = (ax - .52) * (ax - .52) / .06 + (y + .42) * (y + .42) / .05, w = Math.exp(-d2) * (.5 - F.cheek) * -.05 * (F.cheek < .5 ? -1 : .6); x += sx * w; z += w * .6; }            // and how full or hollow the cheek below them is
             { const w = Math.exp(-(y - .12) * (y - .12) / .008) * ss(.25, .6, z) * (1 - Math.min(1, ax * 1.25)) * F.ridge * .07; z += w; } }                                                          // the ridge of the brow
+          if (!plain && z > .2) { const ax = Math.abs(x), ns = F.nose, nw = F.noseW * (.82 + .18 * ns), y0 = .0, y1 = -.47 - .1 * (F.noseL - 1), t = (y0 - y) / (y0 - y1), pr = .215 * ns;
+            if (t > -.15 && t < 1.45) { const tc = clamp(t, 0, 1), hgt = t <= 1 ? lerp(.035, pr, Math.pow(tc, 1.25)) + F.hook * .07 * Math.exp(-(t - .4) * (t - .4) / .03) : pr * Math.pow(Math.max(0, 1 - (t - 1) / .42), 1.5),          // the ridge climbs from between the eyes to the tip, then tucks back in underneath
+                wid = (lerp(.075, .1, tc) + .035 * Math.exp(-(t - .9) * (t - .9) / .03)) * nw, sN = ax / wid, bell = sN < 1.6 ? Math.pow(Math.max(0, 1 - sN * sN / 2.56), 2) : 0, fade = t < 0 ? ss(-.15, 0, t) : 1; z += hgt * bell * fade; }
+            { const d2 = (ax - .125 * nw) * (ax - .125 * nw) / (.0032 * nw) + (y - (y1 + .045)) * (y - (y1 + .045)) / .0035; z += Math.exp(-d2) * pr * .42; }                                                                            // the wings of the nostrils
+            { const d2 = x * x / (.008 * nw) + (y - (y1 + .03)) * (y - (y1 + .03)) / .006; z += Math.exp(-d2) * pr * .2; }                                                                                                   // the ball of the tip
+            { const d2 = (ax - .37) * (ax - .37) / .014 + (y + .035) * (y + .035) / .006; z -= Math.exp(-d2) * .045; }                                                                                                         // the eyes sit back in their sockets
+            { const d2 = x * x / .035 + (y + .725) * (y + .725) / .0028; z += Math.exp(-d2) * (.022 + .018 * (L.lips || 1)); } }                                                                                               // and the lips stand a little proud
           p.setXYZ(i, x, y, z); } g.computeVertexNormals(); return g; };   // narrower jaw, flatter back of the neck
-      const skull = this.skull = new T.Mesh(headShape(new T.SphereGeometry(1, 32, 24)), new T.MeshPhongMaterial({ map: tex, shininess: 10, specular: 0x161210 })); skull.scale.set(rx, ry, rz); skull.position.set(0, cy, cz); H.add(skull);
+      const skull = this.skull = new T.Mesh(headShape(new T.SphereGeometry(1, 128, 96)), new T.MeshPhongMaterial({ map: tex, shininess: 10, specular: 0x161210 })); skull.scale.set(rx, ry, rz); skull.position.set(0, cy, cz); H.add(skull);
       H.add(ell(M.skin, 1 * F.ears, 2.5 * F.ears, 1.7 * F.ears, -rx + .15, cy - 2.2, cz - .8), ell(M.skin, 1 * F.ears, 2.5 * F.ears, 1.7 * F.ears, rx - .15, cy - 2.2, cz - .8));
-      { const ns = F.nose, nw = F.noseW * (.8 + .2 * ns), nl = F.noseL, zs = cz + rz * .9, pr = 1.9 * ns, ty = cy - 2.2 - 3.3 * nl, br = ell(M.nose, .78 * nw, 3.5 * nl, .95 + .25 * ns, 0, cy - 2.0 - .9 * (nl - 1), zs + pr * .2 - .2); br.rotation.x = -Math.atan2(pr * .62, 6.4 * nl);   // the bridge runs out from between the eyes to the tip
-        H.add(br, ell(M.nose, 1.2 * nw, 1.05 * ns, pr * .74, 0, ty, zs + pr * .4), ell(M.nose, .82 * nw, .7 * ns, 1.1 + .25 * ns, -1.0 * nw, ty - .22, zs - .2), ell(M.nose, .82 * nw, .7 * ns, 1.1 + .25 * ns, 1.0 * nw, ty - .22, zs - .2), ell(M.nose, .95 * nw, 1.6 * nl, 1.0 + .3 * ns, 0, ty + 1.5 * nl, zs + pr * .22));
-        if (F.hook > .05) H.add(ell(M.nose, .7 * nw, 1.2, .8 + F.hook * .5, 0, cy - 1.6 - 1.2 * nl, zs + pr * .3 + F.hook * .5)); }
       const dome = (m, s, th, tilt, yo) => { const geo = new T.SphereGeometry(1, 24, 14, 0, 6.2832, 0, th); geo.rotateX(-tilt); const g = new T.Mesh(geo, m); g.scale.set(rx * s, ry * s, rz * s); g.position.set(0, cy + (yo || 0), cz); return g; };   // tipped back first, then stretched: the cap follows the skull whatever its shape
       const hs = L.hair;
       if (hs === 'buzz') H.add(dome(M.hair, 1.035, 1.5, .42));
@@ -4485,7 +4489,7 @@
       else if (hs === 'bun') { H.add(dome(M.hair, 1.06, 1.62, .5, .3), ell(M.hair, 4.4, 4.2, 4.4, 0, cy + 11.5, cz - 5)); }
       else if (hs === 'afro') { const g = dome(M.hair, 1.38, 1.6, .62, 1.5); H.add(g); }
       else if (hs === 'mohawk') H.add(ell(M.hair, 1.5, 6.5, 10.5, 0, cy + 8.2, cz - 1.5), dome(M.hair, 1.015, 1.2, .5));
-      if (L.beard === 'full') { const g = new T.Mesh(headShape(new T.SphereGeometry(1, 20, 10, .35, 2.44, 1.78, 1.05)), M.hair); g.scale.set(rx * 1.06, ry * 1.1, rz * 1.07); g.position.set(0, cy, cz); H.add(g); }
+      if (L.beard === 'full') { const g = new T.Mesh(headShape(new T.SphereGeometry(1, 20, 10, .35, 2.44, 1.78, 1.05), true), M.hair); g.scale.set(rx * 1.06, ry * 1.1, rz * 1.07); g.position.set(0, cy, cz); H.add(g); }
       if (L.hat === 'cap') { H.add(dome(M.hat, 1.1, 1.38, .32, .6)); H.add(ell(M.hat, 7.6, .7, 6.5, 0, cy + 6.6, cz + 12.2)); }
       else if (L.hat === 'beanie') { H.add(dome(M.hat, 1.1, 1.52, .38, .5), ell(M.hat, 2, 2, 2, 0, cy + 13.4, cz - 2)); }
       if (L.glasses) for (const sx of [-1, 1]) { const r = new T.Mesh(new T.TorusGeometry(2.5, .32, 6, 18), M.dark); r.scale.setScalar(1.06); r.position.set(sx * 3.95 * L.eyeSpacing, cy - .1, cz + rz - .55); r.rotation.y = sx * .38; H.add(r); if (sx > 0) { const br = new T.Mesh(new T.CylinderGeometry(.28, .28, 2.4, 6), M.dark); br.rotation.z = 1.5708; br.position.set(0, cy + .1, cz + rz - .1); H.add(br); } }
@@ -4545,7 +4549,7 @@
       shade(cx - 36, 150, 20, 12, 'rgba(205,85,75,.11)'); shade(cx + 36, 150, 20, 12, 'rgba(205,85,75,.11)');
       shade(cx - ex, ey - 4, ew + 10, eh + 12, 'rgba(50,20,10,.26)'); shade(cx + ex, ey - 4, ew + 10, eh + 12, 'rgba(50,20,10,.26)');
       shade(cx - ex + 2, ey + 9, ew + 2, 4.6, `rgba(80,35,55,${(.1 + .2 * tired).toFixed(3)})`); shade(cx + ex - 2, ey + 9, ew + 2, 4.6, `rgba(80,35,55,${(.1 + .2 * tired).toFixed(3)})`);   // the nights show under the eyes
-      shade(cx - 9, 128, 7, 24, 'rgba(50,20,10,.13)'); shade(cx + 9, 128, 7, 24, 'rgba(50,20,10,.13)'); shade(cx, 158, 13, 5, 'rgba(50,20,10,.26)'); shade(cx, 163, 3.4, 5, 'rgba(50,20,10,.16)');
+      shade(cx - 9, 128, 7, 24, 'rgba(50,20,10,.07)'); shade(cx + 9, 128, 7, 24, 'rgba(50,20,10,.07)'); shade(cx, 160, 11, 4, 'rgba(50,20,10,.1)'); shade(cx, 164, 3.4, 5, 'rgba(50,20,10,.12)');
       g.lineCap = 'round';
       if (age > .15) { g.strokeStyle = `rgba(70,30,18,${(.1 + .22 * age).toFixed(3)})`; g.lineWidth = 1.1; for (const sx of [-1, 1]) { g.beginPath(); g.moveTo(cx + sx * 8.5, 151); g.quadraticCurveTo(cx + sx * 17, 160, cx + sx * 17.5, 174); g.stroke(); }      // the fold from nose to mouth
         g.strokeStyle = `rgba(70,30,18,${(.05 + .16 * age).toFixed(3)})`; g.lineWidth = .9; for (let k = 0; k < 3; k++) { g.beginPath(); g.moveTo(cx - 26 + k * 3, 82 + k * 6.5); g.quadraticCurveTo(cx, 79 + k * 6.5 + R() * 2, cx + 26 - k * 3, 82 + k * 6.5); g.stroke(); }
@@ -4571,7 +4575,7 @@
         // a brow is hairs, not a line: laid along the arch, thick by the nose and thinning out
         { const bt = L.browTilt * 3.5, bx0 = x - sx * (ew + 3), by0 = ey - 13 + bt, bx1 = x + sx * (ew + 5), by1 = ey - 12.5 - bt, mxp = x, myp = ey - 18.5 - L.brow; g.strokeStyle = L.hairColor;
           for (let k = 0; k < 70; k++) { const t = R(), it = 1 - t, px = it * it * bx0 + 2 * it * t * mxp + t * t * bx1, py = it * it * by0 + 2 * it * t * myp + t * t * by1, th = (1.9 - 1.3 * t) * L.brow, oy = (R() - .5) * 2 * th, ln = 2.4 + R() * 2.2; g.globalAlpha = .45 + R() * .5; g.lineWidth = .55 + R() * .5; g.beginPath(); g.moveTo(px, py + oy); g.lineTo(px + sx * ln, py + oy - ln * (.5 - t * .75)); g.stroke(); } g.globalAlpha = 1; } g.restore(); }
-      g.fillStyle = 'rgba(40,12,8,.6)'; g.beginPath(); { const nwT = (L.noseWidth || 1) * (.8 + .2 * (L.noseSize || 1)), nyT = 152.5 + ((L.noseLength || 1) - 1) * 12; g.ellipse(cx - 4.6 * nwT, nyT, 2.5 * nwT, 1.5, .3, 0, 6.2832); g.ellipse(cx + 4.6 * nwT, nyT, 2.5 * nwT, 1.5, -.3, 0, 6.2832); } g.fill();                                               // nostrils
+      g.fillStyle = 'rgba(40,12,8,.42)'; g.beginPath(); { const nwT = (L.noseWidth || 1) * (.8 + .2 * (L.noseSize || 1)), nyT = 152.5 + ((L.noseLength || 1) - 1) * 12; g.ellipse(cx - 4.4 * nwT, nyT + 1.5, 2.1 * nwT, 1.2, .3, 0, 6.2832); g.ellipse(cx + 4.4 * nwT, nyT + 1.5, 2.1 * nwT, 1.2, -.3, 0, 6.2832); } g.fill();                                               // nostrils
       const lf = L.lips || 1, my = 171, mw = 15.5 * (L.mouthWidth || 1), sm = L.mouth * 6, yE = my - sm * .5, yM = my + sm * .5;
       g.fillStyle = L.lipColor; g.beginPath(); g.moveTo(cx - mw, yE); g.quadraticCurveTo(cx - 6, yM - 5.4 * lf, cx - 2.5, yM - 3.8 * lf); g.lineTo(cx, yM - 2.7 * lf); g.lineTo(cx + 2.5, yM - 3.8 * lf); g.quadraticCurveTo(cx + 6, yM - 5.4 * lf, cx + mw, yE); g.quadraticCurveTo(cx, yM + 1, cx - mw, yE); g.fill();   // upper lip
       g.fillStyle = 'rgba(30,8,6,.28)'; g.fill();
