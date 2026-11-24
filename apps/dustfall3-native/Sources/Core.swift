@@ -45,6 +45,7 @@ let HAT: [Col] = [Col(0x4a3424), Col(0x6a4a2e), Col(0x2e2622), Col(0xc9a86a)]
 let FIRE_X = 1365.0, MINE_X = 830.0, DAY_LEN = 100.0
 // From the second town on, everything east of the stable moves 340 further out to make room for the new buildings.
 var SHIFT = 0.0
+let WEST = -700.0                       // the open country west of the far camp
 var WORLD = 3420.0
 var STOP = 1798.0                       // where the locomotive pulls up; the passenger car is 64 behind it
 func EX(_ x: Double) -> Double { return x > 1695 ? x + SHIFT : x }
@@ -86,7 +87,7 @@ let LANDS: [Bio: Land] = [
     .snow: Land(far: 0xb6c1d2, mesa: 0x97a4b8, mesaS: 0x77859a, mesaT: 0xf4f8ff, scrub: 0x476a52, g0: 0xe6ebf2, edge: 0xffffff, street: 0xd6dee9, g1: 0xd6dee9, g2: 0xb9c6d6, speck: 0x9aa8bc, dust: 0xf6f9ff)
 ]
 
-enum BType: String { case store, saloon, sheriff, stable, bank, gateW, gateE, station, train, hall, wireW, wireE, bordello, doctor, church, forge, telegraph, claim, coach }
+enum BType: String { case store, saloon, sheriff, stable, bank, gateW, gateE, station, train, hall, wireW, wireE, bordello, doctor, church, forge, telegraph, claim, coach, sPost, sTribe, sRuin, sRig, sShow, sFort }
 enum Role { case folk, deputy, miner, rancher }
 
 struct Def {
@@ -115,6 +116,13 @@ let DEFS: [BType: Def] = [
     .gateW: Def(name: "WEST GATE", w: 14, h: 16, cost: [4, 8, 14], pay: 0, wall: 0x7a5632, trim: 0x4a3424, roof: 0x4a3424, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: true),
     .gateE: Def(name: "EAST GATE", w: 14, h: 16, cost: [4, 8, 14], pay: 0, wall: 0x7a5632, trim: 0x4a3424, roof: 0x4a3424, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: true),
     .station: Def(name: "STATION", w: 84, h: 38, cost: [20], pay: 0, wall: 0xc9a65a, trim: 0x6a2f26, roof: 0x4a3a34, sign: 0xead7a4, ink: 0x4a2a22, doorX: 36, doorW: 13, wins: [(8, 16), (60, 16)], gate: false),
+    // places out of town where coins buy something on the spot; what they cost is worked out as the game runs
+    .sPost: Def(name: "TRADING POST", w: 0, h: 34, cost: [1], pay: 0, wall: 0, trim: 0, roof: 0, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: false),
+    .sTribe: Def(name: "SCOUT CAMP", w: 0, h: 38, cost: [1], pay: 0, wall: 0, trim: 0, roof: 0, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: false),
+    .sRuin: Def(name: "GHOST TOWN", w: 8, h: 40, cost: [1], pay: 0, wall: 0, trim: 0, roof: 0, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: false),
+    .sRig: Def(name: "OIL SEEP", w: 0, h: 64, cost: [1], pay: 0, wall: 0, trim: 0, roof: 0, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: false),
+    .sShow: Def(name: "MEDICINE SHOW", w: 0, h: 34, cost: [1], pay: 0, wall: 0, trim: 0, roof: 0, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: false),
+    .sFort: Def(name: "CAVALRY OUTPOST", w: 0, h: 46, cost: [1], pay: 0, wall: 0, trim: 0, roof: 0, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: false),
     // the stagecoach while it waters its team: where a guard is paid for
     .coach: Def(name: "STAGECOACH", w: 38, h: 14, cost: [3], pay: 0, wall: 0, trim: 0, roof: 0, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: false),
     // not a building: the passenger car, where a ticket is paid
@@ -173,8 +181,10 @@ final class Building {
     var def: Def { return DEFS[type]! }
     var cx: Double { return x + def.w / 2 }
     var maxLevel: Int { return def.cost.count }
-    var cost: Int { return level < maxLevel ? Int((Double(def.cost[level]) * scale).rounded(.up)) : 0 }
-    var payable: Bool { return live && level < min(maxLevel, capL) && !building }
+    var dyn = -1              // a site's price right now; under 0 for an ordinary building
+    var site: Bool { return dyn >= 0 }
+    var cost: Int { return dyn >= 0 ? dyn : (level < maxLevel ? Int((Double(def.cost[level]) * scale).rounded(.up)) : 0) }
+    var payable: Bool { return dyn >= 0 ? live && dyn > 0 : live && level < min(maxLevel, capL) && !building }
 }
 
 final class Drifter {
@@ -332,6 +342,7 @@ struct SaveData: Codable {
     var wx: [Double]?
     var place: String?
     var log: [String]?
+    var west: [Double]?       // dynamite, loader, lantern, day the post sold, scout days, ruin cool, rig, rig burning, show on, show used, cavalry
     var extra: [Double]?      // owed, flood, duelDay, wanted man's side (0 for none), his hit points, his days left
 }
 
@@ -389,6 +400,32 @@ struct Stray {
     var phase = 0.0
     let seed: Double
 }
+/// A wild mustang on the open west: 0 grazing, 1 bolting, 2 roped and following, 3 gone loose.
+struct Mustang {
+    var x: Double
+    var dir = 1.0
+    var st = 0
+    var t = 2.0
+    var tx = 0.0
+    var going = false
+    var rope = 0.0
+    var phase = 0.0
+    var speed = 0.0
+    let seed: Double
+}
+/// A cavalry trooper on patrol.
+struct Trooper {
+    var x: Double
+    let dir: Double
+    var cd: Double
+    var phase = 0.0
+}
+/// What the trading post sells: a stick of dynamite, a speed loader, a signal lantern.
+let ITEMS: [(String, String, Int, Bool, String)] = [
+    ("dyn", "Dynamite", 4, false, "Your next shot into a bunch of three or more raiders is a stick of dynamite."),
+    ("loader", "Speed loader", 6, true, "Reloading is two seconds quicker for as long as you stay in this town."),
+    ("lantern", "Signal lantern", 6, true, "You and your deputies see a fifth further, day or night.")
+]
 let OUTLAWS = ["Black Jack Tully", "Dutch Annie", "One-Eye Garza", "Mad Dog Riley", "The Pecos Kid", "Curly Bill Stokes"]
 let DUELISTS = ["Cole Varney", "Dutch Maddox", "One-Eye Reese", "Eli Vance", "Ned Purdy"]
 

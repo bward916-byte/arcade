@@ -21,6 +21,7 @@ final class Renderer {
         groundBand(dk)
         scenery()
         landmarks()
+        sites(dk)
         camps(dk)
         for bl in g.b where bl.def.wall != 0 && !bl.def.gate { building(bl, dk) }
         centre()
@@ -36,6 +37,18 @@ final class Renderer {
         coach()
         for w in g.strays { cowAt(w.x, w.dir, 1, w.seed, w.phase, horns: true) }
         gunmen()
+        for m in g.mustangs {
+            let coats: [(UInt32, UInt32)] = [(0x9a5a34, 0x4a2a18), (0xc9a36a, 0x8a6a40), (0x8a8480, 0x4a4642), (0x3a3230, 0x1c1816)]
+            let ct = coats[Int(m.seed) % 4]
+            if vis(m.x, 30) { _ = horse(sx(m.x), m.dir, m.phase, m.speed, Col(ct.0), Col(ct.1)); if m.st == 2 { c.seg(sx(m.x) + m.dir * 14, gy - 22, sx(g.px), gy - 22, 0.5, Col(0xc9a468)) } }
+        }
+        for tr in g.cav where vis(tr.x, 30) {
+            let x = sx(tr.x)
+            _ = horse(x, tr.dir, tr.phase, 118, Col(0x6e4a30), Col(0x3a2416))
+            c.R(x - 3, gy - 26, 6, 9, Col(0x2f4a7a)); c.R(x - 3, gy - 22, 6, 1.2, Col(0xf2c14e)); c.R(x - 1, gy - 17, 3, 7, Col(0x8fa4c4))
+            c.R(x - 2, gy - 30, 4.5, 4, Col(0xd9a878)); c.R(x - 4.5, gy - 31, 9.5, 1.3, Col(0x1c2a4a)); c.R(x - 2.5, gy - 33.6, 5.5, 3, Col(0x1c2a4a))
+            c.seg(x + tr.dir * 2, gy - 24, x + tr.dir * 9, gy - 29, 1, Col(0xc9c9d0))
+        }
         for f in g.folk { person(f.x, f.phase, f.dir, f.moving, f.seed, f.role, f.work) }
         for bn in g.bandits {
             // dust or a blizzard hides them until they are close
@@ -221,7 +234,7 @@ final class Renderer {
         let near = Col.mix(Col.mix(Col(L.mesa), Col(0x8a3e4a), dusk), Col(0x2a2a4e), dk)
         let cap = Col.mix(Col(L.mesaT), Col(0x4a4e72), dk)
         let nearD = Col.mix(Col.mix(Col(L.mesaS), Col(0x6a2e3a), dusk), Col(0x20203e), dk)
-        var i = 0
+        var i = -4
         while i < 14 {
             let bx = Double(i) * 190 + hashN(Double(i) * 5.3) * 80 - g.cam * 0.22 - 60
             let w = 70 + hashN(Double(i) * 1.7) * 90, h = 26 + hashN(Double(i) * 8.9) * 34
@@ -279,14 +292,14 @@ final class Renderer {
     }
 
     private func scenery() {
-        var i = Int((g.cam - 40) / 120)
+        var i = Int(((g.cam - 40) / 120).rounded(.down))
         let end = Int((g.cam + W + 40) / 120)
         while i <= end {
-            if i >= 0 {
+            if i >= -6 {
                 let x = Double(i) * 120 + hashN(Double(i) * 6.6) * 90
                 let inTown = x > 890 && x < g.gateE.x + 60
                 let wet = g.bio == .river && x > g.river.0 - 14 && x < g.river.1 + 14
-                let grazed = x > g.pasture.0 - 12 && x < g.pasture.1 + 12
+                let grazed = (x > g.pasture.0 - 12 && x < g.pasture.1 + 12) || [-90.0, -250, -434, -600, 752, g.sFort.x, g.missionX, g.archX, 528].contains { abs($0 - x) < 34 }
                 if !inTown && !wet && !grazed {
                     let k = hashN(Double(i) * 2.9)
                     let s = sx(x)
@@ -563,6 +576,84 @@ final class Renderer {
             c.poly(rs, [x + 8, gy - 48, x + 26, gy - 40, x + 32, gy - 18, x + 34, gy, x + 20, gy, x + 18, gy - 20, x + 14, gy - 34])
             c.R(x - 24, gy - 36, 26, 1, rs.alpha(0.5)); c.R(x - 28, gy - 22, 8, 1, rs.alpha(0.5))
             if g.bio == .snow { c.poly(Col(0xf4f8ff), [x - 22, gy - 44, x + 8, gy - 48, x + 26, gy - 40, x + 10, gy - 44, x - 18, gy - 41]) }
+        }
+    }
+
+    /// The places out of town: trading post, scout camp, ghost town, oil derrick, the medicine show and the cavalry outpost.
+    private func sites(_ dk: Double) {
+        let wood = Col(0x7a5632), dkw = Col(0x4a3424), canvasC = Col(0xd8c8a0)
+        if vis(-90, 50) {
+            let x = sx(-90).rounded()
+            c.R(x - 18, gy - 20, 36, 20, wood)
+            var yy = gy - 17.0
+            while yy < gy { c.R(x - 18, yy, 36, 1, dkw.alpha(0.5)); yy += 4 }
+            c.poly(dkw, [x - 21, gy - 20, x, gy - 30, x + 21, gy - 20])
+            c.R(x - 4, gy - 13, 8, 13, Col(0x2a1c14)); c.R(x - 15, gy - 14, 8, 6, dk > 0.3 ? Col(0xffd98a) : Col(0x9fc4d4))
+            c.poly(Col(0xb5412e), [x + 6, gy - 16, x + 22, gy - 12, x + 22, gy - 10, x + 6, gy - 14]); c.R(x + 20, gy - 11, 1.2, 11, dkw)
+            c.R(x + 8, gy - 6, 6, 6, Col(0x9a7a4a)); c.R(x + 15, gy - 5, 5, 5, Col(0x8a6a3a))
+            c.R(x - 12, gy - 27, 24, 5, Col(0xead7a4)); c.text("TRADING", x, gy - 23, 4, Col(0x4a2a22))
+        }
+        if vis(-250, 50) {
+            let x = sx(-250).rounded()
+            for (dx, hh) in [(-16.0, 24.0), (10.0, 20.0)] {
+                c.poly(canvasC, [x + dx - 10, gy, x + dx, gy - hh, x + dx + 10, gy]); c.poly(Col(0xb8a880), [x + dx, gy - hh, x + dx + 3, gy, x + dx + 10, gy])
+                c.poly(Col(0x3a2a1c), [x + dx - 2.5, gy, x + dx, gy - 8, x + dx + 2.5, gy])
+                c.seg(x + dx - 2, gy - hh - 4, x + dx + 2, gy - hh + 2, 0.7, dkw); c.seg(x + dx + 2, gy - hh - 4, x + dx - 2, gy - hh + 2, 0.7, dkw)
+                c.R(x + dx - 6, gy - hh * 0.45, 12, 1.2, Col(0xb5412e))
+            }
+            campfire(-250 - 2, 0.6)
+            if g.scoutDays > 0 { c.R(x + 24, gy - 26, 1.2, 26, dkw); c.poly(Col(0xc0392b), [x + 25, gy - 26, x + 33, gy - 23.5, x + 25, gy - 21]) }
+        }
+        if vis(-434, 70) {
+            let x = sx(-434).rounded()
+            let stone = Col(0x8a7c6c), sh = Col(0x6a5e52)
+            c.R(x - 28, gy - 18, 14, 18, stone); c.poly(stone, [x - 28, gy - 18, x - 24, gy - 26, x - 20, gy - 18]); c.R(x - 24, gy - 12, 5, 7, Col(0x2a221e))
+            c.R(x - 8, gy - 24, 3, 24, sh); c.R(x - 8, gy - 24, 20, 3, sh); c.R(x + 10, gy - 14, 3, 14, sh)
+            c.R(x + 16, gy - 10, 14, 10, stone); c.poly(sh, [x + 16, gy - 10, x + 22, gy - 16, x + 30, gy - 10])
+            c.seg(x - 5, gy - 21, x + 9, gy - 4, 1.2, Col(0x5a4a3a)); c.R(x - 2, gy - 3, 8, 3, sh)
+            c.text("BANK", x + 2, gy - 26, 4, Col(0x5a4a3a))
+        }
+        if vis(-600, 60) {
+            let x = sx(-600).rounded()
+            c.ell(x, gy + 1, 18, 2.5, Col(0x14121a, 0.85))
+            if g.rigLv > 0 {
+                let st = Col(0x3a3230)
+                c.seg(x - 10, gy, x - 2, gy - 56, 1.6, st); c.seg(x + 10, gy, x + 2, gy - 56, 1.6, st)
+                var k = 0.0
+                while k < 5 { let yy = gy - 8 - k * 10, hw = 9 - k * 1.5; c.seg(x - hw, yy, x + hw, yy, 1, st); c.seg(x - hw, yy, x + hw - 1.5, yy - 10, 0.7, st); k += 1 }
+                c.R(x - 4, gy - 60, 8, 4, st); c.R(x - 0.5, gy - 56, 1, 50, Col(0x1c1a22))
+                c.R(x + 14, gy - 8, 12, 8, Col(0x6a5a4a)); c.R(x + 13, gy - 10, 14, 2, Col(0x4a3f38))
+                if g.rigBurn {
+                    for k2 in 0..<5 {
+                        let f = 10 + sin(g.clock * 11 + Double(k2) * 2) * 4
+                        c.poly(Col(0xf08a2a), [x - 6 + Double(k2) * 3 - 3, gy - 54, x - 6 + Double(k2) * 3, gy - 54 - f, x - 6 + Double(k2) * 3 + 3, gy - 54])
+                    }
+                    c.poly(Col(0xffd45a), [x - 4, gy - 54, x, gy - 66 - sin(g.clock * 14) * 3, x + 4, gy - 54])
+                } else {
+                    let a = sin(g.clock * 2.2) * 0.35
+                    c.seg(x + 12 - cos(a) * 8, gy - 16 + sin(a) * 8, x + 12 + cos(a) * 8, gy - 16 - sin(a) * 8, 1.6, st); c.R(x + 11.3, gy - 16, 1.5, 8, st)
+                }
+            } else {
+                c.R(x - 9, gy - 10, 1.2, 10, dkw); c.R(x - 13, gy - 13, 9, 5, Col(0xead7a4)); c.text("OIL", x - 8.5, gy - 9.3, 3.4, Col(0x2a1c14))
+            }
+        }
+        if g.showOn && vis(752, 50) {
+            let x = sx(752).rounded()
+            c.RR(x - 16, gy - 24, 32, 17, 2, Col(0x7a2f6a)); c.R(x - 17, gy - 26, 34, 3, Col(0xf2c14e)); c.R(x - 14, gy - 21, 28, 8, Col(0xf4ecd6))
+            c.text("TONIC", x, gy - 14.6, 5, Col(0x7a2f6a))
+            for wx in [x - 9, x + 9] { c.circ(wx, gy - 4.5, 4.5, dkw); c.circ(wx, gy - 4.5, 3, Col(0xc9a86a)); c.circ(wx, gy - 4.5, 0.9, dkw) }
+            c.R(x + 20, gy - 12, 4, 7, Col(0x2e2622)); c.R(x + 20.3, gy - 15, 3.4, 3.2, Col(0xd9a878)); c.R(x + 19.6, gy - 19.6, 4.8, 4.6, Col(0x14100e)); c.R(x + 18.4, gy - 15.4, 7.2, 1, Col(0x14100e))
+        }
+        let fx = g.sFort.x
+        if vis(fx, 70) {
+            let x = sx(fx).rounded()
+            var k = -22.0
+            while k < 22 { c.R(x + k, gy - 22, 3, 22, Int(k) % 6 == 0 ? wood : dkw); c.poly(wood, [x + k, gy - 22, x + k + 1.5, gy - 26, x + k + 3, gy - 22]); k += 3 }
+            c.R(x - 6, gy - 16, 12, 16, Col(0x3a2a1c)); c.R(x - 23, gy - 14, 46, 1.5, dkw)
+            c.R(x + 14, gy - 44, 1.4, 22, dkw)
+            let wv = sin(g.clock * 3) * 1.2
+            c.poly(Col(0x2f4a7a), [x + 15.4, gy - 44, x + 28, gy - 43 + wv, x + 28, gy - 37 + wv, x + 15.4, gy - 37]); c.R(x + 15.4, gy - 41.4, 12.6, 1.4, Col(0xf2c14e))
+            if g.fortNight { c.text("PATROL TONIGHT", x, gy - 29, 4, Col(0xf2c14e)) }
         }
     }
 
@@ -1109,14 +1200,19 @@ final class Renderer {
         var tall = bl.def.h + Double(max(0, bl.level - 1)) * 5
         if bl.isHall && bl.level == 1 { tall = 26 }
         var gap = 34.0
-        if bl.def.gate || bl.wire || bl.isHall { gap = 12 } else if bl.virt { gap = 26 }
+        if bl.def.gate || bl.wire || bl.isHall { gap = 12 } else if bl.virt { gap = 26 } else if bl.site { gap = 4 }
         let top = gy - tall - gap - Double(rows) * 6
         let cx = sx(bl.cx)
-        c.RR(cx - Double(per) * 3 - 3, top - 4, Double(per) * 6 + 6, Double(rows) * 6 + 2, 3, Col(0x2a1c14, 0.75))
+        // every row is centred over the building, with no panel behind
         for i in 0..<n {
-            let x = cx - Double(per) * 3 + 3 + Double(i % per) * 6
-            let y = top + Double(i / per) * 6
-            if i < bl.paid { coinAt(x, y) } else { c.ellStroke(x, y, 1.8, 1.8, 0.7, Col(0xf2c14e, 0.8)) }
+            let row = i / per
+            let inRow = row == rows - 1 ? n - row * per : per
+            let x = cx - Double(inRow - 1) * 3 + Double(i % per) * 6
+            let y = top + Double(row) * 6
+            if i < bl.paid { coinAt(x, y) } else {
+                c.ellStroke(x, y, 1.9, 1.9, 1.5, Col(0x2a1c14, 0.7))
+                c.ellStroke(x, y, 1.9, 1.9, 0.7, Col(0xf7d877))
+            }
         }
     }
 }

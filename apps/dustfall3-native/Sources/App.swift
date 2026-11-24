@@ -339,12 +339,12 @@ final class GameViewController: UIViewController {
         canvas = cv
         game.W = Double(w); game.H = Double(h)
         game.GY = Double(h) - clampD((Double(h) * 0.24).rounded(), 30, 46)
-        game.cam = clampD(game.px - game.W / 2, 0, WORLD - game.W)
+        game.cam = clampD(game.px - game.W / 2, WEST, WORLD - game.W)
         renderer = Renderer(game: game, canvas: cv)
         if !demoDone && sw > sh {
             demoDone = true
             let args = ProcessInfo.processInfo.arguments
-            for name in ["day", "night", "train", "snow", "storm", "map", "duel", "coach"] where args.contains("-demo-" + name) { demoMode = true; game.demo(name) }
+            for name in ["day", "night", "train", "snow", "storm", "map", "duel", "coach", "west", "west2"] where args.contains("-demo-" + name) { demoMode = true; game.demo(name) }
             if args.contains("-demo-map") { showMap(choose: true) }
             if args.contains("-demo-cut") { demoMode = true; game.demo("day"); game.cut = [STORY["a4"]![1]] }
             if args.contains("-demo-cut2") { demoMode = true; game.demo("day"); game.cut = [STORY["s2"]![1]] }
