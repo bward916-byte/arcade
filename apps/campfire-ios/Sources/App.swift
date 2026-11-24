@@ -88,10 +88,12 @@ struct RootView: View {
         })
         .sheet(isPresented: $comparing) { CompareView() }
         .task(id: tab) {
+            if stripOff { return }
             await pickQuestion()
             withAnimation { stripShown = true }
             try? await Task.sleep(nanoseconds: 7_500_000_000)
-            if !Task.isCancelled { withAnimation { stripShown = false } }
+            withAnimation { stripShown = false }
+            stripOff = true      // shown once each time the app is opened, not on every tab
         }
         .sheet(isPresented: $answering, onDismiss: { Task { await pickQuestion() } }) {
             NavigationStack {
