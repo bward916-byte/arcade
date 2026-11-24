@@ -58,6 +58,7 @@ struct ForSaleView: View {
                 VStack(alignment: .leading, spacing: 14) {
                     DesertBanner(title: "Quartzsite Campfire", subtitle: "Buy, sell and trade around Quartzsite", scene: "market")
                         .padding(.horizontal)
+                    LandAskButton().padding(.horizontal)
                     Button {
                         posting = true
                     } label: {
