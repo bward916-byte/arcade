@@ -254,7 +254,7 @@ final class GameViewController: UIViewController {
         folkLabel.frame = CGRect(x: l + 98, y: top, width: 74, height: 30)
         ammoLabel.frame = CGRect(x: l + 178, y: top, width: 96, height: 30)
         menuBtn.frame = CGRect(x: bw - r - 70, y: top, width: 70, height: 32)
-        dayLabel.frame = CGRect(x: bw - r - 70 - 126, y: top, width: 120, height: 30)
+        dayLabel.frame = CGRect(x: bw - r - 70 - 166, y: top, width: 160, height: 30)
         let hw = min(bw - l - r - 40, 520)
         hint.frame = CGRect(x: (bw - hw) / 2, y: top + 38, width: hw, height: 62)
         fireCenter = CGPoint(x: bw - r - 58, y: bh - bot - 62)
@@ -305,7 +305,7 @@ final class GameViewController: UIViewController {
         if !demoDone && sw > sh {
             demoDone = true
             let args = ProcessInfo.processInfo.arguments
-            for name in ["day", "night", "train"] where args.contains("-demo-" + name) { demoMode = true; game.demo(name) }
+            for name in ["day", "night", "train", "snow", "storm"] where args.contains("-demo-" + name) { demoMode = true; game.demo(name) }
         }
     }
 
@@ -415,7 +415,8 @@ final class GameViewController: UIViewController {
         set(folkLabel, "Folk \(game.folk.count)")
         set(ammoLabel, game.reloadT > 0 ? "Loading \(Int(game.reloadT.rounded(.up)))" : "Shots \(game.ammo)")
         let tm = game.dark() > 0.5 ? "night" : (game.t > 0.6 ? "dusk" : "")
-        set(dayLabel, "Day \(game.day)" + (tm.isEmpty ? "" : ", " + tm))
+        let wn = game.cloudI() > 0.2 || game.wx == 1 || (game.wx == 2) ? game.wxName() : ""
+        set(dayLabel, wn.isEmpty ? "Day \(game.day)" + (tm.isEmpty ? "" : ", " + tm) : "Day \(game.day), \(wn.lowercased())")
         hint.isHidden = game.hintT <= 0 || userPaused
         if game.hintT > 0 { set(hint, game.hintText) }
         info.isHidden = game.info.isEmpty || userPaused

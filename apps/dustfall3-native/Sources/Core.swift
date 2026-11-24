@@ -53,6 +53,19 @@ let TOWN_W = 1010.0, TOWN_E = 1790.0
 let TOWN_NAMES = ["DUSTFALL", "REDWATER", "LAST HOPE", "COLD CREEK", "BITTER END"]
 func nice(_ s: String) -> String { return s.capitalized }
 
+/// The country each town stands in. Colours are the web game's.
+enum Bio { case desert, river, snow }
+let TOWN_BIO: [Bio] = [.desert, .river, .desert, .snow, .snow]
+struct Land {
+    let far: UInt32, mesa: UInt32, mesaS: UInt32, mesaT: UInt32, scrub: UInt32
+    let g0: UInt32, edge: UInt32, street: UInt32, g1: UInt32, g2: UInt32, speck: UInt32, dust: UInt32
+}
+let LANDS: [Bio: Land] = [
+    .desert: Land(far: 0xd9a47a, mesa: 0xc47a4a, mesaS: 0xa85e36, mesaT: 0xe6b891, scrub: 0x8a8a56, g0: 0xdcb680, edge: 0xeccf9c, street: 0xc49a66, g1: 0xd0a66e, g2: 0xb88a56, speck: 0x9a744a, dust: 0xe2c08c),
+    .river: Land(far: 0x9fa697, mesa: 0xb39a70, mesaS: 0x8f7854, mesaT: 0xd2bb92, scrub: 0x55783c, g0: 0xb9b27e, edge: 0xd8c38a, street: 0xb99c60, g1: 0xaa9e62, g2: 0x8e8a4c, speck: 0x7c6a3c, dust: 0xd8c690),
+    .snow: Land(far: 0xb6c1d2, mesa: 0x97a4b8, mesaS: 0x77859a, mesaT: 0xf4f8ff, scrub: 0x476a52, g0: 0xe6ebf2, edge: 0xffffff, street: 0xd6dee9, g1: 0xd6dee9, g2: 0xb9c6d6, speck: 0x9aa8bc, dust: 0xf6f9ff)
+]
+
 enum BType: String { case store, saloon, sheriff, stable, bank, gateW, gateE, station, train, hall, wireW, wireE, bordello, doctor, church, forge, telegraph, claim }
 enum Role { case folk, deputy, miner, rancher }
 
@@ -294,4 +307,5 @@ struct SaveData: Codable {
     var boxes: [Bool]
     var seen: [String]
     var herd: Int?
+    var wx: [Double]?
 }

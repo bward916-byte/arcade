@@ -33,11 +33,17 @@ final class Renderer {
         for bl in g.b where bl.def.gate { gate(bl) }
         for bx in g.boxes { box(bx) }
         for f in g.folk { person(f.x, f.phase, f.dir, f.moving, f.seed, f.role, f.work) }
-        for bn in g.bandits { bandit(bn) }
+        for bn in g.bandits {
+            // dust or a blizzard hides them until they are close
+            if g.storm { c.alpha(abs(bn.x - g.px) < 70 ? 1 : 0.35) }
+            bandit(bn)
+        }
+        c.alpha(1)
         if g.tripT < 0 { rider() }
         coins()
         effects()
         night(dk)
+        weather(dk)
         slots()
         c.restore()
         if g.flash > 0 { c.R(0, 0, W, H, Col(0xfff0c0, g.flash * 0.5)) }
@@ -49,9 +55,13 @@ final class Renderer {
 
     // ---------- sky and land
     private func sky(_ dk: Double, _ dusk: Double) {
-        let top = Col.mix(Col.mix(Col(0x6fb0e0), Col(0x5a3f7a), dusk), Col(0x0a0f24), dk)
-        let mid = Col.mix(Col.mix(Col(0xbfdcee), Col(0xe8794a), dusk), Col(0x1a2040), dk)
-        let low = Col.mix(Col.mix(Col(0xf4dfb0), Col(0xf6b25a), dusk), Col(0x2c2a4a), dk)
+        // cloud greys the sky over; snow country has a paler, colder one
+        let cl = max(g.cloudI(), g.storm ? 0.5 : 0) * 0.8
+        let grey = Col.mix(Col(0x6e7680), Col(0x14161e), dk)
+        let cold = g.bio == .snow
+        let top = Col.mix(Col.mix(Col.mix(Col(cold ? 0x8fb4d6 : 0x6fb0e0), Col(0x5a3f7a), dusk), Col(0x0a0f24), dk), grey, cl)
+        let mid = Col.mix(Col.mix(Col.mix(Col(cold ? 0xd2e2ee : 0xbfdcee), Col(0xe8794a), dusk), Col(0x1a2040), dk), grey, cl)
+        let low = Col.mix(Col.mix(Col.mix(Col(cold ? 0xeef3f8 : 0xf4dfb0), Col(0xf6b25a), dusk), Col(0x2c2a4a), dk), grey, cl * 0.8)
         c.vfill(0, 0, W, gy, [(0, top), (0.6, mid), (1, low)])
         if dk > 0.25 {
             for i in 0..<70 {
@@ -86,9 +96,11 @@ final class Renderer {
     }
 
     private func mesas(_ dk: Double, _ dusk: Double) {
-        let far = Col.mix(Col.mix(Col(0xd9a47a), Col(0xb0607a), dusk), Col(0x34365e), dk)
-        let near = Col.mix(Col.mix(Col(0xc47a4a), Col(0x8a3e4a), dusk), Col(0x2a2a4e), dk)
-        let nearD = Col.mix(Col.mix(Col(0xa85e36), Col(0x6a2e3a), dusk), Col(0x20203e), dk)
+        let L = g.terrain
+        let far = Col.mix(Col.mix(Col(L.far), Col(0xb0607a), dusk), Col(0x34365e), dk)
+        let near = Col.mix(Col.mix(Col(L.mesa), Col(0x8a3e4a), dusk), Col(0x2a2a4e), dk)
+        let cap = Col.mix(Col(L.mesaT), Col(0x4a4e72), dk)
+        let nearD = Col.mix(Col.mix(Col(L.mesaS), Col(0x6a2e3a), dusk), Col(0x20203e), dk)
         var i = 0
         while i < 14 {
             let bx = Double(i) * 190 + hashN(Double(i) * 5.3) * 80 - g.cam * 0.22 - 60
@@ -105,6 +117,7 @@ final class Renderer {
             if bx > -w - 10 && bx < W + 10 {
                 c.poly(near, [bx - 6, gy, bx + 6, gy - h * 0.55, bx + 12, gy - h, bx + w - 12, gy - h, bx + w - 4, gy - h * 0.5, bx + w + 8, gy])
                 c.poly(nearD, [bx + w * 0.55, gy, bx + w * 0.6, gy - h, bx + w - 12, gy - h, bx + w - 4, gy - h * 0.5, bx + w + 8, gy])
+                if g.bio == .snow { c.R(bx + 12, gy - h, w - 24, 3, cap); c.R(bx + 14, gy - h + 3, w - 34, 1, cap) }
                 c.R(bx + 12, gy - h * 0.7, w - 26, 1, nearD.alpha(0.5))
                 c.R(bx + 8, gy - h * 0.4, w - 14, 1, nearD.alpha(0.5))
             }
@@ -113,17 +126,32 @@ final class Renderer {
     }
 
     private func groundBand(_ dk: Double) {
-        c.vfill(0, gy, W, H - gy, [(0, Col(0xdcb680)), (0.25, Col(0xd0a66e)), (1, Col(0xb88a56))])
-        c.R(0, gy, W, 1, Col(0xeccf9c))
+        let L = g.terrain
+        c.vfill(0, gy, W, H - gy, [(0, Col(L.g0)), (0.25, Col(L.g1)), (1, Col(L.g2))])
+        c.R(0, gy, W, 1, Col(L.edge))
+        // the ford east of a river town
+        if g.bio == .river {
+            let r = g.river
+            if vis(r.0, r.1 - r.0) {
+                let x0 = sx(r.0), w = r.1 - r.0
+                c.vfill(x0, gy, w, H - gy, [(0, Col(0x7fb0c4)), (1, Col(0x4a7f98))])
+                c.R(x0 - 2, gy, 2, H - gy, Col(0x8a8a56)); c.R(x0 + w, gy, 2, H - gy, Col(0x8a8a56))
+                for k in 0..<7 {
+                    let yy = gy + 2 + Double(k) * (H - gy - 3) / 7
+                    let xx = x0 + 3 + (hashN(Double(k) * 3.3) * (w - 12) + g.clock * 5).truncatingRemainder(dividingBy: w - 10)
+                    c.R(xx, yy, 6, 1, Col(0xd8ecf4, 0.7))
+                }
+            }
+        }
         // the main street, packed earth between the gates
         let a = sx(966), b2 = sx(g.gateE.x)
-        if b2 > 0 && a < W { c.R(max(0, a), gy + 1, min(W, b2) - max(0, a), 5, Col(0xc49a66)) }
+        if b2 > 0 && a < W { c.R(max(0, a), gy + 1, min(W, b2) - max(0, a), 5, Col(L.street)) }
         var i = Int(g.cam / 23)
         let end = Int((g.cam + W) / 23) + 1
         while i <= end {
             let x = Double(i) * 23 + hashN(Double(i) * 1.3) * 18
             let y = gy + 3 + hashN(Double(i) * 4.7) * (H - gy - 6)
-            c.R(sx(x).rounded(), y.rounded(), 2 + hashN(Double(i)) * 3, 1, Col(0x9a744a, 0.55))
+            if g.bio != .river || x < g.river.0 - 3 || x > g.river.1 { c.R(sx(x).rounded(), y.rounded(), 2 + hashN(Double(i)) * 3, 1, Col(L.speck, 0.55)) }
             i += 1
         }
     }
@@ -135,10 +163,14 @@ final class Renderer {
             if i >= 0 {
                 let x = Double(i) * 120 + hashN(Double(i) * 6.6) * 90
                 let inTown = x > 890 && x < g.gateE.x + 60
-                if !inTown {
+                let wet = g.bio == .river && x > g.river.0 - 14 && x < g.river.1 + 14
+                let grazed = x > g.pasture.0 - 12 && x < g.pasture.1 + 12
+                if !inTown && !wet && !grazed {
                     let k = hashN(Double(i) * 2.9)
                     let s = sx(x)
-                    if k < 0.45 { cactus(s, 12 + k * 22) } else if k < 0.8 { brush(s) } else { rock(s, 5 + k * 6) }
+                    if k < 0.45 {
+                        if g.bio == .desert { cactus(s, 12 + k * 22) } else if g.bio == .river { tree(s, 20 + k * 30) } else { pine(s, 22 + k * 34) }
+                    } else if k < 0.8 { brush(s) } else { rock(s, 5 + k * 6) }
                 }
             }
             i += 1
@@ -159,8 +191,20 @@ final class Renderer {
         c.RR(x - 7, gy - h * 0.62, 3, h * 0.3, 1.5, col); c.R(x - 7, gy - h * 0.36, 6, 2, col)
         c.RR(x + 4, gy - h * 0.8, 3, h * 0.34, 1.5, col); c.R(x + 1, gy - h * 0.5, 6, 2, col)
     }
+    private func tree(_ x: Double, _ h: Double) {
+        c.R(x - 1.5, gy - h * 0.5, 3, h * 0.5, Col(0x6a4a2e))
+        c.circ(x, gy - h * 0.66, h * 0.3, Col(0x55783c)); c.circ(x - h * 0.2, gy - h * 0.52, h * 0.22, Col(0x4a6c34)); c.circ(x + h * 0.2, gy - h * 0.55, h * 0.24, Col(0x628846))
+    }
+    private func pine(_ x: Double, _ h: Double) {
+        c.R(x - 1, gy - h * 0.25, 2, h * 0.25, Col(0x4a3424))
+        for k in 0..<3 {
+            let y = gy - h * (0.2 + Double(k) * 0.24), w = h * (0.34 - Double(k) * 0.08)
+            c.poly(Col(0x3f5f44), [x - w, y, x, y - h * 0.36, x + w, y])
+            c.poly(Col(0xf4f8ff), [x - w * 0.55, y - h * 0.16, x, y - h * 0.36, x + w * 0.55, y - h * 0.16, x, y - h * 0.2])
+        }
+    }
     private func brush(_ x: Double) {
-        let col = Col(0x8a8a56)
+        let col = Col(g.terrain.scrub)
         for k in 0..<5 { c.seg(x, gy, x - 5 + Double(k) * 2.5, gy - 5 - Double(k % 2) * 2, 1, col) }
     }
     private func rock(_ x: Double, _ r: Double) {
@@ -227,6 +271,7 @@ final class Renderer {
         let fh = 11.0 + Double(lv) * 2
         c.R(x - 2, gy - h - fh, w + 4, fh, wall)
         c.R(x - 3, gy - h - fh - 2, w + 6, 3, roof)
+        if g.bio == .snow { c.RR(x - 3, gy - h - fh - 4, w + 6, 3, 1.5, Col(0xf4f8ff)); c.R(x - 4, gy - 26, w + 8, 1.5, Col(0xf4f8ff)) }
         c.R(x - 2, gy - h - 1, w + 4, 2, trim)
         c.R(x + 6, gy - h - fh + 2, w - 12, fh - 4, Col(d.sign))
         c.text(d.name, x + w / 2, gy - h - fh / 2 + 2.6, 7.5, Col(d.ink))
@@ -672,6 +717,45 @@ final class Renderer {
         for p in g.parts {
             let a = clampD(p.life / p.max, 0, 1)
             c.R(sx(p.x) - p.s / 2, gy + p.y - p.s, p.s, p.s, p.c.alpha(p.c.a * a))
+        }
+    }
+
+    /// Rain, snow, dust and lightning, over everything.
+    private func weather(_ dk: Double) {
+        let rain = g.rainI(), snowy = g.bio == .snow
+        if g.storm {
+            c.R(0, 0, W, H, snowy ? Col(0xf4f8ff, 0.3) : Col(0xb08a52, 0.3))
+            for i in 0..<46 {
+                let sp = 150 + hashN(Double(i) * 1.9) * 120
+                let x = W - (hashN(Double(i) * 5.3) * W + g.clock * sp).truncatingRemainder(dividingBy: W + 30)
+                let y = hashN(Double(i) * 8.1) * H + sin(g.clock * 2 + Double(i)) * 3
+                c.R(x, y, snowy ? 3 : 9, 1, snowy ? Col(0xffffff, 0.8) : Col(g.terrain.dust, 0.45))
+            }
+        } else if snowy && g.wx == 2 {
+            for i in 0..<60 {
+                let x = (hashN(Double(i) * 5.3) * W + sin(g.clock * 0.8 + Double(i)) * 6 - g.cam * 0.3).truncatingRemainder(dividingBy: W)
+                let y = (hashN(Double(i) * 8.1) * H + g.clock * (14 + hashN(Double(i)) * 14)).truncatingRemainder(dividingBy: H)
+                c.R(x < 0 ? x + W : x, y, 1.4, 1.4, Col(0xffffff, 0.85))
+            }
+        } else if rain > 0.03 {
+            c.R(0, 0, W, H, Col(0x2a3440, 0.16 * rain))
+            let n = Int(90 * rain)
+            for i in 0..<n {
+                let x = (hashN(Double(i) * 5.3) * (W + 40) - g.clock * 60).truncatingRemainder(dividingBy: W + 40) + W
+                let xx = x.truncatingRemainder(dividingBy: W + 40) - 20
+                let y = (hashN(Double(i) * 8.1) * H + g.clock * (240 + hashN(Double(i)) * 80)).truncatingRemainder(dividingBy: H)
+                c.seg(xx, y, xx - 2, y + 7, 0.6, Col(0xcfe0ee, 0.45))
+            }
+        }
+        if g.bolt > 0 {
+            let a = clampD(g.bolt / 0.35, 0, 1)
+            var x = sx(g.boltX), y = 0.0
+            var k = 0.0
+            while y < gy {
+                let nx = x + (hashN(g.boltX + k) - 0.5) * 16, ny = min(gy, y + 9 + hashN(g.boltX * 2 + k) * 8)
+                c.seg(x, y, nx, ny, 1.6, Col(0xfffbe6, a)); c.seg(x, y, nx, ny, 4, Col(0xbfd4ff, a * 0.25))
+                x = nx; y = ny; k += 1
+            }
         }
     }
 

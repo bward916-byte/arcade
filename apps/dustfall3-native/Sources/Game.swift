@@ -59,6 +59,79 @@ final class Game {
     var claim = Building(.claim, 528)
     var herd: [Cow] = []
     var raided = false          // raiders came last night
+
+    // the country and the day's weather: 0 clear, 1 dust storm (a blizzard in snow country), 2 rain (snowfall), 3 a thunderstorm between wxA and wxB
+    var bio: Bio { return TOWN_BIO[town % TOWN_BIO.count] }
+    var terrain: Land { return LANDS[bio]! }
+    var wx = 0
+    var wxA = 0.0
+    var wxB = 0.0
+    var bolt = 0.0              // seconds left of a lightning flash
+    var boltX = 0.0
+    var river: (Double, Double) { return (EX(2162), EX(2198)) }
+    var storm: Bool { return wx == 1 }
+    func cloudI() -> Double {
+        if wx == 2 { return bio == .snow ? 0 : 0.45 }
+        if wx == 3 { return smooth(wxA - 0.07, wxA + 0.02, t) * (1 - smooth(wxB - 0.02, wxB + 0.05, t)) }
+        return 0
+    }
+    func rainI() -> Double {
+        if bio == .snow { return 0 }
+        if wx == 2 { return 0.4 }
+        if wx == 3 { return smooth(wxA, wxA + 0.05, t) * (1 - smooth(wxB - 0.06, wxB, t)) }
+        return 0
+    }
+    /// How far anyone can see: a dust storm or blizzard cuts it short, and so does a downpour.
+    func sightK() -> Double { return storm ? 0.6 : (rainI() > 0.6 ? 0.8 : 1) }
+    func wxName() -> String {
+        switch wx {
+        case 1: return bio == .snow ? "Blizzard" : "Dust storm"
+        case 2: return bio == .snow ? "Snowfall" : "Rain"
+        case 3: return "Thunderstorm"
+        default: return ""
+        }
+    }
+    /// The ford east of a river town slows everyone who crosses it.
+    func slowAt(_ x: Double) -> Double { return bio == .river && x > river.0 && x < river.1 ? 0.5 : 1 }
+
+    /// The weather for the day ahead, rolled at dawn. Returns a line for the morning's message.
+    private func rollWx() -> String {
+        let ln = day - day0
+        let r = rnd(0, 1)
+        func mkStorm() {
+            wx = 3
+            if chance(0.5) { wxA = rnd(0.56, 0.64); wxB = 0.93 } else { wxA = rnd(0.2, 0.3); wxB = wxA + rnd(0.26, 0.34) }
+        }
+        wx = 0
+        if town == 0 {
+            // the first town is dry country, but its third morning always has a storm building
+            if ln == 3 || (ln > 4 && r < 0.3) { mkStorm() }
+        } else {
+            let odds: (Double, Double, Double) = bio == .desert ? (0.2, 0.05, 0.22) : (bio == .river ? (0.08, 0.18, 0.27) : (0.18, 0.22, 0))
+            if r < odds.0 { wx = 1 } else if r < odds.0 + odds.1 { wx = 2 } else if r < odds.0 + odds.1 + odds.2 { mkStorm() }
+        }
+        if wx > 1 && bio != .snow && !herd.isEmpty && herd.count < 12 { addCow(calf: true) }
+        switch wx {
+        case 3: return " A thunderstorm is building for \(wxA > 0.5 ? "tonight" : "this afternoon"): deputies see less in the downpour, and lightning finds raiders caught in the open."
+        case 1: return " \(wxName()) today: the deputies cannot see far, and raiders will be close before anyone spots them."
+        case 2: return bio == .snow ? " Snowfall. A quiet day." : " Rain today. The herd grows on it."
+        default: return ""
+        }
+    }
+
+    /// Lightning in a thunderstorm: flashes overhead, and now and then finds a raider outside the gates.
+    private func updWx(_ dt: Double) {
+        bolt = max(0, bolt - dt)
+        if wx != 3 || rainI() < 0.5 { return }
+        if chance(dt * 0.16) {
+            var hitX = cam + rnd(0, W)
+            let outside = bandits.filter { $0.st != 3 && $0.hp > 0 && ($0.x < gateW.x - 20 || $0.x > gateE.x + 30) }
+            if let bn = outside.randomElement(), chance(0.5) { hitX = bn.x; hurt(bn, 3); puff(bn.x, -8, 10, Col(0xfff6dc), 50) }
+            bolt = 0.35; boltX = hitX
+            sfx?.thunder(clampD(1 - abs(hitX - px) / 600, 0.3, 1))
+            if abs(hitX - px) < W { flash = max(flash, 0.5) }
+        }
+    }
     var pasture: (Double, Double) { return (EX(2030), EX(2150)) }
     var b: [Building] = []
     var drifters: [Drifter] = []
@@ -115,7 +188,7 @@ final class Game {
         hall = Building(.hall, 1352); wireW = Building(.wireW, 904); wireE = Building(.wireE, EX(1975))
         bordello = Building(.bordello, 1490); doctor = Building(.doctor, 1704); church = Building(.church, 1786)
         forge = Building(.forge, 1864); telegraph = Building(.telegraph, 1948); claim = Building(.claim, 528)
-        herd = []; raided = false
+        herd = []; raided = false; wx = 0; bolt = 0
         b = [store, saloon, sheriff]
         let stage = town % TOWN_NAMES.count + (town >= TOWN_NAMES.count ? TOWN_NAMES.count : 0)
         if stage >= 1 { b.append(stable); b.append(bankB); b.append(claim) }
@@ -173,7 +246,7 @@ final class Game {
         var bx: [Bool] = []
         for q in boxes { bx.append(q.open) }
         return SaveData(town: town, day: day, day0: day0, t: t, coins: purse, bank: bank, ammo: ammo, px: px, side: side,
-                        train: train != nil, b: sb, folk: sf, drifters: dr, boxes: bx, seen: Array(seen), herd: herd.count)
+                        train: train != nil, b: sb, folk: sf, drifters: dr, boxes: bx, seen: Array(seen), herd: herd.count, wx: [Double(wx), wxA, wxB])
     }
 
     /// Picks a saved game up again. A game saved at night comes back at dusk the same night.
@@ -204,6 +277,7 @@ final class Game {
         }
         for (i, bx) in boxes.enumerated() where i < s.boxes.count { bx.open = s.boxes[i] }
         for _ in 0..<max(0, min(12, s.herd ?? 0)) { addCow(calf: false) }
+        if let w = s.wx, w.count == 3 { wx = max(0, min(3, Int(w[0]))); wxA = w[1]; wxB = w[2] }
         if s.train && station.level > 0 { train = Train(x: STOP, v: 0); ticket.live = true }
         px = clampD(s.px, 30, WORLD - 30)
         cam = clampD(px - W / 2, 0, WORLD - W)
@@ -216,6 +290,8 @@ final class Game {
         start()
         hintT = 0
         if name == "train" { town = 1; day = 9; day0 = 6; layTown(); stable.level = 1; bankB.level = 1; bank = 12 }
+        if name == "snow" { town = 3; day = 31; day0 = 27; layTown(); stable.level = 1; bankB.level = 1; bordello.level = 1; doctor.level = 1; church.level = 1; forge.level = 1; wx = 2 }
+        if name == "storm" { wx = 3; wxA = 0.3; wxB = 0.6 }
         store.level = 1; sheriff.level = 1; saloon.level = 2; hall.level = name == "train" ? 2 : 1
         gateW.level = 1; gateW.hp = GHP[1]; gateE.level = 2; gateE.hp = GHP[2]
         drifters.removeAll { $0.camp == 1 }
@@ -228,6 +304,10 @@ final class Game {
             wireE.level = 1
             for i in 0..<5 { bandits.append(Bandit(x: 2010 + Double(i) * 30, rider: i % 3 == 2, side: 1, hp: 3)) }
             px = 1850; folk[0].x = 1925; folk[1].x = 1916
+        } else if name == "snow" {
+            t = 0.45; hall.level = 2; px = 1790; pdir = 1
+        } else if name == "storm" {
+            day = 4; t = 0.42; hall.level = 2; store.level = 2; px = 1210; bolt = 0.3; boltX = 1330
         } else if name == "train" {
             t = 0.3; station.level = 1; train = Train(x: STOP, v: 0); ticket.live = true
             claim.level = 1; folk[3].role = .rancher; folk[3].x = pasture.0 + 12
@@ -295,6 +375,7 @@ final class Game {
         updGuns(dt)
         updShots(dt)
         updHerd(dt)
+        updWx(dt)
         updParts(dt)
         updInfo()
         let want = clampD(px + pdir * 26 - W / 2, 0, WORLD - W)
@@ -309,13 +390,13 @@ final class Game {
         let want = input.stick * horse
         pvx += (want - pvx) * min(1, dt * 7)
         if abs(pvx) < 2 && input.stick == 0 { pvx = 0 }
-        px = clampD(px + pvx * dt, 30, WORLD - 30)
+        px = clampD(px + pvx * dt * slowAt(px), 30, WORLD - 30)
         if abs(input.stick) > 0.1 { pdir = input.stick > 0 ? 1 : -1 }
         if abs(pvx) > 6 {
             pphase += dt * abs(pvx) * 0.16
             hoofT -= dt * abs(pvx) / 84
             if hoofT <= 0 { hoofT = 0.17; sfx?.hoof(0.6) }
-            if chance(dt * 8) { parts.append(Part(x: px - pdir * 8, y: 0, vx: -pdir * rnd(4, 14), vy: rnd(-14, -4), life: 0.5, max: 0.5, c: Col(0xe2c08c, 0.6), s: rnd(1, 2.4), grav: 10)) }
+            if chance(dt * 8) { parts.append(Part(x: px - pdir * 8, y: 0, vx: -pdir * rnd(4, 14), vy: rnd(-14, -4), life: 0.5, max: 0.5, c: Col(terrain.dust, 0.6), s: rnd(1, 2.4), grav: 10)) }
         }
         tossCD = max(0, tossCD - dt); tossT = max(0, tossT - dt)
         gunCD = max(0, gunCD - dt); gunT = max(0, gunT - dt); hurtT = max(0, hurtT - dt)
@@ -537,7 +618,7 @@ final class Game {
                 if night {
                     f.tx = side < 0 ? 976 + Double(dep) * 9 : gateE.x - 10 - Double(dep) * 9
                     var tgt: Bandit?
-                    var bd = 110.0 + (sheriff.level >= 2 ? 30 : 0) + (forge.level >= 1 ? 30 : 0)
+                    var bd = (110.0 + (sheriff.level >= 2 ? 30 : 0) + (forge.level >= 1 ? 30 : 0)) * sightK()
                     for bn in bandits where bn.st != 3 {
                         let d = abs(bn.x - f.x)
                         if d < bd { bd = d; tgt = bn }
@@ -559,7 +640,7 @@ final class Game {
                         f.tend += dt
                         if f.tend > 30 {
                             f.tend = 0
-                            if herd.count < min(12, ranchers * (1 + stable.level)) {
+                            if bio != .snow && herd.count < min(12, ranchers * (1 + stable.level)) {      // cattle will not calve in the snow
                                 addCow(calf: true)
                                 hint("calf", "A calf in the pasture. It starts paying tomorrow morning.")
                             }
@@ -701,6 +782,7 @@ final class Game {
             }
         }
         side = chance(0.5) ? 1 : -1
+        note += rollWx()
         sfx?.dawn()
         hint("dawn\(day)", total > 0 ? "Day \(day). The town paid out \(total) coins this morning: ride past to pick them up.\(note)" : "Day \(day). Nothing paid out this morning. Open the store or the saloon.\(note)", again: true)
         onSave?()
@@ -841,7 +923,8 @@ final class Game {
                 bn.cut = true
                 if wr.level > 1 { hurt(bn, wr.level - 1) }       // the second apron cuts whoever crosses it
             }
-            let sp = (bn.boss ? 30.0 : (bn.rider ? 74.0 : 40.0)) * (snag ? [1, 0.4, 0.34, 0.28][min(3, wr.level)] : 1)
+            let wade = slowAt(bn.x) * (bio == .snow && !bn.rider ? 0.8 : 1)      // the ford, and deep snow for men on foot
+            let sp = (bn.boss ? 30.0 : (bn.rider ? 74.0 : 40.0)) * (snag ? [1, 0.4, 0.34, 0.28][min(3, wr.level)] : 1) * wade
             let gate = bn.side < 0 ? gateW : gateE
             let gx = gate.cx
             switch bn.st {
@@ -922,8 +1005,8 @@ final class Game {
             sfx?.gun(loud * clampD(1 - abs(from.cx - px) / 320, 0.15, 1))
             if chance(odds) { hurt(bn, 1) }
         }
-        for g in [gateW, gateE] where g.level >= 3 && g.hp > 0 { volley(g, 40, 90, 0.3, 0.45, 0.35) }
-        for w in [wireW, wireE] where w.level >= 3 { volley(w, 9, 170, 2.2, 0.8, 0.5) }
+        for g in [gateW, gateE] where g.level >= 3 && g.hp > 0 { volley(g, 40, 90 * sightK(), 0.3, 0.45, 0.35) }
+        for w in [wireW, wireE] where w.level >= 3 { volley(w, 9, 170 * sightK(), 2.2, 0.8, 0.5) }
     }
 
     private func updShots(_ dt: Double) {
