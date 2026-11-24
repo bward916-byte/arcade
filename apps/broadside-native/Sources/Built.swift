@@ -718,7 +718,7 @@ extension Game {
         // what the nearest upgrade does, in a line under the circles
         if !tipText.isEmpty {
             let tw = textW(tipText, 12.5) + 24
-            let ty = y + r * 1.16 + 28
+            let ty = y + r * 1.16 + 36
             let bx = clampD(tipX - tw / 2, 8 + safeL, W - 8 - safeR - tw)
             c.poly(Col(0x050c14, 0.72), [tipX - 6, ty, tipX, ty - 6, tipX + 6, ty])
             c.RR(bx, ty, tw, 22, 11, Col(0x050c14, 0.72))
