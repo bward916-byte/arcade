@@ -492,12 +492,13 @@ extension Game {
             c.RR(x, y, colW, rowH, 9, Col(0x000000, 0.28))
             icon(c, g.k, x + 22, y + rowH / 2, 26)
             c.text(g.n, x + 44, y + rowH / 2 - 1, 16, CREAM, -1, FONT)
-            c.text("\(price(g)) gold each", x + 44, y + rowH / 2 + 14, 11.5, CREAM.alpha(0.75), -1, FONTI)
+            let lacking = marketPort && portLacks().contains(g.k)
+            c.text(lacking ? "not sold here" : "\(price(g)) gold each", x + 44, y + rowH / 2 + 14, 11.5, lacking ? Col(0xff9a8a) : CREAM.alpha(0.75), -1, FONTI)
             let bs = min(38.0, rowH - 8)
             let bx = x + colW - bs * 2 - 62
             btn(c, bx, y + (rowH - bs) / 2, bs, bs, "−", size: 22) { [unowned self] in self.sell(g) }
             c.text("\(have(g.k))", bx + bs + 26, y + rowH / 2 + 6, 19, GOLD, 0, FONTB)
-            btn(c, bx + bs + 52, y + (rowH - bs) / 2, bs, bs, "+", size: 22) { [unowned self] in self.buy(g) }
+            btn(c, bx + bs + 52, y + (rowH - bs) / 2, bs, bs, "+", off: lacking, size: 22) { [unowned self] in self.buy(g) }
         }
         let by = py + ph - 54
         let bw = (pw - 40 - 12) / 2

@@ -132,7 +132,7 @@ final class Game {
     var shake = 0.0
 
     // the voyage
-    var gold = 1100
+    var gold = 850
     var food = 0.0
     var water = 0.0
     var planks = 0
@@ -186,7 +186,7 @@ final class Game {
     var here: Port { return STAGES[leg][path[leg]] }
 
     func newGame() {
-        gold = 1100; food = 0; water = 0; planks = 0; bait = 0; powder = 0; arms = 0
+        gold = 850; food = 0; water = 0; planks = 0; bait = 0; powder = 0; arms = 0
         crew = 0; hull = 0; shipI = 1; day = 1; leg = 0; dist = 0; legLen = 1; route = 1; half = false
         dayT = 0; tod = 0.3; hasMap = false; sinceEvent = 0; lastEv = ""; path = [0, 0, 0, 0, 0, 0]
         men = []; log = []; dead = []; sea = 0; halfDays = 0; rot = 0; wind = 1; blk = false; wellUsed = false
@@ -351,7 +351,7 @@ final class Game {
     }
     /// One day of eating, drinking, rot and whatever shortage does to the crew.
     /// What the crew eats and drinks in one watch.
-    func ration() -> Double { return Double(crew) * 0.35 * (half ? 0.5 : 1) }
+    func ration() -> Double { return Double(crew) * RATION * (half ? 0.5 : 1) }
     func consume(drain: Bool = true) {
         if drain {
             let u = ration()
@@ -425,7 +425,21 @@ final class Game {
         let pm = marketPort ? here.pm : 1.0
         return max(1, Int((Double(g.p) * pm).rounded()))
     }
+    /// What sort of place this port is: fishing village, garrison, trading city, smugglers' cove, mill island.
+    func portKind() -> Int { return (leg * 2 + path[leg]) % 5 }
+    /// What this port's market does not carry. Only a trading city sells everything.
+    func portLacks() -> [String] {
+        if !marketPort && mode != .port { return [] }
+        return [["powder", "arms"], ["bait", "planks"], [], ["planks", "bait"], ["powder", "bait"]][portKind()]
+    }
+    /// The smugglers have no well worth the name.
+    func wellDry() -> Bool { return portKind() == 3 }
+    func lacksText() -> String {
+        let names = portLacks().compactMap { k in GOODS.first(where: { $0.k == k })?.n.lowercased() }
+        return names.isEmpty ? "" : "no " + names.joined(separator: " or ") + " sold here"
+    }
     func buy(_ g: Good) {
+        if marketPort && portLacks().contains(g.k) { toast("They do not sell \(g.n.lowercased()) here"); return }
         let p = price(g)
         var n = g.step
         n = min(n, holdMax - holdUsed)
@@ -441,11 +455,12 @@ final class Game {
         gold += Int((Double(n * price(g)) * 0.6).rounded(.down))
     }
     func autoStock() {
-        let per = Double(crew) * 0.35
+        let per = Double(crew) * RATION
         let watches = Double(Int((LEG[0] / max(1, 42 * ship.speed)).rounded(.up)) + 2)
         let want: [(String, Int)] = [("water", Int((per * (watches + 1)).rounded(.up))), ("food", Int((per * (watches + 2)).rounded(.up))), ("planks", 6), ("bait", 6), ("powder", 5), ("arms", min(crew, 8))]
         for w in want {
             guard let g = GOODS.first(where: { $0.k == w.0 }) else { continue }
+            if marketPort && portLacks().contains(g.k) { continue }
             let p = price(g)
             var n = max(0, w.1 - have(w.0))
             n = min(n, holdMax - holdUsed)
@@ -749,7 +764,8 @@ final class Game {
         if name == "decklife" { ups = ["sails": 2, "hull": 1, "guns": 1]; deckForce = 5; seaForce = 0 }
         if name == "town" { leg = 1; mode = .port; portJobs = [1, 8, 11]; tod = 0.3; saluteT = 6; saluteN = 3 }
         if name == "town2" { leg = 2; path[2] = 1; mode = .port; portJobs = [6, 9, 3]; tod = 0.4 }
-        if name == "town3" { leg = 3; mode = .port; portJobs = [7, 5, 10]; tod = 0.45 }
+        if name == "pmarket" { leg = 1; path[1] = 1; mode = .port; openMarket() }
+        if name == "town3" { leg = 3; path[3] = 1; mode = .port; portJobs = [7, 5, 10]; tod = 0.45 }
         if name == "town4" { leg = 4; mode = .port; portJobs = [2, 9, 11]; tod = 0.5 }
         if name == "fire" { leg = 1; mode = .port; portJob = 6; playFire() }
         if name == "townnight" { leg = 2; mode = .port; portJobs = [4, 7, 9]; tod = 0.8; festT = 30 }

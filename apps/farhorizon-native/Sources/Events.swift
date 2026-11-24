@@ -452,7 +452,7 @@ extension Game {
             return
         }
         mode = .sail
-        var g = d.prize * 2
+        var g = d.prize * 3 / 2
         if bounty { g += 150; bounty = false }
         gold += g
         let pw = addGood("powder", 4), bl = addGood("arms", 2)
@@ -596,9 +596,10 @@ extension Game {
         show("The swordmaster", "An old fencing master drinks here. For a price he will show your boarders a thing or two.", opts)
     }
     func well() {
+        if wellDry() { toast("The well here is brackish. Buy water at the market"); return }
         if wellUsed { toast("The casks are already filled"); return }
         wellUsed = true
-        let a = addGood("water", 15)
+        let a = addGood("water", 10)
         snd?.splash()
         toast(a > 0 ? "+\(a) fresh water" : "The hold is full")
     }

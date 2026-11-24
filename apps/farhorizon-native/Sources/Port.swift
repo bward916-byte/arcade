@@ -56,7 +56,7 @@ extension Game {
     /// What the ship needs for the next passage, and whether she has it.
     func portNeeds() -> (days: Int, foodDays: Int, waterDays: Int, foodOK: Bool, waterOK: Bool, hullPct: Int, hullOK: Bool, repair: Int, down: Int, crewOK: Bool, wagesOK: Bool, canUpgrade: Bool) {
         let days = Int((LEG[min(4, leg)] / max(1, 42 * ship.speed)).rounded(.up)) + 2
-        let perDay = max(0.1, Double(crew) * 0.35)
+        let perDay = max(0.1, Double(crew) * RATION)
         let fd = Int(food / perDay), wd = Int(water / perDay)
         let pct = Int((hull / Double(max(1, ship.hull)) * 100).rounded())
         let down = laidUp()
@@ -99,6 +99,9 @@ extension Game {
         let lampOn = night > 0.25 || wxDark > 0.5
         let warm = Col(0xffd257)
 
+        // every port is laid out its own way: a hill town, a low sandbar village, a walled city, a cliff cove
+        let lay = (leg * 2 + path[leg]) % 4
+        let hf: Double = [1.0, 0.3, 0.85, 1.3][lay]
         // every port has its own character
         let kind = (leg * 2 + path[leg]) % 5
         let kindName = ["Fishing village", "Garrison town", "Trading city", "Smugglers' cove", "Mill island"][kind]
@@ -120,26 +123,30 @@ extension Game {
         let hillB = [Col(0x5f9450), Col(0xd0b06a), Col(0xb8704a), Col(0x98a8a4), Col(0x3a6e54)][pt % 5]
         c.pathFill(hillA.shade(dark * 0.9)) { p in
             p.move(to: CGPoint(x: W * 0.3, y: hz + 4))
-            p.addQuadCurve(to: CGPoint(x: W * 0.56, y: hz - 122), control: CGPoint(x: W * 0.4, y: hz - 96))
-            p.addQuadCurve(to: CGPoint(x: W * 0.8, y: hz - 92), control: CGPoint(x: W * 0.68, y: hz - 150))
-            p.addQuadCurve(to: CGPoint(x: W + 10, y: hz - 118), control: CGPoint(x: W * 0.92, y: hz - 60))
+            p.addQuadCurve(to: CGPoint(x: W * 0.56, y: hz - 122 * hf), control: CGPoint(x: W * 0.4, y: hz - 96 * hf))
+            p.addQuadCurve(to: CGPoint(x: W * 0.8, y: hz - 92 * hf), control: CGPoint(x: W * 0.68, y: hz - 150 * hf))
+            p.addQuadCurve(to: CGPoint(x: W + 10, y: hz - 118 * hf), control: CGPoint(x: W * 0.92, y: hz - 60 * hf))
             p.addLine(to: CGPoint(x: W + 10, y: hz + 4))
             p.closeSubpath()
         }
         c.pathFill(hillB.shade(dark)) { p in
             p.move(to: CGPoint(x: W * 0.36, y: hz + 4))
-            p.addQuadCurve(to: CGPoint(x: W * 0.64, y: hz - 82), control: CGPoint(x: W * 0.48, y: hz - 76))
-            p.addQuadCurve(to: CGPoint(x: W + 10, y: hz - 58), control: CGPoint(x: W * 0.84, y: hz - 96))
+            p.addQuadCurve(to: CGPoint(x: W * 0.64, y: hz - 82 * hf), control: CGPoint(x: W * 0.48, y: hz - 76 * hf))
+            p.addQuadCurve(to: CGPoint(x: W + 10, y: hz - 58 * hf), control: CGPoint(x: W * 0.84, y: hz - 96 * hf))
             p.addLine(to: CGPoint(x: W + 10, y: hz + 4))
             p.closeSubpath()
         }
+        if lay == 0 || lay == 3 {
         // terraced fields and a winding road up the hill
         for i in 0..<5 { c.curve(W * (0.5 + Double(i) * 0.09), hz - 26 - Double(i % 2) * 14, W * (0.56 + Double(i) * 0.09), hz - 42 - Double(i % 2) * 14, W * (0.62 + Double(i) * 0.09), hz - 30 - Double(i % 2) * 14, 1.2, Col(0x3f7a3c).shade(dark)) }
         c.curve(W * 0.6, hz + 2, W * 0.7, hz - 40, W * 0.6, hz - 96, 2.5, Col(0xd9c48a).shade(dark * 0.9))
 
+        }
         // ---- on the hilltop: a church with a bell, or a fort with a flag
-        let tx = W * 0.58, ty = hz - 108
-        if (leg + path[leg]) % 2 == 0 {
+        let tx = W * 0.58, ty = hz - 108 * hf
+        if lay == 1 {
+            // no hill to build on
+        } else if lay != 2 && (leg + path[leg]) % 2 == 0 {
             c.R(tx - 16, ty - 14, 32, 22, Col(0xf3ead2).shade(dark))
             c.poly(Col(0xb8452c).shade(dark), [tx - 19, ty - 14, tx, ty - 28, tx + 19, ty - 14])
             c.R(tx + 10, ty - 44, 12, 52, Col(0xf3ead2).shade(dark))
@@ -163,7 +170,7 @@ extension Game {
         if kind == 4 || kind == 0 {
             // windmills turning on the ridge
             for wm in 0..<(kind == 4 ? 3 : 1) {
-                let wx = W * (0.72 + Double(wm) * 0.08), wyy = hz - 96 + Double(wm % 2) * 14
+                let wx = W * (0.72 + Double(wm) * 0.08), wyy = hz - 96 * hf + Double(wm % 2) * 14
                 c.poly(Col(0xf3ead2).shade(dark), [wx - 8, wyy + 26, wx - 5, wyy - 4, wx + 5, wyy - 4, wx + 8, wyy + 26])
                 c.poly(Col(0x8a5a36).shade(dark), [wx - 7, wyy - 4, wx, wyy - 13, wx + 7, wyy - 4])
                 c.save(); c.translate(wx, wyy - 5); c.rotate(T * (0.9 + rough) + Double(wm))
@@ -194,13 +201,24 @@ extension Game {
         c.poly(Col(0x3a2412), [lhx - 7, lhy - 58, lhx, lhy - 66, lhx + 7, lhy - 58])
         if lampOn { c.glow(lhx, lhy - 54, 40, Col(0xfff2c0, 0.7), Col(0xfff2c0, 0)) }
 
+        if lay == 3 {
+            // a cliff closes the cove on the seaward side, with a fall coming down it
+            let cx = W * 0.8
+            c.poly(Col(0x6a6258).shade(dark), [cx, hz + 4, cx + 30, hz - 120, cx + 70, hz - 184, W + 10, hz - 196, W + 10, hz + 4])
+            c.poly(Col(0x7c7468).shade(dark), [cx + 30, hz - 120, cx + 70, hz - 184, cx + 96, hz - 150, cx + 60, hz - 60])
+            c.poly(Col(0x3f7450).shade(dark), [cx + 64, hz - 186, W + 10, hz - 200, W + 10, hz - 186, cx + 80, hz - 176])
+            let wxf = cx + 120
+            c.R(wxf - 5, hz - 184, 10, 186, Col(0xdff2ff, 0.85))
+            for j in 0..<8 { let ph = (T * 0.9 + Double(j) / 8).truncatingRemainder(dividingBy: 1); c.R(wxf - 4 + hashN(Double(j)) * 6, hz - 184 + ph * 180, 1.6, 12, Col(0xffffff, 0.9)) }
+            for j in 0..<6 { let ph = (T * 1.2 + Double(j) / 6).truncatingRemainder(dividingBy: 1); c.circ(wxf + (hashN(Double(j) * 3) - 0.5) * 30, hz + 2 - ph * 12, 3 + ph * 6, Col(0xffffff, 0.6 * (1 - ph))) }
+        }
         // ---- the town: a back row on the slope, then the big houses along the waterfront
         func house(_ hx: Double, _ base: Double, _ hw: Double, _ hh: Double, _ k: Int) {
             // each town builds in its own stone and tiles its own way
             let townWall = [Col(0xf3ead2), Col(0xe8c090), Col(0xffffff), Col(0xc8b8a0), Col(0xf0d0c8), Col(0xd0dce0)][pt % 6]
             let townRoof = [Col(0xb8452c), Col(0x7a5030), Col(0x3a6a9a), Col(0x4a4a52), Col(0x9a3a4a), Col(0x4a7a4a)][pt % 6]
-            let wall = Col.mix([Col(0xf3ead2), Col(0xf0d8b0), Col(0xe8c8c0), Col(0xd8e4e8), Col(0xf6e6a8)][k % 5], townWall, 0.6).shade(dark)
-            let roof = Col.mix([Col(0xb8452c), Col(0x8a5a36), Col(0xa63a2a), Col(0x6b4a3a)][k % 4], townRoof, 0.7).shade(dark)
+            let wall = Col.mix([Col(0xf3ead2), Col(0xf0d8b0), Col(0xe8c8c0), Col(0xd8e4e8), Col(0xf6e6a8)][k % 5], lay == 1 ? Col(0xb08a52) : townWall, lay == 1 ? 0.85 : 0.6).shade(dark)
+            let roof = Col.mix([Col(0xb8452c), Col(0x8a5a36), Col(0xa63a2a), Col(0x6b4a3a)][k % 4], lay == 1 ? Col(0xd8b860) : townRoof, lay == 1 ? 0.9 : 0.7).shade(dark)
             c.R(hx, base - hh, hw, hh, wall)
             c.R(hx + hw * 0.62, base - hh, hw * 0.38, hh, Col(0x000000, 0.1))
             c.poly(roof, [hx - 3, base - hh, hx + hw / 2, base - hh - hw * 0.34, hx + hw + 3, base - hh])
@@ -228,13 +246,32 @@ extension Game {
             c.RR(hx + hw * 0.4, base - 11, 7, 11, 1.5, Col(0x5a3a1c).shade(dark))
             if lit { c.glow(hx + hw / 2, base - hh / 2, hw * 0.9, Col(0xffc060, 0.16), Col(0xffc060, 0)) }
         }
-        for i in 0..<8 {
-            let hx = W * 0.47 + Double(i) * W * 0.062 + hashN(seed + Double(i)) * 8
-            house(hx, hz - 26 - hashN(seed + Double(i) * 3.3) * 22, 20 + hashN(seed + Double(i) * 1.7) * 8, 18 + hashN(seed + Double(i) * 5.1) * 8, i + 2)
+        let tiers = [1, 0, 2, 3][lay]
+        for tr in stride(from: tiers - 1, through: 0, by: -1) {
+            for i in 0..<8 {
+                let td = Double(tr)
+                let hx = W * (0.47 + td * 0.03) + Double(i) * W * 0.062 + hashN(seed + Double(i) + td * 7) * 8
+                if lay == 3 && hx > W * 0.8 { continue }
+                house(hx, hz - 26 - td * 30 - hashN(seed + Double(i) * 3.3 + td) * 22, 20 + hashN(seed + Double(i) * 1.7) * 8, 18 + hashN(seed + Double(i) * 5.1) * 8, i + 2 + tr * 3)
+            }
+        }
+        if lay == 2 {
+            // the city wall, towers and all, behind the waterfront
+            let stone = Col(0xa8a090).shade(dark)
+            c.R(W * 0.4, qy - 62, W, 62, stone)
+            for i in 0..<40 { c.R(W * 0.4 + Double(i) * 14, qy - 68, 8, 7, stone) }
+            for i in 0..<10 { c.R(W * 0.4, qy - 52 + Double(i) * 6, W, 0.7, Col(0x000000, 0.12)) }
+            for tw in 0..<3 {
+                let twx = W * (0.46 + Double(tw) * 0.2)
+                c.R(twx, qy - 96, 34, 96, Col(0x98907e).shade(dark)); for i in 0..<4 { c.R(twx - 2 + Double(i) * 10, qy - 103, 7, 8, Col(0x98907e).shade(dark)) }
+                c.R(twx + 14, qy - 78, 6, 12, lampOn ? warm : Col(0x2a2622))
+                c.seg(twx + 17, qy - 103, twx + 17, qy - 126, 1.4, Col(0x3a2412)); c.poly(REDC.shade(dark), [twx + 17, qy - 126, twx + 33, qy - 121 + sin(T * 5 + Double(tw)) * 2, twx + 17, qy - 116])
+            }
         }
         // palms between the rows
-        for i in 0..<5 {
-            let px = W * 0.44 + Double(i) * W * 0.125 + hashN(seed + Double(i) * 9) * 18
+        let palmN = [5, 10, 2, 4][lay]
+        for i in 0..<palmN {
+            let px = W * 0.44 + Double(i) * W * 0.6 / Double(palmN) + hashN(seed + Double(i) * 9) * 18
             let sw = sin(T * 1.2 + Double(i)) * 2 * (1 + rough * 2)
             c.curve(px, hz - 4, px + 3 + sw * 0.5, hz - 22, px + 5 + sw, hz - 40, 2.6, Col(0x6b4a26).shade(dark))
             for a in [-2.5, -1.8, -1.0, -0.3, 0.4] { c.curve(px + 5 + sw, hz - 40, px + 5 + sw + cos(a) * 11, hz - 44 + sin(a) * 10, px + 5 + sw + cos(a) * 20, hz - 37 + sin(a) * 14, 2.8, Col(0x3f7a3c).shade(dark)) }
@@ -242,7 +279,7 @@ extension Game {
         var fx = W * 0.4
         var k = 0
         while fx < W + 20 {
-            let hw = 30 + hashN(seed + Double(k) * 2.9) * 16, hh = 30 + hashN(seed + Double(k) * 6.1) * 24
+            let hw = 30 + hashN(seed + Double(k) * 2.9) * 16, hh = (30 + hashN(seed + Double(k) * 6.1) * 24) * [1.0, 0.6, 1.4, 0.9][lay]
             house(fx, qy - 2, hw, hh, k + Int(seed))
             // a shop sign or a line of washing between some of them
             if k % 3 == 1 {
@@ -276,8 +313,9 @@ extension Game {
             if lampOn { c.glow(lx, qy - 33, 46, Col(0xffc060, 0.5), Col(0xffc060, 0)); c.ell(lx, qy, 22, 4, Col(0xffc060, 0.2)) }
         }
         // market stalls with striped awnings
-        for i in 0..<3 {
-            let sx = W * (0.5 + Double(i) * 0.14) + hashN(seed + Double(i) * 12) * 20
+        let stallN = [3, 1, 4, 2][lay]
+        for i in 0..<stallN {
+            let sx = W * (0.5 + Double(i) * 0.42 / Double(max(1, stallN))) + hashN(seed + Double(i) * 12) * 20
             let ac = [Col(0xc0392b), Col(0x2f7fd0), Col(0x3f9a4c)][(i + Int(seed)) % 3].shade(dark)
             c.R(sx - 15, qy - 20, 2, 18, Col(0x5a3d20).shade(dark)); c.R(sx + 13, qy - 20, 2, 18, Col(0x5a3d20).shade(dark))
             c.R(sx - 16, qy - 9, 32, 7, Col(0x8a6a44).shade(dark))
@@ -497,7 +535,8 @@ extension Game {
         }
         // the town's name on a hanging board
         let nm = here.n
-        let nw = textW(nm, 24, FONTD) + 44
+        let sub = kindName + (lacksText().isEmpty ? "" : "  ·  " + lacksText()) + (wellDry() ? "  ·  no well" : "")
+        let nw = max(textW(nm, 24, FONTD) + 44, textW(sub, 12, FONTI) + 30)
         let sway = sin(T * 1.3) * 0.02
         c.save()
         c.translate(W / 2, 38)
@@ -507,7 +546,7 @@ extension Game {
         c.RRGrad(-nw / 2, 8, nw, 46, 7, [(0, Col(0x6b4423)), (1, Col(0x3f2613))])
         c.RRStroke(-nw / 2, 8, nw, 46, 7, 1.6, Col(0xd2a455))
         c.text(nm, 0, 32, 24, GOLD, 0, FONTD)
-        c.text(kindName, 0, 47, 12, CREAM.alpha(0.9), 0, FONTI)
+        c.text(sub, 0, 47, 12, CREAM.alpha(0.9), 0, FONTI)
         c.restore()
 
         // things going on in town: a call-out over the quay for each
@@ -566,15 +605,15 @@ extension Game {
         // ---- where to go: each door shows what is waiting behind it
         let ready = need.foodOK && need.waterOK && need.hullOK && need.wagesOK
         let tiles: [(String, String, Int)] = [
-            ("Market", !need.foodOK && !need.waterOK ? "buy food and water" : (!need.foodOK ? "you need food" : (!need.waterOK ? "you need water" : "stores are good")), need.foodOK && need.waterOK ? 0 : 1),
+            ("Market", !need.foodOK && !need.waterOK ? "buy food and water" : (!need.foodOK ? "you need food" : (!need.waterOK ? "you need water" : (lacksText().isEmpty ? "stores are good" : lacksText()))), need.foodOK && need.waterOK ? 0 : 1),
             ("Tavern", need.down > 0 ? "\(need.down) need the surgeon" : (crew < ship.crew ? "\(ship.crew - crew) berths empty" : "crew · maps"), need.down > 0 ? 1 : (crew < ship.crew ? 2 : 0)),
             ("Shipwright", !need.hullOK ? "repairs: \(need.repair) gold" : (need.canUpgrade ? "upgrade available" : "she is sound"), !need.hullOK ? 1 : (need.canUpgrade ? 2 : 0)),
-            ("Well", wellUsed ? "casks filled" : "free fresh water", wellUsed ? 0 : 2),
+            ("Well", wellDry() ? "brackish · no use" : (wellUsed ? "casks filled" : "free fresh water"), wellUsed || wellDry() ? 0 : 2),
             ("Set sail", ready ? "ready for sea" : "not ready yet", ready ? 0 : 1)
         ]
         for (i, tl) in tiles.enumerated() {
             let x = safeL + Double(i) * (bw + gap)
-            btn(c, x, by, bw, bh, "", "", gold: i == 4 && ready, off: i == 3 && wellUsed) { [unowned self] in
+            btn(c, x, by, bw, bh, "", "", gold: i == 4 && ready, off: i == 3 && (wellUsed || wellDry())) { [unowned self] in
                 switch i {
                 case 0: self.openMarket()
                 case 1: self.tavern()
@@ -583,7 +622,7 @@ extension Game {
                 default: self.setSail()
                 }
             }
-            let dim = i == 3 && wellUsed
+            let dim = i == 3 && (wellUsed || wellDry())
             let ink = i == 4 && ready ? Col(0x2a1706) : CREAM
             // the moving sign on each door
             let ix = x + 24, iy = by + bh / 2

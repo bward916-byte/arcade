@@ -82,7 +82,9 @@ let LEG: [Double] = [260, 300, 280, 340, 320]
 let DAYLEN = 6.4
 /// Suns that rise and set in one watch. The calendar the player sees counts these.
 let SUNS = 4
-let WAGE = 5
+let WAGE = 6
+/// What one hand eats, and drinks, in a watch.
+let RATION = 0.45
 
 struct Good {
     let k: String
