@@ -21,11 +21,13 @@ final class Renderer {
         groundBand(dk)
         scenery()
         camps(dk)
-        for bl in g.b where !bl.def.gate && !bl.virt { building(bl, dk) }
+        for bl in g.b where bl.def.wall != 0 && !bl.def.gate { building(bl, dk) }
+        centre()
+        for bl in g.b where bl.wire { wire(bl) }
         townSign()
         rail(dk)
         racks()
-        campfire(FIRE_X, 1.0)
+        if g.hall.level == 0 { campfire(FIRE_X, 1.0) }
         for bl in g.b where bl.def.gate { gate(bl) }
         for bx in g.boxes { box(bx) }
         for f in g.folk { person(f.x, f.phase, f.dir, f.moving, f.seed, f.role, f.work) }
@@ -112,7 +114,7 @@ final class Renderer {
         c.vfill(0, gy, W, H - gy, [(0, Col(0xdcb680)), (0.25, Col(0xd0a66e)), (1, Col(0xb88a56))])
         c.R(0, gy, W, 1, Col(0xeccf9c))
         // the main street, packed earth between the gates
-        let a = sx(966), b2 = sx(1940)
+        let a = sx(966), b2 = sx(g.gateE.x)
         if b2 > 0 && a < W { c.R(max(0, a), gy + 1, min(W, b2) - max(0, a), 5, Col(0xc49a66)) }
         var i = Int(g.cam / 23)
         let end = Int((g.cam + W) / 23) + 1
@@ -130,7 +132,7 @@ final class Renderer {
         while i <= end {
             if i >= 0 {
                 let x = Double(i) * 120 + hashN(Double(i) * 6.6) * 90
-                let inTown = x > 940 && x < 1960
+                let inTown = x > 890 && x < g.gateE.x + 60
                 if !inTown {
                     let k = hashN(Double(i) * 2.9)
                     let s = sx(x)
@@ -253,6 +255,19 @@ final class Renderer {
             c.R(x + w / 2 - 1, gy - h - fh - 12, 2, 10, Col(0x3a2a1c))
             c.poly(Col(0xb5412e), [x + w / 2 + 1, gy - h - fh - 12, x + w / 2 + 11 + sin(g.clock * 4) * 1.5, gy - h - fh - 9, x + w / 2 + 1, gy - h - fh - 6])
         }
+        if bl.type == .church {         // a steeple and a cross
+            c.R(x + w / 2 - 6, gy - h - fh - 14, 12, 14, wall); c.poly(roof, [x + w / 2 - 8, gy - h - fh - 14, x + w / 2, gy - h - fh - 26, x + w / 2 + 8, gy - h - fh - 14])
+            c.R(x + w / 2 - 0.5, gy - h - fh - 32, 1.5, 7, trim); c.R(x + w / 2 - 2.5, gy - h - fh - 30, 5.5, 1.5, trim)
+            c.R(x + w / 2 - 2, gy - h - fh - 10, 4, 6, Col(0x3a2a1c))
+        }
+        if bl.type == .forge {          // the fire inside, and a chimney
+            c.R(x + d.doorX + 2, gy - 12, d.doorW - 4, 12, Col(0xe8742a, 0.55 + 0.25 * sin(g.clock * 7)))
+            c.R(x + 6, gy - h - fh - 9, 6, 9, Col(0x4a3f38))
+        }
+        if bl.type == .telegraph {      // a mast, and at dusk a red pennant on the side the raid will come from
+            c.R(x + 8, gy - h - fh - 20, 1.5, 20, Col(0x3a2a1c)); c.R(x + 4, gy - h - fh - 18, 9.5, 1, Col(0x3a2a1c))
+            if g.raidOn { c.poly(Col(0xc0392b), [x + 9, gy - h - fh - 20, x + 9 + g.side * 8, gy - h - fh - 17.5, x + 9, gy - h - fh - 15]) }
+        }
         if bl.robbed { c.text("ROBBED", x + w / 2, gy - h - fh - 4, 6, Col(0xd04a3a)) }
         if bl.building { scaffold(x, w, h + fh, bl.progress) }
         if bl.flash > 0 { c.R(x - 2, gy - h - fh, w + 4, h + fh, Col(0xfff0c0, bl.flash)) }
@@ -284,9 +299,68 @@ final class Renderer {
         }
     }
 
+    /// The town centre: a campfire, then a square with a well, then a clock tower.
+    private func centre() {
+        let hl = g.hall
+        if !vis(hl.x, 60) { return }
+        let x = sx(hl.x).rounded(), cx = x + 13
+        let stone = Col(0xb9b2a4), dks = Col(0x8a8478)
+        if hl.level >= 1 {
+            c.R(x - 22, gy, 70, 2, stone)
+            var k = -22.0
+            while k < 48 { c.R(x + k, gy, 1, 2, dks); k += 7 }
+        }
+        if hl.level == 1 {
+            c.R(cx - 6, gy - 6, 12, 6, stone); c.R(cx - 7, gy - 7, 14, 2, dks)
+            c.R(cx - 6, gy - 16, 1.5, 10, Col(0x5a3c22)); c.R(cx + 4.5, gy - 16, 1.5, 10, Col(0x5a3c22))
+            c.poly(Col(0x6a3c20), [cx - 9, gy - 16, cx, gy - 21, cx + 9, gy - 16])
+        } else if hl.level >= 2 {
+            c.R(cx - 8, gy - 44, 16, 44, Col(0xc9b98a)); c.R(cx + 5, gy - 44, 3, 44, Col(0x000000, 0.12))
+            c.R(cx - 10, gy - 46, 20, 3, Col(0x6a3c20))
+            c.poly(Col(0x6a3c20), [cx - 10, gy - 46, cx, gy - 58, cx + 10, gy - 46])
+            c.circ(cx, gy - 35, 5.5, Col(0x3a2a1c)); c.circ(cx, gy - 35, 4.5, Col(0xf4ecd6))
+            let a = g.t * PI * 4 - PI / 2
+            c.seg(cx, gy - 35, cx + cos(a) * 3.5, gy - 35 + sin(a) * 3.5, 0.8, INK)
+            c.seg(cx, gy - 35, cx + cos(a / 12) * 2.3, gy - 35 + sin(a / 12) * 2.3, 0.9, INK)
+            c.R(cx - 3, gy - 12, 6, 12, Col(0x3a2a1c))
+        }
+        if hl.building { scaffold(x, 26, hl.level == 0 ? 18 : 50, hl.progress) }
+        if hl.flash > 0 { c.R(x - 4, gy - 30, 34, 30, Col(0xfff0c0, hl.flash)) }
+    }
+
+    /// Barbed wire outside a gate: one apron, then two, then a sharpshooter's nest behind it.
+    private func wire(_ bl: Building) {
+        if !vis(bl.x, 40) { return }
+        let x = sx(bl.x).rounded(), lv = bl.level
+        let post = Col(0x5a3c22), strand = Col(0x3a3a40)
+        if lv == 0 {
+            if bl.building { c.R(x, gy - 6, 1.5, 6, post); c.R(x + 28, gy - 6, 1.5, 6, post); scaffold(x, 30, 8, bl.progress) }
+            return
+        }
+        var k = 0.0
+        while k <= 30 {
+            c.seg(x + k - 2, gy, x + k + 2, gy - 8, 1.2, post); c.seg(x + k + 2, gy, x + k - 2, gy - 8, 1.2, post)
+            k += 10
+        }
+        c.R(x - 2, gy - 7, 34, 0.7, strand); c.R(x - 2, gy - 4, 34, 0.7, strand)
+        k = 1
+        while k < 32 { c.R(x + k, gy - 8, 0.8, 2.5, strand); c.R(x + k + 2, gy - 5, 0.8, 2.5, strand); k += 5 }
+        if lv >= 2 { c.R(x - 2, gy - 10, 34, 0.7, strand); c.R(x - 2, gy - 1.5, 34, 0.7, strand) }
+        if lv >= 3 {
+            // the nest, on the town side
+            let nx = bl.type == .wireW ? x + 36 : x - 12
+            c.RR(nx, gy - 5, 8, 5, 2, Col(0xb9a37a)); c.RR(nx - 3, gy - 3, 8, 3, 1.5, Col(0xa8926a)); c.RR(nx + 4, gy - 3, 8, 3, 1.5, Col(0xa8926a))
+            c.R(nx + 2.5, gy - 9, 3, 3, Col(0xd9a878)); c.R(nx + 1, gy - 10, 6, 1.2, Col(0x4a3424))
+            let d = bl.type == .wireW ? -1.0 : 1.0
+            c.seg(nx + 4, gy - 6.5, nx + 4 + d * 8, gy - 7.5, 0.9, Col(0x2e2622))
+        }
+        if bl.building { scaffold(x, 30, 12, bl.progress) }
+        if bl.flash > 0 { c.R(x - 2, gy - 11, 34, 11, Col(0xfff0c0, bl.flash)) }
+    }
+
     /// The town's name on a board outside the west gate.
     private func townSign() {
-        let wx = 924.0
+        let wx = 876.0
         if !vis(wx, 50) { return }
         let x = sx(wx).rounded()
         let name = g.townName
@@ -381,6 +455,9 @@ final class Renderer {
             if lv >= 3 {
                 c.R(x - 4, gy - h - 12, 22, 3, dkw); c.R(x - 3, gy - h - 9, 2, 9, dkw); c.R(x + 15, gy - h - 9, 2, 9, dkw)
                 c.R(x - 5, gy - h - 16, 24, 4, Col(0x6a3c20))
+                // the Gatling gun on the roof, pointing out of town
+                let gd = bl.type == .gateW ? -1.0 : 1.0
+                c.R(x + 5, gy - h - 19, 4, 3, Col(0x4a4a50)); c.seg(x + 7, gy - h - 18, x + 7 + gd * 9, gy - h - 18, 1.6, Col(0x2e2622))
             }
         }
         // what is left of the gate's strength
@@ -559,7 +636,11 @@ final class Renderer {
         if n <= 0 { return }
         let per = min(n, 10)
         let rows = (n + per - 1) / per
-        let top = gy - bl.def.h - Double(max(0, bl.level - 1)) * 5 - (bl.def.gate ? 12 : (bl.virt ? 26 : 34)) - Double(rows) * 6
+        var tall = bl.def.h + Double(max(0, bl.level - 1)) * 5
+        if bl.isHall && bl.level == 1 { tall = 26 }
+        var gap = 34.0
+        if bl.def.gate || bl.wire || bl.isHall { gap = 12 } else if bl.virt { gap = 26 }
+        let top = gy - tall - gap - Double(rows) * 6
         let cx = sx(bl.cx)
         c.RR(cx - Double(per) * 3 - 3, top - 4, Double(per) * 6 + 6, Double(rows) * 6 + 2, 3, Col(0x2a1c14, 0.75))
         for i in 0..<n {

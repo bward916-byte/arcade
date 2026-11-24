@@ -42,14 +42,18 @@ let SHIRT: [Col] = [Col(0x8a5a3a), Col(0x5f7896), Col(0x7d9484), Col(0xa9683a), 
 let HAT: [Col] = [Col(0x4a3424), Col(0x6a4a2e), Col(0x2e2622), Col(0xc9a86a)]
 
 // The world, as in the web game.
-let WORLD = 3420.0, FIRE_X = 1365.0, MINE_X = 830.0, DAY_LEN = 100.0
+let FIRE_X = 1365.0, MINE_X = 830.0, DAY_LEN = 100.0
+// From the second town on, everything east of the stable moves 340 further out to make room for the new buildings.
+var SHIFT = 0.0
+var WORLD = 3420.0
+var STOP = 1798.0                       // where the locomotive pulls up; the passenger car is 64 behind it
+func EX(_ x: Double) -> Double { return x > 1695 ? x + SHIFT : x }
 let TOWN_W = 1010.0, TOWN_E = 1790.0
-let STOP = 1798.0                       // where the locomotive pulls up; the passenger car is 64 behind it
 /// The line, in order. The native version rides straight down it; the web game's forks come later.
 let TOWN_NAMES = ["DUSTFALL", "REDWATER", "LAST HOPE", "COLD CREEK", "BITTER END"]
 func nice(_ s: String) -> String { return s.capitalized }
 
-enum BType: String { case store, saloon, sheriff, stable, bank, gateW, gateE, station, train }
+enum BType: String { case store, saloon, sheriff, stable, bank, gateW, gateE, station, train, hall, wireW, wireE, bordello, doctor, church, forge, telegraph }
 enum Role { case folk, deputy, miner }
 
 struct Def {
@@ -79,6 +83,16 @@ let DEFS: [BType: Def] = [
     .gateE: Def(name: "EAST GATE", w: 14, h: 16, cost: [4, 8, 14], pay: 0, wall: 0x7a5632, trim: 0x4a3424, roof: 0x4a3424, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: true),
     .station: Def(name: "STATION", w: 84, h: 38, cost: [20], pay: 0, wall: 0xc9a65a, trim: 0x6a2f26, roof: 0x4a3a34, sign: 0xead7a4, ink: 0x4a2a22, doorX: 36, doorW: 13, wins: [(8, 16), (60, 16)], gate: false),
     // not a building: the passenger car, where a ticket is paid
+    .bordello: Def(name: "BORDELLO", w: 74, h: 38, cost: [9, 14, 20], pay: 5, wall: 0xb0506a, trim: 0xf0d9c0, roof: 0x5a2030, sign: 0xf0d9c0, ink: 0x8a2040, doorX: 30, doorW: 14, wins: [(8, 13), (53, 13)], gate: false),
+    .doctor: Def(name: "DOCTOR", w: 58, h: 36, cost: [8], pay: 0, wall: 0xd9d2c0, trim: 0x3d6a5a, roof: 0x3d5a50, sign: 0xf4ecd6, ink: 0x3d6a5a, doorX: 8, doorW: 13, wins: [(29, 20)], gate: false),
+    .church: Def(name: "CHURCH", w: 54, h: 40, cost: [10], pay: 0, wall: 0xe8e2d2, trim: 0x6a5a4a, roof: 0x5a4a40, sign: 0xe8e2d2, ink: 0x5a4a40, doorX: 20, doorW: 14, wins: [(5, 9), (40, 9)], gate: false),
+    .forge: Def(name: "SMITHY", w: 60, h: 36, cost: [9, 14], pay: 0, wall: 0x6e5a4a, trim: 0x2e2622, roof: 0x2e2622, sign: 0x2e2622, ink: 0xe89a4a, doorX: 34, doorW: 18, wins: [(7, 16)], gate: false),
+    .telegraph: Def(name: "TELEGRAPH", w: 62, h: 36, cost: [8], pay: 0, wall: 0xc9b98a, trim: 0x4a5a6a, roof: 0x3a4652, sign: 0xe8e2d2, ink: 0x2f3a46, doorX: 42, doorW: 13, wins: [(7, 26)], gate: false),
+    // the town centre: campfire, then a square, then a clock tower
+    .hall: Def(name: "TOWN CENTRE", w: 26, h: 14, cost: [12, 25], pay: 0, wall: 0, trim: 0, roof: 0, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: false),
+    // outside each gate: barbed wire, a second apron that cuts, then a sharpshooter's nest
+    .wireW: Def(name: "BARBED WIRE", w: 30, h: 10, cost: [6, 10, 16], pay: 0, wall: 0, trim: 0, roof: 0, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: false),
+    .wireE: Def(name: "BARBED WIRE", w: 30, h: 10, cost: [6, 10, 16], pay: 0, wall: 0, trim: 0, roof: 0, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: false),
     .train: Def(name: "TRAIN TICKET", w: 60, h: 14, cost: [5], pay: 0, wall: 0, trim: 0, roof: 0, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: false)
 ]
 let GHP: [Double] = [0, 16, 34, 60]      // gate hit points by level
@@ -97,12 +111,33 @@ final class Building {
     var live = true           // false for the ticket until the train is standing at the platform
     var scale = 1.0           // prices rise a quarter with every town down the line
     init(_ t: BType, _ x: Double) { type = t; self.x = x }
+    var capL = 9              // how high it may go right now: most buildings wait on the town centre
+    var cd = 0.0              // a Gatling gun's or sharpshooter's time to the next round
     var virt: Bool { return type == .train }
+    var wire: Bool { return type == .wireW || type == .wireE }
+    var isHall: Bool { return type == .hall }
+    /// A building with a front on the street. The railroad waits until every one of them is open.
+    var front: Bool { return def.wall != 0 && !def.gate && type != .station }
+    /// Can only be raised one level beyond the town centre's own.
+    var tier: Bool {
+        switch type {
+        case .store, .saloon, .sheriff, .stable, .bank, .bordello, .forge, .gateW, .gateE: return true
+        default: return false
+        }
+    }
+    var label: String {
+        switch type {
+        case .forge: return "Blacksmith"
+        case .telegraph: return "Telegraph office"
+        default: return String(def.name.prefix(1)) + String(def.name.dropFirst()).lowercased()
+        }
+    }
+    var capped: Bool { return !building && level < maxLevel && level >= capL }
     var def: Def { return DEFS[type]! }
     var cx: Double { return x + def.w / 2 }
     var maxLevel: Int { return def.cost.count }
     var cost: Int { return level < maxLevel ? Int((Double(def.cost[level]) * scale).rounded(.up)) : 0 }
-    var payable: Bool { return live && level < maxLevel && !building }
+    var payable: Bool { return live && level < min(maxLevel, capL) && !building }
 }
 
 final class Drifter {
@@ -129,7 +164,8 @@ final class Folk {
 
 final class Bandit {
     var x: Double
-    let rider: Bool
+    var rider: Bool           // barbed wire can put him on foot
+    var cut = false           // already through the wire
     let side: Double          // which end of town he came from: -1 west, 1 east
     var hp: Int
     var st = 0                // 0 riding in, 1 breaking a gate, 2 robbing, 3 running
