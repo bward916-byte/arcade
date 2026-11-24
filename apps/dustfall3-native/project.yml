@@ -10,6 +10,8 @@ targets:
     sources:
       - Sources
       - Assets.xcassets
+      - path: Resources
+        buildPhase: resources
     info:
       path: Info.plist
       properties:

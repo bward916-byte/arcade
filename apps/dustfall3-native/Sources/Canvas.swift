@@ -152,8 +152,8 @@ final class Canvas {
     }
 
     /// A line of lettering. `y` is the baseline; `center` centres it on x.
-    func text(_ str: String, _ x: Double, _ y: Double, _ size: Double, _ c: Col, center: Bool = true, bold: Bool = true) {
-        let font = CTFontCreateWithName((bold ? "Georgia-Bold" : "Georgia") as CFString, CGFloat(size), nil)
+    func text(_ str: String, _ x: Double, _ y: Double, _ size: Double, _ c: Col, center: Bool = true, bold: Bool = true, face: String? = nil) {
+        let font = CTFontCreateWithName((face ?? (bold ? "Georgia-Bold" : "Georgia")) as CFString, CGFloat(size), nil)
         let color = CGColor(red: CGFloat(c.r), green: CGFloat(c.g), blue: CGFloat(c.b), alpha: CGFloat(c.a))
         let attrs: [NSAttributedString.Key: Any] = [
             NSAttributedString.Key(kCTFontAttributeName as String): font,

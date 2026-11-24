@@ -53,6 +53,7 @@ final class Renderer {
         for tr in g.cav where vis(tr.x, 30) {
             let x = sx(tr.x)
             _ = horse(x, tr.dir, tr.phase, 118, Col(0x6e4a30), Col(0x3a2416))
+            c.save(); c.translate(0, -HLIFT); defer { c.restore() }
             c.R(x - 3, gy - 26, 6, 9, Col(0x2f4a7a)); c.R(x - 3, gy - 22, 6, 1.2, Col(0xf2c14e)); c.R(x - 1, gy - 17, 3, 7, Col(0x8fa4c4))
             c.R(x - 2, gy - 30, 4.5, 4, Col(0xd9a878)); c.R(x - 4.5, gy - 31, 9.5, 1.3, Col(0x1c2a4a)); c.R(x - 2.5, gy - 33.6, 5.5, 3, Col(0x1c2a4a))
             c.seg(x + tr.dir * 2, gy - 24, x + tr.dir * 9, gy - 29, 1, Col(0xc9c9d0))
@@ -83,118 +84,291 @@ final class Renderer {
         if g.fade > 0 { c.R(0, 0, W, H, Col(0x000000, g.fade)) }
     }
 
-    /// The picture for a story scene, painted into its own small canvas.
-    func art(_ bt: Beat) -> CGImage? {
-        let w = 150.0, h = 84.0
-        guard let a = Canvas(w: Int(w), h: Int(h), scale: 4) else { return nil }
-        let ink = Col(0x2a1c14), paper = Col(0xead7a4)
-        func frame(_ top: UInt32, _ bot: UInt32) { a.vfill(0, 0, w, h, [(0, Col(top)), (1, Col(bot))]) }
-        func star5(_ x: Double, _ y: Double, _ r: Double, _ col: Col) {
+    /// The picture for a story scene, as in the web game: a 200 by 112 closeup, redrawn every frame so it moves.
+    private var cu: Canvas?
+    func art(_ bt: Beat, _ t: Double) -> CGImage? {
+        if cu == nil { cu = Canvas(w: 200, h: 112, scale: 4) }
+        guard let a = cu else { return nil }
+        a.save()
+        a.alpha(1)
+        func q(_ x: Double, _ y: Double, _ w: Double, _ h: Double, _ c: UInt32, _ al: Double = 1) { a.R(x.rounded(), y.rounded(), w, h, Col(c, al)) }
+        func hs(_ i: Int) -> Double { return hashN(Double(i) * 1.37 + 0.11) }
+        func star(_ cx: Double, _ cy: Double, _ r0: Double, _ r1: Double, _ rot: Double, _ c: UInt32) {
             var p: [Double] = []
             for i in 0..<10 {
-                let an = -PI / 2 + Double(i) * PI / 5
-                let rr = i % 2 == 0 ? r : r * 0.45
-                p.append(x + cos(an) * rr); p.append(y + sin(an) * rr)
+                let an = rot + Double(i) * PI / 5
+                let r = i % 2 == 1 ? r1 : r0
+                p.append(cx + sin(an) * r); p.append(cy - cos(an) * r)
             }
-            a.poly(col, p)
+            a.poly(Col(c), p)
+        }
+        func motes(_ n: Int, _ c: UInt32) {
+            for i in 0..<n {
+                let x = (hs(i + 3) * 240 + t * (6 + hs(i + 9) * 14)).truncatingRemainder(dividingBy: 240) - 20
+                let y = hs(i + 5) * 112 + sin(t * 0.8 + Double(i)) * 4
+                q(x, y, hs(i) > 0.7 ? 2 : 1, 1, c, 0.25 + 0.5 * hs(i + 7))
+            }
+        }
+        /// The upper half of an ellipse.
+        func hell(_ cx: Double, _ cy: Double, _ rx: Double, _ ry: Double, _ c: UInt32) {
+            a.save(); a.translate(cx, cy); a.scale(1, ry / rx); a.dome(0, 0, rx, Col(c)); a.restore()
+        }
+        func puffs(_ n: Int, _ step: Double, _ rate: Double, _ al: Double, _ c: UInt32, _ at: (Double, Int) -> (Double, Double, Double)) {
+            for i in 0..<n {
+                let k = (t * rate + Double(i) * step).truncatingRemainder(dividingBy: 1)
+                let p = at(k, i)
+                a.circ(p.0, p.1, p.2, Col(c, al * (1 - k)))
+            }
         }
         switch bt.art {
-        case "star":
-            frame(0x3a2a1c, 0x1c120c)
-            for i in 0..<26 { a.R(hashN(Double(i) * 3.1) * w, 58 + hashN(Double(i) * 7.3) * 24, 2 + hashN(Double(i)) * 5, 1.5, Col(0x5c5048, 0.7)) }
-            a.glow(w / 2, 40, 46, Col(0xf2c14e, 0.35), Col(0xf2c14e, 0))
-            a.circ(w / 2, 40, 25, Col(0x8a6a2a)); a.circ(w / 2, 40, 23, Col(0xc9a14a))
-            star5(w / 2, 40, 20, Col(0xf2c14e)); star5(w / 2 - 1, 39, 12, Col(0xfff0b0, 0.5))
-            a.text("SHERIFF", w / 2, 43, 6.5, Col(0x5a3c1a))
         case "eyes":
-            let crane = bt.who == "crane", gun = bt.who == "gun"
-            let topC: UInt32 = crane ? 0x3a3440 : (gun ? 0x4a2a22 : 0xd9a47a)
-            let botC: UInt32 = crane ? 0x1c1a22 : (gun ? 0x1c120c : 0xa85e36)
-            frame(topC, botC)
-            let skinC: UInt32 = crane ? 0xe2c0a0 : (gun ? 0xb8804e : 0xd9a878)
-            let hatC: UInt32 = crane ? 0x2a2a30 : (gun ? 0x14100e : 0x5a4030)
-            let skin = Col(skinC), hat = Col(hatC)
-            a.R(30, 22, 90, 62, skin)
-            a.R(30, 60, 90, 24, Col(0x000000, 0.12))
-            let look = gun ? -2.0 : 1.0
-            let iris: UInt32 = crane ? 0x6a8a9a : 0x4a3424
-            for ex in [56.0, 94.0] {
-                a.RR(ex - 11, 36, 22, 4, 2, Col(0x3a2a1c)); a.ell(ex, 47, 9, 4.5, Col(0xf4ecd6))
-                a.circ(ex + look, 47, 4, Col(iris)); a.circ(ex + look, 47, 1.8, ink)
-                a.R(ex - 10, 41.5, 20, 2.5, skin)
+            // a face under a hat brim: the rider, Crane's hired gun, a hobo, or Crane himself
+            let who = bt.who.isEmpty ? "rider" : bt.who
+            let F: [UInt32]       // bg, bg2, hat, band, skin, shade, iris, brow
+            switch who {
+            case "gun": F = [0xb98a5a, 0xcaa070, 0x16131a, 0x5a5450, 0xc99266, 0x96663f, 0x6a5a3a, 0x120b08]
+            case "hobo": F = [0x8a7a66, 0x9a8a74, 0x5a5a52, 0x4a4a44, 0xc8956a, 0x9a6a44, 0x6a7a6a, 0x8a8478]
+            case "crane": F = [0x2a2430, 0x3a3040, 0x2a2c36, 0x7a6a3a, 0xe0b890, 0xb98e68, 0x8a9aa8, 0xd8d2c4]
+            default: F = [0xd8a868, 0xe8c088, 0x3b2a1e, 0xb53a2e, 0xd9a06e, 0xb47a4c, 0x4a6a8a, 0x2e1a12]
             }
-            a.poly(Col(0x000000, 0.15), [72, 44, 78, 44, 81, 66, 69, 66])
-            if crane {
-                a.RR(40, 68, 70, 7, 3, Col(0xd8d8dc)); a.ellStroke(94, 47, 12, 8, 1.4, Col(0xc9a14a)); a.seg(106, 49, 118, 70, 0.8, Col(0xc9a14a))
-                a.R(18, 16, 114, 8, hat); a.R(34, 0, 82, 18, hat); a.R(34, 12, 82, 4, Col(0x6a2a30))
+            let look = (sin(t * 0.6 + (who == "gun" ? 2 : 0)) * 3).rounded()
+            let blink = (t + (who == "gun" ? 1.3 : 0)).truncatingRemainder(dividingBy: 4.4) < 0.13
+            q(0, 0, 200, 112, F[0])
+            for i in 0..<5 { q(0, 8 + Double(i) * 22 + sin(t * 0.3 + Double(i)) * 2, 200, 5, F[1]) }
+            q(50, 31, 100, 81, F[4]); q(50, 31, 13, 81, F[5]); q(137, 31, 13, 81, F[5])
+            if who == "crane" { hell(100, 22, 50, 26, F[2]); q(50, 18, 100, 6, F[3]); q(22, 24, 156, 7, F[2]) }
+            else { q(46, -6, 108, 30, F[2]); q(46, 17, 108, 6, F[3]); q(4, 24, 192, 8, F[2]); q(0, 27, 200, 4, F[2]); q(14, 22, 172, 3, F[2]) }
+            q(50, 32, 100, 10, 0x140a06, 0.5); q(50, 42, 100, 4, 0x140a06, 0.2)
+            q(61, 43, 31, 4, F[7]); q(108, 43, 31, 4, F[7]); q(86, 45, 8, 3, F[7]); q(106, 45, 8, 3, F[7])
+            for ex in [66.0, 110.0] {
+                q(ex, 50, 24, 8, 0xf0e6d6); q(ex + 8 + look, 50, 9, 8, F[6]); q(ex + 11 + look, 52, 3, 4, 0x120b08); q(ex + 10 + look, 51, 2, 2, 0xffffff)
+                q(ex, 50, 24, who == "rider" ? 2 : 3, F[5]); q(ex, 56, 24, 2, F[5])
+                if blink { q(ex, 50, 24, 8, F[4]); q(ex, 54, 24, 1, F[7]) }
+                q(ex - 5, 60, 3, 1, F[5]); q(ex + 26, 60, 3, 1, F[5])
+            }
+            q(95, 55, 10, 25, F[5]); q(92, 79, 16, 4, F[5]); q(97, 58, 3, 18, F[4])
+            if who == "rider" {
+                q(44, 87, 112, 25, 0xb53a2e); q(44, 87, 112, 3, 0x8f2c23)
+                for i in 0..<9 { q(52 + Double(i) * 12, 94 + Double(i % 2) * 7, 3, 3, 0xead7a4) }
+                q(96, 90, 8, 22, 0x9a3026)
+            } else if who == "hobo" {
+                q(50, 80, 100, 32, 0x8a8478)
+                for i in 0..<40 { q(52 + hs(i + 20) * 94, 82 + hs(i + 21) * 28, 2, 3, i % 2 == 1 ? 0xa8a296 : 0x6a665c) }
+                q(84, 90, 32, 3, 0x5a3a30); q(112, 90, 30, 4, 0x5a3a22); q(140, 86, 7, 8, 0x3a2a1e)
+                puffs(4, 0.25, 0.3, 0.35, 0xd8d2dc) { k, i in (144 + sin(t + Double(i)) * 3, 84 - k * 40, 2 + k * 6) }
+            } else if who == "gun" {
+                q(72, 85, 56, 7, 0x16131a); q(66, 89, 10, 5, 0x16131a); q(124, 89, 10, 5, 0x16131a); q(84, 97, 32, 3, 0x7a4a34)
+                for i in 0..<8 { q(118 + Double(i) * 1.6, 34 + Double(i) * 5, 3, 4, 0x8a3a30) }
+                for i in 0..<26 { q(58 + hs(i + 40) * 84, 98 + hs(i + 60) * 12, 1, 1, F[5]) }
             } else {
-                if gun { a.R(30, 62, 90, 22, Col(0xa02a22)); a.poly(Col(0x7a1c18), [30, 62, 75, 70, 120, 62, 120, 66, 75, 74, 30, 66]) }
-                else { a.R(30, 74, 90, 10, Col(0xc9402f)) }
-                a.poly(hat, [4, 28, 20, 16, 130, 16, 146, 28, 130, 24, 20, 24]); a.RR(36, 0, 78, 20, 6, hat)
-                let band: UInt32 = gun ? 0x4a4a50 : 0x2a1c14
-                a.R(36, 14, 78, 4, Col(band))
+                q(70, 85, 60, 7, 0xe8e2d2); q(64, 89, 10, 5, 0xe8e2d2); q(126, 89, 10, 5, 0xe8e2d2); q(86, 97, 28, 3, 0x8a5a44)
+                q(118, 96, 36, 5, 0x6a4a2e); q(118, 96, 36, 1, 0x8a6240)
+                q(154, 96, 4, 5, sin(t * 3) > 0 ? 0xff8a2a : 0xffcf6b)
+                puffs(5, 0.2, 0.35, 0.4, 0xd8d2dc) { k, i in (158 + k * 18 + sin(t + Double(i)) * 3, 92 - k * 46, 3 + k * 7) }
+                a.ellStroke(122, 54, 15, 15, 1.5, Col(0xc9a14a)); a.seg(136, 60, 150, 112, 1.5, Col(0xc9a14a))
             }
-            a.R(0, 22, 30, 62, Col(0x000000, 0.25)); a.R(120, 22, 30, 62, Col(0x000000, 0.25))
+            motes(14, who == "crane" ? 0x8a809a : 0xfff3c4)
+        case "star":
+            // his father's star, in the ashes
+            q(0, 0, 200, 112, 0xa8814e)
+            for i in 0..<60 { q(hs(i + 1) * 200, hs(i + 2) * 112, 2 + hs(i + 3) * 5, 1 + hs(i) * 2, i % 3 != 0 ? 0x8f6c40 : 0xc09a62) }
+            for i in 0..<9 { q(hs(i + 11) * 180, hs(i + 13) * 100, 10 + hs(i + 15) * 26, 4 + hs(i + 17) * 8, 0x1a1412, 0.5) }
+            a.save(); a.translate(28, 20); a.rotate(0.5)
+            q(-10, -6, 120, 11, 0x1c1614); q(-10, -6, 120, 2, 0x3a302a)
+            for i in 0..<8 { q(Double(i) * 14, -3, 6, 2, sin(t * 2 + Double(i)) > 0.6 ? 0xff8a2a : 0x5a2a1a) }
+            a.restore()
+            a.ell(104, 66, 34, 10, Col(0x1e120a, 0.45))
+            star(100, 56, 32, 13, 0.18, 0x5a5f68); star(100, 55, 29, 11.5, 0.18, 0xaeb4bd)
+            a.save(); a.cg.clip(to: CGRect(x: 100, y: 0, width: 100, height: 112)); star(100, 55, 29, 11.5, 0.18, 0xd8dde4); a.restore()
+            a.circ(100, 55, 7, Col(0x8a9098)); a.circ(100, 55, 5, Col(0xc4cad2))
+            for i in 0..<5 { let an = 0.18 + Double(i) * PI * 0.4; a.circ(100 + sin(an) * 29, 55 - cos(an) * 29, 2.4, Col(0x8a9098)) }
+            for i in 0..<16 { q(70 + hs(i + 70) * 60, 40 + hs(i + 80) * 30, 3, 1, 0x3c2818, 0.5) }
+            let gk = max(0, sin(t * 1.7))
+            q(113 - 9 * gk, 38, 18 * gk + 1, 1, 0xffffff, gk); q(113, 38 - 9 * gk, 1, 18 * gk + 1, 0xffffff, gk); q(112, 37, 3, 3, 0xffffff, gk)
+            let hk = clampD((t - 1.1) / 1.2, 0, 1), hx = 200 - hk * 62
+            q(hx, 70, 70, 34, 0x5a3a22); q(hx - 14, 74, 16, 7, 0x6a4429); q(hx - 18, 84, 20, 7, 0x6a4429); q(hx - 12, 94, 14, 7, 0x6a4429); q(hx, 70, 70, 3, 0x7a5434); q(hx + 40, 62, 40, 50, 0x2e241c)
+            motes(12, 0xe8d8b0)
         case "brand":
-            frame(0x8a4a2c, 0x5a2f1c)
-            a.RR(-10, 10, 170, 90, 30, Col(0x9a5a34)); a.RR(6, 16, 120, 20, 10, Col(0xb06a40, 0.6))
-            a.arcStroke(78, 46, 17, 0.9, PI * 2 - 0.9, 6.5, Col(0x2e1a12)); a.arcStroke(78, 46, 17, 0.9, PI * 2 - 0.9, 3, Col(0x5a2a1a))
-            for i in 0..<5 { a.seg(70 + Double(i) * 4, 22 - Double(i % 2) * 3, 72 + Double(i) * 4, 12, 0.8, Col(0xffffff, 0.25)) }
+            // the brand on a raider's horse
+            let by = sin(t * 1.4) * 1.2
+            q(0, 0, 200, 112, 0x7a4628)
+            for i in 0..<7 { q(0, 6 + Double(i) * 17 + by, 200, 7, i % 2 == 1 ? 0x8a5432 : 0x6f3f24) }
+            for i in 0..<70 { q(hs(i + 5) * 200, hs(i + 6) * 112 + by, 6 + hs(i) * 8, 1, 0x28140a, 0.25) }
+            q(120, 0, 80, 34 + by, 0x8a2f26)
+            for i in 0..<5 { q(120, 4 + Double(i) * 7 + by, 80, 2, i % 2 == 1 ? 0xead7a4 : 0x3f5fa0) }
+            q(116, 0, 5, 36 + by, 0x3a2416); q(150, 30 + by, 10, 82, 0x4a2f1c); q(152, 30 + by, 2, 82, 0x6a4429); q(146, 70 + by, 18, 10, 0x8d8780)
+            a.roundCaps(true)
+            let rings: [(UInt32, Double, Double)] = [(0xb0764a, 9, 0), (0x2a1206, 6, 0), (0x140803, 3, 0.5)]
+            for (c, w, o) in rings {
+                a.ellStroke(74 + o, 62 + by + o, 27, 27, w, Col(c))
+                a.arcStroke(74 + o, 62 + by + o, 13, 0.75, 5.55, w, Col(c))
+            }
+            a.roundCaps(false)
+            puffs(4, 0.25, 0.3, 0.25, 0xe8e0d8) { k, i in (74 + sin(Double(i) * 2 + t) * 10, 36 - k * 30 + by, 3 + k * 5) }
         case "wire":
-            frame(0x4a3424, 0x2a1c14)
-            a.RR(14, 8, 122, 68, 2, paper); a.R(14, 8, 122, 12, Col(0xd8c080)); a.text("WESTERN TERRITORY TELEGRAPH", w / 2, 16.5, 5, ink)
-            for (i, ln) in bt.lines.enumerated() { a.text(ln, 22, 34 + Double(i) * 12, 7, ink, center: false) }
-            a.R(22, 70, 106, 0.8, Col(0x2a1c14, 0.4))
-        case "hand":
-            frame(0xe8b47a, 0xa85e36)
-            a.R(0, 0, 60, h, Col(0x6a4a2e)); a.R(52, 0, 10, h, Col(0x3a2a1c)); a.R(54, 20, 6, 8, Col(0xf2c14e))
-            a.RR(62, 30, 34, 50, 6, Col(0x3a2a1c)); a.RR(70, 14, 14, 26, 4, Col(0x5a3c22)); a.R(68, 12, 18, 5, Col(0x8a8a90))
-            a.RR(98, 22, 30, 16, 6, Col(0xd9a878))
-            for k in 0..<4 { a.RR(92 + Double(k) * 1.5, 24 + Double(k) * 3.6, 14, 3.4, 1.7, Col(0xc9966a)) }
-            a.RR(104, 16, 8, 12, 3, Col(0xd9a878)); a.R(124, 16, 26, 28, Col(0xc9b48a))
+            // a telegram, typed out as you watch
+            q(0, 0, 200, 112, 0x4a3020)
+            for i in 0..<6 { q(0, Double(i) * 20, 200, 1, 0x3a2416) }
+            for i in 0..<40 { q(hs(i + 2) * 200, hs(i + 4) * 112, 8 + hs(i) * 14, 1, 0x5a3c24, 0.5) }
+            a.glow(170, 10, 120, Col(0xffd68c, 0.5), Col(0xffd68c, 0))
+            a.save(); a.translate(100, 57); a.rotate(-0.025)
+            q(-82, -28, 168, 62, 0x140a06, 0.4); q(-84, -31, 168, 62, 0xefe4c4); q(-84, -31, 168, 11, 0xd8c9a0); q(-84, -20, 168, 1, 0x8a7a5a)
+            a.text(bt.from, -78, -22.6, 7, Col(0x4a3a2a), center: false, face: "Courier-Bold")
+            var n = Int(t * 26)
+            for (i, ln) in bt.lines.enumerated() {
+                let shown = String(ln.prefix(max(0, n)))
+                n -= ln.count + 5
+                let y = -15 + Double(i) * 14
+                a.text(shown, -76, y + 7.6, 9.5, Col(0x2a1c14), center: false, face: "Courier-Bold")
+                if !shown.isEmpty && shown.count < ln.count && Int(t * 8) % 2 == 1 { q(-76 + Double(shown.count) * 5.7, y, 5, 8, 0x2a1c14) }
+            }
+            a.restore()
         case "map":
-            frame(0xead7a4, 0xd8c080)
-            a.R(6, 6, 138, 72, Col(0x2a1c14, 0.06))
-            let n = STAGES.count
+            // the rail line: towns you have rebuilt, where you are now, and what Crane still holds
+            q(0, 0, 200, 112, 0xe2cf9c)
+            for i in 0..<30 { q(hs(i + 1) * 200, hs(i + 2) * 112, 10 + hs(i + 3) * 30, 6 + hs(i) * 10, 0xa0783c, 0.12) }
+            let n = STAGES.count, lap = g.town / n
             let all = bt.who == "all"
-            let done = all ? n : g.town % n
-            a.seg(20, 44, 130, 44, 2, ink)
-            var tx = 20.0
-            while tx < 130 { a.R(tx, 41, 1, 6, ink); tx += 5 }
+            let cur = all ? n : g.town % n
+            let xs = [24.0, 62, 100, 138, 176], ys = [56.0, 50, 60, 48, 55]
+            for i in 0..<4 {
+                // a dashed line between stops
+                let dx = xs[i + 1] - xs[i], dy = ys[i + 1] - ys[i], len = (dx * dx + dy * dy).squareRoot()
+                var u = 0.0
+                while u < len { let v = min(len, u + 5); a.seg(xs[i] + dx * u / len, ys[i] + dy * u / len, xs[i] + dx * v / len, ys[i] + dy * v / len, 2, Col(0x2a1c14)); u += 8 }
+            }
             for i in 0..<n {
-                let x = 20 + Double(i) * 27.5
-                a.circ(x, 44, 6, ink)
-                a.circ(x, 44, 4.6, i < done ? Col(0xf2c14e) : (i == done ? Col(0xc0392b) : paper))
-                if i < done { star5(x, 44, 3.4, Col(0x8a6a2a)) }
-                var nm = "?"
-                if i < done && i < g.log.count { nm = nice(PLACES[g.log[i]]?.name ?? "") } else if i == done && !all { nm = nice(g.townName) }
-                a.text(nm, x, i % 2 == 0 ? 30 : 62, 5, ink)
+                let x = xs[i], y = ys[i], up = i % 2 == 1, done = i < cur
+                var nm = STAGES[i].count > 1 ? "?" : (PLACES[STAGES[i][0]]?.name ?? "")
+                let li = lap * n + i
+                if done { nm = PLACES[li < g.log.count ? g.log[li] : STAGES[i][0]]?.name ?? nm } else if i == cur { nm = g.townName }
+                if done { star(x, y, 7.5, 3.3, 0, 0x2a1c14); star(x, y, 5.8, 2.5, 0, 0xe8b830) } else { a.circ(x, y, 4, Col(0x2a1c14)) }
+                if i == cur {
+                    a.ellStroke(x, y, 8 + sin(t * 3.2), 8 + sin(t * 3.2), 1.6, Col(0xb0261c))
+                    a.text("YOU ARE HERE", clampD(x, 32, 168), y + (up ? 13 : -13) + 2.1, 6, Col(0xb0261c))
+                }
+                a.text(nice(nm), clampD(x, 26, 174), y + (up ? -12 : 12) + 2.3, 6.5, Col(0x2a1c14))
             }
-            a.text("C. C. & R. RAILROAD", w / 2, 17, 6, Col(0x6a2f26))
+            star(36, 82, 4.6, 2, 0, 0x2a1c14); star(36, 82, 3.5, 1.5, 0, 0xe8b830)
+            a.text("rebuilt", 43, 84.6, 6, Col(0x2a1c14), center: false)
+            a.ellStroke(84, 82, 3.6, 3.6, 1.2, Col(0xb0261c)); a.text("you are here", 91, 84.6, 6, Col(0x2a1c14), center: false)
+            a.circ(140, 82, 2.8, Col(0x2a1c14)); a.text("held by Crane", 146, 84.6, 6, Col(0x2a1c14), center: false)
         case "train":
-            frame(0x5a3f7a, 0xf6b25a)
-            a.poly(Col(0x3a2a4a), [0, 60, 30, 40, 70, 46, 110, 34, 150, 50, 150, 84, 0, 84])
-            a.R(0, 70, w, 14, Col(0x2a1c24)); a.R(0, 69, w, 1, Col(0x8a8f98))
-            a.RR(24, 40, 104, 26, 3, Col(0x1c1a22)); a.R(22, 37, 108, 4, Col(0x0e0c12)); a.R(24, 60, 104, 1.2, Col(0xc9a14a))
-            for k in 0..<5 { a.RR(32 + Double(k) * 19, 45, 12, 10, 2, Col(0xffd98a)) }
-            a.R(70, 46, 3, 8, Col(0x1c1a22)); a.circ(71.5, 45, 2.4, Col(0x1c1a22))
-            for wx in [38.0, 50, 104, 116] { a.circ(wx, 68, 4, Col(0x0e0c12)); a.circ(wx, 68, 1.4, Col(0xc9a14a)) }
-            a.text("S. CRANE", w / 2, 64.5, 4, Col(0xc9a14a))
+            // Crane's private car, parked up the line at night
+            q(0, 0, 200, 112, 0x12122a)
+            for i in 0..<40 { q(hs(i + 1) * 200, hs(i + 2) * 30, 1, 1, 0xcfd6ff, 0.4 + 0.6 * abs(sin(t + Double(i)))) }
+            q(0, 26, 200, 64, 0x1f3a2e); q(0, 26, 200, 3, 0x2f5444); q(0, 22, 200, 5, 0x16281f); q(0, 84, 200, 3, 0xc9a14a); q(0, 32, 200, 1, 0xc9a14a)
+            for wx in [-34.0, 64, 162] {
+                q(wx - 3, 35, 78, 40, 0x16281f); q(wx, 38, 72, 34, 0xffcf6b); q(wx, 38, 72, 5, 0x8a2f26); q(wx + 35, 38, 2, 34, 0x16281f)
+                a.vfill(wx, 38, 72, 34, [(0, Col(0xfff0be, 0)), (1, Col(0xc87828, 0.45))])
+            }
+            hell(88, 52, 10, 6, 0x140c0a); q(74, 51, 28, 2, 0x140c0a); q(80, 53, 16, 13, 0x140c0a); q(70, 64, 36, 8, 0x140c0a); q(66, 68, 44, 4, 0x140c0a)
+            q(96, 61, 12, 2, 0x3a2416)
+            let ck = 0.5 + 0.5 * sin(t * 2.4)
+            q(108, 60, 3, 3, ck > 0.5 ? 0xffb13b : 0xc0501e); a.circ(109, 61, 6, Col(0xff9a2e, 0.5 * ck))
+            a.text("C R A N E", 74, 83.4, 9, Col(0xc9a14a), center: false)
+            q(0, 90, 200, 6, 0x0c0c14)
+            for x in [20.0, 70, 130, 180] { a.circ(x, 98, 11, Col(0x0a0a10)); a.circ(x, 98, 4, Col(0x2a2a36)) }
+            q(0, 108, 200, 4, 0x3a3a46)
+            for i in 0..<7 {
+                let k = (t * 0.16 + Double(i) / 7).truncatingRemainder(dividingBy: 1)
+                a.circ(k * 240 - 20, 100 - sin(k * 3 + Double(i)) * 8, 9 + Double(i % 3) * 4, Col(0xb8b8cc, 0.3 * sin(k * PI)))
+            }
+        case "hand":
+            // a hand over a holster
+            q(0, 0, 200, 112, 0xd2ac74)
+            for i in 0..<6 { q(0, 10 + Double(i) * 19, 200, 6, i % 2 == 1 ? 0xc49a62 : 0xdab888) }
+            q(0, 86, 200, 26, 0xb98f58)
+            q(0, 0, 92, 112, 0x2e241c); q(84, 0, 10, 112, 0x3d3026); q(0, 0, 92, 3, 0x3d3026); q(0, 38, 128, 9, 0x5a3a22); q(0, 38, 128, 2, 0x7a5434)
+            for i in 0..<8 { q(6 + Double(i) * 11, 34, 5, 8, 0xc9a14a); q(6 + Double(i) * 11, 34, 5, 2, 0xead7a4) }
+            q(58, 47, 40, 58, 0x6a4429); q(58, 47, 40, 3, 0x8a6240); q(62, 100, 32, 8, 0x5a3a22); q(58, 47, 4, 58, 0x4a2f1c)
+            for i in 0..<5 { q(66 + Double(i) * 6, 54, 2, 2, 0xc9a14a) }
+            q(66, 26, 20, 24, 0x3a2a1e); q(66, 26, 20, 3, 0x5a4636); q(70, 20, 8, 8, 0x6a6a72); q(84, 30, 6, 6, 0x8a8f98)
+            let tw = sin(t * 7) > 0.86 ? 2.0 : 0, hy = 40 + (sin(t * 1.1) * 1.5).rounded()
+            q(118, hy, 36, 24, 0xd9a06e); q(118, hy, 36, 3, 0xe8b888); q(150, hy - 10, 50, 30, 0x2e241c); q(146, hy - 4, 8, 26, 0xead7a4)
+            for i in 0..<4 { q(104 - Double(i) * 2 + (i == 1 ? -tw : 0), hy + 2 + Double(i) * 6, 16 + Double(i) * 2, 5, i % 2 == 1 ? 0xc99266 : 0xd9a06e) }
+            q(112, hy - 7 + tw, 8, 9, 0xd9a06e)
+            q(100, hy + 26, 60, 5, 0x140a06, 0.25)
+            motes(10, 0xfff3c4)
+        case "saucer":
+            // what came down over the pasture
+            q(0, 0, 200, 112, 0x0e1030)
+            let band: [UInt32] = [0x141640, 0x1a1c4a, 0x202456, 0x262a5e, 0x2c3066]
+            for i in 0..<5 { q(0, 60 + Double(i) * 8, 200, 8, band[i]) }
+            for i in 0..<60 { q(hs(i + 1) * 200, hs(i + 2) * 70, 1, 1, i % 5 != 0 ? 0xcfd6ff : 0xffffff, 0.35 + 0.65 * abs(sin(t * 1.3 + Double(i)))) }
+            let sx0 = 100 + sin(t * 0.7) * 5, sy0 = 26 + sin(t * 1.9) * 2
+            a.poly(Col(0x96ffc0, 0.4), [sx0 - 12, sy0 + 6, sx0 + 12, sy0 + 6, sx0 + 44, 100, sx0 - 44, 100])
+            for i in 0..<7 {
+                let k = (t * 0.5 + Double(i) / 7).truncatingRemainder(dividingBy: 1), y = 100 - (94 - sy0) * k, w = 44 - 32 * k
+                q(sx0 - w, y, w * 2, 2, 0xd6ffe4, 0.3 * (1 - k))
+            }
+            a.save(); a.translate(sx0 + sin(t * 1.1) * 3, 66 + sin(t * 0.8) * 5); a.rotate(sin(t * 0.9) * 0.35)
+            q(-13, -7, 26, 13, 0x101a16); q(11, -11, 9, 9, 0x101a16); q(18, -13, 2, 3, 0x101a16); q(-15, -6, 3, 2, 0x101a16)
+            for lx in [-11.0, -6, 5, 10] { q(lx, 5, 3, 10 + sin(t * 4 + lx) * 2, 0x101a16) }
+            q(-17, -5, 2, 9, 0x101a16); q(-5, -7, 7, 5, 0x2a3a34)
+            a.restore()
+            hell(sx0, sy0 - 5, 17, 14, 0xbfe8ff); q(sx0 - 10, sy0 - 14, 5, 3, 0xe8f8ff)
+            a.ell(sx0, sy0 + 2, 50, 11, Col(0x565f74)); a.ell(sx0, sy0 - 1, 50, 8, Col(0x8a94a8)); q(sx0 - 36, sy0 - 5, 72, 2, 0xc8d0e0)
+            a.ell(sx0, sy0 + 8, 16, 4, Col(0x2a3244))
+            let lamp: [UInt32] = [0xff5a3c, 0xffd76a, 0x8cf7b0, 0x6fe3ea]
+            for i in 0..<9 { let an = t * 3 + Double(i) * 0.7; if sin(an) > -0.3 { q(sx0 + cos(an) * 44 - 2, sy0 + 1 + sin(an) * 3, 4, 3, lamp[i % 4]) } }
+            q(0, 100, 200, 12, 0x0a0c1c)
+            for i in 0..<9 { q(8 + Double(i) * 24, 92, 2, 9, 0x0a0c1c) }
+            q(0, 95, 200, 1, 0x0a0c1c); q(0, 98, 200, 1, 0x0a0c1c)
+            q(22, 82, 10, 14, 0x0a0c1c); q(24, 76, 6, 6, 0x0a0c1c); q(19, 75, 16, 2, 0x0a0c1c); q(23, 72, 8, 3, 0x0a0c1c); q(8, 88, 16, 8, 0x0a0c1c); q(4, 84, 6, 6, 0x0a0c1c)
+            a.ell(sx0, 101, 46, 5, Col(0x82ffb4, 0.25))
+        case "storm":
+            // the first big storm, coming in off the mesas
+            let fl = max(0, sin(t * 1.7)) > 0.93 || t.truncatingRemainder(dividingBy: 3.1) < 0.12
+            a.translate(0, -14)
+            q(0, 112, 200, 14, fl ? 0x34364a : 0x06060c)
+            q(0, 0, 200, 112, fl ? 0x5a6088 : 0x1c2038)
+            let lit: [UInt32] = [0x6a709a, 0x7a80a8, 0x8a90b4, 0x9aa0c0, 0xa8aecb, 0xb4bad4], dim: [UInt32] = [0x22284a, 0x2a3056, 0x343a62, 0x40466c, 0x4c5276, 0x585e80]
+            for i in 0..<6 { q(0, 40 + Double(i) * 9, 200, 9, fl ? lit[i] : dim[i]) }
+            let cloud: UInt32 = fl ? 0x3a4060 : 0x0c0e1c
+            for i in 0..<16 { a.circ(Double(i) * 14 - 4 + sin(t * 0.2 + Double(i)) * 2, 18 + hs(i + 3) * 10, 16 + hs(i + 5) * 10, Col(cloud)) }
+            q(0, 0, 200, 20, cloud)
+            if fl {
+                var x = 128.0, y = 30.0
+                let seed = Int(t * 2)
+                for i in 0..<7 {
+                    let nx = x + (hs(i + seed) - 0.5) * 22, ny = y + 9
+                    a.seg(x, y, nx, ny, 2, Col(0xffffff))
+                    if i == 3 { a.seg(nx, ny, nx - 18, ny + 14, 2, Col(0xffffff)) }
+                    x = nx; y = ny
+                }
+                a.circ(128, 30, 26, Col(0xdce6ff, 0.5))
+            }
+            a.poly(Col(fl ? 0x2a2c40 : 0x0a0a14), [0, 112, 0, 84, 20, 84, 24, 74, 58, 74, 62, 86, 96, 88, 100, 80, 124, 80, 128, 90, 160, 90, 164, 70, 190, 70, 194, 88, 200, 88, 200, 112])
+            q(0, 100, 200, 12, fl ? 0x34364a : 0x06060c)
+            let huts: [(Double, Double, Double)] = [(70, 14, 10), (86, 18, 14), (106, 12, 9), (120, 16, 12)]
+            for (bx, bw, bh) in huts {
+                q(bx, 100 - bh, bw, bh, fl ? 0x22243a : 0x040408); q(bx + 3, 100 - bh + 3, 3, 3, 0xffcf6b)
+                if bw > 13 { q(bx + bw - 6, 100 - bh + 3, 3, 3, 0xffcf6b) }
+            }
+            for i in 0..<70 {
+                let x = ((hs(i + 1) * 260 - t * 90 * (0.6 + hs(i + 2))).truncatingRemainder(dividingBy: 260) + 260).truncatingRemainder(dividingBy: 260) - 30
+                let y = (hs(i + 3) * 112 + t * 260 * (0.7 + hs(i + 4) * 0.5)).truncatingRemainder(dividingBy: 112)
+                a.seg(x, y, x - 3, y + 8, 1, Col(0xc8d6f0, 0.5))
+            }
         default:
-            frame(0x2a3040, 0x5a5a66)
-            for i in 0..<6 { a.RR(-10 + Double(i) * 28, 4 + hashN(Double(i)) * 10, 50, 16, 8, Col(0x1c2028, 0.85)) }
-            a.poly(Col(0x3a3440), [0, 70, 26, 52, 60, 52, 70, 70]); a.poly(Col(0x3a3440), [80, 70, 96, 46, 134, 46, 150, 66, 150, 84, 0, 84, 0, 70])
-            var x = 82.0, y = 16.0, k = 0.0
-            while y < 66 {
-                let nx = x + (hashN(k * 3.7) - 0.5) * 18, ny = y + 8 + hashN(k) * 5
-                a.seg(x, y, nx, ny, 2, Col(0xfffbe6)); a.seg(x, y, nx, ny, 5, Col(0xbfd4ff, 0.3))
-                x = nx; y = ny; k += 1
-            }
-            for i in 0..<30 {
-                let rx = hashN(Double(i) * 5.3) * w, ry = 20 + hashN(Double(i) * 8.1) * 60
-                a.seg(rx, ry, rx - 2, ry + 7, 0.6, Col(0xcfe0ee, 0.4))
-            }
+            // the star, pinned on
+            q(0, 0, 200, 112, 0x4a3426)
+            for i in 0..<10 { q(Double(i) * 22, 0, 1, 112, 0x3a2a1e) }
+            q(120, 0, 80, 112, 0xb53a2e); q(118, 0, 4, 112, 0x2e1a12)
+            for i in 0..<6 { q(108, 10 + Double(i) * 18, 5, 5, 0xc9a14a) }
+            a.save(); a.translate(72, 56)
+            for i in 0..<12 { a.rotate(PI / 6); a.poly(Col(0xffe9a8, 0.1 + 0.1 * sin(t * 2 + Double(i))), [0, 0, -7, -70, 7, -70]) }
+            a.restore()
+            let rot = sin(t * 0.5) * 0.04
+            star(72, 57, 34, 14, rot, 0x6a5a20); star(72, 56, 31, 12.5, rot, 0xe8c84a)
+            a.save(); a.cg.clip(to: CGRect(x: 72, y: 0, width: 128, height: 112)); star(72, 56, 31, 12.5, rot, 0xfff0a8); a.restore()
+            a.circ(72, 56, 8, Col(0xc9a14a)); a.circ(72, 56, 5.5, Col(0xfff0a8))
+            let gk = max(0, sin(t * 2.1))
+            q(88 - 11 * gk, 36, 22 * gk + 1, 1, 0xffffff, gk); q(88, 36 - 11 * gk, 1, 22 * gk + 1, 0xffffff, gk)
+            motes(10, 0xfff3c4)
         }
+        a.restore()
         return a.image()
     }
 
@@ -737,8 +911,11 @@ final class Renderer {
     /// The places out of town: trading post, scout camp, ghost town, oil derrick, the medicine show and the cavalry outpost.
     private func sites(_ dk: Double) {
         let wood = Col(0x7a5632), dkw = Col(0x4a3424), canvasC = Col(0xd8c8a0)
-        if vis(-90, 50) {
-            let x = sx(-90).rounded()
+        if vis(-90, 70) {
+            let x0 = sx(-90).rounded()
+            c.save(); c.translate(x0, gy); c.scale(1.7, 1.7); c.translate(-x0, -gy)
+            defer { c.restore() }
+            let x = x0 - 3
             c.R(x - 18, gy - 20, 36, 20, wood)
             var yy = gy - 17.0
             while yy < gy { c.R(x - 18, yy, 36, 1, dkw.alpha(0.5)); yy += 4 }
@@ -1061,6 +1238,9 @@ final class Renderer {
     private func person(_ wx: Double, _ phase: Double, _ dir: Double, _ moving: Bool, _ seed: Double, _ role: Role, _ work: Bool, ragged: Bool = false) {
         if !vis(wx, 10) { return }
         let x = sx(wx)
+        c.save()
+        defer { c.restore() }
+        c.translate(x, gy); c.scale(PSCALE, PSCALE); c.translate(-x, -gy)
         let k = Int(seed)
         let skin = SKIN[k % SKIN.count]
         var shirt = SHIRT[(k / 3) % SHIRT.count]
@@ -1104,17 +1284,18 @@ final class Renderer {
             let a = ph + off
             let up = mv ? max(0, sin(a)) * (gal ? 4.2 : 2.2) : 0
             let stride = mv ? (gal ? 6.5 : 3.2) : 0
-            let hy = -9.5 + bob
+            let hy = -9.5 - HLIFT + bob
             let fx = hx - cos(a) * stride, fy = -1 - up
             let kx = (hx + fx) / 2 + (fore ? 1 : -1) * (0.7 + up * 0.75), ky = (hy + fy) / 2 - (fore ? 0 : 0.6)
             let col = far ? dark : shade
-            c.seg(hx, hy, kx, ky, 2.6, col)
-            c.seg(kx, ky, fx, fy, 1.7, col)
+            c.seg(hx, hy, kx, ky, 2.5, col)
+            c.seg(kx, ky, fx, fy, 1.6, col)
             c.R(fx - 1, fy - 0.2, 2.6, 1.3, hoof)
             if !far && tack { c.R(fx - 0.8, fy - 2.2, 2.2, 1.2, Col(0xf0e6d2)) }      // white socks
         }
         let offs: [Double] = gal ? [0.7, PI + 0.7, 0, PI] : [PI, PI * 1.5, 0, PI * 0.5]
         leg(-7.5, offs[2], true, false); leg(7, offs[3], true, true)
+        c.translate(0, -HLIFT)       // everything from here up is the body, carried on longer legs
         // tail: strands that hang at rest and stream out at a gallop
         let tx = -11.0, ty = -15 + bob
         for k in 0..<5 {
@@ -1124,12 +1305,12 @@ final class Renderer {
             c.curve(tx + 0.5, ty + Double(k) * 0.4, tx - (gal ? 4 : 1.2), ty + (gal ? -1 : 3) + Double(k) * 0.4, ex, ey, 1.1, k % 2 == 0 ? dark : shade)
         }
         // barrel, quarters and chest
-        c.RR(-11, -17.5 + bob, 22.5, 10, 4.5, coat)
-        c.circ(-6.8, -12.6 + bob, 5.4, coat); c.circ(7.6, -12.4 + bob, 5.2, coat)
+        c.RR(-11, -17.5 + bob, 22.5, 9.4, 4.5, coat)
+        c.circ(-6.8, -12.9 + bob, 4.9, coat); c.circ(7.6, -12.8 + bob, 4.7, coat)
         c.RR(-8, -9.4 + bob, 15, 1.8, 0.9, shade.alpha(0.55))
         c.RR(-6, -17 + bob, 12, 1.1, 0.5, lite.alpha(0.8))
         c.curve(-10.5, -13 + bob, -8, -9 + bob, -4.5, -8.4 + bob, 0.7, shade.alpha(0.6))
-        leg(-5, offs[0], false, false); leg(4.2, offs[1], false, true)
+        c.translate(0, HLIFT); leg(-5, offs[0], false, false); leg(4.2, offs[1], false, true); c.translate(0, -HLIFT)
         // neck and head, which dips now and then when he stands
         let nk = sin(g.clock * 0.55 + x * 0.01)
         let nod = !mv && nk > 0.5 ? (nk > 0.86 ? 2.2 : 1.1) : (gal ? sin(ph * 2 + 1) * 0.7 : 0)
@@ -1176,7 +1357,7 @@ final class Renderer {
         let lean = gal ? 1.2 : 0
         let lth = Col(0x2a1c14), skin = Col(0xd9a878), skinD = Col(0xb8804e)
         c.save()
-        c.translate(x, gy)
+        c.translate(x, gy - HLIFT)
         c.scale(g.pdir, 1)
         c.roundCaps(true)
         // saddle blanket, saddle, horn, cinch
@@ -1235,8 +1416,14 @@ final class Renderer {
         if g.hurtT > 0 && Int(g.clock * 16) % 2 == 0 { c.circ(x, gy - 18, 12, Col(0xd04a3a, 0.25)) }
         // how much gallop is left, shown only while it is short
         if g.wind < 0.995 {
-            c.RR(x - 8, gy - 44, 16, 3, 1.5, Col(0x24160f, 0.8))
-            c.R(x - 7, gy - 43, 14 * g.wind, 1, g.blown ? Col(0xe0633c) : Col(0x8fd0e8))
+            c.RR(x - 8, gy - 48, 16, 3, 1.5, Col(0x24160f, 0.8))
+            c.R(x - 7, gy - 47, 14 * g.wind, 1, g.blown ? Col(0xe0633c) : Col(0x8fd0e8))
+        }
+        // six rounds over his head while he reloads, filling as they go in
+        if g.reloadT > 0 {
+            let k = 1 - g.reloadT / max(0.1, g.reloadMax)
+            c.RR(x - 8, gy - 55, 16, 6, 1.5, Col(0x2a1a10, 0.85))
+            for i in 0..<6 { c.R(x - 6.5 + Double(i) * 2.3, gy - 54, 1.4, 4, Double(i) < k * 6 ? Col(0xf2c14e) : Col(0x5a4a3c)) }
         }
     }
 
@@ -1245,12 +1432,17 @@ final class Renderer {
         let dir = bn.st == 3 ? bn.side : -bn.side
         let x = sx(bn.x)
         let moving = bn.st == 0 || bn.st == 3
+        c.save()
+        defer { c.restore() }
+        if !bn.rider { c.translate(x, gy); c.scale(PSCALE, PSCALE); c.translate(-x, -gy) }
         if bn.rider {
             _ = horse(x, dir, bn.phase, moving ? 74 : 0, Col(0x3a3230), Col(0x1c1816))
             let bob = moving ? sin(bn.phase * 2) * 0.8 : 0
+            c.translate(0, -HLIFT)
             c.R(x - 3, gy - 25 + bob, 6, 9, Col(0x2e2622)); c.R(x - 1, gy - 16 + bob, 3, 7, Col(0x2a2a30))
             c.R(x - 2, gy - 29 + bob, 4.5, 4, Col(0xb8804e)); c.R(x - 2.5, gy - 27 + bob, 5.5, 2.4, Col(0xa02a22))
             c.R(x - 5, gy - 30 + bob, 11, 1.5, Col(0x14100e)); c.R(x - 2.5, gy - 33 + bob, 6, 3.2, Col(0x14100e))
+            c.translate(0, HLIFT)
         } else {
             let sw = moving ? sin(bn.phase) * 2 : 0
             c.R(x - 2 + sw * 0.5, gy - 5, 2, 5, Col(0x2a2a30)); c.R(x + 0.5 - sw * 0.5, gy - 5, 2, 5, Col(0x2a2a30))

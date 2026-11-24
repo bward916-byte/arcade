@@ -1,6 +1,6 @@
 import Foundation
 
-enum GState { case title, play }
+enum GState { case title, intro, play }
 
 /// The rules of Dustfall III: ride, toss coins, hire drifters, rebuild, hold the gates at night, and take the train on down the line.
 final class Game {
@@ -339,7 +339,7 @@ final class Game {
             func pay(_ k: Int) { for _ in 0..<k { dropCoin(x + rnd(-8, 8), 10) } }
             if n == 0 {
                 pay(10)
-                cut = [Beat(art: "wire", head: "Inside the boxcar", cap: "Company ledgers, and proof: Crane paid a man to burn Dustfall.", lines: ["PAID VARNEY: DUSTFALL JOB", "PAID: TORCHES AND LAMP OIL", "SIGNED       S. CRANE"])]
+                cut = [Beat(art: "wire", head: "Inside the boxcar", cap: "Company ledgers, and proof: Crane paid a man to burn Dustfall.", lines: ["PAID VARNEY: DUSTFALL JOB", "PAID: TORCHES AND LAMP OIL", "SIGNED       S. CRANE"], from: "CRANE CATTLE AND RAIL: LEDGER")]
             } else if n == 1 {
                 dynamite += 2
                 hint("car2", "Blasting supplies, forgotten since the line was built. Two sticks of dynamite are still good.", again: true)
@@ -502,6 +502,9 @@ final class Game {
             case "s1": return town == 0 && day >= 2 && t > 0.03 && t < 0.3
             case "s2": return town == 0 && ln >= 3 && t > 0.03 && t < 0.3
             case "s3": return duelDay == day && t > 0.2 && t < 0.32
+            case "s4": return rigLv > 0
+            case "yard": return px > yardX + 210
+            case "ufo": return seen.contains("ufo") && t > 0.03 && t < 0.3
             case "a1": return st == 1 && town > 0 && t > 0.14
             case "a2": return st == 2 && t > 0.14
             case "a3": return st == 3 && t > 0.14
@@ -512,7 +515,7 @@ final class Game {
             default: return false
             }
         }
-        for k in ["s1", "s2", "s3", "a1", "a2", "a3", "a4", "won", "storm", "end"] where !seen.contains("st_" + k) && due(k) {
+        for k in ["s1", "s2", "s3", "s4", "a1", "a2", "a3", "a4", "yard", "won", "storm", "ufo", "end"] where !seen.contains("st_" + k) && due(k) {
             seen.insert("st_" + k)
             cut = STORY[k] ?? []
             return
@@ -690,6 +693,8 @@ final class Game {
         coins = 10; bank = 0
         hintText = ""; hintT = 0; seen = []
         layTown()
+        // the title scene: dusk over the dead town, with thunder on the wind
+        t = 0.745; wx = 3; wxA = 0.72; wxB = 0.93; titleT = 0
     }
 
     /// Lays out the town at this stop on the line: everything boarded up, drifters at the camps, strongboxes buried.
@@ -771,8 +776,57 @@ final class Game {
         station.capL = todo().isEmpty ? 9 : 0
     }
 
+    // ---------- the opening: the camera drifts over the dead town before dawn, and the sheriff's son rides in from the east
+    var reloadMax = 5.0
+    var introT = 0.0
+    var introCap = ""
+    var introCard = false
+    private var introI = 0
+    private var introStep = 0
+    var titleT = 0.0
+
+    func beginIntro() {
+        reset()
+        wx = 0; bolt = 0
+        state = .intro
+        introT = 0; introI = 0; introCap = ""; introCard = false
+        t = 0.955; px = FIRE_X + 470; pdir = -1; pvx = 0
+        cam = clampD(1100 - W / 2, WEST, WORLD - W)
+    }
+
+    private func updIntro(_ dt: Double) {
+        func ease(_ u: Double) -> Double { return u * u * (3 - 2 * u) }
+        introT += dt
+        while introI < INTRO.count && introT >= INTRO[introI].0 { introCap = INTRO[introI].1; introI += 1 }
+        t = (0.955 + min(introT, 12) / 12 * 0.125).truncatingRemainder(dividingBy: 1)
+        if introT > 3.6 {
+            pvx = -(px > FIRE_X + 12 ? 62 : max(0, (px - FIRE_X + 20) * 2))
+            px = max(FIRE_X - 20, px + pvx * dt)
+            pphase += abs(pvx) * dt * 0.085
+            let st = Int(pphase * 4 / PI)
+            if st != introStep { introStep = st; if pvx < -10 { sfx?.hoof(0.8) } }
+            if pvx < -55 && chance(dt * 14) { parts.append(Part(x: px + 8, y: 0, vx: rnd(4, 14), vy: rnd(-14, -4), life: 0.5, max: 0.5, c: Col(terrain.dust, 0.6), s: rnd(1, 2.4), grav: 10)) }
+        }
+        let pan = 1100 + ease(clampD(introT / 4.6, 0, 1)) * 520 - W / 2
+        let k = ease(clampD((introT - 4.2) / 1.8, 0, 1))
+        cam = clampD(pan + (px - W * 0.42 - pan) * k, WEST, WORLD - W)
+        if introT > 10.9 && !introCard { introCard = true; sfx?.fanfare() }
+        if introT > 14.1 { endIntro() }
+    }
+
+    func endIntro() {
+        if state != .intro { return }
+        let skipped = introT < 14
+        px = FIRE_X - 20; pvx = 0; pdir = -1
+        t = 0.08; state = .play
+        introCap = ""; introCard = false
+        if skipped { fade = 1; cam = clampD(px - W * 0.6, WEST, WORLD - W) }
+        hint("start", "Ride with the stick, and hold the coin button to toss coins at drifters and at the boarded-up buildings.")
+    }
+
     func start() {
         reset()
+        wx = 0; bolt = 0; t = 0.08
         state = .play
         hint("start", "Dustfall burned years ago. Ride with the stick, and hold the coin button to toss coins at drifters and at the boarded-up buildings.")
     }
@@ -801,6 +855,7 @@ final class Game {
     /// Picks a saved game up again. A game saved at night comes back at dusk the same night.
     func restore(_ s: SaveData) {
         reset()
+        wx = 0; bolt = 0
         town = max(0, s.town); day = max(1, s.day); day0 = s.day0
         place = s.place.flatMap { stageOf(town).contains($0) ? $0 : nil } ?? stageOf(town)[0]
         log = s.log ?? (0..<town).map { stageOf($0)[0] }
@@ -939,6 +994,15 @@ final class Game {
     // ---------- one frame
     func update(_ dt: Double) {
         clock += dt
+        if state == .intro { updIntro(dt); updParts(dt); return }
+        if state == .title {
+            titleT += dt
+            flash = max(0, flash - dt * 3); bolt = max(0, bolt - dt)
+            cam = clampD(FIRE_X - W / 2 + sin(titleT * 0.07) * 160, WEST, WORLD - W)
+            if chance(dt * 0.22) { bolt = 0.35; boltX = cam + rnd(0, W); flash = 0.35; sfx?.thunder(0.4) }
+            updParts(dt)
+            return
+        }
         if state != .play { return }
         if over || !cut.isEmpty { return }
         story()
@@ -1153,7 +1217,7 @@ final class Game {
         shots.append(Shot(x: px + pdir * 12, y: -20, vx: pdir * 300, life: 0.5, mine: true))
         sfx?.gun(1); shake = max(shake, 0.4)
         parts.append(Part(x: px + pdir * 14, y: -20, vx: pdir * 20, vy: -6, life: 0.25, max: 0.25, c: Col(0xfff0b0), s: 2.5, grav: 0))
-        if ammo == 0 { reloadT = Double(max(1, 5 - store.level - (loader ? 2 : 0))) }      // every level of the store takes a second off
+        if ammo == 0 { reloadT = Double(max(1, 5 - store.level - (loader ? 2 : 0))); reloadMax = reloadT }      // every level of the store takes a second off
     }
 
     private func updCoins(_ dt: Double) {
@@ -1177,6 +1241,24 @@ final class Game {
             }
             ground[i] = g
             i += 1
+        }
+        // a drifter walks over to any coin lying close by, picks it up, and is hired
+        for d in drifters where !d.taken {
+            var best = -1
+            var bd = 34.0
+            for (k, g) in ground.enumerated() where g.y <= 0 && g.age > 0.5 {
+                let dd = abs(g.x - d.x)
+                if dd < bd { bd = dd; best = k }
+            }
+            if best < 0 { continue }
+            let gx = ground[best].x
+            if bd > 3 { d.x += sgn(gx - d.x) * 30 * dt } else {
+                ground.remove(at: best)
+                let c = Coin(sx: d.x, sy: 0, tx: d.x, ty: 0, kind: 2)
+                c.drifter = d
+                land(c)
+                break
+            }
         }
         // coins part-paid into a building come back when you ride away
         for bl in b where bl.paid > 0 && !bl.building && bl.incoming == 0 && abs(bl.cx - px) > bl.def.w / 2 + 44 {

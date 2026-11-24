@@ -117,7 +117,7 @@ let DEFS: [BType: Def] = [
     .gateE: Def(name: "EAST GATE", w: 14, h: 16, cost: [4, 8, 14], pay: 0, wall: 0x7a5632, trim: 0x4a3424, roof: 0x4a3424, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: true),
     .station: Def(name: "STATION", w: 84, h: 38, cost: [20], pay: 0, wall: 0xc9a65a, trim: 0x6a2f26, roof: 0x4a3a34, sign: 0xead7a4, ink: 0x4a2a22, doorX: 36, doorW: 13, wins: [(8, 16), (60, 16)], gate: false),
     // places out of town where coins buy something on the spot; what they cost is worked out as the game runs
-    .sPost: Def(name: "TRADING POST", w: 0, h: 34, cost: [1], pay: 0, wall: 0, trim: 0, roof: 0, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: false),
+    .sPost: Def(name: "TRADING POST", w: 0, h: 54, cost: [1], pay: 0, wall: 0, trim: 0, roof: 0, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: false),
     .sTribe: Def(name: "SCOUT CAMP", w: 0, h: 38, cost: [1], pay: 0, wall: 0, trim: 0, roof: 0, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: false),
     .sRuin: Def(name: "GHOST TOWN", w: 8, h: 40, cost: [1], pay: 0, wall: 0, trim: 0, roof: 0, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: false),
     .sRig: Def(name: "OIL SEEP", w: 0, h: 64, cost: [1], pay: 0, wall: 0, trim: 0, roof: 0, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: false),
@@ -465,6 +465,7 @@ struct Beat {
     let head: String
     let cap: String
     var lines: [String] = []
+    var from = "WESTERN TELEGRAPH CO."
 }
 /// The story, from the web game: who burned Dustfall, and what becomes of him.
 let STORY: [String: [Beat]] = [
@@ -474,6 +475,10 @@ let STORY: [String: [Beat]] = [
            Beat(art: "wire", head: "A telegram", cap: "C is for Crane, the railroad boss. His raiders want you off this land.", lines: ["CRANE CATTLE AND RAIL", "IS BUYING ALL THE LAND", "AT DUSTFALL"])],
     "s3": [Beat(art: "eyes", who: "gun", head: "Crane’s hired gun", cap: "Crane has sent a gunfighter to get rid of you."),
            Beat(art: "hand", head: "Duel at noon", cap: "Meet him on main street at noon. Wait for the marker, then fire first.")],
+    "s4": [Beat(art: "wire", head: "Crane’s telegram", cap: "Now you know why he burned the town. There is oil under it.", lines: ["OIL UNDER DUSTFALL", "GET THAT LAND BACK", "       S. CRANE"])],
+    "yard": [Beat(art: "eyes", who: "hobo", head: "A hobo at the old rail yard", cap: "“Crane shut this yard down and left us here. Take whatever you can use.”")],
+    "ufo": [Beat(art: "saucer", head: "Last night", cap: "Something came down out of the sky and took one of the animals."),
+            Beat(art: "eyes", who: "rider", head: "You, the rider", cap: "Nobody in town believes you. But it left coins behind, in a burnt ring.")],
     "a1": [Beat(art: "map", head: "The rail line", cap: "Dustfall stands again. Now rebuild the towns Crane still holds.")],
     "a2": [Beat(art: "map", head: "The rail line", cap: "Two towns are behind you. Three are still to come."),
            Beat(art: "eyes", who: "gun", head: "Crane’s riders", cap: "Crane pays his men better out here. Expect bigger raids.")],
@@ -482,8 +487,16 @@ let STORY: [String: [Beat]] = [
            Beat(art: "eyes", who: "crane", head: "Silas Crane", cap: "Crane is here himself. Get every building here to its best and he is finished.")],
     "won": [Beat(art: "hand", head: "You won the duel", cap: "Crane’s gunfighter is beaten."),
             Beat(art: "eyes", who: "crane", head: "Silas Crane", cap: "Crane hears about it the same night. He will send another.")],
-    "storm": [Beat(art: "storm", head: "Storm season", cap: "The first big thunderstorm rolls in. Lightning finds raiders caught in the open.")],
+    "storm": [Beat(art: "storm", head: "Storm season", cap: "The first big thunderstorm rolls in. Lightning can set your roofs on fire.")],
     "end": [Beat(art: "map", who: "all", head: "All five towns rebuilt", cap: "Every town stands again. There is nothing left for Crane to buy."),
             Beat(art: "eyes", who: "crane", head: "Silas Crane", cap: "He leaves on the night train and never comes back."),
-            Beat(art: "star", head: "The end", cap: "The line belongs to the people who live on it.")]
+            Beat(art: "badge", head: "The end", cap: "The line belongs to the people who live on it.")]
 ]
+
+/// The opening: when each line comes up, in seconds.
+let INTRO: [(Double, String)] = [(0.7, "The railroad moved away, and the town of Dustfall died."), (4.5, "Years later, the old sheriff’s son rides home."),
+                                 (7.7, "All he has is a purse of coins. It is enough to start rebuilding."), (10.6, "")]
+/// How far a horse's body is carried above where the first native builds drew it, to give it legs.
+let HLIFT = 3.5
+/// People on foot are drawn this much bigger than the first native builds drew them, to stand right beside the rider.
+let PSCALE = 1.3
