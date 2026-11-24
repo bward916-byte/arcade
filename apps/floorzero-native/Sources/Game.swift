@@ -248,6 +248,16 @@ final class Game {
     var droneA = 0.0
     var cdSmg = 0.0, cdShot = 0.0, cdNade = 2.0, cdDrone = 0.0, cdMini = 0.0, cdTesla = 1.0, cdOrb = 3.0, cdFlame = 0.0
     var flameOn = false
+    /// The gun in the hero's hands for a moment after it fires: 1 SMG, 2 shotgun, 3 minigun, 4 flamethrower.
+    var gunKind = 0
+    var gunT = 0.0
+    var heldGun: Int { return hero.atkT < 0 && supT < 0 && gunT > 0 ? gunKind : 0 }
+    /// The best gun owned, carried on the back while the bat is out.
+    var slungGun: Int { return lv("minigun") > 0 ? 3 : (lv("shotgun") > 0 ? 2 : (lv("flame") > 0 ? 4 : (lv("smg") > 0 ? 1 : 0))) }
+    private func raise(_ kind: Int, _ secs: Double) {
+        let rank = [0, 1, 4, 2, 3]
+        if gunT <= 0 || rank[kind] >= rank[gunKind] { gunKind = kind; gunT = max(gunT, secs) }
+    }
     private var nextId = 1
 
     var tw: Tower { return TOWERS[tower] }
@@ -1371,15 +1381,16 @@ final class Game {
         let h = hero
         let f = floor
         let scale = 1 + Double(depth) * 0.008
+        if gunT > 0 { gunT -= dt }
         var l = lv("smg")
         if l > 0 {
             cdSmg -= dt
-            if cdSmg <= 0, let z = nearest(560) { cdSmg = 0.17; gunHit(z, (4 + 3 * Double(l)) * scale, Col(0xffe6a0), 2); snd?.shot(); casing() }
+            if cdSmg <= 0, let z = nearest(560) { cdSmg = 0.17; raise(1, 0.3); gunHit(z, (4 + 3 * Double(l)) * scale, Col(0xffe6a0), 2); snd?.shot(); casing() }
         }
         l = lv("minigun")
         if l > 0 {
             cdMini -= dt
-            if cdMini <= 0, let z = nearest(760) { cdMini = 0.055; gunHit(z, (4 + 2 * Double(l)) * scale, Col(0xffc060), 2.5, fromY: -84); casing(); if chance(0.3) { snd?.shot() } }
+            if cdMini <= 0, let z = nearest(760) { cdMini = 0.055; raise(3, 0.3); gunHit(z, (4 + 2 * Double(l)) * scale, Col(0xffc060), 2.5, fromY: -84); casing(); if chance(0.3) { snd?.shot() } }
         }
         l = lv("shotgun")
         if l > 0 {
@@ -1387,6 +1398,8 @@ final class Game {
             if cdShot <= 0, let z0 = nearest(250) {
                 cdShot = 1.5 - 0.2 * Double(l)
                 let dir = z0.x >= h.x ? 1.0 : -1.0
+                if h.atkT < 0 && supT < 0 { h.face = dir }
+                raise(2, 0.6)
                 for z in f.zeds where z.alive {
                     let dx = (z.x - h.x) * dir
                     if dx > 0 && dx < 270 { hit(z, (22 + 10 * Double(l)) * scale, dir, 420) }
@@ -1408,6 +1421,7 @@ final class Game {
         flameOn = false
         if l > 0, nearest(240, facing: true) != nil {
             flameOn = true
+            raise(4, 0.25)
             for z in f.zeds where z.alive {
                 let dx = (z.x - h.x) * h.face
                 if dx > 0 && dx < 240 { z.burn = max(z.burn, 2.5); z.burnDps = max(z.burnDps, 14 * Double(l) * scale); z.aware = true }
@@ -1673,6 +1687,7 @@ final class Game {
         case "street": ups = ["smg": 2, "shotgun": 2, "flame": 2, "tesla": 1]; floorN = 0
         case "lift": ups = ["smg": 1]; floorN = 75
         case "escape": ups = ["smg": 1, "nade": 1]; floorN = 74
+        case "guns": ups = ["shotgun": 3, "dmg": 3]; floorN = 71
         case "hosp": tower = 1; ups = ["smg": 1]; floorN = 44
         case "hotel": tower = 2; ups = ["smg": 1]; floorN = 33
         case "casino": tower = 2; ups = ["smg": 1, "flame": 1]; floorN = 6
@@ -1699,7 +1714,7 @@ final class Game {
         cpFloor = floorN; cpUps = ups
         if what == "safe" { hero.x = FLOOR_W / 2 - 320 }
         if what == "gun" { floor.gunT = 1.4; hero.x = 300 }
-        if what == "pick" { rollPick(); mode = .pick; pickT = 0 } else { mode = .play; auto = ["play", "dogs", "boss", "gun", "escape", "hosp", "hotel", "casino", "mall", "lab", "lobby"].contains(what) }
+        if what == "pick" { rollPick(); mode = .pick; pickT = 0 } else { mode = .play; auto = ["play", "dogs", "boss", "gun", "escape", "hosp", "hotel", "casino", "mall", "lab", "lobby", "guns"].contains(what) }
     }
 
     /// Plays all three towers with the bot, no drawing, and reports how it went.

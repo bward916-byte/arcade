@@ -22,6 +22,9 @@ struct Look {
     var hair: Col
     var eye: Col
     var weapon = 0
+    var tier = 0             // melee weapon upgrade: 1 steel, 2 nails, 3 barbed wire
+    var gun = 0              // gun in the hands right now
+    var slung = 0            // gun carried on the back
     var zombie = false
     var fat = 1.0
     var longHair = false
@@ -252,6 +255,30 @@ final class Renderer {
             cv.line(ink, 1.7, [-17, 1, -16.8, -8, -12, -16.2, -3, -20, 6, -19.2, 12, -15, 13, -11])
             cv.seg(-11, -12.5, -2, -16.5, 1.2, hairL); cv.seg(0, -17.5, 8, -16, 1, hairD)
             cv.poly(L.hair, [-8, 1.5, -5.6, 1.5, -6, 6.5, -8.4, 5])
+        }
+    }
+    /// A gun drawn from the hand at (ox, oy), pointing along the weapon angle.
+    private func gun(_ cv: Canvas, _ kind: Int, _ ox: Double, _ oy: Double, _ wa: Double, _ ink: Col) {
+        let dx = sin(wa), dy = cos(wa), ux = cos(wa), uy = -sin(wa)
+        func bar(_ d0: Double, _ d1: Double, _ u: Double, _ w: Double, _ c: Col) {
+            cv.seg(ox + dx * d0 + ux * u, oy + dy * d0 + uy * u, ox + dx * d1 + ux * u, oy + dy * d1 + uy * u, w + 3, ink)
+            cv.seg(ox + dx * d0 + ux * u, oy + dy * d0 + uy * u, ox + dx * d1 + ux * u, oy + dy * d1 + uy * u, w, c)
+        }
+        let steel = Col(0x3a404a), dark = Col(0x1e2228), wood = Col(0x7a4e2a)
+        switch kind {
+        case 1:
+            bar(22, 34, 1, 3, steel); bar(-8, 22, 0, 8, dark)
+            cv.seg(ox + dx * 8, oy + dy * 8, ox + dx * 5 - ux * 15, oy + dy * 5 - uy * 15, 8, ink)
+            cv.seg(ox + dx * 8, oy + dy * 8, ox + dx * 5 - ux * 15, oy + dy * 5 - uy * 15, 5, steel)
+        case 2:
+            bar(28, 56, 1.5, 3.6, Col(0x565e6a)); bar(-18, -2, -1, 7, wood); bar(-4, 30, 0, 6.5, dark); bar(20, 34, -3.5, 4.5, wood)
+        case 3:
+            bar(-12, 26, 0, 12, dark)
+            for u in [-3.6, 0.0, 3.6] { bar(26, 54, u, 2.2, Col(0x6a727e)) }
+            bar(50, 54, 0, 9, steel)
+        default:
+            bar(-6, 30, 0, 6, Col(0x5a626c)); bar(30, 46, 0, 3.4, steel); bar(-10, 6, -7, 8, Col(0xb8402a))
+            cv.circ(ox + dx * 48, oy + dy * 48, 3, Col(0xff9a30))
         }
     }
     private func fit(_ cv: Canvas, _ im: CGImage, _ cx: Double, _ cy: Double, _ box: Double) {
@@ -503,7 +530,10 @@ final class Renderer {
         // front arm and what it holds
         let af = limb(nx, sy, p.armF, 27, p.armF + p.elbF, 26)
         let wa = p.armF + p.elbF + p.wpn
-        if L.weapon > 0 {
+        if L.slung > 0 { cv.seg(nx - 9, sy - 4, nx + 9, sy + 30, 2.2, Col(0x2a2018)); gun(cv, L.slung, nx - 7, sy + 34, 2.75, ink) }
+        if L.gun > 0 {
+            gun(cv, L.gun, af.2, af.3, wa, ink)
+        } else if L.weapon > 0 {
             let len = L.weapon == 3 ? 78.0 : 64.0
             let gx = af.2 - 10 * sin(wa), gy = af.3 - 10 * cos(wa)
             let tx = af.2 + len * sin(wa), ty = af.3 + len * cos(wa)
@@ -523,6 +553,37 @@ final class Renderer {
                 cv.seg(gx, gy, tx, ty, 4.5, Col(0xc9a24a))
                 cv.seg(af.2 + len * 0.8 * sin(wa), af.3 + len * 0.8 * cos(wa), tx, ty, 3, Col(0xf2ecd8))
                 cv.seg(gx, gy, af.2 + 14 * sin(wa), af.3 + 14 * cos(wa), 6, Col(0x3a2a1c))
+            }
+            if L.tier > 0 {
+                // upgraded: a steel skin, then nails, then barbed wire
+                let ux = cos(wa), uy = -sin(wa)
+                let s0 = L.weapon == 1 ? 0.0 : 0.2
+                let ax = af.2 + len * s0 * sin(wa), ay = af.3 + len * s0 * cos(wa)
+                let wd: Double = L.weapon == 1 ? 9.5 : 4.5
+                cv.seg(L.weapon == 1 ? mx : ax, L.weapon == 1 ? my : ay, tx, ty, wd, Col(0xaab4c0))
+                if L.weapon == 1 { cv.seg(ax, ay, mx, my, 6, Col(0x7c8692)) }
+                cv.seg(mx + ux * wd * 0.22, my + uy * wd * 0.22, tx + ux * wd * 0.22, ty + uy * wd * 0.22, 1.6, WHITE.alpha(0.85))
+                cv.seg(gx, gy, af.2 + 12 * sin(wa), af.3 + 12 * cos(wa), 6, Col(0x1c1c20))
+                if L.tier >= 2 {
+                    for i in 0..<5 {
+                        let k = 0.55 + Double(i) * 0.1
+                        let px = af.2 + len * k * sin(wa), py = af.3 + len * k * cos(wa)
+                        let sd: Double = i % 2 == 0 ? 1 : -1
+                        let r = wd * 0.5 + 7
+                        cv.seg(px, py, px + ux * r * sd, py + uy * r * sd, 3.2, ink)
+                        cv.seg(px, py, px + ux * r * sd, py + uy * r * sd, 1.5, Col(0xd8dce2))
+                    }
+                }
+                if L.tier >= 3 {
+                    var pts: [Double] = []
+                    for i in 0...8 {
+                        let k = 0.5 + Double(i) * 0.06
+                        let sd: Double = i % 2 == 0 ? 1 : -1
+                        pts.append(af.2 + len * k * sin(wa) + ux * (wd * 0.5 + 1.5) * sd); pts.append(af.3 + len * k * cos(wa) + uy * (wd * 0.5 + 1.5) * sd)
+                    }
+                    cv.line(Col(0x2a2c30), 1.8, pts)
+                    cv.circ(tx - 10 * sin(wa), ty - 10 * cos(wa), 3.4, BLOOD.alpha(0.85)); cv.circ(mx, my, 2.6, BLOOD.alpha(0.8))
+                }
             }
         }
         let sleeve: Col = zed && L.v == 1 ? skin : slv
@@ -604,6 +665,10 @@ final class Renderer {
             case 8: p.armF = lerp(-0.5, 3.3, e); p.lean = 0.25 - 0.55 * e; p.hipF = 0.8; p.bob = 14 - 16 * e                 // launcher
             default: p.armF = lerp(3.5, 1.1, e); p.elbF = 0.3
             }
+        }
+        if g.heldGun > 0 {
+            let kick = g.gunKind == 2 && g.gunT > 0.45 ? (g.gunT - 0.45) / 0.15 : 0
+            p.armF = 1.32 + 0.35 * kick; p.elbF = 0.2; p.wpn = 0.05; p.armB = 1.0; p.elbB = 0.7; p.lean -= 0.12 * kick
         }
         if h.hurtT > 0 { p.lean = -0.3; p.head = -0.3 }
         return p
@@ -1143,7 +1208,8 @@ final class Renderer {
             let ha: Double = blink ? 0.45 : 1
             var hface = h.face
             if h.atkT >= 0 && h.atkStyle == 6 { hface = sin(h.atkT / 0.4 * PI * 4) >= 0 ? h.face : -h.face }
-            figure(cv, h.x, gy - h.jump, hface, 1, heroLook(g.tw), heroPose(g), flash: hf, alpha: ha)
+            var hl = heroLook(g.tw); hl.tier = g.lv("dmg"); hl.gun = g.heldGun; hl.slung = hl.gun > 0 ? 0 : g.slungGun
+            figure(cv, h.x, gy - h.jump, hface, 1, hl, heroPose(g), flash: hf, alpha: ha)
         } else {
             figure(cv, h.x, gy, h.face, 1, heroLook(g.tw), Pose(), fall: min(1, g.deadT * 3))
         }
@@ -1602,7 +1668,7 @@ final class Renderer {
         case "orbital": return ["A strike every 6 s", "Every 5 s", "Every 4 s"][next - 1]
         case "armor": return ["20% less damage", "40% less damage", "60% less damage"][next - 1]
         case "hp": return ["+25 health, full heal", "+50 health, full heal", "+75 health, full heal"][next - 1]
-        case "dmg": return ["+25% damage", "+50% damage", "+75% damage"][next - 1]
+        case "dmg": return ["Steel: +25% damage", "Nails: +50% damage", "Barbed wire: +75% damage"][next - 1]
         default: return ["Faster, quicker power", "Faster still", "Never stop moving"][next - 1]
         }
     }

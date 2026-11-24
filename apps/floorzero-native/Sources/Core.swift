@@ -118,6 +118,6 @@ let UPS: [UpDef] = [
     UpDef(id: "orbital", name: "ORBITAL STRIKE", icon: "🛰", desc: "A beam from the sky on the biggest pack.", gun: true, sup: true),
     UpDef(id: "armor", name: "RIOT ARMOR", icon: "🛡", desc: "Bites hurt a lot less.", gun: false, sup: false),
     UpDef(id: "hp", name: "SECOND WIND", icon: "🩸", desc: "More health, and a full heal now.", gun: false, sup: false),
-    UpDef(id: "dmg", name: "HEAVY HITTER", icon: "💪", desc: "Every swing and power move hits harder.", gun: false, sup: false),
+    UpDef(id: "dmg", name: "WEAPON UPGRADE", icon: "💪", desc: "Steel, then nails, then barbed wire. Every swing hits harder.", gun: false, sup: false),
     UpDef(id: "adren", name: "ADRENALINE", icon: "💉", desc: "Run faster. The power meter fills faster.", gun: false, sup: false)
 ]
