@@ -909,21 +909,21 @@ extension Game {
         case 25:
             // a stage slung over the side: two on it scraping and painting, one at the rail tending the lines
             let sw = sin(T * 1.1) * 1.6
-            c.seg(-14, -44, -14 + sw, -15, 0.7, Col(0xfff6d8)); c.seg(22, -44, 22 + sw, -15, 0.7, Col(0xfff6d8))
-            c.R(-18 + sw, -15, 44, 1.8, Col(0xc9a070).shade(dark))
+            c.seg(-14, -44, -14 + sw, -21, 0.7, Col(0xfff6d8)); c.seg(22, -44, 22 + sw, -21, 0.7, Col(0xfff6d8))
+            c.R(-18 + sw, -21, 44, 1.8, Col(0xc9a070).shade(dark))
             let sc = sin(T * 8)
             let a1: Double = 1.7 + sc * 0.3, a2: Double = 1.2 - sc * 0.25
-            tar(c, -8 + sw, -15, coats[0], dark, lean: 0.3, aL: 1.0, aR: a1)
-            c.seg(-2.5 + sw, -24 + sc, -0.5 + sw, -26 + sc, 1.2, Col(0x9aa0a8))
-            for j in 0..<4 { let ph = (T * 1.3 + Double(j) / 4).truncatingRemainder(dividingBy: 1); c.circ(-1 + sw + hashN(Double(j)) * 3, -24 + ph * 22, 0.6, Col(0x6b4423, 1 - ph)) }
-            tar(c, 12 + sw, -15, coats[2], dark, lean: 0.25, aL: 0.7, aR: a2)
-            c.seg(17 + sw, -22 - sc, 19.5 + sw, -20 - sc, 1.5, Col(0x16110c)); c.R(14 + sw, -8, 12, 5, Col(0x16110c, 0.55))
-            c.poly(Col(0x2a2a30), [2 + sw, -15, 2.6 + sw, -19, 6.4 + sw, -19, 7 + sw, -15])
+            tar(c, -8 + sw, -21, coats[0], dark, lean: 0.3, aL: 1.0, aR: a1)
+            c.seg(-2.5 + sw, -30 + sc, -0.5 + sw, -32 + sc, 1.2, Col(0x9aa0a8))
+            for j in 0..<4 { let ph = (T * 1.3 + Double(j) / 4).truncatingRemainder(dividingBy: 1); c.circ(-1 + sw + hashN(Double(j)) * 3, -30 + ph * 22, 0.6, Col(0x6b4423, 1 - ph)) }
+            tar(c, 12 + sw, -21, coats[2], dark, lean: 0.25, aL: 0.7, aR: a2)
+            c.seg(17 + sw, -28 - sc, 19.5 + sw, -26 - sc, 1.5, Col(0x16110c)); c.R(14 + sw, -30, 12, 8, Col(0x16110c, 0.55))
+            c.poly(Col(0x2a2a30), [2 + sw, -21, 2.6 + sw, -25, 6.4 + sw, -25, 7 + sw, -21])
             tar(c, -14, -33, coats[1], dark, lean: 0.35, aL: 1.3, aR: 1.5)
             // and a third lowered in a bowline further aft, kicking off the planks
             let kk = abs(sin(T * 1.7))
-            c.seg(-52, -44, -52 + kk * 5, -20, 0.7, Col(0xfff6d8))
-            tar(c, -52 + kk * 5, -8, coats[3], dark, lean: 0.35 + kk * 0.2, walk: T * 4, aL: 3.0, aR: 2.6)
+            c.seg(-52, -44, -52 + kk * 5, -30, 0.7, Col(0xfff6d8))
+            tar(c, -52 + kk * 5, -18, coats[3], dark, lean: 0.35 + kk * 0.2, walk: T * 4, aL: 3.0, aR: 2.6)
             tar(c, -58, -33, coats[0], dark, lean: -0.3, aL: 1.4, aR: 1.4)
         case 26:
             // skylarking: two swinging out from the yardarms on a rope's end, one coming down a backstay by his hands
@@ -954,20 +954,20 @@ extension Game {
             for (j, sx) in [-30.0, -20.0, -4.0].enumerated() {
                 let kick = sin(T * 3 + Double(j) * 1.7)
                 let skin = Col(0xe3b58a).shade(dark)
-                c.seg(sx - 1, -44, sx - 1 + kick * 1.6, -38, 1.8, Col(0x2b2a33).shade(dark)); c.seg(sx + 1.2, -44, sx + 1.2 - kick * 1.6, -38, 1.8, Col(0x2b2a33).shade(dark))
-                c.circ(sx - 1 + kick * 1.6, -37.4, 0.9, skin); c.circ(sx + 1.2 - kick * 1.6, -37.4, 0.9, skin)
+                c.seg(sx - 1.2, -44, sx - 1.2 + kick * 2, -29, 2, Col(0x2b2a33).shade(dark)); c.seg(sx + 1.4, -44, sx + 1.4 - kick * 2, -29, 2, Col(0x2b2a33).shade(dark))
+                c.ell(sx - 1.2 + kick * 2, -28, 1.4, 0.9, skin); c.ell(sx + 1.4 - kick * 2, -28, 1.4, 0.9, skin)
                 c.seg(sx, -44.5, sx, -49.5, 4, coats[j].shade(dark))
                 c.seg(sx - 1.2, -48.5, sx - 3, -45, 1.4, skin); c.seg(sx + 1.2, -48.5, sx + 3, -45, 1.4, skin)
                 c.circ(sx, -52, 2.4, skin); c.arcFill(sx, -52.2, 2.5, PI, PI * 2, Col.mix(coats[j], Col(0x8a1a1a), 0.6).shade(dark)); c.circ(sx + 1, -52.2, 0.42, Col(0x1a1008))
             }
             // off the bowsprit, swinging
             let bs = sin(T * 2.1) * 0.5
-            c.save(); c.translate(98, -56); c.rotate(bs)
+            c.save(); c.translate(113, -55); c.rotate(bs)
             tar(c, 0, 14.5, coats[3], dark, walk: T * 2.5, aL: 3.05, aR: -3.05)
             c.restore()
             // pull-ups off the rail, outboard
             let pu = 0.5 + 0.5 * sin(T * 2.6)
-            let hangY = -44 + 14.5 - pu * 4.5
+            let hangY = -34 + 14.5 - pu * 4.5
             tar(c, 30, hangY, coats[0], dark, aL: 3.05 - pu * 0.5, aR: -3.05 + pu * 0.5)
             tar(c, 40, -33, coats[1], dark, lean: 0.25, aL: 0.4, aR: 2.2)
             c.textS("\(Int(T * 2.6 / (PI * 2)) % 20 + 1)", 44, -50, 6, Col(0xffffff, 0.9), 0, FONTB)
