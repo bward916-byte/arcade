@@ -108,16 +108,17 @@ final class Renderer {
     }
     private func wallArt(_ z: Zone) -> (String, Col) {
         switch z.name {
-        case "OFFICES": return ("hall_office.jpg", z.wall.alpha(0.12))
-        case "HOTEL", "GUEST ROOMS": return ("hall_hotel.jpg", z.wall.alpha(0.08))
-        case "PENTHOUSES": return ("hall_hotel.jpg", Col(0x3a2a6a).alpha(0.3))
-        case "RESIDENTIAL": return ("hall_hotel.jpg", Col(0x1e4a34).alpha(0.4))
+        case "OFFICES": return ("hall_office.jpg", z.wall.alpha(0.1))
+        case "HOTEL", "GUEST ROOMS": return ("hall_hotel.jpg", Col(0x120a0a).alpha(0.14))
+        case "PENTHOUSES": return ("hall_penthouse.jpg", Col(0x0a0814).alpha(0.05))
+        case "RESIDENTIAL": return ("hall_apartment.jpg", Col(0x0c120c).alpha(0.34))
         case "MEDICAL / LAB", "LABS": return ("hall_lab.jpg", Col(0x0a1016).alpha(0.18))
         case "MALL / GARAGE": return ("hall_mall.jpg", z.wall.alpha(0.06))
-        case "LOBBY", "BALLROOMS": return ("hall_lobby.jpg", Col(0x0a0806).alpha(0.12))
+        case "LOBBY": return ("hall_lobby.jpg", Col(0x0a0806).alpha(0.12))
+        case "BALLROOMS": return ("hall_ballroom.jpg", Col(0x140c10).alpha(0.32))
         case "WARDS": return ("hall_hospital.jpg", Col(0x0c1c22).alpha(0.38))
-        case "SURGERY": return ("hall_hospital.jpg", Col(0x0a2a3a).alpha(0.5))
-        case "EMERGENCY": return ("hall_hospital.jpg", Col(0x3a0c0c).alpha(0.5))
+        case "SURGERY": return ("hall_surgery.jpg", Col(0x061014).alpha(0.1))
+        case "EMERGENCY": return ("hall_surgery.jpg", Col(0x4a0c0c).alpha(0.26))
         case "CASINO": return ("hall_casino.jpg", z.wall.alpha(0.05))
         default: return ("hall_office.jpg", z.wall.alpha(0.2))
         }
@@ -143,6 +144,115 @@ final class Renderer {
         }
         if names.isEmpty { return "" }
         return names[((block % names.count) + names.count) % names.count]
+    }
+    /// A zombie's head in profile, drawn round (0, 0) and facing right.
+    private func zedHead(_ cv: Canvas, _ L: Look, _ skin: Col, _ ink: Col, _ bone: Col, _ jawOpen: Double, _ bob: Double) {
+            // a real skull in profile: brow, nose, lips, a jaw that drops
+            let o = clampD(jawOpen, 0, 1.2)
+            let v = abs(L.v)
+            let dark = Col.mix(skin, BLACK, 0.45), mid = Col.mix(skin, BLACK, 0.2), lite = Col.mix(skin, WHITE, 0.16)
+            let fatJ = L.fat > 1.3 ? 3.0 : 0.0
+            let skull: [Double] = [-9, 14, -14, 8, -16.5, 0, -16, -8, -11.5, -15, -3, -18.5, 5, -17.5, 10.5, -13.5, 13, -8, 15, -5, 14, -2, 18, 3.5, 15.2, 5.2, 15.8, 7.6, 9, 9, -3, 9 + fatJ]
+            let jaw: [Double] = [-6, 5, 9, 7.5 + o * 2, 15, 9.5 + o * 5, 14.2, 12.5 + o * 6, 12, 16.5 + o * 7 + fatJ * 0.5, 4, 17.5 + o * 6 + fatJ, -5, 12.5 + fatJ]
+            // inside of the mouth, then the jaw, then the skull over both
+            cv.poly(Col(0x1e0608), [6, 6, 15.5, 7, 14.5, 11 + o * 5.5, 6, 11 + o * 4])
+            cv.poly(mid, jaw); cv.line(ink, 2.4, jaw + [-6, 5])
+            for i in 0..<4 { cv.R(8.2 + Double(i) * 1.8, 8.6 + o * 5 - Double(i) * 0.15, 1.4, 2.6, bone) }
+            cv.poly(skin, skull); cv.line(ink, 2.4, skull + [-9, 14])
+            // shadow under the back of the skull, hollow cheek, temple
+            cv.poly(mid, [-16.5, 0, -14, 8, -9, 14, -3, 9, -6, 2, -11, -3])
+            cv.ell(6.5, 4.5, 3.6, 4.4, dark.alpha(0.55))
+            cv.ell(1.5, -6, 4, 3, mid.alpha(0.7))
+            cv.seg(4, 0.8, 11.5, 1.8, 1.5, lite.alpha(0.8))
+            cv.seg(0, -15, 8, -13.5, 1.4, lite.alpha(0.6))
+            // upper teeth through torn lips
+            for i in 0..<4 { cv.R(8.6 + Double(i) * 1.8, 6.2, 1.4, 2.6, bone) }
+            cv.seg(8, 6.2, 15.6, 7.2, 1.1, Col(0x3a0c10))
+            // ear
+            cv.ell(-4, 0.5, 3.4, 4.8, ink); cv.ell(-4, 0.5, 2.3, 3.7, mid); cv.seg(-4.5, -1.5, -3.2, 2, 1, dark)
+            // nose shadow, nostril, creases
+            cv.seg(14.2, -1.5, 17.2, 3.4, 1.2, dark.alpha(0.7)); cv.circ(15.6, 4.3, 0.9, ink)
+            cv.seg(12, 3, 10, 8, 0.9, dark.alpha(0.8))
+            cv.seg(3, -12, 10, -10.6, 0.8, dark.alpha(0.6)); cv.seg(2, -9.8, 8, -9, 0.8, dark.alpha(0.5))
+            // sunken socket, cloudy eye, heavy brow
+            cv.ell(9, -3.6, 5, 4, Col(0x14100e))
+            if v % 4 != 3 {
+                cv.lighter(true); cv.circ(10, -3.4, 5.5, L.eye.alpha(0.22)); cv.lighter(false)
+                cv.ell(10, -3.4, 2.5, 2.1, Col.mix(L.eye, WHITE, 0.55)); cv.circ(10.8, -3.3, 0.9, Col(0x2a2a22))
+            } else {
+                cv.seg(9, -2, 9.6, 5, 1.6, BLOOD.alpha(0.85)); cv.circ(9, -3.4, 1.6, Col(0x4a0a0e))
+            }
+            cv.ell(9, -1, 4.2, 1.6, dark.alpha(0.6))
+            cv.line(dark, 2.6, [3, -8.6, 9, -8.4, 15, -5.4])
+            // each one is rotting somewhere different
+            if v % 4 == 0 {
+                cv.poly(Col(0x4a0a0e), [1, 3, 7, 2.5, 8, 8, 2, 9]); for i in 0..<3 { cv.R(2.6 + Double(i) * 1.8, 5, 1.3, 2.6, bone) }
+            } else if v % 4 == 1 {
+                cv.seg(13, 9 + o * 4, 12.5, 16 + o * 6, 1.8, BLOOD.alpha(0.85)); cv.circ(10, 13 + o * 5, 2.2, BLOOD.alpha(0.7))
+            } else if v % 4 == 2 {
+                cv.seg(-9, -13, -1, -15.5, 2.6, Col(0x6a1418)); cv.seg(-6, -15.5, -4.5, -12, 1.3, bone); cv.seg(-5, -13, -6.5, -6, 1.2, BLOOD.alpha(0.8))
+            }
+            cv.circ(-8, 8, 1.6, dark.alpha(0.7)); cv.circ(-1, -9, 1.2, dark.alpha(0.6)); cv.circ(3, 12 + o * 3, 1.4, dark.alpha(0.6))
+            // hair follows the skull
+            let hx = 0.0, hy = 0.0
+            let hairD = Col.mix(L.hair, BLACK, 0.3)
+            if L.female {
+                cv.poly(L.hair, [-17.5, 2, -17, -8, -12, -16, -3, -19.6, 5.5, -18.6, 11, -14.5, 12, -10, 5, -12, -3, -10.5, -7, -4, -8, 4, -12, 8])
+                cv.line(ink, 1.6, [-17.5, 2, -17, -8, -12, -16, -3, -19.6, 5.5, -18.6, 11, -14.5, 12, -10])
+                cv.seg(-12, -12, -4, -15, 1, hairD); cv.seg(-13, -6, -8, -9, 1, hairD)
+                if v % 3 == 0 {
+                    cv.circ(hx - 16, hy - 10, 7.6, ink); cv.circ(hx - 16, hy - 10, 6.2, L.hair); cv.seg(hx - 19, hy - 11, hx - 14, hy - 8, 1, hairD)
+                } else if v % 3 == 1 {
+                    cv.seg(hx - 12, hy - 6, hx - 18, hy + 24, 8, L.hair); cv.seg(hx - 7, hy - 6, hx - 11, hy + 22, 5, hairD); cv.seg(hx + 9, hy - 12, hx + 12, hy + 2, 1.6, L.hair)
+                } else {
+                    cv.seg(hx - 15, hy - 8, hx - 27, hy + 3 + sin(bob) * 2, 6.5, ink); cv.seg(hx - 15, hy - 8, hx - 27, hy + 3 + sin(bob) * 2, 4.6, L.hair)
+                }
+            } else if L.hat == 0 && v % 3 == 0 {
+                // balding: a fringe round the back
+                cv.poly(L.hair, [-17, 2, -16.6, -7, -13, -12, -9, -8, -9.5, -1, -11, 5])
+                cv.seg(-2, -18, 1, -21, 1.2, L.hair); cv.seg(2, -18, 6, -20, 1.2, L.hair)
+            } else {
+                cv.poly(L.hair, [-17.2, 1, -17, -8, -12, -16, -3, -19.8, 5.5, -18.8, 10.5, -14.8, 4, -13.5, -4, -11.5, -8.5, -5, -10, 3])
+                cv.line(ink, 1.6, [-17.2, 1, -17, -8, -12, -16, -3, -19.8, 5.5, -18.8, 10.5, -14.8])
+                cv.seg(-10, -13, -2, -16, 1, hairD); cv.seg(-2, -19, 3, -22.5, 2.2, L.hair); cv.seg(-9, -16, -13, -20, 2.2, L.hair)
+            }
+    }
+    /// A living person's head in profile, drawn round (0, 0) and facing right.
+    private func heroHead(_ cv: Canvas, _ L: Look, _ skin: Col, _ ink: Col, _ bob: Double) {
+        let dark = Col.mix(skin, BLACK, 0.42), mid = Col.mix(skin, BLACK, 0.16), lite = Col.mix(skin, WHITE, 0.2)
+        let hairD = Col.mix(L.hair, BLACK, 0.35), hairL = Col.mix(L.hair, WHITE, 0.18)
+        let head: [Double] = [-8, 15, -13.5, 8, -16, 0, -15.5, -8, -11, -15, -3, -18.5, 5, -17.5, 10.5, -13.5, 13, -8.5, 13.8, -5, 13.2, -2.2, 17.2, 3, 14.8, 5, 15.2, 7, 14.4, 8.3, 15, 10, 13.6, 13.6, 9.5, 16.8, 2, 16, -4, 12.5]
+        if L.longHair {
+            // hair down the back, behind the head
+            cv.line(ink, 12, [-10, -8, -16, 6, -15, 24 + sin(bob) * 1.5]); cv.line(L.hair, 9.5, [-10, -8, -16, 6, -15, 24 + sin(bob) * 1.5])
+            cv.line(hairD, 3, [-11, -2, -13, 10, -12, 22])
+        }
+        cv.poly(skin, head); cv.line(ink, 2.4, head + [-8, 15])
+        // shade under the jaw and the back of the head, light on the cheek and brow
+        cv.poly(mid, [-16, 0, -13.5, 8, -8, 15, -4, 12.5, 2, 16, 9.5, 16.8, 8, 12, -2, 8, -8, 0])
+        cv.seg(4, 2.5, 11, 3.5, 2, lite.alpha(0.7)); cv.seg(1, -14.5, 8, -13, 1.4, lite.alpha(0.6))
+        // ear
+        cv.ell(-4, 0.5, 3.3, 4.6, ink); cv.ell(-4, 0.5, 2.2, 3.5, mid); cv.seg(-4.6, -1.4, -3.3, 2, 1, dark)
+        // eye, lid, brow
+        cv.ell(9.3, -2.8, 3, 2.5, WHITE); cv.circ(10.4, -2.7, 1.7, L.eye); cv.circ(10.9, -3.2, 0.5, WHITE)
+        cv.line(ink, 1.3, [6.2, -3.6, 9.4, -5.4, 12.6, -3.8])
+        cv.line(hairD, 2.3, [4.5, -7.6, 9.5, -8.2, 14, -6.4])
+        // nose, mouth, chin
+        cv.seg(14.2, -1.4, 16.8, 3, 1, dark.alpha(0.6)); cv.circ(15.4, 4.2, 0.8, dark)
+        cv.seg(9.8, 9.2, 14.6, 8.6, 1.5, Col.mix(skin, Col(0x6a1c1c), 0.6))
+        cv.seg(11, 12.6, 13.2, 12.2, 1, dark.alpha(0.5)); cv.seg(11.6, 4, 10.4, 7, 0.8, dark.alpha(0.5))
+        // hair over the skull
+        if L.longHair {
+            cv.poly(L.hair, [-17.6, 4, -17.2, -8, -12, -16.4, -3, -20, 6, -19, 11.5, -15, 13.2, -9.5, 7, -12, 0, -11, -5, -5, -6.5, 5, -11, 9])
+            cv.line(ink, 1.7, [-17.6, 4, -17.2, -8, -12, -16.4, -3, -20, 6, -19, 11.5, -15, 13.2, -9.5])
+            cv.seg(-12, -12, -3, -16, 1.2, hairL); cv.seg(-13, -5, -8, -9, 1, hairD); cv.seg(1, -17, 8, -15, 1, hairD)
+            cv.seg(11.5, -13, 13.6, -4, 1.8, L.hair)
+        } else {
+            cv.poly(L.hair, [-17, 1, -16.8, -8, -12, -16.2, -3, -20, 6, -19.2, 12, -15, 13, -11, 6, -13.5, -2, -12, -7.5, -6, -8, 1.5, -11, 4])
+            cv.line(ink, 1.7, [-17, 1, -16.8, -8, -12, -16.2, -3, -20, 6, -19.2, 12, -15, 13, -11])
+            cv.seg(-11, -12.5, -2, -16.5, 1.2, hairL); cv.seg(0, -17.5, 8, -16, 1, hairD)
+            cv.poly(L.hair, [-8, 1.5, -5.6, 1.5, -6, 6.5, -8.4, 5])
+        }
     }
     private func fit(_ cv: Canvas, _ im: CGImage, _ cx: Double, _ cy: Double, _ box: Double) {
         let w = Double(im.width), h = Double(im.height), s = box / max(w, h)
@@ -359,77 +469,7 @@ final class Renderer {
         } else if zed {
             cv.seg(nx, ny, hx, hy, 12, ink); cv.seg(nx, ny, hx, hy, 9, skinD)
             cv.save(); cv.translate(hx, hy); cv.rotate(clampD(ha, -1.2, 1.2) * 0.35)
-            do {
-                // a real skull in profile: brow, nose, lips, a jaw that drops
-                let o = clampD(p.jaw, 0, 1.2)
-                let v = abs(L.v)
-                let dark = Col.mix(skin, BLACK, 0.45), mid = Col.mix(skin, BLACK, 0.2), lite = Col.mix(skin, WHITE, 0.16)
-                let fatJ = L.fat > 1.3 ? 3.0 : 0.0
-                let skull: [Double] = [-9, 14, -14, 8, -16.5, 0, -16, -8, -11.5, -15, -3, -18.5, 5, -17.5, 10.5, -13.5, 13, -8, 15, -5, 14, -2, 18, 3.5, 15.2, 5.2, 15.8, 7.6, 9, 9, -3, 9 + fatJ]
-                let jaw: [Double] = [-6, 5, 9, 7.5 + o * 2, 15, 9.5 + o * 5, 14.2, 12.5 + o * 6, 12, 16.5 + o * 7 + fatJ * 0.5, 4, 17.5 + o * 6 + fatJ, -5, 12.5 + fatJ]
-                // inside of the mouth, then the jaw, then the skull over both
-                cv.poly(Col(0x1e0608), [6, 6, 15.5, 7, 14.5, 11 + o * 5.5, 6, 11 + o * 4])
-                cv.poly(mid, jaw); cv.line(ink, 2.4, jaw + [-6, 5])
-                for i in 0..<4 { cv.R(8.2 + Double(i) * 1.8, 8.6 + o * 5 - Double(i) * 0.15, 1.4, 2.6, bone) }
-                cv.poly(skin, skull); cv.line(ink, 2.4, skull + [-9, 14])
-                // shadow under the back of the skull, hollow cheek, temple
-                cv.poly(mid, [-16.5, 0, -14, 8, -9, 14, -3, 9, -6, 2, -11, -3])
-                cv.ell(6.5, 4.5, 3.6, 4.4, dark.alpha(0.55))
-                cv.ell(1.5, -6, 4, 3, mid.alpha(0.7))
-                cv.seg(4, 0.8, 11.5, 1.8, 1.5, lite.alpha(0.8))
-                cv.seg(0, -15, 8, -13.5, 1.4, lite.alpha(0.6))
-                // upper teeth through torn lips
-                for i in 0..<4 { cv.R(8.6 + Double(i) * 1.8, 6.2, 1.4, 2.6, bone) }
-                cv.seg(8, 6.2, 15.6, 7.2, 1.1, Col(0x3a0c10))
-                // ear
-                cv.ell(-4, 0.5, 3.4, 4.8, ink); cv.ell(-4, 0.5, 2.3, 3.7, mid); cv.seg(-4.5, -1.5, -3.2, 2, 1, dark)
-                // nose shadow, nostril, creases
-                cv.seg(14.2, -1.5, 17.2, 3.4, 1.2, dark.alpha(0.7)); cv.circ(15.6, 4.3, 0.9, ink)
-                cv.seg(12, 3, 10, 8, 0.9, dark.alpha(0.8))
-                cv.seg(3, -12, 10, -10.6, 0.8, dark.alpha(0.6)); cv.seg(2, -9.8, 8, -9, 0.8, dark.alpha(0.5))
-                // sunken socket, cloudy eye, heavy brow
-                cv.ell(9, -3.6, 5, 4, Col(0x14100e))
-                if v % 4 != 3 {
-                    cv.lighter(true); cv.circ(10, -3.4, 5.5, L.eye.alpha(0.22)); cv.lighter(false)
-                    cv.ell(10, -3.4, 2.5, 2.1, Col.mix(L.eye, WHITE, 0.55)); cv.circ(10.8, -3.3, 0.9, Col(0x2a2a22))
-                } else {
-                    cv.seg(9, -2, 9.6, 5, 1.6, BLOOD.alpha(0.85)); cv.circ(9, -3.4, 1.6, Col(0x4a0a0e))
-                }
-                cv.ell(9, -1, 4.2, 1.6, dark.alpha(0.6))
-                cv.line(dark, 2.6, [3, -8.6, 9, -8.4, 15, -5.4])
-                // each one is rotting somewhere different
-                if v % 4 == 0 {
-                    cv.poly(Col(0x4a0a0e), [1, 3, 7, 2.5, 8, 8, 2, 9]); for i in 0..<3 { cv.R(2.6 + Double(i) * 1.8, 5, 1.3, 2.6, bone) }
-                } else if v % 4 == 1 {
-                    cv.seg(13, 9 + o * 4, 12.5, 16 + o * 6, 1.8, BLOOD.alpha(0.85)); cv.circ(10, 13 + o * 5, 2.2, BLOOD.alpha(0.7))
-                } else if v % 4 == 2 {
-                    cv.seg(-9, -13, -1, -15.5, 2.6, Col(0x6a1418)); cv.seg(-6, -15.5, -4.5, -12, 1.3, bone); cv.seg(-5, -13, -6.5, -6, 1.2, BLOOD.alpha(0.8))
-                }
-                cv.circ(-8, 8, 1.6, dark.alpha(0.7)); cv.circ(-1, -9, 1.2, dark.alpha(0.6)); cv.circ(3, 12 + o * 3, 1.4, dark.alpha(0.6))
-                // hair follows the skull
-                let hx = 0.0, hy = 0.0
-                let hairD = Col.mix(L.hair, BLACK, 0.3)
-                if L.female {
-                    cv.poly(L.hair, [-17.5, 2, -17, -8, -12, -16, -3, -19.6, 5.5, -18.6, 11, -14.5, 12, -10, 5, -12, -3, -10.5, -7, -4, -8, 4, -12, 8])
-                    cv.line(ink, 1.6, [-17.5, 2, -17, -8, -12, -16, -3, -19.6, 5.5, -18.6, 11, -14.5, 12, -10])
-                    cv.seg(-12, -12, -4, -15, 1, hairD); cv.seg(-13, -6, -8, -9, 1, hairD)
-                    if v % 3 == 0 {
-                        cv.circ(hx - 16, hy - 10, 7.6, ink); cv.circ(hx - 16, hy - 10, 6.2, L.hair); cv.seg(hx - 19, hy - 11, hx - 14, hy - 8, 1, hairD)
-                    } else if v % 3 == 1 {
-                        cv.seg(hx - 12, hy - 6, hx - 18, hy + 24, 8, L.hair); cv.seg(hx - 7, hy - 6, hx - 11, hy + 22, 5, hairD); cv.seg(hx + 9, hy - 12, hx + 12, hy + 2, 1.6, L.hair)
-                    } else {
-                        cv.seg(hx - 15, hy - 8, hx - 27, hy + 3 + sin(p.bob) * 2, 6.5, ink); cv.seg(hx - 15, hy - 8, hx - 27, hy + 3 + sin(p.bob) * 2, 4.6, L.hair)
-                    }
-                } else if L.hat == 0 && v % 3 == 0 {
-                    // balding: a fringe round the back
-                    cv.poly(L.hair, [-17, 2, -16.6, -7, -13, -12, -9, -8, -9.5, -1, -11, 5])
-                    cv.seg(-2, -18, 1, -21, 1.2, L.hair); cv.seg(2, -18, 6, -20, 1.2, L.hair)
-                } else {
-                    cv.poly(L.hair, [-17.2, 1, -17, -8, -12, -16, -3, -19.8, 5.5, -18.8, 10.5, -14.8, 4, -13.5, -4, -11.5, -8.5, -5, -10, 3])
-                    cv.line(ink, 1.6, [-17.2, 1, -17, -8, -12, -16, -3, -19.8, 5.5, -18.8, 10.5, -14.8])
-                    cv.seg(-10, -13, -2, -16, 1, hairD); cv.seg(-2, -19, 3, -22.5, 2.2, L.hair); cv.seg(-9, -16, -13, -20, 2.2, L.hair)
-                }
-            }
+            zedHead(cv, L, skin, ink, bone, p.jaw, p.bob)
             cv.restore()
             let hc = Col.mix(L.hatCol, WHITE, fl)
             switch L.hat {
@@ -455,18 +495,10 @@ final class Renderer {
             default: break
             }
         } else {
-            cv.seg(nx, ny, hx, hy, 12, ink); cv.seg(nx, ny, hx, hy, 9, skinD); cv.circ(hx, hy, 16.8, ink)
-            cv.circ(hx, hy, 15, skin)
-            cv.arcFill(hx, hy, 15, PI * 0.2, PI * 0.8, Col.mix(skin, BLACK, 0.12))
-            cv.circ(hx + 14.5, hy + 2, 2.6, skin)
-            cv.circ(hx - 4, hy + 1, 3.6, skinD)
-            if L.longHair { cv.seg(hx - 9, hy - 6, hx - 14, hy + 18, 9, L.hair); cv.seg(hx - 4, hy - 8, hx - 8, hy + 14, 6, Col.mix(L.hair, BLACK, 0.2)) }
-            cv.arcFill(hx, hy, 15.8, PI * 0.98, PI * 1.9, L.hair)
-            cv.seg(hx + 6, hy - 12, hx + 13, hy - 9, 4, L.hair)
-            cv.ell(hx + 7.5, hy - 1.5, 2.6, 3, WHITE)
-            cv.circ(hx + 8.3, hy - 1.3, 1.8, L.eye)
-            cv.seg(hx + 3.5, hy - 6.5, hx + 12, hy - 5.5, 2.2, Col.mix(L.hair, BLACK, 0.3))
-            cv.seg(hx + 7, hy + 8, hx + 12.5, hy + 7.5, 1.8, Col.mix(skin, BLACK, 0.5))
+            cv.seg(nx, ny, hx, hy, 12, ink); cv.seg(nx, ny, hx, hy, 9, skinD)
+            cv.save(); cv.translate(hx, hy); cv.rotate(clampD(ha, -1.2, 1.2) * 0.3)
+            heroHead(cv, L, skin, ink, p.bob)
+            cv.restore()
         }
         // front arm and what it holds
         let af = limb(nx, sy, p.armF, 27, p.armF + p.elbF, 26)
@@ -1219,15 +1251,9 @@ final class Renderer {
         cv.seg(20, -26 - lift, hx, hy, 12, ink); cv.seg(20, -26 - lift, hx, hy, 9, skinD)
         if !z.headless {
             let open: Double = z.atkT >= 0 ? 1.1 : 0.4 + 0.3 * sin(t * 5 + z.seed * 20)
-            cv.circ(hx, hy, 16.5, ink)
-            cv.poly(skinD, [hx, hy + 7, hx + 13, hy + 7 + open * 7, hx + 11, hy + 13 + open * 9, hx - 3, hy + 14])
-            cv.poly(Col(0x2a0a0c), [hx + 2, hy + 6, hx + 13, hy + 6, hx + 12, hy + 8 + open * 7, hx + 2, hy + 9])
-            cv.circ(hx, hy, 14.5, skin)
-            for i in 0..<3 { cv.R(hx + 4.5 + Double(i) * 3.2, hy + 5.5, 2.2, 3.4, Col(0xd8d0bc)) }
-            cv.circ(hx + 6.5, hy - 3, 5.2, Col(0x14100e)); cv.circ(hx + 7.2, hy - 3, 2.4, L.eye)
-            cv.seg(hx + 1, hy - 9.5, hx + 12, hy - 6.5, 2.8, Col.mix(skin, BLACK, 0.55))
-            if L.female { cv.arcFill(hx, hy, 15.4, PI * 0.95, PI * 1.88, L.hair); cv.seg(hx - 11, hy - 4, hx - 20, hy + 20, 7, L.hair) } else { cv.arcFill(hx, hy, 15.4, PI * 1.02, PI * 1.72, L.hair) }
-            cv.circ(hx - 2, hy + 6, 3, BLOOD.alpha(0.75))
+            cv.save(); cv.translate(hx, hy); cv.rotate(-0.3)
+            zedHead(cv, L, skin, ink, Col(0xd8d0bc), open, ph)
+            cv.restore()
         } else { cv.circ(hx - 6, hy + 4, 6, Col(0x7a1014)) }
         // near arm: reach, plant, drag
         let reachA = 34 + 26 * pull
