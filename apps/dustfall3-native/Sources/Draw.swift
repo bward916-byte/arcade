@@ -418,8 +418,11 @@ final class Renderer {
             }
             // the rider coming up the street
             let rb = sin(t * 6) * 0.6
+            a.save(); a.translate(0, -9)
+            q(88, 104.5, 24, 2, 0x000000, 0.2)
             q(95, 96 + rb, 11, 5, 0x1c1410); q(104, 93 + rb, 4, 4, 0x1c1410); q(95.5, 100, 1.5, 5, 0x1c1410); q(99, 100, 1.5, 5 - rb, 0x1c1410); q(103, 100, 1.5, 5, 0x1c1410)
             q(98, 89 + rb, 4, 7, 0x2a2430); q(96.5, 87.6 + rb, 7, 1.2, 0x14100e); q(98, 85.6 + rb, 4, 2.2, 0x14100e); q(94, 97 + rb, 1.5, 4, 0x1c1410)
+            a.restore()
             // the sign by the road, with the company's board nailed under it until the town is won
             a.save(); a.translate(160, 44); a.rotate(sin(t * 1.1) * 0.012)
             q(-2, 0, 3, 56, 0x4a3424); q(-31, 0, 60, 15, 0x3a2a1c); q(-30, 1, 58, 13, 0x8a6a44); q(-30, 1, 58, 1, 0xa8885c)
@@ -2133,6 +2136,9 @@ final class Renderer {
     // ---------- coins, shots, dust
     private func coinAt(_ x: Double, _ y: Double) {
         c.circ(x, y, 2, GOLDD); c.circ(x, y, 1.5, GOLD); c.R(x - 0.8, y - 1, 0.8, 0.8, Col(0xfff6c8))
+        // now and then one catches the light
+        let gl = sin(g.clock * 4 + x * 0.37 + y * 0.9)
+        if gl > 0.9 { let k = (gl - 0.9) * 10; c.R(x - 0.8 - 2.2 * k, y - 1.2, 4.4 * k + 0.8, 0.6, Col(0xffffff, k)); c.R(x - 0.7, y - 1.2 - 2.2 * k, 0.6, 4.4 * k + 0.8, Col(0xffffff, k)) }
     }
 
     private func coins() {
@@ -2212,6 +2218,14 @@ final class Renderer {
                 let xx = x.truncatingRemainder(dividingBy: W + 40) - 20
                 let y = (hashN(Double(i) * 8.1) * H + g.clock * (240 + hashN(Double(i)) * 80)).truncatingRemainder(dividingBy: H)
                 c.seg(xx, y, xx - 2, y + 7, 0.6, Col(0xcfe0ee, 0.45))
+            }
+            // rings where the drops land, and the ground gone dark and wet
+            c.R(0, gy, W, H - gy, Col(0x1c2430, 0.14 * rain))
+            for i in 0..<Int(22 * rain) {
+                let k = (g.clock * 2.2 + hashN(Double(i) * 2.7)).truncatingRemainder(dividingBy: 1)
+                let cyc = floor(g.clock * 2.2 + hashN(Double(i) * 2.7))
+                let rx0 = hashN(Double(i) * 9.1 + cyc * 1.3) * W, ry0 = gy + 2 + hashN(Double(i) * 4.3 + cyc * 0.7) * (H - gy - 4)
+                c.ellStroke(rx0, ry0, 0.8 + k * 3.2, 0.3 + k * 0.9, 0.5, Col(0xdcecf8, 0.45 * (1 - k)))
             }
         }
         if g.bolt > 0 {
