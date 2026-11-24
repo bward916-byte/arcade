@@ -696,6 +696,7 @@ extension Game {
             if let cut = full.range(of: ": ") {
                 title = String(full[full.startIndex..<cut.lowerBound])
                 line = String(full[cut.upperBound...])
+                line = line.prefix(1).uppercased() + line.dropFirst()
             } else {
                 title = full
             }
