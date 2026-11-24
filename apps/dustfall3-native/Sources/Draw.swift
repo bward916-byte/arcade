@@ -371,6 +371,8 @@ final class Renderer {
             default: P = [0x6fa8d8, 0xf4dca8, 0xd9a47a, 0xc47a4a, 0xdcb680, 0xc09a62]
             }
             if lit { P[0] = 0x2a2850; P[1] = 0xe8794a }
+            a.translate(0, -12)       // the frame shows the middle of the picture; bring the street and the rider up into it
+            q(0, -12, 200, 14, P[0])
             for i in 0..<8 { a.R(0, Double(i) * 10, 200, 10, Col.mix(Col(P[0]), Col(P[1]), Double(i) / 7)) }
             a.circ(150, lit ? 74 : 40, 16, Col(0xfff2c0, 0.25)); a.circ(150, lit ? 74 : 40, 9, Col(lit ? 0xffb060 : 0xfff2c0))
             for i in 0..<3 { let cx = (hs(i + 2) * 240 + t * (2 + Double(i))).truncatingRemainder(dividingBy: 240) - 20; q(cx, 24 + Double(i) * 7, 26, 3, 0xffffff, 0.5); q(cx + 5, 22 + Double(i) * 7, 14, 2, 0xffffff, 0.5) }
@@ -429,7 +431,7 @@ final class Renderer {
             // a wanted poster nailed to the boards
             q(0, 0, 200, 112, 0x4a3426)
             for i in 0..<10 { q(Double(i) * 22, 0, 1, 112, 0x3a2a1e) }
-            a.save(); a.translate(100, 58); a.rotate(sin(t * 0.7) * 0.012 - 0.02)
+            a.save(); a.translate(100, 58); a.rotate(sin(t * 0.7) * 0.012 - 0.02); a.scale(0.78, 0.78)
             q(-43, -38, 90, 80, 0x000000, 0.25)
             q(-44, -40, 88, 80, 0xe6d4a4); q(-44, -40, 88, 1, 0xf4e8c4); q(-44, 39, 88, 1, 0xb8a070)
             for i in 0..<12 { q(-44 + hs(i) * 74, -40 + hs(i + 4) * 74, 6 + hs(i + 2) * 8, 3, 0xc8b078, 0.35) }
