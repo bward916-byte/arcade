@@ -23,7 +23,10 @@ final class Renderer {
         landmarks()
         sites(dk)
         camps(dk)
+        towers()
+        yard(dk)
         for bl in g.b where bl.def.wall != 0 && !bl.def.gate { building(bl, dk) }
+        fires()
         centre()
         for bl in g.b where bl.wire { wire(bl) }
         if g.b.contains(where: { $0 === g.claim }) { claimSite() }
@@ -50,16 +53,23 @@ final class Renderer {
             c.seg(x + tr.dir * 2, gy - 24, x + tr.dir * 9, gy - 29, 1, Col(0xc9c9d0))
         }
         for f in g.folk { person(f.x, f.phase, f.dir, f.moving, f.seed, f.role, f.work) }
+        for cw in g.herd where cw.x > g.pasture.1 + 2 { cowAt(cw.x, cw.dir, cw.calf ? 0.6 : 1.0, cw.seed, cw.phase, horns: false) }
         for bn in g.bandits {
             // dust or a blizzard hides them until they are close
             if g.storm { c.alpha(abs(bn.x - g.px) < 70 ? 1 : 0.35) }
             bandit(bn)
+            if bn.torch && bn.st != 3 && vis(bn.x, 20) {
+                let tx = sx(bn.x) - bn.side * 5, ty = gy - (bn.rider ? 30 : 19)
+                c.R(tx - 0.5, ty, 1.2, 5, Col(0x4a3424))
+                c.poly(Col(0xff9a2e), [tx - 2, ty, tx, ty - 5 - sin(g.clock * 17 + bn.x) * 1.5, tx + 2, ty]); c.poly(Col(0xffe08a), [tx - 1, ty, tx, ty - 2.5, tx + 1, ty])
+            }
         }
         c.alpha(1)
         if g.tripT < 0 { rider() }
         coins()
         effects()
         night(dk)
+        skyThings()
         weather(dk)
         duelBars()
         slots()
@@ -532,7 +542,7 @@ final class Renderer {
         while wx <= p.1 { c.R(sx(wx) - 1, gy - 9, 2, 9, Col(0x5a3c22)); wx += 20 }
         c.R(sx(p.0), gy - 8, p.1 - p.0, 1, rail); c.R(sx(p.0), gy - 4, p.1 - p.0, 1, rail)
         c.R(sx(p.0 + 28), gy - 4, 10, 4, Col(0x6a4a2e)); c.R(sx(p.0 + 29), gy - 4, 8, 1, Col(0x8fc4d4))
-        for cw in g.herd { cowAt(cw.x, cw.dir, cw.calf ? 0.6 : 1.0, cw.seed, cw.phase, horns: false) }
+        for cw in g.herd where cw.x <= p.1 + 2 { cowAt(cw.x, cw.dir, cw.calf ? 0.6 : 1.0, cw.seed, cw.phase, horns: false) }
     }
 
     private func cowAt(_ wx: Double, _ dir: Double, _ s: Double, _ seed: Double, _ phase: Double, horns: Bool) {
@@ -577,6 +587,146 @@ final class Renderer {
             c.R(x - 24, gy - 36, 26, 1, rs.alpha(0.5)); c.R(x - 28, gy - 22, 8, 1, rs.alpha(0.5))
             if g.bio == .snow { c.poly(Col(0xf4f8ff), [x - 22, gy - 44, x + 8, gy - 48, x + 26, gy - 40, x + 10, gy - 44, x - 18, gy - 41]) }
         }
+    }
+
+    /// The windmill and the water tower, which stand behind the street.
+    private func towers() {
+        let st = Col(0x5a4a3a), dkw = Col(0x3a2a1c)
+        if vis(992, 40) {
+            let x = sx(992).rounded()
+            c.seg(x - 7, gy, x - 1.5, gy - 62, 1.4, st); c.seg(x + 7, gy, x + 1.5, gy - 62, 1.4, st)
+            var k = 0.0
+            while k < 5 { let yy = gy - 8 - k * 11, hw = 6.4 - k * 1; c.seg(x - hw, yy, x + hw, yy, 0.8, st); c.seg(x - hw, yy, x + hw - 1, yy - 11, 0.6, st); k += 1 }
+            let a = g.clock * (g.wx == 0 ? 1.2 : 4)
+            for i in 0..<8 { let an = a + Double(i) * PI / 4; c.seg(x, gy - 64, x + cos(an) * 10, gy - 64 + sin(an) * 10, 1.6, Col(0xb9b2a4)) }
+            c.circ(x, gy - 64, 2, dkw); c.poly(Col(0xb5412e), [x - 3, gy - 64, x - 13, gy - 68, x - 13, gy - 60])
+            if g.rodsLv > 0 { c.R(x - 0.5, gy - 82, 1, 10, Col(0x4a4a52)); c.R(x - 1, gy - 83, 2, 2, Col(0xd0d4dc)) }
+        }
+        if vis(1206, 40) {
+            let x = sx(1206).rounded()
+            for dx in [-9.0, -3, 3, 9] { c.R(x + dx - 0.7, gy - 46, 1.4, 46, st) }
+            c.seg(x - 9, gy - 8, x + 9, gy - 30, 0.7, st); c.seg(x + 9, gy - 8, x - 9, gy - 30, 0.7, st)
+            c.RR(x - 13, gy - 68, 26, 23, 2, Col(0x8a6a4a)); c.R(x - 13, gy - 60, 26, 1.4, dkw); c.R(x - 13, gy - 52, 26, 1.4, dkw)
+            c.poly(dkw, [x - 15, gy - 68, x, gy - 78, x + 15, gy - 68])
+            c.seg(x + 13, gy - 48, x + 20, gy - 40, 1.2, dkw)
+            if g.towerLv > 0 { c.R(x - 12, gy - 10, 10, 6, Col(0xc0392b)); c.circ(x - 10, gy - 3, 2.4, dkw); c.circ(x - 4, gy - 3, 2.4, dkw); c.seg(x - 2, gy - 8, x + 6, gy - 12, 1, Col(0xc9c9d0)) }
+        }
+    }
+
+    /// Flames on a burning roof, and the lightning rods once they are fitted.
+    private func fires() {
+        for bl in g.b where bl.def.wall != 0 && !bl.def.gate && bl.level > 0 && vis(bl.x, bl.def.w + 20) {
+            let x = sx(bl.x), top = gy - bl.def.h - Double(max(0, bl.level - 1)) * 5 - 10
+            if g.rodsLv > 0 { c.R(x + 4, top - 9, 1, 9, Col(0x4a4a52)); c.R(x + 3.5, top - 10, 2, 1.5, Col(0xd0d4dc)) }
+            if !bl.burning { continue }
+            let big = (1 + 0.9 * min(1, bl.fireT / 6)) * (0.5 + 0.5 * bl.fireHp)
+            var k = 3.0
+            while k < bl.def.w - 3 {
+                let f = (6 + sin(g.clock * 11 + k * 1.7) * 3 + hashN(k) * 4) * big
+                c.poly(Col(0xff7a2a), [x + k - 3, top + 1, x + k, top + 1 - f, x + k + 3, top + 1])
+                c.poly(Col(0xffd45a), [x + k - 1.5, top + 1, x + k, top + 1 - f * 0.55, x + k + 1.5, top + 1])
+                k += 5
+            }
+            c.glow(x + bl.def.w / 2, top - 3, bl.def.w * 0.7, Col(0xff9638, 0.28), Col(0xff9638, 0))
+        }
+        // riflemen hired onto a gatehouse roof
+        for gt in [g.gateW, g.gateE] where gt.rifles >= 4 && vis(gt.x, 30) {
+            let x = sx(gt.x), top = gy - gt.def.h - 16
+            for i in 0..<(gt.rifles / 4) {
+                let hx = x + [-2.0, 13, 4][i]
+                c.R(hx, top - 3, 3, 3, Col(0xe2aa7c)); c.R(hx - 1, top - 4, 5, 1, Col(0x5a4630)); c.R(hx, top - 6, 3, 2, Col(0x5a4630))
+                c.R(gt.type == .gateE ? hx + 2 : hx - 5, top - 1, 6, 1, Col(0x2a1c14))
+            }
+        }
+    }
+
+    /// The old rail yard past the far east camp: dead engines, a hobo jungle and a boxcar nobody will open.
+    private func yard(_ dk: Double) {
+        let Y = g.yardX
+        if g.cam + W < Y - 40 { return }
+        let x0 = sx(Y)
+        // the old main line and a siding
+        var wx = (max(Y, g.cam) / 4).rounded(.up) * 4
+        while wx < g.cam + W { c.R(sx(wx), gy, 2, 1, Col(0x4a3626)); wx += 4 }
+        c.R(max(x0, 0), gy - 1, W - max(x0, 0), 1, Col(0x7a6a5a))
+        c.R(max(x0 + 60, 0), gy - 4, max(0, sx(Y + 560) - max(x0 + 60, 0)), 1, Col(0x6a5a4a))
+        func hulk(_ wxx: Double, _ rust: UInt32) {
+            if !vis(wxx, 80) { return }
+            let x = sx(wxx).rounded()
+            c.ell(x + 26, gy + 1, 34, 2.4, Col(0x000000, 0.2))
+            c.RR(x + 6, gy - 20, 30, 12, 3, Col(rust)); c.R(x + 36, gy - 28, 14, 20, Col(rust)); c.R(x + 35, gy - 30, 16, 2, Col(0x2a2220))
+            c.R(x + 39, gy - 25, 7, 6, Col(0x14100e)); c.R(x + 10, gy - 28, 4, 8, Col(0x2a2220)); c.R(x + 8, gy - 30, 8, 2, Col(0x2a2220))
+            c.poly(Col(0x3a3230), [x, gy - 2, x + 6, gy - 10, x + 6, gy - 2])
+            for k in [12.0, 22, 32, 44] { c.circ(x + k, gy - 5, 4, Col(0x2a2220)); c.circ(x + k, gy - 5, 1.2, Col(0x6a5a4a)) }
+            for i in 0..<9 { c.R(x + 8 + hashN(Double(i) + wxx) * 38, gy - 19 + hashN(Double(i) * 2 + wxx) * 9, 2 + hashN(Double(i)) * 4, 1, Col(0x96542c, 0.6)) }
+        }
+        hulk(Y + 90, 0x4a3a34); hulk(Y + 190, 0x3a3a40)
+        // a switch stand
+        if vis(Y + 40, 30) { let x = sx(Y + 40).rounded(); c.R(x, gy - 22, 1.4, 22, Col(0x3a2a1c)); c.R(x - 3, gy - 26, 7, 5, Col(g.ghostAt > 0 && dk > 0.5 ? 0xff5a3c : 0x8fcf6a)) }
+        // the hobo jungle: a barrel fire and three men who have seen everything
+        let hx = g.sHobo.x
+        if vis(hx, 50) {
+            let x = sx(hx).rounded()
+            c.R(x - 3, gy - 8, 7, 8, Col(0x4a4a50)); c.R(x - 3.5, gy - 9, 8, 1.2, Col(0x2a2220))
+            c.poly(Col(0xff9a2e), [x - 2.5, gy - 9, x, gy - 15 - sin(g.clock * 13) * 2, x + 2.5, gy - 9]); c.poly(Col(0xffe08a), [x - 1.2, gy - 9, x, gy - 12, x + 1.2, gy - 9])
+            for (dx, col) in [(-12.0, UInt32(0x6a5a4a)), (10.0, UInt32(0x4a5a4a)), (18.0, UInt32(0x5a4a5a))] {
+                c.R(x + dx - 2, gy - 9, 5, 6, Col(col)); c.R(x + dx - 1.5, gy - 12.4, 4, 3.6, Col(0xc9966a)); c.R(x + dx - 3, gy - 13.6, 7, 1.2, Col(0x3a2a1c)); c.R(x + dx - 2, gy - 3, 5, 3, Col(0x3a3230))
+            }
+            c.poly(Col(0x8a7a5a), [x + 26, gy, x + 34, gy - 12, x + 42, gy])
+        }
+        // the sealed boxcar, chalk marks and all
+        let cx = g.sCar.x
+        if vis(cx, 60) {
+            let x = (sx(cx) - 29).rounded(), gg = gy - 3
+            c.ell(x + 29, gy + 1, 34, 2.4, Col(0x000000, 0.2))
+            c.R(x, gg - 22, 58, 18, Col(0x6a3a2a))
+            var k = 0.0
+            while k < 58 { c.R(x + k, gg - 22, 1, 18, Col(0x140a06, 0.25)); k += 4 }
+            c.R(x - 1, gg - 24, 60, 2, Col(0x2a2220)); c.R(x, gg - 5, 58, 1, Col(0x2a2220))
+            if g.carCool > 0 { c.R(x + 21, gg - 21, 16, 17, Col(0x0e0908)) } else {
+                c.R(x + 21, gg - 21, 16, 17, Col(0x5a4638)); c.seg(x + 21, gg - 21, x + 37, gg - 4, 0.8, Col(0x3a2c24)); c.seg(x + 37, gg - 21, x + 21, gg - 4, 0.8, Col(0x3a2c24)); c.R(x + 28, gg - 13, 3, 3, Col(0xc9a14a))
+                if dk > 0.5 { c.glow(x + 29, gg - 13, 20, Col(0x8fcf6a, 0.25 + 0.1 * sin(g.clock * 3)), Col(0x8fcf6a, 0)) }
+            }
+            for (dx, dy) in [(6.0, -16.0), (8, -14), (10, -16), (46, -12), (48, -12), (47, -14), (47, -10), (44, -18)] { c.R(x + dx, gg + dy, 1, 1, Col(0xe8e2d2)) }
+            for wxx in [8.0, 16, 42, 50] { c.circ(x + wxx, gy - 2, 2.2, Col(0x1f1f26)) }
+        }
+    }
+
+    /// The saucer and its beam, and the train that is not there.
+    private func skyThings() {
+        if let gx = g.ghostX, vis(gx, 220) {
+            let x = sx(gx)
+            let col = Col(0xbfffd8, 0.3)
+            c.poly(col, [x, gy - 1, x + 8, gy - 9, x + 8, gy - 1])
+            c.RR(x + 8, gy - 23, 30, 13, 3, col); c.R(x + 12, gy - 30, 4, 7, col); c.R(x + 38, gy - 30, 16, 28, col)
+            c.R(x + 58, gy - 20, 20, 12, col)
+            for k in 0..<3 { c.R(x + 82 + Double(k) * 62, gy - 27, 58, 19, col); for wdx in [8.0, 20, 32, 44] { c.R(x + 82 + Double(k) * 62 + wdx, gy - 23, 6, 6, Col(0xe8fff0, 0.4)) } }
+            c.glow(x + 2, gy - 22, 30, Col(0xbfffd8, 0.3), Col(0xbfffd8, 0))
+        }
+        guard let u = g.ufo, vis(u.x, W) else { return }
+        let hx = sx(u.x), hy = gy - 76
+        var x = hx, y = hy + sin(g.clock * 3) * 1.5, beam = 0.0
+        if u.ph == 0 {
+            let k = min(1, u.t / 1.5), e = 1 - pow(1 - k, 3)
+            x = hx + u.side * W * 0.8 * (1 - e); y = -24 + (hy + 24) * e
+        } else if u.ph == 1 { beam = min(1, u.t / 0.35) * min(1, max(0, (2.95 - u.t) / 0.2)) } else {
+            let k = u.t / 1.1
+            x = hx + u.side * k * k * W * 1.2; y = hy - k * k * gy * 1.3
+        }
+        if beam > 0 {
+            c.poly(Col(0xb8ffd0, 0.22 * beam), [x - 6, y + 4, x + 6, y + 4, x + 20, gy, x - 20, gy])
+            c.poly(Col(0xe8fff0, 0.18 * beam), [x - 3, y + 4, x + 3, y + 4, x + 10, gy, x - 10, gy])
+            // what it is taking
+            c.save(); c.translate(0, -u.lift * 58); c.alpha(1 - u.lift * 0.5)
+            if let cw = u.cow { cowAt(cw.x, cw.dir, cw.calf ? 0.6 : 1, cw.seed, 0, horns: false) }
+            if let w = u.stray { cowAt(w.x, w.dir, 1, w.seed, 0, horns: true) }
+            if let m = u.mustang { _ = horse(sx(m.x), m.dir, 0, 0, Col(0x8a8480), Col(0x4a4642)) }
+            c.alpha(1); c.restore()
+        }
+        c.glow(x, y, 34, Col(0x8cf7b0, 0.3), Col(0x8cf7b0, 0))
+        c.ell(x, y, 17, 4.6, Col(0x8a94a4)); c.ell(x, y - 1.2, 15, 3, Col(0xc4ccd8))
+        c.ell(x, y - 4.4, 7, 4.4, Col(0xa8f0d0, 0.85)); c.ell(x - 2, y - 5.6, 2.6, 1.6, Col(0xffffff, 0.6))
+        for i in 0..<5 { c.circ(x - 12 + Double(i) * 6, y + 0.6, 1.1, Int(g.clock * 6 + Double(i)) % 2 == 0 ? Col(0xfff0a0) : Col(0xff6a5a)) }
     }
 
     /// The places out of town: trading post, scout camp, ghost town, oil derrick, the medicine show and the cavalry outpost.

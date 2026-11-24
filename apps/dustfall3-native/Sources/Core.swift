@@ -87,7 +87,7 @@ let LANDS: [Bio: Land] = [
     .snow: Land(far: 0xb6c1d2, mesa: 0x97a4b8, mesaS: 0x77859a, mesaT: 0xf4f8ff, scrub: 0x476a52, g0: 0xe6ebf2, edge: 0xffffff, street: 0xd6dee9, g1: 0xd6dee9, g2: 0xb9c6d6, speck: 0x9aa8bc, dust: 0xf6f9ff)
 ]
 
-enum BType: String { case store, saloon, sheriff, stable, bank, gateW, gateE, station, train, hall, wireW, wireE, bordello, doctor, church, forge, telegraph, claim, coach, sPost, sTribe, sRuin, sRig, sShow, sFort }
+enum BType: String { case store, saloon, sheriff, stable, bank, gateW, gateE, station, train, hall, wireW, wireE, bordello, doctor, church, forge, telegraph, claim, coach, sPost, sTribe, sRuin, sRig, sShow, sFort, sRods, sTower, sHobo, sCar }
 enum Role { case folk, deputy, miner, rancher }
 
 struct Def {
@@ -123,6 +123,10 @@ let DEFS: [BType: Def] = [
     .sRig: Def(name: "OIL SEEP", w: 0, h: 64, cost: [1], pay: 0, wall: 0, trim: 0, roof: 0, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: false),
     .sShow: Def(name: "MEDICINE SHOW", w: 0, h: 34, cost: [1], pay: 0, wall: 0, trim: 0, roof: 0, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: false),
     .sFort: Def(name: "CAVALRY OUTPOST", w: 0, h: 46, cost: [1], pay: 0, wall: 0, trim: 0, roof: 0, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: false),
+    .sRods: Def(name: "WINDMILL", w: 0, h: 76, cost: [1], pay: 0, wall: 0, trim: 0, roof: 0, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: false),
+    .sTower: Def(name: "WATER TOWER", w: 0, h: 78, cost: [1], pay: 0, wall: 0, trim: 0, roof: 0, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: false),
+    .sHobo: Def(name: "HOBO JUNGLE", w: 0, h: 34, cost: [1], pay: 0, wall: 0, trim: 0, roof: 0, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: false),
+    .sCar: Def(name: "SEALED BOXCAR", w: 0, h: 46, cost: [1], pay: 0, wall: 0, trim: 0, roof: 0, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: false),
     // the stagecoach while it waters its team: where a guard is paid for
     .coach: Def(name: "STAGECOACH", w: 38, h: 14, cost: [3], pay: 0, wall: 0, trim: 0, roof: 0, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: false),
     // not a building: the passenger car, where a ticket is paid
@@ -181,6 +185,11 @@ final class Building {
     var def: Def { return DEFS[type]! }
     var cx: Double { return x + def.w / 2 }
     var maxLevel: Int { return def.cost.count }
+    var fireT = -1.0          // seconds its roof has been burning; under 0 when it is not
+    var fireHp = 1.0          // how much fire is left to put out
+    var burning: Bool { return fireT >= 0 }
+    var rifles = 0            // coins paid tonight toward riflemen on a gatehouse roof, four a man
+    var rcd = 0.0
     var dyn = -1              // a site's price right now; under 0 for an ordinary building
     var site: Bool { return dyn >= 0 }
     var cost: Int { return dyn >= 0 ? dyn : (level < maxLevel ? Int((Double(def.cost[level]) * scale).rounded(.up)) : 0) }
@@ -214,6 +223,7 @@ final class Bandit {
     var x: Double
     var rider: Bool           // barbed wire can put him on foot
     var cut = false           // already through the wire
+    var torch = false         // carries a torch, and sets fire to what he robs
     var boss = false          // an outlaw with a bounty on him: slow, hard to kill, and he shoots back
     var cd2 = 2.0
     let side: Double          // which end of town he came from: -1 west, 1 east
@@ -248,6 +258,7 @@ struct Part {
     var grav: Double
 }
 
+/// (Also 8 a patch for a gate, 9 a rifleman for a gatehouse, 10 the church bell.)
 /// A coin in the air on its way to something: 0 the ground, 1 a building, 2 a drifter, 3 the sheriff's badge rack, 4 back to the rider, 5 the store's pick rack, 6 the bank, 7 the stable's rope rack.
 final class Coin {
     var sx: Double
@@ -289,6 +300,7 @@ struct Cow {
     var tx: Double
     var dir = 1.0
     var calf = true
+    var run = false           // stampeding
     var wait = 0.0
     var phase = 0.0
     let seed: Double
@@ -342,6 +354,7 @@ struct SaveData: Codable {
     var wx: [Double]?
     var place: String?
     var log: [String]?
+    var more: [Double]?       // rods, brigade, day the hobos last talked, boxcar cool, boxcars opened, bell, day of the last stampede
     var west: [Double]?       // dynamite, loader, lantern, day the post sold, scout days, ruin cool, rig, rig burning, show on, show used, cavalry
     var extra: [Double]?      // owed, flood, duelDay, wanted man's side (0 for none), his hit points, his days left
 }
@@ -412,6 +425,17 @@ struct Mustang {
     var phase = 0.0
     var speed = 0.0
     let seed: Double
+}
+/// Something that comes down on a clear night for a cow, a stray or a mustang: 0 coming in, 1 the beam is on, 2 leaving.
+struct Saucer {
+    var ph = 0
+    var t = 0.0
+    var x: Double
+    var side: Double
+    var lift = 0.0
+    var cow: Cow?
+    var stray: Stray?
+    var mustang: Mustang?
 }
 /// A cavalry trooper on patrol.
 struct Trooper {

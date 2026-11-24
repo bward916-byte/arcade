@@ -59,6 +59,175 @@ final class Game {
     var sRig = Building(.sRig, -600)
     var sShow = Building(.sShow, 752)
     var sFort = Building(.sFort, 2470)
+    var sRods = Building(.sRods, 992)
+    var sTower = Building(.sTower, 1206)
+    var sHobo = Building(.sHobo, 3090)
+    var sCar = Building(.sCar, 3182)
+    var rodsLv = 0
+    var towerLv = 0
+    var hoboDay = 0
+    var carCool = 0
+    var carN = 0                // boxcars opened, over the whole game
+    var bell = false            // the church bell has been rung: everyone indoors, deputies at the gates until dawn
+    var stampDay = 0
+    var stampede: (Int, Int)?   // head turned and head lost, while the herd is running
+    var ufo: Saucer?
+    var ufoAt = 0.0
+    var ghostAt = 0.0
+    var ghostX: Double?
+    var yardX: Double { return EX(2790) }
+
+    // ---------- fire: lightning or a raider's torch sets a roof alight, and the town fights it
+    func setFire(_ bl: Building, _ why: String) {
+        if bl.burning || bl.level == 0 || bl.building || bl.def.wall == 0 || bl.def.gate || bio == .snow { return }
+        bl.fireT = 0; bl.fireHp = 1
+        sfx?.box()
+        hint("fire", "\(why) the \(bl.label.lowercased()) alight! " + (towerLv > 0 ? "The fire brigade is on it." : "Townsfolk will fight it by hand. A fire brigade, raised at the water tower, would be much faster."), again: true)
+    }
+
+    private func updFires(_ dt: Double) {
+        for bl in b where bl.burning {
+            let hands = Double(folk.filter { $0.role == .folk && abs($0.x - bl.x) < 420 }.count)
+            let top = bl.def.h + Double(max(0, bl.level - 1)) * 5 + 10
+            bl.fireT += dt
+            bl.fireHp -= dt * (0.016 + hands * 0.011 + (towerLv > 0 ? 0.15 : 0) + rainI() * 0.03)
+            if chance(dt * 9) { parts.append(Part(x: bl.x + rnd(4, bl.def.w - 4), y: -top - rnd(2, 8), vx: rnd(6, 14), vy: -rnd(10, 18), life: rnd(1.4, 2.6), max: 2.6, c: Col(0x4e4a48, 0.7), s: rnd(2.5, 4.5), grav: -4)) }
+            if (hands > 0 || towerLv > 0) && chance(dt * (towerLv > 0 ? 26 : 5 + hands * 2)) {
+                parts.append(Part(x: bl.x + rnd(0, bl.def.w), y: -rnd(4, 10), vx: rnd(-10, 10), vy: -rnd(60, 70 + top * 1.6), life: 0.9, max: 0.9, c: Col(0x9fd0e8), s: 1.6, grav: 200))
+            }
+            if bl.fireHp <= 0 {
+                bl.fireT = -1
+                puff(bl.cx, -top, 8, Col(0xe4e8ec), 30)
+                hint("fireout", "The fire at the \(bl.label.lowercased()) is out.", again: true)
+            } else if bl.fireT > 22 {
+                let n = min(4, coins + bank), nb = min(n, bank)
+                bank -= nb; coins -= n - nb
+                bl.fireT = -1; bl.robbed = true
+                puff(bl.cx, -top, 10, Col(0x3a3634), 30)
+                hint("gutted", "The \(bl.label.lowercased()) burned out before anyone stopped it. Repairs cost you \(n) coins, and it pays nothing tomorrow.", again: true)
+            }
+        }
+    }
+
+    // ---------- stampede: thunder spooks the herd, and it runs east until you head it off
+    private func startStampede() {
+        if stampede != nil || herd.count < 3 || stampDay == day { return }
+        stampDay = day
+        stampede = (0, 0)
+        for i in herd.indices { herd[i].run = true }
+        hint("stampede", "Thunder has spooked the herd! They are running east. Ride out past them to turn them back before they are gone.", again: true)
+    }
+
+    private func updStampede(_ dt: Double) {
+        guard var s = stampede else { return }
+        var running = 0
+        var i = 0
+        let p = pasture
+        while i < herd.count {
+            var cw = herd[i]
+            if !cw.run { i += 1; continue }
+            cw.x += 34 * dt; cw.dir = 1; cw.phase += dt * 12
+            if chance(dt * 6) { parts.append(Part(x: cw.x - 5, y: 0, vx: -rnd(4, 14), vy: rnd(-14, -4), life: 0.5, max: 0.5, c: Col(terrain.dust, 0.6), s: rnd(1, 2.4), grav: 10)) }
+            if abs(cw.x - cam - W / 2) < W * 0.6 { shake = max(shake, 0.1) }
+            if px > cw.x - 6 && px - cw.x < 32 {
+                cw.run = false; cw.tx = rnd(p.0 + 8, p.1 - 8); cw.wait = 0
+                s.0 += 1
+            } else if cw.x > EX(2760) {
+                herd.remove(at: i); s.1 += 1
+                continue
+            } else { running += 1 }
+            herd[i] = cw
+            i += 1
+        }
+        if running == 0 {
+            stampede = nil
+            hint("stampEnd", s.1 > 0 ? "The stampede is over. You turned \(s.0) head and lost \(s.1)." : "You turned the whole herd. They are walking back to pasture.", again: true)
+        } else { stampede = s }
+    }
+
+    // ---------- something in the sky, and something on the old line
+    private func updUfo(_ dt: Double) {
+        guard var u = ufo else {
+            if ufoAt > 0 && t > ufoAt && dark() > 0.8 && wx == 0 && cut.isEmpty {
+                let lo = cam + 34, hi = cam + W - 34
+                var kinds: [Int] = []
+                if herd.contains(where: { !$0.run && $0.x > lo && $0.x < hi }) { kinds.append(0) }
+                if strays.contains(where: { !$0.tame && $0.x > lo && $0.x < hi }) { kinds.append(1) }
+                if mustangs.contains(where: { $0.st < 2 && $0.x > lo && $0.x < hi }) { kinds.append(2) }
+                guard let k = kinds.randomElement() else { return }
+                var s = Saucer(x: px, side: chance(0.5) ? -1 : 1)
+                if k == 0, let i = herd.firstIndex(where: { !$0.run && $0.x > lo && $0.x < hi }) { s.cow = herd[i]; s.x = herd[i].x; herd.remove(at: i) }
+                if k == 1, let i = strays.firstIndex(where: { !$0.tame && $0.x > lo && $0.x < hi }) { s.stray = strays[i]; s.x = strays[i].x; strays.remove(at: i) }
+                if k == 2, let i = mustangs.firstIndex(where: { $0.st < 2 && $0.x > lo && $0.x < hi }) { s.mustang = mustangs[i]; s.x = mustangs[i].x; mustangs.remove(at: i) }
+                ufo = s; ufoAt = 0
+            }
+            return
+        }
+        u.t += dt
+        if u.ph != 2 && Int(clock * 5) != Int((clock - dt) * 5) { sfx?.hum(clampD(1 - abs(u.x - px) / 320, 0.1, 1)) }
+        if u.ph == 0 {
+            if u.t > 1.7 { u.ph = 1; u.t = 0 }
+        } else if u.ph == 1 {
+            if gunT > 0.1 && abs(px - u.x) < 125 && u.lift < 0.95 {
+                // a round into it: it drops what it had and runs
+                if let c = u.cow { herd.append(c) }
+                if let w = u.stray { strays.append(w) }
+                if let m = u.mustang { mustangs.append(m) }
+                u.cow = nil; u.stray = nil; u.mustang = nil
+                puff(u.x, -74, 12, Col(0xb8ffd0), 60)
+                sfx?.box()
+                u.ph = 2; u.t = 0; u.lift = 1
+                hint("ufoshot", "You put a round into it. It dropped what it had and ran.", again: true)
+            } else {
+                u.lift = clampD((u.t - 0.45) / 2.3, 0, 1)
+                if chance(dt * 26) { parts.append(Part(x: u.x + rnd(-10, 10), y: -rnd(0, 10), vx: rnd(-3, 3), vy: -rnd(30, 64), life: rnd(0.6, 1.1), max: 1.1, c: chance(0.5) ? Col(0xb8ffd0) : Col(0xe8fff0), s: 1.6, grav: 0)) }
+                if u.t > 2.95 {
+                    let what = u.cow != nil ? "a cow" : (u.stray != nil ? "a stray longhorn" : "a wild mustang")
+                    u.cow = nil; u.stray = nil; u.mustang = nil
+                    u.ph = 2; u.t = 0
+                    shake = max(shake, 0.15)
+                    for _ in 0..<6 { dropCoin(u.x, 9) }
+                    hint("ufo", "Something came down out of the sky and took \(what). It left six coins in a scorched ring. A shot while the beam is on drives it off.", again: true)
+                }
+            }
+        } else if u.t > 1.1 { ufo = nil; return }
+        ufo = u
+    }
+
+    private func updYard(_ dt: Double) {
+        if ghostX == nil && ghostAt > 0 && t > ghostAt && px > EX(2500) {
+            ghostAt = 0
+            ghostX = WORLD + 80
+            sfx?.whistle()
+            hint("ghost", "A train that is not there goes through the yard without a sound on the rails.", again: true)
+        }
+        if let gx = ghostX {
+            ghostX = gx - 210 * dt
+            if gx < yardX - 320 { ghostX = nil }
+        }
+    }
+
+    /// The riflemen hired onto a gatehouse roof for the night.
+    private func updRifles(_ dt: Double) {
+        for g in [gateW, gateE] {
+            let n = g.rifles / 4
+            if n == 0 || g.hp <= 0 { continue }
+            g.rcd -= dt
+            if g.rcd > 0 { continue }
+            var tgt: Bandit?
+            var bd = 210 * sightK()
+            for bn in bandits where bn.hp > 0 {
+                let d = abs(bn.x - g.cx)
+                if d < bd { bd = d; tgt = bn }
+            }
+            guard let bn = tgt else { continue }
+            g.rcd = 1.3 / Double(n)
+            let dir = bn.x > g.cx ? 1.0 : -1.0
+            shots.append(Shot(x: g.cx + dir * 4, y: -44, vx: dir * 300, life: max(0.05, bd / 300), mine: false))
+            sfx?.gun(clampD(1 - abs(g.cx - px) / 320, 0.15, 1) * 0.6)
+            if chance(0.75) { hurt(bn, 1) }
+        }
+    }
     var dynamite = 0
     var loader = false
     var lantern = false
@@ -130,6 +299,51 @@ final class Game {
                 sfx?.empty()
                 hint("tonic3", "Coloured water. The professor tips his hat.", again: true)
             }
+        case .sRods:
+            rodsLv = 1
+            sfx?.fanfare(); puff(x, -50, 10, GOLD, 40)
+            hint("rods", "Lightning rods go up on every roof. A strike on town now runs harmlessly to ground.", again: true)
+        case .sTower:
+            towerLv = 1
+            sfx?.fanfare(); puff(x, -60, 10, GOLD, 40)
+            hint("brigade", "The town has a fire brigade. Roof fires go out fast now.", again: true)
+        case .sHobo:
+            hoboDay = day
+            sfx?.recruit(); puff(x, -20, 6, GOLD, 30)
+            let r = rnd(0, 1)
+            if r < 0.4 {
+                let spots: [(Double, String)] = [(330, "by the lone tree west of the mission"), (EX(2300), "under the rock arch east of town"), (-180, "between the trading post and the scout camp"), (826, "behind the old mine")]
+                let sp = spots[Int(rnd(0, 3.99))]
+                boxes.append(Box(sp.0, 8 + 2 * town))
+                hint("rumor1", "A hobo scratches a sign in the dirt: a box, buried \(sp.1).", again: true)
+            } else if r < 0.75 && raidSize(day - day0 + town) > 0 && t < 0.72 {
+                hint("rumor2", "\u{201C}They come from the \(side < 0 ? "west" : "east") tonight. We saw them watering up.\u{201D}", again: true)
+            } else {
+                dynamite += 1
+                hint("rumor3", "One of them sells you a stick of dynamite out of his bindle. No questions asked.", again: true)
+            }
+        case .sCar:
+            let n = carN
+            carN += 1; carCool = 3
+            sfx?.box(); shake = max(shake, 0.2); puff(x, -10, 12, Col(terrain.dust), 40)
+            func pay(_ k: Int) { for _ in 0..<k { dropCoin(x + rnd(-8, 8), 10) } }
+            if n == 0 {
+                pay(10)
+                cut = [Beat(art: "wire", head: "Inside the boxcar", cap: "Company ledgers, and proof: Crane paid a man to burn Dustfall.", lines: ["PAID VARNEY: DUSTFALL JOB", "PAID: TORCHES AND LAMP OIL", "SIGNED       S. CRANE"])]
+            } else if n == 1 {
+                dynamite += 2
+                hint("car2", "Blasting supplies, forgotten since the line was built. Two sticks of dynamite are still good.", again: true)
+            } else if n == 2 {
+                pay(12)
+                ufo = Saucer(ph: 2, x: x, side: 1, lift: 1)
+                hint("car3", "The door comes off and something green goes straight up out of it. It left twelve coins behind.", again: true)
+            } else if chance(0.3) {
+                dynamite += 1; pay(4)
+                hint("car4", "A few coins and a stick of dynamite, this time.", again: true)
+            } else {
+                pay(8 + Int(rnd(0, 6.99)))
+                hint("car5", "Coins in a mail sack. Nobody can say how it got in there.", again: true)
+            }
         case .sFort:
             fortNight = true
             sfx?.fanfare()
@@ -155,6 +369,14 @@ final class Game {
             return rigBurn ? "Oil derrick: on fire. 3 coins\(go) pays a crew to cap it. It pays nothing while it burns." : "Oil derrick: pumping. Pays \(rigPay) coins at the town centre every dawn. Lightning can set it alight."
         case .sShow:
             return showUsed ? "Medicine show: one bottle to a customer. He moves on in the morning." : "Medicine show: 3 coins\(go) for a bottle of tonic. It might put fire in your horse, pay out handsomely, or be coloured water."
+        case .sRods:
+            return rodsLv > 0 ? "Lightning rods: fitted to every roof. A strike on town runs harmlessly to ground." : "Windmill: 5 coins\(go) fits lightning rods to every roof, so a strike cannot start a fire."
+        case .sTower:
+            return towerLv > 0 ? "Water tower: the fire brigade is standing by. Roof fires go out fast." : "Water tower: 6 coins\(go) raises a fire brigade. Lightning and raiders' torches start roof fires, and the brigade puts them out fast."
+        case .sHobo:
+            return hoboDay == day ? "Hobo jungle: they have said all they are going to say today." : "Hobo jungle: 2 coins\(go) buys a rumour: a buried box, which side tonight's raid comes from, or something out of a bindle."
+        case .sCar:
+            return carCool > 0 ? "Sealed boxcar: empty for now. The hobos say it fills again by itself. Look in \(carCool) \(carCool > 1 ? "days" : "day")." : "Sealed boxcar: 5 coins\(go) pays a crew with crowbars. Nobody knows what is in it. It hums after dark."
         default:
             if fortNight { return "Cavalry outpost: a patrol rides tonight, as soon as raiders show." }
             return cav.isEmpty ? "Cavalry outpost: 8 coins\(go) calls out a patrol for tonight. They cut down raiders outside the walls." : "Cavalry outpost: the patrol is out."
@@ -394,6 +616,15 @@ final class Game {
             var hitX = cam + rnd(0, W)
             let outside = bandits.filter { $0.st != 3 && $0.hp > 0 && ($0.x < gateW.x - 20 || $0.x > gateE.x + 30) }
             if let bn = outside.randomElement(), chance(0.5) { hitX = bn.x; hurt(bn, 3); puff(bn.x, -8, 10, Col(0xfff6dc), 50) }
+            else if chance(0.3) {
+                // or a roof in town
+                let roofs = b.filter { $0.def.wall != 0 && !$0.def.gate && $0.level > 0 && !$0.building }
+                if let bl = roofs.randomElement() {
+                    hitX = bl.cx
+                    if rodsLv > 0 { hint("grounded", "The lightning rods took that one. No harm done.") } else { setFire(bl, "Lightning has set") }
+                }
+            }
+            if chance(0.5) { startStampede() }
             // lightning can set the derrick alight
             if rigLv > 0 && !rigBurn && chance(0.15) {
                 rigBurn = true; hitX = sRig.cx
@@ -437,6 +668,7 @@ final class Game {
     func reset() {
         state = .title
         town = 0; day = 1; day0 = 0; t = 0.6; clock = 0
+        carN = 0
         place = "dustfall"; log = []; choosing = false
         coins = 10; bank = 0
         hintText = ""; hintT = 0; seen = []
@@ -474,7 +706,9 @@ final class Game {
         if stage >= 4 { b.append(telegraph) }
         sPost = Building(.sPost, -90); sTribe = Building(.sTribe, -250); sRuin = Building(.sRuin, -434); sRig = Building(.sRig, -600)
         sShow = Building(.sShow, 752); sFort = Building(.sFort, EX(2470))
-        for st in [sPost, sTribe, sRuin, sRig, sShow, sFort] { st.dyn = 0; b.append(st) }
+        sRods = Building(.sRods, 992); sTower = Building(.sTower, 1206); sHobo = Building(.sHobo, EX(3090)); sCar = Building(.sCar, EX(3182))
+        rodsLv = 0; towerLv = 0; hoboDay = 0; carCool = 0; bell = false; stampDay = 0; stampede = nil; ufo = nil; ufoAt = 0; ghostAt = 0; ghostX = nil
+        for st in [sPost, sTribe, sRuin, sRig, sShow, sFort, sRods, sTower, sHobo, sCar] { st.dyn = 0; b.append(st) }
         dynamite = 0; loader = false; lantern = false; postSold = 0; scoutDays = 0; ruinCool = 0; rigLv = 0; rigBurn = false
         showOn = false; showUsed = false; tonicDay = 0; fortNight = false; cav = []
         mustangs = [Mustang(x: -540, seed: 0), Mustang(x: -150, seed: 1), Mustang(x: -360, seed: 2)]
@@ -512,6 +746,10 @@ final class Game {
         sRig.dyn = rigLv == 0 ? 14 : (rigBurn ? 3 : 0)
         sShow.dyn = showUsed ? 0 : 3; sShow.live = showOn
         sFort.dyn = fortNight || !cav.isEmpty ? 0 : 8
+        sRods.dyn = rodsLv > 0 ? 0 : 5
+        sTower.dyn = towerLv > 0 ? 0 : 6
+        sHobo.dyn = hoboDay == day ? 0 : 2
+        sCar.dyn = carCool > 0 ? 0 : 5
         for bl in b { bl.capL = bl.tier ? 1 + hall.level : 9 }
         station.capL = todo().isEmpty ? 9 : 0
     }
@@ -537,6 +775,7 @@ final class Game {
         for q in boxes { bx.append(q.open) }
         return SaveData(town: town, day: day, day0: day0, t: t, coins: purse, bank: bank, ammo: ammo, px: px, side: side,
                         train: train != nil, b: sb, folk: sf, drifters: dr, boxes: bx, seen: Array(seen), herd: herd.count, wx: [Double(wx), wxA, wxB], place: place, log: log,
+                        more: [Double(rodsLv), Double(towerLv), Double(hoboDay), Double(carCool), Double(carN), bell ? 1 : 0, Double(stampDay)],
                         west: [Double(dynamite), loader ? 1 : 0, lantern ? 1 : 0, Double(postSold), Double(scoutDays), Double(ruinCool), Double(rigLv), rigBurn ? 1 : 0, showOn ? 1 : 0, showUsed ? 1 : 0, fortNight ? 1 : 0],
                         extra: [Double(owed), Double(flood), Double(duelDay), outlaw?.side ?? 0, Double(outlaw?.hp ?? 0), Double(outlaw?.days ?? 0)])
     }
@@ -571,6 +810,7 @@ final class Game {
         }
         for (i, bx) in boxes.enumerated() where i < s.boxes.count { bx.open = s.boxes[i] }
         for _ in 0..<max(0, min(12, s.herd ?? 0)) { addCow(calf: false) }
+        if let m = s.more, m.count == 7 { rodsLv = Int(m[0]); towerLv = Int(m[1]); hoboDay = Int(m[2]); carCool = Int(m[3]); carN = Int(m[4]); bell = m[5] > 0; stampDay = Int(m[6]) }
         if let w = s.west, w.count == 11 {
             dynamite = Int(w[0]); loader = w[1] > 0; lantern = w[2] > 0; postSold = Int(w[3]); scoutDays = Int(w[4]); ruinCool = Int(w[5])
             rigLv = Int(w[6]); rigBurn = w[7] > 0; showOn = w[8] > 0; showUsed = w[9] > 0; fortNight = w[10] > 0
@@ -613,6 +853,11 @@ final class Game {
             wireE.level = 1
             for i in 0..<5 { bandits.append(Bandit(x: 2010 + Double(i) * 30, rider: i % 3 == 2, side: 1, hp: 3)) }
             px = 1850; folk[0].x = 1925; folk[1].x = 1916
+        } else if name == "fire" {
+            t = 0.5; hall.level = 2; saloon.fireT = 4; saloon.fireHp = 0.8; towerLv = 1; rodsLv = 1; px = 1180; pdir = 1
+        } else if name == "yard" {
+            t = 0.84; hall.level = 1; px = EX(3130); pdir = 1; ghostX = EX(3330)
+            ufo = Saucer(ph: 1, t: 1.4, x: EX(3040), side: 1, lift: 0.4, stray: Stray(x: EX(3040), tx: 0, seed: 1))
         } else if name == "west" {
             hall.level = 1; rigLv = 1; px = -560; pdir = -1; mustangs[0].x = -520; mustangs[2].x = -480; mustangs[0].st = 2; sRig.paid = 0
         } else if name == "west2" {
@@ -711,6 +956,11 @@ final class Game {
         updWx(dt)
         updCoach(dt)
         updCav(dt)
+        updFires(dt)
+        updStampede(dt)
+        updUfo(dt)
+        updYard(dt)
+        updRifles(dt)
         updMustangs(dt)
         updOutlaw(dt)
         updStrays(dt)
@@ -811,6 +1061,25 @@ final class Game {
         // 3: an open bank keeps what you toss it
         if atBank() {
             flying.append(Coin(sx: px, sy: sy, tx: bankB.cx, ty: -14, kind: 6)); coins -= 1; sfx?.toss(); return
+        }
+        // after dark, a coin patches a damaged gate, or goes toward a rifleman on a gatehouse roof
+        if dark() > 0.3 {
+            for g in [gateW, gateE] where g.level > 0 && g.hp > 0 && !g.building && abs(px - g.cx) < g.def.w / 2 + 12 {
+                let full = GHP[min(3, g.level)]
+                if g.hp + 8 * Double(g.incoming) < full {
+                    let c = Coin(sx: px, sy: sy, tx: g.cx, ty: -10, kind: 8); c.bld = g
+                    flying.append(c); g.incoming += 1; coins -= 1; sfx?.toss(); return
+                }
+                if g.level > 2 && g.rifles + g.incoming < 12 {
+                    let c = Coin(sx: px, sy: sy, tx: g.cx, ty: -44, kind: 9); c.bld = g
+                    flying.append(c); g.incoming += 1; coins -= 1; sfx?.toss(); return
+                }
+            }
+        }
+        // a coin at an open church rings the bell
+        if has(church) && church.level > 0 && !church.building && !bell && church.incoming == 0 && church.payable == false && abs(px - church.cx) < church.def.w / 2 + 12 {
+            let c = Coin(sx: px, sy: sy, tx: church.cx, ty: -62, kind: 10)
+            flying.append(c); church.incoming += 1; coins -= 1; sfx?.toss(); return
         }
         // 4: a building that can take coins, or the passenger car
         var best: Building?
@@ -936,6 +1205,18 @@ final class Game {
                 pickPaid = 0
                 if let f = nearestIdle(rackX(store)) { f.role = .miner; sfx?.fanfare(); hint("miner", "A prospector. He works the old mine west of town and brings a coin back each morning.") }
             }
+        case 8:
+            if let g = c.bld { g.incoming -= 1; g.hp = min(GHP[min(3, g.level)], g.hp + 8); g.flash = 0.2; sfx?.hammer(1) }
+        case 9:
+            if let g = c.bld {
+                g.incoming -= 1; g.rifles += 1; sfx?.slot()
+                if g.rifles % 4 == 0 { sfx?.recruit(); hint("rifle", "A rifleman climbs onto the gatehouse roof for the night. \(g.rifles / 4) of 3.", again: true) }
+            }
+        case 10:
+            church.incoming -= 1
+            bell = true
+            sfx?.bell(); church.flash = 0.3
+            hint("bell", "The bell rings out. Everyone is running for cover, and the deputies are at their posts until dawn.", again: true)
         case 7:
             sfx?.slot()
             if let f = nearestIdle(rackX(stable)) { f.role = .rancher; f.tend = 0; sfx?.fanfare(); hint("rancher", "A rancher. They raise cattle in the pasture east of town, and each grown cow pays 2 coins at dawn.") }
@@ -965,7 +1246,7 @@ final class Game {
 
     private func updFolk(_ dt: Double) {
         let s = site()
-        let night = dark() > 0.4 || !bandits.isEmpty
+        let night = dark() > 0.4 || !bandits.isEmpty || bell
         var dep = 0
         var plain = 0
         var ranch = 0
@@ -1014,6 +1295,7 @@ final class Game {
                 if let st = s {
                     f.tx = st.x + 6 + Double(plain % 5) * (st.def.w - 12) / 5
                     if abs(f.x - f.tx) < 3 { f.work = true }
+                } else if bell { f.tx = saloon.cx + Double(plain % 5) * 5 - 10       // indoors, more or less
                 } else if f.wait <= 0 && !f.moving { f.tx = FIRE_X + rnd(-150, 150); f.wait = rnd(2, 7) }
                 plain += 1
             }
@@ -1055,6 +1337,7 @@ final class Game {
                 else { hint("hall2", "A clock tower. Buildings can reach their third level, and the railroad will come to a town like this once the station is rebuilt.") }
             case .wireW, .wireE:
                 hint("wire\(bl.level)", ["Barbed wire. It slows raiders on that side and throws riders from their horses.", "A second apron of wire. It slows them more and cuts whoever crosses it.", "A sharpshooter is dug in behind the wire. He picks raiders off before they reach the gate."][min(2, bl.level - 1)])
+            case .church: hint("church1", "The church is raised. Toss a coin at it to ring the bell: everyone runs indoors and the deputies man the gates.")
             case .bordello: hint("bordello1", "The bordello is open. It pays out every morning and draws newcomers to the camps.")
             case .forge: hint("forge\(bl.level)", bl.level == 1 ? "The blacksmith is at work. Deputies shoot further and miss less." : "New shoes all round: your horse is faster.", again: true)
             case .telegraph: hint("telegraph1", "The telegraph is working. At dusk it tells you which side the raid will come from.")
@@ -1139,6 +1422,11 @@ final class Game {
         if scoutDays > 0 { scoutDays -= 1 }
         if ruinCool > 0 { ruinCool -= 1 }
         fortNight = false; cav = []
+        bell = false; gateW.rifles = 0; gateE.rifles = 0
+        if carCool > 0 { carCool -= 1 }
+        ghostX = nil; ufo = nil
+        ufoAt = day - day0 >= 2 && chance(0.36) ? rnd(0.8, 0.93) : 0
+        ghostAt = chance(0.4) ? rnd(0.82, 0.96) : 0
         if rigLv > 0 && !rigBurn { for _ in 0..<rigPay { dropCoin(FIRE_X + rnd(-12, 12), 6) }; total += rigPay }
         let lnW = day - day0
         showOn = lnW >= 2 && lnW % 4 == 2; showUsed = false
@@ -1274,6 +1562,7 @@ final class Game {
                 let x = r.side < 0 ? 600 - rnd(0, 120) : EX(2300) + rnd(0, 120)
                 let bn = Bandit(x: x, rider: r.rider, side: r.side, hp: (r.boss ? 12 : (r.rider ? 3 : 2)) + r.hp)
                 bn.boss = r.boss
+                bn.torch = !r.boss && chance(0.4)
                 bandits.append(bn)
                 raid.remove(at: i)
             } else { i += 1 }
@@ -1356,7 +1645,10 @@ final class Game {
             case 2:
                 bn.t += dt
                 if bn.t > 2.4, let tg = bn.target {
-                    if !tg.robbed && tg.level > 0 { tg.robbed = true; bn.loot = 2; sfx?.rob(); hint("robbed", "A raider robbed a business. It will pay nothing in the morning unless you shoot him before he gets away.", again: true) }
+                    if !tg.robbed && tg.level > 0 {
+                        tg.robbed = true; bn.loot = 2; sfx?.rob(); hint("robbed", "A raider robbed a business. It will pay nothing in the morning unless you shoot him before he gets away.", again: true)
+                        if bn.torch && rainI() < 0.3 { setFire(tg, "A torch has set") }
+                    }
                     bn.st = 3
                 }
             case 3:
@@ -1633,7 +1925,9 @@ final class Game {
         let p = pasture
         for i in herd.indices {
             var cw = herd[i]
+            if cw.run { continue }
             cw.wait -= dt
+            if cw.x > p.1 + 4 { cw.dir = -1; cw.x -= 30 * dt; cw.phase += dt * 10; herd[i] = cw; continue }      // walking back after a stampede
             if cw.wait <= 0 && abs(cw.x - cw.tx) < 1 { cw.tx = rnd(p.0 + 8, p.1 - 8); cw.wait = rnd(4, 12) }
             let d = cw.tx - cw.x
             if abs(d) >= 1 && cw.wait < 3 { cw.dir = d > 0 ? 1 : -1; cw.x += cw.dir * 7 * dt; cw.phase += dt * 5 }
@@ -1670,6 +1964,15 @@ final class Game {
             if d < bl.def.w / 2 + 12 && d < bd { bd = d; best = bl }
         }
         guard let bl = best else { return }
+        if bl.def.gate && bl.level > 0 && bl.hp > 0 && !bl.building && dark() > 0.3 {
+            if bl.hp < GHP[min(3, bl.level)] { info = "\(bl.label): 1 coin patches some of the damage."; return }
+            if bl.level > 2 && bl.rifles < 12 { info = "Gatehouse: 4 coins hires a rifleman for tonight. Up to three (\(bl.rifles / 4) hired, \(bl.rifles % 4) of 4 in)."; return }
+        }
+        if bl.type == .church && bl.level > 0 && !bl.building {
+            info = bell ? "Church: the bell has been rung. Everyone is under cover until dawn." : "Church bell: 1 coin. Everyone runs indoors and deputies man the gates until dawn."
+            return
+        }
+        if bl.burning { info = "\(bl.label): on fire! " + (towerLv > 0 ? "The brigade is on it." : "Townsfolk are fighting it by hand."); return }
         if bl.site {
             if bl.payable { slotsFor = bl }
             info = siteInfo(bl)
