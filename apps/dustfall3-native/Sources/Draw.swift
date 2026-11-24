@@ -1955,7 +1955,7 @@ final class Renderer {
 
     private func bandit(_ bn: Bandit) {
         if !vis(bn.x, 30) { return }
-        let dir = bn.st == 3 ? bn.side : -bn.side
+        let dir = bn.st == 3 ? bn.side : (bn.face != 0 ? bn.face : -bn.side)
         let x = sx(bn.x)
         let moving = bn.st == 0 || bn.st == 3
         c.save()

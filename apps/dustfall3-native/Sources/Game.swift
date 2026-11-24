@@ -1868,6 +1868,27 @@ final class Game {
             default:
                 let dir = -bn.side
                 let outside = bn.side < 0 ? bn.x < gx - 9 : bn.x > gx + 9
+                // as in the web game: a coin lying loose is worth a detour, and so is a rider with a purse.
+                // A standing gate still stops him, so he only goes after what is on his own side of it.
+                func near(_ wx: Double) -> Bool { let o = bn.side < 0 ? wx < gx - 9 : wx > gx + 9; return o == outside || gate.level == 0 }
+                bn.face = 0
+                if !bn.boss && !bn.rustle {
+                    var gi = -1, gd = 55.0
+                    for (k, gc) in ground.enumerated() where gc.y <= 0.5 && abs(gc.x - bn.x) < gd && near(gc.x) { gd = abs(gc.x - bn.x); gi = k }
+                    if gi >= 0 {
+                        let dx = ground[gi].x - bn.x
+                        if abs(dx) < 3 { ground.remove(at: gi); bn.loot += 1; bn.st = 3; sfx?.pick() }
+                        else { bn.face = sgn(dx); bn.x += sgn(dx) * sp * dt; bn.phase += dt * (bn.rider ? 12 : 9) }
+                        i += 1
+                        continue
+                    }
+                }
+                if !bn.rustle && tripT < 0 && bn.hitT <= 0 && abs(px - bn.x) < 75 && abs(px - bn.x) >= 8 && near(px) {
+                    bn.face = sgn(px - bn.x)
+                    bn.x += bn.face * sp * dt; bn.phase += dt * (bn.rider ? 12 : 9)
+                    i += 1
+                    continue
+                }
                 // rustlers go for a cow in the pasture
                 if bn.rustle, let ci = herd.firstIndex(where: { !$0.run && abs($0.x - bn.x) < 80 }) {
                     let dx = herd[ci].x - bn.x

@@ -94,6 +94,7 @@ final class GameViewController: UIViewController {
     private let cutTap = UILabel()
     private var cutShown = ""
     private let overBox = UIView()
+    private var mapLayers: [CALayer] = []
     private let pausePlaque = UIView()
     private let overPlaque = UIView()
     private let overTitle = UILabel()
@@ -568,18 +569,44 @@ final class GameViewController: UIViewController {
         let bw = view.bounds.width, bh = view.bounds.height
         let ins = view.safeAreaInsets
         let l = max(ins.left, 16), r = max(ins.right, 16)
+        let ink = UIColor(red: 0.16, green: 0.1, blue: 0.06, alpha: 1)
         let head = UILabel(frame: CGRect(x: 0, y: 12, width: bw, height: 30))
         head.text = choose ? "The line forks. Where to?" : "The territory"
-        head.font = rye(22); head.textColor = gold; head.textAlignment = .center
+        head.font = rye(22); head.textColor = UIColor(red: 0.54, green: 0.18, blue: 0.15, alpha: 1); head.textAlignment = .center
         mapBox.addSubview(head)
         let n = STAGES.count
         let cur = game.town % n, lap = game.town / n, nxt = (cur + 1) % n
         let cw = (bw - l - r) / CGFloat(n)
         let rowH = (bh - 84 - 50) / 2
+        // a sheet of old paper, with the line drawn from stop to stop and forking where the towns do
+        for ly in mapLayers { ly.removeFromSuperlayer() }
+        let parch = CAGradientLayer()
+        parch.type = .radial
+        parch.colors = [UIColor(red: 0.91, green: 0.83, blue: 0.63, alpha: 1).cgColor, UIColor(red: 0.82, green: 0.7, blue: 0.47, alpha: 1).cgColor, UIColor(red: 0.5, green: 0.36, blue: 0.2, alpha: 1).cgColor]
+        parch.locations = [0, 0.72, 1]
+        parch.startPoint = CGPoint(x: 0.5, y: 0.5)
+        parch.endPoint = CGPoint(x: 1.06, y: 1.2)
+        parch.frame = view.bounds
+        let track = CAShapeLayer()
+        track.frame = view.bounds
+        track.fillColor = nil
+        track.strokeColor = ink.withAlphaComponent(0.8).cgColor
+        track.lineWidth = 3
+        track.lineDashPattern = [10, 7]
+        let tp = UIBezierPath()
+        func stops(_ i: Int) -> [CGPoint] {
+            let cnt = STAGES[i].count
+            return (0..<cnt).map { (k: Int) -> CGPoint in CGPoint(x: l + CGFloat(i) * cw + cw / 2, y: 82 + CGFloat(k) * rowH + (cnt == 1 ? rowH / 2 : 0) + 24) }
+        }
+        for i in 0..<(n - 1) { for a in stops(i) { for b in stops(i + 1) { tp.move(to: a); tp.addLine(to: b) } } }
+        track.path = tp.cgPath
+        mapBox.layer.insertSublayer(parch, at: 0)
+        mapBox.layer.insertSublayer(track, above: parch)
+        mapLayers = [parch, track]
         for (i, opts) in STAGES.enumerated() {
             let x = l + CGFloat(i) * cw
             let hd = UILabel(frame: CGRect(x: x + 2, y: 46, width: cw - 4, height: 30))
-            hd.text = STAGE_NEW[i]; hd.font = serif(11, bold: false); hd.textColor = cream.withAlphaComponent(0.75)
+            hd.text = STAGE_NEW[i]; hd.font = serif(11, bold: false); hd.textColor = ink.withAlphaComponent(0.8)
             hd.textAlignment = .center; hd.numberOfLines = 2
             mapBox.addSubview(hd)
             for (k, key) in opts.enumerated() {
@@ -601,11 +628,12 @@ final class GameViewController: UIViewController {
                 b.accessibilityIdentifier = key
                 b.addTarget(self, action: #selector(pickPlace(_:)), for: .touchUpInside)
                 if hereNow { b.layer.borderColor = gold.cgColor; b.layer.borderWidth = 2 }
-                if !pick && !hereNow && !been { b.alpha = 0.5 }
+                if !pick && !hereNow && !been { b.alpha = 0.72 }
                 mapBox.addSubview(b)
                 if pick || hereNow {
                     let nt = UILabel(frame: CGRect(x: x + 4, y: y + 50, width: cw - 8, height: min(rowH - 54, 60)))
-                    nt.text = pl.note; nt.font = serif(10.5, bold: false); nt.textColor = cream
+                    nt.text = pl.note; nt.font = serif(10.5); nt.textColor = ink
+                    nt.backgroundColor = UIColor(red: 0.91, green: 0.83, blue: 0.63, alpha: 0.85); nt.layer.cornerRadius = 4; nt.layer.masksToBounds = true
                     nt.textAlignment = .center; nt.numberOfLines = 0; nt.adjustsFontSizeToFitWidth = true; nt.minimumScaleFactor = 0.7
                     mapBox.addSubview(nt)
                 }
@@ -620,7 +648,7 @@ final class GameViewController: UIViewController {
         } else {
             let ft = UILabel(frame: CGRect(x: 0, y: bh - 40, width: bw, height: 24))
             ft.text = "You step off with \(game.carryOut()) coins either way."
-            ft.font = serif(13, bold: false); ft.textColor = cream; ft.textAlignment = .center
+            ft.font = serif(13); ft.textColor = ink; ft.textAlignment = .center
             mapBox.addSubview(ft)
         }
     }
@@ -750,6 +778,14 @@ final class GameViewController: UIViewController {
     private func updateHUD() {
         let playing = game.state == .play && game.gallery == nil
         titleBox.isHidden = game.state != .title
+        if game.state == .title, let face = titleLayers.last {
+            // lightning lights the name, as on the web title
+            let fl = Float(min(1, max(0, game.bolt / 0.35)))
+            face.layer.shadowColor = UIColor(red: 0.75, green: 0.82, blue: 1, alpha: 1).cgColor
+            face.layer.shadowOffset = .zero
+            face.layer.shadowRadius = 16
+            face.layer.shadowOpacity = fl
+        }
         let intro = game.state == .intro
         introTop.isHidden = !intro; introBot.isHidden = !intro; introSkip.isHidden = !intro
         introCap.isHidden = !intro || game.introCap.isEmpty

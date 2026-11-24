@@ -239,6 +239,7 @@ final class Bandit {
     var flash = 0.0
     var loot = 0
     var target: Building?
+    var face = 0.0            // which way he is heading while he goes after a coin or the rider; 0 when on his usual way
     init(x: Double, rider: Bool, side: Double, hp: Int) { self.x = x; self.rider = rider; self.side = side; self.hp = hp }
 }
 
