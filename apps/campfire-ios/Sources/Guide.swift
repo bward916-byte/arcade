@@ -117,13 +117,13 @@ struct GuideView: View {
     @EnvironmentObject private var guide: GuideStore
     @State private var suggesting = false
     @State private var section = ProcessInfo.processInfo.arguments.contains("-demo-areamap") ? "areamap" : "start"
-    private let icons = ["start": "flag", "areamap": "map", "camping": "tent", "wash": "water.waves", "services": "wrench.and.screwdriver", "rocks": "diamond", "mines": "hammer", "trips": "car", "nature": "leaf", "nomad": "bus", "town": "building.2"]
+    private let icons = ["start": "flag", "areamap": "map", "camping": "tent", "wash": "water.waves", "services": "wrench.and.screwdriver", "rocks": "diamond", "mines": "hammer", "photos": "photo.on.rectangle", "trips": "car", "nature": "leaf", "nomad": "bus", "town": "building.2"]
     @State private var search = ""
 
     private let sections: [Category] = [
         Category(id: "start", name: "Start here"), Category(id: "areamap", name: "Map"), Category(id: "camping", name: "Camping"), Category(id: "wash", name: "Washes"),
         Category(id: "services", name: "Services"), Category(id: "rocks", name: "Rockhounding"),
-        Category(id: "mines", name: "Gold and ghost camps"), Category(id: "trips", name: "Trips and trails"), Category(id: "nature", name: "Plants and animals"), Category(id: "nomad", name: "Nomads and skoolies"), Category(id: "town", name: "Town")
+        Category(id: "mines", name: "Gold and ghost camps"), Category(id: "trips", name: "Trips and trails"), Category(id: "photos", name: "Photos"), Category(id: "nature", name: "Plants and animals"), Category(id: "nomad", name: "Nomads and skoolies"), Category(id: "town", name: "Town")
     ]
 
     // The lists to show: one section, or every card that matches the search.
@@ -204,6 +204,9 @@ struct GuideView: View {
                             ProgressView().frame(maxWidth: .infinity)
                         }
                     }
+                }
+                if search.isEmpty && section == "photos" {
+                    AlbumSection()
                 }
                 if search.isEmpty && section == "areamap", let data = guide.data {
                     AreaMapSection(data: data)
