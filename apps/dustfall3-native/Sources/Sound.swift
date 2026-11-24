@@ -22,6 +22,8 @@ final class Sound {
     private let lock = NSLock()
     private let rate = 44100.0
     private var running = false
+    private var echo = [Float](repeating: 0, count: 14553)
+    private var echoI = 0
     var muted = false
     private let SCALE: [Double] = [110, 130.8, 146.8, 164.8, 196, 220, 261.6, 293.7, 329.6, 392, 440]
 
@@ -78,13 +80,22 @@ final class Sound {
                     case 0: x = sin(2 * PI * p)
                     case 1: x = 4 * abs(p - 0.5) - 1
                     case 2: x = p < 0.5 ? 0.6 : -0.6
+                    case 5:
+                        // a plucked string: bright at the attack, mellowing as it rings
+                        let cut = 0.03 + 0.55 * pow(1 - u, 4)
+                        v.low += cut * ((2 * p - 1) - v.low)
+                        x = v.low * 1.5
                     default: x = (2 * p - 1) * 0.7
                     }
                 }
                 s += x * env
                 voices[k] = v
             }
-            out[i] = Float(max(-1, min(1, s * 1.4)))
+            // a short echo, as off a canyon wall
+            let back = Double(echo[echoI])
+            echo[echoI] = Float(s + back * 0.3)
+            echoI = (echoI + 1) % echo.count
+            out[i] = Float(max(-1, min(1, (s + back * 0.22) * 1.4)))
         }
         voices.removeAll { $0.t > $0.dur }
         lock.unlock()
@@ -93,7 +104,7 @@ final class Sound {
     private func add(_ v: Voice) {
         if muted || !running { return }
         lock.lock()
-        if voices.count < 28 { voices.append(v) }
+        if voices.count < 40 { voices.append(v) }
         lock.unlock()
     }
     func tone(_ f: Double, _ d: Double, _ wave: Int, _ vol: Double, _ f2: Double = 0, _ delay: Double = 0) {
@@ -135,35 +146,78 @@ final class Sound {
     func chuff(_ v: Double) { noise(0.12, 0.22 * v, 420, 1) }
     func hoof(_ v: Double) { noise(0.035, 0.07 * v, 320, 1.2) }
 
-    // ---------- music: one small band, a different pattern for day, dusk, night and a raid
+    // ---------- music: a written tune for each time of day, over a guitar and bass, four bars round and round
     private var seqT = 0.0
-    private var seqI = 0
-    private var noteI = 4
-    private let patterns: [(Double, [Character], Double)] = [
-        (0.24, Array("D..t..D.t...D.t."), 0.36), (0.32, Array("D.....t...D....."), 0.28),
-        (0.44, Array("........D......."), 0.14), (0.16, Array("D.DtD.t.D.DtDtt."), 0.32)
+    private var seqI = 63
+    private var lastMode = -1
+    private var cycle = 0
+    private func mf(_ m: Int) -> Double { return 440 * pow(2, Double(m - 69) / 12) }
+    /// Each chord: the bass note, then three strings of the guitar.
+    private let CH: [String: [Int]] = ["Am": [45, 57, 60, 64], "C": [48, 55, 60, 64], "G": [43, 55, 59, 62], "E": [40, 56, 59, 64], "F": [41, 57, 60, 65], "Dm": [38, 57, 62, 65]]
+    private let PROG: [[String]] = [["Am", "C", "G", "E"], ["Am", "F", "C", "E"], ["Am", "Dm", "Am", "E"], ["Am", "Am", "F", "E"]]
+    private let STEP: [Double] = [0.2, 0.3, 0.42, 0.15]
+    /// The tunes, sixteen steps to the bar; 0 is a rest.
+    private let TUNE: [[Int]] = [
+        [69, 0, 0, 72, 0, 0, 76, 0, 74, 0, 72, 0, 69, 0, 0, 0,
+         72, 0, 0, 76, 0, 0, 79, 0, 76, 0, 0, 0, 72, 0, 74, 0,
+         74, 0, 0, 71, 0, 0, 67, 0, 71, 0, 74, 0, 79, 0, 0, 0,
+         76, 0, 0, 0, 71, 0, 68, 0, 71, 0, 0, 0, 0, 0, 0, 0],
+        [76, 0, 0, 0, 0, 0, 72, 0, 69, 0, 0, 0, 0, 0, 0, 0,
+         72, 0, 0, 0, 0, 0, 69, 0, 65, 0, 0, 0, 0, 0, 0, 0,
+         67, 0, 0, 0, 72, 0, 0, 0, 76, 0, 0, 0, 0, 0, 0, 0,
+         71, 0, 0, 0, 0, 0, 68, 0, 64, 0, 0, 0, 0, 0, 0, 0],
+        [],
+        [57, 0, 60, 0, 64, 0, 60, 0, 57, 0, 60, 0, 64, 62, 60, 0,
+         57, 0, 60, 0, 64, 0, 60, 0, 57, 0, 60, 0, 64, 67, 69, 0,
+         53, 0, 57, 0, 60, 0, 57, 0, 53, 0, 57, 0, 60, 59, 57, 0,
+         52, 0, 56, 0, 59, 0, 56, 0, 52, 0, 56, 0, 59, 62, 64, 0]
     ]
     /// mode: 0 day, 1 dusk, 2 night, 3 raid.
     func music(_ now: Double, _ mode: Int) {
         if muted || !running || now < seqT { return }
-        let m = patterns[max(0, min(3, mode))]
-        seqT = (seqT < now - 1 ? now : seqT) + m.0
-        seqI = (seqI + 1) % 16
-        let ch = m.1[seqI]
-        let raid = mode == 3
-        if ch == "D" { tone(raid ? 70 : 92, 0.15, 0, 0.09, raid ? 44 : 56) } else if ch == "t" { noise(0.03, 0.04, 3000, 2) }
-        if seqI == 0 {
-            if raid { tone(55, 2.3, 3, 0.028); tone(58.3, 2.3, 3, 0.014) } else if mode == 2 { tone(55, 3, 0, 0.03) } else if mode == 1 { tone(55, 2.6, 0, 0.035) }
+        let md = max(0, min(3, mode))
+        if md != lastMode { lastMode = md; seqI = 63 }
+        seqT = (seqT < now - 1 ? now : seqT) + STEP[md]
+        seqI = (seqI + 1) % 64
+        if seqI == 0 { cycle += 1 }
+        let st = seqI % 16, bar = seqI / 16
+        let ch = CH[PROG[md][bar]] ?? [45, 57, 60, 64]
+        func strum(_ vol: Double, _ dur: Double) {
+            for i in 1..<ch.count { tone(mf(ch[i]), dur, 5, vol, 0, Double(i - 1) * 0.018) }
         }
-        if Double.random(in: 0..<1) < m.2 && (!raid || seqI % 2 == 0) {
-            let steps = [-2, -1, -1, 1, 1, 2]
-            noteI = max(raid ? 0 : 1, min(raid ? 5 : SCALE.count - 1, noteI + steps[Int.random(in: 0..<6)]))
-            let f = SCALE[noteI]
-            switch mode {
-            case 0: tone(f * 2, 0.42, 1, 0.035); tone(f * 4.006, 0.2, 0, 0.01)
-            case 1: tone(f * 2, 1.2, 0, 0.03, f * 2.01)
-            case 2: tone(f * 2, 1.5, 0, 0.02, f * 2.004)
-            default: tone(f, 0.22, 3, 0.03); tone(f * 0.5, 0.22, 2, 0.012)
+        switch md {
+        case 0:
+            // boom-chick: bass on one and three, the guitar answering, a brush on the off-beats
+            if st == 0 { tone(mf(ch[0]), 0.5, 5, 0.1) } else if st == 8 { tone(mf(ch[0] + 7), 0.45, 5, 0.085) }
+            if st == 4 || st == 12 { strum(0.045, 0.6) }
+            if st == 14 && bar == 3 { strum(0.03, 0.4) }
+            if st % 4 == 2 { noise(0.03, 0.02, 3200, 2) }
+        case 1:
+            // dusk: the chord picked out a string at a time
+            if st == 0 { tone(mf(ch[0]), 1.6, 5, 0.09) }
+            if st % 4 == 0 { tone(mf(ch[1 + (st / 4) % 3]), 1.1, 5, 0.04) }
+            if st == 10 { tone(mf(ch[3]), 0.9, 5, 0.03) }
+        case 2:
+            // night: a low drone, a few picked notes, crickets
+            if st == 0 { tone(mf(ch[0]), 3.4, 0, 0.035); tone(mf(ch[0]) * 1.5, 3.4, 0, 0.012) }
+            if st == 4 || st == 9 || st == 13 { tone(mf(ch[1 + st % 3]), 1.6, 5, 0.028) }
+            if st % 2 == 1 && Double.random(in: 0..<1) < 0.5 { noise(0.02, 0.012, 5200, 6) }
+        default:
+            // a raid: driving bass, a kick and a rattle, the guitar stabbing
+            if st % 2 == 0 { tone(mf(ch[0] + (st % 4 == 2 ? 12 : 0)), 0.16, 3, 0.05) }
+            if st % 4 == 0 { tone(72, 0.14, 0, 0.1, 44) }
+            if st % 4 == 2 { noise(0.05, 0.05, 2600, 2) }
+            if st % 8 == 6 { strum(0.03, 0.25) }
+            if st == 0 && bar % 2 == 0 { tone(55, 2.3, 3, 0.02); tone(58.3, 2.3, 3, 0.01) }
+        }
+        // the tune comes in every other time round by day and at dusk, so the band gets a turn alone
+        let tune = TUNE[md]
+        if !tune.isEmpty && (md == 3 || cycle % 2 == 1) && tune[seqI] > 0 {
+            let f = mf(tune[seqI])
+            switch md {
+            case 0: tone(f, 0.5, 1, 0.04, f * 0.995); tone(f * 2, 0.25, 0, 0.008)
+            case 1: tone(f, 1.3, 0, 0.035, f * 1.004); tone(f * 2.002, 0.9, 0, 0.006)
+            default: tone(f, 0.17, 3, 0.03); tone(f * 2, 0.12, 2, 0.008)
             }
         }
     }
