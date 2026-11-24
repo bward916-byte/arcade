@@ -1688,6 +1688,11 @@ final class Game {
         case "lift": ups = ["smg": 1]; floorN = 75
         case "escape": ups = ["smg": 1, "nade": 1]; floorN = 74
         case "guns": ups = ["shotgun": 3, "dmg": 3]; floorN = 71
+        case "bat": ups = ["dmg": 3, "shotgun": 1]; floorN = 71
+        case "resid": ups = ["smg": 1]; floorN = 50
+        case "surgery": tower = 1; ups = ["smg": 1]; floorN = 31
+        case "pent": tower = 2; ups = ["smg": 1]; floorN = 53
+        case "ball": tower = 2; ups = ["smg": 1]; floorN = 13
         case "hosp": tower = 1; ups = ["smg": 1]; floorN = 44
         case "hotel": tower = 2; ups = ["smg": 1]; floorN = 33
         case "casino": tower = 2; ups = ["smg": 1, "flame": 1]; floorN = 6
@@ -1714,7 +1719,7 @@ final class Game {
         cpFloor = floorN; cpUps = ups
         if what == "safe" { hero.x = FLOOR_W / 2 - 320 }
         if what == "gun" { floor.gunT = 1.4; hero.x = 300 }
-        if what == "pick" { rollPick(); mode = .pick; pickT = 0 } else { mode = .play; auto = ["play", "dogs", "boss", "gun", "escape", "hosp", "hotel", "casino", "mall", "lab", "lobby", "guns"].contains(what) }
+        if what == "pick" { rollPick(); mode = .pick; pickT = 0 } else { mode = .play; auto = ["play", "dogs", "boss", "gun", "escape", "hosp", "hotel", "casino", "mall", "lab", "lobby", "guns", "bat", "resid", "surgery", "pent", "ball", "fire", "hole", "lift", "street", "safe", "types"].contains(what) }
     }
 
     /// Plays all three towers with the bot, no drawing, and reports how it went.
