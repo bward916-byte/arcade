@@ -1541,14 +1541,19 @@ final class Renderer {
             cv.restore()
         }
         // buttons
+        // swipe pad: four arrows, the last swipe lights up
         let ab = g.atkBtn
-        cv.circ(ab.0, ab.1, ab.2, BLACK.alpha(0.35))
-        cv.ring(ab.0, ab.1, ab.2, 4, WHITE.alpha(g.input.attack ? 0.95 : 0.5))
-        cv.save()
-        cv.translate(ab.0, ab.1)
-        cv.rotate(-0.7)
-        cv.RR(-6, -34, 12, 60, 5, WHITE.alpha(0.85)); cv.RR(-4, 22, 8, 16, 3, WHITE.alpha(0.6))
-        cv.restore()
+        cv.circ(ab.0, ab.1, ab.2, BLACK.alpha(0.3))
+        cv.ring(ab.0, ab.1, ab.2, 3, WHITE.alpha(g.input.attack || g.swipeShowT > 0 ? 0.8 : 0.35))
+        for k in 2...5 {
+            let ang: Double = k == 2 ? 0 : (k == 3 ? PI : (k == 4 ? -PI / 2 : PI / 2))
+            let on = g.swipeShowT > 0 && g.swipeShow == k
+            let r = ab.2 * (on ? 0.72 : 0.6)
+            cv.save(); cv.translate(ab.0 + cos(ang) * r, ab.1 + sin(ang) * r); cv.rotate(ang)
+            cv.poly(on ? g.tw.hue : WHITE.alpha(0.55), [9, 0, -5, -10, -5, 10])
+            cv.restore()
+        }
+        cv.circ(ab.0, ab.1, 7, WHITE.alpha(0.45))
         let pb = g.powBtn
         let ready = g.meter >= 100
         if ready { cv.lighter(true); cv.glow(pb.0, pb.1, pb.2 * 2.1, GOLD.alpha(0.3 + 0.15 * sin(t * 6))); cv.lighter(false) }
@@ -1561,6 +1566,8 @@ final class Renderer {
         if g.playT < 6 {
             let a = clampD(6 - g.playT, 0, 1) * 0.7
             cv.text("◀  DRAG TO RUN  ▶", 150 + g.safeL, VIEW_H - 60, 15, WHITE.alpha(a), 1, 2)
+            cv.text("SWIPE TO FIGHT", g.atkBtn.0, g.atkBtn.1 - g.atkBtn.2 - 30, 13, WHITE.alpha(a), 1, 2)
+            cv.text("↑ uppercut   ↓ sweep   ←→ lunge   tap: strike", g.atkBtn.0 - 40, g.atkBtn.1 - g.atkBtn.2 - 12, 9.5, WHITE.alpha(a * 0.85), 1, 1)
         }
     }
     private func deadCard(_ g: Game, _ cv: Canvas) {

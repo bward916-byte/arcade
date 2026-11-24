@@ -141,6 +141,8 @@ struct Glob { var x: Double; var y: Double; var vx: Double; var vy: Double; var 
 struct Input {
     var move = 0.0
     var attack = false
+    /// One swipe or tap waiting to be used: 1 tap, 2 right, 3 left, 4 up, 5 down.
+    var swipe = 0
     var power = false
 }
 
@@ -170,6 +172,9 @@ final class Game {
     var safeL = 0.0
     var safeR = 0.0
     var input = Input()
+    var swipeAge = 0.0
+    var swipeShow = 0
+    var swipeShowT = 0.0
     var snd: Sound?
     var haptic = 0
     var auto = false
@@ -697,20 +702,30 @@ final class Game {
             }
         } else { h.moving = false }
 
-        // swinging: a random move each time, and every fourth one is a finisher
-        if input.attack && h.atkT < 0 && !sup {
+        // swinging: a swipe picks the move, a tap or a hold gives a random one, and every fourth is a finisher
+        if input.swipe != 0 { swipeAge += dt; if swipeAge > 0.45 { input.swipe = 0 } }
+        if swipeShowT > 0 { swipeShowT -= dt }
+        let sw = input.swipe
+        if (input.attack || sw != 0) && h.atkT < 0 && !sup {
+            input.swipe = 0; swipeAge = 0
             h.chain = h.comboT > 0 ? (h.chain + 1) % 4 : 0
             h.atkI = h.chain == 3 ? 2 : 0
-            if h.chain == 3 { h.atkStyle = 6 + Int.random(in: 0..<3) } else {
+            if sw > 1 {
+                let last = h.chain == 3
+                if sw == 2 || sw == 3 { h.face = sw == 2 ? 1 : -1; h.atkStyle = last ? 6 : 2 }        // thrust, spin to finish
+                else if sw == 4 { h.atkStyle = last ? 8 : 5 }                                        // uppercut, launcher to finish
+                else { h.atkStyle = last ? 7 : 3 }                                                   // low sweep, jump slam to finish
+            } else if h.chain == 3 { h.atkStyle = 6 + Int.random(in: 0..<3) } else {
                 var st = Int.random(in: 0..<6)
                 if st == h.atkStyle { st = (st + 1) % 6 }
                 h.atkStyle = st
             }
             h.crit = -1
-            if h.chain != 3 && chance(0.14) { h.crit = Int.random(in: 0..<5); h.atkStyle = [4, 9, 1, 5, 7][h.crit] }
+            if h.chain != 3 && sw <= 1 && chance(0.14) { h.crit = Int.random(in: 0..<5); h.atkStyle = [4, 9, 1, 5, 7][h.crit] }
+            if h.chain != 3 && sw > 1 && chance(0.14) { h.crit = sw == 4 ? 3 : (sw == 5 ? 4 : Int.random(in: 0..<3)); h.atkStyle = [4, 9, 1, 5, 7][h.crit] }
             h.atkT = 0
             h.atkHit = false
-            if mv == 0, let z = nearest(190) { h.face = z.x >= h.x ? 1 : -1 }
+            if mv == 0 && sw != 2 && sw != 3, let z = nearest(190) { h.face = z.x >= h.x ? 1 : -1 }
             if h.chain == 3 { snd?.whoosh() } else { snd?.swing() }
         }
         if h.atkT >= 0 {

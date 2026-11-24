@@ -36,6 +36,9 @@ final class GameViewController: UIViewController {
     private var stickTouch: UITouch?
     private var stickX0: CGFloat = 0
     private var atkTouch: UITouch?
+    private var atkStart = CGPoint.zero
+    private var atkT0: CFTimeInterval = 0
+    private var atkSwiped = false
 
     override var prefersStatusBarHidden: Bool { return true }
     override var prefersHomeIndicatorAutoHidden: Bool { return true }
@@ -97,6 +100,8 @@ final class GameViewController: UIViewController {
         let raw = last == 0 ? 1.0 / 60 : now - last
         last = now
         guard let cv = canvas else { return }
+        // a finger held still on the right keeps swinging
+        if atkTouch != nil && !atkSwiped && game.mode == .play && CACurrentMediaTime() - atkT0 > 0.3 { game.input.attack = true }
         if !renderer.paused { game.update(raw) }
         sound.intensity = renderer.paused ? 0 : game.musicLevel
         sound.theme = game.tower
@@ -140,7 +145,7 @@ final class GameViewController: UIViewController {
                 let ab = game.atkBtn
                 if hypot(x - pb.0, y - pb.1) < pb.2 + 14 { game.input.power = true; continue }
                 if hypot(x - ab.0, y - ab.1) < ab.2 + 26 || x > game.W * 0.62 {
-                    if atkTouch == nil { atkTouch = t; game.input.attack = true }
+                    if atkTouch == nil { atkTouch = t; atkStart = t.location(in: view); atkT0 = CACurrentMediaTime(); atkSwiped = false }
                     continue
                 }
                 if stickTouch == nil { stickTouch = t; stickX0 = t.location(in: view).x; game.input.move = 0 }
@@ -149,6 +154,19 @@ final class GameViewController: UIViewController {
         }
     }
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
+        for t in touches where t === atkTouch {
+            // a swipe on the right side is an attack in that direction; keep swiping without lifting to chain them
+            let p = t.location(in: view)
+            let dx = Double(p.x - atkStart.x), dy = Double(p.y - atkStart.y)
+            if hypot(dx, dy) > 26 {
+                let k = abs(dx) > abs(dy) ? (dx > 0 ? 2 : 3) : (dy < 0 ? 4 : 5)
+                game.input.swipe = k; game.swipeAge = 0
+                game.swipeShow = k; game.swipeShowT = 0.3
+                game.input.attack = false
+                atkSwiped = true
+                atkStart = p
+            }
+        }
         for t in touches where t === stickTouch {
             let dx = t.location(in: view).x - stickX0
             if abs(dx) > 10 { game.input.move = dx > 0 ? 1 : -1 } else { game.input.move = 0 }
@@ -160,7 +178,10 @@ final class GameViewController: UIViewController {
     private func lift(_ touches: Set<UITouch>) {
         for t in touches {
             if t === stickTouch { stickTouch = nil; game.input.move = 0 }
-            if t === atkTouch { atkTouch = nil; game.input.attack = false }
+            if t === atkTouch {
+                if !atkSwiped && !game.input.attack && game.mode == .play { game.input.swipe = 1; game.swipeAge = 0 }
+                atkTouch = nil; game.input.attack = false
+            }
         }
     }
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) { lift(touches) }
