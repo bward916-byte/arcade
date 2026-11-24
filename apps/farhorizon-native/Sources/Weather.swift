@@ -157,7 +157,8 @@ extension Game {
                 c.ellStroke(rx, ry, 2 + ph * 9, 0.6 + ph * 2.4, 1, Col(0xffffff, 0.3 * (1 - ph)))
             }
         }
-        if wxFog > 0.03 {
+        // no fog in harbour: a town is there to be looked at
+        if wxFog > 0.03 && mode != .port {
             c.R(0, 0, W, H, Col(0xc8d2d8, 0.34 * wxFog))
             for i in 0..<10 {
                 let span = W + 600

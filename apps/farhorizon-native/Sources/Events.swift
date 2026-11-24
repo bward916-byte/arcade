@@ -14,6 +14,50 @@ extension Game {
     }
 
     static let omenLen = 4.2
+    /// How long each event is watched before the question is put. The big ones are given more room.
+    static func omenSecs(_ k: String) -> Double {
+        switch k {
+        case "kraken", "plank", "comet", "whitewhale", "stelmo": return 6.4
+        case "pirates", "blockade", "storm", "spout", "ghost", "whale", "fall", "galley", "brawl", "overboard": return 5.4
+        default: return 4.4
+        }
+    }
+    /// What is shouted on deck as it happens.
+    static let SHOUTS: [String: [String]] = [
+        "storm": ["Black cloud to windward!", "All hands! Shorten sail!", "Lash everything down!"],
+        "pirates": ["Sail ho! Astern!", "She flies the black flag!", "Clear for action!"],
+        "blockade": ["Warships ahead!", "They are signalling!", "Stand by!"],
+        "fish": ["Fish! Hundreds of them!", "Lines out, quick!"],
+        "wreck": ["Wreckage on the bow!", "There may be cargo yet"],
+        "island": ["Land ho!", "Not on any chart!"],
+        "calm": ["Not a breath...", "Whistle for a wind, lads"],
+        "sick": ["He's burning up!", "Fetch the surgeon!", "Give him air!"],
+        "merchant": ["A merchantman!", "She wants to speak us"],
+        "bottle": ["Something in the water!", "A bottle! Hook it!"],
+        "leak": ["Water in the hold!", "Man the pumps!", "Buckets! Buckets!"],
+        "castaway": ["A raft! A man on it!", "He's waving!"],
+        "ghost": ["What ship is that?", "No one at her wheel...", "Mother of God"],
+        "dolphins": ["Dolphins on the bow!", "Good luck, that is"],
+        "fog": ["Fog bank ahead!", "Sound the bell!"],
+        "overboard": ["MAN OVERBOARD!", "Throw him a line!", "Don't lose sight of him!"],
+        "fall": ["LOOK OUT BELOW!", "He's down!", "His leg! Look at his leg!"],
+        "brawl": ["Say that again!", "Fight! Fight!", "Break it up!"],
+        "galley": ["FIRE!", "Fire in the galley!", "Buckets, damn you!"],
+        "rats": ["Rats!", "They're in the bread!", "Get the broom!"],
+        "whale": ["There she blows!", "Look at the size of her!"],
+        "spout": ["Waterspout!", "It's coming this way!", "Hard over!"],
+        "spar": ["The yard's gone!", "Stand from under!", "Haul! Haul!"],
+        "stowaway": ["Captain! Look here!", "Let go of me!", "Found him in a cask"],
+        "catch": ["It's a monster!", "Mind its teeth!", "Hold it! HOLD IT!"],
+        "scurvy": ["I can't... stand", "His gums are black", "They need fresh food"],
+        "foulwater": ["Faugh! The stink!", "It's gone green", "Over the side with it"],
+        "weevils": ["The bread's alive!", "Weevils. Thousands."],
+        "plank": ["Huzzah!", "Off you go, my lad!", "Three cheers for the captain!"],
+        "kraken": ["WHAT IS THAT?!", "It has the ship!", "Axes! Cut it away!"],
+        "stelmo": ["The saint's fire...", "Hats off, lads", "Not a word"],
+        "comet": ["A falling star!", "It's coming down!", "Did you see that?!"],
+        "whitewhale": ["She's WHITE!", "It's her. It's really her", "God help us"]
+    ]
     static var omenHold = false
     /// What is seen, and said, as each event comes over the horizon.
     static let OMENS: [String: (String, String)] = [

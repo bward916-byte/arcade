@@ -570,6 +570,38 @@ extension Game {
         c.text(line, W / 2, by + bh - 7, 11.5, CREAM.alpha(0.9), 0, FONT)
     }
 
+    /// The cries from the deck as an event unfolds, one after another, over the heads of the crew.
+    func drawShouts(_ c: Canvas) {
+        if sceneK.isEmpty || play != nil || card != nil { return }
+        guard let lines = Game.SHOUTS[sceneK] else { return }
+        let gap = max(1.2, (Game.omenSecs(sceneK) - 0.5) / Double(lines.count))
+        let pv = camPivot()
+        for (i, tx) in lines.enumerated() {
+            let t0 = 0.25 + Double(i) * gap
+            let age = sceneT - t0
+            if age < 0 || age > gap + 0.5 { continue }
+            let pq = min(1, age / 0.25)
+            let pop = 1 - (1 - pq) * (1 - pq)
+            let fade = age > gap ? max(0, 1 - (age - gap) / 0.5) : 1
+            let side: Double = i % 2 == 0 ? -1 : 1
+            // over the deck, a little to one side then the other
+            let anchor = camPt(pv.0 + side * 34, pv.1 - 6)
+            let bx = clampD(anchor.0 + side * 60, safeL + 90, W - safeR - 90)
+            let by = clampD(anchor.1 - 64 - Double(i % 2) * 16, 112, H - 150)
+            let tw = textW(tx, 14, FONTB) + 22
+            c.save()
+            c.alpha(fade)
+            c.translate(bx, by)
+            c.scale(0.6 + 0.4 * pop, 0.6 + 0.4 * pop)
+            c.rotate(side * -0.04)
+            c.RR(-tw / 2 + 1.5, -13 + 2.5, tw, 26, 11, Col(0x000000, 0.3))
+            c.RR(-tw / 2, -13, tw, 26, 11, Col(0xfff8e6))
+            c.RRStroke(-tw / 2, -13, tw, 26, 11, 1.4, Col(0x3a2412))
+            c.poly(Col(0xfff8e6), [-side * 10 - 6, 12, -side * 10 + 6, 12, -side * 22, 26])
+            c.text(tx, 0, 5, 14, Col(0x2a1808), 0, FONTB)
+            c.restore()
+        }
+    }
     /// One arm of the kraken: up out of the water, curling over, feeling about.
     func krakenArm(_ c: Canvas, _ x: Double, _ y: Double, _ h: Double, _ ph: Double) {
         let rise = clampD(sceneT / 1.2, 0, 1)
@@ -645,7 +677,7 @@ extension Game {
         c.translate(camFx, camFy); c.scale(camZ, camZ); c.translate(-pv.0, -pv.1)
         let theme = play?.theme ?? sceneK
         let slenW = min(W * 0.3, 280) * ship.len
-        let near = omen && sceneK != "plank" ? min(1, omenT / Game.omenLen) : 1
+        let near = omen && sceneK != "plank" ? min(1, omenT / Game.omenSecs(omenK)) : 1
         if theme == "plank" {
             // the prize, lying astern with her sails clewed up
             drawShip(c, W * 0.42 - slenW * 0.5 - 150, wy - 6, min(W * 0.3, 280) * 0.7, 2, enemy: true, furled: true)
@@ -791,6 +823,7 @@ extension Game {
         }
         c.restore()
         if sceneK == "stelmo" && play == nil { c.R(0, 0, W, H, Col(0x050a24, 0.42)) }
+        drawShouts(c)
         if card == nil && chance(0.5) {
             let bw = camPt(W * 0.42 + min(W * 0.3, 280) * ship.len * 0.5, wy + 2)
             puff(bw.0, bw.1, 1, Col(0xffffff, 0.8), (40 + rough * 60) * camZ, 120, 2.2 * camZ, 0.5)

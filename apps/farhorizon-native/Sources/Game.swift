@@ -673,7 +673,7 @@ final class Game {
                 scroll += dt * (16 + 54 * pace) * ship.speed
                 dayT = min(DAYLEN - 0.02, dayT + dt * pace)
                 tod = (dayT / DAYLEN * Double(SUNS)).truncatingRemainder(dividingBy: 1)
-                if omenT >= Game.omenLen {
+                if omenT >= Game.omenSecs(omenK) {
                     let k = omenK
                     omenK = ""
                     event(k)

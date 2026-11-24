@@ -709,7 +709,9 @@ extension Game {
         if isNight || chance(0.3) { pool.append(4); pool.append(4) }
         pool.shuffle()
         portJobs = []
-        for j in pool where !portJobs.contains(j) && portJobs.count < 3 { portJobs.append(j) }
+        // one opportunity in most ports, two in some
+        let want = chance(0.45) ? 2 : 1
+        for j in pool where !portJobs.contains(j) && portJobs.count < want { portJobs.append(j) }
         jobsDone = []
         portJob = 0
         saluteT = 5; saluteN = 3
