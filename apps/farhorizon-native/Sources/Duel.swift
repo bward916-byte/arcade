@@ -33,6 +33,8 @@ struct Pose {
     var fwd = false
     /// The life has gone out of him: eyes shut, arms loose at his sides, legs together.
     var limp = 0.0
+    /// A limp man's arms trail back past his head: he is on his back, or being hauled by the wrists.
+    var armsUp = false
     /// Teeth bared: he is in the middle of a blow.
     var grit = false
 }
@@ -98,6 +100,10 @@ final class Duel {
     static let dragLen = 2.0
     static let enterLen = 1.4
     var overSide = false
+    /// Which of the ways a man can go down this one is: on his face, on his back, to his knees first,
+    /// reeling about, or straight over like a felled tree. Never the same twice running.
+    var deathKind = 0
+    static let landAt: [Double] = [0.62, 0.68, 0.8, 0.72, 0.74]
     var fellSnd = false
     var blade: (x: Double, y: Double, vx: Double, vy: Double, a: Double, va: Double, live: Bool, rest: Bool, heavy: Bool) = (0, 0, 0, 0, 0, 0, false, false, false)
     var press = [Double](repeating: 0, count: 6)
@@ -476,12 +482,14 @@ final class Duel {
     var demoClash = false
     /// For screenshots: freeze the kill sequence at a chosen moment.
     var demoKill = -1.0
+    var demoKind = 0
     func update(_ dt: Double, _ g: Game) {
         if over { return }
         updateFx(dt, g)
         if demoKill >= 0 {
             t += dt
             ehp = 0
+            deathKind = demoKind
             if demoKill < 1 { est = .dead; overSide = false; et = Duel.deadLen * (1 - demoKill); blade.live = true; blade.rest = true; blade.x = g.W * 0.36; blade.y = feetY(g) - 2; blade.a = 0.08 } else { est = .drag; et = Duel.dragLen * (2 - demoKill); blade.live = true; blade.rest = true; blade.x = g.W * 0.36; blade.y = feetY(g) - 2 }
             return
         }
@@ -541,12 +549,12 @@ final class Duel {
             if et <= 0 { est = .ready; et = rnd(0.35, 0.8) }
         case .hit:
             if et <= 0 {
-                if ehp <= 0 { est = .dead; et = overSide ? Duel.railLen : Duel.deadLen; fellSnd = false } else { est = .ready; et = rnd(0.4, 0.9) }
+                if ehp <= 0 { est = .dead; et = overSide ? Duel.railLen : Duel.deadLen; fellSnd = false; deathKind = (deathKind + rndI(1, 4)) % 5 } else { est = .ready; et = rnd(0.4, 0.9) }
             }
         case .dead:
             // the body hits the deck, or the water
             let q = 1 - et / (overSide ? Duel.railLen : Duel.deadLen)
-            if !fellSnd && q > (overSide ? 0.72 : 0.62) {
+            if !fellSnd && q > (overSide ? 0.72 : Duel.landAt[deathKind]) {
                 fellSnd = true
                 let (fx, fy2) = foeXY(g)
                 if overSide {
@@ -811,28 +819,82 @@ final class Duel {
                 ep.dy = -sin(min(1, q * 1.25) * PI) * s * 0.42 + max(0, q - 0.55) * s * 1.8
                 ep.fade = clampD((q - 0.72) / 0.2, 0, 1)
             } else {
-                // reels, the knees go, and he measures his length on the deck
                 let q = clampD(1 - et / Duel.deadLen, 0, 1)
-                let reel = clampD(q / 0.2, 0, 1)
-                let sink = clampD((q - 0.2) / 0.22, 0, 1)
-                let drop = clampD((q - 0.4) / 0.22, 0, 1)
-                ep.fwd = true
-                ep.ang = lerp(1.2, 0.4, reel)
-                ep.lean = -0.45 * reel * (1 - sink) + 0.3 * sink * (1 - drop)
-                ep.limp = sink
-                ep.crouch = 0.17 * sink * (1 - drop)
-                ep.fall = drop * drop
-                eOff = s * (0.18 + 0.14 * reel)
-                // a short bounce as he lands
-                let land = clampD((q - 0.62) / 0.12, 0, 1)
-                if q > 0.62 && land < 1 { ep.dy = -sin(land * PI) * s * 0.025 }
+                let landQ = Duel.landAt[deathKind]
+                switch deathKind {
+                case 1:
+                    // lurches at you, a step, two, then goes over backward and lies looking at the sky
+                    let reel = clampD(q / 0.27, 0, 1)
+                    let sink = clampD((q - 0.27) / 0.2, 0, 1)
+                    let drop = clampD((q - 0.47) / 0.21, 0, 1)
+                    ep.walking = reel < 1; ep.step = t * 12
+                    ep.ang = lerp(1.2, -1.2, reel)
+                    ep.lean = 0.3 * reel * (1 - sink) - 0.5 * sink * (1 - drop)
+                    ep.limp = sink; ep.armsUp = true
+                    ep.fall = drop * drop
+                    eOff = s * (0.18 - 0.7 * reel)
+                case 2:
+                    // down onto his knees, holds there a long moment, then forward onto his face
+                    let sink = clampD((q - 0.1) / 0.3, 0, 1)
+                    let drop = clampD((q - 0.62) / 0.18, 0, 1)
+                    ep.fwd = true
+                    ep.ang = lerp(1.2, 0.5, sink)
+                    ep.crouch = 0.3 * sink * (1 - drop)
+                    ep.lean = (0.12 * sink + 0.25 * clampD((q - 0.42) / 0.2, 0, 1)) * (1 - drop)
+                    ep.limp = clampD((q - 0.3) / 0.3, 0, 1)
+                    ep.fall = drop * drop
+                    eOff = s * 0.2
+                case 3:
+                    // reels about the deck with a hand to the wound before his legs give
+                    let reel = clampD(q / 0.5, 0, 1)
+                    let drop = clampD((q - 0.52) / 0.2, 0, 1)
+                    ep.fwd = true
+                    ep.walking = reel < 1; ep.step = t * 9
+                    ep.ang = 0.95
+                    ep.lean = sin(q * 26) * 0.28 * (1 - drop)
+                    ep.crouch = 0.08 * reel * (1 - drop)
+                    ep.limp = clampD((q - 0.4) / 0.15, 0, 1)
+                    ep.fall = drop * drop
+                    eOff = s * (0.22 + sin(q * 13) * 0.16 * (1 - drop))
+                case 4:
+                    // stands quite still, swaying, surprised; then goes over all of a piece like a felled tree
+                    let sway = clampD(q / 0.46, 0, 1)
+                    let drop = clampD((q - 0.46) / 0.28, 0, 1)
+                    ep.fwd = true
+                    ep.ang = lerp(1.2, 1.5, sway)
+                    ep.lean = sin(q * 30) * 0.07 * (1 - drop)
+                    ep.limp = sway * 0.6 + drop * 0.4
+                    ep.fall = drop * drop * drop
+                    eOff = s * 0.2
+                default:
+                    // reels, the knees go, and he measures his length on the deck
+                    let reel = clampD(q / 0.2, 0, 1)
+                    let sink = clampD((q - 0.2) / 0.22, 0, 1)
+                    let drop = clampD((q - 0.4) / 0.22, 0, 1)
+                    ep.fwd = true
+                    ep.ang = lerp(1.2, 0.4, reel)
+                    ep.lean = -0.45 * reel * (1 - sink) + 0.3 * sink * (1 - drop)
+                    ep.limp = sink
+                    ep.crouch = 0.17 * sink * (1 - drop)
+                    ep.fall = drop * drop
+                    eOff = s * (0.18 + 0.14 * reel)
+                }
+                // a short bounce as he lands; a felled tree bounces harder
+                let land = clampD((q - landQ) / 0.12, 0, 1)
+                if q > landQ && land < 1 { ep.dy = -sin(land * PI) * s * (deathKind == 4 ? 0.05 : 0.025) }
                 ep.flash = flashE
             }
         case .drag:
             ep.noSword = true
-            ep.fall = 1; ep.fwd = true
-            ep.ang = 0.4; ep.lean = 0; ep.limp = 1
-            eOff = s * 0.32 + dragShift(g)
+            ep.fall = 1; ep.lean = 0; ep.limp = 1
+            if deathKind == 1 {
+                // on his back, hauled off by the wrists
+                ep.fwd = false; ep.armsUp = true; ep.ang = -1.2
+                eOff = s * -0.52 + dragShift(g)
+            } else {
+                ep.fwd = true; ep.ang = 0.4
+                eOff = s * (deathKind == 0 ? 0.32 : 0.2) + dragShift(g)
+            }
         default:
             break
         }
@@ -881,7 +943,7 @@ final class Duel {
             // these are choreographed frame by frame; easing would smear them
             se.ang = ep.ang; se.lean = ep.lean; se.crouch = ep.crouch; se.reach = ep.reach; se.pang = ep.ang
         }
-        se.noSword = ep.noSword; se.walking = ep.walking; se.step = ep.step; se.dy = ep.dy; se.fade = ep.fade; se.fwd = ep.fwd; se.limp = ep.limp
+        se.noSword = ep.noSword; se.walking = ep.walking; se.step = ep.step; se.dy = ep.dy; se.fade = ep.fade; se.fwd = ep.fwd; se.limp = ep.limp; se.armsUp = ep.armsUp
         sp.noSword = false; sp.walking = false; sp.dy = 0; sp.fade = 0
         pp = sp; ep = se; pOff = sOffP; eOff = sOffE
         let (px, _) = playerXY(g)
@@ -925,22 +987,29 @@ final class Duel {
         fighter(c, px + pOff, fy, s, 1, pp, 0)
         fighter(c, ex + eOff, fy, s * (kind == .bruiser ? 1.08 : (kind == .captain ? 1.05 : 1)), -1, ep, kindIndex())
         if est == .drag {
-            // a shipmate comes for him: walks in, stoops, takes him by the heels and hauls him clear
+            // shipmates come for him: by the heels if he is on his face, by the wrists if he is on his back,
+            // and two of them if he is a big man
             let q = clampD(1 - et / Duel.dragLen, 0, 1)
-            var dp = Pose()
-            dp.noSword = true
-            let arrive = clampD(q / 0.3, 0, 1)
-            let grip = ex + s * 0.32 + s * 0.3
-            var dxp = lerp(W + s * 0.5, grip, 1 - (1 - arrive) * (1 - arrive))
-            let hauling = q > 0.42
-            if hauling { dxp = grip + dragShift(g) }
-            dp.walking = q < 0.3 || hauling
-            dp.step = t * (hauling ? -8.0 : 9.5)
-            let bend = clampD((q - 0.27) / 0.13, 0, 1)
-            dp.ang = lerp(0.2, 1.3, bend)
-            dp.lean = lerp(0.05, 0.5, bend) - (hauling ? 0.22 : 0)
-            dp.crouch = 0.1 * bend
-            fighter(c, dxp, fy, s * 0.96, -1, dp, 5)
+            let byArms = deathKind == 1
+            let two = kind == .bruiser || kind == .captain || deathKind == 4
+            let feet: Double = byArms ? -0.52 : (deathKind == 0 ? 0.32 : 0.2)
+            for n in 0..<(two ? 2 : 1) {
+                var dp = Pose()
+                dp.noSword = true
+                let lag = Double(n) * 0.06
+                let arrive = clampD((q - lag) / 0.3, 0, 1)
+                let grip = ex + s * (feet + (byArms ? 1.3 : 0.3) + Double(n) * 0.2)
+                var dxp = lerp(W + s * (0.5 + Double(n) * 0.3), grip, 1 - (1 - arrive) * (1 - arrive))
+                let hauling = q > 0.42
+                if hauling { dxp = grip + dragShift(g) }
+                dp.walking = q - lag < 0.3 || hauling
+                dp.step = t * (hauling ? -8.0 : 9.5) + Double(n) * 1.3
+                let bend = clampD((q - 0.27 - lag) / 0.13, 0, 1)
+                dp.ang = lerp(0.2, byArms ? 1.5 : 1.3, bend)
+                dp.lean = lerp(0.05, 0.5, bend) - (hauling ? 0.22 : 0)
+                dp.crouch = (byArms ? 0.14 : 0.1) * bend
+                fighter(c, dxp, fy, s * (n == 0 ? 0.96 : 0.92), -1, dp, n == 0 ? 5 : 0)
+            }
         }
         g.drawSparks(c)
         c.restore()
@@ -1707,7 +1776,7 @@ final class Duel {
 
         // ---- the sword arm: shoulder, elbow, wrist; then the hilt and the blade
         let armLen = s * (0.24 + max(-0.3, p.reach) * 0.07)
-        let armA = lerp(p.ang * 0.62 - 0.12, 1.5, p.limp)
+        let armA = lerp(p.ang * 0.62 - 0.12, p.armsUp ? -1.75 : 1.5, p.limp)
         let hx = shX + cos(armA) * armLen, hy = shY + s * 0.04 + sin(armA) * armLen
         let sx0 = shX + s * 0.02, sy0 = shY + s * 0.04
         let bend = s * 0.07 * (1 - clampD(p.reach, 0, 1) * 0.85)

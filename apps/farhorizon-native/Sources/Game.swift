@@ -108,7 +108,7 @@ final class Game {
     var pendText = ""
     /// How far along the leg each event falls, so they are spread over the passage and never bunch up.
     var evMarks: [Double] = []
-    /// The day on which the next event may fall. Never sooner than nine days after the last one ended.
+    /// The day on which the next event may fall. Never sooner than seven days after the last one ended.
     var nextEvAt = 0.0
     /// The rare sights: each can be met once in a voyage, and most voyages meet only one or two.
     var rareSeen: Set<String> = []
@@ -525,7 +525,7 @@ final class Game {
         dist = 0; dayT = 0; sinceEvent = 0
         legAte = 0; legDrank = 0
         evMarks = []
-        nextEvAt = nowDays() + rnd(4, 9)
+        nextEvAt = nowDays() + rnd(4, 7)
         autoPost()
         mode = .sail
         card = nil
@@ -680,9 +680,9 @@ final class Game {
                 }
             } else if card == nil {
                 if !sceneK.isEmpty {
-                    // whatever it was is over: nothing more for nine days at the least
+                    // whatever it was is over: nothing more for a week at the least
                     sceneK = ""
-                    nextEvAt = nowDays() + rnd(9, 14)
+                    nextEvAt = nowDays() + rnd(7, 11)
                 }
                 // she gathers way again after whatever stopped her
                 pace = min(1, pace + dt / 0.8)
@@ -700,7 +700,7 @@ final class Game {
                 if dist >= legLen {
                     arrive()
                 } else if nowDays() >= nextEvAt {
-                    nextEvAt = nowDays() + rnd(9, 14)
+                    nextEvAt = nowDays() + rnd(7, 11)
                     rollEvent()
                 } else if dayT >= DAYLEN {
                     dayT = 0
@@ -811,6 +811,9 @@ final class Game {
         if name == "duel" { UserDefaults.standard.set(0, forKey: Duel.lessonKey); startDuel(foes: 3, boss: false, prize: 120) }
         if name == "teach" { UserDefaults.standard.set(0, forKey: Duel.lessonKey); startDuel(foes: 3, boss: false, prize: 120); card = nil }
         if name == "fight" { startDuel(foes: 6, boss: false, prize: 120, teach: false); duel?.fury = 1; duel?.combo = 3 }
+        if name == "killb1" { startDuel(foes: 6, boss: false, prize: 120, teach: false); duel?.demoKill = 0.95; duel?.demoKind = 1 }
+        if name == "killb2" { startDuel(foes: 6, boss: false, prize: 120, teach: false); duel?.demoKill = 1.5; duel?.demoKind = 1 }
+        if name == "killk" { startDuel(foes: 6, boss: false, prize: 120, teach: false); duel?.demoKill = 0.5; duel?.demoKind = 2 }
         if name == "kill1" { startDuel(foes: 6, boss: false, prize: 120, teach: false); duel?.demoKill = 0.5 }
         if name == "kill2" { startDuel(foes: 6, boss: false, prize: 120, teach: false); duel?.demoKill = 0.9 }
         if name == "kill3" { startDuel(foes: 6, boss: false, prize: 120, teach: false); duel?.demoKill = 1.5 }
