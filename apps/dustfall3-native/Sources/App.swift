@@ -71,6 +71,10 @@ final class GameViewController: UIViewController {
     private let cutCap = UILabel()
     private let cutTap = UILabel()
     private var cutShown = ""
+    private let overBox = UIView()
+    private let overTitle = UILabel()
+    private let overText = UILabel()
+    private let overBtn = UIButton(type: .system)
     private let saveKey = "dustfall3.save"
     private var demoMode = false
 
@@ -264,6 +268,15 @@ final class GameViewController: UIViewController {
         cutBox.addSubview(cutArt); cutBox.addSubview(cutHead); cutBox.addSubview(cutCap); cutBox.addSubview(cutTap)
         cutBox.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(nextBeat)))
         view.addSubview(cutBox)
+        // run out of town
+        overBox.backgroundColor = UIColor(red: 0.08, green: 0.04, blue: 0.03, alpha: 0.88)
+        overBox.isHidden = true
+        overTitle.text = "Run out of town"; overTitle.font = serif(34); overTitle.textColor = gold; overTitle.textAlignment = .center
+        overText.font = serif(16, bold: false); overText.textColor = cream; overText.textAlignment = .center; overText.numberOfLines = 0
+        style(overBtn, "Ride again", primary: true)
+        overBtn.addTarget(self, action: #selector(rideAgain), for: .touchUpInside)
+        overBox.addSubview(overTitle); overBox.addSubview(overText); overBox.addSubview(overBtn)
+        view.addSubview(overBox)
 
         sound.muted = UserDefaults.standard.bool(forKey: "dustfall3.muted")
         soundBtn.setTitle(sound.muted ? "Sound: off" : "Sound: on", for: .normal)
@@ -316,6 +329,10 @@ final class GameViewController: UIViewController {
         restartBtn.frame = CGRect(x: bw / 2 - 120, y: bh * 0.12 + 166, width: 240, height: 44)
         mapBox.frame = view.bounds
         cutBox.frame = view.bounds
+        overBox.frame = view.bounds
+        overTitle.frame = CGRect(x: 0, y: bh * 0.2, width: bw, height: 44)
+        overText.frame = CGRect(x: 40, y: bh * 0.2 + 50, width: bw - 80, height: 50)
+        overBtn.frame = CGRect(x: bw / 2 - 110, y: bh * 0.2 + 112, width: 220, height: 50)
         let ah = bh * 0.52, aw = ah * 150 / 84
         cutArt.frame = CGRect(x: (bw - aw) / 2, y: bh * 0.06, width: aw, height: ah)
         cutHead.frame = CGRect(x: 30, y: bh * 0.06 + ah + 6, width: bw - 60, height: 30)
@@ -344,7 +361,7 @@ final class GameViewController: UIViewController {
         if !demoDone && sw > sh {
             demoDone = true
             let args = ProcessInfo.processInfo.arguments
-            for name in ["day", "night", "train", "snow", "storm", "map", "duel", "coach", "west", "west2", "fire", "yard"] where args.contains("-demo-" + name) { demoMode = true; game.demo(name) }
+            for name in ["day", "night", "train", "snow", "storm", "map", "duel", "coach", "west", "west2", "fire", "yard", "over"] where args.contains("-demo-" + name) { demoMode = true; game.demo(name) }
             if args.contains("-demo-map") { showMap(choose: true) }
             if args.contains("-demo-cut") { demoMode = true; game.demo("day"); game.cut = [STORY["a4"]![1]] }
             if args.contains("-demo-cut2") { demoMode = true; game.demo("day"); game.cut = [STORY["s2"]![1]] }
@@ -361,7 +378,7 @@ final class GameViewController: UIViewController {
 
     // ---------- the saved game: written at every dawn, when something is built, and whenever the app is left
     private func saveGame() {
-        if demoMode || game.state != .play || game.tripT >= 0 { return }
+        if demoMode || game.state != .play || game.tripT >= 0 || game.over { return }
         if let d = try? JSONEncoder().encode(game.snapshot()) { UserDefaults.standard.set(d, forKey: saveKey) }
     }
     private func loadSave() -> SaveData? {
@@ -496,6 +513,13 @@ final class GameViewController: UIViewController {
         soundBtn.setTitle(sound.muted ? "Sound: off" : "Sound: on", for: .normal)
     }
 
+    @objc private func rideAgain() {
+        overBox.isHidden = true
+        UserDefaults.standard.removeObject(forKey: saveKey)
+        game.reset()
+        refreshTitle()
+    }
+
     @objc private func restart() {
         closeMenu()
         UserDefaults.standard.removeObject(forKey: saveKey)
@@ -514,6 +538,12 @@ final class GameViewController: UIViewController {
         tossLatch = false; fireLatch = false
         if !userPaused { game.update(min(0.05, max(0, raw))) }
         if game.choosing && mapBox.isHidden { showMap(choose: true) }
+        if game.over && overBox.isHidden {
+            UserDefaults.standard.removeObject(forKey: saveKey)
+            overText.text = "They caught you without a coin to your name. You lasted \(game.day) \(game.day > 1 ? "days" : "day")."
+            overBox.isHidden = false
+            clearTouches()
+        }
         if let bt = game.cut.first {
             let key = bt.head + bt.cap
             if key != cutShown {

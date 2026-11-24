@@ -112,7 +112,7 @@ let DEFS: [BType: Def] = [
     .saloon: Def(name: "SALOON", w: 86, h: 40, cost: [6, 10, 16], pay: 3, wall: 0xa9683a, trim: 0x6a3c20, roof: 0x6a3c20, sign: 0xead7a4, ink: 0x8a2b22, doorX: 36, doorW: 14, wins: [(8, 14), (64, 14)], gate: false),
     .sheriff: Def(name: "SHERIFF", w: 66, h: 36, cost: [8, 12, 18], pay: 0, wall: 0x5f7896, trim: 0xe6d6ac, roof: 0x34445a, sign: 0xead7a4, ink: 0x27364a, doorX: 8, doorW: 13, wins: [(32, 24)], gate: false),
     .stable: Def(name: "STABLE", w: 76, h: 36, cost: [6, 12], pay: 0, wall: 0x9a4433, trim: 0xead7a4, roof: 0x4a2a22, sign: 0xead7a4, ink: 0x6a2a20, doorX: 26, doorW: 24, wins: [(8, 10), (58, 10)], gate: false),
-    .bank: Def(name: "BANK", w: 64, h: 38, cost: [10], pay: 0, wall: 0xb9b2a4, trim: 0x3d4a44, roof: 0x3d4a44, sign: 0x2f3a36, ink: 0xe8d9a0, doorX: 25, doorW: 14, wins: [(6, 12), (46, 12)], gate: false),
+    .bank: Def(name: "BANK", w: 64, h: 38, cost: [10, 16], pay: 0, wall: 0xb9b2a4, trim: 0x3d4a44, roof: 0x3d4a44, sign: 0x2f3a36, ink: 0xe8d9a0, doorX: 25, doorW: 14, wins: [(6, 12), (46, 12)], gate: false),
     .gateW: Def(name: "WEST GATE", w: 14, h: 16, cost: [4, 8, 14], pay: 0, wall: 0x7a5632, trim: 0x4a3424, roof: 0x4a3424, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: true),
     .gateE: Def(name: "EAST GATE", w: 14, h: 16, cost: [4, 8, 14], pay: 0, wall: 0x7a5632, trim: 0x4a3424, roof: 0x4a3424, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: true),
     .station: Def(name: "STATION", w: 84, h: 38, cost: [20], pay: 0, wall: 0xc9a65a, trim: 0x6a2f26, roof: 0x4a3a34, sign: 0xead7a4, ink: 0x4a2a22, doorX: 36, doorW: 13, wins: [(8, 16), (60, 16)], gate: false),
@@ -215,6 +215,8 @@ final class Folk {
     var wait = 0.0
     var shotCD = 0.0
     var tend = 0.0            // a rancher's time at the pasture toward the next calf
+    var sick = false          // hurt in a raid and laid up at the doctor's until morning
+    var hidden = false        // indoors
     let seed: Double
     init(x: Double) { self.x = x; tx = x; seed = rnd(0, 100) }
 }
@@ -223,6 +225,7 @@ final class Bandit {
     var x: Double
     var rider: Bool           // barbed wire can put him on foot
     var cut = false           // already through the wire
+    var rustle = false        // after cattle
     var torch = false         // carries a torch, and sets fire to what he robs
     var boss = false          // an outlaw with a bounty on him: slow, hard to kill, and he shoots back
     var cd2 = 2.0
@@ -354,6 +357,7 @@ struct SaveData: Codable {
     var wx: [Double]?
     var place: String?
     var log: [String]?
+    var ride: [Double]?       // wind, string of remounts, day of the oats
     var more: [Double]?       // rods, brigade, day the hobos last talked, boxcar cool, boxcars opened, bell, day of the last stampede
     var west: [Double]?       // dynamite, loader, lantern, day the post sold, scout days, ruin cool, rig, rig burning, show on, show used, cavalry
     var extra: [Double]?      // owed, flood, duelDay, wanted man's side (0 for none), his hit points, his days left
@@ -448,7 +452,8 @@ struct Trooper {
 let ITEMS: [(String, String, Int, Bool, String)] = [
     ("dyn", "Dynamite", 4, false, "Your next shot into a bunch of three or more raiders is a stick of dynamite."),
     ("loader", "Speed loader", 6, true, "Reloading is two seconds quicker for as long as you stay in this town."),
-    ("lantern", "Signal lantern", 6, true, "You and your deputies see a fifth further, day or night.")
+    ("lantern", "Signal lantern", 6, true, "You and your deputies see a fifth further, day or night."),
+    ("oats", "Sack of oats", 2, false, "Your horse does not tire today.")
 ]
 let OUTLAWS = ["Black Jack Tully", "Dutch Annie", "One-Eye Garza", "Mad Dog Riley", "The Pecos Kid", "Curly Bill Stokes"]
 let DUELISTS = ["Cole Varney", "Dutch Maddox", "One-Eye Reese", "Eli Vance", "Ned Purdy"]

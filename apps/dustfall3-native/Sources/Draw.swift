@@ -25,6 +25,11 @@ final class Renderer {
         camps(dk)
         towers()
         yard(dk)
+        for tx in g.troughs where vis(tx, 12) && (tx < g.river.0 - 2 || tx > g.river.1 + 2 || g.bio == .river) {
+            let x = sx(tx).rounded()
+            if tx > g.river.0 - 2 && tx < g.river.1 + 2 { continue }
+            c.R(x - 6, gy - 5, 12, 5, Col(0x6a4a2e)); c.R(x - 5, gy - 5, 10, 1.4, Col(0x8fc4d4)); c.R(x - 6, gy - 2, 1.4, 2, Col(0x4a3424)); c.R(x + 4.6, gy - 2, 1.4, 2, Col(0x4a3424))
+        }
         for bl in g.b where bl.def.wall != 0 && !bl.def.gate { building(bl, dk) }
         fires()
         centre()
@@ -52,7 +57,7 @@ final class Renderer {
             c.R(x - 2, gy - 30, 4.5, 4, Col(0xd9a878)); c.R(x - 4.5, gy - 31, 9.5, 1.3, Col(0x1c2a4a)); c.R(x - 2.5, gy - 33.6, 5.5, 3, Col(0x1c2a4a))
             c.seg(x + tr.dir * 2, gy - 24, x + tr.dir * 9, gy - 29, 1, Col(0xc9c9d0))
         }
-        for f in g.folk { person(f.x, f.phase, f.dir, f.moving, f.seed, f.role, f.work) }
+        for f in g.folk where !f.hidden { person(f.x, f.phase, f.dir, f.moving, f.seed, f.role, f.work) }
         for cw in g.herd where cw.x > g.pasture.1 + 2 { cowAt(cw.x, cw.dir, cw.calf ? 0.6 : 1.0, cw.seed, cw.phase, horns: false) }
         for bn in g.bandits {
             // dust or a blizzard hides them until they are close
@@ -1228,6 +1233,11 @@ final class Renderer {
         c.roundCaps(false)
         c.restore()
         if g.hurtT > 0 && Int(g.clock * 16) % 2 == 0 { c.circ(x, gy - 18, 12, Col(0xd04a3a, 0.25)) }
+        // how much gallop is left, shown only while it is short
+        if g.wind < 0.995 {
+            c.RR(x - 8, gy - 44, 16, 3, 1.5, Col(0x24160f, 0.8))
+            c.R(x - 7, gy - 43, 14 * g.wind, 1, g.blown ? Col(0xe0633c) : Col(0x8fd0e8))
+        }
     }
 
     private func bandit(_ bn: Bandit) {

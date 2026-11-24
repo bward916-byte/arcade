@@ -87,7 +87,7 @@ final class Game {
 
     private func updFires(_ dt: Double) {
         for bl in b where bl.burning {
-            let hands = Double(folk.filter { $0.role == .folk && abs($0.x - bl.x) < 420 }.count)
+            let hands = Double(folk.filter { $0.role == .folk && !$0.sick && abs($0.x - bl.x) < 420 }.count)
             let top = bl.def.h + Double(max(0, bl.level - 1)) * 5 + 10
             bl.fireT += dt
             bl.fireHp -= dt * (0.016 + hands * 0.011 + (towerLv > 0 ? 0.15 : 0) + rainI() * 0.03)
@@ -154,11 +154,16 @@ final class Game {
                 if herd.contains(where: { !$0.run && $0.x > lo && $0.x < hi }) { kinds.append(0) }
                 if strays.contains(where: { !$0.tame && $0.x > lo && $0.x < hi }) { kinds.append(1) }
                 if mustangs.contains(where: { $0.st < 2 && $0.x > lo && $0.x < hi }) { kinds.append(2) }
+                if bandits.contains(where: { $0.rider && $0.st == 0 && $0.x > lo && $0.x < hi }) { kinds.append(3) }
                 guard let k = kinds.randomElement() else { return }
                 var s = Saucer(x: px, side: chance(0.5) ? -1 : 1)
                 if k == 0, let i = herd.firstIndex(where: { !$0.run && $0.x > lo && $0.x < hi }) { s.cow = herd[i]; s.x = herd[i].x; herd.remove(at: i) }
                 if k == 1, let i = strays.firstIndex(where: { !$0.tame && $0.x > lo && $0.x < hi }) { s.stray = strays[i]; s.x = strays[i].x; strays.remove(at: i) }
                 if k == 2, let i = mustangs.firstIndex(where: { $0.st < 2 && $0.x > lo && $0.x < hi }) { s.mustang = mustangs[i]; s.x = mustangs[i].x; mustangs.remove(at: i) }
+                if k == 3, let bn = bandits.first(where: { $0.rider && $0.st == 0 && $0.x > lo && $0.x < hi }) {
+                    bn.rider = false; s.x = bn.x
+                    s.mustang = Mustang(x: bn.x, dir: -bn.side, seed: 3)
+                }
                 ufo = s; ufoAt = 0
             }
             return
@@ -172,7 +177,7 @@ final class Game {
                 // a round into it: it drops what it had and runs
                 if let c = u.cow { herd.append(c) }
                 if let w = u.stray { strays.append(w) }
-                if let m = u.mustang { mustangs.append(m) }
+                if let m = u.mustang, m.seed != 3 { mustangs.append(m) }       // a raider's horse is not given back
                 u.cow = nil; u.stray = nil; u.mustang = nil
                 puff(u.x, -74, 12, Col(0xb8ffd0), 60)
                 sfx?.box()
@@ -238,7 +243,12 @@ final class Game {
     var rigBurn = false
     var showOn = false
     var showUsed = false
-    var tonicDay = 0
+    var oatsDay = 0             // the day your horse does not tire
+    var wind = 1.0              // how much gallop the horse has left
+    var blown = false           // winded: back to its usual pace until it has caught its breath
+    var string = 0              // mustangs broken to saddle at the stable: each makes the horse tire a quarter slower
+    var over = false            // caught without a coin to your name
+    var troughs: [Double] { return bio == .river ? [1337, pasture.0 + 32, river.0 + 11, river.0 + 25, river.1 - 11] : [1337, pasture.0 + 32] }
     var fortNight = false
     var cav: [Trooper] = []
     var mustangs: [Mustang] = []
@@ -261,7 +271,7 @@ final class Game {
         case .sPost:
             guard let it = postItem() else { return }
             postSold = day
-            if it.0 == "dyn" { dynamite += 1 } else if it.0 == "loader" { loader = true } else { lantern = true }
+            if it.0 == "dyn" { dynamite += 1 } else if it.0 == "loader" { loader = true } else if it.0 == "oats" { oatsDay = day; wind = 1; blown = false } else { lantern = true }
             sfx?.recruit(); puff(x, -26, 8, GOLD, 30)
             hint("buy" + it.0, "\(it.1). \(it.4)", again: true)
         case .sTribe:
@@ -288,9 +298,9 @@ final class Game {
             showUsed = true
             let r = rnd(0, 1)
             if r < 0.45 {
-                tonicDay = day
+                oatsDay = day; wind = 1; blown = false
                 sfx?.recruit(); puff(x, -24, 10, Col(0x8fe08a), 30)
-                hint("tonic1", "Horse tonic, and it works. Your horse has fire in it today.", again: true)
+                hint("tonic1", "Horse tonic, and it works. Your horse does not tire today.", again: true)
             } else if r < 0.7 {
                 for _ in 0..<8 { dropCoin(x, 10) }
                 sfx?.fanfare()
@@ -438,6 +448,12 @@ final class Game {
                 slot += 1
                 let dx = tx - w.x
                 if abs(dx) > 2 { w.dir = sgn(dx); w.x += w.dir * min(150, abs(dx) * 4) * dt }
+                if w.x > gateW.x + 24 && w.x < gateE.x - 10 && has(stable) && stable.level > 0 && string < 3 {
+                    string += 1
+                    sfx?.recruit(); puff(w.x, -14, 8, Col(0x8fe08a), 30)
+                    hint("string", "The stable breaks the mustang to saddle. With \(string) in your string your horse tires \(string * 25)% slower." + (string < 3 ? " The stable has room for \(3 - string) more." : ""), again: true)
+                    mustangs.remove(at: i); continue
+                }
                 if w.x > gateW.x + 24 && w.x < gateE.x - 10 {
                     let n = 3 + town
                     for _ in 0..<n { dropCoin(w.x, 8) }
@@ -668,6 +684,7 @@ final class Game {
     func reset() {
         state = .title
         town = 0; day = 1; day0 = 0; t = 0.6; clock = 0
+        over = false
         carN = 0
         place = "dustfall"; log = []; choosing = false
         coins = 10; bank = 0
@@ -682,7 +699,7 @@ final class Game {
         SHIFT = town > 0 ? 340 : 0
         WORLD = 3420 + SHIFT
         STOP = 1798 + SHIFT
-        camps = [(120, 3), (700, 2), (EX(2210), 2), (EX(2640), 3)]
+        camps = [(120, 3), (700, 2), (EX(2210), 2), (EX(2640), 3), (EX(3066), 2)]       // the last is the hobo jungle
         px = FIRE_X - 20; pvx = 0; pdir = -1; pphase = 0
         tossCD = 0; ammo = 6; reloadT = 0; gunCD = 0; gunT = 0; hurtT = 0
         cam = FIRE_X - W / 2
@@ -710,7 +727,7 @@ final class Game {
         rodsLv = 0; towerLv = 0; hoboDay = 0; carCool = 0; bell = false; stampDay = 0; stampede = nil; ufo = nil; ufoAt = 0; ghostAt = 0; ghostX = nil
         for st in [sPost, sTribe, sRuin, sRig, sShow, sFort, sRods, sTower, sHobo, sCar] { st.dyn = 0; b.append(st) }
         dynamite = 0; loader = false; lantern = false; postSold = 0; scoutDays = 0; ruinCool = 0; rigLv = 0; rigBurn = false
-        showOn = false; showUsed = false; tonicDay = 0; fortNight = false; cav = []
+        showOn = false; showUsed = false; oatsDay = 0; wind = 1; blown = false; string = 0; fortNight = false; cav = []
         mustangs = [Mustang(x: -540, seed: 0), Mustang(x: -150, seed: 1), Mustang(x: -360, seed: 2)]
         b.append(hall); b.append(station); b.append(gateW); b.append(gateE); b.append(wireW); b.append(wireE); b.append(ticket)
         for bl in b { bl.scale = 1 + 0.25 * Double(town) }
@@ -775,6 +792,7 @@ final class Game {
         for q in boxes { bx.append(q.open) }
         return SaveData(town: town, day: day, day0: day0, t: t, coins: purse, bank: bank, ammo: ammo, px: px, side: side,
                         train: train != nil, b: sb, folk: sf, drifters: dr, boxes: bx, seen: Array(seen), herd: herd.count, wx: [Double(wx), wxA, wxB], place: place, log: log,
+                        ride: [wind, Double(string), Double(oatsDay)],
                         more: [Double(rodsLv), Double(towerLv), Double(hoboDay), Double(carCool), Double(carN), bell ? 1 : 0, Double(stampDay)],
                         west: [Double(dynamite), loader ? 1 : 0, lantern ? 1 : 0, Double(postSold), Double(scoutDays), Double(ruinCool), Double(rigLv), rigBurn ? 1 : 0, showOn ? 1 : 0, showUsed ? 1 : 0, fortNight ? 1 : 0],
                         extra: [Double(owed), Double(flood), Double(duelDay), outlaw?.side ?? 0, Double(outlaw?.hp ?? 0), Double(outlaw?.days ?? 0)])
@@ -810,6 +828,7 @@ final class Game {
         }
         for (i, bx) in boxes.enumerated() where i < s.boxes.count { bx.open = s.boxes[i] }
         for _ in 0..<max(0, min(12, s.herd ?? 0)) { addCow(calf: false) }
+        if let r = s.ride, r.count == 3 { wind = clampD(r[0], 0, 1); string = max(0, min(3, Int(r[1]))); oatsDay = Int(r[2]) }
         if let m = s.more, m.count == 7 { rodsLv = Int(m[0]); towerLv = Int(m[1]); hoboDay = Int(m[2]); carCool = Int(m[3]); carN = Int(m[4]); bell = m[5] > 0; stampDay = Int(m[6]) }
         if let w = s.west, w.count == 11 {
             dynamite = Int(w[0]); loader = w[1] > 0; lantern = w[2] > 0; postSold = Int(w[3]); scoutDays = Int(w[4]); ruinCool = Int(w[5])
@@ -853,6 +872,8 @@ final class Game {
             wireE.level = 1
             for i in 0..<5 { bandits.append(Bandit(x: 2010 + Double(i) * 30, rider: i % 3 == 2, side: 1, hp: 3)) }
             px = 1850; folk[0].x = 1925; folk[1].x = 1916
+        } else if name == "over" {
+            hall.level = 1; coins = 0; over = true
         } else if name == "fire" {
             t = 0.5; hall.level = 2; saloon.fireT = 4; saloon.fireHp = 0.8; towerLv = 1; rodsLv = 1; px = 1180; pdir = 1
         } else if name == "yard" {
@@ -919,7 +940,7 @@ final class Game {
     func update(_ dt: Double) {
         clock += dt
         if state != .play { return }
-        if !cut.isEmpty { return }
+        if over || !cut.isEmpty { return }
         story()
         if duel != nil {
             // high noon: the day stands still until it is settled
@@ -975,7 +996,21 @@ final class Game {
 
     private func updPlayer(_ dt: Double) {
         if tripT >= 0 { pvx = 0; return }       // aboard the train
-        let horse = [78.0, 104, 118][min(2, stable.level)] * (forge.level >= 2 ? 1.06 : 1) * (tonicDay == day ? 1.15 : 1)      // the stable and the blacksmith
+        // a fresh horse gallops flat out for a few seconds, then settles to its usual pace until it has caught its wind
+        let shoes = forge.level >= 2
+        let riding = abs(input.stick) > 0.1
+        let fresh = riding && !blown
+        if fresh && oatsDay == day { wind = 1; blown = false }
+        else if fresh {
+            wind -= dt / ((shoes ? 9 : 5) * (1 + 0.25 * Double(string)))
+            if wind <= 0 { wind = 0; blown = true; hint("wind", "Your horse is winded and has dropped to its usual pace. Let it walk or stand a moment, or water it at a trough.") }
+        } else if abs(pvx) < 50 {
+            let atT = troughs.contains { abs($0 - px) < 11 }
+            wind = min(1, wind + dt * (atT ? 1.5 : (rainI() > 0.2 ? 0.5 : (riding ? 0.1 : 0.2))))
+            if atT && wind < 1 && chance(dt * 14) { parts.append(Part(x: px + pdir * 9 + rnd(-2, 2), y: -5, vx: rnd(-8, 8), vy: -rnd(8, 18), life: 0.4, max: 0.4, c: Col(0x9fd0e8), s: 1.4, grav: 60)) }
+        }
+        if blown && wind > 0.35 { blown = false }
+        let horse = [78.0, 104, 118][min(2, stable.level)] * (fresh ? 1.28 : 1) * (shoes ? 1.06 : 1)      // the stable and the blacksmith
         let want = input.stick * horse
         pvx += (want - pvx) * min(1, dt * 7)
         if abs(pvx) < 2 && input.stick == 0 { pvx = 0 }
@@ -1058,8 +1093,8 @@ final class Game {
             } else { tossCD = 0.5; sfx?.empty(); hint("nofolk", "A rope needs someone to throw it. Hire a drifter first.", again: true) }
             return
         }
-        // 3: an open bank keeps what you toss it
-        if atBank() {
+        // 3: an open bank keeps what you toss it, unless it can be improved, which comes first
+        if atBank() && !(bankB.payable && bankB.paid + bankB.incoming < bankB.cost) {
             flying.append(Coin(sx: px, sy: sy, tx: bankB.cx, ty: -14, kind: 6)); coins -= 1; sfx?.toss(); return
         }
         // after dark, a coin patches a damaged gate, or goes toward a rifleman on a gatehouse roof
@@ -1234,7 +1269,7 @@ final class Game {
     private func nearestIdle(_ x: Double) -> Folk? {
         var best: Folk?
         var bd = 99999.0
-        for f in folk where f.role == .folk {
+        for f in folk where f.role == .folk && !f.sick {
             let d = abs(f.x - x)
             if d < bd { bd = d; best = f }
         }
@@ -1254,6 +1289,12 @@ final class Game {
         for f in folk {
             f.work = false
             f.shotCD = max(0, f.shotCD - dt)
+            if f.sick {         // laid up at the doctor's until morning
+                let d = doctor.x + 14 - f.x
+                if abs(d) > 2 { f.dir = d > 0 ? 1 : -1; f.x += f.dir * 36 * dt; f.phase += dt * 9; f.moving = true } else { f.hidden = true; f.moving = false }
+                continue
+            }
+            f.hidden = bell && f.role != .deputy && abs(f.x - f.tx) < 4
             switch f.role {
             case .deputy:
                 if night {
@@ -1295,7 +1336,7 @@ final class Game {
                 if let st = s {
                     f.tx = st.x + 6 + Double(plain % 5) * (st.def.w - 12) / 5
                     if abs(f.x - f.tx) < 3 { f.work = true }
-                } else if bell { f.tx = saloon.cx + Double(plain % 5) * 5 - 10       // indoors, more or less
+                } else if bell { f.tx = saloon.cx + Double(plain % 5) * 5 - 10       // indoors
                 } else if f.wait <= 0 && !f.moving { f.tx = FIRE_X + rnd(-150, 150); f.wait = rnd(2, 7) }
                 plain += 1
             }
@@ -1423,6 +1464,8 @@ final class Game {
         if ruinCool > 0 { ruinCool -= 1 }
         fortNight = false; cav = []
         bell = false; gateW.rifles = 0; gateE.rifles = 0
+        for f in folk { f.sick = false; f.hidden = false }
+        bankB.robbed = false
         if carCool > 0 { carCool -= 1 }
         ghostX = nil; ufo = nil
         ufoAt = day - day0 >= 2 && chance(0.36) ? rnd(0.8, 0.93) : 0
@@ -1563,6 +1606,7 @@ final class Game {
                 let bn = Bandit(x: x, rider: r.rider, side: r.side, hp: (r.boss ? 12 : (r.rider ? 3 : 2)) + r.hp)
                 bn.boss = r.boss
                 bn.torch = !r.boss && chance(0.4)
+                bn.rustle = !r.boss && chance(0.4)
                 bandits.append(bn)
                 raid.remove(at: i)
             } else { i += 1 }
@@ -1658,6 +1702,54 @@ final class Game {
             default:
                 let dir = -bn.side
                 let outside = bn.side < 0 ? bn.x < gx - 9 : bn.x > gx + 9
+                // rustlers go for a cow in the pasture
+                if bn.rustle, let ci = herd.firstIndex(where: { !$0.run && abs($0.x - bn.x) < 80 }) {
+                    let dx = herd[ci].x - bn.x
+                    if abs(dx) < 4 {
+                        herd.remove(at: ci); bn.loot += 2; bn.st = 3
+                        puff(bn.x, -4, 6, Col(terrain.dust), 30)
+                        hint("rustle", "Rustlers took a cow from the pasture.", again: true)
+                    } else { bn.x += sgn(dx) * sp * dt; bn.phase += dt * 9 }
+                    i += 1
+                    continue
+                }
+                if !outside {
+                    // a townsman caught in the open is run off, or put in the doctor's care
+                    var vic: Folk?
+                    var vd = 60.0
+                    for f in folk where f.role != .deputy && !f.hidden && !f.sick {
+                        let d = abs(f.x - bn.x)
+                        if d < vd { vd = d; vic = f }
+                    }
+                    if let f = vic {
+                        if vd < 4 {
+                            if doctor.level > 0 { f.sick = true; hint("patched2", "The doctor took them in. They will be back on their feet at dawn.", again: true) }
+                            else {
+                                folk.removeAll { $0 === f }
+                                var ci = 0
+                                var cd = 99999.0
+                                for (k, cp) in camps.enumerated() where abs(cp.0 - f.x) < cd { cd = abs(cp.0 - f.x); ci = k }
+                                drifters.append(Drifter(x: f.x, camp: ci))
+                                hint("mug", "A bandit ran one of your townsfolk off. The doctor, the church bell and deputies keep them safe.", again: true)
+                            }
+                            bn.loot += 1; bn.st = 3; sfx?.empty()
+                        } else { bn.x += sgn(f.x - bn.x) * sp * dt; bn.phase += dt * 9 }
+                        i += 1
+                        continue
+                    }
+                    // an outlaw boss goes for a bank that can still be robbed
+                    if bn.boss && has(bankB) && bankB.level == 1 && bank > 0 && !bankB.robbed {
+                        let dx = bankB.cx - bn.x
+                        if abs(dx) < 4 {
+                            let n = min(bank, 10)
+                            bank -= n; bn.loot += n; bankB.robbed = true; bn.st = 3
+                            sfx?.box()
+                            hint("bankrob", "The outlaw robbed the bank. Shoot him down before he gets away and the coins are yours again.", again: true)
+                        } else { bn.x += sgn(dx) * sp * dt; bn.phase += dt * 9 }
+                        i += 1
+                        continue
+                    }
+                }
                 if outside && gate.level > 0 && abs(bn.x - gx) < 13 { bn.st = 1; bn.t = 0 } else {
                     var tx = FIRE_X
                     if !outside {
@@ -1682,11 +1774,22 @@ final class Game {
             }
             // riding into one costs you coins from your purse
             if bn.st != 3 && bn.hitT <= 0 && abs(bn.x - px) < 9 && hurtT <= 0 {
-                let n = min(coins, bn.boss ? 5 : (bn.rider ? 4 : 3))
-                coins -= n
-                for _ in 0..<n { dropCoin(px, 14) }
                 bn.hitT = 2; hurtT = 1.2; shake = 1; flash = 0.3; sfx?.hit(1)
-                hint("knock", "A raider knocked coins out of your purse. Keep your distance and shoot.")
+                if coins <= 0 && bank <= 0 {
+                    // caught without a coin to your name
+                    over = true
+                    return
+                }
+                if coins <= 0 {
+                    let n = min(5, bank)
+                    bank -= n; bn.loot += n; bn.st = 3
+                    hint("paidoff", "Your purse was empty, so the bandit took \(n) from the bank instead. With nothing in either, you are run out of town.", again: true)
+                } else {
+                    let n = min(coins, bn.boss ? 5 : (bn.rider ? 4 : 3))
+                    coins -= n
+                    for _ in 0..<n { dropCoin(px, 14) }
+                    hint("knock", "Robbed. Keep your distance and shoot. If they catch you with an empty purse and nothing in the bank, you are run out of town.")
+                }
             }
             i += 1
         }
@@ -1988,7 +2091,7 @@ final class Game {
             info = "Train ticket: \(bl.cost) coins" + (bl.paid > 0 ? " (\(bl.paid) in)" : "") + ". You step off at the next town with \(carryOut()): half of purse and bank, never under 8 or over 25."
             return
         }
-        if bl.type == .bank && bl.level > 0 && !bl.building {
+        if bl.type == .bank && bl.level > 0 && !bl.building && !(bl.payable && bl.level < bl.maxLevel) {
             info = "Bank: \(bank) inside, safe from raiders. Hold the coin button to pay in; with an empty purse it hands 5 back."
             return
         }
