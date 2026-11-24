@@ -774,6 +774,9 @@ final class Game {
         if name == "evstow" { startOmen("stowaway"); sceneT = 2; omenK = ""; event("stowaway"); camZ = 2.6 }
         if name == "evcatch" { startOmen("catch"); sceneT = 2; omenT = 1.6; Game.omenHold = true; camZ = 2.6 }
         if name == "omen" { startOmen("pirates"); omenT = 1.6; Game.omenHold = true }
+        if name == "hang1" { deckForce = 25; camZ = 2.6; nextEvAt = 9999 }
+        if name == "hang2" { deckForce = 26; camZ = 2.6; nextEvAt = 9999 }
+        if name == "hang3" { deckForce = 27; camZ = 2.6; nextEvAt = 9999 }
         if name == "life1" { deckForce = 17; camZ = 2.6; nextEvAt = 9999 }
         if name == "life2" { deckForce = 18; camZ = 2.6; nextEvAt = 9999 }
         if name == "life3" { deckForce = 20; camZ = 2.6; nextEvAt = 9999 }

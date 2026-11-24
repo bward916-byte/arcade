@@ -9,7 +9,7 @@ extension Game {
         if deckForce >= 0 { return deckForce }
         if rough > 0.6 { return 6 }
         // the watch is never at the same job for more than two days running
-        let order = [0, 13, 8, 16, 1, 20, 9, 17, 2, 22, 10, 14, 3, 18, 11, 24, 4, 15, 12, 21, 5, 19, 23]
+        let order = [0, 26, 13, 8, 16, 1, 25, 20, 9, 17, 2, 22, 27, 10, 14, 3, 18, 26, 11, 24, 4, 25, 15, 12, 21, 5, 27, 19, 23]
         return order[((cal / 2) * 7 + leg * 5) % order.count]
     }
     func seaAct() -> Int {
@@ -27,7 +27,8 @@ extension Game {
             15: "Splicing and knotting on the forehatch", 16: "A cask is swayed up out of the hold", 17: "The goat is milked and the hens are fed",
             18: "Wash day: every shirt aboard is on the line", 19: "The lookout is relieved at the masthead", 20: "Captain's inspection. Stand straight",
             21: "The surgeon is shaving all comers", 22: "An old hand is spinning a yarn", 23: "Tug of war: larboard watch against starboard",
-            24: "The leadsman is sounding: by the deep, nine"
+            24: "The leadsman is sounding: by the deep, nine", 25: "Two hands are slung over the side, scraping the hull",
+            26: "Skylarking: the watch is swinging from the yards", 27: "Legs over the side, and one hanging from the bowsprit"
         ]
         let deck = names[deckAct()] ?? "The watch is at work"
         let sea = ["Dolphins off the bow", "A whale blows to starboard", "Flying fish skim the swell", "A sail on the horizon", "A fin is following the ship", "Driftwood from some wreck slides past", "An albatross rides the wind astern", ""][min(7, seaAct())]
@@ -905,6 +906,71 @@ extension Game {
             }
             tar(c, 54, -33, coats[2], dark, aL: 1.2, aR: 0.8); c.R(57, -42, 4, 3, Col(0x2a2a30))
             tar(c, -20, -33, coats[1], dark, walk: T * 6)
+        case 25:
+            // a stage slung over the side: two on it scraping and painting, one at the rail tending the lines
+            let sw = sin(T * 1.1) * 1.6
+            c.seg(-14, -44, -14 + sw, -15, 0.7, Col(0xfff6d8)); c.seg(22, -44, 22 + sw, -15, 0.7, Col(0xfff6d8))
+            c.R(-18 + sw, -15, 44, 1.8, Col(0xc9a070).shade(dark))
+            let sc = sin(T * 8)
+            let a1: Double = 1.7 + sc * 0.3, a2: Double = 1.2 - sc * 0.25
+            tar(c, -8 + sw, -15, coats[0], dark, lean: 0.3, aL: 1.0, aR: a1)
+            c.seg(-2.5 + sw, -24 + sc, -0.5 + sw, -26 + sc, 1.2, Col(0x9aa0a8))
+            for j in 0..<4 { let ph = (T * 1.3 + Double(j) / 4).truncatingRemainder(dividingBy: 1); c.circ(-1 + sw + hashN(Double(j)) * 3, -24 + ph * 22, 0.6, Col(0x6b4423, 1 - ph)) }
+            tar(c, 12 + sw, -15, coats[2], dark, lean: 0.25, aL: 0.7, aR: a2)
+            c.seg(17 + sw, -22 - sc, 19.5 + sw, -20 - sc, 1.5, Col(0x16110c)); c.R(14 + sw, -8, 12, 5, Col(0x16110c, 0.55))
+            c.poly(Col(0x2a2a30), [2 + sw, -15, 2.6 + sw, -19, 6.4 + sw, -19, 7 + sw, -15])
+            tar(c, -14, -33, coats[1], dark, lean: 0.35, aL: 1.3, aR: 1.5)
+            // and a third lowered in a bowline further aft, kicking off the planks
+            let kk = abs(sin(T * 1.7))
+            c.seg(-52, -44, -52 + kk * 5, -20, 0.7, Col(0xfff6d8))
+            tar(c, -52 + kk * 5, -8, coats[3], dark, lean: 0.35 + kk * 0.2, walk: T * 4, aL: 3.0, aR: 2.6)
+            tar(c, -58, -33, coats[0], dark, lean: -0.3, aL: 1.4, aR: 1.4)
+        case 26:
+            // skylarking: two swinging out from the yardarms on a rope's end, one coming down a backstay by his hands
+            for i in 0..<2 {
+                let px = (i == 0 ? mx[0] : mx[mx.count - 1]) + (i == 0 ? -6.0 : 6.0), py = -128.0, L = 78.0
+                let a = sin(T * 1.5 + Double(i) * 1.9) * 0.95
+                let hx = px + sin(a) * L, hy = py + cos(a) * L
+                c.seg(px, py, hx, hy, 0.8, Col(0xfff6d8))
+                // he hangs below his hands, legs trailing the way he came
+                c.save(); c.translate(hx, hy); c.rotate(-a * 0.75)
+                tar(c, 0, 14.5, coats[i * 2], dark, walk: T * 3 + Double(i), aL: 3.05, aR: -3.05)
+                c.restore()
+                if abs(a) > 0.85 { c.textS(i == 0 ? "Wheee!" : "Ha!", hx, hy - 6, 6, Col(0xffffff, 0.9), 0, FONTB) }
+            }
+            let sl = (T * 0.16).truncatingRemainder(dividingBy: 1)
+            let s0x = m0 + 2.0, s0y = -150.0, s1x = 78.0, s1y = -40.0
+            c.seg(s0x, s0y, s1x, s1y, 0.6, Col(0xfff6d8, 0.8))
+            let slx = lerp(s0x, s1x, sl), sly = lerp(s0y, s1y, sl)
+            tar(c, slx, sly + 14.5, coats[1], dark, lean: 0.25, walk: T * 6, aL: 3.05, aR: -3.05)
+            for (j, wx) in [-24.0, -8.0, 14.0].enumerated() {
+                let jd = Double(j)
+                let hp: Double = abs(sin(T * 5 + jd * 1.3)) * 1.8, w0: Double = -2.6 + sin(T * 6 + jd) * 0.3
+                tar(c, wx, -33, coats[(j + 1) % 4], dark, hop: hp, aL: w0, aR: 2.4)
+            }
+        case 27:
+            // idle hands: three sat on the rail with their legs over the side, one hanging off the bowsprit by his arms,
+            // one doing pull-ups off the rail with a mate counting
+            for (j, sx) in [-30.0, -20.0, -4.0].enumerated() {
+                let kick = sin(T * 3 + Double(j) * 1.7)
+                let skin = Col(0xe3b58a).shade(dark)
+                c.seg(sx - 1, -44, sx - 1 + kick * 1.6, -38, 1.8, Col(0x2b2a33).shade(dark)); c.seg(sx + 1.2, -44, sx + 1.2 - kick * 1.6, -38, 1.8, Col(0x2b2a33).shade(dark))
+                c.circ(sx - 1 + kick * 1.6, -37.4, 0.9, skin); c.circ(sx + 1.2 - kick * 1.6, -37.4, 0.9, skin)
+                c.seg(sx, -44.5, sx, -49.5, 4, coats[j].shade(dark))
+                c.seg(sx - 1.2, -48.5, sx - 3, -45, 1.4, skin); c.seg(sx + 1.2, -48.5, sx + 3, -45, 1.4, skin)
+                c.circ(sx, -52, 2.4, skin); c.arcFill(sx, -52.2, 2.5, PI, PI * 2, Col.mix(coats[j], Col(0x8a1a1a), 0.6).shade(dark)); c.circ(sx + 1, -52.2, 0.42, Col(0x1a1008))
+            }
+            // off the bowsprit, swinging
+            let bs = sin(T * 2.1) * 0.5
+            c.save(); c.translate(98, -56); c.rotate(bs)
+            tar(c, 0, 14.5, coats[3], dark, walk: T * 2.5, aL: 3.05, aR: -3.05)
+            c.restore()
+            // pull-ups off the rail, outboard
+            let pu = 0.5 + 0.5 * sin(T * 2.6)
+            let hangY = -44 + 14.5 - pu * 4.5
+            tar(c, 30, hangY, coats[0], dark, aL: 3.05 - pu * 0.5, aR: -3.05 + pu * 0.5)
+            tar(c, 40, -33, coats[1], dark, lean: 0.25, aL: 0.4, aR: 2.2)
+            c.textS("\(Int(T * 2.6 / (PI * 2)) % 20 + 1)", 44, -50, 6, Col(0xffffff, 0.9), 0, FONTB)
         default:
             // the night watch: a helmsman, a man forward, lanterns along the rail
             hand(c, -52, -33, coats[0], dark); hand(c, 50, -33, coats[2], dark)
