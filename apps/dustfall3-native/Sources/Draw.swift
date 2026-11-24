@@ -76,6 +76,7 @@ final class Renderer {
         if g.tripT < 0 { rider() }
         coins()
         effects()
+        drifting(dk)
         night(dk)
         skyThings()
         weather(dk)
@@ -483,16 +484,40 @@ final class Renderer {
         let low = Col.mix(Col.mix(Col.mix(Col(cold ? 0xeef3f8 : 0xf4dfb0), Col(0xf6b25a), dusk), Col(0x2c2a4a), dk), grey, cl * 0.8)
         c.vfill(0, 0, W, gy, [(0, top), (0.6, mid), (1, low)])
         if dk > 0.25 {
+            let sa = (dk - 0.25) * (1 - cl)
+            // the river of stars, slanting low across the sky
             for i in 0..<70 {
-                let x = hashN(Double(i) * 3.1) * W, y = hashN(Double(i) * 7.7) * gy * 0.8
+                let u = hashN(Double(i) * 2.3 + 0.4)
+                let x = u * W, y = gy * (0.16 + 0.3 * u) + (hashN(Double(i) * 6.1) - 0.5) * gy * 0.17
+                c.R(x.rounded(), y.rounded(), 1, 1, Col(0xcfd8ff, sa * 0.32))
+            }
+            for i in 0..<80 {
+                let x = (hashN(Double(i) * 3.1) * W).rounded(), y = (hashN(Double(i) * 7.7) * gy * 0.8).rounded()
                 let tw = 0.5 + 0.5 * sin(g.clock * (1 + hashN(Double(i)) * 2) + Double(i))
-                c.R(x.rounded(), y.rounded(), 1, 1, Col(0xfff6dc, (dk - 0.25) * tw))
+                c.R(x, y, 1, 1, Col(i % 7 == 0 ? 0xffd9b0 : (i % 5 == 0 ? 0xc8dcff : 0xfff6dc), sa * tw))
+                if i % 11 == 0 { c.R(x - 1, y, 3, 1, Col(0xfff6dc, sa * tw * 0.45)); c.R(x, y - 1, 1, 3, Col(0xfff6dc, sa * tw * 0.45)) }
+            }
+            // now and then one falls
+            let ph = (g.clock / 9).truncatingRemainder(dividingBy: 1), n = floor(g.clock / 9)
+            if ph < 0.08 {
+                let u = ph / 0.08
+                let x = hashN(n * 3.7) * W * 0.8 + W * 0.1 + u * 50, y = hashN(n * 9.1) * gy * 0.3 + 6 + u * 17
+                c.seg(x - 13, y - 4.4, x, y, 0.8, Col(0xffffff, sa * (1 - u)))
             }
         }
         // the sun crosses by day; the moon by night
         if g.t > 0.02 && g.t < 0.76 {
             let u = (g.t - 0.02) / 0.74
             let x = W * (0.08 + 0.84 * u), y = gy - sin(u * PI) * gy * 0.82 + 6
+            // long rays turning slowly, and a wide burn along the horizon as it sets
+            let rayA = 0.09 * (1 - dk) * (1 - cl)
+            if rayA > 0.01 {
+                for k in 0..<10 {
+                    let an = Double(k) * PI / 5 + g.clock * 0.05, rr = k % 2 == 0 ? 70.0 : 48.0
+                    c.poly(Col(0xfff2c0, rayA), [x, y, x + cos(an - 0.06) * rr, y + sin(an - 0.06) * rr, x + cos(an + 0.06) * rr, y + sin(an + 0.06) * rr])
+                }
+            }
+            if dusk > 0.05 { c.glow(x, gy, 150, Col(0xffa85a, 0.4 * dusk * (1 - dk)), Col(0xffa85a, 0)) }
             c.glow(x, y, 46, Col(0xfff2c0, 0.55 * (1 - dk)), Col(0xfff2c0, 0))
             c.circ(x, y, 9, Col.mix(Col(0xfff6d8), Col(0xff9a4a), dusk))
         } else {
@@ -500,6 +525,7 @@ final class Renderer {
             let x = W * (0.15 + 0.7 * u), y = gy * 0.62 - sin(u * PI) * gy * 0.42
             c.glow(x, y, 30, Col(0xdfe8ff, 0.25), Col(0xdfe8ff, 0))
             c.circ(x, y, 7, Col(0xeef2ff))
+            c.circ(x - 2.6, y + 1.2, 1.3, Col(0xc6cfe6)); c.circ(x - 3.6, y - 2.4, 0.8, Col(0xc6cfe6)); c.circ(x - 0.6, y + 4, 0.9, Col(0xc6cfe6))
             c.circ(x + 2.5, y - 1.5, 6, Col.mix(Col(0x0a0f24), Col(0x1a2040), 0.5))
         }
         // a few clouds drifting
@@ -508,9 +534,12 @@ final class Renderer {
             var x = hashN(Double(i) * 4.1) * (W + 200) + g.clock * (3 + Double(i)) - g.cam * 0.05
             x = x.truncatingRemainder(dividingBy: W + 200) - 100
             let y = 14 + hashN(Double(i) * 2.2) * gy * 0.3
-            let col = Col.mix(Col.mix(Col(0xffffff, 0.75), Col(0xffc9a0, 0.7), dusk), Col(0x3a4060, 0.5), dk)
-            c.RR(x, y, w, 6, 3, col)
-            c.RR(x + w * 0.2, y - 3, w * 0.5, 6, 3, col)
+            let col = Col.mix(Col.mix(Col(0xffffff, 0.9), Col(0xffc9a0, 0.88), dusk), Col(0x3a4060, 0.6), dk)
+            let under = Col.mix(Col.mix(Col(0xc4d0e0, 0.9), Col(0xc4705a, 0.88), dusk), Col(0x23284a, 0.6), dk)
+            // a flat grey belly, and a heaped top catching the light
+            c.RR(x + 2, y + 2, w - 4, 5, 2.5, under)
+            c.RR(x, y, w, 5.5, 2.75, col)
+            c.circ(x + w * 0.28, y, 5, col); c.circ(x + w * 0.5, y - 2.5, 7, col); c.circ(x + w * 0.72, y + 0.5, 4.5, col)
         }
     }
 
@@ -520,6 +549,17 @@ final class Renderer {
         let near = Col.mix(Col.mix(Col(L.mesa), Col(0x8a3e4a), dusk), Col(0x2a2a4e), dk)
         let cap = Col.mix(Col(L.mesaT), Col(0x4a4e72), dk)
         let nearD = Col.mix(Col.mix(Col(L.mesaS), Col(0x6a2e3a), dusk), Col(0x20203e), dk)
+        let hz = Col.mix(Col.mix(Col(g.bio == .snow ? 0xeef3f8 : 0xf4dfb0), Col(0xf6b25a), dusk), Col(0x2c2a4a), dk)
+        // a far blue line of hills, almost lost in the haze
+        let off = g.cam * 0.1
+        var ri = floor(off / 24) - 1
+        var rp: [Double] = [-30, gy]
+        while ri * 24 - off < W + 30 {
+            rp.append(ri * 24 - off); rp.append(gy - 9 - hashN(ri * 1.9) * 15 - hashN(floor(ri / 4) * 0.37) * 14)
+            ri += 1
+        }
+        rp.append(W + 30); rp.append(gy)
+        c.poly(Col.mix(far, hz, 0.5), rp)
         var i = -4
         while i < 14 {
             let bx = Double(i) * 190 + hashN(Double(i) * 5.3) * 80 - g.cam * 0.22 - 60
@@ -539,9 +579,18 @@ final class Renderer {
                 if g.bio == .snow { c.R(bx + 12, gy - h, w - 24, 3, cap); c.R(bx + 14, gy - h + 3, w - 34, 1, cap) }
                 c.R(bx + 12, gy - h * 0.7, w - 26, 1, nearD.alpha(0.5))
                 c.R(bx + 8, gy - h * 0.4, w - 14, 1, nearD.alpha(0.5))
+                // the lit rim, paler bands of rock, and scree at the foot
+                let nearL = Col.mix(near, Col(0xffffff), 0.2 * (1 - dk))
+                c.R(bx + 12, gy - h, w * 0.5 - 6, 1.2, nearL)
+                c.R(bx + 13, gy - h * 0.86, w * 0.4, 1, nearL.alpha(0.6))
+                c.R(bx + 9, gy - h * 0.55, w * 0.46, 1, nearL.alpha(0.45))
+                c.poly(nearD.alpha(0.6), [bx - 16, gy, bx - 3, gy - h * 0.2, bx + 10, gy])
+                c.poly(near, [bx + w, gy, bx + w + 9, gy - h * 0.18, bx + w + 22, gy])
             }
             i += 1
         }
+        // haze lying along the foot of the hills
+        c.vfill(0, gy - 28, W, 28, [(0, hz.alpha(0)), (1, hz.alpha(0.5 - 0.28 * dk))])
     }
 
     private func groundBand(_ dk: Double) {
@@ -575,6 +624,25 @@ final class Renderer {
             if (g.bio != .river && !g.flooded) || x < g.river.0 - 3 || x > g.river.1 { c.R(sx(x).rounded(), y.rounded(), 2 + hashN(Double(i)) * 3, 1, Col(L.speck, 0.55)) }
             i += 1
         }
+        // pebbles, and cracks in the hardpan
+        var j = Int((g.cam / 37).rounded(.down)) - 1
+        while Double(j) * 37 < g.cam + W + 20 {
+            let wx = Double(j) * 37 + hashN(Double(j) * 6.3) * 30
+            let y = (gy + 5 + hashN(Double(j) * 2.1) * (H - gy - 10)).rounded()
+            let wet = (g.bio == .river || g.flooded) && wx > g.river.0 - 8 && wx < g.river.1 + 8
+            if !wet {
+                let x = sx(wx).rounded()
+                if hashN(Double(j) * 9.9) > 0.5 {
+                    c.ell(x + 0.6, y + 1.1, 2.6, 0.7, Col(0x000000, 0.16))
+                    c.ell(x, y, 2.2, 1.3, Col(L.g2)); c.R(x - 1.3, y - 1, 1.8, 0.7, Col(L.edge, 0.8))
+                } else if g.bio != .snow {
+                    let ck = Col(L.speck, 0.5)
+                    c.seg(x, y, x + 5, y + 1.5, 0.6, ck); c.seg(x + 5, y + 1.5, x + 8, y + 0.5, 0.6, ck); c.seg(x + 5, y + 1.5, x + 6, y + 4, 0.6, ck)
+                }
+            }
+            j += 1
+        }
+        c.vfill(0, H - 10, W, 10, [(0, Col(0x000000, 0)), (1, Col(0x000000, 0.2))])
     }
 
     private func scenery() {
@@ -678,23 +746,56 @@ final class Renderer {
         let lv = bl.level
         let h = d.h + Double(max(0, lv - 1)) * 5
         if lv == 0 {
-            // burned out and boarded up
+            // burned out years ago: scorched boards, a ragged roofline, and the sign hanging by one nail
             let hh = d.h * 0.78
-            c.R(x, gy - hh, w, hh, Col(0x5c5048))
-            c.R(x, gy - hh, w, 2, Col(0x3a302a))
-            c.poly(Col(0x3a302a), [x, gy - hh, x + w * 0.3, gy - hh - 5, x + w * 0.45, gy - hh])
-            for k in 0..<Int(w / 9) { c.R(x + 3 + Double(k) * 9, gy - hh + 3, 1, hh - 3, Col(0x4a3f38)) }
-            c.R(x + d.doorX, gy - 20, d.doorW, 20, Col(0x2a221e))
-            c.seg(x + d.doorX - 1, gy - 18, x + d.doorX + d.doorW + 1, gy - 6, 2, Col(0x7a6a58))
-            c.seg(x + d.doorX - 1, gy - 6, x + d.doorX + d.doorW + 1, gy - 18, 2, Col(0x7a6a58))
-            for wn in d.wins {
-                c.R(x + wn.0, gy - 21, wn.1, 12, Col(0x2a221e))
-                c.R(x + wn.0 - 1, gy - 17, wn.1 + 2, 2, Col(0x7a6a58)); c.R(x + wn.0 - 1, gy - 13, wn.1 + 2, 2, Col(0x7a6a58))
+            let char = Col(0x2e2622), board = Col(0x7a6a58)
+            c.ell(x + w / 2, gy + 1.2, w * 0.56, 2.2, Col(0x000000, 0.16))
+            c.vfill(x, gy - hh, w, hh, [(0, Col(0x3e3530)), (0.55, Col(0x5c5048)), (1, Col(0x675b50))])
+            for k in 0..<Int(w / 6) {
+                let px = x + 2 + Double(k) * 6
+                c.R(px, gy - hh + 2, 0.8, hh - 2, Col(0x4a3f38))
+                if hashN(bl.x + Double(k) * 3.1) > 0.68 { c.R(px + 1, gy - 4 - hh * 0.8 * hashN(bl.x + Double(k)), 4, 3 + hashN(Double(k)) * 5, Col(0x241c18, 0.8)) }
             }
-            c.text(d.name, x + w / 2, gy - hh + 9, 6, Col(0x8a7c6c))
+            var roofP: [Double] = [x - 1, gy - hh + 1.5]
+            let rn = max(4, Int(w / 8))
+            for k in 0...rn { roofP.append(x + Double(k) / Double(rn) * w); roofP.append(gy - hh - 1 - hashN(bl.x * 0.7 + Double(k) * 4.3) * 7) }
+            roofP.append(x + w + 1); roofP.append(gy - hh + 1.5)
+            c.poly(char, roofP)
+            c.seg(x + w * 0.2, gy - hh, x + w * 0.34, gy - hh - 13, 1.6, char); c.seg(x + w * 0.34, gy - hh - 13, x + w * 0.5, gy - hh - 2, 1.4, char)
+            c.seg(x + w * 0.74, gy - hh, x + w * 0.72, gy - hh - 10, 1.4, char)
+            if hashN(bl.x * 0.31) > 0.35 {
+                // a crow keeping watch on the rafter
+                let cx = x + w * 0.34, cy = gy - hh - 15.5 + (sin(g.clock * 0.9 + bl.x) > 0.93 ? 0.8 : 0)
+                c.ell(cx, cy, 2.6, 1.7, Col(0x15121a)); c.circ(cx + 2.2, cy - 1.4, 1.2, Col(0x15121a)); c.poly(Col(0x4a4038), [cx + 3.2, cy - 1.6, cx + 5, cy - 1.1, cx + 3.2, cy - 0.7]); c.poly(Col(0x15121a), [cx - 2, cy - 0.5, cx - 5.4, cy + 1.6, cx - 1.6, cy + 1.2])
+            }
+            c.R(x + d.doorX, gy - 20, d.doorW, 20, Col(0x1e1814))
+            c.vfill(x + d.doorX - 1, gy - 31, d.doorW + 2, 11, [(0, Col(0x1a1412, 0)), (1, Col(0x1a1412, 0.6))])
+            c.seg(x + d.doorX - 1, gy - 18, x + d.doorX + d.doorW + 1, gy - 6, 2, board)
+            c.seg(x + d.doorX - 1, gy - 6, x + d.doorX + d.doorW + 1, gy - 18, 2, board)
+            c.R(x + d.doorX - 1, gy - 13, d.doorW + 2, 2, Col(0x8a7a66))
+            c.R(x + d.doorX, gy - 12.6, 0.8, 0.8, Col(0x2a221e)); c.R(x + d.doorX + d.doorW - 0.8, gy - 12.6, 0.8, 0.8, Col(0x2a221e))
+            for wn in d.wins {
+                c.vfill(x + wn.0 - 1, gy - 30, wn.1 + 2, 9, [(0, Col(0x1a1412, 0)), (1, Col(0x1a1412, 0.6))])
+                c.R(x + wn.0, gy - 21, wn.1, 12, Col(0x1e1814))
+                c.poly(Col(0x9ab0b8, 0.5), [x + wn.0, gy - 9, x + wn.0, gy - 13, x + wn.0 + wn.1 * 0.4, gy - 9])
+                c.seg(x + wn.0 - 1, gy - 18, x + wn.0 + wn.1 + 1, gy - 16.4, 2, board); c.seg(x + wn.0 - 1, gy - 12, x + wn.0 + wn.1 + 1, gy - 13.4, 2, Col(0x8a7a66))
+            }
+            c.save()
+            c.translate(x + w / 2, gy - hh + 7.5)
+            c.rotate(-0.08 + sin(g.clock * 1.3 + bl.x) * 0.012)
+            c.R(-w * 0.31, -4.5, w * 0.62, 8.5, Col(0x4a3f38)); c.R(-w * 0.31, -4.5, w * 0.62, 1, Col(0x6e6054)); c.R(-w * 0.31, 3.2, w * 0.62, 0.8, Col(0x2e2622))
+            c.text(d.name, 0, 2, 6, Col(0x9a8c7a), fit: w * 0.56)
+            c.restore()
+            // fallen timbers and weeds at the foot of the wall
+            c.seg(x + w * 0.62, gy - 0.5, x + w * 0.9, gy - 5, 1.6, char); c.R(x + w * 0.1, gy - 2, 7, 2, Col(0x3a302a)); c.R(x + w * 0.14, gy - 3.4, 4, 1.4, char)
+            for k in 0..<4 {
+                let wxx = x + 3 + hashN(bl.x + Double(k) * 7.7) * (w - 6), sw = sin(g.clock * 1.5 + Double(k) + bl.x) * 0.6
+                c.seg(wxx, gy, wxx - 1 + sw, gy - 4, 0.7, Col(0x6a7040)); c.seg(wxx + 1, gy, wxx + 2 + sw, gy - 5.5, 0.7, Col(0x808648))
+            }
             if bl.building { scaffold(x, w, d.h, bl.progress) }
             return
         }
+        c.ell(x + w / 2, gy + 1.2, w * 0.56, 2.2, Col(0x000000, 0.16))
         let wall = Col(d.wall), trim = Col(d.trim), roof = Col(d.roof)
         let wallD = Col.mix(wall, Col(0x000000), 0.2), wallL = Col.mix(wall, Col(0xffffff), 0.14)
         let lit = dk > 0.3 && !bl.robbed
@@ -1413,28 +1514,53 @@ final class Renderer {
         let x = sx(bl.x).rounded(), lv = bl.level
         let wood = Col(0x7a5632), dkw = Col(0x4a3424)
         if lv == 0 {
-            c.R(x + 1, gy - 5, 2, 5, dkw); c.R(x + 10, gy - 4, 2, 4, dkw)
-            c.seg(x - 2, gy - 1, x + 9, gy - 3, 1.5, Col(0x5c5048))
+            // two charred stumps, a fallen rail and a heap of stones
+            c.R(x + 1, gy - 6, 2.4, 6, Col(0x2e2622)); c.R(x + 10, gy - 4, 2.4, 4, Col(0x2e2622)); c.R(x + 1, gy - 6, 2.4, 1, Col(0x4a3f38))
+            c.seg(x - 3, gy - 1, x + 10, gy - 3.4, 1.6, Col(0x5c5048))
+            c.RR(x + 4, gy - 2.6, 4, 2.8, 1, Col(0x8a8478)); c.RR(x + 7, gy - 1.8, 3.4, 2, 1, Col(0x76706a))
             if bl.building { scaffold(x, 14, 16, bl.progress) }
             return
         }
         let h = [0.0, 16, 26, 36][min(lv, 3)]
         if lv == 1 {
-            c.R(x + 1, gy - h, 2, h, dkw); c.R(x + 11, gy - h, 2, h, dkw)
+            c.R(x + 1, gy - h, 2.4, h, dkw); c.R(x + 11, gy - h, 2.4, h, dkw)
+            c.R(x + 1, gy - h, 0.8, h, Col(0x6a4a2e)); c.R(x + 11, gy - h, 0.8, h, Col(0x6a4a2e))
+            c.R(x + 0.4, gy - h - 1.4, 3.6, 1.6, wood); c.R(x + 10.4, gy - h - 1.4, 3.6, 1.6, wood)
             c.seg(x, gy - 2, x + 14, gy - h + 2, 2, wood); c.seg(x + 14, gy - 2, x, gy - h + 2, 2, wood)
-            c.R(x, gy - h * 0.55, 14, 2, wood)
+            c.R(x, gy - h * 0.55, 14, 2, wood); c.R(x, gy - h * 0.55, 14, 0.7, Col(0x9a744a))
+            c.R(x + 6.4, gy - h * 0.55 + 0.6, 1, 1, Col(0x2e2622))
         } else {
             var k = 0.0
-            while k < 14 { c.R(x + k, gy - h + (Int(k) % 4 == 0 ? 0 : 2), 2, h, Int(k) % 4 == 0 ? wood : dkw); c.poly(wood, [x + k, gy - h, x + k + 1, gy - h - 3, x + k + 2, gy - h]); k += 2 }
-            c.R(x - 1, gy - h * 0.7, 16, 2, dkw); c.R(x - 1, gy - h * 0.3, 16, 2, dkw)
+            while k < 14 {
+                let tall = Int(k) % 4 == 0, top = gy - h + (tall ? 0 : 2)
+                c.R(x + k, top, 2, h, tall ? wood : Col(0x664628)); c.R(x + k, top, 0.6, h, Col(0x9a744a, tall ? 0.8 : 0.4)); c.R(x + k + 1.5, top, 0.5, h, dkw)
+                c.poly(tall ? wood : Col(0x664628), [x + k, top, x + k + 1, top - 3, x + k + 2, top])
+                k += 2
+            }
+            // iron straps with rivets, and a footing of field stones
+            for fy in [gy - h * 0.7, gy - h * 0.3] {
+                c.R(x - 1, fy, 16, 2, Col(0x2e2a2c)); c.R(x - 1, fy, 16, 0.6, Col(0x5a565c))
+                var rv = 0.0
+                while rv < 16 { c.R(x - 0.4 + rv, fy + 0.8, 0.7, 0.7, Col(0x8a868c)); rv += 4 }
+            }
+            for st in 0..<4 { c.RR(x - 1.5 + Double(st) * 4.2, gy - 3, 4.6, 3.6, 1.2, Col(st % 2 == 0 ? 0x8a8478 : 0x76706a)); c.R(x - 0.8 + Double(st) * 4.2, gy - 2.8, 2.6, 0.6, Col(0xa8a294)) }
             if lv >= 3 {
                 c.R(x - 4, gy - h - 12, 22, 3, dkw); c.R(x - 3, gy - h - 9, 2, 9, dkw); c.R(x + 15, gy - h - 9, 2, 9, dkw)
                 c.R(x - 5, gy - h - 16, 24, 4, Col(0x6a3c20))
                 // the Gatling gun on the roof, pointing out of town
                 let gd = bl.type == .gateW ? -1.0 : 1.0
                 c.R(x + 5, gy - h - 19, 4, 3, Col(0x4a4a50)); c.seg(x + 7, gy - h - 18, x + 7 + gd * 9, gy - h - 18, 1.6, Col(0x2e2622))
+                for sh in 0..<6 { c.R(x - 5 + Double(sh) * 4, gy - h - 16, 3.4, 1.4, Col(0x7e4a28)) }
+                // a pennant over the watch post
+                let fw = sin(g.clock * 4 + bl.x) * 1.2
+                c.R(x + 6.6 - gd * 7, gy - h - 26, 0.8, 10, dkw)
+                c.poly(Col(0xb23a2e), [x + 7 - gd * 7, gy - h - 26, x + 7 - gd * 14, gy - h - 24 + fw, x + 7 - gd * 7, gy - h - 22])
             }
         }
+        // a lantern on the town side, lit after dark
+        let ls = bl.type == .gateW ? 1.0 : -1.0, lx = x + 7 + ls * 9
+        c.seg(x + 7 + ls * 6, gy - h + 3, lx, gy - h + 3, 0.8, Col(0x2e2622))
+        c.R(lx - 1.2, gy - h + 3.4, 2.4, 3.6, Col(0x2e2622)); c.R(lx - 0.6, gy - h + 4.1, 1.2, 2, Col(g.dark() > 0.3 ? 0xffd27a : 0x9a8a5a))
         // what is left of the gate's strength
         let full = GHP[min(lv, 3)]
         if bl.hp < full - 0.5 {
@@ -1735,11 +1861,43 @@ final class Renderer {
     private func effects() {
         for s in g.shots {
             let x = sx(s.x)
+            c.seg(x, gy + s.y, x - sgn(s.vx) * 15, gy + s.y, 2.6, Col(0xffc860, 0.22))
             c.seg(x, gy + s.y, x - sgn(s.vx) * 9, gy + s.y, 1, Col(0xfff0b0, 0.9))
         }
         for p in g.parts {
             let a = clampD(p.life / p.max, 0, 1)
             c.R(sx(p.x) - p.s / 2, gy + p.y - p.s, p.s, p.s, p.c.alpha(p.c.a * a))
+        }
+    }
+
+    /// Things the wind carries: tumbleweeds over dry ground, and dust hanging in the daylight.
+    private func drifting(_ dk: Double) {
+        if (g.bio == .desert || g.bio == .canyon) && !g.flooded {
+            for i in 0..<2 {
+                let sp = 26.0 + Double(i) * 11 + (g.storm ? 45 : 0)
+                let span = W + 520 + Double(i) * 260
+                let tt = g.clock * sp + Double(i) * 370
+                var x = (tt + g.cam).truncatingRemainder(dividingBy: span)
+                if x < 0 { x += span }
+                x = span - x - 60
+                if x > W + 20 || x < -20 { continue }
+                let hop = abs(sin(tt * 0.045)) * 5
+                let r = 3.6 + Double(i) * 0.8, y = gy - r - hop + 0.5, rot = -tt * 0.09
+                c.ell(x, gy + 0.8, r * (1 - hop * 0.08), 0.9, Col(0x000000, 0.16))
+                c.ellStroke(x, y, r, r, 0.8, Col(0x8a6a3c)); c.ellStroke(x, y, r * 0.6, r * 0.6, 0.6, Col(0xa88450))
+                for k in 0..<5 {
+                    let an = rot + Double(k) * PI / 5
+                    c.seg(x - cos(an) * r, y - sin(an) * r, x + cos(an) * r, y + sin(an) * r, 0.5, Col(0x7a5c34, 0.9))
+                }
+            }
+        }
+        if dk < 0.45 && !g.storm {
+            for i in 0..<16 {
+                var x = (hashN(Double(i) * 4.9) * (W + 40) + g.clock * (3 + hashN(Double(i)) * 5) - g.cam * 0.6).truncatingRemainder(dividingBy: W + 40)
+                if x < 0 { x += W + 40 }
+                let y = gy - 6 - hashN(Double(i) * 7.3) * gy * 0.45 + sin(g.clock * 0.6 + Double(i)) * 4
+                c.R(x - 20, y, 1, 1, Col(0xfff4d0, 0.3 * (1 - dk * 2.2) * (0.5 + 0.5 * sin(g.clock * 1.4 + Double(i) * 2.1))))
+            }
         }
     }
 
@@ -1796,6 +1954,30 @@ final class Renderer {
         if let tr = g.train { light(tr.x + 3, 25, 30, 0.6); light(tr.x + 130, 22, 40, 0.3) }
         for bl in g.b where bl.level > 0 && !bl.def.gate && !bl.robbed {
             for wn in bl.def.wins { light(bl.x + wn.0 + wn.1 / 2, 15, 22, 0.28) }
+        }
+        // lamplight and window light lying on the street, and the gate lanterns
+        for bl in g.b where bl.def.wall != 0 && !bl.def.gate && bl.level > 0 && vis(bl.x, bl.def.w + 30) {
+            let lx = sx(bl.x - 10.3)
+            c.ell(lx, gy + 3, 17, 3.2, Col(0xffb85a, 0.13 * dk)); c.ell(lx, gy + 2.6, 9, 1.8, Col(0xffd08a, 0.13 * dk))
+            if !bl.robbed { for wn in bl.def.wins { c.ell(sx(bl.x + wn.0 + wn.1 / 2), gy + 2.6, wn.1 * 0.9 + 3, 2, Col(0xffc878, 0.1 * dk)) } }
+        }
+        for bl in g.b where bl.def.gate && bl.level > 0 {
+            let h = [0.0, 16, 26, 36][min(bl.level, 3)]
+            light(bl.x + 7 + (bl.type == .gateW ? 9 : -9), h - 5, 15, 0.5)
+        }
+        // fireflies out past the gates on a fair night
+        if g.bio != .snow && g.wx == 0 {
+            var k = Int((g.cam / 46).rounded(.down)) - 1
+            while Double(k) * 46 < g.cam + W + 20 {
+                let fk = Double(k)
+                let wx = fk * 46 + hashN(fk * 3.3) * 40
+                k += 1
+                if wx > g.gateW.x - 30 && wx < g.gateE.x + 30 { continue }
+                let blink = max(0, sin(g.clock * 2.1 + fk * 1.7))
+                let x = sx(wx) + sin(g.clock * 0.7 + fk) * 8, y = gy - 5 - hashN(fk * 8.1) * 15 + sin(g.clock * 1.1 + fk * 2) * 3
+                c.glow(x, y, 4, Col(0xd8ff7a, 0.4 * blink * dk), Col(0xd8ff7a, 0))
+                c.R(x - 0.5, y - 0.5, 1, 1, Col(0xeaffa0, blink * dk))
+            }
         }
         c.blend(.normal)
     }

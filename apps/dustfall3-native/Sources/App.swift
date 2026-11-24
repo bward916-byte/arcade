@@ -55,8 +55,10 @@ final class GameViewController: UIViewController {
     private let introBot = UIView()
     private let introCap = UILabel()
     private let introCard = UIView()
-    private let introCardName = UILabel()
-    private let introCardDay = UILabel()
+    private let burnLogo = BurnLogoView()
+    private var logoOn = false
+    private var wasIntro = false
+    private var cardSeen = false
     private let introSkip = UILabel()
     private let cutClip = UIView()
     private let cutPanel = UIView()
@@ -144,9 +146,11 @@ final class GameViewController: UIViewController {
         l.font = serif(size)
         l.textColor = cream
         l.textAlignment = .center
-        l.backgroundColor = UIColor(white: 0, alpha: 0.45)
-        l.layer.cornerRadius = 8
+        l.backgroundColor = UIColor(red: 0.16, green: 0.1, blue: 0.06, alpha: 0.78)
+        l.layer.cornerRadius = 7
         l.layer.masksToBounds = true
+        l.layer.borderWidth = 1
+        l.layer.borderColor = UIColor(red: 0.79, green: 0.6, blue: 0.24, alpha: 0.75).cgColor
         l.adjustsFontSizeToFitWidth = true
         l.minimumScaleFactor = 0.6
         view.addSubview(l)
@@ -250,7 +254,9 @@ final class GameViewController: UIViewController {
 
         style(menuBtn, "Menu", primary: false)
         menuBtn.titleLabel?.font = rye(14)
-        menuBtn.backgroundColor = UIColor(white: 0, alpha: 0.45)
+        menuBtn.backgroundColor = UIColor(red: 0.16, green: 0.1, blue: 0.06, alpha: 0.78)
+        menuBtn.layer.cornerRadius = 7
+        menuBtn.layer.borderColor = UIColor(red: 0.79, green: 0.6, blue: 0.24, alpha: 0.75).cgColor
         menuBtn.addTarget(self, action: #selector(openMenu), for: .touchUpInside)
         view.addSubview(menuBtn)
 
@@ -295,11 +301,8 @@ final class GameViewController: UIViewController {
         introSkip.isHidden = true
         view.addSubview(introSkip)
         introCard.isHidden = true; introCard.isUserInteractionEnabled = false
-        introCardName.text = "Dustfall III"; introCardName.font = rye(46); introCardName.textColor = gold; introCardName.textAlignment = .center
-        introCardName.layer.shadowColor = UIColor.black.cgColor; introCardName.layer.shadowOpacity = 1; introCardName.layer.shadowRadius = 0; introCardName.layer.shadowOffset = CGSize(width: 0, height: 4)
-        introCardDay.text = "Day 1"; introCardDay.font = serif(20, bold: false); introCardDay.textColor = cream; introCardDay.textAlignment = .center
-        introCardDay.layer.shadowColor = UIColor.black.cgColor; introCardDay.layer.shadowOpacity = 1; introCardDay.layer.shadowRadius = 4; introCardDay.layer.shadowOffset = .zero
-        introCard.addSubview(introCardName); introCard.addSubview(introCardDay)
+        introCard.addSubview(burnLogo)
+        burnLogo.onStart = { [weak self] in self?.sound.whoosh() }
         view.addSubview(introCard)
 
         // pause menu
@@ -405,8 +408,8 @@ final class GameViewController: UIViewController {
         introCap.frame = CGRect(x: 40, y: bh * 0.89 - 62, width: bw - 80, height: 54)
         introSkip.frame = CGRect(x: bw - r - 140, y: bh * 0.89 + 6, width: 130, height: 18)
         introCard.frame = view.bounds
-        introCardName.frame = CGRect(x: 0, y: bh * 0.3, width: bw, height: 60)
-        introCardDay.frame = CGRect(x: 0, y: bh * 0.3 + 62, width: bw, height: 28)
+        burnLogo.frame = view.bounds
+        burnLogo.build(size: view.bounds.size, title: rye(min(102, bw * 0.118)), day: serif(min(36, bw * 0.042), bold: false), gold: gold, cream: cream)
         startBtn.frame = CGRect(x: bw / 2 - 150, y: by + 32, width: 300, height: 48)
         pauseBox.frame = view.bounds
         pauseTitle.frame = CGRect(x: 0, y: bh * 0.12, width: bw, height: 40)
@@ -459,6 +462,7 @@ final class GameViewController: UIViewController {
             for name in ["day", "night", "train", "snow", "storm", "map", "duel", "coach", "west", "west2", "fire", "yard", "over"] where args.contains("-demo-" + name) { demoMode = true; game.demo(name) }
             if args.contains("-demo-map") { showMap(choose: true) }
             if args.contains("-demo-intro") { game.beginIntro() }
+            if args.contains("-demo-burn") { demoMode = true; game.demo("day"); logoOn = true; burnLogo.frozen = 0.52; burnLogo.reset(); burnLogo.ignite(after: 0) }
             if args.contains("-demo-gallery") { demoMode = true; game.demo("gallery") }
             if args.contains("-demo-town") { demoMode = true; game.demo("town") }
             if args.contains("-demo-cut3") { demoMode = true; game.demo("day"); game.cut = [STORY["s1"]![0]] }
@@ -636,6 +640,16 @@ final class GameViewController: UIViewController {
         game.input.fire = tFire || fireLatch
         tossLatch = false; fireLatch = false
         if !userPaused { game.update(min(0.05, max(0, raw))) }
+        // the name over the first morning stands through the end of the opening, then burns off as the day starts
+        let st = game.state
+        if st == .intro && !wasIntro { burnLogo.reset(); cardSeen = false; logoOn = false }
+        if st == .intro && game.introCard { cardSeen = true }
+        if wasIntro && st == .play { logoOn = true; burnLogo.ignite(after: cardSeen ? 0.25 : 1.1) }
+        wasIntro = st == .intro
+        if logoOn {
+            if st != .play { logoOn = false; burnLogo.reset() }
+            else if !userPaused && !burnLogo.step(min(0.05, max(0, raw))) { logoOn = false; burnLogo.reset() }
+        }
         if game.choosing && mapBox.isHidden { showMap(choose: true) }
         if game.over && overBox.isHidden {
             UserDefaults.standard.removeObject(forKey: saveKey)
@@ -708,8 +722,9 @@ final class GameViewController: UIViewController {
             introCap.alpha = 0
             UIView.animate(withDuration: 0.6) { self.introCap.alpha = 1 }
         }
-        if introCard.isHidden == (intro && game.introCard) {
-            introCard.isHidden = !(intro && game.introCard)
+        let showCard = (intro && game.introCard) || logoOn
+        if introCard.isHidden == showCard {
+            introCard.isHidden = !showCard
             if !introCard.isHidden { introCard.alpha = 0; UIView.animate(withDuration: 0.5) { self.introCard.alpha = 1 } }
         }
         for v in [purse, folkLabel, ammoLabel, ammoView, dayLabel, menuBtn, stickRing, knob, fireBtn, coinBtn] as [UIView] { v.isHidden = !playing }
