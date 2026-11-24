@@ -531,6 +531,13 @@ final class Renderer {
         let af = limb(nx, sy, p.armF, 27, p.armF + p.elbF, 26)
         let wa = p.armF + p.elbF + p.wpn
         if L.slung > 0 { cv.seg(nx - 9, sy - 4, nx + 9, sy + 30, 2.2, Col(0x2a2018)); gun(cv, L.slung, nx - 7, sy + 34, 2.75, ink) }
+        if L.slung < 0 && L.weapon > 0 {
+            // the melee weapon rides on the back while a gun is out
+            let sc: Col = L.tier > 0 ? Col(0xaab4c0) : (L.weapon == 1 ? Col(0xc8a070) : (L.weapon == 2 ? Col(0xe8e8e8) : Col(0xd0a860)))
+            cv.seg(nx - 9, sy - 4, nx + 9, sy + 30, 2.2, Col(0x2a2018))
+            cv.seg(nx - 13, sy + 38, nx + 12, sy - 26, 8.5, ink); cv.seg(nx - 13, sy + 38, nx + 12, sy - 26, 5.5, sc)
+            cv.seg(nx - 13, sy + 38, nx - 9, sy + 28, 5.5, Col(0x2a2018))
+        }
         if L.gun > 0 {
             gun(cv, L.gun, af.2, af.3, wa, ink)
         } else if L.weapon > 0 {
@@ -667,8 +674,14 @@ final class Renderer {
             }
         }
         if g.heldGun > 0 {
-            let kick = g.gunKind == 2 && g.gunT > 0.45 ? (g.gunT - 0.45) / 0.15 : 0
+            let kick = g.kickT > 0 ? g.kickT / 0.15 : 0
             p.armF = 1.32 + 0.35 * kick; p.elbF = 0.2; p.wpn = 0.05; p.armB = 1.0; p.elbB = 0.7; p.lean -= 0.12 * kick
+        }
+        if g.swapT >= 0 && h.atkT < 0 && g.supT < 0 {
+            // swing what is in the hand up and back over the shoulder, then bring the other one out
+            let k = g.swapT < 0.5 ? g.swapT * 2 : (1 - g.swapT) * 2
+            p.armF += (-2.6 - p.armF) * k; p.elbF += (-0.7 - p.elbF) * k; p.wpn += (-0.5 - p.wpn) * k
+            p.lean -= 0.06 * k
         }
         if h.hurtT > 0 { p.lean = -0.3; p.head = -0.3 }
         return p
@@ -1217,7 +1230,7 @@ final class Renderer {
             let ha: Double = blink ? 0.45 : 1
             var hface = h.face
             if h.atkT >= 0 && h.atkStyle == 6 { hface = sin(h.atkT / 0.4 * PI * 4) >= 0 ? h.face : -h.face }
-            var hl = heroLook(g.tw); hl.tier = g.lv("dmg"); hl.gun = g.heldGun; hl.slung = hl.gun > 0 ? 0 : g.slungGun
+            var hl = heroLook(g.tw); hl.tier = g.lv("dmg"); hl.gun = g.heldGun; hl.slung = hl.gun > 0 ? -1 : g.slungGun
             figure(cv, h.x, gy - h.jump, hface, 1, hl, heroPose(g), flash: hf, alpha: ha)
         } else {
             figure(cv, h.x, gy, h.face, 1, heroLook(g.tw), Pose(), fall: min(1, g.deadT * 3))

@@ -253,7 +253,20 @@ final class Game {
     var gunT = 0.0
     /// What the rooms beside the corridor are called in this building.
     var sideName: String { return tower == 0 ? "OFFICES" : (tower == 1 ? "SIDE WARDS" : "SUITES") }
-    var heldGun: Int { return hero.atkT < 0 && supT < 0 && gunT > 0 ? gunKind : 0 }
+    /// What is in the hands: 0 is the melee weapon (the default), otherwise a gun. Only ever one thing.
+    var held = 0
+    /// 0...1 while one weapon is being swung away over the shoulder and the other brought out; -1 otherwise.
+    var swapT = -1.0
+    var swapTo = 0
+    var kickT = 0.0
+    var heldGun: Int { return hero.atkT < 0 && supT < 0 ? held : 0 }
+    /// A gun only fires once it is actually out. Mid-swing the guns keep firing as they always did.
+    private func ready(_ kind: Int, exact: Bool = false) -> Bool {
+        if hero.atkT >= 0 || supT >= 0 { return true }
+        if swapT < 0 && (held == kind || (!exact && held > 0)) { return true }
+        raise(kind, 0.4)
+        return false
+    }
     /// The best gun owned, carried on the back while the bat is out.
     var slungGun: Int { return lv("minigun") > 0 ? 3 : (lv("shotgun") > 0 ? 2 : (lv("flame") > 0 ? 4 : (lv("smg") > 0 ? 1 : 0))) }
     private func raise(_ kind: Int, _ secs: Double) {
@@ -1384,20 +1397,32 @@ final class Game {
         let f = floor
         let scale = 1 + Double(depth) * 0.008
         if gunT > 0 { gunT -= dt }
+        if kickT > 0 { kickT -= dt }
+        if h.atkT >= 0 || supT >= 0 {
+            held = 0; swapT = -1                     // a swing is always the melee weapon
+        } else if swapT >= 0 {
+            swapT += dt / 0.24
+            if swapT >= 0.5 { held = swapTo }
+            if swapT >= 1 { swapT = -1 }
+        } else {
+            let want = gunT > 0 ? gunKind : 0
+            if want != held { swapT = 0; swapTo = want }
+        }
         var l = lv("smg")
         if l > 0 {
             cdSmg -= dt
-            if cdSmg <= 0, let z = nearest(560) { cdSmg = 0.17; raise(1, 0.3); gunHit(z, (4 + 3 * Double(l)) * scale, Col(0xffe6a0), 2); snd?.shot(); casing() }
+            if cdSmg <= 0, let z = nearest(560), ready(1) { cdSmg = 0.17; raise(1, 0.3); gunHit(z, (4 + 3 * Double(l)) * scale, Col(0xffe6a0), 2); snd?.shot(); casing() }
         }
         l = lv("minigun")
         if l > 0 {
             cdMini -= dt
-            if cdMini <= 0, let z = nearest(760) { cdMini = 0.055; raise(3, 0.3); gunHit(z, (4 + 2 * Double(l)) * scale, Col(0xffc060), 2.5, fromY: -84); casing(); if chance(0.3) { snd?.shot() } }
+            if cdMini <= 0, let z = nearest(760), ready(3) { cdMini = 0.055; raise(3, 0.3); gunHit(z, (4 + 2 * Double(l)) * scale, Col(0xffc060), 2.5, fromY: -84); casing(); if chance(0.3) { snd?.shot() } }
         }
         l = lv("shotgun")
         if l > 0 {
             cdShot -= dt
-            if cdShot <= 0, let z0 = nearest(250) {
+            if cdShot <= 0, let z0 = nearest(250), ready(2, exact: true) {
+                kickT = 0.15
                 cdShot = 1.5 - 0.2 * Double(l)
                 let dir = z0.x >= h.x ? 1.0 : -1.0
                 if h.atkT < 0 && supT < 0 { h.face = dir }
@@ -1421,7 +1446,7 @@ final class Game {
         }
         l = lv("flame")
         flameOn = false
-        if l > 0, nearest(240, facing: true) != nil {
+        if l > 0, nearest(240, facing: true) != nil, ready(4) {
             flameOn = true
             raise(4, 0.25)
             for z in f.zeds where z.alive {
