@@ -45,7 +45,11 @@ extension Game {
         "scurvy": ("The watch is slow to turn out", "Loose teeth, black gums, no strength in them"),
         "foulwater": ("A stink from the casks", "The water has gone green"),
         "weevils": ("The bread is moving", "Weevils in the biscuit, and worse in the flour"),
-        "plank": ("The prize is yours!", "Her crew go over the side, one at a time")
+        "plank": ("The prize is yours!", "Her crew go over the side, one at a time"),
+        "kraken": ("The sea heaves up alongside", "Arms as thick as the mainmast"),
+        "stelmo": ("Blue fire at the mastheads", "St Elmo's fire. Not a man speaks"),
+        "comet": ("A star is falling", "It comes down burning, straight for the sea ahead"),
+        "whitewhale": ("There she blows, and white!", "The white whale the old hands swear to")
     ]
     func startOmen(_ k: String) {
         omenK = k
@@ -56,7 +60,8 @@ extension Game {
         if k == "fog" || k == "ghost" { setWeather(4, days: 1) }
         if k == "dolphins" { seaForce = 0 }
         if k == "spout" { setWeather(1, days: 1) }
-        if k == "whale" || k == "catch" { snd?.splash() }
+        if k == "whale" || k == "catch" || k == "kraken" || k == "whitewhale" { snd?.splash() }
+        if k == "kraken" { shake = max(shake, 0.4) }
         // a drum, and a held note under it
         snd?.tone(72, 0.7, 0, 0.32, 48)
         snd?.tone(72, 0.6, 0, 0.26, 48, 0.55)
@@ -77,6 +82,13 @@ extension Game {
             ("whale", 1.0, 0.6), ("spout", 0.9, 0.6), ("spar", 1.0, 0.9), ("stowaway", 0.7, 0.9), ("catch", 0.9, 1.1),
             ("scurvy", 1.0, 0.5), ("foulwater", 0.9, 0.7), ("weevils", 0.9, 0.8)
         ]
+        // once in a long while, something a sailor tells of for the rest of his life
+        let rares = ["kraken", "stelmo", "comet", "whitewhale"].filter { !rareSeen.contains($0) }
+        if !rares.isEmpty && chance(0.12), let rk = rares.randomElement() {
+            rareSeen.insert(rk)
+            startOmen(rk)
+            return
+        }
         var total = 0.0
         for t in table where t.0 != lastEv { total += route == 1 ? t.1 : t.2 }
         var r = rnd(0, total)
@@ -231,6 +243,67 @@ extension Game {
                 Opt("Leave them to it", "they will eat") { [unowned self] in
                     self.food = max(0, self.food - 6)
                     self.done("They get fat on your stores: -6 food")
+                }
+            ])
+        case "kraken":
+            logIt("Met the kraken")
+            show("The Kraken", "It has the ship in its arms and is feeling along the rail for something to eat. A sight few live to tell of.", [
+                Opt("Fire into it", powder >= 3 ? "every gun · -3 powder" : "not enough powder", off: powder < 3) { [unowned self] in
+                    self.powder -= 3
+                    self.snd?.boom()
+                    self.shake = 0.5
+                    self.done("It lets go all at once and sinks, the sea boiling black: -3 powder")
+                },
+                Opt("Cut the arms away", "axes and cutlasses") { [unowned self] in
+                    self.dmg(14)
+                    if !self.over { self.toastText = ""; self.hurtOne("the kraken") }
+                    if !self.over { self.done("Hacked through, arm by arm. The rail is gone and the planks are sprung") }
+                },
+                Opt("Throw it the stores", "-10 food") { [unowned self] in
+                    self.food = max(0, self.food - 10)
+                    self.done("Cask after cask goes over. It takes them, and leaves you: -10 food")
+                }
+            ])
+        case "stelmo":
+            logIt("St Elmo's fire")
+            show("St Elmo's fire", "Cold blue flame stands on every masthead and yardarm and burns nothing. The old hands say it is the saint himself.", [
+                Opt("Call it a blessing", "the laid-up take heart") { [unowned self] in
+                    for m in self.men where m.st != 0 { m.d = max(1, m.d - 3) }
+                    self.snd?.good()
+                    self.done("The whole ship is easier for it, and the sick mend faster")
+                },
+                Opt("Crowd on sail while it lasts", "the wind that follows is fair") { [unowned self] in
+                    self.dist = min(self.legLen - 1, self.dist + 40)
+                    self.done("A strong fair wind comes behind it: 40 leagues made good")
+                }
+            ])
+        case "comet":
+            logIt("A star fell into the sea")
+            show("A fallen star", "It struck the sea a mile ahead. Something black and smoking is still afloat there on a raft of weed.", [
+                Opt("Fish it out", "sky-iron is worth a fortune") { [unowned self] in
+                    self.gold += 120
+                    self.snd?.coin()
+                    self.done("A lump of sky-iron the size of a man's head. Any smith will pay: +120 gold")
+                },
+                Opt("Steer wide of it", "the hands do not like it") { [unowned self] in self.done("You leave it hissing astern. Nobody looks back") }
+            ])
+        case "whitewhale":
+            logIt("Raised the white whale")
+            show("The white whale", "White as a sail and scarred from a hundred irons. There is a king's bounty on her, and a graveyard of boats behind her.", [
+                Opt("Lower away and hunt her", "250 gold, or a stove boat") { [unowned self] in
+                    if chance(0.4) {
+                        self.gold += 250
+                        self.snd?.coin()
+                        self.done("Against all sense, you take her. The bounty is yours: +250 gold")
+                    } else {
+                        self.dmg(16)
+                        if !self.over { self.loseCrew("Taken by the white whale") }
+                        if !self.over { self.done("She comes up under the boat. One man does not come back") }
+                    }
+                },
+                Opt("Let her pass", "the hands call it luck") { [unowned self] in
+                    for m in self.men where m.st != 0 { m.d = max(1, m.d - 2) }
+                    self.done("She rolls once, looks at you, and goes down. The watch cheers her")
                 }
             ])
         case "plank":

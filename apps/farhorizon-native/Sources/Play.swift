@@ -685,7 +685,7 @@ extension Game {
     }
     func offerFare() {
         let next = STAGES[min(5, leg + 1)][path[min(5, leg + 1)]].n
-        let watches = Int((LEG[min(4, leg)] / max(1, 42 * ship.speed)).rounded(.up)) + 2
+        let watches = Int((nextLegLen() / max(1, 42 * ship.speed)).rounded(.up)) + 2
         show("A passenger", "A lady with three trunks must be in " + next + " within \(watches * SUNS) days. Ninety gold if you make it; half if you are late.", [
             Opt("Welcome aboard", "90 gold on arrival") { [unowned self] in
                 self.fareDue = 90; self.fareBy = self.day + watches

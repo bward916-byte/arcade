@@ -108,6 +108,20 @@ final class Game {
     var pendText = ""
     /// How far along the leg each event falls, so they are spread over the passage and never bunch up.
     var evMarks: [Double] = []
+    /// The day on which the next event may fall. Never sooner than nine days after the last one ended.
+    var nextEvAt = 0.0
+    /// The rare sights: each can be met once in a voyage, and most voyages meet only one or two.
+    var rareSeen: Set<String> = []
+    func nowDays() -> Double { return (Double(day - 1) + dayT / DAYLEN) * Double(SUNS) }
+    /// Leagues between two ports, as the chart shows them.
+    func legDist(_ a: Port, _ b: Port) -> Double {
+        let dx = (b.x - a.x) * 900.0 / 540.0, dy = b.y - a.y
+        return clampD(((dx * dx + dy * dy).squareRoot() * 760).rounded(), 170, 520)
+    }
+    /// The longer of the passages open from here: what to stock for.
+    func nextLegLen() -> Double {
+        return STAGES[min(5, leg + 1)].map { legDist(here, $0) }.max() ?? 300
+    }
     // what the crew has got through since the last port
     var legAte = 0.0
     var legDrank = 0.0
@@ -188,7 +202,7 @@ final class Game {
     func newGame() {
         gold = 1050; food = 0; water = 0; planks = 0; bait = 0; powder = 0; arms = 0
         crew = 0; hull = 0; shipI = 1; day = 1; leg = 0; dist = 0; legLen = 1; route = 1; half = false
-        dayT = 0; tod = 0.3; hasMap = false; sinceEvent = 0; lastEv = ""; path = [0, 0, 0, 0, 0, 0]
+        dayT = 0; tod = 0.3; hasMap = false; sinceEvent = 0; lastEv = ""; path = [0, 0, 0, 0, 0, 0]; rareSeen = []; nextEvAt = 0
         men = []; log = []; dead = []; sea = 0; halfDays = 0; rot = 0; wind = 1; blk = false; wellUsed = false
         over = false; card = nil; duel = nil; recruit = nil; fights = 0
         omenK = ""; omenT = 0; sceneK = ""; sceneT = 0; camZ = 1; camFx = 0
@@ -456,7 +470,7 @@ final class Game {
     }
     func autoStock() {
         let per = Double(crew) * RATION
-        let watches = Double(Int((LEG[0] / max(1, 42 * ship.speed)).rounded(.up)) + 2)
+        let watches = Double(Int((nextLegLen() / max(1, 42 * ship.speed)).rounded(.up)) + 2)
         let want: [(String, Int)] = [("water", Int((per * (watches + 1)).rounded(.up))), ("food", Int((per * (watches + 2)).rounded(.up))), ("planks", 6), ("bait", 6), ("powder", 5), ("arms", min(crew, 8))]
         for w in want {
             guard let g = GOODS.first(where: { $0.k == w.0 }) else { continue }
@@ -507,10 +521,11 @@ final class Game {
     func startLeg() {
         if leg > 0 { payWages() }
         leg0Day = day; leg0Gold = gold; leg0Crew = crew; leg0Fights = fights; legEvents = 0; legFrom = here.n
-        legLen = LEG[min(4, leg)] * (route == 1 ? 0.85 : 1.15)
+        legLen = legDist(here, STAGES[min(5, leg + 1)][path[min(5, leg + 1)]])
         dist = 0; dayT = 0; sinceEvent = 0
         legAte = 0; legDrank = 0
-        evMarks = (0..<5).map { (Double($0) + rnd(0.3, 0.72)) / 5 }
+        evMarks = []
+        nextEvAt = nowDays() + rnd(4, 9)
         autoPost()
         mode = .sail
         card = nil
@@ -664,7 +679,11 @@ final class Game {
                     event(k)
                 }
             } else if card == nil {
-                sceneK = ""
+                if !sceneK.isEmpty {
+                    // whatever it was is over: nothing more for nine days at the least
+                    sceneK = ""
+                    nextEvAt = nowDays() + rnd(9, 14)
+                }
                 // she gathers way again after whatever stopped her
                 pace = min(1, pace + dt / 0.8)
                 let sd = dt * (0.1 + 0.9 * pace)
@@ -680,8 +699,8 @@ final class Game {
                 legAte += f0 - food; legDrank += w0 - water
                 if dist >= legLen {
                     arrive()
-                } else if let m = evMarks.first, dist >= legLen * m {
-                    evMarks.removeFirst()
+                } else if nowDays() >= nextEvAt {
+                    nextEvAt = nowDays() + rnd(9, 14)
                     rollEvent()
                 } else if dayT >= DAYLEN {
                     dayT = 0
@@ -755,10 +774,14 @@ final class Game {
         if name == "evstow" { startOmen("stowaway"); sceneT = 2; omenK = ""; event("stowaway"); camZ = 2.6 }
         if name == "evcatch" { startOmen("catch"); sceneT = 2; omenT = 1.6; Game.omenHold = true; camZ = 2.6 }
         if name == "omen" { startOmen("pirates"); omenT = 1.6; Game.omenHold = true }
+        if name == "evkraken" { startOmen("kraken"); sceneT = 2; omenT = 1.6; Game.omenHold = true }
+        if name == "evstelmo" { startOmen("stelmo"); sceneT = 2; omenT = 1.6; Game.omenHold = true }
+        if name == "evcomet" { startOmen("comet"); sceneT = 2.6; omenT = 1.6; Game.omenHold = true }
+        if name == "evwhite" { startOmen("whitewhale"); sceneT = 1.2; omenK = ""; event("whitewhale") }
         if name == "evplank" { startOmen("plank"); sceneT = 2.0; omenT = 1.6; Game.omenHold = true; camZ = 1.9 }
         if name == "evscurvy" { startOmen("scurvy"); sceneT = 2; omenK = ""; event("scurvy"); camZ = 2.6 }
-        if name == "acts" { deckForce = 9; camZ = 2.6; half = true; evMarks = []; day = 6 }
-        if name == "acts2" { deckForce = 11; camZ = 2.6; evMarks = []; day = 9 }
+        if name == "acts" { deckForce = 9; camZ = 2.6; half = true; nextEvAt = 9999; day = 6 }
+        if name == "acts2" { deckForce = 11; camZ = 2.6; nextEvAt = 9999; day = 9 }
         if name == "yard2" { leg = 1; mode = .port; gold = 900; shipwright(); cardT = 9 }
         if name == "yard" { leg = 1; mode = .port; shipwright() }
         if name == "decklife" { ups = ["sails": 2, "hull": 1, "guns": 1]; deckForce = 5; seaForce = 0 }

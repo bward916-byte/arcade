@@ -55,7 +55,7 @@ extension Game {
 
     /// What the ship needs for the next passage, and whether she has it.
     func portNeeds() -> (days: Int, foodDays: Int, waterDays: Int, foodOK: Bool, waterOK: Bool, hullPct: Int, hullOK: Bool, repair: Int, down: Int, crewOK: Bool, wagesOK: Bool, canUpgrade: Bool) {
-        let days = Int((LEG[min(4, leg)] / max(1, 42 * ship.speed)).rounded(.up)) + 2
+        let days = Int((nextLegLen() / max(1, 42 * ship.speed)).rounded(.up)) + 2
         let perDay = max(0.1, Double(crew) * RATION)
         let fd = Int(food / perDay), wd = Int(water / perDay)
         let pct = Int((hull / Double(max(1, ship.hull)) * 100).rounded())

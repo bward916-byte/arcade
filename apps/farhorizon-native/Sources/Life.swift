@@ -416,6 +416,23 @@ extension Game {
                 let ph = (st * 0.9 + id * 0.23).truncatingRemainder(dividingBy: 1)
                 c.arcFill(cxp + sin(id) * 4, dk - 20 - sin(ph * PI) * 16, 2.2, PI, PI * 2, coats[(i + 1) % 4].shade(dark))
             }
+        case "stelmo":
+            // cold fire on every masthead and yardarm; the watch struck dumb, faces turned up
+            for (j, m) in mx.enumerated() {
+                for (q, yy) in [-196.0, -150.0, -108.0].enumerated() {
+                    for side in [-1.0, 0.0, 1.0] {
+                        if q == 0 && side != 0 { continue }
+                        let gxp = m + side * (30 - Double(q) * 4), fl = 0.6 + 0.4 * sin(T * 13 + Double(j) * 2 + Double(q) + side)
+                        c.glow(gxp, yy, 14, Col(0x9fd8ff, 0.8 * fl), Col(0x6ab8ff, 0))
+                        c.poly(Col(0xeaf6ff, 0.9 * fl), [gxp - 1.6, yy, gxp + sin(T * 9 + side) * 1.5, yy - 9 - fl * 4, gxp + 1.6, yy])
+                    }
+                }
+            }
+            tar(c, -40, dk, coats[0], dark, aL: -2.8, aR: 0.2)
+            tar(c, -18, dk, coats[1], dark, aL: 0.3, aR: 0.4, kneel: true)
+            tar(c, 10, dk, coats[2], dark, aL: -0.2, aR: 2.8)
+            tar(c, 34, dk, coats[3], dark, aL: 0.3, aR: 0.4, kneel: true)
+            tar(c, 56, dk, coats[0], dark, aL: -2.7, aR: 2.7)
         case "overboard":
             tar(c, -84, -52, coats[0], dark, aL: -1.9 + sin(T * 8) * 0.2)
             tar(c, -74, -52, coats[1], dark, aL: -2.4 + sin(T * 6) * 0.6, aR: -1.2)

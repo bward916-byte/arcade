@@ -62,19 +62,24 @@ extension Game {
             var row: [(Double, Double)] = []
             for (r, n) in st.enumerated() {
                 let rad = (i == 0 || i == 5) ? 0.1 : (r == 0 ? 0.085 : 0.075)
-                let dx: Double = i == 0 ? -1 : (i == 5 ? 1 : 0)
-                let dy: Double = dx != 0 ? 0 : (r == 0 ? -1 : 1)
+                let lw = LANDWARD[i][r]
+                let ll = (lw.0 * lw.0 + lw.1 * lw.1).squareRoot()
+                let dx = lw.0 / ll, dy = lw.1 / ll
                 let cx = n.x * A + dx * rad * 0.6, cy = n.y + dy * rad * 0.6
                 bumps.append((cx, cy, rad, 1.15))
                 let ox = (rng.next() - 0.5) * rad * 1.2 + dx * rad * 0.3
                 let oy = dy * rad * 0.5 + (rng.next() - 0.5) * rad * 0.4
                 bumps.append((cx + ox, cy + oy, rad * 0.75, 0.9))
+                // a long arm of land running off behind, a different way for every island
+                let ang = rng.next() * PI * 2
+                let arm = rad * (0.9 + rng.next() * 0.9)
+                bumps.append((cx + dx * rad * 0.7 + cos(ang) * arm * 0.6, cy + dy * rad * 0.7 + sin(ang) * arm * 0.35, rad * (0.55 + rng.next() * 0.3), 0.85))
                 bumps.append((n.x * A, n.y, 0.016, -0.8))
                 row.append(((n.x * A + dx * rad * 0.34) / A, n.y + dy * rad * 0.34))
             }
             townAt.append(row)
         }
-        let islets: [(Double, Double, Double)] = [(0.24, 0.5, 0.035), (0.43, 0.485, 0.04), (0.61, 0.51, 0.035), (0.79, 0.49, 0.04), (0.14, 0.93, 0.06), (0.5, 0.96, 0.07), (0.86, 0.93, 0.06), (0.33, 0.9, 0.035), (0.68, 0.91, 0.035), (0.92, 0.3, 0.03), (0.1, 0.72, 0.03)]
+        let islets: [(Double, Double, Double)] = [(0.13, 0.9, 0.05), (0.5, 0.95, 0.07), (0.88, 0.9, 0.07), (0.74, 0.36, 0.028), (0.4, 0.42, 0.03), (0.92, 0.72, 0.04), (0.1, 0.3, 0.035), (0.56, 0.6, 0.022), (0.3, 0.6, 0.02), (0.69, 0.14, 0.03)]
         for q in islets {
             bumps.append((q.0 * A, q.1, q.2, 1.05))
             bumps.append((q.0 * A + (rng.next() - 0.5) * q.2, q.1 + (rng.next() - 0.5) * q.2, q.2 * 0.7, 0.8))
@@ -150,14 +155,14 @@ extension Game {
         var gx = 75.0
         var k = 1
         while gx < W2 {
-            cv.R(gx, 0, 0.6, H2, Col(0xffffff, 0.16))
+            cv.R(gx, 0, 0.5, H2, Col(0xffffff, 0.05))
             cv.text("\(74 - k * 2)°W", gx + 3, H2 - 12, 7, Col(0xffffff, 0.6), -1, FONTI)
             gx += 75; k += 1
         }
         var gy = 67.5
         k = 1
         while gy < H2 {
-            cv.R(0, gy, W2, 0.6, Col(0xffffff, 0.16))
+            cv.R(0, gy, W2, 0.5, Col(0xffffff, 0.05))
             cv.text("\(26 - k * 2)°N", 12, gy - 3, 7, Col(0xffffff, 0.6), -1, FONTI)
             gy += 67.5; k += 1
         }
@@ -272,18 +277,19 @@ extension Game {
         for (r, n) in next.enumerated() {
             let p = pos(n)
             let sea = (next.count > 1 ? r : path[self.leg]) != 0
-            let d = Int((LEG[min(4, self.leg)] * (sea ? 0.85 : 1.15)).rounded())
+            let d = Int(legDist(here, n))
+            let days = Int((Double(d) / max(1, 42 * ship.speed)).rounded(.up)) * SUNS
             let pu = 1 + sin(T * 4 + Double(r)) * 0.12
             c.circStroke(p.0, p.1, 13 * pu, 2.5, Col(0xffd257))
             let l3 = sea ? "open sea · storms, pirates" : "coast · calm, fish, islands"
-            let bw = max(textW(n.n, 14, FONTB), textW(l3, 11, FONT)) + 20
+            let bw = max(textW(n.n, 14, FONTB), textW(l3, 11, FONT), 150) + 20
             let bh = 52.0
             let bx = clampD(p.0 - bw / 2, safeL, W - safeR - bw)
             let by = p.1 + 18 + bh > H - safeB ? p.1 - 18 - bh : p.1 + 18
             c.RR(bx, by, bw, bh, 8, Col(0x3a2412, 0.94))
             c.RRStroke(bx, by, bw, bh, 8, 1.5, Col(0xd2a455))
             c.text(n.n, bx + bw / 2, by + 17, 14, Col(0xffe08a), 0, FONTB)
-            c.text("\(d) leagues", bx + bw / 2, by + 32, 11.5, CREAM, 0, FONT)
+            c.text("\(d) leagues · about \(days) days", bx + bw / 2, by + 32, 11.5, CREAM, 0, FONT)
             c.text(l3, bx + bw / 2, by + 45, 11, CREAM, 0, FONT)
             hits.append(Hit(x: bx, y: min(by, p.1 - 16), w: bw, h: bh + 34, act: { [unowned self] in self.pickPort(r) }))
             hits.append(Hit(x: p.0 - 22, y: p.1 - 22, w: 44, h: 44, act: { [unowned self] in self.pickPort(r) }))

@@ -70,12 +70,21 @@ struct Port {
     let y: Double
 }
 let STAGES: [[Port]] = [
-    [Port(n: "Port Haven", pm: 1, x: 0.05, y: 0.5)],
-    [Port(n: "Gull Cay", pm: 1.2, x: 0.24, y: 0.26), Port(n: "Shark Tooth Key", pm: 1.3, x: 0.23, y: 0.74)],
-    [Port(n: "Port Verde", pm: 0.9, x: 0.43, y: 0.24), Port(n: "Blackwater", pm: 1.25, x: 0.42, y: 0.72)],
-    [Port(n: "Smuggler's Reach", pm: 1.4, x: 0.61, y: 0.27), Port(n: "Fort Carlisle", pm: 1, x: 0.6, y: 0.75)],
-    [Port(n: "Coral Bay", pm: 1.1, x: 0.79, y: 0.25), Port(n: "Tortola Deep", pm: 1.2, x: 0.78, y: 0.72)],
-    [Port(n: "Santa Aurelia", pm: 1, x: 0.97, y: 0.5)]
+    [Port(n: "Port Haven", pm: 1, x: 0.06, y: 0.62)],
+    [Port(n: "Gull Cay", pm: 1.2, x: 0.2, y: 0.3), Port(n: "Shark Tooth Key", pm: 1.3, x: 0.27, y: 0.82)],
+    [Port(n: "Port Verde", pm: 0.9, x: 0.38, y: 0.2), Port(n: "Blackwater", pm: 1.25, x: 0.47, y: 0.64)],
+    [Port(n: "Smuggler's Reach", pm: 1.4, x: 0.61, y: 0.38), Port(n: "Fort Carlisle", pm: 1, x: 0.67, y: 0.84)],
+    [Port(n: "Coral Bay", pm: 1.1, x: 0.84, y: 0.2), Port(n: "Tortola Deep", pm: 1.2, x: 0.8, y: 0.62)],
+    [Port(n: "Santa Aurelia", pm: 1, x: 0.95, y: 0.42)]
+]
+/// Which way the land lies from each harbour mouth, so no two islands are the same shape or facing.
+let LANDWARD: [[(Double, Double)]] = [
+    [(-1, 0.1)],
+    [(-0.6, -0.8), (0.3, 1)],
+    [(0.1, -1), (-0.5, 0.9)],
+    [(0.25, -1), (-0.3, 1)],
+    [(0.4, -1), (0.2, 1)],
+    [(1, 0)]
 ]
 let LEG: [Double] = [260, 300, 280, 340, 320]
 /// Seconds for one watch of the voyage: the unit the rules run on (rations, events, weather).

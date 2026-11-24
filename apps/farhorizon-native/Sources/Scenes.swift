@@ -570,6 +570,24 @@ extension Game {
         c.text(line, W / 2, by + bh - 7, 11.5, CREAM.alpha(0.9), 0, FONT)
     }
 
+    /// One arm of the kraken: up out of the water, curling over, feeling about.
+    func krakenArm(_ c: Canvas, _ x: Double, _ y: Double, _ h: Double, _ ph: Double) {
+        let rise = clampD(sceneT / 1.2, 0, 1)
+        var px = x, py = y
+        let n = 16
+        for j in 1...n {
+            let f = Double(j) / Double(n)
+            let sway = sin(T * 1.6 + ph + f * 3.2) * (8 + f * 34) + sin(T * 0.7 + ph) * 12 * f
+            let curl = f > 0.7 ? (f - 0.7) / 0.3 : 0
+            let nx = x + sway + curl * curl * 40 * sin(ph * 2 + 1)
+            let ny = y - h * rise * (f - curl * curl * 0.28)
+            let wd = lerp(26, 5, f)
+            c.seg(px, py, nx, ny, wd, Col(0x5a2030))
+            c.seg(px + wd * 0.22, py, nx + wd * 0.22, ny, wd * 0.34, Col(0xd8a0a8, 0.8))
+            if j % 2 == 0 { c.circ(nx + wd * 0.24, ny, wd * 0.13, Col(0xf6dcdc)) }
+            px = nx; py = ny
+        }
+    }
     /// The point on the ship the camera holds: the middle of the deck, at shoulder height.
     func camPivot() -> (Double, Double) {
         let (sx, swy, slen) = shipSpot()
@@ -602,6 +620,9 @@ extension Game {
         }
         if sceneK == "plank" && acting {
             zT = 1.9; fxT = W * 0.66; fyT = card != nil ? H * 0.36 : H * 0.52
+        }
+        if sceneK == "stelmo" && acting {
+            zT = 1.3; fxT = W * 0.5; fyT = H * 0.78
         }
         if sceneK == "bottle" && acting && play == nil {
             // look off the bow, where it is bobbing
@@ -652,7 +673,30 @@ extension Game {
                 c.curve(gx - 7, gy - 2, gx - 3, gy - 6, gx, gy, 1.4, WHITE); c.curve(gx, gy, gx + 3, gy - 6, gx + 7, gy - 2, 1.4, WHITE)
                 if ph > 0.9 { c.ellStroke(gx, wy + 16, 9, 3, 1.2, Col(0xffffff, 0.7)) }
             }
-        } else if theme == "whale" {
+        } else if theme == "comet" {
+            // it comes down the sky trailing fire, and strikes
+            let k = clampD(sceneT / 2.2, 0, 1)
+            let hx = lerp(W * 0.25, W * 0.82, k), hy = lerp(-20, wy - 6, k * k)
+            if k < 1 {
+                for j in 0..<14 {
+                    let f = Double(j) / 14
+                    c.circ(hx - (hx - W * 0.25) * f * 0.5, hy - (hy + 20) * f * 0.5, 7 * (1 - f) + 1, Col(0xffd257, 0.7 * (1 - f)))
+                }
+                c.glow(hx, hy, 60, Col(0xfff2c0, 0.9), Col(0xffb040, 0))
+                c.circ(hx, hy, 6, WHITE)
+            } else {
+                let r = clampD((sceneT - 2.2) / 1.2, 0, 1)
+                for j in 0..<11 { let a = -PI / 2 + (Double(j) - 5) * 0.2; c.seg(W * 0.82, wy - 4, W * 0.82 + cos(a) * 90 * sin(r * PI), wy - 4 + sin(a) * 120 * sin(r * PI), 3, Col(0xffffff, 0.85 * (1 - r))) }
+                c.ellStroke(W * 0.82, wy + 2, 20 + r * 80, 4 + r * 8, 2, Col(0xffffff, 0.7 * (1 - r)))
+                // what is left of it, smoking on the water
+                c.ell(W * 0.82, wy - 1 + sin(T * 2) * 1.5, 9, 5, Col(0x1a1418)); c.circ(W * 0.82 - 2, wy - 3 + sin(T * 2) * 1.5, 2, Col(0xff6a18, 0.6 + 0.4 * sin(T * 6)))
+                for j in 0..<5 { let ph = (T * 0.5 + Double(j) / 5).truncatingRemainder(dividingBy: 1); c.circ(W * 0.82 + sin(T + Double(j)) * 5 + ph * 14, wy - 8 - ph * 50, 4 + ph * 9, Col(0xd0d0d0, 0.45 * (1 - ph))) }
+            }
+        } else if theme == "kraken" {
+            // the arms on the far side of her
+            krakenArm(c, W * 0.42 - slenW * 0.3, wy + 6, 150, 0.0)
+            krakenArm(c, W * 0.42 + slenW * 0.34, wy + 6, 170, 2.1)
+        } else if theme == "whale" || theme == "whitewhale" {
             // she comes up out of the sea beside the ship, hangs, and goes back in
             let wx = W * 0.8, base = wy + 10
             let ph = (sceneT * 0.3).truncatingRemainder(dividingBy: 1)
@@ -660,11 +704,14 @@ extension Game {
             c.save()
             c.translate(wx - ph * 30, base - up * 58)
             c.rotate(-1.0 + min(1, ph / 0.62) * 1.9)
-            c.ell(0, 0, 74, 20, Col(0x24303a)); c.ell(8, 8, 60, 10, Col(0xc8d4da))
+            let white = theme == "whitewhale"
+            let wBody = white ? Col(0xeef2f4) : Col(0x24303a), wFin = white ? Col(0xcfd8dc) : Col(0x1c262e), wBelly = white ? Col(0xffffff) : Col(0xc8d4da)
+            if white { for g in 0..<4 { c.seg(-30 + Double(g) * 22, -14, -22 + Double(g) * 22, -4, 1.2, Col(0x9aa6ac)) } }
+            c.ell(0, 0, 74, 20, wBody); c.ell(8, 8, 60, 10, wBelly)
             for g in 0..<5 { c.seg(18 + Double(g) * 8, 6, 26 + Double(g) * 8, 14, 0.8, Col(0x8a98a0)) }
             c.circ(48, -3, 2.2, Col(0x0c1014)); c.circ(48.6, -3.6, 0.7, WHITE)
-            c.poly(Col(0x1c262e), [10, 10, 30, 34, 34, 12])
-            c.poly(Col(0x24303a), [-70, 0, -98, -20, -90, 0, -98, 20])
+            c.poly(wFin, [10, 10, 30, 34, 34, 12])
+            c.poly(wBody, [-70, 0, -98, -20, -90, 0, -98, 20])
             c.restore()
             if ph < 0.12 || (ph > 0.55 && ph < 0.8) {
                 let k: Double = ph < 0.12 ? ph / 0.12 : (ph - 0.55) / 0.25
@@ -674,7 +721,7 @@ extension Game {
             if ph > 0.8 {
                 let k = (ph - 0.8) / 0.2
                 for g in 0..<6 { let a = -PI / 2 + (Double(g) - 2.5) * 0.14; c.seg(wx - 40, base - 2, wx - 40 + cos(a) * 46 * sin(k * PI), base - 2 + sin(a) * 52 * sin(k * PI), 1.8, Col(0xffffff, 0.8 * (1 - k))) }
-                c.ell(wx - 30, base, 44, 7, Col(0x24303a))
+                c.ell(wx - 30, base, 44, 7, wBody)
             }
         } else if theme == "spout" {
             // a rope of water from the cloud to the sea, writhing as it comes
@@ -735,7 +782,15 @@ extension Game {
         drawShip(c, W * 0.42, wy, min(W * 0.3, 280) * ship.len, ship.masts, life: true)
         foreWave(c, wy + 5, 0, W)
         seaLifeFront(c, hz, wy)
+        if theme == "kraken" {
+            // and the arms on this side, over her deck
+            krakenArm(c, W * 0.42 - slenW * 0.08, wy + 14, 190, 1.0)
+            krakenArm(c, W * 0.42 + slenW * 0.14, wy + 14, 150, 3.3)
+            krakenArm(c, W * 0.42 - slenW * 0.52, wy + 12, 120, 4.4)
+            for j in 0..<8 { let ph = (T * 0.8 + Double(j) / 8).truncatingRemainder(dividingBy: 1); c.ellStroke(W * 0.42 + (hashN(Double(j) * 3) - 0.5) * slenW * 1.3, wy + 14, 10 + ph * 30, 2 + ph * 4, 1.5, Col(0xffffff, 0.6 * (1 - ph))) }
+        }
         c.restore()
+        if sceneK == "stelmo" && play == nil { c.R(0, 0, W, H, Col(0x050a24, 0.42)) }
         if card == nil && chance(0.5) {
             let bw = camPt(W * 0.42 + min(W * 0.3, 280) * ship.len * 0.5, wy + 2)
             puff(bw.0, bw.1, 1, Col(0xffffff, 0.8), (40 + rough * 60) * camZ, 120, 2.2 * camZ, 0.5)
