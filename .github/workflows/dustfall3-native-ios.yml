@@ -1,0 +1,126 @@
+name: Dustfall III Native iOS
+
+# The native Swift version of Dustfall III: compiles on a GitHub Mac, takes simulator screenshots, uploads to TestFlight.
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'apps/dustfall3-native/**'
+      - '.github/workflows/dustfall3-native-ios.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: dustfall3-native
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: apps/dustfall3-native
+    env:
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Make the Xcode project
+        run: |
+          brew install xcodegen
+          xcodegen generate
+          xcodebuild -version
+
+      # Built unsigned, as for Dustfall III: the export step does the real signing.
+      - name: Compile
+        id: archive
+        run: |
+          set -o pipefail
+          xcodebuild archive \
+            -project DustfallIII.xcodeproj -scheme DustfallIII -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/App.xcarchive" \
+            CURRENT_PROJECT_VERSION="$((100 + GITHUB_RUN_NUMBER))" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" 2>&1 | tee "$RUNNER_TEMP/build.log" | tail -n 60
+
+      - name: Screenshots in the simulator
+        if: steps.archive.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 15
+        run: |
+          set -o pipefail
+          mkdir -p "$RUNNER_TEMP/shots"
+          xcodebuild build \
+            -project DustfallIII.xcodeproj -scheme DustfallIII -configuration Debug \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/dd" CODE_SIGNING_ALLOWED=NO 2>&1 | tail -n 15
+          APP="$RUNNER_TEMP/dd/Build/Products/Debug-iphonesimulator/DustfallIII.app"
+          UDID=$(xcrun simctl list devices available | grep -E "iPhone" | head -1 | grep -oE "[0-9A-F-]{36}")
+          echo "simulator $UDID"
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl install "$UDID" "$APP"
+          for shot in title day night; do
+            xcrun simctl terminate "$UDID" com.brianward.dustfall3 2>/dev/null || true
+            xcrun simctl launch "$UDID" com.brianward.dustfall3 "-demo-$shot"
+            sleep 9
+            xcrun simctl io "$UDID" screenshot "$RUNNER_TEMP/shots/$shot.png"
+          done
+
+      - name: Sign and upload to TestFlight
+        id: testflight
+        if: steps.archive.outcome == 'success'
+        continue-on-error: true
+        env:
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+        run: |
+          set -o pipefail
+          for v in ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_P8; do
+            if [ -z "${!v}" ]; then echo "::error::Repository secret $v is not set"; exit 1; fi
+          done
+          mkdir -p ~/.appstoreconnect/private_keys
+          KEY_PATH="$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8"
+          printf '%s\n' "$ASC_KEY_P8" > "$KEY_PATH"
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/App.xcarchive" \
+            -exportPath "$RUNNER_TEMP/export" \
+            -exportOptionsPlist ExportOptions.plist \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$KEY_PATH" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID" 2>&1 | tee "$RUNNER_TEMP/export.log" | tail -n 30
+          IPA=$(ls "$RUNNER_TEMP"/export/*.ipa | head -1)
+          xcrun altool --upload-app -f "$IPA" -t ios --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID" 2>&1 | tee "$RUNNER_TEMP/upload.log" | tail -n 30
+
+      - name: Remove the key
+        if: always()
+        run: rm -f "$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8"
+
+      # The result (compile errors, upload outcome, screenshots) goes to a scratch branch so it can be read without signing in.
+      - name: Publish the build result
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARCHIVE: ${{ steps.archive.outcome }}
+          TESTFLIGHT: ${{ steps.testflight.outcome }}
+        run: |
+          OUT="$RUNNER_TEMP/logout"; mkdir -p "$OUT"; cd "$OUT"
+          {
+            echo "run $GITHUB_RUN_NUMBER  commit $GITHUB_SHA"
+            echo "compile: $ARCHIVE   testflight: $TESTFLIGHT"
+            echo "---- compile errors"
+            grep -E "error:|\*\* ARCHIVE" "$RUNNER_TEMP/build.log" | sort -u | head -n 120 || true
+            echo "---- export"
+            grep -iE "error|\*\* EXPORT" "$RUNNER_TEMP/export.log" | head -n 30 || true
+            echo "---- upload"
+            tail -n 25 "$RUNNER_TEMP/upload.log" || true
+          } 2>/dev/null | sed -e "s/${ASC_KEY_ID:-no-key-id}/***/g" -e "s/${ASC_ISSUER_ID:-no-issuer-id}/***/g" > log.txt
+          for f in "$RUNNER_TEMP"/shots/*.png; do
+            if [ -f "$f" ]; then sips -Z 1300 "$f" --out "$OUT/$(basename "$f")" >/dev/null 2>&1 || true; fi
+          done
+                    git init -q
+          git checkout -q -b dustfall3-native-buildlog
+          git add -A
+          git -c user.name="github-actions" -c user.email="actions@users.noreply.github.com" commit -qm "Dustfall III native build $GITHUB_RUN_NUMBER"
+          git push -q -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:refs/heads/dustfall3-native-buildlog

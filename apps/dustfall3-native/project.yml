@@ -1,0 +1,45 @@
+name: DustfallIII
+options:
+  deploymentTarget:
+    iOS: "16.0"
+  createIntermediateGroups: true
+targets:
+  DustfallIII:
+    type: application
+    platform: iOS
+    sources:
+      - Sources
+      - Assets.xcassets
+    info:
+      path: Info.plist
+      properties:
+        CFBundleDisplayName: Dustfall III
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSRequiresIPhoneOS: true
+        UILaunchScreen: {}
+        UIRequiresFullScreen: true
+        UIStatusBarHidden: true
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        ITSAppUsesNonExemptEncryption: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.brianward.dustfall3
+        DEVELOPMENT_TEAM: 55NAZA6UKE
+        TARGETED_DEVICE_FAMILY: "1"
+        SWIFT_VERSION: "5.0"
+        MARKETING_VERSION: "1.1"
+        CURRENT_PROJECT_VERSION: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        CODE_SIGN_STYLE: Automatic
+schemes:
+  DustfallIII:
+    build:
+      targets:
+        DustfallIII: all
+    run:
+      config: Debug
+    archive:
+      config: Release
