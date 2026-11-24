@@ -50,12 +50,30 @@ var STOP = 1798.0                       // where the locomotive pulls up; the pa
 func EX(_ x: Double) -> Double { return x > 1695 ? x + SHIFT : x }
 let TOWN_W = 1010.0, TOWN_E = 1790.0
 /// The line, in order. The native version rides straight down it; the web game's forks come later.
-let TOWN_NAMES = ["DUSTFALL", "REDWATER", "LAST HOPE", "COLD CREEK", "BITTER END"]
+struct Place {
+    let name: String
+    let bio: Bio
+    let land: String
+    let note: String
+}
+/// Every place on the line, and the stages of the line: where there are two, the track forks and you choose.
+let PLACES: [String: Place] = [
+    "dustfall": Place(name: "DUSTFALL", bio: .desert, land: "High desert", note: "Dry country, but summer storms roll in off the mesas."),
+    "redwater": Place(name: "REDWATER", bio: .river, land: "River valley", note: "A ford east of town slows everyone. Thunderstorms grow the herd."),
+    "irongulch": Place(name: "IRON GULCH", bio: .canyon, land: "Canyon", note: "One way in, from the east. Thunder echoes off the canyon walls."),
+    "lasthope": Place(name: "LAST HOPE", bio: .desert, land: "Open desert", note: "Dust storms blow most days, and storms break by night."),
+    "timberline": Place(name: "TIMBERLINE", bio: .pine, land: "Pine country", note: "Wooded and wet. A thunderstorm most days."),
+    "coldcreek": Place(name: "COLD CREEK", bio: .snow, land: "Winter valley", note: "Snow slows raiders on foot. Cattle will not calve."),
+    "silverpeak": Place(name: "SILVER PEAK", bio: .snow, land: "Mountain pass", note: "High and cold. Blizzards blind your deputies."),
+    "bitterend": Place(name: "BITTER END", bio: .snow, land: "Deep winter", note: "The end of the line, and the hardest town on it.")
+]
+let STAGES: [[String]] = [["dustfall"], ["redwater", "irongulch"], ["lasthope", "timberline"], ["coldcreek", "silverpeak"], ["bitterend"]]
+let STAGE_NEW = ["Saloon, store, sheriff", "Adds stable, bank", "Adds bordello, doctor", "Adds church, blacksmith", "Adds telegraph"]
+func stageOf(_ town: Int) -> [String] { return STAGES[((town % STAGES.count) + STAGES.count) % STAGES.count] }
 func nice(_ s: String) -> String { return s.capitalized }
 
 /// The country each town stands in. Colours are the web game's.
-enum Bio { case desert, river, snow }
-let TOWN_BIO: [Bio] = [.desert, .river, .desert, .snow, .snow]
+enum Bio { case desert, river, canyon, pine, snow }
 struct Land {
     let far: UInt32, mesa: UInt32, mesaS: UInt32, mesaT: UInt32, scrub: UInt32
     let g0: UInt32, edge: UInt32, street: UInt32, g1: UInt32, g2: UInt32, speck: UInt32, dust: UInt32
@@ -63,6 +81,8 @@ struct Land {
 let LANDS: [Bio: Land] = [
     .desert: Land(far: 0xd9a47a, mesa: 0xc47a4a, mesaS: 0xa85e36, mesaT: 0xe6b891, scrub: 0x8a8a56, g0: 0xdcb680, edge: 0xeccf9c, street: 0xc49a66, g1: 0xd0a66e, g2: 0xb88a56, speck: 0x9a744a, dust: 0xe2c08c),
     .river: Land(far: 0x9fa697, mesa: 0xb39a70, mesaS: 0x8f7854, mesaT: 0xd2bb92, scrub: 0x55783c, g0: 0xb9b27e, edge: 0xd8c38a, street: 0xb99c60, g1: 0xaa9e62, g2: 0x8e8a4c, speck: 0x7c6a3c, dust: 0xd8c690),
+    .canyon: Land(far: 0xb97c6c, mesa: 0xc56e48, mesaS: 0x9c4f35, mesaT: 0xea9c6e, scrub: 0x7c7a42, g0: 0xd59566, edge: 0xe8aa7a, street: 0xc98558, g1: 0xbb7a4e, g2: 0x9a5e3a, speck: 0x8a5230, dust: 0xe4ac86),
+    .pine: Land(far: 0x93a6a6, mesa: 0x7f9278, mesaS: 0x5f745c, mesaT: 0xa9b89a, scrub: 0x3f6a3a, g0: 0xa99b68, edge: 0xbcae78, street: 0x9a8c5c, g1: 0x877a4e, g2: 0x6a5e3a, speck: 0x5a4e2c, dust: 0xcfc496),
     .snow: Land(far: 0xb6c1d2, mesa: 0x97a4b8, mesaS: 0x77859a, mesaT: 0xf4f8ff, scrub: 0x476a52, g0: 0xe6ebf2, edge: 0xffffff, street: 0xd6dee9, g1: 0xd6dee9, g2: 0xb9c6d6, speck: 0x9aa8bc, dust: 0xf6f9ff)
 ]
 
@@ -308,4 +328,6 @@ struct SaveData: Codable {
     var seen: [String]
     var herd: Int?
     var wx: [Double]?
+    var place: String?
+    var log: [String]?
 }

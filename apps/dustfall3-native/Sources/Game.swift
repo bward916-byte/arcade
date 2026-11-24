@@ -37,7 +37,12 @@ final class Game {
     var tripT = -1.0            // seconds since the train pulled out with you on it; under 0 when you are not aboard
     var fade = 0.0
     var onSave: (() -> Void)?
-    var townName: String { return TOWN_NAMES[town % TOWN_NAMES.count] }
+    var place = "dustfall"      // which of the places at this stage of the line
+    var log: [String] = []      // the places behind you, in order
+    var choosing = false        // the train has stopped at a fork and is waiting for you to pick
+    var mapNote = ""            // set when a new town is reached, for the map to show
+    var here: Place { return PLACES[place] ?? PLACES["dustfall"]! }
+    var townName: String { return here.name }
 
     var store = Building(.store, 1108)
     var saloon = Building(.saloon, 1240)
@@ -61,7 +66,7 @@ final class Game {
     var raided = false          // raiders came last night
 
     // the country and the day's weather: 0 clear, 1 dust storm (a blizzard in snow country), 2 rain (snowfall), 3 a thunderstorm between wxA and wxB
-    var bio: Bio { return TOWN_BIO[town % TOWN_BIO.count] }
+    var bio: Bio { return here.bio }
     var terrain: Land { return LANDS[bio]! }
     var wx = 0
     var wxA = 0.0
@@ -107,7 +112,8 @@ final class Game {
             // the first town is dry country, but its third morning always has a storm building
             if ln == 3 || (ln > 4 && r < 0.3) { mkStorm() }
         } else {
-            let odds: (Double, Double, Double) = bio == .desert ? (0.2, 0.05, 0.22) : (bio == .river ? (0.08, 0.18, 0.27) : (0.18, 0.22, 0))
+            var odds: (Double, Double, Double) = (0.2, 0.05, 0.22)
+            if bio == .river { odds = (0.08, 0.18, 0.27) } else if bio == .canyon { odds = (0.14, 0.08, 0.25) } else if bio == .pine { odds = (0.03, 0.25, 0.33) } else if bio == .snow { odds = (0.18, 0.22, 0) }
             if r < odds.0 { wx = 1 } else if r < odds.0 + odds.1 { wx = 2 } else if r < odds.0 + odds.1 + odds.2 { mkStorm() }
         }
         if wx > 1 && bio != .snow && !herd.isEmpty && herd.count < 12 { addCow(calf: true) }
@@ -165,6 +171,7 @@ final class Game {
     func reset() {
         state = .title
         town = 0; day = 1; day0 = 0; t = 0.6; clock = 0
+        place = "dustfall"; log = []; choosing = false
         coins = 10; bank = 0
         hintText = ""; hintT = 0; seen = []
         layTown()
@@ -190,7 +197,7 @@ final class Game {
         forge = Building(.forge, 1864); telegraph = Building(.telegraph, 1948); claim = Building(.claim, 528)
         herd = []; raided = false; wx = 0; bolt = 0
         b = [store, saloon, sheriff]
-        let stage = town % TOWN_NAMES.count + (town >= TOWN_NAMES.count ? TOWN_NAMES.count : 0)
+        let stage = town % STAGES.count + (town >= STAGES.count ? STAGES.count : 0)
         if stage >= 1 { b.append(stable); b.append(bankB); b.append(claim) }
         if stage >= 2 { b.append(bordello); b.append(doctor) }
         if stage >= 3 { b.append(church); b.append(forge) }
@@ -205,7 +212,7 @@ final class Game {
         }
         boxes = [Box(250, 6 + town), Box(610, 4), Box(EX(2270), 4), Box(EX(2540), 6 + town)]
         setCaps()
-        side = chance(0.5) ? 1 : -1
+        side = bio == .canyon || chance(0.5) ? 1 : -1
         duskDone = false; raidOn = false; badgePaid = 0; pickPaid = 0; shake = 0; flash = 0
         info = ""; slotsFor = nil
     }
@@ -246,13 +253,15 @@ final class Game {
         var bx: [Bool] = []
         for q in boxes { bx.append(q.open) }
         return SaveData(town: town, day: day, day0: day0, t: t, coins: purse, bank: bank, ammo: ammo, px: px, side: side,
-                        train: train != nil, b: sb, folk: sf, drifters: dr, boxes: bx, seen: Array(seen), herd: herd.count, wx: [Double(wx), wxA, wxB])
+                        train: train != nil, b: sb, folk: sf, drifters: dr, boxes: bx, seen: Array(seen), herd: herd.count, wx: [Double(wx), wxA, wxB], place: place, log: log)
     }
 
     /// Picks a saved game up again. A game saved at night comes back at dusk the same night.
     func restore(_ s: SaveData) {
         reset()
         town = max(0, s.town); day = max(1, s.day); day0 = s.day0
+        place = s.place.flatMap { stageOf(town).contains($0) ? $0 : nil } ?? stageOf(town)[0]
+        log = s.log ?? (0..<town).map { stageOf($0)[0] }
         layTown()
         coins = max(0, s.coins); bank = max(0, s.bank); ammo = max(0, min(6, s.ammo))
         if ammo == 0 { ammo = 6 }
@@ -289,8 +298,9 @@ final class Game {
         if name == "title" { return }
         start()
         hintT = 0
-        if name == "train" { town = 1; day = 9; day0 = 6; layTown(); stable.level = 1; bankB.level = 1; bank = 12 }
-        if name == "snow" { town = 3; day = 31; day0 = 27; layTown(); stable.level = 1; bankB.level = 1; bordello.level = 1; doctor.level = 1; church.level = 1; forge.level = 1; wx = 2 }
+        if name == "map" { town = 2; place = "timberline"; log = ["dustfall", "redwater"]; day = 20; day0 = 16; layTown(); stable.level = 1; bordello.level = 1; px = 1500; choosing = false }
+        if name == "train" { place = "redwater"; log = ["dustfall"]; town = 1; day = 9; day0 = 6; layTown(); stable.level = 1; bankB.level = 1; bank = 12 }
+        if name == "snow" { place = "coldcreek"; log = ["dustfall", "irongulch", "timberline"]; town = 3; day = 31; day0 = 27; layTown(); stable.level = 1; bankB.level = 1; bordello.level = 1; doctor.level = 1; church.level = 1; forge.level = 1; wx = 2 }
         if name == "storm" { wx = 3; wxA = 0.3; wxB = 0.6 }
         store.level = 1; sheriff.level = 1; saloon.level = 2; hall.level = name == "train" ? 2 : 1
         gateW.level = 1; gateW.hp = GHP[1]; gateE.level = 2; gateE.hp = GHP[2]
@@ -723,7 +733,7 @@ final class Game {
         if n == 0 { hint("dusk1", "Night is coming. The first night is quiet; raiders come from the second."); return }
         for i in 0..<n {
             let main = (town > 0 ? i % 3 : i % 2) != 0        // down the line, two in three come from the same side
-            raid.append(RaidSpawn(t: 0.74 + rnd(0, 0.09), side: main ? side : -side, rider: d >= 4 && i % 3 == 2, hp: d / 4))
+            raid.append(RaidSpawn(t: 0.74 + rnd(0, 0.09), side: bio == .canyon ? 1 : (main ? side : -side), rider: d >= 4 && i % 3 == 2, hp: d / 4))
         }
         // from the fourth night here, every third night an outlaw boss rides with them
         let ln = day - day0
@@ -781,7 +791,7 @@ final class Game {
                 drifters.append(Drifter(x: camps[i].0 - 14 + Double(here) * 13 + rnd(-2, 2), camp: i))
             }
         }
-        side = chance(0.5) ? 1 : -1
+        side = bio == .canyon || chance(0.5) ? 1 : -1       // a canyon has one way in, from the east
         note += rollWx()
         sfx?.dawn()
         hint("dawn\(day)", total > 0 ? "Day \(day). The town paid out \(total) coins this morning: ride past to pick them up.\(note)" : "Day \(day). Nothing paid out this morning. Open the store or the saloon.\(note)", again: true)
@@ -805,7 +815,11 @@ final class Game {
             tr.chuff -= dt * (2 + tripT * 4)
             if tr.chuff <= 0 { tr.chuff = 1; sfx?.chuff(1); smoke(tr.x + 16) }
             train = tr
-            if tripT > 2.6 { arrive() }
+            if tripT > 2.6 && !choosing {
+                // straight on if there is only one way, or stop at the fork and ask
+                let opts = stageOf(town + 1)
+                if opts.count < 2 { arrive(opts[0]) } else { choosing = true }
+            }
             return
         }
         if tr.v == 0 {
@@ -840,15 +854,17 @@ final class Game {
     }
 
     /// Stepping off at the next dead town. Only coins make the trip; the town you built stays behind.
-    private func arrive() {
+    func arrive(_ dest: String) {
         let carry = carryOut()
+        choosing = false
+        log.append(place); place = dest
         town += 1; day += 1; day0 = day - 1; t = 0.08
         layTown()
         coins = carry; bank = 0
         fade = 1
         let news = [1: "a stable and a bank", 2: "a bordello and a doctor", 3: "a church and a blacksmith", 4: "a telegraph office"]
         let extra = news[town].map { " This town has \($0) to open as well." } ?? ""
-        hint("arrive\(town)", "\(nice(townName)). You step off with \(carry) coins, and everything here is boarded up. Prices and raids are both a little stiffer down the line.\(extra)", again: true)
+        hint("arrive\(town)", "\(nice(townName)): \(here.land.lowercased()). \(here.note) You step off with \(carry) coins, and everything here is boarded up.\(extra)", again: true)
         onSave?()
     }
 

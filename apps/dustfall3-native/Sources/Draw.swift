@@ -169,7 +169,13 @@ final class Renderer {
                     let k = hashN(Double(i) * 2.9)
                     let s = sx(x)
                     if k < 0.45 {
-                        if g.bio == .desert { cactus(s, 12 + k * 22) } else if g.bio == .river { tree(s, 20 + k * 30) } else { pine(s, 22 + k * 34) }
+                        switch g.bio {
+                        case .desert: cactus(s, 12 + k * 22)
+                        case .river: tree(s, 20 + k * 30)
+                        case .canyon: if k < 0.25 { spire(s, 30 + k * 90) } else { cactus(s, 10 + k * 16) }
+                        case .pine: pine(s, 26 + k * 40, snow: false)
+                        case .snow: pine(s, 22 + k * 34, snow: true)
+                        }
                     } else if k < 0.8 { brush(s) } else { rock(s, 5 + k * 6) }
                 }
             }
@@ -195,12 +201,19 @@ final class Renderer {
         c.R(x - 1.5, gy - h * 0.5, 3, h * 0.5, Col(0x6a4a2e))
         c.circ(x, gy - h * 0.66, h * 0.3, Col(0x55783c)); c.circ(x - h * 0.2, gy - h * 0.52, h * 0.22, Col(0x4a6c34)); c.circ(x + h * 0.2, gy - h * 0.55, h * 0.24, Col(0x628846))
     }
-    private func pine(_ x: Double, _ h: Double) {
+    private func spire(_ x: Double, _ h: Double) {
+        let L = g.terrain
+        c.poly(Col(L.mesa), [x - h * 0.16, gy, x - h * 0.1, gy - h * 0.7, x - h * 0.04, gy - h, x + h * 0.06, gy - h * 0.96, x + h * 0.12, gy - h * 0.6, x + h * 0.18, gy])
+        c.poly(Col(L.mesaS), [x + h * 0.03, gy, x + h * 0.03, gy - h * 0.98, x + h * 0.06, gy - h * 0.96, x + h * 0.12, gy - h * 0.6, x + h * 0.18, gy])
+        c.R(x - h * 0.1, gy - h * 0.55, h * 0.2, 1, Col(L.mesaS, 0.5)); c.R(x - h * 0.12, gy - h * 0.3, h * 0.26, 1, Col(L.mesaS, 0.5))
+    }
+    private func pine(_ x: Double, _ h: Double, snow: Bool) {
         c.R(x - 1, gy - h * 0.25, 2, h * 0.25, Col(0x4a3424))
         for k in 0..<3 {
             let y = gy - h * (0.2 + Double(k) * 0.24), w = h * (0.34 - Double(k) * 0.08)
             c.poly(Col(0x3f5f44), [x - w, y, x, y - h * 0.36, x + w, y])
-            c.poly(Col(0xf4f8ff), [x - w * 0.55, y - h * 0.16, x, y - h * 0.36, x + w * 0.55, y - h * 0.16, x, y - h * 0.2])
+            if snow { c.poly(Col(0xf4f8ff), [x - w * 0.55, y - h * 0.16, x, y - h * 0.36, x + w * 0.55, y - h * 0.16, x, y - h * 0.2]) }
+            else { c.poly(Col(0x2f4a36), [x, y, x, y - h * 0.36, x + w, y]) }
         }
     }
     private func brush(_ x: Double) {
@@ -613,55 +626,149 @@ final class Renderer {
         if role == .miner { c.seg(x - dir * 2, gy - 12, x - dir * 4, gy - 4, 1, Col(0x8a6a4a)) }
     }
 
-    private func horse(_ x: Double, _ dir: Double, _ phase: Double, _ moving: Bool, _ coat: Col, _ dark: Col) {
+    /// A horse in profile, facing `dir`: jointed legs that walk or gallop, a mane and tail that stream at speed, a head that nods at rest.
+    private func horse(_ x: Double, _ dir: Double, _ phase: Double, _ speed: Double, _ coat: Col, _ dark: Col, tack: Bool = false) -> Double {
+        let mv = speed > 4, gal = speed > 55
+        let ph = phase * 2
+        let bob = gal ? sin(ph * 2) * 1.1 : (mv ? sin(ph * 2) * 0.45 : 0)
+        let lite = Col.mix(coat, Col(0xffffff), 0.16), shade = Col.mix(coat, dark, 0.55)
+        let hoof = Col(0x1c1410)
         c.save()
         c.translate(x, gy)
         c.scale(dir, 1)
-        let bob = moving ? sin(phase * 2) * 0.8 : 0
-        // legs
-        let l1 = moving ? sin(phase) * 4 : 0, l2 = moving ? sin(phase + PI) * 4 : 0
-        c.seg(-8, -9, -8 + l1, 0, 2, dark); c.seg(-5, -9, -5 + l2, 0, 2, coat)
-        c.seg(6, -9, 6 + l2, 0, 2, dark); c.seg(9, -9, 9 + l1, 0, 2, coat)
-        // body, neck, head, tail
-        c.RR(-11, -16 + bob, 23, 9, 3.5, coat)
-        c.poly(coat, [8, -15 + bob, 14, -23 + bob, 18, -21 + bob, 12, -10 + bob])
-        c.RR(13, -26 + bob, 9, 5, 2, coat)
-        c.R(20, -24 + bob, 2.5, 2, dark)
-        c.poly(dark, [12, -24 + bob, 14, -28 + bob, 15, -24 + bob])
-        c.poly(dark, [9, -18 + bob, 14, -24 + bob, 11, -15 + bob])
-        c.curve(-11, -14 + bob, -17, -12 + bob, -15 - (moving ? sin(phase) * 2 : 0), -5, 2, dark)
-        c.R(17, -24.5 + bob, 1, 1, Col(0x1c120c))
+        c.roundCaps(true)
+        // one leg: hip, a knee that bends forward as the foot lifts, cannon bone, hoof
+        func leg(_ hx: Double, _ off: Double, _ far: Bool, _ fore: Bool) {
+            let a = ph + off
+            let up = mv ? max(0, sin(a)) * (gal ? 4.2 : 2.2) : 0
+            let stride = mv ? (gal ? 6.5 : 3.2) : 0
+            let hy = -9.5 + bob
+            let fx = hx - cos(a) * stride, fy = -1 - up
+            let kx = (hx + fx) / 2 + (fore ? 1 : -1) * (0.7 + up * 0.75), ky = (hy + fy) / 2 - (fore ? 0 : 0.6)
+            let col = far ? dark : shade
+            c.seg(hx, hy, kx, ky, 2.6, col)
+            c.seg(kx, ky, fx, fy, 1.7, col)
+            c.R(fx - 1, fy - 0.2, 2.6, 1.3, hoof)
+            if !far && tack { c.R(fx - 0.8, fy - 2.2, 2.2, 1.2, Col(0xf0e6d2)) }      // white socks
+        }
+        let offs: [Double] = gal ? [0.7, PI + 0.7, 0, PI] : [PI, PI * 1.5, 0, PI * 0.5]
+        leg(-7.5, offs[2], true, false); leg(7, offs[3], true, true)
+        // tail: strands that hang at rest and stream out at a gallop
+        let tx = -11.0, ty = -15 + bob
+        for k in 0..<5 {
+            let wv = sin(g.clock * (gal ? 17 : 3) + Double(k) * 1.3 + x * 0.05) * (gal ? 1.4 : 0.5)
+            let ex = tx - (gal ? 9.5 : (mv ? 4.5 : 2.6)) - Double(k - 2) * 0.4
+            let ey = ty + (gal ? 1.5 : (mv ? 6 : 9)) + Double(k) * 0.8 + wv
+            c.curve(tx + 0.5, ty + Double(k) * 0.4, tx - (gal ? 4 : 1.2), ty + (gal ? -1 : 3) + Double(k) * 0.4, ex, ey, 1.1, k % 2 == 0 ? dark : shade)
+        }
+        // barrel, quarters and chest
+        c.RR(-11, -17.5 + bob, 22.5, 10, 4.5, coat)
+        c.circ(-6.8, -12.6 + bob, 5.4, coat); c.circ(7.6, -12.4 + bob, 5.2, coat)
+        c.RR(-8, -9.4 + bob, 15, 1.8, 0.9, shade.alpha(0.55))
+        c.RR(-6, -17 + bob, 12, 1.1, 0.5, lite.alpha(0.8))
+        c.curve(-10.5, -13 + bob, -8, -9 + bob, -4.5, -8.4 + bob, 0.7, shade.alpha(0.6))
+        leg(-5, offs[0], false, false); leg(4.2, offs[1], false, true)
+        // neck and head, which dips now and then when he stands
+        let nk = sin(g.clock * 0.55 + x * 0.01)
+        let nod = !mv && nk > 0.5 ? (nk > 0.86 ? 2.2 : 1.1) : (gal ? sin(ph * 2 + 1) * 0.7 : 0)
+        let hy = bob + nod
+        c.poly(coat, [4.5, -16.8 + bob, 11.5, -25 + hy, 16.6, -23.4 + hy, 13, -9.8 + bob, 8, -9.5 + bob])
+        c.poly(shade.alpha(0.5), [11, -11 + bob, 15.6, -22.6 + hy, 16.6, -23.4 + hy, 13, -9.8 + bob])
+        c.RR(12.4, -28 + hy, 9, 5.6, 2.2, coat)
+        c.RR(18.2, -26.8 + hy, 5, 4.6, 2, shade)
+        c.R(21.6, -24.2 + hy, 0.9, 0.9, hoof)                                    // nostril
+        c.circ(15.6, -25.8 + hy, 0.75, hoof); c.R(15.2, -26.2 + hy, 0.5, 0.5, Col(0xffffff, 0.8))   // eye
+        c.poly(dark, [12.6, -27.6 + hy, 13.6, -31.4 + hy, 15, -27.8 + hy]); c.poly(coat, [13, -27.8 + hy, 13.6, -30.4 + hy, 14.4, -27.8 + hy])
+        if tack { c.poly(Col(0xf0e6d2), [16.6, -27.6 + hy, 18.2, -27.4 + hy, 20.2, -24 + hy, 19.2, -23.6 + hy]) }   // a blaze
+        // mane: a dark crest down the neck, forelock, and strands that lift at a gallop
+        c.poly(dark, [5, -17.4 + bob, 11.2, -25.6 + hy, 13.4, -28 + hy, 12.2, -23 + hy, 7.4, -14.6 + bob])
+        c.seg(13.6, -28.2 + hy, 15.4, -26.6 + hy, 1.1, dark)
+        if mv {
+            for k in 0..<4 {
+                let mx = 11.5 - Double(k) * 1.7, my = -25 + hy * 0.6 + Double(k) * 2.3
+                c.seg(mx, my, mx - (gal ? 3.6 : 1.8), my - (gal ? 1.2 : -0.4) + sin(g.clock * 20 + Double(k) * 1.4) * 0.7, 0.9, dark)
+            }
+        }
+        if tack {
+            // bridle
+            let lth = Col(0x2a1c14)
+            c.seg(14.2, -28 + hy, 20, -23.4 + hy, 0.6, lth); c.seg(17.4, -27.6 + hy, 17.8, -22.8 + hy, 0.6, lth); c.seg(19.6, -27 + hy, 20.2, -22.6 + hy, 0.6, lth)
+            c.circ(20, -23.4 + hy, 0.7, Col(0xc9c9d0))
+        }
+        c.roundCaps(false)
         c.restore()
+        return hy
     }
 
+    /// The rider: hat, scarf, vest, gunbelt and boots in the stirrups, on a saddled horse.
     private func rider() {
         let x = sx(g.px)
-        let moving = abs(g.pvx) > 6
-        let bob = moving ? sin(g.pphase * 2) * 0.8 : 0
-        c.ell(x, gy + 1, 13, 2, Col(0x000000, 0.2))
-        horse(x, g.pdir, g.pphase, moving, Col(0x9a5a34), Col(0x5a3420))
+        let speed = abs(g.pvx)
+        let mv = speed > 4, gal = speed > 55
+        c.ell(x, gy + 1, 14, 2.2, Col(0x000000, 0.22))
+        let headY = horse(x, g.pdir, g.pphase, speed, Col(0x9a5a34), Col(0x4a2a18), tack: true)
+        let ph = g.pphase * 2
+        let hb = gal ? sin(ph * 2) * 1.1 : (mv ? sin(ph * 2) * 0.45 : 0)
+        // he rises a little out of the saddle at a gallop
+        let bob = hb - (gal && sin(ph * 2 - 1.2) > 0 ? 1 : 0)
+        let lean = gal ? 1.2 : 0
+        let lth = Col(0x2a1c14), skin = Col(0xd9a878), skinD = Col(0xb8804e)
         c.save()
         c.translate(x, gy)
         c.scale(g.pdir, 1)
-        // saddle blanket, leg, body
-        c.R(-5, -17 + bob, 9, 3, Col(0xb5412e))
-        c.R(-1, -16 + bob, 3, 7, Col(0x3a4a6a)); c.R(-1, -9.5 + bob, 4, 1.5, Col(0x2e2622))
-        c.R(-3, -25 + bob, 6, 9, Col(0x8a5a3a))
-        c.R(-3, -19 + bob, 6, 1.5, Col(0x4a3424))
-        // gun arm or reins
-        if g.gunT > 0 || g.input.fire {
-            c.seg(1, -23 + bob, 9, -22 + bob, 1.6, Col(0xd9a878)); c.R(8, -23.5 + bob, 5, 1.5, Col(0x4a4a50))
-            if g.gunT > 0.07 { c.circ(15, -22.5 + bob, 3, Col(0xfff0b0)); c.circ(15, -22.5 + bob, 1.6, Col(0xffffff)) }
-        } else if g.tossT > 0 {
-            c.seg(1, -23 + bob, 7, -28 + bob, 1.6, Col(0xd9a878))
-        } else {
-            c.seg(1, -22 + bob, 6, -19 + bob, 1.6, Col(0xd9a878))
-            c.seg(6, -19 + bob, 14, -21 + bob, 0.6, Col(0x2e2622))
+        c.roundCaps(true)
+        // saddle blanket, saddle, horn, cinch
+        c.RR(-6.5, -18.6 + hb, 12, 3.6, 1, Col(0xb5412e)); c.R(-6.5, -16.4 + hb, 12, 0.8, Col(0xf2c14e)); c.R(-6.5, -17.6 + hb, 12, 0.5, Col(0x2e4a6a))
+        c.RR(-4.6, -20.2 + hb, 9, 3, 1.5, Col(0x5a3420)); c.RR(-5.4, -21.4 + hb, 2.4, 2.6, 1, Col(0x4a2a18)); c.R(3.2, -21.6 + hb, 1.3, 2.2, Col(0x4a2a18))
+        c.R(0.4, -17.2 + hb, 1.2, 7.4, lth)
+        // the streaming scarf
+        let n = mv ? (gal ? 14 : 8) : 5
+        for i in 0..<n {
+            let u = Double(i) / Double(n)
+            let wv = sin(g.clock * (mv ? 15 : 3) - Double(i) * 0.55) * (0.3 + u * (gal ? 1.8 : 1))
+            let sxx = -2 - Double(i) * 0.62 + lean, syy = -27.4 + bob + (mv ? wv : Double(i) * 0.55 + wv * 0.3)
+            c.R(sxx, syy, 0.9, 1.5 - u * 0.7, i > n * 6 / 10 ? Col(0x8f2c23) : Col(0xc9402f))
         }
-        // head, bandana, hat
-        c.R(-2, -29 + bob, 4.5, 4, Col(0xd9a878))
-        c.R(-2, -26 + bob, 5, 1.5, Col(0xb5412e))
-        c.R(-5, -30 + bob, 11, 1.5, Col(0x4a3424)); c.R(-2.5, -33 + bob, 6, 3.2, Col(0x4a3424))
+        // leg: chaps over jeans, boot and spur in the stirrup
+        c.seg(0.2, -19 + bob, 3.2, -13.2 + hb, 3, Col(0x6a4a2e))
+        c.seg(3.2, -13.2 + hb, 2.4, -8.8 + hb, 2.4, Col(0x7a5632))
+        c.seg(1.4, -17 + hb, 2.6, -8 + hb, 0.5, lth)                                   // stirrup leather
+        c.RR(1, -9.2 + hb, 5, 2.2, 0.8, Col(0x2e2622)); c.R(1, -7.4 + hb, 1.4, 0.9, Col(0x2e2622)); c.circ(0.6, -8 + hb, 0.6, Col(0xc9c9d0))
+        c.R(0.6, -7.2 + hb, 5.6, 0.7, Col(0x8a8a90))                                    // stirrup iron
+        // body: shirt, vest, gunbelt and holster
+        c.RR(-3.2 + lean, -27.2 + bob, 6.6, 9.6, 1.4, Col(0xc9b48a))
+        c.R(-3.2 + lean, -27 + bob, 2.2, 8.6, Col(0x5a3c22)); c.R(1.4 + lean, -26.6 + bob, 1.6, 8, Col(0x5a3c22))
+        c.R(-3.4 + lean * 0.5, -19.6 + bob, 7, 1.5, Col(0x3a2a1c)); c.R(0.2 + lean * 0.5, -19.7 + bob, 1.4, 1.6, Col(0xf2c14e))
+        c.RR(-3.6, -19 + bob, 2.6, 4.4, 0.8, Col(0x3a2a1c)); c.R(-3.2, -20.2 + bob, 1.4, 1.6, Col(0x8a8a90))
+        // neckerchief knot
+        c.RR(-2.4 + lean, -28.4 + bob, 5.6, 2.2, 1, Col(0xc9402f))
+        // head: jaw, ear, eye, hair at the nape
+        let hx = lean * 1.3
+        c.RR(-2 + hx, -32.6 + bob, 5.2, 4.8, 1.3, skin)
+        c.R(-2 + hx, -29.4 + bob, 4.4, 1, skinD.alpha(0.6))
+        c.R(-2.3 + hx, -32.4 + bob, 1.5, 3.2, Col(0x3a2a1c))
+        c.R(1.7 + hx, -31.2 + bob, 0.8, 0.9, Col(0x1c120c)); c.R(2.9 + hx, -30.6 + bob, 0.7, 1.1, skinD)
+        // hat: brim with a curl, creased crown, band
+        c.RR(-6 + hx, -33.6 + bob, 13, 1.7, 0.8, Col(0x4a3424)); c.R(-6 + hx, -34.2 + bob, 1.6, 0.9, Col(0x4a3424)); c.R(5.4 + hx, -34.2 + bob, 1.6, 0.9, Col(0x4a3424))
+        c.RR(-3 + hx, -37.4 + bob, 7, 4.2, 1.6, Col(0x5a4030)); c.R(-3 + hx, -34.6 + bob, 7, 1.1, Col(0x2a1c14)); c.R(-0.6 + hx, -37.4 + bob, 2.2, 0.8, Col(0x4a3424))
+        c.R(-2.2 + hx, -36.6 + bob, 1, 2, Col(0x6e5240))
+        // arm: sleeve to the elbow, forearm, hand
+        let shx = 0.6 + lean, shy = -25.4 + bob
+        func arm(_ ex: Double, _ ey: Double, _ hxx: Double, _ hyy: Double) {
+            c.seg(shx, shy, ex, ey, 2.2, Col(0xc9b48a)); c.seg(ex, ey, hxx, hyy, 1.8, Col(0xb8a27a)); c.circ(hxx, hyy, 1.1, skin)
+        }
+        if g.gunT > 0 || g.input.fire {
+            arm(4.4, -24.2 + bob, 8.6, -24.6 + bob)
+            c.R(8.6, -25.6 + bob, 5.6, 1.6, Col(0x4a4a50)); c.R(8.4, -24.4 + bob, 1.6, 2.4, Col(0x5a3c22)); c.R(10, -24.2 + bob, 1.4, 1, Col(0x3a3a40))
+            if g.gunT > 0.07 { c.circ(16, -24.8 + bob, 3.2, Col(0xfff0b0)); c.circ(16, -24.8 + bob, 1.7, Col(0xffffff)); c.seg(17, -24.8 + bob, 21, -24.8 + bob, 1, Col(0xfff0b0, 0.8)) }
+        } else if g.tossT > 0 {
+            arm(4, -27.4 + bob, 7.4, -30.6 + bob)
+        } else {
+            arm(3.2, -21.6 + bob, 6.4, -20.2 + hb)
+            // reins from his hand to the bit
+            c.curve(6.4, -20.2 + hb, 13, -18.4 + hb, 20, -23.4 + headY, 0.55, lth)
+        }
+        c.roundCaps(false)
         c.restore()
         if g.hurtT > 0 && Int(g.clock * 16) % 2 == 0 { c.circ(x, gy - 18, 12, Col(0xd04a3a, 0.25)) }
     }
@@ -672,7 +779,7 @@ final class Renderer {
         let x = sx(bn.x)
         let moving = bn.st == 0 || bn.st == 3
         if bn.rider {
-            horse(x, dir, bn.phase, moving, Col(0x3a3230), Col(0x1c1816))
+            _ = horse(x, dir, bn.phase, moving ? 74 : 0, Col(0x3a3230), Col(0x1c1816))
             let bob = moving ? sin(bn.phase * 2) * 0.8 : 0
             c.R(x - 3, gy - 25 + bob, 6, 9, Col(0x2e2622)); c.R(x - 1, gy - 16 + bob, 3, 7, Col(0x2a2a30))
             c.R(x - 2, gy - 29 + bob, 4.5, 4, Col(0xb8804e)); c.R(x - 2.5, gy - 27 + bob, 5.5, 2.4, Col(0xa02a22))

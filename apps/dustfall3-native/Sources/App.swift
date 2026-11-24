@@ -61,6 +61,9 @@ final class GameViewController: UIViewController {
     private let coinBtn = UIView()
     private let coinIcon = UIImageView()
     private let newBtn = UIButton(type: .system)
+    private let mapBtn = UIButton(type: .system)
+    private let mapBox = UIView()
+    private var mapChoose = false
     private let saveKey = "dustfall3.save"
     private var demoMode = false
 
@@ -233,8 +236,13 @@ final class GameViewController: UIViewController {
         resumeBtn.addTarget(self, action: #selector(closeMenu), for: .touchUpInside)
         soundBtn.addTarget(self, action: #selector(toggleSound), for: .touchUpInside)
         restartBtn.addTarget(self, action: #selector(restart), for: .touchUpInside)
-        pauseBox.addSubview(pauseTitle); pauseBox.addSubview(resumeBtn); pauseBox.addSubview(soundBtn); pauseBox.addSubview(restartBtn)
+        style(mapBtn, "Map", primary: false)
+        mapBtn.addTarget(self, action: #selector(openMap), for: .touchUpInside)
+        pauseBox.addSubview(pauseTitle); pauseBox.addSubview(resumeBtn); pauseBox.addSubview(soundBtn); pauseBox.addSubview(restartBtn); pauseBox.addSubview(mapBtn)
         view.addSubview(pauseBox)
+        mapBox.backgroundColor = UIColor(red: 0.1, green: 0.06, blue: 0.04, alpha: 0.94)
+        mapBox.isHidden = true
+        view.addSubview(mapBox)
 
         sound.muted = UserDefaults.standard.bool(forKey: "dustfall3.muted")
         soundBtn.setTitle(sound.muted ? "Sound: off" : "Sound: on", for: .normal)
@@ -282,7 +290,10 @@ final class GameViewController: UIViewController {
         pauseTitle.frame = CGRect(x: 0, y: bh * 0.12, width: bw, height: 40)
         resumeBtn.frame = CGRect(x: bw / 2 - 120, y: bh * 0.12 + 54, width: 240, height: 50)
         soundBtn.frame = CGRect(x: bw / 2 - 120, y: bh * 0.12 + 114, width: 240, height: 44)
+        soundBtn.frame = CGRect(x: bw / 2 - 120, y: bh * 0.12 + 114, width: 116, height: 44)
+        mapBtn.frame = CGRect(x: bw / 2 + 4, y: bh * 0.12 + 114, width: 116, height: 44)
         restartBtn.frame = CGRect(x: bw / 2 - 120, y: bh * 0.12 + 166, width: 240, height: 44)
+        mapBox.frame = view.bounds
         rebuild()
     }
 
@@ -305,7 +316,8 @@ final class GameViewController: UIViewController {
         if !demoDone && sw > sh {
             demoDone = true
             let args = ProcessInfo.processInfo.arguments
-            for name in ["day", "night", "train", "snow", "storm"] where args.contains("-demo-" + name) { demoMode = true; game.demo(name) }
+            for name in ["day", "night", "train", "snow", "storm", "map"] where args.contains("-demo-" + name) { demoMode = true; game.demo(name) }
+            if args.contains("-demo-map") { showMap(choose: true) }
         }
     }
 
@@ -328,7 +340,8 @@ final class GameViewController: UIViewController {
     }
     private func refreshTitle() {
         if let s = loadSave() {
-            startBtn.setTitle("Continue: day \(s.day), \(nice(TOWN_NAMES[max(0, s.town) % TOWN_NAMES.count]))", for: .normal)
+            let key = s.place ?? stageOf(max(0, s.town))[0]
+            startBtn.setTitle("Continue: day \(s.day), \(nice(PLACES[key]?.name ?? "Dustfall"))", for: .normal)
             newBtn.isHidden = false
         } else {
             startBtn.setTitle("Ride in", for: .normal)
@@ -371,6 +384,81 @@ final class GameViewController: UIViewController {
         sound.resume()
     }
 
+    // ---------- the territory: every stage of the line and the places at each, the way you came, and the choice at a fork
+    private func showMap(choose: Bool) {
+        mapChoose = choose
+        for v in mapBox.subviews { v.removeFromSuperview() }
+        mapBox.frame = view.bounds
+        mapBox.isHidden = false
+        let bw = view.bounds.width, bh = view.bounds.height
+        let ins = view.safeAreaInsets
+        let l = max(ins.left, 16), r = max(ins.right, 16)
+        let head = UILabel(frame: CGRect(x: 0, y: 12, width: bw, height: 30))
+        head.text = choose ? "The line forks. Where to?" : "The territory"
+        head.font = serif(22); head.textColor = gold; head.textAlignment = .center
+        mapBox.addSubview(head)
+        let n = STAGES.count
+        let cur = game.town % n, lap = game.town / n, nxt = (cur + 1) % n
+        let cw = (bw - l - r) / CGFloat(n)
+        let rowH = (bh - 84 - 50) / 2
+        for (i, opts) in STAGES.enumerated() {
+            let x = l + CGFloat(i) * cw
+            let hd = UILabel(frame: CGRect(x: x + 2, y: 46, width: cw - 4, height: 30))
+            hd.text = STAGE_NEW[i]; hd.font = serif(11, bold: false); hd.textColor = cream.withAlphaComponent(0.75)
+            hd.textAlignment = .center; hd.numberOfLines = 2
+            mapBox.addSubview(hd)
+            for (k, key) in opts.enumerated() {
+                guard let pl = PLACES[key] else { continue }
+                let y = 82 + CGFloat(k) * rowH + (opts.count == 1 ? rowH / 2 : 0)
+                let li = lap * n + i
+                let been = i < cur && li < game.log.count && game.log[li] == key
+                let hereNow = i == cur && key == game.place
+                let pick = choose && i == nxt
+                let b = UIButton(type: .system)
+                style(b, "", primary: pick)
+                b.frame = CGRect(x: x + 4, y: y, width: cw - 8, height: 48)
+                let second = hereNow ? "Here, day \(game.day - game.day0)" : (been ? "Rebuilt" : pl.land)
+                b.setTitle(nice(pl.name) + "\n" + second, for: .normal)
+                b.titleLabel?.numberOfLines = 2
+                b.titleLabel?.textAlignment = .center
+                b.titleLabel?.font = serif(13)
+                b.isUserInteractionEnabled = pick
+                b.accessibilityIdentifier = key
+                b.addTarget(self, action: #selector(pickPlace(_:)), for: .touchUpInside)
+                if hereNow { b.layer.borderColor = gold.cgColor; b.layer.borderWidth = 2 }
+                if !pick && !hereNow && !been { b.alpha = 0.5 }
+                mapBox.addSubview(b)
+                if pick || hereNow {
+                    let nt = UILabel(frame: CGRect(x: x + 4, y: y + 50, width: cw - 8, height: min(rowH - 54, 60)))
+                    nt.text = pl.note; nt.font = serif(10.5, bold: false); nt.textColor = cream
+                    nt.textAlignment = .center; nt.numberOfLines = 0; nt.adjustsFontSizeToFitWidth = true; nt.minimumScaleFactor = 0.7
+                    mapBox.addSubview(nt)
+                }
+            }
+        }
+        if !choose {
+            let back = UIButton(type: .system)
+            style(back, "Back", primary: true)
+            back.frame = CGRect(x: bw / 2 - 80, y: bh - 50, width: 160, height: 40)
+            back.addTarget(self, action: #selector(closeMap), for: .touchUpInside)
+            mapBox.addSubview(back)
+        } else {
+            let ft = UILabel(frame: CGRect(x: 0, y: bh - 40, width: bw, height: 24))
+            ft.text = "You step off with \(game.carryOut()) coins either way."
+            ft.font = serif(13, bold: false); ft.textColor = cream; ft.textAlignment = .center
+            mapBox.addSubview(ft)
+        }
+    }
+    @objc private func openMap() { showMap(choose: false) }
+    @objc private func closeMap() { mapBox.isHidden = true }
+    @objc private func pickPlace(_ b: UIButton) {
+        guard mapChoose, let key = b.accessibilityIdentifier else { return }
+        mapBox.isHidden = true
+        mapChoose = false
+        game.arrive(key)
+        last = 0
+    }
+
     @objc private func toggleSound() {
         sound.muted = !sound.muted
         UserDefaults.standard.set(sound.muted, forKey: "dustfall3.muted")
@@ -394,6 +482,7 @@ final class GameViewController: UIViewController {
         game.input.fire = tFire || fireLatch
         tossLatch = false; fireLatch = false
         if !userPaused { game.update(min(0.05, max(0, raw))) }
+        if game.choosing && mapBox.isHidden { showMap(choose: true) }
         guard let r = renderer, let cv = canvas else { return }
         r.draw()
         stage.layer.contents = cv.image()
