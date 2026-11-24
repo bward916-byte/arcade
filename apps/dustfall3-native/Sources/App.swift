@@ -389,7 +389,9 @@ final class GameViewController: UIViewController {
         coinBtn.layer.cornerRadius = 36
         coinIcon.frame = coinBtn.bounds
         titleBox.frame = view.bounds
-        titleShade.frame = view.bounds
+        CATransaction.begin(); CATransaction.setDisableActions(true)
+        titleShade.frame = CGRect(x: 0, y: 0, width: max(bw, bh), height: max(bw, bh))
+        CATransaction.commit()
         let th = min(bh * 0.3, 118), ty = bh * 0.07
         for (i, lb) in titleLayers.enumerated() { lb.frame = CGRect(x: 20, y: ty + CGFloat([6, 3, 0][i]), width: bw - 40, height: th) }
         for (i, lb) in numLayers.enumerated() { lb.frame = CGRect(x: 20, y: ty + th * 0.8 + CGFloat([5, 3, 0][i]), width: bw - 40, height: th * 0.62) }
