@@ -796,6 +796,7 @@ final class Renderer {
             return
         }
         c.ell(x + w / 2, gy + 1.2, w * 0.56, 2.2, Col(0x000000, 0.16))
+        if dk < 0.6 { c.poly(Col(0x000000, 0.13 * (1 - dk / 0.6)), [x + 6, gy + 0.5, x + w + 6, gy + 0.5, x + w + 15, gy + 4.5, x + 12, gy + 4.5]) }
         let wall = Col(d.wall), trim = Col(d.trim), roof = Col(d.roof)
         let wallD = Col.mix(wall, Col(0x000000), 0.2), wallL = Col.mix(wall, Col(0xffffff), 0.14)
         let lit = dk > 0.3 && !bl.robbed
@@ -819,6 +820,24 @@ final class Renderer {
             while yy < gy - 3 { c.R(x, yy, w, 0.7, wallD.alpha(0.5)); c.R(x, yy + 0.7, w, 0.5, wallL.alpha(0.3)); yy += 3.5 }
         }
         c.R(x + w - 5, gy - h, 5, h - 2, Col(0x000000, 0.1))
+        // weather: odd boards gone pale or dark, rain streaks from the eaves, nail heads, light from the left, dust near the ground
+        var wk = 0
+        while Double(wk) * 7 < w - 4 {
+            let r = hashN(bl.x * 0.13 + Double(wk) * 2.7), bx0 = x + 2 + Double(wk) * 7
+            if upright {
+                if r > 0.62 { c.R(bx0, gy - h, 3.3, h - 2, r > 0.82 ? Col(0x000000, 0.09) : Col(0xffffff, 0.08)) }
+            } else if r > 0.5 {
+                let rows = max(1, Int((h - 9) / 3.5))
+                let by = gy - h + 3.5 * Double(1 + Int(r * 97) % rows)
+                c.R(bx0, by + 0.7, max(0, min(6 + r * 8, x + w - bx0 - 2)), 2.8, r > 0.78 ? Col(0x000000, 0.09) : Col(0xffffff, 0.08))
+            }
+            if r < 0.3 { c.vfill(bx0 + 1, gy - h, 1.6, 5 + r * 30, [(0, Col(0x2a1c14, 0.24)), (1, Col(0x2a1c14, 0))]) }
+            wk += 1
+        }
+        var nx = 4.0
+        while nx < w - 2 { c.R(x + nx, gy - h + 5, 0.6, 0.6, Col(0x000000, 0.3)); c.R(x + nx, gy - 8, 0.6, 0.6, Col(0x000000, 0.3)); nx += upright ? 4 : 12 }
+        c.linear(x, gy - h, w, h - 2, x, 0, x + w, 0, [(0, Col(0xfff0d0, 0.13)), (0.35, Col(0xfff0d0, 0)), (0.7, Col(0x000000, 0)), (1, Col(0x000000, 0.17))])
+        c.vfill(x, gy - 10, w, 8, [(0, Col(0x3a2a1c, 0)), (1, Col(0x3a2a1c, 0.3))])
         c.R(x, gy - h, 1.8, h - 2, trim); c.R(x + w - 1.8, gy - h, 1.8, h - 2, trim)
         c.R(x, gy - 5, w, 3, wallD.alpha(0.5))
         // the false front, its cornice and dentils
@@ -836,6 +855,9 @@ final class Renderer {
             c.R(x - 4, gy - h - fh - 3, w + 8, 3, roof); c.R(x - 4, gy - h - fh - 3, w + 8, 0.8, Col.mix(roof, Col(0xffffff), 0.3))
             var dx = 0.0
             while dx < w + 2 { c.R(x - 1 + dx, gy - h - fh, 2, 1.5, trim); dx += 4 }
+            c.linear(x - 2, gy - h - fh, w + 4, fh, x - 2, 0, x + w + 2, 0, [(0, Col(0xfff0d0, 0.13)), (0.4, Col(0xfff0d0, 0)), (1, Col(0x000000, 0.15))])
+            c.R(x - 2, gy - h - fh + 1.5, w + 4, 1.4, Col(0x000000, 0.2))
+            for k in 0..<3 { let r = hashN(bl.x * 0.21 + Double(k) * 4.1); c.vfill(x + 2 + r * (w - 6), gy - h - fh + 1.5, 1.4, 3 + r * (fh - 4), [(0, Col(0x2a1c14, 0.25)), (1, Col(0x2a1c14, 0))]) }
         }
         if g.bio == .snow { c.RR(x - 4, gy - h - fh - 5, w + 8, 3, 1.5, Col(0xf4f8ff)); c.R(x - 5, gy - 27.5, w + 10, 1.8, Col(0xf4f8ff)) }
         c.R(x - 2, gy - h - 1, w + 4, 2, trim)
@@ -863,6 +885,15 @@ final class Renderer {
         // the porch: a slanted shingle roof, a valance, posts with brackets, shade beneath
         let py = gy - 26.0
         c.poly(roof, [x - 6, py + 4, x - 2, py, x + w + 2, py, x + w + 6, py + 4])
+        // shingles, each a little different, and the lit top edge
+        var tx = 0.0, ti = 0
+        while tx < w + 6 {
+            let tone = hashN(bl.x + Double(ti) * 1.7)
+            if tx < w + 1 { c.R(x - 1.5 + tx, py + 0.5, 2.2, 1.4, tone > 0.5 ? Col(0xffffff, 0.1) : Col(0x000000, 0.1)) }
+            c.R(x - 3.4 + tx, py + 2.3, 2.2, 1.5, tone > 0.5 ? Col(0x000000, 0.1) : Col(0xffffff, 0.08))
+            tx += 2.5; ti += 1
+        }
+        c.R(x - 2, py, w + 4, 0.6, Col(0xffffff, 0.22))
         var sx2 = 2.0
         while sx2 < w + 8 { c.R(x - 5 + sx2, py + 1, 0.6, 3, Col(0x000000, 0.22)); sx2 += 5 }
         c.R(x - 4, py + 1.8, w + 8, 0.6, Col(0x000000, 0.18))
@@ -874,11 +905,12 @@ final class Renderer {
                 vx += 4; vi += 1
             }
         }
-        c.R(x, py + 5.2, w, 3.2, Col(0x000000, 0.16))
+        c.vfill(x, py + 5.2, w, 11, [(0, Col(0x000000, 0.34)), (1, Col(0x000000, 0))])
         var posts = [x - 3, x + w + 1]
         if w > 70 { posts.append(x + w * 0.33); posts.append(x + w * 0.66) }
         for px in posts {
-            c.R(px, py + 5.2, 1.8, gy - 2 - py - 5.2, trim)
+            c.R(px, py + 5.2, 1.8, gy - 2 - py - 5.2, trim); c.R(px + 1.2, py + 5.2, 0.6, gy - 2 - py - 5.2, Col(0x000000, 0.22))
+            c.R(px - 0.5, gy - 4, 2.8, 2, trim)
             c.poly(trim, [px - 2.4, py + 5.2, px, py + 5.2, px, py + 8.4]); c.poly(trim, [px + 1.8, py + 5.2, px + 4.2, py + 5.2, px + 1.8, py + 8.4])
         }
         // the door
@@ -905,6 +937,8 @@ final class Renderer {
             let wx = x + wn.0, ww = wn.1
             c.R(wx - 1.4, gy - 22.4, ww + 2.8, 14.8, trim)
             c.R(wx, gy - 21, ww, 12, glass)
+            if !lit { c.vfill(wx, gy - 21, ww, 12, [(0, Col(0xdff0ff, 0.25)), (0.5, Col(0x000000, 0.05)), (1, Col(0x000000, 0.3))]) }
+            c.R(wx, gy - 21, ww, 1, Col(0x000000, 0.3)); c.R(wx, gy - 21, 0.8, 12, Col(0x000000, 0.2))
             if lit { c.R(wx, gy - 14, ww, 5, Col(0xff9a3a, 0.28)) } else { c.poly(Col(0xffffff, 0.32), [wx, gy - 21, wx + ww * 0.45, gy - 21, wx, gy - 14]) }
             if bl.type == .store {
                 // goods on show
@@ -938,7 +972,9 @@ final class Renderer {
         if bl.type == .saloon || bl.type == .bordello || bl.type == .doctor || bl.type == .bank {
             // a chimney, smoking by day and by night
             let cx2 = x + w - 15, cy2 = gy - h - fh - 3
-            c.R(cx2, cy2 - 8, 5, 8, Col(0x7a4a3a)); c.R(cx2 - 0.6, cy2 - 9.4, 6.2, 1.6, Col(0x4a2e26)); c.R(cx2, cy2 - 5, 5, 0.6, Col(0x4a2e26))
+            c.R(cx2, cy2 - 8, 5, 8, Col(0x7a4a3a)); c.R(cx2 - 0.6, cy2 - 9.4, 6.2, 1.6, Col(0x4a2e26))
+            for br in 0..<4 { let byy = cy2 - 2 - Double(br) * 2; c.R(cx2, byy, 5, 0.4, Col(0x3a2420, 0.7)); c.R(cx2 + (br % 2 == 0 ? 1.6 : 3.2), byy - 2, 0.4, 2, Col(0x3a2420, 0.6)) }
+            c.R(cx2 + 3.6, cy2 - 8, 1.4, 8, Col(0x000000, 0.18)); c.R(cx2, cy2 - 8, 5, 1.2, Col(0x1c1412, 0.5))
             for i in 0..<4 {
                 let k = (g.clock * 0.22 + Double(i) * 0.25 + bl.x * 0.01).truncatingRemainder(dividingBy: 1)
                 c.circ(cx2 + 2.5 + k * 9 + sin(g.clock + Double(i)) * 1.5, cy2 - 11 - k * 16, 1.6 + k * 3.4, Col(0xe8e2dc, 0.3 * (1 - k)))
@@ -1094,11 +1130,54 @@ final class Renderer {
         }
         if vis(1206, 40) {
             let x = sx(1206).rounded()
-            for dx in [-9.0, -3, 3, 9] { c.R(x + dx - 0.7, gy - 46, 1.4, 46, st) }
-            c.seg(x - 9, gy - 8, x + 9, gy - 30, 0.7, st); c.seg(x + 9, gy - 8, x - 9, gy - 30, 0.7, st)
-            c.RR(x - 13, gy - 68, 26, 23, 2, Col(0x8a6a4a)); c.R(x - 13, gy - 60, 26, 1.4, dkw); c.R(x - 13, gy - 52, 26, 1.4, dkw)
-            c.poly(dkw, [x - 15, gy - 68, x, gy - 78, x + 15, gy - 68])
-            c.seg(x + 13, gy - 48, x + 20, gy - 40, 1.2, dkw)
+            let post = Col(0x5e4630), postL = Col(0x86684a), postD = Col(0x33251a), iron = Col(0x2e2a2c)
+            c.ell(x + 2, gy + 1.4, 17, 2.4, Col(0x000000, 0.18))
+            // the far legs and their braces, in shadow
+            for dx in [-5.0, 5] { c.R(x + dx - 0.8, gy - 45, 1.6, 45, postD) }
+            c.seg(x - 5, gy - 6, x + 5, gy - 24, 0.7, postD); c.seg(x + 5, gy - 6, x - 5, gy - 24, 0.7, postD)
+            // the near legs, splayed a little and lit from the left, on stone footings
+            for (dx, top) in [(-11.0, -9.0), (11.0, 9.0)] {
+                c.poly(post, [x + dx - 1.3, gy, x + dx + 1.3, gy, x + top + 1.1, gy - 46, x + top - 1.1, gy - 46])
+                c.seg(x + dx - 0.9, gy, x + top - 0.8, gy - 46, 0.6, postL)
+                c.RR(x + dx - 2.6, gy - 1.6, 5.2, 2.4, 1, Col(0x8a8478))
+            }
+            for yy in [gy - 14.0, gy - 30] { c.R(x - 10.6, yy, 21.2, 1.5, post); c.R(x - 10.6, yy, 21.2, 0.5, postL) }
+            c.seg(x - 10.4, gy - 14, x + 10, gy - 29, 0.9, post); c.seg(x + 10.4, gy - 14, x - 10, gy - 29, 0.9, post)
+            c.seg(x - 10, gy - 30.5, x + 9.4, gy - 45, 0.8, post); c.seg(x + 10, gy - 30.5, x - 9.4, gy - 45, 0.8, post)
+            // a ladder up the side
+            c.R(x - 17, gy - 50, 0.7, 50, postD); c.R(x - 14, gy - 50, 0.7, 50, postD)
+            var ly = gy - 3.0
+            while ly > gy - 50 { c.R(x - 17, ly, 3.7, 0.6, postD); ly -= 3.4 }
+            // the deck and its joists
+            c.R(x - 16, gy - 48.4, 32, 2.4, post); c.R(x - 16, gy - 48.4, 32, 0.7, postL); c.R(x - 16, gy - 46.2, 32, 0.6, postD)
+            var jx = -14.0
+            while jx <= 14 { c.R(x + jx, gy - 46, 1.2, 1.6, postD); jx += 4.6 }
+            // the tank: staves each a little different, rounded by the light, damp at the foot, bound in iron
+            let ty = gy - 69.0, th = 20.6
+            c.R(x - 13, ty, 26, th, Col(0x8a6a4a))
+            var sv = -13.0, si = 0
+            while sv < 13 {
+                let r = hashN(Double(si) * 3.7 + 1.2)
+                if r > 0.6 { c.R(x + sv, ty, 2.1, th, Col(0xffffff, 0.07)) } else if r < 0.25 { c.R(x + sv, ty, 2.1, th, Col(0x000000, 0.1)) }
+                c.R(x + sv + 2.1, ty, 0.5, th, Col(0x3a2a1c, 0.55))
+                sv += 2.6; si += 1
+            }
+            c.linear(x - 13, ty, 26, th, x - 13, 0, x + 13, 0, [(0, Col(0x000000, 0.22)), (0.22, Col(0xfff0d0, 0.2)), (0.5, Col(0x000000, 0)), (1, Col(0x000000, 0.42))])
+            c.vfill(x - 13, ty + th - 7, 26, 7, [(0, Col(0x1e2a1c, 0)), (1, Col(0x1e2a1c, 0.4))])
+            for k in 0..<4 { c.vfill(x - 10 + hashN(Double(k) * 5.1) * 20, ty + 3 + hashN(Double(k)) * 5, 1.2, 9, [(0, Col(0x2a1c14, 0.3)), (1, Col(0x2a1c14, 0))]) }
+            for hy in [ty + 3.0, ty + 10, ty + 17] { c.R(x - 13.4, hy, 26.8, 1.3, iron); c.R(x - 9, hy, 6, 0.4, Col(0x8a868c)); c.R(x - 0.6, hy - 0.4, 1.6, 2.1, iron) }
+            // a shingled cone of a roof, its shadow on the tank, and a finial
+            c.R(x - 13, ty, 26, 1.6, Col(0x000000, 0.3))
+            c.poly(Col(0x4a3424), [x - 15.5, ty, x, ty - 10.5, x + 15.5, ty])
+            c.poly(Col(0x6a4c30), [x - 15.5, ty, x, ty - 10.5, x - 3, ty])
+            for k in 1..<4 { let u = Double(k) / 4; c.seg(x - 15.5 * u, ty - 10.5 * (1 - u), x + 15.5 * u, ty - 10.5 * (1 - u), 0.5, Col(0x2a1c14, 0.6)) }
+            c.R(x - 0.5, ty - 13.5, 1, 3.4, iron); c.circ(x, ty - 14, 1, iron)
+            // the spout, its rope and weight, and a slow drip into a dark patch
+            c.seg(x + 13, gy - 51, x + 22, gy - 43, 1.8, postD); c.seg(x + 13, gy - 51.6, x + 22, gy - 43.6, 0.6, postL)
+            c.seg(x + 21, gy - 44, x + 15, gy - 58, 0.5, Col(0xc9a468)); c.R(x + 23.3, gy - 43, 0.5, 6, Col(0xc9a468)); c.R(x + 22.4, gy - 37, 2.2, 3, iron)
+            let dr = (g.clock * 0.7).truncatingRemainder(dividingBy: 1)
+            c.R(x + 21.6, gy - 42 + dr * dr * 40, 0.8, 1.6, Col(0x9fd0e4, 0.8 * (1 - dr)))
+            c.ell(x + 22, gy + 0.6, 3.5, 0.9, Col(0x4a3a2a, 0.35))
             if g.towerLv > 0 { c.R(x - 12, gy - 10, 10, 6, Col(0xc0392b)); c.circ(x - 10, gy - 3, 2.4, dkw); c.circ(x - 4, gy - 3, 2.4, dkw); c.seg(x - 2, gy - 8, x + 6, gy - 12, 1, Col(0xc9c9d0)) }
         }
     }
