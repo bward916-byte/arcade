@@ -955,8 +955,8 @@ extension Game {
                 // sat on the rail, heels drumming on the planking below it
                 let kick = sin(T * 3 + Double(j) * 1.7)
                 let skin = Col(0xe3b58a).shade(dark)
-                c.seg(sx + 1.6, -44.6, sx + 1.6 + kick * 1.2, -40.6, 1.6, skin); c.seg(sx + 3.2, -44.6, sx + 3.2 - kick * 1.2, -40.6, 1.6, skin)
-                tar(c, sx, -44, coats[j], dark, lean: 0.12, aL: -0.9, aR: 0.5, kneel: true)
+                c.seg(sx + 1.6, -37.4, sx + 1.6 + kick * 1.2, -33.4, 1.6, skin); c.seg(sx + 3.2, -37.4, sx + 3.2 - kick * 1.2, -33.4, 1.6, skin)
+                tar(c, sx, -36.8, coats[j], dark, lean: 0.12, aL: -0.9, aR: 0.5, kneel: true)
             }
             // off the bowsprit, swinging
             let bs = sin(T * 2.1) * 0.5
