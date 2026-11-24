@@ -126,6 +126,8 @@ final class Sound {
     func rob() { tone(300, 0.3, 3, 0.07, 90); noise(0.2, 0.2, 900, 1) }
     func box() { noise(0.18, 0.2, 1500, 2); run([5, 7, 9], 0.12, 1, 0.05, 0.06) }
     func gate(_ v: Double) { noise(0.12, 0.25 * v, 220, 1) }
+    func whistle() { tone(620, 0.9, 1, 0.07, 600); tone(830, 0.9, 1, 0.05, 800); tone(620, 0.5, 1, 0.06, 590, 1.0); tone(830, 0.5, 1, 0.04, 790, 1.0) }
+    func chuff(_ v: Double) { noise(0.12, 0.22 * v, 420, 1) }
     func hoof(_ v: Double) { noise(0.035, 0.07 * v, 320, 1.2) }
 
     // ---------- music: one small band, a different pattern for day, dusk, night and a raid

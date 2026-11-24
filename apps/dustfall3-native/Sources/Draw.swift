@@ -21,20 +21,23 @@ final class Renderer {
         groundBand(dk)
         scenery()
         camps(dk)
-        for bl in g.b where !bl.def.gate { building(bl, dk) }
+        for bl in g.b where !bl.def.gate && !bl.virt { building(bl, dk) }
+        townSign()
+        rail(dk)
         racks()
         campfire(FIRE_X, 1.0)
         for bl in g.b where bl.def.gate { gate(bl) }
         for bx in g.boxes { box(bx) }
         for f in g.folk { person(f.x, f.phase, f.dir, f.moving, f.seed, f.role, f.work) }
         for bn in g.bandits { bandit(bn) }
-        rider()
+        if g.tripT < 0 { rider() }
         coins()
         effects()
         night(dk)
         slots()
         c.restore()
         if g.flash > 0 { c.R(0, 0, W, H, Col(0xfff0c0, g.flash * 0.5)) }
+        if g.fade > 0 { c.R(0, 0, W, H, Col(0x000000, g.fade)) }
     }
 
     private func sx(_ x: Double) -> Double { return x - g.cam }
@@ -267,7 +270,7 @@ final class Renderer {
     }
 
     private func racks() {
-        let sh = g.b[2], st = g.b[0]
+        let sh = g.sheriff, st = g.store
         if sh.level > 0 && !sh.building && vis(g.rackX(sh), 12) {
             let x = sx(g.rackX(sh))
             c.R(x - 1, gy - 14, 2, 14, Col(0x5a3c22)); c.R(x - 5, gy - 16, 10, 8, Col(0x7a5632))
@@ -279,6 +282,71 @@ final class Renderer {
             c.seg(x - 3, gy - 9, x + 3, gy - 15, 1.2, Col(0xc9a86a))
             c.curve(x - 1, gy - 16, x + 3, gy - 16.5, x + 4.5, gy - 12.5, 1.4, Col(0xb8b8b8))
         }
+    }
+
+    /// The town's name on a board outside the west gate.
+    private func townSign() {
+        let wx = 924.0
+        if !vis(wx, 50) { return }
+        let x = sx(wx).rounded()
+        let name = g.townName
+        let w = Double(name.count) * 4.6 + 8
+        c.R(x - 1, gy - 20, 2, 20, Col(0x5a3c22))
+        c.R(x - w / 2, gy - 27, w, 10, Col(0xead7a4))
+        c.R(x - w / 2, gy - 27, w, 1, Col(0x5a3c22)); c.R(x - w / 2, gy - 18, w, 1, Col(0x5a3c22))
+        c.text(name, x, gy - 19.5, 6.5, Col(0x4a2a22))
+    }
+
+    /// The rails, laid from the east as the station goes up, and the train standing on them.
+    private func rail(_ dk: Double) {
+        let s = g.station
+        if s.level == 0 && !s.building { return }
+        let headW = s.level > 0 ? STOP - 4 : WORLD - (WORLD - STOP + 4) * clampD(s.progress, 0, 1)
+        let head = sx(headW)
+        if head < W {
+            var wx = (max(headW, g.cam) / 4).rounded(.up) * 4
+            while wx < g.cam + W { c.R(sx(wx), gy, 2, 1, Col(0x4a3626)); wx += 4 }
+            c.R(max(head, 0), gy - 1, W - max(head, 0), 1, Col(0x8a8f98))
+            if s.level > 0 { c.R(head - 2, gy - 5, 2, 5, Col(0x6a2f26)); c.R(head - 3, gy - 6, 4, 1, Col(0x6a2f26)) }
+        }
+        guard let tr = g.train else { return }
+        let x = sx(tr.x)
+        if x > W + 10 || x < -200 { return }
+        let bk = Col(0x2b2b33), dkc = Col(0x1f1f26), br = Col(0xc9a14a), red = Col(0x7a2f26)
+        let glass = dk > 0.3 ? Col(0xffd98a) : Col(0x9fc4d4)
+        c.ell(x + 94, gy + 1, 96, 2.5, Col(0x000000, 0.2))
+        c.save()
+        c.translate(x, gy - 1)
+        c.scale(1.3, 1.3)
+        func wheel(_ wx: Double, _ r: Double) {
+            c.circ(wx, -r, r, dkc); c.circ(wx, -r, r - 1, Col(0x4a4a56))
+            let a = tr.x / (r * 1.3)
+            c.seg(wx - cos(a) * (r - 1), -r - sin(a) * (r - 1), wx + cos(a) * (r - 1), -r + sin(a) * (r - 1), 0.8, dkc)
+            c.circ(wx, -r, 0.9, br)
+        }
+        // locomotive: cowcatcher, boiler, lamp, stack, dome and cab
+        c.poly(Col(0x3a3a44), [0, 0, 6, -7, 6, 0])
+        c.R(6, -8, 36, 2, dkc)
+        c.RR(6, -17, 24, 9, 2, bk); c.R(6, -17, 24, 1, Col(0x4a4a56))
+        c.R(12, -17, 1, 9, br); c.R(21, -17, 1, 9, br)
+        c.R(2, -20, 3, 3, Col(0x3a3a44)); c.R(2, -19, 1, 1, Col(0xffe58a))
+        c.R(9, -22, 3, 5, dkc); c.R(8, -24, 5, 2, dkc); c.R(7, -26, 7, 2, dkc)
+        c.RR(16, -20, 5, 4, 2, br)
+        c.R(30, -23, 12, 15, red); c.R(29, -24, 14, 2, dkc); c.R(33, -21, 6, 5, glass)
+        wheel(11, 3); wheel(19, 3); wheel(29, 4); wheel(38, 4)
+        c.R(10, -4, 28, 1, br)
+        // tender
+        c.R(42, -6, 4, 1, dkc)
+        c.R(46, -15, 15, 9, bk); c.poly(Col(0x15151a), [47, -15, 50, -18, 57, -18, 60, -15])
+        wheel(50, 2.5); wheel(57, 2.5)
+        // passenger car
+        c.R(61, -6, 4, 1, dkc)
+        c.R(64, -21, 46, 15, red); c.R(63, -23, 48, 2, dkc); c.R(64, -12, 46, 1, br)
+        for k in 0..<5 { c.R(68 + Double(k) * 7.5, -19, 5, 5, glass) }
+        c.R(105, -19, 3, 12, dkc)
+        c.R(110, -8, 3, 2, dkc); c.R(112, -16, 1, 9, dkc)
+        wheel(70, 2.5); wheel(77, 2.5); wheel(97, 2.5); wheel(104, 2.5)
+        c.restore()
     }
 
     private func star(_ x: Double, _ y: Double, _ r: Double, _ col: Col) {
@@ -477,6 +545,7 @@ final class Renderer {
         }
         light(FIRE_X, 5, 60 + sin(g.clock * 9) * 3, 0.5)
         for cp in g.camps { light(cp.0 + 22, 4, 34, 0.4) }
+        if let tr = g.train { light(tr.x + 3, 25, 30, 0.6); light(tr.x + 130, 22, 40, 0.3) }
         for bl in g.b where bl.level > 0 && !bl.def.gate && !bl.robbed {
             for wn in bl.def.wins { light(bl.x + wn.0 + wn.1 / 2, 15, 22, 0.28) }
         }
@@ -490,7 +559,7 @@ final class Renderer {
         if n <= 0 { return }
         let per = min(n, 10)
         let rows = (n + per - 1) / per
-        let top = gy - bl.def.h - Double(max(0, bl.level - 1)) * 5 - (bl.def.gate ? 12 : 34) - Double(rows) * 6
+        let top = gy - bl.def.h - Double(max(0, bl.level - 1)) * 5 - (bl.def.gate ? 12 : (bl.virt ? 26 : 34)) - Double(rows) * 6
         let cx = sx(bl.cx)
         c.RR(cx - Double(per) * 3 - 3, top - 4, Double(per) * 6 + 6, Double(rows) * 6 + 2, 3, Col(0x2a1c14, 0.75))
         for i in 0..<n {

@@ -57,13 +57,19 @@ final class GameViewController: UIViewController {
     private let stickRing = UIView()
     private let knob = UIView()
     private let fireBtn = UIView()
-    private let fireIcon = UILabel()
+    private let fireIcon = UIImageView()
+    private let coinBtn = UIView()
+    private let coinIcon = UIImageView()
+    private let newBtn = UIButton(type: .system)
+    private let saveKey = "dustfall3.save"
+    private var demoMode = false
 
     private var stickTouch: UITouch?
     private var fireTouch: UITouch?
     private var tossTouch: UITouch?
     private var stickCenter = CGPoint.zero
     private var fireCenter = CGPoint.zero
+    private var coinCenter = CGPoint.zero
     private var tStick = 0.0
     private var tToss = false
     private var tFire = false
@@ -92,6 +98,40 @@ final class GameViewController: UIViewController {
         l.adjustsFontSizeToFitWidth = true
         l.minimumScaleFactor = 0.6
         view.addSubview(l)
+    }
+
+    /// A revolver, drawn rather than shipped as a picture.
+    private func gunImage() -> UIImage {
+        return UIGraphicsImageRenderer(size: CGSize(width: 48, height: 48)).image { ctx in
+            let c = ctx.cgContext
+            cream.setFill(); cream.setStroke()
+            c.fill(CGRect(x: 3, y: 15, width: 24, height: 6))            // barrel
+            c.fill(CGRect(x: 4, y: 12, width: 2.5, height: 3))           // front sight
+            UIBezierPath(roundedRect: CGRect(x: 23, y: 12, width: 14, height: 13), cornerRadius: 3).fill()
+            let h = UIBezierPath()                                       // hammer
+            h.move(to: CGPoint(x: 36, y: 13)); h.addLine(to: CGPoint(x: 42, y: 8)); h.addLine(to: CGPoint(x: 44, y: 12)); h.addLine(to: CGPoint(x: 38, y: 18)); h.close(); h.fill()
+            let g = UIBezierPath()                                       // grip
+            g.move(to: CGPoint(x: 30, y: 23)); g.addLine(to: CGPoint(x: 40, y: 20)); g.addLine(to: CGPoint(x: 46, y: 39)); g.addLine(to: CGPoint(x: 36, y: 43)); g.close(); g.fill()
+            c.setLineWidth(2)
+            c.strokeEllipse(in: CGRect(x: 22, y: 24, width: 10, height: 9))   // trigger guard
+            dark.setFill()
+            c.fill(CGRect(x: 26, y: 15.5, width: 8, height: 1.5)); c.fill(CGRect(x: 26, y: 20, width: 8, height: 1.5))
+        }
+    }
+
+    private func coinImage() -> UIImage {
+        return UIGraphicsImageRenderer(size: CGSize(width: 44, height: 44)).image { ctx in
+            let c = ctx.cgContext
+            UIColor(red: 0.72, green: 0.53, blue: 0.16, alpha: 1).setFill()
+            c.fillEllipse(in: CGRect(x: 4, y: 4, width: 36, height: 36))
+            gold.setFill()
+            c.fillEllipse(in: CGRect(x: 6, y: 5, width: 32, height: 32))
+            UIColor(red: 0.72, green: 0.53, blue: 0.16, alpha: 1).setStroke()
+            c.setLineWidth(2)
+            c.strokeEllipse(in: CGRect(x: 11, y: 10, width: 22, height: 22))
+            UIColor(red: 1, green: 0.96, blue: 0.78, alpha: 0.9).setFill()
+            c.fillEllipse(in: CGRect(x: 12, y: 9, width: 7, height: 5))
+        }
     }
 
     private func style(_ b: UIButton, _ title: String, primary: Bool) {
@@ -128,12 +168,19 @@ final class GameViewController: UIViewController {
         fireBtn.backgroundColor = UIColor(red: 0.55, green: 0.12, blue: 0.1, alpha: 0.7)
         fireBtn.layer.borderColor = UIColor(white: 1, alpha: 0.45).cgColor
         fireBtn.layer.borderWidth = 2
-        fireIcon.text = "GUN"
-        fireIcon.font = serif(15)
-        fireIcon.textColor = cream
-        fireIcon.textAlignment = .center
+        fireIcon.image = gunImage()
+        fireIcon.contentMode = .center
         fireBtn.addSubview(fireIcon)
         view.addSubview(fireBtn)
+        coinBtn.isUserInteractionEnabled = false
+        coinBtn.backgroundColor = UIColor(red: 0.3, green: 0.2, blue: 0.08, alpha: 0.7)
+        coinBtn.layer.borderColor = UIColor(white: 1, alpha: 0.45).cgColor
+        coinBtn.layer.borderWidth = 2
+        coinIcon.image = coinImage()
+        coinIcon.contentMode = .center
+        coinBtn.addSubview(coinIcon)
+        view.addSubview(coinBtn)
+        game.onSave = { [weak self] in self?.saveGame() }
 
         pill(purse, 17); pill(folkLabel, 15); pill(ammoLabel, 15); pill(dayLabel, 15)
         pill(hint, 15); pill(info, 14)
@@ -165,8 +212,12 @@ final class GameViewController: UIViewController {
         titleSub.textAlignment = .center
         titleSub.numberOfLines = 2
         style(startBtn, "Ride in", primary: true)
-        startBtn.addTarget(self, action: #selector(startGame), for: .touchUpInside)
-        titleBox.addSubview(titleName); titleBox.addSubview(titleSub); titleBox.addSubview(startBtn)
+        startBtn.addTarget(self, action: #selector(startTapped), for: .touchUpInside)
+        style(newBtn, "New game", primary: false)
+        newBtn.addTarget(self, action: #selector(startGame), for: .touchUpInside)
+        titleBox.addSubview(titleName); titleBox.addSubview(titleSub); titleBox.addSubview(startBtn); titleBox.addSubview(newBtn)
+        startBtn.titleLabel?.adjustsFontSizeToFitWidth = true
+        refreshTitle()
         view.addSubview(titleBox)
 
         // pause menu
@@ -199,14 +250,16 @@ final class GameViewController: UIViewController {
         let s = view.safeAreaInsets
         let l = max(s.left, 12), r = max(s.right, 12), top = max(s.top, 8), bot = max(s.bottom, 8)
         stage.frame = view.bounds
-        purse.frame = CGRect(x: l, y: top, width: 74, height: 30)
-        folkLabel.frame = CGRect(x: l + 80, y: top, width: 74, height: 30)
-        ammoLabel.frame = CGRect(x: l + 160, y: top, width: 86, height: 30)
+        purse.frame = CGRect(x: l, y: top, width: 92, height: 30)
+        folkLabel.frame = CGRect(x: l + 98, y: top, width: 74, height: 30)
+        ammoLabel.frame = CGRect(x: l + 178, y: top, width: 96, height: 30)
         menuBtn.frame = CGRect(x: bw - r - 70, y: top, width: 70, height: 32)
         dayLabel.frame = CGRect(x: bw - r - 70 - 126, y: top, width: 120, height: 30)
         let hw = min(bw - l - r - 40, 520)
         hint.frame = CGRect(x: (bw - hw) / 2, y: top + 38, width: hw, height: 62)
-        let iw = min(bw * 0.5, 420)
+        fireCenter = CGPoint(x: bw - r - 58, y: bh - bot - 62)
+        coinCenter = CGPoint(x: fireCenter.x - 96, y: fireCenter.y + 8)
+        let iw = max(160, min(bw * 0.5, 420, 2 * (coinCenter.x - 46 - bw / 2)))
         info.frame = CGRect(x: (bw - iw) / 2, y: bh - bot - 44, width: iw, height: 40)
         stickCenter = CGPoint(x: l + 74, y: bh - bot - 70)
         stickRing.frame = CGRect(x: stickCenter.x - 54, y: stickCenter.y - 54, width: 108, height: 108)
@@ -214,14 +267,17 @@ final class GameViewController: UIViewController {
         knob.bounds = CGRect(x: 0, y: 0, width: 46, height: 46)
         knob.center = stickCenter
         knob.layer.cornerRadius = 23
-        fireCenter = CGPoint(x: bw - r - 58, y: bh - bot - 62)
         fireBtn.frame = CGRect(x: fireCenter.x - 40, y: fireCenter.y - 40, width: 80, height: 80)
         fireBtn.layer.cornerRadius = 40
         fireIcon.frame = fireBtn.bounds
+        coinBtn.frame = CGRect(x: coinCenter.x - 36, y: coinCenter.y - 36, width: 72, height: 72)
+        coinBtn.layer.cornerRadius = 36
+        coinIcon.frame = coinBtn.bounds
+        newBtn.frame = CGRect(x: bw / 2 - 150, y: bh * 0.16 + 196, width: 300, height: 42)
         titleBox.frame = view.bounds
         titleName.frame = CGRect(x: 20, y: bh * 0.16, width: bw - 40, height: 70)
         titleSub.frame = CGRect(x: 40, y: bh * 0.16 + 74, width: bw - 80, height: 48)
-        startBtn.frame = CGRect(x: bw / 2 - 110, y: bh * 0.16 + 136, width: 220, height: 52)
+        startBtn.frame = CGRect(x: bw / 2 - 150, y: bh * 0.16 + 136, width: 300, height: 52)
         pauseBox.frame = view.bounds
         pauseTitle.frame = CGRect(x: 0, y: bh * 0.12, width: bw, height: 40)
         resumeBtn.frame = CGRect(x: bw / 2 - 120, y: bh * 0.12 + 54, width: 240, height: 50)
@@ -249,8 +305,7 @@ final class GameViewController: UIViewController {
         if !demoDone && sw > sh {
             demoDone = true
             let args = ProcessInfo.processInfo.arguments
-            if args.contains("-demo-day") { game.demo("day") }
-            if args.contains("-demo-night") { game.demo("night") }
+            for name in ["day", "night", "train"] where args.contains("-demo-" + name) { demoMode = true; game.demo(name) }
         }
     }
 
@@ -258,21 +313,55 @@ final class GameViewController: UIViewController {
         paused = p
         last = 0
         if !p { sound.resume() }
+        if p { saveGame() }
         if p && game.state == .play && !userPaused { openMenu() }
     }
 
+    // ---------- the saved game: written at every dawn, when something is built, and whenever the app is left
+    private func saveGame() {
+        if demoMode || game.state != .play || game.tripT >= 0 { return }
+        if let d = try? JSONEncoder().encode(game.snapshot()) { UserDefaults.standard.set(d, forKey: saveKey) }
+    }
+    private func loadSave() -> SaveData? {
+        guard let d = UserDefaults.standard.data(forKey: saveKey) else { return nil }
+        return try? JSONDecoder().decode(SaveData.self, from: d)
+    }
+    private func refreshTitle() {
+        if let s = loadSave() {
+            startBtn.setTitle("Continue: day \(s.day), \(nice(TOWN_NAMES[max(0, s.town) % TOWN_NAMES.count]))", for: .normal)
+            newBtn.isHidden = false
+        } else {
+            startBtn.setTitle("Ride in", for: .normal)
+            newBtn.isHidden = true
+        }
+    }
+    private func clearTouches() {
+        stickTouch = nil; fireTouch = nil; tossTouch = nil; tStick = 0; tToss = false; tFire = false
+        tossLatch = false; fireLatch = false
+        knob.center = stickCenter
+    }
+
+    @objc private func startTapped() {
+        guard let s = loadSave() else { startGame(); return }
+        sound.start()
+        game.restore(s)
+        clearTouches()
+    }
+
     @objc private func startGame() {
+        UserDefaults.standard.removeObject(forKey: saveKey)
         sound.start()
         game.start()
-        stickTouch = nil; fireTouch = nil; tossTouch = nil; tStick = 0; tToss = false; tFire = false
+        clearTouches()
     }
 
     @objc private func openMenu() {
         if game.state != .play { return }
         userPaused = true
         pauseBox.isHidden = false
-        stickTouch = nil; fireTouch = nil; tossTouch = nil; tStick = 0; tToss = false; tFire = false
-        knob.center = stickCenter
+        pauseTitle.text = "Paused: \(nice(game.townName)), day \(game.day)"
+        clearTouches()
+        saveGame()
     }
 
     @objc private func closeMenu() {
@@ -290,7 +379,9 @@ final class GameViewController: UIViewController {
 
     @objc private func restart() {
         closeMenu()
+        UserDefaults.standard.removeObject(forKey: saveKey)
         game.reset()
+        refreshTitle()
     }
 
     @objc private func tick(_ l: CADisplayLink) {
@@ -316,11 +407,13 @@ final class GameViewController: UIViewController {
     private func updateHUD() {
         let playing = game.state == .play
         titleBox.isHidden = playing
-        for v in [purse, folkLabel, ammoLabel, dayLabel, menuBtn, stickRing, knob, fireBtn] as [UIView] { v.isHidden = !playing }
+        for v in [purse, folkLabel, ammoLabel, dayLabel, menuBtn, stickRing, knob, fireBtn, coinBtn] as [UIView] { v.isHidden = !playing }
+        fireBtn.alpha = tFire ? 1 : 0.8
+        coinBtn.alpha = tToss ? 1 : 0.8
         if !playing { hint.isHidden = true; info.isHidden = true; return }
-        set(purse, "\u{25CF} \(game.coins)")
+        set(purse, "\u{25CF} \(game.coins)" + (game.bank > 0 ? " +\(game.bank)" : ""))
         set(folkLabel, "Folk \(game.folk.count)")
-        set(ammoLabel, game.reloadT > 0 ? "Loading" : "Shots \(game.ammo)")
+        set(ammoLabel, game.reloadT > 0 ? "Loading \(Int(game.reloadT.rounded(.up)))" : "Shots \(game.ammo)")
         let tm = game.dark() > 0.5 ? "night" : (game.t > 0.6 ? "dusk" : "")
         set(dayLabel, "Day \(game.day)" + (tm.isEmpty ? "" : ", " + tm))
         hint.isHidden = game.hintT <= 0 || userPaused
@@ -329,7 +422,7 @@ final class GameViewController: UIViewController {
         if !game.info.isEmpty { set(info, game.info) }
     }
 
-    // ---------- touch: the left of the screen is the stick, the gun button fires, anywhere else tosses a coin
+    // ---------- touch: the left of the screen is the stick; the coin and gun buttons repeat for as long as they are held
     private func moveStick(_ p: CGPoint) {
         let dx = max(-44, min(44, p.x - stickCenter.x))
         tStick = abs(dx) < 8 ? 0 : Double(dx / 44)
@@ -344,10 +437,12 @@ final class GameViewController: UIViewController {
                 if stickTouch == nil { stickTouch = t; moveStick(p) }
                 continue
             }
-            let df = hypot(p.x - fireCenter.x, p.y - fireCenter.y)
-            if df < 54 {
+            let df = hypot(p.x - fireCenter.x, p.y - fireCenter.y), dc = hypot(p.x - coinCenter.x, p.y - coinCenter.y)
+            if df < 56 && df <= dc {
                 if fireTouch == nil { fireTouch = t; tFire = true; fireLatch = true }
-            } else if tossTouch == nil { tossTouch = t; tToss = true; tossLatch = true }
+            } else if dc < 54 {
+                if tossTouch == nil { tossTouch = t; tToss = true; tossLatch = true }
+            }
         }
     }
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {

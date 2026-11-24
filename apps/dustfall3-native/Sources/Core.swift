@@ -44,8 +44,12 @@ let HAT: [Col] = [Col(0x4a3424), Col(0x6a4a2e), Col(0x2e2622), Col(0xc9a86a)]
 // The world, as in the web game.
 let WORLD = 3420.0, FIRE_X = 1365.0, MINE_X = 830.0, DAY_LEN = 100.0
 let TOWN_W = 1010.0, TOWN_E = 1790.0
+let STOP = 1798.0                       // where the locomotive pulls up; the passenger car is 64 behind it
+/// The line, in order. The native version rides straight down it; the web game's forks come later.
+let TOWN_NAMES = ["DUSTFALL", "REDWATER", "LAST HOPE", "COLD CREEK", "BITTER END"]
+func nice(_ s: String) -> String { return s.capitalized }
 
-enum BType { case store, saloon, sheriff, stable, bank, gateW, gateE }
+enum BType: String { case store, saloon, sheriff, stable, bank, gateW, gateE, station, train }
 enum Role { case folk, deputy, miner }
 
 struct Def {
@@ -70,9 +74,12 @@ let DEFS: [BType: Def] = [
     .saloon: Def(name: "SALOON", w: 86, h: 40, cost: [6, 10, 16], pay: 3, wall: 0xa9683a, trim: 0x6a3c20, roof: 0x6a3c20, sign: 0xead7a4, ink: 0x8a2b22, doorX: 36, doorW: 14, wins: [(8, 14), (64, 14)], gate: false),
     .sheriff: Def(name: "SHERIFF", w: 66, h: 36, cost: [8, 12, 18], pay: 0, wall: 0x5f7896, trim: 0xe6d6ac, roof: 0x34445a, sign: 0xead7a4, ink: 0x27364a, doorX: 8, doorW: 13, wins: [(32, 24)], gate: false),
     .stable: Def(name: "STABLE", w: 76, h: 36, cost: [6, 12], pay: 0, wall: 0x9a4433, trim: 0xead7a4, roof: 0x4a2a22, sign: 0xead7a4, ink: 0x6a2a20, doorX: 26, doorW: 24, wins: [(8, 10), (58, 10)], gate: false),
-    .bank: Def(name: "BANK", w: 64, h: 38, cost: [10, 16], pay: 0, wall: 0xb9b2a4, trim: 0x3d4a44, roof: 0x3d4a44, sign: 0x2f3a36, ink: 0xe8d9a0, doorX: 25, doorW: 14, wins: [(6, 12), (46, 12)], gate: false),
+    .bank: Def(name: "BANK", w: 64, h: 38, cost: [10], pay: 0, wall: 0xb9b2a4, trim: 0x3d4a44, roof: 0x3d4a44, sign: 0x2f3a36, ink: 0xe8d9a0, doorX: 25, doorW: 14, wins: [(6, 12), (46, 12)], gate: false),
     .gateW: Def(name: "WEST GATE", w: 14, h: 16, cost: [4, 8, 14], pay: 0, wall: 0x7a5632, trim: 0x4a3424, roof: 0x4a3424, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: true),
-    .gateE: Def(name: "EAST GATE", w: 14, h: 16, cost: [4, 8, 14], pay: 0, wall: 0x7a5632, trim: 0x4a3424, roof: 0x4a3424, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: true)
+    .gateE: Def(name: "EAST GATE", w: 14, h: 16, cost: [4, 8, 14], pay: 0, wall: 0x7a5632, trim: 0x4a3424, roof: 0x4a3424, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: true),
+    .station: Def(name: "STATION", w: 84, h: 38, cost: [20], pay: 0, wall: 0xc9a65a, trim: 0x6a2f26, roof: 0x4a3a34, sign: 0xead7a4, ink: 0x4a2a22, doorX: 36, doorW: 13, wins: [(8, 16), (60, 16)], gate: false),
+    // not a building: the passenger car, where a ticket is paid
+    .train: Def(name: "TRAIN TICKET", w: 60, h: 14, cost: [5], pay: 0, wall: 0, trim: 0, roof: 0, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: false)
 ]
 let GHP: [Double] = [0, 16, 34, 60]      // gate hit points by level
 
@@ -87,12 +94,15 @@ final class Building {
     var hp = 0.0
     var robbed = false
     var flash = 0.0
+    var live = true           // false for the ticket until the train is standing at the platform
+    var scale = 1.0           // prices rise a quarter with every town down the line
     init(_ t: BType, _ x: Double) { type = t; self.x = x }
+    var virt: Bool { return type == .train }
     var def: Def { return DEFS[type]! }
     var cx: Double { return x + def.w / 2 }
     var maxLevel: Int { return def.cost.count }
-    var cost: Int { return level < maxLevel ? def.cost[level] : 0 }
-    var payable: Bool { return level < maxLevel && !building }
+    var cost: Int { return level < maxLevel ? Int((Double(def.cost[level]) * scale).rounded(.up)) : 0 }
+    var payable: Bool { return live && level < maxLevel && !building }
 }
 
 final class Drifter {
@@ -152,7 +162,7 @@ struct Part {
     var grav: Double
 }
 
-/// A coin in the air on its way to something: 0 the ground, 1 a building, 2 a drifter, 3 the sheriff's badge rack, 4 back to the rider, 5 the store's pick rack.
+/// A coin in the air on its way to something: 0 the ground, 1 a building, 2 a drifter, 3 the sheriff's badge rack, 4 back to the rider, 5 the store's pick rack, 6 the bank.
 final class Coin {
     var sx: Double
     var sy: Double
@@ -191,4 +201,44 @@ struct Input {
     var stick = 0.0
     var toss = false
     var fire = false
+}
+
+/// The train: `v` is its speed (0 once it is standing at the platform) and `wait` the pause before the ticket goes on sale.
+struct Train {
+    var x: Double
+    var v: Double
+    var chuff = 0.0
+    var wait = 0.0
+}
+
+/// What is written to disk so a game can be picked up again.
+struct SaveB: Codable {
+    var type: String
+    var level: Int
+    var building: Bool
+    var progress: Double
+    var hp: Double
+    var robbed: Bool
+}
+struct SaveF: Codable {
+    var x: Double
+    var role: Int
+}
+struct SaveData: Codable {
+    var v = 1
+    var town: Int
+    var day: Int
+    var day0: Int
+    var t: Double
+    var coins: Int
+    var bank: Int
+    var ammo: Int
+    var px: Double
+    var side: Double
+    var train: Bool
+    var b: [SaveB]
+    var folk: [SaveF]
+    var drifters: [Int]
+    var boxes: [Bool]
+    var seen: [String]
 }

@@ -2,7 +2,7 @@ import Foundation
 
 enum GState { case title, play }
 
-/// The rules of Dustfall III's first town: ride, toss coins, hire drifters, rebuild, and hold the gates at night.
+/// The rules of Dustfall III: ride, toss coins, hire drifters, rebuild, hold the gates at night, and take the train on down the line.
 final class Game {
     var W = 400.0
     var H = 185.0
@@ -27,10 +27,27 @@ final class Game {
     var gunT = 0.0
     var hurtT = 0.0
     var input = Input()
-    private var tossWas = false
-    private var fireWas = false
     private var hoofT = 0.0
 
+    // where on the line this is, and what is in the bank
+    var town = 0
+    var day0 = 0                // the day you stepped off here, so `day - day0` counts days in this town
+    var bank = 0
+    var train: Train?
+    var tripT = -1.0            // seconds since the train pulled out with you on it; under 0 when you are not aboard
+    var fade = 0.0
+    var onSave: (() -> Void)?
+    var townName: String { return TOWN_NAMES[town % TOWN_NAMES.count] }
+
+    var store = Building(.store, 1108)
+    var saloon = Building(.saloon, 1240)
+    var sheriff = Building(.sheriff, 1400)
+    var stable = Building(.stable, 1590)
+    var bankB = Building(.bank, 1020)
+    var gateW = Building(.gateW, 958)
+    var gateE = Building(.gateE, 1940)
+    var station = Building(.station, 1700)
+    var ticket = Building(.train, STOP + 83)
     var b: [Building] = []
     var drifters: [Drifter] = []
     var folk: [Folk] = []
@@ -62,26 +79,92 @@ final class Game {
 
     func reset() {
         state = .title
-        t = 0.6; day = 1; clock = 0
+        town = 0; day = 1; day0 = 0; t = 0.6; clock = 0
+        coins = 10; bank = 0
+        hintText = ""; hintT = 0; seen = []
+        layTown()
+    }
+
+    /// Lays out the town at this stop on the line: everything boarded up, drifters at the camps, strongboxes buried.
+    /// The first town has a store, saloon, sheriff and station; the stable and bank come from the second town on.
+    private func layTown() {
         px = FIRE_X - 20; pvx = 0; pdir = -1; pphase = 0
-        coins = 10; tossCD = 0; ammo = 6; reloadT = 0; gunCD = 0; gunT = 0; hurtT = 0
+        tossCD = 0; ammo = 6; reloadT = 0; gunCD = 0; gunT = 0; hurtT = 0
         cam = FIRE_X - W / 2
-        b = [Building(.store, 1108), Building(.saloon, 1240), Building(.sheriff, 1400), Building(.stable, 1590),
-             Building(.bank, 1020), Building(.gateW, 958), Building(.gateE, 1940)]
+        store = Building(.store, 1108); saloon = Building(.saloon, 1240); sheriff = Building(.sheriff, 1400)
+        stable = Building(.stable, 1590); bankB = Building(.bank, 1020)
+        gateW = Building(.gateW, 958); gateE = Building(.gateE, 1940)
+        station = Building(.station, 1700); ticket = Building(.train, STOP + 83)
+        b = [store, saloon, sheriff]
+        if town > 0 { b.append(stable); b.append(bankB) }
+        b.append(station); b.append(gateW); b.append(gateE); b.append(ticket)
+        for bl in b { bl.scale = 1 + 0.25 * Double(town) }
+        ticket.live = false
+        train = nil; tripT = -1; fade = 0
         drifters = []; folk = []; bandits = []; shots = []; parts = []; flying = []; ground = []; raid = []
         for (i, c) in camps.enumerated() {
             for k in 0..<c.1 { drifters.append(Drifter(x: c.0 - 14 + Double(k) * 13 + rnd(-2, 2), camp: i)) }
         }
-        boxes = [Box(250, 6), Box(610, 4), Box(2270, 4), Box(2540, 6)]
+        boxes = [Box(250, 6 + town), Box(610, 4), Box(2270, 4), Box(2540, 6 + town)]
         side = chance(0.5) ? 1 : -1
         duskDone = false; raidOn = false; badgePaid = 0; pickPaid = 0; shake = 0; flash = 0
-        hintText = ""; hintT = 0; seen = []; info = ""; slotsFor = nil
+        info = ""; slotsFor = nil
     }
 
     func start() {
         reset()
         state = .play
-        hint("start", "Dustfall burned years ago. Ride with the stick, and tap to toss a coin at drifters and at the boarded-up buildings.")
+        hint("start", "Dustfall burned years ago. Ride with the stick, and hold the coin button to toss coins at drifters and at the boarded-up buildings.")
+    }
+
+    // ---------- saving
+    func snapshot() -> SaveData {
+        // coins part-paid into something count as still in the purse
+        var purse = coins + badgePaid + pickPaid
+        for bl in b { purse += bl.paid + bl.incoming }
+        var sb: [SaveB] = []
+        for bl in b { sb.append(SaveB(type: bl.type.rawValue, level: bl.level, building: bl.building, progress: bl.progress, hp: bl.hp, robbed: bl.robbed)) }
+        var sf: [SaveF] = []
+        for f in folk { sf.append(SaveF(x: f.x, role: f.role == .deputy ? 1 : (f.role == .miner ? 2 : 0))) }
+        var dr: [Int] = []
+        for i in 0..<camps.count { dr.append(drifters.filter { $0.camp == i }.count) }
+        var bx: [Bool] = []
+        for q in boxes { bx.append(q.open) }
+        return SaveData(town: town, day: day, day0: day0, t: t, coins: purse, bank: bank, ammo: ammo, px: px, side: side,
+                        train: train != nil, b: sb, folk: sf, drifters: dr, boxes: bx, seen: Array(seen))
+    }
+
+    /// Picks a saved game up again. A game saved at night comes back at dusk the same night.
+    func restore(_ s: SaveData) {
+        reset()
+        town = max(0, s.town); day = max(1, s.day); day0 = s.day0
+        layTown()
+        coins = max(0, s.coins); bank = max(0, s.bank); ammo = max(0, min(6, s.ammo))
+        if ammo == 0 { ammo = 6 }
+        t = s.t >= 0.72 ? 0.715 : clampD(s.t, 0, 1)
+        side = s.side < 0 ? -1 : 1
+        seen = Set(s.seen)
+        for sb in s.b {
+            guard let bl = b.first(where: { $0.type.rawValue == sb.type }) else { continue }
+            bl.level = max(0, min(bl.maxLevel, sb.level)); bl.building = sb.building && bl.level < bl.maxLevel
+            bl.progress = clampD(sb.progress, 0, 1); bl.hp = sb.hp; bl.robbed = sb.robbed
+        }
+        folk = []
+        for sf in s.folk {
+            let f = Folk(x: sf.x)
+            f.role = sf.role == 1 ? .deputy : (sf.role == 2 ? .miner : .folk)
+            folk.append(f)
+        }
+        drifters = []
+        for (i, c) in camps.enumerated() {
+            let n = i < s.drifters.count ? max(0, min(c.1, s.drifters[i])) : c.1
+            for k in 0..<n { drifters.append(Drifter(x: c.0 - 14 + Double(k) * 13 + rnd(-2, 2), camp: i)) }
+        }
+        for (i, bx) in boxes.enumerated() where i < s.boxes.count { bx.open = s.boxes[i] }
+        if s.train && station.level > 0 { train = Train(x: STOP, v: 0); ticket.live = true }
+        px = clampD(s.px, 30, WORLD - 30)
+        cam = clampD(px - W / 2, 0, WORLD - W)
+        state = .play
     }
 
     /// Set scenes for the simulator screenshots.
@@ -89,10 +172,9 @@ final class Game {
         if name == "title" { return }
         start()
         hintT = 0
-        for i in 0..<3 { b[i].level = 1 }
-        b[1].level = 2
-        b[5].level = 1; b[5].hp = GHP[1]; b[6].level = 2; b[6].hp = GHP[2]
-        b[3].paid = 3
+        if name == "train" { town = 1; day = 9; day0 = 6; layTown(); stable.level = 1; bankB.level = 1; bank = 12 }
+        store.level = 1; sheriff.level = 1; saloon.level = 2
+        gateW.level = 1; gateW.hp = GHP[1]; gateE.level = 2; gateE.hp = GHP[2]
         drifters.removeAll { $0.camp == 1 }
         for i in 0..<6 { let f = Folk(x: 1180 + Double(i) * 46); folk.append(f) }
         folk[0].role = .deputy; folk[1].role = .deputy; folk[2].role = .miner
@@ -102,8 +184,11 @@ final class Game {
             px = 1880; pdir = 1
             for i in 0..<5 { bandits.append(Bandit(x: 1975 + Double(i) * 30, rider: i % 3 == 2, side: 1, hp: 3)) }
             px = 1850; folk[0].x = 1925; folk[1].x = 1916
+        } else if name == "train" {
+            t = 0.3; station.level = 1; train = Train(x: STOP, v: 0); ticket.live = true
+            ticket.paid = 3; px = STOP + 96; pdir = -1
         } else {
-            day = 3; t = 0.4
+            day = 3; t = 0.4; station.paid = 6; px = 1690
             for i in 0..<5 { ground.append(GCoin(x: 1150 + Double(i) * 7, y: 0, vx: 0, vy: 0, age: 1)) }
         }
         cam = clampD(px - W / 2, 0, WORLD - W)
@@ -145,6 +230,8 @@ final class Game {
         if hintT > 0 { hintT -= dt }
         shake = max(0, shake - dt * 3)
         flash = max(0, flash - dt * 3)
+        if tripT < 0 && fade > 0 { fade = max(0, fade - dt * 0.7) }
+        updTrain(dt)
         updPlayer(dt)
         updCoins(dt)
         updFolk(dt)
@@ -161,7 +248,8 @@ final class Game {
     }
 
     private func updPlayer(_ dt: Double) {
-        let want = input.stick * 84
+        if tripT >= 0 { pvx = 0; return }       // aboard the train
+        let want = input.stick * 84 * (1 + 0.15 * Double(town > 0 ? stable.level : 0))
         pvx += (want - pvx) * min(1, dt * 7)
         if abs(pvx) < 2 && input.stick == 0 { pvx = 0 }
         px = clampD(px + pvx * dt, 30, WORLD - 30)
@@ -175,9 +263,9 @@ final class Game {
         tossCD = max(0, tossCD - dt); tossT = max(0, tossT - dt)
         gunCD = max(0, gunCD - dt); gunT = max(0, gunT - dt); hurtT = max(0, hurtT - dt)
         if reloadT > 0 { reloadT -= dt; if reloadT <= 0 { ammo = 6; sfx?.reload() } }
-        if input.toss && !tossWas && tossCD <= 0 { toss() }
-        if input.fire && !fireWas { fire() }
-        tossWas = input.toss; fireWas = input.fire
+        // both buttons repeat for as long as they are held
+        if input.toss && tossCD <= 0 { toss() }
+        if input.fire { fire() }
         // strongboxes break open when the horse rides over them
         for bx in boxes where !bx.open && abs(bx.x - px) < 10 {
             bx.open = true
@@ -188,9 +276,27 @@ final class Game {
         }
     }
 
+    private func atBank() -> Bool {
+        return town > 0 && bankB.level > 0 && !bankB.building && abs(px - bankB.cx) < bankB.def.w / 2 + 12
+    }
+
     private func toss() {
-        if coins <= 0 { sfx?.empty(); hint("broke", "Your purse is empty. Businesses pay out every morning, and strongboxes lie buried out of town.", again: true); return }
-        tossCD = 0.16; tossT = 0.25
+        if coins <= 0 {
+            if atBank() && bank > 0 {            // an empty purse at the bank: the teller hands five back
+                let n = min(5, bank)
+                bank -= n
+                for k in 0..<n {
+                    let c = Coin(sx: bankB.cx, sy: -12, tx: px, ty: -18, kind: 4)
+                    c.u = -Double(k) * 0.12
+                    flying.append(c)
+                }
+                sfx?.box(); tossCD = 1.2
+                return
+            }
+            tossCD = 0.5
+            sfx?.empty(); hint("broke", "Your purse is empty. Businesses pay out every morning, and strongboxes lie buried out of town.", again: true); return
+        }
+        tossCD = 0.2; tossT = 0.25
         let sy = -22.0
         // 1: a drifter at his fire
         var bestD: Drifter?
@@ -205,20 +311,24 @@ final class Game {
             flying.append(c); coins -= 1; sfx?.toss(); return
         }
         // 2: the racks beside the sheriff's office and the store
-        let sh = b[2], st = b[0]
+        let sh = sheriff, st = store
         if sh.level > 0 && !sh.building && abs(px - rackX(sh)) < 12 {
             if folk.contains(where: { $0.role == .folk }) {
                 flying.append(Coin(sx: px, sy: sy, tx: rackX(sh), ty: -14, kind: 3)); coins -= 1; sfx?.toss()
-            } else { sfx?.empty(); hint("nofolk", "A badge needs someone to wear it. Hire a drifter first.", again: true) }
+            } else { tossCD = 0.5; sfx?.empty(); hint("nofolk", "A badge needs someone to wear it. Hire a drifter first.", again: true) }
             return
         }
         if st.level > 0 && !st.building && abs(px - rackX(st)) < 12 {
             if folk.contains(where: { $0.role == .folk }) {
                 flying.append(Coin(sx: px, sy: sy, tx: rackX(st), ty: -14, kind: 5)); coins -= 1; sfx?.toss()
-            } else { sfx?.empty(); hint("nofolk", "A pick needs someone to swing it. Hire a drifter first.", again: true) }
+            } else { tossCD = 0.5; sfx?.empty(); hint("nofolk", "A pick needs someone to swing it. Hire a drifter first.", again: true) }
             return
         }
-        // 3: a building that can take coins
+        // 3: an open bank keeps what you toss it
+        if atBank() {
+            flying.append(Coin(sx: px, sy: sy, tx: bankB.cx, ty: -14, kind: 6)); coins -= 1; sfx?.toss(); return
+        }
+        // 4: a building that can take coins, or the passenger car
         var best: Building?
         var bb = 9999.0
         for bl in b where bl.payable && bl.paid + bl.incoming < bl.cost {
@@ -230,18 +340,18 @@ final class Game {
             let c = Coin(sx: px, sy: sy, tx: bl.cx, ty: -bl.def.h - 10, kind: 1); c.bld = bl
             flying.append(c); coins -= 1; sfx?.toss(); return
         }
-        // 4: nothing here wants it, so it lands in the dust
+        // 5: nothing here wants it, so it lands in the dust
         flying.append(Coin(sx: px, sy: sy, tx: px + pdir * 18, ty: -1, kind: 0)); coins -= 1; sfx?.toss()
     }
 
     private func fire() {
         if reloadT > 0 || gunCD > 0 { return }
-        if ammo <= 0 { sfx?.click(); return }
+        if ammo <= 0 { sfx?.click(); gunCD = 0.4; return }
         ammo -= 1; gunCD = 0.28; gunT = 0.14
         shots.append(Shot(x: px + pdir * 12, y: -20, vx: pdir * 300, life: 0.5, mine: true))
         sfx?.gun(1); shake = max(shake, 0.4)
         parts.append(Part(x: px + pdir * 14, y: -20, vx: pdir * 20, vy: -6, life: 0.25, max: 0.25, c: Col(0xfff0b0), s: 2.5, grav: 0))
-        if ammo == 0 { reloadT = 1.5 }
+        if ammo == 0 { reloadT = Double(max(1, 5 - store.level)) }      // every level of the store takes a second off
     }
 
     private func updCoins(_ dt: Double) {
@@ -276,8 +386,8 @@ final class Game {
             bl.paid = 0
             hint("refund", "Coins you left on an unfinished job come back to you when you ride off.")
         }
-        if badgePaid > 0 && abs(px - rackX(b[2])) > 60 { for _ in 0..<badgePaid { flying.append(Coin(sx: rackX(b[2]), sy: -14, tx: px, ty: -18, kind: 4)) }; badgePaid = 0 }
-        if pickPaid > 0 && abs(px - rackX(b[0])) > 60 { for _ in 0..<pickPaid { flying.append(Coin(sx: rackX(b[0]), sy: -14, tx: px, ty: -18, kind: 4)) }; pickPaid = 0 }
+        if badgePaid > 0 && abs(px - rackX(sheriff)) > 60 { for _ in 0..<badgePaid { flying.append(Coin(sx: rackX(sheriff), sy: -14, tx: px, ty: -18, kind: 4)) }; badgePaid = 0 }
+        if pickPaid > 0 && abs(px - rackX(store)) > 60 { for _ in 0..<pickPaid { flying.append(Coin(sx: rackX(store), sy: -14, tx: px, ty: -18, kind: 4)) }; pickPaid = 0 }
     }
 
     private func land(_ c: Coin) {
@@ -286,7 +396,9 @@ final class Game {
             guard let bl = c.bld else { return }
             bl.incoming = max(0, bl.incoming - 1)
             bl.paid += 1; bl.flash = 0.3; sfx?.slot()
-            if bl.paid >= bl.cost {
+            if bl.paid >= bl.cost && bl.virt {
+                bl.paid = 0; bl.live = false; board()
+            } else if bl.paid >= bl.cost {
                 bl.paid = 0; bl.building = true; bl.progress = 0
                 sfx?.recruit()
                 if folk.isEmpty { hint("nobuild", "Paid for, but nobody is here to build it. Toss a coin to a drifter at a campfire out of town.", again: true) }
@@ -305,14 +417,17 @@ final class Game {
             badgePaid += 1; sfx?.slot()
             if badgePaid >= 2 {
                 badgePaid = 0
-                if let f = nearestIdle(rackX(b[2])) { f.role = .deputy; sfx?.fanfare(); hint("deputy", "A deputy. At night he stands at the gate the raiders are coming to, and shoots.") }
+                if let f = nearestIdle(rackX(sheriff)) { f.role = .deputy; sfx?.fanfare(); hint("deputy", "A deputy. At night he stands at the gate the raiders are coming to, and shoots.") }
             }
         case 5:
             pickPaid += 1; sfx?.slot()
             if pickPaid >= 2 {
                 pickPaid = 0
-                if let f = nearestIdle(rackX(b[0])) { f.role = .miner; sfx?.fanfare(); hint("miner", "A prospector. He works the old mine west of town and brings a coin back each morning.") }
+                if let f = nearestIdle(rackX(store)) { f.role = .miner; sfx?.fanfare(); hint("miner", "A prospector. He works the old mine west of town and brings a coin back each morning.") }
             }
+        case 6:
+            bank += 1; sfx?.slot(); bankB.flash = 0.2
+            hint("deposit", "Banked. Raiders cannot knock banked coins out of you, and the bank pays 1 a day for every 8 inside, up to 3.")
         case 4:
             coins += 1; sfx?.pick()
         default:
@@ -358,10 +473,10 @@ final class Game {
                         sfx?.gun(0.5)
                         if chance(0.7) { hurt(bn, 1) }
                     }
-                } else if f.wait <= 0 && !f.moving { f.tx = b[2].cx + rnd(-50, 50); f.wait = rnd(3, 8) }
+                } else if f.wait <= 0 && !f.moving { f.tx = sheriff.cx + rnd(-50, 50); f.wait = rnd(3, 8) }
                 dep += 1
             case .miner:
-                if t > 0.06 && t < 0.6 { f.tx = MINE_X + Double(Int(f.seed) % 5) * 6 } else { f.tx = b[0].x + 20 + Double(Int(f.seed) % 4) * 8 }
+                if t > 0.06 && t < 0.6 { f.tx = MINE_X + Double(Int(f.seed) % 5) * 6 } else { f.tx = store.x + 20 + Double(Int(f.seed) % 4) * 8 }
             case .folk:
                 if let st = s {
                     f.tx = st.x + 6 + Double(plain % 5) * (st.def.w - 12) / 5
@@ -400,20 +515,27 @@ final class Game {
             case .saloon: hint("saloon1", "The saloon is open. It pays out every morning and draws new drifters to the camps.")
             case .sheriff: hint("sheriff1", "The sheriff's office is open. Toss two coins at the badge outside it to make a deputy.")
             case .gateW, .gateE: hint("gate1", "A gate. Raiders have to break it down before they can reach the town.")
+            case .stable: hint("stable\(bl.level)", "The stable is open, and you ride a faster horse.", again: true)
+            case .bank: hint("bank1", "The bank is open. Hold the coin button in front of it to pay coins in, where raiders cannot get them.")
+            case .station:
+                train = Train(x: WORLD + 70, v: -120)
+                sfx?.whistle()
+                hint("station1", "The station is up, and the rails are through. Here comes the train.", again: true)
             default: hint("built", "Built. Toss more coins at it to improve it.")
             }
+            onSave?()
         }
     }
 
     // ---------- night
     private func raidSize(_ d: Int) -> Int {
         if d < 2 { return 0 }
-        return min(d - 1 + max(0, d - 5), 12 + max(0, d - 9), 40)
+        return min(d - 1 + max(0, d - 5) + town, 12 + town * 2 + max(0, d - 9), 40)
     }
 
     private func dusk() {
         duskDone = true
-        let d = day
+        let d = day - day0 + town         // every town down the line starts a night harder
         let n = raidSize(d)
         if n == 0 { hint("dusk1", "Night is coming. The first night is quiet; raiders come from the second."); return }
         for i in 0..<n {
@@ -421,7 +543,7 @@ final class Game {
         }
         raidOn = true
         sfx?.sting()
-        hint("raid", "Raiders tonight, most from the \(side < 0 ? "west" : "east"). Draw with the gun button and shoot the way you face.", again: true)
+        hint("raid", "Raiders tonight, most from the \(side < 0 ? "west" : "east"). Hold the gun button to shoot the way you face.", again: true)
     }
 
     private func dawn() {
@@ -430,23 +552,88 @@ final class Game {
         var total = 0
         for bl in b where bl.def.pay > 0 && bl.level > 0 {
             if bl.robbed { bl.robbed = false; continue }
-            let n = max(1, bl.def.pay * bl.level - (day > 2 ? 1 : 0))
+            let n = max(1, bl.def.pay * bl.level - (day - day0 > 2 ? 1 : 0))
             for _ in 0..<n { dropCoin(bl.x + bl.def.doorX + bl.def.doorW / 2, 10) }
             total += n
         }
         let plain = folk.filter { $0.role == .folk }.count
         for _ in 0..<(plain / 2) { dropCoin(FIRE_X + rnd(-20, 20), 6); total += 1 }
-        for f in folk where f.role == .miner { dropCoin(b[0].x + 30, 8); total += 1; f.wait = 0 }
+        for f in folk where f.role == .miner { dropCoin(store.x + 30, 8); total += 1; f.wait = 0 }
+        if town > 0 { bank += min(3 * bankB.level, bank / 8) }
         // the saloon draws drifters back to the camps
         for (i, c) in camps.enumerated() {
             let here = drifters.filter { $0.camp == i }.count
-            if here < c.1 && (b[1].level > 0 || chance(0.3)) {
+            if here < c.1 && (saloon.level > 0 || chance(0.3)) {
                 drifters.append(Drifter(x: c.0 - 14 + Double(here) * 13 + rnd(-2, 2), camp: i))
             }
         }
         side = chance(0.5) ? 1 : -1
         sfx?.dawn()
         hint("dawn\(day)", total > 0 ? "Day \(day). The town paid out \(total) coins this morning: ride past to pick them up." : "Day \(day). Nothing paid out this morning. Open the store or the saloon.", again: true)
+        onSave?()
+    }
+
+    // ---------- the railroad: the train rolls in once the station is up and waits for you to buy a ticket
+    private func smoke(_ x: Double) {
+        parts.append(Part(x: x, y: -34, vx: rnd(-5, 5), vy: rnd(-16, -8), life: 1.3, max: 1.3, c: Col(0xcfc6ba, 0.7), s: rnd(2, 4), grav: -5))
+    }
+
+    /// How many coins step off the train with you: half of purse and bank together, never under 8 nor over 25.
+    func carryOut() -> Int { return max(8, min(25, (coins + bank) / 2)) }
+
+    private func updTrain(_ dt: Double) {
+        guard var tr = train else { return }
+        if tripT >= 0 {
+            tripT += dt
+            fade = clampD(tripT / 2.2, 0, 1)
+            tr.x += tripT * tripT * 26 * dt
+            tr.chuff -= dt * (2 + tripT * 4)
+            if tr.chuff <= 0 { tr.chuff = 1; sfx?.chuff(1); smoke(tr.x + 16) }
+            train = tr
+            if tripT > 2.6 { arrive() }
+            return
+        }
+        if tr.v == 0 {
+            if chance(dt * 1.2) { smoke(tr.x + 16) }
+            if tr.wait > 0 {
+                tr.wait -= dt
+                if tr.wait <= 0 {
+                    ticket.live = true
+                    hint("ticket", "The railroad is here. The train will wait as long as you like: finish the town if you want to, then toss \(ticket.cost) coins at the passenger car to ride on to the next ghost town.", again: true)
+                    train = tr
+                    onSave?()
+                    return
+                }
+            }
+            train = tr
+            return
+        }
+        tr.v = -clampD((tr.x - STOP) * 1.1, 10, 120)
+        tr.x += tr.v * dt
+        tr.chuff -= dt * (1 + abs(tr.v) / 30)
+        if tr.chuff <= 0 { tr.chuff = 1; sfx?.chuff(clampD(1 - abs(tr.x - px) / 500, 0.15, 1)); smoke(tr.x + 16) }
+        if tr.x <= STOP + 0.5 { tr.x = STOP; tr.v = 0; tr.wait = 1.5; sfx?.whistle(); flash = 0.2 }
+        train = tr
+    }
+
+    /// The ticket is paid: the train pulls out east with you aboard.
+    private func board() {
+        tripT = 0
+        sfx?.whistle()
+        hintT = 0
+        bandits = []; raid = []; raidOn = false
+    }
+
+    /// Stepping off at the next dead town. Only coins make the trip; the town you built stays behind.
+    private func arrive() {
+        let carry = carryOut()
+        town += 1; day += 1; day0 = day - 1; t = 0.08
+        layTown()
+        coins = carry; bank = 0
+        fade = 1
+        let extra = town == 1 ? " This town has a stable and a bank to open as well." : ""
+        hint("arrive\(town)", "\(nice(townName)). You step off with \(carry) coins, and everything here is boarded up. Prices and raids are both a little stiffer down the line.\(extra)", again: true)
+        onSave?()
     }
 
     private func updRaid(_ dt: Double) {
@@ -479,7 +666,7 @@ final class Game {
             }
             bn.flash = max(0, bn.flash - dt); bn.hitT = max(0, bn.hitT - dt)
             let sp = bn.rider ? 74.0 : 40.0
-            let gate = bn.side < 0 ? b[5] : b[6]
+            let gate = bn.side < 0 ? gateW : gateE
             let gx = gate.cx
             switch bn.st {
             case 1:
@@ -573,16 +760,29 @@ final class Game {
     private func updInfo() {
         info = ""; slotsFor = nil
         for d in drifters where abs(d.x - px) < 30 && !d.taken { info = "Drifter: 1 coin to hire"; return }
-        let sh = b[2], st = b[0]
+        let sh = sheriff, st = store
         if sh.level > 0 && !sh.building && abs(px - rackX(sh)) < 12 { info = "Deputy's badge: 2 coins (\(badgePaid) in). Needs a townsman without a job."; return }
         if st.level > 0 && !st.building && abs(px - rackX(st)) < 12 { info = "Prospector's pick: 2 coins (\(pickPaid) in). Needs a townsman without a job."; return }
         var best: Building?
         var bd = 9999.0
-        for bl in b {
+        for bl in b where !bl.virt || bl.live {
             let d = abs(bl.cx - px)
             if d < bl.def.w / 2 + 12 && d < bd { bd = d; best = bl }
         }
         guard let bl = best else { return }
+        if bl.virt {
+            slotsFor = bl
+            info = "Train ticket: \(bl.cost) coins" + (bl.paid > 0 ? " (\(bl.paid) in)" : "") + ". You step off at the next town with \(carryOut()): half of purse and bank, never under 8 or over 25."
+            return
+        }
+        if bl.type == .bank && bl.level > 0 && !bl.building {
+            info = "Bank: \(bank) inside, safe from raiders. Hold the coin button to pay in; with an empty purse it hands 5 back."
+            return
+        }
+        if bl.type == .station && bl.level > 0 && !bl.building {
+            info = train == nil ? "Station: the train is on its way." : "Station: the train waits as long as you like. The ticket is paid at the passenger car."
+            return
+        }
         let nm = String(bl.def.name.prefix(1)) + String(bl.def.name.dropFirst()).lowercased()
         if bl.building {
             info = site() === bl ? "\(nm): being built. More townsfolk build it faster." : "\(nm): paid for. The crew starts here when the job in hand is finished."
@@ -590,7 +790,7 @@ final class Game {
             info = "\(nm): as good as it gets." + (bl.def.pay > 0 ? " Pays out every morning." : "")
         } else {
             slotsFor = bl
-            let verb = bl.level == 0 ? (bl.def.gate ? "to raise" : "to open") : "to improve"
+            let verb = bl.level == 0 ? (bl.def.gate ? "to raise" : (bl.type == .station ? "to rebuild, and bring the railroad" : "to open")) : "to improve"
             info = "\(nm): \(bl.cost) coins \(verb)" + (bl.paid > 0 ? " (\(bl.paid) in)" : "") + (bl.level > 0 && bl.def.pay > 0 ? ". Pays out every morning." : "")
         }
     }
