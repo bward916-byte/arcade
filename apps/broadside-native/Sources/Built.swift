@@ -627,72 +627,53 @@ extension Game {
     func drawRings(_ c: Canvas, _ L: Double) {
         rings = []
         if rowPhase > 0 { return }
-        var used: [Double] = []
-        func place(_ wantX: Double) -> Double {
-            var x = clampD(wantX, 40 + safeL, W - 40 - safeR)
-            for _ in 0..<8 {
-                var moved = false
-                for u in used where abs(u - x) < 62 {
-                    x = u + (x >= u ? 62 : -62)
-                    moved = true
-                }
-                if !moved { break }
-            }
-            used.append(x)
-            return x
+        // one circle at a time: whatever you are standing closest to
+        var best: (Double, String, Bool, String)?
+        var bestD = 1e9
+        for sp in prompts() {
+            let d = abs(px - sp.x)
+            if d < bestD { bestD = d; best = (sp.x, sp.id, false, sp.id) }
         }
-        let headY = sy(groundLand(px)) - 100 * camS
-        let y = max(118.0, headY)
-        let r = 22.0
-        var all: [(Double, String, Bool, String)] = []
-        for sp in prompts() { all.append((sp.x, sp.id, false, sp.id)) }
-        for u in upgradesHere() { all.append((u.x, u.id, true, u.icon)) }
-        all.sort { $0.0 < $1.0 }
-        var tipDist = 1e9, tipX = 0.0, tipText = ""
-        for (wx, id, isPour, icon) in all {
-            let x = place(sx(wx))
-            rings.append(Ring(id: id, x: x, y: y, r: r, pour: isPour))
-            c.circ(x, y + 3, r + 2, Col(0x000000, 0.28))
-            let wood = Art.shared.image("ring_blank")
-            if !isPour {
-                let busy = (id == "fish" && fishing) || (id == spinId && spinT > 0)
-                if let wd = wood {
-                    // carved wood in a brass rim
-                    let rr = r * 1.16
-                    c.drawImage(wd, x - rr, y - rr, rr * 2, rr * 2)
-                    if busy { c.circStroke(x, y, r + 1, 2, Col(0xfff0c0)) }
-                } else {
-                    c.glow(x - 6, y - 8, r * 1.2, Col(0x3c4a5c, 0.95), Col(0x08121c, 0.95))
-                    c.circ(x, y, r, Col(0x08121c, 0.55))
-                    c.circStroke(x, y, r, 2, busy ? Col(0xfff0c0) : GOLD)
-                }
-                c.save()
-                c.translate(x, y)
-                if busy { c.rotate(T * 5) }
-                drawIcon(c, id == "row" && boat >= 2 ? "skiff" : id)
-                c.restore()
-                if id == "haul" { c.textS(String(crates), x + r - 2, y - r + 6, 12, CREAM, 0, FONTB) }
-                continue
-            }
-            guard let u = upgs.first(where: { $0.id == id }) else { continue }
+        for u in upgradesHere() {
+            let d = pour == u.id ? -1 : abs(px - u.x)
+            if d < bestD { bestD = d; best = (u.x, u.id, true, u.icon) }
+        }
+        guard let (wx, id, isPour, icon) = best else { return }
+        let r = 24.0
+        let y = max(124.0, sy(groundLand(px)) - 104 * camS)
+        let x = clampD(sx(wx), 44 + safeL, W - 44 - safeR)
+        rings.append(Ring(id: id, x: x, y: y, r: r, pour: isPour))
+        let wood = Art.shared.image("ring_blank")
+        let rr = r * 1.16
+        c.circ(x, y + 3, rr + 1, Col(0x000000, 0.28))
+        if let wd = wood {
+            c.drawImage(wd, x - rr, y - rr, rr * 2, rr * 2)
+        } else {
+            c.circ(x, y, r, Col(0x08121c, 0.8))
+            c.circStroke(x, y, r, 2, GOLD)
+        }
+        var title = "", line = "", price = ""
+        if !isPour {
+            let busy = (id == "fish" && fishing) || (id == spinId && spinT > 0)
+            if busy { c.circStroke(x, y, r + 1, 2, Col(0xfff0c0)) }
+            c.save()
+            c.translate(x, y)
+            if busy { c.rotate(T * 5) }
+            drawIcon(c, id == "row" && boat >= 2 ? "skiff" : id)
+            c.restore()
+            (title, line) = describeAction(id)
+        } else if let u = upgs.first(where: { $0.id == id }) {
             let cost = costOf(u)
             let have = paid[id] ?? 0
-            if let wd = wood {
-                let rr = r * 1.16
-                c.drawImage(wd, x - rr, y - rr, rr * 2, rr * 2)
-                c.circ(x, y, r * 0.8, Col(0x000000, 0.28))
-            } else {
-                c.circ(x, y, r, Col(0x101a28, 0.92))
-            }
+            c.circ(x, y, r * 0.8, Col(0x000000, 0.24))
             // progress runs round the outside of the circle
-            let pr = (wood == nil ? r : r * 1.16) + 4
+            let pr = rr + 4
             c.circStroke(x, y, pr, 4.5, Col(0x050c14, 0.6))
             if have > 0 {
                 c.roundCaps(true)
                 c.arcStroke(x, y, pr, -PI / 2, -PI / 2 + 2 * PI * Double(have) / Double(cost), 4.5, Col(0xffd24a))
                 c.roundCaps(false)
             }
-            if wood == nil { c.circStroke(x, y, r, 1.4, GOLD2.alpha(0.8)) }
             c.save()
             c.translate(x, y)
             drawIcon(c, icon)
@@ -700,9 +681,6 @@ extension Game {
             if u.tier > 0 {
                 for i in 0..<u.tier { c.circ(x - Double(u.tier - 1) * 3 + Double(i) * 6, y + r - 5, 1.8, CREAM) }
             }
-            c.textS(String(cost - have), x, y + pr + 15, 12, coins >= cost - have ? CREAM : Col(0xe89a8a), 0, FONTB)
-            let dist = pour == id ? -1 : abs(px - u.x)
-            if dist < tipDist { tipDist = dist; tipX = x; tipText = describe(u) }
             if pour == id {
                 let fromX = sx(px), fromY = sy(groundLand(px)) - 40 * camS
                 for q in 0..<4 {
@@ -714,16 +692,50 @@ extension Game {
                 }
                 c.circStroke(x, y, pr + 5 + sin(T * 14) * 1.5, 2, GOLD.alpha(0.6))
             }
+            let full = describe(u)
+            if let cut = full.range(of: ": ") {
+                title = String(full[full.startIndex..<cut.lowerBound])
+                line = String(full[cut.upperBound...])
+            } else {
+                title = full
+            }
+            price = String(cost - have)
         }
-        // what the nearest upgrade does, in a line under the circles
-        if !tipText.isEmpty {
-            let tw = textW(tipText, 12.5) + 24
-            let ty = y + r * 1.16 + 36
-            let bx = clampD(tipX - tw / 2, 8 + safeL, W - 8 - safeR - tw)
-            c.poly(Col(0x050c14, 0.72), [tipX - 6, ty, tipX, ty - 6, tipX + 6, ty])
-            c.RR(bx, ty, tw, 22, 11, Col(0x050c14, 0.72))
-            c.RRStroke(bx, ty, tw, 22, 11, 1, GOLD2.alpha(0.5))
-            c.text(tipText, bx + tw / 2, ty + 15.5, 12.5, CREAM)
+        // a card beside the circle: what it is, what it does, what it costs
+        let tw = textW(title, 14, FONTB) + (price.isEmpty ? 0 : textW(price, 13, FONTB) + 30)
+        let cw = max(tw, textW(line, 12)) + 24
+        let ch: Double = line.isEmpty ? 26 : 44
+        let right = x + rr + 12 + cw < W - 8 - safeR
+        let cx = right ? x + rr + 10 : x - rr - 10 - cw
+        let cy = y - ch / 2
+        c.RR(cx, cy, cw, ch, 10, Col(0x050c14, 0.74))
+        c.RRStroke(cx, cy, cw, ch, 10, 1, GOLD2.alpha(0.5))
+        c.poly(Col(0x050c14, 0.74), right ? [cx, y - 6, cx - 6, y, cx, y + 6] : [cx + cw, y - 6, cx + cw + 6, y, cx + cw, y + 6])
+        c.text(title, cx + 12, cy + 18, 14, GOLD, -1, FONTB)
+        if !price.isEmpty {
+            let pw = textW(price, 13, FONTB)
+            let pxr = cx + cw - 12 - pw
+            c.circ(pxr - 10, cy + 13.5, 6, Col(0xffd24a))
+            c.circStroke(pxr - 10, cy + 13.5, 6, 1, Col(0x8a6a10))
+            c.text(price, pxr, cy + 18, 13, coins >= (Int(price) ?? 0) ? CREAM : Col(0xe89a8a), -1, FONTB)
+        }
+        if !line.isEmpty { c.text(line, cx + 12, cy + 36, 12, CREAM.alpha(0.92), -1) }
+    }
+
+    /// What an action does, as a title and one line.
+    func describeAction(_ id: String) -> (String, String) {
+        switch id {
+        case "fish": return fishing ? ("Fishing", "Tap to pull the line in") : ("Fish", "Cast a line off the pier end")
+        case "row": return (boat >= 2 ? "Sail to the reef" : "Row out", "Three deep catches, bigger fish")
+        case "haul": return ("Haul crates", (done.contains("cart") ? "4" : "3") + " coins each, " + String(crates) + " left today")
+        case "market":
+            let g = Int((Double(fish * 4 + shellV) * (done.contains("deal") ? 1.5 : 1)).rounded())
+            return ("Sell", g > 0 ? "Your catch and finds for " + String(g) + " coins" : "Nothing to sell yet")
+        case "tavern": return ("Tavern", "Hear a tale from the old salts")
+        case "look": return ("Lookout", "Watch the sea from the old fort")
+        case "wright": return ("Set sail", mates < shipCrew ? "Needs " + String(shipCrew) + " hands; you have " + String(mates) : "Your crew is aboard")
+        case "dog": return ("Feed the dog", "One fish and he follows you")
+        default: return ("", "")
         }
     }
 

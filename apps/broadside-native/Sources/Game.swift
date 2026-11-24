@@ -86,7 +86,7 @@ final class Game {
     let bld: [String: Bld] = ["hut": Bld(x: 520, inc: 3, def: 0), "mill": Bld(x: 2745, inc: 6, def: 0), "farm": Bld(x: 2850, inc: 5, def: 0), "smithy": Bld(x: 3130, inc: 4, def: 1), "tower": Bld(x: 2275, inc: 0, def: 2), "battery": Bld(x: 2215, inc: 0, def: 3), "wall": Bld(x: 3270, inc: 0, def: 2), "dock2": Bld(x: 3420, inc: 8, def: 0)]
     let bldOrder = ["hut", "mill", "farm", "smithy", "tower", "battery", "wall", "dock2"]
     let goodsOf: [String: String] = ["hut": "salt fish", "mill": "timber", "farm": "grain", "smithy": "iron"]
-    let spots: [Spot] = [Spot(id: "dog", x: -8, near: 50), Spot(id: "fish", x: -215, near: 60), Spot(id: "row", x: -215, near: 60), Spot(id: "haul", x: 90, near: 60), Spot(id: "wright", x: 370, near: 60), Spot(id: "market", x: 1000, near: 60), Spot(id: "tavern", x: 1250, near: 60), Spot(id: "look", x: 2100, near: 70)]
+    let spots: [Spot] = [Spot(id: "dog", x: -8, near: 26), Spot(id: "fish", x: -222, near: 30), Spot(id: "row", x: -196, near: 30), Spot(id: "haul", x: 90, near: 30), Spot(id: "wright", x: 370, near: 30), Spot(id: "market", x: 1000, near: 30), Spot(id: "tavern", x: 1250, near: 30), Spot(id: "look", x: 2100, near: 34)]
     let tales_: [String] = ["\"…and the Black Sail took three prizes in a week, lad. Three!\"", "\"Keep your powder dry and your rum drier, that's what old Hendrik said.\"", "\"A captain with no lookout is a captain who meets the enemy at pistol range.\"", "\"Tortuga Cay — now there's a port. Gold runs in the gutters, or so they say.\"", "\"The sea gives. The sea takes. Mostly takes.\"", "\"Bow-on she's a sliver of a target, boy. Broadside she's a wall of guns. Choose.\""]
     let looks: [String] = ["Far out, a black sail crosses the horizon. One day.", "Gulls, swell, and nothing but sea to the edge of the world.", "A merchantman beats upwind toward Tortuga Cay. Heavy with cargo, no doubt.", "The old cannon still points to sea. Someone defended this place once."]
     let pads: [(Double, Double, Double)]
@@ -134,11 +134,11 @@ final class Game {
 
     func buildUpgs() {
         var u: [Upg] = [
-            Upg(id: "rod", x: -190, cost: 8, icon: "rod"), Upg(id: "bait", x: -160, cost: 10, icon: "bait"),
-            Upg(id: "fishcart", x: -60, cost: 14, icon: "fishcart"), Upg(id: "cart", x: 120, cost: 12, icon: "wheel"),
+            Upg(id: "rod", x: -170, cost: 8, icon: "rod"), Upg(id: "bait", x: -148, cost: 10, icon: "bait"),
+            Upg(id: "fishcart", x: -58, cost: 14, icon: "fishcart"), Upg(id: "cart", x: 120, cost: 12, icon: "wheel"),
             Upg(id: "sack", x: 300, cost: 10, icon: "sack"), Upg(id: "boat1", x: 330, cost: 40, icon: "row"),
             Upg(id: "boat2", x: 330, cost: 150, icon: "skiff"), Upg(id: "deal", x: 1040, cost: 15, icon: "scales"),
-            Upg(id: "nets", x: -120, cost: 30, icon: "net"), Upg(id: "lantern", x: -215, cost: 25, icon: "lamp"),
+            Upg(id: "nets", x: -104, cost: 30, icon: "net"), Upg(id: "lantern", x: -82, cost: 25, icon: "lamp"),
             Upg(id: "hook", x: 400, cost: 45, icon: "hook"),
             Upg(id: "mate1", x: 1300, cost: 20, icon: "mate"), Upg(id: "mate2", x: 1300, cost: 25, icon: "mate"),
             Upg(id: "mate3", x: 1300, cost: 30, icon: "mate"), Upg(id: "mate4", x: 1300, cost: 35, icon: "mate"),
@@ -148,12 +148,12 @@ final class Game {
             Upg(id: "farm", x: 2850, cost: 50, icon: "wheat"), Upg(id: "smithy", x: 3130, cost: 80, icon: "anvil"),
             Upg(id: "tower", x: 2275, cost: 70, icon: "tower"), Upg(id: "battery", x: 2215, cost: 120, icon: "cannon"),
             Upg(id: "wall", x: 3270, cost: 90, icon: "wall"), Upg(id: "dock2", x: 3420, cost: 100, icon: "skiff"),
-            Upg(id: "light", x: -180, cost: 120, icon: "light"),
+            Upg(id: "light", x: -126, cost: 120, icon: "light"),
             Upg(id: "boat4", x: 330, cost: 600, icon: "ship"), Upg(id: "boat5", x: 330, cost: 1400, icon: "ship"),
             Upg(id: "mate7", x: 1300, cost: 60, icon: "mate"), Upg(id: "mate8", x: 1300, cost: 70, icon: "mate"),
             Upg(id: "mate9", x: 1300, cost: 90, icon: "mate"), Upg(id: "mate10", x: 1300, cost: 100, icon: "mate"),
-            Upg(id: "provisions", x: 1000, cost: 60, icon: "barrel"), Upg(id: "powder", x: 2120, cost: 90, icon: "cannon"),
-            Upg(id: "charts", x: 1250, cost: 80, icon: "chart")
+            Upg(id: "provisions", x: 965, cost: 60, icon: "barrel"), Upg(id: "powder", x: 2140, cost: 90, icon: "cannon"),
+            Upg(id: "charts", x: 1222, cost: 80, icon: "chart")
         ]
         for id in bldOrder {
             guard let b = bld[id], let u0 = u.first(where: { $0.id == id }) else { continue }
@@ -246,7 +246,7 @@ final class Game {
         return dmg.contains(u.id) ? Int((Double(u.cost) * 0.4).rounded(.up)) : u.cost
     }
     func upgradesHere() -> [Upg] {
-        return upgs.filter { !done.contains($0.id) && abs(px - $0.x) < 70 && req($0) }
+        return upgs.filter { !done.contains($0.id) && (abs(px - $0.x) < 30 || pour == $0.id) && req($0) }
     }
     func burst(_ wx: Double, _ wy: Double, _ n: Int, _ col: Col) {
         for _ in 0..<n {
@@ -513,10 +513,10 @@ final class Game {
                     if rowN >= 3 { rowPhase = 3 } else { cast(true) }
                 }
             } else {
-                rowX = lerp(rowX, -215, min(1, dt * 0.8))
-                if abs(rowX + 215) < 12 {
+                rowX = lerp(rowX, -196, min(1, dt * 0.8))
+                if abs(rowX + 196) < 12 {
                     rowPhase = 0
-                    px = -215; tx = -215; speed = 0
+                    px = -196; tx = -196; speed = 0
                     say("Back at the pier, salt in your hair.")
                 }
             }
@@ -766,11 +766,11 @@ final class Game {
         case "walk": px = 150; tx = 560; slowWalk = true; done.insert("boat1")
         case "run": px = 900; tx = 1500; done.insert("boat1"); done.insert("boat2")
         case "oldfig": px = 150; tx = 560; slowWalk = true; done.insert("boat1"); heroOn = false
-        case "crew": all(2); px = 1330; tod = 0.4
-        case "pier": px = -150
-        case "fish": px = -215; fishing = true; fishPhase = 1; fishT = 0.4; face = -1; coins = 6
+        case "crew": all(2); px = 1004; tod = 0.4; fish = 6
+        case "pier": px = -168
+        case "fish": px = -222; fishing = true; fishPhase = 1; fishT = 0.4; face = -1; coins = 6
         case "beach": px = 300; done.insert("boat1"); done.insert("cart"); coins = 55
-        case "town": px = 1080; tod = 0.4; fish = 4; done.insert("boat1"); done.insert("boat2")
+        case "town": px = 1004; tod = 0.4; fish = 4; done.insert("boat1"); done.insert("boat2")
         case "fort": all(1); px = 2180; tod = 0.42
         case "valley": all(1); px = 2840; tod = 0.36
         case "valley2": all(2); px = 2840; tod = 0.36
