@@ -132,7 +132,7 @@ final class Game {
     var shake = 0.0
 
     // the voyage
-    var gold = 850
+    var gold = 1050
     var food = 0.0
     var water = 0.0
     var planks = 0
@@ -186,7 +186,7 @@ final class Game {
     var here: Port { return STAGES[leg][path[leg]] }
 
     func newGame() {
-        gold = 850; food = 0; water = 0; planks = 0; bait = 0; powder = 0; arms = 0
+        gold = 1050; food = 0; water = 0; planks = 0; bait = 0; powder = 0; arms = 0
         crew = 0; hull = 0; shipI = 1; day = 1; leg = 0; dist = 0; legLen = 1; route = 1; half = false
         dayT = 0; tod = 0.3; hasMap = false; sinceEvent = 0; lastEv = ""; path = [0, 0, 0, 0, 0, 0]
         men = []; log = []; dead = []; sea = 0; halfDays = 0; rot = 0; wind = 1; blk = false; wellUsed = false
