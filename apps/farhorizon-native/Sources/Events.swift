@@ -17,8 +17,8 @@ extension Game {
     /// How long each event is watched before the question is put. The big ones are given more room.
     static func omenSecs(_ k: String) -> Double {
         switch k {
-        case "kraken", "plank", "comet", "whitewhale", "stelmo": return 6.4
-        case "pirates", "blockade", "storm", "spout", "ghost", "whale", "fall", "galley", "brawl", "overboard": return 5.4
+        case "kraken", "plank", "comet", "whitewhale", "stelmo", "neptune", "lightning": return 6.4
+        case "pirates", "blockade", "storm", "spout", "ghost", "whale", "fall", "galley", "brawl", "overboard", "albatross", "grumble": return 5.4
         default: return 4.4
         }
     }
@@ -53,6 +53,11 @@ extension Game {
         "foulwater": ["Faugh! The stink!", "It's gone green", "Over the side with it"],
         "weevils": ["The bread's alive!", "Weevils. Thousands."],
         "plank": ["Huzzah!", "Off you go, my lad!", "Three cheers for the captain!"],
+        "neptune": ["Make way for King Neptune!", "In he goes!", "Welcome to the brotherhood!"],
+        "albatross": ["Look aloft!", "She's landed on the rail", "Nobody touch her"],
+        "grumble": ["We've had enough!", "Short rations and no pay!", "Let the captain hear it!"],
+        "flotsam": ["Casks in the water!", "Boathooks, lively!"],
+        "lightning": ["THE MAINTOP!", "Fire aloft!", "Wet canvas! Up you go!"],
         "kraken": ["WHAT IS THAT?!", "It has the ship!", "Axes! Cut it away!"],
         "stelmo": ["The saint's fire...", "Hats off, lads", "Not a word"],
         "comet": ["A falling star!", "It's coming down!", "Did you see that?!"],
@@ -90,6 +95,11 @@ extension Game {
         "foulwater": ("A stink from the casks", "The water has gone green"),
         "weevils": ("The bread is moving", "Weevils in the biscuit, and worse in the flour"),
         "plank": ("The prize is yours!", "Her crew go over the side, one at a time"),
+        "neptune": ("A hail from over the bows", "King Neptune is coming aboard"),
+        "albatross": ("A great white bird, circling", "An albatross comes down on the rail"),
+        "grumble": ("Voices raised by the mainmast", "The watch has something to say"),
+        "flotsam": ("Casks and crates adrift", "Somebody's cargo, floating free"),
+        "lightning": ("A crack that splits the sky", "The maintop is struck"),
         "kraken": ("The sea heaves up alongside", "Arms as thick as the mainmast"),
         "stelmo": ("Blue fire at the mastheads", "St Elmo's fire. Not a man speaks"),
         "comet": ("A star is falling", "It comes down burning, straight for the sea ahead"),
@@ -104,6 +114,7 @@ extension Game {
         if k == "fog" || k == "ghost" { setWeather(4, days: 1) }
         if k == "dolphins" { seaForce = 0 }
         if k == "spout" { setWeather(1, days: 1) }
+        if k == "lightning" { setWeather(3, days: 1); snd?.thunder(); shake = max(shake, 0.5) }
         if k == "whale" || k == "catch" || k == "kraken" || k == "whitewhale" { snd?.splash() }
         if k == "kraken" { shake = max(shake, 0.4) }
         // a drum, and a held note under it
@@ -124,7 +135,8 @@ extension Game {
             ("ghost", 1.2, 0.6), ("dolphins", 1, 1.6), ("fog", 1, 1.2), ("overboard", 0.8, 0.7),
             ("fall", 1.1, 1.0), ("brawl", 1.0, 1.0), ("galley", 0.9, 0.9), ("rats", 0.9, 1.0),
             ("whale", 1.0, 0.6), ("spout", 0.9, 0.6), ("spar", 1.0, 0.9), ("stowaway", 0.7, 0.9), ("catch", 0.9, 1.1),
-            ("scurvy", 1.0, 0.5), ("foulwater", 0.9, 0.7), ("weevils", 0.9, 0.8)
+            ("scurvy", 1.0, 0.5), ("foulwater", 0.9, 0.7), ("weevils", 0.9, 0.8),
+            ("neptune", 0.7, 0.4), ("albatross", 0.8, 0.6), ("grumble", 0.8, 0.8), ("flotsam", 0.9, 1.1), ("lightning", 0.8, 0.4)
         ]
         // once in a long while, something a sailor tells of for the rest of his life
         let rares = ["kraken", "stelmo", "comet", "whitewhale"].filter { !rareSeen.contains($0) }
@@ -287,6 +299,76 @@ extension Game {
                 Opt("Leave them to it", "they will eat") { [unowned self] in
                     self.food = max(0, self.food - 6)
                     self.done("They get fat on your stores: -6 food")
+                }
+            ])
+        case "neptune":
+            logIt("King Neptune came aboard")
+            show("King Neptune's court", "The oldest hand aboard, crowned and bearded with weed, holds court on a cask. Every man who has not crossed these waters goes into the tub.", [
+                Opt("Let them have their day", "-3 water for the tub") { [unowned self] in
+                    self.water = max(0, self.water - 3)
+                    for m in self.men where m.st != 0 { m.d = max(1, m.d - 2) }
+                    self.snd?.good()
+                    self.done("The whole ship laughs for a day, and is the better for it: -3 water")
+                },
+                Opt("Back to work, all of you", "the wind is fair") { [unowned self] in
+                    self.dist = min(self.legLen - 1, self.dist + 30)
+                    self.done("Neptune goes back over the side, muttering. 30 leagues made good")
+                }
+            ])
+        case "albatross":
+            logIt("An albatross landed aboard")
+            show("An albatross", "She sits on the rail, as long across the wings as two men are tall, and will not be shooed.", [
+                Opt("Feed her", "-2 food · they bring fair winds") { [unowned self] in
+                    self.food = max(0, self.food - 2)
+                    self.dist = min(self.legLen - 1, self.dist + 40)
+                    self.done("She takes the fish, stays a day, and the wind stays with her: 40 leagues made good")
+                },
+                Opt("She will make a dinner", "+4 food · the hands will not like it") { [unowned self] in
+                    self.addGood("food", 4)
+                    if chance(0.6) { self.setWeather(3, days: 1); self.dmg(6) }
+                    if !self.over { self.done("The watch eats in silence. By night the glass is falling: +4 food") }
+                }
+            ])
+        case "grumble":
+            logIt("The crew aired their grievances")
+            let bonus = crew * 3
+            show("Grumbling at the mast", "Too much work, too little food, and the pay a long way off. They are not at mutiny. They are thinking about it.", [
+                Opt("A bonus, here and now", gold >= bonus ? "-\(bonus) gold" : "not enough gold", off: gold < bonus) { [unowned self] in
+                    self.gold -= bonus
+                    self.done("Coin in the hand settles most arguments: -\(bonus) gold")
+                },
+                Opt("Open the good stores", "-5 food") { [unowned self] in
+                    self.food = max(0, self.food - 5)
+                    self.done("A proper dinner, and the talk dies down: -5 food")
+                },
+                Opt("Make an example", "one man to the gratings") { [unowned self] in
+                    self.toastText = ""
+                    self.hurtOne("the lash")
+                    if !self.over { self.done("It is quiet afterward. It is not the same as peace") }
+                }
+            ])
+        case "flotsam":
+            logIt("Picked up drifting cargo")
+            show("Flotsam", "A dozen casks and crates, lashed together, low in the water. No ship in sight.", [
+                Opt("Hook them aboard", "who knows what") { [unowned self] in
+                    let r = rndI(0, 2)
+                    if r == 0 { let a = self.addGood("food", 7); self.done("Salt pork, and still good: +\(a) food") }
+                    else if r == 1 { let a = self.addGood("planks", 3); self.done("Good sawn timber: +\(a) planks") }
+                    else { let a = self.addGood("powder", 2); self.done("Powder, dry in tarred kegs: +\(a) powder") }
+                },
+                Opt("Leave it", "it is someone's bad luck") { [unowned self] in self.done("You leave it to the gulls") }
+            ])
+        case "lightning":
+            logIt("Struck by lightning")
+            show("Struck!", "The bolt came down the mainmast. The topsail is alight and burning canvas is falling on the deck.", [
+                Opt("Hands aloft with wet canvas", "quick, but dangerous") { [unowned self] in
+                    if chance(0.4) { self.toastText = ""; self.hurtOne("a fall from the burning top") }
+                    if !self.over { self.done("They beat it out before it reaches the tar") }
+                },
+                Opt("Cut the sail away", "lose \(SUNS) days") { [unowned self] in
+                    self.dmg(4)
+                    if !self.over { self.passDays(1) }
+                    if !self.over { self.done("The topsail goes into the sea, hissing. A new one must be bent") }
                 }
             ])
         case "kraken":

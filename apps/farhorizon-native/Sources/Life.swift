@@ -8,8 +8,9 @@ extension Game {
     func deckAct() -> Int {
         if deckForce >= 0 { return deckForce }
         if rough > 0.6 { return 6 }
-        let order = [0, 8, 1, 9, 2, 10, 3, 11, 4, 12, 5]
-        return order[Int(T / 9 + Double(day) * 1.7) % order.count]
+        // the watch is never at the same job for more than two days running
+        let order = [0, 13, 8, 16, 1, 20, 9, 17, 2, 22, 10, 14, 3, 18, 11, 24, 4, 15, 12, 21, 5, 19, 23]
+        return order[((cal / 2) * 7 + leg * 5) % order.count]
     }
     func seaAct() -> Int {
         if seaForce >= 0 { return seaForce }
@@ -17,7 +18,18 @@ extension Game {
         return Int(hashN(floor(T / 13) + Double(day) * 3.1) * 8)
     }
     func lifeCaption() -> String {
-        let deck = ["The watch is swabbing the deck", "A hand goes aloft to check the rigging", "Someone has a line over the stern", "Gun drill: run out, fire, sponge", "The cook has the galley fire going", "A fiddle is out and the crew are dancing", "All hands hauling to shorten sail", "Lanterns lit. The night watch keeps quiet", "The sailmaker is patching a torn course", "The carpenter is sawing a new plank", "The mate shoots the noon sun", "Cutlass drill on the main deck", "A halyard chanty: haul, and haul again"][min(12, deckAct())]
+        let names: [Int: String] = [
+            0: "The watch is swabbing the deck", 1: "A hand goes aloft to check the rigging", 2: "Someone has a line over the stern",
+            3: "Gun drill: run out, fire, sponge", 4: "The cook has the galley fire going", 5: "A fiddle is out and the crew are dancing",
+            6: "All hands hauling to shorten sail", 7: "Lanterns lit. The night watch keeps quiet", 8: "The sailmaker is patching a torn course",
+            9: "The carpenter is sawing a new plank", 10: "The mate shoots the noon sun", 11: "Cutlass drill on the main deck",
+            12: "A halyard chanty: haul, and haul again", 13: "Fresh tar on the rail, and on the men doing it", 14: "Holystones: on your knees and scrub",
+            15: "Splicing and knotting on the forehatch", 16: "A cask is swayed up out of the hold", 17: "The goat is milked and the hens are fed",
+            18: "Wash day: every shirt aboard is on the line", 19: "The lookout is relieved at the masthead", 20: "Captain's inspection. Stand straight",
+            21: "The surgeon is shaving all comers", 22: "An old hand is spinning a yarn", 23: "Tug of war: larboard watch against starboard",
+            24: "The leadsman is sounding: by the deep, nine"
+        ]
+        let deck = names[deckAct()] ?? "The watch is at work"
         let sea = ["Dolphins off the bow", "A whale blows to starboard", "Flying fish skim the swell", "A sail on the horizon", "A fin is following the ship", "Driftwood from some wreck slides past", "An albatross rides the wind astern", ""][min(7, seaAct())]
         return sea.isEmpty ? deck : deck + "  ·  " + sea
     }
@@ -32,6 +44,8 @@ extension Game {
         let skin = Col(0xe3b58a).shade(dark)
         let leg = Col(0x2b2a33).shade(dark)
         let body = col.shade(dark)
+        // his shadow on the planks
+        if abs(lean) < 1 { c.ell(x, y + 0.4, 3.6, 0.9, Col(0x000000, 0.22)) }
         c.save()
         c.translate(x, y - hop)
         c.rotate(lean)
@@ -67,10 +81,64 @@ extension Game {
         if let v = aR { a1 = v }
         c.seg(-1.2, shY + 1.2, -1.2 + sin(a0) * 4.6, shY + 1.2 + cos(a0) * 4.6, 1.4, skin)
         c.seg(1.2, shY + 1.2, 1.2 + sin(a1) * 4.6, shY + 1.2 + cos(a1) * 4.6, 1.4, skin)
+        // a striped shirt for some, a neckerchief for all, and a face looking where he leans
+        let whoK: Double = abs(col.r * 7 + col.b * 13)
+        let who = Int(whoK.rounded()) % 3
+        if who == 0 { c.seg(-1.7, shY + 2.4, 1.7, shY + 2.4, 0.7, Col(0xffffff, 0.55)); c.seg(-1.7, shY + 3.9, 1.7, shY + 3.9, 0.7, Col(0xffffff, 0.55)) }
+        c.seg(-1.3, shY + 0.9, 1.3, shY + 0.9, 1.0, Col(0xd8432f).shade(dark))
         c.circ(0, shY - 2.0, 2.4, skin)
-        c.arcFill(0, shY - 2.2, 2.5, PI, PI * 2, Col.mix(col, Col(0x8a1a1a), 0.6).shade(dark))
+        let leftArm: Double = aL ?? 0
+        let face: Double = (lean < -0.05 || leftArm < -1.2) ? -1 : 1
+        c.circ(face * 1.0, shY - 2.2, 0.42, Col(0x1a1008)); c.seg(face * 2.2, shY - 1.6, face * 2.9, shY - 1.3, 0.7, skin)
+        c.seg(face * 0.6, shY - 0.9, face * 1.5, shY - 0.9, 0.4, Col(0x7a3a2a))
+        let kc = Col.mix(col, Col(0x8a1a1a), 0.6).shade(dark)
+        if who == 2 {
+            // a straw hat
+            c.seg(-3.4, shY - 3.6, 3.4, shY - 3.6, 0.9, Col(0xd8b860).shade(dark)); c.arcFill(0, shY - 3.6, 2.2, PI, PI * 2, Col(0xd8b860).shade(dark))
+        } else {
+            c.arcFill(0, shY - 2.2, 2.5, PI, PI * 2, kc)
+            c.seg(-face * 2.3, shY - 2.6, -face * 3.6, shY - 1.2 + sin(T * 5 + x) * 0.5, 0.8, kc)
+        }
         c.roundCaps(false)
         c.restore()
+    }
+
+    /// The people who are always there whatever the watch is doing: the man at the wheel, the captain on
+    /// his quarterdeck with his glass, and the ship's cat going where she pleases.
+    func deckRegulars(_ c: Canvas, _ dark: Double, wheel: Bool) {
+        if wheel {
+            c.seg(-58, -52, -58, -58, 1.2, Col(0x3b2412))
+            c.save(); c.translate(-58, -58); c.rotate(sin(T * 0.8) * 0.5)
+            c.circStroke(0, 0, 4.5, 1, Col(0x6b4423)); for j in 0..<6 { let a = Double(j) * PI / 3; c.seg(0, 0, cos(a) * 6, sin(a) * 6, 0.7, Col(0x6b4423)) }
+            c.restore()
+            tar(c, -62, -52, Col(0x5a4a3a), dark, lean: 0.05, aL: 1.3 + sin(T * 0.8) * 0.2, aR: 1.5 - sin(T * 0.8) * 0.2)
+        }
+        // the captain: a turn up and down, then a long look through the glass
+        let ph = (T * 0.06).truncatingRemainder(dividingBy: 1)
+        let cxp: Double = ph < 0.6 ? -76 + abs(sin(ph / 0.6 * PI * 2)) * 9 : -70
+        let looking = ph >= 0.6
+        let cw: Double? = looking ? nil : T * 5
+        let ca: Double = looking ? 0.3 : -0.5, cb: Double = looking ? 1.9 : 0.5
+        tar(c, cxp, -52, Col(0x1c2a4a), dark, walk: cw, aL: ca, aR: cb)
+        c.poly(Col(0x10141c), [cxp - 3.6, -65.9, cxp + 3.6, -65.9, cxp, -69.5]); c.seg(cxp - 3.6, -65.9, cxp + 3.6, -65.9, 0.7, Col(0xd9a441))
+        if looking { c.seg(cxp + 2, -63.2, cxp + 8, -64.2 + sin(T * 0.7) * 0.6, 1.3, Col(0xd9a441)) }
+        // the cat
+        let ct = T * 0.13
+        let sit = sin(ct * 2.3) > 0.55
+        let kx = sin(ct) * 46 + 6, kd: Double = cos(ct) >= 0 ? 1 : -1
+        let fur = Col(0x2a2622).shade(dark)
+        if sit {
+            c.ell(kx, -35, 1.9, 2.3, fur); c.circ(kx + kd * 0.6, -38, 1.4, fur)
+            c.poly(fur, [kx + kd * 0.6 - 1.2, -38.8, kx + kd * 0.6 - 0.9, -40.4, kx + kd * 0.6 - 0.2, -39]); c.poly(fur, [kx + kd * 0.6 + 1.2, -38.8, kx + kd * 0.6 + 0.9, -40.4, kx + kd * 0.6 + 0.2, -39])
+            c.curve(kx - kd * 1.6, -33.6, kx - kd * 4, -33.2, kx - kd * 4.4, -35 + sin(T * 3) * 0.8, 0.7, fur)
+        } else {
+            let st = sin(T * 10)
+            c.ell(kx, -35.4, 3.2, 1.5, fur); c.circ(kx + kd * 3.4, -36.4, 1.3, fur)
+            c.poly(fur, [kx + kd * 3.0, -37.2, kx + kd * 3.2, -38.8, kx + kd * 3.8, -37.4])
+            c.seg(kx - 2, -34.4, kx - 2 + st * 0.9, -33, 0.7, fur); c.seg(kx + 2, -34.4, kx + 2 - st * 0.9, -33, 0.7, fur)
+            c.curve(kx - kd * 3, -35.6, kx - kd * 5.5, -38, kx - kd * 5, -40 + st * 0.4, 0.7, fur)
+        }
+        c.circ(kx + kd * (sit ? 1.1 : 3.9), sit ? -38.2 : -36.6, 0.3, Col(0xc8e060))
     }
 
     /// Whatever has been left lying about the deck. It stays where it is for two or three days, then
@@ -433,6 +501,90 @@ extension Game {
             tar(c, 10, dk, coats[2], dark, aL: -0.2, aR: 2.8)
             tar(c, 34, dk, coats[3], dark, aL: 0.3, aR: 0.4, kneel: true)
             tar(c, 56, dk, coats[0], dark, aL: -2.7, aR: 2.7)
+        case "neptune":
+            // King Neptune's court: a hand in a crown and a seaweed beard, and a greenhorn going into the tub
+            c.RR(22, -41, 10, 8, 2, Col(0x6b4a26).shade(dark))
+            let rule: Double = 2.3 + sin(st * 2) * 0.3
+            tar(c, 27, -41, Col(0x3a7a6d), dark, aL: -0.4, aR: rule, kneel: true)
+            c.poly(Col(0xffd257), [23.6, -53.4, 24.4, -56.4, 25.6, -54, 27, -57, 28.4, -54, 29.6, -56.4, 30.4, -53.4])
+            for j in 0..<4 { c.seg(25 + Double(j) * 1.3, -49, 24.6 + Double(j) * 1.3 + sin(T * 3 + Double(j)) * 0.5, -44.5, 0.8, Col(0x4a9a5a)) }
+            c.seg(32, -44, 34, -62, 0.9, Col(0xd9a441)); for j in -1...1 { c.seg(34 + Double(j) * 2, -62, 34 + Double(j) * 2.4, -66, 0.8, Col(0xd9a441)) }
+            c.poly(Col(0x6b4a26).shade(dark), [-12, -33, -13, -40, 5, -40, 4, -33]); c.R(-13, -37.5, 18, 0.9, Col(0x2a1a0c)); c.ell(-4, -40, 9, 1.4, Col(0x9fd8ff))
+            let dunk = (st * 0.55).truncatingRemainder(dividingBy: 1)
+            let dy2 = dunk < 0.5 ? sin(dunk / 0.5 * PI) * 9 : 0
+            tar(c, -4, -38 - dy2, coats[2], dark, lean: 0.2, hop: 0, aL: -2.6, aR: 2.6, kneel: true)
+            if dunk > 0.5 && dunk < 0.8 { let k = (dunk - 0.5) / 0.3; for j in 0..<8 { let a = -PI / 2 + (Double(j) - 3.5) * 0.3; c.seg(-4, -40, -4 + cos(a) * 12 * sin(k * PI), -40 + sin(a) * 14 * sin(k * PI), 0.9, Col(0xbfe6ff, 0.9 * (1 - k))) } }
+            tar(c, -16, -33, coats[1], dark, lean: 0.25, aL: 1.6, aR: 1.9)
+            tar(c, 8, -33, coats[0], dark, lean: -0.25, aL: -1.9, aR: -1.6)
+            for (j, wx) in [-40.0, -30.0, 44.0, 54.0].enumerated() {
+                let jd = Double(j)
+                let hp: Double = abs(sin(st * 7 + jd * 1.3)) * 2.6, w0: Double = -2.6 + sin(st * 9 + jd) * 0.3, w1: Double = 2.6 + sin(st * 8 + jd) * 0.3
+                tar(c, wx, -33, coats[j % 4], dark, hop: hp, aL: w0, aR: w1)
+            }
+        case "albatross":
+            // she comes down out of the sky onto the rail, shuffles, and looks the whole watch in the eye
+            let land = clampD(st / 1.4, 0, 1)
+            let ax = lerp(60, 14, land), ay = lerp(-110, -46, land * land)
+            let flap = land < 1 ? sin(st * 9) * 9 : sin(st * 1.2) * 1.2
+            c.ell(ax, ay, 6, 3, WHITE.shade(dark)); c.circ(ax + 6, ay - 2.4, 2.4, WHITE.shade(dark))
+            c.poly(Col(0xffb040), [ax + 8, ay - 3, ax + 13, ay - 1.6, ax + 8, ay - 1.6]); c.circ(ax + 6.8, ay - 2.8, 0.45, Col(0x0c1014))
+            if land < 1 {
+                c.poly(Col(0xe6ecf0).shade(dark), [ax - 3, ay - 1, ax - 22, ay - 8 - flap, ax - 6, ay + 1]); c.poly(Col(0xe6ecf0).shade(dark), [ax + 1, ay - 1, ax + 4, ay - 16 - flap, ax + 5, ay])
+                c.poly(Col(0x2a2a30), [ax - 22, ay - 8 - flap, ax - 28, ay - 9 - flap, ax - 20, ay - 5 - flap])
+            } else {
+                c.poly(Col(0x9aa6ac).shade(dark), [ax - 7, ay - 2, ax + 2, ay - 3 + flap * 0.3, ax - 2, ay + 2])
+                c.seg(ax - 1, ay + 3, ax - 1, ay + 5.5, 0.8, Col(0xffb040)); c.seg(ax + 2, ay + 3, ax + 2, ay + 5.5, 0.8, Col(0xffb040))
+            }
+            tar(c, -4, -33, coats[0], dark, aL: -0.2, aR: 1.9)
+            tar(c, -16, -33, coats[1], dark, lean: 0.1, aL: 0.3, aR: 0.4)
+            tar(c, 34, -33, coats[2], dark, lean: -0.15, aL: -1.9, aR: 0.2)
+            runner(3, -60, -28, 0.5, 1.8, aR: 2.2)
+            tar(c, 46, -33, coats[3], dark, aL: -0.6, aR: -1.4); c.poly(Col(0xc98a3a), [40.5, -40, 43.5, -41, 43, -38.5])
+        case "grumble":
+            // a knot of hands by the mainmast, one up on a cask doing the talking
+            c.RR(m0 + 8, -41, 9, 8, 2, Col(0x6b4a26).shade(dark))
+            let fist: Double = -2.4 + sin(st * 7) * 0.5
+            tar(c, m0 + 12.5, -41, coats[1], dark, lean: -0.15 + sin(st * 3.5) * 0.08, aL: fist, aR: -1.2)
+            for (j, wx) in [-22.0, -12.0, -2.0, 26.0, 36.0].enumerated() {
+                let jd = Double(j)
+                let ang: Double = (wx < 12 ? 2.3 : -2.3) + sin(st * 6 + jd * 1.4) * 0.5
+                let lft = wx < 12
+                let gl: Double = lft ? 0.12 : -0.12, gh: Double = abs(sin(st * 5 + jd)) * 0.9
+                let ga: Double = lft ? 0.3 : ang, gb: Double = lft ? ang : -0.3
+                tar(c, m0 + wx, -33, coats[j % 4], dark, lean: gl, hop: gh, aL: ga, aR: gb)
+            }
+            for j in 0..<3 { let ph = (st * 0.9 + Double(j) / 3).truncatingRemainder(dividingBy: 1); c.text("!", m0 - 14 + Double(j) * 16, -52 - ph * 10, 7, Col(0xff6a4a, 1 - ph), 0, FONTB) }
+        case "flotsam":
+            // two in the bows with boathooks, a third heaving a line
+            tar(c, 60, dk, coats[0], dark, aR: 1.9 + sin(T * 5) * 0.15)
+            let reach = sin(T * 2.4) * 3
+            tar(c, 74, dk, coats[1], dark, lean: 0.35, aL: 1.2, aR: 1.5)
+            c.seg(77, dk - 8, 106 + reach, dk + 22, 0.9, Col(0x6b4a26)); c.arcStroke(106 + reach, dk + 23.5, 1.6, 0, PI, 0.8, Col(0x2a2a30))
+            tar(c, 46, dk, coats[2], dark, lean: -0.3, aL: 1.4, aR: 1.4)
+            c.curve(50, dk - 8, 80, dk - 20 + sin(T * 3) * 3, 112, dk + 20, 0.6, Col(0xfff6d8))
+            runner(3, -40, 32, 0.4, 1.8, aR: 2.0)
+        case "lightning":
+            // the bolt has hit the maintop: fire in the rigging, burning canvas coming down
+            let top = -30 - 168.0
+            if st < 0.5 {
+                var bx2 = m0, by2 = top - 90
+                for j in 0..<7 { let nx = m0 + (hashN(Double(j) * 3.1) - 0.5) * 26 * (1 - Double(j) / 7), ny = top - 90 + Double(j + 1) * 13; c.seg(bx2, by2, nx, ny, 2.4, Col(0xffffff)); c.seg(bx2, by2, nx, ny, 6, Col(0xbfd8ff, 0.4)); bx2 = nx; by2 = ny }
+                c.glow(m0, top, 90, Col(0xffffff, 0.9 * (1 - st / 0.5)), Col(0xffffff, 0))
+            }
+            for f in 0..<8 {
+                let fx = m0 - 18 + Double(f) * 5
+                let h: Double = 10 + 6 * sin(T * 9 + Double(f) * 1.7) + 3 * sin(T * 15 + Double(f))
+                c.poly(Col(0xff6a18), [fx - 3.4, top + 34, fx + sin(T * 7 + Double(f)) * 2, top + 34 - h, fx + 3.4, top + 34])
+                c.poly(Col(0xffd257), [fx - 1.8, top + 34, fx + sin(T * 9 + Double(f)) * 1.2, top + 34 - h * 0.55, fx + 1.8, top + 34])
+            }
+            c.glow(m0, top + 28, 60, Col(0xff8a20, 0.5 + 0.15 * sin(T * 11)), Col(0xff8a20, 0))
+            for sm in 0..<9 { let ph = (T * 0.4 + Double(sm) / 9).truncatingRemainder(dividingBy: 1); c.circ(m0 - ph * 50 + sin(T * 2 + Double(sm)) * 4, top + 20 - ph * 70, 4 + ph * 13, Col(0x2a2a2e, 0.55 * (1 - ph))) }
+            for j in 0..<6 { let ph = (T * 0.5 + Double(j) / 6).truncatingRemainder(dividingBy: 1); c.poly(Col(0xffb040, 1 - ph), [m0 - 14 + Double(j) * 6 + sin(T * 3 + Double(j)) * 4, top + 36 + ph * 150, m0 - 12 + Double(j) * 6, top + 39 + ph * 150, m0 - 15 + Double(j) * 6, top + 40 + ph * 150]) }
+            runner(0, -60, m0 - 26, 0.3, 1.5, aL: -2.6, aR: 2.6)
+            runner(1, 66, m0 + 22, 0.4, 1.7, aL: -2.6, aR: 2.6)
+            let cl = clampD((st - 1.5) / 3, 0, 1)
+            tar(c, lerp(m0 - 22, m0 - 6, cl), lerp(-34, top + 60, cl) + 5, coats[2], dark, lean: 0.25, walk: T * 8, aL: 2.4, aR: 2.8)
+            tar(c, 30, -33, coats[3], dark, aL: -0.2, aR: 2.6)
         case "overboard":
             tar(c, -84, -52, coats[0], dark, aL: -1.9 + sin(T * 8) * 0.2)
             tar(c, -74, -52, coats[1], dark, aL: -2.4 + sin(T * 6) * 0.6, aR: -1.2)
@@ -451,6 +603,7 @@ extension Game {
         // the lookout aloft always has his glass out
         c.seg(m0 + 2, -30 - 168 * 0.66 - 5, m0 + 9, -30 - 168 * 0.66 - 7 + sin(T * 0.7) * 1.5, 1.4, Col(0xd9a441))
         if mode == .sail { deckClutter(c, dark) }
+        if mode == .sail && !["plank", "overboard", "catch"].contains(sceneK) { deckRegulars(c, dark, wheel: act != 10 || !sceneK.isEmpty) }
         if mode == .sail && !sceneK.isEmpty && deckScene(c, mx, dark) { return }
         switch act {
         case 0:
@@ -581,6 +734,177 @@ extension Game {
             }
             c.seg(m0 - 12, -46 + pull * 4, m0 - 36, -41 + pull * 3, 0.8, Col(0xfff6d8, 0.85))
             tar(c, 40, -33, coats[1], dark, aL: -2.6 + sin(T * 2.6) * 0.3)
+        case 13:
+            // tarring the rail: two with brushes, the black creeping along behind them
+            let prog = (T * 0.05).truncatingRemainder(dividingBy: 1)
+            c.R(-50, -45.2, 100 * prog, 1.6, Col(0x16110c))
+            for i in 0..<2 {
+                let bxp = -50 + 100 * prog - Double(i) * 16, st = sin(T * 7 + Double(i) * 2)
+                let ba: Double = 1.9 + st * 0.35
+                tar(c, bxp - 4, -33, coats[i + 1], dark, lean: 0.15, aL: 0.5, aR: ba)
+                c.seg(bxp + 0.5, -43.5 + st, bxp + 2.5, -45.5 + st, 1.4, Col(0x16110c))
+                c.poly(Col(0x2a2a30), [bxp - 12, -33, bxp - 11, -37, bxp - 7, -37, bxp - 6, -33]); c.ell(bxp - 9, -37, 2, 0.6, Col(0x0c0906))
+            }
+            for j in 0..<4 { c.circ(-46 + Double(j) * 9, -33.3, 0.7, Col(0x16110c, 0.8)) }
+            tar(c, 46, -33, coats[0], dark, aL: -0.3, aR: 1.4)
+        case 14:
+            // holystoning in a line, all together, the bosun pacing behind
+            let push = sin(T * 3.2)
+            for i in 0..<4 {
+                let hx = -34 + Double(i) * 15 + push * 2.2
+                let arm: Double = 1.25 + push * 0.2
+                tar(c, hx, -33, coats[i], dark, lean: 0.6, aL: arm, aR: arm, kneel: true)
+                c.RR(hx + 7 + push * 1.5, -34.8, 4, 2, 0.5, Col(0xd8d0c0).shade(dark))
+                c.seg(hx + 5, -33.2, hx + 13, -33.2, 0.6, Col(0xffffff, 0.35))
+            }
+            let bx = -44 + (0.5 + 0.5 * sin(T * 0.5)) * 80
+            tar(c, bx, -33, coats[1], dark, walk: T * 5, aL: 0.2, aR: 0.9)
+            c.curve(bx + 3, -39, bx + 6, -36, bx + 4 + sin(T * 5), -33.5, 0.7, Col(0xc9b48a))
+            c.poly(Col(0x6b4a26).shade(dark), [50, -33, 51, -39, 57, -39, 58, -33]); c.ell(54, -39, 3, 0.8, Col(0x9fd8ff))
+        case 15:
+            // rope work on the forehatch: a long splice, a turk's head, a coil going down
+            c.RR(18, -36, 30, 3, 1, Col(0x3b2412).shade(dark))
+            for j in 0..<4 { c.ellStroke(58, -34 - Double(j) * 1.3, 6 - Double(j) * 0.6, 1.5, 1.2, Col(0xc9b48a).shade(dark)) }
+            let tw = sin(T * 5)
+            tar(c, 24, -36, coats[0], dark, lean: 0.15, aL: 0.9, aR: 1.3 + tw * 0.3, kneel: true)
+            tar(c, 42, -36, coats[2], dark, lean: -0.15, aL: -1.3 - tw * 0.3, aR: -0.9, kneel: true)
+            c.curve(28, -42, 33, -39 + tw, 38, -42, 1.3, Col(0xc9b48a)); c.seg(30 + tw, -43, 31.5 + tw, -40.5, 0.6, Col(0xe6ecf0))
+            c.curve(42, -40, 50, -36, 57, -37, 1.1, Col(0xc9b48a))
+            tar(c, -20, -33, coats[3], dark, lean: 0.1, aL: 1.0, aR: 1.2)
+            c.curve(-16, -41, -8, -45 + sin(T * 3) * 2, 0, -38, 1.0, Col(0xc9b48a)); c.circStroke(0, -37, 2, 1, Col(0xc9b48a))
+        case 16:
+            // swaying a cask up out of the hold on the stay tackle
+            let up = 0.5 + 0.5 * sin(T * 0.9)
+            let cy = lerp(-36, -74, up)
+            c.RR(-22, -35.5, 24, 2.5, 1, Col(0x1c1108))
+            c.seg(m0 - 2, -128, -10, cy - 8, 0.8, Col(0xfff6d8, 0.9)); c.circ(-10, cy - 8, 1.6, Col(0x3b2412))
+            c.seg(-10, cy - 7, -14, cy - 2, 0.6, Col(0xfff6d8)); c.seg(-10, cy - 7, -6, cy - 2, 0.6, Col(0xfff6d8))
+            c.save(); c.translate(-10, cy + 3); c.rotate(sin(T * 1.8) * 0.12)
+            c.RR(-6, -6, 12, 12, 3, Col(0x8a6238).shade(dark)); c.R(-6, -3, 12, 1.2, Col(0x2a1a0c)); c.R(-6, 2, 12, 1.2, Col(0x2a1a0c))
+            c.restore()
+            c.seg(m0 - 2, -128, -40, -42 + up * 3, 0.8, Col(0xfff6d8, 0.9))
+            let hv: Double = -0.35 - (1 - up) * 0.2 + sin(T * 5) * 0.04
+            tar(c, -42, -33, coats[1], dark, lean: hv, aL: 1.5, aR: 1.5)
+            tar(c, -51, -33, coats[3], dark, lean: hv, aL: 1.5, aR: 1.5)
+            tar(c, 8, -33, coats[0], dark, aL: -2.2 - up * 0.4, aR: -1.6)
+        case 17:
+            // the goat milked, the hens fed
+            let gx = 22.0
+            c.seg(gx - 5, -37, gx - 5, -33, 1, WHITE.shade(dark)); c.seg(gx + 4, -37, gx + 4, -33, 1, WHITE.shade(dark)); c.seg(gx - 3, -37, gx - 3, -33, 1, Col(0xd8d0c0).shade(dark)); c.seg(gx + 6, -37, gx + 6, -33, 1, Col(0xd8d0c0).shade(dark))
+            c.ell(gx, -39, 7, 3.2, WHITE.shade(dark)); c.circ(gx + 8, -42 + sin(T * 6) * 0.4, 2.2, WHITE.shade(dark))
+            c.seg(gx + 8, -44, gx + 6.5, -46.5, 0.8, Col(0x8a7a5a)); c.seg(gx + 9, -44, gx + 10.5, -46.5, 0.8, Col(0x8a7a5a)); c.seg(gx + 9.5, -40.5, gx + 9.5, -38.5 + sin(T * 6) * 0.5, 0.7, WHITE.shade(dark)); c.circ(gx + 9, -42.5, 0.4, Col(0x1a1008))
+            c.seg(gx - 7, -40, gx - 9, -42 + sin(T * 4), 0.8, WHITE.shade(dark))
+            let mk = sin(T * 8)
+            tar(c, gx - 4, -33, coats[2], dark, lean: 0.5, aL: 1.1 + mk * 0.2, aR: 1.1 - mk * 0.2, kneel: true)
+            c.poly(Col(0x8a6a44).shade(dark), [gx + 0, -33, gx + 0.5, -36, gx + 4, -36, gx + 4.5, -33])
+            let throwA: Double = 1.4 + sin(T * 2.5) * 0.6
+            tar(c, -30, -33, coats[1], dark, aL: 0.4, aR: throwA)
+            for j in 0..<6 { let ph = (T * 0.8 + Double(j) / 6).truncatingRemainder(dividingBy: 1); c.circ(-26 + ph * 14 + Double(j % 3), -40 + ph * ph * 7, 0.5, Col(0xe8c860, 1 - ph)) }
+            for j in 0..<4 {
+                let hx = -18 + Double(j) * 6 + sin(T * 0.7 + Double(j) * 2) * 3, pk = max(0, sin(T * 6 + Double(j) * 1.7))
+                let hc = j % 2 == 0 ? Col(0xc8763a) : WHITE
+                c.ell(hx, -35.4, 2.4, 1.9, hc.shade(dark)); c.circ(hx + 2, -37 + pk * 1.6, 1.1, hc.shade(dark)); c.poly(REDC, [hx + 1.7, -38 + pk * 1.6, hx + 2.4, -39 + pk * 1.6, hx + 2.8, -38 + pk * 1.6])
+                c.seg(hx + 2.9, -36.8 + pk * 1.6, hx + 3.9, -36.5 + pk * 1.8, 0.6, Col(0xffb040))
+            }
+        case 18:
+            // wash day: tubs and suds, and a line of shirts from mast to mast
+            let m1 = mx[0], m2 = mx[mx.count - 1]
+            c.curve(m1, -62, (m1 + m2) / 2, -56, m2, -62, 0.6, Col(0xfff6d8))
+            for j in 0..<9 {
+                let f = (Double(j) + 0.5) / 9
+                let lx = lerp(m1, m2, f), ly = -62 + sin(f * PI) * 5.2, fl = sin(T * 4 + Double(j)) * 1.4
+                let col = [Col(0xf3ead2), Col(0x8c3b2e), Col(0x2f5f8f), Col(0xf3ead2), Col(0xd9cdb0), Col(0x3a7a6d)][j % 6].shade(dark)
+                c.poly(col, [lx - 3, ly, lx + 3, ly, lx + 3 + fl, ly + 8, lx - 3 + fl, ly + 8])
+                if j % 2 == 0 { c.poly(col, [lx - 3, ly, lx - 5.5 + fl * 0.5, ly + 3.5, lx - 3, ly + 3]); c.poly(col, [lx + 3, ly, lx + 5.5 + fl * 0.5, ly + 3.5, lx + 3, ly + 3]) }
+            }
+            for i in 0..<2 {
+                let tx = -28 + Double(i) * 34, sc = sin(T * 6 + Double(i) * 1.5)
+                c.poly(Col(0x6b4a26).shade(dark), [tx - 6, -33, tx - 7, -39, tx + 7, -39, tx + 6, -33]); c.R(tx - 7, -37, 14, 0.8, Col(0x2a1a0c))
+                for b in 0..<5 { c.circ(tx - 5 + Double(b) * 2.5, -39.6 - hashN(Double(b) + floor(T * 3) + Double(i)) * 1.8, 1.3, Col(0xffffff, 0.85)) }
+                let arm: Double = 0.9 + sc * 0.25
+                tar(c, tx - 9, -33, coats[i * 2], dark, lean: 0.35, aL: arm, aR: arm)
+            }
+            tar(c, 30, -33, coats[1], dark, aL: -2.7, aR: 2.7)
+        case 19:
+            // the lookout relieved: one going up, one coming down, the mate bawling at both
+            let f = (T * 0.11).truncatingRemainder(dividingBy: 1)
+            let topY = -30 - 168.0 + 14
+            let ux = lerp(m0 - 24, m0 - 3, f), uy = lerp(-34, topY, f)
+            tar(c, ux, uy + 5, coats[0], dark, lean: 0.25, walk: T * 8, aL: 2.4, aR: 2.8)
+            let dx2 = lerp(m0 + 3, m0 + 24, f), dy2 = lerp(topY, -34, f)
+            tar(c, dx2, dy2 + 5, coats[2], dark, lean: -0.25, walk: T * 8, aL: -2.8, aR: -2.4)
+            tar(c, m0 - 34, -33, coats[1], dark, aL: -2.3, aR: 2.3)
+            for j in 0..<3 { let ph = (T * 1.2 + Double(j) / 3).truncatingRemainder(dividingBy: 1); c.arcStroke(m0 - 34, -47, 3 + ph * 7, -PI * 0.75, -PI * 0.25, 0.7, Col(0xffffff, 0.7 * (1 - ph))) }
+            tar(c, 36, -33, coats[3], dark, aL: -0.2, aR: 2.6)
+        case 20:
+            // inspection: toes on a seam, eyes front, the mate looking for something to dislike
+            for i in 0..<6 {
+                let fid: Double = i == 4 ? abs(sin(T * 5)) * 0.8 : 0
+                let salute: Double = 2.4 + sin(T * 10) * 0.3
+                let ra: Double = i == 4 ? salute : -0.02
+                tar(c, -30 + Double(i) * 11, -33, coats[i % 4], dark, hop: fid, aL: 0.02, aR: ra)
+            }
+            c.seg(-36, -33.2, 32, -33.2, 0.5, Col(0x000000, 0.25))
+            let ph = (T * 0.09).truncatingRemainder(dividingBy: 1)
+            let step = floor(ph * 6) / 6 + min(1, (ph * 6).truncatingRemainder(dividingBy: 1) * 2.5) / 6
+            let ix = -36 + step * 68
+            let moving = (ph * 6).truncatingRemainder(dividingBy: 1) < 0.4
+            let iw: Double? = moving ? T * 9 : nil
+            let il: Double = moving ? 0.05 : 0.2, ia: Double = moving ? 0.3 : 1.6
+            tar(c, ix, -30.5, Col(0x1c2a4a), dark, lean: il, walk: iw, aL: -0.9, aR: ia)
+            c.poly(Col(0x10141c), [ix - 3.6, -44.4, ix + 3.6, -44.4, ix, -48])
+        case 21:
+            // the surgeon shaving all comers: one on the cask, lathered; two waiting, feeling their chins
+            c.RR(-6, -41, 9, 8, 2, Col(0x6b4a26).shade(dark)); c.R(-6, -38, 9, 0.9, Col(0x2a1a0c))
+            tar(c, -1.5, -41, coats[2], dark, lean: -0.12, aL: 0.4, aR: 0.6, kneel: true)
+            c.arcFill(-1, -49.6, 2.4, 0, PI, Col(0xffffff)); c.poly(Col(0xf3ead2).shade(dark), [-5, -47, 2, -47, 4, -41, -7, -41])
+            let rz = sin(T * 5)
+            tar(c, 8, -33, coats[3], dark, lean: -0.2, aL: -1.9 - rz * 0.25, aR: -1.2)
+            c.seg(2.5 - rz, -50 - rz, 4.5 - rz, -48 - rz, 0.9, Col(0xe6ecf0))
+            c.poly(Col(0x8a6a44).shade(dark), [14, -33, 14.5, -37, 19, -37, 19.5, -33]); c.circ(16.5, -37.6, 1.6, WHITE)
+            tar(c, -28, -33, coats[0], dark, aL: 0.2, aR: 2.5 + sin(T * 3) * 0.15)
+            tar(c, -40, -33, coats[1], dark, lean: 0.1, aL: 0.3, aR: 0.4)
+            for j in 0..<3 { let ph2 = (T * 0.6 + Double(j) / 3).truncatingRemainder(dividingBy: 1); c.circ(-3 + sin(T + Double(j)) * 3, -53 - ph2 * 8, 0.9, Col(0xffffff, 0.8 * (1 - ph2))) }
+        case 22:
+            // a yarn: the old hand on a cask with his arms going, the watch sat round him, pipe smoke
+            c.RR(-4, -41, 9, 8, 2, Col(0x6b4a26).shade(dark))
+            let g1: Double = -1.6 + sin(T * 2.2) * 0.9, g2: Double = 1.6 + sin(T * 2.7 + 1) * 0.9
+            tar(c, 0.5, -41, coats[1], dark, lean: sin(T * 1.1) * 0.12, aL: g1, aR: g2, kneel: true)
+            for (j, sx) in [-34.0, -22.0, 20.0, 31.0, 42.0].enumerated() {
+                let lf = sx < 0
+                let yl: Double = lf ? 0.2 : -0.2, ya: Double = lf ? 0.6 : -0.4, yb: Double = lf ? 0.4 : -0.6
+                tar(c, sx, -33, coats[j % 4], dark, lean: yl, aL: ya, aR: yb, kneel: true)
+            }
+            c.seg(22.5, -43.2, 25, -43.6, 0.7, Col(0x3b2412)); c.circ(25.4, -44, 0.8, Col(0x3b2412))
+            for j in 0..<4 { let ph = (T * 0.35 + Double(j) / 4).truncatingRemainder(dividingBy: 1); c.circ(26 + sin(T + Double(j)) * 2 + ph * 4, -46 - ph * 16, 1 + ph * 3, Col(0xe0e0e0, 0.5 * (1 - ph))) }
+            if sin(T * 1.1) > 0.6 { c.textS("...", 6, -56, 7, Col(0xffffff, 0.9), 0, FONTB) }
+        case 23:
+            // tug of war across the waist
+            let sh = sin(T * 0.8) * 7 + sin(T * 5) * 0.6
+            c.seg(-46 + sh, -41, 46 + sh, -41, 1.1, Col(0xc9b48a))
+            c.poly(REDC, [sh - 1.5, -41, sh + 1.5, -41, sh, -37]); c.R(-0.4, -36, 0.8, 3, Col(0xffffff, 0.6))
+            for i in 0..<3 {
+                let st = sin(T * 5 + Double(i)) * 0.05
+                tar(c, -18 - Double(i) * 10 + sh, -33, coats[i], dark, lean: -0.5 + st, aL: 1.35, aR: 1.35)
+                tar(c, 18 + Double(i) * 10 + sh, -33, coats[(i + 2) % 4], dark, lean: 0.5 - st, aL: -1.35, aR: -1.35)
+            }
+            tar(c, 0, -30.5, coats[3], dark, hop: abs(sin(T * 6)) * 1.5, aL: -2.6, aR: 2.6)
+        case 24:
+            // the leadsman in the chains, swinging the lead and calling the depth
+            let ph = (T * 0.22).truncatingRemainder(dividingBy: 1)
+            tar(c, 70, -33, coats[0], dark, lean: 0.25, aL: 0.6, aR: 1.5)
+            if ph < 0.6 {
+                let a = T * 7
+                c.seg(75, -41, 75 + cos(a) * 11, -41 + sin(a) * 11, 0.7, Col(0xfff6d8)); c.circ(75 + cos(a) * 11, -41 + sin(a) * 11, 1.4, Col(0x4a4a52))
+                c.circStroke(75, -41, 11, 0.5, Col(0xffffff, 0.15))
+            } else {
+                let k = (ph - 0.6) / 0.4
+                let lx = 75 + k * 26, ly = -41 - sin(min(1, k * 1.6) * PI) * 16 + k * 50
+                c.curve(75, -41, 80 + k * 10, -48, lx, min(ly, 9), 0.7, Col(0xfff6d8))
+                if ly < 9 { c.circ(lx, ly, 1.4, Col(0x4a4a52)) } else { let r = min(1, (ly - 9) / 20); c.ellStroke(lx, 9, 3 + r * 10, 1 + r * 3, 0.9, Col(0xffffff, 0.7 * (1 - r))) }
+            }
+            tar(c, 54, -33, coats[2], dark, aL: 1.2, aR: 0.8); c.R(57, -42, 4, 3, Col(0x2a2a30))
+            tar(c, -20, -33, coats[1], dark, walk: T * 6)
         default:
             // the night watch: a helmsman, a man forward, lanterns along the rail
             hand(c, -52, -33, coats[0], dark); hand(c, 50, -33, coats[2], dark)

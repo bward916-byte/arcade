@@ -101,7 +101,7 @@ final class Game {
     var sceneK = ""
     var sceneT = 0.0
     /// Things that happen on the deck itself; everything else is far off and wants the wide view.
-    static let deckScenes: Set<String> = ["sick", "leak", "calm", "fall", "brawl", "galley", "rats", "spar", "stowaway", "catch", "bottle", "scurvy", "foulwater", "weevils", "plank"]
+    static let deckScenes: Set<String> = ["sick", "leak", "calm", "fall", "brawl", "galley", "rats", "spar", "stowaway", "catch", "bottle", "scurvy", "foulwater", "weevils", "plank", "neptune", "albatross", "grumble", "flotsam"]
     /// How fast the voyage is running: it eases down as something comes into view and back up afterwards.
     var pace = 1.0
     var pendTitle = ""
@@ -774,6 +774,15 @@ final class Game {
         if name == "evstow" { startOmen("stowaway"); sceneT = 2; omenK = ""; event("stowaway"); camZ = 2.6 }
         if name == "evcatch" { startOmen("catch"); sceneT = 2; omenT = 1.6; Game.omenHold = true; camZ = 2.6 }
         if name == "omen" { startOmen("pirates"); omenT = 1.6; Game.omenHold = true }
+        if name == "life1" { deckForce = 17; camZ = 2.6; nextEvAt = 9999 }
+        if name == "life2" { deckForce = 18; camZ = 2.6; nextEvAt = 9999 }
+        if name == "life3" { deckForce = 20; camZ = 2.6; nextEvAt = 9999 }
+        if name == "life4" { deckForce = 22; camZ = 2.6; nextEvAt = 9999 }
+        if name == "life5" { deckForce = 16; camZ = 2.6; nextEvAt = 9999 }
+        if name == "life6" { deckForce = 23; camZ = 2.6; nextEvAt = 9999 }
+        if name == "evneptune" { startOmen("neptune"); sceneT = 2; omenT = 1.6; Game.omenHold = true; camZ = 2.6 }
+        if name == "evalb" { startOmen("albatross"); sceneT = 2; omenT = 1.6; Game.omenHold = true; camZ = 2.6 }
+        if name == "evlight" { startOmen("lightning"); sceneT = 1.2; omenT = 1.6; Game.omenHold = true }
         if name == "evkraken" { startOmen("kraken"); sceneT = 2; omenT = 1.6; Game.omenHold = true }
         if name == "evstelmo" { startOmen("stelmo"); sceneT = 2; omenT = 1.6; Game.omenHold = true }
         if name == "evcomet" { startOmen("comet"); sceneT = 2.6; omenT = 1.6; Game.omenHold = true }

@@ -654,10 +654,10 @@ extension Game {
         if sceneK == "plank" && acting {
             zT = 1.9; fxT = W * 0.66; fyT = card != nil ? H * 0.36 : H * 0.52
         }
-        if sceneK == "stelmo" && acting {
+        if (sceneK == "stelmo" || sceneK == "lightning") && acting {
             zT = 1.3; fxT = W * 0.5; fyT = H * 0.78
         }
-        if sceneK == "bottle" && acting && play == nil {
+        if (sceneK == "bottle" || sceneK == "flotsam") && acting && play == nil {
             // look off the bow, where it is bobbing
             zT = 2.1; fxT = W * 0.26; fyT = card != nil ? H * 0.34 : H * 0.5
         }
@@ -679,6 +679,17 @@ extension Game {
         let theme = play?.theme ?? sceneK
         let slenW = min(W * 0.3, 280) * ship.len
         let near = omen && sceneK != "plank" ? min(1, omenT / Game.omenSecs(omenK)) : 1
+        if theme == "flotsam" {
+            // somebody's cargo, lashed together and low in the water, coming down on the bow
+            let fx0 = W * 0.42 + slenW * 0.5 + 130 - 80 * near, fy0 = wy + 3
+            for j in 0..<6 {
+                let jx = fx0 + Double(j % 3) * 15 - 15, jy = fy0 + Double(j / 3) * 6 + sin(T * 2.2 + Double(j)) * 2
+                c.save(); c.translate(jx, jy); c.rotate(sin(T * 1.4 + Double(j) * 2) * 0.2)
+                if j % 2 == 0 { c.RR(-7, -6, 14, 11, 3, Col(0x8a6238)); c.R(-7, -3, 14, 1.2, Col(0x2a1a0c)); c.R(-7, 1.5, 14, 1.2, Col(0x2a1a0c)) } else { c.R(-6, -6, 12, 11, Col(0xa87a48)); c.seg(-6, -6, 6, 5, 0.8, Col(0x2a1a0c)); c.seg(6, -6, -6, 5, 0.8, Col(0x2a1a0c)) }
+                c.restore()
+            }
+            c.ellStroke(fx0, fy0 + 9, 30 + sin(T * 3) * 4, 5, 1.2, Col(0xffffff, 0.6))
+        }
         if theme == "plank" {
             // the prize, lying astern with her sails clewed up
             drawShip(c, W * 0.42 - slenW * 0.5 - 150, wy - 6, min(W * 0.3, 280) * 0.7, 2, enemy: true, furled: true)
