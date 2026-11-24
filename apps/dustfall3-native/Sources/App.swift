@@ -62,6 +62,8 @@ final class GameViewController: UIViewController {
     private let cutPanel = UIView()
     private var cutT = 0.0
     private var cutN = 0
+    private let cutMask = CAShapeLayer()
+    private var cutIdx = 0
     private let startBtn = UIButton(type: .system)
 
     private let pauseBox = UIView()
@@ -324,6 +326,7 @@ final class GameViewController: UIViewController {
         cutBox.backgroundColor = UIColor(red: 0.047, green: 0.027, blue: 0.02, alpha: 1)
         cutBox.isHidden = true
         cutClip.clipsToBounds = true
+        cutClip.layer.mask = cutMask
         cutArt.layer.magnificationFilter = .nearest
         cutArt.contentMode = .scaleToFill
         cutClip.addSubview(cutArt)
@@ -456,6 +459,8 @@ final class GameViewController: UIViewController {
             for name in ["day", "night", "train", "snow", "storm", "map", "duel", "coach", "west", "west2", "fire", "yard", "over"] where args.contains("-demo-" + name) { demoMode = true; game.demo(name) }
             if args.contains("-demo-map") { showMap(choose: true) }
             if args.contains("-demo-intro") { game.beginIntro() }
+            if args.contains("-demo-gallery") { demoMode = true; game.demo("gallery") }
+            if args.contains("-demo-town") { demoMode = true; game.demo("town") }
             if args.contains("-demo-cut3") { demoMode = true; game.demo("day"); game.cut = [STORY["s1"]![0]] }
             if args.contains("-demo-cut") { demoMode = true; game.demo("day"); game.cut = [STORY["a4"]![1]] }
             if args.contains("-demo-cut2") { demoMode = true; game.demo("day"); game.cut = [STORY["s2"]![1]] }
@@ -643,6 +648,8 @@ final class GameViewController: UIViewController {
             if key != cutShown {
                 cutShown = key
                 cutT = 0
+                cutIdx += 1
+                sound.whoosh(); sound.sting()
                 cutN = max(cutN, game.cut.count)
                 let k = NSAttributedString(string: bt.head.uppercased(), attributes: [.font: rye(15), .foregroundColor: gold, .kern: 2.5])
                 cutHead.attributedText = k
@@ -658,7 +665,26 @@ final class GameViewController: UIViewController {
             let z = CGFloat(1 + 0.05 * min(cutT, 9) / 9)
             cutArt.transform = CGAffineTransform(scaleX: z, y: z)
             let fa = CGFloat(min(1, cutT / 0.4))
-            cutArt.alpha = fa; cutHead.alpha = fa; cutCap.alpha = fa
+            cutHead.alpha = fa; cutCap.alpha = fa
+            // each picture opens differently, as in the web game: an iris, a wipe, blinds
+            let cb = cutClip.bounds
+            let u = CGFloat(min(1, cutT / 0.55)), e = u * u * (3 - 2 * u)
+            let path = UIBezierPath()
+            switch cutIdx % 3 {
+            case 1:
+                let rad = e * (cb.width * cb.width + cb.height * cb.height).squareRoot() * 0.56
+                path.append(UIBezierPath(ovalIn: CGRect(x: cb.midX - rad, y: cb.midY - rad, width: rad * 2, height: rad * 2)))
+            case 2:
+                path.append(UIBezierPath(rect: CGRect(x: 0, y: 0, width: cb.width * e, height: cb.height)))
+            default:
+                let n = 9
+                let bh2 = cb.height / CGFloat(n)
+                for i in 0..<n { path.append(UIBezierPath(rect: CGRect(x: 0, y: CGFloat(i) * bh2, width: cb.width, height: bh2 * e + 0.5))) }
+            }
+            CATransaction.begin(); CATransaction.setDisableActions(true)
+            cutMask.frame = cb
+            cutMask.path = path.cgPath
+            CATransaction.commit()
             cutBox.isHidden = false
         } else if !cutBox.isHidden { cutBox.isHidden = true; cutShown = ""; cutN = 0; last = 0 }
         guard let r = renderer, let cv = canvas else { return }
@@ -672,7 +698,7 @@ final class GameViewController: UIViewController {
     }
 
     private func updateHUD() {
-        let playing = game.state == .play
+        let playing = game.state == .play && game.gallery == nil
         titleBox.isHidden = game.state != .title
         let intro = game.state == .intro
         introTop.isHidden = !intro; introBot.isHidden = !intro; introSkip.isHidden = !intro
@@ -718,6 +744,14 @@ final class GameViewController: UIViewController {
     }
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        if game.gallery != nil && !userPaused {
+            // at the shooting gallery a tap is a shot, where you touched
+            for t in touches {
+                let p = t.location(in: view)
+                game.galleryShot(Double(p.x / view.bounds.width) * game.W, Double(p.y / view.bounds.height) * game.H)
+            }
+            return
+        }
         if game.state == .intro { if game.introT > 0.8 { game.endIntro(); last = 0 }; return }
         if game.state != .play || userPaused { return }
         for t in touches {

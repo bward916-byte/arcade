@@ -87,7 +87,7 @@ let LANDS: [Bio: Land] = [
     .snow: Land(far: 0xb6c1d2, mesa: 0x97a4b8, mesaS: 0x77859a, mesaT: 0xf4f8ff, scrub: 0x476a52, g0: 0xe6ebf2, edge: 0xffffff, street: 0xd6dee9, g1: 0xd6dee9, g2: 0xb9c6d6, speck: 0x9aa8bc, dust: 0xf6f9ff)
 ]
 
-enum BType: String { case store, saloon, sheriff, stable, bank, gateW, gateE, station, train, hall, wireW, wireE, bordello, doctor, church, forge, telegraph, claim, coach, sPost, sTribe, sRuin, sRig, sShow, sFort, sRods, sTower, sHobo, sCar }
+enum BType: String { case store, saloon, sheriff, stable, bank, gateW, gateE, station, train, hall, wireW, wireE, bordello, doctor, church, forge, telegraph, claim, coach, sPost, sTribe, sRuin, sRig, sShow, sFort, sRods, sTower, sHobo, sCar, sGallery }
 enum Role { case folk, deputy, miner, rancher }
 
 struct Def {
@@ -125,6 +125,7 @@ let DEFS: [BType: Def] = [
     .sFort: Def(name: "CAVALRY OUTPOST", w: 0, h: 46, cost: [1], pay: 0, wall: 0, trim: 0, roof: 0, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: false),
     .sRods: Def(name: "WINDMILL", w: 0, h: 76, cost: [1], pay: 0, wall: 0, trim: 0, roof: 0, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: false),
     .sTower: Def(name: "WATER TOWER", w: 0, h: 78, cost: [1], pay: 0, wall: 0, trim: 0, roof: 0, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: false),
+    .sGallery: Def(name: "SHOOTING GALLERY", w: 8, h: 46, cost: [1], pay: 0, wall: 0, trim: 0, roof: 0, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: false),
     .sHobo: Def(name: "HOBO JUNGLE", w: 0, h: 34, cost: [1], pay: 0, wall: 0, trim: 0, roof: 0, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: false),
     .sCar: Def(name: "SEALED BOXCAR", w: 0, h: 46, cost: [1], pay: 0, wall: 0, trim: 0, roof: 0, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: false),
     // the stagecoach while it waters its team: where a guard is paid for
@@ -500,3 +501,21 @@ let INTRO: [(Double, String)] = [(0.7, "The railroad moved away, and the town of
 let HLIFT = 3.5
 /// People on foot are drawn this much bigger than the first native builds drew them, to stand right beside the rider.
 let PSCALE = 1.3
+
+/// A target in the shooting gallery: 0 a tin duck, 1 a bottle, 2 a star. `hit` counts up from the moment it is knocked down.
+struct GTarget {
+    var x: Double
+    let row: Int
+    let kind: Int
+    var hit = -1.0
+}
+/// The shooting gallery while you are at the counter: eight shots at three rows of moving targets.
+struct Gallery {
+    var t = 0.0
+    var shots = 8
+    var won = 0
+    var last = 0.0
+    var targets: [GTarget] = []
+    var holes: [(Double, Double)] = []
+    var flash = 0.0
+}

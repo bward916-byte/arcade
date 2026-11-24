@@ -12,6 +12,7 @@ final class Renderer {
     private var gy: Double { return g.GY }
 
     func draw() {
+        if let gl = g.gallery { galleryBooth(gl); return }
         let dk = g.dark()
         let dusk = smooth(0.56, 0.70, g.t) * (1 - smooth(0.74, 0.84, g.t)) + (g.t < 0.08 ? 1 - g.t / 0.08 : 0) * 0.6
         c.save()
@@ -19,6 +20,7 @@ final class Renderer {
         sky(dk, dusk)
         mesas(dk, dusk)
         groundBand(dk)
+        tufts()
         scenery()
         landmarks()
         sites(dk)
@@ -79,6 +81,10 @@ final class Renderer {
         weather(dk)
         duelBars()
         slots()
+        // a vignette and a little grain over the whole picture
+        c.glow(W / 2, H * 0.52, (W * W + H * H).squareRoot() * 0.56, Col(0x1a0e08, 0), Col(0x1a0e08, 0.4))
+        let fr = Double(Int(g.clock * 24))
+        for i in 0..<90 { c.R(hashN(Double(i) * 3.3 + fr) * W, hashN(Double(i) * 7.7 + fr * 1.3) * H, 1, 1, Col(i % 2 == 0 ? 0xffffff : 0x000000, 0.045)) }
         c.restore()
         if g.flash > 0 { c.R(0, 0, W, H, Col(0xfff0c0, g.flash * 0.5)) }
         if g.fade > 0 { c.R(0, 0, W, H, Col(0x000000, g.fade)) }
@@ -376,6 +382,97 @@ final class Renderer {
     private func vis(_ x: Double, _ w: Double) -> Bool { let s = x - g.cam; return s > -w - 20 && s < W + 20 }
 
     // ---------- sky and land
+    /// Grass along the street, wheel ruts down the middle of it, and a flock crossing the sky.
+    private func tufts() {
+        let L = g.terrain
+        let snow = g.bio == .snow
+        let blade = Col(snow ? 0xcfdbe8 : (g.bio == .river || g.bio == .pine ? 0x5f8a44 : L.scrub)), blade2 = Col.mix(blade, Col(0x000000), 0.25)
+        var i = Int(((g.cam - 10) / 5).rounded(.down))
+        while Double(i) * 5 < g.cam + W + 10 {
+            let wx = Double(i) * 5 + hashN(Double(i) * 2.9) * 4
+            let k = hashN(Double(i) * 5.1 + 0.7)
+            i += 1
+            if k < 0.42 { continue }
+            if (g.bio == .river || g.flooded) && wx > g.river.0 - 3 && wx < g.river.1 + 3 { continue }
+            let x = sx(wx)
+            let inTown = wx > g.gateW.x && wx < g.gateE.x
+            if inTown && k < 0.72 { continue }
+            let hgt = (inTown ? 2 : 2.5) + k * 3
+            let sway = sin(g.clock * 1.6 + wx * 0.13) * 0.7
+            c.seg(x, gy + 0.4, x - 1 + sway, gy - hgt, 0.7, blade2); c.seg(x + 1, gy + 0.4, x + 1.4 + sway, gy - hgt * 1.2, 0.7, blade); c.seg(x + 2, gy + 0.4, x + 3.2 + sway, gy - hgt * 0.8, 0.7, blade2)
+            if !snow && k > 0.93 { c.R(x + 0.8 + sway, gy - hgt * 1.2 - 1, 1.2, 1.2, Col(hashN(Double(i)) > 0.5 ? 0xf2d94e : 0xe8e2d2)) }
+        }
+        // ruts down main street
+        let a = sx(g.gateW.x + 14), b2 = sx(g.gateE.x)
+        if b2 > 0 && a < W {
+            let l = max(0, a), r = min(W, b2)
+            c.R(l, gy + 2.4, r - l, 0.7, Col(L.speck, 0.35)); c.R(l, gy + 4.2, r - l, 0.7, Col(L.speck, 0.28))
+        }
+        // a flock, by day and in fair weather
+        if g.dark() < 0.3 && g.wx == 0 {
+            let fx = (g.clock * 9).truncatingRemainder(dividingBy: W + 160) - 80 - g.cam * 0.02
+            for j in 0..<6 {
+                let bx = fx + Double(j % 3) * 9 - Double(j / 3) * 5, by = H * 0.2 + Double(j / 3) * 6 + Double(j % 3) * 3 + sin(g.clock * 0.7 + Double(j)) * 2
+                let fl = sin(g.clock * 7 + Double(j) * 1.3) * 1.3
+                c.seg(bx - 2.4, by - fl, bx, by, 0.7, Col(0x3a2a2a, 0.75)); c.seg(bx, by, bx + 2.4, by - fl, 0.7, Col(0x3a2a2a, 0.75))
+            }
+        }
+    }
+
+    /// The shooting gallery from the counter: three rows of targets crossing a striped booth.
+    private func galleryBooth(_ gl: Gallery) {
+        c.vfill(0, 0, W, H, [(0, Col(0x3a1a18)), (1, Col(0x1c0c0c))])
+        var sx3 = 0.0, si = 0
+        while sx3 < W { c.R(sx3, 0, 14, H, Col(si % 2 == 0 ? 0x5a2420 : 0x4a1c1a, 0.9)); sx3 += 14; si += 1 }
+        c.vfill(0, 0, W, H * 0.75, [(0, Col(0x000000, 0.45)), (1, Col(0x000000, 0))])
+        // the rails the targets ride on, and the targets
+        for (ri, r) in g.galleryRows.enumerated() {
+            let y = H * r.0
+            c.R(0, y + 8, W, 2.4, Col(0x6a4a2e)); c.R(0, y + 8, W, 0.8, Col(0x9a7448)); c.R(0, y + 10.4, W, 2, Col(0x000000, 0.3))
+            for tg in gl.targets where tg.row == ri {
+                let down = tg.hit >= 0
+                let k = down ? min(1, tg.hit / 0.18) : 0
+                c.save(); c.translate(tg.x, y + 8); c.scale(1, 1 - k * 0.92)
+                if tg.kind == 0 {
+                    let d = r.2
+                    c.ell(0, -6, 7, 5, Col(0xe8c84a)); c.circ(d * 6, -11, 3.6, Col(0xe8c84a)); c.poly(Col(0xd8742a), [d * 9, -11.6, d * 13, -10.4, d * 9, -9.4])
+                    c.circ(d * 6.8, -11.8, 0.8, Col(0x1c120c)); c.poly(Col(0xc9a02a), [-d * 2, -8, -d * 8, -11, -d * 5, -5]); c.R(-1, -1.5, 2, 1.5, Col(0x8a6a2a))
+                    c.ellStroke(0, -6, 3, 2.2, 0.8, Col(0xb5412e))
+                } else if tg.kind == 1 {
+                    c.RR(-2.6, -10, 5.2, 10, 1.4, Col(0x4f8a5a)); c.R(-1.1, -15, 2.2, 5.4, Col(0x4f8a5a)); c.R(-1.4, -15.6, 2.8, 1.2, Col(0xd8b860))
+                    c.R(-2.6, -7, 5.2, 3.4, Col(0xf0e8d8)); c.R(-1.6, -9.4, 0.9, 7, Col(0xffffff, 0.4))
+                } else {
+                    star(0, -8, 7.5, Col(0x8a6a2a)); star(0, -8, 6, GOLD); c.circ(0, -8, 1.8, Col(0xb5412e)); c.R(-0.6, -1.5, 1.2, 1.5, Col(0x8a6a2a))
+                }
+                c.restore()
+            }
+        }
+        for h in gl.holes { c.circ(h.0, h.1, 1.6, Col(0x0c0606)); c.circ(h.0, h.1, 2.6, Col(0x000000, 0.25)) }
+        // the awning and its sign
+        c.R(0, 0, W, 20, Col(0x8a2f26))
+        var ax = 0.0, ai = 0
+        while ax < W { c.R(ax, 0, 12, 20, Col(ai % 2 == 0 ? 0xb5412e : 0xf0e8d8)); c.poly(Col(ai % 2 == 0 ? 0xb5412e : 0xf0e8d8), [ax, 20, ax + 12, 20, ax + 6, 27]); ax += 12; ai += 1 }
+        c.R(0, 19.4, W, 1, Col(0x000000, 0.25))
+        c.RR(W / 2 - 78, 3, 156, 15, 3, Col(0x2a1c14)); c.RR(W / 2 - 76, 4.4, 152, 12.2, 2, Col(0xead7a4))
+        c.text("SHOOTING GALLERY", W / 2, 14, 9, Col(0x8a2f26), face: "Rye-Regular", fit: 144)
+        // the counter, shots left, and the take
+        let cy = H * 0.8
+        c.R(0, cy, W, H - cy, Col(0x6a4a2e)); c.R(0, cy, W, 3, Col(0x9a7448)); c.R(0, cy + 3, W, 1, Col(0x3a2a1c))
+        var px2 = 0.0
+        while px2 < W { c.R(px2, cy + 4, 0.8, H - cy, Col(0x3a2a1c, 0.5)); px2 += 22 }
+        for i in 0..<8 {
+            let bx = 14 + Double(i) * 7, on = i < gl.shots
+            c.RR(bx, cy + 11, 4, 9, 1, on ? Col(0xf2c14e) : Col(0x000000, 0.3)); c.poly(on ? Col(0xc88a4a) : Col(0x000000, 0.3), [bx + 0.4, cy + 11, bx + 3.6, cy + 11, bx + 2, cy + 6.4])
+        }
+        coinAt(W - 60, cy + 15)
+        c.text("\(gl.won)", W - 44, cy + 19, 11, GOLD, face: "Rye-Regular")
+        c.text(gl.shots > 0 ? "Tap a target to shoot" : "That is your eight", W / 2, cy + 18.6, 8, Col(0xead7a4), bold: false)
+        // the rifle on the counter, and its flash
+        c.seg(W / 2 - 26, H + 2, W / 2 - 6, cy - 6, 5, Col(0x4a3424)); c.seg(W / 2 - 8, cy - 2, W / 2 + 2, cy - 22, 2.4, Col(0x3a3a40))
+        if gl.flash > 0 { c.circ(W / 2 + 3, cy - 25, 6, Col(0xfff0b0, 0.9)); c.R(0, 0, W, H, Col(0xfff0c0, 0.12)) }
+        c.glow(W / 2, H * 0.5, (W * W + H * H).squareRoot() * 0.56, Col(0x000000, 0), Col(0x000000, 0.45))
+    }
+
     private func sky(_ dk: Double, _ dusk: Double) {
         // cloud greys the sky over; snow country has a paler, colder one
         let cl = max(g.cloudI(), g.storm ? 0.5 : 0) * 0.8
@@ -488,7 +585,7 @@ final class Renderer {
                 let x = Double(i) * 120 + hashN(Double(i) * 6.6) * 90
                 let inTown = x > 890 && x < g.gateE.x + 60
                 let wet = g.bio == .river && x > g.river.0 - 14 && x < g.river.1 + 14
-                let grazed = (x > g.pasture.0 - 12 && x < g.pasture.1 + 12) || [-90.0, -250, -434, -600, 752, g.sFort.x, g.missionX, g.archX, 528].contains { abs($0 - x) < 34 }
+                let grazed = (x > g.pasture.0 - 12 && x < g.pasture.1 + 12) || [-90.0, -250, -434, -600, 752, 186, g.sFort.x, g.missionX, g.archX, 528].contains { abs($0 - x) < 34 }
                 if !inTown && !wet && !grazed {
                     let k = hashN(Double(i) * 2.9)
                     let s = sx(x)
@@ -599,45 +696,158 @@ final class Renderer {
             return
         }
         let wall = Col(d.wall), trim = Col(d.trim), roof = Col(d.roof)
-        // side shadow, wall, clapboards
-        c.R(x, gy - h, w, h, wall)
-        var yy = gy - h + 4
-        while yy < gy - 1 { c.R(x, yy, w, 1, Col(0x000000, 0.08)); yy += 4 }
-        c.R(x + w - 4, gy - h, 4, h, Col(0x000000, 0.12))
-        // false front and sign
-        let fh = 11.0 + Double(lv) * 2
-        c.R(x - 2, gy - h - fh, w + 4, fh, wall)
-        c.R(x - 3, gy - h - fh - 2, w + 6, 3, roof)
-        if g.bio == .snow { c.RR(x - 3, gy - h - fh - 4, w + 6, 3, 1.5, Col(0xf4f8ff)); c.R(x - 4, gy - 26, w + 8, 1.5, Col(0xf4f8ff)) }
-        c.R(x - 2, gy - h - 1, w + 4, 2, trim)
-        c.R(x + 6, gy - h - fh + 2, w - 12, fh - 4, Col(d.sign))
-        c.text(d.name, x + w / 2, gy - h - fh / 2 + 2.6, 7.5, Col(d.ink))
-        // porch roof and posts
-        c.R(x - 4, gy - 25, w + 8, 3, roof)
-        c.R(x - 4, gy - 22, w + 8, 1, Col(0x000000, 0.2))
-        c.R(x - 3, gy - 22, 2, 22, trim); c.R(x + w + 1, gy - 22, 2, 22, trim)
-        if w > 70 { c.R(x + w * 0.33, gy - 22, 2, 22, trim); c.R(x + w * 0.66, gy - 22, 2, 22, trim) }
-        // door and windows
-        c.R(x + d.doorX - 1, gy - 21, d.doorW + 2, 21, trim)
-        c.R(x + d.doorX, gy - 20, d.doorW, 20, Col(0x3a2a1c))
-        if bl.type == .saloon {
-            c.R(x + d.doorX, gy - 14, d.doorW / 2 - 0.5, 9, Col(0xc98a4a)); c.R(x + d.doorX + d.doorW / 2 + 0.5, gy - 14, d.doorW / 2 - 0.5, 9, Col(0xc98a4a))
-        }
+        let wallD = Col.mix(wall, Col(0x000000), 0.2), wallL = Col.mix(wall, Col(0xffffff), 0.14)
         let lit = dk > 0.3 && !bl.robbed
-        for wn in d.wins {
-            c.R(x + wn.0 - 1, gy - 22, wn.1 + 2, 14, trim)
-            c.R(x + wn.0, gy - 21, wn.1, 12, lit ? Col(0xffd98a) : Col(0x9fc4d4))
-            c.R(x + wn.0 + wn.1 / 2 - 0.5, gy - 21, 1, 12, trim)
-            if bl.type == .sheriff || bl.type == .bank { var k = 2.0; while k < wn.1 { c.R(x + wn.0 + k, gy - 21, 1, 12, Col(0x2a2a2a)); k += 4 } }
+        let glass = lit ? Col(0xffd98a) : Col(0x9fc4d4)
+        let upright = bl.type == .stable || bl.type == .bordello || bl.type == .forge || bl.type == .church
+        let fh = 11.0 + Double(lv) * 2
+        // a lamp post at the corner, lit after dark
+        c.R(x - 11, gy - 24, 1.4, 24, Col(0x2e2622)); c.R(x - 13, gy - 2, 5.4, 2, Col(0x2e2622))
+        c.R(x - 12.5, gy - 29, 4.4, 5, Col(0x2e2622)); c.R(x - 11.8, gy - 28.2, 3, 3.4, dk > 0.3 ? Col(0xffe08a) : Col(0xd8dcc8)); c.R(x - 13, gy - 30, 5.4, 1.2, Col(0x1c1816))
+        // the boardwalk
+        c.R(x - 6, gy - 2, w + 12, 2, Col(0x9a7a52)); c.R(x - 6, gy - 2, w + 12, 0.6, Col(0xc4a474))
+        var bk = 0.0
+        while bk < w + 12 { c.R(x - 6 + bk, gy - 1.4, 0.6, 1.4, Col(0x4a3626, 0.6)); bk += 6 }
+        // the wall: clapboards or upright boards, corner boards, a shaded side
+        c.R(x, gy - h, w, h - 2, wall)
+        if upright {
+            var k = 3.0
+            while k < w { c.R(x + k, gy - h, 0.7, h - 2, wallD.alpha(0.55)); c.R(x + k + 0.7, gy - h, 0.5, h - 2, wallL.alpha(0.25)); k += 4 }
+        } else {
+            var yy = gy - h + 3.5
+            while yy < gy - 3 { c.R(x, yy, w, 0.7, wallD.alpha(0.5)); c.R(x, yy + 0.7, w, 0.5, wallL.alpha(0.3)); yy += 3.5 }
         }
-        // each improvement adds something you can see
-        if lv >= 2 {
-            c.R(x + 8, gy - h + 3, 10, 8, trim); c.R(x + 9, gy - h + 4, 8, 6, lit ? Col(0xffd98a) : Col(0x9fc4d4))
-            c.R(x + w - 18, gy - h + 3, 10, 8, trim); c.R(x + w - 17, gy - h + 4, 8, 6, lit ? Col(0xffd98a) : Col(0x9fc4d4))
+        c.R(x + w - 5, gy - h, 5, h - 2, Col(0x000000, 0.1))
+        c.R(x, gy - h, 1.8, h - 2, trim); c.R(x + w - 1.8, gy - h, 1.8, h - 2, trim)
+        c.R(x, gy - 5, w, 3, wallD.alpha(0.5))
+        // the false front, its cornice and dentils
+        if bl.type == .stable {
+            // a barn: gable, hayloft door and hoist
+            c.poly(wall, [x - 2, gy - h, x + w / 2, gy - h - fh - 6, x + w + 2, gy - h])
+            c.poly(roof, [x - 5, gy - h + 1, x + w / 2, gy - h - fh - 9, x + w + 5, gy - h + 1, x + w + 2, gy - h + 1, x + w / 2, gy - h - fh - 6, x - 2, gy - h + 1])
+            c.R(x + w / 2 - 5, gy - h - 9, 10, 9, trim); c.R(x + w / 2 - 4, gy - h - 8, 8, 8, Col(0x2a1c14))
+            c.R(x + w / 2 - 0.5, gy - h - fh - 9, 1.2, 4, Col(0x2e2622)); c.R(x + w / 2 - 0.5, gy - h - fh - 5.4, 5, 1, Col(0x2e2622))
+        } else {
+            c.R(x - 2, gy - h - fh, w + 4, fh, wall)
+            var yy = gy - h - fh + 3.5
+            while yy < gy - h - 1 { c.R(x - 2, yy, w + 4, 0.6, wallD.alpha(0.4)); yy += 3.5 }
+            c.R(x - 2, gy - h - fh, 1.6, fh, trim); c.R(x + w + 0.4, gy - h - fh, 1.6, fh, trim)
+            c.R(x - 4, gy - h - fh - 3, w + 8, 3, roof); c.R(x - 4, gy - h - fh - 3, w + 8, 0.8, Col.mix(roof, Col(0xffffff), 0.3))
+            var dx = 0.0
+            while dx < w + 2 { c.R(x - 1 + dx, gy - h - fh, 2, 1.5, trim); dx += 4 }
+        }
+        if g.bio == .snow { c.RR(x - 4, gy - h - fh - 5, w + 8, 3, 1.5, Col(0xf4f8ff)); c.R(x - 5, gy - 27.5, w + 10, 1.8, Col(0xf4f8ff)) }
+        c.R(x - 2, gy - h - 1, w + 4, 2, trim)
+        // the sign: a bordered board, lettered in the game's display face
+        let sy0 = bl.type == .stable ? gy - h + 3 : gy - h - fh + 2, sh = bl.type == .stable ? 8.0 : fh - 4
+        c.R(x + 5, sy0, w - 10, sh, Col(d.ink)); c.R(x + 6, sy0 + 1, w - 12, sh - 2, Col(d.sign))
+        c.R(x + 6, sy0 + 1, w - 12, 0.7, Col(0xffffff, 0.35))
+        c.text(d.name, x + w / 2, sy0 + sh / 2 + 2.5, 7, Col(d.ink), face: "Rye-Regular", fit: w - 16)
+        if bl.type == .sheriff { star(x + 3, sy0 + sh / 2, 2.4, GOLD); star(x + w - 3, sy0 + sh / 2, 2.4, GOLD) }
+        if bl.type == .doctor { c.R(x + w - 8, gy - h + 4, 5, 1.6, Col(0x3d8a5a)); c.R(x + w - 6.3, gy - h + 2.3, 1.6, 5, Col(0x3d8a5a)) }
+        // upper windows, or a balcony, come with the second level
+        if lv >= 2 && bl.type != .stable {
+            for ux in [x + 8, x + w - 18] {
+                c.R(ux - 1, gy - h + 2, 12, 10, trim); c.R(ux, gy - h + 3, 10, 8, glass)
+                c.R(ux + 4.6, gy - h + 3, 0.8, 8, trim); c.R(ux, gy - h + 6.6, 10, 0.8, trim)
+                c.R(ux - 3, gy - h + 2, 2, 10, wallD); c.R(ux + 11, gy - h + 2, 2, 10, wallD)
+                if !lit { c.poly(Col(0xffffff, 0.3), [ux, gy - h + 3, ux + 4, gy - h + 3, ux, gy - h + 7]) }
+            }
+            if bl.type == .bordello || bl.type == .saloon {
+                c.R(x - 4, gy - 33, w + 8, 1, trim); c.R(x - 4, gy - 27.4, w + 8, 1.2, trim)
+                var rx = 0.0
+                while rx < w + 8 { c.R(x - 4 + rx, gy - 33, 0.9, 6, trim); rx += 3 }
+            }
+        }
+        // the porch: a slanted shingle roof, a valance, posts with brackets, shade beneath
+        let py = gy - 26.0
+        c.poly(roof, [x - 6, py + 4, x - 2, py, x + w + 2, py, x + w + 6, py + 4])
+        var sx2 = 2.0
+        while sx2 < w + 8 { c.R(x - 5 + sx2, py + 1, 0.6, 3, Col(0x000000, 0.22)); sx2 += 5 }
+        c.R(x - 4, py + 1.8, w + 8, 0.6, Col(0x000000, 0.18))
+        c.R(x - 6, py + 4, w + 12, 1.2, Col.mix(roof, Col(0x000000), 0.35))
+        if bl.type == .saloon || bl.type == .bordello || bl.type == .store {
+            var vx = 0.0, vi = 0
+            while vx < w + 10 {
+                c.poly(vi % 2 == 0 ? Col(d.sign) : Col(d.ink), [x - 5 + vx, py + 5.2, x - 1 + vx, py + 5.2, x - 3 + vx, py + 8])
+                vx += 4; vi += 1
+            }
+        }
+        c.R(x, py + 5.2, w, 3.2, Col(0x000000, 0.16))
+        var posts = [x - 3, x + w + 1]
+        if w > 70 { posts.append(x + w * 0.33); posts.append(x + w * 0.66) }
+        for px in posts {
+            c.R(px, py + 5.2, 1.8, gy - 2 - py - 5.2, trim)
+            c.poly(trim, [px - 2.4, py + 5.2, px, py + 5.2, px, py + 8.4]); c.poly(trim, [px + 1.8, py + 5.2, px + 4.2, py + 5.2, px + 1.8, py + 8.4])
+        }
+        // the door
+        if bl.type == .stable {
+            c.R(x + d.doorX - 5, gy - 21, d.doorW + 10, 19, trim); c.R(x + d.doorX - 4, gy - 20, d.doorW + 8, 18, Col(0x2a1c14))
+            c.seg(x + d.doorX - 4, gy - 20, x + d.doorX + d.doorW / 2, gy - 2, 1, trim); c.seg(x + d.doorX + d.doorW + 4, gy - 20, x + d.doorX + d.doorW / 2, gy - 2, 1, trim)
+            c.R(x + d.doorX - 2, gy - 5, 6, 3, Col(0xd8b860)); c.R(x + d.doorX + d.doorW - 3, gy - 6, 5, 4, Col(0xc9a850))
+        } else {
+            c.R(x + d.doorX - 1.4, gy - 22, d.doorW + 2.8, 20, trim)
+            c.R(x + d.doorX, gy - 20.6, d.doorW, 18.6, Col(0x3a2a1c))
+            c.R(x + d.doorX + 1.5, gy - 19, d.doorW - 3, 3.2, glass.alpha(lit ? 0.95 : 0.7))
+            if bl.type == .saloon {
+                c.R(x + d.doorX, gy - 13, d.doorW / 2 - 0.5, 8, Col(0xc98a4a)); c.R(x + d.doorX + d.doorW / 2 + 0.5, gy - 13, d.doorW / 2 - 0.5, 8, Col(0xc98a4a))
+                var lx = 1.0
+                while lx < d.doorW / 2 - 1 { c.R(x + d.doorX + lx, gy - 12, 0.6, 6, Col(0x8a5a2a)); c.R(x + d.doorX + d.doorW / 2 + 0.5 + lx, gy - 12, 0.6, 6, Col(0x8a5a2a)); lx += 2 }
+            } else {
+                c.R(x + d.doorX + 1.5, gy - 14.6, d.doorW - 3, 5, Col(0x4e3826)); c.R(x + d.doorX + 1.5, gy - 8.4, d.doorW - 3, 5.6, Col(0x4e3826))
+                c.R(x + d.doorX + d.doorW - 3, gy - 10.4, 1.2, 1.2, Col(0xd8b860))
+            }
+            c.R(x + d.doorX - 2, gy - 2.8, d.doorW + 4, 1, Col(0x6a5238))
+        }
+        // the windows: frame, sill, panes, a curtain, and with the second level a flower box
+        for (wi, wn) in d.wins.enumerated() {
+            let wx = x + wn.0, ww = wn.1
+            c.R(wx - 1.4, gy - 22.4, ww + 2.8, 14.8, trim)
+            c.R(wx, gy - 21, ww, 12, glass)
+            if lit { c.R(wx, gy - 14, ww, 5, Col(0xff9a3a, 0.28)) } else { c.poly(Col(0xffffff, 0.32), [wx, gy - 21, wx + ww * 0.45, gy - 21, wx, gy - 14]) }
+            if bl.type == .store {
+                // goods on show
+                let goods: [UInt32] = [0xb5412e, 0x3f6f9a, 0xd8b860, 0x5f8a4a]
+                var gx = 1.0, gi = wi
+                while gx < ww - 3 { c.R(wx + gx, gy - 13 - Double(gi % 2) * 2, 3, 4 + Double(gi % 2) * 2, Col(goods[gi % 4])); gx += 4.4; gi += 1 }
+            } else if bl.type == .sheriff || bl.type == .bank {
+                var k = 2.0
+                while k < ww { c.R(wx + k, gy - 21, 1, 12, Col(0x2a2a2a)); k += 3.4 }
+            } else {
+                let cur: UInt32 = bl.type == .bordello ? 0xc0392b : (bl.type == .doctor ? 0xf4f0e4 : (bl.type == .saloon ? 0x8a2f26 : 0xead7a4))
+                c.poly(Col(cur, 0.9), [wx, gy - 21, wx + ww * 0.42, gy - 21, wx, gy - 12]); c.poly(Col(cur, 0.9), [wx + ww, gy - 21, wx + ww * 0.58, gy - 21, wx + ww, gy - 12])
+            }
+            c.R(wx + ww / 2 - 0.4, gy - 21, 0.8, 12, trim); c.R(wx, gy - 15.4, ww, 0.8, trim)
+            c.R(wx - 2.4, gy - 9, ww + 4.8, 1.6, trim)
+            if lv >= 2 && bl.type != .sheriff && bl.type != .bank {
+                c.R(wx - 1.5, gy - 7.6, ww + 3, 2.6, Col(0x6a4a2e))
+                var fx = 0.0, fi = wi
+                while fx < ww + 1 { c.R(wx - 1 + fx, gy - 9.4, 1.6, 2, Col(0x4f8a3e)); c.R(wx - 0.6 + fx, gy - 10.4, 1.2, 1.2, Col(fi % 2 == 0 ? 0xe8553f : 0xf2d94e)); fx += 2.6; fi += 1 }
+            }
+        }
+        // a hitching rail, a barrel, and with the third level a flag
+        if bl.type == .saloon || bl.type == .store || bl.type == .sheriff {
+            let hx = x + w + 9
+            c.R(hx, gy - 7, 1.4, 7, Col(0x5a3c22)); c.R(hx + 11, gy - 7, 1.4, 7, Col(0x5a3c22)); c.R(hx - 1, gy - 7.6, 14.4, 1.4, Col(0x6a4a2e))
+        }
+        if bl.type == .store || bl.type == .saloon || bl.type == .forge {
+            let bx2 = x + w - 9
+            c.RR(bx2, gy - 9, 6, 7, 1.5, Col(0x7a5632)); c.R(bx2, gy - 7.4, 6, 0.8, Col(0x3a2a1c)); c.R(bx2, gy - 4.4, 6, 0.8, Col(0x3a2a1c)); c.R(bx2 + 0.6, gy - 9, 4.8, 0.8, Col(0x9a7448))
+        }
+        if bl.type == .saloon || bl.type == .bordello || bl.type == .doctor || bl.type == .bank {
+            // a chimney, smoking by day and by night
+            let cx2 = x + w - 15, cy2 = gy - h - fh - 3
+            c.R(cx2, cy2 - 8, 5, 8, Col(0x7a4a3a)); c.R(cx2 - 0.6, cy2 - 9.4, 6.2, 1.6, Col(0x4a2e26)); c.R(cx2, cy2 - 5, 5, 0.6, Col(0x4a2e26))
+            for i in 0..<4 {
+                let k = (g.clock * 0.22 + Double(i) * 0.25 + bl.x * 0.01).truncatingRemainder(dividingBy: 1)
+                c.circ(cx2 + 2.5 + k * 9 + sin(g.clock + Double(i)) * 1.5, cy2 - 11 - k * 16, 1.6 + k * 3.4, Col(0xe8e2dc, 0.3 * (1 - k)))
+            }
         }
         if lv >= 3 {
-            c.R(x + w / 2 - 1, gy - h - fh - 12, 2, 10, Col(0x3a2a1c))
-            c.poly(Col(0xb5412e), [x + w / 2 + 1, gy - h - fh - 12, x + w / 2 + 11 + sin(g.clock * 4) * 1.5, gy - h - fh - 9, x + w / 2 + 1, gy - h - fh - 6])
+            c.R(x + w / 2 - 1, gy - h - fh - 15, 1.6, 12, Col(0x3a2a1c))
+            let wv = sin(g.clock * 4) * 1.5
+            c.poly(Col(0xb5412e), [x + w / 2 + 0.6, gy - h - fh - 15, x + w / 2 + 11 + wv, gy - h - fh - 13.4, x + w / 2 + 11 + wv, gy - h - fh - 9.6, x + w / 2 + 0.6, gy - h - fh - 9])
+            c.R(x + w / 2 + 0.6, gy - h - fh - 13, 10 + wv, 1, Col(0xf4ecd6)); c.R(x + w / 2 + 0.6, gy - h - fh - 15, 4, 2.6, Col(0x2f4a7a))
         }
         if bl.type == .church {         // a steeple and a cross
             c.R(x + w / 2 - 6, gy - h - fh - 14, 12, 14, wall); c.poly(roof, [x + w / 2 - 8, gy - h - fh - 14, x + w / 2, gy - h - fh - 26, x + w / 2 + 8, gy - h - fh - 14])
@@ -976,6 +1186,18 @@ final class Renderer {
             for wx in [x - 9, x + 9] { c.circ(wx, gy - 4.5, 4.5, dkw); c.circ(wx, gy - 4.5, 3, Col(0xc9a86a)); c.circ(wx, gy - 4.5, 0.9, dkw) }
             c.R(x + 20, gy - 12, 4, 7, Col(0x2e2622)); c.R(x + 20.3, gy - 15, 3.4, 3.2, Col(0xd9a878)); c.R(x + 19.6, gy - 19.6, 4.8, 4.6, Col(0x14100e)); c.R(x + 18.4, gy - 15.4, 7.2, 1, Col(0x14100e))
         }
+        if vis(186, 60) {
+            // the shooting gallery: a striped booth with pennants
+            let x = sx(186).rounded()
+            c.R(x - 20, gy - 24, 40, 24, Col(0x5a2420)); c.R(x - 18, gy - 20, 36, 12, Col(0x1c0c0c))
+            var k = 0.0, i = 0
+            while k < 44 { c.poly(Col(i % 2 == 0 ? 0xb5412e : 0xf0e8d8), [x - 22 + k, gy - 24, x - 18 + k, gy - 24, x - 20 + k, gy - 20]); c.R(x - 22 + k, gy - 30, 4, 6, Col(i % 2 == 0 ? 0xb5412e : 0xf0e8d8)); k += 4; i += 1 }
+            c.poly(Col(0x8a2f26), [x - 24, gy - 30, x, gy - 40, x + 24, gy - 30])
+            c.R(x - 18, gy - 8, 36, 8, Col(0x7a5632)); c.R(x - 19, gy - 9, 38, 1.6, Col(0x9a7448))
+            for j in 0..<3 { let tx2 = x - 12 + ((g.clock * 8 + Double(j) * 12).truncatingRemainder(dividingBy: 30)); c.circ(tx2, gy - 15, 2, Col(0xe8c84a)) }
+            c.R(x - 0.6, gy - 47, 1.2, 8, Col(0x3a2a1c)); c.poly(Col(0xf2c14e), [x + 0.6, gy - 47, x + 8 + sin(g.clock * 4), gy - 45, x + 0.6, gy - 43])
+            c.RR(x - 15, gy - 37, 30, 6, 1, Col(0xead7a4)); c.text("GALLERY", x, gy - 32.4, 4.6, Col(0x8a2f26), face: "Rye-Regular", fit: 27)
+        }
         let fx = g.sFort.x
         if vis(fx, 70) {
             let x = sx(fx).rounded()
@@ -1249,23 +1471,58 @@ final class Renderer {
         if role == .deputy { shirt = Col(0x34445a); hat = Col(0x2e2622) }
         if role == .miner { shirt = Col(0x7a7468); hat = Col(0xc9a86a) }
         if role == .rancher { shirt = Col(0xc9a468); hat = Col(0x6a4a2e) }
-        let sw = moving ? sin(phase) * 2 : 0
-        let bob = work ? abs(sin(g.clock * 9 + seed)) * 1.5 : 0
-        // legs
-        c.R(x - 2 + sw * 0.5, gy - 5, 2, 5, Col(0x3a3a4a)); c.R(x + 0.5 - sw * 0.5, gy - 5, 2, 5, Col(0x3a3a4a))
-        // body, arms, head, hat
-        c.R(x - 2.5, gy - 11 + bob * 0.3, 5, 6, shirt)
+        let sw = moving ? sin(phase) * 2.2 : 0
+        let bob = (work ? abs(sin(g.clock * 9 + seed)) * 1.5 : 0) * 0.3 + (moving ? abs(sin(phase)) * 0.5 : 0)
+        let woman = k % 4 == 1 && role == .folk && !ragged
+        let trousers = Col([0x3a3a4a, 0x4a3a2a, 0x2e3a4e, 0x5a4a3a][(k / 2) % 4] as UInt32)
+        let boot = Col(0x2a1c14)
+        c.ell(x, gy + 0.6, 4.4, 1, Col(0x000000, 0.2))
+        if woman {
+            // a long skirt that sways, an apron, a bonnet
+            let hem = sw * 0.6
+            c.poly(shirt, [x - 2.4, gy - 10 - bob, x + 2.6, gy - 10 - bob, x + 4 + hem, gy - 0.6, x - 3.8 + hem, gy - 0.6])
+            c.R(x - 3.6 + hem, gy - 1.4, 7.4, 0.8, Col.mix(shirt, Col(0x000000), 0.3))
+            c.poly(Col(0xf0e8d8, 0.9), [x - 1.2, gy - 8.6 - bob, x + 1.6, gy - 8.6 - bob, x + 2.2 + hem * 0.6, gy - 2.6, x - 1.8 + hem * 0.6, gy - 2.6])
+            c.R(x - 2.4, gy - 12.2 - bob, 5, 3, shirt); c.R(x - 2.4, gy - 9.6 - bob, 5, 0.8, Col.mix(shirt, Col(0x000000), 0.35))
+        } else {
+            // legs that stride, boots, a belt
+            c.seg(x - 0.8, gy - 5.6, x - 0.8 + sw, gy - 1, 1.9, trousers); c.seg(x + 1, gy - 5.6, x + 1 - sw, gy - 1, 1.9, Col.mix(trousers, Col(0x000000), 0.25))
+            c.R(x - 1.8 + sw, gy - 1.4, 2.8, 1.4, boot); c.R(x + 0.2 - sw, gy - 1.4, 2.8, 1.4, boot)
+            if role == .rancher { c.seg(x - 0.8, gy - 5.6, x - 0.8 + sw, gy - 1.6, 2.6, Col(0x8a6238, 0.9)) }
+            c.R(x - 2.5, gy - 11.6 - bob, 5.2, 6.2, shirt)
+            c.R(x + 1.4, gy - 11.6 - bob, 1.3, 6.2, Col.mix(shirt, Col(0x000000), 0.22))
+            c.R(x - 2.5, gy - 6.4 - bob, 5.2, 1, Col(0x2a1c14)); c.R(x - 0.4, gy - 6.5 - bob, 1.2, 1.2, Col(0xd8b860))
+            if role == .deputy || k % 3 == 0 { c.R(x - 2.5, gy - 11.6 - bob, 1.5, 5.2, Col(0x2e2622, 0.8)); c.R(x + 1.2, gy - 11.6 - bob, 1.5, 5.2, Col(0x2e2622, 0.8)) }       // a vest
+            if role == .miner { c.R(x - 1.6, gy - 11.6 - bob, 0.8, 5.2, Col(0x4a3424)); c.R(x + 1, gy - 11.6 - bob, 0.8, 5.2, Col(0x4a3424)) }                                   // braces
+        }
+        // arms: one swings as he walks, the other works or hangs
+        let sleeve = Col.mix(shirt, Col(0x000000), 0.12)
         if work {
             let a = sin(g.clock * 9 + seed)
-            c.seg(x + dir * 2, gy - 9, x + dir * 6, gy - 11 - a * 3, 1.2, skin)
-            c.R(x + dir * 6 - 1, gy - 13 - a * 3, 2.5, 2, Col(0x8a8a8a))
+            c.seg(x + dir * 1.8, gy - 10.4 - bob, x + dir * 6, gy - 11.4 - a * 3 - bob, 1.5, sleeve)
+            c.circ(x + dir * 6, gy - 11.4 - a * 3 - bob, 0.9, skin)
+            c.seg(x + dir * 6, gy - 11.4 - a * 3 - bob, x + dir * 8.4, gy - 15 - a * 3 - bob, 0.9, Col(0x6a4a2e)); c.R(x + dir * 8.4 - 1.4, gy - 16.4 - a * 3 - bob, 2.8, 1.6, Col(0x8a8a90))
         } else {
-            c.R(x + dir * 2, gy - 10, 1.2, 4, shirt)
+            c.seg(x + dir * 2.2, gy - 10.6 - bob, x + dir * 2.6 - sw * 0.5, gy - 6.6 - bob, 1.4, sleeve); c.circ(x + dir * 2.6 - sw * 0.5, gy - 6.2 - bob, 0.8, skin)
         }
-        c.R(x - 1.5, gy - 14 + bob * 0.3, 3.5, 3.2, skin)
-        c.R(x - 3.5, gy - 15 + bob * 0.3, 7.5, 1.2, hat); c.R(x - 2, gy - 17 + bob * 0.3, 4.5, 2.2, hat)
-        if role == .deputy { star(x - dir * 0.5, gy - 8.5, 1.5, GOLD) }
-        if role == .miner { c.seg(x - dir * 2, gy - 12, x - dir * 4, gy - 4, 1, Col(0x8a6a4a)) }
+        c.seg(x - dir * 2.2, gy - 10.6 - bob, x - dir * 2.6 + sw * 0.5, gy - 6.6 - bob, 1.4, Col.mix(sleeve, Col(0x000000), 0.15))
+        // head: a face, an eye, sometimes a beard or a neckerchief
+        c.RR(x - 1.7, gy - 15.2 - bob, 3.8, 3.8, 0.9, skin)
+        c.R(x + dir * 0.9 - 0.3, gy - 13.9 - bob, 0.7, 0.8, Col(0x1c120c))
+        if !woman && k % 5 == 2 { c.R(x - 1.7, gy - 12.6 - bob, 3.8, 1.4, Col(k % 2 == 0 ? 0x4a3424 : 0xb9b2a4)) }
+        if !woman && k % 3 == 1 { c.R(x - 2, gy - 11.9 - bob, 4.4, 1.1, Col(0xb5412e)) }
+        if woman {
+            c.RR(x - 2.4, gy - 16.6 - bob, 5.2, 3, 1.4, hat); c.R(x - dir * 2.6 - 0.6, gy - 15.4 - bob, 1.6, 3.4, hat); c.R(x - 2.4, gy - 14.4 - bob, 5.2, 0.6, Col(0xf0e8d8))
+        } else if k % 7 == 3 && role == .folk {
+            // a bowler
+            c.RR(x - 2.2, gy - 17.4 - bob, 4.8, 2.8, 1.4, hat); c.R(x - 3, gy - 15.4 - bob, 6.4, 0.9, hat)
+        } else {
+            c.RR(x - 3.9, gy - 15.9 - bob, 8.2, 1.2, 0.6, hat); c.RR(x - 2.1, gy - 18 - bob, 4.6, 2.6, 0.9, hat)
+            c.R(x - 2.1, gy - 16.4 - bob, 4.6, 0.6, Col.mix(hat, Col(0x000000), 0.4))
+        }
+        if role == .deputy { star(x - dir * 0.8, gy - 9.4 - bob, 1.5, GOLD); c.R(x + dir * 2.4, gy - 6.4 - bob, 1.4, 2.6, Col(0x2a1c14)) }
+        if role == .miner { c.seg(x - dir * 2.4, gy - 13, x - dir * 4.2, gy - 3, 0.9, Col(0x8a6a4a)); c.poly(Col(0x8a8a90), [x - dir * 4.6, gy - 13.8, x - dir * 1, gy - 13, x - dir * 4, gy - 12]) }
+        if role == .rancher { c.ellStroke(x - dir * 2.6, gy - 7 - bob, 1.6, 1.9, 0.6, Col(0xc9a468)) }
     }
 
     /// A horse in profile, facing `dir`: jointed legs that walk or gallop, a mane and tail that stream at speed, a head that nods at rest.
@@ -1534,6 +1791,7 @@ final class Renderer {
             c.glow(sx(wx), gy - h, r, Col(0xffb85a, a * dk), Col(0xffb85a, 0))
         }
         light(FIRE_X, 5, 60 + sin(g.clock * 9) * 3, 0.5)
+        for bl in g.b where bl.def.wall != 0 && !bl.def.gate && bl.level > 0 { light(bl.x - 10.3, 26.5, 30, 0.5) }
         for cp in g.camps { light(cp.0 + 22, 4, 34, 0.4) }
         if let tr = g.train { light(tr.x + 3, 25, 30, 0.6); light(tr.x + 130, 22, 40, 0.3) }
         for bl in g.b where bl.level > 0 && !bl.def.gate && !bl.robbed {

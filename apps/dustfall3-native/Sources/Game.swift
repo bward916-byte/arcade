@@ -63,6 +63,74 @@ final class Game {
     var sTower = Building(.sTower, 1206)
     var sHobo = Building(.sHobo, 3090)
     var sCar = Building(.sCar, 3182)
+    var sGallery = Building(.sGallery, 186)
+    var gallery: Gallery?
+    let galleryRows: [(Double, Double, Double)] = [(0.30, 62, 1), (0.46, 44, -1), (0.62, 30, 1)]     // height up the screen, speed, direction
+
+    /// Two coins on the counter: eight shots, three rows of targets, and the day stands still while you shoot.
+    private func startGallery() {
+        var gl = Gallery()
+        let span = W + 60
+        for k in 0..<3 { gl.targets.append(GTarget(x: Double(k) * span / 3 + 20, row: 0, kind: 2)) }
+        for k in 0..<5 { gl.targets.append(GTarget(x: Double(k) * span / 5, row: 1, kind: 0)) }
+        for k in 0..<6 { gl.targets.append(GTarget(x: Double(k) * span / 6 + 10, row: 2, kind: 1)) }
+        gallery = gl
+        pvx = 0
+        sfx?.fanfare()
+        hintT = 0
+    }
+
+    private func updGallery(_ dt: Double) {
+        guard var gl = gallery else { return }
+        gl.t += dt
+        gl.flash = max(0, gl.flash - dt)
+        let span = W + 60
+        for i in gl.targets.indices {
+            let r = galleryRows[gl.targets[i].row]
+            var x = gl.targets[i].x + r.1 * r.2 * dt
+            if x > W + 30 { x -= span }
+            if x < -30 { x += span }
+            gl.targets[i].x = x
+            if gl.targets[i].hit >= 0 {
+                gl.targets[i].hit += dt
+                if gl.targets[i].hit > 2.2 { gl.targets[i].hit = -1 }       // it swings back up
+            }
+        }
+        if (gl.shots == 0 && gl.t - gl.last > 1.1) || gl.t > 22 {
+            let n = gl.won
+            gallery = nil
+            gunCD = 0.6; tossCD = 0.6
+            for _ in 0..<n { dropCoin(px, 14) }
+            if n > 0 { sfx?.fanfare() }
+            hint("gallery", n > 0 ? "\(n) \(n == 1 ? "coin" : "coins") from the shooting gallery. Step up again any time." : "Not a one. The man at the counter says the sights are true.", again: true)
+            return
+        }
+        gallery = gl
+    }
+
+    /// A tap on the booth, in game pixels: one shot where you touched.
+    func galleryShot(_ x: Double, _ y: Double) {
+        guard var gl = gallery, gl.shots > 0, gl.t > 0.5 else { return }
+        gl.shots -= 1
+        gl.last = gl.t
+        gl.flash = 0.08
+        sfx?.gun(0.8)
+        var best = -1
+        var bd = 99.0
+        for (i, tg) in gl.targets.enumerated() where tg.hit < 0 {
+            let ty = H * galleryRows[tg.row].0
+            let reach = tg.kind == 2 ? 8.0 : (tg.kind == 0 ? 11.0 : 9.0)
+            let d = ((tg.x - x) * (tg.x - x) + (ty - y) * (ty - y)).squareRoot()
+            if d < reach && d < bd { bd = d; best = i }
+        }
+        if best >= 0 {
+            gl.targets[best].hit = 0
+            gl.won += gl.targets[best].kind == 2 ? 3 : 1
+            sfx?.ding()
+        } else { gl.holes.append((x, y)) }
+        gallery = gl
+    }
+
     var rodsLv = 0
     var towerLv = 0
     var hoboDay = 0
@@ -309,6 +377,8 @@ final class Game {
                 sfx?.empty()
                 hint("tonic3", "Coloured water. The professor tips his hat.", again: true)
             }
+        case .sGallery:
+            startGallery()
         case .sRods:
             rodsLv = 1
             sfx?.fanfare(); puff(x, -50, 10, GOLD, 40)
@@ -379,6 +449,8 @@ final class Game {
             return rigBurn ? "Oil derrick: on fire. 3 coins\(go) pays a crew to cap it. It pays nothing while it burns." : "Oil derrick: pumping. Pays \(rigPay) coins at the town centre every dawn. Lightning can set it alight."
         case .sShow:
             return showUsed ? "Medicine show: one bottle to a customer. He moves on in the morning." : "Medicine show: 3 coins\(go) for a bottle of tonic. It might put fire in your horse, pay out handsomely, or be coloured water."
+        case .sGallery:
+            return "Shooting gallery: 2 coins\(go) buys eight shots at the moving targets. A coin for every duck or bottle you knock down, three for a star."
         case .sRods:
             return rodsLv > 0 ? "Lightning rods: fitted to every roof. A strike on town runs harmlessly to ground." : "Windmill: 5 coins\(go) fits lightning rods to every roof, so a strike cannot start a fire."
         case .sTower:
@@ -730,7 +802,8 @@ final class Game {
         sShow = Building(.sShow, 752); sFort = Building(.sFort, EX(2470))
         sRods = Building(.sRods, 992); sTower = Building(.sTower, 1206); sHobo = Building(.sHobo, EX(3090)); sCar = Building(.sCar, EX(3182))
         rodsLv = 0; towerLv = 0; hoboDay = 0; carCool = 0; bell = false; stampDay = 0; stampede = nil; ufo = nil; ufoAt = 0; ghostAt = 0; ghostX = nil
-        for st in [sPost, sTribe, sRuin, sRig, sShow, sFort, sRods, sTower, sHobo, sCar] { st.dyn = 0; b.append(st) }
+        sGallery = Building(.sGallery, 186); gallery = nil
+        for st in [sPost, sTribe, sRuin, sRig, sShow, sFort, sRods, sTower, sHobo, sCar, sGallery] { st.dyn = 0; b.append(st) }
         dynamite = 0; loader = false; lantern = false; postSold = 0; scoutDays = 0; ruinCool = 0; rigLv = 0; rigBurn = false
         showOn = false; showUsed = false; oatsDay = 0; wind = 1; blown = false; string = 0; fortNight = false; cav = []
         mustangs = [Mustang(x: -540, seed: 0), Mustang(x: -150, seed: 1), Mustang(x: -360, seed: 2)]
@@ -772,6 +845,7 @@ final class Game {
         sTower.dyn = towerLv > 0 ? 0 : 6
         sHobo.dyn = hoboDay == day ? 0 : 2
         sCar.dyn = carCool > 0 ? 0 : 5
+        sGallery.dyn = 2
         for bl in b { bl.capL = bl.tier ? 1 + hall.level : 9 }
         station.capL = todo().isEmpty ? 9 : 0
     }
@@ -927,6 +1001,13 @@ final class Game {
             wireE.level = 1
             for i in 0..<5 { bandits.append(Bandit(x: 2010 + Double(i) * 30, rider: i % 3 == 2, side: 1, hp: 3)) }
             px = 1850; folk[0].x = 1925; folk[1].x = 1916
+        } else if name == "town" {
+            // a town well along, to look at
+            t = 0.36; day = 12; hall.level = 2; store.level = 2; saloon.level = 3; sheriff.level = 2; px = 1296; pdir = 1
+            folk[0].x = 1260; folk[1].x = 1330; folk[2].x = 1218; folk[3].x = 1372
+        } else if name == "gallery" {
+            hall.level = 1; px = 186; startGallery(); gallery?.t = 3; gallery?.shots = 5; gallery?.won = 4
+            gallery?.targets[4].hit = 0.3; gallery?.targets[9].hit = 0.6; gallery?.holes = [(120, 70), (230, 96)]
         } else if name == "over" {
             hall.level = 1; coins = 0; over = true
         } else if name == "fire" {
@@ -1005,6 +1086,7 @@ final class Game {
         }
         if state != .play { return }
         if over || !cut.isEmpty { return }
+        if gallery != nil { updGallery(dt); updCoins(dt); updParts(dt); return }
         story()
         if duel != nil {
             // high noon: the day stands still until it is settled

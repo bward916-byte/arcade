@@ -121,6 +121,8 @@ final class Sound {
     func click() { tone(1400, 0.03, 2, 0.03) }
     func reload() { tone(700, 0.04, 2, 0.03); tone(900, 0.04, 2, 0.03, 0, 0.12) }
     func hit(_ v: Double) { noise(0.08, 0.2 * v, 500, 1.5); tone(140, 0.1, 3, 0.05 * v, 70) }
+    func whoosh() { noise(0.42, 0.09, 700, 0.5); noise(0.3, 0.06, 2200, 0.6) }
+    func ding() { tone(1568, 0.25, 0, 0.09); tone(2093, 0.35, 0, 0.05, 0, 0.05) }
     func sting() { tone(110, 1.3, 3, 0.07, 104); tone(165, 1.3, 3, 0.04, 156) }
     func dawn() { run([4, 5, 7, 5, 9], 0.34, 0, 0.05, 0.2, 0.5) }
     func rob() { tone(300, 0.3, 3, 0.07, 90); noise(0.2, 0.2, 900, 1) }
