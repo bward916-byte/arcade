@@ -602,6 +602,29 @@ final class GameViewController: UIViewController {
         river.move(to: CGPoint(x: l + cw * 3.45, y: 44))
         river.addCurve(to: CGPoint(x: l + cw * 1.5, y: 82 + 22 + 34), controlPoint1: CGPoint(x: l + cw * 3.0, y: midY - 6), controlPoint2: CGPoint(x: l + cw * 2.1, y: 60))
         river.addCurve(to: CGPoint(x: l + cw * 0.62, y: bh + 6), controlPoint1: CGPoint(x: l + cw * 1.1, y: midY + 20), controlPoint2: CGPoint(x: l + cw * 1.05, y: bh - 60))
+        // the rails bend their way between stops, and the country is drawn clear of them, so the line runs through the gaps
+        func bend(_ a: CGPoint, _ b: CGPoint) -> CGPoint {
+            let dx = b.x - a.x, dy = b.y - a.y
+            let len = max(1, (dx * dx + dy * dy).squareRoot())
+            let sg: CGFloat = Int(a.y + b.y * 2) % 2 == 0 ? 1 : -1
+            return CGPoint(x: (a.x + b.x) / 2 - dy / len * 22 * sg, y: (a.y + b.y) / 2 + dx / len * 22 * sg)
+        }
+        var railPts: [CGPoint] = []
+        for i in 0..<(n - 1) {
+            for a in stops(i) {
+                for b in stops(i + 1) {
+                    let c = bend(a, b)
+                    for q in 0...14 {
+                        let u = CGFloat(q) / 14, v = 1 - u
+                        railPts.append(CGPoint(x: v * v * a.x + 2 * v * u * c.x + u * u * b.x, y: v * v * a.y + 2 * v * u * c.y + u * u * b.y))
+                    }
+                }
+            }
+        }
+        func nearRail(_ x: CGFloat, _ y: CGFloat, _ d: CGFloat) -> Bool {
+            for p in railPts where abs(p.x - x) < d && abs(p.y - y) < d { return true }
+            return false
+        }
         let land = UIGraphicsImageRenderer(size: view.bounds.size).image { _ in
             let inkC = ink.withAlphaComponent(0.6)
             func hh(_ a: Int, _ b: Int) -> CGFloat { return CGFloat(hashN(Double(a) * 12.9898 + Double(b) * 78.233 + 0.5)) }
@@ -687,6 +710,8 @@ final class GameViewController: UIViewController {
                     let rr = hh(gxI + 5, gyI + 13), kk = 0.8 + hh(gxI + 9, gyI + 3) * 0.5
                     let col = Int(max(0, min(CGFloat(n) - 1, ((jx - l) / cw).rounded(.down))))
                     let top = jy < midY
+                    // nothing stands on the right of way; mountains keep further back, and are fewer
+                    if nearRail(jx, jy - 8, col >= 3 ? 30 : 20) { xx += 44; gxI += 1; continue }
                     if col == 0 {
                         if rr < 0.3 { cactus(jx, jy, kk) } else if rr < 0.5 { mesa(jx, jy, 34 * kk, 15 * kk, false) } else if rr < 0.68 { dune(jx, jy, 30 * kk) }
                     } else if col == 1 && top {
@@ -698,11 +723,11 @@ final class GameViewController: UIViewController {
                     } else if col == 2 {
                         if rr < 0.82 { pine(jx, jy, kk, false); pine(jx + 9 * kk, jy + 3, kk * 0.8, false) }
                     } else if col == 3 && top {
-                        if rr < 0.4 { pine(jx, jy, kk, true) } else if rr < 0.78 { mountain(jx, jy, 40 * kk, 30 * kk) }
+                        if rr < 0.35 { pine(jx, jy, kk, true) } else if rr < 0.62 { mountain(jx, jy, 40 * kk, 30 * kk) }
                     } else if col == 3 {
-                        if rr < 0.8 { mountain(jx, jy, 50 * kk, 38 * kk) }
+                        if rr < 0.55 { mountain(jx, jy, 50 * kk, 38 * kk) } else if rr < 0.7 { pine(jx, jy, kk, true) }
                     } else {
-                        if rr < 0.85 { mountain(jx, jy, 54 * kk, 42 * kk) } else { pine(jx, jy, kk, true) }
+                        if rr < 0.55 { mountain(jx, jy, 54 * kk, 42 * kk) } else if rr < 0.72 { pine(jx, jy, kk, true) }
                     }
                     xx += 44; gxI += 1
                 }
@@ -732,7 +757,7 @@ final class GameViewController: UIViewController {
         put(flow)
         // the railroad: a rail with ties across it
         let tp = UIBezierPath()
-        for i in 0..<(n - 1) { for a in stops(i) { for b in stops(i + 1) { tp.move(to: a); tp.addLine(to: b) } } }
+        for i in 0..<(n - 1) { for a in stops(i) { for b in stops(i + 1) { tp.move(to: a); tp.addQuadCurve(to: b, controlPoint: bend(a, b)) } } }
         let ties = CAShapeLayer()
         ties.frame = view.bounds; ties.path = tp.cgPath; ties.fillColor = nil
         ties.strokeColor = ink.withAlphaComponent(0.7).cgColor; ties.lineWidth = 8; ties.lineDashPattern = [1.6, 6]
@@ -764,7 +789,7 @@ final class GameViewController: UIViewController {
         if done.count > 1 {
             let rp = UIBezierPath()
             rp.move(to: done[0])
-            for p in done.dropFirst() { rp.addLine(to: p) }
+            for (k, p) in done.enumerated() where k > 0 { rp.addQuadCurve(to: p, controlPoint: bend(done[k - 1], p)) }
             let loco = CAShapeLayer()
             let lp = UIBezierPath(roundedRect: CGRect(x: -9, y: -4, width: 18, height: 8), cornerRadius: 2)
             lp.append(UIBezierPath(rect: CGRect(x: 3, y: -8, width: 4, height: 5)))
@@ -798,10 +823,6 @@ final class GameViewController: UIViewController {
         put(rose)
         for (i, opts) in STAGES.enumerated() {
             let x = l + CGFloat(i) * cw
-            let hd = UILabel(frame: CGRect(x: x + 2, y: 46, width: cw - 4, height: 30))
-            hd.text = STAGE_NEW[i]; hd.font = serif(11, bold: false); hd.textColor = ink.withAlphaComponent(0.8)
-            hd.textAlignment = .center; hd.numberOfLines = 2
-            mapBox.addSubview(hd)
             for (k, key) in opts.enumerated() {
                 guard let pl = PLACES[key] else { continue }
                 let y = 82 + CGFloat(k) * rowH + (opts.count == 1 ? rowH / 2 : 0)
