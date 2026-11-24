@@ -444,7 +444,7 @@ final class Game {
         case .pen: return L == 0 ? "A faster camel, and the crook rack for herders" : (L == 1 ? "A faster camel" : "A faster camel, and room for 12 goats")
         case .temple: return (L == 0 ? "The gong tells you where raiders come from. " : "") + "Pays \(pay) each dawn"
         case .bank: return L == 0 ? "A vault raiders cannot reach, with interest each dawn" : "More interest on the vault each dawn"
-        case .well: return L == 0 ? "Buildings can rise a level. Room for 6 more people" : (L == 1 ? "Full height, the dock, and 6 more people" : "Two coins each dawn and 6 more people")
+        case .well: return L == 0 ? "The town grows from here: unlocks level 2 on every building, +6 people" : (L == 1 ? "Unlocks level 3 on every building and the dock, +6 people" : "Pays 2 coins each dawn, +6 people")
         case .gw, .ge: return "Strength \(GHP[min(L + 1, GHP.count - 1)])" + (L == 2 ? ", with archers on the wall" : (L == 3 ? ", and faster archers" : ""))
         case .dock: return L == 0 ? "Two coins each dawn, and a boat downriver" : "Sail to the next town"
         case .sphinx: return L == 0 ? "Two coins each dawn. Turns back half the western raiders" : "Four coins each dawn. Turns back two in three"
@@ -2175,6 +2175,15 @@ final class Game {
             for bt in [BType.sphinx, .gw] { B(bt).level = 2 }
             B(.gw).hp = GHP[2]
             player.x = 760
+            player.coins = 9
+            cam = clampD(player.x - W / 2 + 24, 0, WORLD - W)
+            return
+        }
+        if k == "creek" {
+            reset(2)
+            state = .play
+            t = 0.3
+            player.x = OASIS - 20
             player.coins = 9
             cam = clampD(player.x - W / 2 + 24, 0, WORLD - W)
             return

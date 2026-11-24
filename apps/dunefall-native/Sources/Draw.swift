@@ -2604,8 +2604,9 @@ final class Renderer {
 
     /// Lilies, ducks, dragonflies and a moored skiff on the creek.
     func creekExtra(_ x: Double) {
-        c.poly(Col(0x6a4426), [x - 2, GY - 12.4, x + 5, GY - 12.4, x + 4, GY - 11, x - 1, GY - 11])
-        c.seg(x + 1.4, GY - 12.4, x + 1.4, GY - 17, 0.35, Col(0x5a3e22)); c.poly(Col(0xf6efdc), [x + 1.6, GY - 17, x + 4.4, GY - 13.4, x + 1.6, GY - 13])
+        let bx = x + 8
+        c.poly(Col(0x6a4426), [bx - 2, GY - 9.4, bx + 5, GY - 9.4, bx + 4, GY - 8, bx - 1, GY - 8])
+        c.seg(bx + 1.4, GY - 9.4, bx + 1.4, GY - 14, 0.35, Col(0x5a3e22)); c.poly(Col(0xf6efdc), [bx + 1.6, GY - 14, bx + 4.4, GY - 10.4, bx + 1.6, GY - 10])
         for i in 0..<6 {
             let n = Double(i)
             let k = 0.15 + hashN(n + 110) * 0.8
@@ -3155,16 +3156,18 @@ final class Renderer {
         let b = g.B(.grove)
         let sk = skyAt(g.t)
         let wc = Col.mix(sk.0, Col(0x247896), 0.55), wl = Col.mix(sk.1, Col(0x62bacc), 0.5)
-        // the far reach, running down from the horizon
-        c.poly(Col(0x7aa24a), [x - 12, GY - 24, x + 12, GY - 24, x + 50, GY + 1, x - 50, GY + 1])
-        c.poly(wc, [x - 5, GY - 23, x + 5, GY - 23, x + 38, GY + 1, x - 38, GY + 1])
+        // the far reach: it bends away east and slips out of sight behind the dune
         let deep = Col.mix(wc, Col(0x10384a), 0.35).alpha(0.5), edge = Col(0x5a8a3a)
-        for k in 0..<3 {
-            let f = 0.6 - Double(k) * 0.17
-            c.poly(wl.alpha(0.2), [x - 5 * f, GY - 23, x + 5 * f, GY - 23, x + 38 * f - 5, GY + 1, x - 38 * f - 5, GY + 1])
-        }
-        c.poly(deep, [x - 5, GY - 23, x - 3.8, GY - 23, x - 30, GY + 1, x - 38, GY + 1]); c.poly(deep, [x + 5, GY - 23, x + 3.8, GY - 23, x + 30, GY + 1, x + 38, GY + 1])
-        c.seg(x - 5, GY - 23, x - 38, GY + 1, 0.5, edge); c.seg(x + 5, GY - 23, x + 38, GY + 1, 0.5, edge)
+        c.poly(Col(0x7aa24a), [x - 50, GY + 1, x - 22, GY - 9.5, x + 2, GY - 14.5, x + 44, GY - 17, x + 84, GY - 17.2,
+                               x + 60, GY - 12.4, x + 42, GY - 8.6, x + 36, GY - 5, x + 50, GY + 1])
+        c.poly(wc, [x - 38, GY + 1, x - 14, GY - 8, x + 6, GY - 12.6, x + 42, GY - 15.2, x + 72, GY - 15.8,
+                    x + 46, GY - 13, x + 31, GY - 10.4, x + 24, GY - 6, x + 38, GY + 1])
+        c.poly(wl.alpha(0.3), [x - 14, GY + 1, x - 4, GY - 7, x + 12, GY - 11.4, x + 40, GY - 14.4, x + 16, GY - 10.4, x + 8, GY - 6, x + 6, GY + 1])
+        c.poly(deep, [x - 38, GY + 1, x - 14, GY - 8, x + 6, GY - 12.6, x + 42, GY - 15.2, x + 8, GY - 11.6, x - 9, GY - 7, x - 30, GY + 1])
+        c.seg(x - 38, GY + 1, x - 14, GY - 8, 0.5, edge); c.seg(x - 14, GY - 8, x + 6, GY - 12.6, 0.5, edge); c.seg(x + 6, GY - 12.6, x + 72, GY - 15.8, 0.4, edge)
+        c.seg(x + 38, GY + 1, x + 24, GY - 6, 0.5, edge); c.seg(x + 24, GY - 6, x + 31, GY - 10.4, 0.5, edge); c.seg(x + 31, GY - 10.4, x + 72, GY - 15.8, 0.4, edge)
+        // reeds and a palm where it goes out of sight
+        for k in 0..<5 { let rx = x + 50 + Double(k) * 6; c.seg(rx, GY - 15.4, rx + sin(NOW * 2 + Double(k)) * 0.5, GY - 19 - hashN(Double(k) + 140) * 2, 0.5, Col(0x4d8a3c)) }
         // the near reach, across the road and off the bottom of the screen
         c.poly(Col(0x8fb85a), [x - 52, GY, x - 38, GY, x - 62, H, x - 80, H])
         c.poly(Col(0x8fb85a), [x + 38, GY, x + 52, GY, x + 80, H, x + 62, H])
@@ -3180,7 +3183,7 @@ final class Renderer {
             let n = Double(i)
             let u = (NOW * 0.22 + n * 0.2).truncatingRemainder(dividingBy: 1)
             let hw = 5 + u * 33
-            c.R(x - hw * 0.6 + hashN(n + 60) * hw, GY - 22 + u * 22, 2 + u * 5, 0.4, rgba(255, 255, 255, 0.45))
+            c.R(x + 14 - u * 14 - hw * 0.3 + hashN(n + 60) * hw * 0.6, GY - 11 + u * 11, 2 + u * 5, 0.4, rgba(255, 255, 255, 0.45))
         }
         for i in 0..<10 {
             let n = Double(i)
