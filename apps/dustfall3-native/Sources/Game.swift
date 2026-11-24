@@ -583,14 +583,17 @@ final class Game {
             case "a3": return st == 3 && t > 0.14
             case "a4": return st == 4 && t > 0.14
             case "won": return duelWon && t > 0.5
+            case "varney": return bandits.contains { $0.boss && $0.st != 3 }
             case "storm": return wx == 3 && cloudI() > 0.7 && rainI() < 0.5
             case "end": return st == 4 && star
             default: return false
             }
         }
-        for k in ["s1", "s2", "s3", "s4", "a1", "a2", "a3", "a4", "yard", "won", "storm", "ufo", "end"] where !seen.contains("st_" + k) && due(k) {
+        for k in ["s1", "s2", "s3", "s4", "a1", "a2", "a3", "a4", "yard", "won", "varney", "storm", "ufo", "end"] where !seen.contains("st_" + k) && due(k) {
             seen.insert("st_" + k)
             cut = STORY[k] ?? []
+            // riding in on a new town opens with the place itself
+            if k.hasPrefix("a"), let line = ARRIVE[place] { cut.insert(Beat(art: "vista", who: place, head: nice(townName), cap: line), at: 0) }
             return
         }
     }
@@ -601,6 +604,9 @@ final class Game {
         for bl in b where !bl.virt && !bl.site && bl.level < bl.maxLevel { return }
         star = true
         sfx?.fanfare(); flash = 0.5
+        if !noStory && town % STAGES.count != STAGES.count - 1 {
+            cut = [Beat(art: "badge", head: "\(nice(townName)) has its star", cap: "Every building here is as good as it gets. One more town Crane will never own.")]
+        }
         hint("star\(town)", "\(nice(townName)) has its star: every building here is as good as it gets.", again: true)
     }
     var flooded: Bool { return flood >= day && bio != .snow }

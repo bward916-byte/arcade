@@ -490,9 +490,24 @@ let STORY: [String: [Beat]] = [
     "won": [Beat(art: "hand", head: "You won the duel", cap: "Crane’s gunfighter is beaten."),
             Beat(art: "eyes", who: "crane", head: "Silas Crane", cap: "Crane hears about it the same night. He will send another.")],
     "storm": [Beat(art: "storm", head: "Storm season", cap: "The first big thunderstorm rolls in. Lightning can set your roofs on fire.")],
+    "varney": [Beat(art: "poster", head: "A face from a poster", cap: "A boss rides with tonight’s raiders: Varney, wanted in three territories. Somebody is paying him."),
+               Beat(art: "eyes", who: "rider", head: "You, the rider", cap: "He is slow, he is hard to kill, and he shoots back. Bring him down and the rest will run.")],
     "end": [Beat(art: "map", who: "all", head: "All five towns rebuilt", cap: "Every town stands again. There is nothing left for Crane to buy."),
-            Beat(art: "eyes", who: "crane", head: "Silas Crane", cap: "He leaves on the night train and never comes back."),
+            Beat(art: "wire", head: "On every wire", cap: "The telegraph carries it up and down the line: Crane is selling out.", lines: ["CRANE CATTLE AND RAIL", "ALL HOLDINGS FOR SALE", "THE COMPANY IS CLOSED"]),
+            Beat(art: "eyes", who: "crane", head: "Silas Crane", cap: "He looks at Bitter End one last time, lit from end to end."),
+            Beat(art: "train", head: "The night train", cap: "His private car goes east with the blinds drawn. He never comes back."),
+            Beat(art: "vista", who: "dustfall", head: "Dustfall", cap: "Back where it began, the lamps are lit on main street.", from: "lit"),
             Beat(art: "badge", head: "The end", cap: "The line belongs to the people who live on it.")]
+]
+/// What you see riding in on each town for the first time.
+let ARRIVE: [String: String] = [
+    "redwater": "Green country on a slow river, and every roof on main street boarded up.",
+    "irongulch": "One road in between red walls, and Crane’s name nailed under the town’s.",
+    "lasthope": "Sand over the doorsteps, and the wind never done with it.",
+    "timberline": "Tall pines, wet ground, and thunder most afternoons.",
+    "coldcreek": "Snow to the fence rails, and smoke from no chimney.",
+    "silverpeak": "The pass is open a few weeks a year. This is one of them.",
+    "bitterend": "The rails stop here. So does Crane."
 ]
 
 /// The opening: when each line comes up, in seconds.

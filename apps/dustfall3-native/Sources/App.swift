@@ -491,9 +491,10 @@ final class GameViewController: UIViewController {
             if args.contains("-demo-burn") { demoMode = true; game.demo("day"); logoOn = true; burnLogo.frozen = 0.52; burnLogo.reset(); burnLogo.ignite(after: 0) }
             if args.contains("-demo-gallery") { demoMode = true; game.demo("gallery") }
             if args.contains("-demo-town") { demoMode = true; game.demo("town") }
-            if args.contains("-demo-cut3") { demoMode = true; game.demo("day"); game.cut = [STORY["s1"]![0]] }
-            if args.contains("-demo-cut") { demoMode = true; game.demo("day"); game.cut = [STORY["a4"]![1]] }
-            if args.contains("-demo-cut2") { demoMode = true; game.demo("day"); game.cut = [STORY["s2"]![1]] }
+            if args.contains("-demo-cut3") { demoMode = true; game.demo("day"); game.cut = [Beat(art: "vista", who: "coldcreek", head: "Cold Creek", cap: ARRIVE["coldcreek"] ?? "")] }
+            if args.contains("-demo-cut") { demoMode = true; game.demo("day"); game.cut = [STORY["varney"]![0]] }
+            if args.contains("-demo-cut2") { demoMode = true; game.demo("day"); game.cut = [Beat(art: "vista", who: "irongulch", head: "Iron Gulch", cap: ARRIVE["irongulch"] ?? "")] }
+            if args.contains("-demo-cut4") { demoMode = true; game.demo("day"); game.cut = [STORY["end"]![4]] }
         }
     }
 
@@ -854,13 +855,6 @@ final class GameViewController: UIViewController {
                 }
                 if !pick && !hereNow && !been { b.alpha = 0.72 }
                 mapBox.addSubview(b)
-                if pick || hereNow {
-                    let nt = UILabel(frame: CGRect(x: x + 4, y: y + 50, width: cw - 8, height: min(rowH - 54, 60)))
-                    nt.text = pl.note; nt.font = serif(10.5); nt.textColor = ink
-                    nt.backgroundColor = UIColor(red: 0.91, green: 0.83, blue: 0.63, alpha: 0.85); nt.layer.cornerRadius = 4; nt.layer.masksToBounds = true
-                    nt.textAlignment = .center; nt.numberOfLines = 0; nt.adjustsFontSizeToFitWidth = true; nt.minimumScaleFactor = 0.7
-                    mapBox.addSubview(nt)
-                }
             }
         }
         if !choose {

@@ -358,6 +358,95 @@ final class Renderer {
                 let y = (hs(i + 3) * 112 + t * 260 * (0.7 + hs(i + 4) * 0.5)).truncatingRemainder(dividingBy: 112)
                 a.seg(x, y, x - 3, y + 8, 1, Col(0xc8d6f0, 0.5))
             }
+        case "vista":
+            // riding in on a town for the first time: its country, the empty street, the name on the sign
+            let bio = PLACES[bt.who]?.bio ?? .desert
+            let lit = bt.from == "lit"
+            var P: [UInt32]       // sky top, sky low, far, near, ground, street
+            switch bio {
+            case .river: P = [0x7fb6dc, 0xe8e2b8, 0x9fb08a, 0x6f9358, 0xa9a25e, 0x8c8446]
+            case .canyon: P = [0xd88a5a, 0xf2c48a, 0xb5573a, 0x8a3a26, 0xc77a4a, 0xa05e36]
+            case .pine: P = [0x8aa6b0, 0xd0d8c8, 0x5f7f6a, 0x2f5238, 0x7a7448, 0x5c5632]
+            case .snow: P = [0x9ab4d0, 0xeef2f8, 0xb6c4d6, 0x8494ac, 0xe8eef6, 0xc4d0de]
+            default: P = [0x6fa8d8, 0xf4dca8, 0xd9a47a, 0xc47a4a, 0xdcb680, 0xc09a62]
+            }
+            if lit { P[0] = 0x2a2850; P[1] = 0xe8794a }
+            for i in 0..<8 { a.R(0, Double(i) * 10, 200, 10, Col.mix(Col(P[0]), Col(P[1]), Double(i) / 7)) }
+            a.circ(150, lit ? 74 : 40, 16, Col(0xfff2c0, 0.25)); a.circ(150, lit ? 74 : 40, 9, Col(lit ? 0xffb060 : 0xfff2c0))
+            for i in 0..<3 { let cx = (hs(i + 2) * 240 + t * (2 + Double(i))).truncatingRemainder(dividingBy: 240) - 20; q(cx, 24 + Double(i) * 7, 26, 3, 0xffffff, 0.5); q(cx + 5, 22 + Double(i) * 7, 14, 2, 0xffffff, 0.5) }
+            // the far country
+            if bio == .snow {
+                for i in 0..<6 {
+                    let mx = Double(i) * 38 - 6 + hs(i) * 10, mh = 26 + hs(i + 3) * 16
+                    a.poly(Col(P[2]), [mx - 26, 80, mx, 80 - mh, mx + 26, 80]); a.poly(Col(P[3], 0.6), [mx, 80 - mh, mx + 26, 80, mx + 6, 80])
+                    a.poly(Col(0xffffff), [mx - 7, 80 - mh * 0.72, mx, 80 - mh, mx + 7, 80 - mh * 0.72, mx + 3, 80 - mh * 0.64, mx, 80 - mh * 0.74, mx - 3, 80 - mh * 0.62])
+                }
+            } else if bio == .pine {
+                a.poly(Col(P[2]), [0, 80, 0, 62, 30, 56, 70, 64, 110, 54, 150, 62, 200, 56, 200, 80])
+                for i in 0..<22 {
+                    let px = Double(i) * 9.4 + hs(i) * 4, ph = 12 + hs(i + 6) * 10
+                    if px > 78 && px < 122 { continue }
+                    a.poly(Col(P[3]), [px - 4, 80, px, 80 - ph, px + 4, 80]); a.poly(Col(P[3]), [px - 3, 80 - ph * 0.4, px, 80 - ph - 3, px + 3, 80 - ph * 0.4])
+                }
+            } else if bio == .canyon {
+                a.poly(Col(P[2]), [0, 80, 0, 50, 200, 50, 200, 80])
+                a.poly(Col(P[3]), [0, 86, 0, 14, 34, 14, 46, 30, 52, 60, 70, 80]); a.poly(Col(P[3]), [200, 86, 200, 18, 170, 18, 158, 34, 150, 62, 132, 80])
+                for i in 0..<6 { q(0, 22 + Double(i) * 10, 44 - Double(i) * 1, 1, 0x6a2a1c, 0.5); q(160 + Double(i) * 1, 26 + Double(i) * 10, 40, 1, 0x6a2a1c, 0.5) }
+            } else if bio == .river {
+                hell(40, 80, 60, 22, P[2]); hell(130, 80, 80, 26, P[2]); hell(190, 80, 40, 16, P[3])
+                for i in 0..<7 { let tx = 8 + Double(i) * 30 + hs(i) * 8; if tx > 80 && tx < 120 { continue }; q(tx, 72, 1.5, 8, 0x4a3424); a.circ(tx + 0.7, 69, 5, Col(P[3])) }
+                a.poly(Col(0x7fb0c4), [0, 96, 0, 88, 40, 84, 78, 82, 78, 84, 44, 90, 0, 104]); q(6, 92, 14, 1, 0xd8ecf4, 0.7 * (0.5 + 0.5 * sin(t * 2))); q(30, 87, 10, 1, 0xd8ecf4, 0.6)
+            } else {
+                a.poly(Col(P[2]), [0, 80, 0, 60, 26, 60, 32, 52, 66, 52, 72, 64, 112, 64, 118, 56, 150, 56, 156, 66, 200, 66, 200, 80])
+                a.poly(Col(P[3]), [150, 80, 156, 48, 162, 44, 192, 44, 200, 54, 200, 80])
+                for cx in [14.0, 60, 176] { q(cx, 70, 2, 10, 0x55783c); q(cx - 3, 73, 3, 1.5, 0x55783c); q(cx - 3, 71, 1.5, 3, 0x55783c); q(cx + 2, 75, 3, 1.5, 0x55783c); q(cx + 3.5, 72, 1.5, 4, 0x55783c) }
+            }
+            // the ground, and the street running in to the town
+            q(0, 80, 200, 32, P[4])
+            a.poly(Col(P[5]), [88, 80, 112, 80, 150, 112, 50, 112])
+            for i in 0..<10 { q(hs(i + 11) * 200, 84 + hs(i + 13) * 24, 3, 1, P[5], 0.6) }
+            // the town itself: false fronts down both sides, dark and boarded, or lit at the last
+            let shack: UInt32 = bio == .snow ? 0x4a4a58 : 0x3a2e28
+            let fronts: [(Double, Double, Double)] = [(44, 12, 13), (57, 14, 18), (72, 15, 14), (113, 15, 16), (129, 13, 20), (143, 14, 12)]
+            for (bx, bw, bh) in fronts {
+                q(bx, 81 - bh, bw, bh, shack); q(bx - 1, 81 - bh - 3, bw + 2, 3, shack); q(bx, 81 - bh * 0.45, bw, 1, 0x000000, 0.3)
+                if lit { q(bx + 2, 81 - bh + 4, 3, 3, 0xffcf6b); q(bx + bw - 5, 81 - bh + 4, 3, 3, 0xffcf6b); a.circ(bx + bw / 2, 81 - bh + 5, 9, Col(0xffb85a, 0.14)) }
+                else { q(bx + 2, 81 - bh + 4, 3, 3, 0x14100e); q(bx + 1.5, 81 - bh + 5, 4, 1, 0x6a5a48) }
+                if bio == .snow { q(bx - 1, 81 - bh - 4, bw + 2, 1.5, 0xffffff) }
+            }
+            // the rider coming up the street
+            let rb = sin(t * 6) * 0.6
+            q(95, 96 + rb, 11, 5, 0x1c1410); q(104, 93 + rb, 4, 4, 0x1c1410); q(95.5, 100, 1.5, 5, 0x1c1410); q(99, 100, 1.5, 5 - rb, 0x1c1410); q(103, 100, 1.5, 5, 0x1c1410)
+            q(98, 89 + rb, 4, 7, 0x2a2430); q(96.5, 87.6 + rb, 7, 1.2, 0x14100e); q(98, 85.6 + rb, 4, 2.2, 0x14100e); q(94, 97 + rb, 1.5, 4, 0x1c1410)
+            // the sign by the road, with the company's board nailed under it until the town is won
+            a.save(); a.translate(160, 44); a.rotate(sin(t * 1.1) * 0.012)
+            q(-2, 0, 3, 56, 0x4a3424); q(-31, 0, 60, 15, 0x3a2a1c); q(-30, 1, 58, 13, 0x8a6a44); q(-30, 1, 58, 1, 0xa8885c)
+            a.text(nice(PLACES[bt.who]?.name ?? ""), -1, 11.4, 9, Col(0x2a1c14), face: "Rye-Regular", fit: 52)
+            if !lit && bt.who != "dustfall" { q(-22, 17, 42, 8, 0x6a231c); a.text("CRANE C. & R.", -1, 23.2, 5, Col(0xead7a4), fit: 38) }
+            a.restore()
+            motes(bio == .snow ? 34 : 12, bio == .snow ? 0xffffff : 0xfff3c4)
+        case "poster":
+            // a wanted poster nailed to the boards
+            q(0, 0, 200, 112, 0x4a3426)
+            for i in 0..<10 { q(Double(i) * 22, 0, 1, 112, 0x3a2a1e) }
+            a.save(); a.translate(100, 58); a.rotate(sin(t * 0.7) * 0.012 - 0.02)
+            q(-43, -38, 90, 80, 0x000000, 0.25)
+            q(-44, -40, 88, 80, 0xe6d4a4); q(-44, -40, 88, 1, 0xf4e8c4); q(-44, 39, 88, 1, 0xb8a070)
+            for i in 0..<12 { q(-44 + hs(i) * 74, -40 + hs(i + 4) * 74, 6 + hs(i + 2) * 8, 3, 0xc8b078, 0.35) }
+            a.text("WANTED", 0, -26, 13, Col(0x2a1c14), face: "Rye-Regular")
+            q(-17, -22, 34, 30, 0xcdb888); q(-17, -22, 34, 1, 0x2a1c14); q(-17, 7, 34, 1, 0x2a1c14); q(-17, -22, 1, 30, 0x2a1c14); q(16, -22, 1, 30, 0x2a1c14)
+            q(-12, -14, 24, 3, 0x1c1410); q(-7, -20, 14, 7, 0x1c1410); q(-7, -15, 14, 1, 0x6a231c)
+            q(-7, -11, 14, 13, 0xb8885a); q(-7, -11, 14, 2, 0x8a6240); q(5, -9, 2, 11, 0x9a7048)
+            q(-5, -7, 3, 2, 0x1c1410); q(2, -7, 3, 2, 0x1c1410); q(-5, -8, 3, 1, 0x3a2a1c); q(2, -8, 3, 1, 0x3a2a1c)
+            q(-6, -2, 12, 2, 0x2a1c14); q(-7, 0, 2, 2, 0x2a1c14); q(5, 0, 2, 2, 0x2a1c14)
+            a.seg(3, -10, 6, -3, 0.8, Col(0x7a3a2a))
+            q(-10, 2, 20, 5, 0x3a2e28); q(-2, 2, 4, 3, 0xa02a22)
+            a.text("VARNEY", 0, 18, 8, Col(0x2a1c14), face: "Rye-Regular")
+            a.text("ROBBERY AND ARSON", 0, 25, 4.4, Col(0x2a1c14))
+            a.text("$500 REWARD", 0, 35, 7, Col(0x8a2b22), face: "Rye-Regular")
+            q(-1.5, -38, 3, 3, 0x6a6a72); q(-1, -37.5, 1, 1, 0xc9c9d0)
+            a.restore()
+            motes(8, 0xfff3c4)
         default:
             // the star, pinned on
             q(0, 0, 200, 112, 0x4a3426)
