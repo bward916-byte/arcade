@@ -585,6 +585,7 @@ final class GameViewController: UIViewController {
             if args.contains("-demo-night") { game.demo("night") }
             if args.contains("-demo-port") { game.demo("port") }
             if args.contains("-demo-oasis") { game.demo("oasis") }
+            if args.contains("-demo-creek") { game.demo("creek") }
             if args.contains("-demo-desert") { game.demo("desert") }
             if args.contains("-demo-scene") { game.demo("scene") }
             if args.contains("-demo-cliff") { game.demo("cliff") }
