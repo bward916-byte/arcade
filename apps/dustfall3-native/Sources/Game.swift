@@ -298,7 +298,7 @@ final class Game {
             let dir = bn.x > g.cx ? 1.0 : -1.0
             shots.append(Shot(x: g.cx + dir * 4, y: -44, vx: dir * 300, life: max(0.05, bd / 300), mine: false))
             sfx?.gun(clampD(1 - abs(g.cx - px) / 320, 0.15, 1) * 0.6)
-            if chance(0.75) { hurt(bn, 1) }
+            if chance(0.75) { hurt(bn, 2) }
         }
     }
     var dynamite = 0
@@ -482,21 +482,21 @@ final class Game {
             c.cd -= dt
             if c.cd <= 0 {
                 var tgt: Bandit?
-                var bd = 70.0
-                for bn in bandits where bn.hp > 0 && (bn.x < gateW.x - 6 || bn.x > gateE.x + 20) {
+                var bd = 95.0
+                for bn in bandits where bn.hp > 0 && (bn.x < gateW.x || bn.x > gateE.x + 14) {
                     let d = abs(bn.x - c.x)
                     if d < bd { bd = d; tgt = bn }
                 }
                 if let bn = tgt {
-                    c.cd = 0.55
+                    c.cd = 0.7
                     let dir = bn.x > c.x ? 1.0 : -1.0
                     shots.append(Shot(x: c.x + dir * 6, y: -22, vx: dir * 300, life: max(0.05, bd / 300), mine: false))
                     sfx?.gun(clampD(1 - abs(c.x - px) / 320, 0.1, 1) * 0.5)
-                    if chance(0.65) { hurt(bn, 2) }
+                    hurt(bn, 3)
                 }
             }
-            // they pull up at the gate and ride home
-            if (c.dir < 0 && c.x < gateE.x + 30) || (c.dir > 0 && c.x > gateW.x - 20) { cav.remove(at: i); continue }
+            // they ride clean through, past the town and out the far side, as in the web game
+            if (c.dir < 0 && c.x < gateW.x - 460) || (c.dir > 0 && c.x > gateE.x + 460) { cav.remove(at: i); continue }
             cav[i] = c
             i += 1
         }
@@ -1466,13 +1466,15 @@ final class Game {
                 if night {
                     f.tx = side < 0 ? 976 + Double(dep) * 9 : gateE.x - 10 - Double(dep) * 9
                     var tgt: Bandit?
-                    var bd = (110.0 + (sheriff.level >= 2 ? 30 : 0) + (forge.level >= 1 ? 30 : 0)) * sightK()
+                    var bd = ((sheriff.level >= 2 ? 215.0 : 170.0) + (forge.level >= 1 ? 40 : 0)) * sightK()
                     for bn in bandits where bn.st != 3 {
                         let d = abs(bn.x - f.x)
                         if d < bd { bd = d; tgt = bn }
                     }
-                    if let bn = tgt, f.shotCD <= 0, abs(f.x - f.tx) < 30 {
-                        f.shotCD = rnd(1.3, 1.9) * (sheriff.level >= 2 ? 0.75 : 1)
+                    // beyond a hundred paces he closes on his man, never leaving the gates
+                    if let bn = tgt, bd > 100 { f.tx = clampD(bn.x, gateW.x + 18, gateE.x - 6) }
+                    if let bn = tgt, f.shotCD <= 0, bd <= 100 || abs(f.x - f.tx) < 3 {
+                        f.shotCD = sheriff.level >= 2 ? 0.75 : 1
                         f.dir = bn.x > f.x ? 1 : -1
                         shots.append(Shot(x: f.x + f.dir * 4, y: -9, vx: f.dir * 300, life: abs(bn.x - f.x) / 300, mine: false))
                         sfx?.gun(0.5)
@@ -1985,7 +1987,7 @@ final class Game {
     /// The Gatling gun on a gatehouse roof, and the sharpshooter behind third-level wire.
     private func updGuns(_ dt: Double) {
         if bandits.isEmpty { return }
-        func volley(_ from: Building, _ h: Double, _ reach: Double, _ every: Double, _ odds: Double, _ loud: Double) {
+        func volley(_ from: Building, _ h: Double, _ reach: Double, _ every: Double, _ odds: Double, _ loud: Double, _ dmg: Int) {
             from.cd -= dt
             if from.cd > 0 { return }
             var tgt: Bandit?
@@ -1999,10 +2001,11 @@ final class Game {
             let dir = bn.x > from.cx ? 1.0 : -1.0
             shots.append(Shot(x: from.cx + dir * 4, y: -h, vx: dir * 300, life: max(0.05, bd / 300), mine: false))
             sfx?.gun(loud * clampD(1 - abs(from.cx - px) / 320, 0.15, 1))
-            if chance(odds) { hurt(bn, 1) }
+            if chance(odds) { hurt(bn, dmg) }
         }
-        for g in [gateW, gateE] where g.level >= 3 && g.hp > 0 { volley(g, 40, 90 * sightK(), 0.3, 0.45, 0.35) }
-        for w in [wireW, wireE] where w.level >= 3 { volley(w, 9, 170 * sightK(), 2.2, 0.8, 0.5) }
+        // the web game's numbers: the Gatling reaches 200 and fires six rounds a second at four in ten; the nest reaches 190
+        for g in [gateW, gateE] where g.level >= 3 && g.hp > 0 { volley(g, 40, 200 * sightK(), 0.17, 0.4, 0.3, 1) }
+        for w in [wireW, wireE] where w.level >= 3 { volley(w, 9, 190 * sightK(), 1.1, 0.75, 0.5, 2) }
     }
 
     private func updShots(_ dt: Double) {

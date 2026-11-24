@@ -1076,29 +1076,56 @@ final class Renderer {
     }
 
     private func cowAt(_ wx: Double, _ dir: Double, _ s: Double, _ seed: Double, _ phase: Double, horns: Bool) {
-        if !vis(wx, 20) { return }
+        if !vis(wx, 26) { return }
         let x = sx(wx)
-        let dkc = Int(seed) % 3 == 0
-        let body = dkc ? Col(0x3a2e28) : Col(0x8a4a2c), lo = dkc ? Col(0x2a201c) : Col(0x6c3820)
-        let sw = sin(phase) * 1.2
+        let kind = Int(seed) % 3
+        let body = kind == 0 ? Col(0x3a2e28) : (kind == 1 ? Col(0x8a4a2c) : Col(0xa8623a))
+        let lo = Col.mix(body, Col(0x000000), 0.32), hi = Col.mix(body, Col(0xffffff), 0.16), cream = Col(0xe8dcc4), hoof = Col(0x1c1410)
+        let sw = sin(phase) * 1.3
+        // pasture cattle have their heads down at the grass much of the time; the tail keeps the flies off
+        let graze = !horns && sin(g.clock * 0.35 + seed * 1.7) > 0.25
+        let tail = sin(g.clock * 2.6 + seed) * 2
         c.save(); c.translate(x, gy); c.scale(dir * s, s)
-        c.R(-6 + sw * 0.4, -5, 1.5, 5, lo); c.R(-3 - sw * 0.4, -5, 1.5, 5, lo); c.R(3 + sw * 0.4, -5, 1.5, 5, lo); c.R(5.5 - sw * 0.4, -5, 1.5, 5, lo)
-        c.RR(-8, -12, 16, 8, 2.5, body)
-        c.RR(6, -14, 6, 5, 1.5, body); c.R(10.5, -11.5, 2, 2, lo)
-        if horns {
-            c.curve(7, -14, 4, -18, 1.5, -18.5, 1, Col(0xe8dcc4)); c.curve(10.5, -14, 14, -18, 16.5, -18.5, 1, Col(0xe8dcc4))
-        } else {
-            c.R(6, -15, 1, 1.5, Col(0xe8dcc4)); c.R(10, -15, 1, 1.5, Col(0xe8dcc4))
+        c.roundCaps(true)
+        c.ell(0, 0.8, 11, 1.6, Col(0x000000, 0.18))
+        // far legs
+        c.R(-5.6 - sw * 0.4, -6, 1.5, 5.2, lo); c.R(4.6 - sw * 0.4, -6, 1.5, 5.2, lo)
+        c.R(-5.8 - sw * 0.4, -1, 1.9, 1, hoof); c.R(4.4 - sw * 0.4, -1, 1.9, 1, hoof)
+        c.curve(-9, -13, -11.5, -10, -10.5 + tail * 0.5, -5, 0.8, lo); c.ell(-10.5 + tail * 0.5, -4.2, 0.9, 1.5, hoof)
+        // a deep barrel, the hip and the shoulder, light along the back and shade under the belly
+        c.RR(-9, -14, 17.5, 9, 3, body)
+        c.circ(-6.4, -10.6, 3.6, body); c.circ(6, -10.4, 3.9, body)
+        c.poly(body, [3, -14, 7, -15.2, 9.5, -13, 8, -8])
+        c.RR(-7, -14, 12, 1.1, 0.5, hi.alpha(0.7))
+        c.vfill(-8.4, -8.4, 16.4, 3.2, [(0, lo.alpha(0)), (1, lo.alpha(0.7))])
+        c.R(-8.4, -13.6, 1, 2.4, lo.alpha(0.5))
+        c.curve(4.4, -13.4, 7.4, -10.6, 5, -7.2, 0.6, lo.alpha(0.5))
+        if kind == 1 { c.RR(-4, -13.4, 5, 4, 1.5, cream.alpha(0.9)); c.circ(3.4, -9.6, 1.6, cream.alpha(0.9)) }
+        if kind == 2 { c.RR(-1, -7.6, 7, 2, 1, cream.alpha(0.85)) }
+        if !horns && s > 0.8 { c.RR(-4.6, -5.8, 3.4, 2.2, 1, Col(0xe8a8a0)); c.R(-4, -3.8, 0.6, 0.9, Col(0xd08a84)); c.R(-2.6, -3.8, 0.6, 0.9, Col(0xd08a84)) }
+        // near legs, with knees and cloven hooves
+        for lx in [-7.6 + sw * 0.4, 5.8 + sw * 0.4] {
+            c.R(lx, -6.4, 1.9, 5.6, body); c.R(lx + 1.3, -6.4, 0.6, 5.6, lo.alpha(0.6)); c.circ(lx + 0.95, -3.6, 1.15, body)
+            c.R(lx - 0.2, -1, 2.3, 1, hoof); c.R(lx + 0.85, -1, 0.3, 1, Col(0x4a3a30))
         }
-        c.seg(-8, -11, -10, -5, 0.8, lo)
-        if !dkc { c.R(-3, -11, 4, 3, Col(0xe8dcc4, 0.8)) }
-        // a lit back and shaded belly, hooves, an ear and eye, a pale muzzle, the tuft of the tail
-        c.R(-7, -12, 13, 1, Col(0xffffff, 0.13)); c.R(-7.4, -6.2, 14.8, 2.2, Col(0x000000, 0.2))
-        for lx in [-6 + sw * 0.4, -3 - sw * 0.4, 3 + sw * 0.4, 5.5 - sw * 0.4] { c.R(lx, -1, 1.5, 1, Col(0x1c1410)) }
-        c.R(5.2, -14.8, 1.8, 1.2, lo); c.R(9.2, -13, 0.9, 0.9, Col(0x14100e))
-        c.RR(10, -11.9, 2.6, 2.6, 1, Col(dkc ? 0x5a4a44 : 0xd8b8a0)); c.R(11.4, -10.6, 0.6, 0.6, Col(0x14100e))
-        c.R(-10.7, -5, 1.4, 2.2, Col(0x1c1410))
-        if !horns && !dkc { c.R(2, -9.4, 3, 2.4, Col(0xe8dcc4, 0.8)); c.R(-1.2, -4.4, 2.6, 1.3, Col(0xe8a8a0)) }
+        // neck, dewlap and head
+        let hx = 11.2, hy = graze ? -4.8 + sin(g.clock * 5 + seed) * 0.4 : -14.0
+        c.seg(7.6, -11.6, hx - 1, hy + 0.6, 4.2, body)
+        c.curve(8, -9, 9.5, graze ? -6 : -9.5, hx - 0.5, hy + 2.4, 1, lo.alpha(0.6))
+        c.RR(hx - 2.6, hy - 2.4, 5.6, 4.8, 1.6, body)
+        let mz = graze ? 1.0 : 0.0
+        c.RR(hx + 1.6, hy - 1 + mz, 3, 3, 1.2, kind == 0 ? Col(0x5a4a44) : Col(0xd8b8a0))
+        c.R(hx + 3.4, hy + 0.4 + mz, 0.6, 0.6, Col(0x14100e))
+        c.R(hx - 0.2, hy - 1.2, 0.9, 0.9, Col(0x14100e)); c.R(hx - 0.2, hy - 1.2, 0.4, 0.4, Col(0xffffff, 0.7))
+        c.poly(lo, [hx - 2.6, hy - 1.6, hx - 5, hy - 2.6, hx - 2.4, hy - 0.2])
+        if kind != 0 { c.R(hx + 0.5, hy - 2.4, 1.3, 3.2, cream.alpha(0.85)) }
+        if horns {
+            c.curve(hx - 1.6, hy - 2.2, hx - 5, hy - 6, hx - 8.5, hy - 5.4, 1.1, cream); c.curve(hx + 1, hy - 2.2, hx + 4.6, hy - 6, hx + 8, hy - 5.4, 1.1, cream)
+            c.R(hx - 9, hy - 6, 1, 1, Col(0x3a2e28)); c.R(hx + 7.6, hy - 6, 1, 1, Col(0x3a2e28))
+        } else {
+            c.R(hx - 1.8, hy - 3.4, 1, 1.4, cream); c.R(hx + 0.6, hy - 3.4, 1, 1.4, cream)
+        }
+        c.roundCaps(false)
         c.restore()
     }
 
