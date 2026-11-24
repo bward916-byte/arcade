@@ -252,9 +252,9 @@ final class Renderer {
                 if done { star(x, y, 7.5, 3.3, 0, 0x2a1c14); star(x, y, 5.8, 2.5, 0, 0xe8b830) } else { a.circ(x, y, 4, Col(0x2a1c14)) }
                 if i == cur {
                     a.ellStroke(x, y, 8 + sin(t * 3.2), 8 + sin(t * 3.2), 1.6, Col(0xb0261c))
-                    a.text("YOU ARE HERE", clampD(x, 32, 168), y + (up ? 13 : -13) + 2.1, 6, Col(0xb0261c))
+                    a.text("YOU ARE HERE", clampD(x, 42, 158), y + (up ? 13 : -13) + 2.1, 6, Col(0xb0261c))
                 }
-                a.text(nice(nm), clampD(x, 26, 174), y + (up ? -12 : 12) + 2.3, 6.5, Col(0x2a1c14))
+                a.text(nice(nm), clampD(x, 38, 162), y + (up ? -12 : 12) + 2.3, 6.5, Col(0x2a1c14))
             }
             star(36, 82, 4.6, 2, 0, 0x2a1c14); star(36, 82, 3.5, 1.5, 0, 0xe8b830)
             a.text("rebuilt", 43, 84.6, 6, Col(0x2a1c14), center: false)
@@ -1088,6 +1088,13 @@ final class Renderer {
         }
         c.seg(-8, -11, -10, -5, 0.8, lo)
         if !dkc { c.R(-3, -11, 4, 3, Col(0xe8dcc4, 0.8)) }
+        // a lit back and shaded belly, hooves, an ear and eye, a pale muzzle, the tuft of the tail
+        c.R(-7, -12, 13, 1, Col(0xffffff, 0.13)); c.R(-7.4, -6.2, 14.8, 2.2, Col(0x000000, 0.2))
+        for lx in [-6 + sw * 0.4, -3 - sw * 0.4, 3 + sw * 0.4, 5.5 - sw * 0.4] { c.R(lx, -1, 1.5, 1, Col(0x1c1410)) }
+        c.R(5.2, -14.8, 1.8, 1.2, lo); c.R(9.2, -13, 0.9, 0.9, Col(0x14100e))
+        c.RR(10, -11.9, 2.6, 2.6, 1, Col(dkc ? 0x5a4a44 : 0xd8b8a0)); c.R(11.4, -10.6, 0.6, 0.6, Col(0x14100e))
+        c.R(-10.7, -5, 1.4, 2.2, Col(0x1c1410))
+        if !horns && !dkc { c.R(2, -9.4, 3, 2.4, Col(0xe8dcc4, 0.8)); c.R(-1.2, -4.4, 2.6, 1.3, Col(0xe8a8a0)) }
         c.restore()
     }
 
@@ -1120,12 +1127,35 @@ final class Renderer {
         let st = Col(0x5a4a3a), dkw = Col(0x3a2a1c)
         if vis(992, 40) {
             let x = sx(992).rounded()
-            c.seg(x - 7, gy, x - 1.5, gy - 62, 1.4, st); c.seg(x + 7, gy, x + 1.5, gy - 62, 1.4, st)
+            let steel = Col(0x6a5a48), steelL = Col(0x9a8a72), steelD = Col(0x3a2e24)
+            c.ell(x, gy + 1.2, 12, 1.8, Col(0x000000, 0.16))
+            // a tapering lattice tower: far legs in shadow, near legs lit, girts and crossed braces, stone footings
+            c.seg(x - 3, gy, x - 0.8, gy - 62, 0.9, steelD); c.seg(x + 3, gy, x + 0.8, gy - 62, 0.9, steelD)
+            c.seg(x - 8, gy, x - 1.6, gy - 62, 1.5, steel); c.seg(x + 8, gy, x + 1.6, gy - 62, 1.5, steel)
+            c.seg(x - 8.5, gy, x - 2.1, gy - 62, 0.5, steelL)
             var k = 0.0
-            while k < 5 { let yy = gy - 8 - k * 11, hw = 6.4 - k * 1; c.seg(x - hw, yy, x + hw, yy, 0.8, st); c.seg(x - hw, yy, x + hw - 1, yy - 11, 0.6, st); k += 1 }
+            while k < 5 {
+                let yy = gy - 8 - k * 11, hw = 7.2 - k * 1.15, hw2 = 7.2 - (k + 1) * 1.15
+                c.seg(x - hw, yy, x + hw, yy, 0.9, steel)
+                c.seg(x - hw, yy, x + hw2, yy - 11, 0.6, steel); c.seg(x + hw, yy, x - hw2, yy - 11, 0.6, steelD)
+                k += 1
+            }
+            c.RR(x - 9.6, gy - 1.4, 3.2, 2, 0.8, Col(0x8a8478)); c.RR(x + 6.4, gy - 1.4, 3.2, 2, 0.8, Col(0x8a8478))
+            // the pump rod working up and down, and the pump at the foot
             let a = g.clock * (g.wx == 0 ? 1.2 : 4)
-            for i in 0..<8 { let an = a + Double(i) * PI / 4; c.seg(x, gy - 64, x + cos(an) * 10, gy - 64 + sin(an) * 10, 1.6, Col(0xb9b2a4)) }
-            c.circ(x, gy - 64, 2, dkw); c.poly(Col(0xb5412e), [x - 3, gy - 64, x - 13, gy - 68, x - 13, gy - 60])
+            c.R(x - 0.3, gy - 60 + sin(a) * 1.5, 0.6, 56, Col(0x2e2a2c))
+            c.R(x - 1.5, gy - 6, 3, 6, Col(0x4a4a52)); c.R(x - 1.5, gy - 6, 1, 6, Col(0x7a7a86)); c.seg(x + 1.5, gy - 4.4, x + 4.5, gy - 3.4, 1, Col(0x4a4a52))
+            c.R(x - 4, gy - 55, 8, 1, steelD)
+            // the tail vane and the fan: a ring of blades, alternately light and shaded
+            c.seg(x, gy - 64, x - 13, gy - 64, 0.8, steelD)
+            c.poly(Col(0xb5412e), [x - 9, gy - 64, x - 17, gy - 69, x - 17, gy - 59]); c.poly(Col(0x8a2f22), [x - 9, gy - 64, x - 17, gy - 64, x - 17, gy - 59])
+            for i in 0..<12 {
+                let an = a + Double(i) * PI / 6
+                let c0 = cos(an), s0 = sin(an), c1 = cos(an + 0.32), s1 = sin(an + 0.32)
+                c.poly(Col(i % 2 == 0 ? 0xc9c2b4 : 0xa39c8e), [x + c0 * 3, gy - 64 + s0 * 3, x + c0 * 10.5, gy - 64 + s0 * 10.5, x + c1 * 10.5, gy - 64 + s1 * 10.5])
+            }
+            c.ellStroke(x, gy - 64, 10.5, 10.5, 0.6, Col(0x8a8478)); c.ellStroke(x, gy - 64, 5.5, 5.5, 0.5, Col(0x8a8478))
+            c.circ(x, gy - 64, 1.8, dkw); c.circ(x - 0.4, gy - 64.4, 0.7, steelL)
             if g.rodsLv > 0 { c.R(x - 0.5, gy - 82, 1, 10, Col(0x4a4a52)); c.R(x - 1, gy - 83, 2, 2, Col(0xd0d4dc)) }
         }
         if vis(1206, 40) {

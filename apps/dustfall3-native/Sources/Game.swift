@@ -561,13 +561,14 @@ final class Game {
             i += 1
         }
     }
+    var noStory = false         // still pictures for checking the build leave the story out
     var cut: [Beat] = []        // story pictures waiting to be shown; the game stands still while there are any
     var star = false            // every building in this town is as good as it gets
     var duelWon = false
 
     /// Plays the first story scene whose moment has come, once each.
     private func story() {
-        if tripT >= 0 || duel != nil { return }
+        if noStory || tripT >= 0 || duel != nil { return }
         let n = STAGES.count, st = town % n, ln = day - day0
         func due(_ k: String) -> Bool {
             switch k {
@@ -981,6 +982,7 @@ final class Game {
     func demo(_ name: String) {
         if name == "title" { return }
         start()
+        noStory = true
         hintT = 0
         if name == "duel" { day = 5; t = 0.4 }
         if name == "west" { day = 6; t = 0.35 }

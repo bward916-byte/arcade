@@ -94,6 +94,8 @@ final class GameViewController: UIViewController {
     private let cutTap = UILabel()
     private var cutShown = ""
     private let overBox = UIView()
+    private let pausePlaque = UIView()
+    private let overPlaque = UIView()
     private let overTitle = UILabel()
     private let overText = UILabel()
     private let overBtn = UIButton(type: .system)
@@ -196,10 +198,14 @@ final class GameViewController: UIViewController {
         b.setTitle(title, for: .normal)
         b.titleLabel?.font = rye(primary ? 19 : 16)
         b.setTitleColor(primary ? dark : cream, for: .normal)
-        b.backgroundColor = primary ? gold : UIColor(white: 1, alpha: 0.14)
-        b.layer.cornerRadius = 10
-        b.layer.borderWidth = primary ? 0 : 1
-        b.layer.borderColor = UIColor(white: 1, alpha: 0.3).cgColor
+        b.backgroundColor = primary ? gold : UIColor(red: 0.2, green: 0.13, blue: 0.08, alpha: 0.86)
+        b.layer.cornerRadius = 9
+        b.layer.borderWidth = primary ? 2 : 1
+        b.layer.borderColor = primary ? UIColor(red: 0.45, green: 0.3, blue: 0.08, alpha: 1).cgColor : UIColor(red: 0.79, green: 0.6, blue: 0.24, alpha: 0.75).cgColor
+        b.layer.shadowColor = UIColor.black.cgColor
+        b.layer.shadowOpacity = 0.55
+        b.layer.shadowRadius = 5
+        b.layer.shadowOffset = CGSize(width: 0, height: 3)
     }
 
     override func viewDidLoad() {
@@ -308,7 +314,7 @@ final class GameViewController: UIViewController {
         view.addSubview(introCard)
 
         // pause menu
-        pauseBox.backgroundColor = UIColor(red: 0.1, green: 0.06, blue: 0.04, alpha: 0.82)
+        pauseBox.backgroundColor = UIColor(red: 0.06, green: 0.03, blue: 0.02, alpha: 0.6)
         pauseBox.isHidden = true
         pauseTitle.text = "Paused"
         pauseTitle.font = rye(26)
@@ -322,6 +328,15 @@ final class GameViewController: UIViewController {
         restartBtn.addTarget(self, action: #selector(restart), for: .touchUpInside)
         style(mapBtn, "Map", primary: false)
         mapBtn.addTarget(self, action: #selector(openMap), for: .touchUpInside)
+        for pl in [pausePlaque, overPlaque] {
+            pl.backgroundColor = UIColor(red: 0.17, green: 0.11, blue: 0.07, alpha: 0.96)
+            pl.layer.cornerRadius = 12
+            pl.layer.borderWidth = 2
+            pl.layer.borderColor = UIColor(red: 0.79, green: 0.6, blue: 0.24, alpha: 0.9).cgColor
+            pl.layer.shadowColor = UIColor.black.cgColor; pl.layer.shadowOpacity = 0.7; pl.layer.shadowRadius = 14; pl.layer.shadowOffset = CGSize(width: 0, height: 6)
+            pl.isUserInteractionEnabled = false
+        }
+        pauseBox.addSubview(pausePlaque); overBox.addSubview(overPlaque)
         pauseBox.addSubview(pauseTitle); pauseBox.addSubview(resumeBtn); pauseBox.addSubview(soundBtn); pauseBox.addSubview(restartBtn); pauseBox.addSubview(mapBtn)
         view.addSubview(pauseBox)
         mapBox.backgroundColor = UIColor(red: 0.1, green: 0.06, blue: 0.04, alpha: 0.94)
@@ -355,7 +370,7 @@ final class GameViewController: UIViewController {
         cutBox.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(nextBeat)))
         view.addSubview(cutBox)
         // run out of town
-        overBox.backgroundColor = UIColor(red: 0.08, green: 0.04, blue: 0.03, alpha: 0.88)
+        overBox.backgroundColor = UIColor(red: 0.06, green: 0.03, blue: 0.02, alpha: 0.66)
         overBox.isHidden = true
         overTitle.text = "Run out of town"; overTitle.font = rye(34); overTitle.textColor = gold; overTitle.textAlignment = .center
         overText.font = serif(16, bold: false); overText.textColor = cream; overText.textAlignment = .center; overText.numberOfLines = 0
@@ -421,6 +436,8 @@ final class GameViewController: UIViewController {
         startBtn.frame = CGRect(x: bw / 2 - 150, y: by + 32, width: 300, height: 48)
         pauseBox.frame = view.bounds
         pauseTitle.frame = CGRect(x: 0, y: bh * 0.12, width: bw, height: 40)
+        pausePlaque.frame = CGRect(x: bw / 2 - 150, y: bh * 0.12 - 14, width: 300, height: 240)
+        overPlaque.frame = CGRect(x: bw / 2 - 250, y: bh * 0.2 - 18, width: 500, height: 196)
         resumeBtn.frame = CGRect(x: bw / 2 - 120, y: bh * 0.12 + 54, width: 240, height: 50)
         soundBtn.frame = CGRect(x: bw / 2 - 120, y: bh * 0.12 + 114, width: 240, height: 44)
         soundBtn.frame = CGRect(x: bw / 2 - 120, y: bh * 0.12 + 114, width: 116, height: 44)
