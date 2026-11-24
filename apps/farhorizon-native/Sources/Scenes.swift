@@ -385,6 +385,26 @@ extension Game {
 
     // ---------- title
     func drawTitle(_ c: Canvas) {
+        let splash = Art.get("splash")
+        if let sp = splash {
+            // the painted sunrise, filling the screen, with gulls wheeling over it
+            let sc = max(W / Double(sp.width), H / Double(sp.height))
+            let iw = Double(sp.width) * sc, ih = Double(sp.height) * sc
+            let drift = sin(T * 0.15) * 4
+            c.drawImage(sp, (W - iw) / 2 + drift - 4, H - ih, iw + 8, ih)
+            for i in 0..<4 {
+                let gx = W * 0.5 + cos(T * (0.3 + Double(i) * 0.05) + Double(i) * 1.9) * W * (0.25 + Double(i) * 0.04)
+                let gy = H * 0.34 + sin(T * (0.42 + Double(i) * 0.04) + Double(i)) * H * 0.12
+                let fl = sin(T * 7 + Double(i) * 2) * 4
+                c.curve(gx - 8, gy + fl, gx - 4, gy - 3, gx, gy, 1.5, Col(0xffffff, 0.95)); c.curve(gx, gy, gx + 4, gy - 3, gx + 8, gy + fl, 1.5, Col(0xffffff, 0.95))
+            }
+            // the sun's road on the water, glittering
+            for i in 0..<10 {
+                let ph = (T * 0.5 + hashN(Double(i) * 3.3)).truncatingRemainder(dividingBy: 1)
+                c.ell(W * 0.74 + (hashN(Double(i)) - 0.5) * 120, H * (0.76 + hashN(Double(i) * 7) * 0.2), 10 + ph * 8, 1.2, Col(0xfff2c0, 0.5 * sin(ph * PI)))
+            }
+            c.vfill(0, 0, W, H * 0.45, [(0, Col(0x3a1408, 0.45)), (1, Col(0x3a1408, 0))])
+        } else {
         let hz = H * 0.56
         drawSea(c, hz)
         let wy = hz + (H - hz) * 0.42
@@ -409,12 +429,15 @@ extension Game {
                 c.restore()
             }
         }
-        let tx = W * 0.68
-        let ty = H * 0.27
+        }
+        let tx = splash != nil ? W * 0.5 : W * 0.68
+        let ty = splash != nil ? H * 0.25 : H * 0.27
+        let bx = splash != nil ? W * 0.77 : tx
+        let by0 = splash != nil ? H * 0.5 - 56 : ty
         // the name, lifting on the swell, with light running across it
         let lift = sin(T * 1.3) * 2
         c.glow(tx, ty - 14 + lift, 230, Col(0xffd257, 0.14 + 0.05 * sin(T * 2)), Col(0xffd257, 0))
-        c.text("FAR HORIZON", tx + 2, ty + 3 + lift, 50, Col(0x000000, 0.55), 0, FONTD)
+        c.text("FAR HORIZON", tx + 2, ty + 3 + lift, 50, splash != nil ? Col(0x3a1408, 0.9) : Col(0x000000, 0.55), 0, FONTD)
         c.text("FAR HORIZON", tx, ty + lift, 50, GOLD, 0, FONTD)
         let tw = textW("FAR HORIZON", 50, FONTD)
         let sw = ((T * 0.35).truncatingRemainder(dividingBy: 1)) * (tw + 200) - 100
@@ -426,15 +449,15 @@ extension Game {
         c.R(tx - tw / 2, ty + 12 + lift, tw * min(1, T / 1.2), 2, Col(0xd2a455, 0.8))
         c.textS("Choose a ship. Stock the hold. Reach Santa Aurelia.", tx, ty + 36, 16, CREAM, 0, FONTI)
         if hasSave {
-            btn(c, tx - 130, ty + 56, 260, 50, "Continue voyage", saveLine, gold: true, size: 19) { [unowned self] in
+            btn(c, bx - 130, by0 + 56, 260, 50, "Continue voyage", saveLine, gold: true, size: 19) { [unowned self] in
                 if !self.loadGame() { self.clearSave() }
             }
-            btn(c, tx - 130, ty + 114, 260, 40, "New voyage", size: 16) { [unowned self] in
+            btn(c, bx - 130, by0 + 114, 260, 40, "New voyage", size: 16) { [unowned self] in
                 self.newGame()
                 self.mode = .pick
             }
         } else {
-            btn(c, tx - 110, ty + 60, 220, 52, "New voyage", gold: true, size: 20) { [unowned self] in
+            btn(c, bx - 110, by0 + 60, 220, 52, "New voyage", gold: true, size: 20) { [unowned self] in
                 self.newGame()
                 self.mode = .pick
             }

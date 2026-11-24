@@ -29,7 +29,11 @@ extension Game {
             c.glow(x + w / 2, y + h / 2, w * 0.62, Col(0xffd257, g), Col(0xffd257, 0))
         }
         c.RR(x, y + 3, w, h, 10, Col(0x1a0e05))
-        if gold {
+        // a painted plate of wood and brass if the art is aboard; otherwise the drawn one
+        let plated = c.plate(gold ? "plate_gold" : "plate_wood", x, y + dy, w, h, corner: min(15, h * 0.36))
+        if plated {
+            if pressed { c.RR(x, y + dy, w, h, 10, Col(0xffffff, 0.14)) }
+        } else if gold {
             c.RRGrad(x, y + dy, w, h, 10, [(0, Col(0xffe69a)), (0.5, Col(0xe6ae3c)), (1, Col(0xb47a16))])
         } else {
             c.RRGrad(x, y + dy, w, h, 10, pressed ? [(0, Col(0xb98440)), (0.52, Col(0x8a5a26)), (1, Col(0x633a14))] : [(0, Col(0xa37031)), (0.52, Col(0x774a1c)), (1, Col(0x55310f))])
@@ -37,7 +41,7 @@ extension Game {
         // gloss along the top, and a band of light that sweeps across now and then
         c.save()
         c.clipRR(x, y + dy, w, h, 10)
-        c.RRGrad(x + 3, y + dy + 2, w - 6, h * 0.42, 8, [(0, Col(0xffffff, gold ? 0.32 : 0.13)), (1, Col(0xffffff, 0))])
+        if !plated { c.RRGrad(x + 3, y + dy + 2, w - 6, h * 0.42, 8, [(0, Col(0xffffff, gold ? 0.32 : 0.13)), (1, Col(0xffffff, 0))]) }
         if !off {
             let period = gold ? 2.6 : 5.2
             let ph = ((T + x * 0.004 + y * 0.002) / period).truncatingRemainder(dividingBy: 1)
@@ -49,7 +53,7 @@ extension Game {
             }
         }
         c.restore()
-        c.RRStroke(x, y + dy, w, h, 10, gold ? 1.5 : 1.2, gold ? Col(0xfff2c0) : Col(0xe3ba68))
+        if !plated { c.RRStroke(x, y + dy, w, h, 10, gold ? 1.5 : 1.2, gold ? Col(0xfff2c0) : Col(0xe3ba68)) }
         let tc = gold ? Col(0x2a1706) : CREAM
         if sub.isEmpty {
             c.text(label, x + w / 2, y + dy + h / 2 + size * 0.34, size, tc, 0, gold ? FONTB : FONT)

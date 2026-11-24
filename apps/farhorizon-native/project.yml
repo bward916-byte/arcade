@@ -9,6 +9,7 @@ targets:
     platform: iOS
     sources:
       - Sources
+      - Art
       - Assets.xcassets
     info:
       path: Info.plist

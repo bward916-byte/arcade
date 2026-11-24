@@ -628,6 +628,11 @@ extension Game {
             let ix = x + 24, iy = by + bh / 2
             c.save()
             if dim { c.alpha(0.45) }
+            if let pic = Art.get(["i_bread", "i_mug", "i_hammer", "i_water", "i_wheel"][i]) {
+                // the painted sign, bobbing a little
+                let bob = sin(T * 2.2 + Double(i) * 1.3) * 1.2
+                c.drawImage(pic, ix - 17, iy - 17 + bob, 34, 34)
+            } else {
             switch i {
             case 0:
                 // a basket, the fruit jostling
@@ -659,6 +664,7 @@ extension Game {
                 c.poly(Col(0xf3ead2), [1, -14, 11, -1, 1, -1]); c.poly(REDC, [0, -15, -7 - sin(T * 7) * 1.5, -13, 0, -11])
                 c.restore()
                 c.ellStroke(ix, iy + 13, 12 + sin(T * 3) * 2, 2, 1, Col(0xffffff, 0.5))
+            }
             }
             // the words shrink to fit the door, whatever the width of the screen
             let room = max(20, bw - 44 - 10)
