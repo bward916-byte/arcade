@@ -742,7 +742,8 @@ final class Game {
         if name == "omen" { startOmen("pirates"); omenT = 1.6; Game.omenHold = true }
         if name == "evplank" { startOmen("plank"); sceneT = 2.0; omenT = 1.6; Game.omenHold = true; camZ = 1.9 }
         if name == "evscurvy" { startOmen("scurvy"); sceneT = 2; omenK = ""; event("scurvy"); camZ = 2.6 }
-        if name == "acts" { deckForce = 9; camZ = 2.6; half = true }
+        if name == "acts" { deckForce = 9; camZ = 2.6; half = true; evMarks = []; day = 6 }
+        if name == "acts2" { deckForce = 11; camZ = 2.6; evMarks = []; day = 9 }
         if name == "yard2" { leg = 1; mode = .port; gold = 900; shipwright(); cardT = 9 }
         if name == "yard" { leg = 1; mode = .port; shipwright() }
         if name == "decklife" { ups = ["sails": 2, "hull": 1, "guns": 1]; deckForce = 5; seaForce = 0 }

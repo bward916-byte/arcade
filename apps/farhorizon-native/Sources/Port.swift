@@ -116,8 +116,8 @@ extension Game {
         }
         // ---- hills behind the town
         let pt = leg * 2 + path[leg]
-        let hillA = [Col(0x4d7f52), Col(0xb89a5a), Col(0x35604a), Col(0x7a8a8a), Col(0x8a9a4a)][pt % 5]
-        let hillB = [Col(0x5f9450), Col(0xd0b06a), Col(0x3f7450), Col(0x98a8a4), Col(0xa8b450)][pt % 5]
+        let hillA = [Col(0x4d7f52), Col(0xb89a5a), Col(0x9a5a3a), Col(0x7a8a8a), Col(0x2f5a48)][pt % 5]
+        let hillB = [Col(0x5f9450), Col(0xd0b06a), Col(0xb8704a), Col(0x98a8a4), Col(0x3a6e54)][pt % 5]
         c.pathFill(hillA.shade(dark * 0.9)) { p in
             p.move(to: CGPoint(x: W * 0.3, y: hz + 4))
             p.addQuadCurve(to: CGPoint(x: W * 0.56, y: hz - 122), control: CGPoint(x: W * 0.4, y: hz - 96))
