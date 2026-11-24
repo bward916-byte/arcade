@@ -100,7 +100,8 @@ final class Game {
         if name == "night" {
             day = 5; t = 0.8; duskDone = true; raidOn = true; side = 1
             px = 1880; pdir = 1
-            for i in 0..<5 { bandits.append(Bandit(x: 2010 + Double(i) * 34, rider: i % 3 == 2, side: 1, hp: 3)) }
+            for i in 0..<5 { bandits.append(Bandit(x: 1975 + Double(i) * 30, rider: i % 3 == 2, side: 1, hp: 3)) }
+            px = 1850; folk[0].x = 1925; folk[1].x = 1916
         } else {
             day = 3; t = 0.4
             for i in 0..<5 { ground.append(GCoin(x: 1150 + Double(i) * 7, y: 0, vx: 0, vy: 0, age: 1)) }

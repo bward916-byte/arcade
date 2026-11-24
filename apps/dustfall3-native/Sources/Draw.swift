@@ -79,9 +79,9 @@ final class Renderer {
     }
 
     private func mesas(_ dk: Double, _ dusk: Double) {
-        let far = Col.mix(Col.mix(Col(0xd9a47a), Col(0xb0607a), dusk), Col(0x1c1c3a), dk)
-        let near = Col.mix(Col.mix(Col(0xc47a4a), Col(0x8a3e4a), dusk), Col(0x14142c), dk)
-        let nearD = Col.mix(Col.mix(Col(0xa85e36), Col(0x6a2e3a), dusk), Col(0x101024), dk)
+        let far = Col.mix(Col.mix(Col(0xd9a47a), Col(0xb0607a), dusk), Col(0x34365e), dk)
+        let near = Col.mix(Col.mix(Col(0xc47a4a), Col(0x8a3e4a), dusk), Col(0x2a2a4e), dk)
+        let nearD = Col.mix(Col.mix(Col(0xa85e36), Col(0x6a2e3a), dusk), Col(0x20203e), dk)
         var i = 0
         while i < 14 {
             let bx = Double(i) * 190 + hashN(Double(i) * 5.3) * 80 - g.cam * 0.22 - 60
@@ -469,7 +469,7 @@ final class Renderer {
 
     private func night(_ dk: Double) {
         if dk <= 0.02 { return }
-        c.R(0, 0, W, H, Col(0x080c28, 0.5 * dk))
+        c.R(0, 0, W, H, Col(0x0a1030, 0.36 * dk))
         c.blend(.plusLighter)
         func light(_ wx: Double, _ h: Double, _ r: Double, _ a: Double) {
             if !vis(wx, r) { return }
