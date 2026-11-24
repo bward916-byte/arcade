@@ -722,7 +722,7 @@ final class Game {
         let atSea = mode == .sail || mode == .port || mode == .title || mode == .duel || mode == .end
         snd?.ambient(T, sea: atSea, rough: rough, rain: mode == .tavern ? wxRain * 0.3 : wxRain, birds: atSea && mode != .duel && !isNight && weather < 2, room: mode == .tavern)
     }
-    var isNight: Bool { return tod > 0.7 && tod < 0.95 }
+    var isNight: Bool { return tod > 0.78 && tod < 0.95 }
 
     func touchDown(_ x: Double, _ y: Double) {
         isDown = true; downX = x; downY = y

@@ -40,8 +40,9 @@ extension Game {
     }
     func light() -> Light {
         let t = tod
-        let n = smooth((t - 0.62) / 0.1) * (1 - smooth((t - 0.9) / 0.08))
-        let d1 = 1 - abs(t - 0.62) / 0.1, d2 = 1 - abs(t - 0.97) / 0.07
+        // three parts day to one part night: dusk about 0.74, full dark 0.79 to 0.93, dawn about 0.97
+        let n = smooth((t - 0.72) / 0.07) * (1 - smooth((t - 0.93) / 0.06))
+        let d1 = 1 - abs(t - 0.74) / 0.07, d2 = 1 - abs(t - 0.975) / 0.05
         let d = clampD(max(d1, d2), 0, 1)
         func m(_ day: UInt32, _ dusk: UInt32, _ night: UInt32) -> Col {
             return Col.mix(Col.mix(Col(day), Col(dusk), d), Col(night), n)
@@ -61,7 +62,7 @@ extension Game {
             }
         }
         // the sun rides an arc through the day; the moon takes the night
-        let dayK = clampD(tod / 0.68, 0, 1)
+        let dayK = clampD(tod / 0.77, 0, 1)
         let sunX = W * (0.12 + 0.76 * dayK), sunY = hz - sin(dayK * PI) * hz * 0.78 + 8
         if L.night < 0.9 {
             let sc = Col.mix(Col(0xfff6d0), Col(0xffb060), L.dusk)
@@ -70,7 +71,7 @@ extension Game {
         }
         if L.night > 0.1 {
             // the moon crosses the night as the sun crossed the day
-            let mk = clampD((tod - 0.64) / 0.34, 0, 1)
+            let mk = clampD((tod - 0.72) / 0.27, 0, 1)
             let mx = W * (0.14 + 0.72 * mk), my = hz - sin(mk * PI) * hz * 0.7 + 8
             c.glow(mx, my, 90, Col(0xcfe0ff, 0.25 * L.night), Col(0xcfe0ff, 0))
             c.circ(mx, my, 13, Col(0xeef3ff, L.night))

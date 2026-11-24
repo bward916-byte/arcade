@@ -79,7 +79,7 @@ extension Game {
             }
             townAt.append(row)
         }
-        let islets: [(Double, Double, Double)] = [(0.13, 0.9, 0.05), (0.5, 0.95, 0.07), (0.88, 0.9, 0.07), (0.74, 0.36, 0.028), (0.4, 0.42, 0.03), (0.92, 0.72, 0.04), (0.1, 0.3, 0.035), (0.56, 0.6, 0.022), (0.3, 0.6, 0.02), (0.69, 0.14, 0.03)]
+        let islets: [(Double, Double, Double)] = [(0.74, 0.36, 0.028), (0.4, 0.42, 0.03), (0.92, 0.72, 0.04), (0.1, 0.3, 0.035), (0.56, 0.6, 0.022), (0.3, 0.6, 0.02), (0.69, 0.14, 0.03)]
         for q in islets {
             bumps.append((q.0 * A, q.1, q.2, 1.05))
             bumps.append((q.0 * A + (rng.next() - 0.5) * q.2, q.1 + (rng.next() - 0.5) * q.2, q.2 * 0.7, 0.8))
@@ -91,10 +91,16 @@ extension Game {
                 let nx = Double(x) / Double(w)
                 let ax = nx * A
                 var v = -0.3 + (nz.at(ax * 5, ny * 5) - 0.48) * 0.75
-                let coast = 0.13 + 0.035 * sin(nx * 11) + 0.025 * sin(nx * 29 + 1) - ny
-                v += clampD(coast / 0.07, -0.2, 1.3) * 0.75
-                v += clampD((0.02 - nx) / 0.03, 0, 1.3) * 0.75
-                v += clampD((nx - 0.985) / 0.03, 0, 1.3) * 0.75
+                // solid land on every side: the Main to the north, a southern continent, and a coast at each end.
+                // The sea between them is what the voyage crosses.
+                let coast = 0.17 + 0.04 * sin(nx * 8 + 2.2) + 0.02 * sin(nx * 21) + (nz.at(ax * 9 + 40, ny * 9) - 0.48) * 0.08 - ny
+                v += clampD(coast / 0.07, -0.2, 1.6) * 0.75
+                let south = ny - (0.83 - 0.04 * sin(nx * 7 + 1) - 0.02 * sin(nx * 19) + (nz.at(ax * 9, ny * 9 + 70) - 0.48) * 0.08)
+                v += clampD(south / 0.07, -0.2, 1.6) * 0.75
+                let west = 0.04 + 0.022 * sin(ny * 9) + (nz.at(ax * 8 + 11, ny * 8) - 0.48) * 0.05 - nx
+                v += clampD(west / 0.035, 0, 1.6) * 0.75
+                let east = nx - (0.962 - 0.02 * sin(ny * 8 + 1) + (nz.at(ax * 8, ny * 8 + 23) - 0.48) * 0.05)
+                v += clampD(east / 0.035, 0, 1.6) * 0.75
                 for q in bumps {
                     let ddx = ax - q.0, ddy = ny - q.1
                     let d = (ddx * ddx + ddy * ddy) / (q.2 * q.2)
@@ -196,7 +202,8 @@ extension Game {
             }
         }
         cv.text("THE AURELIAN SEA", W2 * 0.5, H2 * 0.63, 27, Col(0xffffff, 0.3), 0, FONTD)
-        cv.text("THE  MAIN", W2 * 0.52, H2 * 0.08, 20, Col(0x281808, 0.55), 0, FONTD)
+        cv.text("THE  MAIN", W2 * 0.58, H2 * 0.115, 18, Col(0x281808, 0.6), 0, FONTD)
+        cv.text("THE  SOUTHERN  SHORE", W2 * 0.46, H2 * 0.925, 15, Col(0x281808, 0.6), 0, FONTD)
         cv.text("Gulf of Storms", W2 * 0.7, H2 * 0.64, 12, Col(0xffffff, 0.5), 0, FONTI)
         cv.text("Serpent Deeps", W2 * 0.33, H2 * 0.83, 12, Col(0xffffff, 0.5), 0, FONTI)
         cv.text("Pearl Shoals", W2 * 0.52, H2 * 0.4, 11, Col(0xffffff, 0.5), 0, FONTI)
