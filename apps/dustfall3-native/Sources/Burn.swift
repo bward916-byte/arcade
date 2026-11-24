@@ -31,8 +31,8 @@ final class BurnLogoView: UIView {
         ash.emitterMode = .surface
         ash.birthRate = 0
         ash.emitterCells = [
-            cell(sq, rate: 420, life: 2.4, vel: 130, lon: -0.3, range: 0.7, ay: -26, ax: 95, scale: 0.5, fade: -0.4, color: UIColor(red: 0.15, green: 0.12, blue: 0.1, alpha: 0.95)),
-            cell(sq, rate: 170, life: 2.8, vel: 100, lon: -0.45, range: 0.9, ay: -34, ax: 80, scale: 0.36, fade: -0.34, color: UIColor(red: 0.62, green: 0.58, blue: 0.52, alpha: 0.9))
+            cell(sq, rate: 380, life: 2.4, vel: 130, lon: -0.3, range: 0.7, ay: -26, ax: 95, scale: 0.3, fade: -0.4, color: UIColor(red: 0.15, green: 0.12, blue: 0.1, alpha: 0.95)),
+            cell(sq, rate: 200, life: 2.8, vel: 100, lon: -0.45, range: 0.9, ay: -34, ax: 80, scale: 0.2, fade: -0.34, color: UIColor(red: 0.62, green: 0.58, blue: 0.52, alpha: 0.9))
         ]
         ember.emitterShape = .rectangle
         ember.emitterMode = .surface
@@ -55,7 +55,10 @@ final class BurnLogoView: UIView {
         let img = UIGraphicsImageRenderer(size: CGSize(width: 12, height: 12), format: f).image { ctx in
             UIColor.white.setFill()
             if round { ctx.cgContext.fillEllipse(in: CGRect(x: 1, y: 1, width: 10, height: 10)) }
-            else { UIBezierPath(roundedRect: CGRect(x: 1, y: 3, width: 10, height: 6), cornerRadius: 1.5).fill() }
+            else {
+                let p = UIBezierPath()
+                p.move(to: CGPoint(x: 1, y: 5)); p.addLine(to: CGPoint(x: 5, y: 2)); p.addLine(to: CGPoint(x: 11, y: 4)); p.addLine(to: CGPoint(x: 9, y: 9)); p.addLine(to: CGPoint(x: 3, y: 10)); p.close(); p.fill()
+            }
         }
         return img.cgImage
     }

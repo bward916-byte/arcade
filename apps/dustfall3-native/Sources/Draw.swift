@@ -1405,6 +1405,13 @@ final class Renderer {
         c.R(x - 8, gy - 20, 5, 5, Col(0xf0e0b8)); c.R(x - 1, gy - 20, 5, 5, Col(0xf0e0b8)); c.R(x - 9, gy - 14, 16, 0.8, gold)
         c.R(x + 9, gy - 20, 7, 3, dk); c.R(x - 15, gy - 19, 4, 8, Col(0x7a5632))          // the box seat and the boot
         c.R(x - 10, gy - 27, 14, 3, Col(0x7a5632)); c.R(x - 6, gy - 29, 6, 2, Col(0x5a3c22))   // luggage on the roof
+        // shading, the door, curtains, a roof rail, the leather slings and a lamp
+        c.R(x - 12, gy - 22, 24, 1, Col(0xffffff, 0.14)); c.vfill(x - 12, gy - 14, 24, 6, [(0, Col(0x000000, 0)), (1, Col(0x000000, 0.3))])
+        c.R(x - 2.2, gy - 21, 0.5, 12, Col(0x4a1c16)); c.R(x + 4.6, gy - 21, 0.5, 12, Col(0x4a1c16))
+        c.poly(Col(0x8a2f26, 0.9), [x - 8, gy - 20, x - 5.5, gy - 20, x - 8, gy - 16.5]); c.poly(Col(0x8a2f26, 0.9), [x + 4, gy - 20, x + 1.5, gy - 20, x + 4, gy - 16.5])
+        c.R(x - 11, gy - 28.4, 18, 0.6, gold); c.R(x - 11, gy - 28.4, 0.6, 4, gold); c.R(x + 6.4, gy - 28.4, 0.6, 4, gold)
+        c.curve(x - 10, gy - 8, x, gy - 5.5, x + 11, gy - 8, 1, Col(0x4a3424))
+        c.R(x + 7.4, gy - 18, 1.8, 2.6, dk); c.R(x + 7.8, gy - 17.5, 1, 1.5, Col(g.dark() > 0.3 ? 0xffd27a : 0xd8dcc8))
         for (wx, r) in [(-7.0, 5.0), (9.0, 4.0)] {
             let cx = x + wx, cy = gy - r
             c.circ(cx, cy, r, dk); c.circ(cx, cy, r - 1.2, Col(0xc9a86a)); c.circ(cx, cy, 1, dk)
@@ -1575,6 +1582,33 @@ final class Renderer {
         c.R(105, -19, 3, 12, dkc)
         c.R(110, -8, 3, 2, dkc); c.R(112, -16, 1, 9, dkc)
         wheel(70, 2.5); wheel(77, 2.5); wheel(97, 2.5); wheel(104, 2.5)
+        // boiler shine and rivets, cowcatcher slats, a bell, the side rods turning with the wheels
+        c.R(7, -15.4, 22, 0.8, Col(0xffffff, 0.16)); c.R(6, -10, 24, 2, Col(0x000000, 0.25))
+        for k in 0..<7 { c.R(8 + Double(k) * 3.2, -9.4, 0.6, 0.6, Col(0x6a6a76)) }
+        for k in 0..<3 { c.seg(1 + Double(k) * 1.8, 0, 6, -6 + Double(k) * 1.6, 0.4, Col(0x15151a)) }
+        c.RR(23, -22.6, 2.6, 2.2, 1, br); c.R(24, -20.6, 0.6, 1.2, dkc)
+        let ra = tr.x / (4 * 1.3)
+        c.seg(29 + cos(ra) * 2.2, -4 + sin(ra) * 2.2, 38 + cos(ra) * 2.2, -4 + sin(ra) * 2.2, 1, Col(0x9a9aa6))
+        c.seg(14, -3.4, 29 + cos(ra) * 2.2, -4 + sin(ra) * 2.2, 0.8, Col(0x7a7a86))
+        c.R(29, -24.6, 14, 0.7, Col(0x4a4a56)); c.R(30, -14, 12, 0.7, br); c.R(33, -21, 6, 0.6, Col(0x000000, 0.3))
+        // coal heaped in the tender
+        for k in 0..<6 { c.circ(48.5 + Double(k) * 2, -15.6 - hashN(Double(k) * 2.3) * 1.6, 1.2, Col(0x0c0c10)) }
+        c.R(46, -15, 15, 1, Col(0x4a4a56)); c.R(46, -9, 15, 0.6, br)
+        // the car: a raised roof with lights, framed windows, panel lines and trucks
+        c.R(67, -25, 40, 2, dkc); c.R(68, -24.4, 38, 0.6, glass.alpha(0.6))
+        for k in 0..<5 {
+            let wx0 = 68 + Double(k) * 7.5
+            c.R(wx0 - 0.5, -19.5, 6, 0.6, br); c.R(wx0 - 0.5, -14, 6, 0.6, br); c.R(wx0 + 2.2, -19, 0.5, 5, Col(0x4a1c16))
+            if dk <= 0.3 { c.poly(Col(0xffffff, 0.3), [wx0, -19, wx0 + 2.4, -19, wx0, -16]) }
+        }
+        c.R(64, -10.5, 46, 0.5, Col(0x4a1c16)); c.R(64, -21, 46, 0.7, Col(0xffffff, 0.12)); c.R(64, -8, 46, 2, Col(0x000000, 0.2))
+        c.R(66, -6, 12, 1.4, dkc); c.R(94, -6, 12, 1.4, dkc)
+        // steam off the stack, and the headlamp's beam after dark
+        for i in 0..<5 {
+            let k = (g.clock * 0.5 + Double(i) * 0.2).truncatingRemainder(dividingBy: 1)
+            c.circ(10.5 + k * 16, -28 - k * 14, 1.6 + k * 4, Col(0xe8e2dc, 0.4 * (1 - k)))
+        }
+        if dk > 0.3 { c.blend(.plusLighter); c.poly(Col(0xffe58a, 0.18 * dk), [2, -18.5, -46, -26, -46, -2]); c.blend(.normal) }
         c.restore()
     }
 
@@ -1904,6 +1938,12 @@ final class Renderer {
             c.R(x - 3, gy - 25 + bob, 6, 9, Col(0x2e2622)); c.R(x - 1, gy - 16 + bob, 3, 7, Col(0x2a2a30))
             c.R(x - 2, gy - 29 + bob, 4.5, 4, Col(0xb8804e)); c.R(x - 2.5, gy - 27 + bob, 5.5, 2.4, Col(0xa02a22))
             c.R(x - 5, gy - 30 + bob, 11, 1.5, Col(0x14100e)); c.R(x - 2.5, gy - 33 + bob, 6, 3.2, Col(0x14100e))
+            // a belt and bandolier, eyes in the hat's shadow, a hat band, the coat blowing back, a pistol out
+            c.R(x - 3, gy - 20 + bob, 6, 1, Col(0x6a4a2e)); c.seg(x - 3, gy - 25 + bob, x + 3, gy - 18 + bob, 0.7, Col(0x6a4a2e))
+            c.R(x - 2 + (dir > 0 ? 2.2 : 0.3), gy - 28.4 + bob, 1.6, 0.7, Col(0x14100e))
+            c.R(x - 2.5, gy - 30.6 + bob, 6, 0.6, Col(0x8a2b22))
+            c.poly(Col(0x241c18), [x - dir * 3, gy - 24 + bob, x - dir * (7 + sin(bn.phase) * 1.2), gy - 17 + bob, x - dir * 3, gy - 17 + bob])
+            c.seg(x + dir * 1, gy - 23 + bob, x + dir * 6, gy - 21 + bob, 1.3, Col(0x2e2622)); c.seg(x + dir * 6, gy - 21.4 + bob, x + dir * 9, gy - 21.8 + bob, 0.9, Col(0x8a8a8a))
             c.translate(0, HLIFT)
         } else {
             let sw = moving ? sin(bn.phase) * 2 : 0
@@ -1911,6 +1951,10 @@ final class Renderer {
             c.R(x - 2.5, gy - 11, 5, 6, Col(0x2e2622))
             c.R(x - 1.5, gy - 14, 3.5, 3.2, Col(0xb8804e)); c.R(x - 2, gy - 12.6, 4.5, 1.8, Col(0xa02a22))
             c.R(x - 3.5, gy - 15, 7.5, 1.2, Col(0x14100e)); c.R(x - 2, gy - 17, 4.5, 2.2, Col(0x14100e))
+            c.R(x - 2.5, gy - 6.4, 5, 0.8, Col(0x6a4a2e)); c.R(x - 2, gy - 15.6, 4.5, 0.5, Col(0x8a2b22))
+            c.R(x - 1.5 + (dir > 0 ? 1.8 : 0.2), gy - 13.6, 1.4, 0.6, Col(0x14100e))
+            c.poly(Col(0x241c18), [x - dir * 2.5, gy - 10, x - dir * 4.4, gy - 4.5, x - dir * 2.5, gy - 5])
+            c.R(x - 2.4 + sw * 0.5, gy - 1, 2.6, 1, Col(0x14100e)); c.R(x + 0.3 - sw * 0.5, gy - 1, 2.6, 1, Col(0x14100e))
             if bn.st == 1 || bn.st == 2 { let a = sin(g.clock * 12 + bn.x); c.seg(x + dir * 2, gy - 9, x + dir * 6, gy - 10 - a * 3, 1.2, Col(0x8a8a8a)) }
         }
         if bn.boss {            // taller, in a long red duster, gun drawn
@@ -2022,6 +2066,7 @@ final class Renderer {
     private func night(_ dk: Double) {
         if dk <= 0.02 { return }
         c.R(0, 0, W, H, Col(0x0a1030, 0.36 * dk))
+        c.vfill(0, gy, W, H - gy, [(0, Col(0x060a22, 0.34 * dk)), (1, Col(0x060a22, 0.5 * dk))])
         c.blend(.plusLighter)
         func light(_ wx: Double, _ h: Double, _ r: Double, _ a: Double) {
             if !vis(wx, r) { return }

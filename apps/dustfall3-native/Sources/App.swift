@@ -63,6 +63,8 @@ final class GameViewController: UIViewController {
     private let cutClip = UIView()
     private let cutPanel = UIView()
     private var cutT = 0.0
+    private var cutTyped = -1
+    private let cutVig = CAGradientLayer()
     private var cutN = 0
     private let cutMask = CAShapeLayer()
     private var cutIdx = 0
@@ -333,6 +335,12 @@ final class GameViewController: UIViewController {
         cutArt.layer.magnificationFilter = .nearest
         cutArt.contentMode = .scaleToFill
         cutClip.addSubview(cutArt)
+        cutVig.type = .radial
+        cutVig.colors = [UIColor(white: 0, alpha: 0).cgColor, UIColor(white: 0, alpha: 0).cgColor, UIColor(red: 0.05, green: 0.02, blue: 0.01, alpha: 0.62).cgColor]
+        cutVig.locations = [0, 0.55, 1]
+        cutVig.startPoint = CGPoint(x: 0.5, y: 0.5)
+        cutVig.endPoint = CGPoint(x: 1.08, y: 1.08)
+        cutClip.layer.addSublayer(cutVig)
         cutPanel.backgroundColor = UIColor(red: 0.047, green: 0.027, blue: 0.02, alpha: 1)
         cutPanel.layer.borderColor = UIColor(red: 0.42, green: 0.29, blue: 0.18, alpha: 1).cgColor
         cutPanel.layer.borderWidth = 0
@@ -667,10 +675,20 @@ final class GameViewController: UIViewController {
                 cutN = max(cutN, game.cut.count)
                 let k = NSAttributedString(string: bt.head.uppercased(), attributes: [.font: rye(15), .foregroundColor: gold, .kern: 2.5])
                 cutHead.attributedText = k
-                cutCap.text = bt.cap
+                cutTyped = -1
                 clearTouches()
             }
             cutT += min(0.05, max(0, raw))
+            // the line is set down a letter at a time, without the words shifting as it goes
+            let capNS = bt.cap as NSString
+            let typed = min(capNS.length, Int(cutT * 44))
+            if typed != cutTyped {
+                cutTyped = typed
+                let m = NSMutableAttributedString(string: bt.cap, attributes: [.font: serif(20, bold: false), .foregroundColor: cream])
+                if typed < capNS.length { m.addAttribute(.foregroundColor, value: UIColor.clear, range: NSRange(location: typed, length: capNS.length - typed)) }
+                cutCap.attributedText = m
+                cutCap.textAlignment = .center
+            }
             let i = cutN - game.cut.count + 1
             cutTap.text = (cutN > 1 ? "\(i) of \(cutN)  \u{00B7}  " : "") + (game.cut.count > 1 ? "Tap to go on \u{25B8}" : "Tap to ride on \u{25B8}")
             cutTap.alpha = cutT > 0.9 ? 1 : 0
@@ -697,6 +715,7 @@ final class GameViewController: UIViewController {
             }
             CATransaction.begin(); CATransaction.setDisableActions(true)
             cutMask.frame = cb
+            cutVig.frame = cb
             cutMask.path = path.cgPath
             CATransaction.commit()
             cutBox.isHidden = false
