@@ -648,6 +648,7 @@ extension Game {
         for sp in prompts() { all.append((sp.x, sp.id, false, sp.id)) }
         for u in upgradesHere() { all.append((u.x, u.id, true, u.icon)) }
         all.sort { $0.0 < $1.0 }
+        var tipDist = 1e9, tipX = 0.0, tipText = ""
         for (wx, id, isPour, icon) in all {
             let x = place(sx(wx))
             rings.append(Ring(id: id, x: x, y: y, r: r, pour: isPour))
@@ -683,10 +684,15 @@ extension Game {
             } else {
                 c.circ(x, y, r, Col(0x101a28, 0.92))
             }
+            // progress runs round the outside of the circle
+            let pr = (wood == nil ? r : r * 1.16) + 4
+            c.circStroke(x, y, pr, 4.5, Col(0x050c14, 0.6))
             if have > 0 {
-                c.arcStroke(x, y, r, -PI / 2, -PI / 2 + 2 * PI * Double(have) / Double(cost), 4, GOLD)
+                c.roundCaps(true)
+                c.arcStroke(x, y, pr, -PI / 2, -PI / 2 + 2 * PI * Double(have) / Double(cost), 4.5, Col(0xffd24a))
+                c.roundCaps(false)
             }
-            c.circStroke(x, y, r, 1.4, GOLD2.alpha(0.8))
+            if wood == nil { c.circStroke(x, y, r, 1.4, GOLD2.alpha(0.8)) }
             c.save()
             c.translate(x, y)
             drawIcon(c, icon)
@@ -694,21 +700,9 @@ extension Game {
             if u.tier > 0 {
                 for i in 0..<u.tier { c.circ(x - Double(u.tier - 1) * 3 + Double(i) * 6, y + r - 5, 1.8, CREAM) }
             }
-            // coin blanks above, filled as you pour: rows of six, the last row centred
-            let shown = min(12, cost)
-            let per = Double(cost) / Double(shown)
-            let rows = (shown + 5) / 6
-            for i in 0..<shown {
-                let row = i / 6
-                let inRow = row == rows - 1 ? shown - row * 6 : 6
-                let col = i % 6
-                let bx = x + (Double(col) - Double(inRow - 1) / 2) * 9.6
-                let by = y - r - 10 - Double(rows - 1 - row) * 9.6
-                let on = Double(have) >= per * Double(i + 1) - 0.001
-                c.circ(bx, by, 3.9, on ? Col(0xffd24a) : Col(0x0a1018, 0.75))
-                c.circStroke(bx, by, 3.9, 1, on ? Col(0x8a6a10) : Col(0xd8b86a, 0.5))
-            }
-            c.textS(String(cost - have), x, y + r + 15, 12, coins >= cost - have ? CREAM : Col(0xe89a8a), 0, FONTB)
+            c.textS(String(cost - have), x, y + pr + 15, 12, coins >= cost - have ? CREAM : Col(0xe89a8a), 0, FONTB)
+            let dist = pour == id ? -1 : abs(px - u.x)
+            if dist < tipDist { tipDist = dist; tipX = x; tipText = describe(u) }
             if pour == id {
                 let fromX = sx(px), fromY = sy(groundLand(px)) - 40 * camS
                 for q in 0..<4 {
@@ -718,8 +712,56 @@ extension Game {
                     c.circ(cx2, cy2, 4.2, Col(0xffd24a))
                     c.circStroke(cx2, cy2, 4.2, 1, Col(0x8a6a10))
                 }
-                c.circStroke(x, y, r + 4 + sin(T * 14) * 1.5, 2, GOLD.alpha(0.6))
+                c.circStroke(x, y, pr + 5 + sin(T * 14) * 1.5, 2, GOLD.alpha(0.6))
             }
+        }
+        // what the nearest upgrade does, in a line under the circles
+        if !tipText.isEmpty {
+            let tw = textW(tipText, 12.5) + 24
+            let ty = y + r * 1.16 + 28
+            let bx = clampD(tipX - tw / 2, 8 + safeL, W - 8 - safeR - tw)
+            c.poly(Col(0x050c14, 0.72), [tipX - 6, ty, tipX, ty - 6, tipX + 6, ty])
+            c.RR(bx, ty, tw, 22, 11, Col(0x050c14, 0.72))
+            c.RRStroke(bx, ty, tw, 22, 11, 1, GOLD2.alpha(0.5))
+            c.text(tipText, bx + tw / 2, ty + 15.5, 12.5, CREAM)
+        }
+    }
+
+    /// One short line on what an upgrade gives you.
+    func describe(_ u: Upg) -> String {
+        let names: [String: String] = ["hut": "Fisher's hut", "mill": "Sawmill", "farm": "Farm", "smithy": "Smithy", "tower": "Watchtower", "battery": "Gun battery", "wall": "Palisade", "dock2": "East dock"]
+        let key = u.tier > 0 ? u.base : u.id
+        if let b = bld[key], let nm = names[key] {
+            let lv = max(1, u.tier)
+            var parts: [String] = []
+            if b.inc > 0 { parts.append(String(b.inc * lv) + " coins a day") }
+            if b.def > 0 { parts.append("+" + String(b.def * lv) + " defence") }
+            let gain = parts.joined(separator: ", ")
+            if dmg.contains(u.id) { return "Rebuild the " + nm.lowercased() + ": " + gain }
+            return (u.tier > 0 ? "Improve the " + nm.lowercased() : nm) + ": " + gain
+        }
+        switch u.id {
+        case "rod": return "Fishing rod: faster bites, bigger fish"
+        case "bait": return "Bait bucket: fish bite sooner"
+        case "fishcart": return "Fish cart: carry 12 fish instead of 5"
+        case "cart": return "Hand cart: 10 crates a day, 4 coins each"
+        case "sack": return "Beachcomber's sack: more finds on the sand"
+        case "boat1": return "Rowboat: row out for bigger fish"
+        case "boat2": return "Skiff: sail to the reef, and the town grows"
+        case "boat3": return "Sloop: a ship of your own. Needs 6 hands"
+        case "boat4": return "Brig: 5 guns a side. Needs 8 hands"
+        case "boat5": return "Frigate: 7 guns a side. Needs 10 hands"
+        case "deal": return "Merchant's deal: everything sells for half as much again"
+        case "nets": return "Nets: one more fish on every deep catch"
+        case "lantern": return "Lantern: better fishing after dark"
+        case "hook": return "Salvage hook: for wrecks out at sea"
+        case "light": return "Lighthouse: +2 defence"
+        case "provisions": return "Provisions: full holds for a voyage"
+        case "powder": return "Powder and shot: +1 defence, harder-hitting guns"
+        case "charts": return "Charts: a shorter voyage"
+        default:
+            if u.id.hasPrefix("mate") { return "Sign on a hand: crew for your ship, and defence" }
+            return ""
         }
     }
 
