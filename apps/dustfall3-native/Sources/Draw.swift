@@ -770,7 +770,7 @@ final class Renderer {
                 // a crow keeping watch on the rafter
                 let cx = x + w * 0.34, cy = gy - hh - 15.5 + (sin(g.clock * 0.9 + bl.x) > 0.93 ? 0.8 : 0)
                 c.R(cx - 0.6, cy + 1.2, 0.5, 1.6, Col(0x4a4038)); c.R(cx + 0.6, cy + 1.2, 0.5, 1.6, Col(0x4a4038))
-                c.ell(cx, cy, 2.6, 1.7, Col(0x15121a)); c.ell(cx - 0.4, cy - 0.5, 1.6, 0.6, Col(0x3a3a5a, 0.7)); c.R(cx + 2.4, cy - 1.8, 0.5, 0.5, Col(0xd8d8e0)) c.circ(cx + 2.2, cy - 1.4, 1.2, Col(0x15121a)); c.poly(Col(0x4a4038), [cx + 3.2, cy - 1.6, cx + 5, cy - 1.1, cx + 3.2, cy - 0.7]); c.poly(Col(0x15121a), [cx - 2, cy - 0.5, cx - 5.4, cy + 1.6, cx - 1.6, cy + 1.2])
+                c.ell(cx, cy, 2.6, 1.7, Col(0x15121a)); c.ell(cx - 0.4, cy - 0.5, 1.6, 0.6, Col(0x3a3a5a, 0.7)); c.circ(cx + 2.2, cy - 1.4, 1.2, Col(0x15121a)); c.R(cx + 2.4, cy - 1.8, 0.5, 0.5, Col(0xd8d8e0)); c.poly(Col(0x4a4038), [cx + 3.2, cy - 1.6, cx + 5, cy - 1.1, cx + 3.2, cy - 0.7]); c.poly(Col(0x15121a), [cx - 2, cy - 0.5, cx - 5.4, cy + 1.6, cx - 1.6, cy + 1.2])
             }
             c.R(x + d.doorX, gy - 20, d.doorW, 20, Col(0x1e1814))
             c.vfill(x + d.doorX - 1, gy - 31, d.doorW + 2, 11, [(0, Col(0x1a1412, 0)), (1, Col(0x1a1412, 0.6))])
