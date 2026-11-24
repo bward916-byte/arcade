@@ -32,6 +32,8 @@ extension Game {
         // a painted plate of wood and brass if the art is aboard; otherwise the drawn one
         let plated = c.plate(gold ? "plate_gold" : "plate_wood", x, y + dy, w, h, corner: min(15, h * 0.36))
         if plated {
+            // the gold plate is lifted a little so dark lettering reads on it
+            if gold { c.RR(x + 5, y + dy + 5, w - 10, h - 10, 7, Col(0xffe9a0, 0.34)) }
             if pressed { c.RR(x, y + dy, w, h, 10, Col(0xffffff, 0.14)) }
         } else if gold {
             c.RRGrad(x, y + dy, w, h, 10, [(0, Col(0xffe69a)), (0.5, Col(0xe6ae3c)), (1, Col(0xb47a16))])
