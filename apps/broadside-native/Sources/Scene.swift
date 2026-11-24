@@ -507,6 +507,7 @@ extension Game {
     // ---------- HUD
     // ---------- title
     func drawTitle(_ c: Canvas, _ L: Double) {
+        if drawSplash(c) { return }
         let horizon = H * 0.62
         c.vfill(0, horizon, W, H - horizon, [(0, dn(0x0e2733, 0x3f8494, L)), (1, dn(0x081822, 0x15485a, L))])
         // a far island with its light, on the horizon
@@ -588,5 +589,38 @@ extension Game {
         c.RRGrad(bx, by, bw, bh, 10, [(0, Col(0xf0d48c)), (1, Col(0xb98a34))])
         c.RRStroke(bx, by, bw, bh, 10, 1.3, Col(0xfff3cc))
         c.text(done.isEmpty && coins == 0 ? "BEGIN" : "CONTINUE", W / 2, by + bh / 2 + 6, 17, Col(0x2a1c08), 0, FONTB)
+    }
+
+    /// The painted splash, filling the screen, with the wooden BEGIN or CONTINUE button. False if the art is missing.
+    func drawSplash(_ c: Canvas) -> Bool {
+        guard let img = Art.shared.image("splash", "jpg") else { return false }
+        let iw = Double(img.width), ih = Double(img.height)
+        let sc = max(W / iw, H / ih)
+        let w = iw * sc, h = ih * sc
+        // keep the title at the top and the sloop's hull at the bottom in view
+        let y0 = -min(h - H, h * 0.03)
+        c.drawImage(img, (W - w) / 2, y0, w, h)
+        // light on the water, so the picture is not still
+        for i in 0..<14 {
+            let fi = Double(i)
+            let tw = sin(T * (1.2 + hashN(fi) * 1.6) + fi * 2.3)
+            if tw < 0.2 { continue }
+            c.R(hashN(fi + 4) * W, y0 + h * (0.62 + hashN(fi + 8) * 0.24), 10 + hashN(fi + 2) * 22, 1.3, Col(0xfff2d0, (tw - 0.2) * 0.35))
+        }
+        let fresh = done.isEmpty && coins == 0
+        let bw = min(230.0, W * 0.27)
+        let cx = W * 0.83, cy = min(H - 44, y0 + h * 0.71)
+        let pulse = 0.5 + 0.5 * sin(T * 2.4)
+        c.glow(cx, cy, bw * 0.75, Col(0xffd27a, 0.2 + 0.16 * pulse), Col(0xffd27a, 0))
+        if let b = Art.shared.image(fresh ? "btn_begin" : "btn_continue") {
+            let bh = bw * Double(b.height) / Double(b.width)
+            let grow = 1 + 0.015 * sin(T * 2.4)
+            c.drawImage(b, cx - bw * grow / 2, cy - bh * grow / 2, bw * grow, bh * grow)
+            titleBtn = (cx - bw / 2, cy - bh / 2, bw, bh)
+        } else {
+            c.RRGrad(cx - bw / 2, cy - 22, bw, 44, 10, [(0, Col(0xf0d48c)), (1, Col(0xb98a34))])
+            c.text(fresh ? "BEGIN" : "CONTINUE", cx, cy + 6, 17, Col(0x2a1c08), 0, FONTB)
+        }
+        return true
     }
 }

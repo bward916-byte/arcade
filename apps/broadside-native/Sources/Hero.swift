@@ -91,3 +91,19 @@ extension Game {
         return true
     }
 }
+
+/// Single pictures in the app: the splash painting and the wooden buttons.
+final class Art {
+    static let shared = Art()
+    private var cache: [String: CGImage] = [:]
+    private var missing: Set<String> = []
+    func image(_ name: String, _ ext: String = "png") -> CGImage? {
+        if let i = cache[name] { return i }
+        if missing.contains(name) { return nil }
+        guard let url = Bundle.main.url(forResource: name, withExtension: ext),
+              let src = CGImageSourceCreateWithURL(url as CFURL, nil),
+              let img = CGImageSourceCreateImageAtIndex(src, 0, nil) else { missing.insert(name); return nil }
+        cache[name] = img
+        return img
+    }
+}

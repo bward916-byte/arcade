@@ -652,11 +652,19 @@ extension Game {
             let x = place(sx(wx))
             rings.append(Ring(id: id, x: x, y: y, r: r, pour: isPour))
             c.circ(x, y + 3, r + 2, Col(0x000000, 0.28))
+            let wood = Art.shared.image("ring_blank")
             if !isPour {
                 let busy = (id == "fish" && fishing) || (id == spinId && spinT > 0)
-                c.glow(x - 6, y - 8, r * 1.2, Col(0x3c4a5c, 0.95), Col(0x08121c, 0.95))
-                c.circ(x, y, r, Col(0x08121c, 0.55))
-                c.circStroke(x, y, r, 2, busy ? Col(0xfff0c0) : GOLD)
+                if let wd = wood {
+                    // carved wood in a brass rim
+                    let rr = r * 1.16
+                    c.drawImage(wd, x - rr, y - rr, rr * 2, rr * 2)
+                    if busy { c.circStroke(x, y, r + 1, 2, Col(0xfff0c0)) }
+                } else {
+                    c.glow(x - 6, y - 8, r * 1.2, Col(0x3c4a5c, 0.95), Col(0x08121c, 0.95))
+                    c.circ(x, y, r, Col(0x08121c, 0.55))
+                    c.circStroke(x, y, r, 2, busy ? Col(0xfff0c0) : GOLD)
+                }
                 c.save()
                 c.translate(x, y)
                 if busy { c.rotate(T * 5) }
@@ -668,7 +676,13 @@ extension Game {
             guard let u = upgs.first(where: { $0.id == id }) else { continue }
             let cost = costOf(u)
             let have = paid[id] ?? 0
-            c.circ(x, y, r, Col(0x101a28, 0.92))
+            if let wd = wood {
+                let rr = r * 1.16
+                c.drawImage(wd, x - rr, y - rr, rr * 2, rr * 2)
+                c.circ(x, y, r * 0.8, Col(0x000000, 0.28))
+            } else {
+                c.circ(x, y, r, Col(0x101a28, 0.92))
+            }
             if have > 0 {
                 c.arcStroke(x, y, r, -PI / 2, -PI / 2 + 2 * PI * Double(have) / Double(cost), 4, GOLD)
             }
@@ -785,8 +799,8 @@ extension Game {
     // ---------- icons, drawn in gold around the origin
     func drawIcon(_ c: Canvas, _ id: String) {
         let u = 10.0
-        let g = GOLD
-        let dark = Col(0x1a1008)
+        let g = Col(0xf6dc96)
+        let dark = Col(0x2a1608)
         switch id {
         case "fish":
             c.ell(-2, 0, u * 0.55, u * 0.3, g)
