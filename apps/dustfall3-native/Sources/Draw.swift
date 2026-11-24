@@ -20,6 +20,7 @@ final class Renderer {
         mesas(dk, dusk)
         groundBand(dk)
         scenery()
+        landmarks()
         camps(dk)
         for bl in g.b where bl.def.wall != 0 && !bl.def.gate { building(bl, dk) }
         centre()
@@ -32,6 +33,9 @@ final class Renderer {
         if g.hall.level == 0 { campfire(FIRE_X, 1.0) }
         for bl in g.b where bl.def.gate { gate(bl) }
         for bx in g.boxes { box(bx) }
+        coach()
+        for w in g.strays { cowAt(w.x, w.dir, 1, w.seed, w.phase, horns: true) }
+        gunmen()
         for f in g.folk { person(f.x, f.phase, f.dir, f.moving, f.seed, f.role, f.work) }
         for bn in g.bandits {
             // dust or a blizzard hides them until they are close
@@ -44,10 +48,126 @@ final class Renderer {
         effects()
         night(dk)
         weather(dk)
+        duelBars()
         slots()
         c.restore()
         if g.flash > 0 { c.R(0, 0, W, H, Col(0xfff0c0, g.flash * 0.5)) }
         if g.fade > 0 { c.R(0, 0, W, H, Col(0x000000, g.fade)) }
+    }
+
+    /// The picture for a story scene, painted into its own small canvas.
+    func art(_ bt: Beat) -> CGImage? {
+        let w = 150.0, h = 84.0
+        guard let a = Canvas(w: Int(w), h: Int(h), scale: 4) else { return nil }
+        let ink = Col(0x2a1c14), paper = Col(0xead7a4)
+        func frame(_ top: UInt32, _ bot: UInt32) { a.vfill(0, 0, w, h, [(0, Col(top)), (1, Col(bot))]) }
+        func star5(_ x: Double, _ y: Double, _ r: Double, _ col: Col) {
+            var p: [Double] = []
+            for i in 0..<10 {
+                let an = -PI / 2 + Double(i) * PI / 5
+                let rr = i % 2 == 0 ? r : r * 0.45
+                p.append(x + cos(an) * rr); p.append(y + sin(an) * rr)
+            }
+            a.poly(col, p)
+        }
+        switch bt.art {
+        case "star":
+            frame(0x3a2a1c, 0x1c120c)
+            for i in 0..<26 { a.R(hashN(Double(i) * 3.1) * w, 58 + hashN(Double(i) * 7.3) * 24, 2 + hashN(Double(i)) * 5, 1.5, Col(0x5c5048, 0.7)) }
+            a.glow(w / 2, 40, 46, Col(0xf2c14e, 0.35), Col(0xf2c14e, 0))
+            a.circ(w / 2, 40, 25, Col(0x8a6a2a)); a.circ(w / 2, 40, 23, Col(0xc9a14a))
+            star5(w / 2, 40, 20, Col(0xf2c14e)); star5(w / 2 - 1, 39, 12, Col(0xfff0b0, 0.5))
+            a.text("SHERIFF", w / 2, 43, 6.5, Col(0x5a3c1a))
+        case "eyes":
+            let crane = bt.who == "crane", gun = bt.who == "gun"
+            let topC: UInt32 = crane ? 0x3a3440 : (gun ? 0x4a2a22 : 0xd9a47a)
+            let botC: UInt32 = crane ? 0x1c1a22 : (gun ? 0x1c120c : 0xa85e36)
+            frame(topC, botC)
+            let skinC: UInt32 = crane ? 0xe2c0a0 : (gun ? 0xb8804e : 0xd9a878)
+            let hatC: UInt32 = crane ? 0x2a2a30 : (gun ? 0x14100e : 0x5a4030)
+            let skin = Col(skinC), hat = Col(hatC)
+            a.R(30, 22, 90, 62, skin)
+            a.R(30, 60, 90, 24, Col(0x000000, 0.12))
+            let look = gun ? -2.0 : 1.0
+            let iris: UInt32 = crane ? 0x6a8a9a : 0x4a3424
+            for ex in [56.0, 94.0] {
+                a.RR(ex - 11, 36, 22, 4, 2, Col(0x3a2a1c)); a.ell(ex, 47, 9, 4.5, Col(0xf4ecd6))
+                a.circ(ex + look, 47, 4, Col(iris)); a.circ(ex + look, 47, 1.8, ink)
+                a.R(ex - 10, 41.5, 20, 2.5, skin)
+            }
+            a.poly(Col(0x000000, 0.15), [72, 44, 78, 44, 81, 66, 69, 66])
+            if crane {
+                a.RR(40, 68, 70, 7, 3, Col(0xd8d8dc)); a.ellStroke(94, 47, 12, 8, 1.4, Col(0xc9a14a)); a.seg(106, 49, 118, 70, 0.8, Col(0xc9a14a))
+                a.R(18, 16, 114, 8, hat); a.R(34, 0, 82, 18, hat); a.R(34, 12, 82, 4, Col(0x6a2a30))
+            } else {
+                if gun { a.R(30, 62, 90, 22, Col(0xa02a22)); a.poly(Col(0x7a1c18), [30, 62, 75, 70, 120, 62, 120, 66, 75, 74, 30, 66]) }
+                else { a.R(30, 74, 90, 10, Col(0xc9402f)) }
+                a.poly(hat, [4, 28, 20, 16, 130, 16, 146, 28, 130, 24, 20, 24]); a.RR(36, 0, 78, 20, 6, hat)
+                let band: UInt32 = gun ? 0x4a4a50 : 0x2a1c14
+                a.R(36, 14, 78, 4, Col(band))
+            }
+            a.R(0, 22, 30, 62, Col(0x000000, 0.25)); a.R(120, 22, 30, 62, Col(0x000000, 0.25))
+        case "brand":
+            frame(0x8a4a2c, 0x5a2f1c)
+            a.RR(-10, 10, 170, 90, 30, Col(0x9a5a34)); a.RR(6, 16, 120, 20, 10, Col(0xb06a40, 0.6))
+            a.arcStroke(78, 46, 17, 0.9, PI * 2 - 0.9, 6.5, Col(0x2e1a12)); a.arcStroke(78, 46, 17, 0.9, PI * 2 - 0.9, 3, Col(0x5a2a1a))
+            for i in 0..<5 { a.seg(70 + Double(i) * 4, 22 - Double(i % 2) * 3, 72 + Double(i) * 4, 12, 0.8, Col(0xffffff, 0.25)) }
+        case "wire":
+            frame(0x4a3424, 0x2a1c14)
+            a.RR(14, 8, 122, 68, 2, paper); a.R(14, 8, 122, 12, Col(0xd8c080)); a.text("WESTERN TERRITORY TELEGRAPH", w / 2, 16.5, 5, ink)
+            for (i, ln) in bt.lines.enumerated() { a.text(ln, 22, 34 + Double(i) * 12, 7, ink, center: false) }
+            a.R(22, 70, 106, 0.8, Col(0x2a1c14, 0.4))
+        case "hand":
+            frame(0xe8b47a, 0xa85e36)
+            a.R(0, 0, 60, h, Col(0x6a4a2e)); a.R(52, 0, 10, h, Col(0x3a2a1c)); a.R(54, 20, 6, 8, Col(0xf2c14e))
+            a.RR(62, 30, 34, 50, 6, Col(0x3a2a1c)); a.RR(70, 14, 14, 26, 4, Col(0x5a3c22)); a.R(68, 12, 18, 5, Col(0x8a8a90))
+            a.RR(98, 22, 30, 16, 6, Col(0xd9a878))
+            for k in 0..<4 { a.RR(92 + Double(k) * 1.5, 24 + Double(k) * 3.6, 14, 3.4, 1.7, Col(0xc9966a)) }
+            a.RR(104, 16, 8, 12, 3, Col(0xd9a878)); a.R(124, 16, 26, 28, Col(0xc9b48a))
+        case "map":
+            frame(0xead7a4, 0xd8c080)
+            a.R(6, 6, 138, 72, Col(0x2a1c14, 0.06))
+            let n = STAGES.count
+            let all = bt.who == "all"
+            let done = all ? n : g.town % n
+            a.seg(20, 44, 130, 44, 2, ink)
+            var tx = 20.0
+            while tx < 130 { a.R(tx, 41, 1, 6, ink); tx += 5 }
+            for i in 0..<n {
+                let x = 20 + Double(i) * 27.5
+                a.circ(x, 44, 6, ink)
+                a.circ(x, 44, 4.6, i < done ? Col(0xf2c14e) : (i == done ? Col(0xc0392b) : paper))
+                if i < done { star5(x, 44, 3.4, Col(0x8a6a2a)) }
+                var nm = "?"
+                if i < done && i < g.log.count { nm = nice(PLACES[g.log[i]]?.name ?? "") } else if i == done && !all { nm = nice(g.townName) }
+                a.text(nm, x, i % 2 == 0 ? 30 : 62, 5, ink)
+            }
+            a.text("C. C. & R. RAILROAD", w / 2, 17, 6, Col(0x6a2f26))
+        case "train":
+            frame(0x5a3f7a, 0xf6b25a)
+            a.poly(Col(0x3a2a4a), [0, 60, 30, 40, 70, 46, 110, 34, 150, 50, 150, 84, 0, 84])
+            a.R(0, 70, w, 14, Col(0x2a1c24)); a.R(0, 69, w, 1, Col(0x8a8f98))
+            a.RR(24, 40, 104, 26, 3, Col(0x1c1a22)); a.R(22, 37, 108, 4, Col(0x0e0c12)); a.R(24, 60, 104, 1.2, Col(0xc9a14a))
+            for k in 0..<5 { a.RR(32 + Double(k) * 19, 45, 12, 10, 2, Col(0xffd98a)) }
+            a.R(70, 46, 3, 8, Col(0x1c1a22)); a.circ(71.5, 45, 2.4, Col(0x1c1a22))
+            for wx in [38.0, 50, 104, 116] { a.circ(wx, 68, 4, Col(0x0e0c12)); a.circ(wx, 68, 1.4, Col(0xc9a14a)) }
+            a.text("S. CRANE", w / 2, 64.5, 4, Col(0xc9a14a))
+        default:
+            frame(0x2a3040, 0x5a5a66)
+            for i in 0..<6 { a.RR(-10 + Double(i) * 28, 4 + hashN(Double(i)) * 10, 50, 16, 8, Col(0x1c2028, 0.85)) }
+            a.poly(Col(0x3a3440), [0, 70, 26, 52, 60, 52, 70, 70]); a.poly(Col(0x3a3440), [80, 70, 96, 46, 134, 46, 150, 66, 150, 84, 0, 84, 0, 70])
+            var x = 82.0, y = 16.0, k = 0.0
+            while y < 66 {
+                let nx = x + (hashN(k * 3.7) - 0.5) * 18, ny = y + 8 + hashN(k) * 5
+                a.seg(x, y, nx, ny, 2, Col(0xfffbe6)); a.seg(x, y, nx, ny, 5, Col(0xbfd4ff, 0.3))
+                x = nx; y = ny; k += 1
+            }
+            for i in 0..<30 {
+                let rx = hashN(Double(i) * 5.3) * w, ry = 20 + hashN(Double(i) * 8.1) * 60
+                a.seg(rx, ry, rx - 2, ry + 7, 0.6, Col(0xcfe0ee, 0.4))
+            }
+        }
+        return a.image()
     }
 
     private func sx(_ x: Double) -> Double { return x - g.cam }
@@ -130,11 +250,13 @@ final class Renderer {
         c.vfill(0, gy, W, H - gy, [(0, Col(L.g0)), (0.25, Col(L.g1)), (1, Col(L.g2))])
         c.R(0, gy, W, 1, Col(L.edge))
         // the ford east of a river town
-        if g.bio == .river {
+        if g.bio == .river || g.flooded {
             let r = g.river
             if vis(r.0, r.1 - r.0) {
                 let x0 = sx(r.0), w = r.1 - r.0
-                c.vfill(x0, gy, w, H - gy, [(0, Col(0x7fb0c4)), (1, Col(0x4a7f98))])
+                let clear = g.bio == .river && !g.flooded
+                let water: [(Double, Col)] = [(0, Col(clear ? 0x7fb0c4 : 0x9a8a6a)), (1, Col(clear ? 0x4a7f98 : 0x6a6a5a))]
+                c.vfill(x0, gy, w, H - gy, water)
                 c.R(x0 - 2, gy, 2, H - gy, Col(0x8a8a56)); c.R(x0 + w, gy, 2, H - gy, Col(0x8a8a56))
                 for k in 0..<7 {
                     let yy = gy + 2 + Double(k) * (H - gy - 3) / 7
@@ -151,7 +273,7 @@ final class Renderer {
         while i <= end {
             let x = Double(i) * 23 + hashN(Double(i) * 1.3) * 18
             let y = gy + 3 + hashN(Double(i) * 4.7) * (H - gy - 6)
-            if g.bio != .river || x < g.river.0 - 3 || x > g.river.1 { c.R(sx(x).rounded(), y.rounded(), 2 + hashN(Double(i)) * 3, 1, Col(L.speck, 0.55)) }
+            if (g.bio != .river && !g.flooded) || x < g.river.0 - 3 || x > g.river.1 { c.R(sx(x).rounded(), y.rounded(), 2 + hashN(Double(i)) * 3, 1, Col(L.speck, 0.55)) }
             i += 1
         }
     }
@@ -397,20 +519,114 @@ final class Renderer {
         while wx <= p.1 { c.R(sx(wx) - 1, gy - 9, 2, 9, Col(0x5a3c22)); wx += 20 }
         c.R(sx(p.0), gy - 8, p.1 - p.0, 1, rail); c.R(sx(p.0), gy - 4, p.1 - p.0, 1, rail)
         c.R(sx(p.0 + 28), gy - 4, 10, 4, Col(0x6a4a2e)); c.R(sx(p.0 + 29), gy - 4, 8, 1, Col(0x8fc4d4))
-        for cw in g.herd {
-            let x = sx(cw.x), s = cw.calf ? 0.6 : 1.0
-            let dkc = Int(cw.seed) % 3 == 0
-            let body = dkc ? Col(0x3a2e28) : Col(0x8a4a2c), lo = dkc ? Col(0x2a201c) : Col(0x6c3820)
-            let sw = sin(cw.phase) * 1.2
-            c.save(); c.translate(x, gy); c.scale(cw.dir * s, s)
-            c.R(-6 + sw * 0.4, -5, 1.5, 5, lo); c.R(-3 - sw * 0.4, -5, 1.5, 5, lo); c.R(3 + sw * 0.4, -5, 1.5, 5, lo); c.R(5.5 - sw * 0.4, -5, 1.5, 5, lo)
-            c.RR(-8, -12, 16, 8, 2.5, body)
-            c.RR(6, -14, 6, 5, 1.5, body); c.R(10.5, -11.5, 2, 2, lo)
+        for cw in g.herd { cowAt(cw.x, cw.dir, cw.calf ? 0.6 : 1.0, cw.seed, cw.phase, horns: false) }
+    }
+
+    private func cowAt(_ wx: Double, _ dir: Double, _ s: Double, _ seed: Double, _ phase: Double, horns: Bool) {
+        if !vis(wx, 20) { return }
+        let x = sx(wx)
+        let dkc = Int(seed) % 3 == 0
+        let body = dkc ? Col(0x3a2e28) : Col(0x8a4a2c), lo = dkc ? Col(0x2a201c) : Col(0x6c3820)
+        let sw = sin(phase) * 1.2
+        c.save(); c.translate(x, gy); c.scale(dir * s, s)
+        c.R(-6 + sw * 0.4, -5, 1.5, 5, lo); c.R(-3 - sw * 0.4, -5, 1.5, 5, lo); c.R(3 + sw * 0.4, -5, 1.5, 5, lo); c.R(5.5 - sw * 0.4, -5, 1.5, 5, lo)
+        c.RR(-8, -12, 16, 8, 2.5, body)
+        c.RR(6, -14, 6, 5, 1.5, body); c.R(10.5, -11.5, 2, 2, lo)
+        if horns {
+            c.curve(7, -14, 4, -18, 1.5, -18.5, 1, Col(0xe8dcc4)); c.curve(10.5, -14, 14, -18, 16.5, -18.5, 1, Col(0xe8dcc4))
+        } else {
             c.R(6, -15, 1, 1.5, Col(0xe8dcc4)); c.R(10, -15, 1, 1.5, Col(0xe8dcc4))
-            c.seg(-8, -11, -10, -5, 0.8, lo)
-            if !dkc { c.R(-3, -11, 4, 3, Col(0xe8dcc4, 0.8)) }
-            c.restore()
         }
+        c.seg(-8, -11, -10, -5, 0.8, lo)
+        if !dkc { c.R(-3, -11, 4, 3, Col(0xe8dcc4, 0.8)) }
+        c.restore()
+    }
+
+    /// The old mission west of town and the rock arch east of it, where wanted men hole up and road agents wait.
+    private func landmarks() {
+        let L = g.terrain
+        if vis(g.missionX, 50) {
+            let x = sx(g.missionX).rounded()
+            let adobe = Col(0xd9c2a0), sh = Col(0xb39a78)
+            c.R(x - 26, gy - 20, 30, 20, adobe); c.R(x - 26, gy - 20, 30, 2, sh); c.R(x, gy - 20, 4, 20, sh)
+            c.R(x - 16, gy - 12, 7, 12, Col(0x3a2a1c)); c.R(x - 4, gy - 15, 4, 5, Col(0x3a2a1c))
+            c.R(x + 6, gy - 34, 12, 34, adobe); c.R(x + 15, gy - 34, 3, 34, sh)
+            c.R(x + 9, gy - 30, 6, 7, Col(0x3a2a1c)); c.circ(x + 12, gy - 26, 1.6, Col(0xc9a14a))
+            c.poly(sh, [x + 5, gy - 34, x + 12, gy - 40, x + 19, gy - 34])
+            c.R(x + 11.4, gy - 46, 1.2, 6, Col(0x5a3c22)); c.R(x + 9.6, gy - 44, 4.8, 1.2, Col(0x5a3c22))
+            c.poly(sh, [x - 34, gy, x - 30, gy - 9, x - 26, gy - 6, x - 26, gy])
+        }
+        if vis(g.archX, 60) {
+            let x = sx(g.archX).rounded()
+            let rock = Col(L.mesa), rs = Col(L.mesaS)
+            c.poly(rock, [x - 34, gy, x - 30, gy - 30, x - 22, gy - 44, x + 8, gy - 48, x + 26, gy - 40, x + 32, gy - 18, x + 34, gy, x + 20, gy, x + 18, gy - 20, x + 6, gy - 30, x - 10, gy - 28, x - 18, gy - 14, x - 20, gy])
+            c.poly(rs, [x + 8, gy - 48, x + 26, gy - 40, x + 32, gy - 18, x + 34, gy, x + 20, gy, x + 18, gy - 20, x + 14, gy - 34])
+            c.R(x - 24, gy - 36, 26, 1, rs.alpha(0.5)); c.R(x - 28, gy - 22, 8, 1, rs.alpha(0.5))
+            if g.bio == .snow { c.poly(Col(0xf4f8ff), [x - 22, gy - 44, x + 8, gy - 48, x + 26, gy - 40, x + 10, gy - 44, x - 18, gy - 41]) }
+        }
+    }
+
+    /// The stagecoach, its team, the driver, the guard if you paid for one, and the road agents at the hold-up.
+    private func coach() {
+        guard let ch = g.coach else { return }
+        if !vis(ch.x, 80) { return }
+        let x = sx(ch.x)
+        c.ell(x + 8, gy + 1, 30, 2.2, Col(0x000000, 0.2))
+        _ = horse(x + 34, 1, ch.phase, ch.moving ? 60 : 0, Col(0x6e4a30), Col(0x3a2416))
+        _ = horse(x + 26, 1, ch.phase + 0.8, ch.moving ? 60 : 0, Col(0x8a8480), Col(0x4a4642))
+        let red = Col(0x8a2b22), dk = Col(0x2e2622), gold = Col(0xc9a14a)
+        c.seg(x + 6, gy - 9, x + 24, gy - 11, 0.8, dk)                                    // the pole and traces
+        c.RR(x - 12, gy - 22, 24, 14, 3, red); c.R(x - 13, gy - 24, 26, 2.5, dk); c.R(x - 12, gy - 13, 24, 1, gold)
+        c.R(x - 8, gy - 20, 5, 5, Col(0xf0e0b8)); c.R(x - 1, gy - 20, 5, 5, Col(0xf0e0b8)); c.R(x - 9, gy - 14, 16, 0.8, gold)
+        c.R(x + 9, gy - 20, 7, 3, dk); c.R(x - 15, gy - 19, 4, 8, Col(0x7a5632))          // the box seat and the boot
+        c.R(x - 10, gy - 27, 14, 3, Col(0x7a5632)); c.R(x - 6, gy - 29, 6, 2, Col(0x5a3c22))   // luggage on the roof
+        for (wx, r) in [(-7.0, 5.0), (9.0, 4.0)] {
+            let cx = x + wx, cy = gy - r
+            c.circ(cx, cy, r, dk); c.circ(cx, cy, r - 1.2, Col(0xc9a86a)); c.circ(cx, cy, 1, dk)
+            for k in 0..<4 { let a = ch.phase * 0.5 + Double(k) * PI / 4; c.seg(cx - cos(a) * (r - 1), cy - sin(a) * (r - 1), cx + cos(a) * (r - 1), cy + sin(a) * (r - 1), 0.6, dk) }
+        }
+        // driver, and the guard with his shotgun
+        c.R(x + 10, gy - 28, 4, 6, Col(0x5f7896)); c.R(x + 10.5, gy - 31, 3.2, 3, Col(0xd9a878)); c.R(x + 9, gy - 32, 6.5, 1.2, Col(0x4a3424)); c.R(x + 10.5, gy - 34, 3.5, 2.2, Col(0x4a3424))
+        c.seg(x + 13, gy - 26, x + 22, gy - 20, 0.5, dk)
+        if ch.guarded {
+            c.R(x + 4, gy - 29, 4, 6, Col(0x34445a)); c.R(x + 4.5, gy - 32, 3.2, 3, Col(0xb8804e)); c.R(x + 3, gy - 33, 6.5, 1.2, Col(0x2e2622)); c.R(x + 4.5, gy - 35, 3.5, 2.2, Col(0x2e2622))
+            c.seg(x + 7, gy - 27, x + 17, gy - 29, 1, Col(0x4a4a50))
+            if ch.fl > 0 { c.circ(x + 19, gy - 29, 3, Col(0xfff0b0)) }
+        }
+        for (i, up) in ch.rob.enumerated() where up {
+            let bn = Bandit(x: ch.x + 44 + Double(i) * 14, rider: false, side: 1, hp: 2)
+            bandit(bn)
+        }
+    }
+
+    /// A wanted man where he is holed up, and the duellist down the street.
+    private func gunmen() {
+        if let o = g.outlaw {
+            let bn = Bandit(x: o.x, rider: false, side: -o.dir, hp: 1)
+            bn.boss = true; bn.flash = o.flash; bn.st = 1
+            bandit(bn)
+            if vis(o.x, 40) { c.text("WANTED", sx(o.x), gy - 27, 4.5, Col(0xd04a3a)) }
+        }
+        if let d = g.duel, d.oppUp {
+            let bn = Bandit(x: d.oppX, rider: false, side: 1, hp: 1)
+            bn.boss = true; bn.st = 1
+            bandit(bn)
+        }
+    }
+
+    /// High noon: black bars, and the marker that swings across the star.
+    private func duelBars() {
+        guard let d = g.duel else { return }
+        c.R(0, 0, W, 16, Col(0x000000, 0.92)); c.R(0, H - 14, W, 14, Col(0x000000, 0.92))
+        if d.st != 1 { return }
+        let cx = W / 2, y = 30.0, half = 70.0
+        c.RR(cx - half - 4, y - 7, half * 2 + 8, 14, 5, Col(0x2a1c14, 0.85))
+        c.R(cx - half, y - 1, half * 2, 2, Col(0xead7a4, 0.6))
+        c.RR(cx - half * d.hw * 2.4, y - 4, half * d.hw * 4.8, 8, 2, Col(0xf2c14e, 0.25))
+        c.RR(cx - half * d.hw, y - 5, half * d.hw * 2, 10, 2, Col(0xf2c14e, 0.55))
+        star(cx, y, 4.5, GOLD)
+        let mx = cx + d.pos * half
+        c.RR(mx - 1.5, y - 8, 3, 16, 1.5, Col(0xffffff)); c.poly(Col(0xd04a3a), [mx - 3.5, y - 11, mx + 3.5, y - 11, mx, y - 6])
     }
 
     /// The town centre: a campfire, then a square with a well, then a clock tower.

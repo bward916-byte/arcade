@@ -40,6 +40,60 @@ final class Game {
     var place = "dustfall"      // which of the places at this stage of the line
     var log: [String] = []      // the places behind you, in order
     var choosing = false        // the train has stopped at a fork and is waiting for you to pick
+
+    // the stage line, wanted men, floods, duels and strays
+    var coach: Coach?
+    var coachSlot = Building(.coach, 1196)
+    var owed = 0                // what the stage line pays you at dawn
+    var outlaw: Outlaw?
+    var flood = 0               // the last day the wash east of town runs full
+    var duelDay = 0
+    var duel: Duel?
+    var strays: [Stray] = []
+    private var fireWas = false
+    var cut: [Beat] = []        // story pictures waiting to be shown; the game stands still while there are any
+    var star = false            // every building in this town is as good as it gets
+    var duelWon = false
+
+    /// Plays the first story scene whose moment has come, once each.
+    private func story() {
+        if tripT >= 0 || duel != nil { return }
+        let n = STAGES.count, st = town % n, ln = day - day0
+        func due(_ k: String) -> Bool {
+            switch k {
+            case "s1": return town == 0 && day >= 2 && t > 0.03 && t < 0.3
+            case "s2": return town == 0 && ln >= 3 && t > 0.03 && t < 0.3
+            case "s3": return duelDay == day && t > 0.2 && t < 0.32
+            case "a1": return st == 1 && town > 0 && t > 0.14
+            case "a2": return st == 2 && t > 0.14
+            case "a3": return st == 3 && t > 0.14
+            case "a4": return st == 4 && t > 0.14
+            case "won": return duelWon && t > 0.5
+            case "storm": return wx == 3 && cloudI() > 0.7 && rainI() < 0.5
+            case "end": return st == 4 && star
+            default: return false
+            }
+        }
+        for k in ["s1", "s2", "s3", "a1", "a2", "a3", "a4", "won", "storm", "end"] where !seen.contains("st_" + k) && due(k) {
+            seen.insert("st_" + k)
+            cut = STORY[k] ?? []
+            return
+        }
+    }
+
+    /// A town earns its star when nothing in it can be improved any further.
+    private func checkStar() {
+        if star { return }
+        for bl in b where !bl.virt && bl.level < bl.maxLevel { return }
+        star = true
+        sfx?.fanfare(); flash = 0.5
+        hint("star\(town)", "\(nice(townName)) has its star: every building here is as good as it gets.", again: true)
+    }
+    var flooded: Bool { return flood >= day && bio != .snow }
+    var coachPay: Int { return 6 + 2 * town }
+    var strayRange: (Double, Double) { return (EX(2424), EX(2744)) }
+    var missionX: Double { return 420 }
+    var archX: Double { return EX(2360) }
     var mapNote = ""            // set when a new town is reached, for the map to show
     var here: Place { return PLACES[place] ?? PLACES["dustfall"]! }
     var townName: String { return here.name }
@@ -97,7 +151,10 @@ final class Game {
         }
     }
     /// The ford east of a river town slows everyone who crosses it.
-    func slowAt(_ x: Double) -> Double { return bio == .river && x > river.0 && x < river.1 ? 0.5 : 1 }
+    func slowAt(_ x: Double) -> Double {
+        if bio != .river && !flooded { return 1 }
+        return x > river.0 && x < river.1 ? (flooded && bio == .river ? 0.34 : 0.5) : 1
+    }
 
     /// The weather for the day ahead, rolled at dawn. Returns a line for the morning's message.
     private func rollWx() -> String {
@@ -128,6 +185,10 @@ final class Game {
     /// Lightning in a thunderstorm: flashes overhead, and now and then finds a raider outside the gates.
     private func updWx(_ dt: Double) {
         bolt = max(0, bolt - dt)
+        if wx == 3 && t > wxB - 0.03 && flood < day + 1 && bio != .snow {
+            flood = day + 1
+            hint("flood", bio == .river ? "The river is up after the storm. Everyone crossing the ford is slowed to a crawl until tomorrow night." : "The storm has filled the dry wash east of town. It slows everyone who crosses until tomorrow night, and leaves gold in the gravel when it drops.", again: true)
+        }
         if wx != 3 || rainI() < 0.5 { return }
         if chance(dt * 0.16) {
             var hitX = cam + rnd(0, W)
@@ -198,7 +259,11 @@ final class Game {
         herd = []; raided = false; wx = 0; bolt = 0
         b = [store, saloon, sheriff]
         let stage = town % STAGES.count + (town >= STAGES.count ? STAGES.count : 0)
-        if stage >= 1 { b.append(stable); b.append(bankB); b.append(claim) }
+        coachSlot = Building(.coach, 1196); coachSlot.live = false
+        star = false; cut = []
+        coach = nil; outlaw = nil; flood = 0; duelDay = 0; duel = nil; owed = 0; strays = []
+        for x in [2450.0, 2600, 2700] { strays.append(Stray(x: EX(x), tx: EX(x), seed: rnd(0, 100))) }
+        if stage >= 1 { b.append(stable); b.append(bankB); b.append(claim); b.append(coachSlot) }
         if stage >= 2 { b.append(bordello); b.append(doctor) }
         if stage >= 3 { b.append(church); b.append(forge) }
         if stage >= 4 { b.append(telegraph) }
@@ -253,7 +318,8 @@ final class Game {
         var bx: [Bool] = []
         for q in boxes { bx.append(q.open) }
         return SaveData(town: town, day: day, day0: day0, t: t, coins: purse, bank: bank, ammo: ammo, px: px, side: side,
-                        train: train != nil, b: sb, folk: sf, drifters: dr, boxes: bx, seen: Array(seen), herd: herd.count, wx: [Double(wx), wxA, wxB], place: place, log: log)
+                        train: train != nil, b: sb, folk: sf, drifters: dr, boxes: bx, seen: Array(seen), herd: herd.count, wx: [Double(wx), wxA, wxB], place: place, log: log,
+                        extra: [Double(owed), Double(flood), Double(duelDay), outlaw?.side ?? 0, Double(outlaw?.hp ?? 0), Double(outlaw?.days ?? 0)])
     }
 
     /// Picks a saved game up again. A game saved at night comes back at dusk the same night.
@@ -286,6 +352,13 @@ final class Game {
         }
         for (i, bx) in boxes.enumerated() where i < s.boxes.count { bx.open = s.boxes[i] }
         for _ in 0..<max(0, min(12, s.herd ?? 0)) { addCow(calf: false) }
+        if let e = s.extra, e.count == 6 {
+            owed = max(0, Int(e[0])); flood = Int(e[1]); duelDay = Int(e[2])
+            if e[3] != 0 && e[4] > 0 {
+                let o = Outlaw(x: e[3] < 0 ? missionX : archX, side: e[3] < 0 ? -1 : 1, name: OUTLAWS[day % OUTLAWS.count], reward: 8 + 2 * town)
+                o.hp = Int(e[4]); o.days = max(1, Int(e[5])); outlaw = o
+            }
+        }
         if let w = s.wx, w.count == 3 { wx = max(0, min(3, Int(w[0]))); wxA = w[1]; wxB = w[2] }
         if s.train && station.level > 0 { train = Train(x: STOP, v: 0); ticket.live = true }
         px = clampD(s.px, 30, WORLD - 30)
@@ -298,7 +371,9 @@ final class Game {
         if name == "title" { return }
         start()
         hintT = 0
+        if name == "duel" { day = 5; t = 0.4 }
         if name == "map" { town = 2; place = "timberline"; log = ["dustfall", "redwater"]; day = 20; day0 = 16; layTown(); stable.level = 1; bordello.level = 1; px = 1500; choosing = false }
+        if name == "coach" { place = "irongulch"; log = ["dustfall"]; town = 1; day = 9; day0 = 6; layTown(); stable.level = 1; bankB.level = 1 }
         if name == "train" { place = "redwater"; log = ["dustfall"]; town = 1; day = 9; day0 = 6; layTown(); stable.level = 1; bankB.level = 1; bank = 12 }
         if name == "snow" { place = "coldcreek"; log = ["dustfall", "irongulch", "timberline"]; town = 3; day = 31; day0 = 27; layTown(); stable.level = 1; bankB.level = 1; bordello.level = 1; doctor.level = 1; church.level = 1; forge.level = 1; wx = 2 }
         if name == "storm" { wx = 3; wxA = 0.3; wxB = 0.6 }
@@ -314,6 +389,11 @@ final class Game {
             wireE.level = 1
             for i in 0..<5 { bandits.append(Bandit(x: 2010 + Double(i) * 30, rider: i % 3 == 2, side: 1, hp: 3)) }
             px = 1850; folk[0].x = 1925; folk[1].x = 1916
+        } else if name == "duel" {
+            hall.level = 2; startDuel(); duel?.st = 1; duel?.t = 3; duel?.t0 = 2.3; duel?.pos = 0.3; fade = 0
+        } else if name == "coach" {
+            t = 0.2; hall.level = 1; coach = Coach(x: coachSlot.x + 19); coach?.st = 1; coach?.moving = false; coachSlot.live = true; coachSlot.paid = 1; px = 1190
+            outlaw = Outlaw(x: 1300, side: 1, name: OUTLAWS[0], reward: 10); strays[0].x = 1150; strays[0].tame = true
         } else if name == "snow" {
             t = 0.45; hall.level = 2; px = 1790; pdir = 1
         } else if name == "storm" {
@@ -341,7 +421,7 @@ final class Game {
         if !again && seen.contains(key) { return }
         seen.insert(key)
         hintText = text
-        hintT = 7
+        hintT = 7 + Double(text.count) / 45
     }
 
     private func puff(_ x: Double, _ y: Double, _ n: Int, _ c: Col, _ sp: Double = 30) {
@@ -366,6 +446,21 @@ final class Game {
     func update(_ dt: Double) {
         clock += dt
         if state != .play { return }
+        if !cut.isEmpty { return }
+        story()
+        if duel != nil {
+            // high noon: the day stands still until it is settled
+            updDuel(dt)
+            if hintT > 0 { hintT -= dt }
+            shake = max(0, shake - dt * 3); flash = max(0, flash - dt * 3)
+            if fade > 0 { fade = max(0, fade - dt * 0.9) }
+            updCoins(dt); updShots(dt); updParts(dt)
+            let want = clampD(px + 48 - W / 2, 0, WORLD - W)
+            cam += (want - cam) * min(1, dt * 3)
+            sfx?.music(clock, 1)
+            return
+        }
+        if duelDay == day && t > 0.33 && t < 0.5 && tripT < 0 { startDuel() }
         let was = t
         t += dt / DAY_LEN
         if was < 0.72 && t >= 0.72 && !duskDone { dusk() }
@@ -386,6 +481,10 @@ final class Game {
         updShots(dt)
         updHerd(dt)
         updWx(dt)
+        updCoach(dt)
+        updOutlaw(dt)
+        updStrays(dt)
+        fireWas = input.fire
         updParts(dt)
         updInfo()
         let want = clampD(px + pdir * 26 - W / 2, 0, WORLD - W)
@@ -551,7 +650,12 @@ final class Game {
             guard let bl = c.bld else { return }
             bl.incoming = max(0, bl.incoming - 1)
             bl.paid += 1; bl.flash = 0.3; sfx?.slot()
-            if bl.paid >= bl.cost && bl.virt {
+            if bl.paid >= bl.cost && bl.type == .coach {
+                bl.paid = 0; bl.live = false
+                coach?.guarded = true
+                sfx?.recruit()
+                hint("guard", "A shotgun guard climbs up beside the driver. If the stage gets through, the line pays you \(coachPay) coins at dawn.", again: true)
+            } else if bl.paid >= bl.cost && bl.virt {
                 bl.paid = 0; bl.live = false; board()
             } else if bl.paid >= bl.cost && bl.type == .claim {
                 bl.paid = 0; bl.level += 1; bl.flash = 0.4
@@ -716,6 +820,7 @@ final class Game {
                 hint("station1", "The station is up, and the rails are through. Here comes the train.", again: true)
             default: hint("built", "Built. Toss more coins at it to improve it.")
             }
+            checkStar()
             onSave?()
         }
     }
@@ -777,6 +882,36 @@ final class Game {
             else { let n = claim.level > 1 ? 7 : 4; for _ in 0..<n { dropCoin(claim.cx, 5) }; total += n }
         }
         raided = false
+        // the stage line settles up, the wash drains, and the day's news
+        if owed > 0 { for _ in 0..<owed { dropCoin(coachSlot.x + 19, 6) }; total += owed; owed = 0 }
+        if flood > 0 && flood < day && bio != .snow {
+            flood = 0
+            for _ in 0..<(5 + town) { ground.append(GCoin(x: rnd(river.0 + 2, river.1 - 2), y: 0, vx: 0, vy: 0, age: 1)) }
+            note += " The wash has run dry again, and left gold in the gravel east of town."
+        }
+        let lnD = day - day0
+        if strays.count < 3 { let r = strayRange; let x = rnd(r.0 + 20, r.1 - 20); strays.append(Stray(x: x, tx: x, seed: rnd(0, 100))) }
+        if lnD >= 5 && lnD % 5 == 0 {
+            duelDay = day
+            note += " \(DUELISTS[(day + town) % DUELISTS.count]) has called you out: high noon, on main street. Fire as the marker crosses the star."
+        }
+        if town > 0 {
+            if let o = outlaw {
+                o.days -= 1
+                if o.days <= 0 { outlaw = nil; note += " The wanted man slipped out of the territory." }
+            }
+            if outlaw == nil && sheriff.level > 0 && lnD >= 3 && lnD % 4 == 3 {
+                let west = chance(0.5)
+                let o = Outlaw(x: west ? missionX : archX, side: west ? -1 : 1, name: OUTLAWS[Int(rnd(0, Double(OUTLAWS.count) - 0.01))], reward: 8 + 2 * town)
+                outlaw = o
+                note += " Wanted: \(o.name), holed up at the \(west ? "old mission west" : "rock arch east") of town. \(o.reward) coins, dead or alive."
+            }
+            // the stage comes through every third day
+            if lnD % 3 == 2 && coach == nil {
+                coach = Coach(x: gateW.x - 380)
+                note += " The stagecoach is coming in from the west: toss \(coachSlot.cost) coins at it by the saloon and a guard rides with it."
+            }
+        }
         // the saloon draws drifters back to the camps
         for (i, c) in camps.enumerated() {
             let here = drifters.filter { $0.camp == i }.count
@@ -1035,8 +1170,199 @@ final class Game {
                 for bn in bandits where abs(bn.x - s.x) < 8 && bn.hp > 0 {
                     hurt(bn, 1); gone = true; break
                 }
+                if !gone, let o = outlaw, abs(o.x - s.x) < 8, o.hp > 0 {
+                    o.hp -= 1; o.flash = 0.18; gone = true
+                    puff(o.x, -10, 4, Col(0x8a2b22), 26); sfx?.hit(1)
+                }
             }
             if gone { shots.remove(at: i) } else { shots[i] = s; i += 1 }
+        }
+    }
+
+    // ---------- the stagecoach: in from the west, a stop in town, then out east past the rock arch, where road agents wait
+    private func updCoach(_ dt: Double) {
+        guard var c = coach else { coachSlot.live = false; return }
+        func roll(_ tx: Double, _ v: Double) -> Bool {
+            let dx = tx - c.x
+            let vx = sgn(dx) * min(v, abs(dx) * 2 + 8)
+            c.x += vx * dt; c.phase += abs(vx) * dt * 0.16; c.moving = abs(vx) > 2
+            return abs(dx) < 1.5
+        }
+        c.fl = max(0, c.fl - dt)
+        switch c.st {
+        case 0:
+            if roll(coachSlot.x + 19, 60) { c.st = 1; c.t = 0; c.moving = false }
+        case 1:
+            c.t += dt
+            if c.guarded && c.gt == 0 { c.gt = c.t }
+            if c.t > (c.guarded ? c.gt + 1.2 : 24) || t > 0.5 { c.st = 2 }
+        case 2:
+            if !c.done && c.x >= EX(2400) {
+                c.st = 3; c.t = 0; c.moving = false; c.rob = [true, true]
+                sfx?.sting()
+            } else {
+                _ = roll(WORLD + 90, 74)
+                if c.x > WORLD + 70 { coach = nil; coachSlot.live = false; return }
+            }
+        default:
+            let t0 = c.t
+            c.t += dt
+            if c.guarded {
+                let beats: [(Double, Int)] = [(0.5, 0), (1.0, 0), (1.5, 1), (2.0, 1)]
+                for (at, i) in beats where t0 < at && c.t >= at {
+                    c.fl = 0.08
+                    sfx?.gun(clampD(1 - abs(c.x - px) / 320, 0.15, 1))
+                    shots.append(Shot(x: c.x + 18, y: -24, vx: 300, life: 0.13, mine: false))
+                    if i < c.rob.count && (at == 1.0 || at == 2.0) { c.rob[i] = false; puff(c.x + 44 + Double(i) * 14, -8, 8, Col(0x3a2a1c), 34) }
+                }
+                if c.t > 2.5 {
+                    c.st = 2; c.done = true; c.rob = []
+                    owed += coachPay
+                    hint("coachsafe", "The guard saw off a hold-up at the rock arch. The stage line pays you \(coachPay) coins at dawn.", again: true)
+                }
+            } else if c.t > 1.3 {
+                for k in 0..<2 {
+                    let bn = Bandit(x: c.x + 44 + Double(k) * 14, rider: false, side: 1, hp: 2)
+                    bn.st = 3; bn.loot = (coachPay + k) / 2
+                    bandits.append(bn)
+                }
+                c.rob = []; c.st = 2; c.done = true
+                sfx?.box()
+                hint("coachrob", "Road agents held up the stage at the rock arch and made off with the strongbox. Shoot them down before they get away and it is yours.", again: true)
+            }
+        }
+        coachSlot.live = c.st == 1 && !c.guarded
+        coach = c
+    }
+
+    // ---------- wanted posters
+    private func updOutlaw(_ dt: Double) {
+        guard let o = outlaw else { return }
+        o.flash = max(0, o.flash - dt)
+        if o.hp <= 0 {
+            for _ in 0..<o.reward { dropCoin(o.x, 6) }
+            puff(o.x, -8, 10, Col(0x3a2a1c), 34)
+            sfx?.fanfare()
+            hint("collected", "\(o.name) is down. The bounty is on the ground.", again: true)
+            outlaw = nil
+            return
+        }
+        let dp = px - o.x
+        if abs(dp) > 130 { return }
+        o.dir = dp >= 0 ? 1 : -1
+        hint("draw", "He has seen you. Shoot first: every hit he lands knocks coins from your purse.")
+        o.cd -= dt
+        if o.cd > 0 { return }
+        o.cd = 1.6
+        let hit = chance(abs(pvx) > 70 ? 0.25 : 0.5)
+        shots.append(Shot(x: o.x + o.dir * 7, y: -10, vx: o.dir * 300, life: hit ? abs(dp) / 300 : abs(dp) / 300 + 0.1, mine: false))
+        sfx?.gun(0.7)
+        if !hit { return }
+        shake = max(shake, 0.6); flash = 0.25; sfx?.hit(1); hurtT = 0.6
+        let n = min(2, coins)
+        coins -= n
+        for _ in 0..<n { dropCoin(px, 14) }
+    }
+
+    // ---------- high noon
+    private func startDuel() {
+        px = FIRE_X - 52; pdir = 1; pvx = 0
+        duelDay = -day
+        duel = Duel(oppX: px + 96, name: DUELISTS[(day + town) % DUELISTS.count])
+        cam = clampD(px + 48 - W / 2, 0, WORLD - W)
+        fade = 1
+        bandits = []; raid = []
+        hint("duel", "High noon. \(duel!.name) faces you down the street. Wait for the marker, then tap the gun as it crosses the star.", again: true)
+    }
+
+    private func updDuel(_ dt: Double) {
+        guard var d = duel else { return }
+        let press = input.fire && !d.held
+        d.held = input.fire
+        d.t += dt
+        gunT = max(0, gunT - dt)
+        func lose(_ why: String) {
+            let n = coins / 2
+            coins -= n
+            d.st = 2; d.end = d.t + 3.4
+            shots.append(Shot(x: d.oppX - 8, y: -10, vx: -300, life: 0.3, mine: false))
+            sfx?.gun(1); sfx?.hit(1); flash = 0.3; shake = 0.6; hurtT = 0.8
+            hint("duelend", "\(why) \(d.name) takes \(n) \(n == 1 ? "coin" : "coins") from your purse and rides out.", again: true)
+        }
+        if d.st == 0 {
+            if d.t >= 2.3 {
+                d.st = 1; d.t0 = d.t
+                d.per = max(1.5, 2.3 - 0.16 * Double(town)); d.hw = max(0.12, 0.2 - 0.016 * Double(town))
+                d.hits = 0; d.pos = -1
+            }
+        } else if d.st == 1 {
+            let u = ((d.t - d.t0) / d.per).truncatingRemainder(dividingBy: 1)
+            d.pos = u < 0.5 ? u * 4 - 1 : 3 - u * 4
+            if press && d.t - d.t0 > 0.3 {
+                let off = abs(d.pos)
+                if off <= d.hw || (off <= d.hw * 2.4 && d.hits > 0) {
+                    let n = 10 + 3 * town
+                    d.st = 2; d.end = d.t + 3.4; d.oppUp = false
+                    gunT = 0.16; sfx?.gun(1); shake = 0.3
+                    shots.append(Shot(x: px + 9, y: -22, vx: 300, life: 0.28, mine: false))
+                    puff(d.oppX, -10, 10, Col(0xd04a3a), 40)
+                    for _ in 0..<n { dropCoin(d.oppX, 6) }
+                    sfx?.fanfare()
+                    hint("duelend", "\(d.name) is down. The \(n)-coin bounty is yours.", again: true)
+                    duelWon = true
+                } else if off <= d.hw * 2.4 {
+                    d.hits = 1; d.per *= 0.86; d.t0 = d.t - d.per * ((d.pos + 1) / 4)
+                    gunT = 0.16; sfx?.gun(1); shake = 0.2
+                    shots.append(Shot(x: px + 9, y: -22, vx: 300, life: 0.28, mine: false))
+                    puff(d.oppX, -12, 4, Col(0xd04a3a), 26)
+                    hint("duelend", "You wing him. \(d.name) is still standing. Once more.", again: true)
+                } else { lose("Your shot goes wide.") }
+            } else if d.t - d.t0 > d.per * 4.5 { lose("Too slow.") }
+        } else if d.t > d.end {
+            duel = nil; gunCD = 0.6; hintT = min(hintT, 1)
+            return
+        }
+        duel = d
+    }
+
+    // ---------- stray longhorns: ride right up to one and it follows you, to your pasture or into town to sell
+    private func updStrays(_ dt: Double) {
+        var slot = 0.0
+        var i = 0
+        let r = strayRange, p = pasture
+        while i < strays.count {
+            var w = strays[i]
+            if w.tame {
+                let tx = px - pdir * (20 + slot * 13)
+                slot += 1
+                let dx = tx - w.x, sp = min(70, abs(dx) * 4)
+                if abs(dx) > 2 { w.dir = sgn(dx); w.x += w.dir * sp * dt; w.phase += dt * sp * 0.12 }
+                let room = has(stable) && stable.level > 0 && herd.count < 12
+                if room && w.x > p.0 && w.x < p.1 {
+                    herd.append(Cow(x: w.x, tx: w.x, calf: false, seed: w.seed))
+                    sfx?.recruit(); puff(w.x, -10, 8, GOLD, 30)
+                    hint("strayjoin", "The stray joins your herd.", again: true)
+                    strays.remove(at: i); continue
+                }
+                if !room && w.x > gateW.x + 24 && w.x < gateE.x - 10 {
+                    for _ in 0..<3 { dropCoin(w.x, 8) }
+                    sfx?.recruit()
+                    hint("straysell", "The stray sells in town for 3 coins. With a stable and room in the pasture, it would join your herd instead.", again: true)
+                    strays.remove(at: i); continue
+                }
+            } else {
+                if abs(px - w.x) < 12 && tripT < 0 {
+                    w.tame = true
+                    sfx?.pick()
+                    hint("stray", "A stray longhorn. It follows you now: drive it to your pasture, or into town to sell.")
+                }
+                w.t -= dt
+                if w.t <= 0 { w.tx = rnd(r.0 + 10, r.1 - 10); w.t = rnd(5, 12) }
+                let dx = w.tx - w.x
+                if abs(dx) > 1 && w.t < 4 { w.dir = sgn(dx); w.x += w.dir * 7 * dt; w.phase += dt * 5 }
+            }
+            strays[i] = w
+            i += 1
         }
     }
 
@@ -1081,6 +1407,11 @@ final class Game {
             if d < bl.def.w / 2 + 12 && d < bd { bd = d; best = bl }
         }
         guard let bl = best else { return }
+        if bl.type == .coach {
+            slotsFor = bl
+            info = "Stagecoach: \(bl.cost) coins hires a guard" + (bl.paid > 0 ? " (\(bl.paid) in)" : "") + ". If the stage gets through, you are paid \(coachPay) at dawn."
+            return
+        }
         if bl.virt {
             slotsFor = bl
             info = "Train ticket: \(bl.cost) coins" + (bl.paid > 0 ? " (\(bl.paid) in)" : "") + ". You step off at the next town with \(carryOut()): half of purse and bank, never under 8 or over 25."

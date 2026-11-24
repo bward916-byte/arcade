@@ -64,6 +64,13 @@ final class GameViewController: UIViewController {
     private let mapBtn = UIButton(type: .system)
     private let mapBox = UIView()
     private var mapChoose = false
+    private var hintH: CGFloat = 62
+    private let cutBox = UIView()
+    private let cutArt = UIImageView()
+    private let cutHead = UILabel()
+    private let cutCap = UILabel()
+    private let cutTap = UILabel()
+    private var cutShown = ""
     private let saveKey = "dustfall3.save"
     private var demoMode = false
 
@@ -187,7 +194,8 @@ final class GameViewController: UIViewController {
 
         pill(purse, 17); pill(folkLabel, 15); pill(ammoLabel, 15); pill(dayLabel, 15)
         pill(hint, 15); pill(info, 14)
-        hint.numberOfLines = 3
+        hint.numberOfLines = 0
+        hint.adjustsFontSizeToFitWidth = false
         hint.backgroundColor = UIColor(red: 0.14, green: 0.09, blue: 0.06, alpha: 0.86)
         info.numberOfLines = 2
         purse.textColor = gold
@@ -243,6 +251,19 @@ final class GameViewController: UIViewController {
         mapBox.backgroundColor = UIColor(red: 0.1, green: 0.06, blue: 0.04, alpha: 0.94)
         mapBox.isHidden = true
         view.addSubview(mapBox)
+        // story scenes: a picture, a heading, a line, and a tap to go on
+        cutBox.backgroundColor = UIColor(red: 0.06, green: 0.04, blue: 0.03, alpha: 0.96)
+        cutBox.isHidden = true
+        cutArt.layer.magnificationFilter = .nearest
+        cutArt.contentMode = .scaleAspectFit
+        cutArt.layer.borderColor = gold.cgColor
+        cutArt.layer.borderWidth = 2
+        cutHead.font = serif(22); cutHead.textColor = gold; cutHead.textAlignment = .center; cutHead.adjustsFontSizeToFitWidth = true
+        cutCap.font = serif(16, bold: false); cutCap.textColor = cream; cutCap.textAlignment = .center; cutCap.numberOfLines = 0
+        cutTap.text = "Tap to continue"; cutTap.font = serif(12, bold: false); cutTap.textColor = cream.withAlphaComponent(0.6); cutTap.textAlignment = .center
+        cutBox.addSubview(cutArt); cutBox.addSubview(cutHead); cutBox.addSubview(cutCap); cutBox.addSubview(cutTap)
+        cutBox.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(nextBeat)))
+        view.addSubview(cutBox)
 
         sound.muted = UserDefaults.standard.bool(forKey: "dustfall3.muted")
         soundBtn.setTitle(sound.muted ? "Sound: off" : "Sound: on", for: .normal)
@@ -264,7 +285,7 @@ final class GameViewController: UIViewController {
         menuBtn.frame = CGRect(x: bw - r - 70, y: top, width: 70, height: 32)
         dayLabel.frame = CGRect(x: bw - r - 70 - 166, y: top, width: 160, height: 30)
         let hw = min(bw - l - r - 40, 520)
-        hint.frame = CGRect(x: (bw - hw) / 2, y: top + 38, width: hw, height: 62)
+        hint.frame = CGRect(x: (bw - hw) / 2, y: top + 38, width: hw, height: hintH)
         fireCenter = CGPoint(x: bw - r - 58, y: bh - bot - 62)
         coinCenter = CGPoint(x: fireCenter.x - 96, y: fireCenter.y + 8)
         let iw = max(160, min(bw * 0.5, 420, 2 * (coinCenter.x - 46 - bw / 2)))
@@ -294,6 +315,13 @@ final class GameViewController: UIViewController {
         mapBtn.frame = CGRect(x: bw / 2 + 4, y: bh * 0.12 + 114, width: 116, height: 44)
         restartBtn.frame = CGRect(x: bw / 2 - 120, y: bh * 0.12 + 166, width: 240, height: 44)
         mapBox.frame = view.bounds
+        cutBox.frame = view.bounds
+        let ah = bh * 0.52, aw = ah * 150 / 84
+        cutArt.frame = CGRect(x: (bw - aw) / 2, y: bh * 0.06, width: aw, height: ah)
+        cutHead.frame = CGRect(x: 30, y: bh * 0.06 + ah + 6, width: bw - 60, height: 30)
+        let cm = max(l, 40)
+        cutCap.frame = CGRect(x: cm, y: bh * 0.06 + ah + 36, width: bw - 2 * cm, height: bh - (bh * 0.06 + ah + 36) - 26)
+        cutTap.frame = CGRect(x: 0, y: bh - 24, width: bw, height: 18)
         rebuild()
     }
 
@@ -316,8 +344,10 @@ final class GameViewController: UIViewController {
         if !demoDone && sw > sh {
             demoDone = true
             let args = ProcessInfo.processInfo.arguments
-            for name in ["day", "night", "train", "snow", "storm", "map"] where args.contains("-demo-" + name) { demoMode = true; game.demo(name) }
+            for name in ["day", "night", "train", "snow", "storm", "map", "duel", "coach"] where args.contains("-demo-" + name) { demoMode = true; game.demo(name) }
             if args.contains("-demo-map") { showMap(choose: true) }
+            if args.contains("-demo-cut") { demoMode = true; game.demo("day"); game.cut = [STORY["a4"]![1]] }
+            if args.contains("-demo-cut2") { demoMode = true; game.demo("day"); game.cut = [STORY["s2"]![1]] }
         }
     }
 
@@ -449,6 +479,7 @@ final class GameViewController: UIViewController {
             mapBox.addSubview(ft)
         }
     }
+    @objc private func nextBeat() { if !game.cut.isEmpty { game.cut.removeFirst() } }
     @objc private func openMap() { showMap(choose: false) }
     @objc private func closeMap() { mapBox.isHidden = true }
     @objc private func pickPlace(_ b: UIButton) {
@@ -483,6 +514,16 @@ final class GameViewController: UIViewController {
         tossLatch = false; fireLatch = false
         if !userPaused { game.update(min(0.05, max(0, raw))) }
         if game.choosing && mapBox.isHidden { showMap(choose: true) }
+        if let bt = game.cut.first {
+            let key = bt.head + bt.cap
+            if key != cutShown {
+                cutShown = key
+                if let img = renderer?.art(bt) { cutArt.image = UIImage(cgImage: img) }
+                cutHead.text = bt.head; cutCap.text = bt.cap
+                clearTouches()
+            }
+            cutBox.isHidden = false
+        } else if !cutBox.isHidden { cutBox.isHidden = true; cutShown = ""; last = 0 }
         guard let r = renderer, let cv = canvas else { return }
         r.draw()
         stage.layer.contents = cv.image()
@@ -507,7 +548,14 @@ final class GameViewController: UIViewController {
         let wn = game.cloudI() > 0.2 || game.wx == 1 || (game.wx == 2) ? game.wxName() : ""
         set(dayLabel, wn.isEmpty ? "Day \(game.day)" + (tm.isEmpty ? "" : ", " + tm) : "Day \(game.day), \(wn.lowercased())")
         hint.isHidden = game.hintT <= 0 || userPaused
-        if game.hintT > 0 { set(hint, game.hintText) }
+        if game.hintT > 0 && hint.text != game.hintText {
+            // the box grows to fit what it has to say
+            hint.text = game.hintText
+            let w = hint.frame.width
+            let h = min(view.bounds.height * 0.5, max(34, hint.sizeThatFits(CGSize(width: w - 16, height: 400)).height + 12))
+            hintH = h
+            hint.frame = CGRect(x: hint.frame.minX, y: hint.frame.minY, width: w, height: h)
+        }
         info.isHidden = game.info.isEmpty || userPaused
         if !game.info.isEmpty { set(info, game.info) }
     }
