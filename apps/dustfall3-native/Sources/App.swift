@@ -41,8 +41,9 @@ final class GameViewController: UIViewController {
     private let ammoLabel = UILabel()
     private let ammoView = AmmoView()
     private let dayLabel = UILabel()
-    private let hint = UILabel()
-    private let info = UILabel()
+    private let hint = PadLabel()
+    private let info = PadLabel()
+    private var plainInfo = false
     private let menuBtn = UIButton(type: .system)
 
     private let titleBox = UIView()
@@ -405,7 +406,7 @@ final class GameViewController: UIViewController {
         fireCenter = CGPoint(x: bw - r - 58, y: bh - bot - 62)
         coinCenter = CGPoint(x: fireCenter.x - 96, y: fireCenter.y + 8)
         let iw = max(160, min(bw * 0.5, 420, 2 * (coinCenter.x - 46 - bw / 2)))
-        info.frame = CGRect(x: (bw - iw) / 2, y: bh - bot - 44, width: iw, height: 40)
+        info.frame = CGRect(x: (bw - iw) / 2, y: bh - bot - 50, width: iw, height: 46)
         stickCenter = CGPoint(x: l + 74, y: bh - bot - 70)
         stickRing.frame = CGRect(x: stickCenter.x - 54, y: stickCenter.y - 54, width: 108, height: 108)
         stickRing.layer.cornerRadius = 54
@@ -488,6 +489,7 @@ final class GameViewController: UIViewController {
             for name in ["day", "night", "train", "snow", "storm", "map", "duel", "coach", "west", "west2", "fire", "yard", "over"] where args.contains("-demo-" + name) { demoMode = true; game.demo(name) }
             if args.contains("-demo-map") { showMap(choose: true) }
             if args.contains("-demo-intro") { game.beginIntro() }
+            if args.contains("-demo-plain") { demoMode = true; game.demo("day"); plainInfo = true }
             if args.contains("-demo-burn") { demoMode = true; game.demo("day"); logoOn = true; burnLogo.frozen = 0.52; burnLogo.reset(); burnLogo.ignite(after: 0) }
             if args.contains("-demo-gallery") { demoMode = true; game.demo("gallery") }
             if args.contains("-demo-town") { demoMode = true; game.demo("town") }
@@ -1039,6 +1041,10 @@ final class GameViewController: UIViewController {
         }
         info.isHidden = game.info.isEmpty || userPaused
         if !game.info.isEmpty { set(info, game.info) }
+        if plainInfo && info.backgroundColor != .clear {
+            // the other way to show it: dark lettering straight on the ground, no plate behind
+            info.backgroundColor = .clear; info.layer.borderWidth = 0; info.textColor = UIColor(red: 0.1, green: 0.06, blue: 0.04, alpha: 1)
+        }
     }
 
     // ---------- touch: the left of the screen is the stick; the coin and gun buttons repeat for as long as they are held
@@ -1116,5 +1122,15 @@ final class AmmoView: UIView {
             UIColor(white: 0, alpha: 0.5).setFill(); c.fill(CGRect(x: x0, y: bounds.height - 4, width: total, height: 2.5))
             brass.setFill(); c.fill(CGRect(x: x0, y: bounds.height - 4, width: total * CGFloat(reload), height: 2.5))
         }
+    }
+}
+
+/// A label that keeps its words off its own edges.
+final class PadLabel: UILabel {
+    var pad = UIEdgeInsets(top: 5, left: 14, bottom: 5, right: 14)
+    override func drawText(in rect: CGRect) { super.drawText(in: rect.inset(by: pad)) }
+    override func textRect(forBounds bounds: CGRect, limitedToNumberOfLines n: Int) -> CGRect {
+        let r = super.textRect(forBounds: bounds.inset(by: pad), limitedToNumberOfLines: n)
+        return CGRect(x: r.minX - pad.left, y: r.minY - pad.top, width: r.width + pad.left + pad.right, height: r.height + pad.top + pad.bottom)
     }
 }
