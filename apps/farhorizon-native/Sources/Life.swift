@@ -952,13 +952,11 @@ extension Game {
             // idle hands: three sat on the rail with their legs over the side, one hanging off the bowsprit by his arms,
             // one doing pull-ups off the rail with a mate counting
             for (j, sx) in [-30.0, -20.0, -4.0].enumerated() {
+                // sat on the rail, heels drumming on the planking below it
                 let kick = sin(T * 3 + Double(j) * 1.7)
                 let skin = Col(0xe3b58a).shade(dark)
-                c.seg(sx - 1.2, -44, sx - 1.2 + kick * 2, -29, 2, Col(0x2b2a33).shade(dark)); c.seg(sx + 1.4, -44, sx + 1.4 - kick * 2, -29, 2, Col(0x2b2a33).shade(dark))
-                c.ell(sx - 1.2 + kick * 2, -28, 1.4, 0.9, skin); c.ell(sx + 1.4 - kick * 2, -28, 1.4, 0.9, skin)
-                c.seg(sx, -44.5, sx, -49.5, 4, coats[j].shade(dark))
-                c.seg(sx - 1.2, -48.5, sx - 3, -45, 1.4, skin); c.seg(sx + 1.2, -48.5, sx + 3, -45, 1.4, skin)
-                c.circ(sx, -52, 2.4, skin); c.arcFill(sx, -52.2, 2.5, PI, PI * 2, Col.mix(coats[j], Col(0x8a1a1a), 0.6).shade(dark)); c.circ(sx + 1, -52.2, 0.42, Col(0x1a1008))
+                c.seg(sx + 1.6, -44.6, sx + 1.6 + kick * 1.2, -40.6, 1.6, skin); c.seg(sx + 3.2, -44.6, sx + 3.2 - kick * 1.2, -40.6, 1.6, skin)
+                tar(c, sx, -44, coats[j], dark, lean: 0.12, aL: -0.9, aR: 0.5, kneel: true)
             }
             // off the bowsprit, swinging
             let bs = sin(T * 2.1) * 0.5
