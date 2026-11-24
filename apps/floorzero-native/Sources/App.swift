@@ -75,7 +75,7 @@ final class GameViewController: UIViewController {
         if !started {
             started = true
             let args = ProcessInfo.processInfo.arguments
-            for what in ["play", "fire", "dogs", "boss", "hole", "lift", "pick", "street", "types", "safe", "gun"] where args.contains("-demo-\(what)") { game.demo(what) }
+            for what in ["play", "fire", "dogs", "boss", "hole", "lift", "pick", "street", "types", "safe", "gun", "escape", "hosp", "hotel", "casino", "mall", "lab", "lobby"] where args.contains("-demo-\(what)") { game.demo(what) }
             for i in 0..<5 where args.contains("-demo-intro\(i)") { game.newGame(); game.introT = Double(i) * 1.8 + 1.3; game.introFreeze = true }
             if args.contains("-demo-bot") {
                 let report = game.botRun(40)

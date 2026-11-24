@@ -6,12 +6,14 @@ final class Canvas {
     let cg: CGContext
     let pxW: Int
     let pxH: Int
+    let sc: Double
     private let space = CGColorSpaceCreateDeviceRGB()
     private var fonts: [Int: UIFont] = [:]
 
     init?(w: Int, h: Int, scale: Double) {
         pxW = max(1, Int((Double(w) * scale).rounded()))
         pxH = max(1, Int((Double(h) * scale).rounded()))
+        sc = scale
         let info = CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue
         let rgb = CGColorSpaceCreateDeviceRGB()
         guard let c = CGContext(data: nil, width: max(1, Int((Double(w) * scale).rounded())), height: max(1, Int((Double(h) * scale).rounded())), bitsPerComponent: 8, bytesPerRow: 0, space: rgb, bitmapInfo: info) else { return nil }
@@ -47,9 +49,9 @@ final class Canvas {
     func clipRect(_ x: Double, _ y: Double, _ w: Double, _ h: Double) { cg.clip(to: CGRect(x: x, y: y, width: w, height: h)) }
 
     /// Draws a picture into a y-down rectangle, optionally mirrored left to right.
-    func img(_ im: CGImage, _ x: Double, _ y: Double, _ w: Double, _ h: Double, _ flip: Bool) {
+    func img(_ im: CGImage, _ x: Double, _ y: Double, _ w: Double, _ h: Double, _ flip: Bool, fast: Bool = false) {
         cg.saveGState()
-        cg.interpolationQuality = .medium
+        cg.interpolationQuality = fast ? .none : .medium
         cg.translateBy(x: CGFloat(flip ? x + w : x), y: CGFloat(y + h))
         cg.scaleBy(x: flip ? -1 : 1, y: -1)
         cg.draw(im, in: CGRect(x: 0, y: 0, width: w, height: h))

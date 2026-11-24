@@ -65,8 +65,128 @@ extension Game {
 
 final class Renderer {
     let GY = 410.0
-    /// Painted hallway wall (Gemini); the drawn wall is used if it is missing.
-    private let hall: CGImage? = UIImage(named: "hall.jpg")?.cgImage
+    // ---------- painted art (walls, zombie heads, upgrade icons); the drawn versions are used if a picture is missing
+    private var art: [String: CGImage] = [:]
+    private var artMiss: Set<String> = []
+    func pic(_ name: String) -> CGImage? {
+        if let i = art[name] { return i }
+        if artMiss.contains(name) { return nil }
+        if let i = UIImage(named: name)?.cgImage { art[name] = i; return i }
+        artMiss.insert(name)
+        return nil
+    }
+    private var wallKey = ""
+    private var wallImg: CGImage?
+    private var wallTw = 1000.0
+    /// The wall picture scaled once to screen pixels (and tinted), so each frame is a plain copy.
+    private func wallFor(_ name: String, _ tint: Col, _ h: Double, _ sc: Double) -> CGImage? {
+        let key = "\(name)|\(tint.r)|\(tint.g)|\(tint.b)|\(tint.a)|\(h)|\(sc)"
+        if key == wallKey { return wallImg }
+        wallKey = key
+        wallImg = nil
+        guard let src = pic(name) else { return nil }
+        let ph = max(1, Int((h * sc).rounded()))
+        let pw = max(1, Int((Double(src.width) / Double(src.height) * Double(ph)).rounded()))
+        let info = CGImageAlphaInfo.noneSkipFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue
+        guard let c = CGContext(data: nil, width: pw, height: ph, bitsPerComponent: 8, bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: info) else { return nil }
+        c.interpolationQuality = .high
+        c.draw(src, in: CGRect(x: 0, y: 0, width: pw, height: ph))
+        c.setFillColor(red: CGFloat(tint.r), green: CGFloat(tint.g), blue: CGFloat(tint.b), alpha: CGFloat(tint.a))
+        c.fill(CGRect(x: 0, y: 0, width: pw, height: ph))
+        wallImg = c.makeImage()
+        wallTw = Double(pw) / sc
+        return wallImg
+    }
+    private func wallTiles(_ cv: Canvas, _ im: CGImage, _ x0: Double, _ x1: Double, _ y: Double, _ h: Double, _ block: Int) {
+        let tw = wallTw
+        let off = (hashN(Double(block) * 3.7 + 1) * tw).rounded()
+        var i = Int(((x0 - off) / tw).rounded(.down))
+        while Double(i) * tw + off < x1 {
+            cv.img(im, Double(i) * tw + off, y, tw + 0.5, h, (i + block) % 2 != 0, fast: true)
+            i += 1
+        }
+    }
+    private func wallArt(_ z: Zone) -> (String, Col) {
+        switch z.name {
+        case "OFFICES": return ("hall_office.jpg", z.wall.alpha(0.12))
+        case "HOTEL", "GUEST ROOMS": return ("hall_hotel.jpg", z.wall.alpha(0.08))
+        case "PENTHOUSES": return ("hall_hotel.jpg", Col(0x3a2a6a).alpha(0.3))
+        case "RESIDENTIAL": return ("hall_hotel.jpg", Col(0x1e4a34).alpha(0.4))
+        case "MEDICAL / LAB", "LABS": return ("hall_lab.jpg", Col(0x0a1016).alpha(0.18))
+        case "MALL / GARAGE": return ("hall_mall.jpg", z.wall.alpha(0.06))
+        case "LOBBY", "BALLROOMS": return ("hall_lobby.jpg", Col(0x0a0806).alpha(0.12))
+        case "WARDS": return ("hall_hospital.jpg", Col(0x0c1c22).alpha(0.38))
+        case "SURGERY": return ("hall_hospital.jpg", Col(0x0a2a3a).alpha(0.5))
+        case "EMERGENCY": return ("hall_hospital.jpg", Col(0x3a0c0c).alpha(0.5))
+        case "CASINO": return ("hall_casino.jpg", z.wall.alpha(0.05))
+        default: return ("hall_office.jpg", z.wall.alpha(0.2))
+        }
+    }
+    /// Who rents this block of three floors.
+    private func tenant(_ z: Zone, _ block: Int) -> String {
+        var names: [String]
+        switch z.name {
+        case "OFFICES": names = ["HALVERSEN & PIKE  LAW", "NORTHSTAR TRAVEL", "KESTREL INSURANCE", "BRIGHTLINE MEDIA", "VANTA ACCOUNTING", "PIXELFORGE GAMES", "MERIDIAN REALTY", "ODELL DENTAL"]
+        case "HOTEL": names = ["SKYLINE SUITES", "THE SPA", "CLUB LOUNGE", "CONFERENCE ROOMS", "HONEYMOON FLOOR"]
+        case "RESIDENTIAL": names = ["THE ROWANS", "ALDER COURT", "GARDEN FLATS", "MERIDIAN LOFTS", "TENANTS ONLY"]
+        case "MEDICAL / LAB": names = ["MARR BIOTECH", "BLOOD LAB", "RADIOLOGY", "SPECIMEN STORE", "CLEAN ROOM 4"]
+        case "MALL / GARAGE": names = ["FOOD COURT", "TOY KINGDOM", "ELECTRO CITY", "FASHION ROW", "PARKING LEVEL"]
+        case "WARDS": names = ["MATERNITY", "CHILDREN'S WARD", "CARDIOLOGY", "RECOVERY", "ISOLATION"]
+        case "SURGERY": names = ["THEATRE 1", "THEATRE 2", "INTENSIVE CARE", "ANAESTHETICS"]
+        case "LABS": names = ["PATHOLOGY", "BLOOD BANK", "VIROLOGY", "MORGUE"]
+        case "EMERGENCY": names = ["TRIAGE", "TRAUMA BAY", "AMBULANCE DOCK"]
+        case "PENTHOUSES": names = ["ROYAL SUITE", "SKY TERRACE", "THE ALDER CLUB", "PRESIDENTIAL SUITE", "OBSERVATORY BAR"]
+        case "GUEST ROOMS": names = ["EAST WING", "WEST WING", "HONEYMOON SUITES", "FAMILY ROOMS", "BUSINESS FLOOR", "POOL DECK", "THE SPA", "LAUNDRY"]
+        case "BALLROOMS": names = ["GRAND BALLROOM", "WEDDING HALL", "BANQUET KITCHEN", "THE ORCHID ROOM"]
+        case "CASINO": names = ["HIGH ROLLERS", "SLOT HALL", "THE VAULT"]
+        default: names = []
+        }
+        if names.isEmpty { return "" }
+        return names[((block % names.count) + names.count) % names.count]
+    }
+    private func headIx(_ L: Look) -> Int {
+        let v = abs(L.v)
+        if L.female { return L.hat != 0 ? 4 : [1, 4, 7][v % 3] }
+        if L.fat > 1.3 { return 5 }
+        if L.hat != 0 { return v % 2 == 0 ? 0 : 6 }
+        return [0, 2, 3, 6][v % 4]
+    }
+    private func fit(_ cv: Canvas, _ im: CGImage, _ cx: Double, _ cy: Double, _ box: Double) {
+        let w = Double(im.width), h = Double(im.height), s = box / max(w, h)
+        cv.img(im, cx - w * s / 2, cy - h * s / 2, w * s, h * s, false)
+    }
+    /// Outside on the fire escape: the brick face of the building, a steel landing, a long way down.
+    private func escapeBack(_ g: Game, _ cv: Canvas, _ x0: Double, _ W: Double) {
+        let f = g.floor, t = g.t, x1 = x0 + W
+        let steel = Col(0x2b303a), steelD = Col(0x14171d), steelL = Col(0x4a5262)
+        cv.R(x0, 0, W, VIEW_H, Col(0x0a0b12))
+        if let im = wallFor("hall_brick.jpg", Col(0x050814).alpha(0.3), GY + 70, cv.sc) { wallTiles(cv, im, x0, x1, 0, GY + 70, f.n) }
+        cv.lighter(true); cv.R(x0, 0, W, GY, rgba(255, 120, 40, 0.035 + 0.02 * sin(t * 7))); cv.lighter(false)
+        cv.vfill(x0, GY + 12, W, VIEW_H - GY - 12, [(0, BLACK.alpha(0.5)), (1, BLACK.alpha(0.92))])
+        // the flight you came down, and the next one going on below
+        let d = f.exitRight ? 1.0 : -1.0
+        let e = FLOOR_W - f.exitX
+        func flight(_ ax: Double, _ ay: Double, _ bx: Double, _ by: Double) {
+            cv.seg(ax, ay, bx, by, 7, steelD); cv.seg(ax, ay - 16, bx, by - 16, 7, steelD)
+            cv.seg(ax, ay, bx, by, 4, steel); cv.seg(ax, ay - 16, bx, by - 16, 4, steel)
+            for i in 0...12 { let k = Double(i) / 12; let sx = ax + (bx - ax) * k, sy = ay + (by - ay) * k; cv.R(sx - 9, sy - 10, 18, 3.5, steelL) }
+            cv.seg(ax, ay - 58, bx, by - 58, 3.5, steel)
+        }
+        flight(e + d * 330, GY - 330, e + d * 40, GY)
+        flight(f.exitX - d * 40, GY + 12, f.exitX - d * 300, GY + 150)
+        // back rail
+        cv.R(x0, GY - 56, W, 4, steel); cv.R(x0, GY - 56, W, 1.2, steelL); cv.R(x0, GY - 30, W, 2.5, steel)
+        var rx = (x0 / 60).rounded(.down) * 60
+        while rx < x1 { cv.R(rx, GY - 56, 3, 56, steel); rx += 60 }
+        // landing
+        var bx = (x0 / 240).rounded(.down) * 240
+        while bx < x1 + 240 { cv.poly(steelD, [bx, GY + 12, bx + 12, GY + 12, bx + 12, GY + 70, bx + 60, GY + 12, bx + 72, GY + 12, bx + 6, GY + 92, bx, GY + 92]); bx += 240 }
+        cv.R(x0, GY, W, 12, steel)
+        cv.R(x0, GY, W, 2, steelL)
+        var sx = (x0 / 14).rounded(.down) * 14
+        while sx < x1 { cv.R(sx, GY + 3, 2, 9, steelD); sx += 14 }
+        if f.n % 2 == 0 { sign(cv, "FIRE ESCAPE", f.exitX - d * 520, GY - 250, HOT, t, arrow: false) }
+    }
     private var camX = 0.0
     private var camFloor = -99
     var paused = false
@@ -244,6 +364,13 @@ final class Renderer {
         if L.noHead {
             cv.circ((nx + hx) / 2, (ny + hy) / 2, 6, Col(0x7a1014)); cv.circ((nx + hx) / 2, (ny + hy) / 2, 2.5, bone)
         } else if zed {
+            if let hd = pic("zhead\(headIx(L)).png") {
+                cv.save(); cv.translate(hx, hy); cv.rotate(clampD(ha, -1.2, 1.2) * 0.5)
+                cv.img(hd, -28, -24.5, 56, 56, false)
+                cv.restore()
+                cv.lighter(true); cv.circ(hx + 8, hy - 2, 5.5, L.eye.alpha(0.2)); cv.lighter(false)
+                if fl > 0 { cv.circ(hx, hy, 17, WHITE.alpha(fl * 0.7)) }
+            } else {
             cv.seg(nx, ny, hx, hy, 12, ink); cv.seg(nx, ny, hx, hy, 9, skinD); cv.circ(hx, hy, 16.8, ink)
             // hanging jaw first, then the skull over it
             let open = clampD(p.jaw, 0, 1.2)
@@ -277,6 +404,7 @@ final class Renderer {
             } else {
                 cv.arcFill(hx, hy, 15.8, PI * 1.02, PI * 1.72, L.hair)
                 cv.seg(hx - 2, hy - 14, hx + 4, hy - 19, 2.6, L.hair); cv.seg(hx - 8, hy - 12, hx - 12, hy - 18, 2.6, L.hair)
+            }
             }
             let hc = Col.mix(L.hatCol, WHITE, fl)
             switch L.hat {
@@ -723,16 +851,14 @@ final class Renderer {
             return
         }
         // inside
-        if let hall = hall {
+        if f.escape { escapeBack(g, cv, x0, W) } else {
+        let wa = wallArt(z)
+        if let im = wallFor(wa.0, wa.1, 300, cv.sc) {
             cv.R(x0, 0, W, GY - 300, Col(0x05060a))
-            let tw = 1073.0
-            var i = Int((x0 / tw).rounded(.down))
-            while Double(i) * tw < x1 {
-                cv.img(hall, Double(i) * tw - 0.5, GY - 300, tw + 1, 300, i % 2 != 0)
-                i += 1
-            }
-            cv.R(x0, GY - 300, W, 300, z.wall.alpha(0.2))
-            if f.n % 4 == 0 { cv.R(x0, 0, W, GY, BLACK.alpha(0.22 + 0.1 * (hashN((t * 11).rounded(.down)) > 0.72 ? 0 : 1))) }
+            wallTiles(cv, im, x0, x1, GY - 300, 300, f.n / 3)
+            if f.n % 4 == 0 { cv.R(x0, 0, W, GY, BLACK.alpha(hashN((t * 11).rounded(.down)) > 0.72 ? 0.1 : 0.3)) }
+            let who = tenant(z, f.n / 3)
+            if !who.isEmpty && f.kind != .safe { sign(cv, who, 520, GY - 268, Col.mix(z.trim, WHITE, 0.55), t, arrow: false); sign(cv, who, 1290, GY - 268, Col.mix(z.trim, WHITE, 0.55), t, arrow: false) }
         } else {
         cv.R(x0, 0, W, GY - 300, Col.mix(z.wall, BLACK, 0.72))
         cv.R(x0, GY - 300, W, 300, z.wall)
@@ -812,6 +938,7 @@ final class Renderer {
         cv.vfill(x0, GY + 3, W, 10, [(0, WHITE.alpha(0.07)), (1, WHITE.alpha(0))])
         cv.R(x0, GY + 22, W, 14, Col(0x101216))
         cv.R(x0, GY + 36, W, VIEW_H - GY - 36, Col.mix(g.zone(f.n - 1).wall, BLACK, 0.55))
+        }
         // end walls
         cv.R(-400, 0, 400 + 46, VIEW_H, Col(0x0c0d12))
         cv.R(FLOOR_W - 46, 0, 446, VIEW_H, Col(0x0c0d12))
@@ -1304,7 +1431,7 @@ final class Renderer {
         let x = 16 + g.safeL
         cv.RR(x - 8, 8, 250, 124, 12, BLACK.alpha(0.5))
         let label = f.kind == .roof ? "ROOF" : (f.kind == .street ? "STREET" : "FLOOR \(f.n)")
-        let place: String = f.kind == .roof || f.kind == .street ? g.tw.building : "\(g.tw.building) · \(g.zone(f.n).name)"
+        let place: String = f.kind == .roof || f.kind == .street ? g.tw.building : (f.escape ? "\(g.tw.building) · FIRE ESCAPE" : "\(g.tw.building) · \(g.zone(f.n).name)")
         cv.text("\(g.tw.who) · \(place)", x, 24, 10, WHITE.alpha(0.65), 0, 1)
         cv.text(label, x, 52, 27, g.tw.hue, 0, 3)
         let hpCol: Col = g.hero.hp < g.hero.maxHp * 0.3 ? HOT : Col(0x7fd67a)
@@ -1322,7 +1449,7 @@ final class Renderer {
         var ix = x
         for u in UPS where g.lv(u.id) > 0 {
             cv.RR(ix - 2, 138, 30, 30, 8, BLACK.alpha(0.5))
-            cv.text(u.icon, ix + 13, 160, 17, WHITE, 1, 1)
+            if let ic = pic("up_\(u.id).png") { fit(cv, ic, ix + 13, 153, 25) } else { cv.text(u.icon, ix + 13, 160, 17, WHITE, 1, 1) }
             for l in 0..<g.lv(u.id) { cv.R(ix + 2 + Double(l) * 9, 170, 7, 3, u.sup ? Col(0xff8ad8) : GOLD) }
             ix += 34
         }
@@ -1488,7 +1615,7 @@ final class Renderer {
             cv.restore()
             cv.circ(0, -hh + 92, 48, BLACK.alpha(0.45))
             cv.ring(0, -hh + 92, 48, 3, edge.alpha(0.7 + 0.3 * pulse))
-            cv.text(u.icon, 0, -hh + 113 + sin(t * 2.4 + Double(i)) * 3, 56, WHITE, 1, 1)
+            if let ic = pic("up_\(u.id).png") { fit(cv, ic, 0, -hh + 92 + sin(t * 2.4 + Double(i)) * 3, 80) } else { cv.text(u.icon, 0, -hh + 113 + sin(t * 2.4 + Double(i)) * 3, 56, WHITE, 1, 1) }
             // name and level
             cv.stamp(u.name, 0, -hh + 182, 25, WHITE, 1)
             let pipW = 34.0

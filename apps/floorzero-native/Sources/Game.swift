@@ -104,6 +104,7 @@ final class Floor {
     var exitX = 0.0
     var exitRight = true
     var fireStairs = false
+    var escape = false
     var holeX = 0.0
     var liftX = 900.0
     var wallX = 0.0
@@ -374,6 +375,8 @@ final class Game {
         let bossFloor = tower == 0 && n == 32
         let valveFloor = tower == 0 && n == 12
         if n > top { f.kind = .roof } else if n <= 0 { f.kind = .street } else if bossFloor || valveFloor { f.kind = .normal } else if isCheckpoint(n) { f.kind = .safe } else if n % 9 == 3 { f.kind = .lift } else if k % 10 == 5 && n > 6 { f.kind = .wall } else if k % 5 == 1 && n > 3 { f.kind = .hole }
+        // the last two floors above a safe room are outside, on the fire escape
+        if f.kind == .normal && !bossFloor && !valveFloor && n > 3 && n <= top && (k % 10 == 8 || k % 10 == 9) { f.escape = true }
         if f.kind == .hole {
             f.holeX = f.exitRight ? 1240 : 560
             f.fireStairs = (k / 5) % 2 == 0
@@ -438,6 +441,7 @@ final class Game {
             if rng.next() < 0.6 { f.props.append(Prop(x: px + rng.r(-40, 40), kind: rng.i(5))) }
             px += 210
         }
+        if f.escape { f.props = [] }
         if f.kind == .wall {
             let half = 85.0 + 70
             for z in f.zeds where abs(z.x - f.wallX) < half { z.x = f.wallX + (z.x < f.wallX ? -1 : 1) * (half + 20) }
@@ -518,7 +522,7 @@ final class Game {
         case .hole: say(f.fireStairs ? "FLOOR \(n) — STAIRS ON FIRE. DROP THROUGH THE FLOOR." : "FLOOR \(n) — STAIRS GONE. DROP THROUGH THE FLOOR.", 4)
         case .lift: say("FLOOR \(n) — STAIRS BLOCKED. CLEAR IT. TAKE THE ELEVATOR.", 4)
         case .normal:
-            if f.boss { snd?.roar(); say("FLOOR 32 — DR. MARR.", 4) } else if tower == 0 && n == 12 && !valveShut { say("FLOOR 12 — THE WATER MAIN. SHUT IT.", 4) } else if f.pack == 1 { say("FLOOR \(n) — DOGS. THEY ARE FAST.") } else if f.pack == 2 { say("FLOOR \(n) — RATS.") } else { say("FLOOR \(n) — \(zone(n).name)", 2.2) }
+            if f.escape { say("FLOOR \(n) — STAIRWELL GONE. OUT ON THE FIRE ESCAPE.", 3.5) } else if f.boss { snd?.roar(); say("FLOOR 32 — DR. MARR.", 4) } else if tower == 0 && n == 12 && !valveShut { say("FLOOR 12 — THE WATER MAIN. SHUT IT.", 4) } else if f.pack == 1 { say("FLOOR \(n) — DOGS. THEY ARE FAST.") } else if f.pack == 2 { say("FLOOR \(n) — RATS.") } else { say("FLOOR \(n) — \(zone(n).name)", 2.2) }
         }
     }
 
@@ -1653,6 +1657,13 @@ final class Game {
         case "gun": ups = ["smg": 1, "armor": 3, "hp": 3]; floorN = 59
         case "street": ups = ["smg": 2, "shotgun": 2, "flame": 2, "tesla": 1]; floorN = 0
         case "lift": ups = ["smg": 1]; floorN = 75
+        case "escape": ups = ["smg": 1, "nade": 1]; floorN = 74
+        case "hosp": tower = 1; ups = ["smg": 1]; floorN = 44
+        case "hotel": tower = 2; ups = ["smg": 1]; floorN = 33
+        case "casino": tower = 2; ups = ["smg": 1, "flame": 1]; floorN = 6
+        case "mall": ups = ["smg": 2, "shotgun": 1]; floorN = 16
+        case "lab": ups = ["smg": 2, "tesla": 1]; floorN = 29
+        case "lobby": ups = ["smg": 2, "minigun": 1]; floorN = 6
         case "pick": floorN = 78; picksDue = 1; ups = ["smg": 2, "nade": 1, "armor": 1]
         default: floorN = 84
         }
@@ -1673,7 +1684,7 @@ final class Game {
         cpFloor = floorN; cpUps = ups
         if what == "safe" { hero.x = FLOOR_W / 2 - 320 }
         if what == "gun" { floor.gunT = 1.4; hero.x = 300 }
-        if what == "pick" { rollPick(); mode = .pick; pickT = 0 } else { mode = .play; auto = what == "play" || what == "dogs" || what == "boss" || what == "gun" }
+        if what == "pick" { rollPick(); mode = .pick; pickT = 0 } else { mode = .play; auto = ["play", "dogs", "boss", "gun", "escape", "hosp", "hotel", "casino", "mall", "lab", "lobby"].contains(what) }
     }
 
     /// Plays all three towers with the bot, no drawing, and reports how it went.
