@@ -79,7 +79,6 @@ struct RootView: View {
         }
         .environmentObject(guide)
         .task { await guide.load() }
-        .task { await AccountStore.shared.load() }
         .onReceive(NotificationCenter.default.publisher(for: LandAsk.note)) { _ in tab = "map" }
         .onReceive(NotificationCenter.default.publisher(for: CampWords.note)) { _ in comparing = true }
         .environment(\.openURL, OpenURLAction { url in

@@ -162,7 +162,7 @@ struct PostAdView: View {
     }
 
     // Photos are sent no larger than 1600 points on the long side.
-    static func shrink(_ data: Data) -> Data? {
+    private static func shrink(_ data: Data) -> Data? {
         guard let image = UIImage(data: data) else { return nil }
         let longSide = max(image.size.width, image.size.height)
         let scale = min(1, 1600 / max(longSide, 1))

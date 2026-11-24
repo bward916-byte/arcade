@@ -193,12 +193,10 @@ enum Site {
                 answers.append(QAnswer(id: aid, text: atext, name: a["name"] as? String ?? "", ts: (a["ts"] as? NSNumber)?.doubleValue ?? 0,
                                        guide: a["guide"] as? Bool ?? false, title: a["title"] as? String ?? "",
                                        up: (a["up"] as? NSNumber)?.intValue ?? 0, said: (a["said"] as? NSNumber)?.intValue ?? 1,
-                                       waiting: a["waiting"] as? Bool ?? false,
-                                       photo: a["photo"] as? String ?? "", acct: a["acct"] as? Bool ?? false, mine: a["mine"] as? Bool ?? false))
+                                       waiting: a["waiting"] as? Bool ?? false))
             }
             out.append(Question(id: id, text: text, name: d["name"] as? String ?? "", ts: (d["ts"] as? NSNumber)?.doubleValue ?? 0,
-                                edited: d["edited"] != nil, waiting: d["waiting"] as? Bool ?? false, answers: answers,
-                                photo: d["photo"] as? String ?? "", acct: d["acct"] as? Bool ?? false, mine: d["mine"] as? Bool ?? false))
+                                edited: d["edited"] != nil, waiting: d["waiting"] as? Bool ?? false, answers: answers))
         }
         return out
     }
@@ -259,104 +257,6 @@ enum Site {
         if let http = response as? HTTPURLResponse, http.statusCode >= 400 {
             let body = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
             throw SiteError(message: body?["error"] as? String ?? "That did not send. Try again in a moment.")
-        }
-    }
-}
-
-// ---- A camper's account: optional, by emailed code, with no password. The sign-in is kept as a cookie on this phone. ----
-
-struct Me: Equatable {
-    let id: String
-    var handle: String
-    var photo: String
-    let email: String
-}
-
-struct Helper: Identifiable {
-    let handle: String
-    let photo: String
-    let answers: Int
-    let thanks: Int
-    var id: String { handle }
-}
-
-enum Entered {
-    case signedIn(Me)
-    case needName([String])     // a new email: pick a camp name, with some ideas
-}
-
-extension Site {
-    private static func post(_ parts: [String], _ body: [String: Any], _ fallback: String) async throws -> [String: Any] {
-        var url = base.appendingPathComponent("api")
-        for p in parts { url = url.appendingPathComponent(p) }
-        var req = URLRequest(url: url)
-        req.httpMethod = "POST"
-        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        req.httpBody = try JSONSerialization.data(withJSONObject: body)
-        let (data, response) = try await URLSession.shared.data(for: req)
-        let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] ?? [:]
-        if let http = response as? HTTPURLResponse, http.statusCode >= 400 {
-            throw SiteError(message: json["error"] as? String ?? fallback)
-        }
-        return json
-    }
-
-    private static func getJSON(_ parts: [String]) async -> Any? {
-        var url = base.appendingPathComponent("api")
-        for p in parts { url = url.appendingPathComponent(p) }
-        guard let (data, _) = try? await URLSession.shared.data(from: url) else { return nil }
-        return try? JSONSerialization.jsonObject(with: data)
-    }
-
-    private static func meFrom(_ j: [String: Any]) -> Me? {
-        guard let id = j["id"] as? String, let handle = j["handle"] as? String else { return nil }
-        return Me(id: id, handle: handle, photo: j["photo"] as? String ?? "", email: j["email"] as? String ?? "")
-    }
-
-    // Who is signed in on this phone, if anyone.
-    static func me() async -> Me? {
-        guard let j = await getJSON(["me"]) as? [String: Any] else { return nil }
-        return meFrom(j)
-    }
-
-    static func signInCode(email: String) async throws {
-        _ = try await post(["account", "link"], ["email": email], "That did not send. Check your signal and try again.")
-    }
-
-    static func enter(email: String, code: String, handle: String) async throws -> Entered {
-        var body: [String: Any] = ["email": email, "code": code]
-        if !handle.isEmpty { body["handle"] = handle }
-        let j = try await post(["account", "enter"], body, "That code did not work. Check it and try again.")
-        if j["needName"] as? Bool == true { return .needName(j["ideas"] as? [String] ?? []) }
-        guard let me = meFrom(j) else { throw SiteError(message: "That did not work. Try again.") }
-        return .signedIn(me)
-    }
-
-    static func nameIdeas() async -> [String] {
-        ((await getJSON(["names", "ideas"]) as? [String: Any])?["ideas"] as? [String]) ?? []
-    }
-
-    static func setProfile(handle: String? = nil, photo: String? = nil) async throws -> (handle: String, photo: String) {
-        var body: [String: Any] = [:]
-        if let handle { body["handle"] = handle }
-        if let photo { body["photo"] = photo }
-        let j = try await post(["account", "profile"], body, "That did not save. Try again.")
-        return (j["handle"] as? String ?? "", j["photo"] as? String ?? "")
-    }
-
-    static func signOut() async {
-        _ = try? await post(["logout"], [:], "")
-    }
-
-    static func deleteAccount() async throws {
-        _ = try await post(["account", "delete"], ["confirm": "DELETE"], "That did not work. Try again.")
-    }
-
-    static func helpers() async -> [Helper] {
-        guard let rows = await getJSON(["helpers"]) as? [[String: Any]] else { return [] }
-        return rows.compactMap { r in
-            guard let handle = r["handle"] as? String else { return nil }
-            return Helper(handle: handle, photo: r["photo"] as? String ?? "", answers: (r["answers"] as? NSNumber)?.intValue ?? 0, thanks: (r["thanks"] as? NSNumber)?.intValue ?? 0)
         }
     }
 }
