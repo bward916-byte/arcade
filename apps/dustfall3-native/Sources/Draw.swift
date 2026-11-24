@@ -24,6 +24,8 @@ final class Renderer {
         for bl in g.b where bl.def.wall != 0 && !bl.def.gate { building(bl, dk) }
         centre()
         for bl in g.b where bl.wire { wire(bl) }
+        if g.b.contains(where: { $0 === g.claim }) { claimSite() }
+        if g.b.contains(where: { $0 === g.stable }) { ranch() }
         townSign()
         rail(dk)
         racks()
@@ -299,6 +301,60 @@ final class Renderer {
         }
     }
 
+    /// The old claim out west: a weathered sign and a spoil heap; staked, a windlass over the shaft; guarded, a lookout beside it.
+    private func claimSite() {
+        let cl = g.claim
+        if !vis(cl.x, 50) { return }
+        let x = sx(cl.x).rounded(), lv = cl.level
+        c.poly(Col(0xa8855a), [x - 6, gy, x + 2, gy - 9, x + 12, gy - 11, x + 22, gy])
+        c.poly(Col(0x8a6a44), [x + 8, gy, x + 12, gy - 11, x + 22, gy])
+        c.R(x + 30, gy - 12, 1.5, 12, Col(0x5a3c22)); c.R(x + 25, gy - 15, 12, 6, lv > 0 ? Col(0xead7a4) : Col(0x9a8a70))
+        c.text("CLAIM", x + 31, gy - 10.6, 3.6, Col(0x4a2a22))
+        if lv >= 1 {
+            c.R(x + 12, gy - 3, 12, 3, Col(0x1c120c))
+            c.R(x + 11, gy - 14, 1.5, 14, Col(0x5a3c22)); c.R(x + 23.5, gy - 14, 1.5, 14, Col(0x5a3c22))
+            c.R(x + 10, gy - 15, 16, 2, Col(0x6a4a2e)); c.R(x + 17.5, gy - 13, 0.8, 9, Col(0x2e2622))
+            if g.dark() < 0.6 { person(cl.x + 4, 0, 1, false, 3, .miner, true) }
+        }
+        if lv >= 2 {
+            c.R(x - 14, gy - 16, 1.5, 16, Col(0x5a3c22)); c.R(x - 18, gy - 18, 10, 2, Col(0x6a4a2e))
+            person(cl.x - 13, 0, -1, false, 8, .deputy, false)
+        }
+        if cl.flash > 0 { c.R(x - 8, gy - 20, 48, 20, Col(0xfff0c0, cl.flash)) }
+    }
+
+    /// The pasture east of town, the herd, and the rope rack beside the stable.
+    private func ranch() {
+        let st = g.stable
+        if st.level > 0 && !st.building && vis(g.rackX(st), 12) {
+            let x = sx(g.rackX(st))
+            c.R(x - 1, gy - 14, 2, 14, Col(0x5a3c22)); c.R(x - 5, gy - 16, 10, 8, Col(0x7a5632))
+            c.ellStroke(x, gy - 12, 2.6, 2.6, 1.2, Col(0xc9a468))
+        }
+        let p = g.pasture
+        if st.level == 0 && g.herd.isEmpty { return }
+        if !vis(p.0, p.1 - p.0 + 20) { return }
+        let rail = Col(0x7a5632)
+        var wx = p.0
+        while wx <= p.1 { c.R(sx(wx) - 1, gy - 9, 2, 9, Col(0x5a3c22)); wx += 20 }
+        c.R(sx(p.0), gy - 8, p.1 - p.0, 1, rail); c.R(sx(p.0), gy - 4, p.1 - p.0, 1, rail)
+        c.R(sx(p.0 + 28), gy - 4, 10, 4, Col(0x6a4a2e)); c.R(sx(p.0 + 29), gy - 4, 8, 1, Col(0x8fc4d4))
+        for cw in g.herd {
+            let x = sx(cw.x), s = cw.calf ? 0.6 : 1.0
+            let dkc = Int(cw.seed) % 3 == 0
+            let body = dkc ? Col(0x3a2e28) : Col(0x8a4a2c), lo = dkc ? Col(0x2a201c) : Col(0x6c3820)
+            let sw = sin(cw.phase) * 1.2
+            c.save(); c.translate(x, gy); c.scale(cw.dir * s, s)
+            c.R(-6 + sw * 0.4, -5, 1.5, 5, lo); c.R(-3 - sw * 0.4, -5, 1.5, 5, lo); c.R(3 + sw * 0.4, -5, 1.5, 5, lo); c.R(5.5 - sw * 0.4, -5, 1.5, 5, lo)
+            c.RR(-8, -12, 16, 8, 2.5, body)
+            c.RR(6, -14, 6, 5, 1.5, body); c.R(10.5, -11.5, 2, 2, lo)
+            c.R(6, -15, 1, 1.5, Col(0xe8dcc4)); c.R(10, -15, 1, 1.5, Col(0xe8dcc4))
+            c.seg(-8, -11, -10, -5, 0.8, lo)
+            if !dkc { c.R(-3, -11, 4, 3, Col(0xe8dcc4, 0.8)) }
+            c.restore()
+        }
+    }
+
     /// The town centre: a campfire, then a square with a well, then a clock tower.
     private func centre() {
         let hl = g.hall
@@ -492,6 +548,7 @@ final class Renderer {
         if ragged { shirt = Col.mix(shirt, Col(0x7a6a58), 0.6) }
         if role == .deputy { shirt = Col(0x34445a); hat = Col(0x2e2622) }
         if role == .miner { shirt = Col(0x7a7468); hat = Col(0xc9a86a) }
+        if role == .rancher { shirt = Col(0xc9a468); hat = Col(0x6a4a2e) }
         let sw = moving ? sin(phase) * 2 : 0
         let bob = work ? abs(sin(g.clock * 9 + seed)) * 1.5 : 0
         // legs
@@ -582,6 +639,12 @@ final class Renderer {
             c.R(x - 1.5, gy - 14, 3.5, 3.2, Col(0xb8804e)); c.R(x - 2, gy - 12.6, 4.5, 1.8, Col(0xa02a22))
             c.R(x - 3.5, gy - 15, 7.5, 1.2, Col(0x14100e)); c.R(x - 2, gy - 17, 4.5, 2.2, Col(0x14100e))
             if bn.st == 1 || bn.st == 2 { let a = sin(g.clock * 12 + bn.x); c.seg(x + dir * 2, gy - 9, x + dir * 6, gy - 10 - a * 3, 1.2, Col(0x8a8a8a)) }
+        }
+        if bn.boss {            // taller, in a long red duster, gun drawn
+            c.R(x - 3, gy - 14, 6, 10, Col(0x6a231c)); c.R(x - 3.5, gy - 8, 7, 4, Col(0x561a14))
+            c.R(x - 1.5, gy - 17.5, 3.5, 3.5, Col(0xb8804e)); c.R(x - 2, gy - 15.6, 4.5, 1.6, Col(0x14100e))
+            c.R(x - 4.5, gy - 18.5, 9.5, 1.3, Col(0x14100e)); c.R(x - 2.5, gy - 21, 5.5, 2.8, Col(0x14100e))
+            c.seg(x + dir * 2, gy - 11, x + dir * 7, gy - 11, 1.3, Col(0x8a8a8a))
         }
         if bn.loot > 0 { c.circ(x - dir * 4, gy - 9, 2.5, Col(0xc9a86a)); c.R(x - dir * 4 - 0.5, gy - 10, 1, 2, INK) }
         if bn.flash > 0 { c.circ(x, gy - (bn.rider ? 18 : 9), bn.rider ? 13 : 7, Col(0xffffff, 0.5)) }

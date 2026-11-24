@@ -53,8 +53,8 @@ let TOWN_W = 1010.0, TOWN_E = 1790.0
 let TOWN_NAMES = ["DUSTFALL", "REDWATER", "LAST HOPE", "COLD CREEK", "BITTER END"]
 func nice(_ s: String) -> String { return s.capitalized }
 
-enum BType: String { case store, saloon, sheriff, stable, bank, gateW, gateE, station, train, hall, wireW, wireE, bordello, doctor, church, forge, telegraph }
-enum Role { case folk, deputy, miner }
+enum BType: String { case store, saloon, sheriff, stable, bank, gateW, gateE, station, train, hall, wireW, wireE, bordello, doctor, church, forge, telegraph, claim }
+enum Role { case folk, deputy, miner, rancher }
 
 struct Def {
     let name: String
@@ -93,6 +93,8 @@ let DEFS: [BType: Def] = [
     // outside each gate: barbed wire, a second apron that cuts, then a sharpshooter's nest
     .wireW: Def(name: "BARBED WIRE", w: 30, h: 10, cost: [6, 10, 16], pay: 0, wall: 0, trim: 0, roof: 0, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: false),
     .wireE: Def(name: "BARBED WIRE", w: 30, h: 10, cost: [6, 10, 16], pay: 0, wall: 0, trim: 0, roof: 0, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: false),
+    // the old diggings far out west: staked, then guarded
+    .claim: Def(name: "CLAIM", w: 30, h: 26, cost: [6, 8], pay: 0, wall: 0, trim: 0, roof: 0, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: false),
     .train: Def(name: "TRAIN TICKET", w: 60, h: 14, cost: [5], pay: 0, wall: 0, trim: 0, roof: 0, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: false)
 ]
 let GHP: [Double] = [0, 16, 34, 60]      // gate hit points by level
@@ -158,6 +160,7 @@ final class Folk {
     var moving = false
     var wait = 0.0
     var shotCD = 0.0
+    var tend = 0.0            // a rancher's time at the pasture toward the next calf
     let seed: Double
     init(x: Double) { self.x = x; tx = x; seed = rnd(0, 100) }
 }
@@ -166,6 +169,8 @@ final class Bandit {
     var x: Double
     var rider: Bool           // barbed wire can put him on foot
     var cut = false           // already through the wire
+    var boss = false          // an outlaw with a bounty on him: slow, hard to kill, and he shoots back
+    var cd2 = 2.0
     let side: Double          // which end of town he came from: -1 west, 1 east
     var hp: Int
     var st = 0                // 0 riding in, 1 breaking a gate, 2 robbing, 3 running
@@ -198,7 +203,7 @@ struct Part {
     var grav: Double
 }
 
-/// A coin in the air on its way to something: 0 the ground, 1 a building, 2 a drifter, 3 the sheriff's badge rack, 4 back to the rider, 5 the store's pick rack, 6 the bank.
+/// A coin in the air on its way to something: 0 the ground, 1 a building, 2 a drifter, 3 the sheriff's badge rack, 4 back to the rider, 5 the store's pick rack, 6 the bank, 7 the stable's rope rack.
 final class Coin {
     var sx: Double
     var sy: Double
@@ -231,6 +236,17 @@ struct RaidSpawn {
     var side: Double
     var rider: Bool
     var hp: Int
+    var boss = false
+}
+
+struct Cow {
+    var x: Double
+    var tx: Double
+    var dir = 1.0
+    var calf = true
+    var wait = 0.0
+    var phase = 0.0
+    let seed: Double
 }
 
 struct Input {
@@ -277,4 +293,5 @@ struct SaveData: Codable {
     var drifters: [Int]
     var boxes: [Bool]
     var seen: [String]
+    var herd: Int?
 }

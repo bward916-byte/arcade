@@ -56,6 +56,10 @@ final class Game {
     var church = Building(.church, 1786)
     var forge = Building(.forge, 1864)
     var telegraph = Building(.telegraph, 1948)
+    var claim = Building(.claim, 528)
+    var herd: [Cow] = []
+    var raided = false          // raiders came last night
+    var pasture: (Double, Double) { return (EX(2030), EX(2150)) }
     var b: [Building] = []
     var drifters: [Drifter] = []
     var folk: [Folk] = []
@@ -110,10 +114,11 @@ final class Game {
         station = Building(.station, EX(1700)); ticket = Building(.train, STOP + 83)
         hall = Building(.hall, 1352); wireW = Building(.wireW, 904); wireE = Building(.wireE, EX(1975))
         bordello = Building(.bordello, 1490); doctor = Building(.doctor, 1704); church = Building(.church, 1786)
-        forge = Building(.forge, 1864); telegraph = Building(.telegraph, 1948)
+        forge = Building(.forge, 1864); telegraph = Building(.telegraph, 1948); claim = Building(.claim, 528)
+        herd = []; raided = false
         b = [store, saloon, sheriff]
         let stage = town % TOWN_NAMES.count + (town >= TOWN_NAMES.count ? TOWN_NAMES.count : 0)
-        if stage >= 1 { b.append(stable); b.append(bankB) }
+        if stage >= 1 { b.append(stable); b.append(bankB); b.append(claim) }
         if stage >= 2 { b.append(bordello); b.append(doctor) }
         if stage >= 3 { b.append(church); b.append(forge) }
         if stage >= 4 { b.append(telegraph) }
@@ -162,13 +167,13 @@ final class Game {
         var sb: [SaveB] = []
         for bl in b { sb.append(SaveB(type: bl.type.rawValue, level: bl.level, building: bl.building, progress: bl.progress, hp: bl.hp, robbed: bl.robbed)) }
         var sf: [SaveF] = []
-        for f in folk { sf.append(SaveF(x: f.x, role: f.role == .deputy ? 1 : (f.role == .miner ? 2 : 0))) }
+        for f in folk { sf.append(SaveF(x: f.x, role: f.role == .deputy ? 1 : (f.role == .miner ? 2 : (f.role == .rancher ? 3 : 0)))) }
         var dr: [Int] = []
         for i in 0..<camps.count { dr.append(drifters.filter { $0.camp == i }.count) }
         var bx: [Bool] = []
         for q in boxes { bx.append(q.open) }
         return SaveData(town: town, day: day, day0: day0, t: t, coins: purse, bank: bank, ammo: ammo, px: px, side: side,
-                        train: train != nil, b: sb, folk: sf, drifters: dr, boxes: bx, seen: Array(seen))
+                        train: train != nil, b: sb, folk: sf, drifters: dr, boxes: bx, seen: Array(seen), herd: herd.count)
     }
 
     /// Picks a saved game up again. A game saved at night comes back at dusk the same night.
@@ -189,7 +194,7 @@ final class Game {
         folk = []
         for sf in s.folk {
             let f = Folk(x: sf.x)
-            f.role = sf.role == 1 ? .deputy : (sf.role == 2 ? .miner : .folk)
+            f.role = sf.role == 1 ? .deputy : (sf.role == 2 ? .miner : (sf.role == 3 ? .rancher : .folk))
             folk.append(f)
         }
         drifters = []
@@ -198,6 +203,7 @@ final class Game {
             for k in 0..<n { drifters.append(Drifter(x: c.0 - 14 + Double(k) * 13 + rnd(-2, 2), camp: i)) }
         }
         for (i, bx) in boxes.enumerated() where i < s.boxes.count { bx.open = s.boxes[i] }
+        for _ in 0..<max(0, min(12, s.herd ?? 0)) { addCow(calf: false) }
         if s.train && station.level > 0 { train = Train(x: STOP, v: 0); ticket.live = true }
         px = clampD(s.px, 30, WORLD - 30)
         cam = clampD(px - W / 2, 0, WORLD - W)
@@ -224,6 +230,9 @@ final class Game {
             px = 1850; folk[0].x = 1925; folk[1].x = 1916
         } else if name == "train" {
             t = 0.3; station.level = 1; train = Train(x: STOP, v: 0); ticket.live = true
+            claim.level = 1; folk[3].role = .rancher; folk[3].x = pasture.0 + 12
+            for _ in 0..<4 { addCow(calf: false) }
+            addCow(calf: true)
             ticket.paid = 3; px = STOP + 96; pdir = -1
         } else {
             day = 3; t = 0.4; hall.paid = 9; px = 1362
@@ -255,7 +264,13 @@ final class Game {
         ground.append(GCoin(x: x + rnd(-6, 6), y: h, vx: rnd(-22, 22), vy: rnd(40, 80), age: 0))
     }
 
-    func rackX(_ bl: Building) -> Double { return bl.type == .store ? bl.x - 12 : bl.x + bl.def.w + 8 }
+    func rackX(_ bl: Building) -> Double { return bl.type == .store ? bl.x - 12 : (bl.type == .stable ? bl.x + bl.def.w + 18 : bl.x + bl.def.w + 8) }
+
+    private func addCow(calf: Bool) {
+        let p = pasture
+        let x = rnd(p.0 + 8, p.1 - 8)
+        herd.append(Cow(x: x, tx: x, calf: calf, seed: rnd(0, 100)))
+    }
 
     // ---------- one frame
     func update(_ dt: Double) {
@@ -279,6 +294,7 @@ final class Game {
         updBandits(dt)
         updGuns(dt)
         updShots(dt)
+        updHerd(dt)
         updParts(dt)
         updInfo()
         let want = clampD(px + pdir * 26 - W / 2, 0, WORLD - W)
@@ -365,6 +381,13 @@ final class Game {
             } else { tossCD = 0.5; sfx?.empty(); hint("nofolk", "A pick needs someone to swing it. Hire a drifter first.", again: true) }
             return
         }
+        let sb = stable
+        if sb.level > 0 && !sb.building && abs(px - rackX(sb)) < 12 {
+            if folk.contains(where: { $0.role == .folk }) {
+                flying.append(Coin(sx: px, sy: sy, tx: rackX(sb), ty: -14, kind: 7)); coins -= 1; sfx?.toss()
+            } else { tossCD = 0.5; sfx?.empty(); hint("nofolk", "A rope needs someone to throw it. Hire a drifter first.", again: true) }
+            return
+        }
         // 3: an open bank keeps what you toss it
         if atBank() {
             flying.append(Coin(sx: px, sy: sy, tx: bankB.cx, ty: -14, kind: 6)); coins -= 1; sfx?.toss(); return
@@ -439,6 +462,12 @@ final class Game {
             bl.paid += 1; bl.flash = 0.3; sfx?.slot()
             if bl.paid >= bl.cost && bl.virt {
                 bl.paid = 0; bl.live = false; board()
+            } else if bl.paid >= bl.cost && bl.type == .claim {
+                bl.paid = 0; bl.level += 1; bl.flash = 0.4
+                sfx?.fanfare(); puff(bl.cx, -12, 14, GOLD, 50)
+                if bl.level == 1 { hint("claim1", "The claim is staked. An old prospector works it and leaves 4 coins there each dawn, unless raiders came from the west that night.", again: true) }
+                else { hint("claim2", "A hired gun watches the claim. It pays 7 coins every dawn, whatever the night brings.", again: true) }
+                onSave?()
             } else if bl.paid >= bl.cost {
                 bl.paid = 0; bl.building = true; bl.progress = 0
                 sfx?.recruit()
@@ -456,16 +485,20 @@ final class Game {
             hint("hire", "He takes the coin and walks to town. Townsfolk build what you pay for, and leave a coin each morning.")
         case 3:
             badgePaid += 1; sfx?.slot()
-            if badgePaid >= 2 {
+            if badgePaid >= 1 {
                 badgePaid = 0
                 if let f = nearestIdle(rackX(sheriff)) { f.role = .deputy; sfx?.fanfare(); hint("deputy", "A deputy. At night he stands at the gate the raiders are coming to, and shoots.") }
             }
         case 5:
             pickPaid += 1; sfx?.slot()
-            if pickPaid >= 2 {
+            if pickPaid >= 1 {
                 pickPaid = 0
                 if let f = nearestIdle(rackX(store)) { f.role = .miner; sfx?.fanfare(); hint("miner", "A prospector. He works the old mine west of town and brings a coin back each morning.") }
             }
+        case 7:
+            sfx?.slot()
+            if let f = nearestIdle(rackX(stable)) { f.role = .rancher; f.tend = 0; sfx?.fanfare(); hint("rancher", "A rancher. They raise cattle in the pasture east of town, and each grown cow pays 2 coins at dawn.") }
+            else { flying.append(Coin(sx: rackX(stable), sy: -14, tx: px, ty: -18, kind: 4)) }
         case 6:
             bank += 1; sfx?.slot(); bankB.flash = 0.2
             hint("deposit", "Banked. Raiders cannot knock banked coins out of you, and the bank pays 1 a day for every 8 inside, up to 3.")
@@ -494,6 +527,8 @@ final class Game {
         let night = dark() > 0.4 || !bandits.isEmpty
         var dep = 0
         var plain = 0
+        var ranch = 0
+        let ranchers = folk.filter { $0.role == .rancher }.count
         for f in folk {
             f.work = false
             f.shotCD = max(0, f.shotCD - dt)
@@ -516,6 +551,22 @@ final class Game {
                     }
                 } else if f.wait <= 0 && !f.moving { f.tx = sheriff.cx + rnd(-50, 50); f.wait = rnd(3, 8) }
                 dep += 1
+            case .rancher:
+                if t > 0.06 && t < 0.62 {
+                    f.tx = pasture.0 + 12 + Double(ranch % 4) * 20
+                    if abs(f.x - f.tx) < 3 {
+                        // a rancher adds a calf to the herd every so often, two head each and three with the bigger stable
+                        f.tend += dt
+                        if f.tend > 30 {
+                            f.tend = 0
+                            if herd.count < min(12, ranchers * (1 + stable.level)) {
+                                addCow(calf: true)
+                                hint("calf", "A calf in the pasture. It starts paying tomorrow morning.")
+                            }
+                        }
+                    }
+                } else { f.tx = stable.x + 10 + Double(ranch % 5) * 9 }
+                ranch += 1
             case .miner:
                 if t > 0.06 && t < 0.6 { f.tx = MINE_X + Double(Int(f.seed) % 5) * 6 } else { f.tx = store.x + 20 + Double(Int(f.seed) % 4) * 8 }
             case .folk:
@@ -552,9 +603,9 @@ final class Game {
             sfx?.fanfare(); flash = 0.4
             puff(bl.cx, -bl.def.h / 2, 16, GOLD, 50)
             switch bl.type {
-            case .store: hint("store1", "The store is open and pays out every morning. Toss two coins at the pick outside it to send a townsman prospecting.")
+            case .store: hint("store1", "The store is open and pays out every morning. Toss a coin at the tool rack on its left to outfit a prospector.")
             case .saloon: hint("saloon1", "The saloon is open. It pays out every morning and draws new drifters to the camps.")
-            case .sheriff: hint("sheriff1", "The sheriff's office is open. Toss two coins at the badge outside it to make a deputy.")
+            case .sheriff: hint("sheriff1", "The sheriff's office is open. Toss a coin at the badge rack on its right and a townsman will pin it on.")
             case .gateW, .gateE:
                 if bl.level >= 3 { hint("gate3", "A gatehouse with a Gatling gun on the roof. It cuts down whatever comes at that side.") }
                 else { hint("gate1", "A gate. Raiders have to break it down before they can reach the town.") }
@@ -566,7 +617,7 @@ final class Game {
             case .bordello: hint("bordello1", "The bordello is open. It pays out every morning and draws newcomers to the camps.")
             case .forge: hint("forge\(bl.level)", bl.level == 1 ? "The blacksmith is at work. Deputies shoot further and miss less." : "New shoes all round: your horse is faster.", again: true)
             case .telegraph: hint("telegraph1", "The telegraph is working. At dusk it tells you which side the raid will come from.")
-            case .stable: hint("stable\(bl.level)", "The stable is open, and you ride a faster horse.", again: true)
+            case .stable: hint("stable\(bl.level)", bl.level == 1 ? "The stable is open and your horse gallops faster. Toss a coin at the rope rack on its right to hire a rancher." : "A bigger stable. Your horse is faster still, and ranchers can keep three head each.", again: true)
             case .bank: hint("bank1", "The bank is open. Hold the coin button in front of it to pay coins in, where raiders cannot get them.")
             case .station:
                 train = Train(x: WORLD + 70, v: -120)
@@ -590,10 +641,20 @@ final class Game {
         let n = raidSize(d)
         if n == 0 { hint("dusk1", "Night is coming. The first night is quiet; raiders come from the second."); return }
         for i in 0..<n {
-            raid.append(RaidSpawn(t: 0.74 + rnd(0, 0.09), side: i % 2 == 1 ? side : -side, rider: d >= 4 && i % 3 == 2, hp: d / 4))
+            let main = (town > 0 ? i % 3 : i % 2) != 0        // down the line, two in three come from the same side
+            raid.append(RaidSpawn(t: 0.74 + rnd(0, 0.09), side: main ? side : -side, rider: d >= 4 && i % 3 == 2, hp: d / 4))
         }
-        raidOn = true
+        // from the fourth night here, every third night an outlaw boss rides with them
+        let ln = day - day0
+        let boss = ln >= 4 && ln % 3 == 1
+        if boss { raid.append(RaidSpawn(t: 0.79, side: side, rider: false, hp: d / 2, boss: true)) }
+        // from the eighth night, every fifth night a gang of horsemen charges one end of town
+        let gang = ln >= 8 && ln % 5 == 3
+        if gang { for _ in 0..<min(2 + ln / 2, 14) { raid.append(RaidSpawn(t: 0.77 + rnd(0, 0.05), side: side, rider: true, hp: d / 4)) } }
+        raidOn = true; raided = true
         sfx?.sting()
+        if gang { hint("gang", "A gang of horsemen is riding in from the \(side < 0 ? "west" : "east") tonight. Wire and a strong gate on that side will break the charge.", again: true); return }
+        if boss { hint("boss", "An outlaw boss rides with them tonight. There is a bounty of 8 coins on him.", again: true); return }
         let where_ = telegraph.level > 0 ? " The telegraph says most will come from the \(side < 0 ? "west" : "east")." : ""
         hint("raid", "Raiders tonight.\(where_) Hold the gun button to shoot the way you face.", again: true)
     }
@@ -612,6 +673,19 @@ final class Game {
         for _ in 0..<(plain / 2) { dropCoin(FIRE_X + rnd(-20, 20), 6); total += 1 }
         for f in folk where f.role == .miner { dropCoin(store.x + 30, 8); total += 1; f.wait = 0 }
         if town > 0 { bank += min(3 * bankB.level, bank / 8) }
+        // each grown cow pays 2 coins, and last night's calves are grown
+        let p = pasture
+        if ground.filter({ $0.x > p.0 - 20 && $0.x < p.1 + 20 }).count < 12 {
+            for cw in herd where !cw.calf { dropCoin(cw.x, 4); dropCoin(cw.x, 4); total += 2 }
+        }
+        for i in herd.indices { herd[i].calf = false }
+        // the claim pays at dawn, unless raiders came by from the west and nobody was guarding it
+        var note = ""
+        if claim.level > 0 {
+            if claim.level < 2 && raided && side < 0 { note = " Raiders from the west cleaned out the claim overnight; a hired gun would keep it safe." }
+            else { let n = claim.level > 1 ? 7 : 4; for _ in 0..<n { dropCoin(claim.cx, 5) }; total += n }
+        }
+        raided = false
         // the saloon draws drifters back to the camps
         for (i, c) in camps.enumerated() {
             let here = drifters.filter { $0.camp == i }.count
@@ -628,7 +702,7 @@ final class Game {
         }
         side = chance(0.5) ? 1 : -1
         sfx?.dawn()
-        hint("dawn\(day)", total > 0 ? "Day \(day). The town paid out \(total) coins this morning: ride past to pick them up." : "Day \(day). Nothing paid out this morning. Open the store or the saloon.", again: true)
+        hint("dawn\(day)", total > 0 ? "Day \(day). The town paid out \(total) coins this morning: ride past to pick them up.\(note)" : "Day \(day). Nothing paid out this morning. Open the store or the saloon.\(note)", again: true)
         onSave?()
     }
 
@@ -702,7 +776,9 @@ final class Game {
             if t >= raid[i].t {
                 let r = raid[i]
                 let x = r.side < 0 ? 600 - rnd(0, 120) : EX(2300) + rnd(0, 120)
-                bandits.append(Bandit(x: x, rider: r.rider, side: r.side, hp: (r.rider ? 3 : 2) + r.hp))
+                let bn = Bandit(x: x, rider: r.rider, side: r.side, hp: (r.boss ? 12 : (r.rider ? 3 : 2)) + r.hp)
+                bn.boss = r.boss
+                bandits.append(bn)
                 raid.remove(at: i)
             } else { i += 1 }
         }
@@ -721,10 +797,38 @@ final class Game {
             if bn.hp <= 0 {
                 if chance(0.35) { dropCoin(bn.x, 8) }
                 for _ in 0..<bn.loot { dropCoin(bn.x, 8) }
+                if bn.boss {
+                    for _ in 0..<8 { dropCoin(bn.x, 10) }
+                    sfx?.fanfare(); flash = 0.3
+                    hint("bounty", "The outlaw is down, and the bounty is yours: 8 coins where he fell.", again: true)
+                }
                 puff(bn.x, -8, 8, Col(0x3a2a1c), 34)
                 bandits.remove(at: i); continue
             }
             bn.flash = max(0, bn.flash - dt); bn.hitT = max(0, bn.hitT - dt)
+            // the outlaw shoots back, and a hit costs a deputy his badge unless there is a doctor in town
+            if bn.boss && bn.st != 3 {
+                bn.cd2 -= dt
+                if bn.cd2 <= 0 {
+                    var tgt: Folk?
+                    var bd = 150.0
+                    for f in folk where f.role == .deputy {
+                        let d = abs(f.x - bn.x)
+                        if d < bd { bd = d; tgt = f }
+                    }
+                    if let f = tgt {
+                        bn.cd2 = 2.4
+                        let dir = f.x > bn.x ? 1.0 : -1.0
+                        shots.append(Shot(x: bn.x + dir * 6, y: -10, vx: dir * 300, life: max(0.05, bd / 300), mine: false))
+                        sfx?.gun(clampD(1 - abs(bn.x - px) / 320, 0.15, 1) * 0.6)
+                        if chance(0.3) {
+                            puff(f.x, -8, 5, Col(0xd04a3a), 26)
+                            if doctor.level > 0 { hint("patched", "A deputy was hit. The doctor patched him up and he keeps his badge.", again: true) }
+                            else { f.role = .folk; hint("wounded", "A deputy was hit and has handed in his badge. A doctor in town would keep them on their feet.", again: true) }
+                        }
+                    }
+                }
+            }
             // barbed wire on their side slows them to a crawl and throws riders, who carry on on foot
             let wr = bn.side < 0 ? wireW : wireE
             let snag = bn.st == 0 && wr.level > 0 && bn.x > wr.x - 2 && bn.x < wr.x + wr.def.w + 2
@@ -737,13 +841,13 @@ final class Game {
                 bn.cut = true
                 if wr.level > 1 { hurt(bn, wr.level - 1) }       // the second apron cuts whoever crosses it
             }
-            let sp = (bn.rider ? 74.0 : 40.0) * (snag ? [1, 0.4, 0.34, 0.28][min(3, wr.level)] : 1)
+            let sp = (bn.boss ? 30.0 : (bn.rider ? 74.0 : 40.0)) * (snag ? [1, 0.4, 0.34, 0.28][min(3, wr.level)] : 1)
             let gate = bn.side < 0 ? gateW : gateE
             let gx = gate.cx
             switch bn.st {
             case 1:
                 if gate.level == 0 { bn.st = 0 } else {
-                    gate.hp -= dt * (bn.rider ? 1.5 : 1)
+                    gate.hp -= dt * (bn.boss ? 2 : (bn.rider ? 1.5 : 1))
                     bn.t += dt
                     if bn.t > 0.6 { bn.t = 0; sfx?.gate(clampD(1 - abs(gx - px) / 300, 0, 1)); gate.flash = 0.15; puff(gx, -8, 2, Col(0x7a5632), 20) }
                     if gate.hp <= 0 {
@@ -789,7 +893,7 @@ final class Game {
             }
             // riding into one costs you coins from your purse
             if bn.st != 3 && bn.hitT <= 0 && abs(bn.x - px) < 9 && hurtT <= 0 {
-                let n = min(coins, bn.rider ? 4 : 3)
+                let n = min(coins, bn.boss ? 5 : (bn.rider ? 4 : 3))
                 coins -= n
                 for _ in 0..<n { dropCoin(px, 14) }
                 bn.hitT = 2; hurtT = 1.2; shake = 1; flash = 0.3; sfx?.hit(1)
@@ -837,6 +941,18 @@ final class Game {
         }
     }
 
+    private func updHerd(_ dt: Double) {
+        let p = pasture
+        for i in herd.indices {
+            var cw = herd[i]
+            cw.wait -= dt
+            if cw.wait <= 0 && abs(cw.x - cw.tx) < 1 { cw.tx = rnd(p.0 + 8, p.1 - 8); cw.wait = rnd(4, 12) }
+            let d = cw.tx - cw.x
+            if abs(d) >= 1 && cw.wait < 3 { cw.dir = d > 0 ? 1 : -1; cw.x += cw.dir * 7 * dt; cw.phase += dt * 5 }
+            herd[i] = cw
+        }
+    }
+
     private func updParts(_ dt: Double) {
         var i = 0
         while i < parts.count {
@@ -856,8 +972,9 @@ final class Game {
         info = ""; slotsFor = nil
         for d in drifters where abs(d.x - px) < 30 && !d.taken { info = "Drifter: 1 coin to hire"; return }
         let sh = sheriff, st = store
-        if sh.level > 0 && !sh.building && abs(px - rackX(sh)) < 12 { info = "Deputy's badge: 2 coins (\(badgePaid) in). Needs a townsman without a job."; return }
-        if st.level > 0 && !st.building && abs(px - rackX(st)) < 12 { info = "Prospector's pick: 2 coins (\(pickPaid) in). Needs a townsman without a job."; return }
+        if sh.level > 0 && !sh.building && abs(px - rackX(sh)) < 12 { info = "Badge rack: 1 coin turns a townsman into a deputy, who guards the gates at night."; return }
+        if st.level > 0 && !st.building && abs(px - rackX(st)) < 12 { info = "Tool rack: 1 coin turns a townsman into a prospector, who digs gold at the mine west of town."; return }
+        if stable.level > 0 && !stable.building && abs(px - rackX(stable)) < 12 { info = "Rope rack: 1 coin turns a townsman into a rancher, who raises cattle that pay 2 coins each a day."; return }
         var best: Building?
         var bd = 9999.0
         for bl in b where !bl.virt || bl.live {
@@ -890,6 +1007,12 @@ final class Game {
         if bl.isHall && bl.level < bl.maxLevel && !bl.building {
             slotsFor = bl
             info = (bl.level == 0 ? "Town centre: \(bl.cost) coins for a town square, so buildings can reach level 2" : "Town centre: \(bl.cost) coins for a clock tower, so buildings can reach level 3 and the railroad can come") + (bl.paid > 0 ? " (\(bl.paid) in)" : "")
+            return
+        }
+        if bl.type == .claim {
+            if bl.level >= bl.maxLevel { info = "Claim: guarded. It pays 7 coins every dawn."; return }
+            slotsFor = bl
+            info = (bl.level == 0 ? "Old claim: \(bl.cost) coins to stake. A prospector then leaves 4 coins here each dawn" : "Claim: \(bl.cost) coins for a hired gun. It then pays 7 a day, whatever the night brings") + (bl.paid > 0 ? " (\(bl.paid) in)" : "")
             return
         }
         if bl.wire && !bl.building && bl.level < bl.maxLevel {
