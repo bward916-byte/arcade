@@ -578,8 +578,12 @@ final class GameViewController: UIViewController {
         let cur = game.town % n, lap = game.town / n, nxt = (cur + 1) % n
         let cw = (bw - l - r) / CGFloat(n)
         let rowH = (bh - 84 - 50) / 2
-        // a sheet of old paper, with the line drawn from stop to stop and forking where the towns do
-        for ly in mapLayers { ly.removeFromSuperlayer() }
+        // a sheet of old paper with the country drawn on it: desert, a river, canyon, pines and the snow ranges,
+        // the railroad running stop to stop and forking where the towns do
+        for ly in mapLayers { ly.removeAllAnimations(); ly.removeFromSuperlayer() }
+        mapLayers = []
+        var zi: UInt32 = 0
+        func put(_ ly: CALayer) { mapBox.layer.insertSublayer(ly, at: zi); zi += 1; mapLayers.append(ly) }
         let parch = CAGradientLayer()
         parch.type = .radial
         parch.colors = [UIColor(red: 0.91, green: 0.83, blue: 0.63, alpha: 1).cgColor, UIColor(red: 0.82, green: 0.7, blue: 0.47, alpha: 1).cgColor, UIColor(red: 0.5, green: 0.36, blue: 0.2, alpha: 1).cgColor]
@@ -587,22 +591,211 @@ final class GameViewController: UIViewController {
         parch.startPoint = CGPoint(x: 0.5, y: 0.5)
         parch.endPoint = CGPoint(x: 1.06, y: 1.2)
         parch.frame = view.bounds
-        let track = CAShapeLayer()
-        track.frame = view.bounds
-        track.fillColor = nil
-        track.strokeColor = ink.withAlphaComponent(0.8).cgColor
-        track.lineWidth = 3
-        track.lineDashPattern = [10, 7]
-        let tp = UIBezierPath()
+        put(parch)
         func stops(_ i: Int) -> [CGPoint] {
             let cnt = STAGES[i].count
-            return (0..<cnt).map { (k: Int) -> CGPoint in CGPoint(x: l + CGFloat(i) * cw + cw / 2, y: 82 + CGFloat(k) * rowH + (cnt == 1 ? rowH / 2 : 0) + 24) }
+            return (0..<cnt).map { (k: Int) -> CGPoint in CGPoint(x: l + CGFloat(i) * cw + cw / 2, y: 82 + CGFloat(k) * rowH + (cnt == 1 ? rowH / 2 : 0) + 22) }
         }
+        let midY = 82 + rowH / 2 + 22
+        // the river comes down out of the snow country, past Redwater, and away south-west
+        let river = UIBezierPath()
+        river.move(to: CGPoint(x: l + cw * 3.45, y: 44))
+        river.addCurve(to: CGPoint(x: l + cw * 1.5, y: 82 + 22 + 34), controlPoint1: CGPoint(x: l + cw * 3.0, y: midY - 6), controlPoint2: CGPoint(x: l + cw * 2.1, y: 60))
+        river.addCurve(to: CGPoint(x: l + cw * 0.62, y: bh + 6), controlPoint1: CGPoint(x: l + cw * 1.1, y: midY + 20), controlPoint2: CGPoint(x: l + cw * 1.05, y: bh - 60))
+        let land = UIGraphicsImageRenderer(size: view.bounds.size).image { _ in
+            let inkC = ink.withAlphaComponent(0.6)
+            func hh(_ a: Int, _ b: Int) -> CGFloat { return CGFloat(hashN(Double(a) * 12.9898 + Double(b) * 78.233 + 0.5)) }
+            func line(_ pts: [CGFloat], _ col: UIColor, _ w: CGFloat) {
+                let p = UIBezierPath()
+                p.move(to: CGPoint(x: pts[0], y: pts[1]))
+                var i = 2
+                while i + 1 < pts.count { p.addLine(to: CGPoint(x: pts[i], y: pts[i + 1])); i += 2 }
+                col.setStroke(); p.lineWidth = w; p.lineCapStyle = .round; p.lineJoinStyle = .round; p.stroke()
+            }
+            func shape(_ pts: [CGFloat], _ fill: UIColor, outline: Bool = true) {
+                let p = UIBezierPath()
+                p.move(to: CGPoint(x: pts[0], y: pts[1]))
+                var i = 2
+                while i + 1 < pts.count { p.addLine(to: CGPoint(x: pts[i], y: pts[i + 1])); i += 2 }
+                p.close()
+                fill.setFill(); p.fill()
+                if outline { inkC.setStroke(); p.lineWidth = 1; p.lineJoinStyle = .round; p.stroke() }
+            }
+            // stains and foxing on the paper
+            for i in 0..<26 {
+                UIColor(red: 0.55, green: 0.38, blue: 0.18, alpha: 0.05).setFill()
+                UIBezierPath(ovalIn: CGRect(x: hh(i, 1) * bw - 30, y: hh(i, 2) * bh - 20, width: 30 + hh(i, 3) * 90, height: 16 + hh(i, 4) * 44)).fill()
+            }
+            // the river: a wash of blue between two inked banks
+            UIColor(red: 0.42, green: 0.62, blue: 0.72, alpha: 0.55).setStroke()
+            river.lineWidth = 8; river.lineCapStyle = .round; river.stroke()
+            UIColor(red: 0.2, green: 0.36, blue: 0.48, alpha: 0.5).setStroke()
+            river.lineWidth = 1; river.stroke()
+            func cactus(_ x: CGFloat, _ y: CGFloat, _ k: CGFloat) {
+                let g2 = UIColor(red: 0.33, green: 0.46, blue: 0.26, alpha: 0.8)
+                line([x, y, x, y - 13 * k], g2, 2.8 * k)
+                line([x - 4 * k, y - 9 * k, x - 4 * k, y - 5 * k, x, y - 5 * k], g2, 2 * k)
+                line([x + 4 * k, y - 11 * k, x + 4 * k, y - 7 * k, x, y - 7 * k], g2, 2 * k)
+            }
+            func mesa(_ x: CGFloat, _ y: CGFloat, _ w: CGFloat, _ t: CGFloat, _ red: Bool) {
+                shape([x - w / 2, y, x - w * 0.36, y - t, x + w * 0.3, y - t, x + w / 2, y], red ? UIColor(red: 0.76, green: 0.42, blue: 0.26, alpha: 0.6) : UIColor(red: 0.8, green: 0.56, blue: 0.34, alpha: 0.55))
+                shape([x + w * 0.12, y, x + w * 0.16, y - t, x + w * 0.3, y - t, x + w / 2, y], ink.withAlphaComponent(0.2), outline: false)
+                line([x - w * 0.4, y - t * 0.62, x + w * 0.36, y - t * 0.62], inkC.withAlphaComponent(0.3), 0.8)
+                line([x - w * 0.45, y - t * 0.3, x + w * 0.43, y - t * 0.3], inkC.withAlphaComponent(0.3), 0.8)
+            }
+            func mountain(_ x: CGFloat, _ y: CGFloat, _ w: CGFloat, _ t: CGFloat) {
+                shape([x - w / 2, y, x, y - t, x + w / 2, y], UIColor(red: 0.6, green: 0.56, blue: 0.54, alpha: 0.7), outline: false)
+                shape([x, y - t, x + w / 2, y, x + w * 0.1, y, x + w * 0.04, y - t * 0.45], ink.withAlphaComponent(0.24), outline: false)
+                shape([x - w * 0.17, y - t * 0.66, x, y - t, x + w * 0.17, y - t * 0.66, x + w * 0.07, y - t * 0.56, x, y - t * 0.68, x - w * 0.08, y - t * 0.54], UIColor(white: 1, alpha: 0.92), outline: false)
+                line([x - w / 2, y, x, y - t, x + w / 2, y], inkC, 1.1)
+                line([x - w * 0.2, y - t * 0.2, x - w * 0.1, y - t * 0.38], inkC.withAlphaComponent(0.35), 0.8)
+            }
+            func pine(_ x: CGFloat, _ y: CGFloat, _ k: CGFloat, _ snow: Bool) {
+                line([x, y, x, y - 4 * k], UIColor(red: 0.3, green: 0.2, blue: 0.12, alpha: 0.8), 1.4)
+                let g2 = snow ? UIColor(red: 0.3, green: 0.42, blue: 0.38, alpha: 0.85) : UIColor(red: 0.2, green: 0.38, blue: 0.24, alpha: 0.85)
+                for j in 0..<3 {
+                    let yy = y - 3 * k - CGFloat(j) * 4 * k, ww = (6 - CGFloat(j) * 1.5) * k
+                    shape([x - ww, yy, x, yy - 6 * k, x + ww, yy], g2, outline: false)
+                    if snow { shape([x - ww * 0.5, yy - 3 * k, x, yy - 6 * k, x + ww * 0.5, yy - 3 * k], UIColor(white: 1, alpha: 0.85), outline: false) }
+                }
+            }
+            func dune(_ x: CGFloat, _ y: CGFloat, _ w: CGFloat) {
+                let p = UIBezierPath()
+                p.move(to: CGPoint(x: x - w / 2, y: y))
+                p.addQuadCurve(to: CGPoint(x: x + w / 2, y: y), controlPoint: CGPoint(x: x - w * 0.1, y: y - w * 0.36))
+                UIColor(red: 0.86, green: 0.7, blue: 0.42, alpha: 0.5).setFill(); p.fill()
+                inkC.withAlphaComponent(0.4).setStroke(); p.lineWidth = 0.9; p.stroke()
+                for j in 0..<3 { UIBezierPath(ovalIn: CGRect(x: x - w * 0.3 + CGFloat(j) * w * 0.3, y: y + 3, width: 1.4, height: 1.4)).fill() }
+            }
+            func tree(_ x: CGFloat, _ y: CGFloat, _ k: CGFloat) {
+                line([x, y, x, y - 5 * k], UIColor(red: 0.3, green: 0.2, blue: 0.12, alpha: 0.8), 1.4)
+                UIColor(red: 0.34, green: 0.5, blue: 0.26, alpha: 0.8).setFill()
+                UIBezierPath(ovalIn: CGRect(x: x - 5 * k, y: y - 13 * k, width: 10 * k, height: 9 * k)).fill()
+                UIBezierPath(ovalIn: CGRect(x: x - 2 * k, y: y - 15 * k, width: 7 * k, height: 7 * k)).fill()
+            }
+            func tuft(_ x: CGFloat, _ y: CGFloat) {
+                let g2 = UIColor(red: 0.36, green: 0.52, blue: 0.28, alpha: 0.75)
+                line([x - 2, y, x - 3, y - 4], g2, 1); line([x, y, x, y - 5], g2, 1); line([x + 2, y, x + 3.4, y - 4], g2, 1)
+            }
+            var gyI = 0
+            var yy: CGFloat = 56
+            while yy < bh - 14 {
+                var gxI = 0
+                var xx: CGFloat = 14
+                while xx < bw - 8 {
+                    let jx = xx + (hh(gxI, gyI) - 0.5) * 24, jy = yy + (hh(gxI + 31, gyI + 7) - 0.5) * 16
+                    let rr = hh(gxI + 5, gyI + 13), kk = 0.8 + hh(gxI + 9, gyI + 3) * 0.5
+                    let col = Int(max(0, min(CGFloat(n) - 1, ((jx - l) / cw).rounded(.down))))
+                    let top = jy < midY
+                    if col == 0 {
+                        if rr < 0.3 { cactus(jx, jy, kk) } else if rr < 0.5 { mesa(jx, jy, 34 * kk, 15 * kk, false) } else if rr < 0.68 { dune(jx, jy, 30 * kk) }
+                    } else if col == 1 && top {
+                        if rr < 0.45 { tuft(jx, jy) } else if rr < 0.72 { tree(jx, jy, kk) }
+                    } else if col == 1 {
+                        if rr < 0.6 { mesa(jx, jy, 30 * kk, 24 * kk, true) } else if rr < 0.78 { cactus(jx, jy, kk * 0.9) }
+                    } else if col == 2 && top {
+                        if rr < 0.55 { dune(jx, jy, 34 * kk) } else if rr < 0.7 { cactus(jx, jy, kk) }
+                    } else if col == 2 {
+                        if rr < 0.82 { pine(jx, jy, kk, false); pine(jx + 9 * kk, jy + 3, kk * 0.8, false) }
+                    } else if col == 3 && top {
+                        if rr < 0.4 { pine(jx, jy, kk, true) } else if rr < 0.78 { mountain(jx, jy, 40 * kk, 30 * kk) }
+                    } else if col == 3 {
+                        if rr < 0.8 { mountain(jx, jy, 50 * kk, 38 * kk) }
+                    } else {
+                        if rr < 0.85 { mountain(jx, jy, 54 * kk, 42 * kk) } else { pine(jx, jy, kk, true) }
+                    }
+                    xx += 44; gxI += 1
+                }
+                yy += 34; gyI += 1
+            }
+            // a ruled border, as on a surveyor's sheet
+            inkC.setStroke()
+            let b1 = UIBezierPath(rect: view.bounds.insetBy(dx: 5, dy: 5)); b1.lineWidth = 2; b1.stroke()
+            let b2 = UIBezierPath(rect: view.bounds.insetBy(dx: 9, dy: 9)); b2.lineWidth = 0.7; b2.stroke()
+        }
+        let landLayer = CALayer()
+        landLayer.frame = view.bounds
+        landLayer.contents = land.cgImage
+        put(landLayer)
+        // light running down the river
+        let flow = CAShapeLayer()
+        flow.frame = view.bounds
+        flow.path = river.cgPath
+        flow.fillColor = nil
+        flow.strokeColor = UIColor(white: 1, alpha: 0.55).cgColor
+        flow.lineWidth = 1.6
+        flow.lineDashPattern = [5, 16]
+        flow.lineCap = .round
+        let fa = CABasicAnimation(keyPath: "lineDashPhase")
+        fa.fromValue = 0; fa.toValue = -21; fa.duration = 1.3; fa.repeatCount = .infinity
+        flow.add(fa, forKey: "flow")
+        put(flow)
+        // the railroad: a rail with ties across it
+        let tp = UIBezierPath()
         for i in 0..<(n - 1) { for a in stops(i) { for b in stops(i + 1) { tp.move(to: a); tp.addLine(to: b) } } }
-        track.path = tp.cgPath
-        mapBox.layer.insertSublayer(parch, at: 0)
-        mapBox.layer.insertSublayer(track, above: parch)
-        mapLayers = [parch, track]
+        let ties = CAShapeLayer()
+        ties.frame = view.bounds; ties.path = tp.cgPath; ties.fillColor = nil
+        ties.strokeColor = ink.withAlphaComponent(0.7).cgColor; ties.lineWidth = 8; ties.lineDashPattern = [1.6, 6]
+        put(ties)
+        let track = CAShapeLayer()
+        track.frame = view.bounds; track.path = tp.cgPath; track.fillColor = nil
+        track.strokeColor = ink.withAlphaComponent(0.85).cgColor; track.lineWidth = 2
+        put(track)
+        // cloud shadows crossing the country
+        for i in 0..<2 {
+            let cs = CAShapeLayer()
+            let cwid: CGFloat = 220 + CGFloat(i) * 90
+            cs.path = UIBezierPath(ovalIn: CGRect(x: -cwid / 2, y: -34, width: cwid, height: 68 + CGFloat(i) * 20)).cgPath
+            cs.fillColor = UIColor(red: 0.2, green: 0.12, blue: 0.05, alpha: 0.08).cgColor
+            cs.position = CGPoint(x: -200, y: bh * (i == 0 ? 0.36 : 0.7))
+            let ca = CABasicAnimation(keyPath: "position.x")
+            ca.fromValue = -200; ca.toValue = bw + 200; ca.duration = 34 + Double(i) * 17; ca.repeatCount = .infinity; ca.timeOffset = Double(i) * 9
+            cs.add(ca, forKey: "drift")
+            put(cs)
+        }
+        // a train working the line you have already opened
+        var done: [CGPoint] = []
+        for i in 0...cur {
+            let li = lap * n + i
+            let key = i == cur ? game.place : (li < game.log.count ? game.log[li] : STAGES[i][0])
+            let pts = stops(i)
+            done.append(pts[min(pts.count - 1, max(0, STAGES[i].firstIndex(of: key) ?? 0))])
+        }
+        if done.count > 1 {
+            let rp = UIBezierPath()
+            rp.move(to: done[0])
+            for p in done.dropFirst() { rp.addLine(to: p) }
+            let loco = CAShapeLayer()
+            let lp = UIBezierPath(roundedRect: CGRect(x: -9, y: -4, width: 18, height: 8), cornerRadius: 2)
+            lp.append(UIBezierPath(rect: CGRect(x: 3, y: -8, width: 4, height: 5)))
+            lp.append(UIBezierPath(rect: CGRect(x: -22, y: -3.5, width: 11, height: 7)))
+            loco.path = lp.cgPath
+            loco.fillColor = UIColor(red: 0.48, green: 0.14, blue: 0.11, alpha: 1).cgColor
+            loco.strokeColor = ink.cgColor; loco.lineWidth = 1
+            loco.position = done[0]
+            let ka = CAKeyframeAnimation(keyPath: "position")
+            ka.path = rp.cgPath; ka.calculationMode = .paced; ka.rotationMode = .rotateAuto
+            ka.duration = 3.2 * Double(done.count - 1); ka.repeatCount = .infinity
+            loco.add(ka, forKey: "run")
+            put(loco)
+        }
+        // a compass rose, its needle never quite still
+        let rose = CAShapeLayer()
+        let cp = UIBezierPath(ovalIn: CGRect(x: -17, y: -17, width: 34, height: 34))
+        for q in 0..<4 {
+            let an = CGFloat(q) * .pi / 2
+            let tip = CGPoint(x: sin(an) * 22, y: -cos(an) * 22)
+            cp.move(to: tip); cp.addLine(to: CGPoint(x: sin(an + 0.5) * 5, y: -cos(an + 0.5) * 5)); cp.addLine(to: CGPoint(x: sin(an - 0.5) * 5, y: -cos(an - 0.5) * 5)); cp.close()
+        }
+        rose.path = cp.cgPath
+        rose.fillColor = UIColor(red: 0.54, green: 0.18, blue: 0.15, alpha: 0.75).cgColor
+        rose.strokeColor = ink.withAlphaComponent(0.8).cgColor; rose.lineWidth = 1
+        rose.position = CGPoint(x: l + 34, y: bh - 44)
+        let wa = CABasicAnimation(keyPath: "transform.rotation.z")
+        wa.fromValue = -0.07; wa.toValue = 0.07; wa.duration = 2.3; wa.autoreverses = true; wa.repeatCount = .infinity
+        wa.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+        rose.add(wa, forKey: "wobble")
+        put(rose)
         for (i, opts) in STAGES.enumerated() {
             let x = l + CGFloat(i) * cw
             let hd = UILabel(frame: CGRect(x: x + 2, y: 46, width: cw - 4, height: 30))
@@ -618,16 +811,26 @@ final class GameViewController: UIViewController {
                 let pick = choose && i == nxt
                 let b = UIButton(type: .system)
                 style(b, "", primary: pick)
-                b.frame = CGRect(x: x + 4, y: y, width: cw - 8, height: 48)
+                let bwid = min(cw - 8, 128)
+                b.frame = CGRect(x: x + (cw - bwid) / 2, y: y, width: bwid, height: 44)
                 let second = hereNow ? "Here, day \(game.day - game.day0)" : (been ? "Rebuilt" : pl.land)
                 b.setTitle(nice(pl.name) + "\n" + second, for: .normal)
                 b.titleLabel?.numberOfLines = 2
                 b.titleLabel?.textAlignment = .center
-                b.titleLabel?.font = serif(13)
+                b.titleLabel?.font = serif(12)
+                b.titleLabel?.adjustsFontSizeToFitWidth = true
                 b.isUserInteractionEnabled = pick
                 b.accessibilityIdentifier = key
                 b.addTarget(self, action: #selector(pickPlace(_:)), for: .touchUpInside)
                 if hereNow { b.layer.borderColor = gold.cgColor; b.layer.borderWidth = 2 }
+                if hereNow || pick {
+                    // where you are, and where you may go, glow slowly
+                    b.layer.shadowColor = (hereNow ? gold : UIColor.white).cgColor
+                    b.layer.shadowOffset = .zero; b.layer.shadowRadius = 10
+                    let ga = CABasicAnimation(keyPath: "shadowOpacity")
+                    ga.fromValue = 0.15; ga.toValue = 1; ga.duration = 0.9; ga.autoreverses = true; ga.repeatCount = .infinity
+                    b.layer.add(ga, forKey: "glow")
+                }
                 if !pick && !hereNow && !been { b.alpha = 0.72 }
                 mapBox.addSubview(b)
                 if pick || hereNow {

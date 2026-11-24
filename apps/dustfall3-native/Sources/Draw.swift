@@ -415,7 +415,10 @@ final class Renderer {
             for j in 0..<6 {
                 let bx = fx + Double(j % 3) * 9 - Double(j / 3) * 5, by = H * 0.2 + Double(j / 3) * 6 + Double(j % 3) * 3 + sin(g.clock * 0.7 + Double(j)) * 2
                 let fl = sin(g.clock * 7 + Double(j) * 1.3) * 1.3
-                c.seg(bx - 2.4, by - fl, bx, by, 0.7, Col(0x3a2a2a, 0.75)); c.seg(bx, by, bx + 2.4, by - fl, 0.7, Col(0x3a2a2a, 0.75))
+                let bc = Col(0x2e2226, 0.8)
+                c.ell(bx, by, 1.5, 0.7, bc); c.R(bx + 1.2, by - 0.5, 1.1, 0.7, bc)
+                c.seg(bx, by, bx - 1.6, by - fl * 1.1 - 0.6, 0.8, bc); c.seg(bx - 1.6, by - fl * 1.1 - 0.6, bx - 3.4, by - fl * 0.6, 0.6, bc)
+                c.seg(bx, by, bx + 0.6, by - fl * 1.1 - 0.8, 0.8, bc); c.seg(bx + 0.6, by - fl * 1.1 - 0.8, bx - 0.6, by - fl * 0.7 - 1.6, 0.6, bc)
             }
         }
     }
@@ -766,7 +769,8 @@ final class Renderer {
             if hashN(bl.x * 0.31) > 0.35 {
                 // a crow keeping watch on the rafter
                 let cx = x + w * 0.34, cy = gy - hh - 15.5 + (sin(g.clock * 0.9 + bl.x) > 0.93 ? 0.8 : 0)
-                c.ell(cx, cy, 2.6, 1.7, Col(0x15121a)); c.circ(cx + 2.2, cy - 1.4, 1.2, Col(0x15121a)); c.poly(Col(0x4a4038), [cx + 3.2, cy - 1.6, cx + 5, cy - 1.1, cx + 3.2, cy - 0.7]); c.poly(Col(0x15121a), [cx - 2, cy - 0.5, cx - 5.4, cy + 1.6, cx - 1.6, cy + 1.2])
+                c.R(cx - 0.6, cy + 1.2, 0.5, 1.6, Col(0x4a4038)); c.R(cx + 0.6, cy + 1.2, 0.5, 1.6, Col(0x4a4038))
+                c.ell(cx, cy, 2.6, 1.7, Col(0x15121a)); c.ell(cx - 0.4, cy - 0.5, 1.6, 0.6, Col(0x3a3a5a, 0.7)); c.R(cx + 2.4, cy - 1.8, 0.5, 0.5, Col(0xd8d8e0)) c.circ(cx + 2.2, cy - 1.4, 1.2, Col(0x15121a)); c.poly(Col(0x4a4038), [cx + 3.2, cy - 1.6, cx + 5, cy - 1.1, cx + 3.2, cy - 0.7]); c.poly(Col(0x15121a), [cx - 2, cy - 0.5, cx - 5.4, cy + 1.6, cx - 1.6, cy + 1.2])
             }
             c.R(x + d.doorX, gy - 20, d.doorW, 20, Col(0x1e1814))
             c.vfill(x + d.doorX - 1, gy - 31, d.doorW + 2, 11, [(0, Col(0x1a1412, 0)), (1, Col(0x1a1412, 0.6))])
@@ -1816,7 +1820,9 @@ final class Renderer {
             let col = far ? dark : shade
             c.seg(hx, hy, kx, ky, 2.5, col)
             c.seg(kx, ky, fx, fy, 1.6, col)
-            c.R(fx - 1, fy - 0.2, 2.6, 1.3, hoof)
+            c.circ(kx, ky, 1.25, col)                                  // knee or hock
+            c.circ(fx + 0.2, fy - 1.3, 1.05, col)                      // fetlock
+            c.R(fx - 1, fy - 0.2, 2.6, 1.3, hoof); c.R(fx - 0.8, fy - 0.2, 1, 0.5, Col(0x5a4a40))
             if !far && tack { c.R(fx - 0.8, fy - 2.2, 2.2, 1.2, Col(0xf0e6d2)) }      // white socks
         }
         let offs: [Double] = gal ? [0.7, PI + 0.7, 0, PI] : [PI, PI * 1.5, 0, PI * 0.5]
@@ -1836,6 +1842,12 @@ final class Renderer {
         c.RR(-8, -9.4 + bob, 15, 1.8, 0.9, shade.alpha(0.55))
         c.RR(-6, -17 + bob, 12, 1.1, 0.5, lite.alpha(0.8))
         c.curve(-10.5, -13 + bob, -8, -9 + bob, -4.5, -8.4 + bob, 0.7, shade.alpha(0.6))
+        // muscle and light: the shoulder, the stifle, a sheen on the quarters, faint dapples, the girth of the belly
+        c.curve(5.4, -16.6 + bob, 9.6, -13 + bob, 6.2, -9.4 + bob, 0.7, shade.alpha(0.55))
+        c.curve(-3.6, -15.6 + bob, -6.2, -12.4 + bob, -3.8, -9.2 + bob, 0.6, shade.alpha(0.4))
+        c.ell(-7.4, -14.8 + bob, 2.7, 1.6, lite.alpha(0.42)); c.ell(7.4, -14.6 + bob, 2, 1.3, lite.alpha(0.32))
+        for k in 0..<5 { c.circ(-8.2 + Double(k) * 2.5, -13.4 + bob + hashN(Double(k) * 3.1 + coat.r * 9) * 2.6, 0.7, lite.alpha(0.2)) }
+        c.vfill(-9, -10.4 + bob, 17, 2.4, [(0, dark.alpha(0)), (1, dark.alpha(0.35))])
         c.translate(0, HLIFT); leg(-5, offs[0], false, false); leg(4.2, offs[1], false, true); c.translate(0, -HLIFT)
         // neck and head, which dips now and then when he stands
         let nk = sin(g.clock * 0.55 + x * 0.01)
@@ -1846,6 +1858,9 @@ final class Renderer {
         c.RR(12.4, -28 + hy, 9, 5.6, 2.2, coat)
         c.RR(18.2, -26.8 + hy, 5, 4.6, 2, shade)
         c.R(21.6, -24.2 + hy, 0.9, 0.9, hoof)                                    // nostril
+        c.circ(14.4, -23.9 + hy, 2.3, coat); c.arcStroke(14.4, -23.9 + hy, 2.3, 0.2, 2.2, 0.6, shade.alpha(0.6))   // the round of the jaw
+        c.seg(18.4, -22.4 + hy, 22.4, -22.8 + hy, 0.5, hoof.alpha(0.6))            // the line of the mouth
+        c.seg(14.8, -26.7 + hy, 16.4, -26.5 + hy, 0.5, dark)                       // a lid over the eye
         c.circ(15.6, -25.8 + hy, 0.75, hoof); c.R(15.2, -26.2 + hy, 0.5, 0.5, Col(0xffffff, 0.8))   // eye
         c.poly(dark, [12.6, -27.6 + hy, 13.6, -31.4 + hy, 15, -27.8 + hy]); c.poly(coat, [13, -27.8 + hy, 13.6, -30.4 + hy, 14.4, -27.8 + hy])
         if tack { c.poly(Col(0xf0e6d2), [16.6, -27.6 + hy, 18.2, -27.4 + hy, 20.2, -24 + hy, 19.2, -23.6 + hy]) }   // a blaze
