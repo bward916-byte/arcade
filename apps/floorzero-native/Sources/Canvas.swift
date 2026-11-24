@@ -46,6 +46,16 @@ final class Canvas {
     func lighter(_ on: Bool) { cg.setBlendMode(on ? .plusLighter : .normal) }
     func clipRect(_ x: Double, _ y: Double, _ w: Double, _ h: Double) { cg.clip(to: CGRect(x: x, y: y, width: w, height: h)) }
 
+    /// Draws a picture into a y-down rectangle, optionally mirrored left to right.
+    func img(_ im: CGImage, _ x: Double, _ y: Double, _ w: Double, _ h: Double, _ flip: Bool) {
+        cg.saveGState()
+        cg.interpolationQuality = .medium
+        cg.translateBy(x: CGFloat(flip ? x + w : x), y: CGFloat(y + h))
+        cg.scaleBy(x: flip ? -1 : 1, y: -1)
+        cg.draw(im, in: CGRect(x: 0, y: 0, width: w, height: h))
+        cg.restoreGState()
+    }
+
     func R(_ x: Double, _ y: Double, _ w: Double, _ h: Double, _ c: Col) {
         setFill(c)
         cg.fill(CGRect(x: x, y: y, width: w, height: h))

@@ -1,4 +1,4 @@
-import Foundation
+import UIKit
 
 struct Pose {
     var lean = 0.0
@@ -65,6 +65,8 @@ extension Game {
 
 final class Renderer {
     let GY = 410.0
+    /// Painted hallway wall (Gemini); the drawn wall is used if it is missing.
+    private let hall: CGImage? = UIImage(named: "hall.jpg")?.cgImage
     private var camX = 0.0
     private var camFloor = -99
     var paused = false
@@ -721,6 +723,17 @@ final class Renderer {
             return
         }
         // inside
+        if let hall = hall {
+            cv.R(x0, 0, W, GY - 300, Col(0x05060a))
+            let tw = 1073.0
+            var i = Int((x0 / tw).rounded(.down))
+            while Double(i) * tw < x1 {
+                cv.img(hall, Double(i) * tw - 0.5, GY - 300, tw + 1, 300, i % 2 != 0)
+                i += 1
+            }
+            cv.R(x0, GY - 300, W, 300, z.wall.alpha(0.2))
+            if f.n % 4 == 0 { cv.R(x0, 0, W, GY, BLACK.alpha(0.22 + 0.1 * (hashN((t * 11).rounded(.down)) > 0.72 ? 0 : 1))) }
+        } else {
         cv.R(x0, 0, W, GY - 300, Col.mix(z.wall, BLACK, 0.72))
         cv.R(x0, GY - 300, W, 300, z.wall)
         cv.R(x0, GY - 312, W, 14, Col.mix(z.floor, BLACK, 0.5))
@@ -784,6 +797,7 @@ final class Renderer {
             // firelight from the city falling through the window
             cv.lighter(true); cv.poly(rgba(255, 130, 60, 0.05), [wx, GY - 90, wx + 120, GY - 90, wx + 190, GY, wx + 40, GY]); cv.lighter(false)
             px += 300
+        }
         }
         for (sx, sy2, sr) in f.splats where sx > x0 - 60 && sx < x1 + 60 {
             cv.circ(sx, GY - sy2, sr, Col(0x6a0c12, 0.82)); cv.circ(sx + sr * 0.7, GY - sy2 - sr * 0.4, sr * 0.45, Col(0x6a0c12, 0.8)); cv.circ(sx - sr * 0.8, GY - sy2 + sr * 0.3, sr * 0.35, Col(0x6a0c12, 0.8))
