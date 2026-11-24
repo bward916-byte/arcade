@@ -63,7 +63,7 @@ jobs:
           xcrun simctl boot "$UDID"
           xcrun simctl bootstatus "$UDID" -b
           xcrun simctl install "$UDID" "$APP"
-          for shot in title intro0 intro1 intro2 intro3 intro4 play fire dogs boss hole lift pick street types safe gun escape guns bat hosp hotel casino mall lab lobby resid surgery pent ball; do
+          for shot in title play bat hosp hole types escape; do
             xcrun simctl terminate "$UDID" com.brianward.floorzero 2>/dev/null || true
             if [ "$shot" = title ]; then
               xcrun simctl launch "$UDID" com.brianward.floorzero

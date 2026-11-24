@@ -251,6 +251,8 @@ final class Game {
     /// The gun in the hero's hands for a moment after it fires: 1 SMG, 2 shotgun, 3 minigun, 4 flamethrower.
     var gunKind = 0
     var gunT = 0.0
+    /// What the rooms beside the corridor are called in this building.
+    var sideName: String { return tower == 0 ? "OFFICES" : (tower == 1 ? "SIDE WARDS" : "SUITES") }
     var heldGun: Int { return hero.atkT < 0 && supT < 0 && gunT > 0 ? gunKind : 0 }
     /// The best gun owned, carried on the back while the bat is out.
     var slungGun: Int { return lv("minigun") > 0 ? 3 : (lv("shotgun") > 0 ? 2 : (lv("flame") > 0 ? 4 : (lv("smg") > 0 ? 1 : 0))) }
@@ -533,7 +535,7 @@ final class Game {
         case .roof: say("THE ROOF. THE STAIRS ARE THAT WAY  ▶", 4)
         case .safe: say("FLOOR \(n) — SAFE ROOM. CHECKPOINT SAVED.", 4)
         case .street: say("THE STREET. GET TO THE PLAZA.", 4)
-        case .wall: say("FLOOR \(n) — FIRE. CUT THROUGH THE OFFICES.", 4)
+        case .wall: say("FLOOR \(n) — FIRE. CUT THROUGH THE \(sideName).", 4)
         case .hole: say(f.fireStairs ? "FLOOR \(n) — STAIRS ON FIRE. DROP THROUGH THE FLOOR." : "FLOOR \(n) — STAIRS GONE. DROP THROUGH THE FLOOR.", 4)
         case .lift: say("FLOOR \(n) — STAIRS BLOCKED. CLEAR IT. TAKE THE ELEVATOR.", 4)
         case .normal:
@@ -815,7 +817,7 @@ final class Game {
                 let sd = f.wallSide != 0 ? f.wallSide : (h.x < f.wallX ? -1 : 1)
                 h.x = f.wallX + sd * e
                 if supT < 0 { hurtHero(10 * dt, f.wallX, quiet: true) }
-                if sayCd <= 0 { sayCd = 4; say("TOO HOT. CUT THROUGH THE OFFICES.") }
+                if sayCd <= 0 { sayCd = 4; say("TOO HOT. CUT THROUGH THE \(sideName).") }
             }
             for z in f.zeds where z.alive && abs(z.x - f.wallX) < 85 { z.burn = max(z.burn, 1.5); z.burnDps = max(z.burnDps, 22) }
             if chance(dt * 40) { parts.append(Part(x: f.wallX + rnd(-85, 85), y: -rnd(0, 220), vx: rnd(-20, 20), vy: -rnd(90, 220), t: 0, life: rnd(0.35, 0.6), size: rnd(6, 13), col: Col(0xff9a30), grav: 0, glow: true)) }
@@ -1586,7 +1588,7 @@ final class Game {
                 shake = max(shake, 9)
                 flash = 0.15; flashCol = MINT
                 puff(h.x, 0, 10, Col(0x8a8478))
-                floaters.append(Floater(x: h.x, y: -210, text: "THROUGH THE OFFICES", col: MINT, t: 0, size: 18))
+                floaters.append(Floater(x: h.x, y: -210, text: "THROUGH THE \(sideName)", col: MINT, t: 0, size: 18))
                 snd?.door(); buzz(2)
                 return
             }
@@ -1688,7 +1690,7 @@ final class Game {
         case "lift": ups = ["smg": 1]; floorN = 75
         case "escape": ups = ["smg": 1, "nade": 1]; floorN = 74
         case "guns": ups = ["shotgun": 3, "dmg": 3]; floorN = 71
-        case "bat": ups = ["dmg": 3, "shotgun": 1]; floorN = 71
+        case "bat": ups = ["dmg": 3]; floorN = 71
         case "resid": ups = ["smg": 1]; floorN = 50
         case "surgery": tower = 1; ups = ["smg": 1]; floorN = 31
         case "pent": tower = 2; ups = ["smg": 1]; floorN = 53

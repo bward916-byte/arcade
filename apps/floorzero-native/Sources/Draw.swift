@@ -1067,7 +1067,16 @@ final class Renderer {
         for (px2, r) in f.pools { cv.ell(px2, GY + 8, r, r * 0.16, Col(0x5a0c10, 0.75)) }
         // the way out
         let ex = f.exitX
-        cv.R(ex - 44, GY - 190, 88, 190, Col(0x060608))
+        // a stairwell door: frame, the first steps going down, a rail, green exit light from above
+        cv.R(ex - 52, GY - 198, 104, 198, Col.mix(z.trim, BLACK, 0.6))
+        cv.R(ex - 44, GY - 190, 88, 190, Col(0x06070a))
+        for i in 0..<7 {
+            let k = Double(i), fade = 0.95 - k * 0.12
+            cv.R(ex - 44 + k * 8, GY - 13 - k * 16, 88 - k * 8, 13, Col(0x151820).alpha(fade))
+            cv.R(ex - 44 + k * 8, GY - 16 - k * 16, 88 - k * 8, 3, Col(0x3a4150).alpha(fade))
+        }
+        cv.seg(ex - 40, GY - 62, ex + 42, GY - 160, 3.5, Col(0x4a5262)); cv.seg(ex - 40, GY - 62, ex - 40, GY - 16, 3, Col(0x4a5262))
+        cv.vfill(ex - 44, GY - 190, 88, 80, [(0, rgba(125, 255, 176, 0.24)), (1, rgba(125, 255, 176, 0))])
         cv.RRStroke(ex - 44, GY - 190, 88, 190, 2, 4, Col.mix(z.trim, BLACK, 0.2))
         if f.kind == .hole {
             if f.fireStairs { flameWall(cv, ex, 190, 260, 1.3, t); flameWall(cv, ex + 10, 110, 190, 3.7, t) } else {
@@ -1108,7 +1117,7 @@ final class Renderer {
                 cv.R(dx - 34, GY - 156, 68, 156, Col(0x060807))
                 cv.vfill(dx - 32, GY - 154, 64, 154, [(0, rgba(125, 255, 176, 0.05)), (1, rgba(125, 255, 176, 0.25))])
                 cv.RRStroke(dx - 34, GY - 156, 68, 156, 2, 4, MINT.alpha(0.55 + 0.45 * pl))
-                sign(cv, sd > 0 ? "OFFICES ▶" : "◀ OFFICES", dx, GY - 176, MINT, t, arrow: false)
+                sign(cv, sd > 0 ? "\(g.sideName) ▶" : "◀ \(g.sideName)", dx, GY - 176, MINT, t, arrow: false)
                 for i in 0..<3 {
                     let ax = dx + sd * (-90 + Double(i) * 18 + (t * 30).truncatingRemainder(dividingBy: 18))
                     cv.poly(MINT.alpha(pl), [ax, GY - 14, ax + sd * 9, GY - 8, ax, GY - 2])
@@ -1637,6 +1646,7 @@ final class Renderer {
         if g.playT < 6 {
             let a = clampD(6 - g.playT, 0, 1) * 0.7
             cv.text("◀  DRAG TO RUN  ▶", 150 + g.safeL, VIEW_H - 60, 15, WHITE.alpha(a), 1, 2)
+            cv.RR(g.atkBtn.0 - 170, g.atkBtn.1 - g.atkBtn.2 - 47, 262, 42, 10, BLACK.alpha(a * 0.75))
             cv.text("SWIPE TO FIGHT", g.atkBtn.0, g.atkBtn.1 - g.atkBtn.2 - 30, 13, WHITE.alpha(a), 1, 2)
             cv.text("↑ uppercut   ↓ sweep   ←→ lunge   tap: strike", g.atkBtn.0 - 40, g.atkBtn.1 - g.atkBtn.2 - 12, 9.5, WHITE.alpha(a * 0.85), 1, 1)
         }
