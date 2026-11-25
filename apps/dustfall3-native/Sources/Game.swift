@@ -1939,7 +1939,7 @@ final class Game {
                 tr.wait -= dt
                 if tr.wait <= 0 && lastTown {
                     train = tr
-                    hint("railend", "End of the line. The rails stop here, and so does Crane: hold the town and face him.", again: true)
+                    hint("railend", "End of the line. The rails stop here, and so does Crane. Raise every building here to its last level and he is finished.", again: true)
                     onSave?()
                     return
                 }
