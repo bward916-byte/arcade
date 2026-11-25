@@ -276,6 +276,8 @@ struct SaveData: Codable {
     var resident: Bool
     var house: Bool
     var upgrades: [Int]
+    var weather: Int
+    var afterRain: Int
 }
 
 final class Input {
@@ -372,6 +374,9 @@ final class Game {
     var upgrades: Set<Int> = []
     var packCap: Int { return upgrades.contains(UP_RACK) ? 8 : 5 }
     var muted = false
+    /// 0 clear, 1 windy with dust, 2 cloudy, 3 rain. Washes run on rain days; rockhounding is best the two days after.
+    var weather = 0
+    var afterRain = 0
     var seasonCard = false
     var ended = false
     var endTitle = ""
@@ -481,7 +486,7 @@ final class Game {
         mapOpen = false
         browseOpen = false; seasonCard = false; ended = false
         age = life == .nomad ? 31 : 61
-        year = 1; resident = false; house = false; upgrades = []
+        year = 1; resident = false; house = false; upgrades = []; weather = 0; afterRain = 0
         shown = []
         floaters = []
         phase = .play
@@ -588,7 +593,8 @@ final class Game {
                         dayT: dayT, wood: wood, rockVals: rockVals, odd: odd, panels: panels, px: inRig ? rigX : px, rigX: rigX,
                         area: area.rawValue, rigArea: rigArea.rawValue, toy: toy, toyArea: toyArea.rawValue, toyX: onToy ? px : toyX,
                         permitDays: permitDays, business: business, adDays: adDays, page: page, jewelVals: jewelVals, detector: detector, campDays: campDays,
-                        age: age, year: year, resident: resident, house: house, upgrades: Array(upgrades))
+                        age: age, year: year, resident: resident, house: house, upgrades: Array(upgrades),
+                        weather: weather, afterRain: afterRain)
     }
     func restore(_ s: SaveData) {
         life = Life(rawValue: s.life) ?? .nomad
@@ -600,7 +606,7 @@ final class Game {
         toy = s.toy; toyArea = Area(rawValue: s.toyArea) ?? .main; toyX = s.toyX
         permitDays = s.permitDays; business = s.business; adDays = s.adDays; page = s.page; jewelVals = s.jewelVals; detector = s.detector
         campDays = s.campDays
-        age = s.age; year = s.year; resident = s.resident; house = s.house; upgrades = Set(s.upgrades)
+        age = s.age; year = s.year; resident = s.resident; house = s.house; upgrades = Set(s.upgrades); weather = s.weather; afterRain = s.afterRain
         inRig = false; onToy = false
         shown = ["start"]
         hasSave = true
@@ -617,6 +623,9 @@ final class Game {
         if key == "ltva" { px = 760; dayT = 0.3; rig = .classB; inRig = true; rigX = 760 }
         if key == "main" { place(.main, 1610); money = 400; day = 14 }
         if key == "gem" { place(.tyson, 1050); money = 300; day = 7; rockVals = [40] }
+        if key == "rain" { place(.dome, 2060); rig = .classB; rigArea = .dome; rigX = 1500; weather = 3; dayT = 0.3 }
+        if key == "windy" { px = 1500; weather = 1; dayT = 0.25 }
+        if key == "critters" { place(.dome, 1000); dayT = 0.52 }
         if key == "gear" { life = .rver; rig = .classC; panels = 2; upgrades = [0, 1, 2, 3]; rigX = 1150; px = 1240; dayT = 0.35 }
         if key == "computer" { place(.main, 830); rig = .van }
         if key == "browse" { place(.tyson, 1050); money = 300; day = 7; openBrowse() }
@@ -672,6 +681,7 @@ final class Game {
         if inRig && sp.kind != .station { return nil }
         switch sp.kind {
         case .wash:
+            if weather == 3 { return nil }
             return wood < 5 ? Offer(label: "Gather firewood", cost: 0, earn: 0, dur: 1.5) : nil
         case .camp:
             if rigArea != area {
@@ -764,7 +774,7 @@ final class Game {
         let sp = spots[i]
         if inRig { return sp.kind == .station ? "Done for today" : "Tap your rig to get out" }
         switch sp.kind {
-        case .wash: return "Arms full. Sell it at the neighbors' fire"
+        case .wash: return weather == 3 ? "The wash is running. Stay out of it" : "Arms full. Sell it at the neighbors' fire"
         case .camp:
             if rigArea != area { return "Your rig is parked at " + areaName(rigArea) }
             if area == .ltva && permitDays <= 0 { return "Your permit ran out. See the camp host" }
@@ -949,7 +959,8 @@ final class Game {
             else { float("Pull tab", x, CREAM) }
         case .rockhound:
             health = max(0, health - 4)
-            if Double.random(in: 0..<1) < 0.55 { rockVals.append(Int(rnd(16, 40))); float("+1 quartz", x, CREAM) } else { float("Pretty gravel", x, CREAM) }
+            if afterRain > 0 { rockVals.append(Int(rnd(30, 60))); float("Washed out of the bank after the rain", x, GOLD) }
+            else if Double.random(in: 0..<1) < 0.55 { rockVals.append(Int(rnd(16, 40))); float("+1 quartz", x, CREAM) } else { float("Pretty gravel", x, CREAM) }
         case .landmark:
             seen.insert(sp.arg)
             cred += page ? 2 : 1
@@ -1046,6 +1057,26 @@ final class Game {
         oddSell = oddBuy + Int(rnd(14, 40))
         jewelSell = rockSell + Int(rnd(8, 20))
         seen = []
+        if afterRain > 0 { afterRain -= 1 }
+        let roll = Double.random(in: 0..<1)
+        weather = roll < 0.72 ? 0 : (roll < 0.86 ? 1 : (roll < 0.95 ? 2 : 3))
+        if weather == 3 {
+            afterRain = 3
+            hintT = 0
+            hint("rain\(day)", "Rain in the desert. The washes are running, so stay out of them. The washes are the best rockhounding for a couple of days after.")
+            if rig != .tent {
+                for sp in AREAS[rigArea.rawValue].spots where sp.kind == .wash && abs(sp.x - rigX) < 160 {
+                    money -= 150
+                    health = max(0, health - 15)
+                    hintT = 0
+                    hint("stuck\(day)", "Your rig was parked by a wash when it ran. The tow out cost $150. Never camp in a wash.")
+                    break
+                }
+            }
+        } else if weather == 1 {
+            hintT = 0
+            hint("wind\(day)", "A windy day. Dust everywhere. Tie down your awning.")
+        }
         var total = panels * 6 * (upgrades.contains(UP_LITHIUM) ? 2 : 1)
         if business > 0 {
             var b = 0
@@ -1163,7 +1194,7 @@ final class Game {
     private func play(_ dt: Double) {
         dayT += dt / DAYLEN
         if dayT >= 1 { dayT -= 1; dawn() }
-        health = max(0, health - dt * 100 / (DAYLEN * 2.2))
+        health = max(0, health - dt * 100 / (DAYLEN * 2.2) * (weather == 1 ? 1.3 : 1))
         if health < 35 { hint("hungry", "You're run down. Groceries on Main Street, the outhouse and your own camp all help.") }
 
         // moving: on foot, on a ride, or behind the wheel

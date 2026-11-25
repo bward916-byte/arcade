@@ -143,7 +143,7 @@ final class GameViewController: UIViewController {
         renderer = Renderer(game: game, canvas: cv)
         if !demoDone {
             demoDone = true
-            for key in ["pick", "rigs", "play", "night", "ltva", "main", "gem", "tyson", "dome", "toys", "ride", "skoolie", "map", "trail", "scaddan", "browse", "parade", "home", "season", "end", "gear", "computer"] where ProcessInfo.processInfo.arguments.contains("-demo-" + key) {
+            for key in ["pick", "rigs", "play", "night", "ltva", "main", "gem", "tyson", "dome", "toys", "ride", "skoolie", "map", "trail", "scaddan", "browse", "parade", "home", "season", "end", "gear", "computer", "rain", "windy", "critters"] where ProcessInfo.processInfo.arguments.contains("-demo-" + key) {
                 game.demo(key)
             }
         }
@@ -201,7 +201,7 @@ final class GameViewController: UIViewController {
                     fire = max(fire, 1 - abs(sp.x - game.px) / 160)
                 }
             }
-            sound.ambience(now, dk, max(0, fire), false)
+            sound.ambience(now, dk, max(0, fire), game.phase == .play && game.weather == 1, game.phase == .play && game.weather == 3)
             var eventOn = false
             for e in EVENTS.indices where e != EV_PAN && game.on(e) && EVENTS[e].area == game.area { eventOn = true }
             sound.music(now, game.phase == .play && eventOn ? 3 : (dk > 0.6 ? 2 : (dk > 0.15 ? 1 : 0)))

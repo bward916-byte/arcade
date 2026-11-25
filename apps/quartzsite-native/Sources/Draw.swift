@@ -123,6 +123,11 @@ final class Renderer {
             c.circ(mx + 2, my - 1, 4.4, sk.0)
         }
 
+        // clouds: a few on clear days, a grey ceiling when it rains
+        let wx = g.phase == .play ? g.weather : 0
+        if wx >= 2 { c.R(0, 0, W, GY, Col(0x5a6274, wx == 3 ? 0.5 : 0.28)) }
+        clouds(wx, sk.1)
+
         // the ranges: far and hazy, then nearer and darker; each place has its own skyline
         let haze = sk.1
         ridge(0.06, 1.3 + seed, GY - 6, 62, Col.mix(Col(0x6a5a80), haze, 0.55).shade(1 - dark * 0.55))
@@ -207,6 +212,7 @@ final class Renderer {
             rig(.skoolie, rx, GY + 12, 2, 1)
         } else {
             for (i, sp) in g.spots.enumerated() { spot(i, sp) }
+            if g.phase == .play { critters(ar) }
             if g.phase == .play && g.area == .main && g.on(EV_PARADE) { parade() }
             if g.phase == .play { drawYou() }
         }
@@ -225,6 +231,9 @@ final class Renderer {
             }
             n += 1
         }
+
+        if wx == 1 { wind() }
+        if wx == 3 { rain() }
 
         // dusk colour, then night, then the fires and lamps
         let dusk = clampD(1 - abs(t - 0.62) / 0.08, 0, 1)
@@ -932,6 +941,14 @@ final class Renderer {
                 c.seg(x - 4 + d * 1.5, GY - 1 - d * 1.6, x + 16 - d * 1.5, GY - 2 - d * 1.6, 1.8, j % 2 == 0 ? Col(0x7a5a3a) : Col(0x8f6c46))
             }
             c.roundCaps(false)
+            if g.phase == .play && g.weather == 3 {
+                // the wash is running: muddy water sheeting across
+                c.vfill(x - 70, GY - 1, 140, 9, [(0, Col(0x8a6a4a, 0.85)), (1, Col(0x6a4a30, 0.9))])
+                for j in 0..<12 {
+                    let fx = x - 66 + ((NOW * 30 + Double(j) * 23).truncatingRemainder(dividingBy: 132))
+                    c.R(fx, GY + 1 + Double(j % 3) * 2, 6, 0.6, Col(0xd8c0a0, 0.7))
+                }
+            }
             top = 38
         case .camp:
             if g.rigArea == g.area || g.phase != .play {
@@ -1721,6 +1738,155 @@ final class Renderer {
         c.ell(x + 15, base - 24.6, 3.2, 1.6, col)
         c.roundCaps(false)
         c.R(x - 4, base - 21, 7, 1.4, Col(0xd9412e))
+    }
+
+    // MARK: weather
+
+    private func clouds(_ wx: Int, _ haze: Col) {
+        let count = [3, 4, 7, 9][max(0, min(3, wx))]
+        for i in 0..<count {
+            let d = Double(i)
+            let sp = 3 + hashN(d + 300) * 5
+            let cx = (hashN(d + 310) * (W + 200) + NOW * sp - cam * 0.05).truncatingRemainder(dividingBy: W + 200) - 100
+            let cy = GY * (0.12 + hashN(d + 320) * 0.35)
+            let r = 10 + hashN(d + 330) * 14
+            let col = (wx >= 2 ? Col(0x8a909c) : Col(0xffffff)).alpha((wx >= 2 ? 0.85 : 0.5) * (1 - dark * 0.7))
+            c.ell(cx, cy, r * 1.8, r * 0.55, col)
+            c.ell(cx - r * 0.6, cy - r * 0.2, r * 0.9, r * 0.5, col)
+            c.ell(cx + r * 0.7, cy - r * 0.3, r, r * 0.6, col)
+        }
+    }
+    private func rain() {
+        for i in 0..<140 {
+            let d = Double(i)
+            let x = (hashN(d + 500) * (W + 40) + NOW * 30).truncatingRemainder(dividingBy: W + 40) - 20
+            let y = (hashN(d + 510) * H + NOW * (220 + hashN(d + 520) * 80)).truncatingRemainder(dividingBy: H)
+            c.seg(x, y, x - 2, y + 7, 0.5, Col(0xc8d4e4, 0.45))
+        }
+        c.R(0, GY, W, H - GY, Col(0x3a3440, 0.18))
+    }
+    private func wind() {
+        c.R(0, 0, W, H, Col(0xc8a070, 0.12))
+        for i in 0..<60 {
+            let d = Double(i)
+            let x = (hashN(d + 600) * (W + 60) + NOW * (160 + hashN(d + 610) * 120)).truncatingRemainder(dividingBy: W + 60) - 30
+            let y = GY - 30 + hashN(d + 620) * (H - GY + 40)
+            c.seg(x, y, x - 10 - hashN(d + 630) * 10, y + 0.6, 0.6, Col(0xe8d0a8, 0.35))
+        }
+        // a couple of tumbleweeds bouncing through
+        for i in 0..<2 {
+            let d = Double(i)
+            let span = W + 120
+            let x = (NOW * (70 + d * 25) + d * 200).truncatingRemainder(dividingBy: span) - 60
+            let y = GY + 4 - abs(sin(NOW * 5 + d)) * 7
+            let r = 4 + d * 1.5
+            for k in 0..<6 {
+                let a = NOW * 6 + Double(k) * 1.05
+                c.arcStroke(x, y - r, r * (0.6 + Double(k % 3) * 0.2), a, a + 2.4, 0.5, Col(0x8a6a44, 0.9))
+            }
+        }
+    }
+
+    // MARK: desert life
+
+    /// Burros, javelina, quail, roadrunners and coyotes, drifting through each place at the hours they keep.
+    private func critters(_ ar: Area) {
+        if ar == .main || ar == .tyson { ravens(); return }
+        let t = g.dayT
+        let dusk = (t > 0.55 && t < 0.72) || t < 0.1
+        let night = dark > 0.5
+        let w = g.WORLD
+        // a small herd of wild burros grazing their way along
+        if (ar == .dome || ar == .trail || ar == .scaddan) && !night {
+            let hx = (NOW * 4).truncatingRemainder(dividingBy: w + 400) - 200
+            for k in 0..<4 { burro(hx + Double(k) * 26 - cam, GY + 2 + Double(k % 2), Double(k) * 1.7) }
+        }
+        // javelina at dusk
+        if (ar == .ltva || ar == .dome || ar == .scaddan) && dusk {
+            let jx = w * 0.7 - (NOW * 9).truncatingRemainder(dividingBy: w * 0.8)
+            for k in 0..<3 { javelina(jx + Double(k) * 12 - cam, GY + 3, NOW * 8 + Double(k)) }
+        }
+        // quail running in a line by day
+        if !night && ar != .skoolie {
+            let qx = (NOW * 22).truncatingRemainder(dividingBy: w + 600) - 300
+            for k in 0..<5 { quail(qx - Double(k) * 6 - cam, GY + 6, NOW * 20 + Double(k)) }
+        }
+        // a roadrunner sprinting the road now and then
+        if !night {
+            let cyc = (NOW + 7).truncatingRemainder(dividingBy: 24)
+            if cyc < 6 { roadrunner(g.px - cam - W * 0.6 + cyc * (W * 1.2 / 6), GY + 8, NOW * 30) }
+        }
+        // a coyote trotting past at night
+        if night {
+            let cx = (NOW * 18).truncatingRemainder(dividingBy: w + 300) - 150
+            coyote(cx - cam, GY + 4, NOW * 10)
+        }
+        ravens()
+    }
+    private func ravens() {
+        if dark > 0.5 { return }
+        for i in 0..<2 {
+            let d = Double(i)
+            let x = (NOW * (14 + d * 6) + d * 260).truncatingRemainder(dividingBy: W + 80) - 40
+            let y = GY * (0.25 + d * 0.15) + sin(NOW * 0.7 + d) * 8
+            let f = sin(NOW * 6 + d * 2) * 2.2
+            c.seg(x - 4, y - f, x, y, 0.8, INK); c.seg(x, y, x + 4, y - f, 0.8, INK)
+        }
+    }
+    private func burro(_ x: Double, _ base: Double, _ ph: Double) {
+        if x < -20 || x > W + 20 { return }
+        let col = Col(0x8a7a6a).shade(1 - dark * 0.5)
+        let sw = sin(NOW * 2 + ph) * 1.2
+        c.roundCaps(true)
+        for (lx, s0) in [(-4.0, sw), (-2.0, -sw), (3.0, -sw), (5.0, sw)] { c.seg(x + lx, base - 6, x + lx + s0, base, 1, col.shade(0.8)) }
+        c.ell(x, base - 8, 6.4, 3, col)
+        let graze = sin(NOW * 0.6 + ph) > 0.3
+        let hx = x + 7, hy = graze ? base - 3 : base - 11
+        c.seg(x + 4.4, base - 9, hx, hy, 2.2, col)
+        c.ell(hx + 1, hy, 2.4, 1.4, col.shade(0.95)); c.circ(hx + 2.8, hy + 0.4, 0.9, Col(0xe8e0d4))
+        c.seg(hx - 0.4, hy - 1, hx - 1.2, hy - 4.4, 0.7, col.shade(0.9)); c.seg(hx + 0.4, hy - 1, hx + 0.6, hy - 4.6, 0.7, col.shade(0.9))
+        c.seg(x - 6.4, base - 8.6, x - 7.6, base - 5, 0.6, col.shade(0.7))
+        c.roundCaps(false)
+        c.R(x - 4, base - 10.8, 7, 0.6, col.shade(0.6))
+    }
+    private func javelina(_ x: Double, _ base: Double, _ ph: Double) {
+        if x < -12 || x > W + 12 { return }
+        let col = Col(0x3e3632).shade(1 - dark * 0.3)
+        let sw = sin(ph) * 0.8
+        c.seg(x - 2, base - 2.4, x - 2 + sw, base, 0.8, col); c.seg(x + 2, base - 2.4, x + 2 - sw, base, 0.8, col)
+        c.ell(x, base - 3.6, 4, 2.2, col)
+        c.poly(col, [x - 3.6, base - 3, x - 6, base - 2.6, x - 3.4, base - 1.6])
+        c.R(x - 1.6, base - 5.6, 3.6, 0.6, Col(0xb8b0a4, 0.7))
+        c.circ(x - 5.6, base - 2.7, 0.4, Col(0x1a1614))
+    }
+    private func quail(_ x: Double, _ base: Double, _ ph: Double) {
+        if x < -6 || x > W + 6 { return }
+        let col = Col(0x7a7a84).shade(1 - dark * 0.3)
+        c.ell(x, base - 2 - abs(sin(ph)) * 0.6, 2, 1.5, col)
+        c.circ(x + 1.6, base - 3.4, 0.9, col.shade(0.8))
+        c.seg(x + 1.6, base - 4.2, x + 2.4, base - 5.6, 0.4, INK)
+    }
+    private func roadrunner(_ x: Double, _ base: Double, _ ph: Double) {
+        if x < -10 || x > W + 10 { return }
+        let col = Col(0x6a5a4a)
+        let sw = sin(ph) * 1.6
+        c.seg(x, base - 3, x + sw, base, 0.5, Col(0x4a4a4a)); c.seg(x, base - 3, x - sw, base, 0.5, Col(0x4a4a4a))
+        c.ell(x, base - 4, 3, 1.4, col)
+        c.seg(x - 2.4, base - 4.4, x - 8, base - 6.4, 1, col)
+        c.circ(x + 3, base - 5.4, 1.1, col)
+        c.seg(x + 3.6, base - 5.4, x + 6, base - 5.2, 0.4, INK)
+        c.seg(x + 2.6, base - 6.2, x + 1.6, base - 7.6, 0.6, col.shade(0.7))
+    }
+    private func coyote(_ x: Double, _ base: Double, _ ph: Double) {
+        if x < -16 || x > W + 16 { return }
+        let col = Col(0x7a6a52).shade(0.6)
+        let sw = sin(ph) * 1.4
+        for (lx, s0) in [(-4.0, sw), (-2.4, -sw), (3.0, -sw), (4.6, sw)] { c.seg(x + lx, base - 5, x + lx + s0, base, 0.8, col) }
+        c.ell(x, base - 6.4, 5.4, 2.2, col)
+        c.seg(x - 5, base - 6.8, x - 9, base - 4.8, 1.2, col)
+        c.poly(col, [x + 4.4, base - 7.6, x + 9, base - 7, x + 5, base - 5.4])
+        c.poly(col, [x + 5, base - 7.6, x + 5.6, base - 10, x + 6.4, base - 7.6])
+        c.circ(x + 6.6, base - 7.2, 0.5, Col(0xffe080, 0.9))
     }
 
     private func titleOverlay() {

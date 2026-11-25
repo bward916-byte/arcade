@@ -130,8 +130,14 @@ final class Sound {
     private var crackleT = 0.0
     private var critterT = 0.0
     /// Called every frame. dark 0...1, fire is how close a campfire is (0 far, 1 right there), windy for dust days.
-    func ambience(_ now: Double, _ dark: Double, _ fire: Double, _ windy: Bool) {
+    private var rainT = 0.0
+    func ambience(_ now: Double, _ dark: Double, _ fire: Double, _ windy: Bool, _ raining: Bool) {
         if muted || !running { return }
+        if raining && now > rainT {
+            rainT = now + 1.2
+            noise(1.8, 0.05, 5200, 0.6)
+            noise(1.8, 0.03, 1400, 0.8)
+        }
         if now > windT {
             windT = now + (windy ? 1.6 : 3.5) + Double.random(in: 0..<2)
             noise(windy ? 3.2 : 2.6, windy ? 0.07 : 0.025, Double.random(in: 280..<620), 0.7)
