@@ -10,3 +10,4 @@ No web view. Rules are in `Sources/Game.swift`; every shape is drawn with CoreGr
 - The Xcode project is generated from `project.yml` by XcodeGen.
 - Build: the "Quartzsite Winter iOS" workflow compiles on a GitHub Mac, takes simulator screenshots and uploads to TestFlight. It uses the same three secrets as the other apps.
 - TestFlight needs the bundle ID registered and an app record in App Store Connect before the upload step can succeed.
+- The App Store Connect app record for `com.brianward.quartzsitewinter` exists, so builds upload to TestFlight.
