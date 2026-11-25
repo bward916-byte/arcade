@@ -48,6 +48,9 @@ final class Renderer {
             scene(g.dayT)
             hud()
             if g.mapOpen { mapOverlay() }
+            if g.browseOpen { browseOverlay() }
+            if g.seasonCard { seasonOverlay() }
+            if g.ended { endOverlay() }
         }
     }
 
@@ -204,6 +207,7 @@ final class Renderer {
             rig(.skoolie, rx, GY + 12, 2, 1)
         } else {
             for (i, sp) in g.spots.enumerated() { spot(i, sp) }
+            if g.phase == .play && g.area == .main && g.on(EV_PARADE) { parade() }
             if g.phase == .play { drawYou() }
         }
 
@@ -723,16 +727,20 @@ final class Renderer {
             c.RR(21.4, -11.6, 1.8, 2, 0.6, Col(0xfff2c0))
             for wx in [-14.0, 14.0] { c.circ(wx, -4.6, 4.6, Col(0x15120f)); c.circ(wx, -4.6, 3.6, TIRE); c.circ(wx, -4.6, 1.8, HUB) }
         case 5:
-            // side-by-side: roll cage, two seats, a little bed in back
-            let body = Col(0xd8d4cc)
-            for wx in [-12.0, 12.6] { c.circ(wx, -4.8, 4.8, dk); c.circ(wx, -4.8, 2.2, HUB) }
-            c.poly(body, [-19, -6.6, -18, -12, -8, -12, -6, -9.4, 8, -9.4, 12, -12.6, 18, -11, 19, -6.6])
-            c.R(-19, -6.6, 38, 2, Col(0x3a3a3a))
-            c.R(-18, -14.6, 8, 2.4, Col(0x5a4a3a))
-            c.seg(-8, -9.4, -7, -26, 1, dk); c.seg(-7, -26, 8, -26, 1, dk); c.seg(8, -26, 12, -12.6, 1, dk)
-            c.seg(-1, -9.4, -1, -26, 0.8, dk)
-            c.R(-6, -15, 4, 5.6, Col(0x2a2a2a))
-            c.circ(18.6, -9, 0.9, Col(0xfff2c0))
+            // side-by-side: a stock utility side-by-side with half doors, a roof, a cargo bed and knobby tires
+            let body = Col(0x5a6a3a)
+            for wx in [-12.0, 12.6] { c.circ(wx, -5.2, 5.2, dk); c.circ(wx, -5.2, 2.4, Col(0x4a4a4a)); c.circ(wx, -5.2, 1, HUB) }
+            c.poly(body, [-19, -8, -19, -13.4, -8, -13.4, -7, -10.6, 9, -10.6, 12, -14.4, 18.6, -12.6, 19.6, -8])
+            c.poly(body.shade(1.12), [-6.6, -10.6, 7, -10.6, 7, -15.4, -6.6, -15.4])
+            c.R(-6.2, -15, 13, 0.8, body.shade(0.7))
+            c.R(-19, -8, 39, 2.2, Col(0x2a2a2a))
+            c.R(-19, -16.2, 10, 2.8, Col(0x3a3a3a))
+            c.seg(-19, -16.2, -19, -13.4, 0.8, dk); c.seg(-9, -16.2, -9, -13.4, 0.8, dk)
+            c.seg(-8, -10.6, -8, -26, 1.1, dk); c.seg(-8, -26, 8, -26, 1.1, dk); c.seg(8, -26, 12, -14.4, 1.1, dk)
+            c.seg(0, -15.4, 0, -26, 0.8, dk)
+            c.R(-9, -27.4, 18, 1.6, Col(0x2a2a2a))
+            c.R(-5, -17, 3.6, 6.4, Col(0x1e1e1e))
+            c.RR(17.4, -13.4, 2, 1.6, 0.6, Col(0xfff2c0))
         default:
             // supercharged side-by-side: lifted on long-travel arms, light bar, hood scoop
             let red = Col(0xb8231a)
@@ -1135,6 +1143,10 @@ final class Renderer {
                     person(cx + 8, GY + 3, (j + 1) % 4, -1, 0, false)
                 }
                 g.text(EVENTS[e].name.uppercased(), x, GY - 46, 4.6, GOLD, bold: true)
+                if g.phase == .play && e == EV_GEM {
+                    g.hits.append(Hit(id: 52, x: x - 66, y: GY - 34, w: 132, h: 40))
+                    if near { g.text("Tap a table to look closer", x, GY + 12, 4.6, CREAM, plate: true) }
+                }
                 label = false
                 top = 52
             } else {
@@ -1206,6 +1218,50 @@ final class Renderer {
             c.RR(x + 16, GY - 14, 18, 14, 2, st)
             c.R(x + 15, GY - 15, 20, 2, st.shade(0.8))
             top = 38
+        case .parade:
+            // the corner of Moon Mountain Avenue and Main Street, where the parade passes
+            c.R(x - 0.6, GY - 30, 1.2, 30, Col(0x8a8f96))
+            c.RR(x - 20, GY - 34, 40, 6, 1, Col(0x1f6b3a)); g.text("MOON MOUNTAIN AV", x, GY - 31, 3, CREAM, bold: true)
+            c.RR(x - 14, GY - 27, 28, 5, 1, Col(0x1f6b3a)); g.text("MAIN ST", x, GY - 24.6, 3, CREAM, bold: true)
+            if g.phase == .play && g.on(EV_PARADE) {
+                for j in 0..<9 { person(x - 60 + Double(j) * 15 + (j % 2 == 0 ? 0 : 4), GY + 1, j % 4, j % 3 == 0 ? -1 : 1, 0, false) }
+                c.R(x - 70, GY - 46, 140, 8, Col(0xb5452f))
+                g.text("HI JOLLY PARADE · TODAY", x, GY - 42, 4, CREAM, bold: true)
+                label = false
+            }
+            top = 40
+        case .rvpark:
+            // Holiday Palms: a block wall, palms, RVs parked in rows
+            palm(x - 70, GY + 1, 54, 11); palm(x + 72, GY + 1, 48, 13)
+            rig(.classA, x - 30, GY, 2, 1, 0.62)
+            rig(.classC, x + 36, GY, 1, -1, 0.62)
+            c.R(x - 80, GY - 7, 160, 7, Col(0xc9a87a))
+            for j in 0..<16 { c.R(x - 80 + Double(j) * 10, GY - 7, 0.6, 7, Col(0xa8885a)) }
+            c.R(x - 4, GY - 7, 8, 7, Col(0x5a4a3a, 0.0))
+            c.RR(x - 34, GY - 50, 68, 12, 2, Col(0x2f6a5a))
+            g.text("HOLIDAY PALMS RV PARK", x, GY - 44, 4.2, CREAM, bold: true)
+            if g.phase == .play && g.resident { c.RR(x - 14, GY - 18, 28, 7, 1, GOLD); g.text("YOUR SITE", x, GY - 14.6, 3.2, INK, bold: true) }
+            label = false
+            top = 58
+        case .house:
+            // a small block house with a carport and a gravel yard
+            let wall = Col(0xe2d0ac)
+            c.R(x - 30, GY - 24, 44, 24, wall)
+            c.poly(Col(0x7a4a34), [x - 34, GY - 24, x - 8, GY - 36, x + 18, GY - 24])
+            c.R(x - 6, GY - 16, 9, 16, Col(0x6a4a2e))
+            c.R(x - 24, GY - 18, 12, 8, GLASS)
+            c.R(x + 14, GY - 20, 26, 2, Col(0x8a8f96)); c.R(x + 38, GY - 20, 1, 20, Col(0x8a8f96))
+            c.R(x + 30, GY - 30, 8, 6, Col(0xb8b8b4))
+            for j in 0..<8 { c.ell(x - 34 + Double(j) * 10, GY - 0.6, 3, 1, Col(0xa89880)) }
+            saguaro(x + 52, GY + 1, 34, 77, SAG, true)
+            if g.phase == .play && g.house {
+                if dark > 0.3 { lights.append((x - 18, GY - 14, 26)) }
+                c.R(x - 44, GY - 14, 0.8, 14, wood); c.RR(x - 52, GY - 20, 16, 7, 1, GOLD); g.text("HOME", x - 44, GY - 16.6, 3.2, INK, bold: true)
+            } else {
+                c.R(x - 44, GY - 14, 0.8, 14, wood); c.RR(x - 54, GY - 21, 20, 8, 1, Col(0xd9412e)); g.text("FOR SALE", x - 44, GY - 17, 3, CREAM, bold: true)
+            }
+            label = false
+            top = 44
         case .circle:
             if g.phase == .play && !g.on(EV_SKOOL) { top = 28; label = false; break }
             fire(x, GY + 3)
@@ -1249,8 +1305,10 @@ final class Renderer {
         case .landmark:
             if sp.arg == 0 {
                 // Hi Jolly's tomb: a stone pyramid with a copper camel on top
-                let st = Col(0xc8b8a0)
-                c.poly(st, [x - 13, GY, x - 4, GY - 30, x + 4, GY - 30, x + 13, GY])
+                let st = Col(0x8a7a66)
+                c.poly(st.shade(0.7), [x - 15, GY + 0.6, x + 15, GY + 0.6, x + 15, GY - 2, x - 15, GY - 2])
+                c.poly(st, [x - 13, GY - 1, x - 4, GY - 30, x + 4, GY - 30, x + 13, GY - 1])
+                c.poly(st.shade(0.82), [x, GY - 30, x + 4, GY - 30, x + 13, GY - 1, x + 4, GY - 1])
                 for j in 0..<22 { let d = Double(j); let yy = hashN(d + 90) * 28; let w2 = 12 - yy * 0.3; c.ell(x + (hashN(d + 91) - 0.5) * 2 * w2, GY - 2 - yy, 1.6, 1.1, hashN(d + 92) < 0.5 ? st.shade(0.82) : Col(0xf0ece4)) }
                 let cu = Col(0x8a5a3a)
                 c.ell(x, GY - 36, 5, 2.4, cu); c.circ(x - 1, GY - 38.4, 2, cu)
@@ -1415,7 +1473,7 @@ final class Renderer {
         let paper = Col(0xeadfc4), ink = Col(0x3a2c1e)
         c.RR(x0, y0, x1 - x0, y1 - y0, 6, paper)
         g.text("WHERE TO?", x0 + 10, y0 + 10, 8, ink, align: 1, bold: true)
-        g.text(dateText(g.day), x0 + 70, y0 + 10, 5.6, ink.alpha(0.7), align: 1, bold: true)
+        g.text(dateText(g.day) + "  ·  age \(g.age)  ·  season \(g.year)", x0 + 70, y0 + 10, 5.6, ink.alpha(0.7), align: 1, bold: true)
         // close
         c.circ(x1 - 11, y0 + 10, 6, ink.alpha(0.12))
         c.seg(x1 - 14, y0 + 7, x1 - 8, y0 + 13, 1, ink); c.seg(x1 - 8, y0 + 7, x1 - 14, y0 + 13, 1, ink)
@@ -1492,6 +1550,126 @@ final class Renderer {
         if g.mapMsgT > 0 {
             g.text(g.mapMsg, (x0 + x1) / 2, my0 + mh * 0.5, 6, CREAM.alpha(clampD(g.mapMsgT, 0, 1)), bold: true, plate: true)
         }
+    }
+
+    /// Up close at the Rock & Gem Show: six things on the tables, who's selling, and what each should fetch.
+    private func browseOverlay() {
+        g.hits.removeAll(keepingCapacity: true)
+        g.texts.removeAll(keepingCapacity: true)
+        c.R(0, 0, W, H, Col(0x0c0a08, 0.55))
+        let x0 = g.safeL + 14, x1 = W - g.safeR - 14, y0 = 8.0, y1 = H - 8
+        let ink = Col(0x2a1e14)
+        c.RR(x0, y0, x1 - x0, y1 - y0, 6, Col(0x3a2c3a))
+        g.hits.append(Hit(id: 88, x: x0, y: y0, w: x1 - x0, h: y1 - y0))
+        g.text("ON THE TABLES", x0 + 10, y0 + 10, 8, GOLD, align: 1, bold: true)
+        g.text("$\(Int(g.money))  ·  pack \(g.rocks)/5", x0 + 96, y0 + 10, 5.4, CREAM.alpha(0.8), align: 1, bold: true)
+        c.circ(x1 - 11, y0 + 10, 6, Col(0xffffff, 0.15))
+        c.seg(x1 - 14, y0 + 7, x1 - 8, y0 + 13, 1, CREAM); c.seg(x1 - 8, y0 + 7, x1 - 14, y0 + 13, 1, CREAM)
+        g.hits.append(Hit(id: 89, x: x1 - 22, y: y0, w: 22, h: 22))
+        let cols = 3.0
+        let cw = (x1 - x0 - 20 - 8 * (cols - 1)) / cols
+        let ch = (y1 - y0 - 34 - 8) / 2
+        let stones: [Col] = [Col(0x9a5ad0), Col(0xe2742e), Col(0xf0f0f4), Col(0xb48a5a), Col(0x8a5a3a), Col(0x2fa7a0), Col(0x3fb0a8), Col(0xd8b8a0), Col(0xc85a3a), Col(0xe8e0f0)]
+        for (k, w) in g.wares.enumerated() {
+            let cx = x0 + 10 + Double(k % 3) * (cw + 8), cy = y0 + 24 + Double(k / 3) * (ch + 8)
+            c.RR(cx, cy, cw, ch, 4, w.sold ? Col(0xffffff, 0.08) : Col(0xeadfc4))
+            // the stone itself
+            let n = WARE_NAMES.firstIndex(of: w.name) ?? 0
+            c.ell(cx + 16, cy + ch * 0.5 + 6, 11, 3, Col(0x000000, 0.18))
+            gem(cx + 16, cy + ch * 0.5 + 6, 7, stones[n].shade(w.sold ? 0.5 : 1))
+            g.text(w.name, cx + 32, cy + 9, 5, w.sold ? CREAM.alpha(0.5) : ink, align: 1, bold: true, wrap: cw - 36)
+            g.text(w.who, cx + 32, cy + 20, 3.6, w.sold ? CREAM.alpha(0.4) : ink.alpha(0.7), align: 1, wrap: cw - 36)
+            if w.sold {
+                g.text("Yours", cx + 32, cy + ch - 8, 5, GOLD, align: 1, bold: true)
+            } else {
+                g.text("$\(w.price)", cx + 32, cy + ch - 12, 6.4, Double(w.price) > g.money ? REDC : Col(0x2f6a3a), align: 1, bold: true)
+                g.text("sells for about $\(w.lo)–\(w.hi)", cx + 32, cy + ch - 5, 3.4, ink.alpha(0.65), align: 1)
+                g.hits.append(Hit(id: 90 + k, x: cx, y: cy, w: cw, h: ch))
+            }
+        }
+        if g.mapMsgT > 0 { g.text(g.mapMsg, (x0 + x1) / 2, (y0 + y1) / 2, 6, CREAM.alpha(clampD(g.mapMsgT, 0, 1)), bold: true, plate: true) }
+    }
+
+    private func card(_ title: String, _ body: String) -> (Double, Double, Double, Double) {
+        g.hits.removeAll(keepingCapacity: true)
+        g.texts.removeAll(keepingCapacity: true)
+        c.R(0, 0, W, H, Col(0x0c0a08, 0.6))
+        let w = min(260.0, W - g.safeL - g.safeR - 40), h = 120.0
+        let x0 = (W - w) / 2, y0 = (H - h) / 2
+        c.RR(x0, y0, w, h, 8, Col(0xeadfc4))
+        g.text(title, W / 2, y0 + 18, 10, Col(0x3a2c1e), bold: true)
+        g.text(body, W / 2, y0 + 48, 5, Col(0x3a2c1e).alpha(0.85), wrap: w - 30)
+        return (x0, y0, w, h)
+    }
+    private func button(_ id: Int, _ label: String, _ x: Double, _ y: Double, _ w: Double, _ on: Bool) {
+        c.RR(x, y, w, 18, 9, on ? GOLD : Col(0x3a2c1e, 0.15))
+        g.text(label, x + w / 2, y + 9, 5.6, on ? INK : Col(0x3a2c1e, 0.45), bold: true)
+        if on { g.hits.append(Hit(id: id, x: x, y: y - 4, w: w, h: 26)) }
+    }
+
+    /// April 15: head north or stay the summer.
+    private func seasonOverlay() {
+        let canStay = g.resident || g.house
+        let body = "The snowbirds are pulling out and it's getting hot. You're \(g.age). " + (canStay ? "You have a place to stay the summer, and your businesses would keep paying." : "Without a year-round site or a house, it's time to head north until the fall.")
+        let r = card("SEASON'S OVER", body)
+        let bw = (r.2 - 40) / 2
+        button(80, "Head north", r.0 + 15, r.1 + r.3 - 30, bw, true)
+        button(81, "Stay the summer", r.0 + 25 + bw, r.1 + r.3 - 30, bw, canStay)
+    }
+
+    /// The end of a life in the desert.
+    private func endOverlay() {
+        let r = card(g.endTitle.uppercased(), g.endText)
+        // a lone saguaro at sunset on the card
+        c.circ(r.0 + r.2 - 34, r.1 + 30, 8, Col(0xf29a2e, 0.6))
+        saguaro(r.0 + r.2 - 30, r.1 + 46, 22, 5, SAGD, false)
+        button(82, "Start a new life", r.0 + r.2 / 2 - 50, r.1 + r.3 - 30, 100, true)
+    }
+
+    /// The Hi Jolly Parade: camels, floats, classic cars and side-by-sides rolling down Main Street.
+    private func parade() {
+        let gap = 64.0
+        let shift = (NOW * 12).truncatingRemainder(dividingBy: gap * 12)
+        for i in 0..<60 {
+            let wx = Double(i) * gap + shift - gap * 6
+            let sx = wx - cam
+            if sx < -60 || sx > W + 60 { continue }
+            let y = GY + 12
+            switch i % 6 {
+            case 0, 3: camel(sx, y, Double(i) + NOW * 3)
+            case 1:
+                // a flatbed float with bunting and waving riders
+                c.RR(sx - 24, y - 9, 48, 6, 1, Col(0xf2c14e))
+                for j in 0..<6 { c.poly([Col(0xd9412e), Col(0xf4f4f0), Col(0x3a6ea5)][j % 3], [sx - 24 + Double(j) * 8, y - 3, sx - 16 + Double(j) * 8, y - 3, sx - 20 + Double(j) * 8, y + 1]) }
+                for wx2 in [-16.0, 16.0] { c.circ(sx + wx2, y - 1, 2.6, TIRE) }
+                person(sx - 8, y - 9, 0, 1, 0, false); person(sx + 8, y - 9, 3, 1, 0, false)
+            case 2: toy(5, sx, y, 1, i % 4, 0)
+            case 4:
+                // a classic car
+                c.poly(Col(0x3a8aaa), [sx - 18, y - 3, sx - 18, y - 9, sx - 8, y - 9, sx - 4, y - 14, sx + 8, y - 14, sx + 12, y - 9, sx + 19, y - 8, sx + 19, y - 3])
+                c.poly(GLASS, [sx - 3, y - 13, sx + 7, y - 13, sx + 10, y - 9.4, sx - 6, y - 9.4])
+                for wx2 in [-11.0, 12.0] { c.circ(sx + wx2, y - 3, 3.2, TIRE); c.circ(sx + wx2, y - 3, 1.4, Col(0xd8d8d4)) }
+            default:
+                // walkers with a banner
+                person(sx - 9, y, 1, 1, NOW * 6 + Double(i), true); person(sx + 9, y, 2, 1, NOW * 6 + Double(i) + 1, true)
+                c.seg(sx - 7, y - 10, sx - 7, y - 22, 0.6, Col(0x6a6a6a)); c.seg(sx + 11, y - 10, sx + 11, y - 22, 0.6, Col(0x6a6a6a))
+                c.R(sx - 7, y - 22, 18, 6, Col(0xf4f1ea)); g.text("QZ", sx + 2, y - 19, 3.2, REDC, bold: true)
+            }
+        }
+    }
+
+    /// A dromedary in the Army Camel Corps tradition.
+    private func camel(_ x: Double, _ base: Double, _ ph: Double) {
+        let col = Col(0xb8885a).shade(1 - dark * 0.4)
+        let sw = sin(ph) * 2.4
+        c.roundCaps(true)
+        for (lx, s) in [(-7.0, sw), (-4.0, -sw), (5.0, -sw), (8.0, sw)] { c.seg(x + lx, base - 12, x + lx + s, base, 1.4, col.shade(0.85)) }
+        c.ell(x, base - 14, 11, 4.6, col)
+        c.ell(x - 1, base - 18, 5, 4, col)
+        c.curve(x + 9, base - 14, x + 13, base - 18, x + 13, base - 24, 2, col)
+        c.ell(x + 15, base - 24.6, 3.2, 1.6, col)
+        c.roundCaps(false)
+        c.R(x - 4, base - 21, 7, 1.4, Col(0xd9412e))
     }
 
     private func titleOverlay() {

@@ -88,7 +88,7 @@ final class GameViewController: UIViewController {
     private var holdTouch: UITouch?
     private let tapLight = UIImpactFeedbackGenerator(style: .light)
     private let tapDone = UINotificationFeedbackGenerator()
-    private let saveKey = "quartzsite.native.save3"
+    private let saveKey = "quartzsite.native.save4"
 
     override var prefersStatusBarHidden: Bool { return true }
     override var prefersHomeIndicatorAutoHidden: Bool { return true }
@@ -140,7 +140,7 @@ final class GameViewController: UIViewController {
         renderer = Renderer(game: game, canvas: cv)
         if !demoDone {
             demoDone = true
-            for key in ["pick", "rigs", "play", "night", "ltva", "main", "gem", "tyson", "dome", "toys", "ride", "skoolie", "map", "trail", "scaddan"] where ProcessInfo.processInfo.arguments.contains("-demo-" + key) {
+            for key in ["pick", "rigs", "play", "night", "ltva", "main", "gem", "tyson", "dome", "toys", "ride", "skoolie", "map", "trail", "scaddan", "browse", "parade", "home", "season", "end"] where ProcessInfo.processInfo.arguments.contains("-demo-" + key) {
                 game.demo(key)
             }
         }
@@ -152,7 +152,10 @@ final class GameViewController: UIViewController {
         if p { clearTouches(); save() }
     }
     private func save() {
-        guard let s = game.snapshot(), let data = try? JSONEncoder().encode(s) else { return }
+        guard let s = game.snapshot(), let data = try? JSONEncoder().encode(s) else {
+            if game.ended { UserDefaults.standard.removeObject(forKey: saveKey) }
+            return
+        }
         UserDefaults.standard.set(data, forKey: saveKey)
     }
 
@@ -188,7 +191,7 @@ final class GameViewController: UIViewController {
         for t in touches {
             let p = t.location(in: view)
             let gx = Double(p.x / k), gy = Double(p.y / k)
-            if game.phase != .play || game.mapOpen {
+            if game.phase != .play || game.overlay {
                 game.tap(gx, gy)
                 continue
             }

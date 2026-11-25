@@ -80,12 +80,15 @@ let EVENTS: [EventDef] = [
     EventDef(name: "Tyson Wells Sell-A-Rama", when: "Jan 15–24", start: 19, end: 28, area: .tyson),
     EventDef(name: "Skooliepalooza", when: "Jan 16–26", start: 20, end: 30, area: .skoolie),
     EventDef(name: "Tyson Wells Arts & Craft Fair", when: "Jan 29 – Feb 7", start: 33, end: 42, area: .tyson),
-    EventDef(name: "Prospectors Panorama", when: "Jan 1 – Feb 28", start: 5, end: 63, area: .tyson)
+    EventDef(name: "Prospectors Panorama", when: "Jan 1 – Feb 28", start: 5, end: 63, area: .tyson),
+    EventDef(name: "Hi Jolly Parade", when: "Sat Jan 9", start: 13, end: 13, area: .main)
 ]
-let EV_GEM = 0, EV_RTR = 1, EV_RV = 2, EV_SELL = 3, EV_SKOOL = 4, EV_CRAFT = 5, EV_PAN = 6
+let EV_GEM = 0, EV_RTR = 1, EV_RV = 2, EV_SELL = 3, EV_SKOOL = 4, EV_CRAFT = 5, EV_PAN = 6, EV_PARADE = 7
+/// April 15: the end of the LTVA season. Snowbirds head north the next morning.
+let SEASON_END = 109
 let START_WEEKDAY = 1   // Monday
 
-enum SpotKind { case camp, bench, fire, wash, host, station, outhouse, board, grocery, gemworld, landmark, park, hall, yacht, lot, rides, tools, panorama, vendors, office, booth, bigtent, mine, detect, rockhound, river, skoolie, circle, cabin }
+enum SpotKind { case camp, bench, fire, wash, host, station, outhouse, board, grocery, gemworld, landmark, park, hall, yacht, lot, rides, tools, panorama, vendors, office, booth, bigtent, mine, detect, rockhound, river, skoolie, circle, cabin, parade, rvpark, house }
 struct Spot {
     let kind: SpotKind
     let x: Double
@@ -114,8 +117,9 @@ let AREAS: [AreaDef] = [
         Spot(kind: .fire, x: 1710, name: "NEIGHBORS' FIRE"),
         Spot(kind: .wash, x: 2150, name: "DRY WASH")
     ]),
-    AreaDef(name: "Main Street", sub: "Quartzsite, in season", w: 3420, arrive: 180, lat: 33.667, lon: -114.214, spots: [
+    AreaDef(name: "Main Street", sub: "Quartzsite, in season", w: 4140, arrive: 180, lat: 33.667, lon: -114.214, spots: [
         Spot(kind: .landmark, x: 390, name: "HI JOLLY MONUMENT", arg: 0),
+        Spot(kind: .parade, x: 540, name: "PARADE ROUTE"),
         Spot(kind: .grocery, x: 690, name: "POP-UP GROCERY"),
         Spot(kind: .gemworld, x: 990, name: "GEM WORLD"),
         Spot(kind: .landmark, x: 1300, name: "READER'S OASIS", arg: 1),
@@ -124,7 +128,9 @@ let AREAS: [AreaDef] = [
         Spot(kind: .hall, x: 2180, name: "TOWN HALL"),
         Spot(kind: .yacht, x: 2480, name: "QUARTZSITE YACHT CLUB"),
         Spot(kind: .lot, x: 2800, name: "USED RIGS"),
-        Spot(kind: .rides, x: 3140, name: "RIDES FOR SALE")
+        Spot(kind: .rides, x: 3140, name: "RIDES FOR SALE"),
+        Spot(kind: .rvpark, x: 3480, name: "HOLIDAY PALMS RV PARK"),
+        Spot(kind: .house, x: 3840, name: "HOUSE FOR SALE")
     ]),
     AreaDef(name: "Tyson Wells", sub: "The show grounds on Kuehn Street", w: 3000, arrive: 160, lat: 33.6625, lon: -114.2215, spots: [
         Spot(kind: .tools, x: 380, name: "KB TOOLS"),
@@ -187,6 +193,20 @@ struct Offer {
     let earn: Int
     let dur: Double
 }
+/// Something on a vendor's table at the gem show. Worth is what it should fetch from a booth.
+struct Ware {
+    let name: String
+    let who: String
+    let price: Int
+    let lo: Int
+    let hi: Int
+    var sold: Bool
+}
+let WARE_NAMES = ["Amethyst cluster", "Fire agate slab", "Quartz point", "Geode pair", "Petrified wood round", "Chrysocolla nugget", "Turquoise nugget", "Desert rose", "Jasper slab", "Opal chip"]
+let WARE_WORTH = [60, 90, 24, 40, 55, 45, 70, 20, 30, 80]
+/// Who sells it, and how their prices run against what things are worth (percent).
+let SELLERS: [(String, Int, Int)] = [("Retired rockhound from Oregon", 65, 80), ("Nomad couple selling off a van", 40, 110), ("Skoolie kids with a tumbler", 45, 70), ("Snowbird lapidary club", 85, 100)]
+
 /// One line on the travel map: can you go there from here, how, and for how much.
 struct Trip {
     let ok: Bool
@@ -229,7 +249,7 @@ struct SaveData: Codable {
     var day: Int
     var dayT: Double
     var wood: Int
-    var rocks: Int
+    var rockVals: [Int]
     var odd: Int
     var panels: Int
     var px: Double
@@ -243,9 +263,13 @@ struct SaveData: Codable {
     var business: Int
     var adDays: Int
     var page: Bool
-    var jewelry: Int
+    var jewelVals: [Int]
     var detector: Bool
     var campDays: Int
+    var age: Int
+    var year: Int
+    var resident: Bool
+    var house: Bool
 }
 
 final class Input {
@@ -303,9 +327,12 @@ final class Game {
     var day = 1
     var dayT = 0.12
     var wood = 0
-    var rocks = 0
+    /// What each stone or pendant in your pack should fetch from a booth.
+    var rockVals: [Int] = []
+    var jewelVals: [Int] = []
+    var rocks: Int { return rockVals.count }
+    var jewelry: Int { return jewelVals.count }
     var odd = 0
-    var jewelry = 0
     var panels = 0
     var detector = false
     var permitDays = 14
@@ -330,6 +357,21 @@ final class Game {
     var holdLock = false
     var nearRig = false
     var nearToy = false
+
+    // a life: one winter season a year until the end
+    var age = 61
+    var year = 1
+    var resident = false
+    var house = false
+    var seasonCard = false
+    var ended = false
+    var endTitle = ""
+    var endText = ""
+
+    // the gem show up close
+    var browseOpen = false
+    var wares: [Ware] = []
+    var waresDay = -1
 
     // the map
     var mapOpen = false
@@ -356,6 +398,8 @@ final class Game {
         hintT = 8
     }
     func areaName(_ a: Area) -> String { return AREAS[a.rawValue].name }
+    /// A full-screen card is up and the day stands still.
+    var overlay: Bool { return mapOpen || browseOpen || seasonCard || ended }
     func on(_ e: Int) -> Bool { return day >= EVENTS[e].start && day <= EVENTS[e].end }
     /// Which Tyson Wells show is running today, if any.
     func tysonShow() -> Int? {
@@ -386,6 +430,21 @@ final class Game {
             if id == 99 { begin() }
             if id >= 0 { events.append(3) }
         case .play:
+            if ended {
+                if id == 82 { hasSave = false; ended = false; phase = .pick }
+                return
+            }
+            if seasonCard {
+                if id == 80 { newSeason(stay: false) }
+                if id == 81 && (resident || house) { newSeason(stay: true) }
+                events.append(3)
+                return
+            }
+            if browseOpen {
+                if id >= 90 && id < 90 + wares.count { buyWare(id - 90) } else if id == 89 || id < 0 { browseOpen = false }
+                events.append(3)
+                return
+            }
             if mapOpen {
                 if id >= 70 && id < 70 + AREAS.count { go(Area(rawValue: id - 70) ?? area) } else if id == 61 || id < 0 { mapOpen = false }
                 events.append(3)
@@ -394,6 +453,7 @@ final class Game {
             if id == 50 { toggleRig() }
             if id == 51 { toggleToy() }
             if id == 60 { openMap() }
+            if id == 52 { openBrowse() }
         }
     }
 
@@ -402,13 +462,16 @@ final class Game {
         money = START_CASH[pickRig] + (life == .rver ? 100 : 0)
         cred = life == .nomad ? 5 : 0
         health = 100; day = 1; dayT = 0.12
-        wood = 0; rocks = 0; odd = 0; jewelry = 0; panels = 0
+        wood = 0; rockVals = []; odd = 0; jewelVals = []; panels = 0
         area = .ltva; rigArea = .ltva
         px = 1260; rigX = 1150; rigFace = 1; inRig = false; vx = 0
         toy = -1; onToy = false
         detector = false; permitDays = 14; campDays = 0; business = 0; adDays = 0; page = false; seen = []; boothDay = 0
         active = -1; ringSpot = -1; ringProg = 0; ringPaid = 0
         mapOpen = false
+        browseOpen = false; seasonCard = false; ended = false
+        age = life == .nomad ? 31 : 61
+        year = 1; resident = false; house = false
         shown = []
         floaters = []
         phase = .play
@@ -509,22 +572,24 @@ final class Game {
     // MARK: saving
 
     func snapshot() -> SaveData? {
-        if phase != .play { return nil }
+        if phase != .play || ended { return nil }
         return SaveData(life: life.rawValue, rig: rig.rawValue, look: look, money: money + ringPaid, health: health, cred: cred, day: day,
-                        dayT: dayT, wood: wood, rocks: rocks, odd: odd, panels: panels, px: inRig ? rigX : px, rigX: rigX,
+                        dayT: dayT, wood: wood, rockVals: rockVals, odd: odd, panels: panels, px: inRig ? rigX : px, rigX: rigX,
                         area: area.rawValue, rigArea: rigArea.rawValue, toy: toy, toyArea: toyArea.rawValue, toyX: onToy ? px : toyX,
-                        permitDays: permitDays, business: business, adDays: adDays, page: page, jewelry: jewelry, detector: detector, campDays: campDays)
+                        permitDays: permitDays, business: business, adDays: adDays, page: page, jewelVals: jewelVals, detector: detector, campDays: campDays,
+                        age: age, year: year, resident: resident, house: house)
     }
     func restore(_ s: SaveData) {
         life = Life(rawValue: s.life) ?? .nomad
         rig = RigKind(rawValue: s.rig) ?? .minivan
         look = s.look; money = s.money; health = s.health; cred = s.cred; day = s.day; dayT = s.dayT
-        wood = s.wood; rocks = s.rocks; odd = s.odd; panels = s.panels; px = s.px; rigX = s.rigX
+        wood = s.wood; rockVals = s.rockVals; odd = s.odd; panels = s.panels; px = s.px; rigX = s.rigX
         area = Area(rawValue: s.area) ?? .ltva
         rigArea = Area(rawValue: s.rigArea) ?? .ltva
         toy = s.toy; toyArea = Area(rawValue: s.toyArea) ?? .main; toyX = s.toyX
-        permitDays = s.permitDays; business = s.business; adDays = s.adDays; page = s.page; jewelry = s.jewelry; detector = s.detector
+        permitDays = s.permitDays; business = s.business; adDays = s.adDays; page = s.page; jewelVals = s.jewelVals; detector = s.detector
         campDays = s.campDays
+        age = s.age; year = s.year; resident = s.resident; house = s.house
         inRig = false; onToy = false
         shown = ["start"]
         hasSave = true
@@ -540,7 +605,12 @@ final class Game {
         if key == "night" { px = 1690; dayT = 0.8; wood = 3 }
         if key == "ltva" { px = 760; dayT = 0.3; rig = .classB; inRig = true; rigX = 760 }
         if key == "main" { place(.main, 1610); money = 400; day = 14 }
-        if key == "gem" { place(.tyson, 1050); money = 300; day = 7; rocks = 1 }
+        if key == "gem" { place(.tyson, 1050); money = 300; day = 7; rockVals = [40] }
+        if key == "browse" { place(.tyson, 1050); money = 300; day = 7; openBrowse() }
+        if key == "parade" { place(.main, 560); day = 13; dayT = 0.3 }
+        if key == "home" { place(.main, 3700); money = 25000; day = 60; life = .rver; resident = true; dayT = 0.6 }
+        if key == "season" { day = SEASON_END + 1; resident = true; business = 2; cred = 40; seasonCard = true }
+        if key == "end" { age = 84; year = 24; cred = 210; money = 18000; house = true; finish() }
         if key == "tyson" { life = .rver; place(.tyson, 2390); money = 3000; day = 21; rig = .classB }
         if key == "dome" { place(.dome, 800); rig = .classB; rigArea = .dome; rigX = 1520; dayT = 0.56 }
         if key == "toys" { place(.main, 3130); money = 3000; toy = 3; toyArea = .main; toyX = 3050 }
@@ -573,9 +643,9 @@ final class Game {
     }
     /// What you'd sell first from your booth.
     private func sellOffer() -> Offer? {
-        if jewelry > 0 { return Offer(label: "Sell a pendant", cost: 0, earn: jewelSell, dur: 1.1) }
+        if let v = jewelVals.first { return Offer(label: "Sell a pendant", cost: 0, earn: v, dur: 1.1) }
         if odd > 0 { return Offer(label: "Sell an oddity", cost: 0, earn: oddSell, dur: 1.1) }
-        if rocks > 0 { return Offer(label: "Sell a specimen", cost: 0, earn: rockSell, dur: 1.1) }
+        if let v = rockVals.first { return Offer(label: "Sell a specimen", cost: 0, earn: v, dur: 1.1) }
         return nil
     }
     func boothOpen(_ i: Int) -> Bool {
@@ -613,7 +683,7 @@ final class Game {
         case .grocery:
             return health < 96 ? Offer(label: "Groceries", cost: 15, earn: 0, dur: 1.0) : nil
         case .gemworld:
-            return rocks < 3 ? Offer(label: "Rough rock to work", cost: rockBuy + 14, earn: 0, dur: 1.0) : nil
+            return rocks < 5 ? Offer(label: "Rough rock to work", cost: rockBuy + 14, earn: 0, dur: 1.0) : nil
         case .park:
             if on(EV_RTR) { return seen.contains(12) ? nil : Offer(label: "Rubber Tramp Rendezvous: talks and the free pile", cost: 0, earn: 0, dur: 2) }
             return health < 96 && !seen.contains(14) ? Offer(label: "Rest in the shade", cost: 0, earn: 0, dur: 1.6) : nil
@@ -634,7 +704,7 @@ final class Game {
             return on(EV_PAN) && !detector ? Offer(label: "Metal detector", cost: 150, earn: 0, dur: 1.4) : nil
         case .vendors:
             guard let e = tysonShow() else { return nil }
-            if e == EV_GEM { return rocks < 3 ? Offer(label: "Mineral specimen", cost: rockBuy, earn: 0, dur: 1.0) : nil }
+            if e == EV_GEM { return rocks < 5 ? Offer(label: "Mineral specimen", cost: rockBuy, earn: 0, dur: 1.0) : nil }
             if e == EV_SELL { return odd < 3 ? Offer(label: "Swap-meet oddity", cost: oddBuy, earn: 0, dur: 1.0) : nil }
             return nil
         case .office:
@@ -649,7 +719,7 @@ final class Game {
         case .detect:
             return detector ? Offer(label: "Swing the detector", cost: 0, earn: 0, dur: 2.6) : nil
         case .rockhound:
-            return rocks < 3 && health > 10 ? Offer(label: "Look for quartz on the hillside", cost: 0, earn: 0, dur: 2.2) : nil
+            return rocks < 5 && health > 10 ? Offer(label: "Look for quartz on the hillside", cost: 0, earn: 0, dur: 2.2) : nil
         case .landmark:
             return seen.contains(sp.arg) ? nil : Offer(label: LANDMARKS[sp.arg], cost: 0, earn: 0, dur: 1.5)
         case .river:
@@ -660,6 +730,14 @@ final class Game {
             return on(EV_SKOOL) && !seen.contains(13) ? Offer(label: "Potluck at the circle", cost: 0, earn: 0, dur: 2) : nil
         case .cabin:
             return health > 15 ? Offer(label: "Search the old cabin", cost: 0, earn: 0, dur: 2.2) : nil
+        case .parade:
+            return on(EV_PARADE) && !seen.contains(15) ? Offer(label: "Watch the Hi Jolly Parade", cost: 0, earn: 0, dur: 2) : nil
+        case .rvpark:
+            if !resident { return Offer(label: "Year-round site", cost: 600, earn: 0, dur: 2.4) }
+            return health < 96 ? Offer(label: "Rest at your site", cost: 0, earn: 0, dur: 2) : nil
+        case .house:
+            if !house { return Offer(label: "Buy the house", cost: 20000, earn: 0, dur: 3) }
+            return health < 96 ? Offer(label: "Rest at home", cost: 0, earn: 0, dur: 2) : nil
         }
     }
 
@@ -697,6 +775,7 @@ final class Game {
         case .vendors:
             guard let e = tysonShow() else { return "Next show: " + nextOf([EV_GEM, EV_SELL, EV_CRAFT]) }
             if e == EV_CRAFT { return "Crafts and art. Sell your pendants from a booth" }
+            if e == EV_GEM { return "Pack is full. Tap the tables to look closer" }
             return "Pack is full. Sell from a booth"
         case .office: return tysonShow() == nil ? "Closed between shows" : "Your space is paid for today"
         case .booth:
@@ -706,12 +785,15 @@ final class Game {
         case .bigtent: return on(EV_RV) ? "Top of the line already" : "Sports, Vacation & RV Show: " + EVENTS[EV_RV].when
         case .mine: return "Too worn out. Rest first"
         case .detect: return "You need a metal detector from Prospectors Panorama"
-        case .rockhound: return rocks >= 3 ? "Pack is full" : "Too worn out. Rest first"
+        case .rockhound: return rocks >= 5 ? "Pack is full" : "Too worn out. Rest first"
         case .landmark: return "You've been here today"
         case .river: return "The river's nice today"
         case .skoolie: return on(EV_SKOOL) ? "Pack is full" : "Skooliepalooza: " + EVENTS[EV_SKOOL].when + " (projected)"
         case .circle: return on(EV_SKOOL) ? "See you tomorrow" : "Skooliepalooza: " + EVENTS[EV_SKOOL].when + " (projected)"
         case .cabin: return "Too worn out. Rest first"
+        case .parade: return on(EV_PARADE) ? "What a parade" : "Hi Jolly Parade: " + EVENTS[EV_PARADE].when
+        case .rvpark: return "Your site. You feel fine"
+        case .house: return "Home. You feel fine"
         }
     }
 
@@ -738,8 +820,8 @@ final class Game {
                 float("Rested", x, GREEN)
             }
         case .bench:
-            rocks -= 1
-            jewelry += 1
+            let v = rockVals.removeFirst()
+            jewelVals.append(v + Int(rnd(14, 28)))
             float("+1 pendant", x, CREAM)
             hint("jewel", "Pendants sell for a bit more than raw stone from a booth at a show. Small money, but it adds up.")
         case .fire:
@@ -763,7 +845,7 @@ final class Game {
             health = min(100, health + 45)
             float("Fed", x, GREEN)
         case .gemworld:
-            rocks += 1
+            rockVals.append(rockSell + Int(rnd(-8, 8)))
             float("+1 rough rock", x, CREAM)
         case .park:
             if on(EV_RTR) {
@@ -809,17 +891,17 @@ final class Game {
             float("Metal detector", x, CREAM)
             hint("detect", "Take it to the old placer diggings at Dome Rock.")
         case .vendors:
-            if tysonShow() == EV_GEM { rocks += 1; float("+1 specimen", x, CREAM) } else { odd += 1; float("+1 oddity", x, CREAM) }
+            if tysonShow() == EV_GEM { rockVals.append(rockBuy + Int(rnd(6, 24))); float("+1 specimen", x, CREAM); hint("browse", "Tap the vendor tables to look closer at what each one is selling.") } else { odd += 1; float("+1 oddity", x, CREAM) }
         case .office:
             boothDay = day
             float("Your booth is set up", x, CREAM)
         case .booth:
-            if jewelry > 0 { jewelry -= 1; cred += 2 } else if odd > 0 { odd -= 1; cred += 3 } else { rocks -= 1; cred += 2 }
+            if !jewelVals.isEmpty { jewelVals.removeFirst(); cred += 2 } else if odd > 0 { odd -= 1; cred += 3 } else { rockVals.removeFirst(); cred += 2 }
             if sp.arg == 1 { cred += 1 }
         case .mine:
             health = max(0, health - 12)
             let r = Double.random(in: 0..<1)
-            if r < 0.4 && rocks < 3 { rocks += 1; float("Found a specimen", x, CREAM) }
+            if r < 0.4 && rocks < 5 { rockVals.append(Int(rnd(25, 60))); float("Found a specimen", x, CREAM) }
             else if r < 0.6 && odd < 3 { odd += 1; float("Found an old lantern", x, CREAM) }
             else if r < 0.8 { let g = Int(rnd(20, 60)); money += Double(g); float("+$\(g) in gold", x, GOLD) }
             else { float("Just bats", x, CREAM) }
@@ -832,7 +914,7 @@ final class Game {
             else { float("Pull tab", x, CREAM) }
         case .rockhound:
             health = max(0, health - 4)
-            if Double.random(in: 0..<1) < 0.55 { rocks += 1; float("+1 quartz", x, CREAM) } else { float("Pretty gravel", x, CREAM) }
+            if Double.random(in: 0..<1) < 0.55 { rockVals.append(Int(rnd(16, 40))); float("+1 quartz", x, CREAM) } else { float("Pretty gravel", x, CREAM) }
         case .landmark:
             seen.insert(sp.arg)
             cred += page ? 2 : 1
@@ -856,6 +938,32 @@ final class Game {
             else if r < 0.75 { let g = Int(rnd(8, 28)); money += Double(g); float("Stashed silver +$\(g)", x, GOLD) }
             else { float("Just packrat nests", x, CREAM) }
             cred += 1
+        case .parade:
+            seen.insert(15)
+            cred += page ? 3 : 2
+            health = min(100, health + 6)
+            float(page ? "Parade video posted" : "Camels, floats and side-by-sides", x, GOLD)
+        case .rvpark:
+            if !resident {
+                resident = true
+                float("A site of your own", x, GOLD)
+                hintT = 0
+                hint("resident", "You live at Holiday Palms now: $8 a day, rest any time, and you can stay the summer when the snowbirds leave.")
+            } else {
+                health = min(100, health + 30)
+                float("Rested", x, GREEN)
+            }
+        case .house:
+            if !house {
+                house = true
+                cred += 10
+                float("Sticks and bricks in Quartzsite", x, GOLD)
+                hintT = 0
+                hint("house", "A house in town. Rest here any time, and when April comes you can stay through the summer with the AC on.")
+            } else {
+                health = min(100, health + 40)
+                float("Home", x, GREEN)
+            }
         }
         if o.earn > 0 {
             money += Double(o.earn)
@@ -887,9 +995,9 @@ final class Game {
             if floaters[i].t > 1.8 { floaters.remove(at: i) } else { i += 1 }
         }
         if mapMsgT > 0 { mapMsgT -= dt }
-        if hintT > 0 && !mapOpen { hintT -= dt }
-        if arriveT > 0 && !mapOpen { arriveT -= dt }
-        if phase == .play && !mapOpen { play(dt) }
+        if hintT > 0 && !overlay { hintT -= dt }
+        if arriveT > 0 && !overlay { arriveT -= dt }
+        if phase == .play && !overlay { play(dt) }
     }
 
     private func dawn() {
@@ -908,6 +1016,7 @@ final class Game {
             total += b
         }
         if page { total += cred / 3 }
+        if resident { total -= 8 }
         if permitDays > 0 && rigArea == .ltva {
             permitDays -= 1
             if permitDays == 0 { hintT = 0; hint("permit\(day)", "Your LTVA permit ran out. The camp host sells another 14 days.") }
@@ -922,10 +1031,93 @@ final class Game {
             hintT = 0
             hint("ev\(e)", EVENTS[e].name + " opens today at " + areaName(EVENTS[e].area) + ".")
         }
-        if total > 0 {
+        if total != 0 {
             money += Double(total)
-            float("+$\(total) overnight", px, GREEN)
+            float((total > 0 ? "+$\(total)" : "-$\(-total)") + " overnight", px, total > 0 ? GREEN : REDC)
         }
+        if day == SEASON_END - 6 { hintT = 0; hint("seasonsoon\(year)", "The season ends April 15. Snowbirds head north; if you have a year-round RV site or a house, you can stay the summer.") }
+        if day > SEASON_END {
+            refund()
+            seasonCard = true
+        }
+    }
+
+    /// The end of a winter: head north for the summer, or stay if you have a place to live.
+    private func newSeason(stay: Bool) {
+        seasonCard = false
+        if stay {
+            var b = 0
+            for k in 0..<business { b += BIZ[k].pay }
+            money += Double(b * 40)
+            if resident && !house { money -= 600 }
+            health = house ? 100 : 75
+        } else {
+            health = 100
+            if rig != .tent || rigArea != .ltva { rigArea = .ltva; rigX = AREAS[0].arrive - 100 }
+            area = .ltva
+            px = AREAS[0].arrive
+            if toy >= 0 { toyArea = .ltva; toyX = px + 60 }
+            inRig = false; onToy = false
+        }
+        year += 1
+        age += 1
+        day = 1; dayT = 0.12
+        permitDays = 14; campDays = 0; boothDay = 0; seen = []; adDays = 0
+        cam = clampD(px - W / 2, 0, max(0, WORLD - W))
+        floaters = []
+        // the desert keeps everyone eventually
+        if age >= 95 || (age >= 72 && Double.random(in: 0..<1) < Double(age - 70) * 0.05) {
+            finish()
+            return
+        }
+        arriveT = 4.5
+        hintT = 0
+        hint("season\(year)", "Season \(year). You're \(age) now. " + (stay ? "You rode out the summer in Quartzsite." : "Back from up north, and the desert is filling up again."))
+    }
+
+    /// The last card: how the life in the desert went.
+    func finish() {
+        ended = true
+        seasonCard = false
+        mapOpen = false
+        browseOpen = false
+        var b = 0
+        for k in 0..<business { b += BIZ[k].cost }
+        let worth = Int(money) + (house ? 20000 : 0) + RIGS[rig.rawValue].price + b
+        endTitle = worth > 30000 || cred > 150 ? "You prospered" : (worth > 5000 || cred > 50 ? "You lived OK" : "You scraped by")
+        let home = house ? "in your house in town" : (resident ? "at your site at Holiday Palms" : (rig == .tent ? "in a tent at " + areaName(rigArea) : "in your " + RIGS[rig.rawValue].name.lowercased() + " at " + areaName(rigArea)))
+        endText = "\(year) winters in the desert. You passed at \(age), " + home + ", with \(cred) people who'd call you a friend" + (page ? " and a Facebook page that remembered you" : "") + "."
+    }
+
+    // MARK: the gem show up close
+
+    func openBrowse() {
+        if tysonShow() != EV_GEM { return }
+        refund()
+        if waresDay != day {
+            waresDay = day
+            wares = []
+            for k in 0..<6 {
+                let n = Int(hashN(Double(day * 13 + k)) * 10) % 10
+                let seller = SELLERS[(k / 2 + day) % SELLERS.count]
+                let pct = Double(seller.1) + hashN(Double(day * 7 + k) + 0.5) * Double(seller.2 - seller.1)
+                let w = WARE_WORTH[n]
+                wares.append(Ware(name: WARE_NAMES[n], who: seller.0, price: max(5, Int(Double(w) * pct / 100)), lo: Int(Double(w) * 0.8), hi: Int(Double(w) * 1.15), sold: false))
+            }
+        }
+        browseOpen = true
+        mapMsg = ""
+    }
+
+    private func buyWare(_ k: Int) {
+        if wares[k].sold { return }
+        if rocks >= 5 { mapMsg = "Your pack is full"; mapMsgT = 2; return }
+        if Double(wares[k].price) > money { mapMsg = "Not enough money"; mapMsgT = 2; return }
+        money -= Double(wares[k].price)
+        rockVals.append(Int(rnd(Double(wares[k].lo), Double(wares[k].hi))))
+        wares[k].sold = true
+        cred += 1
+        events.append(1)
     }
 
     private func play(_ dt: Double) {
