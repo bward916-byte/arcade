@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 // Free camping against the permit area. Every "BLM", "LTVA" and "Long Term Visitor Area" in the guide's text is a link to this.
 
@@ -98,7 +99,7 @@ extension View {
     func termsGate(_ asking: Binding<Bool>, _ pending: Binding<(() -> Void)?>) -> some View {
         alert("Before you post", isPresented: asking) {
             Button("I agree") { Terms.agreed = true; pending.wrappedValue?(); pending.wrappedValue = nil }
-            Link("Read the terms", destination: Site.termsPage)
+            Button("Read the terms") { pending.wrappedValue = nil; UIApplication.shared.open(Site.termsPage) }
             Button("Cancel", role: .cancel) { pending.wrappedValue = nil }
         } message: {
             Text("Posting means you agree to the terms of use. Be kind. No nudity, hate, threats, scams or anything illegal. Posts are checked, anyone can report one, and people who break the rules are blocked.")
