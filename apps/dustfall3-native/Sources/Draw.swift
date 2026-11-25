@@ -50,6 +50,11 @@ final class Renderer {
         for m in g.mustangs {
             let coats: [(UInt32, UInt32)] = [(0x9a5a34, 0x4a2a18), (0xc9a36a, 0x8a6a40), (0x8a8480, 0x4a4642), (0x3a3230, 0x1c1816)]
             let ct = coats[Int(m.seed) % 4]
+            if vis(m.x, 30) && m.st < 2 && m.rope > 0 {
+                // the loop closing as you keep pace
+                c.ellStroke(sx(m.x), gy - 36, 4.5, 4.5, 0.6, Col(0xc9a468, 0.4))
+                c.arcStroke(sx(m.x), gy - 36, 4.5, -PI / 2, -PI / 2 + 2 * PI * min(1, m.rope / 0.8), 1.4, Col(0xf2c14e))
+            }
             if vis(m.x, 30) { _ = horse(sx(m.x), m.dir, m.phase, m.speed, Col(ct.0), Col(ct.1)); if m.st == 2 { c.seg(sx(m.x) + m.dir * 14, gy - 22, sx(g.px), gy - 22, 0.5, Col(0xc9a468)) } }
         }
         for tr in g.cav where vis(tr.x, 30) {
@@ -1115,6 +1120,11 @@ final class Renderer {
 
     private func racks() {
         let sh = g.sheriff, st = g.store
+        // each rack takes one coin at a time: an empty slot hangs over it while you are near
+        for bl in [sh, st, g.stable] where bl.level > 0 && !bl.building && abs(g.px - g.rackX(bl)) < 46 && vis(g.rackX(bl), 12) {
+            let x = sx(g.rackX(bl))
+            c.ellStroke(x, gy - 23, 1.9, 1.9, 1.5, Col(0x2a1c14, 0.7)); c.ellStroke(x, gy - 23, 1.9, 1.9, 0.7, Col(0xf7d877))
+        }
         if sh.level > 0 && !sh.building && vis(g.rackX(sh), 12) {
             let x = sx(g.rackX(sh))
             c.R(x - 1, gy - 14, 2, 14, Col(0x5a3c22)); c.R(x - 5, gy - 16, 10, 8, Col(0x7a5632))
@@ -1182,9 +1192,15 @@ final class Renderer {
         c.save(); c.translate(x, gy); c.scale(dir * s, s)
         c.roundCaps(true)
         c.ell(0, 0.8, 11, 1.6, Col(0x000000, 0.18))
-        // far legs
-        c.R(-5.6 - sw * 0.4, -6, 1.5, 5.2, lo); c.R(4.6 - sw * 0.4, -6, 1.5, 5.2, lo)
-        c.R(-5.8 - sw * 0.4, -1, 1.9, 1, hoof); c.R(4.4 - sw * 0.4, -1, 1.9, 1, hoof)
+        // a leg hinged at the knee: it swings forward lifted, and pushes back planted; the four go in turn
+        func leg(_ hx: Double, _ off: Double, _ col: Col, _ w: Double) {
+            let a = phase + off
+            let fx = hx + sin(a) * 2.3, lift = max(0, cos(a)) * 1.2, fy = -0.9 - lift
+            let kx = (hx + fx) / 2 + 0.5 + lift * 0.5, ky = -3.5 - lift * 0.3
+            c.seg(hx, -6.6, kx, ky, w, col); c.seg(kx, ky, fx, fy, w - 0.3, col)
+            c.R(fx - 1.1, fy - 0.1, 2.3, 1, hoof); c.R(fx, fy - 0.1, 0.3, 1, Col(0x4a3a30))
+        }
+        leg(-4.8, PI, lo, 1.6); leg(5.4, PI * 1.5, lo, 1.6)
         c.curve(-9, -13, -11.5, -10, -10.5 + tail * 0.5, -5, 0.8, lo); c.ell(-10.5 + tail * 0.5, -4.2, 0.9, 1.5, hoof)
         // a deep barrel, the hip and the shoulder, light along the back and shade under the belly
         c.RR(-9, -14, 17.5, 9, 3, body)
@@ -1197,11 +1213,7 @@ final class Renderer {
         if kind == 1 { c.RR(-4, -13.4, 5, 4, 1.5, cream.alpha(0.9)); c.circ(3.4, -9.6, 1.6, cream.alpha(0.9)) }
         if kind == 2 { c.RR(-1, -7.6, 7, 2, 1, cream.alpha(0.85)) }
         if !horns && s > 0.8 { c.RR(-4.6, -5.8, 3.4, 2.2, 1, Col(0xe8a8a0)); c.R(-4, -3.8, 0.6, 0.9, Col(0xd08a84)); c.R(-2.6, -3.8, 0.6, 0.9, Col(0xd08a84)) }
-        // near legs, with knees and cloven hooves
-        for lx in [-7.6 + sw * 0.4, 5.8 + sw * 0.4] {
-            c.R(lx, -6.4, 1.9, 5.6, body); c.R(lx + 1.3, -6.4, 0.6, 5.6, lo.alpha(0.6)); c.circ(lx + 0.95, -3.6, 1.15, body)
-            c.R(lx - 0.2, -1, 2.3, 1, hoof); c.R(lx + 0.85, -1, 0.3, 1, Col(0x4a3a30))
-        }
+        leg(-6.6, 0, body, 2); leg(6.8, PI / 2, body, 2)
         // neck, dewlap and head
         let hx = 11.2, hy = graze ? -4.8 + sin(g.clock * 5 + seed) * 0.4 : -14.0
         c.seg(7.6, -11.6, hx - 1, hy + 0.6, 4.2, body)
@@ -1437,20 +1449,56 @@ final class Renderer {
             let k = u.t / 1.1
             x = hx + u.side * k * k * W * 1.2; y = hy - k * k * gy * 1.3
         }
-        if beam > 0 {
-            c.poly(Col(0xb8ffd0, 0.22 * beam), [x - 6, y + 4, x + 6, y + 4, x + 20, gy, x - 20, gy])
-            c.poly(Col(0xe8fff0, 0.18 * beam), [x - 3, y + 4, x + 3, y + 4, x + 10, gy, x - 10, gy])
-            // what it is taking
+        // what it is taking stands where it stood until the beam has it, in its own coat
+        if u.ph < 2 {
             c.save(); c.translate(0, -u.lift * 58); c.alpha(1 - u.lift * 0.5)
             if let cw = u.cow { cowAt(cw.x, cw.dir, cw.calf ? 0.6 : 1, cw.seed, 0, horns: false) }
             if let w = u.stray { cowAt(w.x, w.dir, 1, w.seed, 0, horns: true) }
-            if let m = u.mustang { _ = horse(sx(m.x), m.dir, 0, 0, Col(0x8a8480), Col(0x4a4642)) }
+            if let m = u.mustang {
+                let coats: [(UInt32, UInt32)] = [(0x9a5a34, 0x4a2a18), (0xc9a36a, 0x8a6a40), (0x8a8480, 0x4a4642), (0x3a3230, 0x1c1816)]
+                let ct = coats[Int(m.seed) % 4]
+                _ = horse(sx(m.x), m.dir, u.lift > 0 ? g.clock * 3 : 0, u.lift > 0 ? 20 : 0, Col(ct.0), Col(ct.1))
+            }
             c.alpha(1); c.restore()
+            c.blend(.plusLighter); c.ell(hx, gy + 2, 30 + beam * 8, 4, Col(0x8cf7b0, 0.08 + 0.14 * beam)); c.blend(.normal)
         }
-        c.glow(x, y, 34, Col(0x8cf7b0, 0.3), Col(0x8cf7b0, 0))
-        c.ell(x, y, 17, 4.6, Col(0x8a94a4)); c.ell(x, y - 1.2, 15, 3, Col(0xc4ccd8))
-        c.ell(x, y - 4.4, 7, 4.4, Col(0xa8f0d0, 0.85)); c.ell(x - 2, y - 5.6, 2.6, 1.6, Col(0xffffff, 0.6))
-        for i in 0..<5 { c.circ(x - 12 + Double(i) * 6, y + 0.6, 1.1, Int(g.clock * 6 + Double(i)) % 2 == 0 ? Col(0xfff0a0) : Col(0xff6a5a)) }
+        if beam > 0 {
+            c.poly(Col(0xb8ffd0, 0.16 * beam), [x - 7, y + 4, x + 7, y + 4, x + 24, gy, x - 24, gy])
+            c.poly(Col(0xb8ffd0, 0.2 * beam), [x - 5, y + 4, x + 5, y + 4, x + 17, gy, x - 17, gy])
+            c.poly(Col(0xe8fff0, 0.2 * beam), [x - 2.5, y + 4, x + 2.5, y + 4, x + 9, gy, x - 9, gy])
+            // rings climbing the beam, and motes caught in it
+            for k in 0..<5 {
+                let f = (g.clock * 0.9 + Double(k) / 5).truncatingRemainder(dividingBy: 1)
+                let yy = gy - f * (gy - y - 6), hw = 5 + 12 * (1 - f)
+                c.ellStroke(x, yy, hw, hw * 0.16, 0.6, Col(0xe8fff0, 0.4 * beam * (1 - f * 0.6)))
+            }
+            for k in 0..<12 {
+                let f = (g.clock * (0.5 + hashN(Double(k)) * 0.5) + hashN(Double(k) * 3.3)).truncatingRemainder(dividingBy: 1)
+                c.R(x + (hashN(Double(k) * 7.1) - 0.5) * 26 * (1 - f * 0.6), gy - f * (gy - y - 8), 1, 1, Col(0xffffff, 0.7 * beam * (1 - f)))
+            }
+        }
+        c.save(); c.translate(x, y); c.rotate(sin(g.clock * 2.2) * 0.05)
+        c.glow(0, 0, 42, Col(0x8cf7b0, 0.28), Col(0x8cf7b0, 0))
+        // a dark belly with a ring that brightens when the beam is on
+        c.ell(0, 2.6, 11, 3, Col(0x343c4a)); c.ell(0, 3.2, 6.4, 1.8, Col(0xb8ffd0, 0.5 + 0.45 * beam)); c.ell(0, 3.2, 3, 0.9, Col(0xffffff, 0.3 + 0.6 * beam))
+        // the dome, with someone looking out
+        c.ell(0, -4.4, 7.6, 5, Col(0x7ad8b8, 0.55))
+        c.ell(0, -3.6, 2.2, 2.8, Col(0x16241e, 0.85)); c.ell(0, -6, 2.7, 2, Col(0x16241e, 0.85))
+        c.R(-1.7, -6.3, 1.2, 0.7, Col(0xd8fff0)); c.R(0.5, -6.3, 1.2, 0.7, Col(0xd8fff0))
+        c.ell(-2.6, -6.8, 2.6, 1.4, Col(0xffffff, 0.45))
+        c.R(-0.2, -11.4, 0.4, 2.2, Col(0x98a2b2)); c.circ(0, -11.8, 0.9, Int(g.clock * 3) % 2 == 0 ? Col(0xff6a5a) : Col(0x7a2a22))
+        // the hull: a lens of brushed metal, lit along the top and shadowed beneath
+        c.ell(0, 0, 19, 4.8, Col(0x566070)); c.ell(0, -0.8, 18.4, 3.8, Col(0x98a2b2)); c.ell(0, -1.6, 16, 2.5, Col(0xc8d0dc)); c.ell(-4, -2.5, 8, 0.9, Col(0xffffff, 0.5))
+        c.R(-18.6, -0.2, 37.2, 0.5, Col(0x343c4a, 0.7))
+        for k in -3...3 { c.R(Double(k) * 5 - 0.2, -3.3 + abs(Double(k)) * 0.4, 0.4, 3, Col(0x343c4a, 0.35)) }
+        // running lights chasing round the rim
+        for i in 0..<9 {
+            let lx = -16 + Double(i) * 4, ly = 1.5 - lx * lx / 256 * 1.3
+            let on = (Int(g.clock * 8) + i) % 3 == 0
+            if on { c.glow(lx, ly, 3.6, Col(0xfff0a0, 0.55), Col(0xfff0a0, 0)) }
+            c.circ(lx, ly, 1, on ? Col(0xfff0a0) : Col(0xc04a3e))
+        }
+        c.restore()
     }
 
     /// The places out of town: trading post, scout camp, ghost town, oil derrick, the medicine show and the cavalry outpost.
@@ -1606,7 +1654,7 @@ final class Renderer {
         guard let d = g.duel else { return }
         c.R(0, 0, W, 16, Col(0x000000, 0.92)); c.R(0, H - 14, W, 14, Col(0x000000, 0.92))
         if d.st != 1 { return }
-        let cx = W / 2, y = 30.0, half = 70.0
+        let cx = W / 2, y = 60.0, half = 70.0        // below the line of instructions, not behind it
         c.RR(cx - half - 4, y - 7, half * 2 + 8, 14, 5, Col(0x2a1c14, 0.85))
         c.R(cx - half, y - 1, half * 2, 2, Col(0xead7a4, 0.6))
         c.RR(cx - half * d.hw * 2.4, y - 4, half * d.hw * 4.8, 8, 2, Col(0xf2c14e, 0.25))
@@ -1856,8 +1904,9 @@ final class Renderer {
         let x = sx(wx)
         c.save()
         defer { c.restore() }
-        c.translate(x, gy); c.scale(PSCALE, PSCALE); c.translate(-x, -gy)
         let k = Int(seed)
+        // no two quite the same height or build
+        c.translate(x, gy); c.scale(PSCALE * (0.95 + Double(k % 4) * 0.035), PSCALE * (0.93 + Double(k % 5) * 0.035)); c.translate(-x, -gy)
         let skin = SKIN[k % SKIN.count]
         var shirt = SHIRT[(k / 3) % SHIRT.count]
         var hat = HAT[(k / 5) % HAT.count]
@@ -1880,8 +1929,16 @@ final class Renderer {
             c.R(x - 2.4, gy - 12.2 - bob, 5, 3, shirt); c.R(x - 2.4, gy - 9.6 - bob, 5, 0.8, Col.mix(shirt, Col(0x000000), 0.35))
         } else {
             // legs that stride, boots, a belt
-            c.seg(x - 0.8, gy - 5.6, x - 0.8 + sw, gy - 1, 1.9, trousers); c.seg(x + 1, gy - 5.6, x + 1 - sw, gy - 1, 1.9, Col.mix(trousers, Col(0x000000), 0.25))
-            c.R(x - 1.8 + sw, gy - 1.4, 2.8, 1.4, boot); c.R(x + 0.2 - sw, gy - 1.4, 2.8, 1.4, boot)
+            // each leg bends at the knee: it comes forward lifted and goes back planted
+            for (side, far) in [(1.0, true), (-1.0, false)] {
+                let a = phase + (side > 0 ? PI : 0)
+                let fwd = moving ? sin(a) * 2.5 : 0, lift = moving ? max(0, cos(a)) * 1.5 : 0
+                let hxp = x + (side > 0 ? 0.9 : -0.7), fxp = hxp + fwd * dir, fyp = gy - 1 - lift
+                let kxp = (hxp + fxp) / 2 + dir * (0.4 + lift * 0.7), kyp = gy - 3.4 - lift * 0.4
+                let lc = far ? Col.mix(trousers, Col(0x000000), 0.25) : trousers
+                c.seg(hxp, gy - 5.8, kxp, kyp, 1.9, lc); c.seg(kxp, kyp, fxp, fyp, 1.7, lc)
+                c.R(fxp - 1.2 + dir * 0.5, fyp - 0.4, 2.8, 1.4, boot); c.R(fxp - 1.2 + dir * 0.5, fyp + 0.6, 2.8, 0.4, Col(0x14100e))
+            }
             if role == .rancher { c.seg(x - 0.8, gy - 5.6, x - 0.8 + sw, gy - 1.6, 2.6, Col(0x8a6238, 0.9)) }
             c.R(x - 2.5, gy - 11.6 - bob, 5.2, 6.2, shirt)
             c.R(x + 1.4, gy - 11.6 - bob, 1.3, 6.2, Col.mix(shirt, Col(0x000000), 0.22))
@@ -1900,8 +1957,12 @@ final class Renderer {
             c.seg(x + dir * 2.2, gy - 10.6 - bob, x + dir * 2.6 - sw * 0.5, gy - 6.6 - bob, 1.4, sleeve); c.circ(x + dir * 2.6 - sw * 0.5, gy - 6.2 - bob, 0.8, skin)
         }
         c.seg(x - dir * 2.2, gy - 10.6 - bob, x - dir * 2.6 + sw * 0.5, gy - 6.6 - bob, 1.4, Col.mix(sleeve, Col(0x000000), 0.15))
-        // head: a face, an eye, sometimes a beard or a neckerchief
+        // head: a neck, a face with a nose, hair at the back, an eye, sometimes a beard or a neckerchief
+        c.R(x - 0.9, gy - 12 - bob, 1.9, 0.9, Col.mix(skin, Col(0x000000), 0.22))
         c.RR(x - 1.7, gy - 15.2 - bob, 3.8, 3.8, 0.9, skin)
+        c.R(x + dir * 2 - 0.35, gy - 13.7 - bob, 0.7, 0.9, Col.mix(skin, Col(0x000000), 0.15))
+        c.R(x - dir * 1.5 - 0.5, gy - 14.8 - bob, 1, 2.4, Col([0x2a1c14, 0x6a4a2e, 0x9a8a7a, 0x1c1410][k % 4] as UInt32))
+        c.R(x - 2.5, gy - 11.6 - bob, 5.2, 0.7, Col(0xffffff, 0.12))
         c.R(x + dir * 0.9 - 0.3, gy - 13.9 - bob, 0.7, 0.8, Col(0x1c120c))
         if !woman && k % 5 == 2 { c.R(x - 1.7, gy - 12.6 - bob, 3.8, 1.4, Col(k % 2 == 0 ? 0x4a3424 : 0xb9b2a4)) }
         if !woman && k % 3 == 1 { c.R(x - 2, gy - 11.9 - bob, 4.4, 1.1, Col(0xb5412e)) }
@@ -1922,8 +1983,9 @@ final class Renderer {
     /// A horse in profile, facing `dir`: jointed legs that walk or gallop, a mane and tail that stream at speed, a head that nods at rest.
     private func horse(_ x: Double, _ dir: Double, _ phase: Double, _ speed: Double, _ coat: Col, _ dark: Col, tack: Bool = false) -> Double {
         let mv = speed > 4, gal = speed > 55
-        let ph = phase * 2
-        let bob = gal ? sin(ph * 2) * 1.1 : (mv ? sin(ph * 2) * 0.45 : 0)
+        // a gallop is one long bound a stride, not a quick patter: slower legs, more reach, a rocking back
+        let ph = gal ? phase * 1.15 : phase * 2
+        let bob = gal ? sin(ph + 0.9) * 1.6 : (mv ? sin(ph * 2) * 0.45 : 0)
         let lite = Col.mix(coat, Col(0xffffff), 0.16), shade = Col.mix(coat, dark, 0.55)
         let hoof = Col(0x1c1410)
         c.save()
@@ -1933,11 +1995,11 @@ final class Renderer {
         // one leg: hip, a knee that bends forward as the foot lifts, cannon bone, hoof
         func leg(_ hx: Double, _ off: Double, _ far: Bool, _ fore: Bool) {
             let a = ph + off
-            let up = mv ? max(0, sin(a)) * (gal ? 4.2 : 2.2) : 0
-            let stride = mv ? (gal ? 6.5 : 3.2) : 0
+            let up = mv ? (gal ? pow(max(0, sin(a)), 0.8) * 5.6 : max(0, sin(a)) * 2.2) : 0
+            let stride = mv ? (gal ? (fore ? 9.5 : 8.2) : 3.2) : 0
             let hy = -9.5 - HLIFT + bob
             let fx = hx - cos(a) * stride, fy = -1 - up
-            let kx = (hx + fx) / 2 + (fore ? 1 : -1) * (0.7 + up * 0.75), ky = (hy + fy) / 2 - (fore ? 0 : 0.6)
+            let kx = (hx + fx) / 2 + (fore ? 1 : -1) * (0.7 + up * (gal ? 0.95 : 0.75)), ky = (hy + fy) / 2 - (fore ? 0 : 0.6)
             let col = far ? dark : shade
             c.seg(hx, hy, kx, ky, 2.5, col)
             c.seg(kx, ky, fx, fy, 1.6, col)
@@ -1946,9 +2008,11 @@ final class Renderer {
             c.R(fx - 1, fy - 0.2, 2.6, 1.3, hoof); c.R(fx - 0.8, fy - 0.2, 1, 0.5, Col(0x5a4a40))
             if !far && tack { c.R(fx - 0.8, fy - 2.2, 2.2, 1.2, Col(0xf0e6d2)) }      // white socks
         }
-        let offs: [Double] = gal ? [0.7, PI + 0.7, 0, PI] : [PI, PI * 1.5, 0, PI * 0.5]
+        // hind feet land almost together, then the fore feet, then all four are off the ground
+        let offs: [Double] = gal ? [0, 2.6, 0.6, 3.2] : [PI, PI * 1.5, 0, PI * 0.5]
         leg(-7.5, offs[2], true, false); leg(7, offs[3], true, true)
         c.translate(0, -HLIFT)       // everything from here up is the body, carried on longer legs
+        if gal { c.translate(0, -14); c.rotate(sin(ph + 2.2) * 0.07); c.translate(0, 14) }
         // tail: strands that hang at rest and stream out at a gallop
         let tx = -11.0, ty = -15 + bob
         for k in 0..<5 {
@@ -2288,20 +2352,10 @@ final class Renderer {
         guard let bl = g.slotsFor, vis(bl.x, bl.def.w) else { return }
         let n = bl.cost
         if n <= 0 { return }
-        let per = min(n, 10)
-        let rows = (n + per - 1) / per
-        var tall = bl.def.h + Double(max(0, bl.level - 1)) * 5
-        if bl.isHall && bl.level == 1 { tall = 26 }
-        var gap = 34.0
-        if bl.def.gate || bl.wire || bl.isHall { gap = 12 } else if bl.virt { gap = 26 } else if bl.site { gap = 4 }
-        let top = gy - tall - gap - Double(rows) * 6
-        let cx = sx(bl.cx)
         // every row is centred over the building, with no panel behind
         for i in 0..<n {
-            let row = i / per
-            let inRow = row == rows - 1 ? n - row * per : per
-            let x = cx - Double(inRow - 1) * 3 + Double(i % per) * 6
-            let y = top + Double(row) * 6
+            let p = g.slotXY(bl, i)
+            let x = sx(p.0), y = gy + p.1
             if i < bl.paid { coinAt(x, y) } else {
                 c.ellStroke(x, y, 1.9, 1.9, 1.5, Col(0x2a1c14, 0.7))
                 c.ellStroke(x, y, 1.9, 1.9, 0.7, Col(0xf7d877))

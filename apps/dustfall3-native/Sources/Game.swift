@@ -65,6 +65,7 @@ final class Game {
     var sCar = Building(.sCar, 3182)
     var sGallery = Building(.sGallery, 186)
     var gallery: Gallery?
+    var galleryDay = -1          // one go at the booth a day
     let galleryRows: [(Double, Double, Double)] = [(0.30, 62, 1), (0.46, 44, -1), (0.62, 30, 1)]     // height up the screen, speed, direction
 
     /// Two coins on the counter: eight shots, three rows of targets, and the day stands still while you shoot.
@@ -378,6 +379,8 @@ final class Game {
                 hint("tonic3", "Coloured water. The professor tips his hat.", again: true)
             }
         case .sGallery:
+            galleryDay = day
+            bl.dyn = 0
             startGallery()
         case .sRods:
             rodsLv = 1
@@ -450,6 +453,7 @@ final class Game {
         case .sShow:
             return showUsed ? "Medicine show: one bottle to a customer. He moves on in the morning." : "Medicine show: 3 coins\(go) for a bottle of tonic. It might put fire in your horse, pay out handsomely, or be coloured water."
         case .sGallery:
+            if galleryDay == day { return "Shooting gallery: one go a day. The booth opens again in the morning." }
             return "Shooting gallery: 2 coins\(go) buys eight shots at the moving targets. A coin for every duck or bottle you knock down, three for a star."
         case .sRods:
             return rodsLv > 0 ? "Lightning rods: fitted to every roof. A strike on town runs harmlessly to ground." : "Windmill: 5 coins\(go) fits lightning rods to every roof, so a strike cannot start a fire."
@@ -534,7 +538,7 @@ final class Game {
                     mustangs.remove(at: i); continue
                 }
             } else {
-                if ad < 130 { hint("mustang", "Wild mustangs. Gallop alongside one for a moment to rope it, then lead it into town to sell.") }
+                if ad < 130 { hint("mustang", "Wild mustangs. Ride fast close beside one until the loop over it closes, then lead it into town to sell.") }
                 if w.st == 0 {
                     w.t -= dt
                     if w.t <= 0 { w.t = rnd(2, 7); w.going = !chance(0.4); w.tx = clampD(w.x + rnd(-50, 50), r.0, r.1) }
@@ -548,8 +552,8 @@ final class Game {
                     w.t -= dt
                     if w.t <= 0 && ad > 100 { w.st = 0; w.t = rnd(1, 3); w.going = false } else if w.t <= 0 && ad < 60 { w.t = 1; w.dir = dp > 0 ? -1 : 1 }
                 }
-                if ad < 24 && abs(pvx) > 55 { w.rope += dt } else { w.rope = max(0, w.rope - dt * 0.6) }
-                if w.rope > 1.1 {
+                if ad < 40 && abs(pvx) > 40 { w.rope += dt } else { w.rope = max(0, w.rope - dt * 0.4) }
+                if w.rope > 0.8 {
                     w.st = 2; w.rope = 0
                     sfx?.recruit(); puff(w.x, -16, 6, GOLD, 30)
                     hint("roped", "Roped. Lead it in through the gate and it sells in town.", again: true)
@@ -852,7 +856,7 @@ final class Game {
         sTower.dyn = towerLv > 0 ? 0 : 6
         sHobo.dyn = hoboDay == day ? 0 : 2
         sCar.dyn = carCool > 0 ? 0 : 5
-        sGallery.dyn = 2
+        sGallery.dyn = galleryDay == day ? 0 : 2
         for bl in b { bl.capL = bl.tier ? 1 + hall.level : 9 }
         station.capL = todo().isEmpty ? 9 : 0
     }
@@ -1145,6 +1149,7 @@ final class Game {
         let want = clampD(px + pdir * 26 - W / 2, WEST, WORLD - W)
         cam += (want - cam) * min(1, dt * 4)
         let mode = !bandits.isEmpty ? 3 : (dark() > 0.6 ? 2 : (t > 0.6 ? 1 : 0))
+        sfx?.town = town
         sfx?.music(clock, mode)
     }
 
@@ -1180,6 +1185,7 @@ final class Game {
         gunCD = max(0, gunCD - dt); gunT = max(0, gunT - dt); hurtT = max(0, hurtT - dt)
         if reloadT > 0 { reloadT -= dt; if reloadT <= 0 { ammo = 6; sfx?.reload() } }
         // both buttons repeat for as long as they are held
+        if !input.toss { tossHold = false }
         if input.toss && tossCD <= 0 { toss() }
         if input.fire { fire() }
         // strongboxes break open when the horse rides over them
@@ -1196,7 +1202,23 @@ final class Game {
         return town > 0 && bankB.level > 0 && !bankB.building && abs(px - bankB.cx) < bankB.def.w / 2 + 12
     }
 
+    /// Where the i-th coin slot over a building sits: world x, and height above the ground (negative is up).
+    func slotXY(_ bl: Building, _ i: Int) -> (Double, Double) {
+        let n = max(1, bl.cost), per = min(n, 10), rows = (n + per - 1) / per
+        var tall = bl.def.h + Double(max(0, bl.level - 1)) * 5
+        if bl.isHall && bl.level == 1 { tall = 26 }
+        var gap = 34.0
+        if bl.def.gate || bl.wire || bl.isHall { gap = 12 } else if bl.virt { gap = 26 } else if bl.site { gap = 4 }
+        let k = max(0, min(n - 1, i)), row = k / per
+        let inRow = row == rows - 1 ? n - row * per : per
+        return (bl.cx - Double(inRow - 1) * 3 + Double(k % per) * 6, -(tall + gap + Double(rows) * 6) + Double(row) * 6)
+    }
+
+    private var tossHold = false      // a coin went somewhere useful while the button has been held
     private func toss() {
+        let had = coins
+        var dropped = false
+        defer { if coins < had && !dropped { tossHold = true } }
         if coins <= 0 {
             if atBank() && bank > 0 {            // an empty purse at the bank: the teller hands five back
                 let n = min(5, bank)
@@ -1230,20 +1252,20 @@ final class Game {
         let sh = sheriff, st = store
         if sh.level > 0 && !sh.building && abs(px - rackX(sh)) < 12 {
             if folk.contains(where: { $0.role == .folk }) {
-                flying.append(Coin(sx: px, sy: sy, tx: rackX(sh), ty: -14, kind: 3)); coins -= 1; sfx?.toss()
+                flying.append(Coin(sx: px, sy: sy, tx: rackX(sh), ty: -23, kind: 3)); coins -= 1; sfx?.toss()
             } else { tossCD = 0.5; sfx?.empty(); hint("nofolk", "A badge needs someone to wear it. Hire a drifter first.", again: true) }
             return
         }
         if st.level > 0 && !st.building && abs(px - rackX(st)) < 12 {
             if folk.contains(where: { $0.role == .folk }) {
-                flying.append(Coin(sx: px, sy: sy, tx: rackX(st), ty: -14, kind: 5)); coins -= 1; sfx?.toss()
+                flying.append(Coin(sx: px, sy: sy, tx: rackX(st), ty: -23, kind: 5)); coins -= 1; sfx?.toss()
             } else { tossCD = 0.5; sfx?.empty(); hint("nofolk", "A pick needs someone to swing it. Hire a drifter first.", again: true) }
             return
         }
         let sb = stable
         if sb.level > 0 && !sb.building && abs(px - rackX(sb)) < 12 {
             if folk.contains(where: { $0.role == .folk }) {
-                flying.append(Coin(sx: px, sy: sy, tx: rackX(sb), ty: -14, kind: 7)); coins -= 1; sfx?.toss()
+                flying.append(Coin(sx: px, sy: sy, tx: rackX(sb), ty: -23, kind: 7)); coins -= 1; sfx?.toss()
             } else { tossCD = 0.5; sfx?.empty(); hint("nofolk", "A rope needs someone to throw it. Hire a drifter first.", again: true) }
             return
         }
@@ -1274,15 +1296,21 @@ final class Game {
         var best: Building?
         var bb = 9999.0
         for bl in b where bl.payable && bl.paid + bl.incoming < bl.cost {
-            let dd = abs(bl.cx - px)
-            if dd < bl.def.w / 2 + 12 && dd < bb { bb = dd; best = bl }
+            // the one you are most nearly in front of, however wide or narrow it is
+            let dd = abs(bl.cx - px), reach = bl.def.w / 2 + 12
+            if dd < reach && dd / reach < bb { bb = dd / reach; best = bl }
         }
         if let bl = best {
+            // each coin goes to its own slot, in order
+            let p = slotXY(bl, bl.paid + bl.incoming)
             bl.incoming += 1
-            let c = Coin(sx: px, sy: sy, tx: bl.cx, ty: -bl.def.h - 10, kind: 1); c.bld = bl
+            let c = Coin(sx: px, sy: sy, tx: p.0, ty: p.1, kind: 1); c.bld = bl
             flying.append(c); coins -= 1; sfx?.toss(); return
         }
-        // 5: nothing here wants it, so it lands in the dust
+        // 5: nothing here wants it, so it lands in the dust. Not while the button is still held from paying
+        // for something, though: the purse closes when the last slot is filled.
+        if tossHold { tossCD = 0.3; return }
+        dropped = true
         flying.append(Coin(sx: px, sy: sy, tx: px + pdir * 18, ty: -1, kind: 0)); coins -= 1; sfx?.toss()
     }
 
@@ -1335,14 +1363,14 @@ final class Game {
         // a drifter walks over to any coin lying close by, picks it up, and is hired
         for d in drifters where !d.taken {
             var best = -1
-            var bd = 34.0
+            var bd = 90.0
             for (k, g) in ground.enumerated() where g.y <= 0 && g.age > 0.5 {
                 let dd = abs(g.x - d.x)
                 if dd < bd { bd = dd; best = k }
             }
             if best < 0 { continue }
             let gx = ground[best].x
-            if bd > 3 { d.x += sgn(gx - d.x) * 30 * dt } else {
+            if bd > 3 { d.x += sgn(gx - d.x) * 38 * dt } else {
                 ground.remove(at: best)
                 let c = Coin(sx: d.x, sy: 0, tx: d.x, ty: 0, kind: 2)
                 c.drifter = d
@@ -2259,8 +2287,8 @@ final class Game {
         var best: Building?
         var bd = 9999.0
         for bl in b where (!bl.virt || bl.live) && (bl.type != .sShow || showOn) {
-            let d = abs(bl.cx - px)
-            if d < bl.def.w / 2 + 12 && d < bd { bd = d; best = bl }
+            let d = abs(bl.cx - px), reach = bl.def.w / 2 + 12
+            if d < reach && d / reach < bd { bd = d / reach; best = bl }
         }
         guard let bl = best else { return }
         if bl.def.gate && bl.level > 0 && bl.hp > 0 && !bl.building && dark() > 0.3 {

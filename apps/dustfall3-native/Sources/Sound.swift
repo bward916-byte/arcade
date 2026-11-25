@@ -172,16 +172,33 @@ final class Sound {
          53, 0, 57, 0, 60, 0, 57, 0, 53, 0, 57, 0, 60, 59, 57, 0,
          52, 0, 56, 0, 59, 0, 56, 0, 52, 0, 56, 0, 59, 62, 64, 0]
     ]
+    /// Which town you are in. Each has its own key, and one of three day tunes.
+    var town = 0
+    private let KEY: [Int] = [0, -2, 3, -4, 5, 2, -5, -1]
+    private let DAYPROG: [[String]] = [["Am", "C", "G", "E"], ["Am", "F", "C", "G"], ["Am", "G", "F", "E"]]
+    private let DAYSTEP: [Double] = [0.2, 0.22, 0.185]
+    private let DAYTUNE: [[Int]] = [
+        [],
+        [76, 0, 74, 0, 72, 0, 0, 0, 69, 0, 72, 0, 76, 0, 0, 0,
+         77, 0, 0, 0, 72, 0, 69, 0, 72, 0, 0, 0, 0, 0, 0, 0,
+         79, 0, 76, 0, 72, 0, 0, 0, 76, 0, 79, 0, 84, 0, 0, 0,
+         83, 0, 0, 0, 79, 0, 74, 0, 71, 0, 0, 0, 0, 0, 0, 0],
+        [81, 0, 0, 0, 76, 0, 0, 72, 0, 0, 76, 0, 81, 0, 0, 0,
+         79, 0, 0, 0, 74, 0, 0, 71, 0, 0, 74, 0, 79, 0, 0, 0,
+         77, 0, 0, 0, 72, 0, 0, 69, 0, 0, 72, 0, 77, 0, 76, 0,
+         76, 0, 0, 0, 71, 0, 68, 0, 64, 0, 0, 0, 0, 0, 0, 0]
+    ]
     /// mode: 0 day, 1 dusk, 2 night, 3 raid.
     func music(_ now: Double, _ mode: Int) {
         if muted || !running || now < seqT { return }
         let md = max(0, min(3, mode))
         if md != lastMode { lastMode = md; seqI = 63 }
-        seqT = (seqT < now - 1 ? now : seqT) + STEP[md]
+        let key = KEY[abs(town) % KEY.count], var3 = abs(town) % 3
+        seqT = (seqT < now - 1 ? now : seqT) + (md == 0 ? DAYSTEP[var3] : STEP[md])
         seqI = (seqI + 1) % 64
         if seqI == 0 { cycle += 1 }
         let st = seqI % 16, bar = seqI / 16
-        let ch = CH[PROG[md][bar]] ?? [45, 57, 60, 64]
+        let ch = (CH[md == 0 ? DAYPROG[var3][bar] : PROG[md][bar]] ?? [45, 57, 60, 64]).map { $0 + key }
         func strum(_ vol: Double, _ dur: Double) {
             for i in 1..<ch.count { tone(mf(ch[i]), dur, 5, vol, 0, Double(i - 1) * 0.018) }
         }
@@ -211,9 +228,9 @@ final class Sound {
             if st == 0 && bar % 2 == 0 { tone(55, 2.3, 3, 0.02); tone(58.3, 2.3, 3, 0.01) }
         }
         // the tune comes in every other time round by day and at dusk, so the band gets a turn alone
-        let tune = TUNE[md]
+        let tune = md == 0 && var3 > 0 ? DAYTUNE[var3] : TUNE[md]
         if !tune.isEmpty && (md == 3 || cycle % 2 == 1) && tune[seqI] > 0 {
-            let f = mf(tune[seqI])
+            let f = mf(tune[seqI] + key)
             switch md {
             case 0: tone(f, 0.5, 1, 0.04, f * 0.995); tone(f * 2, 0.25, 0, 0.008)
             case 1: tone(f, 1.3, 0, 0.035, f * 1.004); tone(f * 2.002, 0.9, 0, 0.006)

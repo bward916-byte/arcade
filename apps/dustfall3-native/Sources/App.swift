@@ -319,7 +319,9 @@ final class GameViewController: UIViewController {
         pauseBox.backgroundColor = UIColor(red: 0.06, green: 0.03, blue: 0.02, alpha: 0.6)
         pauseBox.isHidden = true
         pauseTitle.text = "Paused"
-        pauseTitle.font = rye(26)
+        pauseTitle.font = rye(22)
+        pauseTitle.adjustsFontSizeToFitWidth = true
+        pauseTitle.minimumScaleFactor = 0.5
         pauseTitle.textColor = gold
         pauseTitle.textAlignment = .center
         style(resumeBtn, "Resume", primary: true)
@@ -437,14 +439,15 @@ final class GameViewController: UIViewController {
         burnLogo.build(size: view.bounds.size, title: rye(min(102, bw * 0.118)), day: serif(min(36, bw * 0.042), bold: false), gold: gold, cream: cream)
         startBtn.frame = CGRect(x: bw / 2 - 150, y: by + 32, width: 300, height: 48)
         pauseBox.frame = view.bounds
-        pauseTitle.frame = CGRect(x: 0, y: bh * 0.12, width: bw, height: 40)
-        pausePlaque.frame = CGRect(x: bw / 2 - 150, y: bh * 0.12 - 14, width: 300, height: 240)
+        // the pause card: centred, with room round the heading and between the buttons
+        let py = max(10, (bh - 262) / 2)
+        pausePlaque.frame = CGRect(x: bw / 2 - 180, y: py, width: 360, height: 262)
+        pauseTitle.frame = CGRect(x: bw / 2 - 156, y: py + 18, width: 312, height: 34)
         overPlaque.frame = CGRect(x: bw / 2 - 250, y: bh * 0.2 - 18, width: 500, height: 196)
-        resumeBtn.frame = CGRect(x: bw / 2 - 120, y: bh * 0.12 + 54, width: 240, height: 50)
-        soundBtn.frame = CGRect(x: bw / 2 - 120, y: bh * 0.12 + 114, width: 240, height: 44)
-        soundBtn.frame = CGRect(x: bw / 2 - 120, y: bh * 0.12 + 114, width: 116, height: 44)
-        mapBtn.frame = CGRect(x: bw / 2 + 4, y: bh * 0.12 + 114, width: 116, height: 44)
-        restartBtn.frame = CGRect(x: bw / 2 - 120, y: bh * 0.12 + 166, width: 240, height: 44)
+        resumeBtn.frame = CGRect(x: bw / 2 - 140, y: py + 70, width: 280, height: 50)
+        soundBtn.frame = CGRect(x: bw / 2 - 140, y: py + 134, width: 134, height: 44)
+        mapBtn.frame = CGRect(x: bw / 2 + 6, y: py + 134, width: 134, height: 44)
+        restartBtn.frame = CGRect(x: bw / 2 - 140, y: py + 192, width: 280, height: 44)
         mapBox.frame = view.bounds
         cutBox.frame = view.bounds
         overBox.frame = view.bounds
