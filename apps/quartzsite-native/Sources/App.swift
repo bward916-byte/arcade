@@ -88,7 +88,7 @@ final class GameViewController: UIViewController {
     private var holdTouch: UITouch?
     private let tapLight = UIImpactFeedbackGenerator(style: .light)
     private let tapDone = UINotificationFeedbackGenerator()
-    private let saveKey = "quartzsite.native.save2"
+    private let saveKey = "quartzsite.native.save3"
 
     override var prefersStatusBarHidden: Bool { return true }
     override var prefersHomeIndicatorAutoHidden: Bool { return true }
@@ -140,7 +140,7 @@ final class GameViewController: UIViewController {
         renderer = Renderer(game: game, canvas: cv)
         if !demoDone {
             demoDone = true
-            for key in ["pick", "rigs", "play", "night", "ltva", "town", "show", "lot", "dome", "toys", "ride", "skoolie"] where ProcessInfo.processInfo.arguments.contains("-demo-" + key) {
+            for key in ["pick", "rigs", "play", "night", "ltva", "main", "gem", "tyson", "dome", "toys", "ride", "skoolie", "map", "trail", "scaddan"] where ProcessInfo.processInfo.arguments.contains("-demo-" + key) {
                 game.demo(key)
             }
         }
@@ -188,7 +188,7 @@ final class GameViewController: UIViewController {
         for t in touches {
             let p = t.location(in: view)
             let gx = Double(p.x / k), gy = Double(p.y / k)
-            if game.phase != .play {
+            if game.phase != .play || game.mapOpen {
                 game.tap(gx, gy)
                 continue
             }
