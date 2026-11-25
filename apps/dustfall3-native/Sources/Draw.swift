@@ -438,6 +438,38 @@ final class Renderer {
             if !lit && bt.who != "dustfall" { q(-22, 17, 42, 8, 0x6a231c); a.text("CRANE C. & R.", -1, 23.2, 5, Col(0xead7a4), fit: 38) }
             a.restore()
             motes(bio == .snow ? 34 : 12, bio == .snow ? 0xffffff : 0xfff3c4)
+        case "shut":
+            // a bigger town down the line, dark at dusk, with the company's chain across the road
+            let snow = (PLACES[bt.who]?.bio ?? .desert) == .snow
+            let sil: UInt32 = snow ? 0x2a2c3c : 0x1c1210
+            a.translate(0, -12)
+            for i in 0..<11 { a.R(0, Double(i) * 9 - 12, 200, 9, Col.mix(Col(0x1a1838), Col(snow ? 0x8a9ac0 : 0xd8623a), Double(i) / 10)) }
+            a.circ(100, 78, 30, Col(0xffb060, 0.16)); a.circ(100, 80, 13, Col(snow ? 0xdfe8f8 : 0xff9a50))
+            a.poly(Col(snow ? 0x5a6a8a : 0x6a2c2a), [0, 82, 0, 62, 30, 54, 60, 64, 96, 50, 130, 62, 170, 52, 200, 60, 200, 82])
+            let big: [(Double, Double, Double)] = [(2, 16, 22), (20, 20, 33), (42, 14, 26), (58, 22, 40), (82, 15, 28), (103, 17, 34), (122, 24, 43), (148, 16, 28), (166, 20, 37), (187, 14, 24)]
+            for (i, f) in big.enumerated() {
+                let (bx, bw, bh) = f
+                q(bx, 82 - bh, bw, bh, sil); q(bx - 1, 82 - bh - 3, bw + 2, 3, sil)
+                var wy = 82 - bh + 5
+                while wy < 74 { for wx in [bx + 3, bx + bw - 6] { q(wx, wy, 3, 4, 0x0c0808); q(wx - 0.5, wy + 1.5, 4, 1, 0x6a5a48, 0.8) }; wy += 9 }
+                if snow { q(bx - 1, 82 - bh - 4, bw + 2, 1.5, 0xffffff, 0.9) }
+                if i == 3 || i == 6 { q(bx + bw / 2 - 1.5, 82 - bh + 5, 3, 4, 0xffcf6b, 0.3 + 0.25 * sin(t * 3 + Double(i))) }
+            }
+            a.poly(Col(sil), [130, 40, 134, 22, 138, 40]); q(133.6, 16, 0.9, 7, sil); q(132, 18, 4, 0.9, sil)
+            q(88, 34, 12, 9, sil); q(90, 43, 1.2, 12, sil); q(96.8, 43, 1.2, 12, sil); a.poly(Col(sil), [87, 34, 94, 29, 101, 34])
+            q(0, 80, 200, 32, snow ? 0xc4d0de : 0x6a4030); a.poly(Col(snow ? 0xaab6c8 : 0x54301f), [88, 80, 112, 80, 150, 112, 50, 112])
+            for i in 0..<4 { let cx = (hs(i + 4) * 220 + t * (5 + Double(i) * 2)).truncatingRemainder(dividingBy: 220) - 10; q(cx, 40 + hs(i) * 14 + sin(t * 4 + Double(i)) * 1.5, 3, 1, 0x0c0808); q(cx + 1, 39 + hs(i) * 14, 1, 1, 0x0c0808) }
+            // the gate: two posts, a sagging chain, the board and its padlock
+            q(50, 64, 4, 38, 0x2a1c14); q(146, 64, 4, 38, 0x2a1c14); q(49, 63, 6, 2, 0x4a3424); q(145, 63, 6, 2, 0x4a3424)
+            let sway = sin(t * 1.3) * 0.8
+            for i in 0..<24 { let u = Double(i) / 23; q(54 + u * 92, 70 + sin(u * Double.pi) * (9 + sway), 3, 1.6, i % 2 == 0 ? 0x9a9aa4 : 0x5a5a64) }
+            a.save(); a.translate(100, 80 + sway); a.rotate(sin(t * 1.3) * 0.03)
+            q(-30, 0, 60, 19, 0x2a1c14); q(-29, 1, 58, 17, 0x7a241c); q(-29, 1, 58, 1, 0xa8483a)
+            a.text("CLOSED", 0, 10.4, 9, Col(0xead7a4), face: "Rye-Regular", fit: 52)
+            a.text("CRANE CATTLE & RAIL", 0, 16, 3.6, Col(0xead7a4), fit: 50)
+            q(-3, -5, 6, 5, 0xd8b860); q(-2, -8, 4, 3, 0x000000, 0); a.ellStroke(0, -5.4, 2, 2.4, 0.9, Col(0xb8b8c0))
+            a.restore()
+            motes(snow ? 34 : 14, snow ? 0xffffff : 0xffc890)
         case "poster":
             // a wanted poster nailed to the boards
             q(0, 0, 200, 112, 0x4a3426)

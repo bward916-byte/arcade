@@ -19,6 +19,18 @@ final class BurnLogoView: UIView {
     private var started = false
     /// Holds the burn part-way, for a still picture.
     var frozen: Double?
+    private var titleText = "Dustfall III", subText = "Day 1"
+    private var fonts: (UIFont, UIFont, UIColor, UIColor)?
+    private var fullSize = CGSize.zero
+
+    /// Puts other words on the board: a town's name as you step off in it.
+    func retitle(_ a: String, _ b: String) {
+        if a == titleText && b == subText { return }
+        titleText = a; subText = b
+        guard let f = fonts, fullSize.width >= 50 else { return }
+        builtFor = .zero
+        build(size: fullSize, title: f.0, day: f.1, gold: f.2, cream: f.3)
+    }
     var onStart: (() -> Void)?
 
     override init(frame: CGRect) {
@@ -87,19 +99,20 @@ final class BurnLogoView: UIView {
 
     /// Draws the name once, for this screen size, and works out the order it will burn in.
     func build(size: CGSize, title: UIFont, day: UIFont, gold: UIColor, cream: UIColor) {
+        fonts = (title, day, gold, cream); fullSize = size
         if size == builtFor || size.width < 50 { return }
         builtFor = size
         ash.frame = CGRect(origin: .zero, size: size)
         ember.frame = CGRect(origin: .zero, size: size)
         func name(_ col: UIColor) -> NSAttributedString {
-            return NSAttributedString(string: "Dustfall III", attributes: [.font: title, .foregroundColor: col, .kern: 2])
+            return NSAttributedString(string: titleText, attributes: [.font: title, .foregroundColor: col, .kern: 2])
         }
         let ts = name(gold).size()
         let sh = NSShadow()
         sh.shadowColor = UIColor.black
         sh.shadowBlurRadius = 4
         sh.shadowOffset = .zero
-        let dayStr = NSAttributedString(string: "Day 1", attributes: [.font: day, .foregroundColor: cream, .kern: 3, .shadow: sh])
+        let dayStr = NSAttributedString(string: subText, attributes: [.font: day, .foregroundColor: cream, .kern: 3, .shadow: sh])
         let ds = dayStr.size()
         let lw = ts.width + 44, lh = ts.height + ds.height + 22
         var k: CGFloat = 1

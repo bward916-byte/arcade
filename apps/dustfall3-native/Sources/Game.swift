@@ -73,6 +73,9 @@ final class Game {
     var sGallery = Building(.sGallery, 186)
     var gallery: Gallery?
     var galleryDay = -1          // one go at the booth a day
+    var unlocked = false         // the line past the first town has been bought
+    var payAsk = false           // the train is held at the edge of town while the player is asked
+    var nameSeq = 0              // goes up each time you step off in a town, so its name can be shown
     /// Two coins on the counter: eight shots at a saloon full of things that answer when they are hit, as in the old arcade galleries.
     private func startGallery() {
         var gl = Gallery()
@@ -1057,6 +1060,7 @@ final class Game {
         place = STOPS[n].0; town = STOPS[n].1; log = STOPS[n].2
         day = 1 + town * 8; day0 = day - 1; t = 0.08
         layTown()
+        nameSeq += 1
         coins = 12 + town * 5 + (town == STAGES.count - 1 ? 8 : 0); bank = 0
         fade = 1
         hint("jump", "\(nice(townName)). You step off the train with \(coins) coins, and everything here is boarded up.", again: true)
@@ -1104,10 +1108,6 @@ final class Game {
         for i in 0..<6 { let f = Folk(x: 1180 + Double(i) * 46); folk.append(f) }
         folk[0].role = .deputy; folk[1].role = .deputy; folk[2].role = .miner
         coins = 14; px = 1330; pdir = 1
-        if name == "fort" { px = sFort.x - 40 }
-        if name == "post" { px = -60 }
-        if name == "mission" { px = missionX + 40; pdir = -1 }
-        if ["fort", "post", "mission"].contains(name) { cam = clampD(px - W * 0.5, WEST, WORLD - W) }
         if name == "lv0" || name == "lv2" { devils = [Devil(x: 1420, vx: 6, t: 3, life: 30, big: true), Devil(x: 1250, vx: -4, t: 2, life: 30, big: false)] }
         if name == "lv3" { gust = 12 }
         if name == "night" {
@@ -1155,6 +1155,16 @@ final class Game {
         } else {
             day = 3; t = 0.4; hall.paid = 9; px = 1362
             for i in 0..<5 { ground.append(GCoin(x: 1150 + Double(i) * 7, y: 0, vx: 0, vy: 0, age: 1)) }
+        }
+        if name == "fort" { px = sFort.x - 40 }
+        if name == "post" { px = -60 }
+        if name == "mission" { px = missionX + 40; pdir = -1 }
+        if name.hasPrefix("see"), let n = Int(name.dropFirst(3)) {
+            // a walk down the whole of the last town, a screen at a time, with everything built
+            place = "bitterend"; town = 4; log = ["dustfall", "redwater", "lasthope", "coldcreek"]; day = 36; day0 = 33; layTown()
+            for bl in b where [BType.store, .saloon, .sheriff, .stable, .bank, .station, .bordello, .doctor, .church, .forge, .telegraph, .claim].contains(bl.type) { bl.level = 2 }
+            hall.level = 3; gateW.level = 2; gateE.level = 2; t = 0.4; noStory = true; hintT = 0
+            px = WEST + 200 + Double(n) * 390
         }
         cam = clampD(px - W / 2, WEST, WORLD - W)
     }
@@ -1908,6 +1918,14 @@ final class Game {
             if tr.chuff <= 0 { tr.chuff = 1; sfx?.chuff(1); smoke(tr.x + 16) }
             train = tr
             if tripT > 2.6 && !choosing {
+                // the first town is free; the rest of the line is asked for here
+                if town == 0 && !unlocked {
+                    if !payAsk {
+                        payAsk = true
+                        if !seen.contains("st_locked") { seen.insert("st_locked"); cut = STORY["locked"] ?? [] }
+                    }
+                    return
+                }
                 // straight on if there is only one way, or stop at the fork and ask
                 let opts = stageOf(town + 1)
                 if opts.count < 2 { arrive(opts[0]) } else { choosing = true }
@@ -1937,6 +1955,16 @@ final class Game {
         train = tr
     }
 
+    /// Bought: the train carries on.
+    func payDone() { unlocked = true; payAsk = false }
+    /// Not now: back on the platform with the ticket money, and the train waiting.
+    func payLater() {
+        payAsk = false; tripT = -1; fade = 0
+        coins += ticket.cost
+        train = Train(x: STOP, v: 0); ticket.paid = 0; ticket.live = true
+        hint("paylater", "You step back down with your ticket money. The train will wait: Dustfall is yours to keep building.", again: true)
+    }
+
     /// The ticket is paid: the train pulls out east with you aboard.
     private func board() {
         tripT = 0
@@ -1952,6 +1980,7 @@ final class Game {
         log.append(place); place = dest
         town += 1; day += 1; day0 = day - 1; t = 0.08
         layTown()
+        nameSeq += 1
         coins = carry + (town % STAGES.count == STAGES.count - 1 ? 8 : 0); bank = 0      // the last town is the hardest: a few more to start on
         fade = 1
         let news = [1: "a stable and a bank", 2: "a bordello and a doctor", 3: "a church and a blacksmith", 4: "a telegraph office"]

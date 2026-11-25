@@ -64,6 +64,11 @@ final class GameViewController: UIViewController {
     private var logoOn = false
     private var wasIntro = false
     private var cardSeen = false
+    private var nameSeen = 0
+    private var nameDue = false
+    private let shop = Shop()
+    private var payOpen = false
+    private let payNote = UILabel()
     private let introSkip = UILabel()
     private let cutClip = UIView()
     private let cutPanel = UIView()
@@ -261,6 +266,9 @@ final class GameViewController: UIViewController {
         coinBtn.addSubview(coinIcon)
         view.addSubview(coinBtn)
         game.onSave = { [weak self] in self?.saveGame() }
+        game.unlocked = shop.owned
+        shop.onChange = { [weak self] in if let s = self { s.game.unlocked = s.game.unlocked || s.shop.owned } }
+        shop.start()
         game.onBuzz = { [weak self] n in
             guard let me = self else { return }
             (n == 0 ? me.hapLight : (n == 1 ? me.hapMedium : me.hapHeavy)).impactOccurred()
@@ -539,7 +547,7 @@ final class GameViewController: UIViewController {
         if !demoDone && sw > sh {
             demoDone = true
             let args = ProcessInfo.processInfo.arguments
-            for name in ["day", "night", "train", "snow", "storm", "map", "duel", "coach", "west", "west2", "fire", "yard", "over", "lv0", "lv1", "lv2", "lv3", "lv4", "lv5", "lv6", "lv7", "fort", "post", "mission"] where args.contains("-demo-" + name) { demoMode = true; game.demo(name) }
+            for name in ["day", "night", "train", "snow", "storm", "map", "duel", "coach", "west", "west2", "fire", "yard", "over", "lv0", "lv1", "lv2", "lv3", "lv4", "lv5", "lv6", "lv7", "fort", "post", "mission", "see0", "see1", "see2", "see3", "see4", "see5", "see6", "see7", "see8", "see9"] where args.contains("-demo-" + name) { demoMode = true; game.demo(name) }
             if args.contains("-demo-map") { showMap(choose: true) }
             if args.contains("-demo-intro") { game.beginIntro() }
             if args.contains("-demo-plain") { demoMode = true; game.demo("day"); plainInfo = true }
@@ -550,6 +558,7 @@ final class GameViewController: UIViewController {
             if args.contains("-demo-cut3") { demoMode = true; game.demo("day"); game.cut = [Beat(art: "vista", who: "coldcreek", head: "Cold Creek", cap: ARRIVE["coldcreek"] ?? "")] }
             if args.contains("-demo-cut") { demoMode = true; game.demo("day"); game.cut = [STORY["varney"]![0]] }
             if args.contains("-demo-cut2") { demoMode = true; game.demo("day"); game.cut = [Beat(art: "vista", who: "irongulch", head: "Iron Gulch", cap: ARRIVE["irongulch"] ?? "")] }
+            if args.contains("-demo-cutshut") { demoMode = true; game.demo("day"); game.cut = [STORY["locked"]![0]] }
             if args.contains("-demo-cut4") { demoMode = true; game.demo("day"); game.cut = [STORY["end"]![4]] }
         }
     }
@@ -576,7 +585,7 @@ final class GameViewController: UIViewController {
             let key = s.place ?? stageOf(max(0, s.town))[0]
             startBtn.setTitle("Continue: day \(s.day), \(nice(PLACES[key]?.name ?? "Dustfall"))", for: .normal)
             newBtn.isHidden = false
-            cheatBtn.isHidden = false
+            cheatBtn.isHidden = !TESTBUILD
             cheatBtn.setTitle("Cheat: +200 coins (now \(s.coins))", for: .normal)
         } else {
             startBtn.setTitle("Ride in", for: .normal)
@@ -751,7 +760,71 @@ final class GameViewController: UIViewController {
             card.addSubview(b)
         }
     }
+    // ---------- the rest of the line: asked for once the first town is done, and whenever a locked town is picked
+    private func showPay() {
+        payOpen = true
+        let card = sheet("Ride the whole line", height: 268)
+        for v in card.subviews where v is UIButton { v.removeFromSuperview() }
+        let body = UILabel(frame: CGRect(x: 24, y: 44, width: 412, height: 78))
+        body.numberOfLines = 0; body.textAlignment = .center; body.font = serif(15, bold: false); body.textColor = cream
+        body.text = "Dustfall is yours to keep, free. Seven bigger towns wait down the track: banks and stage roads, a church, the telegraph, and Silas Crane at the end of the rails."
+        card.addSubview(body)
+        let buy = UIButton(type: .system)
+        let price = shop.product?.displayPrice ?? "$1.99"
+        style(buy, shop.product == nil && TESTBUILD ? "Unlock all towns (test build)" : "Unlock all towns  \u{00B7}  " + price, primary: true)
+        buy.frame = CGRect(x: 80, y: 130, width: 300, height: 46)
+        buy.addTarget(self, action: #selector(payBuy), for: .touchUpInside)
+        card.addSubview(buy)
+        let rest = UIButton(type: .system)
+        style(rest, "Restore purchase", primary: false)
+        rest.titleLabel?.font = serif(14)
+        rest.frame = CGRect(x: 40, y: 188, width: 184, height: 38)
+        rest.addTarget(self, action: #selector(payRestore), for: .touchUpInside)
+        card.addSubview(rest)
+        let later = UIButton(type: .system)
+        style(later, "Not now", primary: false)
+        later.titleLabel?.font = serif(14)
+        later.frame = CGRect(x: 236, y: 188, width: 184, height: 38)
+        later.addTarget(self, action: #selector(payLater), for: .touchUpInside)
+        card.addSubview(later)
+        payNote.frame = CGRect(x: 24, y: 234, width: 412, height: 22)
+        payNote.textAlignment = .center; payNote.font = serif(13, bold: false); payNote.textColor = gold; payNote.text = ""
+        card.addSubview(payNote)
+    }
+    private func payFinish() {
+        game.unlocked = true
+        sheetBox.isHidden = true; payOpen = false
+        if game.payAsk { game.payDone() }
+        last = 0
+    }
+    @objc private func payBuy() {
+        if shop.product == nil {
+            if TESTBUILD { shop.grant(true); payFinish(); return }
+            payNote.text = "The store can\u{2019}t be reached just now. Try again in a moment."
+            Task { [weak self] in await self?.shop.refresh() }
+            return
+        }
+        payNote.text = "Asking the store\u{2026}"
+        Task { [weak self] in
+            let ok = await self?.shop.buy() ?? false
+            if ok { self?.payFinish() } else { self?.payNote.text = "Nothing was bought." }
+        }
+    }
+    @objc private func payRestore() {
+        payNote.text = "Looking\u{2026}"
+        Task { [weak self] in
+            let ok = await self?.shop.restore() ?? false
+            if ok { self?.payFinish() } else { self?.payNote.text = "No purchase found on this Apple ID." }
+        }
+    }
+    @objc private func payLater() {
+        sheetBox.isHidden = true; payOpen = false
+        if game.payAsk { game.payLater() }
+        last = 0
+    }
+
     @objc private func jumpTown(_ b: UIButton) {
+        if b.tag > 0 && !game.unlocked { showPay(); return }
         closeMenu()
         game.jump(b.tag)
         last = 0
@@ -1109,13 +1182,21 @@ final class GameViewController: UIViewController {
         if !userPaused { game.update(min(0.05, max(0, raw))) }
         // the name over the first morning stands through the end of the opening, then burns off as the day starts
         let st = game.state
-        if st == .intro && !wasIntro { burnLogo.reset(); cardSeen = false; logoOn = false }
+        if st == .intro && !wasIntro { burnLogo.retitle("Dustfall III", "Day 1"); burnLogo.reset(); cardSeen = false; logoOn = false; nameDue = false; nameSeen = game.nameSeq }
+        // stepping off in a new town: its name stands over the street, then burns away
+        if game.nameSeq != nameSeen { nameSeen = game.nameSeq; nameDue = true }
+        if nameDue && st == .play && game.cut.isEmpty && game.fade < 0.5 && !logoOn && !userPaused {
+            nameDue = false
+            burnLogo.retitle(nice(game.townName), "Day \(game.day)")
+            burnLogo.reset(); logoOn = true; burnLogo.ignite(after: 1.4)
+        }
+        if game.payAsk && game.cut.isEmpty && !payOpen { showPay() }
         if st == .intro && game.introCard { cardSeen = true }
         if wasIntro && st == .play { logoOn = true; burnLogo.ignite(after: cardSeen ? 0.25 : 1.1) }
         wasIntro = st == .intro
         if logoOn {
             if st != .play { logoOn = false; burnLogo.reset() }
-            else if !userPaused && !burnLogo.step(min(0.05, max(0, raw))) { logoOn = false; burnLogo.reset() }
+            else if !userPaused && game.cut.isEmpty && !burnLogo.step(min(0.05, max(0, raw))) { logoOn = false; burnLogo.reset() }
         }
         if game.choosing && mapBox.isHidden { showMap(choose: true) }
         if game.over && overBox.isHidden {

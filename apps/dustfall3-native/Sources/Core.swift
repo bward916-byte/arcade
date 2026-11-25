@@ -493,6 +493,9 @@ let STORY: [String: [Beat]] = [
     "storm": [Beat(art: "storm", head: "Storm season", cap: "The first big thunderstorm rolls in. Lightning can set your roofs on fire.")],
     "varney": [Beat(art: "poster", head: "A face from a poster", cap: "A boss rides with tonight’s raiders: Varney, wanted in three territories. Somebody is paying him."),
                Beat(art: "eyes", who: "rider", head: "You, the rider", cap: "He is slow, he is hard to kill, and he shoots back. Bring him down and the rest will run.")],
+    "locked": [Beat(art: "shut", who: "irongulch", head: "Iron Gulch", cap: "Down the line the towns get bigger. A bank, a stable, a stage road, and Crane’s chain across the street."),
+               Beat(art: "shut", who: "coldcreek", head: "Cold Creek", cap: "A church and a smithy under the snow. Nobody has rung that bell in years."),
+               Beat(art: "shut", who: "bitterend", head: "Bitter End", cap: "Where the rails stop, Silas Crane is waiting. Seven towns stand shut between here and him.")],
     "end": [Beat(art: "map", who: "all", head: "All five towns rebuilt", cap: "Every town stands again. There is nothing left for Crane to buy."),
             Beat(art: "wire", head: "On every wire", cap: "The telegraph carries it up and down the line: Crane is selling out.", lines: ["CRANE CATTLE AND RAIL", "ALL HOLDINGS FOR SALE", "THE COMPANY IS CLOSED"]),
             Beat(art: "eyes", who: "crane", head: "Silas Crane", cap: "He looks at Bitter End one last time, lit from end to end."),
@@ -528,6 +531,8 @@ struct Devil { var x: Double; var vx: Double; var t = 0.0; var life: Double; var
 /// One thing to shoot at in the saloon gallery. x and y are fractions of the picture; hit counts up from the moment it is shot.
 /// Kinds: 0 bottle, 1 piano, 2 rocking chair, 3 rat, 4 spittoon, 5 lamp, 6 moose head, 7 swing doors, 8 wanted poster, 9 bar bell,
 /// 10 ace on the wall, 11 tossed silver dollar, 12 hat on the rack, 13 clock pendulum.
+/// Test builds carry the cheats: the coin button on the title, and a free unlock when the store has no product yet. False for the App Store.
+let TESTBUILD = true
 /// The saloon is this many screens wide, and the view pans slowly across it.
 let GWIDE = 1.6
 struct GTarget {
