@@ -531,26 +531,139 @@ final class Renderer {
         var sx3 = 0.0, si = 0
         while sx3 < W { c.R(sx3, 0, 14, H, Col(si % 2 == 0 ? 0x5a2420 : 0x4a1c1a, 0.9)); sx3 += 14; si += 1 }
         c.vfill(0, 0, W, H * 0.75, [(0, Col(0x000000, 0.45)), (1, Col(0x000000, 0))])
-        // the rails the targets ride on, and the targets
-        for (ri, r) in g.galleryRows.enumerated() {
-            let y = H * r.0
-            c.R(0, y + 8, W, 2.4, Col(0x6a4a2e)); c.R(0, y + 8, W, 0.8, Col(0x9a7448)); c.R(0, y + 10.4, W, 2, Col(0x000000, 0.3))
-            for tg in gl.targets where tg.row == ri {
-                let down = tg.hit >= 0
-                let k = down ? min(1, tg.hit / 0.18) : 0
-                c.save(); c.translate(tg.x, y + 8); c.scale(1, 1 - k * 0.92)
-                if tg.kind == 0 {
-                    let d = r.2
-                    c.ell(0, -6, 7, 5, Col(0xe8c84a)); c.circ(d * 6, -11, 3.6, Col(0xe8c84a)); c.poly(Col(0xd8742a), [d * 9, -11.6, d * 13, -10.4, d * 9, -9.4])
-                    c.circ(d * 6.8, -11.8, 0.8, Col(0x1c120c)); c.poly(Col(0xc9a02a), [-d * 2, -8, -d * 8, -11, -d * 5, -5]); c.R(-1, -1.5, 2, 1.5, Col(0x8a6a2a))
-                    c.ellStroke(0, -6, 3, 2.2, 0.8, Col(0xb5412e))
-                } else if tg.kind == 1 {
-                    c.RR(-2.6, -10, 5.2, 10, 1.4, Col(0x4f8a5a)); c.R(-1.1, -15, 2.2, 5.4, Col(0x4f8a5a)); c.R(-1.4, -15.6, 2.8, 1.2, Col(0xd8b860))
-                    c.R(-2.6, -7, 5.2, 3.4, Col(0xf0e8d8)); c.R(-1.6, -9.4, 0.9, 7, Col(0xffffff, 0.4))
-                } else {
-                    star(0, -8, 7.5, Col(0x8a6a2a)); star(0, -8, 6, GOLD); c.circ(0, -8, 1.8, Col(0xb5412e)); c.R(-0.6, -1.5, 1.2, 1.5, Col(0x8a6a2a))
-                }
+        // a saloon, and everything in it answers when it is hit
+        let fy = H * 0.74, t = gl.t
+        func first(_ k: Int) -> GTarget? { return gl.targets.first { $0.kind == k } }
+        func spot(_ tg: GTarget, _ dx: Double = 0) {
+            if tg.hit >= 0 { return }
+            let x = tg.x * W + dx, y = tg.y * H
+            c.circ(x, y, 2.6, Col(0xffffff, 0.9)); c.circ(x, y, 1.7, Col(0xd0392b)); c.circ(x, y, 0.7, Col(0xffffff))
+        }
+        c.R(0, fy, W, H * 0.8 - fy + 2, Col(0x5a3c22)); c.R(0, fy, W, 1, Col(0x8a6238)); c.R(0, fy - 5, W, 5, Col(0x3a2420))
+        var fb = 0.0
+        while fb < W { c.R(fb, fy + 1, 0.8, 14, Col(0x3a2a1c, 0.6)); fb += 18 }
+        // the back bar: a mirror, a shelf of bottles, the counter with its bell
+        c.R(W * 0.04, H * 0.2, W * 0.24, H * 0.215, Col(0x3a2a1c)); c.R(W * 0.05, H * 0.215, W * 0.22, H * 0.12, Col(0x9fb8c4, 0.55))
+        c.poly(Col(0xffffff, 0.18), [W * 0.06, H * 0.215, W * 0.12, H * 0.215, W * 0.08, H * 0.335, W * 0.05, H * 0.335])
+        c.R(W * 0.04, H * 0.41, W * 0.24, 2, Col(0x8a6238))
+        for tg in gl.targets where tg.kind == 0 {
+            let x = tg.x * W, by = H * 0.41
+            if tg.hit < 0 {
+                c.RR(x - 2.6, by - 10, 5.2, 10, 1.4, Col(0x4f8a5a)); c.R(x - 1.1, by - 15, 2.2, 5.4, Col(0x4f8a5a)); c.R(x - 1.4, by - 15.6, 2.8, 1.2, Col(0xd8b860))
+                c.R(x - 2.6, by - 7, 5.2, 3.4, Col(0xf0e8d8)); c.R(x - 1.6, by - 9.4, 0.9, 7, Col(0xffffff, 0.4))
+            } else {
+                c.R(x - 2.6, by - 2.4, 5.2, 2.4, Col(0x4f8a5a)); c.poly(Col(0x4f8a5a), [x - 2.6, by - 2.4, x - 1, by - 5, x + 0.4, by - 2.4])
+                if tg.hit < 0.7 { for j in 0..<7 { let an = Double(j) * 0.9, u = tg.hit / 0.7; c.R(x + cos(an) * u * 16, by - 8 - sin(an) * u * 12 + u * u * 14, 1.6, 1.6, Col(0x9fe0b0, 1 - u)) } }
+            }
+            spot(tg)
+        }
+        c.R(W * 0.02, H * 0.6, W * 0.31, fy - H * 0.6, Col(0x6a4a2e)); c.R(W * 0.015, H * 0.595, W * 0.32, 2.4, Col(0x9a7448))
+        var bp = W * 0.04
+        while bp < W * 0.31 { c.R(bp, H * 0.63, W * 0.05, fy - H * 0.63 - 3, Col(0x5a3c22)); bp += W * 0.065 }
+        if let tg = first(9) {
+            let x = tg.x * W, y = tg.y * H, sh = tg.hit >= 0 && tg.hit < 1.2 ? sin(tg.hit * 40) * 1.2 : 0
+            c.dome(x + sh, y + 4, 3.6, Col(0xd8b860)); c.R(x + sh - 4.4, y + 4, 8.8, 1, Col(0x8a6a2a)); c.circ(x + sh, y - 0.2, 0.9, Col(0xfff0a8))
+            if tg.hit >= 0 && tg.hit < 1.2 { for j in 0..<3 { c.arcStroke(x, y + 2, 6 + Double(j) * 3, -2.2, -0.9, 0.6, Col(0xfff0a8, 1 - tg.hit / 1.2)) } }
+            spot(tg)
+        }
+        // a moose head on the wall: its eyes light up
+        if let tg = first(6) {
+            let x = tg.x * W, y = tg.y * H, on = tg.hit >= 0 && tg.hit < 2.5
+            c.RR(x - 5, y + 4, 10, 4, 1.5, Col(0x4a3424))
+            c.ell(x, y, 4.4, 5.4, Col(0x6a4a2e)); c.ell(x, y + 4.4, 3, 2.6, Col(0x5a3c22)); c.R(x - 1.6, y + 4.6, 1, 0.8, Col(0x1c120c)); c.R(x + 0.8, y + 4.6, 1, 0.8, Col(0x1c120c))
+            for sd in [-1.0, 1.0] {
+                c.curve(x + sd * 3, y - 4, x + sd * 9, y - 6, x + sd * 11, y - 12, 1.3, Col(0xe8dcc4)); c.seg(x + sd * 8, y - 6.4, x + sd * 8, y - 11, 1.1, Col(0xe8dcc4)); c.seg(x + sd * 10.4, y - 9, x + sd * 13.4, y - 10, 1.1, Col(0xe8dcc4))
+                c.circ(x + sd * 2, y - 1, 1, on ? Col(0xff4a3a) : Col(0x1c120c))
+                if on { c.glow(x + sd * 2, y - 1, 5, Col(0xff4a3a, 0.6), Col(0xff4a3a, 0)) }
+            }
+            if on { c.R(x - 2, y + 7, 4, 1.4 + sin(tg.hit * 12) * 1, Col(0x1c120c)) }
+            spot(tg, 0)
+        }
+        // a brass spittoon: it rings and spins
+        if let tg = first(4) {
+            let x = tg.x * W, y = tg.y * H, k = tg.hit >= 0 && tg.hit < 1.5 ? cos(tg.hit * 14) * (1 - tg.hit / 1.5) : 1
+            c.save(); c.translate(x, y + 4); c.scale(abs(k) < 0.15 ? 0.15 : k, 1)
+            c.poly(Col(0xc9a14a), [-4.4, 0, -3, -6, 3, -6, 4.4, 0]); c.R(-4.6, -7.4, 9.2, 1.6, Col(0xe8c84a)); c.R(-2.4, -5, 1, 4, Col(0xfff0a8, 0.6))
+            c.restore()
+            spot(tg)
+        }
+        // the batwing doors, the night outside, and a pair of boots that dance
+        c.R(W * 0.41, H * 0.34, W * 0.12, fy - H * 0.34, Col(0x141a30)); c.R(W * 0.405, H * 0.33, W * 0.13, 2, Col(0x3a2a1c)); c.R(W * 0.405, H * 0.33, 2, fy - H * 0.33, Col(0x3a2a1c)); c.R(W * 0.535 - 2, H * 0.33, 2, fy - H * 0.33, Col(0x3a2a1c))
+        for j in 0..<6 { c.R(W * 0.42 + hashN(Double(j) * 3.1) * W * 0.1, H * 0.36 + hashN(Double(j) * 7.7) * H * 0.1, 1, 1, Col(0xfff6dc, 0.7)) }
+        if let tg = first(7) {
+            let on = tg.hit >= 0 && tg.hit < 2.6, flap = on ? cos(tg.hit * 9) * (1 - tg.hit / 2.6) : 1
+            let hop = on ? abs(sin(tg.hit * 11)) * 3 : 0
+            c.R(W * 0.445, fy - 4 - hop, 4.6, 4, Col(0x2a1c14)); c.R(W * 0.445, fy - 9 - hop, 3, 5.4, Col(0x2a1c14))
+            c.R(W * 0.485, fy - 4 - (on ? 3 - hop : 0), 4.6, 4, Col(0x2a1c14)); c.R(W * 0.4865, fy - 9 - (on ? 3 - hop : 0), 3, 5.4, Col(0x2a1c14))
+            for sd in [-1.0, 1.0] {
+                let hx = sd < 0 ? W * 0.412 : W * 0.528
+                c.save(); c.translate(hx, H * 0.5); c.scale(-sd * (abs(flap) < 0.12 ? 0.12 : flap), 1)
+                c.RR(0, 0, W * 0.055, H * 0.16, 2, Col(0x8a5a2a)); c.R(1, 2, W * 0.055 - 2, 1, Col(0xa8744a))
+                var lv = 3.0
+                while lv < W * 0.055 - 2 { c.R(lv, 5, 0.8, H * 0.16 - 9, Col(0x5a3c22)); lv += 3.4 }
                 c.restore()
+            }
+            spot(tg)
+        }
+        // a lamp on a chain: it swings
+        if let tg = first(5) {
+            let x = tg.x * W, y = tg.y * H
+            let an = tg.hit >= 0 ? sin(tg.hit * 6) * 0.5 * exp(-tg.hit * 0.7) : sin(t * 0.8) * 0.03
+            c.save(); c.translate(x, 27); c.rotate(an)
+            c.R(-0.4, 0, 0.8, y - 27 - 4, Col(0x2a1c14))
+            c.glow(0, y - 27, 26, Col(0xffd27a, 0.3), Col(0xffd27a, 0))
+            c.poly(Col(0x3a2a1c), [-7, y - 27 - 1, -3, y - 27 - 5, 3, y - 27 - 5, 7, y - 27 - 1]); c.RR(-3, y - 27 - 1, 6, 5, 2, Col(0xffe9a8))
+            c.restore()
+            if tg.hit < 0 { spot(tg) }
+        }
+        // a wanted poster: it drops off its nail
+        if let tg = first(8) {
+            let x = tg.x * W, y = tg.y * H, u = tg.hit >= 0 ? min(1, tg.hit * 1.6) : 0
+            c.save(); c.translate(x - 6, y - 8 + u * u * (fy - y)); c.rotate(u * 1.1)
+            c.R(0, 0, 12, 16, Col(0xe6d4a4)); c.R(1.4, 1.6, 9.2, 2.2, Col(0x2a1c14)); c.R(3, 5, 6, 6, Col(0xb8885a)); c.R(3, 5, 6, 1.6, Col(0x1c1410)); c.R(2, 12.6, 8, 1, Col(0x8a2b22))
+            c.restore()
+            c.R(x - 0.5, y - 9, 1, 1, Col(0x6a6a72))
+            spot(tg)
+        }
+        // a rocking chair: it rocks
+        if let tg = first(2) {
+            let x = tg.x * W, an = tg.hit >= 0 ? sin(tg.hit * 5) * 0.24 * exp(-tg.hit * 0.45) : 0
+            c.save(); c.translate(x, fy - 1); c.rotate(an)
+            let wd = Col(0x8a5a2a), wdD = Col(0x5a3c22)
+            c.curve(-12, -1.5, 0, 3.4, 12, -1.5, 1.6, wdD)
+            c.R(-8, -12, 1.6, 11.4, wd); c.R(6, -12, 1.6, 11.4, wd); c.R(-8.6, -12.6, 17, 1.8, wd)
+            c.R(-8, -32, 1.6, 20, wd); c.R(-4.6, -30, 1.2, 18, wdD); c.R(-1.4, -30, 1.2, 18, wdD); c.R(-8.6, -32.6, 9.6, 1.8, wd)
+            c.R(-9, -19, 16, 1.4, wdD); c.R(6, -19.6, 1.6, 8, wdD)
+            c.restore()
+            spot(tg)
+        }
+        // the piano: it plays, and the notes float up
+        if let tg = first(1) {
+            let x = tg.x * W, y = tg.y * H, on = tg.hit >= 0 && tg.hit < 3
+            c.R(x - 20, y - 14, 40, fy - y + 14, Col(0x3a2420)); c.R(x - 21, y - 16, 42, 2.6, Col(0x5a3c2c)); c.R(x - 18, y - 11, 36, 9, Col(0x2a1814))
+            c.R(x - 20, y + 4, 40, 4.4, Col(0x1c120c)); c.R(x - 19, y + 4.6, 38, 3, Col(0xf4ecd6))
+            var kx = -19.0, ki = 0
+            while kx < 19 {
+                let down = on && (Int(tg.hit * 9) + ki) % 4 == 0
+                c.R(x + kx, y + 4.6 + (down ? 0.8 : 0), 0.3, 3, Col(0x8a8478)); if ki % 7 != 2 && ki % 7 != 6 { c.R(x + kx + 1.3, y + 4.6, 1.3, 1.9, Col(0x1c120c)) }
+                kx += 2.7; ki += 1
+            }
+            c.R(x - 20, y + 8.4, 2, fy - y - 8.4, Col(0x2a1814)); c.R(x + 18, y + 8.4, 2, fy - y - 8.4, Col(0x2a1814))
+            c.R(x - 8, fy - 9, 12, 2, Col(0x6a2f26)); c.R(x - 7, fy - 7, 1.4, 7, Col(0x3a2420)); c.R(x + 1.6, fy - 7, 1.4, 7, Col(0x3a2420))
+            if on { for j in 0..<5 { let u = (tg.hit * 0.6 + Double(j) * 0.2).truncatingRemainder(dividingBy: 1); let nx = x - 12 + Double(j) * 6 + sin(u * 6 + Double(j)) * 3, ny = y - 18 - u * 26; c.circ(nx, ny, 1.4, Col(0xfff0c0, 1 - u)); c.R(nx + 0.9, ny - 5, 0.6, 5, Col(0xfff0c0, 1 - u)) } }
+            spot(tg)
+        }
+        // a rat in the corner: out of its hole now and then, and gone when it is hit
+        if let tg = first(3) {
+            let hx = tg.x * W + 6, hy = fy - 0.5, out = tg.hit < 0 ? g.ratOut(t) : 0
+            c.dome(hx, hy, 6.5, Col(0x0c0606))
+            if tg.hit < 0 && out > 0.02 {
+                let rx = hx - out * 13
+                c.ell(rx, hy - 2.6, 5, 2.6, Col(0x6a625a)); c.circ(rx - 4.6, hy - 3, 2, Col(0x6a625a)); c.circ(rx - 4.2, hy - 5, 1.1, Col(0x8a7f74)); c.R(rx - 6.4, hy - 3.4, 0.7, 0.7, Col(0x0c0606)); c.R(rx - 7.2, hy - 2.6, 1, 0.6, Col(0xe8a8a0))
+                c.curve(rx + 4.6, hy - 2, rx + 8, hy - 5, rx + 10, hy - 1, 0.6, Col(0xb89a90))
+                if out > 0.35 { spot(tg, -out * 9 - 6) }
+            } else if tg.hit >= 0 && tg.hit < 0.9 {
+                for j in 0..<5 { let an = Double(j) * 1.3; c.R(hx - 8 + cos(an) * tg.hit * 14, hy - 4 - sin(an) * tg.hit * 12, 1.2, 1.2, Col(0xfff0a8, 1 - tg.hit / 0.9)) }
             }
         }
         for h in gl.holes { c.circ(h.0, h.1, 1.6, Col(0x0c0606)); c.circ(h.0, h.1, 2.6, Col(0x000000, 0.25)) }

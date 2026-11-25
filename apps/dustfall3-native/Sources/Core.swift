@@ -525,10 +525,13 @@ let PSCALE = 1.3
 /// A dust devil: a spinning funnel that wanders the dry country for a few seconds and falls apart.
 struct Devil { var x: Double; var vx: Double; var t = 0.0; var life: Double; var big: Bool }
 
+/// One thing to shoot at in the saloon gallery. x and y are fractions of the picture; hit counts up from the moment it is shot.
+/// Kinds: 0 bottle, 1 piano, 2 rocking chair, 3 rat, 4 spittoon, 5 lamp, 6 moose head, 7 swing doors, 8 wanted poster, 9 bar bell.
 struct GTarget {
     var x: Double
-    let row: Int
+    var y: Double
     let kind: Int
+    let pay: Int
     var hit = -1.0
 }
 /// The shooting gallery while you are at the counter: eight shots at three rows of moving targets.

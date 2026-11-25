@@ -73,44 +73,40 @@ final class Game {
     var sGallery = Building(.sGallery, 186)
     var gallery: Gallery?
     var galleryDay = -1          // one go at the booth a day
-    let galleryRows: [(Double, Double, Double)] = [(0.30, 62, 1), (0.46, 44, -1), (0.62, 30, 1)]     // height up the screen, speed, direction
-
-    /// Two coins on the counter: eight shots, three rows of targets, and the day stands still while you shoot.
+    /// Two coins on the counter: eight shots at a saloon full of things that answer when they are hit, as in the old arcade galleries.
     private func startGallery() {
         var gl = Gallery()
-        let span = W + 60
-        for k in 0..<3 { gl.targets.append(GTarget(x: Double(k) * span / 3 + 20, row: 0, kind: 2)) }
-        for k in 0..<5 { gl.targets.append(GTarget(x: Double(k) * span / 5, row: 1, kind: 0)) }
-        for k in 0..<6 { gl.targets.append(GTarget(x: Double(k) * span / 6 + 10, row: 2, kind: 1)) }
+        for k in 0..<4 { gl.targets.append(GTarget(x: 0.08 + Double(k) * 0.05, y: 0.375, kind: 0, pay: 1)) }
+        gl.targets.append(GTarget(x: 0.80, y: 0.52, kind: 1, pay: 1))
+        gl.targets.append(GTarget(x: 0.62, y: 0.60, kind: 2, pay: 1))
+        gl.targets.append(GTarget(x: 0.925, y: 0.712, kind: 3, pay: 3))
+        gl.targets.append(GTarget(x: 0.36, y: 0.70, kind: 4, pay: 1))
+        gl.targets.append(GTarget(x: 0.47, y: 0.275, kind: 5, pay: 1))
+        gl.targets.append(GTarget(x: 0.355, y: 0.36, kind: 6, pay: 1))
+        gl.targets.append(GTarget(x: 0.47, y: 0.56, kind: 7, pay: 1))
+        gl.targets.append(GTarget(x: 0.655, y: 0.36, kind: 8, pay: 1))
+        gl.targets.append(GTarget(x: 0.30, y: 0.565, kind: 9, pay: 2))
         gallery = gl
         pvx = 0
         sfx?.fanfare()
         hintT = 0
     }
 
+    /// The rat only shows now and then.
+    func ratOut(_ t: Double) -> Double { return clampD(sin(t * 1.3) * 1.6 - 0.3, 0, 1) }
+
     private func updGallery(_ dt: Double) {
         guard var gl = gallery else { return }
         gl.t += dt
         gl.flash = max(0, gl.flash - dt)
-        let span = W + 60
-        for i in gl.targets.indices {
-            let r = galleryRows[gl.targets[i].row]
-            var x = gl.targets[i].x + r.1 * r.2 * dt
-            if x > W + 30 { x -= span }
-            if x < -30 { x += span }
-            gl.targets[i].x = x
-            if gl.targets[i].hit >= 0 {
-                gl.targets[i].hit += dt
-                if gl.targets[i].hit > 2.2 { gl.targets[i].hit = -1 }       // it swings back up
-            }
-        }
-        if (gl.shots == 0 && gl.t - gl.last > 1.1) || gl.t > 22 {
+        for i in gl.targets.indices where gl.targets[i].hit >= 0 { gl.targets[i].hit += dt }
+        if (gl.shots == 0 && gl.t - gl.last > 2.2) || gl.t > 32 {
             let n = gl.won
             gallery = nil
             gunCD = 0.6; tossCD = 0.6
             for _ in 0..<n { dropCoin(px, 14) }
             if n > 0 { sfx?.fanfare() }
-            hint("gallery", n > 0 ? "\(n) \(n == 1 ? "coin" : "coins") from the shooting gallery. Step up again any time." : "Not a one. The man at the counter says the sights are true.", again: true)
+            hint("gallery", n > 0 ? "\(n) \(n == 1 ? "coin" : "coins") from the shooting gallery. It opens again tomorrow." : "Not a one. The man at the counter says the sights are true.", again: true)
             return
         }
         gallery = gl
@@ -123,18 +119,26 @@ final class Game {
         gl.last = gl.t
         gl.flash = 0.08
         sfx?.gun(0.8)
+        let reach: [Double] = [7, 14, 12, 7, 7, 8, 10, 13, 9, 7]
         var best = -1
         var bd = 99.0
         for (i, tg) in gl.targets.enumerated() where tg.hit < 0 {
-            let ty = H * galleryRows[tg.row].0
-            let reach = tg.kind == 2 ? 8.0 : (tg.kind == 0 ? 11.0 : 9.0)
-            let d = ((tg.x - x) * (tg.x - x) + (ty - y) * (ty - y)).squareRoot()
-            if d < reach && d < bd { bd = d; best = i }
+            if tg.kind == 3 && ratOut(gl.t) < 0.35 { continue }
+            let tx = tg.x * W - (tg.kind == 3 ? ratOut(gl.t) * 9 : 0), ty = tg.y * H
+            let d = ((tx - x) * (tx - x) + (ty - y) * (ty - y)).squareRoot()
+            if d < reach[tg.kind] && d < bd { bd = d; best = i }
         }
         if best >= 0 {
             gl.targets[best].hit = 0
-            gl.won += gl.targets[best].kind == 2 ? 3 : 1
-            sfx?.ding()
+            gl.won += gl.targets[best].pay
+            switch gl.targets[best].kind {
+            case 0: sfx?.box()
+            case 1: sfx?.recruit(); sfx?.fanfare()
+            case 3: sfx?.pick(); sfx?.ding()
+            case 9: sfx?.bell()
+            default: sfx?.ding()
+            }
+            buzz(1)
         } else { gl.holes.append((x, y)) }
         gallery = gl
     }
@@ -485,7 +489,7 @@ final class Game {
             return showUsed ? "Medicine show: one bottle to a customer. He moves on in the morning." : "Medicine show: 3 coins\(go) for a bottle of tonic. It might put fire in your horse, pay out handsomely, or be coloured water."
         case .sGallery:
             if galleryDay == day { return "Shooting gallery: one go a day. The booth opens again in the morning." }
-            return "Shooting gallery: 2 coins\(go) buys eight shots at the moving targets. A coin for every duck or bottle you knock down, three for a star."
+            return "Shooting gallery: 2 coins\(go) buys eight shots at the saloon. Bottles, the piano, the rocking chair and the rest pay a coin each, the bar bell two, the rat three."
         case .sRods:
             return rodsLv > 0 ? "Lightning rods: fitted to every roof. A strike on town runs harmlessly to ground." : "Windmill: 5 coins\(go) fits lightning rods to every roof, so a strike cannot start a fire."
         case .sTower:
@@ -600,10 +604,13 @@ final class Game {
     var cut: [Beat] = []        // story pictures waiting to be shown; the game stands still while there are any
     var star = false            // every building in this town is as good as it gets
     var duelWon = false
+    private var storyRest = 0.0        // no new scene until this long after the last one closed
 
     /// Plays the first story scene whose moment has come, once each.
     private func story() {
         if noStory || tripT >= 0 || duel != nil { return }
+        if !cut.isEmpty { storyRest = clock + 25; return }
+        if clock < storyRest { return }
         let n = STAGES.count, st = town % n, ln = day - day0
         func due(_ k: String) -> Bool {
             switch k {
@@ -627,6 +634,7 @@ final class Game {
         for k in ["s1", "s2", "s3", "s4", "a1", "a2", "a3", "a4", "yard", "won", "varney", "storm", "ufo", "end"] where !seen.contains("st_" + k) && due(k) {
             seen.insert("st_" + k)
             cut = STORY[k] ?? []
+            storyRest = clock + 30
             // riding in on a new town opens with the place itself
             if k.hasPrefix("a"), let line = ARRIVE[place] { cut.insert(Beat(art: "vista", who: place, head: nice(townName), cap: line), at: 0) }
             return
@@ -639,7 +647,7 @@ final class Game {
         for bl in b where !bl.virt && !bl.site && bl.level < bl.maxLevel { return }
         star = true
         sfx?.fanfare(); flash = 0.5
-        if !noStory && town % STAGES.count != STAGES.count - 1 {
+        if !noStory && cut.isEmpty && town % STAGES.count != STAGES.count - 1 {
             cut = [Beat(art: "badge", head: "\(nice(townName)) has its star", cap: "Every building here is as good as it gets. One more town Crane will never own.")]
         }
         hint("star\(town)", "\(nice(townName)) has its star: every building here is as good as it gets.", again: true)
@@ -862,6 +870,7 @@ final class Game {
         setCaps()
         side = bio == .canyon || chance(0.5) ? 1 : -1
         duskDone = false; raidOn = false; badgePaid = 0; pickPaid = 0; rackN = [:]; shake = 0; flash = 0
+        duelWon = false; storyRest = 0; dawnRows = []
         info = ""; slotsFor = nil
     }
 
@@ -1032,7 +1041,7 @@ final class Game {
         place = STOPS[n].0; town = STOPS[n].1; log = STOPS[n].2
         day = 1 + town * 8; day0 = day - 1; t = 0.08
         layTown()
-        coins = 12 + town * 5; bank = 0
+        coins = 12 + town * 5 + (town == STAGES.count - 1 ? 8 : 0); bank = 0
         fade = 1
         hint("jump", "\(nice(townName)). You step off the train with \(coins) coins, and everything here is boarded up.", again: true)
         onSave?()
@@ -1322,7 +1331,7 @@ final class Game {
         let sy = -22.0
         // 1: a drifter at his fire
         var bestD: Drifter?
-        var bd = 30.0
+        var bd = 55.0
         for d in drifters where !d.taken {
             let dd = abs(d.x - px)
             if dd < bd { bd = dd; bestD = d }
@@ -1441,10 +1450,12 @@ final class Game {
             ground[i] = g
             i += 1
         }
+        // a drifter marked for a coin that is no longer on its way is free again
+        for d in drifters where d.taken && !flying.contains(where: { $0.drifter === d }) { d.taken = false }
         // a drifter walks over to any coin lying close by, picks it up, and is hired
         for d in drifters where !d.taken {
             var best = -1
-            var bd = 90.0
+            var bd = 140.0
             for (k, g) in ground.enumerated() where g.y <= 0 && g.age > 0.5 {
                 let dd = abs(g.x - d.x)
                 if dd < bd { bd = dd; best = k }
@@ -1607,7 +1618,7 @@ final class Game {
                         f.dir = bn.x > f.x ? 1 : -1
                         shots.append(Shot(x: f.x + f.dir * 4, y: -9, vx: f.dir * 300, life: abs(bn.x - f.x) / 300, mine: false))
                         sfx?.gun(0.5)
-                        if chance(forge.level >= 1 ? 0.85 : 0.7) { hurt(bn, sheriff.level >= 3 ? 2 : 1) }
+                        if chance(forge.level >= 1 ? 0.68 : 0.56) { hurt(bn, sheriff.level >= 3 ? 2 : 1) }
                     }
                 } else if f.wait <= 0 && !f.moving { f.tx = sheriff.cx + rnd(-50, 50); f.wait = rnd(3, 8) }
                 dep += 1
@@ -1744,7 +1755,7 @@ final class Game {
         if gang { hint("gang", "A gang of horsemen is riding in from the \(side < 0 ? "west" : "east") tonight. Wire and a strong gate on that side will break the charge.", again: true); return }
         if boss { hint("boss", "An outlaw boss rides with them tonight. There is a bounty of 8 coins on him.", again: true); return }
         let where_ = !scouted.isEmpty ? scouted : (telegraph.level > 0 ? " The telegraph says most will come from the \(side < 0 ? "west" : "east")." : "")
-        hint("raid", "Raiders tonight.\(where_) Hold the gun button to shoot. You shoot the way you face, and turn in the saddle to shoot raiders who are only behind you.", again: true)
+        hint("raid", "Raiders tonight.\(where_) Hold the gun button to shoot. You fire at raiders ahead of you, or turn in the saddle for any behind.", again: true)
     }
 
     private func dawn() {
@@ -1918,7 +1929,7 @@ final class Game {
         log.append(place); place = dest
         town += 1; day += 1; day0 = day - 1; t = 0.08
         layTown()
-        coins = carry; bank = 0
+        coins = carry + (town % STAGES.count == STAGES.count - 1 ? 8 : 0); bank = 0      // the last town is the hardest: a few more to start on
         fade = 1
         let news = [1: "a stable and a bank", 2: "a bordello and a doctor", 3: "a church and a blacksmith", 4: "a telegraph office"]
         let extra = news[town].map { " This town has \($0) to open as well." } ?? ""
@@ -1984,7 +1995,7 @@ final class Game {
                         if chance(0.3) {
                             puff(f.x, -8, 5, Col(0xd04a3a), 26)
                             if doctor.level > 0 { hint("patched", "A deputy was hit. The doctor patched him up and he keeps his badge.", again: true) }
-                            else { f.role = .folk; hint("wounded", "A deputy was hit and has handed in his badge. A doctor in town would keep them on their feet.", again: true) }
+                            else { f.role = .folk; hint("badge", "A deputy was shot down and has lost his badge. He is a townsman again: put another badge on the rack, and open the doctor's to keep them on their feet.") }
                         }
                     }
                 }
@@ -2064,6 +2075,12 @@ final class Game {
                     } else { bn.x += sgn(dx) * sp * dt; bn.phase += dt * 9 }
                     i += 1
                     continue
+                }
+                if !outside, let dp = folk.first(where: { $0.role == .deputy && !$0.sick && !$0.hidden && abs($0.x - bn.x) < 12 }), chance(dt * 0.3) {
+                    // close work inside the walls: a deputy goes down. With a doctor he is back at dawn; without one he hands in his badge
+                    sfx?.hit(0.8); puff(dp.x, -8, 5, Col(0x8a2b22), 26); buzz(2)
+                    if doctor.level > 0 { dp.sick = true; hint("depdown", "A deputy was shot down. The doctor has him, and he keeps his badge.") }
+                    else { dp.role = .folk; hint("badge", "A deputy was shot down and has lost his badge. He is a townsman again: put another badge on the rack, and open the doctor's to keep them on their feet.") }
                 }
                 if !outside {
                     // a townsman caught in the open is run off, or put in the doctor's care
@@ -2426,7 +2443,7 @@ final class Game {
     /// The line at the bottom of the screen: what the rider is standing at.
     private func updInfo() {
         info = ""; slotsFor = nil
-        for d in drifters where abs(d.x - px) < 30 && !d.taken { info = "Drifter: 1 coin to hire"; return }
+        for d in drifters where abs(d.x - px) < 55 && !d.taken { info = "Drifter: 1 coin to hire"; return }
         let sh = sheriff, st = store
         if sh.level > 0 && !sh.building && abs(px - rackX(sh)) < 12 { info = "Badge rack: 1 coin a badge, three at most. A townsman who takes one becomes a deputy and guards the gates at night."; return }
         if st.level > 0 && !st.building && abs(px - rackX(st)) < 12 { info = "Tool rack: 1 coin a pick, three at most. A townsman who takes one digs gold at the mine west of town."; return }
