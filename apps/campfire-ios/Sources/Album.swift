@@ -103,15 +103,7 @@ struct AlbumSection: View {
         } else {
             ForEach(shown) { pic in
                 Section {
-                    AsyncImage(url: Site.photo(pic.photo)) { phase in
-                        if let image = phase.image {
-                            image.resizable().scaledToFill()
-                        } else if phase.error != nil {
-                            Text("Photo is being checked.").foregroundColor(.secondary).frame(maxWidth: .infinity, minHeight: 120)
-                        } else {
-                            ProgressView().frame(maxWidth: .infinity, minHeight: 120)
-                        }
-                    }
+                    RemotePhoto(url: Site.photo(pic.photo), fill: true)
                     .frame(maxWidth: .infinity, maxHeight: 280)
                     .clipped()
                     .listRowInsets(EdgeInsets())
@@ -163,11 +155,7 @@ struct AlbumPicView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                AsyncImage(url: Site.photo(pic.photo)) { image in
-                    image.resizable().scaledToFit()
-                } placeholder: {
-                    ProgressView().frame(maxWidth: .infinity, minHeight: 240)
-                }
+                RemotePhoto(url: Site.photo(pic.photo), fill: false)
                 Text(pic.caption).font(.headline).padding(.horizontal)
                 Text(pic.name.isEmpty ? "From a camper" : "From \(pic.name)").font(.subheadline).foregroundColor(.secondary)
             }
@@ -251,5 +239,45 @@ struct AddPhotoView: View {
         format.scale = 1
         let made = UIGraphicsImageRenderer(size: size, format: format).image { _ in image.draw(in: CGRect(origin: .zero, size: size)) }
         return made.jpegData(compressionQuality: 0.8)
+    }
+}
+
+// A picture from the site. Loads again each time it comes on screen, and a failed try does not stick:
+// the second try skips anything the phone saved earlier.
+struct RemotePhoto: View {
+    let url: URL
+    let fill: Bool
+    @State private var image: UIImage?
+    @State private var failed = false
+    @State private var tries = 0
+
+    var body: some View {
+        Group {
+            if let image {
+                if fill { Image(uiImage: image).resizable().scaledToFill() } else { Image(uiImage: image).resizable().scaledToFit() }
+            } else if failed {
+                Button("Photo did not load. Tap to try again.") { failed = false; tries += 1 }
+                    .font(.footnote).frame(maxWidth: .infinity, minHeight: 120)
+            } else {
+                ProgressView().frame(maxWidth: .infinity, minHeight: 120)
+            }
+        }
+        .task(id: tries) { await load() }
+    }
+
+    private func load() async {
+        if image != nil { return }
+        for fresh in [false, true] {
+            var req = URLRequest(url: url)
+            if fresh { req.cachePolicy = .reloadIgnoringLocalCacheData }
+            if let (data, response) = try? await URLSession.shared.data(for: req),
+               (response as? HTTPURLResponse)?.statusCode == 200, let made = UIImage(data: data) {
+                image = made
+                failed = false
+                return
+            }
+            if Task.isCancelled { return }   // scrolled away: try again when it comes back
+        }
+        failed = true
     }
 }
