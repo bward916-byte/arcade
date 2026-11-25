@@ -281,7 +281,7 @@ final class GameViewController: UIViewController {
         hint.numberOfLines = 0
         hint.adjustsFontSizeToFitWidth = false
         hint.backgroundColor = UIColor(red: 0.14, green: 0.09, blue: 0.06, alpha: 0.86)
-        info.numberOfLines = 2
+        info.numberOfLines = 3
         purse.textColor = gold
 
         style(menuBtn, "Menu", primary: false)
@@ -447,7 +447,7 @@ final class GameViewController: UIViewController {
         fireCenter = CGPoint(x: bw - r - 58, y: bh - bot - 62)
         coinCenter = CGPoint(x: fireCenter.x - 96, y: fireCenter.y + 8)
         let iw = max(160, min(bw * 0.5, 420, 2 * (coinCenter.x - 46 - bw / 2)))
-        info.frame = CGRect(x: (bw - iw) / 2, y: bh - bot - 50, width: iw, height: 46)
+        info.frame = CGRect(x: (bw - iw) / 2, y: bh - bot - 62, width: iw, height: 58)
         stickCenter = CGPoint(x: l + 74, y: bh - bot - 70)
         stickRing.frame = CGRect(x: stickCenter.x - 54, y: stickCenter.y - 54, width: 108, height: 108)
         stickRing.layer.cornerRadius = 54

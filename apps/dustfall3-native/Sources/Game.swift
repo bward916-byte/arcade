@@ -2528,7 +2528,24 @@ final class Game {
         } else {
             slotsFor = bl
             let verb = bl.level == 0 ? (bl.def.gate ? "to build" : (bl.type == .station ? "to rebuild, and bring the railroad" : "to open")) : "to improve"
-            info = "\(nm): \(bl.cost) coins \(verb)" + (bl.paid > 0 ? " (\(bl.paid) in)" : "") + (bl.level > 0 && bl.def.pay > 0 ? ". Pays out every morning." : "")
+            // what the money buys, said before it is spent
+            let buys: [BType: [String]] = [
+                .store: ["Pays up to 4 coins every morning, and its tool rack outfits prospectors.", "Pays up to 8 a morning, and you reload a second faster.", "Pays up to 12 a morning, and you reload faster still.", "Pays up to 16 a morning, and you reload fastest."],
+                .saloon: ["Pays up to 3 coins every morning, and brings drifters back to the camps.", "Pays up to 6 a morning.", "Pays up to 9 a morning.", "Pays up to 12 a morning."],
+                .sheriff: ["Its badge rack turns townsfolk into deputies, who guard the gates at night.", "Deputies see further and shoot faster.", "Deputies' shots hit twice as hard.", "The grandest office on the line."],
+                .stable: ["A faster horse, a rope rack for ranchers, and a place to break mustangs.", "A faster horse still.", "The finest stable on the line."],
+                .bank: ["Keeps your coins safe from raiders and pays a little interest each dawn.", "Pays more interest.", "Pays the most interest."],
+                .gateW: ["Stops raiders from the west until they break it down.", "A stronger gate.", "A gatehouse with a Gatling gun, and riflemen for hire at night."],
+                .gateE: ["Stops raiders from the east until they break it down.", "A stronger gate.", "A gatehouse with a Gatling gun, and riflemen for hire at night."],
+                .station: ["Brings the railroad, and with it the train to the next town."],
+                .bordello: ["Draws a newcomer to the camps most days.", "Draws more newcomers.", "Draws more still.", "Draws the most."],
+                .doctor: ["Townsfolk hurt in a raid are back at dawn, and deputies who are shot keep their badges.", "The best care on the line."],
+                .church: ["A coin rings its bell at night: everyone gets indoors and deputies man the gates.", "A finer church."],
+                .forge: ["Deputies shoot further and miss less.", "New shoes: your horse is faster.", "The best smith on the line."],
+                .telegraph: ["Tells you which side tonight's raid is coming from.", "A finer office."]
+            ]
+            let line = buys[bl.type].map { $0[min(bl.level, $0.count - 1)] } ?? (bl.level > 0 && bl.def.pay > 0 ? "Pays out every morning." : "")
+            info = "\(nm): \(bl.cost) coins \(verb)" + (bl.paid > 0 ? " (\(bl.paid) in)" : "") + (line.isEmpty ? "" : ". " + line)
         }
     }
 }
