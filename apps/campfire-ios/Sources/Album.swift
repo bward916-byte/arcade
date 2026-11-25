@@ -173,6 +173,8 @@ struct AddPhotoView: View {
     @State private var small: Data?
     @State private var caption = ""
     @State private var sending = false
+    @State private var askTerms = false
+    @State private var afterTerms: (() -> Void)?
     @State private var problem = ""
 
     var body: some View {
@@ -195,11 +197,12 @@ struct AddPhotoView: View {
                 if !problem.isEmpty { Section { Text(problem).foregroundColor(.red) } }
                 Section {
                     TermsLine(verb: "adding a photo")
-                    Button(sending ? "Adding…" : "Add my photo") { send() }
+                    Button(sending ? "Adding…" : "Add my photo") { Terms.check(&afterTerms, &askTerms) { send() } }
                         .disabled(sending)
                 }
             }
             .navigationTitle("Add a photo")
+            .termsGate($askTerms, $afterTerms)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
             .onChange(of: pick) { item in

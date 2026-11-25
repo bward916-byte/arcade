@@ -54,6 +54,8 @@ struct QuestionsView: View {
     @AppStorage("askName") private var name = ""
     @AppStorage("askEmail") private var email = ""
     @State private var sending = false
+    @State private var askTerms = false
+    @State private var afterTerms: (() -> Void)?
     @State private var note = ""
     @State private var drafts: [String: String] = [:]   // an answer being typed, by question
     @State private var editing = ""                      // id of the question or answer being edited
@@ -107,7 +109,7 @@ struct QuestionsView: View {
                 TextField("Your first name or camp (optional)", text: $name)
                 TextField("Email (optional, never shown)", text: $email).keyboardType(.emailAddress).textInputAutocapitalization(.never).autocorrectionDisabled()
                 TermsLine(verb: "asking or answering")
-                Button(sending ? "Posting…" : "Ask campers") { ask() }.disabled(sending)
+                Button(sending ? "Posting…" : "Ask campers") { Terms.check(&afterTerms, &askTerms) { ask() } }.disabled(sending)
                 if !note.isEmpty { Text(note).font(.footnote).foregroundColor(.secondary) }
             } header: {
                 Text("Ask a question")
@@ -175,7 +177,7 @@ struct QuestionsView: View {
                             .padding(.vertical, 2)
                         }
                         TextField("Know the answer? Share it.", text: Binding(get: { drafts[q.id] ?? "" }, set: { drafts[q.id] = $0 }), axis: .vertical).lineLimit(1...4)
-                        Button("Answer") { answer(q.id) }.buttonStyle(.borderless)
+                        Button("Answer") { Terms.check(&afterTerms, &askTerms) { answer(q.id) } }.buttonStyle(.borderless)
                     } label: {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(q.text).font(.subheadline.weight(.semibold))
@@ -194,6 +196,7 @@ struct QuestionsView: View {
         .scrollContentBackground(.hidden)
         .background(Theme.page)
         .navigationTitle("Questions")
+            .termsGate($askTerms, $afterTerms)
         .navigationBarTitleDisplayMode(.inline)
         .task { await load() }
         .refreshable { await load() }

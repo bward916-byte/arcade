@@ -16,6 +16,8 @@ struct PostAdView: View {
     @State private var to = Date().addingTimeInterval(30 * 86400)
     @State private var picks: [PhotosPickerItem] = []
     @State private var sending = false
+    @State private var askTerms = false
+    @State private var afterTerms: (() -> Void)?
     @State private var problem = ""
     @State private var done = false
     @State private var testLink: String?
@@ -93,12 +95,13 @@ struct PostAdView: View {
                     }
                     Section {
                         TermsLine()
-                        Button(sending ? "Posting…" : "Post my ad") { send() }
+                        Button(sending ? "Posting…" : "Post my ad") { Terms.check(&afterTerms, &askTerms) { send() } }
                             .disabled(sending)
                     }
                 }
             }
             .navigationTitle("Post an ad")
+            .termsGate($askTerms, $afterTerms)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 // On the right, clear of the first box, so a tap on "What are you selling" is never taken by this button.
