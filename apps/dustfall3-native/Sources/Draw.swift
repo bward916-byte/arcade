@@ -527,10 +527,13 @@ final class Renderer {
 
     /// The shooting gallery from the counter: three rows of targets crossing a striped booth.
     private func galleryBooth(_ gl: Gallery) {
-        c.vfill(0, 0, W, H, [(0, Col(0x3a1a18)), (1, Col(0x1c0c0c))])
+        // the room is wider than the screen; the view drifts across it and back
+        let SW = W * GWIDE
+        c.save(); c.translate(-g.galleryPan(gl.t), 0)
+        c.vfill(0, 0, SW, H, [(0, Col(0x3a1a18)), (1, Col(0x1c0c0c))])
         var sx3 = 0.0, si = 0
-        while sx3 < W { c.R(sx3, 0, 14, H, Col(si % 2 == 0 ? 0x5a2420 : 0x4a1c1a, 0.9)); sx3 += 14; si += 1 }
-        c.vfill(0, 0, W, H * 0.75, [(0, Col(0x000000, 0.45)), (1, Col(0x000000, 0))])
+        while sx3 < SW { c.R(sx3, 0, 14, H, Col(si % 2 == 0 ? 0x5a2420 : 0x4a1c1a, 0.9)); sx3 += 14; si += 1 }
+        c.vfill(0, 0, SW, H * 0.75, [(0, Col(0x000000, 0.45)), (1, Col(0x000000, 0))])
         // a saloon, and everything in it answers when it is hit
         let fy = H * 0.74, t = gl.t
         func first(_ k: Int) -> GTarget? { return gl.targets.first { $0.kind == k } }
@@ -539,9 +542,9 @@ final class Renderer {
             let x = tg.x * W + dx, y = tg.y * H
             c.circ(x, y, 2.6, Col(0xffffff, 0.9)); c.circ(x, y, 1.7, Col(0xd0392b)); c.circ(x, y, 0.7, Col(0xffffff))
         }
-        c.R(0, fy, W, H * 0.8 - fy + 2, Col(0x5a3c22)); c.R(0, fy, W, 1, Col(0x8a6238)); c.R(0, fy - 5, W, 5, Col(0x3a2420))
+        c.R(0, fy, SW, H * 0.8 - fy + 2, Col(0x5a3c22)); c.R(0, fy, SW, 1, Col(0x8a6238)); c.R(0, fy - 5, SW, 5, Col(0x3a2420))
         var fb = 0.0
-        while fb < W { c.R(fb, fy + 1, 0.8, 14, Col(0x3a2a1c, 0.6)); fb += 18 }
+        while fb < SW { c.R(fb, fy + 1, 0.8, 14, Col(0x3a2a1c, 0.6)); fb += 18 }
         // the back bar: a mirror, a shelf of bottles, the counter with its bell
         c.R(W * 0.04, H * 0.2, W * 0.24, H * 0.215, Col(0x3a2a1c)); c.R(W * 0.05, H * 0.215, W * 0.22, H * 0.12, Col(0x9fb8c4, 0.55))
         c.poly(Col(0xffffff, 0.18), [W * 0.06, H * 0.215, W * 0.12, H * 0.215, W * 0.08, H * 0.335, W * 0.05, H * 0.335])
@@ -653,6 +656,50 @@ final class Renderer {
             if on { for j in 0..<5 { let u = (tg.hit * 0.6 + Double(j) * 0.2).truncatingRemainder(dividingBy: 1); let nx = x - 12 + Double(j) * 6 + sin(u * 6 + Double(j)) * 3, ny = y - 18 - u * 26; c.circ(nx, ny, 1.4, Col(0xfff0c0, 1 - u)); c.R(nx + 0.9, ny - 5, 0.6, 5, Col(0xfff0c0, 1 - u)) } }
             spot(tg)
         }
+        // the far end of the room: a wall clock, a hat rack, a window, the card table, an ace on the wall
+        c.R(W * 1.25, H * 0.24, W * 0.085, H * 0.19, Col(0x3a2a1c)); c.R(W * 1.255, H * 0.25, W * 0.075, H * 0.17, Col(0x141a30))
+        c.circ(W * 1.305, H * 0.3, 4, Col(0xf4ecd0)); c.circ(W * 1.31, H * 0.295, 3.4, Col(0x141a30))
+        c.R(W * 1.2915, H * 0.25, 1, H * 0.17, Col(0x3a2a1c)); c.R(W * 1.255, H * 0.333, W * 0.075, 1, Col(0x3a2a1c))
+        if let tg = first(13) {
+            let x0 = tg.x * W, (bx, by0) = g.gpos(tg, t), drop = tg.hit >= 0 ? min(fy - 2 - by0, tg.hit * tg.hit * 160) : 0
+            c.RR(x0 - 8, H * 0.22, 16, H * 0.33, 2, Col(0x5a3c22)); c.RR(x0 - 6.4, H * 0.385, 12.8, H * 0.15, 1, Col(0x1c120c))
+            c.poly(Col(0x6a4a2e), [x0 - 9, H * 0.22, x0, H * 0.19, x0 + 9, H * 0.22])
+            c.circ(x0, H * 0.3, 6, Col(0xd8b860)); c.circ(x0, H * 0.3, 5, Col(0xf4ecd6))
+            c.seg(x0, H * 0.3, x0 + 2.6, H * 0.3 - 1.6, 0.7, Col(0x1c120c)); c.seg(x0, H * 0.3, x0, H * 0.3 - 4, 0.6, Col(0x1c120c))
+            if tg.hit < 0 { c.seg(x0, H * 0.39, bx, by0, 0.7, Col(0xc9a14a)) } else { c.seg(x0, H * 0.39, x0, H * 0.44, 0.7, Col(0xc9a14a)) }
+            c.circ(tg.hit < 0 ? bx : x0 + 2, by0 + drop, 2.8, Col(0xe8c84a)); c.circ((tg.hit < 0 ? bx : x0 + 2) - 0.8, by0 + drop - 0.8, 0.9, Col(0xfff0a8))
+        }
+        if let tg = first(12) {
+            let x = tg.x * W, y = tg.y * H, wd = Col(0x5a3c22)
+            c.R(x - 0.9, y + 2, 1.8, fy - y - 2, wd); c.R(x - 6, fy - 1.6, 12, 1.6, wd); c.seg(x, y + 8, x - 5, y + 5, 1, wd); c.seg(x, y + 8, x + 5, y + 5, 1, wd)
+            if tg.hit < 1.3 {
+                let u = max(0, tg.hit)
+                c.save(); c.translate(x + u * 26, y - u * 40 + u * u * 46); c.rotate(u * 7)
+                c.ell(0, 2, 8.4, 1.8, Col(0x8a6238)); c.RR(-4.2, -4.6, 8.4, 6.6, 2, Col(0x9a7448)); c.R(-4.2, 0, 8.4, 1.2, Col(0x3a2420))
+                c.restore()
+            }
+            spot(tg)
+        }
+        let tcx = W * 1.36
+        c.R(tcx - 17, fy - 16, 34, 2.4, Col(0x8a5a2a)); c.R(tcx - 17, fy - 13.6, 34, 1, Col(0x2f5a3a)); c.R(tcx - 1.6, fy - 12.6, 3.2, 11, Col(0x5a3c22)); c.R(tcx - 8, fy - 1.8, 16, 1.8, Col(0x5a3c22))
+        c.R(tcx - 12, fy - 17.2, 5, 1.2, Col(0xf4ecd6)); c.R(tcx - 6, fy - 17.2, 5, 1.2, Col(0xf4ecd6)); c.R(tcx + 8, fy - 20, 3, 4, Col(0xd8a850, 0.8))
+        if let tg = first(11) {
+            let (x, y) = g.gpos(tg, t)
+            if tg.hit < 0 {
+                let wv = abs(cos(t * 9)) * 2.6 + 0.5
+                c.ell(x, y, wv, 3, Col(0xd8dce4)); c.ell(x - wv * 0.3, y - 0.8, wv * 0.4, 1.2, Col(0xffffff, 0.8))
+            } else if tg.hit < 0.9 {
+                for j in 0..<7 { let an = Double(j) * 0.9; c.R(x + cos(an) * tg.hit * 20, y - sin(an) * tg.hit * 16, 1.3, 1.3, Col(0xffffff, 1 - tg.hit / 0.9)) }
+            }
+        }
+        if let tg = first(10) {
+            let x = tg.x * W, y = tg.y * H, u = tg.hit >= 0 ? min(1, tg.hit * 1.4) : 0
+            c.save(); c.translate(x, y + u * u * (fy - y - 4)); c.rotate(u * 5)
+            c.RR(-3.8, -5, 7.6, 10, 1, Col(0xb5412e)); c.RR(-3.2, -4.4, 6.4, 8.8, 0.8, Col(0xf4ecd6))
+            c.poly(Col(0x1c120c), [0, -2.6, 2.2, 0.8, -2.2, 0.8]); c.circ(-1, 0.9, 1.1, Col(0x1c120c)); c.circ(1, 0.9, 1.1, Col(0x1c120c)); c.R(-0.4, 1, 0.8, 2.2, Col(0x1c120c))
+            c.restore()
+            c.R(x - 0.5, y - 6.4, 1, 1, Col(0x6a6a72))
+        }
         // a rat in the corner: out of its hole now and then, and gone when it is hit
         if let tg = first(3) {
             let hx = tg.x * W + 6, hy = fy - 0.5, out = tg.hit < 0 ? g.ratOut(t) : 0
@@ -667,6 +714,12 @@ final class Renderer {
             }
         }
         for h in gl.holes { c.circ(h.0, h.1, 1.6, Col(0x0c0606)); c.circ(h.0, h.1, 2.6, Col(0x000000, 0.25)) }
+        // what each hit paid, rising off the target
+        for tg in gl.targets where tg.hit >= 0 && tg.hit < 1 {
+            let (x, y) = g.gpos(tg, t)
+            c.text("+\(tg.pay)", x, y - 6 - tg.hit * 14, tg.pay >= 4 ? 10 : 8, Col(0xffe08a, 1 - tg.hit), face: "Rye-Regular")
+        }
+        c.restore()
         // the awning and its sign
         c.R(0, 0, W, 20, Col(0x8a2f26))
         var ax = 0.0, ai = 0
@@ -685,7 +738,7 @@ final class Renderer {
         }
         coinAt(W - 60, cy + 15)
         c.text("\(gl.won)", W - 44, cy + 19, 11, GOLD, face: "Rye-Regular")
-        c.text(gl.shots > 0 ? "Tap a target to shoot" : "That is your eight", W / 2, cy + 18.6, 8, Col(0xead7a4), bold: false)
+        c.text(gl.shots > 0 ? "Small or moving targets pay more" : "That is your eight", W / 2, cy + 18.6, 8, Col(0xead7a4), bold: false)
         // the rifle on the counter, and its flash
         c.seg(W / 2 - 26, H + 2, W / 2 - 6, cy - 6, 5, Col(0x4a3424)); c.seg(W / 2 - 8, cy - 2, W / 2 + 2, cy - 22, 2.4, Col(0x3a3a40))
         if gl.flash > 0 { c.circ(W / 2 + 3, cy - 25, 6, Col(0xfff0b0, 0.9)); c.R(0, 0, W, H, Col(0xfff0c0, 0.12)) }
@@ -1711,7 +1764,9 @@ final class Renderer {
         }
         // what it is taking stands where it stood until the beam has it, in its own coat
         if u.ph < 2 {
-            c.save(); c.translate(0, -u.lift * 58); c.alpha(1 - u.lift * 0.5)
+            // it shrinks away as it nears the top of the beam
+            let ax = sx(u.cow?.x ?? u.stray?.x ?? u.x), shr = 1 - clampD((u.lift - 0.55) / 0.45, 0, 1) * 0.88
+            c.save(); c.translate(ax, gy - u.lift * 58); c.scale(shr, shr); c.translate(-ax, -gy); c.alpha(1 - u.lift * 0.5)
             if let cw = u.cow { cowAt(cw.x, cw.dir, cw.calf ? 0.6 : 1, cw.seed, 0, horns: false) }
             if let w = u.stray { cowAt(w.x, w.dir, 1, w.seed, 0, horns: true) }
             if let m = u.mustang {

@@ -77,15 +77,20 @@ final class Game {
     private func startGallery() {
         var gl = Gallery()
         for k in 0..<4 { gl.targets.append(GTarget(x: 0.08 + Double(k) * 0.05, y: 0.375, kind: 0, pay: 1)) }
+        // big and still pays one; small, far or moving pays more
         gl.targets.append(GTarget(x: 0.80, y: 0.52, kind: 1, pay: 1))
         gl.targets.append(GTarget(x: 0.62, y: 0.60, kind: 2, pay: 1))
-        gl.targets.append(GTarget(x: 0.925, y: 0.712, kind: 3, pay: 3))
-        gl.targets.append(GTarget(x: 0.36, y: 0.70, kind: 4, pay: 1))
-        gl.targets.append(GTarget(x: 0.47, y: 0.275, kind: 5, pay: 1))
-        gl.targets.append(GTarget(x: 0.355, y: 0.36, kind: 6, pay: 1))
+        gl.targets.append(GTarget(x: 1.55, y: 0.712, kind: 3, pay: 5))
+        gl.targets.append(GTarget(x: 0.36, y: 0.70, kind: 4, pay: 2))
+        gl.targets.append(GTarget(x: 0.47, y: 0.275, kind: 5, pay: 2))
+        gl.targets.append(GTarget(x: 0.355, y: 0.36, kind: 6, pay: 2))
         gl.targets.append(GTarget(x: 0.47, y: 0.56, kind: 7, pay: 1))
         gl.targets.append(GTarget(x: 0.655, y: 0.36, kind: 8, pay: 1))
-        gl.targets.append(GTarget(x: 0.30, y: 0.565, kind: 9, pay: 2))
+        gl.targets.append(GTarget(x: 0.30, y: 0.565, kind: 9, pay: 3))
+        gl.targets.append(GTarget(x: 1.47, y: 0.40, kind: 10, pay: 4))
+        gl.targets.append(GTarget(x: 1.36, y: 0.60, kind: 11, pay: 6))
+        gl.targets.append(GTarget(x: 1.21, y: 0.47, kind: 12, pay: 2))
+        gl.targets.append(GTarget(x: 1.10, y: 0.50, kind: 13, pay: 4))
         gallery = gl
         pvx = 0
         sfx?.fanfare()
@@ -94,13 +99,26 @@ final class Game {
 
     /// The rat only shows now and then.
     func ratOut(_ t: Double) -> Double { return clampD(sin(t * 1.3) * 1.6 - 0.3, 0, 1) }
+    /// How far the view has panned across the saloon, in game pixels: left to right and back, slowly.
+    func galleryPan(_ t: Double) -> Double { return (GWIDE - 1) * W * (0.5 - 0.5 * cos(t * 0.4)) }
+    /// Where a target is right now, in saloon pixels: the rat creeps, the dollar is tossed, the pendulum swings.
+    func gpos(_ tg: GTarget, _ t: Double) -> (Double, Double) {
+        var x = tg.x * W, y = tg.y * H
+        switch tg.kind {
+        case 3: x -= ratOut(t) * 9
+        case 11: y -= abs(sin(t * 2.4)) * 24
+        case 13: x += sin(t * 3.2) * 6
+        default: break
+        }
+        return (x, y)
+    }
 
     private func updGallery(_ dt: Double) {
         guard var gl = gallery else { return }
         gl.t += dt
         gl.flash = max(0, gl.flash - dt)
         for i in gl.targets.indices where gl.targets[i].hit >= 0 { gl.targets[i].hit += dt }
-        if (gl.shots == 0 && gl.t - gl.last > 2.2) || gl.t > 32 {
+        if (gl.shots == 0 && gl.t - gl.last > 2.2) || gl.t > 45 {
             let n = gl.won
             gallery = nil
             gunCD = 0.6; tossCD = 0.6
@@ -119,12 +137,13 @@ final class Game {
         gl.last = gl.t
         gl.flash = 0.08
         sfx?.gun(0.8)
-        let reach: [Double] = [7, 14, 12, 7, 7, 8, 10, 13, 9, 7]
+        let reach: [Double] = [7, 14, 12, 6, 7, 7, 9, 13, 9, 5.5, 5, 5, 8, 5]
+        let x = x + galleryPan(gl.t)
         var best = -1
         var bd = 99.0
         for (i, tg) in gl.targets.enumerated() where tg.hit < 0 {
             if tg.kind == 3 && ratOut(gl.t) < 0.35 { continue }
-            let tx = tg.x * W - (tg.kind == 3 ? ratOut(gl.t) * 9 : 0), ty = tg.y * H
+            let (tx, ty) = gpos(tg, gl.t)
             let d = ((tx - x) * (tx - x) + (ty - y) * (ty - y)).squareRoot()
             if d < reach[tg.kind] && d < bd { bd = d; best = i }
         }
@@ -135,7 +154,9 @@ final class Game {
             case 0: sfx?.box()
             case 1: sfx?.recruit(); sfx?.fanfare()
             case 3: sfx?.pick(); sfx?.ding()
-            case 9: sfx?.bell()
+            case 9, 13: sfx?.bell()
+            case 10, 11: sfx?.ding(); sfx?.pick()
+            case 12: sfx?.box()
             default: sfx?.ding()
             }
             buzz(1)
@@ -257,17 +278,11 @@ final class Game {
                 var kinds: [Int] = []
                 if herd.contains(where: { !$0.run && $0.x > lo && $0.x < hi }) { kinds.append(0) }
                 if strays.contains(where: { !$0.tame && $0.x > lo && $0.x < hi }) { kinds.append(1) }
-                if mustangs.contains(where: { $0.st < 2 && $0.x > lo && $0.x < hi }) { kinds.append(2) }
-                if bandits.contains(where: { $0.rider && $0.st == 0 && $0.x > lo && $0.x < hi }) { kinds.append(3) }
+                // it takes cattle and nothing else: never a horse
                 guard let k = kinds.randomElement() else { return }
                 var s = Saucer(x: px, side: chance(0.5) ? -1 : 1)
                 if k == 0, let i = herd.firstIndex(where: { !$0.run && $0.x > lo && $0.x < hi }) { s.cow = herd[i]; s.x = herd[i].x; herd.remove(at: i) }
                 if k == 1, let i = strays.firstIndex(where: { !$0.tame && $0.x > lo && $0.x < hi }) { s.stray = strays[i]; s.x = strays[i].x; strays.remove(at: i) }
-                if k == 2, let i = mustangs.firstIndex(where: { $0.st < 2 && $0.x > lo && $0.x < hi }) { s.mustang = mustangs[i]; s.x = mustangs[i].x; mustangs.remove(at: i) }
-                if k == 3, let bn = bandits.first(where: { $0.rider && $0.st == 0 && $0.x > lo && $0.x < hi }) {
-                    bn.rider = false; s.x = bn.x
-                    s.mustang = Mustang(x: bn.x, dir: -bn.side, seed: 3)
-                }
                 ufo = s; ufoAt = 0
             }
             return
@@ -489,7 +504,7 @@ final class Game {
             return showUsed ? "Medicine show: one bottle to a customer. He moves on in the morning." : "Medicine show: 3 coins\(go) for a bottle of tonic. It might put fire in your horse, pay out handsomely, or be coloured water."
         case .sGallery:
             if galleryDay == day { return "Shooting gallery: one go a day. The booth opens again in the morning." }
-            return "Shooting gallery: 2 coins\(go) buys eight shots at the saloon. Bottles, the piano, the rocking chair and the rest pay a coin each, the bar bell two, the rat three."
+            return "Shooting gallery: 2 coins\(go) buys eight shots across a wide saloon. Big targets pay 1 coin; small or moving ones pay more, up to 6 for the tossed silver dollar."
         case .sRods:
             return rodsLv > 0 ? "Lightning rods: fitted to every roof. A strike on town runs harmlessly to ground." : "Windmill: 5 coins\(go) fits lightning rods to every roof, so a strike cannot start a fire."
         case .sTower:
@@ -1105,6 +1120,9 @@ final class Game {
             // a town well along, to look at
             t = 0.36; day = 12; hall.level = 2; store.level = 2; saloon.level = 3; sheriff.level = 2; px = 1296; pdir = 1
             folk[0].x = 1260; folk[1].x = 1330; folk[2].x = 1218; folk[3].x = 1372
+        } else if name == "gallery2" {
+            hall.level = 1; px = 186; startGallery(); gallery?.t = 7.85; gallery?.shots = 3; gallery?.won = 9
+            gallery?.targets[10].hit = 0.4; gallery?.targets[12].hit = 0.3
         } else if name == "gallery" {
             hall.level = 1; px = 186; startGallery(); gallery?.t = 3; gallery?.shots = 5; gallery?.won = 4
             gallery?.targets[4].hit = 0.3; gallery?.targets[9].hit = 0.6; gallery?.holes = [(120, 70), (230, 96)]
@@ -1862,6 +1880,9 @@ final class Game {
         side = bio == .canyon || chance(0.5) ? 1 : -1       // a canyon has one way in, from the east
         note += rollWx()
         sfx?.dawn(); buzz(1)
+        // trade through town adds a fifth again to whatever the morning brought
+        let extra = total > 0 ? max(1, Int((Double(total) * 0.2).rounded())) : 0
+        if extra > 0 { for _ in 0..<extra { dropCoin(FIRE_X + rnd(-24, 24), 7) }; total += extra; paid.append(("Trade", extra)) }
         // the takings go up on a card; the line of text carries only the day's news
         dawnRows = paid; dawnTotal = total; dawnSeq += 1
         if !note.isEmpty { hint("dawn\(day)", "Day \(day).\(note)", again: true) }

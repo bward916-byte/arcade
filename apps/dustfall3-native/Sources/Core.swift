@@ -526,7 +526,10 @@ let PSCALE = 1.3
 struct Devil { var x: Double; var vx: Double; var t = 0.0; var life: Double; var big: Bool }
 
 /// One thing to shoot at in the saloon gallery. x and y are fractions of the picture; hit counts up from the moment it is shot.
-/// Kinds: 0 bottle, 1 piano, 2 rocking chair, 3 rat, 4 spittoon, 5 lamp, 6 moose head, 7 swing doors, 8 wanted poster, 9 bar bell.
+/// Kinds: 0 bottle, 1 piano, 2 rocking chair, 3 rat, 4 spittoon, 5 lamp, 6 moose head, 7 swing doors, 8 wanted poster, 9 bar bell,
+/// 10 ace on the wall, 11 tossed silver dollar, 12 hat on the rack, 13 clock pendulum.
+/// The saloon is this many screens wide, and the view pans slowly across it.
+let GWIDE = 1.6
 struct GTarget {
     var x: Double
     var y: Double

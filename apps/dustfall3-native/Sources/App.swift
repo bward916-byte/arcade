@@ -88,6 +88,7 @@ final class GameViewController: UIViewController {
     private let coinBtn = UIView()
     private let coinIcon = UIImageView()
     private let newBtn = UIButton(type: .system)
+    private let cheatBtn = UIButton(type: .system)
     private let mapBtn = UIButton(type: .system)
     private let crewBtn = UIButton(type: .system)
     private let townsBtn = UIButton(type: .system)
@@ -320,6 +321,10 @@ final class GameViewController: UIViewController {
         style(newBtn, "New game", primary: false)
         newBtn.addTarget(self, action: #selector(startGame), for: .touchUpInside)
         titleBox.addSubview(titleSub); titleBox.addSubview(startBtn); titleBox.addSubview(newBtn)
+        style(cheatBtn, "Cheat: +200 coins", primary: false)
+        cheatBtn.titleLabel?.font = rye(12)
+        cheatBtn.addTarget(self, action: #selector(cheatTapped), for: .touchUpInside)
+        titleBox.addSubview(cheatBtn)
         startBtn.titleLabel?.adjustsFontSizeToFitWidth = true
         refreshTitle()
         view.addSubview(titleBox)
@@ -499,6 +504,7 @@ final class GameViewController: UIViewController {
         overText.frame = CGRect(x: 40, y: bh * 0.2 + 50, width: bw - 80, height: 50)
         overBtn.frame = CGRect(x: bw / 2 - 110, y: bh * 0.2 + 112, width: 220, height: 50)
         newBtn.frame = CGRect(x: bw / 2 - 150, y: by + 86, width: 300, height: 38)
+        cheatBtn.frame = CGRect(x: bw / 2 - 90, y: by + 130, width: 180, height: 28)
         // the closeup fills the top of the frame, as in the web game; the words sit on a panel under it
         let ph = bh * 0.7
         let csc = max(bw / 200, ph / 78)
@@ -539,6 +545,7 @@ final class GameViewController: UIViewController {
             if args.contains("-demo-plain") { demoMode = true; game.demo("day"); plainInfo = true }
             if args.contains("-demo-burn") { demoMode = true; game.demo("day"); logoOn = true; burnLogo.frozen = 0.52; burnLogo.reset(); burnLogo.ignite(after: 0) }
             if args.contains("-demo-gallery") { demoMode = true; game.demo("gallery") }
+            if args.contains("-demo-gallery2") { demoMode = true; game.demo("gallery2") }
             if args.contains("-demo-town") { demoMode = true; game.demo("town") }
             if args.contains("-demo-cut3") { demoMode = true; game.demo("day"); game.cut = [Beat(art: "vista", who: "coldcreek", head: "Cold Creek", cap: ARRIVE["coldcreek"] ?? "")] }
             if args.contains("-demo-cut") { demoMode = true; game.demo("day"); game.cut = [STORY["varney"]![0]] }
@@ -569,15 +576,26 @@ final class GameViewController: UIViewController {
             let key = s.place ?? stageOf(max(0, s.town))[0]
             startBtn.setTitle("Continue: day \(s.day), \(nice(PLACES[key]?.name ?? "Dustfall"))", for: .normal)
             newBtn.isHidden = false
+            cheatBtn.isHidden = false
+            cheatBtn.setTitle("Cheat: +200 coins (now \(s.coins))", for: .normal)
         } else {
             startBtn.setTitle("Ride in", for: .normal)
             newBtn.isHidden = true
+            cheatBtn.isHidden = true
         }
     }
     private func clearTouches() {
         stickTouch = nil; fireTouch = nil; tossTouch = nil; tStick = 0; tToss = false; tFire = false
         tossLatch = false; fireLatch = false
         knob.center = stickCenter
+    }
+
+    /// The cheat on the title screen: 200 coins straight into the saved game.
+    @objc private func cheatTapped() {
+        guard var s = loadSave() else { return }
+        s.coins += 200
+        if let d = try? JSONEncoder().encode(s) { UserDefaults.standard.set(d, forKey: saveKey) }
+        refreshTitle()
     }
 
     @objc private func startTapped() {
