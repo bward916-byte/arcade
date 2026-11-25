@@ -653,8 +653,8 @@ final class Renderer {
             if g.phase == .play, let nx = g.nextRig() { rig(nx, x + 4, GY, 0, -1) } else { rig(.classC, x + 4, GY, 0, -1) }
             top = 66
         }
-        if sp.kind != .tools && sp.kind != .skoolie {
-            g.text(sp.name, x, GY - top, 5, CREAM.alpha(near ? 1 : 0.75), bold: true)
+        if sp.kind != .tools && sp.kind != .skoolie && !near {
+            g.text(sp.name, x, GY - top, 5, CREAM.alpha(0.8), bold: true)
         }
     }
 
@@ -674,7 +674,7 @@ final class Renderer {
 
     private func ring(_ i: Int) {
         let x = g.spots[i].x - cam
-        let y = GY - 70.0
+        let y = GY - 84.0
         guard let o = g.offer(i) else {
             g.text(g.note(i), x, y + 8, 5, CREAM.alpha(0.9))
             return
