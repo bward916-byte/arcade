@@ -123,7 +123,6 @@ final class Renderer {
         let haze = sk.1
         ridge(0.06, 1.3 + seed, GY - 6, 62, Col.mix(Col(0x6a5a80), haze, 0.55).shade(1 - dark * 0.55))
         if ar == .dome {
-            // Dome Rock itself: a big rounded granite dome close behind the camps
             let dx = W * 0.62 + 260 - cam * 0.14
             let rock = Col.mix(Col(0x8a5a44), haze, 0.22).shade(1 - dark * 0.6)
             c.ell(dx, GY + 4, 118, 64, rock)
@@ -131,16 +130,16 @@ final class Renderer {
             c.ell(dx - 50, GY - 8, 40, 26, rock.shade(1.08))
         }
         ridge(0.14, 4.1 + seed, GY - 2, ar == .dome ? 30 : 40, Col.mix(Col(0x7a4f48), haze, 0.3).shade(1 - dark * 0.6))
-        ridge(0.3, 8.7 + seed, GY + 1, ar == .ehrenberg ? 8 : 17, Col.mix(Col(0x8a5a3e), haze, 0.12).shade(1 - dark * 0.65))
+        ridge(0.3, 8.7 + seed, GY + 1, ar == .ehrenberg ? 8 : (ar == .trail ? 24 : 17), Col.mix(Col(0x8a5a3e), haze, 0.12).shade(1 - dark * 0.65))
 
         // a far stand of saguaros on the low hills
         if ar != .town && ar != .ehrenberg {
             var n = floor((cam * 0.3 - 20) / 46)
             while n * 46 < cam * 0.3 + W + 20 {
-                if hashN(n + 900 + seed) < (ar == .dome ? 0.85 : 0.5) {
+                if hashN(n + 900 + seed) < (ar == .dome || ar == .trail ? 0.85 : 0.5) {
                     let wx = n * 46 + hashN(n + 910) * 30
                     let sx = wx - cam * 0.3
-                    let base = ridgeY(sx + cam * 0.3, 8.7 + seed, GY + 1, 17) + 2
+                    let base = ridgeY(sx + cam * 0.3, 8.7 + seed, GY + 1, ar == .trail ? 24 : 17) + 2
                     saguaro(sx, base, 9 + hashN(n + 920) * 7, n + 930, Col.mix(Col(0x4a5a44), haze, 0.25).shade(1 - dark * 0.6), false)
                 }
                 n += 1
@@ -149,15 +148,18 @@ final class Renderer {
         if ar == .ehrenberg { river(haze) }
         background(ar, haze)
 
-        // the desert floor and the dirt road
-        let dirt = ar == .town ? Col(0xd2b488) : Col(0xdcbc8c)
+        // the desert floor and the road / trail
+        let dirt = ar == .town ? Col(0xd2b488) : (ar == .trail ? Col(0xd4b282) : Col(0xdcbc8c))
         c.vfill(0, GY, W, H - GY, [(0, dirt), (1, Col(0xb48a5a))])
         c.R(0, GY, W, 1, Col(0xf0d8ac, 0.7))
         if ar == .town {
-            // Main Street is paved
             c.R(0, GY + 6, W, 11, Col(0x5a5450))
             var lx = -((cam).truncatingRemainder(dividingBy: 30))
             while lx < W { c.R(lx, GY + 11.2, 12, 0.8, Col(0xf2c14e, 0.8)); lx += 30 }
+        } else if ar == .trail {
+            c.R(0, GY + 6, W, 11, Col(0xc9a372, 0.7))
+            c.R(0, GY + 8.2, W, 1.3, Col(0x9a7448, 0.75))
+            c.R(0, GY + 13.8, W, 1.3, Col(0x9a7448, 0.75))
         } else {
             c.R(0, GY + 7, W, 9, Col(0xe6cba0, 0.55))
             c.R(0, GY + 10, W, 0.8, Col(0xa98558, 0.5))
@@ -171,7 +173,7 @@ final class Renderer {
             n += 1
         }
 
-        // cactus and brush along the strip: dense at Dome Rock, sparse in town, palms by the river
+        // cactus and brush along the strip
         let skip = ar == .town ? 0.7 : (ar == .ltva ? 0.3 : 0)
         n = floor((cam - 80) / 64)
         while n * 64 < cam + W + 80 {
@@ -189,7 +191,6 @@ final class Renderer {
         }
 
         if g.phase == .title {
-            // a rig rolling in at sunset, dust behind it
             let rx = (NOW * 24).truncatingRemainder(dividingBy: W + 160) - 80
             for i in 0..<5 {
                 let d = Double(i)
@@ -251,6 +252,12 @@ final class Renderer {
         if g.toy >= 0 && g.toyArea == g.area && !g.inRig {
             let tx = (g.onToy ? g.px : g.toyX) - cam
             let len = TOYS[g.toy].len
+            if g.onToy && abs(g.vx) > 25 {
+                for i in 0..<4 {
+                    let d = Double(i)
+                    c.circ(tx - g.face * (14 + d * 7), GY + 3 - d * 1.1, 2.2 + d * 1.2, Col(0xe8d0a8, 0.28 - d * 0.05))
+                }
+            }
             if g.nearToy && !g.onToy {
                 c.glow(tx, GY - 8, len * 0.9, Col(0xffe9a0, pulse), Col(0xffe9a0, 0))
                 g.text("Tap to ride", tx, GY - 26, 5.5, CREAM)
@@ -268,14 +275,12 @@ final class Renderer {
         let water = Col.mix(Col(0x2e6f8e), haze, 0.25).shade(1 - dark * 0.6)
         c.vfill(0, top, W, GY - top + 1, [(0, water.shade(1.15)), (1, water)])
         c.R(0, top - 1, W, 1.4, Col.mix(Col(0x4a6a3a), haze, 0.3).shade(1 - dark * 0.6))
-        // the far bank: tamarisk and arrowweed
         var n = floor((cam * 0.5 - 20) / 18)
         while n * 18 < cam * 0.5 + W + 20 {
             let sx = n * 18 + hashN(n + 1500) * 10 - cam * 0.5
             c.circ(sx, top - 2, 3 + hashN(n + 1510) * 3, Col.mix(Col(0x5a7048), haze, 0.35).shade(1 - dark * 0.6))
             n += 1
         }
-        // glints drifting downstream
         for i in 0..<18 {
             let d = Double(i)
             let gx = (hashN(d + 1600) * W + NOW * (6 + hashN(d + 1610) * 6) - cam * 0.6).truncatingRemainder(dividingBy: W + 20)
@@ -284,7 +289,7 @@ final class Renderer {
         }
     }
 
-    /// The middle distance: rows of RVs at the LTVA, false-front stores in town, buses by the river.
+    /// The middle distance: rows of RVs at the LTVA, false-front stores in town, buses by the river, trail & Scaddan Wash.
     private func background(_ ar: Area, _ haze: Col) {
         let par = 0.72
         switch ar {
@@ -327,7 +332,6 @@ final class Renderer {
                 n += 1
             }
         case .dome:
-            // a few other boondockers spread far apart
             let gap = 260.0
             var n = floor((cam * par - 70) / gap)
             while n * gap < cam * par + W + 70 {
@@ -348,8 +352,28 @@ final class Renderer {
                 else if h < 0.75 { rig(.van, sx, GY + 0.5, 1, 1, 0.5) }
                 n += 1
             }
+        case .trail:
+            let gap = 420.0
+            var n = floor((cam * par - 70) / gap)
+            while n * gap < cam * par + W + 70 {
+                if hashN(n + 1480) < 0.45 {
+                    let sx = n * gap + hashN(n + 1490) * 160 - cam * par
+                    toy(3, sx, GY + 0.5, hashN(n + 1495) < 0.5 ? 1 : -1, 1, 0)
+                }
+                n += 1
+            }
+        case .scaddan:
+            let gap = 210.0
+            var n = floor((cam * par - 70) / gap)
+            while n * gap < cam * par + W + 70 {
+                if hashN(n + 1520) < 0.65 {
+                    let sx = n * gap + hashN(n + 1530) * 90 - cam * par
+                    let kinds: [RigKind] = [.classC, .skoolie, .van, .classA, .minivan]
+                    rig(kinds[Int(hashN(n + 1540) * 5) % 5], sx, GY + 0.5, 2, hashN(n + 1550) < 0.5 ? 1 : -1, 0.5)
+                }
+                n += 1
+            }
         }
-        // haze over the middle distance so it sits back
         c.vfill(0, GY - 34, W, 35, [(0, haze.alpha(0)), (1, haze.alpha(0.3 * (1 - dark)))])
     }
 
@@ -378,7 +402,6 @@ final class Renderer {
         if x < -40 || x > W + 40 { return }
         let w = max(1.6, h * 0.17)
         let body = detail ? col.shade(1 - dark * 0.35) : col
-        // arms first, so the trunk overlaps their roots
         let arms = Int(hashN(seed + 11) * 3.4)
         for i in 0..<arms {
             let n = seed + Double(i) * 17
@@ -394,14 +417,12 @@ final class Renderer {
         }
         c.RR(x - w / 2, base - h, w, h + 1, w / 2, body)
         if detail {
-            // ribs, a lit edge and the spines catching the light
             c.R(x - w * 0.18, base - h + w / 2, 0.6, h - w / 2, SAGD.alpha(0.6))
             c.R(x + w * 0.16, base - h + w / 2, 0.6, h - w / 2, SAGD.alpha(0.6))
             c.R(x - w / 2 + 0.4, base - h + w / 2, 0.8, h - w / 2, Col(0xdcecb0, 0.4))
         }
     }
 
-    /// Teddy-bear cholla: a dark trunk under a crown of pale, glowing joints.
     private func cholla(_ x: Double, _ base: Double, _ s: Double, _ seed: Double) {
         if x < -30 || x > W + 30 { return }
         let trunk = Col(0x4a3524).shade(1 - dark * 0.3)
@@ -442,8 +463,6 @@ final class Renderer {
 
     // MARK: rigs and people
 
-    /// A rig centred on `cx` with its wheels on `base`, drawn to the same scale as the people
-    /// (about 3.5 game pixels to the foot). `dir` 1 faces right; `s` shrinks it for menu cards.
     func rig(_ kind: RigKind, _ cx: Double, _ base: Double, _ panels: Int, _ dir: Double, _ s: Double = 1) {
         if cx < -130 || cx > W + 130 { return }
         c.save()
@@ -462,7 +481,6 @@ final class Renderer {
             c.seg(13, 0, 17, 1, 0.5, Col(0xeeeeee, 0.7))
 
         case .minivan:
-            // 17 ft long, under 6 ft tall: one box, a long raked windshield running into a short sloped hood
             let col = Col(0x8fa3b0)
             let body: [Double] = [-29.5, -4, -29.3, -14.5, -27, -20, 6, -20, 17, -12.6, 27.5, -10.4, 29.5, -7, 29.5, -3.6]
             c.poly(col, body)
@@ -478,7 +496,6 @@ final class Renderer {
             roof = -20.6; px0 = -24
 
         case .van:
-            // an older full-size van, 18 ft by 7 ft: tall slab sides, a stubby hood, barn doors at the back
             let col = Col(0xe6e0d2)
             let body: [Double] = [-31.5, -5, -31.5, -22, -29.5, -24, 12, -24, 20.5, -15, 30, -13.4, 31.5, -10.5, 31.5, -4.4]
             c.poly(col, body)
@@ -495,18 +512,15 @@ final class Renderer {
             roof = -24; px0 = -4
 
         case .skoolie:
-            // a conventional "dog-nose" school bus, seven windows, about 28 ft by 10 ft: body, cowl, long hood
             let col = Col(0x3f8f8a)
             c.RR(-48, -35, 75, 12, 4.5, Col(0xf1ede2))
             c.R(-48, -29, 75, 23, col)
             c.R(-48, -8, 75, 2.4, trim)
-            // hood and fender
             c.poly(col.shade(0.94), [26, -20, 43, -17, 47, -14.4, 47.6, -6, 26, -6])
             c.R(26, -20.4, 17, 0.7, col.shade(0.7))
             c.R(45.8, -14, 1.6, 6, Col(0x2a2a2a))
             c.RR(46.2, -7.8, 2.6, 3, 0.6, trim)
             c.RR(44.8, -12.6, 1.6, 2.2, 0.6, lamp)
-            // windshield, entry door, seven sash windows
             c.poly(GLASS, [22.2, -31, 26, -30, 26.8, -20.6, 22.2, -20.6])
             c.R(14.6, -30.4, 6.2, 22.6, GLASS); c.R(17.5, -30.4, 0.6, 22.6, col.shade(0.7)); c.R(14.6, -19.6, 6.2, 0.6, col.shade(0.7))
             for i in 0..<7 {
@@ -517,7 +531,6 @@ final class Renderer {
             c.R(-48, -21.6, 62, 0.9, trim); c.R(-48, -16.6, 62, 0.9, trim); c.R(-48, -12, 62, 0.9, trim)
             c.R(-48, -19.6, 62, 2, Col(0xf2c14e))
             c.RR(-49.4, -8.4, 2, 3, 0.5, trim); c.RR(-48.6, -24, 1.2, 4, 0.4, tail)
-            // what makes it a skoolie: roof deck with a rail, stovepipe, mirror on a long arm
             c.R(-44, -37.2, 26, 1.6, Col(0x8a6238))
             c.R(-44, -40.6, 26, 0.7, Col(0x8a6238))
             c.R(-44, -40.6, 0.8, 3.6, Col(0x8a6238)); c.R(-31, -40.6, 0.8, 3.6, Col(0x8a6238)); c.R(-18.8, -40.6, 0.8, 3.6, Col(0x8a6238))
@@ -527,7 +540,6 @@ final class Renderer {
             roof = -35.4; px0 = -14
 
         case .classB:
-            // a high-roof camper van (Sprinter-sized, about 20 ft by 9 ft): tall roof, short dropped hood
             let col = Col(0xdcdfe2)
             let body: [Double] = [-35, -5, -35, -29, -33, -32, 14, -32, 19.5, -29, 27, -17.4, 33.5, -14.2, 35, -10.4, 35, -4.4]
             c.poly(col, body)
@@ -544,14 +556,11 @@ final class Renderer {
             roof = -32.4; px0 = -6
 
         case .classC:
-            // a 25 ft Class C: van cab up front, the house box behind it, and the bunk hanging over the cab
             let col = Col(0xf0ece2)
-            // cab
             c.poly(col.shade(0.95), [18, -22, 27, -22, 35, -14.2, 42, -12.6, 43.5, -9.4, 43.5, -4.4, 18, -4.4])
             c.poly(GLASS, [22.4, -20.8, 26.6, -20.8, 32.6, -14.6, 22.4, -14.6])
             c.RR(41.4, -12, 2, 2.4, 0.6, lamp)
             c.RR(42, -6.6, 2.4, 2.6, 0.6, Col(0xb8b8b4))
-            // house, with the tail cut up for clearance, and the cab-over
             c.poly(col, [-43.5, -11, -38, -6, 22, -6, 22, -38, -41, -38, -43.5, -35.5])
             c.poly(col, [21, -38, 30, -38, 34.4, -34, 34.4, -25.4, 21, -23])
             c.curve(-43, -15, -8, -20, 33, -27, 2, Col(0xb5651d))
@@ -569,11 +578,9 @@ final class Renderer {
             roof = -38.4; px0 = -8
 
         case .classA:
-            // a 34 ft Class A: one tall bus-shaped body with a flat face, a huge windshield and a long rear overhang
             let col = Col(0xe6dfd0)
             let body: [Double] = [-59, -8, -59, -40, -56, -43, 52, -43, 57, -40.4, 59, -24, 59, -6.4, 54, -5, -52, -5]
             c.poly(col, body)
-            // full-body paint first, so the windows and the door sit on top of it
             c.curve(-58, -12, -10, -17, 40, -30, 3, Col(0x7a4a2a))
             c.curve(-58, -16.4, -10, -21, 40, -34, 1.2, GOLD)
             c.curve(-58, -8.6, -10, -12, 58, -18, 1.4, Col(0x3a3230))
@@ -583,7 +590,6 @@ final class Renderer {
             c.RR(-22, -33.4, 16, 10, 1.2, GLASS)
             c.RR(2, -33.4, 14, 10, 1.2, GLASS)
             c.R(28.4, -34.4, 9, 28, col.shade(0.9)); c.RR(30.2, -32.4, 5.4, 8, 0.8, GLASS); c.R(29.4, -6, 7, 1.6, trim)
-            // the basement doors
             c.R(-52, -16, 78, 0.5, col.shade(0.72))
             for i in 0..<5 { c.R(-52 + Double(i) * 16, -16, 0.5, 10.4, col.shade(0.72)) }
             c.R(-50, -42.4, 74, 2.2, Col(0x9a4a3a))
@@ -612,7 +618,6 @@ final class Renderer {
         c.circ(x, -r, r * 0.16, TIRE)
     }
 
-    /// A bike, quad or side-by-side centred on `cx`, wheels on `base`. `rider` is a look index, or -1 for none.
     func toy(_ k: Int, _ cx: Double, _ base: Double, _ dir: Double, _ rider: Int, _ spin: Double) {
         if cx < -60 || cx > W + 60 { return }
         c.save()
@@ -623,7 +628,6 @@ final class Renderer {
         c.roundCaps(true)
         switch k {
         case 0:
-            // e-bike: thin wheels, a battery on the down tube
             let fr = Col(0x2f6f8a)
             for wx in [-7.0, 7.0] {
                 c.ellStroke(wx, -3.6, 3.4, 3.4, 1, dk)
@@ -635,7 +639,6 @@ final class Renderer {
             c.seg(-2, -10, -3, -12, 0.8, dk); c.R(-5, -12.6, 4, 1.2, dk)
             c.seg(5, -10.6, 5.6, -13.4, 0.8, dk); c.seg(4.4, -13.6, 7, -13.4, 0.8, dk)
         case 1:
-            // dirt bike: knobby tires, high fender, tank and long seat
             let red = Col(0xc8281e)
             for wx in [-8.0, 8.4] { c.circ(wx, -4, 4, dk); c.circ(wx, -4, 1.8, HUB) }
             c.seg(8.4, -4, 5.6, -13, 1.2, Col(0xb8b8b4))
@@ -646,7 +649,6 @@ final class Renderer {
             c.seg(-8, -4, -1, -7, 1.4, Col(0x6a6a6a)); c.seg(-1, -7, 4, -5, 1.2, Col(0x6a6a6a))
             c.seg(5.6, -13, 4.4, -15, 0.9, dk); c.seg(3, -15.2, 7, -15, 0.9, dk)
         case 2:
-            // quad: four fat wheels (two showing), fenders, racks front and back
             let body = Col(0x3a6a3a)
             for wx in [-8.4, 8.6] { c.circ(wx, -4.4, 4.4, dk); c.circ(wx, -4.4, 2, HUB) }
             c.poly(body, [-13, -8, -11, -11, -5, -11, -3, -8.4, 3, -8.4, 5, -11.4, 11, -11.4, 13, -8, 13, -6.6, -13, -6.6])
@@ -655,7 +657,6 @@ final class Renderer {
             c.seg(4, -11.4, 3, -15, 0.9, dk); c.seg(1.6, -15.4, 5.4, -15, 0.9, dk)
             c.circ(13, -9.4, 0.9, Col(0xfff2c0))
         case 3:
-            // side-by-side: roll cage, two seats, a little bed in back
             let body = Col(0xd8d4cc)
             for wx in [-12.0, 12.6] { c.circ(wx, -4.8, 4.8, dk); c.circ(wx, -4.8, 2.2, HUB) }
             c.poly(body, [-19, -6.6, -18, -12, -8, -12, -6, -9.4, 8, -9.4, 12, -12.6, 18, -11, 19, -6.6])
@@ -666,7 +667,6 @@ final class Renderer {
             c.R(-6, -15, 4, 5.6, Col(0x2a2a2a))
             c.circ(18.6, -9, 0.9, Col(0xfff2c0))
         default:
-            // supercharged side-by-side: lifted on long-travel arms, light bar, hood scoop
             let red = Col(0xb8231a)
             for wx in [-15.0, 16.0] {
                 c.seg(wx, -5.8, wx * 0.45, -12, 0.9, Col(0x6a6a6a))
@@ -693,7 +693,6 @@ final class Renderer {
         c.restore()
     }
 
-    /// A rider sitting at (x, hip) in the current transform, facing right, hands forward.
     private func seated(_ x: Double, _ hip: Double, _ look: Int, _ reach: Double) {
         let k = ((look % 4) + 4) % 4
         let skin = SKINS[k], shirt = SHIRTS[k], pants = PANTS[k]
@@ -706,7 +705,6 @@ final class Renderer {
         let hy = hip - 11.2
         c.circ(x + 0.4, hy, 2.7, skin)
         c.R(x + 1.5, hy - 0.5, 0.7, 0.7, Col(0x2a1c14))
-        // a helmet on the bikes and quads, the usual hat otherwise
         if reach > 1.2 {
             c.dome(x + 0.2, hy - 0.2, 3.1, Col(0x2a2a2a))
             c.R(x + 1.4, hy - 1.2, 2.2, 1, Col(0x5a8aaa))
@@ -715,7 +713,6 @@ final class Renderer {
         }
     }
 
-    /// A desert fan palm, the kind that line the river.
     private func palm(_ x: Double, _ base: Double, _ h: Double, _ seed: Double) {
         if x < -40 || x > W + 40 { return }
         let lean = (hashN(seed + 3) - 0.5) * 8
@@ -732,7 +729,6 @@ final class Renderer {
         c.roundCaps(false)
     }
 
-    /// A wheel drawn in screen space, outside a rig's own transform.
     private func wheelAt(_ x: Double, _ base: Double, _ r: Double) {
         c.circ(x, base - r, r + 1, Col(0x15120f))
         c.circ(x, base - r, r, TIRE)
@@ -757,15 +753,15 @@ final class Renderer {
         c.circ(x + face * 0.4, hy, 2.7, skin)
         c.R(x + face * 1.5, hy - 0.5, 0.7, 0.7, Col(0x2a1c14))
         switch k {
-        case 0:     // straw hat
+        case 0:
             c.dome(x + face * 0.3, hy - 1, 2.6, Col(0xd9c07a))
             c.ell(x + face * 0.3, hy - 1, 4.6, 0.9, Col(0xc9ae62))
-        case 1:     // beanie
+        case 1:
             c.dome(x + face * 0.3, hy - 0.4, 2.9, Col(0x8a3a5a))
-        case 2:     // ball cap
+        case 2:
             c.dome(x + face * 0.3, hy - 0.8, 2.8, Col(0x2f4f7a))
             c.R(face > 0 ? x + 2 : x - 5.4, hy - 1.2, 3.4, 0.9, Col(0x2f4f7a))
-        default:    // grey hair and a wide sun hat
+        default:
             c.dome(x + face * 0.2, hy - 0.2, 2.9, Col(0xd8d8d4))
             c.ell(x + face * 0.3, hy - 1.8, 5.2, 0.9, Col(0xefe6cf))
             c.dome(x + face * 0.3, hy - 1.8, 2.3, Col(0xefe6cf))
@@ -818,12 +814,13 @@ final class Renderer {
         let wood = Col(0x8a6238)
         switch sp.kind {
         case .road:
-            // a green highway sign pointing at the next place
             let left = sp.x < g.WORLD / 2
+            let toArea = Area(rawValue: sp.arg) ?? .town
+            let blm = g.area == .trail || toArea == .trail
             c.R(x - 15, GY - 32, 1.4, 32, Col(0x8a8f96)); c.R(x + 13.6, GY - 32, 1.4, 32, Col(0x8a8f96))
             c.RR(x - 25, GY - 47, 50, 18, 2.4, Col(0xf4f4f0))
-            c.RR(x - 24.2, GY - 46.2, 48.4, 16.4, 2, Col(0x1f6b3a))
-            g.text(sp.name, x + (left ? 3 : -3), GY - 41.4, 4.6, CREAM, bold: true)
+            c.RR(x - 24.2, GY - 46.2, 48.4, 16.4, 2, blm ? Col(0x5a3e24) : Col(0x1f6b3a))
+            g.text(sp.name, x + (left ? 3 : -3), GY - 41.4, 4.4, CREAM, bold: true)
             let ay = GY - 34.6, ax = left ? x - 18 : x + 18, d = left ? -1.0 : 1.0
             c.R(min(ax, ax - d * 8), ay - 0.8, 8, 1.6, CREAM)
             c.poly(CREAM, [ax + d * 3, ay, ax - d * 1, ay - 3, ax - d * 1, ay + 3])
@@ -871,7 +868,6 @@ final class Renderer {
             person(x + 24, GY + 2, 2, -1, 0, false)
             top = 34
         case .host:
-            // the camp host's trailer, a flag and a sign
             let tc = Col(0xefe9dc)
             c.RR(x - 34, GY - 26, 46, 21, 6, tc)
             c.R(x - 34, GY - 14, 46, 1.6, Col(0x3a6ea5))
@@ -933,7 +929,6 @@ final class Renderer {
             label = false
             top = 66
         case .prospector:
-            // a board-and-batten shack with a false front and a gold pan sign
             let bw = Col(0x9a7048)
             c.R(x - 28, GY - 30, 56, 30, bw)
             var lx = x - 28.0
@@ -957,7 +952,6 @@ final class Renderer {
             top = 46
         case .skoolie:
             rig(.skoolie, x - 58, GY, 2, -1)
-            // a painted awning off the bus, a table of skulls, antlers and bottles, and prayer flags
             c.seg(x + 30, GY, x + 30, GY - 24, 1, wood)
             c.poly(Col(0xb5452f), [x - 2, GY - 25, x + 32, GY - 23, x + 32, GY - 20, x - 2, GY - 22])
             let flags: [Col] = [Col(0xd9412e), Col(0xf2c14e), Col(0x3f8f8a), Col(0x9a5ad0), Col(0xf29a2e)]
@@ -986,7 +980,6 @@ final class Renderer {
             g.text("FOR SALE", x - 20, GY - 21, 3.6, INK, bold: true)
             top = 34
         case .hall:
-            // Town Hall: adobe with a parapet and a flag
             let adobe = Col(0xd9b48a)
             c.R(x - 40, GY - 32, 80, 32, adobe)
             c.R(x - 42, GY - 36, 84, 5, adobe.shade(1.08))
@@ -1018,12 +1011,11 @@ final class Renderer {
             c.seg(x + 40, GY, x + 40, GY - 30, 1, Col(0xdddddd))
             c.RR(x - 30, GY - 40, 60, 11, 2, Col(0x2a2a2e))
             g.text("TOYS & E-BIKES", x, GY - 34.4, 4.8, GOLD, bold: true)
-            let shown = g.phase == .play ? min(g.toy + 1, TOYS.count - 1) : 3
+            let shown = g.phase == .play ? min(max(0, g.toy + 1), TOYS.count - 1) : 3
             toy(shown, x + 6, GY + 2, -1, -1, 0)
             label = false
             top = 46
         case .mine:
-            // the Gold Eye: a timbered adit in a rocky hillside, an ore cart on its rails
             let rock = Col(0x8a6248).shade(1 - dark * 0.4)
             c.poly(rock, [x - 70, GY + 1, x - 46, GY - 34, x - 16, GY - 52, x + 20, GY - 46, x + 50, GY - 24, x + 72, GY + 1])
             c.poly(rock.shade(0.86), [x + 20, GY - 46, x + 50, GY - 24, x + 72, GY + 1, x + 34, GY + 1])
@@ -1038,7 +1030,6 @@ final class Renderer {
             g.text("GOLD EYE", x - 34, GY - 17.6, 3.6, REDC, bold: true)
             top = 62
         case .detect:
-            // old placer diggings: spoil piles and a cabin with the roof gone
             for j in 0..<4 { let d = Double(j); c.ell(x - 30 + d * 18, GY, 8 + hashN(d + 60) * 4, 4 + hashN(d + 61) * 3, Col(0xb99068)) }
             c.R(x + 22, GY - 16, 1.6, 16, Col(0x5a4230)); c.R(x + 40, GY - 13, 1.6, 13, Col(0x5a4230))
             c.R(x + 22, GY - 9, 20, 1.4, Col(0x5a4230)); c.R(x + 24, GY - 5, 16, 1.4, Col(0x5a4230))
@@ -1054,7 +1045,6 @@ final class Renderer {
             top = 36
         case .landmark:
             if sp.arg == 0 {
-                // Hi Jolly's tomb: a stone pyramid with a copper camel on top
                 let st = Col(0xc8b8a0)
                 c.poly(st, [x - 13, GY, x - 4, GY - 30, x + 4, GY - 30, x + 13, GY])
                 for j in 0..<22 { let d = Double(j); let yy = hashN(d + 90) * 28; let w2 = 12 - yy * 0.3; c.ell(x + (hashN(d + 91) - 0.5) * 2 * w2, GY - 2 - yy, 1.6, 1.1, hashN(d + 92) < 0.5 ? st.shade(0.82) : Col(0xf0ece4)) }
@@ -1065,7 +1055,6 @@ final class Renderer {
                 c.R(x - 6, GY - 10, 12, 5, Col(0x6a5040)); g.text("HI JOLLY", x, GY - 7.6, 2.6, CREAM, bold: true)
                 top = 52
             } else {
-                // Reader's Oasis: the desert bookstore with tables of books out front
                 let wall = Col(0xe2d2b4)
                 c.R(x - 34, GY - 30, 68, 30, wall)
                 c.poly(Col(0x9a4a3a), [x - 38, GY - 30, x - 30, GY - 38, x + 30, GY - 38, x + 38, GY - 30])
@@ -1087,13 +1076,22 @@ final class Renderer {
             c.R(x - 4, GY - 7.6, 8, 1.4, Col(0x3a8a6a)); c.R(x - 3.6, GY - 13, 1.2, 6, Col(0x3a8a6a))
             c.RR(x + 7, GY - 5, 7, 5, 1, Col(0xd8412e)); c.R(x + 7, GY - 5, 7, 1.2, Col(0xf4f4f0))
             top = 30
+        case .cabin:
+            let woodD = Col(0x6a4a2e).shade(1 - dark * 0.35)
+            c.R(x - 24, GY - 22, 34, 22, woodD)
+            c.poly(Col(0x4a3420).shade(1 - dark * 0.35), [x - 27, GY - 22, x - 7, GY - 31, x + 13, GY - 22])
+            c.R(x - 11, GY - 15, 8, 15, Col(0x241810))
+            c.R(x - 20, GY - 16, 6, 6, Col(0x1c1410))
+            let st = Col(0x9a8a78).shade(1 - dark * 0.35)
+            c.RR(x + 16, GY - 14, 18, 14, 2, st)
+            c.R(x + 15, GY - 15, 20, 2, st.shade(0.8))
+            top = 38
         }
         if label && !near {
             g.text(sp.name, x, GY - top, 5, CREAM.alpha(0.8), bold: true)
         }
     }
 
-    /// A concrete vault toilet like the ones at the LTVA.
     private func outhouse(_ x: Double, _ base: Double, _ s: Double) {
         if x < -30 || x > W + 30 { return }
         c.save()
@@ -1139,13 +1137,11 @@ final class Renderer {
         let l = g.safeL + 8, r = W - g.safeR - 8
         c.RR(l, 5, 132, 14, 7, Col(0x1c1410, 0.68))
         g.text("$\(Int((g.money + 0.0001).rounded(.down)))", l + 7, 12, 7.5, GOLD, align: 1, bold: true)
-        // health
         let hx = l + 46
         c.circ(hx, 11, 2, REDC); c.circ(hx + 3, 11, 2, REDC)
         c.poly(REDC, [hx - 1.9, 12, hx + 4.9, 12, hx + 1.5, 16])
         c.RR(hx + 8, 10, 34, 4, 2, Col(0xffffff, 0.2))
         c.RR(hx + 8, 10, 34 * g.health / 100, 4, 2, g.health < 35 ? REDC : GREEN)
-        // cred
         let sx = l + 100
         var star: [Double] = []
         for k in 0..<10 {
@@ -1163,7 +1159,6 @@ final class Renderer {
         if g.odd > 0 { pack += "  ·  oddities \(g.odd)" }
         g.text(pack, r, 12, 5.5, CREAM, align: 2, bold: true, plate: true)
 
-        // the pad and the hold button
         let py = H - 24
         let pxc = g.safeL + 40
         c.RR(pxc - 30, py - 9, 60, 18, 9, Col(0xffffff, 0.13))
