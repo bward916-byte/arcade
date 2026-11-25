@@ -92,6 +92,11 @@ final class GameViewController: UIViewController {
     private let crewBtn = UIButton(type: .system)
     private let townsBtn = UIButton(type: .system)
     private let sheetBox = UIView()
+    private let pauseRule = UILabel()
+    private let pauseStats = UILabel()
+    private let dawnCard = UIView()
+    private var dawnSeen = 0
+    private var dawnHideAt = 0.0
     private let mapBox = UIView()
     private var mapChoose = false
     private var hintH: CGFloat = 62
@@ -363,6 +368,16 @@ final class GameViewController: UIViewController {
         }
         pauseBox.addSubview(pausePlaque); overBox.addSubview(overPlaque)
         pauseBox.addSubview(pauseTitle); pauseBox.addSubview(resumeBtn); pauseBox.addSubview(soundBtn); pauseBox.addSubview(restartBtn); pauseBox.addSubview(mapBtn); pauseBox.addSubview(crewBtn); pauseBox.addSubview(townsBtn)
+        pauseRule.text = "\u{2500}\u{2500}\u{2500}\u{2500}  \u{2605}  \u{2500}\u{2500}\u{2500}\u{2500}"
+        pauseRule.font = serif(12); pauseRule.textColor = gold; pauseRule.textAlignment = .center
+        pauseStats.font = serif(13, bold: false); pauseStats.textColor = cream; pauseStats.textAlignment = .center
+        pauseBox.addSubview(pauseRule); pauseBox.addSubview(pauseStats)
+        dawnCard.backgroundColor = UIColor(red: 0.17, green: 0.11, blue: 0.07, alpha: 0.92)
+        dawnCard.layer.cornerRadius = 10; dawnCard.layer.borderWidth = 1.5
+        dawnCard.layer.borderColor = UIColor(red: 0.79, green: 0.6, blue: 0.24, alpha: 0.85).cgColor
+        dawnCard.isUserInteractionEnabled = false
+        dawnCard.isHidden = true
+        view.addSubview(dawnCard)
         sheetBox.backgroundColor = UIColor(red: 0.06, green: 0.03, blue: 0.02, alpha: 0.7)
         sheetBox.isHidden = true
         view.addSubview(sheetBox)
@@ -467,14 +482,16 @@ final class GameViewController: UIViewController {
         let py = max(6, (bh - 318) / 2)
         pausePlaque.frame = CGRect(x: bw / 2 - 180, y: py, width: 360, height: 318)
         sheetBox.frame = view.bounds
-        pauseTitle.frame = CGRect(x: bw / 2 - 156, y: py + 18, width: 312, height: 34)
+        pauseTitle.frame = CGRect(x: bw / 2 - 156, y: py + 12, width: 312, height: 32)
+        pauseRule.frame = CGRect(x: bw / 2 - 156, y: py + 44, width: 312, height: 14)
+        pauseStats.frame = CGRect(x: bw / 2 - 156, y: py + 59, width: 312, height: 18)
         overPlaque.frame = CGRect(x: bw / 2 - 250, y: bh * 0.2 - 18, width: 500, height: 196)
-        resumeBtn.frame = CGRect(x: bw / 2 - 140, y: py + 70, width: 280, height: 50)
-        soundBtn.frame = CGRect(x: bw / 2 - 140, y: py + 134, width: 134, height: 44)
-        mapBtn.frame = CGRect(x: bw / 2 + 6, y: py + 134, width: 134, height: 44)
-        crewBtn.frame = CGRect(x: bw / 2 - 140, y: py + 190, width: 134, height: 44)
-        townsBtn.frame = CGRect(x: bw / 2 + 6, y: py + 190, width: 134, height: 44)
-        restartBtn.frame = CGRect(x: bw / 2 - 140, y: py + 248, width: 280, height: 44)
+        resumeBtn.frame = CGRect(x: bw / 2 - 140, y: py + 86, width: 280, height: 46)
+        soundBtn.frame = CGRect(x: bw / 2 - 140, y: py + 142, width: 134, height: 42)
+        mapBtn.frame = CGRect(x: bw / 2 + 6, y: py + 142, width: 134, height: 42)
+        crewBtn.frame = CGRect(x: bw / 2 - 140, y: py + 194, width: 134, height: 42)
+        townsBtn.frame = CGRect(x: bw / 2 + 6, y: py + 194, width: 134, height: 42)
+        restartBtn.frame = CGRect(x: bw / 2 - 140, y: py + 252, width: 280, height: 42)
         mapBox.frame = view.bounds
         cutBox.frame = view.bounds
         overBox.frame = view.bounds
@@ -582,6 +599,18 @@ final class GameViewController: UIViewController {
         userPaused = true
         pauseBox.isHidden = false
         pauseTitle.text = "Paused: \(nice(game.townName)), day \(game.day)"
+        pauseStats.text = "\(game.coins) coins   \u{00B7}   \(game.folk.count) townsfolk   \u{00B7}   \(game.bank) in the bank"
+        // the card drops into place and its buttons follow one after another; the star on the rule keeps a slow pulse
+        let items: [UIView] = [pausePlaque, pauseTitle, pauseRule, pauseStats, resumeBtn, soundBtn, mapBtn, crewBtn, townsBtn, restartBtn]
+        for (i, v) in items.enumerated() {
+            v.layer.removeAllAnimations()
+            v.alpha = 0
+            v.transform = i == 0 ? CGAffineTransform(scaleX: 0.9, y: 0.9) : CGAffineTransform(translationX: 0, y: 16)
+            UIView.animate(withDuration: 0.34, delay: Double(i) * 0.04, usingSpringWithDamping: 0.78, initialSpringVelocity: 0.5, options: [.allowUserInteraction], animations: {
+                v.alpha = 1; v.transform = .identity
+            }, completion: nil)
+        }
+        UIView.animate(withDuration: 1.1, delay: 0.6, options: [.autoreverse, .repeat, .allowUserInteraction], animations: { self.pauseRule.alpha = 0.45 }, completion: nil)
         clearTouches()
         saveGame()
     }
@@ -592,6 +621,52 @@ final class GameViewController: UIViewController {
         sheetBox.isHidden = true
         last = 0
         sound.resume()
+    }
+
+    /// The morning's takings, source by source: each row slides in after the last, with a coin for every coin paid.
+    private func showDawn() {
+        for v in dawnCard.subviews { v.removeFromSuperview() }
+        let rows = game.dawnRows
+        if rows.isEmpty { dawnCard.isHidden = true; return }
+        let w: CGFloat = 236, rowH: CGFloat = 19
+        let head = UILabel(frame: CGRect(x: 0, y: 6, width: w, height: 20))
+        head.text = "Morning takings"; head.font = rye(14); head.textColor = gold; head.textAlignment = .center
+        dawnCard.addSubview(head)
+        var moving: [UIView] = []
+        for (i, row) in rows.enumerated() {
+            let y = 30 + CGFloat(i) * rowH
+            let line = UIView(frame: CGRect(x: 0, y: y, width: w, height: rowH))
+            let nm = UILabel(frame: CGRect(x: 12, y: 0, width: 96, height: rowH))
+            nm.text = row.0; nm.font = serif(12.5); nm.textColor = cream; nm.adjustsFontSizeToFitWidth = true; nm.minimumScaleFactor = 0.7
+            let dots = UILabel(frame: CGRect(x: 110, y: 0, width: 78, height: rowH))
+            dots.text = row.1 > 0 ? String(repeating: "\u{25CF}", count: min(row.1, 9)) : ""
+            dots.font = UIFont.systemFont(ofSize: 8); dots.textColor = gold
+            let amt = UILabel(frame: CGRect(x: w - 66, y: 0, width: 54, height: rowH))
+            amt.text = row.1 < 0 ? "robbed" : "+\(row.1)"
+            amt.font = serif(13); amt.textAlignment = .right
+            amt.textColor = row.1 < 0 ? UIColor(red: 0.9, green: 0.4, blue: 0.32, alpha: 1) : gold
+            line.addSubview(nm); line.addSubview(dots); line.addSubview(amt)
+            dawnCard.addSubview(line)
+            moving.append(line)
+        }
+        let ty = 30 + CGFloat(rows.count) * rowH + 3
+        let rule = UIView(frame: CGRect(x: 12, y: ty, width: w - 24, height: 1))
+        rule.backgroundColor = gold.withAlphaComponent(0.5)
+        let total = UILabel(frame: CGRect(x: 12, y: ty + 3, width: w - 24, height: 22))
+        total.text = "\(game.dawnTotal) coins to pick up"; total.font = rye(14); total.textColor = gold; total.textAlignment = .right
+        dawnCard.addSubview(rule); dawnCard.addSubview(total)
+        moving.append(total)
+        let bw = view.bounds.width, r = view.safeAreaInsets.right
+        dawnCard.frame = CGRect(x: bw - max(r, 12) - w - 4, y: dayLabel.frame.maxY + 8, width: w, height: ty + 30)
+        dawnCard.layer.removeAllAnimations()
+        dawnCard.isHidden = false
+        dawnCard.alpha = 0
+        UIView.animate(withDuration: 0.3) { self.dawnCard.alpha = 1 }
+        for (i, v) in moving.enumerated() {
+            v.alpha = 0; v.transform = CGAffineTransform(translationX: 24, y: 0)
+            UIView.animate(withDuration: 0.3, delay: 0.25 + Double(i) * 0.22, options: [], animations: { v.alpha = 1; v.transform = .identity }, completion: nil)
+        }
+        dawnHideAt = CACurrentMediaTime() + 3.2 + Double(rows.count) * 0.45
     }
 
     // ---------- two cards off the pause menu: who holds which job, and a way to step off the train at any town
@@ -1132,6 +1207,15 @@ final class GameViewController: UIViewController {
         let wn = game.cloudI() > 0.2 || game.wx == 1 || (game.wx == 2) ? game.wxName() : ""
         set(dayLabel, wn.isEmpty ? "Day \(game.day)" + (tm.isEmpty ? "" : ", " + tm) : "Day \(game.day), \(wn.lowercased())")
         hint.isHidden = game.hintT <= 0 || userPaused
+        // the morning's takings: a card that fills in row by row, then goes
+        if game.dawnSeq != dawnSeen { dawnSeen = game.dawnSeq; showDawn() }
+        if !dawnCard.isHidden {
+            dawnCard.frame.origin.y = hint.isHidden ? dayLabel.frame.maxY + 8 : hint.frame.maxY + 6
+            if CACurrentMediaTime() > dawnHideAt || userPaused || !game.cut.isEmpty {
+                dawnHideAt = .greatestFiniteMagnitude
+                UIView.animate(withDuration: 0.5, animations: { self.dawnCard.alpha = 0 }, completion: { _ in self.dawnCard.isHidden = true })
+            }
+        }
         // the next thing worth doing, shown small under the purse whenever no message is up
         let adv = hint.isHidden && !userPaused ? game.advice() : ""
         adviceLabel.isHidden = adv.isEmpty

@@ -37,6 +37,9 @@ final class Game {
     var tripT = -1.0            // seconds since the train pulled out with you on it; under 0 when you are not aboard
     var fade = 0.0
     var onSave: (() -> Void)?
+    var dawnRows: [(String, Int)] = []      // this morning's takings, source by source
+    var dawnTotal = 0
+    var dawnSeq = 0
     var shotDir = 1.0               // which way the last shot went
     var zoom = 1.0                  // the picture drawn larger about the rider, for the opening
     var onBuzz: ((Int) -> Void)?       // 0 a tick, 1 a knock, 2 a thump
@@ -614,7 +617,7 @@ final class Game {
             case "a2": return st == 2 && t > 0.14
             case "a3": return st == 3 && t > 0.14
             case "a4": return st == 4 && t > 0.14
-            case "won": return duelWon && t > 0.5
+            case "won": return duelWon
             case "varney": return bandits.contains { $0.boss && $0.st != 3 }
             case "storm": return wx == 3 && cloudI() > 0.7 && rainI() < 0.5
             case "end": return st == 4 && star
@@ -1455,7 +1458,9 @@ final class Game {
         // coins part-paid into a building come back when you ride away
         for bl in b where bl.paid > 0 && !bl.building && bl.incoming == 0 && abs(bl.cx - px) > bl.def.w / 2 + 44 {
             for k in 0..<bl.paid {
-                let c = Coin(sx: bl.cx, sy: -bl.def.h - 10, tx: px, ty: -18, kind: 4)
+                // each comes back out of the slot it went into, the last one in first
+                let p = slotXY(bl, bl.paid - 1 - k)
+                let c = Coin(sx: p.0, sy: p.1, tx: px, ty: -18, kind: 4)
                 c.u = -Double(k) * 0.12
                 flying.append(c)
             }
@@ -1742,38 +1747,38 @@ final class Game {
         duskDone = false; raidOn = false; raid = []
         for bn in bandits { bn.st = 3 }
         var total = 0
-        var paid: [String] = []          // what each source paid this morning, for the dawn line
+        var paid: [(String, Int)] = []   // what each source paid this morning, for the takings card; -1 marks one that was robbed
         for bl in b where bl.def.pay > 0 && bl.level > 0 {
-            if bl.robbed { bl.robbed = false; paid.append("\(bl.def.name.lowercased()) robbed"); continue }
+            if bl.robbed { bl.robbed = false; paid.append((nice(bl.def.name), -1)); continue }
             let n = max(1, bl.def.pay * bl.level - (day - day0 > 2 ? 1 : 0))
             for _ in 0..<n { dropCoin(bl.x + bl.def.doorX + bl.def.doorW / 2, 10) }
             total += n
-            paid.append("\(bl.def.name.lowercased()) \(n)")
+            paid.append((nice(bl.def.name), n))
         }
         let plain = folk.filter { $0.role == .folk }.count
         for _ in 0..<(plain / 2) { dropCoin(FIRE_X + rnd(-20, 20), 6); total += 1 }
-        if plain / 2 > 0 { paid.append("townsfolk \(plain / 2)") }
+        if plain / 2 > 0 { paid.append(("Townsfolk", plain / 2)) }
         let diggers = folk.filter { $0.role == .miner }.count
         for f in folk where f.role == .miner { dropCoin(store.x + 30, 8); total += 1; f.wait = 0 }
-        if diggers > 0 { paid.append("mine \(diggers)") }
+        if diggers > 0 { paid.append(("Mine", diggers)) }
         if town > 0 {
             let interest = min(3 * bankB.level, bank / 8)
             bank += interest
-            if interest > 0 { paid.append("bank interest \(interest), kept in the bank") }
+            if interest > 0 { paid.append(("Bank interest", interest)) }
         }
         // each grown cow pays 2 coins, and last night's calves are grown
         let p = pasture
         if ground.filter({ $0.x > p.0 - 20 && $0.x < p.1 + 20 }).count < 12 {
             let before = total
             for cw in herd where !cw.calf { dropCoin(cw.x, 4); dropCoin(cw.x, 4); total += 2 }
-            if total > before { paid.append("cattle \(total - before)") }
+            if total > before { paid.append(("Cattle", total - before)) }
         }
         for i in herd.indices { herd[i].calf = false }
         // the claim pays at dawn, unless raiders came by from the west and nobody was guarding it
         var note = ""
         if claim.level > 0 {
             if claim.level < 2 && raided && side < 0 { note = " Raiders from the west cleaned out the claim overnight; a hired gun would keep it safe." }
-            else { let n = claim.level > 1 ? 7 : 4; for _ in 0..<n { dropCoin(claim.cx, 5) }; total += n; paid.append("claim \(n)") }
+            else { let n = claim.level > 1 ? 7 : 4; for _ in 0..<n { dropCoin(claim.cx, 5) }; total += n; paid.append(("Claim", n)) }
         }
         raided = false
         // out of town: the scouts' days run down, the ruins settle, the derrick pays, the show comes and goes
@@ -1787,14 +1792,14 @@ final class Game {
         ghostX = nil; ufo = nil
         ufoAt = day - day0 >= 2 && chance(0.36) ? rnd(0.8, 0.93) : 0
         ghostAt = chance(0.4) ? rnd(0.82, 0.96) : 0
-        if rigLv > 0 && !rigBurn { for _ in 0..<rigPay { dropCoin(FIRE_X + rnd(-12, 12), 6) }; total += rigPay; paid.append("oil \(rigPay)") }
+        if rigLv > 0 && !rigBurn { for _ in 0..<rigPay { dropCoin(FIRE_X + rnd(-12, 12), 6) }; total += rigPay; paid.append(("Oil", rigPay)) }
         let lnW = day - day0
         showOn = lnW >= 2 && lnW % 4 == 2; showUsed = false
         if showOn { note += " A medicine show has pulled up west of town. He is gone by morning." }
         mustangs.removeAll { $0.st == 3 }
         if lnW % 2 == 0 && mustangs.count < 3 { let r = mustangRange; mustangs.append(Mustang(x: rnd(r.0 + 20, r.1 - 20), seed: rnd(0, 100))) }
         // the stage line settles up, the wash drains, and the day's news
-        if owed > 0 { for _ in 0..<owed { dropCoin(coachSlot.x + 19, 6) }; total += owed; paid.append("stage line \(owed)"); owed = 0 }
+        if owed > 0 { for _ in 0..<owed { dropCoin(coachSlot.x + 19, 6) }; total += owed; paid.append(("Stage line", owed)); owed = 0 }
         if flood > 0 && flood < day && bio != .snow {
             flood = 0
             for _ in 0..<(5 + town) { ground.append(GCoin(x: rnd(river.0 + 2, river.1 - 2), y: 0, vx: 0, vy: 0, age: 1)) }
@@ -1840,7 +1845,10 @@ final class Game {
         side = bio == .canyon || chance(0.5) ? 1 : -1       // a canyon has one way in, from the east
         note += rollWx()
         sfx?.dawn(); buzz(1)
-        hint("dawn\(day)", total > 0 ? "Day \(day). This morning: \(paid.joined(separator: ", ")). \(total) coins in all: ride past to pick them up.\(note)" : "Day \(day). Nothing paid out this morning. Open the store or the saloon.\(note)", again: true)
+        // the takings go up on a card; the line of text carries only the day's news
+        dawnRows = paid; dawnTotal = total; dawnSeq += 1
+        if !note.isEmpty { hint("dawn\(day)", "Day \(day).\(note)", again: true) }
+        else if total == 0 { hint("dawn\(day)", "Day \(day). Nothing paid out this morning. Open the store or the saloon.", again: true) }
         onSave?()
     }
 

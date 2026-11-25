@@ -89,6 +89,7 @@ final class Renderer {
         finish(dk, dusk)
         duelBars()
         slots()
+        radar()
         // a vignette and a little grain over the whole picture
         c.glow(W / 2, H * 0.52, (W * W + H * H).squareRoot() * 0.56, Col(0x1a0e08, 0), Col(0x1a0e08, 0.4))
         let fr = Double(Int(g.clock * 24))
@@ -1620,14 +1621,50 @@ final class Renderer {
             c.save(); c.translate(x0, gy); c.scale(1.7, 1.7); c.translate(-x0, -gy)
             defer { c.restore() }
             let x = x0 - 3
-            c.R(x - 18, gy - 20, 36, 20, wood)
-            var yy = gy - 17.0
-            while yy < gy { c.R(x - 18, yy, 36, 1, dkw.alpha(0.5)); yy += 4 }
-            c.poly(dkw, [x - 21, gy - 20, x, gy - 30, x + 21, gy - 20])
-            c.R(x - 4, gy - 13, 8, 13, Col(0x2a1c14)); c.R(x - 15, gy - 14, 8, 6, dk > 0.3 ? Col(0xffd98a) : Col(0x9fc4d4))
-            c.poly(Col(0xb5412e), [x + 6, gy - 16, x + 22, gy - 12, x + 22, gy - 10, x + 6, gy - 14]); c.R(x + 20, gy - 11, 1.2, 11, dkw)
-            c.R(x + 8, gy - 6, 6, 6, Col(0x9a7a4a)); c.R(x + 15, gy - 5, 5, 5, Col(0x8a6a3a))
-            c.R(x - 12, gy - 27, 24, 5, Col(0xead7a4)); c.text("TRADING", x, gy - 23, 4, Col(0x4a2a22))
+            let log = Col(0x8a6238), logD = Col(0x5a3c22), logL = Col(0xa87a48)
+            _ = wood
+            c.ell(x, gy + 1, 26, 1.8, Col(0x000000, 0.16))
+            // a stone chimney, smoking
+            c.R(x + 11, gy - 34, 6, 16, Col(0x8a8478)); c.R(x + 10.4, gy - 35, 7.2, 1.4, Col(0x6a665e))
+            for k in 0..<4 { c.R(x + 11 + Double(k % 2) * 3, gy - 33 + Double(k) * 3.6, 3, 0.5, Col(0x5a564e)) }
+            for i in 0..<4 {
+                let k = (g.clock * 0.25 + Double(i) * 0.25).truncatingRemainder(dividingBy: 1)
+                c.circ(x + 14 + k * 7 + sin(g.clock + Double(i)) * 1.2, gy - 37 - k * 13, 1.4 + k * 3, Col(0xe8e2dc, 0.3 * (1 - k)))
+            }
+            // walls of stacked logs, their ends showing at the corners
+            c.R(x - 18, gy - 20, 36, 20, log)
+            var yy = gy - 20.0
+            while yy < gy {
+                c.R(x - 18, yy, 36, 0.6, logL); c.R(x - 18, yy + 3.2, 36, 0.8, logD)
+                c.circ(x - 18.4, yy + 2, 1.7, logD); c.circ(x - 18.4, yy + 2, 0.9, logL); c.circ(x + 18.4, yy + 2, 1.7, logD); c.circ(x + 18.4, yy + 2, 0.9, logL)
+                yy += 4
+            }
+            c.R(x + 12, gy - 20, 6, 20, Col(0x000000, 0.12))
+            // a shingled roof with a deep eave
+            c.poly(Col(0x4a3424), [x - 23, gy - 19, x, gy - 31, x + 23, gy - 19]); c.poly(Col(0x6a4a2e), [x - 23, gy - 19, x, gy - 31, x - 3, gy - 19])
+            for k in 1..<4 { let u = Double(k) / 4; c.seg(x - 23 * u, gy - 31 + 12 * u, x + 23 * u, gy - 31 + 12 * u, 0.4, Col(0x2a1c14, 0.6)) }
+            // a plank door with antlers over it, and a window of goods
+            c.R(x - 4.5, gy - 13, 9, 13, Col(0x3a2a1c)); c.R(x - 3.6, gy - 12, 7.2, 12, Col(0x5a3c22)); c.R(x - 0.2, gy - 12, 0.4, 12, Col(0x3a2a1c)); c.R(x + 2, gy - 6.5, 0.9, 0.9, Col(0xd8b860))
+            c.curve(x - 4, gy - 16.5, x - 2.5, gy - 14, x, gy - 14.5, 0.7, Col(0xe8dcc4)); c.curve(x + 4, gy - 16.5, x + 2.5, gy - 14, x, gy - 14.5, 0.7, Col(0xe8dcc4))
+            c.R(x - 15.6, gy - 14.6, 9.2, 7.2, logD); c.R(x - 15, gy - 14, 8, 6, dk > 0.3 ? Col(0xffd98a) : Col(0x9fc4d4)); c.R(x - 11.2, gy - 14, 0.5, 6, logD)
+            c.R(x - 14.4, gy - 10.4, 2, 2.4, Col(0xb5412e)); c.R(x - 10, gy - 10.8, 2.2, 2.8, Col(0x3f6f9a))
+            // an awning on a post with pelts hanging from it, and a lantern by the door
+            c.poly(Col(0xb5412e), [x + 5, gy - 16, x + 23, gy - 12.5, x + 23, gy - 11, x + 5, gy - 14.5]); c.poly(Col(0xead7a4), [x + 11, gy - 14.8, x + 17, gy - 13.6, x + 17, gy - 12.2, x + 11, gy - 13.4])
+            c.R(x + 21, gy - 11.5, 1.2, 11.5, dkw)
+            for (px0, pelt) in [(x + 8.0, Col(0x8a5a34)), (x + 12.0, Col(0xb9a27a)), (x + 16.0, Col(0x5a4636))] {
+                c.R(px0, gy - 13.4, 0.4, 1.8, dkw); c.poly(pelt, [px0 - 1.4, gy - 11.6, px0 + 1.8, gy - 11.6, px0 + 1.2, gy - 7, px0 - 0.8, gy - 7])
+            }
+            c.R(x - 7.4, gy - 15.4, 1.6, 2.4, Col(0x2a1c14)); c.R(x - 7, gy - 14.9, 0.9, 1.5, Col(dk > 0.3 ? 0xffd27a : 0xcfc8a8))
+            // goods out front: a barrel, crates, sacks, a wagon wheel against the wall
+            c.RR(x + 8, gy - 6.5, 5, 6.5, 1.3, Col(0x7a5632)); c.R(x + 8, gy - 5, 5, 0.6, Col(0x3a2a1c)); c.R(x + 8, gy - 2.4, 5, 0.6, Col(0x3a2a1c))
+            c.R(x + 14, gy - 5, 5.4, 5, Col(0x9a7a4a)); c.R(x + 14, gy - 5, 5.4, 0.7, Col(0x6a4a2e)); c.R(x + 15, gy - 9, 4, 4, Col(0x8a6a3a))
+            c.RR(x - 24, gy - 4.6, 5, 4.6, 2, Col(0xd8c8a0)); c.RR(x - 21, gy - 4, 4.6, 4, 2, Col(0xc8b88e))
+            c.ellStroke(x - 14.5, gy - 4, 3.6, 3.6, 0.8, Col(0x5a3c22)); c.seg(x - 18, gy - 4, x - 11, gy - 4, 0.5, Col(0x5a3c22)); c.seg(x - 14.5, gy - 7.5, x - 14.5, gy - 0.5, 0.5, Col(0x5a3c22))
+            // the sign, swinging a little
+            c.save(); c.translate(x, gy - 28.5); c.rotate(sin(g.clock * 1.4) * 0.03)
+            c.R(-13, 0, 26, 5.6, Col(0xead7a4)); c.R(-13, 0, 26, 0.6, Col(0xfff4d8)); c.R(-13, 5, 26, 0.6, Col(0x8a6a3a))
+            c.text("TRADING POST", 0, 4.2, 3.6, Col(0x4a2a22), fit: 24)
+            c.restore()
         }
         if vis(-250, 50) {
             let x = sx(-250).rounded()
@@ -2346,6 +2383,29 @@ final class Renderer {
             let a = clampD(p.life / p.max, 0, 1)
             c.R(sx(p.x) - p.s / 2, gy + p.y - p.s, p.s, p.s, p.c.alpha(p.c.a * a))
         }
+    }
+
+    /// A strip at the top of the picture: the whole country end to end, the town between its gates, you, and any raiders.
+    private func radar() {
+        if g.duel != nil || g.state != .play || !g.cut.isEmpty { return }
+        let x0 = W * 0.405, w = W * 0.235, y = 12.0
+        func mx(_ wx: Double) -> Double { return x0 + clampD((wx - WEST) / (WORLD - WEST), 0, 1) * w }
+        c.RR(x0 - 4, y - 5.5, w + 8, 11, 3.5, Col(0x2a1c14, 0.74))
+        c.R(x0 - 2, y - 5.5, w + 4, 0.5, Col(0xc9a03c, 0.7)); c.R(x0 - 2, y + 5, w + 4, 0.5, Col(0xc9a03c, 0.35))
+        c.R(x0, y + 2, w, 0.7, Col(0xead7a4, 0.45))
+        let a = mx(g.gateW.x), b = mx(g.gateE.x)
+        c.R(a, y - 0.4, b - a, 2.4, Col(0xead7a4, 0.3))
+        for bl in g.b where bl.def.wall != 0 && !bl.def.gate && bl.level > 0 { c.R(mx(bl.cx) - 0.5, y - 1.6, 1, 3.6, Col(0xead7a4, 0.55)) }
+        c.R(a - 0.4, y - 2.4, 0.9, 4.4, Col(g.gateW.level > 0 ? 0xc9a86a : 0x6a5a48)); c.R(b - 0.4, y - 2.4, 0.9, 4.4, Col(g.gateE.level > 0 ? 0xc9a86a : 0x6a5a48))
+        c.R(mx(g.cam), y + 3.6, max(2, mx(g.cam + W) - mx(g.cam)), 0.6, Col(0xffffff, 0.55))
+        let pulse = 0.65 + 0.35 * sin(g.clock * 7)
+        for bn in g.bandits where bn.hp > 0 {
+            let bx = mx(bn.x)
+            c.circ(bx, y + 0.6, bn.boss ? 1.7 : 1.1, Col(0xff4a3a, pulse))
+        }
+        if let o = g.outlaw { c.R(mx(o.x) - 0.6, y - 1.2, 1.2, 2.6, Col(0xff9a3a)) }
+        let px = mx(g.px)
+        c.poly(GOLD, [px - 1.8, y - 4.2, px + 1.8, y - 4.2, px, y - 1.2])
     }
 
     /// The last touches over the whole scene: the colour of the hour, the sun in the lens, and things passing close to the eye.
