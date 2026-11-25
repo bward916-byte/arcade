@@ -89,6 +89,9 @@ final class GameViewController: UIViewController {
     private let coinIcon = UIImageView()
     private let newBtn = UIButton(type: .system)
     private let mapBtn = UIButton(type: .system)
+    private let crewBtn = UIButton(type: .system)
+    private let townsBtn = UIButton(type: .system)
+    private let sheetBox = UIView()
     private let mapBox = UIView()
     private var mapChoose = false
     private var hintH: CGFloat = 62
@@ -346,6 +349,10 @@ final class GameViewController: UIViewController {
         restartBtn.addTarget(self, action: #selector(restart), for: .touchUpInside)
         style(mapBtn, "Map", primary: false)
         mapBtn.addTarget(self, action: #selector(openMap), for: .touchUpInside)
+        style(crewBtn, "Crew", primary: false)
+        crewBtn.addTarget(self, action: #selector(openCrew), for: .touchUpInside)
+        style(townsBtn, "Towns", primary: false)
+        townsBtn.addTarget(self, action: #selector(openTowns), for: .touchUpInside)
         for pl in [pausePlaque, overPlaque] {
             pl.backgroundColor = UIColor(red: 0.17, green: 0.11, blue: 0.07, alpha: 0.96)
             pl.layer.cornerRadius = 12
@@ -355,7 +362,10 @@ final class GameViewController: UIViewController {
             pl.isUserInteractionEnabled = false
         }
         pauseBox.addSubview(pausePlaque); overBox.addSubview(overPlaque)
-        pauseBox.addSubview(pauseTitle); pauseBox.addSubview(resumeBtn); pauseBox.addSubview(soundBtn); pauseBox.addSubview(restartBtn); pauseBox.addSubview(mapBtn)
+        pauseBox.addSubview(pauseTitle); pauseBox.addSubview(resumeBtn); pauseBox.addSubview(soundBtn); pauseBox.addSubview(restartBtn); pauseBox.addSubview(mapBtn); pauseBox.addSubview(crewBtn); pauseBox.addSubview(townsBtn)
+        sheetBox.backgroundColor = UIColor(red: 0.06, green: 0.03, blue: 0.02, alpha: 0.7)
+        sheetBox.isHidden = true
+        view.addSubview(sheetBox)
         view.addSubview(pauseBox)
         mapBox.backgroundColor = UIColor(red: 0.1, green: 0.06, blue: 0.04, alpha: 0.94)
         mapBox.isHidden = true
@@ -454,14 +464,17 @@ final class GameViewController: UIViewController {
         startBtn.frame = CGRect(x: bw / 2 - 150, y: by + 32, width: 300, height: 48)
         pauseBox.frame = view.bounds
         // the pause card: centred, with room round the heading and between the buttons
-        let py = max(10, (bh - 262) / 2)
-        pausePlaque.frame = CGRect(x: bw / 2 - 180, y: py, width: 360, height: 262)
+        let py = max(6, (bh - 318) / 2)
+        pausePlaque.frame = CGRect(x: bw / 2 - 180, y: py, width: 360, height: 318)
+        sheetBox.frame = view.bounds
         pauseTitle.frame = CGRect(x: bw / 2 - 156, y: py + 18, width: 312, height: 34)
         overPlaque.frame = CGRect(x: bw / 2 - 250, y: bh * 0.2 - 18, width: 500, height: 196)
         resumeBtn.frame = CGRect(x: bw / 2 - 140, y: py + 70, width: 280, height: 50)
         soundBtn.frame = CGRect(x: bw / 2 - 140, y: py + 134, width: 134, height: 44)
         mapBtn.frame = CGRect(x: bw / 2 + 6, y: py + 134, width: 134, height: 44)
-        restartBtn.frame = CGRect(x: bw / 2 - 140, y: py + 192, width: 280, height: 44)
+        crewBtn.frame = CGRect(x: bw / 2 - 140, y: py + 190, width: 134, height: 44)
+        townsBtn.frame = CGRect(x: bw / 2 + 6, y: py + 190, width: 134, height: 44)
+        restartBtn.frame = CGRect(x: bw / 2 - 140, y: py + 248, width: 280, height: 44)
         mapBox.frame = view.bounds
         cutBox.frame = view.bounds
         overBox.frame = view.bounds
@@ -576,8 +589,79 @@ final class GameViewController: UIViewController {
     @objc private func closeMenu() {
         userPaused = false
         pauseBox.isHidden = true
+        sheetBox.isHidden = true
         last = 0
         sound.resume()
+    }
+
+    // ---------- two cards off the pause menu: who holds which job, and a way to step off the train at any town
+    private func sheet(_ title: String, height: CGFloat) -> UIView {
+        for v in sheetBox.subviews { v.removeFromSuperview() }
+        let bw = view.bounds.width, bh = view.bounds.height
+        let card = UIView(frame: CGRect(x: bw / 2 - 230, y: max(6, (bh - height) / 2), width: 460, height: height))
+        card.backgroundColor = UIColor(red: 0.17, green: 0.11, blue: 0.07, alpha: 0.97)
+        card.layer.cornerRadius = 12; card.layer.borderWidth = 2
+        card.layer.borderColor = UIColor(red: 0.79, green: 0.6, blue: 0.24, alpha: 0.9).cgColor
+        let head = UILabel(frame: CGRect(x: 16, y: 12, width: 428, height: 30))
+        head.text = title; head.font = rye(20); head.textColor = gold; head.textAlignment = .center
+        card.addSubview(head)
+        let back = UIButton(type: .system)
+        style(back, "Back", primary: true)
+        back.frame = CGRect(x: 150, y: height - 54, width: 160, height: 42)
+        back.addTarget(self, action: #selector(closeSheet), for: .touchUpInside)
+        card.addSubview(back)
+        sheetBox.addSubview(card)
+        view.bringSubviewToFront(sheetBox)
+        sheetBox.isHidden = false
+        return card
+    }
+    @objc private func closeSheet() { sheetBox.isHidden = true }
+
+    @objc private func openCrew() {
+        let card = sheet("The crew", height: 300)
+        let names: [Role: (String, String)] = [.folk: ("Townsfolk", "They build, and every two pay a coin at dawn."), .deputy: ("Deputies", "They guard the gates at night."), .miner: ("Prospectors", "Each brings a coin from the mine at dawn."), .rancher: ("Ranchers", "They raise the cattle east of town.")]
+        for (i, row) in game.crew().enumerated() {
+            let y = 50 + CGFloat(i) * 46
+            let nm = names[row.0] ?? ("", "")
+            let l1 = UILabel(frame: CGRect(x: 22, y: y, width: 290, height: 20))
+            l1.text = "\(nm.0): \(row.1)"; l1.font = serif(16); l1.textColor = cream
+            let l2 = UILabel(frame: CGRect(x: 22, y: y + 20, width: 290, height: 16))
+            l2.text = nm.1; l2.font = serif(11.5, bold: false); l2.textColor = cream.withAlphaComponent(0.75)
+            l2.adjustsFontSizeToFitWidth = true; l2.minimumScaleFactor = 0.7
+            card.addSubview(l1); card.addSubview(l2)
+            if row.0 != .folk && row.1 > 0 {
+                let b = UIButton(type: .system)
+                style(b, "Release one", primary: false)
+                b.titleLabel?.font = serif(13)
+                b.frame = CGRect(x: 320, y: y + 1, width: 122, height: 34)
+                b.tag = i
+                b.addTarget(self, action: #selector(releaseOne(_:)), for: .touchUpInside)
+                card.addSubview(b)
+            }
+        }
+    }
+    @objc private func releaseOne(_ b: UIButton) {
+        let rows = game.crew()
+        if b.tag >= 0 && b.tag < rows.count { game.release(rows[b.tag].0) }
+        openCrew()
+    }
+
+    @objc private func openTowns() {
+        let card = sheet("Step off at any town", height: 300)
+        for (i, stop) in STOPS.enumerated() {
+            let b = UIButton(type: .system)
+            style(b, nice(PLACES[stop.0]?.name ?? stop.0), primary: false)
+            b.titleLabel?.font = serif(14)
+            b.frame = CGRect(x: 22 + CGFloat(i % 2) * 212, y: 50 + CGFloat(i / 2) * 46, width: 204, height: 38)
+            b.tag = i
+            b.addTarget(self, action: #selector(jumpTown(_:)), for: .touchUpInside)
+            card.addSubview(b)
+        }
+    }
+    @objc private func jumpTown(_ b: UIButton) {
+        closeMenu()
+        game.jump(b.tag)
+        last = 0
     }
 
     // ---------- the territory: every stage of the line and the places at each, the way you came, and the choice at a fork

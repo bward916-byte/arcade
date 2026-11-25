@@ -37,6 +37,8 @@ final class Game {
     var tripT = -1.0            // seconds since the train pulled out with you on it; under 0 when you are not aboard
     var fade = 0.0
     var onSave: (() -> Void)?
+    var shotDir = 1.0               // which way the last shot went
+    var zoom = 1.0                  // the picture drawn larger about the rider, for the opening
     var onBuzz: ((Int) -> Void)?       // 0 a tick, 1 a knock, 2 a thump
     private func buzz(_ n: Int) { onBuzz?(n) }
     var place = "dustfall"      // which of the places at this stage of the line
@@ -911,10 +913,14 @@ final class Game {
         introT += dt
         while introI < INTRO.count && introT >= INTRO[introI].0 { introCap = INTRO[introI].1; introI += 1 }
         t = (0.955 + min(introT, 12) / 12 * 0.125).truncatingRemainder(dividingBy: 1)
+        // the picture opens close on the dead street and draws back; as the rider comes up it closes in again and time drags
+        let close = ease(clampD((introT - 7.6) / 1.2, 0, 1)) * (1 - ease(clampD((introT - 10.0) / 1.0, 0, 1)))
+        zoom = 1.34 - 0.34 * ease(clampD(introT / 4.4, 0, 1)) + 0.34 * close
+        let drag = 1 - 0.62 * close
         if introT > 3.6 {
             pvx = -(px > FIRE_X + 12 ? 62 : max(0, (px - FIRE_X + 20) * 2))
-            px = max(FIRE_X - 20, px + pvx * dt)
-            pphase += abs(pvx) * dt * 0.085
+            px = max(FIRE_X - 20, px + pvx * dt * drag)
+            pphase += abs(pvx) * dt * 0.085 * drag
             let st = Int(pphase * 4 / PI)
             if st != introStep { introStep = st; if pvx < -10 { sfx?.hoof(0.8) } }
             if pvx < -55 && chance(dt * 14) { parts.append(Part(x: px + 8, y: 0, vx: rnd(4, 14), vy: rnd(-14, -4), life: 0.5, max: 0.5, c: Col(terrain.dust, 0.6), s: rnd(1, 2.4), grav: 10)) }
@@ -930,7 +936,7 @@ final class Game {
         if state != .intro { return }
         let skipped = introT < 14
         px = FIRE_X - 20; pvx = 0; pdir = -1
-        t = 0.08; state = .play
+        t = 0.08; state = .play; zoom = 1
         introCap = ""; introCard = false
         if skipped { fade = 1; cam = clampD(px - W * 0.6, WEST, WORLD - W) }
         hint("start", "Ride with the stick, and hold the coin button to toss coins at drifters and at the boarded-up buildings.")
@@ -1016,13 +1022,37 @@ final class Game {
     }
 
     /// Set scenes for the simulator screenshots.
+    /// Start play in any town on the line, with a purse to suit: for trying each one without playing up to it.
+    func jump(_ n: Int) {
+        guard n >= 0, n < STOPS.count else { return }
+        start()
+        place = STOPS[n].0; town = STOPS[n].1; log = STOPS[n].2
+        day = 1 + town * 8; day0 = day - 1; t = 0.08
+        layTown()
+        coins = 12 + town * 5; bank = 0
+        fade = 1
+        hint("jump", "\(nice(townName)). You step off the train with \(coins) coins, and everything here is boarded up.", again: true)
+        onSave?()
+    }
+
+    /// How many townsfolk hold each job.
+    func crew() -> [(Role, Int)] {
+        return [Role.folk, .deputy, .miner, .rancher].map { r in (r, folk.filter { $0.role == r }.count) }
+    }
+    /// Take a badge, pick or rope back: one of them becomes a plain townsman again, free to build or to take another job.
+    func release(_ r: Role) {
+        guard r != .folk, let f = folk.first(where: { $0.role == r }) else { return }
+        f.role = .folk; f.work = false; f.tx = f.x
+        sfx?.slot()
+    }
+
     func demo(_ name: String) {
         if name == "title" { return }
         start()
         noStory = true
         hintT = 0
         // lv0 to lv7: each town on the line, opened up, for a picture of every one
-        let stops: [(String, Int, [String])] = [("dustfall", 0, []), ("redwater", 1, ["dustfall"]), ("irongulch", 1, ["dustfall"]), ("lasthope", 2, ["dustfall", "redwater"]), ("timberline", 2, ["dustfall", "irongulch"]), ("coldcreek", 3, ["dustfall", "redwater", "lasthope"]), ("silverpeak", 3, ["dustfall", "irongulch", "timberline"]), ("bitterend", 4, ["dustfall", "redwater", "lasthope", "coldcreek"])]
+        let stops = STOPS
         if name.hasPrefix("lv"), let n = Int(name.dropFirst(2)), n >= 0, n < stops.count {
             place = stops[n].0; town = stops[n].1; log = stops[n].2
             day = 4 + town * 9; day0 = day - 4
@@ -1192,6 +1222,11 @@ final class Game {
         cam += (want - cam) * min(1, dt * 4)
         let mode = !bandits.isEmpty ? 3 : (dark() > 0.6 ? 2 : (t > 0.6 ? 1 : 0))
         sfx?.town = town
+        let playing = saloon.level > 0 && !saloon.building
+        sfx?.pianoVol = playing ? clampD(1 - abs(saloon.x + 43 - px) / 280, 0, 1) : 0
+        if playing && abs(saloon.x + 43 - px) < 230 && chance(dt * 1.6) {
+            parts.append(Part(x: saloon.x + 43 + rnd(-6, 6), y: -18, vx: rnd(-5, 5), vy: -rnd(9, 14), life: 1.8, max: 1.8, c: Col(0xf0dfb4), s: 1.6, grav: 0))
+        }
         sfx?.music(clock, mode)
     }
 
@@ -1321,7 +1356,7 @@ final class Game {
             }
         }
         // a coin at an open church rings the bell
-        if has(church) && church.level > 0 && !church.building && !bell && church.incoming == 0 && church.payable == false && abs(px - church.cx) < church.def.w / 2 + 12 {
+        if has(church) && church.level > 0 && !church.building && !bell && church.incoming == 0 && (church.payable == false || dark() > 0.3) && abs(px - church.cx) < church.def.w / 2 + 12 {
             let c = Coin(sx: px, sy: sy, tx: church.cx, ty: -62, kind: 10)
             flying.append(c); church.incoming += 1; coins -= 1; sfx?.toss(); return
         }
@@ -1365,9 +1400,15 @@ final class Game {
             }
         }
         ammo -= 1; gunCD = 0.28; gunT = 0.14
-        shots.append(Shot(x: px + pdir * 12, y: -20, vx: pdir * 300, life: 0.5, mine: true))
+        // he shoots the way he faces, unless the only raiders in range are behind him: then he turns in the saddle and shoots back
+        var sd = pdir
+        let ahead = bandits.contains { $0.hp > 0 && ($0.x - px) * pdir > 0 && abs($0.x - px) < 230 }
+        let behind = bandits.contains { $0.hp > 0 && ($0.x - px) * pdir < 0 && abs($0.x - px) < 230 }
+        if !ahead && behind { sd = -pdir }
+        shotDir = sd
+        shots.append(Shot(x: px + sd * 12, y: -20, vx: sd * 300, life: 0.5, mine: true))
         sfx?.gun(1); shake = max(shake, 0.4); buzz(1)
-        parts.append(Part(x: px + pdir * 14, y: -20, vx: pdir * 20, vy: -6, life: 0.25, max: 0.25, c: Col(0xfff0b0), s: 2.5, grav: 0))
+        parts.append(Part(x: px + sd * 14, y: -20, vx: sd * 20, vy: -6, life: 0.25, max: 0.25, c: Col(0xfff0b0), s: 2.5, grav: 0))
         if ammo == 0 { reloadT = Double(max(1, 5 - store.level - (loader ? 2 : 0))); reloadMax = reloadT }      // every level of the store takes a second off
     }
 
@@ -1615,6 +1656,22 @@ final class Game {
             if bl.def.gate { bl.hp = GHP[min(bl.level, 3)] }
             sfx?.fanfare(); flash = 0.4
             puff(bl.cx, -bl.def.h / 2, 16, GOLD, 50)
+            // everyone turns out: streamers off the roof, and rockets for the big days
+            let cols: [UInt32] = [0xb53a2e, 0xead7a4, 0x3f5fa0, 0xf2c14e, 0x5d8a4e]
+            let streamers = bl.type == .saloon && bl.level == 1 ? 70 : (bl.def.wall != 0 ? 34 : 14)
+            for k in 0..<streamers {
+                parts.append(Part(x: bl.cx + rnd(-bl.def.w / 2, bl.def.w / 2), y: -bl.def.h - rnd(0, 12), vx: rnd(-34, 34), vy: -rnd(25, 80), life: rnd(1.1, 2.2), max: 2.2, c: Col(cols[k % 5]), s: rnd(1.4, 2.4), grav: 95))
+            }
+            if bl.isHall || bl.level > 2 || bl.type == .station || (bl.type == .saloon && bl.level == 1) {
+                for k in 0..<(bl.isHall ? 5 : 3) {
+                    let fx = bl.cx + rnd(-50, 50), fy = -(bl.def.h + 34 + rnd(0, 34)), fc = Col(cols[(k + 3) % 5])
+                    for j in 0..<20 {
+                        let an = Double(j) / 20 * 2 * PI, sp = rnd(28, 70)
+                        parts.append(Part(x: fx, y: fy, vx: cos(an) * sp, vy: sin(an) * sp, life: rnd(0.7, 1.3), max: 1.3, c: j % 4 == 0 ? Col(0xfff0c0) : fc, s: 1.7, grav: 42))
+                    }
+                }
+                sfx?.gun(0.35); sfx?.ding()
+            }
             switch bl.type {
             case .store: hint("store1", "The store is open and pays out every morning. Toss a coin at the tool rack on its left to outfit a prospector.")
             case .saloon: hint("saloon1", "The saloon is open. It pays out every morning and draws new drifters to the camps.")
@@ -1678,7 +1735,7 @@ final class Game {
         if gang { hint("gang", "A gang of horsemen is riding in from the \(side < 0 ? "west" : "east") tonight. Wire and a strong gate on that side will break the charge.", again: true); return }
         if boss { hint("boss", "An outlaw boss rides with them tonight. There is a bounty of 8 coins on him.", again: true); return }
         let where_ = !scouted.isEmpty ? scouted : (telegraph.level > 0 ? " The telegraph says most will come from the \(side < 0 ? "west" : "east")." : "")
-        hint("raid", "Raiders tonight.\(where_) Hold the gun button to shoot the way you face.", again: true)
+        hint("raid", "Raiders tonight.\(where_) Hold the gun button to shoot. You shoot the way you face, and turn in the saddle to shoot raiders who are only behind you.", again: true)
     }
 
     private func dawn() {
@@ -2373,7 +2430,7 @@ final class Game {
             if bl.hp < GHP[min(3, bl.level)] { info = "\(bl.label): 1 coin patches some of the damage."; return }
             if bl.level > 2 && bl.rifles < 12 { info = "Gatehouse: 4 coins hires a rifleman for tonight. Up to three (\(bl.rifles / 4) hired, \(bl.rifles % 4) of 4 in)."; return }
         }
-        if bl.type == .church && bl.level > 0 && !bl.building {
+        if bl.type == .church && bl.level > 0 && !bl.building && !(bl.payable && dark() <= 0.3) {
             info = bell ? "Church: the bell has been rung. Everyone is under cover until dawn." : "Church bell: 1 coin. Everyone runs indoors and deputies man the gates until dawn."
             return
         }
@@ -2412,7 +2469,7 @@ final class Game {
         }
         if bl.isHall && bl.level < bl.maxLevel && !bl.building {
             slotsFor = bl
-            info = (bl.level == 0 ? "Town centre: \(bl.cost) coins for a town square, so buildings can reach level 2" : "Town centre: \(bl.cost) coins for a clock tower, so buildings can reach level 3 and the railroad can come") + (bl.paid > 0 ? " (\(bl.paid) in)" : "")
+            info = (bl.level == 0 ? "Town centre: \(bl.cost) coins for a town square, so buildings can reach level 2" : (bl.level == 1 ? "Town centre: \(bl.cost) coins for a clock tower, so buildings can reach level 3 and the railroad can come" : "Town centre: \(bl.cost) coins for a bell and a gilded dial, so buildings can reach their last level")) + (bl.paid > 0 ? " (\(bl.paid) in)" : "")
             return
         }
         if bl.type == .claim {

@@ -17,6 +17,7 @@ final class Renderer {
         let dusk = smooth(0.56, 0.70, g.t) * (1 - smooth(0.74, 0.84, g.t)) + (g.t < 0.08 ? 1 - g.t / 0.08 : 0) * 0.6
         c.save()
         if g.shake > 0 { c.translate(rnd(-1, 1) * g.shake * 2, rnd(-1, 1) * g.shake * 1.5) }
+        if g.zoom != 1 { c.translate(W * 0.45, gy * 0.88); c.scale(g.zoom, g.zoom); c.translate(-W * 0.45, -gy * 0.88) }
         sky(dk, dusk)
         mesas(dk, dusk)
         groundBand(dk)
@@ -1100,16 +1101,39 @@ final class Renderer {
                 c.circ(cx2 + 2.5 + k * 9 + sin(g.clock + Double(i)) * 1.5, cy2 - 11 - k * 16, 1.6 + k * 3.4, Col(0xe8e2dc, 0.3 * (1 - k)))
             }
         }
+        if lv >= 4 {
+            // the grandest it gets: a gilded cornice, bunting along the porch, a weathervane
+            c.R(x - 3, gy - h - fh - 1.4, w + 6, 1.4, Col(0xf2c14e)); c.R(x - 3, gy - h - fh - 1.4, w + 6, 0.4, Col(0xfff0a8))
+            var bx3 = 0.0, bi = 0
+            while bx3 < w - 2 { c.poly(Col([0xb5412e, 0xf4ecd6, 0x2f4a7a][bi % 3] as UInt32), [x + bx3, py + 5.4, x + bx3 + 4, py + 5.4, x + bx3 + 2, py + 9]); bx3 += 4.6; bi += 1 }
+            c.R(x + 9, gy - h - fh - 10, 0.8, 9, Col(0x2a1c14)); c.poly(Col(0x2a1c14), [x + 5, gy - h - fh - 9.4, x + 13.5, gy - h - fh - 10.8, x + 13.5, gy - h - fh - 8])
+            c.R(x + 7.4, gy - h - fh - 7, 4, 0.6, Col(0x2a1c14))
+        }
         if lv >= 3 {
             c.R(x + w / 2 - 1, gy - h - fh - 15, 1.6, 12, Col(0x3a2a1c))
             let wv = sin(g.clock * 4) * 1.5
             c.poly(Col(0xb5412e), [x + w / 2 + 0.6, gy - h - fh - 15, x + w / 2 + 11 + wv, gy - h - fh - 13.4, x + w / 2 + 11 + wv, gy - h - fh - 9.6, x + w / 2 + 0.6, gy - h - fh - 9])
             c.R(x + w / 2 + 0.6, gy - h - fh - 13, 10 + wv, 1, Col(0xf4ecd6)); c.R(x + w / 2 + 0.6, gy - h - fh - 15, 4, 2.6, Col(0x2f4a7a))
         }
-        if bl.type == .church {         // a steeple and a cross
-            c.R(x + w / 2 - 6, gy - h - fh - 14, 12, 14, wall); c.poly(roof, [x + w / 2 - 8, gy - h - fh - 14, x + w / 2, gy - h - fh - 26, x + w / 2 + 8, gy - h - fh - 14])
-            c.R(x + w / 2 - 0.5, gy - h - fh - 32, 1.5, 7, trim); c.R(x + w / 2 - 2.5, gy - h - fh - 30, 5.5, 1.5, trim)
-            c.R(x + w / 2 - 2, gy - h - fh - 10, 4, 6, Col(0x3a2a1c))
+        if bl.type == .church {
+            // a belfry with louvres and a bell that swings when it is rung, a shingled spire, a gilt cross, coloured glass
+            let mx = x + w / 2, by0 = gy - h - fh
+            c.R(mx - 7, by0 - 16, 14, 16, wall); c.R(mx + 4, by0 - 16, 3, 16, Col(0x000000, 0.12)); c.R(mx - 8, by0 - 17, 16, 1.4, trim)
+            c.R(mx - 4, by0 - 13, 8, 9, Col(0x2a1c14))
+            for k in 0..<3 { c.R(mx - 4, by0 - 12 + Double(k) * 3, 8, 0.6, Col(0x5a4a3a)) }
+            c.save(); c.translate(mx, by0 - 12.5); c.rotate(g.bell ? sin(g.clock * 7) * 0.5 : 0)
+            c.poly(Col(0xd8b860), [-2.4, 5.5, -1.4, 1, 1.4, 1, 2.4, 5.5]); c.R(-0.4, 5.5, 0.8, 1.2, Col(0x8a6a2a))
+            c.restore()
+            c.poly(roof, [mx - 9, by0 - 17, mx, by0 - 34, mx + 9, by0 - 17]); c.poly(Col(0x000000, 0.18), [mx, by0 - 34, mx + 9, by0 - 17, mx + 1, by0 - 17])
+            for k in 1..<4 { let u = Double(k) / 4; c.R(mx - 9 * u, by0 - 34 + 17 * u, 18 * u, 0.5, Col(0x000000, 0.25)) }
+            c.R(mx - 0.6, by0 - 42, 1.4, 9, Col(0xf2c14e)); c.R(mx - 3, by0 - 39.6, 6.2, 1.4, Col(0xf2c14e))
+            let panes: [UInt32] = [0xb5412e, 0x3f6f9a, 0xd8b860, 0x5f8a4a]
+            for wn in d.wins {
+                let wx = x + wn.0, ww = wn.1
+                for k in 0..<4 { c.R(wx + ww * Double(k % 2) / 2, gy - 21 + Double(k / 2) * 6, ww / 2, 6, Col(panes[k], lit ? 0.9 : 0.6)) }
+                c.R(wx + ww / 2 - 0.3, gy - 21, 0.6, 12, Col(0x2a1c14)); c.R(wx, gy - 15.3, ww, 0.6, Col(0x2a1c14))
+                c.poly(wall, [wx - 0.2, gy - 21.2, wx + ww * 0.32, gy - 21.2, wx - 0.2, gy - 18]); c.poly(wall, [wx + ww + 0.2, gy - 21.2, wx + ww * 0.68, gy - 21.2, wx + ww + 0.2, gy - 18])
+            }
         }
         if bl.type == .forge {          // the fire inside, and a chimney
             c.R(x + d.doorX + 2, gy - 12, d.doorW - 4, 12, Col(0xe8742a, 0.55 + 0.25 * sin(g.clock * 7)))
@@ -1309,14 +1333,32 @@ final class Renderer {
         let L = g.terrain
         if vis(g.missionX, 50) {
             let x = sx(g.missionX).rounded()
-            let adobe = Col(0xd9c2a0), sh = Col(0xb39a78)
-            c.R(x - 26, gy - 20, 30, 20, adobe); c.R(x - 26, gy - 20, 30, 2, sh); c.R(x, gy - 20, 4, 20, sh)
-            c.R(x - 16, gy - 12, 7, 12, Col(0x3a2a1c)); c.R(x - 4, gy - 15, 4, 5, Col(0x3a2a1c))
-            c.R(x + 6, gy - 34, 12, 34, adobe); c.R(x + 15, gy - 34, 3, 34, sh)
-            c.R(x + 9, gy - 30, 6, 7, Col(0x3a2a1c)); c.circ(x + 12, gy - 26, 1.6, Col(0xc9a14a))
-            c.poly(sh, [x + 5, gy - 34, x + 12, gy - 40, x + 19, gy - 34])
-            c.R(x + 11.4, gy - 46, 1.2, 6, Col(0x5a3c22)); c.R(x + 9.6, gy - 44, 4.8, 1.2, Col(0x5a3c22))
-            c.poly(sh, [x - 34, gy, x - 30, gy - 9, x - 26, gy - 6, x - 26, gy])
+            let adobe = Col(0xd9c2a0), sh = Col(0xb39a78), tile = Col(0xb0563a), dkw = Col(0x3a2a1c)
+            c.ell(x - 4, gy + 1.2, 36, 2.4, Col(0x000000, 0.16))
+            // the nave: weathered adobe, a curved gable with a round window, a tiled roof edge and beam ends
+            c.R(x - 28, gy - 22, 34, 22, adobe); c.R(x + 2, gy - 22, 4, 22, sh)
+            c.vfill(x - 28, gy - 8, 34, 8, [(0, Col(0x8a6a4a, 0)), (1, Col(0x8a6a4a, 0.35))])
+            c.poly(adobe, [x - 28, gy - 22, x - 24, gy - 27, x - 17, gy - 29, x - 11, gy - 33, x - 5, gy - 29, x + 2, gy - 27, x + 6, gy - 22])
+            c.R(x - 29, gy - 22.6, 36, 1.4, tile)
+            for k in 0..<9 { c.R(x - 28 + Double(k) * 4, gy - 22.6, 0.6, 1.4, Col(0x7a3424)) }
+            c.circ(x - 11, gy - 27.5, 2.2, dkw); c.circ(x - 11, gy - 27.5, 1.4, Col(0x6a8aa0))
+            for k in 0..<5 { c.R(x - 25 + Double(k) * 6.4, gy - 19.4, 1.6, 1.2, Col(0x6a4a2e)) }
+            // an arched door of planks, and a narrow arched window
+            c.R(x - 15, gy - 11, 8, 11, dkw); c.circ(x - 11, gy - 11, 4, dkw); c.R(x - 11.3, gy - 14, 0.6, 14, Col(0x5a3c22)); c.R(x - 9.6, gy - 6, 1, 1, Col(0xd8b860))
+            c.R(x - 4, gy - 16, 3.4, 5, dkw); c.circ(x - 2.3, gy - 16, 1.7, dkw)
+            // the bell tower: two arched openings, a bell in the upper one, a tiled cap and a wooden cross
+            c.R(x + 6, gy - 40, 14, 40, adobe); c.R(x + 17, gy - 40, 3, 40, sh); c.R(x + 5, gy - 27, 16, 1, sh)
+            for (oy, hung) in [(gy - 37.0, true), (gy - 24.0, false)] {
+                c.R(x + 9.5, oy, 6, 7, dkw); c.circ(x + 12.5, oy, 3, dkw)
+                if hung { c.poly(Col(0xc9a14a), [x + 10.6, oy + 5.5, x + 11.6, oy + 0.5, x + 13.4, oy + 0.5, x + 14.4, oy + 5.5]); c.R(x + 12.1, oy + 5.5, 0.8, 1, Col(0x8a6a2a)) }
+            }
+            c.poly(tile, [x + 4.5, gy - 40, x + 13, gy - 47, x + 21.5, gy - 40]); c.poly(Col(0x7a3424), [x + 13, gy - 47, x + 21.5, gy - 40, x + 14, gy - 40])
+            c.R(x + 12.4, gy - 54, 1.2, 7.5, Col(0x5a3c22)); c.R(x + 10.4, gy - 52, 5.2, 1.2, Col(0x5a3c22))
+            // cracks, a fallen corner, the yard wall and two grave markers
+            c.seg(x - 22, gy - 20, x - 20, gy - 14, 0.5, sh); c.seg(x - 20, gy - 14, x - 21.5, gy - 10, 0.5, sh); c.seg(x + 9, gy - 18, x + 11, gy - 12, 0.5, sh)
+            c.poly(sh, [x - 36, gy, x - 32, gy - 9, x - 28, gy - 6, x - 28, gy])
+            c.R(x + 22, gy - 6, 16, 6, adobe); c.R(x + 22, gy - 6.8, 16, 1, sh); c.R(x + 30, gy - 6, 3, 6, dkw.alpha(0.5))
+            for gx3 in [x + 42.0, x + 48] { c.R(gx3, gy - 6, 0.9, 6, Col(0x6a5a48)); c.R(gx3 - 1.4, gy - 4.6, 3.7, 0.9, Col(0x6a5a48)) }
         }
         if vis(g.archX, 60) {
             let x = sx(g.archX).rounded()

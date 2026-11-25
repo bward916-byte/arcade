@@ -188,8 +188,32 @@ final class Sound {
          77, 0, 0, 0, 72, 0, 0, 69, 0, 0, 72, 0, 77, 0, 76, 0,
          76, 0, 0, 0, 71, 0, 68, 0, 64, 0, 0, 0, 0, 0, 0, 0]
     ]
+    /// How loud the saloon piano is from where the rider stands: 0 out of earshot, 1 at the door.
+    var pianoVol = 0.0
+    private var pianoT = 0.0
+    private var pianoI = 0
+    private let RAG: [Int] = [0, 0, 5, 0, 7, 7, 0, 0]
+    private let RH: [Int] = [0, 7, 4, 7, 12, 7, 4, 7, 4, 7, 12, 7, 16, 12, 7, 4]
+    /// A honky-tonk loop, as in the web game: stride bass under a rolling right hand.
+    private func piano(_ now: Double) {
+        if muted || !running || pianoVol <= 0.02 || now < pianoT { return }
+        pianoT = (pianoT < now - 1 ? now : pianoT) + 0.19
+        let i = pianoI
+        pianoI += 1
+        let st = i % 8, root = 48 + RAG[(i / 8) % 8]
+        func pn(_ m: Int, _ d: Double, _ v: Double) {
+            tone(mf(m), d + 0.12, 1, v * 0.1 * pianoVol)
+            tone(mf(m) * 1.005, d, 2, v * 0.018 * pianoVol)
+        }
+        if st == 0 { pn(root - 12, 0.3, 0.5) }
+        if st == 4 { pn(root - 5, 0.3, 0.45) }
+        if st == 2 || st == 6 { pn(root + 4, 0.14, 0.25); pn(root + 7, 0.14, 0.25) }
+        if Double.random(in: 0..<1) > 0.18 { pn(root + 12 + RH[i % 16], 0.16, 0.4) }
+    }
     /// mode: 0 day, 1 dusk, 2 night, 3 raid.
     func music(_ now: Double, _ mode: Int) {
+        piano(now)
+        if pianoVol > 0.15 && mode != 3 { return }        // the far-off guitar gives way to the piano
         if muted || !running || now < seqT { return }
         let md = max(0, min(3, mode))
         if md != lastMode { lastMode = md; seqI = 63 }
