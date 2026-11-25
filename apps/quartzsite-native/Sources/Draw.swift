@@ -143,7 +143,7 @@ final class Renderer {
         ridge(0.3, 8.7 + seed, GY + 1, ar == .skoolie ? 8 : (ar == .trail ? 24 : 17), Col.mix(Col(0x8a5a3e), haze, 0.12).shade(1 - dark * 0.65))
 
         // a far stand of saguaros on the low hills
-        if ar == .ltva || ar == .dome || ar == .trail || ar == .scaddan {
+        if ar == .ltva || ar == .dome || ar == .trail || ar == .scaddan || ar == .roadrunner {
             var n = floor((cam * 0.3 - 20) / 46)
             while n * 46 < cam * 0.3 + W + 20 {
                 if hashN(n + 900 + seed) < (ar == .dome || ar == .trail ? 0.85 : 0.5) {
@@ -307,14 +307,14 @@ final class Renderer {
         if g.upgrades.contains(UP_AWNING) && parked {
             // rolled out over the door side, striped, on two poles
             let a0 = rx - half * 0.55, a1 = rx + half * 0.35
-            let top = roof + 3, low = base - def.high * 0.42
+            let top = roof + 2.4, low = roof + 2.4 + def.high * 0.15
             let stripes: [Col] = [Col(0x3a6ea5), Col(0xf4f1ea)]
             let n = 6
             for k in 0..<n {
                 let u0 = Double(k) / Double(n), u1 = Double(k + 1) / Double(n)
                 c.poly(stripes[k % 2], [a0 + (a1 - a0) * u0, top, a0 + (a1 - a0) * u1, top, a0 + (a1 - a0) * u1 + 2, low, a0 + (a1 - a0) * u0 + 2, low])
             }
-            c.R(a0 + 1.6, low, 0.8, base - low, Col(0x9a9a9a)); c.R(a1 + 1.6, low, 0.8, base - low, Col(0x9a9a9a))
+            c.R(a0 + 1.6, low, 0.8, base - low + 2, Col(0x9a9a9a)); c.R(a1 + 1.6, low, 0.8, base - low + 2, Col(0x9a9a9a))
             c.ell(rx - half * 0.1, base + 0.4, half * 0.5, 1.4, Col(0x000000, 0.12))
         }
     }
@@ -429,6 +429,25 @@ final class Renderer {
                 if hashN(n + 1480) < 0.45 {
                     let sx = n * gap + hashN(n + 1490) * 160 - cam * par
                     toy(5, sx, GY + 0.5, hashN(n + 1495) < 0.5 ? 1 : -1, 1, 0)
+                }
+                n += 1
+            }
+        case .roadrunner:
+            let fest = g.phase == .play && g.on(EV_QFEST)
+            let gap = fest ? 80.0 : 280.0
+            var n = floor((cam * par - 70) / gap)
+            while n * gap < cam * par + W + 70 {
+                if hashN(n + 1560) < (fest ? 0.85 : 0.5) {
+                    let sx = n * gap + hashN(n + 1570) * 30 - cam * par
+                    let kinds: [RigKind] = [.classA, .classC, .van, .classB]
+                    rig(kinds[Int(hashN(n + 1580) * 4) % 4], sx, GY + 0.5, 1, hashN(n + 1590) < 0.5 ? 1 : -1, 0.5)
+                    if fest {
+                        // a tall mast with a wire antenna strung off it
+                        let h = 34 + hashN(n + 1600) * 20
+                        c.R(sx + 8, GY - h, 0.6, h, Col(0x6a6a6a))
+                        c.seg(sx + 8.3, GY - h, sx + 30, GY - 4, 0.3, Col(0x5a5a5a, 0.7))
+                        c.R(sx + 4, GY - h, 9, 0.5, Col(0x6a6a6a))
+                    }
                 }
                 n += 1
             }
@@ -943,7 +962,8 @@ final class Renderer {
             c.roundCaps(false)
             if g.phase == .play && g.weather == 3 {
                 // the wash is running: muddy water sheeting across
-                c.vfill(x - 70, GY - 1, 140, 9, [(0, Col(0x8a6a4a, 0.85)), (1, Col(0x6a4a30, 0.9))])
+                c.vfill(x - 70, GY + 0.5, 140, 6, [(0, Col(0x9a8c74, 0.8)), (1, Col(0x7a6a54, 0.85))])
+                c.R(x - 70, GY + 0.5, 140, 0.8, Col(0xd8d0c0, 0.6))
                 for j in 0..<12 {
                     let fx = x - 66 + ((NOW * 30 + Double(j) * 23).truncatingRemainder(dividingBy: 132))
                     c.R(fx, GY + 1 + Double(j % 3) * 2, 6, 0.6, Col(0xd8c0a0, 0.7))
@@ -1143,7 +1163,19 @@ final class Renderer {
                 c.R(x + side - 8, GY - 7, 16, 1.4, wood)
             }
             palm(x - 48, GY + 1, 46, 3); palm(x + 50, GY + 1, 52, 7)
-            if rtr {
+            if g.phase == .play && g.on(EV_WESTERN) {
+                c.R(x - 26, GY - 6, 52, 6, Col(0x8a6238))
+                c.R(x - 26, GY - 30, 1.4, 24, Col(0x5a3e24)); c.R(x + 24.6, GY - 30, 1.4, 24, Col(0x5a3e24))
+                c.R(x - 30, GY - 38, 60, 9, Col(0x7a2f1e))
+                g.text("BUCK CONNORS WESTERN DAYS", x, GY - 33.4, 3.4, GOLD, bold: true)
+                for j in 0..<3 {
+                    let bx = x - 12 + Double(j) * 12
+                    person(bx, GY - 6, 0, 1, sin(NOW * 4 + Double(j)), false)
+                    c.ell(bx + 2.6, GY - 13, 2.4, 1.6, Col(0x9a5a2a)); c.seg(bx + 4, GY - 13.6, bx + 8, GY - 17, 0.5, Col(0x6a4a2a))
+                }
+                for j in 0..<7 { person(x - 42 + Double(j) * 14, GY + 4, j % 4, j % 2 == 0 ? 1 : -1, 0, false) }
+                label = false
+            } else if rtr {
                 c.R(x - 30, GY - 36, 60, 9, Col(0x3f8f8a))
                 g.text("RUBBER TRAMP RENDEZVOUS", x, GY - 31.4, 3.6, CREAM, bold: true)
                 for j in 0..<6 { person(x - 30 + Double(j) * 12, GY + 2, j % 4, j % 2 == 0 ? 1 : -1, 0, false) }
@@ -1310,6 +1342,26 @@ final class Renderer {
             }
             label = false
             top = 44
+        case .radio:
+            if g.phase == .play && !g.on(EV_QFEST) {
+                c.R(x - 1, GY - 22, 2, 22, wood)
+                c.RR(x - 30, GY - 36, 60, 16, 2, Col(0x7a5a3a))
+                g.text("QUARTZFEST", x, GY - 31, 5, CREAM, bold: true)
+                g.text("Ham radio week, Jan 17–23", x, GY - 25, 3.4, CREAM)
+                label = false
+                top = 44
+                break
+            }
+            canopy(x, 30, Col(0xf4f1ea), Col(0x3a6ea5))
+            c.R(x - 24, GY - 10, 48, 10, Col(0x4a4a4e))
+            for j in 0..<3 { c.RR(x - 20 + Double(j) * 14, GY - 16, 10, 6, 1, Col(0x2a2a2e)); c.circ(x - 17 + Double(j) * 14, GY - 13, 1, Col(0xf2c14e)); c.R(x - 14 + Double(j) * 14, GY - 14, 3, 2, Col(0x5ad06a)) }
+            person(x - 10, GY + 2, 2, 1, 0, false); person(x + 12, GY + 2, 3, -1, 0, false)
+            c.R(x + 40, GY - 60, 1, 60, Col(0x7a7a7a))
+            for j in 0..<4 { c.R(x + 34 + Double(j) * 0.0, GY - 60 + Double(j) * 4, 13 - Double(j) * 2, 0.7, Col(0x7a7a7a)) }
+            c.RR(x - 22, GY - 44, 44, 8, 1.4, Col(0x2a2a2e))
+            g.text("QUARTZFEST", x, GY - 40, 4.4, Col(0x8ad0f0), bold: true)
+            label = false
+            top = 50
         case .computer:
             // The Computer Corner: a small shop with a dish on the roof
             let wall = Col(0xd8d4cc)
@@ -1495,6 +1547,7 @@ final class Renderer {
         if g.jewelry > 0 { pack += "  ·  pendants \(g.jewelry)" }
         if g.rocks > 0 { pack += "  ·  specimens \(g.rocks)" }
         if g.odd > 0 { pack += "  ·  oddities \(g.odd)" }
+        if g.page { pack += "  ·  \(g.followersText()) followers" }
         g.text(pack, r, 12, 5.5, CREAM, align: 2, bold: true, plate: true)
         // the map button
         c.RR(r - 30, 24, 30, 13, 6.5, Col(0x1c1410, 0.68))
@@ -1550,7 +1603,7 @@ final class Renderer {
         // the sketch map
         let mx0 = x0 + 10, my0 = y0 + 22, mw = (x1 - x0) * 0.5, mh = y1 - y0 - 58
         c.RR(mx0, my0, mw, mh, 3, Col(0xe2cfa4))
-        let lonA = -114.42, lonB = -114.13, latA = 33.605, latB = 33.69
+        let lonA = -114.42, lonB = -114.13, latA = 33.57, latB = 33.69
         func mp(_ lat: Double, _ lon: Double) -> (Double, Double) {
             return (mx0 + (lon - lonA) / (lonB - lonA) * mw, my0 + (latB - lat) / (latB - latA) * mh)
         }
@@ -1565,7 +1618,7 @@ final class Renderer {
             let a = mp(i10[k].0, i10[k].1), b = mp(i10[k + 1].0, i10[k + 1].1)
             c.seg(a.0, a.1, b.0, b.1, 1.6, road)
         }
-        let n95 = mp(33.69, -114.216), s95 = mp(33.605, -114.216)
+        let n95 = mp(33.69, -114.216), s95 = mp(33.57, -114.216)
         c.seg(n95.0, n95.1, s95.0, s95.1, 1.2, road)
         let lab10 = mp(33.652, -114.29), lab95 = mp(33.60 + 0.02, -114.211)
         g.text("I-10", lab10.0, lab10.1 - 5, 3.6, ink.alpha(0.6), bold: true)
@@ -1578,7 +1631,7 @@ final class Renderer {
             if here { c.circ(p.0, p.1, 5 + sin(NOW * 4) * 0.8, GOLD.alpha(0.5)) }
             c.circ(p.0, p.1, 2.6, here ? GOLD : REDC)
             c.circ(p.0, p.1, 1, CREAM)
-            let off: [(Double, Double, Int)] = [(-4, 4, 2), (4, -5, 1), (-4, 4, 2), (0, -6, 0), (0, 6, 0), (0, 6, 0), (0, -6, 0)]
+            let off: [(Double, Double, Int)] = [(-4, 4, 2), (4, -5, 1), (-4, 4, 2), (0, -6, 0), (0, 6, 0), (0, 6, 0), (0, -6, 0), (-4, 3, 2)]
             g.text(d.name, p.0 + off[a].0, p.1 + off[a].1, 3.6, ink, align: off[a].2, bold: true)
         }
 
@@ -1798,7 +1851,7 @@ final class Renderer {
         let w = g.WORLD
         // a small herd of wild burros grazing their way along
         if (ar == .dome || ar == .trail || ar == .scaddan) && !night {
-            let hx = (NOW * 4).truncatingRemainder(dividingBy: w + 400) - 200
+            let hx = g.herdX() - 39
             for k in 0..<4 { burro(hx + Double(k) * 26 - cam, GY + 2 + Double(k % 2), Double(k) * 1.7) }
         }
         // javelina at dusk
@@ -1808,7 +1861,7 @@ final class Renderer {
         }
         // quail running in a line by day
         if !night && ar != .skoolie {
-            let qx = (NOW * 22).truncatingRemainder(dividingBy: w + 600) - 300
+            let qx = (NOW * 22 + 420).truncatingRemainder(dividingBy: w + 600) - 300
             for k in 0..<5 { quail(qx - Double(k) * 6 - cam, GY + 6, NOW * 20 + Double(k)) }
         }
         // a roadrunner sprinting the road now and then

@@ -5,7 +5,7 @@ import Foundation
 enum Phase { case title, pick, play }
 enum Life: Int { case nomad = 0, rver = 1 }
 enum RigKind: Int { case tent = 0, minivan, van, skoolie, classB, classC, classA }
-enum Area: Int { case ltva = 0, main, tyson, dome, skoolie, trail, scaddan }
+enum Area: Int { case ltva = 0, main, tyson, dome, skoolie, trail, scaddan, roadrunner }
 
 struct RigDef {
     let name: String
@@ -85,14 +85,16 @@ let EVENTS: [EventDef] = [
     EventDef(name: "Skooliepalooza", when: "Jan 16–26", start: 20, end: 30, area: .skoolie),
     EventDef(name: "Tyson Wells Arts & Craft Fair", when: "Jan 29 – Feb 7", start: 33, end: 42, area: .tyson),
     EventDef(name: "Prospectors Panorama", when: "Jan 1 – Feb 28", start: 5, end: 63, area: .tyson),
-    EventDef(name: "Hi Jolly Parade", when: "Sat Jan 9", start: 13, end: 13, area: .main)
+    EventDef(name: "Hi Jolly Parade", when: "Sat Jan 9", start: 13, end: 13, area: .main),
+    EventDef(name: "Quartzfest", when: "Jan 17–23", start: 21, end: 27, area: .roadrunner),
+    EventDef(name: "Buck Connors Western Days", when: "Mar 19–20", start: 82, end: 83, area: .main)
 ]
-let EV_GEM = 0, EV_RTR = 1, EV_RV = 2, EV_SELL = 3, EV_SKOOL = 4, EV_CRAFT = 5, EV_PAN = 6, EV_PARADE = 7
+let EV_GEM = 0, EV_RTR = 1, EV_RV = 2, EV_SELL = 3, EV_SKOOL = 4, EV_CRAFT = 5, EV_PAN = 6, EV_PARADE = 7, EV_QFEST = 8, EV_WESTERN = 9
 /// April 15: the end of the LTVA season. Snowbirds head north the next morning.
 let SEASON_END = 109
 let START_WEEKDAY = 1   // Monday
 
-enum SpotKind { case camp, bench, fire, wash, host, station, outhouse, board, grocery, gemworld, landmark, park, hall, yacht, lot, rides, tools, panorama, vendors, office, booth, bigtent, mine, detect, rockhound, river, skoolie, circle, cabin, parade, rvpark, house, computer }
+enum SpotKind { case camp, bench, fire, wash, host, station, outhouse, board, grocery, gemworld, landmark, park, hall, yacht, lot, rides, tools, panorama, vendors, office, booth, bigtent, mine, detect, rockhound, river, skoolie, circle, cabin, parade, rvpark, house, computer, radio }
 struct Spot {
     let kind: SpotKind
     let x: Double
@@ -170,6 +172,12 @@ let AREAS: [AreaDef] = [
         Spot(kind: .fire, x: 1080, name: "NOMAD FIRE"),
         Spot(kind: .rockhound, x: 1520, name: "WASH AGATES"),
         Spot(kind: .wash, x: 1900, name: "MESQUITE WASH")
+    ]),
+    AreaDef(name: "Road Runner", sub: "Free BLM camping 5 miles south · 14-day limit", w: 2300, arrive: 2050, lat: 33.5807, lon: -114.2181, spots: [
+        Spot(kind: .wash, x: 400, name: "DRY WASH"),
+        Spot(kind: .radio, x: 900, name: "QUARTZFEST"),
+        Spot(kind: .camp, x: 1450, name: "YOUR CAMP"),
+        Spot(kind: .bench, x: 1590, name: "JEWELRY BENCH")
     ])
 ]
 let LANDMARKS = ["Pay respects at Hi Jolly's tomb", "Browse the books", "Read the stage-stop plaque", "Walk the old cemetery"]
@@ -276,6 +284,7 @@ struct SaveData: Codable {
     var resident: Bool
     var house: Bool
     var upgrades: [Int]
+    var followers: Int
     var weather: Int
     var afterRain: Int
 }
@@ -374,6 +383,8 @@ final class Game {
     var upgrades: Set<Int> = []
     var packCap: Int { return upgrades.contains(UP_RACK) ? 8 : 5 }
     var muted = false
+    /// People following your Facebook page. It starts paying at 1,000.
+    var followers = 0
     /// 0 clear, 1 windy with dust, 2 cloudy, 3 rain. Washes run on rain days; rockhounding is best the two days after.
     var weather = 0
     var afterRain = 0
@@ -486,7 +497,7 @@ final class Game {
         mapOpen = false
         browseOpen = false; seasonCard = false; ended = false
         age = life == .nomad ? 31 : 61
-        year = 1; resident = false; house = false; upgrades = []; weather = 0; afterRain = 0
+        year = 1; resident = false; house = false; upgrades = []; followers = 0; weather = 0; afterRain = 0
         shown = []
         floaters = []
         phase = .play
@@ -527,6 +538,25 @@ final class Game {
         }
         events.append(3)
     }
+
+    /// Something worth sharing. With a page, it brings followers (twice as many with Starlink).
+    func post(_ what: String, _ reach: Int) {
+        if !page { return }
+        let n = reach * (upgrades.contains(UP_STARLINK) ? 2 : 1) + cred / 4
+        let before = followers
+        followers += n
+        float("Posted: " + what + "  +\(n) followers", px, Col(0x8ab4f8))
+        if before < 1000 && followers >= 1000 {
+            hintT = 0
+            hint("monetize", "1,000 followers. Your page is monetized now and pays every morning.")
+        }
+    }
+    func followersText() -> String {
+        return followers >= 1000 ? String(format: "%.1fk", Double(followers) / 1000) : "\(followers)"
+    }
+
+    /// Where the burro herd is grazing right now, in world pixels (the drawing uses the same).
+    func herdX() -> Double { return (time * 4 + 340).truncatingRemainder(dividingBy: WORLD + 400) - 200 + 39 }
 
     // MARK: getting around
 
@@ -593,7 +623,7 @@ final class Game {
                         dayT: dayT, wood: wood, rockVals: rockVals, odd: odd, panels: panels, px: inRig ? rigX : px, rigX: rigX,
                         area: area.rawValue, rigArea: rigArea.rawValue, toy: toy, toyArea: toyArea.rawValue, toyX: onToy ? px : toyX,
                         permitDays: permitDays, business: business, adDays: adDays, page: page, jewelVals: jewelVals, detector: detector, campDays: campDays,
-                        age: age, year: year, resident: resident, house: house, upgrades: Array(upgrades),
+                        age: age, year: year, resident: resident, house: house, upgrades: Array(upgrades), followers: followers,
                         weather: weather, afterRain: afterRain)
     }
     func restore(_ s: SaveData) {
@@ -606,7 +636,7 @@ final class Game {
         toy = s.toy; toyArea = Area(rawValue: s.toyArea) ?? .main; toyX = s.toyX
         permitDays = s.permitDays; business = s.business; adDays = s.adDays; page = s.page; jewelVals = s.jewelVals; detector = s.detector
         campDays = s.campDays
-        age = s.age; year = s.year; resident = s.resident; house = s.house; upgrades = Set(s.upgrades); weather = s.weather; afterRain = s.afterRain
+        age = s.age; year = s.year; resident = s.resident; house = s.house; upgrades = Set(s.upgrades); followers = s.followers; weather = s.weather; afterRain = s.afterRain
         inRig = false; onToy = false
         shown = ["start"]
         hasSave = true
@@ -625,7 +655,10 @@ final class Game {
         if key == "gem" { place(.tyson, 1050); money = 300; day = 7; rockVals = [40] }
         if key == "rain" { place(.dome, 2060); rig = .classB; rigArea = .dome; rigX = 1500; weather = 3; dayT = 0.3 }
         if key == "windy" { px = 1500; weather = 1; dayT = 0.25 }
-        if key == "critters" { place(.dome, 1000); dayT = 0.52 }
+        if key == "critters" { place(.dome, 260); dayT = 0.42 }
+        if key == "page" { place(.dome, 120); page = true; cred = 60; followers = 940; upgrades = [3]; dayT = 0.3 }
+        if key == "qfest" { place(.roadrunner, 900); day = 22; dayT = 0.4 }
+        if key == "western" { place(.main, 1610); day = 82; dayT = 0.45 }
         if key == "gear" { life = .rver; rig = .classC; panels = 2; upgrades = [0, 1, 2, 3]; rigX = 1150; px = 1240; dayT = 0.35 }
         if key == "computer" { place(.main, 830); rig = .van }
         if key == "browse" { place(.tyson, 1050); money = 300; day = 7; openBrowse() }
@@ -708,6 +741,7 @@ final class Game {
         case .gemworld:
             return rocks < packCap ? Offer(label: "Rough rock to work", cost: rockBuy + 14, earn: 0, dur: 1.0) : nil
         case .park:
+            if on(EV_WESTERN) { return seen.contains(16) ? nil : Offer(label: "Cowboy poetry and live country music", cost: 0, earn: 0, dur: 2) }
             if on(EV_RTR) { return seen.contains(12) ? nil : Offer(label: "Rubber Tramp Rendezvous: talks and the free pile", cost: 0, earn: 0, dur: 2) }
             return health < 96 && !seen.contains(14) ? Offer(label: "Rest in the shade", cost: 0, earn: 0, dur: 1.6) : nil
         case .hall:
@@ -725,6 +759,8 @@ final class Game {
             if panels < 2 { return Offer(label: panels == 0 ? "Solar panel" : "Second solar panel", cost: panels == 0 ? 120 : 200, earn: 0, dur: 1.6) }
             for u in [UP_LITHIUM, UP_AWNING, UP_RACK] where !upgrades.contains(u) { return Offer(label: UPGRADES[u].0, cost: UPGRADES[u].1, earn: 0, dur: 1.8) }
             return nil
+        case .radio:
+            return on(EV_QFEST) && !seen.contains(17) ? Offer(label: "Get on the air with the hams", cost: 0, earn: 0, dur: 2.2) : nil
         case .computer:
             if rig == .tent || upgrades.contains(UP_STARLINK) { return nil }
             return Offer(label: UPGRADES[UP_STARLINK].0, cost: UPGRADES[UP_STARLINK].1, earn: 0, dur: 2)
@@ -792,6 +828,7 @@ final class Game {
         case .grocery: return "You're not hungry"
         case .gemworld: return "Pack is full"
         case .park:
+            if on(EV_WESTERN) { return "See you tomorrow at Western Days" }
             if on(EV_RTR) { return "See you tomorrow at the Rendezvous" }
             return "Rubber Tramp Rendezvous: " + EVENTS[EV_RTR].when
         case .hall: return "You run every business in town"
@@ -799,6 +836,7 @@ final class Game {
         case .lot: return "Top of the line. Nothing bigger here"
         case .rides: return "Nothing faster for sale"
         case .tools: return rig == .tent ? "Gear needs a rig. Trade up first" : "Your rig is fully kitted out"
+        case .radio: return on(EV_QFEST) ? "73 till tomorrow" : "Quartzfest ham radio week: " + EVENTS[EV_QFEST].when
         case .computer: return rig == .tent ? "A dish needs a roof. Trade up first" : "Your dish is up. Your page reaches twice as far"
         case .panorama: return on(EV_PAN) ? "Try the old placer diggings at Dome Rock" : "Open " + EVENTS[EV_PAN].when
         case .vendors:
@@ -843,7 +881,8 @@ final class Game {
                 page = true
                 float("Your page is live", x, GOLD)
                 hintT = 0
-                hint("page", "Your Facebook page is up. It pays a little every morning, more as your cred grows. Landmarks give it posts.")
+                followers = cred * 3
+                hint("page", "Your Facebook page is up. Landmarks, events, finds and the wildlife all make posts that bring followers. At 1,000 followers it starts paying.")
             } else {
                 health = min(100, health + (upgrades.contains(UP_AWNING) ? 32 : 20))
                 float(upgrades.contains(UP_AWNING) ? "Rested in the shade" : "Rested", x, GREEN)
@@ -877,10 +916,17 @@ final class Game {
             rockVals.append(rockSell + Int(rnd(-8, 8)))
             float("+1 rough rock", x, CREAM)
         case .park:
-            if on(EV_RTR) {
+            if on(EV_WESTERN) {
+                seen.insert(16)
+                cred += 2
+                health = min(100, health + 10)
+                float("Yeehaw", x, GOLD)
+                post("Buck Connors Western Days", 50)
+            } else if on(EV_RTR) {
                 seen.insert(12)
                 cred += 2
                 if odd < 3 { odd += 1; float("Free pile: an old lantern", x, CREAM) } else { float("+2 cred", x, GOLD) }
+                post("the Rubber Tramp Rendezvous", 50)
             } else {
                 seen.insert(14)
                 health = min(100, health + 10)
@@ -925,12 +971,17 @@ final class Game {
                 hintT = 0
                 hint("up\(u)", why[u] ?? "")
             }
+        case .radio:
+            seen.insert(17)
+            cred += 2
+            float("You talked to a ham in New Zealand", x, GOLD)
+            post("Quartzfest", 40)
         case .computer:
             upgrades.insert(UP_STARLINK)
             cred += 1
             float("Starlink is up", x, GOLD)
             hintT = 0
-            hint("starlink", "Internet anywhere. Once you have a Facebook page, it pays twice as much.")
+            hint("starlink", "Internet anywhere. Your posts reach twice as many people.")
         case .panorama:
             detector = true
             float("Metal detector", x, CREAM)
@@ -955,7 +1006,7 @@ final class Game {
             let r = Double.random(in: 0..<1)
             if r < 0.5 { let g = Int(rnd(1, 6)); money += Double(g); float("Old coins +$\(g)", x, GOLD) }
             else if r < 0.65 && odd < 3 { odd += 1; float("A rusty spur", x, CREAM) }
-            else if r < 0.73 { let g = Int(rnd(40, 120)); money += Double(g); float("Gold nugget! +$\(g)", x, GOLD); cred += 2 }
+            else if r < 0.73 { let g = Int(rnd(40, 120)); money += Double(g); float("Gold nugget! +$\(g)", x, GOLD); cred += 2; post("a gold nugget", 80) }
             else { float("Pull tab", x, CREAM) }
         case .rockhound:
             health = max(0, health - 4)
@@ -963,8 +1014,9 @@ final class Game {
             else if Double.random(in: 0..<1) < 0.55 { rockVals.append(Int(rnd(16, 40))); float("+1 quartz", x, CREAM) } else { float("Pretty gravel", x, CREAM) }
         case .landmark:
             seen.insert(sp.arg)
-            cred += page ? 2 : 1
-            float(page ? "Posted to your page" : "+1 cred", x, GOLD)
+            cred += 1
+            float("+1 cred", x, GOLD)
+            post(["Hi Jolly's tomb", "Reader's Oasis", "Tyson's Well", "the pioneer cemetery"][sp.arg], 20)
         case .river:
             health = min(100, health + 14)
             float("Calm", x, GREEN)
@@ -977,6 +1029,7 @@ final class Game {
             health = min(100, health + 15)
             cred += 2
             float("Fed and welcomed", x, GOLD)
+            post("Skooliepalooza", 70)
         case .cabin:
             health = max(0, health - 6)
             let r = Double.random(in: 0..<1)
@@ -986,9 +1039,10 @@ final class Game {
             cred += 1
         case .parade:
             seen.insert(15)
-            cred += page ? 3 : 2
+            cred += 2
             health = min(100, health + 6)
-            float(page ? "Parade video posted" : "Camels, floats and side-by-sides", x, GOLD)
+            float("Camels, floats and side-by-sides", x, GOLD)
+            post("the Hi Jolly Parade", 60)
         case .rvpark:
             if !resident {
                 resident = true
@@ -1084,13 +1138,16 @@ final class Game {
             if adDays > 0 { b = b * 3 / 2; adDays -= 1 }
             total += b
         }
-        if page { total += cred / 3 * (upgrades.contains(UP_STARLINK) ? 2 : 1) }
+        if page {
+            followers += cred / 5
+            if followers >= 1000 { total += followers / 40 }
+        }
         if resident { total -= 8 }
         if permitDays > 0 && rigArea == .ltva {
             permitDays -= 1
             if permitDays == 0 { hintT = 0; hint("permit\(day)", "Your LTVA permit ran out. The camp host sells another 14 days.") }
         }
-        if rigArea == .dome || rigArea == .scaddan {
+        if rigArea == .dome || rigArea == .scaddan || rigArea == .roadrunner {
             campDays += 1
             if campDays == 12 { hintT = 0; hint("limit\(day)", "Two days left on your 14 at " + areaName(rigArea) + ". BLM wants you to move on after that.") }
         } else {
@@ -1221,6 +1278,12 @@ final class Game {
         cam += (clampD(px - W / 2, 0, max(0, WORLD - W)) - cam) * min(1, dt * 6)
         nearRig = rigArea == area && (inRig || abs(px - rigX) < RIGS[rig.rawValue].len / 2 + 22)
         nearToy = toy >= 0 && toyArea == area && !inRig && (onToy || abs(px - toyX) < TOYS[toy].len / 2 + 18)
+
+        // wild burros nearby make a good post, once a day
+        if page && !seen.contains(20) && (area == .dome || area == .trail || area == .scaddan) && (dayT < 0.6 || dayT > 0.95) && abs(px - herdX()) < 50 {
+            seen.insert(20)
+            post("wild burros", 45)
+        }
 
         // which spot is in reach
         var best = -1
