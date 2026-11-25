@@ -754,6 +754,7 @@ final class Game {
     var duskDone = false
     var raidOn = false
     var badgePaid = 0
+    var rackN: [BType: Int] = [:]      // badges, picks and ropes hanging on the racks, waiting for someone to take them: three at most
     var pickPaid = 0
     var shake = 0.0
     var flash = 0.0
@@ -829,7 +830,7 @@ final class Game {
         boxes = [Box(250, 6 + town), Box(610, 4), Box(EX(2270), 4), Box(EX(2540), 6 + town)]
         setCaps()
         side = bio == .canyon || chance(0.5) ? 1 : -1
-        duskDone = false; raidOn = false; badgePaid = 0; pickPaid = 0; shake = 0; flash = 0
+        duskDone = false; raidOn = false; badgePaid = 0; pickPaid = 0; rackN = [:]; shake = 0; flash = 0
         info = ""; slotsFor = nil
     }
 
@@ -919,7 +920,7 @@ final class Game {
     // ---------- saving
     func snapshot() -> SaveData {
         // coins part-paid into something count as still in the purse
-        var purse = coins + badgePaid + pickPaid
+        var purse = coins + badgePaid + pickPaid + rackN.values.reduce(0, +)
         for bl in b { purse += bl.paid + bl.incoming }
         var sb: [SaveB] = []
         for bl in b { sb.append(SaveB(type: bl.type.rawValue, level: bl.level, building: bl.building, progress: bl.progress, hp: bl.hp, robbed: bl.robbed)) }
@@ -1250,23 +1251,14 @@ final class Game {
         }
         // 2: the racks beside the sheriff's office and the store
         let sh = sheriff, st = store
-        if sh.level > 0 && !sh.building && abs(px - rackX(sh)) < 12 {
-            if folk.contains(where: { $0.role == .folk }) {
-                flying.append(Coin(sx: px, sy: sy, tx: rackX(sh), ty: -23, kind: 3)); coins -= 1; sfx?.toss()
-            } else { tossCD = 0.5; sfx?.empty(); hint("nofolk", "A badge needs someone to wear it. Hire a drifter first.", again: true) }
-            return
-        }
-        if st.level > 0 && !st.building && abs(px - rackX(st)) < 12 {
-            if folk.contains(where: { $0.role == .folk }) {
-                flying.append(Coin(sx: px, sy: sy, tx: rackX(st), ty: -23, kind: 5)); coins -= 1; sfx?.toss()
-            } else { tossCD = 0.5; sfx?.empty(); hint("nofolk", "A pick needs someone to swing it. Hire a drifter first.", again: true) }
-            return
-        }
-        let sb = stable
-        if sb.level > 0 && !sb.building && abs(px - rackX(sb)) < 12 {
-            if folk.contains(where: { $0.role == .folk }) {
-                flying.append(Coin(sx: px, sy: sy, tx: rackX(sb), ty: -23, kind: 7)); coins -= 1; sfx?.toss()
-            } else { tossCD = 0.5; sfx?.empty(); hint("nofolk", "A rope needs someone to throw it. Hire a drifter first.", again: true) }
+        for (rb, kind, what) in [(sh, 3, "badges"), (st, 5, "picks"), (stable, 7, "ropes")] where rb.level > 0 && !rb.building && abs(px - rackX(rb)) < 12 {
+            let waiting = (rackN[rb.type] ?? 0) + flying.filter { $0.kind == kind }.count
+            if waiting < 3 {
+                flying.append(Coin(sx: px, sy: sy, tx: rackX(rb) + Double(waiting - 1) * 6, ty: -23, kind: kind)); coins -= 1; sfx?.toss()
+            } else {
+                tossCD = 0.5; sfx?.empty()
+                hint("rackfull", "The rack holds three \(what). When a townsman takes one, there is room for another.", again: true)
+            }
             return
         }
         // 3: an open bank keeps what you toss it, unless it can be improved, which comes first
@@ -1415,6 +1407,7 @@ final class Game {
                 onSave?()
             } else if bl.paid >= bl.cost {
                 bl.paid = 0; bl.building = true; bl.progress = 0
+                jobSeq += 1; bl.seq = jobSeq
                 sfx?.recruit()
                 if folk.isEmpty { hint("nobuild", "Paid for, but nobody is here to build it. Toss a coin to a drifter at a campfire out of town.", again: true) }
                 else { hint("build", "Paid in full. Your townsfolk will build it; more hands build faster.") }
@@ -1429,17 +1422,9 @@ final class Game {
             puff(d.x, -8, 6, GOLD)
             hint("hire", "He takes the coin and walks to town. Townsfolk build what you pay for, and leave a coin each morning.")
         case 3:
-            badgePaid += 1; sfx?.slot()
-            if badgePaid >= 1 {
-                badgePaid = 0
-                if let f = nearestIdle(rackX(sheriff)) { f.role = .deputy; sfx?.fanfare(); hint("deputy", "A deputy. At night he stands at the gate the raiders are coming to, and shoots.") }
-            }
+            rackN[.sheriff, default: 0] += 1; sfx?.slot()
         case 5:
-            pickPaid += 1; sfx?.slot()
-            if pickPaid >= 1 {
-                pickPaid = 0
-                if let f = nearestIdle(rackX(store)) { f.role = .miner; sfx?.fanfare(); hint("miner", "A prospector. He works the old mine west of town and brings a coin back each morning.") }
-            }
+            rackN[.store, default: 0] += 1; sfx?.slot()
         case 8:
             if let g = c.bld { g.incoming -= 1; g.hp = min(GHP[min(3, g.level)], g.hp + 8); g.flash = 0.2; sfx?.hammer(1) }
         case 9:
@@ -1453,9 +1438,7 @@ final class Game {
             sfx?.bell(); church.flash = 0.3
             hint("bell", "The bell rings out. Everyone is running for cover, and the deputies are at their posts until dawn.", again: true)
         case 7:
-            sfx?.slot()
-            if let f = nearestIdle(rackX(stable)) { f.role = .rancher; f.tend = 0; sfx?.fanfare(); hint("rancher", "A rancher. They raise cattle in the pasture east of town, and each grown cow pays 2 coins at dawn.") }
-            else { flying.append(Coin(sx: rackX(stable), sy: -14, tx: px, ty: -18, kind: 4)) }
+            rackN[.stable, default: 0] += 1; sfx?.slot()
         case 6:
             bank += 1; sfx?.slot(); bankB.flash = 0.2
             hint("deposit", "Banked. Raiders cannot knock banked coins out of you, and the bank pays 1 a day for every 8 inside, up to 3.")
@@ -1463,6 +1446,26 @@ final class Game {
             coins += 1; sfx?.pick()
         default:
             ground.append(GCoin(x: c.tx, y: 0, vx: 0, vy: 0, age: 0))
+        }
+    }
+
+    /// Whatever hangs on a rack, the nearest townsman with nothing to do walks over and takes.
+    private func updRacks(_ dt: Double) {
+        for rb in [sheriff, store, stable] where (rackN[rb.type] ?? 0) > 0 && rb.level > 0 {
+            let rx = rackX(rb)
+            guard let f = nearestIdle(rx), !f.hidden else { continue }
+            let dx = rx - f.x
+            if abs(dx) > 3 {
+                f.dir = sgn(dx); f.x += f.dir * 46 * dt; f.tx = rx; f.moving = true; f.phase += dt * 9
+                continue
+            }
+            rackN[rb.type, default: 1] -= 1
+            sfx?.fanfare(); puff(rx, -16, 6, GOLD, 30)
+            switch rb.type {
+            case .sheriff: f.role = .deputy; hint("deputy", "A deputy. At night he stands at the gate the raiders are coming to, and shoots.")
+            case .store: f.role = .miner; hint("miner", "A prospector. He works the old mine west of town and brings a coin back each morning.")
+            default: f.role = .rancher; f.tend = 0; hint("rancher", "A rancher. They raise cattle in the pasture east of town, and each grown cow pays 2 coins at dawn.")
+            }
         }
     }
 
@@ -1477,7 +1480,8 @@ final class Game {
     }
 
     /// The one site the crew is working: the first paid-for building in the town's order.
-    func site() -> Building? { return b.first { $0.building } }
+    func site() -> Building? { return b.filter { $0.building }.min { $0.seq < $1.seq } }
+    private var jobSeq = 0
 
     private func updFolk(_ dt: Double) {
         let s = site()
@@ -1555,6 +1559,7 @@ final class Game {
 
     private func updBuild(_ dt: Double) {
         for bl in b { bl.flash = max(0, bl.flash - dt) }
+        updRacks(dt)
         guard let bl = site() else { return }
         let hands = min(folk.filter { $0.work }.count, 5)
         if hands == 0 { return }
@@ -1804,7 +1809,9 @@ final class Game {
         while i < raid.count {
             if t >= raid[i].t {
                 let r = raid[i]
-                let x = r.side < 0 ? 600 - rnd(0, 120) : EX(2300) + rnd(0, 120)
+                var x = r.side < 0 ? 600 - rnd(0, 120) : EX(2300) + rnd(0, 120)
+                // never out of thin air: if you are out there watching, they come in from past the edge of the view
+                if x > cam - 30 && x < cam + W + 30 { x = r.side < 0 ? cam - 30 - rnd(0, 60) : cam + W + 30 + rnd(0, 60) }
                 let bn = Bandit(x: x, rider: r.rider, side: r.side, hp: (r.boss ? 12 : (r.rider ? 3 : 2)) + r.hp)
                 bn.boss = r.boss
                 bn.torch = !r.boss && chance(0.4)
@@ -2281,9 +2288,9 @@ final class Game {
         info = ""; slotsFor = nil
         for d in drifters where abs(d.x - px) < 30 && !d.taken { info = "Drifter: 1 coin to hire"; return }
         let sh = sheriff, st = store
-        if sh.level > 0 && !sh.building && abs(px - rackX(sh)) < 12 { info = "Badge rack: 1 coin turns a townsman into a deputy, who guards the gates at night."; return }
-        if st.level > 0 && !st.building && abs(px - rackX(st)) < 12 { info = "Tool rack: 1 coin turns a townsman into a prospector, who digs gold at the mine west of town."; return }
-        if stable.level > 0 && !stable.building && abs(px - rackX(stable)) < 12 { info = "Rope rack: 1 coin turns a townsman into a rancher, who raises cattle that pay 2 coins each a day."; return }
+        if sh.level > 0 && !sh.building && abs(px - rackX(sh)) < 12 { info = "Badge rack: 1 coin a badge, three at most. A townsman who takes one becomes a deputy and guards the gates at night."; return }
+        if st.level > 0 && !st.building && abs(px - rackX(st)) < 12 { info = "Tool rack: 1 coin a pick, three at most. A townsman who takes one digs gold at the mine west of town."; return }
+        if stable.level > 0 && !stable.building && abs(px - rackX(stable)) < 12 { info = "Rope rack: 1 coin a rope, three at most. A townsman who takes one raises cattle that pay 2 coins each a day."; return }
         var best: Building?
         var bd = 9999.0
         for bl in b where (!bl.virt || bl.live) && (bl.type != .sShow || showOn) {

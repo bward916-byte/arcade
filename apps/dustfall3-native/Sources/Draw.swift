@@ -844,6 +844,22 @@ final class Renderer {
     private func building(_ bl: Building, _ dk: Double) {
         let d = bl.def
         if !vis(bl.x, d.w) { return }
+        if bl.building {
+            // a job in hand: what stands now, with the new work rising through it from the ground as the crew gets on
+            let bx = sx(bl.x).rounded(), full = d.h + Double(bl.level) * 5 + 26
+            let cut = gy - full * clampD(bl.progress, 0, 1)
+            bl.building = false
+            building(bl, dk)
+            c.save(); c.cg.clip(to: CGRect(x: bx - 14, y: cut, width: d.w + 28, height: gy + 6 - cut))
+            bl.level += 1
+            building(bl, dk)
+            bl.level -= 1
+            c.restore()
+            bl.building = true
+            c.R(bx - 2, cut - 0.6, d.w + 4, 1.2, Col(0xe2c08c, 0.8))
+            scaffold(bx, d.w, full, bl.progress)
+            return
+        }
         let x = sx(bl.x).rounded(), w = d.w
         let lv = bl.level
         let h = d.h + Double(max(0, lv - 1)) * 5
@@ -1102,28 +1118,80 @@ final class Renderer {
             c.R(x + 8, gy - h - fh - 20, 1.5, 20, Col(0x3a2a1c)); c.R(x + 4, gy - h - fh - 18, 9.5, 1, Col(0x3a2a1c))
             if g.raidOn { c.poly(Col(0xc0392b), [x + 9, gy - h - fh - 20, x + 9 + g.side * 8, gy - h - fh - 17.5, x + 9, gy - h - fh - 15]) }
         }
+        // what each trade keeps out front
+        let pk = Col(0x2a1c14)
+        switch bl.type {
+        case .saloon:
+            c.R(x + 3, gy - 6.4, 11, 1.2, Col(0x7a5632)); c.R(x + 4, gy - 5.2, 1, 3, Col(0x5a3c22)); c.R(x + 12, gy - 5.2, 1, 3, Col(0x5a3c22)); c.R(x + 3, gy - 9.6, 11, 1, Col(0x7a5632)); c.R(x + 3, gy - 9.6, 1, 4, Col(0x5a3c22)); c.R(x + 13, gy - 9.6, 1, 4, Col(0x5a3c22))
+            c.R(x + d.doorX - 6.5, gy - 19, 4.6, 6.4, Col(0xe8dcb8)); c.R(x + d.doorX - 5.8, gy - 18, 3.2, 1, Col(0x8a2b22)); c.R(x + d.doorX - 5.8, gy - 16.2, 3.2, 0.5, pk); c.R(x + d.doorX - 5.8, gy - 15, 3.2, 0.5, pk)
+        case .store:
+            c.RR(x + 3, gy - 7, 5, 5, 2, Col(0xd8c8a0)); c.RR(x + 7, gy - 6.4, 5, 4.4, 2, Col(0xc8b88e)); c.R(x + 4.6, gy - 7.6, 1.6, 1, Col(0x8a7a5a))
+            c.R(x + w - 19, gy - 8, 7, 6, Col(0x9a7448)); c.R(x + w - 19, gy - 8, 7, 0.8, Col(0x6a4a2e)); c.seg(x + w - 19, gy - 8, x + w - 12, gy - 2, 0.6, Col(0x6a4a2e))
+        case .sheriff:
+            for k in 0..<2 { let px0 = x + d.doorX - 7 - Double(k) * 5.4; c.R(px0, gy - 19, 4.4, 6, Col(0xe6d4a4)); c.R(px0 + 1.2, gy - 17.6, 2, 2, Col(0x8a6240)); c.R(px0 + 0.8, gy - 14.8, 2.8, 0.5, pk) }
+        case .bank:
+            var qy = gy - 6.0, qi = 0
+            while qy > gy - h + 2 {
+                let qw = qi % 2 == 0 ? 5.0 : 3.4
+                c.R(x, qy, qw, 3.4, Col(0xd8d2c4)); c.R(x + w - qw, qy, qw, 3.4, Col(0xd8d2c4))
+                qy -= 4; qi += 1
+            }
+            c.R(x + d.doorX + d.doorW + 4, gy - 17, 5, 3.4, Col(0xd8b860)); c.R(x + d.doorX + d.doorW + 4.8, gy - 15.8, 3.4, 0.5, pk)
+        case .stable:
+            c.R(x + 3, gy - 7, 9, 5, Col(0xd8b860)); c.R(x + 3, gy - 5.2, 9, 0.5, Col(0x9a7a30)); c.R(x + 6, gy - 7, 0.5, 5, Col(0x9a7a30)); c.R(x + 5, gy - 11, 7, 4, Col(0xe0c070)); c.R(x + 5, gy - 9.4, 7, 0.5, Col(0x9a7a30))
+            c.RR(x + w - 9, gy - 5, 4.4, 4.4, 1, Col(0x6a6a72)); c.R(x + w - 9, gy - 5, 4.4, 0.8, Col(0x9a9aa6))
+        case .station:
+            c.R(x + 4, gy - 6.4, 12, 1.2, Col(0x7a5632)); c.R(x + 5, gy - 5.2, 1, 3, Col(0x5a3c22)); c.R(x + 14, gy - 5.2, 1, 3, Col(0x5a3c22))
+            c.R(x + w - 14, gy - 7, 8, 5, Col(0x6a3a26)); c.R(x + w - 14, gy - 5.4, 8, 0.6, Col(0xd8b860)); c.R(x + w - 10.6, gy - 7.6, 1.4, 0.8, Col(0xd8b860))
+        case .doctor:
+            c.R(x + d.doorX - 7, gy - 19, 5, 5, Col(0xf4f0e4)); c.R(x + d.doorX - 5.1, gy - 18.4, 1.2, 3.8, Col(0x3f8a5a)); c.R(x + d.doorX - 6.4, gy - 17.1, 3.8, 1.2, Col(0x3f8a5a))
+        case .bordello:
+            c.R(x + d.doorX - 4, gy - 20, 0.5, 2, pk); c.RR(x + d.doorX - 5.4, gy - 18, 3.2, 4, 1.4, Col(0xd0392b))
+            if dk > 0.3 { c.glow(x + d.doorX - 3.8, gy - 16, 8, Col(0xff5a4a, 0.5 * dk), Col(0xff5a4a, 0)) }
+        case .forge:
+            c.R(x + 3, gy - 6, 9, 1.4, Col(0x4a4a52)); c.R(x + 4, gy - 4.6, 7, 1.8, Col(0x3a3a40)); c.R(x + 6, gy - 2.8, 3, 2.8, Col(0x3a3a40))
+            c.ellStroke(x + w - 6, gy - 6, 4.5, 4.5, 0.9, Col(0x6a4a2e)); c.seg(x + w - 10.5, gy - 6, x + w - 1.5, gy - 6, 0.6, Col(0x6a4a2e)); c.seg(x + w - 6, gy - 10.5, x + w - 6, gy - 1.5, 0.6, Col(0x6a4a2e))
+        case .telegraph:
+            c.R(x + 4.6, gy - h - fh - 19.4, 1.2, 1.4, Col(0x7ad8b8)); c.R(x + 11.6, gy - h - fh - 19.4, 1.2, 1.4, Col(0x7ad8b8))
+            c.curve(x + 13, gy - h - fh - 18, x + w * 0.6, gy - h - fh - 8, x + w + 14, gy - h - fh - 16, 0.4, Col(0x1c1410))
+        case .church:
+            c.circ(x + w / 2, gy - h + 6, 3.4, trim); c.circ(x + w / 2, gy - h + 6, 2.6, Col(0x3f6f9a)); c.R(x + w / 2 - 0.3, gy - h + 3.4, 0.6, 5.2, Col(0xd8b860)); c.R(x + w / 2 - 2.6, gy - h + 5.7, 5.2, 0.6, Col(0xd8b860))
+        default: break
+        }
+        // a lamp by every door, lit after dark
+        c.R(x + d.doorX + d.doorW + 1.8, gy - 19.6, 0.5, 1.4, pk); c.R(x + d.doorX + d.doorW + 1, gy - 18.2, 2, 2.8, pk); c.R(x + d.doorX + d.doorW + 1.4, gy - 17.7, 1.2, 1.8, Col(dk > 0.3 ? 0xffd27a : 0xcfc8a8))
         if bl.robbed { c.text("ROBBED", x + w / 2, gy - h - fh - 4, 6, Col(0xd04a3a)) }
         if bl.building { scaffold(x, w, h + fh, bl.progress) }
         if bl.flash > 0 { c.R(x - 2, gy - h - fh, w + 4, h + fh, Col(0xfff0c0, bl.flash)) }
     }
 
+    /// Staging that climbs a little ahead of the work, a ladder, and dust coming off the top course.
     private func scaffold(_ x: Double, _ w: Double, _ h: Double, _ p: Double) {
-        let col = Col(0xc9a86a)
-        c.R(x - 4, gy - h - 4, 2, h + 4, col); c.R(x + w + 2, gy - h - 4, 2, h + 4, col)
-        var yy = gy - 10.0
-        while yy > gy - h - 4 { c.R(x - 4, yy, w + 8, 1.5, col); yy -= 12 }
-        c.seg(x - 3, gy, x + w * 0.3, gy - h, 1, col.alpha(0.8))
-        // progress bar
-        c.R(x + 4, gy - h - 10, w - 8, 4, Col(0x2a1c14, 0.8))
-        c.R(x + 5, gy - h - 9, (w - 10) * clampD(p, 0, 1), 2, GOLD)
+        let col = Col(0xc9a86a), dkc = Col(0x8a6a3a)
+        let done = h * clampD(p, 0, 1), top = min(h + 6, done + 8)
+        c.R(x - 4, gy - top, 1.6, top, col); c.R(x + w + 2.4, gy - top, 1.6, top, col); c.R(x + w * 0.5, gy - top, 1.2, top, dkc.alpha(0.6))
+        var yy = gy - 9.0
+        while yy > gy - top { c.R(x - 5, yy, w + 10, 1.4, col); c.R(x - 5, yy + 1.4, w + 10, 0.5, dkc); yy -= 11 }
+        c.seg(x - 3, gy, x + w * 0.28, gy - top, 0.8, col.alpha(0.8)); c.seg(x + w + 3, gy, x + w * 0.72, gy - top, 0.8, col.alpha(0.8))
+        c.R(x + w + 5, gy - top, 0.7, top, dkc); c.R(x + w + 8, gy - top, 0.7, top, dkc)
+        var ly = gy - 2.0
+        while ly > gy - top { c.R(x + w + 5, ly, 3.7, 0.6, dkc); ly -= 3 }
+        for i in 0..<8 {
+            let k = (g.clock * 0.8 + hashN(Double(i) * 3.3 + x * 0.01)).truncatingRemainder(dividingBy: 1)
+            let dx = x + hashN(Double(i) * 7.7 + 0.3) * w
+            c.circ(dx + sin(g.clock + Double(i)) * 2, gy - done - k * 10, 1.4 + k * 2.8, Col(0xe2c08c, 0.42 * (1 - k)))
+        }
     }
 
     private func racks() {
         let sh = g.sheriff, st = g.store
         // each rack takes one coin at a time: an empty slot hangs over it while you are near
         for bl in [sh, st, g.stable] where bl.level > 0 && !bl.building && abs(g.px - g.rackX(bl)) < 46 && vis(g.rackX(bl), 12) {
-            let x = sx(g.rackX(bl))
-            c.ellStroke(x, gy - 23, 1.9, 1.9, 1.5, Col(0x2a1c14, 0.7)); c.ellStroke(x, gy - 23, 1.9, 1.9, 0.7, Col(0xf7d877))
+            let n = g.rackN[bl.type] ?? 0
+            for k in 0..<3 {
+                let x = sx(g.rackX(bl)) + Double(k - 1) * 6
+                if k < n { coinAt(x, gy - 23) } else { c.ellStroke(x, gy - 23, 1.9, 1.9, 1.5, Col(0x2a1c14, 0.7)); c.ellStroke(x, gy - 23, 1.9, 1.9, 0.7, Col(0xf7d877)) }
+            }
         }
         if sh.level > 0 && !sh.building && vis(g.rackX(sh), 12) {
             let x = sx(g.rackX(sh))
@@ -1975,6 +2043,17 @@ final class Renderer {
             c.RR(x - 3.9, gy - 15.9 - bob, 8.2, 1.2, 0.6, hat); c.RR(x - 2.1, gy - 18 - bob, 4.6, 2.6, 0.9, hat)
             c.R(x - 2.1, gy - 16.4 - bob, 4.6, 0.6, Col.mix(hat, Col(0x000000), 0.4))
         }
+        // the small things: a collar and buttons, a brow and a mouth, a crease in the hat, a bun and a shawl
+        if woman {
+            c.circ(x - dir * 2.3, gy - 13.2 - bob, 1.1, Col([0x2a1c14, 0x6a4a2e, 0x9a8a7a, 0x1c1410][k % 4] as UInt32))
+            c.poly(Col.mix(shirt, Col(0xffffff), 0.3), [x - 2.6, gy - 12 - bob, x + 2.8, gy - 12 - bob, x + 0.1, gy - 8.8 - bob])
+        } else {
+            c.R(x - 1.5, gy - 11.9 - bob, 3.2, 0.7, Col.mix(shirt, Col(0xffffff), 0.32))
+            c.R(x + dir * 0.4 - 0.3, gy - 10.4 - bob, 0.6, 0.6, Col(0xf0e6d2, 0.85)); c.R(x + dir * 0.4 - 0.3, gy - 8.8 - bob, 0.6, 0.6, Col(0xf0e6d2, 0.85))
+            if k % 5 != 2 { c.R(x + dir * 1 - 0.5, gy - 12.3 - bob, 1, 0.35, Col(0x7a3a2a)) }
+            if !(k % 7 == 3 && role == .folk) { c.R(x - 0.3, gy - 18 - bob, 0.7, 1.4, Col.mix(hat, Col(0x000000), 0.3)) }
+        }
+        c.R(x + dir * 0.8 - 0.5, gy - 14.6 - bob, 1.1, 0.35, Col(0x3a2a1c))
         if role == .deputy { star(x - dir * 0.8, gy - 9.4 - bob, 1.5, GOLD); c.R(x + dir * 2.4, gy - 6.4 - bob, 1.4, 2.6, Col(0x2a1c14)) }
         if role == .miner { c.seg(x - dir * 2.4, gy - 13, x - dir * 4.2, gy - 3, 0.9, Col(0x8a6a4a)); c.poly(Col(0x8a8a90), [x - dir * 4.6, gy - 13.8, x - dir * 1, gy - 13, x - dir * 4, gy - 12]) }
         if role == .rancher { c.ellStroke(x - dir * 2.6, gy - 7 - bob, 1.6, 1.9, 0.6, Col(0xc9a468)) }

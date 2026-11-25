@@ -157,6 +157,7 @@ final class Building {
     var incoming = 0
     var hp = 0.0
     var robbed = false
+    var seq = 0               // the order jobs were paid for: the crew finishes the earlier one first
     var flash = 0.0
     var live = true           // false for the ticket until the train is standing at the platform
     var scale = 1.0           // prices rise a quarter with every town down the line
