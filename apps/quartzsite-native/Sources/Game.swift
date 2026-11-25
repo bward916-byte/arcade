@@ -1,11 +1,11 @@
 import Foundation
 
-// The rules: who you are, what you drive and ride, the four places, and the hold-to-pay ring.
+// The rules: who you are, what you drive and ride, the places, and the hold-to-pay ring.
 
 enum Phase { case title, pick, play }
 enum Life: Int { case nomad = 0, rver = 1 }
 enum RigKind: Int { case tent = 0, minivan, van, skoolie, classB, classC, classA }
-enum Area: Int { case ltva = 0, town, dome, ehrenberg }
+enum Area: Int { case ltva = 0, town, dome, ehrenberg, trail, scaddan }
 
 struct RigDef {
     let name: String
@@ -61,7 +61,7 @@ let BIZ: [BizDef] = [
     BizDef(name: "Mobile RV repair", cost: 3500, pay: 150)
 ]
 
-enum SpotKind { case road, wash, camp, bench, fire, host, outhouse, board, grocery, tools, prospector, rocks, skoolie, swap, hall, lot, toys, mine, detect, rockhound, landmark, river }
+enum SpotKind { case road, wash, camp, bench, fire, host, outhouse, board, grocery, tools, prospector, rocks, skoolie, swap, hall, lot, toys, mine, detect, rockhound, landmark, river, cabin }
 struct Spot {
     let kind: SpotKind
     let x: Double
@@ -75,7 +75,7 @@ struct AreaDef {
     let spots: [Spot]
 }
 
-/// West to east: Ehrenberg, Dome Rock, Quartzsite, La Posa. Road signs link each place to its neighbours.
+/// West to east: Ehrenberg, Dome Rock, Quartzsite, La Posa, Pipeline Trail, Scaddan Wash.
 let AREAS: [AreaDef] = [
     AreaDef(name: "La Posa LTVA", sub: "The long-term visitor area south of town", w: 2400, spots: [
         Spot(kind: .road, x: 90, name: "QUARTZSITE", arg: 1),
@@ -85,7 +85,8 @@ let AREAS: [AreaDef] = [
         Spot(kind: .camp, x: 1080, name: "YOUR CAMP"),
         Spot(kind: .bench, x: 1220, name: "JEWELRY BENCH"),
         Spot(kind: .fire, x: 1530, name: "NEIGHBORS' FIRE"),
-        Spot(kind: .wash, x: 1960, name: "DRY WASH")
+        Spot(kind: .wash, x: 1960, name: "DRY WASH"),
+        Spot(kind: .road, x: 2310, name: "PIPELINE TRAIL", arg: 4)
     ]),
     AreaDef(name: "Quartzsite", sub: "Main Street, in season", w: 3640, spots: [
         Spot(kind: .road, x: 90, name: "DOME ROCK", arg: 2),
@@ -116,6 +117,19 @@ let AREAS: [AreaDef] = [
         Spot(kind: .river, x: 300, name: "THE RIVER"),
         Spot(kind: .skoolie, x: 760, name: "SKOOLIEPALOOZA"),
         Spot(kind: .road, x: 1610, name: "DOME ROCK", arg: 2)
+    ]),
+    AreaDef(name: "Pipeline Trail", sub: "Rough desert two-track east of La Posa", w: 2800, spots: [
+        Spot(kind: .road, x: 90, name: "LA POSA LTVA", arg: 0),
+        Spot(kind: .cabin, x: 1050, name: "MINER'S CABIN"),
+        Spot(kind: .rockhound, x: 1920, name: "QUARTZ WASH"),
+        Spot(kind: .road, x: 2710, name: "SCADDAN WASH", arg: 5)
+    ]),
+    AreaDef(name: "Scaddan Wash", sub: "Free 14-day BLM camping east of town", w: 2200, spots: [
+        Spot(kind: .road, x: 90, name: "PIPELINE TRAIL", arg: 4),
+        Spot(kind: .camp, x: 640, name: "DISPERSED CAMP"),
+        Spot(kind: .fire, x: 1080, name: "NOMAD FIRE"),
+        Spot(kind: .rockhound, x: 1520, name: "WASH AGATES"),
+        Spot(kind: .wash, x: 1900, name: "MESQUITE WASH")
     ])
 ]
 let LANDMARKS = ["Pay respects at Hi Jolly's tomb", "Browse the books"]
@@ -396,12 +410,14 @@ final class Game {
         if key == "toys" { travelTo(.town, 3250); money = 3000; toy = 2; toyArea = .town; toyX = 3170 }
         if key == "ride" { travelTo(.dome, 1260); toy = 4; toyArea = .dome; toyX = 1260; onToy = true; detector = true }
         if key == "skoolie" { travelTo(.ehrenberg, 745); money = 240; rig = .skoolie; rigArea = .ehrenberg; rigX = 980; panels = 2; dayT = 0.58 }
+        if key == "trail" { travelTo(.trail, 1080); toy = 3; toyArea = .trail; toyX = 1080; onToy = true; dayT = 0.42 }
+        if key == "scaddan" { travelTo(.scaddan, 660); toy = 3; toyArea = .scaddan; toyX = 660; onToy = true; dayT = 0.57 }
         arriveT = key == "town" ? 2.5 : 0
     }
     private func travelTo(_ a: Area, _ x: Double) {
         area = a
         px = x
-        cam = clampD(px - W / 2, 0, WORLD - W)
+        cam = clampD(px - W / 2, 0, max(0, WORLD - W))
     }
 
     // MARK: offers
@@ -419,7 +435,7 @@ final class Game {
     }
     func gasCost() -> Int {
         if inRig { return 4 + Int(RIGS[rig.rawValue].len / 20) }
-        if onToy { return TOYS[toy].gas }
+        if onToy && toy >= 0 && toy < TOYS.count { return TOYS[toy].gas }
         return 5
     }
 
@@ -428,9 +444,12 @@ final class Game {
         if inRig && sp.kind != .road { return nil }
         switch sp.kind {
         case .road:
-            let to = areaName(Area(rawValue: sp.arg) ?? .town)
-            let verb = inRig ? "Drive to " : (onToy ? "Ride to " : "Catch a ride to ")
-            return Offer(label: verb + to, cost: gasCost(), earn: 0, dur: 1.4)
+            let toArea = Area(rawValue: sp.arg) ?? .town
+            if inRig && (area == .trail || toArea == .trail) { return nil }
+            let to = areaName(toArea)
+            let isTrail = area == .trail || toArea == .trail
+            let verb = inRig ? "Drive to " : (onToy ? "Ride to " : (isTrail ? "Hike to " : "Catch a ride to "))
+            return Offer(label: verb + to, cost: isTrail ? 0 : gasCost(), earn: 0, dur: 1.4)
         case .wash:
             return wood < 5 ? Offer(label: "Gather firewood", cost: 0, earn: 0, dur: 1.5) : nil
         case .camp:
@@ -485,12 +504,23 @@ final class Game {
             return seen.contains(sp.arg) ? nil : Offer(label: LANDMARKS[sp.arg], cost: 0, earn: 0, dur: 1.5)
         case .river:
             return health < 96 ? Offer(label: "Sit by the river", cost: 0, earn: 0, dur: 2.2) : nil
+        case .cabin:
+            return health > 15 ? Offer(label: "Search the old cabin", cost: 0, earn: 0, dur: 2.2) : nil
         }
     }
 
     /// Why a spot has nothing to offer right now.
     func note(_ i: Int) -> String {
-        if inRig { return "Tap your rig to get out" }
+        if inRig {
+            let sp = spots[i]
+            if sp.kind == .road {
+                let toArea = Area(rawValue: sp.arg) ?? .town
+                if area == .trail || toArea == .trail {
+                    return "Too rough for your rig. Take a side-by-side or bike"
+                }
+            }
+            return "Tap your rig to get out"
+        }
         switch spots[i].kind {
         case .road: return ""
         case .wash: return "Arms full. Sell it at the neighbors' fire"
@@ -521,6 +551,7 @@ final class Game {
         case .rockhound: return rocks >= 3 ? "Pack is full" : "Too worn out. Rest first"
         case .landmark: return "You've been here today"
         case .river: return "The river's nice today"
+        case .cabin: return "Too worn out. Rest first"
         }
     }
 
@@ -628,6 +659,13 @@ final class Game {
         case .river:
             health = min(100, health + 14)
             float("Calm", x, GREEN)
+        case .cabin:
+            health = max(0, health - 6)
+            let r = Double.random(in: 0..<1)
+            if r < 0.45 && odd < 3 { odd += 1; float("Found an old canteen", x, CREAM) }
+            else if r < 0.75 { let g = Int(rnd(8, 28)); money += Double(g); float("Stashed silver +$\(g)", x, GOLD) }
+            else { float("Just packrat nests", x, CREAM) }
+            cred += 1
         }
         if o.earn > 0 {
             money += Double(o.earn)
@@ -648,7 +686,7 @@ final class Game {
         if inRig { rigArea = to; rigX = px; rigFace = ex < WORLD / 2 ? 1 : -1 }
         if onToy { toyArea = to; toyX = px }
         face = ex < WORLD / 2 ? 1 : -1
-        cam = clampD(px - W / 2, 0, WORLD - W)
+        cam = clampD(px - W / 2, 0, max(0, WORLD - W))
         active = -1
         ringSpot = -1
         floaters = []
@@ -720,7 +758,7 @@ final class Game {
             rigX = clampD(rigX + vx * dt, 60, WORLD - 60)
             if abs(vx) > 6 { rigFace = vx > 0 ? 1 : -1 }
             px = rigX
-        } else if onToy {
+        } else if onToy && toy >= 0 && toy < TOYS.count {
             let top = TOYS[toy].speed
             vx += (s * top - vx) * min(1, dt * 3.5)
             px = clampD(px + vx * dt, 30, WORLD - 30)
@@ -733,7 +771,7 @@ final class Game {
             px = clampD(px + vx * dt, 30, WORLD - 30)
             if abs(vx) > 4 { face = vx > 0 ? 1 : -1; walk += dt * 11 }
         }
-        cam += (clampD(px - W / 2, 0, WORLD - W) - cam) * min(1, dt * 6)
+        cam += (clampD(px - W / 2, 0, max(0, WORLD - W)) - cam) * min(1, dt * 6)
         nearRig = rigArea == area && (inRig || abs(px - rigX) < RIGS[rig.rawValue].len / 2 + 22)
         nearToy = toy >= 0 && toyArea == area && !inRig && (onToy || abs(px - toyX) < TOYS[toy].len / 2 + 18)
 
