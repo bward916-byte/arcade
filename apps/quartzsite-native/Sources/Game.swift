@@ -16,12 +16,12 @@ struct RigDef {
 /// Indexed by RigKind.rawValue.
 let RIGS: [RigDef] = [
     RigDef(name: "Tent", price: 0, len: 26, high: 14, speed: 0),
-    RigDef(name: "Small van", price: 400, len: 34, high: 18, speed: 150),
-    RigDef(name: "Full-size van", price: 900, len: 46, high: 23, speed: 140),
-    RigDef(name: "Used skoolie", price: 1800, len: 66, high: 27, speed: 115),
-    RigDef(name: "Class B", price: 2400, len: 48, high: 26, speed: 140),
-    RigDef(name: "Class C", price: 3600, len: 62, high: 30, speed: 125),
-    RigDef(name: "Class A", price: 6500, len: 80, high: 33, speed: 115)
+    RigDef(name: "Minivan", price: 400, len: 59, high: 20, speed: 150),
+    RigDef(name: "Full-size van", price: 900, len: 63, high: 24, speed: 140),
+    RigDef(name: "Used skoolie", price: 1800, len: 96, high: 41, speed: 115),
+    RigDef(name: "Class B", price: 2400, len: 70, high: 35, speed: 140),
+    RigDef(name: "Class C", price: 3600, len: 87, high: 41, speed: 125),
+    RigDef(name: "Class A", price: 6500, len: 118, high: 47, speed: 115)
 ]
 /// What each kind of camper can trade up to, in order.
 let LADDER: [[RigKind]] = [
@@ -110,6 +110,7 @@ final class Game {
     /// 1 a ring closed, 2 money came back, 3 a light tap. The app turns these into haptics.
     var events: [Int] = []
     var hasSave = false
+    var showRigs = false
 
     // the camper
     var life = Life.nomad
@@ -251,12 +252,13 @@ final class Game {
     /// Screens for the build machine's screenshots.
     func demo(_ key: String) {
         if key == "pick" { phase = .pick; return }
+        if key == "rigs" { showRigs = true; return }
         life = .nomad; pickRig = 1; look = 1
         begin()
         hintT = 0
         if key == "night" { px = 1010; dayT = 0.8; wood = 3 }
         if key == "show" { px = 1975; money = 180; rocks = 1 }
-        if key == "skoolie" { px = 215; money = 240; rig = .skoolie; rigX = 420; panels = 2; dayT = 0.58 }
+        if key == "skoolie" { px = 215; money = 240; rig = .skoolie; rigX = 470; panels = 2; dayT = 0.58 }
         if key == "lot" { px = 2600; money = 900; rig = .van; rigX = 2460; panels = 1 }
         cam = clampD(px - W / 2, 0, WORLD - W)
     }
@@ -346,7 +348,7 @@ final class Game {
         case .lot:
             if let n = nextRig() {
                 rig = n
-                rigX = x - 70
+                rigX = x - 110
                 rigFace = 1
                 float(RIGS[n.rawValue].name + " is yours", x, GOLD)
                 hint("newrig", "New wheels. Walk up to your rig and tap it to climb in.")

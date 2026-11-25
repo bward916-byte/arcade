@@ -33,6 +33,7 @@ final class Renderer {
         g.texts.removeAll(keepingCapacity: true)
         g.hits.removeAll(keepingCapacity: true)
         lights.removeAll(keepingCapacity: true)
+        if g.showRigs { rigSheet(); return }
         switch g.phase {
         case .title:
             cam = (g.WORLD - W) * (0.5 - 0.5 * cos(NOW * 0.045))
@@ -47,6 +48,29 @@ final class Renderer {
             scene(g.dayT)
             hud()
         }
+    }
+
+    /// Every rig side by side with a person, for checking shapes and scale.
+    private func rigSheet() {
+        dark = 0
+        c.vfill(0, 0, W, H, [(0, Col(0x4aa6dc)), (1, Col(0xf3e2c0))])
+        let k = 0.86
+        c.save()
+        c.scale(k, k)
+        let y1 = H * 0.5 / k, y2 = H * 0.97 / k
+        c.R(0, y1, W / k, 3, Col(0xcaa878)); c.R(0, y2, W / k, 3, Col(0xcaa878))
+        let l = g.safeL / k + 10
+        rig(.tent, l + 16, y1, 0, 1)
+        person(l + 44, y1, 0, 1, 0, false)
+        rig(.minivan, l + 86, y1, 1, 1)
+        rig(.van, l + 158, y1, 1, 1)
+        rig(.classB, l + 236, y1, 2, 1)
+        person(l + 284, y1, 2, -1, 0, false)
+        rig(.skoolie, l + 52, y2, 2, 1)
+        person(l + 112, y2, 1, 1, 0, false)
+        rig(.classC, l + 170, y2, 2, 1)
+        rig(.classA, l + 290, y2, 2, 1)
+        c.restore()
     }
 
     private func skyAt(_ t: Double) -> (Col, Col) {
@@ -140,9 +164,9 @@ final class Renderer {
             let rx = (NOW * 24).truncatingRemainder(dividingBy: W + 160) - 80
             for i in 0..<5 {
                 let d = Double(i)
-                c.circ(rx - 30 - d * 9, GY + 9 - d * 1.2, 3 + d * 1.6, Col(0xe8d0a8, 0.3 - d * 0.05))
+                c.circ(rx - 50 - d * 9, GY + 9 - d * 1.2, 3 + d * 1.6, Col(0xe8d0a8, 0.3 - d * 0.05))
             }
-            rig(.skoolie, rx, GY + 12, 1, 1)
+            rig(.skoolie, rx, GY + 12, 2, 1)
         } else {
             for (i, sp) in g.spots.enumerated() { spot(i, sp) }
             endSigns()
@@ -284,15 +308,17 @@ final class Renderer {
 
     // MARK: rigs and people
 
-    /// A rig centred on `cx` with its wheels on `base`. `dir` 1 faces right.
-    func rig(_ kind: RigKind, _ cx: Double, _ base: Double, _ panels: Int, _ dir: Double) {
-        if cx < -90 || cx > W + 90 { return }
+    /// A rig centred on `cx` with its wheels on `base`, drawn to the same scale as the people
+    /// (about 3.5 game pixels to the foot). `dir` 1 faces right; `s` shrinks it for menu cards.
+    func rig(_ kind: RigKind, _ cx: Double, _ base: Double, _ panels: Int, _ dir: Double, _ s: Double = 1) {
+        if cx < -130 || cx > W + 130 { return }
         c.save()
         c.translate(cx, base)
-        c.scale(dir, 1)
-        c.ell(0, 0.5, RIGS[kind.rawValue].len * 0.52, 2, Col(0x000000, 0.22))
+        c.scale(dir * s, s)
+        c.ell(0, 0.6, RIGS[kind.rawValue].len * 0.5, 2.2, Col(0x000000, 0.22))
         var roof = 0.0
         var px0 = 0.0
+        let lamp = Col(0xfff2c0), tail = Col(0xc8281e), trim = Col(0x24211f)
         switch kind {
         case .tent:
             c.poly(Col(0xd9772e), [-13, 0, 0, -14, 13, 0])
@@ -300,91 +326,155 @@ final class Renderer {
             c.poly(Col(0x3a2416), [-4, 0, -1, -9, 2, 0])
             c.seg(-13, 0, -17, 1, 0.5, Col(0xeeeeee, 0.7))
             c.seg(13, 0, 17, 1, 0.5, Col(0xeeeeee, 0.7))
+
         case .minivan:
-            let col = Col(0x9fb2bd)
-            c.poly(col.shade(0.94), [-14, -11, -10, -18, 8, -18, 14, -11])
-            c.RR(-17, -13, 34, 10, 3, col)
-            c.poly(GLASS, [-12, -12, -9, -16.6, -1, -16.6, -1, -12])
-            c.poly(GLASS, [0.5, -12, 0.5, -16.6, 7.4, -16.6, 12, -12])
-            c.R(-17, -6.5, 34, 1, col.shade(0.75))
-            c.circ(16.2, -8, 1, Col(0xfff2c0))
-            wheel(-10); wheel(10)
-            roof = -18; px0 = -9
+            // 17 ft long, under 6 ft tall: one box, a long raked windshield running into a short sloped hood
+            let col = Col(0x8fa3b0)
+            let body: [Double] = [-29.5, -4, -29.3, -14.5, -27, -20, 6, -20, 17, -12.6, 27.5, -10.4, 29.5, -7, 29.5, -3.6]
+            c.poly(col, body)
+            c.poly(GLASS, [-25.4, -18.6, 5.2, -18.6, 14.4, -12.6, -26.4, -12.6])
+            c.R(-16, -18.6, 1.1, 6, col); c.R(-3.4, -18.6, 1.3, 6, col)
+            c.R(-27, -20.6, 30, 0.7, trim); c.R(-22, -21.4, 0.7, 1, trim); c.R(-2, -21.4, 0.7, 1, trim)
+            c.R(-29.4, -8.2, 58.6, 0.6, col.shade(0.78))
+            c.R(-29.5, -5, 59, 1.6, col.shade(0.6))
+            c.R(-16, -12.4, 0.5, 7.4, col.shade(0.8)); c.R(-3, -12.4, 0.5, 7.4, col.shade(0.8)); c.R(10.5, -12.4, 0.5, 7.4, col.shade(0.8))
+            c.R(-14, -11, 11, 0.6, col.shade(0.8))
+            c.RR(27.4, -9.6, 2.2, 2, 0.8, lamp); c.RR(-29.6, -13.5, 1.4, 4, 0.5, tail)
+            wheel(-18.5, 3.8); wheel(17.5, 3.8)
+            roof = -20.6; px0 = -24
+
         case .van:
-            let col = Col(0xe9e4d8)
-            c.RR(-23, -23, 46, 20, 4, col)
-            c.poly(GLASS, [15, -20, 20.5, -20, 22.4, -13, 15, -13])
-            c.RR(2, -20, 10, 6, 1, GLASS)
-            c.R(-23, -10.5, 46, 1.6, Col(0x3f8f8a))
-            c.R(-9, -21, 0.6, 17, col.shade(0.8))
-            c.circ(22.2, -8, 1.1, Col(0xfff2c0))
-            wheel(-14); wheel(14)
-            roof = -23; px0 = -19
+            // an older full-size van, 18 ft by 7 ft: tall slab sides, a stubby hood, barn doors at the back
+            let col = Col(0xe6e0d2)
+            let body: [Double] = [-31.5, -5, -31.5, -22, -29.5, -24, 12, -24, 20.5, -15, 30, -13.4, 31.5, -10.5, 31.5, -4.4]
+            c.poly(col, body)
+            c.poly(GLASS, [2.5, -22.2, 11.4, -22.2, 17.6, -15.4, 2.5, -15.4])
+            c.RR(-12.5, -22, 11, 6.4, 1, GLASS)
+            c.RR(-27.5, -22, 8, 6.4, 1, GLASS)
+            c.R(-31.5, -12.6, 62, 1.8, Col(0x3f8f8a)); c.R(-31.5, -10.4, 62, 0.8, Col(0xb5651d))
+            c.R(1.4, -22.5, 0.5, 18, col.shade(0.78)); c.R(-14.6, -22.5, 0.5, 18, col.shade(0.78))
+            c.R(-31.5, -6, 63, 1.8, trim)
+            c.RR(-22, -26, 7, 2.2, 0.8, Col(0xf4f1ea)); c.R(-8, -25, 16, 0.7, trim); c.R(-6, -25, 0.7, 1.2, trim); c.R(6, -25, 0.7, 1.2, trim)
+            c.RR(29.6, -12.6, 2, 2.4, 0.6, lamp); c.RR(-31.7, -16, 1.3, 5, 0.4, tail)
+            c.RR(30.4, -6.6, 2.2, 2.6, 0.6, Col(0xb8b8b4))
+            wheel(-19, 4.2); wheel(20, 4.2)
+            roof = -24; px0 = -4
+
         case .skoolie:
+            // a conventional "dog-nose" school bus, seven windows, about 28 ft by 10 ft: body, cowl, long hood
             let col = Col(0x3f8f8a)
-            c.RR(-33, -25, 54, 22, 3, col)
-            c.RR(18, -15, 15, 12, 2, col.shade(0.92))
-            for i in 0..<6 { c.RR(-30 + Double(i) * 7.6, -22, 6, 6, 1, GLASS) }
-            c.poly(GLASS, [17, -22, 20.5, -22, 21, -14.5, 17, -14.5])
-            c.R(-33, -13.5, 54, 1, Col(0x1f2a2a))
-            c.R(-33, -9.5, 54, 2, Col(0xf2c14e))
-            c.R(-29, -27, 20, 2, Col(0x8a6238))
-            c.R(-27, -29.5, 0.8, 2.5, Col(0x8a6238)); c.R(-10.5, -29.5, 0.8, 2.5, Col(0x8a6238))
-            c.R(-29, -30, 20, 0.8, Col(0x8a6238))
-            c.R(-5, -31, 1.5, 6, Col(0x444444))
-            c.circ(32.4, -8, 1.2, Col(0xfff2c0))
-            wheel(-20); wheel(23)
-            roof = -25; px0 = 0
+            c.RR(-48, -35, 75, 12, 4.5, Col(0xf1ede2))
+            c.R(-48, -29, 75, 23, col)
+            c.R(-48, -8, 75, 2.4, trim)
+            // hood and fender
+            c.poly(col.shade(0.94), [26, -20, 43, -17, 47, -14.4, 47.6, -6, 26, -6])
+            c.R(26, -20.4, 17, 0.7, col.shade(0.7))
+            c.R(45.8, -14, 1.6, 6, Col(0x2a2a2a))
+            c.RR(46.2, -7.8, 2.6, 3, 0.6, trim)
+            c.RR(44.8, -12.6, 1.6, 2.2, 0.6, lamp)
+            // windshield, entry door, seven sash windows
+            c.poly(GLASS, [22.2, -31, 26, -30, 26.8, -20.6, 22.2, -20.6])
+            c.R(14.6, -30.4, 6.2, 22.6, GLASS); c.R(17.5, -30.4, 0.6, 22.6, col.shade(0.7)); c.R(14.6, -19.6, 6.2, 0.6, col.shade(0.7))
+            for i in 0..<7 {
+                let wx = -45.4 + Double(i) * 8.4
+                c.RR(wx, -30.2, 6.6, 7.2, 0.8, GLASS)
+                c.R(wx, -26.8, 6.6, 0.5, Col(0x8a9aa0, 0.7))
+            }
+            c.R(-48, -21.6, 62, 0.9, trim); c.R(-48, -16.6, 62, 0.9, trim); c.R(-48, -12, 62, 0.9, trim)
+            c.R(-48, -19.6, 62, 2, Col(0xf2c14e))
+            c.RR(-49.4, -8.4, 2, 3, 0.5, trim); c.RR(-48.6, -24, 1.2, 4, 0.4, tail)
+            // what makes it a skoolie: roof deck with a rail, stovepipe, mirror on a long arm
+            c.R(-44, -37.2, 26, 1.6, Col(0x8a6238))
+            c.R(-44, -40.6, 26, 0.7, Col(0x8a6238))
+            c.R(-44, -40.6, 0.8, 3.6, Col(0x8a6238)); c.R(-31, -40.6, 0.8, 3.6, Col(0x8a6238)); c.R(-18.8, -40.6, 0.8, 3.6, Col(0x8a6238))
+            c.R(6, -41, 1.6, 6.4, Col(0x444444)); c.R(5.4, -41.8, 2.8, 1, Col(0x333333))
+            c.seg(26.6, -27, 31, -25.4, 0.6, trim); c.RR(30.4, -28, 1.6, 4.4, 0.5, trim)
+            wheel(-27, 5.4); wheel(36, 5.4)
+            roof = -35.4; px0 = -14
+
         case .classB:
-            let col = Col(0xdfe3e6)
-            c.RR(-24, -24, 48, 21, 5, col)
-            c.poly(GLASS, [16, -21, 21.5, -21, 23.4, -13.5, 16, -13.5])
-            c.RR(-14, -21, 12, 6, 1, GLASS); c.RR(1, -21, 10, 6, 1, GLASS)
-            c.curve(-23, -7, 0, -9, 22, -14, 1.6, Col(0x3a6ea5))
-            c.RR(8, -26, 10, 2.4, 1, col.shade(0.85))
-            c.circ(23.2, -8, 1.1, Col(0xfff2c0))
-            wheel(-15); wheel(15)
-            roof = -24; px0 = -20
+            // a high-roof camper van (Sprinter-sized, about 20 ft by 9 ft): tall roof, short dropped hood
+            let col = Col(0xdcdfe2)
+            let body: [Double] = [-35, -5, -35, -29, -33, -32, 14, -32, 19.5, -29, 27, -17.4, 33.5, -14.2, 35, -10.4, 35, -4.4]
+            c.poly(col, body)
+            c.poly(GLASS, [15.2, -27, 19.4, -27, 25.6, -17.6, 15.2, -17.6])
+            c.RR(0.5, -27, 12, 8, 1.2, GLASS)
+            c.RR(-29, -27, 15, 8, 1.2, GLASS)
+            c.R(-35, -9.4, 70, 4.6, Col(0x3a3d40))
+            c.curve(-34, -12.5, 0, -15, 26, -15.5, 1.6, Col(0x3a6ea5))
+            c.R(14.2, -28, 0.5, 23, col.shade(0.75)); c.R(-0.6, -28, 0.5, 23, col.shade(0.75))
+            c.R(-31, -31.6, 44, 2, Col(0x2f3236))
+            c.RR(-20, -35, 12, 3.2, 1.2, Col(0xf4f4f2)); c.RR(2, -33.6, 5, 1.8, 0.6, Col(0xf4f4f2))
+            c.RR(32.8, -13.6, 2.2, 2.6, 0.7, lamp); c.RR(-35.2, -24, 1.2, 9, 0.4, tail)
+            wheel(-22, 4.3); wheel(21, 4.3)
+            roof = -32.4; px0 = -6
+
         case .classC:
+            // a 25 ft Class C: van cab up front, the house box behind it, and the bunk hanging over the cab
             let col = Col(0xf0ece2)
-            c.RR(12, -19, 19, 16, 4, col.shade(0.96))
-            c.RR(-31, -28, 46, 25, 2, col)
-            c.RR(8, -30, 17, 10, 3, col)
-            c.poly(GLASS, [23.5, -18, 29.5, -12, 23.5, -12])
-            c.RR(-25, -23, 12, 7, 1, GLASS)
-            c.RR(11, -27.5, 9, 4, 1, GLASS)
-            c.R(-7, -22, 7, 18.5, col.shade(0.9))
-            c.R(-31, -11, 46, 2, Col(0xb5651d))
-            c.R(-31, -8, 46, 1, Col(0x7a4a2a))
-            c.circ(30.4, -8, 1.1, Col(0xfff2c0))
-            wheel(-18); wheel(21)
-            roof = -28; px0 = -27
+            // cab
+            c.poly(col.shade(0.95), [18, -22, 27, -22, 35, -14.2, 42, -12.6, 43.5, -9.4, 43.5, -4.4, 18, -4.4])
+            c.poly(GLASS, [22.4, -20.8, 26.6, -20.8, 32.6, -14.6, 22.4, -14.6])
+            c.RR(41.4, -12, 2, 2.4, 0.6, lamp)
+            c.RR(42, -6.6, 2.4, 2.6, 0.6, Col(0xb8b8b4))
+            // house, with the tail cut up for clearance, and the cab-over
+            c.poly(col, [-43.5, -11, -38, -6, 22, -6, 22, -38, -41, -38, -43.5, -35.5])
+            c.poly(col, [21, -38, 30, -38, 34.4, -34, 34.4, -25.4, 21, -23])
+            c.RR(24.6, -34.2, 7.4, 5, 1, GLASS)
+            c.RR(-35, -29, 15, 8.4, 1, GLASS)
+            c.RR(-14, -29, 12, 8.4, 1, GLASS)
+            c.R(3.6, -28, 8.4, 22, col.shade(0.9)); c.RR(5.2, -26.4, 5, 5, 0.8, GLASS); c.R(4.6, -5.6, 6.4, 1.4, trim)
+            c.curve(-43, -15, -8, -20, 33, -27, 2, Col(0xb5651d))
+            c.curve(-43, -12, -8, -16.4, 33, -24.4, 0.9, Col(0x7a4a2a))
+            c.R(-41, -10.4, 44, 0.5, col.shade(0.75)); c.R(-30, -10.4, 0.5, 4.4, col.shade(0.75)); c.R(-8, -10.4, 0.5, 4.4, col.shade(0.75))
+            c.R(-32, -37.4, 34, 2, Col(0x8a8f96))
+            c.RR(-22, -41.2, 12, 3.2, 1.2, Col(0xf7f7f4)); c.RR(4, -39.8, 5, 1.8, 0.6, Col(0xf7f7f4))
+            c.R(-42.6, -34, 0.6, 24, Col(0xb8b8b4)); c.R(-41.2, -34, 0.6, 24, Col(0xb8b8b4))
+            c.RR(-43.8, -20, 1.2, 6, 0.4, tail)
+            wheel(-20, 4.5); wheel(33, 4.5)
+            roof = -38.4; px0 = -8
+
         case .classA:
+            // a 34 ft Class A: one tall bus-shaped body with a flat face, a huge windshield and a long rear overhang
             let col = Col(0xe6dfd0)
-            c.RR(-40, -31, 80, 28, 4, col)
-            c.RR(30, -27, 9, 13, 2, GLASS)
-            c.RR(-30, -25, 14, 8, 1, GLASS); c.RR(-11, -25, 14, 8, 1, GLASS); c.RR(8, -25, 12, 8, 1, GLASS)
-            c.curve(-39, -6, 0, -8, 38, -15, 2.2, Col(0x7a4a2a))
-            c.curve(-39, -9, 0, -11, 38, -18, 1, GOLD)
-            c.R(-32, -33, 40, 2, Col(0x9a4a3a))
-            c.RR(16, -33.5, 12, 2.6, 1, col.shade(0.85))
-            c.circ(39.2, -8, 1.2, Col(0xfff2c0))
-            wheel(-26); wheel(-18); wheel(27)
-            roof = -31; px0 = -36
+            let body: [Double] = [-59, -8, -59, -40, -56, -43, 52, -43, 57, -40.4, 59, -24, 59, -6.4, 54, -5, -52, -5]
+            c.poly(col, body)
+            c.poly(GLASS, [53.4, -36.4, 57.4, -35.2, 58.6, -21.6, 53.4, -21.6])
+            c.RR(42, -34.4, 10, 12.4, 1.2, GLASS)
+            c.RR(-48, -33.4, 18, 10, 1.2, GLASS)
+            c.RR(-22, -33.4, 16, 10, 1.2, GLASS)
+            c.RR(2, -33.4, 14, 10, 1.2, GLASS)
+            c.R(28.4, -34.4, 9, 28, col.shade(0.9)); c.RR(30.2, -32.4, 5.4, 8, 0.8, GLASS); c.R(29.4, -6, 7, 1.6, trim)
+            // full-body paint and the basement doors
+            c.curve(-58, -12, -10, -17, 40, -30, 3, Col(0x7a4a2a))
+            c.curve(-58, -16.4, -10, -21, 40, -34, 1.2, GOLD)
+            c.curve(-58, -8.6, -10, -12, 58, -18, 1.4, Col(0x3a3230))
+            c.R(-52, -16, 78, 0.5, col.shade(0.72))
+            for i in 0..<5 { c.R(-52 + Double(i) * 16, -16, 0.5, 10.4, col.shade(0.72)) }
+            c.R(-50, -42.4, 74, 2.2, Col(0x9a4a3a))
+            c.RR(-34, -46.6, 13, 3.6, 1.2, Col(0xf7f7f4)); c.RR(8, -46.6, 13, 3.6, 1.2, Col(0xf7f7f4))
+            c.dome(-8, -43, 3.2, Col(0xf7f7f4))
+            c.seg(58.4, -33, 62.4, -31, 0.7, trim); c.RR(61.6, -33.4, 1.8, 5.4, 0.6, trim)
+            c.RR(57, -12.4, 2.2, 3, 0.7, lamp); c.RR(-59.3, -26, 1.3, 10, 0.4, tail)
+            c.R(54, -7, 5.4, 2, trim)
+            wheel(-30, 5.6); wheel(40, 5.6)
+            roof = -43.4; px0 = -52
         }
         if kind != .tent {
             for i in 0..<panels {
-                let x = px0 + Double(i) * 11
-                c.RR(x, roof - 1.8, 10, 1.8, 0.4, Col(0x1c2f6b))
-                c.R(x + 0.5, roof - 1.8, 9, 0.5, Col(0x7fa0e0, 0.8))
+                let x = px0 + Double(i) * 12
+                c.RR(x, roof - 1.6, 11, 1.8, 0.4, Col(0x1c2f6b))
+                c.R(x + 0.5, roof - 1.6, 10, 0.5, Col(0x7fa0e0, 0.8))
             }
         }
         c.restore()
-        if dark > 0.3 && kind != .tent { lights.append((cx, base - 12, 20)) }
+        if dark > 0.3 && kind != .tent { lights.append((cx, base - 12 * s, 22 * s)) }
     }
-    private func wheel(_ x: Double) {
-        c.circ(x, -3.2, 3.4, TIRE)
-        c.circ(x, -3.2, 1.4, HUB)
+    private func wheel(_ x: Double, _ r: Double) {
+        c.circ(x, -r, r + 1.3, Col(0x15120f))
+        c.circ(x, -r, r, TIRE)
+        c.circ(x, -r, r * 0.5, HUB)
+        c.circ(x, -r, r * 0.16, TIRE)
     }
 
     func person(_ x: Double, _ base: Double, _ look: Int, _ face: Double, _ ph: Double, _ moving: Bool) {
@@ -481,8 +571,8 @@ final class Renderer {
             c.poly(Col(0x3f6a8a), [x + 16, GY + 2, x + 17, GY - 8, x + 19, GY - 8, x + 20, GY - 2, x + 25, GY - 2, x + 25, GY + 2])
             top = 30
         case .fire:
-            rig(.minivan, x - 50, GY, 0, -1)
-            rig(.van, x + 56, GY, 1, 1)
+            rig(.minivan, x - 62, GY, 0, -1)
+            rig(.van, x + 70, GY, 1, 1)
             fire(x, GY + 3)
             person(x - 16, GY + 3, 1, 1, 0, false)
             person(x + 15, GY + 3, 3, -1, 0, false)
@@ -522,7 +612,7 @@ final class Renderer {
             for j in 0..<7 { gem(x - 26 + Double(j) * 8.6, GY - 11, 2.2 + hashN(Double(j) + 3) * 1.4, gems[j]) }
             top = 46
         case .skoolie:
-            rig(.skoolie, x - 34, GY, 2, -1)
+            rig(.skoolie, x - 58, GY, 2, -1)
             // a painted awning off the bus, a table of skulls, antlers and bottles, and prayer flags
             c.seg(x + 30, GY, x + 30, GY - 24, 1, Col(0x8a6238))
             c.poly(Col(0xb5452f), [x - 2, GY - 25, x + 32, GY - 23, x + 32, GY - 20, x - 2, GY - 22])
@@ -537,8 +627,8 @@ final class Renderer {
             skull(x + 17, GY - 10, 0.75)
             c.RR(x + 22, GY - 15, 2, 5, 0.6, Col(0x3f8f8a)); c.RR(x + 25.5, GY - 14, 2, 4, 0.6, Col(0xb5651d))
             person(x + 38, GY + 2, 1, -1, 0, false)
-            g.text("SKOOLIEPALOOZA", x - 20, GY - 44, 6.5, GOLD, bold: true)
-            g.text("Ehrenberg  ·  the nomad gathering", x - 20, GY - 37, 4, CREAM.alpha(0.9))
+            g.text("SKOOLIEPALOOZA", x - 30, GY - 54, 6.5, GOLD, bold: true)
+            g.text("Ehrenberg  ·  the nomad gathering", x - 30, GY - 47, 4, CREAM.alpha(0.9))
             top = 46
         case .swap:
             c.R(x - 16, GY - 9, 32, 9, Col(0x7a2f3a))
@@ -550,18 +640,18 @@ final class Renderer {
             g.text("FOR SALE", x - 20, GY - 21, 3.6, INK, bold: true)
             top = 34
         case .lot:
-            c.seg(x - 60, GY, x - 60, GY - 34, 1.2, Col(0xdddddd))
-            c.seg(x + 60, GY, x + 60, GY - 34, 1.2, Col(0xdddddd))
-            c.curve(x - 60, GY - 34, x, GY - 26, x + 60, GY - 34, 0.6, Col(0xffffff, 0.8))
+            c.seg(x - 72, GY, x - 72, GY - 58, 1.2, Col(0xdddddd))
+            c.seg(x + 72, GY, x + 72, GY - 58, 1.2, Col(0xdddddd))
+            c.curve(x - 72, GY - 58, x, GY - 50, x + 72, GY - 58, 0.6, Col(0xffffff, 0.8))
             let pen: [Col] = [Col(0xd9412e), Col(0xf2c14e), Col(0x3a6ea5), Col(0xf4f1ea)]
             for j in 0..<13 {
                 let f = (Double(j) + 0.5) / 13
-                let fx = x - 60 + f * 120
-                let fy = GY - 34 + 8 * (1 - (2 * f - 1) * (2 * f - 1))
+                let fx = x - 72 + f * 144
+                let fy = GY - 58 + 4 * (1 - (2 * f - 1) * (2 * f - 1))
                 c.poly(pen[j % 4], [fx - 2.4, fy, fx + 2.4, fy, fx, fy + 5 + sin(NOW * 3 + Double(j)) * 0.6])
             }
             if g.phase == .play, let nx = g.nextRig() { rig(nx, x + 4, GY, 0, -1) } else { rig(.classC, x + 4, GY, 0, -1) }
-            top = 50
+            top = 66
         }
         if sp.kind != .tools && sp.kind != .skoolie {
             g.text(sp.name, x, GY - top, 5, CREAM.alpha(near ? 1 : 0.75), bold: true)
@@ -683,7 +773,7 @@ final class Renderer {
         for i in 0..<2 {
             let x = l + Double(i) * (cw + 8)
             card(i, x, 17, cw, 36, g.life.rawValue == i)
-            rig(i == 0 ? .skoolie : .classC, x + 36, 49, i == 0 ? 1 : 0, 1)
+            rig(i == 0 ? .skoolie : .classC, x + 36, 48, i == 0 ? 1 : 0, 1, 0.56)
             g.text(lifeName[i], x + 74, 28, 9, CREAM, align: 1, bold: true)
             g.text(lifeSub[i], x + 74 + (cw - 80) / 2, 42, 4.6, CREAM.alpha(0.85), wrap: cw - 80)
         }
@@ -693,7 +783,7 @@ final class Renderer {
         for i in 0..<3 {
             let x = l + Double(i) * (rw + 8)
             card(10 + i, x, 70, rw, 42, g.pickRig == i)
-            rig(START_RIGS[i], x + 30, 106, 0, 1)
+            rig(START_RIGS[i], x + 29, 105, 0, 1, 0.74)
             let cash = Int(START_CASH[i]) + (g.life == .rver ? 100 : 0)
             g.text(RIGS[START_RIGS[i].rawValue].name, x + 57, 84, 6, CREAM, align: 1, bold: true)
             g.text("$\(cash) cash", x + 57, 96, 5.4, GOLD, align: 1)
