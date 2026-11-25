@@ -558,6 +558,7 @@ final class GameViewController: UIViewController {
             if args.contains("-demo-cut3") { demoMode = true; game.demo("day"); game.cut = [Beat(art: "vista", who: "coldcreek", head: "Cold Creek", cap: ARRIVE["coldcreek"] ?? "")] }
             if args.contains("-demo-cut") { demoMode = true; game.demo("day"); game.cut = [STORY["varney"]![0]] }
             if args.contains("-demo-cut2") { demoMode = true; game.demo("day"); game.cut = [Beat(art: "vista", who: "irongulch", head: "Iron Gulch", cap: ARRIVE["irongulch"] ?? "")] }
+            if args.contains("-demo-name") { demoMode = true; game.demo("day"); burnLogo.retitle("Iron Gulch", "Day 9"); logoOn = true; burnLogo.frozen = 0.45; burnLogo.reset(); burnLogo.ignite(after: 0) }
             if args.contains("-demo-cutshut") { demoMode = true; game.demo("day"); game.cut = [STORY["locked"]![0]] }
             if args.contains("-demo-cut4") { demoMode = true; game.demo("day"); game.cut = [STORY["end"]![4]] }
         }
