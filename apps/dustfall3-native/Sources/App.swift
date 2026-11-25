@@ -547,7 +547,7 @@ final class GameViewController: UIViewController {
         if !demoDone && sw > sh {
             demoDone = true
             let args = ProcessInfo.processInfo.arguments
-            for name in ["day", "night", "train", "snow", "storm", "map", "duel", "coach", "west", "west2", "fire", "yard", "over", "lv0", "lv1", "lv2", "lv3", "lv4", "lv5", "lv6", "lv7", "fort", "post", "mission", "see0", "see1", "see2", "see3", "see4", "see5", "see6", "see7", "see8", "see9"] where args.contains("-demo-" + name) { demoMode = true; game.demo(name) }
+            for name in ["day", "night", "train", "snow", "storm", "map", "duel", "coach", "west", "west2", "fire", "yard", "over", "lv0", "lv1", "lv2", "lv3", "lv4", "lv5", "lv6", "lv7", "fort", "post", "mission", "rally", "see0", "see1", "see2", "see3", "see4", "see5", "see6", "see7", "see8", "see9"] where args.contains("-demo-" + name) { demoMode = true; game.demo(name) }
             if args.contains("-demo-map") { showMap(choose: true) }
             if args.contains("-demo-intro") { game.beginIntro() }
             if args.contains("-demo-plain") { demoMode = true; game.demo("day"); plainInfo = true }
@@ -559,6 +559,7 @@ final class GameViewController: UIViewController {
             if args.contains("-demo-cut") { demoMode = true; game.demo("day"); game.cut = [STORY["varney"]![0]] }
             if args.contains("-demo-cut2") { demoMode = true; game.demo("day"); game.cut = [Beat(art: "vista", who: "irongulch", head: "Iron Gulch", cap: ARRIVE["irongulch"] ?? "")] }
             if args.contains("-demo-name") { demoMode = true; game.demo("day"); burnLogo.retitle("Iron Gulch", "Day 9"); logoOn = true; burnLogo.frozen = 0.45; burnLogo.reset(); burnLogo.ignite(after: 0) }
+            if args.contains("-demo-cutrun") { demoMode = true; game.demo("day"); game.cut = [STORY["end"]![0]] }
             if args.contains("-demo-cutshut") { demoMode = true; game.demo("day"); game.cut = [STORY["locked"]![0]] }
             if args.contains("-demo-cut4") { demoMode = true; game.demo("day"); game.cut = [STORY["end"]![4]] }
         }

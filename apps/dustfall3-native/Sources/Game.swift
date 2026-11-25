@@ -75,6 +75,8 @@ final class Game {
     var galleryDay = -1          // one go at the booth a day
     var unlocked = false         // the line past the first town has been bought
     var payAsk = false           // the train is held at the edge of town while the player is asked
+    var rallyOn = false          // the last town is marching on Crane, with you at its head
+    var endNow = false           // they have run him out: the ending plays
     var nameSeq = 0              // goes up each time you step off in a town, so its name can be shown
     /// Two coins on the counter: eight shots at a saloon full of things that answer when they are hit, as in the old arcade galleries.
     private func startGallery() {
@@ -646,7 +648,7 @@ final class Game {
             case "won": return duelWon
             case "varney": return bandits.contains { $0.boss && $0.st != 3 }
             case "storm": return wx == 3 && cloudI() > 0.7 && rainI() < 0.5
-            case "end": return st == 4 && star
+            case "end": return endNow
             default: return false
             }
         }
@@ -877,7 +879,8 @@ final class Game {
         dynamite = 0; loader = false; lantern = false; postSold = 0; scoutDays = 0; ruinCool = 0; rigLv = 0; rigBurn = false
         showOn = false; showUsed = false; oatsDay = 0; wind = 1; blown = false; string = 0; fortNight = false; cav = []
         mustangs = [Mustang(x: -540, seed: 0), Mustang(x: -150, seed: 1), Mustang(x: -360, seed: 2)]
-        b.append(hall); b.append(station); b.append(gateW); b.append(gateE); b.append(wireW); b.append(wireE); b.append(ticket)
+        // no railroad in the last town: the rails stop here
+        b.append(hall); if !lastTown { b.append(station) }; b.append(gateW); b.append(gateE); b.append(wireW); b.append(wireE); b.append(ticket)
         for bl in b { bl.scale = 1 + 0.12 * Double(town) }
         ticket.live = false
         train = nil; tripT = -1; fade = 0
@@ -889,7 +892,7 @@ final class Game {
         setCaps()
         side = bio == .canyon || chance(0.5) ? 1 : -1
         duskDone = false; raidOn = false; badgePaid = 0; pickPaid = 0; rackN = [:]; shake = 0; flash = 0
-        duelWon = false; storyRest = 0; dawnRows = []
+        duelWon = false; storyRest = 0; dawnRows = []; rallyOn = false; endNow = false
         info = ""; slotsFor = nil
     }
 
@@ -1159,6 +1162,13 @@ final class Game {
         if name == "fort" { px = sFort.x - 40 }
         if name == "post" { px = -60 }
         if name == "mission" { px = missionX + 40; pdir = -1 }
+        if name == "rally" {
+            place = "bitterend"; town = 4; log = ["dustfall", "redwater", "lasthope", "coldcreek"]; day = 36; day0 = 33; layTown()
+            t = 0.4; noStory = true; hintT = 0; seen.insert("rally")
+            px = gateE.x - 20; pdir = 1
+            for k in 0..<14 { folk.append(Folk(x: px - 20 - Double(k) * 7)) }
+            rallyOn = true
+        }
         if name.hasPrefix("see"), let n = Int(name.dropFirst(3)) {
             // a walk down the whole of the last town, a screen at a time, with everything built
             place = "bitterend"; town = 4; log = ["dustfall", "redwater", "lasthope", "coldcreek"]; day = 36; day0 = 33; layTown()
@@ -1242,6 +1252,7 @@ final class Game {
         updPlayer(dt)
         updCoins(dt)
         updFolk(dt)
+        updRally()
         updBuild(dt)
         updRaid(dt)
         updBandits(dt)
@@ -1631,6 +1642,16 @@ final class Game {
                 continue
             }
             f.hidden = bell && f.role != .deputy && abs(f.x - f.tx) < 4
+            if rallyOn {
+                // everyone falls in behind you, torches up, and keeps pace with the horse
+                let i = Double(folk.firstIndex { $0 === f } ?? 0)
+                f.tx = px - pdir * (18 + i * 7 + (f.seed.truncatingRemainder(dividingBy: 1)) * 3)
+                f.hidden = false
+                let d = f.tx - f.x
+                f.moving = abs(d) > 2
+                if f.moving { f.dir = d > 0 ? 1 : -1; f.x += f.dir * min(abs(d) * 3, 120) * dt; f.phase += dt * 13 }
+                continue
+            }
             switch f.role {
             case .deputy:
                 if night {
@@ -1939,7 +1960,7 @@ final class Game {
                 tr.wait -= dt
                 if tr.wait <= 0 && lastTown {
                     train = tr
-                    hint("railend", "End of the line. The rails stop here, and so does Crane. Raise every building here to its last level and he is finished.", again: true)
+                    hint("railend", "End of the line. The rails stop here, and so does Crane.", again: true)
                     onSave?()
                     return
                 }
@@ -1960,6 +1981,24 @@ final class Game {
         if tr.chuff <= 0 { tr.chuff = 1; sfx?.chuff(clampD(1 - abs(tr.x - px) / 500, 0.15, 1)); smoke(tr.x + 16) }
         if tr.x <= STOP + 0.5 { tr.x = STOP; tr.v = 0; tr.wait = 1.5; sfx?.whistle(); flash = 0.2 }
         train = tr
+    }
+
+    /// In the last town: gather enough townsfolk, then lead them out the east gate to run Crane off.
+    private func updRally() {
+        if !lastTown || endNow || seen.contains("st_end") { return }
+        if !rallyOn {
+            if folk.count >= RALLY_N && dark() < 0.4 && bandits.isEmpty && cut.isEmpty && duel == nil && gallery == nil {
+                rallyOn = true; buzz(2); sfx?.fanfare(); flash = 0.3
+                hint("rally", "Bitter End is with you. Ride out the east gate: they will follow you to Crane\u{2019}s yard.", again: true)
+            }
+            return
+        }
+        if dark() > 0.5 { rallyOn = false; return }          // they go home at dark and come out again in the morning
+        // sparks off the torches as they go
+        for f in folk where chance(0.05) { parts.append(Part(x: f.x - f.dir * 4, y: -24, vx: rnd(-8, 8), vy: -rnd(10, 30), life: 0.6, max: 0.6, c: Col(0xffb04a), s: 1, grav: 0)) }
+        if px > gateE.x + 180 && folk.filter({ $0.x > gateE.x }).count * 2 >= folk.count {
+            endNow = true; rallyOn = false
+        }
     }
 
     /// Bitter End is the end of the line: the train comes in, but goes no further.
@@ -1995,7 +2034,7 @@ final class Game {
         fade = 1
         let news = [1: "a stable and a bank", 2: "a bordello and a doctor", 3: "a church and a blacksmith", 4: "a telegraph office"]
         let extra = news[town].map { " This town has \($0) to open as well." } ?? ""
-        hint("arrive\(town)", "\(nice(townName)): \(here.land.lowercased()). \(here.note) You step off with \(carry) coins, and everything here is boarded up.\(extra)", again: true)
+        hint("arrive\(town)", "\(nice(townName)): \(here.land.lowercased()). \(here.note) You step off with \(carry) coins, and everything here is boarded up.\(extra)" + (lastTown ? " No train comes past here. Gather \(RALLY_N) townsfolk and run Crane out." : ""), again: true)
         onSave?()
     }
 
@@ -2489,6 +2528,10 @@ final class Game {
         if state != .play || over || !cut.isEmpty || gallery != nil || duel != nil || choosing { return "" }
         if dark() > 0.5 { return raidOn ? "Tonight: hold the gates until dawn." : "" }
         if folk.isEmpty { return "Next: toss a coin to a drifter at a campfire outside town." }
+        if lastTown && !seen.contains("st_end") {
+            if rallyOn { return "Lead them out the east gate to run Crane off." }
+            if folk.count >= RALLY_N / 2 { return "Townsfolk: \(folk.count) of \(RALLY_N). Gather \(RALLY_N) to run Crane out of Bitter End." }
+        }
         if rackN.values.contains(where: { $0 > 0 }) && !folk.contains(where: { $0.role == .folk && !$0.sick }) { return "Next: the racks are full but no townsman is free. Hire a drifter at a campfire." }
         let first: [Building] = [saloon, store, sheriff, gateW, gateE, stable, bankB]
         for bl in first where has(bl) && bl.level == 0 && !bl.building && bl.payable { return "Next: open the \(bl.label.lowercased()) (\(bl.cost) coins)." }

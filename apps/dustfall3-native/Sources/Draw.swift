@@ -67,6 +67,14 @@ final class Renderer {
             c.seg(x + tr.dir * 2, gy - 24, x + tr.dir * 9, gy - 29, 1, Col(0xc9c9d0))
         }
         for f in g.folk where !f.hidden { person(f.x, f.phase, f.dir, f.moving, f.seed, f.role, f.work) }
+        if g.rallyOn {
+            for (i, f) in g.folk.enumerated() where i % 2 == 0 && vis(f.x, 20) {
+                let tx = sx(f.x) + f.dir * 3, ty = gy - 22
+                c.R(tx - 0.5, ty, 1.2, 7, Col(0x4a3424))
+                c.glow(tx, ty - 2, 9, Col(0xffa040, 0.35), Col(0xffa040, 0))
+                c.poly(Col(0xff9a2e), [tx - 2, ty, tx, ty - 5 - sin(g.clock * 17 + f.x) * 1.5, tx + 2, ty]); c.poly(Col(0xffe08a), [tx - 1, ty, tx, ty - 2.5, tx + 1, ty])
+            }
+        }
         for cw in g.herd where cw.x > g.pasture.1 + 2 { cowAt(cw.x, cw.dir, cw.calf ? 0.6 : 1.0, cw.seed, cw.phase, horns: false) }
         for bn in g.bandits {
             // dust or a blizzard hides them until they are close
@@ -438,6 +446,46 @@ final class Renderer {
             if !lit && bt.who != "dustfall" { q(-22, 17, 42, 8, 0x6a231c); a.text("CRANE C. & R.", -1, 23.2, 5, Col(0xead7a4), fit: 38) }
             a.restore()
             motes(bio == .snow ? 34 : 12, bio == .snow ? 0xffffff : 0xfff3c4)
+        case "runout":
+            // dusk at the edge of town: a crowd with torches and pitchforks, and Crane's men riding off
+            a.translate(0, -12)
+            for i in 0..<11 { a.R(0, Double(i) * 9 - 12, 200, 9, Col.mix(Col(0x2a1a38), Col(0xe8743a), Double(i) / 10)) }
+            a.circ(150, 80, 14, Col(0xffa860)); a.circ(150, 80, 30, Col(0xffb060, 0.14))
+            a.poly(Col(0x6a2c2a), [0, 82, 0, 66, 40, 60, 90, 68, 140, 58, 200, 64, 200, 82])
+            q(0, 80, 200, 32, 0x5a3424)
+            // the riders going, small against the sun, dust behind them
+            for i in 0..<3 {
+                let rx = 136 + Double(i) * 14 + t * 6, ry = 78 - Double(i % 2)
+                q(rx - 5, ry - 4, 10, 3, 0x1c1210); q(rx + 4, ry - 6, 3, 2.5, 0x1c1210)
+                let gl = sin(t * 14 + Double(i)) * 1.5
+                q(rx - 4 + gl, ry - 1, 1, 3, 0x1c1210); q(rx + 3 - gl, ry - 1, 1, 3, 0x1c1210)
+                q(rx - 1, ry - 9, 2.4, 5, 0x1c1210); q(rx - 2, ry - 10, 4.4, 1, 0x1c1210)
+                for k in 0..<3 { a.circ(rx - 8 - Double(k) * 4, ry - 1, 1.5 + Double(k) * 0.6, Col(0xc89a6a, 0.4 - Double(k) * 0.1)) }
+            }
+            // the crowd, near and big, lit from their own torches
+            for i in 0..<16 {
+                let bx = 4 + Double(i) * 7 + hs(i) * 4, h = 15 + hs(i + 9) * 7, by = 92 + hs(i + 3) * 6
+                let bob = sin(t * 9 + Double(i) * 1.7) * 0.8
+                q(bx, by - h + bob, 5, h, 0x140c0a); a.circ(bx + 2.5, by - h - 2 + bob, 2.6, Col(0x140c0a))
+                if i % 3 == 0 { q(bx - 1, by - h - 5 + bob, 7, 1.4, 0x140c0a) }
+                if i % 2 == 0 {
+                    let tx = bx + 4, ty = by - h - 6 + bob
+                    q(tx, ty, 0.9, 7, 0x3a2414)
+                    a.circ(tx + 0.4, ty - 1, 7, Col(0xffa040, 0.16))
+                    a.poly(Col(0xff8a2a), [tx - 1.6, ty, tx + 0.4, ty - 5 - sin(t * 17 + Double(i)) * 1.4, tx + 2.4, ty]); a.poly(Col(0xffe08a), [tx - 0.6, ty, tx + 0.4, ty - 2.4, tx + 1.4, ty])
+                } else if i % 4 == 1 {
+                    q(bx + 4, by - h - 9 + bob, 0.8, 10, 0x3a2414); q(bx + 2.6, by - h - 10 + bob, 3.6, 0.8, 0x3a2414)
+                    for k in 0..<3 { q(bx + 2.6 + Double(k) * 1.4, by - h - 13 + bob, 0.6, 3, 0x3a2414) }
+                }
+            }
+            // you, out in front on the horse
+            let hx = 112 + sin(t * 2) * 1.5, hy = 96.0
+            q(hx - 9, hy - 9, 18, 6, 0x120a08); q(hx + 7, hy - 13, 6, 5, 0x120a08); q(hx + 11, hy - 11, 3, 3, 0x120a08)
+            let g2 = sin(t * 12) * 2
+            q(hx - 8 + g2, hy - 3, 1.6, 6, 0x120a08); q(hx - 4 - g2, hy - 3, 1.6, 6, 0x120a08); q(hx + 4 + g2, hy - 3, 1.6, 6, 0x120a08); q(hx + 8 - g2, hy - 3, 1.6, 6, 0x120a08)
+            q(hx - 2, hy - 19, 4, 10, 0x120a08); a.circ(hx, hy - 21, 2.6, Col(0x120a08)); q(hx - 4.5, hy - 23.5, 9, 1.4, 0x120a08); q(hx - 2, hy - 26, 4, 3, 0x120a08)
+            q(hx + 1, hy - 18, 6, 1.2, 0x120a08)
+            for k in 0..<10 { let u = (t * 0.6 + Double(k) * 0.1).truncatingRemainder(dividingBy: 1); q(20 + hs(k) * 100, 86 - u * 60, 1, 1, 0xffc070, 1 - u) }
         case "shut":
             // a bigger town down the line, dark at dusk, with the company's chain across the road
             let snow = (PLACES[bt.who]?.bio ?? .desert) == .snow

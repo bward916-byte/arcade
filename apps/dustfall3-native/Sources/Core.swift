@@ -498,7 +498,8 @@ let STORY: [String: [Beat]] = [
     "locked": [Beat(art: "shut", who: "irongulch", head: "Iron Gulch", cap: "Down the line the towns get bigger. A bank, a stable, a stage road, and Crane’s chain across the street."),
                Beat(art: "shut", who: "coldcreek", head: "Cold Creek", cap: "A church and a smithy under the snow. Nobody has rung that bell in years."),
                Beat(art: "shut", who: "bitterend", head: "Bitter End", cap: "Where the rails stop, Silas Crane is waiting. Seven towns stand shut between here and him.")],
-    "end": [Beat(art: "map", who: "all", head: "All five towns rebuilt", cap: "Every town stands again. There is nothing left for Crane to buy."),
+    "end": [Beat(art: "runout", head: "Run out of Bitter End", cap: "The whole town comes behind you with torches and shovels. Crane\u{2019}s men drop everything and ride."),
+            Beat(art: "map", who: "all", head: "The line is free", cap: "Every town you rebuilt still stands. There is nothing left for Crane to buy."),
             Beat(art: "wire", head: "On every wire", cap: "The telegraph carries it up and down the line: Crane is selling out.", lines: ["CRANE CATTLE AND RAIL", "ALL HOLDINGS FOR SALE", "THE COMPANY IS CLOSED"]),
             Beat(art: "eyes", who: "crane", head: "Silas Crane", cap: "He looks at Bitter End one last time, lit from end to end."),
             Beat(art: "train", head: "The night train", cap: "His private car goes east with the blinds drawn. He never comes back."),
@@ -535,6 +536,8 @@ struct Devil { var x: Double; var vx: Double; var t = 0.0; var life: Double; var
 /// 10 ace on the wall, 11 tossed silver dollar, 12 hat on the rack, 13 clock pendulum.
 /// Test builds carry the cheats: the coin button on the title, and a free unlock when the store has no product yet. False for the App Store.
 let TESTBUILD = true
+/// How many townsfolk it takes, in the last town, to run Crane out.
+let RALLY_N = 12
 /// The saloon is this many screens wide, and the view pans slowly across it.
 let GWIDE = 1.6
 struct GTarget {
