@@ -1258,7 +1258,7 @@ final class Renderer {
                 for q in [-3.4, -1.6, 1.8, 3.4] { c.seg(x + q, GY - 35, x + q, GY - 30.6, 0.7, cu) }
                 c.R(x - 6, GY - 10, 12, 5, Col(0x6a5040)); g.text("HI JOLLY", x, GY - 7.6, 2.6, CREAM, bold: true)
                 top = 52
-            } else {
+            } else if sp.arg == 1 {
                 // Reader's Oasis: the desert bookstore with tables of books out front
                 let wall = Col(0xe2d2b4)
                 c.R(x - 34, GY - 30, 68, 30, wall)
