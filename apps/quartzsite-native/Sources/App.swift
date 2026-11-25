@@ -88,7 +88,7 @@ final class GameViewController: UIViewController {
     private var holdTouch: UITouch?
     private let tapLight = UIImpactFeedbackGenerator(style: .light)
     private let tapDone = UINotificationFeedbackGenerator()
-    private let saveKey = "quartzsite.native.save"
+    private let saveKey = "quartzsite.native.save2"
 
     override var prefersStatusBarHidden: Bool { return true }
     override var prefersHomeIndicatorAutoHidden: Bool { return true }
@@ -140,7 +140,7 @@ final class GameViewController: UIViewController {
         renderer = Renderer(game: game, canvas: cv)
         if !demoDone {
             demoDone = true
-            for key in ["pick", "rigs", "play", "night", "show", "skoolie", "lot"] where ProcessInfo.processInfo.arguments.contains("-demo-" + key) {
+            for key in ["pick", "rigs", "play", "night", "ltva", "town", "show", "lot", "dome", "toys", "ride", "skoolie"] where ProcessInfo.processInfo.arguments.contains("-demo-" + key) {
                 game.demo(key)
             }
         }
@@ -194,7 +194,7 @@ final class GameViewController: UIViewController {
             }
             // a tap on your glowing rig climbs in or out
             var onRig = false
-            for h in game.hits where h.id == 50 && gx >= h.x && gx <= h.x + h.w && gy >= h.y && gy <= h.y + h.h { onRig = true }
+            for h in game.hits where h.id >= 50 && gx >= h.x && gx <= h.x + h.w && gy >= h.y && gy <= h.y + h.h { onRig = true }
             if onRig {
                 game.tap(gx, gy)
                 continue
