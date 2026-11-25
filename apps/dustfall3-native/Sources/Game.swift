@@ -217,6 +217,30 @@ final class Game {
     }
 
     // ---------- something in the sky, and something on the old line
+    var devils: [Devil] = []
+    var gust = 0.0                 // seconds left of a dust squall blowing through
+    /// Dry country by day: dust devils wander through, and now and then a squall of dust crosses in a few seconds.
+    private func updDust(_ dt: Double) {
+        let dry = (bio == .desert || bio == .canyon) && wx == 0 && dark() < 0.5
+        if gust > 0 { gust -= dt }
+        var i = 0
+        while i < devils.count {
+            devils[i].t += dt; devils[i].x += devils[i].vx * dt
+            if chance(dt * 8) { parts.append(Part(x: devils[i].x + rnd(-4, 4), y: 0, vx: rnd(-20, 20), vy: -rnd(10, 40), life: 0.6, max: 0.6, c: Col(terrain.dust, 0.6), s: rnd(1, 2.2), grav: 30)) }
+            if devils[i].t > devils[i].life { devils.remove(at: i) } else { i += 1 }
+        }
+        if !dry || !cut.isEmpty || duel != nil { return }
+        if devils.count < 2 && chance(dt / 14) {
+            let fromLeft = chance(0.5)
+            devils.append(Devil(x: fromLeft ? cam + rnd(10, W * 0.4) : cam + rnd(W * 0.6, W - 10), vx: (fromLeft ? 1 : -1) * rnd(10, 26), life: rnd(7, 13), big: chance(0.35)))
+        }
+        if gust <= 0 && chance(dt / 75) {
+            gust = 7
+            sfx?.whoosh()
+            hint("gust", "A dust squall. It blows through in a moment.")
+        }
+    }
+
     private func updUfo(_ dt: Double) {
         guard var u = ufo else {
             if ufoAt > 0 && t > ufoAt && dark() > 0.8 && wx == 0 && cut.isEmpty {
@@ -997,6 +1021,18 @@ final class Game {
         start()
         noStory = true
         hintT = 0
+        // lv0 to lv7: each town on the line, opened up, for a picture of every one
+        let stops: [(String, Int, [String])] = [("dustfall", 0, []), ("redwater", 1, ["dustfall"]), ("irongulch", 1, ["dustfall"]), ("lasthope", 2, ["dustfall", "redwater"]), ("timberline", 2, ["dustfall", "irongulch"]), ("coldcreek", 3, ["dustfall", "redwater", "lasthope"]), ("silverpeak", 3, ["dustfall", "irongulch", "timberline"]), ("bitterend", 4, ["dustfall", "redwater", "lasthope", "coldcreek"])]
+        if name.hasPrefix("lv"), let n = Int(name.dropFirst(2)), n >= 0, n < stops.count {
+            place = stops[n].0; town = stops[n].1; log = stops[n].2
+            day = 4 + town * 9; day0 = day - 4
+            layTown()
+            if town >= 1 { stable.level = 1; bankB.level = 1 }
+            if town >= 2 { bordello.level = 1; doctor.level = 1 }
+            if town >= 3 { church.level = 1; forge.level = 1 }
+            if town >= 4 { telegraph.level = 1 }
+            t = 0.3
+        }
         if name == "duel" { day = 5; t = 0.4 }
         if name == "west" { day = 6; t = 0.35 }
         if name == "map" { town = 2; place = "timberline"; log = ["dustfall", "redwater"]; day = 20; day0 = 16; layTown(); stable.level = 1; bordello.level = 1; px = 1500; choosing = false }
@@ -1010,6 +1046,8 @@ final class Game {
         for i in 0..<6 { let f = Folk(x: 1180 + Double(i) * 46); folk.append(f) }
         folk[0].role = .deputy; folk[1].role = .deputy; folk[2].role = .miner
         coins = 14; px = 1330; pdir = 1
+        if name == "lv0" || name == "lv2" { devils = [Devil(x: 1420, vx: 6, t: 3, life: 30, big: true), Devil(x: 1250, vx: -4, t: 2, life: 30, big: false)] }
+        if name == "lv3" { gust = 12 }
         if name == "night" {
             day = 5; t = 0.8; duskDone = true; raidOn = true; side = 1
             px = 1880; pdir = 1
@@ -1136,6 +1174,7 @@ final class Game {
         updShots(dt)
         updHerd(dt)
         updWx(dt)
+        updDust(dt)
         updCoach(dt)
         updCav(dt)
         updFires(dt)

@@ -2321,6 +2321,17 @@ final class Renderer {
             for (fk, r, col, al) in fl { c.circ(sxp + ax * fk, syp + ay * fk, r, Col(col, al * (1 - dk / 0.3))) }
             c.blend(.normal)
         }
+        // a dust squall: the air goes the colour of the ground, and streaks of grit cross the picture
+        if g.gust > 0 {
+            let k = sin(clampD(1 - g.gust / 7, 0, 1) * PI)
+            c.R(0, 0, W, H, Col(g.terrain.dust, 0.36 * k))
+            for i in 0..<46 {
+                var x = (hashN(Double(i) * 5.3) * (W + 80) - g.clock * (190 + hashN(Double(i)) * 160)).truncatingRemainder(dividingBy: W + 80)
+                if x < 0 { x += W + 80 }
+                let y = hashN(Double(i) * 9.7) * H
+                c.seg(x - 40, y, x - 40 + 14 + hashN(Double(i) * 2) * 22, y - 1.5, 0.8, Col(0xfff0d0, 0.3 * k))
+            }
+        }
         // cloud shadows drifting over the ground
         if dk < 0.5 {
             for i in 0..<2 {
@@ -2348,6 +2359,27 @@ final class Renderer {
 
     /// Things the wind carries: tumbleweeds over dry ground, and dust hanging in the daylight.
     private func drifting(_ dk: Double) {
+        // dust devils: a leaning funnel of spinning dust, small or tall, with whatever it has picked up
+        for d in g.devils where vis(d.x, 30) {
+            let k = sin(min(1, d.t / d.life) * PI)
+            let hgt = (d.big ? 52.0 : 24.0) * (0.4 + 0.6 * k), x0 = sx(d.x)
+            let n = d.big ? 14 : 9
+            for j in 0..<n {
+                let u = Double(j) / Double(n - 1)
+                let y = gy - u * hgt
+                let sway = sin(g.clock * 2.2 + u * 3 + d.x * 0.05) * (2 + u * (d.big ? 7 : 4))
+                let rw = (d.big ? 3.0 : 2.0) + u * u * (d.big ? 11 : 6)
+                let spin = sin(g.clock * 9 + Double(j) * 1.3) * rw * 0.35
+                c.ell(x0 + sway + spin, y, rw, 1.3 + u * 1.2, Col(g.terrain.dust, (0.36 - u * 0.2) * k))
+                c.ellStroke(x0 + sway - spin, y, rw * 0.8, 1 + u, 0.5, Col(0xffffff, 0.1 * k))
+            }
+            for j in 0..<(d.big ? 10 : 5) {
+                let a = g.clock * (5 + Double(j % 3)) + Double(j) * 2.1, u = hashN(Double(j) * 3.3 + 0.2)
+                let rw = 3 + u * (d.big ? 12 : 6)
+                c.R(x0 + cos(a) * rw + sin(g.clock * 2.2 + u * 3 + d.x * 0.05) * (2 + u * 5), gy - u * hgt + sin(a) * 1.5, 1, 1, Col(0x5a4a38, 0.7 * k))
+            }
+            c.ell(x0, gy + 0.6, d.big ? 9 : 5, 1.4, Col(g.terrain.dust, 0.4 * k))
+        }
         if (g.bio == .desert || g.bio == .canyon) && !g.flooded {
             for i in 0..<2 {
                 let sp = 26.0 + Double(i) * 11 + (g.storm ? 45 : 0)

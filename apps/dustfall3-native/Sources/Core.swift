@@ -520,6 +520,9 @@ let HLIFT = 3.5
 let PSCALE = 1.3
 
 /// A target in the shooting gallery: 0 a tin duck, 1 a bottle, 2 a star. `hit` counts up from the moment it is knocked down.
+/// A dust devil: a spinning funnel that wanders the dry country for a few seconds and falls apart.
+struct Devil { var x: Double; var vx: Double; var t = 0.0; var life: Double; var big: Bool }
+
 struct GTarget {
     var x: Double
     let row: Int
