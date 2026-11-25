@@ -37,6 +37,8 @@ final class Game {
     var tripT = -1.0            // seconds since the train pulled out with you on it; under 0 when you are not aboard
     var fade = 0.0
     var onSave: (() -> Void)?
+    var onBuzz: ((Int) -> Void)?       // 0 a tick, 1 a knock, 2 a thump
+    private func buzz(_ n: Int) { onBuzz?(n) }
     var place = "dustfall"      // which of the places at this stage of the line
     var log: [String] = []      // the places behind you, in order
     var choosing = false        // the train has stopped at a fork and is waiting for you to pick
@@ -1318,14 +1320,14 @@ final class Game {
                 dynamite -= 1; gunCD = 0.7; gunT = 0.16
                 for bn in bandits where abs(bn.x - tg.x) < 46 { hurt(bn, 4) }
                 for _ in 0..<26 { parts.append(Part(x: tg.x + rnd(-10, 10), y: -rnd(0, 14), vx: rnd(-70, 70), vy: -rnd(20, 90), life: rnd(0.4, 1), max: 1, c: chance(0.5) ? Col(0xffb040) : Col(0x4a4038), s: rnd(2, 4.5), grav: 120)) }
-                sfx?.thunder(1); shake = 1.4; flash = 0.5
+                sfx?.thunder(1); buzz(2); shake = 1.4; flash = 0.5
                 hint("boom", dynamite > 0 ? "Dynamite! \(dynamite) left." : "Dynamite! That was your last stick.", again: true)
                 return
             }
         }
         ammo -= 1; gunCD = 0.28; gunT = 0.14
         shots.append(Shot(x: px + pdir * 12, y: -20, vx: pdir * 300, life: 0.5, mine: true))
-        sfx?.gun(1); shake = max(shake, 0.4)
+        sfx?.gun(1); shake = max(shake, 0.4); buzz(1)
         parts.append(Part(x: px + pdir * 14, y: -20, vx: pdir * 20, vy: -6, life: 0.25, max: 0.25, c: Col(0xfff0b0), s: 2.5, grav: 0))
         if ammo == 0 { reloadT = Double(max(1, 5 - store.level - (loader ? 2 : 0))); reloadMax = reloadT }      // every level of the store takes a second off
     }
@@ -1347,7 +1349,7 @@ final class Game {
                 if g.y <= 0 { g.y = 0; if g.vy < -40 { g.vy = -g.vy * 0.35 } else { g.vy = 0; g.vx = 0 } }
             }
             if g.age > 0.45 && abs(g.x - px) < 13 {
-                coins += 1; sfx?.pick(); ground.remove(at: i); continue
+                coins += 1; sfx?.pick(); buzz(0); ground.remove(at: i); continue
             }
             ground[i] = g
             i += 1
@@ -1443,7 +1445,7 @@ final class Game {
             bank += 1; sfx?.slot(); bankB.flash = 0.2
             hint("deposit", "Banked. Raiders cannot knock banked coins out of you, and the bank pays 1 a day for every 8 inside, up to 3.")
         case 4:
-            coins += 1; sfx?.pick()
+            coins += 1; sfx?.pick(); buzz(0)
         default:
             ground.append(GCoin(x: c.tx, y: 0, vx: 0, vy: 0, age: 0))
         }
@@ -1570,6 +1572,7 @@ final class Game {
         }
         if bl.progress >= 1 {
             bl.building = false; bl.progress = 0; bl.level += 1
+            buzz(2)
             if bl.def.gate { bl.hp = GHP[min(bl.level, 3)] }
             sfx?.fanfare(); flash = 0.4
             puff(bl.cx, -bl.def.h / 2, 16, GOLD, 50)
@@ -1643,27 +1646,38 @@ final class Game {
         duskDone = false; raidOn = false; raid = []
         for bn in bandits { bn.st = 3 }
         var total = 0
+        var paid: [String] = []          // what each source paid this morning, for the dawn line
         for bl in b where bl.def.pay > 0 && bl.level > 0 {
-            if bl.robbed { bl.robbed = false; continue }
+            if bl.robbed { bl.robbed = false; paid.append("\(bl.def.name.lowercased()) robbed"); continue }
             let n = max(1, bl.def.pay * bl.level - (day - day0 > 2 ? 1 : 0))
             for _ in 0..<n { dropCoin(bl.x + bl.def.doorX + bl.def.doorW / 2, 10) }
             total += n
+            paid.append("\(bl.def.name.lowercased()) \(n)")
         }
         let plain = folk.filter { $0.role == .folk }.count
         for _ in 0..<(plain / 2) { dropCoin(FIRE_X + rnd(-20, 20), 6); total += 1 }
+        if plain / 2 > 0 { paid.append("townsfolk \(plain / 2)") }
+        let diggers = folk.filter { $0.role == .miner }.count
         for f in folk where f.role == .miner { dropCoin(store.x + 30, 8); total += 1; f.wait = 0 }
-        if town > 0 { bank += min(3 * bankB.level, bank / 8) }
+        if diggers > 0 { paid.append("mine \(diggers)") }
+        if town > 0 {
+            let interest = min(3 * bankB.level, bank / 8)
+            bank += interest
+            if interest > 0 { paid.append("bank interest \(interest), kept in the bank") }
+        }
         // each grown cow pays 2 coins, and last night's calves are grown
         let p = pasture
         if ground.filter({ $0.x > p.0 - 20 && $0.x < p.1 + 20 }).count < 12 {
+            let before = total
             for cw in herd where !cw.calf { dropCoin(cw.x, 4); dropCoin(cw.x, 4); total += 2 }
+            if total > before { paid.append("cattle \(total - before)") }
         }
         for i in herd.indices { herd[i].calf = false }
         // the claim pays at dawn, unless raiders came by from the west and nobody was guarding it
         var note = ""
         if claim.level > 0 {
             if claim.level < 2 && raided && side < 0 { note = " Raiders from the west cleaned out the claim overnight; a hired gun would keep it safe." }
-            else { let n = claim.level > 1 ? 7 : 4; for _ in 0..<n { dropCoin(claim.cx, 5) }; total += n }
+            else { let n = claim.level > 1 ? 7 : 4; for _ in 0..<n { dropCoin(claim.cx, 5) }; total += n; paid.append("claim \(n)") }
         }
         raided = false
         // out of town: the scouts' days run down, the ruins settle, the derrick pays, the show comes and goes
@@ -1677,14 +1691,14 @@ final class Game {
         ghostX = nil; ufo = nil
         ufoAt = day - day0 >= 2 && chance(0.36) ? rnd(0.8, 0.93) : 0
         ghostAt = chance(0.4) ? rnd(0.82, 0.96) : 0
-        if rigLv > 0 && !rigBurn { for _ in 0..<rigPay { dropCoin(FIRE_X + rnd(-12, 12), 6) }; total += rigPay }
+        if rigLv > 0 && !rigBurn { for _ in 0..<rigPay { dropCoin(FIRE_X + rnd(-12, 12), 6) }; total += rigPay; paid.append("oil \(rigPay)") }
         let lnW = day - day0
         showOn = lnW >= 2 && lnW % 4 == 2; showUsed = false
         if showOn { note += " A medicine show has pulled up west of town. He is gone by morning." }
         mustangs.removeAll { $0.st == 3 }
         if lnW % 2 == 0 && mustangs.count < 3 { let r = mustangRange; mustangs.append(Mustang(x: rnd(r.0 + 20, r.1 - 20), seed: rnd(0, 100))) }
         // the stage line settles up, the wash drains, and the day's news
-        if owed > 0 { for _ in 0..<owed { dropCoin(coachSlot.x + 19, 6) }; total += owed; owed = 0 }
+        if owed > 0 { for _ in 0..<owed { dropCoin(coachSlot.x + 19, 6) }; total += owed; paid.append("stage line \(owed)"); owed = 0 }
         if flood > 0 && flood < day && bio != .snow {
             flood = 0
             for _ in 0..<(5 + town) { ground.append(GCoin(x: rnd(river.0 + 2, river.1 - 2), y: 0, vx: 0, vy: 0, age: 1)) }
@@ -1729,8 +1743,8 @@ final class Game {
         }
         side = bio == .canyon || chance(0.5) ? 1 : -1       // a canyon has one way in, from the east
         note += rollWx()
-        sfx?.dawn()
-        hint("dawn\(day)", total > 0 ? "Day \(day). The town paid out \(total) coins this morning: ride past to pick them up.\(note)" : "Day \(day). Nothing paid out this morning. Open the store or the saloon.\(note)", again: true)
+        sfx?.dawn(); buzz(1)
+        hint("dawn\(day)", total > 0 ? "Day \(day). This morning: \(paid.joined(separator: ", ")). \(total) coins in all: ride past to pick them up.\(note)" : "Day \(day). Nothing paid out this morning. Open the store or the saloon.\(note)", again: true)
         onSave?()
     }
 
@@ -1899,7 +1913,7 @@ final class Game {
                 bn.t += dt
                 if bn.t > 2.4, let tg = bn.target {
                     if !tg.robbed && tg.level > 0 {
-                        tg.robbed = true; bn.loot = 2; sfx?.rob(); hint("robbed", "A raider robbed a business. It will pay nothing in the morning unless you shoot him before he gets away.", again: true)
+                        tg.robbed = true; bn.loot = 2; sfx?.rob(); buzz(2); hint("robbed", "A raider robbed a business. It will pay nothing in the morning unless you shoot him before he gets away.", again: true)
                         if bn.torch && rainI() < 0.3 { setFire(tg, "A torch has set") }
                     }
                     bn.st = 3
@@ -2281,6 +2295,24 @@ final class Game {
             i += 1
         }
         if parts.count > 260 { parts.removeFirst(parts.count - 260) }
+    }
+
+    /// One line of advice: the next useful thing to spend on.
+    func advice() -> String {
+        if state != .play || over || !cut.isEmpty || gallery != nil || duel != nil || choosing { return "" }
+        if dark() > 0.5 { return raidOn ? "Tonight: hold the gates until dawn." : "" }
+        if folk.isEmpty { return "Next: toss a coin to a drifter at a campfire outside town." }
+        let first: [Building] = [saloon, store, sheriff, gateW, gateE, stable, bankB]
+        for bl in first where has(bl) && bl.level == 0 && !bl.building && bl.payable { return "Next: open the \(bl.label.lowercased()) (\(bl.cost) coins)." }
+        if sheriff.level > 0 && !sheriff.building && !folk.contains(where: { $0.role == .deputy }) { return "Next: a badge from the rack beside the sheriff's makes a deputy (1 coin)." }
+        if store.level > 0 && !store.building && !folk.contains(where: { $0.role == .miner }) { return "Next: a pick from the rack beside the store makes a prospector (1 coin)." }
+        if b.contains(where: { $0.building }) { return "" }
+        if hall.payable { return "Next: improve the town centre (\(hall.cost) coins), so buildings can grow." }
+        let open = b.filter { !$0.virt && !$0.site && $0.payable }
+        if let bl = open.filter({ $0.level == 0 }).min(by: { $0.cost < $1.cost }) { return "Next: open the \(bl.label.lowercased()) (\(bl.cost) coins)." }
+        if let bl = open.min(by: { $0.cost < $1.cost }) { return "Next: improve the \(bl.label.lowercased()) (\(bl.cost) coins)." }
+        if star { return "Next: the town has its star. Take the train on when you are ready." }
+        return ""
     }
 
     /// The line at the bottom of the screen: what the rider is standing at.

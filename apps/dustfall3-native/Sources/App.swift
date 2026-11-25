@@ -42,6 +42,10 @@ final class GameViewController: UIViewController {
     private let ammoView = AmmoView()
     private let dayLabel = UILabel()
     private let hint = PadLabel()
+    private let adviceLabel = PadLabel()
+    private let hapLight = UIImpactFeedbackGenerator(style: .light)
+    private let hapMedium = UIImpactFeedbackGenerator(style: .medium)
+    private let hapHeavy = UIImpactFeedbackGenerator(style: .heavy)
     private let info = PadLabel()
     private var plainInfo = false
     private let menuBtn = UIButton(type: .system)
@@ -248,6 +252,16 @@ final class GameViewController: UIViewController {
         coinBtn.addSubview(coinIcon)
         view.addSubview(coinBtn)
         game.onSave = { [weak self] in self?.saveGame() }
+        game.onBuzz = { [weak self] n in
+            guard let me = self else { return }
+            (n == 0 ? me.hapLight : (n == 1 ? me.hapMedium : me.hapHeavy)).impactOccurred()
+        }
+        pill(adviceLabel, 12)
+        adviceLabel.textAlignment = .left
+        adviceLabel.backgroundColor = UIColor(red: 0.16, green: 0.1, blue: 0.06, alpha: 0.6)
+        adviceLabel.layer.borderWidth = 0
+        adviceLabel.isHidden = true
+        view.addSubview(adviceLabel)
 
         pill(purse, 17); pill(folkLabel, 15); pill(ammoLabel, 15); pill(dayLabel, 15)
         pill(hint, 15); pill(info, 14)
@@ -1025,7 +1039,7 @@ final class GameViewController: UIViewController {
         for v in [purse, folkLabel, ammoLabel, ammoView, dayLabel, menuBtn, stickRing, knob, fireBtn, coinBtn] as [UIView] { v.isHidden = !playing }
         fireBtn.alpha = tFire ? 1 : 0.8
         coinBtn.alpha = tToss ? 1 : 0.8
-        if !playing { hint.isHidden = true; info.isHidden = true; return }
+        if !playing { hint.isHidden = true; info.isHidden = true; adviceLabel.isHidden = true; return }
         set(purse, "\u{25CF} \(game.coins)" + (game.bank > 0 ? " +\(game.bank)" : ""))
         set(folkLabel, "Folk \(game.folk.count)")
         let rk = game.reloadT > 0 ? 1 - game.reloadT / max(0.1, game.reloadMax) : -1
@@ -1034,6 +1048,14 @@ final class GameViewController: UIViewController {
         let wn = game.cloudI() > 0.2 || game.wx == 1 || (game.wx == 2) ? game.wxName() : ""
         set(dayLabel, wn.isEmpty ? "Day \(game.day)" + (tm.isEmpty ? "" : ", " + tm) : "Day \(game.day), \(wn.lowercased())")
         hint.isHidden = game.hintT <= 0 || userPaused
+        // the next thing worth doing, shown small under the purse whenever no message is up
+        let adv = hint.isHidden && !userPaused ? game.advice() : ""
+        adviceLabel.isHidden = adv.isEmpty
+        if !adv.isEmpty && adviceLabel.text != adv {
+            adviceLabel.text = adv
+            let aw = min(view.bounds.width * 0.6, adviceLabel.sizeThatFits(CGSize(width: 600, height: 24)).width + 4)
+            adviceLabel.frame = CGRect(x: purse.frame.minX, y: purse.frame.maxY + 6, width: aw, height: 22)
+        }
         if game.hintT > 0 && hint.text != game.hintText {
             // the box grows to fit what it has to say
             hint.text = game.hintText

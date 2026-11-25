@@ -85,6 +85,7 @@ final class Renderer {
         night(dk)
         skyThings()
         weather(dk)
+        finish(dk, dusk)
         duelBars()
         slots()
         // a vignette and a little grain over the whole picture
@@ -2302,6 +2303,46 @@ final class Renderer {
         for p in g.parts {
             let a = clampD(p.life / p.max, 0, 1)
             c.R(sx(p.x) - p.s / 2, gy + p.y - p.s, p.s, p.s, p.c.alpha(p.c.a * a))
+        }
+    }
+
+    /// The last touches over the whole scene: the colour of the hour, the sun in the lens, and things passing close to the eye.
+    private func finish(_ dk: Double, _ dusk: Double) {
+        // the hour tints everything: gold toward evening, blue before dawn
+        if dusk > 0.02 { c.R(0, 0, W, H, Col(0xff7a2a, 0.11 * dusk * (1 - dk))) }
+        if g.t < 0.12 { c.R(0, 0, W, H, Col(0x6a8ad0, 0.1 * (1 - g.t / 0.12))) }
+        // by day the sun flares in the glass: a string of pale discs from it through the middle of the picture
+        let u = (g.t - 0.02) / 0.74
+        if u > 0 && u < 1 && dk < 0.3 && g.cloudI() < 0.3 && g.wx != 3 {
+            let sxp = W * (0.08 + 0.84 * u), syp = gy - sin(u * PI) * gy * 0.82 + 6
+            let ax = W / 2 - sxp, ay = H * 0.5 - syp
+            let fl: [(Double, Double, UInt32, Double)] = [(0.45, 5, 0xffe0a0, 0.10), (0.8, 9, 0xa0d8ff, 0.07), (1.25, 4, 0xffc0a0, 0.10), (1.6, 13, 0xfff0c0, 0.05), (1.95, 6, 0xa0ffd0, 0.06)]
+            c.blend(.plusLighter)
+            for (fk, r, col, al) in fl { c.circ(sxp + ax * fk, syp + ay * fk, r, Col(col, al * (1 - dk / 0.3))) }
+            c.blend(.normal)
+        }
+        // cloud shadows drifting over the ground
+        if dk < 0.5 {
+            for i in 0..<2 {
+                var x = (g.clock * (5 + Double(i) * 3) + Double(i) * 260 - g.cam * 0.9).truncatingRemainder(dividingBy: W + 260)
+                if x < 0 { x += W + 260 }
+                c.ell(x - 130, gy + 8 + Double(i) * 6, 90 + Double(i) * 30, 5, Col(0x000000, 0.07 * (1 - dk * 2)))
+            }
+        }
+        // things close to the eye slide past faster than the street: fence posts, weeds, a cactus, dark and soft
+        let near = Col.mix(Col(0x2a1c14), Col(0x05060c), dk)
+        let off = g.cam * 1.5
+        var k = floor(off / 150) - 1
+        while k * 150 - off < W + 40 {
+            let x = k * 150 - off + hashN(k * 3.7) * 90, r = hashN(k * 9.1)
+            if r < 0.3 {
+                c.R(x, H - 15, 3.4, 15, near.alpha(0.85)); c.R(x - 14, H - 11, 30, 2, near.alpha(0.85)); c.R(x - 14, H - 6, 30, 2, near.alpha(0.85)); c.R(x + 22, H - 13, 3, 13, near.alpha(0.85))
+            } else if r < 0.6 {
+                for j in 0..<5 { let bx2 = x + Double(j) * 3, sw = sin(g.clock * 1.6 + Double(j) + k) * 1.5; c.seg(bx2, H, bx2 + sw + Double(j - 2) * 1.5, H - 8 - hashN(k + Double(j)) * 7, 1.2, near.alpha(0.8)) }
+            } else if r < 0.72 && (g.bio == .desert || g.bio == .canyon) {
+                c.RR(x, H - 20, 5, 20, 2.5, near.alpha(0.85)); c.RR(x - 6, H - 14, 4, 8, 2, near.alpha(0.85)); c.R(x - 6, H - 8, 8, 3, near.alpha(0.85)); c.RR(x + 7, H - 17, 4, 9, 2, near.alpha(0.85)); c.R(x + 3, H - 10, 8, 3, near.alpha(0.85))
+            }
+            k += 1
         }
     }
 
