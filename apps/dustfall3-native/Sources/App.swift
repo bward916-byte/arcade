@@ -371,6 +371,7 @@ final class GameViewController: UIViewController {
         crewBtn.addTarget(self, action: #selector(openCrew), for: .touchUpInside)
         style(townsBtn, "Towns", primary: false)
         townsBtn.addTarget(self, action: #selector(openTowns), for: .touchUpInside)
+        townsBtn.isHidden = !TESTBUILD      // a testing tool: free to use, and gone from the App Store build
         for pl in [pausePlaque, overPlaque] {
             pl.backgroundColor = UIColor(red: 0.17, green: 0.11, blue: 0.07, alpha: 0.96)
             pl.layer.cornerRadius = 12
@@ -826,7 +827,6 @@ final class GameViewController: UIViewController {
     }
 
     @objc private func jumpTown(_ b: UIButton) {
-        if b.tag > 0 && !game.unlocked { showPay(); return }
         closeMenu()
         game.jump(b.tag)
         last = 0
