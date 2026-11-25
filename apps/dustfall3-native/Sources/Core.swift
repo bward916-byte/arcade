@@ -137,7 +137,7 @@ let DEFS: [BType: Def] = [
     .forge: Def(name: "SMITHY", w: 60, h: 36, cost: [9, 14, 22], pay: 0, wall: 0x6e5a4a, trim: 0x2e2622, roof: 0x2e2622, sign: 0x2e2622, ink: 0xe89a4a, doorX: 34, doorW: 18, wins: [(7, 16)], gate: false),
     .telegraph: Def(name: "TELEGRAPH", w: 62, h: 36, cost: [8, 14], pay: 0, wall: 0xc9b98a, trim: 0x4a5a6a, roof: 0x3a4652, sign: 0xe8e2d2, ink: 0x2f3a46, doorX: 42, doorW: 13, wins: [(7, 26)], gate: false),
     // the town centre: campfire, then a square, then a clock tower
-    .hall: Def(name: "TOWN CENTRE", w: 26, h: 14, cost: [12, 25, 40], pay: 0, wall: 0, trim: 0, roof: 0, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: false),
+    .hall: Def(name: "TOWN CENTRE", w: 26, h: 14, cost: [12, 20, 28], pay: 0, wall: 0, trim: 0, roof: 0, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: false),
     // outside each gate: barbed wire, a second apron that cuts, then a sharpshooter's nest
     .wireW: Def(name: "BARBED WIRE", w: 30, h: 10, cost: [6, 10, 16], pay: 0, wall: 0, trim: 0, roof: 0, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: false),
     .wireE: Def(name: "BARBED WIRE", w: 30, h: 10, cost: [6, 10, 16], pay: 0, wall: 0, trim: 0, roof: 0, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: false),
@@ -194,7 +194,9 @@ final class Building {
     var rcd = 0.0
     var dyn = -1              // a site's price right now; under 0 for an ordinary building
     var site: Bool { return dyn >= 0 }
-    var cost: Int { return dyn >= 0 ? dyn : (level < maxLevel ? Int((Double(def.cost[level]) * scale).rounded(.up)) : 0) }
+    /// Nothing in any town ever costs more than this.
+    static let capCost = 30
+    var cost: Int { return dyn >= 0 ? dyn : (level < maxLevel ? min(Building.capCost, Int((Double(def.cost[level]) * scale).rounded(.up))) : 0) }
     var payable: Bool { return dyn >= 0 ? live && dyn > 0 : live && level < min(maxLevel, capL) && !building }
 }
 

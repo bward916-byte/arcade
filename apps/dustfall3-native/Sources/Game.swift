@@ -878,7 +878,7 @@ final class Game {
         showOn = false; showUsed = false; oatsDay = 0; wind = 1; blown = false; string = 0; fortNight = false; cav = []
         mustangs = [Mustang(x: -540, seed: 0), Mustang(x: -150, seed: 1), Mustang(x: -360, seed: 2)]
         b.append(hall); b.append(station); b.append(gateW); b.append(gateE); b.append(wireW); b.append(wireE); b.append(ticket)
-        for bl in b { bl.scale = 1 + 0.25 * Double(town) }
+        for bl in b { bl.scale = 1 + 0.12 * Double(town) }
         ticket.live = false
         train = nil; tripT = -1; fade = 0
         drifters = []; folk = []; bandits = []; shots = []; parts = []; flying = []; ground = []; raid = []
