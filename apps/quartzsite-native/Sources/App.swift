@@ -72,6 +72,8 @@ final class TextLayer: UIView {
 /// The whole app: a bitmap the game paints, a layer of text over it, and the touch controls.
 final class GameViewController: UIViewController {
     private let game = Game()
+    private let sound = Sound()
+    private var lastStep = 0
     private var canvas: Canvas?
     private var renderer: Renderer?
     private var link: CADisplayLink?
@@ -105,6 +107,7 @@ final class GameViewController: UIViewController {
         if let data = UserDefaults.standard.data(forKey: saveKey), let s = try? JSONDecoder().decode(SaveData.self, from: data) {
             game.restore(s)
         }
+        sound.start()
         let l = CADisplayLink(target: self, selector: #selector(tick(_:)))
         l.add(to: .main, forMode: .common)
         link = l
@@ -140,7 +143,7 @@ final class GameViewController: UIViewController {
         renderer = Renderer(game: game, canvas: cv)
         if !demoDone {
             demoDone = true
-            for key in ["pick", "rigs", "play", "night", "ltva", "main", "gem", "tyson", "dome", "toys", "ride", "skoolie", "map", "trail", "scaddan", "browse", "parade", "home", "season", "end"] where ProcessInfo.processInfo.arguments.contains("-demo-" + key) {
+            for key in ["pick", "rigs", "play", "night", "ltva", "main", "gem", "tyson", "dome", "toys", "ride", "skoolie", "map", "trail", "scaddan", "browse", "parade", "home", "season", "end", "gear", "computer"] where ProcessInfo.processInfo.arguments.contains("-demo-" + key) {
                 game.demo(key)
             }
         }
@@ -149,7 +152,7 @@ final class GameViewController: UIViewController {
     func setPaused(_ p: Bool) {
         paused = p
         last = 0
-        if p { clearTouches(); save() }
+        if p { clearTouches(); save() } else { sound.resume() }
     }
     private func save() {
         guard let s = game.snapshot(), let data = try? JSONEncoder().encode(s) else {
@@ -170,10 +173,39 @@ final class GameViewController: UIViewController {
         stage.layer.contents = cv.image()
         words.items = game.texts
         words.setNeedsDisplay()
+        sound.muted = game.muted
         for e in game.events {
-            if e == 1 { tapDone.notificationOccurred(.success) } else { tapLight.impactOccurred() }
+            switch e {
+            case 1: tapDone.notificationOccurred(.success); sound.done()
+            case 2: tapLight.impactOccurred(); sound.refund()
+            case 3: tapLight.impactOccurred(); sound.tap()
+            case 4: sound.engine(game.inRig && game.rig.rawValue >= RigKind.skoolie.rawValue)
+            case 5: sound.coin()
+            case 6: sound.spend()
+            case 7: sound.dawn()
+            case 8: sound.season()
+            default: break
+            }
         }
         game.events.removeAll()
+        // the ring ticks as it fills
+        let step = Int(game.ringProg * 4)
+        if step > lastStep { sound.tick(step) }
+        lastStep = step
+        // the desert around you, and the guitar
+        if game.phase != .pick && !game.overlay {
+            let dk = r.dark
+            var fire = 0.0
+            if game.phase == .play {
+                for sp in game.spots where sp.kind == .fire || sp.kind == .circle || (sp.kind == .camp && game.rigArea == game.area) {
+                    fire = max(fire, 1 - abs(sp.x - game.px) / 160)
+                }
+            }
+            sound.ambience(now, dk, max(0, fire), false)
+            var eventOn = false
+            for e in EVENTS.indices where e != EV_PAN && game.on(e) && EVENTS[e].area == game.area { eventOn = true }
+            sound.music(now, game.phase == .play && eventOn ? 3 : (dk > 0.6 ? 2 : (dk > 0.15 ? 1 : 0)))
+        }
     }
 
     // MARK: touch

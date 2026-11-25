@@ -253,6 +253,7 @@ final class Renderer {
                 c.glow(rx, GY - def.high * 0.45, def.len * 0.85, Col(0xffe9a0, pulse), Col(0xffe9a0, 0))
             }
             rig(g.rig, rx, GY + (g.inRig ? 12 : 0), g.panels, g.rigFace)
+            if g.rig != .tent { gear(rx, GY + (g.inRig ? 12 : 0), def, g.rigFace, !g.inRig) }
             if g.nearRig {
                 g.hits.append(Hit(id: 50, x: rx - def.len / 2 - 8, y: GY - def.high - 12, w: def.len + 16, h: def.high + 30))
                 if !g.inRig && !g.onToy { g.text(g.rig == .tent ? "Your tent" : "Tap to drive", rx, GY - def.high - 8, 5.5, CREAM) }
@@ -277,6 +278,36 @@ final class Renderer {
             }
         }
         if !g.inRig && !g.onToy { person(g.px - cam, GY + 6, g.look, g.face, g.walk, abs(g.vx) > 4) }
+    }
+
+    /// The extras on your own rig: a roof rack, a Starlink dish, and the awning rolled out when you're parked.
+    private func gear(_ rx: Double, _ base: Double, _ def: RigDef, _ dir: Double, _ parked: Bool) {
+        let roof = base - def.high - 0.5
+        let half = def.len / 2
+        if g.upgrades.contains(UP_RACK) {
+            let fx = rx + dir * half * 0.42
+            c.R(fx - 9, roof - 4, 18, 0.8, Col(0x2a2a2a))
+            c.R(fx - 9, roof - 4, 0.8, 4, Col(0x2a2a2a)); c.R(fx + 8.2, roof - 4, 0.8, 4, Col(0x2a2a2a))
+            c.RR(fx - 7, roof - 8, 8, 4.4, 0.8, Col(0x3a5a7a)); c.RR(fx + 1.4, roof - 7, 5, 3.4, 0.6, Col(0x8a6238))
+        }
+        if g.upgrades.contains(UP_STARLINK) {
+            let dx = rx - dir * half * 0.62
+            c.R(dx - 0.5, roof - 4, 1, 4, Col(0x8a8a8a))
+            c.RR(dx - 4, roof - 6, 8, 2.4, 1.2, Col(0xf4f4f0))
+        }
+        if g.upgrades.contains(UP_AWNING) && parked {
+            // rolled out over the door side, striped, on two poles
+            let a0 = rx - half * 0.55, a1 = rx + half * 0.35
+            let top = roof + 3, low = base - def.high * 0.42
+            let stripes: [Col] = [Col(0x3a6ea5), Col(0xf4f1ea)]
+            let n = 6
+            for k in 0..<n {
+                let u0 = Double(k) / Double(n), u1 = Double(k + 1) / Double(n)
+                c.poly(stripes[k % 2], [a0 + (a1 - a0) * u0, top, a0 + (a1 - a0) * u1, top, a0 + (a1 - a0) * u1 + 2, low, a0 + (a1 - a0) * u0 + 2, low])
+            }
+            c.R(a0 + 1.6, low, 0.8, base - low, Col(0x9a9a9a)); c.R(a1 + 1.6, low, 0.8, base - low, Col(0x9a9a9a))
+            c.ell(rx - half * 0.1, base + 0.4, half * 0.5, 1.4, Col(0x000000, 0.12))
+        }
     }
 
     private func river(_ haze: Col) {
@@ -1262,6 +1293,18 @@ final class Renderer {
             }
             label = false
             top = 44
+        case .computer:
+            // The Computer Corner: a small shop with a dish on the roof
+            let wall = Col(0xd8d4cc)
+            c.R(x - 26, GY - 24, 52, 24, wall)
+            c.R(x - 28, GY - 26, 56, 3, Col(0x3a6ea5))
+            c.R(x - 6, GY - 16, 12, 16, Col(0x3a3a3e))
+            c.R(x - 22, GY - 18, 12, 8, GLASS); c.R(x + 10, GY - 18, 12, 8, GLASS)
+            c.R(x + 14, GY - 32, 1, 6, Col(0x8a8a8a)); c.RR(x + 9.6, GY - 34, 10, 3, 1.4, Col(0xf4f4f0))
+            c.RR(x - 24, GY - 36, 30, 8, 1.4, Col(0x2a2a2e))
+            g.text("COMPUTER CORNER", x - 9, GY - 32, 3.2, Col(0x8ad0f0), bold: true)
+            label = false
+            top = 44
         case .circle:
             if g.phase == .play && !g.on(EV_SKOOL) { top = 28; label = false; break }
             fire(x, GY + 3)
@@ -1442,6 +1485,13 @@ final class Renderer {
         c.poly(GOLD, [r - 22, 34.6, r - 24.4, 31.4, r - 19.6, 31.4])
         g.text("MAP", r - 11, 30.5, 5, CREAM, bold: true)
         g.hits.append(Hit(id: 60, x: r - 36, y: 20, w: 40, h: 22))
+        // sound on / off
+        c.RR(r - 30, 41, 30, 13, 6.5, Col(0x1c1410, 0.68))
+        c.poly(CREAM, [r - 25, 45.6, r - 22.6, 45.6, r - 19.6, 43, r - 19.6, 52, r - 22.6, 49.4, r - 25, 49.4])
+        if g.muted { c.seg(r - 18, 44.4, r - 13, 50.6, 0.9, REDC); c.seg(r - 13, 44.4, r - 18, 50.6, 0.9, REDC) }
+        else { c.arcStroke(r - 19.6, 47.5, 3, -0.8, 0.8, 0.7, CREAM); c.arcStroke(r - 19.6, 47.5, 5.4, -0.8, 0.8, 0.7, CREAM.alpha(0.7)) }
+        g.text(g.muted ? "OFF" : "ON", r - 7, 47.5, 4, CREAM.alpha(0.8), bold: true)
+        g.hits.append(Hit(id: 63, x: r - 36, y: 42, w: 40, h: 18))
 
         // the pad and the hold button
         let py = H - 24
@@ -1562,7 +1612,7 @@ final class Renderer {
         c.RR(x0, y0, x1 - x0, y1 - y0, 6, Col(0x3a2c3a))
         g.hits.append(Hit(id: 88, x: x0, y: y0, w: x1 - x0, h: y1 - y0))
         g.text("ON THE TABLES", x0 + 10, y0 + 10, 8, GOLD, align: 1, bold: true)
-        g.text("$\(Int(g.money))  ·  pack \(g.rocks)/5", x0 + 96, y0 + 10, 5.4, CREAM.alpha(0.8), align: 1, bold: true)
+        g.text("$\(Int(g.money))  ·  pack \(g.rocks)/\(g.packCap)", x0 + 96, y0 + 10, 5.4, CREAM.alpha(0.8), align: 1, bold: true)
         c.circ(x1 - 11, y0 + 10, 6, Col(0xffffff, 0.15))
         c.seg(x1 - 14, y0 + 7, x1 - 8, y0 + 13, 1, CREAM); c.seg(x1 - 8, y0 + 7, x1 - 14, y0 + 13, 1, CREAM)
         g.hits.append(Hit(id: 89, x: x1 - 22, y: y0, w: 22, h: 22))
