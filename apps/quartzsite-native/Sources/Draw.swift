@@ -1473,7 +1473,7 @@ final class Renderer {
             if here { sub = "You're here" }
             else if t.ok { let m = milesBetween(g.area, to); sub = (m == m.rounded() ? "\(Int(m))" : "\(m)") + " mi · " + (t.cost == 0 ? "free" : "$\(t.cost)") }
             else { sub = t.how }
-            g.text(sub, lx + 5, ry + rowH * 0.68, 3.8, t.ok ? Col(0x2f6a3a) : REDC.shade(0.8), align: 1)
+            g.text(sub, lx + 5, ry + rowH * 0.68, 3.8, here ? ink.alpha(0.7) : (t.ok ? Col(0x2f6a3a) : REDC.shade(0.8)), align: 1)
             if !here { g.hits.append(Hit(id: 70 + a, x: lx, y: ry, w: lw, h: rowH - 3)) }
         }
 

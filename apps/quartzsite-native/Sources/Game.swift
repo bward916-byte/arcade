@@ -541,7 +541,7 @@ final class Game {
         if key == "ltva" { px = 760; dayT = 0.3; rig = .classB; inRig = true; rigX = 760 }
         if key == "main" { place(.main, 1610); money = 400; day = 14 }
         if key == "gem" { place(.tyson, 1050); money = 300; day = 7; rocks = 1 }
-        if key == "tyson" { place(.tyson, 2390); money = 3000; day = 21; rig = .classB }
+        if key == "tyson" { life = .rver; place(.tyson, 2390); money = 3000; day = 21; rig = .classB }
         if key == "dome" { place(.dome, 800); rig = .classB; rigArea = .dome; rigX = 1520; dayT = 0.56 }
         if key == "toys" { place(.main, 3130); money = 3000; toy = 3; toyArea = .main; toyX = 3050 }
         if key == "ride" { place(.dome, 1260); toy = 6; toyArea = .dome; toyX = 1260; onToy = true; detector = true }
