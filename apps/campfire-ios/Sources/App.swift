@@ -25,7 +25,7 @@ struct RootView: View {
     @StateObject private var guide = GuideStore()
     @State private var tab: String = {
         let args = ProcessInfo.processInfo.arguments
-        if args.contains("-demo-areamap") { return "guide" }
+        if args.contains("-demo-areamap") || args.contains("-demo-photos") || args.contains("-demo-camping") { return "guide" }
         for t in ["guide", "shows", "alerts", "map"] where args.contains("-demo-" + t) { return t }
         return "sale"
     }()

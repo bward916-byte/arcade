@@ -106,6 +106,7 @@ struct QuestionsView: View {
                 }
                 TextField("Your first name or camp (optional)", text: $name)
                 TextField("Email (optional, never shown)", text: $email).keyboardType(.emailAddress).textInputAutocapitalization(.never).autocorrectionDisabled()
+                TermsLine(verb: "asking or answering")
                 Button(sending ? "Posting…" : "Ask campers") { ask() }.disabled(sending)
                 if !note.isEmpty { Text(note).font(.footnote).foregroundColor(.secondary) }
             } header: {

@@ -194,6 +194,7 @@ struct AddPhotoView: View {
                 }
                 if !problem.isEmpty { Section { Text(problem).foregroundColor(.red) } }
                 Section {
+                    TermsLine(verb: "adding a photo")
                     Button(sending ? "Adding…" : "Add my photo") { send() }
                         .disabled(sending)
                 }

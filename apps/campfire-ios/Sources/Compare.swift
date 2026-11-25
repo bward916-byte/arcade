@@ -72,3 +72,12 @@ struct CompareView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
+
+// Shown above every Post button: posting means agreeing to the terms.
+struct TermsLine: View {
+    var verb = "posting"
+    var body: some View {
+        Text("By \(verb) you agree to the [terms of use](https://qcampfire.com/terms): be kind, nothing objectionable. Posts are checked, and anyone can report one.")
+            .font(.footnote).foregroundColor(.secondary)
+    }
+}

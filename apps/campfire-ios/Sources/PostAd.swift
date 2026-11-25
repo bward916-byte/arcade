@@ -92,6 +92,7 @@ struct PostAdView: View {
                         Section { Text(problem).foregroundColor(Theme.accent) }
                     }
                     Section {
+                        TermsLine()
                         Button(sending ? "Posting…" : "Post my ad") { send() }
                             .disabled(sending)
                     }

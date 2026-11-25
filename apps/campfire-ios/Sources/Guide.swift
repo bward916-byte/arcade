@@ -116,7 +116,7 @@ final class GuideStore: ObservableObject {
 struct GuideView: View {
     @EnvironmentObject private var guide: GuideStore
     @State private var suggesting = false
-    @State private var section = ProcessInfo.processInfo.arguments.contains("-demo-areamap") ? "areamap" : "start"
+    @State private var section = ProcessInfo.processInfo.arguments.contains("-demo-areamap") ? "areamap" : ProcessInfo.processInfo.arguments.contains("-demo-photos") ? "photos" : ProcessInfo.processInfo.arguments.contains("-demo-camping") ? "camping" : "start"
     private let icons = ["start": "flag", "areamap": "map", "camping": "tent", "wash": "water.waves", "services": "wrench.and.screwdriver", "rocks": "diamond", "mines": "hammer", "photos": "photo.on.rectangle", "trips": "car", "nature": "leaf", "nomad": "bus", "town": "building.2"]
     @State private var search = ""
 
