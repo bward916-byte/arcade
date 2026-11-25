@@ -1046,7 +1046,7 @@ final class Game {
             }
         }
         if let w = s.wx, w.count == 3 { wx = max(0, min(3, Int(w[0]))); wxA = w[1]; wxB = w[2] }
-        if s.train && station.level > 0 { train = Train(x: STOP, v: 0); ticket.live = true }
+        if s.train && station.level > 0 { train = Train(x: STOP, v: 0); ticket.live = !lastTown }
         px = clampD(s.px, WEST + 30, WORLD - 30)
         cam = clampD(px - W / 2, WEST, WORLD - W)
         state = .play
@@ -1927,6 +1927,7 @@ final class Game {
                     return
                 }
                 // straight on if there is only one way, or stop at the fork and ask
+                if lastTown { tripT = -1; fade = 0; train = Train(x: STOP, v: 0); ticket.live = false; return }
                 let opts = stageOf(town + 1)
                 if opts.count < 2 { arrive(opts[0]) } else { choosing = true }
             }
@@ -1936,6 +1937,12 @@ final class Game {
             if chance(dt * 1.2) { smoke(tr.x + 16) }
             if tr.wait > 0 {
                 tr.wait -= dt
+                if tr.wait <= 0 && lastTown {
+                    train = tr
+                    hint("railend", "End of the line. The rails stop here, and so does Crane: hold the town and face him.", again: true)
+                    onSave?()
+                    return
+                }
                 if tr.wait <= 0 {
                     ticket.live = true
                     hint("ticket", "The railroad is here. The train will wait as long as you like: finish the town if you want to, then toss \(ticket.cost) coins at the passenger car to ride on to the next ghost town.", again: true)
@@ -1954,6 +1961,9 @@ final class Game {
         if tr.x <= STOP + 0.5 { tr.x = STOP; tr.v = 0; tr.wait = 1.5; sfx?.whistle(); flash = 0.2 }
         train = tr
     }
+
+    /// Bitter End is the end of the line: the train comes in, but goes no further.
+    var lastTown: Bool { return town % STAGES.count == STAGES.count - 1 }
 
     /// Bought: the train carries on.
     func payDone() { unlocked = true; payAsk = false }
