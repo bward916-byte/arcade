@@ -1732,13 +1732,53 @@ final class Renderer {
         let fx = g.sFort.x
         if vis(fx, 70) {
             let x = sx(fx).rounded()
-            var k = -22.0
-            while k < 22 { c.R(x + k, gy - 22, 3, 22, Int(k) % 6 == 0 ? wood : dkw); c.poly(wood, [x + k, gy - 22, x + k + 1.5, gy - 26, x + k + 3, gy - 22]); k += 3 }
-            c.R(x - 6, gy - 16, 12, 16, Col(0x3a2a1c)); c.R(x - 23, gy - 14, 46, 1.5, dkw)
-            c.R(x + 14, gy - 44, 1.4, 22, dkw)
+            c.save(); c.translate(x, gy); c.scale(1.35, 1.35); c.translate(-x, -gy)
+            let lg = Col(0x8a6238), lgD = Col(0x5a3c22), lgL = Col(0xa87a48), blue = Col(0x2f4a7a)
+            _ = (wood, dkw)
+            c.ell(x, gy + 1, 40, 2, Col(0x000000, 0.16))
+            // tents and a barracks roof showing over the wall
+            c.poly(Col(0xe8dcc0), [x - 16, gy - 22, x - 10, gy - 30, x - 4, gy - 22]); c.poly(Col(0xc8b890), [x - 10, gy - 30, x - 4, gy - 22, x - 8, gy - 22])
+            c.poly(Col(0x6a4a2e), [x + 2, gy - 22, x + 12, gy - 29, x + 22, gy - 22])
+            // the palisade: pointed logs, every other one a little shorter, tied with two rails
+            var k = -26.0, ki = 0
+            while k < 26 {
+                let drop = ki % 2 == 0 ? 0.0 : 1.5, lc = ki % 2 == 0 ? lg : Col(0x76522e)
+                c.R(x + k, gy - 22 + drop, 3, 22 - drop, lc); c.R(x + k, gy - 22 + drop, 0.7, 22 - drop, lgL.alpha(0.7)); c.R(x + k + 2.4, gy - 22 + drop, 0.6, 22 - drop, lgD)
+                c.poly(lc, [x + k, gy - 22 + drop, x + k + 1.5, gy - 26 + drop, x + k + 3, gy - 22 + drop])
+                k += 3; ki += 1
+            }
+            c.R(x - 27, gy - 15, 54, 1.4, lgD); c.R(x - 27, gy - 7, 54, 1.4, lgD)
+            // a blockhouse at each corner: overhanging top, firing slits, a shingled cap, a lamp after dark
+            for sdx in [-35.0, 26.0] {
+                c.R(x + sdx, gy - 34, 9, 34, lg); c.R(x + sdx + 6.4, gy - 34, 2.6, 34, Col(0x000000, 0.16))
+                var ly = gy - 32.0
+                while ly < gy { c.R(x + sdx, ly, 9, 0.6, lgD); ly += 4 }
+                c.R(x + sdx - 1.5, gy - 36, 12, 2.4, lgD)
+                c.R(x + sdx + 1.5, gy - 30, 2, 1, Col(0x1c1410)); c.R(x + sdx + 5.4, gy - 30, 2, 1, Col(0x1c1410))
+                c.poly(Col(0x4a3424), [x + sdx - 2.5, gy - 36, x + sdx + 4.5, gy - 43, x + sdx + 11.5, gy - 36])
+                c.R(x + sdx + 3.6, gy - 26, 1.6, 2.2, Col(dk > 0.3 ? 0xffd27a : 0x2a1c14))
+            }
+            // the gate: two leaves, braced and strapped with iron, under a painted board
+            c.R(x - 8, gy - 19, 16, 19, Col(0x3a2a1c)); c.R(x - 7, gy - 18, 6.6, 18, Col(0x6a4a2e)); c.R(x + 0.4, gy - 18, 6.6, 18, Col(0x6a4a2e))
+            c.seg(x - 7, gy - 18, x - 0.4, gy, 0.7, lgD); c.seg(x + 7, gy - 18, x + 0.4, gy, 0.7, lgD)
+            c.R(x - 7, gy - 13, 14, 0.9, Col(0x2e2a2c)); c.R(x - 7, gy - 5, 14, 0.9, Col(0x2e2a2c))
+            c.R(x - 11, gy - 24.5, 22, 4.6, Col(0xead7a4)); c.text("U.S. CAVALRY", x, gy - 21.2, 3, Col(0x27364a), fit: 20)
+            // a sentry walking the wall with his rifle
+            let sxp = x + sin(g.clock * 0.5) * 14, sdir = cos(g.clock * 0.5) > 0 ? 1.0 : -1.0
+            c.R(sxp - 1.2, gy - 28.5, 2.4, 4, blue); c.R(sxp - 1, gy - 30.6, 2, 2.1, Col(0xd9a878)); c.R(sxp - 1.4, gy - 31.6, 2.8, 1.1, blue); c.R(sxp + sdir * 1.2, gy - 31, 1.2, 0.5, blue)
+            c.seg(sxp + sdir * 1.4, gy - 25, sxp + sdir * 1.9, gy - 32.5, 0.5, Col(0x2a1c14))
+            // the colours on a tall pole
+            c.R(x + 15, gy - 52, 1.1, 26, lgD); c.circ(x + 15.5, gy - 52.4, 0.9, Col(0xf2c14e))
             let wv = sin(g.clock * 3) * 1.2
-            c.poly(Col(0x2f4a7a), [x + 15.4, gy - 44, x + 28, gy - 43 + wv, x + 28, gy - 37 + wv, x + 15.4, gy - 37]); c.R(x + 15.4, gy - 41.4, 12.6, 1.4, Col(0xf2c14e))
-            if g.fortNight { c.text("PATROL TONIGHT", x, gy - 29, 4, Col(0xf2c14e)) }
+            c.poly(Col(0xb5412e), [x + 16.1, gy - 51.5, x + 29, gy - 50.5 + wv, x + 29, gy - 43.5 + wv, x + 16.1, gy - 44.5])
+            for st in 0..<3 { let oy = Double(st) * 2; c.poly(Col(0xf4ecd6), [x + 16.1, gy - 50.3 + oy, x + 29, gy - 49.3 + wv + oy, x + 29, gy - 48.5 + wv + oy, x + 16.1, gy - 49.5 + oy]) }
+            c.R(x + 16.1, gy - 51.5, 5.4, 3.6, blue)
+            // a field gun by the gate, and rifles stacked
+            c.ellStroke(x - 15, gy - 3, 3, 3, 0.8, lgD); c.seg(x - 18, gy - 3, x - 12, gy - 3, 0.5, lgD); c.seg(x - 15, gy - 6, x - 15, gy, 0.5, lgD)
+            c.seg(x - 16, gy - 4, x - 9, gy - 6.4, 2, Col(0x2e2a2c)); c.seg(x - 17, gy - 3, x - 21, gy - 0.6, 0.9, lgD)
+            c.seg(x + 12, gy, x + 14, gy - 7, 0.6, Col(0x2a1c14)); c.seg(x + 16, gy, x + 14, gy - 7, 0.6, Col(0x2a1c14)); c.seg(x + 14, gy - 0.4, x + 14, gy - 7, 0.6, Col(0x2a1c14))
+            if g.fortNight { c.text("PATROL TONIGHT", x, gy - 57, 4, Col(0xf2c14e)) }
+            c.restore()
         }
     }
 

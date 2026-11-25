@@ -1079,6 +1079,10 @@ final class Game {
         for i in 0..<6 { let f = Folk(x: 1180 + Double(i) * 46); folk.append(f) }
         folk[0].role = .deputy; folk[1].role = .deputy; folk[2].role = .miner
         coins = 14; px = 1330; pdir = 1
+        if name == "fort" { px = sFort.x - 40 }
+        if name == "post" { px = -60 }
+        if name == "mission" { px = missionX + 40; pdir = -1 }
+        if ["fort", "post", "mission"].contains(name) { cam = clampD(px - W * 0.5, WEST, WORLD - W) }
         if name == "lv0" || name == "lv2" { devils = [Devil(x: 1420, vx: 6, t: 3, life: 30, big: true), Devil(x: 1250, vx: -4, t: 2, life: 30, big: false)] }
         if name == "lv3" { gust = 12 }
         if name == "night" {
@@ -1831,12 +1835,12 @@ final class Game {
         // the saloon draws drifters back to the camps
         for (i, c) in camps.enumerated() {
             let here = drifters.filter { $0.camp == i }.count
-            if here < c.1 && (saloon.level > 0 || chance(0.3)) {
+            if here < c.1 && chance(saloon.level > 0 ? 0.5 : 0.15) {         // half as often as in the web game
                 drifters.append(Drifter(x: c.0 - 14 + Double(here) * 13 + rnd(-2, 2), camp: i))
             }
         }
         // the bordello draws a newcomer a day for each of its levels
-        for _ in 0..<bordello.level {
+        for _ in 0..<bordello.level where chance(0.5) {
             if let i = camps.indices.first(where: { i in drifters.filter { $0.camp == i }.count < camps[i].1 + 1 }) {
                 let here = drifters.filter { $0.camp == i }.count
                 drifters.append(Drifter(x: camps[i].0 - 14 + Double(here) * 13 + rnd(-2, 2), camp: i))
