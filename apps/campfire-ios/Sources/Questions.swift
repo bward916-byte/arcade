@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 // One answer to a camper's question. An answer marked guide was matched from the guide by the AI check.
 struct QAnswer: Identifiable {
@@ -55,6 +56,7 @@ struct QuestionsView: View {
     @AppStorage("askEmail") private var email = ""
     @State private var sending = false
     @State private var askTerms = false
+    @State private var reported = false
     @State private var afterTerms: (() -> Void)?
     @State private var note = ""
     @State private var drafts: [String: String] = [:]   // an answer being typed, by question
@@ -109,12 +111,15 @@ struct QuestionsView: View {
                 TextField("Your first name or camp (optional)", text: $name)
                 TextField("Email (optional, never shown)", text: $email).keyboardType(.emailAddress).textInputAutocapitalization(.never).autocorrectionDisabled()
                 TermsLine(verb: "asking or answering")
-                Button(sending ? "Posting…" : "Ask campers") { Terms.check(&afterTerms, &askTerms) { ask() } }.disabled(sending)
+                Button(sending ? "Posting…" : "Ask campers") {
+                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                    Terms.check(&afterTerms, &askTerms) { ask() }
+                }.disabled(sending)
                 if !note.isEmpty { Text(note).font(.footnote).foregroundColor(.secondary) }
             } header: {
                 Text("Ask a question")
             } footer: {
-                Text("You can edit or delete your posts from this phone. Add an email only if you want to do that from another device later. By posting you agree to the [terms](https://qcampfire.com/terms): be kind, nothing objectionable.")
+                Text("You can edit or delete your posts from this phone. Add an email only if you want to do that from another device later.")
             }
 
             Section {
@@ -196,6 +201,11 @@ struct QuestionsView: View {
         .scrollContentBackground(.hidden)
         .background(Theme.page)
         .navigationTitle("Questions")
+        .alert("Reported", isPresented: $reported) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text("Thank you. The owner has been told and will look at it within 24 hours. It is hidden on this phone now.")
+        }
             .termsGate($askTerms, $afterTerms)
         .navigationBarTitleDisplayMode(.inline)
         .task { await load() }
@@ -251,6 +261,7 @@ struct QuestionsView: View {
             Button(role: .destructive) {
                 Hidden.add(id)
                 note = "Reported, and hidden on this phone. Thank you."
+                reported = true
                 Task { await Site.report(question: question, answer: answer) }
             } label: {
                 Label("Report", systemImage: "flag")

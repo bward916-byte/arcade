@@ -75,6 +75,7 @@ struct AlbumSection: View {
     @State private var adding = false
     @State private var note = ""
     @State private var open: AlbumPic?
+    @State private var reported = false
 
     var body: some View {
         Section {
@@ -93,6 +94,11 @@ struct AlbumSection: View {
             AddPhotoView { note = "Thank you. Your photo shows to everyone once it has been checked."; Task { await load() } }
         }
         .sheet(item: $open) { pic in AlbumPicView(pic: pic) }
+        .alert("Reported", isPresented: $reported) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text("Thank you. The owner has been told and will look at it within 24 hours. It is hidden on this phone now.")
+        }
         .task { await load() }
 
         let shown = pics.filter { !AlbumKeys.hidden().contains($0.id) }
@@ -103,7 +109,14 @@ struct AlbumSection: View {
         } else {
             ForEach(shown) { pic in
                 Section {
-                    RemotePhoto(url: Site.photo(pic.photo), fill: true)
+                    Group {
+                        if pic.waiting.isEmpty {
+                            RemotePhoto(url: Site.photo(pic.photo), fill: true)
+                        } else {
+                            Label("Your photo is in. It shows here once it has been checked.", systemImage: "hourglass")
+                                .font(.footnote).foregroundColor(.secondary).padding().frame(maxWidth: .infinity, minHeight: 120)
+                        }
+                    }
                     .frame(maxWidth: .infinity, maxHeight: 280)
                     .clipped()
                     .listRowInsets(EdgeInsets())
@@ -126,6 +139,7 @@ struct AlbumSection: View {
                         Button("Report") {
                             AlbumKeys.hide(pic.id)
                             note = "Reported, and hidden on this phone. Thank you."
+                            reported = true
                             pics.removeAll { $0.id == pic.id }
                             Task { await Site.reportAlbum(pic.id) }
                         }
