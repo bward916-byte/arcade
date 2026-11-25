@@ -1621,8 +1621,9 @@ final class Renderer {
     private func endOverlay() {
         let r = card(g.endTitle.uppercased(), g.endText)
         // a lone saguaro at sunset on the card
-        c.circ(r.0 + r.2 - 34, r.1 + 30, 8, Col(0xf29a2e, 0.6))
-        saguaro(r.0 + r.2 - 30, r.1 + 46, 22, 5, SAGD, false)
+        c.circ(r.0 + 30, r.1 + r.3 - 22, 9, Col(0xf29a2e, 0.55))
+        saguaro(r.0 + 36, r.1 + r.3 - 8, 26, 5, SAGD, false)
+        saguaro(r.0 + r.2 - 34, r.1 + r.3 - 8, 18, 9, SAGD, false)
         button(82, "Start a new life", r.0 + r.2 / 2 - 50, r.1 + r.3 - 30, 100, true)
     }
 
