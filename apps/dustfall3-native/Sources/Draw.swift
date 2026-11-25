@@ -2388,10 +2388,20 @@ final class Renderer {
         let x = sx(bl.x).rounded(), lv = bl.level
         let wood = Col(0x7a5632), dkw = Col(0x4a3424)
         if lv == 0 {
-            // two charred stumps, a fallen rail and a heap of stones
-            c.R(x + 1, gy - 6, 2.4, 6, Col(0x2e2622)); c.R(x + 10, gy - 4, 2.4, 4, Col(0x2e2622)); c.R(x + 1, gy - 6, 2.4, 1, Col(0x4a3f38))
-            c.seg(x - 3, gy - 1, x + 10, gy - 3.4, 1.6, Col(0x5c5048))
+            // the burned gate: a faint outline of the wall that stood here, two charred posts,
+            // one leaf fallen flat, a heap of stones, and a board on a stake saying what it was
+            var k = 0.0
+            while k < 14 { c.R(x + k, gy - 16, 1.6, 16, Col(0xffffff, 0.12)); c.poly(Col(0xffffff, 0.12), [x + k, gy - 16, x + k + 0.8, gy - 18, x + k + 1.6, gy - 16]); k += 2 }
+            c.R(x, gy - 14, 2.8, 14, Col(0x2e2622)); c.R(x + 11, gy - 10, 2.8, 10, Col(0x2e2622))
+            c.poly(Col(0x2e2622), [x, gy - 14, x + 1.4, gy - 16.5, x + 2.8, gy - 14]); c.R(x + 0.4, gy - 14, 0.7, 14, Col(0x4a3f38))
+            c.R(x + 11, gy - 10, 2.8, 1, Col(0x4a3f38)); c.circ(x + 12.4, gy - 11, 1.2, Col(0xff8a2a, 0.5 + 0.3 * sin(g.clock * 5 + x)))
+            c.save(); c.translate(x + 2, gy - 1.4); c.rotate(-0.08)
+            c.R(0, -1.6, 14, 3.2, Col(0x3a2c22)); c.R(2, -1.6, 0.6, 3.2, Col(0x1c1612)); c.R(6, -1.6, 0.6, 3.2, Col(0x1c1612)); c.R(10, -1.6, 0.6, 3.2, Col(0x1c1612))
+            c.restore()
             c.RR(x + 4, gy - 2.6, 4, 2.8, 1, Col(0x8a8478)); c.RR(x + 7, gy - 1.8, 3.4, 2, 1, Col(0x76706a))
+            let sxx = bl.type == .gateW ? x - 12 : x + 20
+            c.R(sxx + 4.4, gy - 10, 1, 10, Col(0x4a3424)); c.RR(sxx, gy - 14, 10, 5, 0.8, Col(0xead7a4)); c.R(sxx, gy - 14, 10, 0.6, Col(0xfff4d8))
+            c.text("GATE", sxx + 5, gy - 10.6, 3.2, Col(0x4a2a22), fit: 9)
             if bl.building { scaffold(x, 14, 16, bl.progress) }
             return
         }

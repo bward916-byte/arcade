@@ -1162,6 +1162,10 @@ final class Game {
         if name == "fort" { px = sFort.x - 40 }
         if name == "post" { px = -60 }
         if name == "mission" { px = missionX + 40; pdir = -1 }
+        if name == "gate0" {
+            place = "bitterend"; town = 4; log = ["dustfall", "redwater", "lasthope", "coldcreek"]; day = 36; day0 = 33; layTown()
+            t = 0.4; noStory = true; hintT = 0; px = gateW.x + 30; pdir = -1
+        }
         if name == "rally" {
             place = "bitterend"; town = 4; log = ["dustfall", "redwater", "lasthope", "coldcreek"]; day = 36; day0 = 33; layTown()
             t = 0.4; noStory = true; hintT = 0; seen.insert("rally")
@@ -2537,6 +2541,9 @@ final class Game {
             if folk.count >= RALLY_N / 2 { return "Townsfolk: \(folk.count) of \(RALLY_N). Gather \(RALLY_N) to run Crane out of Bitter End." }
         }
         if rackN.values.contains(where: { $0 > 0 }) && !folk.contains(where: { $0.role == .folk && !$0.sick }) { return "Next: the racks are full but no townsman is free. Hire a drifter at a campfire." }
+        if let st = site(), !folk.contains(where: { $0.role == .folk && !$0.sick }) {
+            return "Next: nobody is free to build the \(st.label.lowercased()). Hire a drifter, or take a badge or pick back in Crew."
+        }
         let first: [Building] = [saloon, store, sheriff, gateW, gateE, stable, bankB]
         for bl in first where has(bl) && bl.level == 0 && !bl.building && bl.payable { return "Next: open the \(bl.label.lowercased()) (\(bl.cost) coins)." }
         if sheriff.level > 0 && !sheriff.building && !folk.contains(where: { $0.role == .deputy }) { return "Next: a badge from the rack beside the sheriff's makes a deputy (1 coin)." }
