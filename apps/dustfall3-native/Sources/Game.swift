@@ -609,8 +609,9 @@ final class Game {
     /// Plays the first story scene whose moment has come, once each.
     private func story() {
         if noStory || tripT >= 0 || duel != nil { return }
-        if !cut.isEmpty { storyRest = clock + 25; return }
-        if clock < storyRest { return }
+        if !cut.isEmpty { return }
+        let resting = clock < storyRest
+        let urgent: Set<String> = ["won", "end", "a1", "a2", "a3", "a4"]
         let n = STAGES.count, st = town % n, ln = day - day0
         func due(_ k: String) -> Bool {
             switch k {
@@ -631,7 +632,7 @@ final class Game {
             default: return false
             }
         }
-        for k in ["s1", "s2", "s3", "s4", "a1", "a2", "a3", "a4", "yard", "won", "varney", "storm", "ufo", "end"] where !seen.contains("st_" + k) && due(k) {
+        for k in ["s1", "s2", "s3", "s4", "a1", "a2", "a3", "a4", "yard", "won", "varney", "storm", "ufo", "end"] where !seen.contains("st_" + k) && (!resting || urgent.contains(k)) && due(k) {
             seen.insert("st_" + k)
             cut = STORY[k] ?? []
             storyRest = clock + 30
@@ -1300,6 +1301,7 @@ final class Game {
         let n = max(1, bl.cost), per = min(n, 10), rows = (n + per - 1) / per
         var tall = bl.def.h + Double(max(0, bl.level - 1)) * 5
         if bl.isHall && bl.level == 1 { tall = 26 }
+        if bl.isHall && bl.level >= 2 { tall = 84 }
         var gap = 34.0
         if bl.def.gate || bl.wire || bl.isHall { gap = 12 } else if bl.virt { gap = 26 } else if bl.site { gap = 4 }
         let k = max(0, min(n - 1, i)), row = k / per
@@ -2427,6 +2429,7 @@ final class Game {
         if state != .play || over || !cut.isEmpty || gallery != nil || duel != nil || choosing { return "" }
         if dark() > 0.5 { return raidOn ? "Tonight: hold the gates until dawn." : "" }
         if folk.isEmpty { return "Next: toss a coin to a drifter at a campfire outside town." }
+        if rackN.values.contains(where: { $0 > 0 }) && !folk.contains(where: { $0.role == .folk && !$0.sick }) { return "Next: the racks are full but no townsman is free. Hire a drifter at a campfire." }
         let first: [Building] = [saloon, store, sheriff, gateW, gateE, stable, bankB]
         for bl in first where has(bl) && bl.level == 0 && !bl.building && bl.payable { return "Next: open the \(bl.label.lowercased()) (\(bl.cost) coins)." }
         if sheriff.level > 0 && !sheriff.building && !folk.contains(where: { $0.role == .deputy }) { return "Next: a badge from the rack beside the sheriff's makes a deputy (1 coin)." }
@@ -2445,9 +2448,15 @@ final class Game {
         info = ""; slotsFor = nil
         for d in drifters where abs(d.x - px) < 55 && !d.taken { info = "Drifter: 1 coin to hire"; return }
         let sh = sheriff, st = store
-        if sh.level > 0 && !sh.building && abs(px - rackX(sh)) < 12 { info = "Badge rack: 1 coin a badge, three at most. A townsman who takes one becomes a deputy and guards the gates at night."; return }
-        if st.level > 0 && !st.building && abs(px - rackX(st)) < 12 { info = "Tool rack: 1 coin a pick, three at most. A townsman who takes one digs gold at the mine west of town."; return }
-        if stable.level > 0 && !stable.building && abs(px - rackX(stable)) < 12 { info = "Rope rack: 1 coin a rope, three at most. A townsman who takes one raises cattle that pay 2 coins each a day."; return }
+        let free = folk.contains { $0.role == .folk && !$0.sick }
+        func waiting(_ bl: Building, _ what: String) -> String {
+            let n = rackN[bl.type] ?? 0
+            if n == 0 { return "" }
+            return free ? " \(n) on the rack." : " \(n) on the rack, but no townsman is free to take \(n == 1 ? "it" : "one"): hire a drifter, or release someone under Menu, Crew."
+        }
+        if sh.level > 0 && !sh.building && abs(px - rackX(sh)) < 12 { info = "Badge rack: 1 coin a badge, three at most. A townsman who takes one guards the gates at night." + waiting(sh, "badge"); return }
+        if st.level > 0 && !st.building && abs(px - rackX(st)) < 12 { info = "Tool rack: 1 coin a pick, three at most. Each prospector brings 1 coin to the store door every dawn." + waiting(st, "pick"); return }
+        if stable.level > 0 && !stable.building && abs(px - rackX(stable)) < 12 { info = "Rope rack: 1 coin a rope, three at most. Ranchers raise cattle that pay 2 coins each a day." + waiting(stable, "rope"); return }
         var best: Building?
         var bd = 9999.0
         for bl in b where (!bl.virt || bl.live) && (bl.type != .sShow || showOn) {

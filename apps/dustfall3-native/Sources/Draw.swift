@@ -891,9 +891,30 @@ final class Renderer {
         // the old mine west of town
         if vis(MINE_X, 60) {
             let s = sx(MINE_X)
-            c.poly(Col(0x8a5a3a), [s - 34, gy, s - 20, gy - 26, s + 22, gy - 30, s + 38, gy])
-            c.R(s - 8, gy - 16, 16, 16, Col(0x1c120c))
-            c.R(s - 10, gy - 18, 20, 2, Col(0x5a3c22)); c.R(s - 10, gy - 18, 2, 18, Col(0x5a3c22)); c.R(s + 8, gy - 18, 2, 18, Col(0x5a3c22))
+            let rock = Col(0x8a5a3a), rockD = Col(0x6a4028), tim = Col(0x6a4a2e), timD = Col(0x3a2a1c)
+            // the hill, its shaded side, and the spoil tipped out beside it
+            c.poly(rock, [s - 40, gy, s - 26, gy - 24, s - 8, gy - 34, s + 20, gy - 32, s + 34, gy - 16, s + 44, gy])
+            c.poly(rockD, [s + 20, gy - 32, s + 34, gy - 16, s + 44, gy, s + 24, gy, s + 16, gy - 20])
+            c.R(s - 30, gy - 14, 20, 1, rockD.alpha(0.5)); c.R(s - 22, gy - 25, 30, 1, rockD.alpha(0.5))
+            c.poly(Col(0x9a7a5a), [s - 54, gy, s - 45, gy - 8, s - 37, gy - 5, s - 30, gy])
+            // the timbered mouth: posts and a cap, more sets going back into the dark, a lantern
+            c.R(s - 9, gy - 18, 18, 18, Col(0x120a08))
+            c.R(s - 6, gy - 14, 12, 0.8, timD.alpha(0.7)); c.R(s - 6, gy - 14, 0.8, 14, timD.alpha(0.7)); c.R(s + 5.2, gy - 14, 0.8, 14, timD.alpha(0.7)); c.R(s - 4, gy - 10, 8, 0.7, timD.alpha(0.45))
+            c.R(s - 11, gy - 19, 2.6, 19, tim); c.R(s + 8.4, gy - 19, 2.6, 19, tim); c.R(s - 13, gy - 21.4, 26, 2.8, tim)
+            c.R(s - 13, gy - 21.4, 26, 0.7, Col(0x8a6a44)); c.R(s - 11, gy - 19, 0.7, 19, Col(0x8a6a44))
+            c.seg(s - 8.6, gy - 18.6, s - 5.6, gy - 15, 0.8, timD); c.seg(s + 8.6, gy - 18.6, s + 5.6, gy - 15, 0.8, timD)
+            c.R(s + 11.6, gy - 15, 1.8, 2.8, timD); c.R(s + 12, gy - 14.4, 1, 1.6, Col(g.dark() > 0.3 ? 0xffd27a : 0xcfc8a8))
+            // rails, and a cart of ore
+            c.R(s - 4, gy - 0.9, 34, 0.6, Col(0x4a4a52))
+            for k in 0..<7 { c.R(s - 2 + Double(k) * 5, gy - 0.4, 2.4, 0.8, timD) }
+            let ox = s + 17.0
+            c.poly(Col(0x5a5a62), [ox - 6, gy - 8, ox + 6, gy - 8, ox + 4.6, gy - 2.4, ox - 4.6, gy - 2.4]); c.R(ox - 6.4, gy - 8.6, 12.8, 1, Col(0x3a3a40))
+            for k in 0..<4 { c.circ(ox - 3.6 + Double(k) * 2.4, gy - 9 - Double(k % 2), 1.6, Col(k % 2 == 0 ? 0x7a6a5a : 0xc9a14a)) }
+            c.circ(ox - 3.4, gy - 1.6, 1.5, Col(0x2e2a2c)); c.circ(ox + 3.4, gy - 1.6, 1.5, Col(0x2e2a2c))
+            // the board over the mouth, and a pick and shovel leaning by it
+            c.R(s - 8, gy - 28, 16, 5, Col(0xead7a4)); c.R(s - 0.4, gy - 23, 0.8, 1.8, timD); c.text("MINE", s, gy - 24.2, 3.6, Col(0x4a2a22))
+            c.seg(s - 16, gy, s - 13, gy - 11, 0.8, tim); c.curve(s - 16, gy - 10.4, s - 13, gy - 12.4, s - 10, gy - 10.4, 1, Col(0x8a8a90))
+            c.seg(s - 20, gy, s - 18.4, gy - 10, 0.8, tim); c.RR(s - 21.4, gy - 3, 2.6, 3, 1, Col(0x8a8a90))
         }
     }
 
@@ -1249,9 +1270,17 @@ final class Renderer {
                 c.poly(wall, [wx - 0.2, gy - 21.2, wx + ww * 0.32, gy - 21.2, wx - 0.2, gy - 18]); c.poly(wall, [wx + ww + 0.2, gy - 21.2, wx + ww * 0.68, gy - 21.2, wx + ww + 0.2, gy - 18])
             }
         }
-        if bl.type == .forge {          // the fire inside, and a chimney
+        if bl.type == .forge {
+            // the fire inside throwing its light out of the door, a stone stack with sparks going up, horseshoes nailed to the wall
             c.R(x + d.doorX + 2, gy - 12, d.doorW - 4, 12, Col(0xe8742a, 0.55 + 0.25 * sin(g.clock * 7)))
-            c.R(x + 6, gy - h - fh - 9, 6, 9, Col(0x4a3f38))
+            c.glow(x + d.doorX + d.doorW / 2, gy - 8, 16, Col(0xff8a3a, 0.26 + 0.1 * sin(g.clock * 7)), Col(0xff8a3a, 0))
+            c.R(x + 5, gy - h - fh - 12, 8, 12, Col(0x8a8478)); c.R(x + 4.4, gy - h - fh - 13.4, 9.2, 1.6, Col(0x6a665e))
+            for k in 0..<3 { c.R(x + 5 + Double(k % 2) * 4, gy - h - fh - 10 + Double(k) * 3.4, 4, 0.5, Col(0x5a564e)) }
+            for i in 0..<6 {
+                let k = (g.clock * 0.7 + Double(i) * 0.17).truncatingRemainder(dividingBy: 1)
+                c.R(x + 9 + sin(g.clock * 3 + Double(i) * 2) * 3 + k * 4, gy - h - fh - 14 - k * 18, 1, 1, Col(0xffb040, 1 - k))
+            }
+            for k in 0..<3 { c.ellStroke(x + w - 22 + Double(k) * 5, gy - 17, 1.5, 1.8, 0.7, Col(0x8a8a90)); c.R(x + w - 22.8 + Double(k) * 5, gy - 15.6, 1.6, 1, wall) }
         }
         if bl.type == .telegraph {      // a mast, and at dusk a red pennant on the side the raid will come from
             c.R(x + 8, gy - h - fh - 20, 1.5, 20, Col(0x3a2a1c)); c.R(x + 4, gy - h - fh - 18, 9.5, 1, Col(0x3a2a1c))
@@ -1480,6 +1509,12 @@ final class Renderer {
             c.poly(rock, [x - 34, gy, x - 30, gy - 30, x - 22, gy - 44, x + 8, gy - 48, x + 26, gy - 40, x + 32, gy - 18, x + 34, gy, x + 20, gy, x + 18, gy - 20, x + 6, gy - 30, x - 10, gy - 28, x - 18, gy - 14, x - 20, gy])
             c.poly(rs, [x + 8, gy - 48, x + 26, gy - 40, x + 32, gy - 18, x + 34, gy, x + 20, gy, x + 18, gy - 20, x + 14, gy - 34])
             c.R(x - 24, gy - 36, 26, 1, rs.alpha(0.5)); c.R(x - 28, gy - 22, 8, 1, rs.alpha(0.5))
+            // more of the rock's banding, light on the crown, fallen boulders and scrub at the foot
+            c.R(x - 30, gy - 29, 12, 0.8, rs.alpha(0.5)); c.R(x - 27, gy - 12, 8, 0.8, rs.alpha(0.4)); c.R(x + 22, gy - 28, 9, 0.8, Col(0x000000, 0.14)); c.R(x + 21, gy - 12, 12, 0.8, Col(0x000000, 0.14))
+            c.R(x - 18, gy - 45.4, 24, 1, Col(0xffffff, 0.16))
+            c.ell(x, gy + 1, 40, 2, Col(0x000000, 0.14))
+            for (bx3, br) in [(x - 41.0, 3.6), (x + 41.0, 4.4), (x + 48.0, 2.6), (x - 2.0, 2.2)] { c.ell(bx3, gy - br * 0.7, br, br * 0.8, rock); c.ell(bx3 + br * 0.3, gy - br * 0.5, br * 0.6, br * 0.5, rs) }
+            for k in 0..<4 { let wx0 = x - 46 + Double(k) * 3; c.seg(wx0, gy, wx0 - 1 + sin(g.clock * 1.4 + Double(k)) * 0.6, gy - 5, 0.7, Col(0x6a7040)) }
             if g.bio == .snow { c.poly(Col(0xf4f8ff), [x - 22, gy - 44, x + 8, gy - 48, x + 26, gy - 40, x + 10, gy - 44, x - 18, gy - 41]) }
         }
     }
@@ -1977,20 +2012,50 @@ final class Renderer {
             while k < 48 { c.R(x + k, gy, 1, 2, dks); k += 7 }
         }
         if hl.level == 1 {
-            c.R(cx - 6, gy - 6, 12, 6, stone); c.R(cx - 7, gy - 7, 14, 2, dks)
-            c.R(cx - 6, gy - 16, 1.5, 10, Col(0x5a3c22)); c.R(cx + 4.5, gy - 16, 1.5, 10, Col(0x5a3c22))
-            c.poly(Col(0x6a3c20), [cx - 9, gy - 16, cx, gy - 21, cx + 9, gy - 16])
+            // a well in the square: a stone ring, a shingled roof on two posts, a windlass, a rope and a bucket
+            c.ell(cx, gy + 0.6, 12, 1.6, Col(0x000000, 0.16))
+            c.RR(cx - 7, gy - 7, 14, 7, 1.5, stone); c.R(cx - 8, gy - 8, 16, 1.6, dks)
+            for k in 0..<4 { c.R(cx - 7 + Double(k) * 3.6, gy - 6 + Double(k % 2) * 3, 3.2, 0.5, dks) }
+            c.R(cx - 6.4, gy - 18, 1.5, 10, Col(0x5a3c22)); c.R(cx + 4.9, gy - 18, 1.5, 10, Col(0x5a3c22))
+            c.R(cx - 5, gy - 14, 10, 1, Col(0x3a2a1c)); c.R(cx + 5.6, gy - 15, 2.4, 0.8, Col(0x3a2a1c)); c.R(cx + 7.6, gy - 15, 0.8, 2.4, Col(0x3a2a1c))
+            c.R(cx - 0.3, gy - 13.4, 0.6, 4, Col(0xc9a468)); c.R(cx - 1.6, gy - 10, 3.2, 2.6, Col(0x6a4a2e))
+            c.poly(Col(0x6a3c20), [cx - 10, gy - 18, cx, gy - 24, cx + 10, gy - 18]); c.poly(Col(0x4a2a18), [cx, gy - 24, cx + 10, gy - 18, cx + 1, gy - 18])
         } else if hl.level >= 2 {
-            c.R(cx - 8, gy - 44, 16, 44, Col(0xc9b98a)); c.R(cx + 5, gy - 44, 3, 44, Col(0x000000, 0.12))
-            c.R(cx - 10, gy - 46, 20, 3, Col(0x6a3c20))
-            c.poly(Col(0x6a3c20), [cx - 10, gy - 46, cx, gy - 58, cx + 10, gy - 46])
-            c.circ(cx, gy - 35, 5.5, Col(0x3a2a1c)); c.circ(cx, gy - 35, 4.5, Col(0xf4ecd6))
+            // the clock tower: a stone base with a door, a clapboard shaft, the dial, an open belfry, a steep shingled cap and a vane
+            let body = Col(0xc9b98a), bodyD = Col(0xa8966a), roofC = Col(0x6a3c20), gilt = hl.level >= 3
+            c.ell(cx, gy + 0.8, 16, 2, Col(0x000000, 0.18))
+            c.R(cx - 10, gy - 14, 20, 14, stone); c.R(cx - 10, gy - 14, 3, 14, Col(0xd8d2c4)); c.R(cx + 7, gy - 14, 3, 14, dks)
+            for k in 0..<3 { c.R(cx - 10, gy - 4.6 - Double(k) * 4.6, 20, 0.5, dks) }
+            c.R(cx - 3, gy - 10, 6, 10, Col(0x3a2a1c)); c.dome(cx, gy - 10, 3, Col(0x3a2a1c)); c.R(cx - 0.2, gy - 10, 0.4, 10, Col(0x5a3c22)); c.R(cx + 1.4, gy - 5, 0.8, 0.8, Col(0xd8b860))
+            c.R(cx - 11, gy - 15.4, 22, 1.8, dks)
+            c.R(cx - 8, gy - 46, 16, 31, body)
+            var sy = gy - 44.0
+            while sy < gy - 16 { c.R(cx - 8, sy, 16, 0.5, bodyD); sy += 3 }
+            c.R(cx + 5, gy - 46, 3, 31, Col(0x000000, 0.14)); c.R(cx - 8, gy - 46, 1.4, 31, Col(0xffffff, 0.18))
+            c.R(cx - 1.6, gy - 26, 3.2, 6, Col(0x3a2a1c)); c.R(cx - 2.2, gy - 20, 4.4, 0.8, bodyD)
+            c.R(cx - 10, gy - 48, 20, 2.4, roofC)
+            c.circ(cx, gy - 37, 6.6, Col(0x3a2a1c)); c.circ(cx, gy - 37, 5.7, gilt ? Col(0xf2c14e) : Col(0x8a8478)); c.circ(cx, gy - 37, 4.8, Col(0xf4ecd6))
+            for k in 0..<12 { let an = Double(k) * PI / 6, sz = k % 3 == 0 ? 0.9 : 0.5; c.R(cx + cos(an) * 4 - sz / 2, gy - 37 + sin(an) * 4 - sz / 2, sz, sz, INK) }
             let a = g.t * PI * 4 - PI / 2
-            c.seg(cx, gy - 35, cx + cos(a) * 3.5, gy - 35 + sin(a) * 3.5, 0.8, INK)
-            c.seg(cx, gy - 35, cx + cos(a / 12) * 2.3, gy - 35 + sin(a / 12) * 2.3, 0.9, INK)
-            c.R(cx - 3, gy - 12, 6, 12, Col(0x3a2a1c))
+            c.seg(cx, gy - 37, cx + cos(a) * 3.6, gy - 37 + sin(a) * 3.6, 0.8, INK)
+            c.seg(cx, gy - 37, cx + cos(a / 12) * 2.4, gy - 37 + sin(a / 12) * 2.4, 0.9, INK)
+            c.circ(cx, gy - 37, 0.7, gilt ? Col(0xf2c14e) : INK)
+            c.R(cx - 8, gy - 58, 16, 10, body); c.R(cx + 5, gy - 58, 3, 10, Col(0x000000, 0.14))
+            for ox in [-3.4, 3.4] {
+                c.R(cx + ox - 2, gy - 56, 4, 7, Col(0x2a1c14)); c.dome(cx + ox, gy - 56, 2, Col(0x2a1c14))
+                if gilt {
+                    let sw = sin(g.clock * 2.4 + ox) * 0.9
+                    c.poly(Col(0xf2c14e), [cx + ox - 1.5 + sw, gy - 50.4, cx + ox - 0.8, gy - 54.4, cx + ox + 0.8, gy - 54.4, cx + ox + 1.5 + sw, gy - 50.4])
+                }
+            }
+            c.R(cx - 10, gy - 60, 20, 2.2, roofC)
+            c.poly(roofC, [cx - 10, gy - 60, cx, gy - 76, cx + 10, gy - 60]); c.poly(Col(0x000000, 0.2), [cx, gy - 76, cx + 10, gy - 60, cx + 1, gy - 60])
+            for k in 1..<4 { let u = Double(k) / 4; c.R(cx - 10 * u, gy - 76 + 16 * u, 20 * u, 0.5, Col(0x000000, 0.25)) }
+            c.R(cx - 0.4, gy - 82, 0.8, 6.4, Col(0x2a1c14)); c.circ(cx, gy - 76.4, 1, gilt ? Col(0xf2c14e) : Col(0x2a1c14))
+            let wv = sin(g.clock * 0.7) > 0 ? 1.0 : -1.0
+            c.poly(Col(0x2a1c14), [cx - wv * 4, gy - 81, cx + wv * 4.5, gy - 82.2, cx + wv * 4.5, gy - 79.8])
         }
-        if hl.building { scaffold(x, 26, hl.level == 0 ? 18 : 50, hl.progress) }
+        if hl.building { scaffold(x, 26, hl.level == 0 ? 18 : 78, hl.progress) }
         if hl.flash > 0 { c.R(x - 4, gy - 30, 34, 30, Col(0xfff0c0, hl.flash)) }
     }
 
@@ -2541,7 +2606,7 @@ final class Renderer {
     /// A strip at the top of the picture: the whole country end to end, the town between its gates, you, and any raiders.
     private func radar() {
         if g.duel != nil || g.state != .play || !g.cut.isEmpty { return }
-        let x0 = W * 0.405, w = W * 0.235, y = 12.0
+        let x0 = W * 0.655, w = W * 0.29, y = 27.0          // under the day and menu plates, clear of the top row
         func mx(_ wx: Double) -> Double { return x0 + clampD((wx - WEST) / (WORLD - WEST), 0, 1) * w }
         c.RR(x0 - 4, y - 5.5, w + 8, 11, 3.5, Col(0x2a1c14, 0.74))
         c.R(x0 - 2, y - 5.5, w + 4, 0.5, Col(0xc9a03c, 0.7)); c.R(x0 - 2, y + 5, w + 4, 0.5, Col(0xc9a03c, 0.35))
