@@ -687,7 +687,7 @@ final class Renderer {
             }
         case .palms:
             // the canyon wall, with the palms tucked high in a shady slot
-            let cx = W * 0.55 - cam * 0.3
+            let cx = W * 0.5 + 300 - cam * 0.3
             let wall = Col(0x8a6450).shade(1 - dark * 0.6)
             c.poly(wall, [cx - 320, GY + 1, cx - 300, GY - 70, cx - 220, GY - 90, cx - 120, GY - 84, cx - 60, GY - 100, cx + 40, GY - 96, cx + 140, GY - 82, cx + 260, GY - 88, cx + 340, GY + 1])
             c.poly(Col(0x3a2a24).shade(1 - dark * 0.5), [cx - 34, GY - 98, cx - 14, GY - 98, cx - 4, GY - 20, cx - 40, GY - 20])
@@ -2555,7 +2555,7 @@ final class Renderer {
         // the sketch map
         let mx0 = x0 + 10, my0 = y0 + 22, mw = (x1 - x0) * 0.5, mh = y1 - y0 - 58
         c.RR(mx0, my0, mw, mh, 3, Col(0xe2cfa4))
-        let lonA = -114.42, lonB = -114.13, latA = 33.57, latB = 33.69
+        let lonA = -114.42, lonB = -114.09, latA = 33.50, latB = 33.73
         func mp(_ lat: Double, _ lon: Double) -> (Double, Double) {
             // places off the sketch sit on its edge, pointing the way
             let x = mx0 + (lon - lonA) / (lonB - lonA) * mw, y = my0 + (latB - lat) / (latB - latA) * mh
@@ -2585,7 +2585,7 @@ final class Renderer {
             if here { c.circ(p.0, p.1, 5 + sin(NOW * 4) * 0.8, GOLD.alpha(0.5)) }
             c.circ(p.0, p.1, 2.6, here ? GOLD : REDC)
             c.circ(p.0, p.1, 1, CREAM)
-            let off: [(Double, Double, Int)] = [(-4, 4, 2), (4, -5, 1), (-4, 4, 2), (0, -6, 0), (0, 6, 0), (0, 6, 0), (0, -6, 0), (-4, 3, 2), (5, 0, 1), (5, 0, 1), (-5, 0, 2), (-5, 0, 2)]
+            let off: [(Double, Double, Int)] = [(-4, 4, 2), (4, -5, 1), (-4, 4, 2), (0, -6, 0), (0, 6, 0), (0, 6, 0), (0, -6, 0), (-4, 3, 2), (5, 1, 1), (5, 2, 1), (-5, -2, 2), (-5, 6, 2)]
             let o = a < off.count ? off[a] : (0.0, -6.0, 0)
             g.text(d.name, p.0 + o.0, p.1 + o.1, 3.6, ink, align: o.2, bold: true)
         }
