@@ -433,6 +433,21 @@ final class Game {
     var stock: [Int: (Int, [Ware])] = [:] // each shop's stock for the day
     var dug: [String: Int] = [:]          // finds taken today, by place
     var mailDay = -6                      // the last General Delivery pickup
+    // camp manners: dust from riding fast, a generator running into quiet hours
+    var dustAmt = 0.0, speedT = 0.0, dustCool = 0.0
+    var madT = 0.0, madX = 0.0, madText = ""
+    var genOn = false, genMadDay = -1
+
+    /// The clock: 7 AM at first light (0), 6 PM at dusk (0.66), and 7 AM again at 1.
+    func hour() -> Double {
+        return dayT < 0.66 ? 7 + dayT / 0.66 * 11 : (18 + (dayT - 0.66) / 0.34 * 13).truncatingRemainder(dividingBy: 24)
+    }
+    func clockText() -> String {
+        let h = hour(), hh = Int(h), mm = Int((h - Double(hh)) * 60) / 10 * 10
+        return "\(hh % 12 == 0 ? 12 : hh % 12):" + String(format: "%02d", mm) + (hh < 12 ? " AM" : " PM")
+    }
+    /// Quiet hours: 10 PM to 6 AM.
+    var quietHours: Bool { let h = hour(); return h >= 22 || h < 6 }
     var waresDay = -1
 
     // cinematics: a list of shots, four seconds each, with a caption for each
@@ -863,6 +878,14 @@ final class Game {
             let x = spots.first(where: { $0.kind == .gemworld })?.x ?? 0
             area = .main; px = x - 20; money = 600; dayT = 0.3; shown.insert("gwtap"); openBrowse()
         }
+        if key == "dust" {
+            place(.ltva, 1500); toy = 5; toyArea = .ltva; toyX = 1500; onToy = true; vx = 140; dayT = 0.3
+            dustAmt = 1; madT = 3; madX = 1640; madText = "Slow down! You're dusting our camp!"
+        }
+        if key == "gen" {
+            dayT = 0.8; genOn = true; madT = 3; madX = rigX + 70; madText = "It's after ten! Shut that generator off!"
+            px = rigX + 30
+        }
         if key == "drivetow" {
             life = .rver; toy = 5; toyArea = .ltva; rig = .classA; inRig = true; dayT = 0.2
             travel(.dome); startDrive(.dome, 4, 0, false)
@@ -976,6 +999,7 @@ final class Game {
             }
             if area == .ltva && permitDays <= 0 { return nil }
             if dogCholla { return Offer(label: "Comb the cholla off your dog", cost: 0, earn: 0, dur: 2.4) }
+            if genOn { return Offer(label: "Shut off the generator", cost: 0, earn: 0, dur: 0.8) }
             if cred >= 25 && !page { return Offer(label: "Start a Facebook page", cost: 0, earn: 0, dur: 2) }
             if dayT > 0.55 && dayT < 0.72 && !seen.contains(18) { return Offer(label: "Throw a party for the neighbors", cost: 20, earn: 0, dur: 2.2) }
             return health < 96 ? Offer(label: "Rest by your fire", cost: 0, earn: 0, dur: 2.2) : nil
@@ -1169,6 +1193,9 @@ final class Game {
                 rigX = x - 60
                 campDays = 0
                 float("Tent pitched", x, CREAM)
+            } else if genOn {
+                genOn = false
+                float(quietHours ? "Quiet at last" : "Generator off. Nice and quiet", x, CREAM)
             } else if dogCholla {
                 dogCholla = false
                 float("Flicked it off with the comb, pulled the spines", x, GREEN)
@@ -1654,8 +1681,26 @@ final class Game {
     }
 
     private func play(_ dt: Double) {
+        let before = dayT
         dayT += dt / DAYLEN
         if dayT >= 1 { dayT -= 1; dawn() }
+        // no solar yet: the generator comes on at dusk to keep the lights on
+        if before < 0.64 && dayT >= 0.64 && rigArea != .main && rigArea != .tyson && rig != .tent && panels == 0 && !resident && !house {
+            genOn = true
+            hint("gen", "No solar yet, so your generator runs in the evening. Shut it off at your camp before 10 PM. Quiet hours run until 6 AM. Solar panels at KB Tools mean no generator at all.")
+        }
+        if genOn && dayT < 0.3 { genOn = false }
+        if genOn && quietHours && genMadDay != day && rigArea == area {
+            genMadDay = day
+            cred = max(0, cred - 2)
+            madT = 4; madX = rigX + 70; madText = "It's after ten! Shut that generator off!"
+            float("-2 cred", rigX, REDC)
+        } else if genOn && quietHours && genMadDay != day {
+            genMadDay = day
+            cred = max(0, cred - 2)
+            hintT = 0
+            hint("genaway\(day)", "Your generator ran past 10 PM while you were away. The neighbors are not happy.  -2 cred")
+        }
         health = max(0, health - dt * 100 / (DAYLEN * 2.2) * (weather == 1 ? 1.3 : 1))
         if health < 35 { hint("hungry", "You're run down. Groceries on Main Street, the outhouse and your own camp all help.") }
 
@@ -1681,6 +1726,31 @@ final class Game {
             if abs(vx) > 4 { face = vx > 0 ? 1 : -1; walk += dt * 11 }
         }
         cam += (clampD(px - W / 2, 0, max(0, WORLD - W)) - cam) * min(1, dt * 6)
+
+        // dust: a motor ride going fast on the dirt throws a cloud over everyone's camp
+        let motor = onToy && toy >= 2 && toy < TOYS.count
+        let dirtRoad = area != .main && area != .tyson
+        dustAmt += ((motor && dirtRoad ? min(1, abs(vx) / TOYS[max(0, toy)].speed) : 0) - dustAmt) * min(1, dt * 3)
+        if dustCool > 0 { dustCool -= dt }
+        if madT > 0 { madT -= dt }
+        if motor && dirtRoad && area != .trail && abs(vx) > TOYS[toy].speed * 0.65 {
+            speedT += dt
+            var near: Double? = nil
+            for sp in spots where [SpotKind.fire, .circle, .host, .booth, .skoolie, .radio, .cleanup].contains(sp.kind) && abs(sp.x - px) < 110 { near = sp.x }
+            if partyDay == day && partyArea == area && dayT > 0.5 && hour() < 22 && abs(partyX - px) < 170 { near = partyX }
+            if dustCool <= 0 && (near != nil || speedT > 3.5) {
+                dustCool = 9; speedT = 0
+                cred = max(0, cred - 1)
+                madT = 3.5
+                madX = near ?? (px - face * 70)
+                madText = ["Slow down! You're dusting our camp!", "Hey! Our dinner's full of dust now!", "Slow it down, buddy! People live here!", "Thanks a lot. Now I have to wipe the solar panels."][Int.random(in: 0..<4)]
+                float("-1 cred", px, REDC)
+                events.append(6)
+                hint("dust", "Riding fast past camps throws dust over everyone. Ease off around camps and people stay friendly.")
+            }
+        } else {
+            speedT = max(0, speedT - dt)
+        }
         nearRig = rigArea == area && (inRig || abs(px - rigX) < RIGS[rig.rawValue].len / 2 + 22)
         nearToy = toy >= 0 && toyArea == area && !inRig && (onToy || abs(px - toyX) < TOYS[toy].len / 2 + 18)
 

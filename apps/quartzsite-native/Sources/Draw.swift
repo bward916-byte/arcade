@@ -237,6 +237,7 @@ final class Renderer {
                 critters(ar)
                 eventCrowds(ar)
                 if ar == .main { mainDecor() }
+                manners()
                 if ar == .main || ar == .tyson { streetTraffic(ar) }
             }
             if g.phase == .play && g.area == .main && g.on(EV_PARADE) { parade() }
@@ -2186,7 +2187,7 @@ final class Renderer {
         c.poly(GOLD, star)
         g.text("\(g.cred)", sx + 7, 12, 7, CREAM, align: 1, bold: true)
 
-        var pack = dateText(g.day) + "  ·  " + g.areaName(g.area)
+        var pack = dateText(g.day) + "  " + g.clockText() + "  ·  " + g.areaName(g.area)
         if g.wood > 0 { pack += "  ·  firewood \(g.wood)" }
         if g.jewelry > 0 { pack += "  ·  pendants \(g.jewelry)" }
         if g.rocks > 0 { pack += "  ·  specimens \(g.rocks)" }
@@ -2442,7 +2443,8 @@ final class Renderer {
             if g.on(EV_QFEST), let x = at(.radio) { crowd(x - 300, x + 300, day ? 26 : 12, 18) }
         default: break
         }
-        if g.partyDay == g.day && g.partyArea == ar && g.dayT > 0.5 { party() }
+        // the party breaks up at 10 PM for quiet hours
+        if g.partyDay == g.day && g.partyArea == ar && g.dayT > 0.5 && g.hour() >= 12 && g.hour() < 22 { party() }
     }
 
     /// Your party: neighbors walk over with chairs and coolers, a couple of rigs pull in, lights go up.
@@ -2495,6 +2497,52 @@ final class Renderer {
                 let t = (NOW * 0.5 + Double(k) / 3).truncatingRemainder(dividingBy: 1)
                 g.text("♪", fx + 10 + sin(t * 6 + Double(k)) * 8, GY - 34 - t * 26, 5, CREAM.alpha(1 - t))
             }
+        }
+    }
+
+    /// Dust behind a fast ride, your generator chugging, and a neighbor who has had enough.
+    private func manners() {
+        // now and then someone else tears past on a side-by-side, dust and all
+        if [Area.ltva, .dome, .scaddan, .roadrunner].contains(g.area) && g.dayT < 0.62 {
+            let t = (NOW + 11).truncatingRemainder(dividingBy: 30)
+            if t < 6 {
+                let sx = -90 + t * (W + 180) / 6
+                for i in 0..<12 {
+                    let u = (NOW * 1.6 + Double(i) / 12).truncatingRemainder(dividingBy: 1)
+                    c.circ(sx - 20 - u * 90, GY + 10 - u * 18, 3 + u * 13, Col(0xd8bc90, (1 - u) * 0.45).shade(1 - dark * 0.5))
+                }
+                toy(5, sx, GY + 13, 1, 333, NOW * 25)
+            }
+        }
+        if g.onToy && g.dustAmt > 0.12 {
+            let len = TOYS[max(0, g.toy)].len
+            for i in 0..<12 {
+                let t = (NOW * 1.6 + Double(i) / 12).truncatingRemainder(dividingBy: 1)
+                let a = g.dustAmt
+                c.circ(g.px - cam - g.face * (len / 2 + t * 80 * a), GY - 1 - t * 16 * a, 2 + t * 12 * a, Col(0xd8bc90, (1 - t) * 0.5 * a).shade(1 - dark * 0.5))
+            }
+        }
+        if g.genOn && g.rigArea == g.area {
+            let gx = g.rigX - cam - g.rigFace * (RIGS[g.rig.rawValue].len / 2 + 12)
+            c.RR(gx - 5, GY - 7, 10, 7, 1.4, Col(0xd9412e).shade(1 - dark * 0.4))
+            c.R(gx - 4, GY - 5.6, 8, 2.4, Col(0x2a2a2e))
+            c.R(gx - 5, GY - 7.8, 10, 1, Col(0x4a4a4e))
+            for i in 0..<4 {
+                let t = (NOW * 1.2 + Double(i) / 4).truncatingRemainder(dividingBy: 1)
+                c.circ(gx + 5 + t * 6, GY - 6 - t * 14, 1 + t * 3, Col(0x8a8a88, (1 - t) * 0.4))
+            }
+            if dark > 0.3 { g.text("brrrr", gx + 4, GY - 14 - sin(NOW * 30) * 0.4, 3, CREAM.alpha(0.6)) }
+        }
+        if g.madT > 0 {
+            let mx = g.madX - cam
+            let f = g.px - cam > mx ? 1.0 : -1.0
+            person(mx, GY + 3, 777, f, 0, false)
+            let shake = sin(NOW * 22) * 1.4
+            c.roundCaps(true)
+            c.seg(mx + f * 1.4, GY - 11, mx + f * 3 + shake, GY - 19, 1.5, Col(0xd9a37a))
+            c.roundCaps(false)
+            c.circ(mx + f * 3 + shake, GY - 19.6, 1.2, Col(0xd9a37a))
+            g.text(g.madText, mx, GY - 30, 4.6, Col(0xffb0a0), bold: true, plate: true)
         }
     }
 
