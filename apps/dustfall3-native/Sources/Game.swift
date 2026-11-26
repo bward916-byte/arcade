@@ -883,7 +883,7 @@ final class Game {
         yardMen = []; routT = -1
         if lastTown {
             for k in 0..<5 {
-                let m = Bandit(x: yardX - 30 + Double(k) * 22, rider: k == 1 || k == 3, side: 1, hp: 9)
+                let m = Bandit(x: craneX - 30 + Double(k) * 22, rider: k == 1 || k == 3, side: 1, hp: 9)
                 m.st = 2; m.face = -1; m.phase = Double(k)
                 yardMen.append(m)
             }
@@ -1178,7 +1178,7 @@ final class Game {
         if name == "rout" {
             place = "bitterend"; town = 4; log = ["dustfall", "redwater", "lasthope", "coldcreek"]; day = 36; day0 = 33; layTown()
             t = 0.3; noStory = true; hintT = 0; pdir = 1
-            px = yardX - 140
+            px = craneX - 140
             for k in 0..<14 { folk.append(Folk(x: px - 20 - Double(k) * 7)) }
             rallyOn = true
         }
@@ -2025,7 +2025,7 @@ final class Game {
     var yardMen: [Bandit] = []
     var routT = -1.0             // his men have seen the town coming and are running
     var toTitle = false          // after the last scene, back to the title
-    var yardX: Double { return min(gateE.x + 300, WORLD - 170) }
+    var craneX: Double { return min(gateE.x + 300, WORLD - 170) }
 
     private func updRally(_ dt: Double) {
         if rallyBlock == "done" { return }
@@ -2047,7 +2047,7 @@ final class Game {
             for at in [0.9, 1.7, 2.5, 3.2] where was < at && routT >= at {
                 let cols: [UInt32] = [0xb53a2e, 0xead7a4, 0x3f5fa0, 0xf2c14e, 0x5d8a4e]
                 for k in 0..<2 {
-                    let fx = yardX + rnd(-90, 40), fy = -(70 + rnd(0, 40)), fc = Col(cols[Int(at * 3 + Double(k)) % 5])
+                    let fx = craneX + rnd(-90, 40), fy = -(70 + rnd(0, 40)), fc = Col(cols[Int(at * 3 + Double(k)) % 5])
                     for j in 0..<24 { let an = Double(j) / 24 * 2 * PI, sp = rnd(30, 75); parts.append(Part(x: fx, y: fy, vx: cos(an) * sp, vy: sin(an) * sp, life: rnd(0.8, 1.4), max: 1.4, c: j % 4 == 0 ? Col(0xfff0c0) : fc, s: 1.8, grav: 40)) }
                 }
                 sfx?.gun(0.35); buzz(1)
@@ -2058,7 +2058,7 @@ final class Game {
         }
         if dark() > 0.5 || px < gateE.x - 40 { rallyOn = false; return }
         rallyT += dt
-        if px > yardX - 90 {
+        if px > craneX - 90 {
             routT = 0; flash = 0.35; buzz(2); sfx?.gun(0.5)
             hint("rout", "Crane\u{2019}s men see the whole town coming and run for it!", again: true)
             return

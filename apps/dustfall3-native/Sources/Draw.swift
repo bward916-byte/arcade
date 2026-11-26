@@ -47,7 +47,7 @@ final class Renderer {
         if g.lastTown { craneYard() }
         if (g.rallyBlock.isEmpty && !g.rallyOn) || (g.rallyOn && g.routT < 0) {
             // point the way: the east gate first, then Crane's yard; an arrow at the screen edge when it is off to the right
-            let gx = sx(g.rallyOn ? g.yardX - 10 : g.gateE.x + 7), bob = sin(g.clock * 4) * 2
+            let gx = sx(g.rallyOn ? g.craneX - 10 : g.gateE.x + 7), bob = sin(g.clock * 4) * 2
             let ax = min(gx, W - 14), ay = gy - 34 + bob
             c.glow(ax, ay, 12, Col(0xffd27a, 0.35), Col(0xffd27a, 0))
             if gx > W - 14 { c.poly(Col(0xf2c14e), [ax - 6, ay - 5, ax + 4, ay, ax - 6, ay + 5]) } else { c.poly(Col(0xf2c14e), [ax - 5, ay - 6, ax + 5, ay - 6, ax, ay + 3]) }
@@ -2395,7 +2395,7 @@ final class Renderer {
     /// Crane's company yard past the east gate of the last town: a rail fence, his office, a wagon,
     /// the company arch, and his men, who run when the town comes for them.
     private func craneYard() {
-        let yx = g.yardX
+        let yx = g.craneX
         if !vis(yx, 220) { return }
         let x = sx(yx).rounded(), wood = Col(0x5a4030), dk = Col(0x2e2218)
         c.ell(x, gy + 0.6, 110, 2.4, Col(0x000000, 0.12))
@@ -2428,7 +2428,7 @@ final class Renderer {
         c.RR(4, 1.5, 44, 8, 0.8, Col(0x7a241c)); c.R(4, 1.5, 44, 0.7, Col(0xa8483a))
         c.text("CRANE CATTLE & RAIL", 26, 7.4, 3.7, Col(0xead7a4), fit: 42)
         c.restore()
-        for m in g.yardMen where m.x < g.yardX + 700 { bandit(m) }
+        for m in g.yardMen where m.x < g.craneX + 700 { bandit(m) }
     }
 
     private func gate(_ bl: Building) {
