@@ -1079,8 +1079,8 @@ final class Game {
         if left(i) <= 0 { return nil }
         switch sp.kind {
         case .wash:
-            if weather == 3 { return nil }
-            return wood < 5 ? Offer(label: "Gather firewood", cost: 0, earn: 0, dur: 1.5) : nil
+            // no wood gathering on BLM land: the dead wood is shelter for the desert
+            return nil
         case .camp:
             if rigArea != area {
                 return rig == .tent ? Offer(label: "Pitch your tent here", cost: 0, earn: 0, dur: 2) : nil
@@ -1098,7 +1098,8 @@ final class Game {
         case .fire:
             return wood > 0 ? Offer(label: "Sell a bundle of firewood", cost: 0, earn: 10, dur: 0.9) : nil
         case .host:
-            return permitDays < 4 ? Offer(label: "14-day LTVA permit", cost: 40, earn: 0, dur: 1.2) : nil
+            if permitDays < 4 { return Offer(label: "14-day LTVA permit", cost: 40, earn: 0, dur: 1.2) }
+            return wood < 10 ? Offer(label: "Buy a firewood bundle from the host", cost: 7, earn: 0, dur: 0.8) : nil
         case .station:
             return inRig && rig != .tent && !seen.contains(11) ? Offer(label: "Dump tanks and fill water", cost: 0, earn: 0, dur: 2) : nil
         case .outhouse:
@@ -1144,6 +1145,7 @@ final class Game {
         case .laundry:
             return seen.contains(25) || health >= 96 ? nil : Offer(label: "Shower and laundry", cost: 11, earn: 0, dur: 2)
         case .shop:
+            if sp.arg == 0 && wood <= 5 { return Offer(label: "Buy 5 firewood bundles", cost: 25, earn: 0, dur: 1.2) }
             if (sp.arg == 1 || sp.arg == 5) && rig != .tent && propane < 90 { return Offer(label: "Fill propane", cost: Int((100 - propane) * 0.3) + 4, earn: 0, dur: 1.4) }
             return nil
         case .cleanup:
@@ -1206,7 +1208,7 @@ final class Game {
             }
         }
         switch sp.kind {
-        case .wash: return weather == 3 ? "The wash is running. Stay out of it" : "Arms full. Sell it at the neighbors' fire"
+        case .wash: return weather == 3 ? "The wash is running. Stay out of it" : "No wood gathering on BLM land. Buy bundles in town"
         case .camp:
             if rigArea != area { return "Your rig is parked at " + areaName(rigArea) }
             if area == .ltva && permitDays <= 0 { return "Your permit ran out. See the camp host" }
@@ -1214,7 +1216,7 @@ final class Game {
         case .bench:
             if rigArea != area { return "Your tools are with your rig" }
             return jewelry >= 4 ? "Plenty made. Sell them from a booth at a show" : "Bring rough rock or a specimen to work"
-        case .fire: return "Bring firewood from the dry wash"
+        case .fire: return "Buy firewood at Big Market or from the camp host"
         case .host: return "Permit good for \(permitDays) more days"
         case .station: return rig == .tent ? "Tents don't need it" : (seen.contains(11) ? "Done for today" : "Drive your rig over to dump and fill")
         case .outhouse: return "You're good for now"
@@ -1276,13 +1278,12 @@ final class Game {
         switch sp.kind {
         case .park, .radio, .circle, .parade, .bigtent, .vendors: stats[6] += 1
         case .booth: stats[4] += 1
-        case .mine, .detect, .rockhound, .wash: stats[5] += 1
+        case .mine, .detect, .rockhound: stats[5] += 1
         default: break
         }
         switch sp.kind {
         case .wash:
-            wood += 1
-            float("+1 firewood", x, CREAM)
+            break
         case .camp:
             if o.label.hasPrefix("Coffee") {
                 seen.insert(27)
@@ -1332,8 +1333,14 @@ final class Game {
             wood -= 1
             cred += 1
         case .host:
-            permitDays += 14
-            float("Permit for 14 more days", x, CREAM)
+            if o.label.hasPrefix("Buy a firewood") {
+                wood += 1
+                float("+1 firewood bundle", x, CREAM)
+                hint("woodbuy", "Firewood comes from town: Big Market sells 5 bundles cheaper than the host. Neighbors at their fires pay 10 a bundle.")
+            } else {
+                permitDays += 14
+                float("Permit for 14 more days", x, CREAM)
+            }
         case .station:
             seen.insert(11)
             tanks = 100
@@ -1356,8 +1363,14 @@ final class Game {
             health = min(100, health + 30)
             float("Hot shower, clean clothes", x, GREEN)
         case .shop:
-            propane = 100
-            float("Propane full", x, CREAM)
+            if o.label.hasPrefix("Buy 5 firewood") {
+                wood += 5
+                float("+5 firewood bundles", x, CREAM)
+                hint("woodbuy", "Sell bundles to neighbors at their campfires for 10 apiece. No gathering wood on BLM land.")
+            } else {
+                propane = 100
+                float("Propane full", x, CREAM)
+            }
         case .outhouse:
             health = min(100, health + 6)
             float("Relief", x, GREEN)
