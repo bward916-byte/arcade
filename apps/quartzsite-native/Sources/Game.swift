@@ -5,7 +5,7 @@ import Foundation
 enum Phase { case title, pick, play }
 enum Life: Int { case nomad = 0, rver = 1 }
 enum RigKind: Int { case tent = 0, minivan, van, skoolie, classB, classC, classA }
-enum Area: Int { case ltva = 0, main, tyson, dome, skoolie, trail, scaddan, roadrunner, hijolly, plomosa, crystal, palms }
+enum Area: Int { case ltva = 0, main, tyson, dome, skoolie, trail, scaddan, roadrunner, hijolly, plomosa, crystal, palms, desertbar, intaglios }
 
 struct RigDef {
     let name: String
@@ -94,7 +94,7 @@ let EV_GEM = 0, EV_RTR = 1, EV_RV = 2, EV_SELL = 3, EV_SKOOL = 4, EV_CRAFT = 5, 
 let SEASON_END = 109
 let START_WEEKDAY = 1   // Monday
 
-enum SpotKind { case camp, bench, fire, wash, host, station, outhouse, board, grocery, gemworld, landmark, park, hall, yacht, lot, rides, tools, panorama, vendors, office, booth, bigtent, mine, detect, rockhound, river, skoolie, circle, cabin, parade, rvpark, house, computer, radio, cleanup, camel, dogpark, stray, pizza, post, laundry, shop, tour, hike }
+enum SpotKind { case camp, bench, fire, wash, host, station, outhouse, board, grocery, gemworld, landmark, park, hall, yacht, lot, rides, tools, panorama, vendors, office, booth, bigtent, mine, detect, rockhound, river, skoolie, circle, cabin, parade, rvpark, house, computer, radio, cleanup, camel, dogpark, stray, pizza, post, laundry, shop, tour, hike, bar }
 struct Spot {
     let kind: SpotKind
     let x: Double
@@ -219,6 +219,12 @@ let AREAS: [AreaDef] = [
     ]),
     AreaDef(name: "Palm Canyon", sub: "Kofa refuge, 25 miles south · native palms up a side canyon", w: 1700, arrive: 160, lat: 33.36, lon: -114.106, spots: [
         Spot(kind: .hike, x: 980, name: "PALM CANYON TRAIL")
+    ]),
+    AreaDef(name: "The Desert Bar", sub: "Near Parker, 40 miles north · open winter weekends, noon to sunset", w: 1800, arrive: 160, lat: 34.202, lon: -114.149, spots: [
+        Spot(kind: .bar, x: 980, name: "THE DESERT BAR")
+    ]),
+    AreaDef(name: "Blythe Intaglios", sub: "Across the river, north of Blythe, California · giant figures in the desert floor", w: 1800, arrive: 160, lat: 33.8, lon: -114.532, spots: [
+        Spot(kind: .hike, x: 960, name: "THE INTAGLIOS", arg: 1)
     ])
 ]
 let LANDMARKS = ["Pay respects at Hi Jolly's tomb", "Browse the books", "Read the stage-stop plaque", "Walk the old cemetery", "Walk Celia's Rainbow Gardens"]
@@ -543,6 +549,11 @@ final class Game {
     var petT = -99.0                      // when you last petted the dog
     var petDay = -1
 
+    /// 0 Sunday ... 6 Saturday.
+    var weekday: Int { return (START_WEEKDAY + day - 1) % 7 }
+    /// The Desert Bar keeps winter weekend hours, noon to sunset.
+    var barOpen: Bool { return (weekday == 0 || weekday == 6) && hour() >= 12 && hour() < 18 }
+
     /// The next event on the calendar, for the board.
     func nextEvent() -> EventDef? {
         return EVENTS.enumerated().filter { $0.offset != EV_PAN && $0.element.start > day }.min(by: { $0.element.start < $1.element.start })?.element
@@ -841,7 +852,7 @@ final class Game {
             return Trip(ok: true, cost: Int((mi * t.perMile).rounded(.up)), how: "Ride the " + t.name.lowercased())
         }
         if to == .skoolie { return Trip(ok: false, cost: 0, how: "10 miles out. You need wheels") }
-        if to == .crystal || to == .palms { return Trip(ok: false, cost: 0, how: "\(Int(mi)) miles out. You need wheels") }
+        if [.crystal, .palms, .desertbar, .intaglios].contains(to) { return Trip(ok: false, cost: 0, how: "\(Int(mi)) miles out. You need wheels") }
         if area == .skoolie { return Trip(ok: true, cost: 0, how: "Ride back with a nomad family") }
         return Trip(ok: true, cost: 2, how: "Camel Express dial-a-ride")
     }
@@ -1092,6 +1103,8 @@ final class Game {
         if key == "plomosa" { place(.plomosa, 1200); dayT = 0.3; clockFreeze = true }
         if key == "crystal" { place(.crystal, 840); dayT = 0.35; clockFreeze = true }
         if key == "palms" { place(.palms, 960); dayT = 0.3; clockFreeze = true }
+        if key == "desertbar" { day = 6; place(.desertbar, 960); dayT = 0.45; clockFreeze = true }
+        if key == "intaglios" { place(.intaglios, 940); dayT = 0.25; clockFreeze = true }
         if key == "board" { place(.main, 3170); day = 9; dayT = 0.3; clockFreeze = true; business = 1; adDays = 2; boardOpen = true }
         if key == "minein" { place(.dome, 820); dayT = 0.3; clockFreeze = true; detector = true; mineFind = 2; mineText = "Your detector sounds off over the old ore dump at the portal: a small nugget, 42 coins."; mineOpen = true }
         if key == "tour" { day = 24; place(.skoolie, 1480); dayT = 0.3; clockFreeze = true; tourBus = 0; tourOpen = true }
@@ -1292,7 +1305,10 @@ final class Game {
         case .river:
             return health < 96 ? Offer(label: "Sit by the river", cost: 0, earn: 0, dur: 2.2) : nil
         case .hike:
+            if sp.arg == 1 { return !seen.contains(30) ? Offer(label: "Walk the fence line to the figures", cost: 0, earn: 0, dur: 1.8) : nil }
             return !seen.contains(29) && health > 15 ? Offer(label: "Hike up to the palms", cost: 0, earn: 0, dur: 2.6) : nil
+        case .bar:
+            return barOpen && !seen.contains(31) ? Offer(label: "A cold drink and live music", cost: 12, earn: 0, dur: 1.8) : nil
         case .skoolie:
             return on(EV_SKOOL) && odd < 3 ? Offer(label: "Cow skull or other oddity", cost: oddBuy, earn: 0, dur: 1.0) : nil
         case .circle:
@@ -1377,7 +1393,10 @@ final class Game {
         case .rockhound: return rocks >= packCap ? "Pack is full" : "Too worn out. Rest first"
         case .landmark: return "You've been here today"
         case .river: return "The river's nice today"
-        case .hike: return seen.contains(29) ? "One climb a day is plenty" : "Too worn out. Rest first"
+        case .hike:
+            if sp.arg == 1 { return "You've seen them today. Stay outside the fences" }
+            return seen.contains(29) ? "One climb a day is plenty" : "Too worn out. Rest first"
+        case .bar: return barOpen ? "Back next weekend" : "Open Saturdays and Sundays, noon to sunset"
         case .skoolie: return on(EV_SKOOL) ? "Pack is full" : "Skooliepalooza: " + EVENTS[EV_SKOOL].when + " (projected)"
         case .circle: return on(EV_SKOOL) ? "See you tomorrow" : "Skooliepalooza: " + EVENTS[EV_SKOOL].when + " (projected)"
         case .cabin: return "Too worn out. Rest first"
@@ -1664,11 +1683,25 @@ final class Game {
             health = min(100, health + 14)
             float("Calm", x, GREEN)
         case .hike:
-            seen.insert(29)
-            health = max(0, health - 6)
+            if sp.arg == 1 {
+                seen.insert(30)
+                cred += 2
+                float("Figures scraped into the desert floor long, long ago", x, GOLD)
+                post("the Blythe Intaglios", 28)
+                hint("intaglios", "The intaglios are sacred to the tribes of the river. Look from outside the fences and leave the desert pavement untouched.")
+            } else {
+                seen.insert(29)
+                health = max(0, health - 6)
+                cred += 2
+                float("California fan palms: some of the only native palms in Arizona", x, GREEN)
+                post("hiking to the hidden palms in Kofa", 30)
+            }
+        case .bar:
+            seen.insert(31)
+            health = min(100, health + 10)
             cred += 2
-            float("California fan palms: some of the only native palms in Arizona", x, GREEN)
-            post("hiking to the hidden palms in Kofa", 30)
+            float("Solar-powered and off the grid. Great band today", x, GOLD)
+            post("an afternoon at the Desert Bar", 26)
         case .skoolie:
             odd += 1
             cred += 1

@@ -203,7 +203,7 @@ final class Renderer {
         ridge(0.3, 8.7 + seed, GY + 1, ar == .skoolie ? 8 : (ar == .trail ? 24 : 17), Col.mix(Col(0x8a5a3e), haze, 0.12).shade(1 - dark * 0.65))
 
         // a far stand of saguaros on the low hills
-        if [Area.ltva, .dome, .trail, .scaddan, .roadrunner, .hijolly, .plomosa, .crystal, .palms].contains(ar) {
+        if [Area.ltva, .dome, .trail, .scaddan, .roadrunner, .hijolly, .plomosa, .crystal, .palms, .desertbar].contains(ar) {
             var n = floor((cam * 0.3 - 20) / 46)
             while n * 46 < cam * 0.3 + W + 20 {
                 if hashN(n + 900 + seed) < (ar == .dome || ar == .trail ? 0.85 : 0.5) {
@@ -657,6 +657,23 @@ final class Renderer {
                 }
                 n += 1
             }
+        case .desertbar:
+            // the Buckskin Mountains, rough and red, and a dirt lot full of trucks and side-by-sides
+            let bx = W * 0.5 + 200 - cam * 0.2
+            let rock = Col(0x9a5a3e).shade(1 - dark * 0.6)
+            c.poly(rock, [bx - 360, GY + 1, bx - 300, GY - 46, bx - 240, GY - 30, bx - 180, GY - 66, bx - 100, GY - 40, bx - 40, GY - 58, bx + 40, GY - 34, bx + 120, GY - 50, bx + 220, GY + 1])
+            var n = floor((cam * par - 70) / 90)
+            while n * 90 < cam * par + W + 70 {
+                if hashN(n + 2100) < 0.6 {
+                    let sx = n * 90 + hashN(n + 2110) * 30 - cam * par
+                    if hashN(n + 2120) < 0.5 { toy(5, sx, GY + 0.5, 1, -1, 0) } else { toy(4, sx, GY + 0.5, -1, -1, 0) }
+                }
+                n += 1
+            }
+        case .intaglios:
+            // flat desert pavement running to the Big Maria Mountains
+            let mx = W * 0.5 - cam * 0.15
+            c.poly(Col(0x7a5a52).shade(1 - dark * 0.6), [mx - 400, GY + 1, mx - 300, GY - 36, mx - 200, GY - 28, mx - 100, GY - 50, mx, GY - 40, mx + 120, GY - 56, mx + 260, GY - 30, mx + 400, GY + 1])
         case .hijolly, .plomosa:
             // boondockers spread out across the open desert
             let gap = ar == .hijolly ? 180.0 : 240.0
@@ -2255,6 +2272,46 @@ final class Renderer {
                 label = false
                 top = 40
             }
+        case .hike where sp.arg == 1:
+            // a giant figure scraped into the dark desert pavement, behind a low protective fence
+            let pave = Col(0x6a4e3a).shade(1 - dark * 0.5), line = Col(0xd8c4a0).shade(1 - dark * 0.5)
+            c.ell(x, GY + 8, 110, 7, pave)
+            c.roundCaps(true)
+            c.circ(x - 70, GY + 6, 3, line)
+            c.seg(x - 66, GY + 6, x + 40, GY + 6, 1.6, line)
+            c.seg(x - 40, GY + 6, x - 50, GY + 2, 1, line); c.seg(x - 40, GY + 6, x - 50, GY + 10, 1, line)
+            c.seg(x + 40, GY + 6, x + 60, GY + 2, 1.2, line); c.seg(x + 40, GY + 6, x + 60, GY + 10, 1.2, line)
+            c.roundCaps(false)
+            for k in 0..<12 { c.R(x - 110 + Double(k) * 20, GY - 6, 1, 7, Col(0x7a6a5a)) }
+            c.R(x - 110, GY - 5, 222, 0.6, Col(0x8a8a88)); c.R(x - 110, GY - 2.4, 222, 0.6, Col(0x8a8a88))
+            c.RR(x - 18, GY - 26, 36, 12, 1.4, Col(0x5a3a22).shade(1 - dark * 0.4))
+            c.R(x - 1, GY - 14, 2, 14, Col(0x5a4030))
+            g.text("BLYTHE INTAGLIOS", x, GY - 22.4, 3, Col(0xf2e8c8), bold: true)
+            g.text("PLEASE STAY OUTSIDE", x, GY - 17.6, 2.4, Col(0xf2e8c8, 0.85))
+            label = false
+            top = 36
+        case .bar:
+            // the Desert Bar: a hand-built steel church, a long bar under shade, solar panels, a little stage
+            let steel = Col(0xb8bcc0).shade(1 - dark * 0.5)
+            c.R(x - 70, GY - 30, 34, 30, steel)
+            c.poly(steel.shade(0.9), [x - 74, GY - 30, x - 53, GY - 48, x - 32, GY - 30])
+            c.R(x - 54, GY - 62, 2, 16, steel); c.R(x - 58, GY - 58, 10, 2, steel)
+            c.arch(x - 59, GY - 18, 10, 18, Col(0x2a2a2e))
+            c.R(x - 20, GY - 26, 70, 2.4, Col(0x8a6a44).shade(1 - dark * 0.4))
+            for k in 0..<5 { c.R(x - 18 + Double(k) * 17, GY - 24, 1.2, 24, Col(0x6a4a2e)) }
+            c.R(x - 16, GY - 10, 62, 10, Col(0x6a4a2e).shade(1 - dark * 0.4))
+            for k in 0..<4 { c.poly(Col(0x24324a), [x - 14 + Double(k) * 16, GY - 27, x - 2 + Double(k) * 16, GY - 27, x + Double(k) * 16, GY - 32, x - 12 + Double(k) * 16, GY - 32]) }
+            c.R(x + 58, GY - 6, 30, 6, Col(0x5a4030)); c.R(x + 58, GY - 26, 30, 2, Col(0x5a4030))
+            if g.barOpen && g.phase == .play {
+                person(x + 66, GY - 6, 920, 1, 0, false); person(x + 80, GY - 6, 921, -1, 0, false)
+                for k in 0..<3 { let t = (NOW * 0.6 + Double(k) / 3).truncatingRemainder(dividingBy: 1); g.text("♪", x + 72 + sin(t * 6) * 6, GY - 30 - t * 20, 4.4, CREAM.alpha(1 - t)) }
+                for k in 0..<6 { person(x - 10 + Double(k) * 11, GY + 3, 930 + k, k % 2 == 0 ? 1 : -1, 0, false) }
+            } else {
+                c.RR(x + 4, GY - 20, 22, 8, 1, Col(0xf4f1ea)); g.text("CLOSED", x + 15, GY - 16, 2.8, REDC, bold: true)
+            }
+            g.text("THE DESERT BAR", x + 10, GY - 40, 5, GOLD, bold: true)
+            label = false
+            top = 66
         case .hike:
             // a brown refuge trailhead sign and a sign-in box
             let post = Col(0x5a4030).shade(1 - dark * 0.4)
@@ -2555,7 +2612,7 @@ final class Renderer {
         // the sketch map
         let mx0 = x0 + 10, my0 = y0 + 22, mw = (x1 - x0) * 0.5, mh = y1 - y0 - 58
         c.RR(mx0, my0, mw, mh, 3, Col(0xe2cfa4))
-        let lonA = -114.42, lonB = -114.09, latA = 33.50, latB = 33.73
+        let lonA = -114.42, lonB = -114.09, latA = 33.50, latB = 33.77
         func mp(_ lat: Double, _ lon: Double) -> (Double, Double) {
             // places off the sketch sit on its edge, pointing the way
             let x = mx0 + (lon - lonA) / (lonB - lonA) * mw, y = my0 + (latB - lat) / (latB - latA) * mh
@@ -2585,7 +2642,7 @@ final class Renderer {
             if here { c.circ(p.0, p.1, 5 + sin(NOW * 4) * 0.8, GOLD.alpha(0.5)) }
             c.circ(p.0, p.1, 2.6, here ? GOLD : REDC)
             c.circ(p.0, p.1, 1, CREAM)
-            let off: [(Double, Double, Int)] = [(-4, 4, 2), (4, -5, 1), (-4, 4, 2), (0, -6, 0), (0, 6, 0), (0, 6, 0), (0, -6, 0), (-4, 3, 2), (5, 1, 1), (5, 2, 1), (-5, -2, 2), (-5, 6, 2)]
+            let off: [(Double, Double, Int)] = [(-4, 4, 2), (4, -5, 1), (-4, 4, 2), (0, -6, 0), (0, 6, 0), (0, 6, 0), (0, -6, 0), (-4, 3, 2), (5, 1, 1), (5, 2, 1), (-5, -2, 2), (-5, 6, 2), (5, 2, 1), (5, 2, 1)]
             let o = a < off.count ? off[a] : (0.0, -6.0, 0)
             g.text(d.name, p.0 + o.0, p.1 + o.1, 3.6, ink, align: o.2, bold: true)
         }
