@@ -403,6 +403,7 @@ final class Game {
     var cineCaps: [String] = []
     var cineT = 0.0
     var inCine: Bool { return !cineShots.isEmpty }
+    var cineFreeze = false
     let SHOT = 4.2
 
     // the map
@@ -483,6 +484,7 @@ final class Game {
                 return
             }
             if mapOpen {
+                if id == 64 { testWeek(); return }
                 if id >= 70 && id < 70 + AREAS.count { go(Area(rawValue: id - 70) ?? area) } else if id == 61 || id < 0 { mapOpen = false }
                 events.append(3)
                 return
@@ -616,6 +618,14 @@ final class Game {
         return Trip(ok: true, cost: 2, how: "Camel Express dial-a-ride")
     }
 
+    /// For testing: jump a week ahead to reach the January events quickly. Remove before release.
+    private func testWeek() {
+        for _ in 0..<7 where !seasonCard { dawn() }
+        mapMsg = "Test: skipped to " + dateText(day)
+        mapMsgT = 2.5
+        if seasonCard { mapOpen = false }
+    }
+
     private func go(_ to: Area) {
         let t = trip(to)
         if !t.ok { mapMsg = t.how; mapMsgT = 2.5; return }
@@ -675,7 +685,7 @@ final class Game {
         if key == "rigs" { showRigs = true; return }
         life = .nomad; pickRig = 1; look = 1
         begin()
-        if !key.hasPrefix("cine") { cineShots = [] }
+        if !key.hasPrefix("cine") { cineShots = [] } else { cineFreeze = true }
         hintT = 0
         if key == "night" { px = 1690; dayT = 0.8; wood = 3 }
         if key == "ltva" { px = 760; dayT = 0.3; rig = .classB; inRig = true; rigX = 760 }
@@ -1131,7 +1141,7 @@ final class Game {
             if floaters[i].t > 1.8 { floaters.remove(at: i) } else { i += 1 }
         }
         if mapMsgT > 0 { mapMsgT -= dt }
-        if inCine {
+        if inCine && !cineFreeze {
             cineT += dt
             if cineT >= Double(cineShots.count) * SHOT { cineShots = [] }
         }

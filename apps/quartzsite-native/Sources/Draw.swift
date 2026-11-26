@@ -1689,6 +1689,10 @@ final class Renderer {
             let up = next.prefix(2).map { EVENTS[$0].name + " (" + EVENTS[$0].when + ", " + AREAS[EVENTS[$0].area.rawValue].name + ")" }
             g.text("Coming up: " + up.joined(separator: " · "), x0 + 10, cy + 11, 4, ink.alpha(0.75), align: 1, wrap: x1 - x0 - 20)
         }
+        // testing only: skip a week to reach the events
+        c.RR(x1 - 66, y0 + 4, 48, 12, 6, REDC.alpha(0.85))
+        g.text("TEST: +1 WEEK", x1 - 42, y0 + 10, 3.8, CREAM, bold: true)
+        g.hits.append(Hit(id: 64, x: x1 - 68, y: y0 + 2, w: 52, h: 16))
         if g.mapMsgT > 0 {
             g.text(g.mapMsg, (x0 + x1) / 2, my0 + mh * 0.5, 6, CREAM.alpha(clampD(g.mapMsgT, 0, 1)), bold: true, plate: true)
         }
@@ -1986,6 +1990,7 @@ final class Renderer {
         let cap = g.cineCaps[min(i, g.cineCaps.count - 1)]
         let a = clampD(min(u * 4, (1 - u) * 4), 0, 1)
         if g.cineShots[i] == 3 {
+            c.vfill(0, H * 0.36 - 30, W, 60, [(0, Col(0x1c1410, 0)), (0.5, Col(0x1c1410, 0.45 * a)), (1, Col(0x1c1410, 0))])
             g.text("QUARTZSITE", W / 2, H * 0.36, 26, CREAM.alpha(a), bold: true)
             g.text(cap, W / 2, H * 0.36 + 20, 7, GOLD.alpha(a), bold: true)
         } else {
