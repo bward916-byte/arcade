@@ -51,6 +51,7 @@ final class Renderer {
             if g.mapOpen { mapOverlay() }
             if g.browseOpen { browseOverlay() }
             if g.phoneOpen { phoneOverlay() }
+            if g.tourOpen { tourOverlay() }
             if g.seasonCard { seasonOverlay() }
             if g.ended { endOverlay() }
             if g.inCine { cinematic() }
@@ -150,10 +151,12 @@ final class Renderer {
                     let p = (tt - 0.25) / 0.75
                     for j in 0..<18 {
                         let a = Double(j) / 18 * PI * 2
-                        let r = p * (24 + hashN(id + 3) * 16)
-                        c.circ(cx + cos(a) * r, cy + sin(a) * r + p * p * 8, 1.1 * (1 - p) + 0.3, col.alpha(1 - p))
+                        let r = p * (40 + hashN(id + 3) * 26)
+                        let ex = cx + cos(a) * r, ey = cy + sin(a) * r + p * p * 12
+                        c.seg(ex - cos(a) * 6 * (1 - p), ey - sin(a) * 6 * (1 - p), ex, ey, 0.9, col.alpha(0.5 * (1 - p)))
+                        c.circ(ex, ey, 1.8 * (1 - p) + 0.4, col.alpha(1 - p * 0.9))
                     }
-                    if p < 0.2 { c.glow(cx, cy, 30, col.alpha(0.35 * (1 - p * 5)), col.alpha(0)) }
+                    if p < 0.3 { c.glow(cx, cy, 60, col.alpha(0.4 * (1 - p * 3.3)), col.alpha(0)) }
                 }
             }
         }
@@ -1572,6 +1575,16 @@ final class Renderer {
             if dark > 0.3 { lights.append((x - 30, GY - 16, 30)) }
             label = false
             top = 56
+        case .tour:
+            // a converted bus with its door open and an A-frame sign out front
+            rig(.skoolie, x, GY, 2, 1, 1)
+            c.R(x + 30, GY - 22, 6, 19, Col(0x2a1e14))
+            c.poly(Col(0x8a6a44), [x - 74, GY + 1, x - 68, GY - 16, x - 62, GY + 1])
+            c.RR(x - 76, GY - 16, 16, 11, 1, Col(0x2a2a2e))
+            g.text("OPEN", x - 68, GY - 12.6, 3, CREAM, bold: true)
+            g.text("HOUSE", x - 68, GY - 8.4, 3, CREAM, bold: true)
+            if g.phase == .play && g.on(EV_SKOOL) { person(x + 46, GY + 3, 777 + g.day, -1, 0, false) }
+            top = 62
         case .pizza:
             // Silly Al's: low stucco under a red tile roof, a patio out front
             facade(x - 40, GY - 26, 80, 26, Col(0xe8d8bc))
@@ -2634,6 +2647,66 @@ final class Renderer {
             g.hits.append(Hit(id: 72 + t, x: tx, y: y0 + ph - 16, w: tw, h: 15))
         }
         g.text("tap outside to close", W / 2, y0 + ph + 1.6, 3.2, CREAM.alpha(0.7))
+    }
+
+    /// Inside a converted school bus: wood ceiling, a wood stove, a bed under the back windows, plants, string lights.
+    private func tourOverlay() {
+        g.hits.removeAll(keepingCapacity: true)
+        g.texts.removeAll(keepingCapacity: true)
+        c.R(0, 0, W, H, Col(0x0c0a08, 0.65))
+        g.hits.append(Hit(id: -1, x: 0, y: 0, w: W, h: H))
+        let w = min(320.0, W - g.safeL - g.safeR - 20), h = 160.0
+        let x0 = (W - w) / 2, y0 = (H - h) / 2
+        let wood = [Col(0xc89a62), Col(0x9a6a44), Col(0xd8b484)][g.tourBus]
+        let paint = [Col(0x5a8a7a), Col(0xd9c9a8), Col(0x3a5a8a)][g.tourBus]
+        c.RR(x0, y0, w, h, 10, paint)
+        // arched ceiling of tongue-and-groove
+        c.RR(x0, y0, w, 30, 10, wood)
+        for k in 0..<Int(w / 6) { c.R(x0 + Double(k) * 6, y0 + 4, 0.6, 26, wood.shade(0.82)) }
+        // the bus windows down both sides, desert outside
+        for k in 0..<7 {
+            let wx = x0 + 14 + Double(k) * (w - 28) / 7
+            c.RR(wx, y0 + 34, (w - 28) / 7 - 6, 26, 2, Col(0x2a2a2e))
+            c.vfill(wx + 1.4, y0 + 35.4, (w - 28) / 7 - 8.8, 23, [(0, Col(0x8ac0e8)), (0.7, Col(0xe8c89a)), (1, Col(0xc89a6a))])
+            c.R(wx + 1.4, y0 + 46, (w - 28) / 7 - 8.8, 0.8, Col(0x2a2a2e))
+        }
+        // string lights along the ceiling
+        for k in 0..<22 {
+            let t = Double(k) / 21
+            let lx = x0 + 10 + t * (w - 20), ly = y0 + 30 + sin(t * PI * 3) * 2 + 2
+            c.circ(lx, ly, 1, [Col(0xffd68a), Col(0xff8a6a), Col(0x8ad0ff)][k % 3])
+        }
+        // floor
+        c.R(x0, y0 + h - 26, w, 26, wood.shade(0.75))
+        for k in 0..<Int(w / 16) { c.R(x0 + Double(k) * 16, y0 + h - 26, 0.6, 26, wood.shade(0.6)) }
+        // the bed at the back
+        c.RR(x0 + 10, y0 + h - 52, 80, 26, 3, wood.shade(0.9))
+        c.RR(x0 + 12, y0 + h - 58, 76, 10, 3, Col(0xe8dcc4))
+        let quilt = [Col(0xd9412e), Col(0xf2c14e), Col(0x3a6ea5), Col(0x3f8f6a)]
+        for k in 0..<8 { c.R(x0 + 14 + Double(k) * 9, y0 + h - 50, 9, 8, quilt[(k + g.tourBus) % 4]) }
+        // the wood stove, pipe and glow
+        let sx = x0 + w * 0.48
+        c.RR(sx - 10, y0 + h - 46, 20, 20, 2, Col(0x2a2a2e))
+        c.RR(sx - 6, y0 + h - 40, 12, 9, 1, Col(0xff8a2e, 0.6 + 0.3 * sin(NOW * 7)))
+        c.R(sx - 2, y0 + 30, 4, h - 76, Col(0x3a3a3e))
+        c.glow(sx, y0 + h - 36, 30, Col(0xffa040, 0.25), Col(0xffa040, 0))
+        // kitchen counter with plants and a kettle
+        c.R(x0 + w - 110, y0 + h - 46, 100, 20, wood.shade(0.85))
+        c.R(x0 + w - 110, y0 + h - 48, 100, 2.4, wood.shade(1.1))
+        for k in 0..<3 {
+            let px = x0 + w - 100 + Double(k) * 26
+            c.RR(px, y0 + h - 54, 8, 6, 1, Col(0xc85a3a))
+            for l in 0..<4 { c.ell(px + 4 + Double(l - 2) * 2, y0 + h - 57 - Double(l % 2) * 2, 1.6, 3, Col(0x4f9a5a)) }
+        }
+        c.RR(x0 + w - 32, y0 + h - 55, 10, 7, 3, Col(0x3a6ea5))
+        // a sleeping dog on the rug
+        c.ell(x0 + w * 0.65, y0 + h - 18, 22, 4, Col(0xb5452f, 0.7))
+        c.ell(x0 + w * 0.65, y0 + h - 21, 9, 4, Col(0x8a6a44))
+        c.circ(x0 + w * 0.65 + 8, y0 + h - 22, 3.2, Col(0x8a6a44))
+        let owners = ["The Okafors' 1998 Thomas, converted in their driveway over two summers", "Dusty's 2004 Blue Bird: 40 feet, a wood stove and 1,200 watts of solar", "Tess's short bus: three dogs, one bed, zero regrets"]
+        c.RR(x0 + 10, y0 + 6, w - 20, 16, 4, Col(0x1c1410, 0.75))
+        g.text(owners[g.tourBus], W / 2, y0 + 14, 4.4, CREAM, bold: true)
+        g.text("tap anywhere to step back outside", W / 2, y0 + h + 6, 3.4, CREAM.alpha(0.7))
     }
 
     /// A tiny weather glyph for the phone.

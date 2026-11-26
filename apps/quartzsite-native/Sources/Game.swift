@@ -94,7 +94,7 @@ let EV_GEM = 0, EV_RTR = 1, EV_RV = 2, EV_SELL = 3, EV_SKOOL = 4, EV_CRAFT = 5, 
 let SEASON_END = 109
 let START_WEEKDAY = 1   // Monday
 
-enum SpotKind { case camp, bench, fire, wash, host, station, outhouse, board, grocery, gemworld, landmark, park, hall, yacht, lot, rides, tools, panorama, vendors, office, booth, bigtent, mine, detect, rockhound, river, skoolie, circle, cabin, parade, rvpark, house, computer, radio, cleanup, camel, dogpark, stray, pizza, post, laundry, shop }
+enum SpotKind { case camp, bench, fire, wash, host, station, outhouse, board, grocery, gemworld, landmark, park, hall, yacht, lot, rides, tools, panorama, vendors, office, booth, bigtent, mine, detect, rockhound, river, skoolie, circle, cabin, parade, rvpark, house, computer, radio, cleanup, camel, dogpark, stray, pizza, post, laundry, shop, tour }
 struct Spot {
     let kind: SpotKind
     let x: Double
@@ -179,6 +179,7 @@ let AREAS: [AreaDef] = [
         Spot(kind: .skoolie, x: 660, name: "SKOOLIEPALOOZA"),
         Spot(kind: .booth, x: 960, name: "YOUR SPOT", arg: 1),
         Spot(kind: .circle, x: 1260, name: "THE CIRCLE"),
+        Spot(kind: .tour, x: 1480, name: "OPEN HOUSE"),
         Spot(kind: .landmark, x: 1700, name: "PIONEER CEMETERY", arg: 3)
     ]),
     AreaDef(name: "Pipeline Trail", sub: "Rough desert two-track east of La Posa", w: 2800, arrive: 160, lat: 33.636, lon: -114.183, spots: [
@@ -517,7 +518,8 @@ final class Game {
     }
     func areaName(_ a: Area) -> String { return AREAS[a.rawValue].name }
     /// A full-screen card is up and the day stands still.
-    var overlay: Bool { return mapOpen || browseOpen || seasonCard || ended || inCine || driving || phoneOpen }
+    var overlay: Bool { return mapOpen || browseOpen || seasonCard || ended || inCine || driving || phoneOpen || tourOpen }
+    var tourOpen = false, tourBus = 0
     // your page, on your phone
     struct PagePost { var text: String; var day: Int; var likes: Int; var comments: Int }
     var phoneOpen = false
@@ -648,6 +650,7 @@ final class Game {
                 events.append(3)
                 return
             }
+            if tourOpen { tourOpen = false; events.append(3); return }
             if phoneOpen {
                 if id == 68 { postPhoto() }
                 else if id == 72 { phoneTab = 0; events.append(3) }
@@ -1044,6 +1047,7 @@ final class Game {
             wares[0].haggled = true; wares[0].price = Int(Double(wares[0].price) * 0.8); mapMsg = wares[0].who + ": \"Alright, \(wares[0].price) and it's yours.\""; mapMsgT = 99
         }
         if key == "rvshow" { day = 22; place(.tyson, 2560); dayT = 0.3; clockFreeze = true }
+        if key == "tour" { day = 24; place(.skoolie, 1480); dayT = 0.3; clockFreeze = true; tourBus = 0; tourOpen = true }
         if key == "newyear" { place(.ltva, 1400); day = 4; dayT = 0.81; clockFreeze = true }
         if key == "xmas" { place(.main, 2300); day = 2; dayT = 0.76; clockFreeze = true }
         if key == "flood" { place(.roadrunner, 400); weather = 3; dayT = 0.3; clockFreeze = true }
@@ -1203,6 +1207,8 @@ final class Game {
             return day - mailDay >= 7 ? Offer(label: "Pick up your General Delivery mail", cost: 0, earn: 0, dur: 1.2) : nil
         case .laundry:
             return seen.contains(25) || health >= 96 ? nil : Offer(label: "Shower and laundry", cost: 11, earn: 0, dur: 2)
+        case .tour:
+            return on(EV_SKOOL) && !seen.contains(28) ? Offer(label: "Tour a converted bus", cost: 0, earn: 0, dur: 1.4) : nil
         case .shop:
             if sp.arg == 0 && wood <= 5 { return Offer(label: "Buy 5 firewood bundles", cost: 25, earn: 0, dur: 1.2) }
             if (sp.arg == 1 || sp.arg == 5) && rig != .tent && propane < 90 { return Offer(label: "Fill propane", cost: Int((100 - propane) * 0.3) + 4, earn: 0, dur: 1.4) }
@@ -1282,6 +1288,7 @@ final class Game {
         case .pizza: return "Back tomorrow for another slice"
         case .post: return "Next mail in \(7 - (day - mailDay)) days"
         case .laundry: return seen.contains(25) ? "Clean as a whistle" : "You're clean enough"
+        case .tour: return on(EV_SKOOL) ? "One open house a day. Back tomorrow" : "Bus open houses during Skooliepalooza"
         case .shop: return ["Hardware, groceries and RV basics", "RV spaces and propane", "Prescriptions. Call ahead in summer", "Parts for the rig", "Fresh meat, deli and quick groceries", "RV spaces and propane fills"][max(0, min(5, sp.arg))]
         case .board:
             if seen.contains(23) { return business > 0 ? "Your ad is up \(adDays) more days. New jobs tomorrow" : "New odd jobs go up every morning" }
@@ -1423,6 +1430,13 @@ final class Game {
             seen.insert(25)
             health = min(100, health + 30)
             float("Hot shower, clean clothes", x, GREEN)
+        case .tour:
+            seen.insert(28)
+            cred += 1
+            health = min(100, health + 5)
+            tourBus = day % 3
+            tourOpen = true
+            post("touring a skoolie at Skooliepalooza", 12)
         case .shop:
             if o.label.hasPrefix("Buy 5 firewood") {
                 wood += 5
