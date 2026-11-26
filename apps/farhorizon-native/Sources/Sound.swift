@@ -28,7 +28,8 @@ final class Sound {
     private var echo = [Double](repeating: 0, count: 13230)   // 0.3 s
     private var echoI = 0
     private var running = false
-    var muted = false
+    var muted = UserDefaults.standard.bool(forKey: "fh_nosound")
+    var musicOn = !UserDefaults.standard.bool(forKey: "fh_nomusic")
 
     func start() {
         if running { return }
@@ -255,7 +256,7 @@ final class Sound {
     }
     /// Call every frame with the game clock and the mood to play.
     func music(_ now: Double, _ m: String) {
-        if muted || !running { return }
+        if muted || !musicOn || !running { return }
         guard let tr = tracks[m] else { return }
         if m != mood { mood = m; noteI = 0; beat = 0; nextT = now + 0.5 }
         if now < nextT { return }

@@ -748,7 +748,7 @@ final class Game {
                 } else if offerK.isEmpty && !offerDone && nowDays() > lastEvEnd + 1.2 && nextEvAt - nowDays() > 1.6 {
                     // midway between events, offer something to do
                     offerDone = true
-                    var pool = ["flyfish", "trim", "cask", "gleam"]
+                    var pool = ["flyfish", "trim", "cask", "gleam", "turtle", "gulls", "chest"]
                     if bait > 0 { pool.append("fishing") }
                     offerK = pool.randomElement() ?? "flyfish"
                     offerT = 0
@@ -865,6 +865,10 @@ final class Game {
         if name == "mgcask" { leg = 1; mode = .sail; nextEvAt = 9999; startOdd("cask"); return }
         if name == "mgstars" { leg = 1; mode = .sail; nextEvAt = 9999; startOdd("trim"); play?.score = 3; play?.tries = 3; play?.perfect = 2; play?.marks = [2, 1, 2]; play?.endT = 99; play?.endLen = 100; play?.starsShown = 3; return }
         if name == "mgstreak" { leg = 1; mode = .sail; nextEvAt = 9999; startOdd("trim"); play?.streak = 2; play?.marks = [2, 1]; play?.tries = 2; play?.score = 2; play?.pop(W / 2, H - 200, "PERFECT!", true, big: true); return }
+        if name == "settings" { leg = 1; mode = .port; openSettings(); cardT = 9; return }
+        if name == "mggulls" { leg = 1; mode = .sail; nextEvAt = 9999; startOdd("gulls"); play?.total = 60; return }
+        if name == "mgturtle" { leg = 1; mode = .sail; nextEvAt = 9999; startOdd("turtle"); return }
+        if name == "mgchest" { leg = 1; mode = .sail; nextEvAt = 9999; startOdd("chest"); return }
         if name == "mggleam" { leg = 1; mode = .sail; nextEvAt = 9999; startOdd("gleam"); play?.total = 60; return }
         if name == "intro" { mode = .title; showIntro(); return }
         if name == "outfit" { shipI = 1; crew = ship.crew; hull = Double(ship.hull); syncMen(); marketPort = false; mode = .outfit; provision(storesNeeded() + 8); return }

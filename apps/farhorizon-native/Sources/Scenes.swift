@@ -974,7 +974,7 @@ extension Game {
         }
         if !offerK.isEmpty && card == nil && play == nil && sceneK.isEmpty {
             // a chance going by: a badge with a ring that runs down
-            let info: [String: (String, String)] = ["flyfish": ("Flying fish!", "tap to catch"), "trim": ("A fresh wind!", "tap to trim sails"), "cask": ("A cask adrift!", "tap to hook it"), "gleam": ("Something glints", "tap to net it"), "fishing": ("Fish jumping!", "tap: lines out")]
+            let info: [String: (String, String)] = ["flyfish": ("Flying fish!", "tap to catch"), "trim": ("A fresh wind!", "tap to trim sails"), "cask": ("A cask adrift!", "tap to hook it"), "gleam": ("Something glints", "tap to net it"), "fishing": ("Fish jumping!", "tap: lines out"), "turtle": ("A turtle alongside!", "tap to net her"), "gulls": ("Gulls at the catch!", "tap to shoo them"), "chest": ("A sea chest!", "tap to haul it up")]
             let (t1, t2) = info[offerK] ?? ("Something to do", "tap")
             let k = clampD(offerT / 6.5, 0, 1)
             let pop = 1 - pow(1 - clampD(offerT / 0.3, 0, 1), 3)
@@ -988,7 +988,7 @@ extension Game {
             c.RRStroke(ox - ow / 2, oy - 24, ow, 48, 24, 2, Col(0xfff6d8))
             c.circ(ox - ow / 2 + 24, oy, 17, Col(0x2a1808, 0.85))
             c.arcStroke(ox - ow / 2 + 24, oy, 19, -PI / 2, -PI / 2 + PI * 2 * (1 - k), 3, k > 0.7 ? Col(0xff5a3c) : Col(0x2a8a3c))
-            let ik: [String: String] = ["flyfish": "bait", "trim": "day", "cask": "planks", "gleam": "gold", "fishing": "bait"]
+            let ik: [String: String] = ["flyfish": "bait", "trim": "day", "cask": "planks", "gleam": "gold", "fishing": "bait", "turtle": "food", "gulls": "bait", "chest": "gold"]
             icon(c, ik[offerK] ?? "gold", ox - ow / 2 + 24, oy, 20)
             c.text(t1, ox - ow / 2 + 48, oy - 2, 15, Col(0x2a1806), -1, FONTB)
             c.text(t2, ox - ow / 2 + 48, oy + 14, 12, Col(0x4a2a0e), -1, FONTI)

@@ -494,13 +494,25 @@ extension Game {
         x = pill(c, x, "crew", down > 0 ? "\(crew) (\(down) down)" : "\(crew)", warn: down > 0)
         // hull bar
         let w = 96.0
-        if x + w < W - safeR {
+        if x + w < W - safeR - 34 {
             c.RR(x, 6, w, 24, 12, Col(0x1c1108, 0.82))
             c.RRStroke(x, 6, w, 24, 12, 1, Col(0xd2a455, 0.8))
             icon(c, "hull", x + 15, 18, 18)
             let k = clampD(hull / Double(max(1, ship.hull)), 0, 1)
             c.RR(x + 30, 14, w - 40, 8, 4, Col(0x000000, 0.5))
             c.RR(x + 30, 14, (w - 40) * k, 8, 4, k < 0.35 ? REDC : GREENC)
+        }
+        if mode == .sail || mode == .port || mode == .chart {
+            // the settings cog, top right
+            let gx = W - safeR - 20, gy = 18.0
+            c.circ(gx, gy, 13, Col(0x1c1108, 0.82)); c.circStroke(gx, gy, 13, 1, Col(0xd2a455, 0.8))
+            c.roundCaps(true)
+            for k2 in 0..<8 { let a = Double(k2) * PI / 4; c.seg(gx + cos(a) * 5, gy + sin(a) * 5, gx + cos(a) * 8.5, gy + sin(a) * 8.5, 2.6, CREAM) }
+            c.roundCaps(false)
+            c.circ(gx, gy, 6, CREAM); c.circ(gx, gy, 2.6, Col(0x1c1108))
+            if card == nil && sum == nil && play == nil {
+                hits.append(Hit(x: gx - 20, y: 0, w: 40, h: 38, act: { [unowned self] in self.snd?.click(); self.openSettings() }))
+            }
         }
     }
 

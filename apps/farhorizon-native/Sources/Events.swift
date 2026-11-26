@@ -816,6 +816,29 @@ extension Game {
         opts.append(Opt("Leave") { [unowned self] in self.card = nil })
         show("The swordmaster", "An old fencing master drinks here. For a price he will show your boarders a thing or two.", opts)
     }
+    /// Music, sounds, the rules again, and a way back to the title. The voyage waits while this is open.
+    func openSettings() {
+        let mOn = snd?.musicOn ?? true, sOn = !(snd?.muted ?? false)
+        show("Settings", "Your voyage saves itself, in port and at sea.", [
+            Opt("Music: " + (mOn ? "on" : "off"), "tap to turn it " + (mOn ? "off" : "on")) { [unowned self] in
+                self.snd?.musicOn = !mOn
+                UserDefaults.standard.set(mOn, forKey: "fh_nomusic")
+                self.openSettings()
+            },
+            Opt("Sounds: " + (sOn ? "on" : "off"), "tap to turn them " + (sOn ? "off" : "on")) { [unowned self] in
+                self.snd?.muted = sOn
+                UserDefaults.standard.set(sOn, forKey: "fh_nosound")
+                self.openSettings()
+            },
+            Opt("How to play") { [unowned self] in self.showIntro() },
+            Opt("Save and quit", "back to the title") { [unowned self] in
+                self.saveGame()
+                self.card = nil
+                self.mode = .title
+            },
+            Opt("Back to the voyage") { [unowned self] in self.card = nil }
+        ])
+    }
     /// Three cards that say what the game is and what the player does in it.
     func showIntro() {
         UserDefaults.standard.set(true, forKey: "fh_intro")
@@ -824,7 +847,7 @@ extension Game {
                 self.show("At sea", "A passage takes weeks. Every day the crew eats and drinks your stores. Storms, sickness and pirates come and go, and when something happens you choose what to do.", [
                     Opt("Next") { [unowned self] in
                         self.show("In port", "Between passages you stop in a port. Buy stores for the next passage, repair the hull and pay the crew. The checklist at the bottom of the port shows what still needs doing.", [
-                            Opt(self.mode == .title ? "Got it" : "Choose your ship") { [unowned self] in self.card = nil }
+                            Opt(self.mode == .pick ? "Choose your ship" : "Got it") { [unowned self] in self.card = nil }
                         ])
                     }
                 ])
