@@ -63,7 +63,7 @@ jobs:
           xcrun simctl boot "$UDID"
           xcrun simctl bootstatus "$UDID" -b
           xcrun simctl install "$UDID" "$APP"
-          for shot in rout; do
+          for shot in march; do
             xcrun simctl terminate "$UDID" com.brianward.dustfall3 2>/dev/null || true
             xcrun simctl launch "$UDID" com.brianward.dustfall3 "-demo-$shot"
             sleep 9

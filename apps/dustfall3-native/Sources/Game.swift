@@ -1190,6 +1190,9 @@ final class Game {
             for k in 0..<14 { folk.append(Folk(x: 1200 + Double(k) * 30)) }
             bandits.append(Bandit(x: 700, rider: false, side: -1, hp: 2))
             px = gateE.x + 60
+            // like a save from before build 144: every building done, and the old ending already marked as seen
+            for bl in b where bl.def.cost.count > 0 { bl.level = bl.maxLevel }
+            seen.insert("st_end"); star = true
         }
         if name == "rally" {
             place = "bitterend"; town = 4; log = ["dustfall", "redwater", "lasthope", "coldcreek"]; day = 36; day0 = 33; layTown()
@@ -2016,7 +2019,8 @@ final class Game {
     /// In the last town: gather enough townsfolk, then lead them out the east gate to run Crane off.
     /// Why the last town won't march yet, or "" when it will.
     var rallyBlock: String {
-        if !lastTown || endNow || seen.contains("st_end") { return "done" }
+        // its own mark: older builds marked the game ended when the last town was fully built, which must not stop this
+        if !lastTown || endNow || seen.contains("cranegone") { return "done" }
         let n = folk.filter { !$0.sick }.count
         if n < RALLY_N { return "Townsfolk: \(n) of \(RALLY_N). Gather \(RALLY_N) to run Crane out of Bitter End." }
         if dark() > 0.5 { return "Bitter End is ready. They will march at first light." }
@@ -2068,7 +2072,11 @@ final class Game {
                 for (k, f) in folk.enumerated() where k % 2 == 0 { parts.append(Part(x: f.x, y: -30, vx: rnd(-14, 14), vy: -rnd(70, 110), life: 1.6, max: 1.6, c: Col(hc[k % 4]), s: 2.6, grav: 110)) }
                 sfx?.ding()
             }
-            if routT > 4.8 { zoom = 1; endNow = true; rallyOn = false; toTitle = true; onSave?() }
+            if routT > 4.8 {
+                zoom = 1; endNow = true; rallyOn = false; toTitle = true
+                seen.insert("cranegone"); seen.remove("st_end")       // the ending plays now, even if an older build already showed one
+                onSave?()
+            }
             return
         }
         if dark() > 0.5 || px < gateE.x - 40 { rallyOn = false; return }
@@ -2615,7 +2623,7 @@ final class Game {
             return "TEST march: folk \(n)/\(RALLY_N) \u{00B7} \(dark() > 0.5 ? "night" : "day") \u{00B7} \(rallyOn ? (routT >= 0 ? "routing" : "marching") : "waiting") \u{00B7} block \(why) \u{00B7} gate \(Int(gateE.x - px)) \u{00B7} yard \(Int(craneX - px))"
         }
         if folk.isEmpty { return "Next: toss a coin to a drifter at a campfire outside town." }
-        if lastTown && !seen.contains("st_end") && rallyBlock != "done" {
+        if lastTown && rallyBlock != "done" {
             if rallyOn { return routT >= 0 ? "" : "Keep riding east to Crane\u{2019}s yard: the town is behind you." }
             let why = rallyBlock
             if why.isEmpty { return "Bitter End is ready. Ride out the east gate and they will follow you to run Crane off." }
