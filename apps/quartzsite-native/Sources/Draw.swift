@@ -53,6 +53,7 @@ final class Renderer {
             if g.phoneOpen { phoneOverlay() }
             if g.tourOpen { tourOverlay() }
             if g.mineOpen { mineOverlay() }
+            if g.boardOpen { boardOverlay() }
             if g.seasonCard { seasonOverlay() }
             if g.ended { endOverlay() }
             if g.inCine { cinematic() }
@@ -2762,6 +2763,47 @@ final class Renderer {
         g.text(g.mineText, W / 2, y0 + h - 17, 4.4, CREAM, bold: true, wrap: w - 30)
         g.text("THE GOLD EYE", W / 2, y0 + 12, 6, GOLD, bold: true)
         g.text("tap anywhere to climb back out", W / 2, y0 + h + 6, 3.4, CREAM.alpha(0.7))
+    }
+
+    /// The community board up close: cork, pushpins, flyers with tear-off tabs.
+    private func boardOverlay() {
+        g.hits.removeAll(keepingCapacity: true)
+        g.texts.removeAll(keepingCapacity: true)
+        c.R(0, 0, W, H, Col(0x0c0a08, 0.6))
+        g.hits.append(Hit(id: -1, x: 0, y: 0, w: W, h: H))
+        let w = min(330.0, W - g.safeL - g.safeR - 20), h = 164.0
+        let x0 = (W - w) / 2, y0 = (H - h) / 2
+        c.RR(x0 - 5, y0 - 5, w + 10, h + 10, 4, Col(0x6a4a2e))
+        c.R(x0, y0, w, h, Col(0xb88a58))
+        for k in 0..<220 { let d = Double(k) + 300; c.circ(x0 + hashN(d) * w, y0 + hashN(d + 1) * h, 0.5, Col(0x8a6238, 0.6)) }
+        let job = JOBS[g.day % JOBS.count]
+        let ev = g.nextEvent()
+        let sale = ["SOLAR PANEL 100W, barely used", "Quiet 2200W generator, runs great", "Bike rack, fits two bikes", "Kayak, 10 ft, with paddle", "Cast iron dutch oven"][g.day % 5]
+        var notes: [(String, String, Col)] = []
+        notes.append((g.seen.contains(23) ? "HELP WANTED (taken)" : "HELP WANTED", job.0 + ". Pays \(job.1). Today only.", Col(0xfff2a8)))
+        notes.append(("COMING UP", ev.map { $0.name + ", " + $0.when } ?? "Season's winding down. See you next winter!", Col(0xf4f1ea)))
+        notes.append(("LOST DOG", "Little brown dog, answers to Biscuit. Last seen at La Posa South. Reward!", Col(0xffd0c8)))
+        notes.append(("FOR SALE", sale + ". Ask at the board.", Col(0xd8f0ff)))
+        notes.append(("SUNDAY POTLUCK", "Town Park, noon. Bring a dish and your own chair.", Col(0xd8f8d0)))
+        if g.business > 0 {
+            notes.append(("YOUR AD", BIZ[g.business - 1].name + (g.adDays > 0 ? ". Up \(g.adDays) more days." : ". Ad's down. Post a new one."), Col(0xffe0a8)))
+        } else {
+            notes.append(("QUARTZSITE CAMPFIRE", "Guide, map and classifieds for the season. qcampfire.com", Col(0xf8e8ff)))
+        }
+        let nw = (w - 28) / 3, nh = (h - 26) / 2
+        for (k, n) in notes.enumerated() {
+            let tilt = (hashN(Double(k) + Double(g.day) * 0.1) - 0.5) * 6
+            let nx = x0 + 8 + Double(k % 3) * (nw + 6) + tilt, ny = y0 + 8 + Double(k / 3) * (nh + 10)
+            c.R(nx + 1.4, ny + 1.6, nw, nh, Col(0x000000, 0.18))
+            c.R(nx, ny, nw, nh, n.2)
+            c.circ(nx + nw / 2, ny + 3, 2, [Col(0xd9412e), Col(0x3a6ea5), Col(0xf2c14e), Col(0x3f8f6a)][k % 4])
+            g.text(n.0, nx + nw / 2, ny + 11, 4.2, Col(0x2a1e14), bold: true)
+            g.text(n.1, nx + nw / 2, ny + 24, 3.4, Col(0x3a2c1e), wrap: nw - 10)
+            if k == 3 || k == 2 {
+                for t in 0..<6 { c.R(nx + 3 + Double(t) * (nw - 6) / 6, ny + nh - 9, (nw - 6) / 6 - 1.2, 9, n.2.shade(0.94)) }
+            }
+        }
+        g.text("tap anywhere to step back", W / 2, y0 + h + 9, 3.4, CREAM.alpha(0.7))
     }
 
     /// A tiny weather glyph for the phone.

@@ -518,8 +518,14 @@ final class Game {
     }
     func areaName(_ a: Area) -> String { return AREAS[a.rawValue].name }
     /// A full-screen card is up and the day stands still.
-    var overlay: Bool { return mapOpen || browseOpen || seasonCard || ended || inCine || driving || phoneOpen || tourOpen || mineOpen }
+    var overlay: Bool { return mapOpen || browseOpen || seasonCard || ended || inCine || driving || phoneOpen || tourOpen || mineOpen || boardOpen }
     var tourOpen = false, tourBus = 0
+    var boardOpen = false
+
+    /// The next event on the calendar, for the board.
+    func nextEvent() -> EventDef? {
+        return EVENTS.enumerated().filter { $0.offset != EV_PAN && $0.element.start > day }.min(by: { $0.element.start < $1.element.start })?.element
+    }
     var mineOpen = false, mineFind = 0, mineText = ""   // inside the Gold Eye: 0 specimen, 1 lantern, 2 gold, 3 bats
     // your page, on your phone
     struct PagePost { var text: String; var day: Int; var likes: Int; var comments: Int }
@@ -653,6 +659,7 @@ final class Game {
             }
             if tourOpen { tourOpen = false; events.append(3); return }
             if mineOpen { mineOpen = false; events.append(3); return }
+            if boardOpen { boardOpen = false; events.append(3); return }
             if phoneOpen {
                 if id == 68 { postPhoto() }
                 else if id == 72 { phoneTab = 0; events.append(3) }
@@ -1049,6 +1056,7 @@ final class Game {
             wares[0].haggled = true; wares[0].price = Int(Double(wares[0].price) * 0.8); mapMsg = wares[0].who + ": \"Alright, \(wares[0].price) and it's yours.\""; mapMsgT = 99
         }
         if key == "rvshow" { day = 22; place(.tyson, 2560); dayT = 0.3; clockFreeze = true }
+        if key == "board" { place(.main, 3170); day = 9; dayT = 0.3; clockFreeze = true; business = 1; adDays = 2; boardOpen = true }
         if key == "minein" { place(.dome, 820); dayT = 0.3; clockFreeze = true; mineFind = 2; mineText = "Color in the pan from the back of the drift: 42 coins in gold."; mineOpen = true }
         if key == "tour" { day = 24; place(.skoolie, 1480); dayT = 0.3; clockFreeze = true; tourBus = 0; tourOpen = true }
         if key == "newyear" { place(.ltva, 1400); day = 4; dayT = 0.81; clockFreeze = true }
@@ -1173,7 +1181,7 @@ final class Game {
         case .board:
             if business > 0 && adDays == 0 { return Offer(label: "Post an ad: " + BIZ[business - 1].name, cost: 10, earn: 0, dur: 1.2) }
             if !seen.contains(23) && health > 15 { let j = JOBS[day % JOBS.count]; return Offer(label: "Odd job: " + j.0, cost: 0, earn: j.1, dur: 2.6) }
-            return nil
+            return Offer(label: "Read the board", cost: 0, earn: 0, dur: 0.4)
         case .grocery:
             return health < 96 ? Offer(label: "Groceries", cost: 15, earn: 0, dur: 1.0) : nil
         case .gemworld:
@@ -1453,7 +1461,9 @@ final class Game {
             health = min(100, health + 6)
             float("Relief", x, GREEN)
         case .board:
-            if o.label.hasPrefix("Odd job") {
+            if o.label.hasPrefix("Read") {
+                boardOpen = true
+            } else if o.label.hasPrefix("Odd job") {
                 seen.insert(23)
                 health = max(0, health - 8)
                 cred += 1
