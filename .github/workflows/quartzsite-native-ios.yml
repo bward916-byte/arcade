@@ -63,7 +63,7 @@ jobs:
           xcrun simctl boot "$UDID"
           xcrun simctl bootstatus "$UDID" -b
           xcrun simctl install "$UDID" "$APP"
-          for shot in drivestop drivenight dome skoolie scaddan tyson; do
+          for shot in party tyson skoolie main drivetow ltva scaddan; do
             xcrun simctl terminate "$UDID" com.brianward.quartzsitewinter 2>/dev/null || true
             if [ "$shot" = title ]; then
               xcrun simctl launch "$UDID" com.brianward.quartzsitewinter

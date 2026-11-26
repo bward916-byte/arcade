@@ -434,7 +434,9 @@ final class Game {
     var driveLane = 1, driveLaneY = 1.0, driveSpeed = 0.0, driveScroll = 0.0
     var driveCars: [Car] = []
     var driveNext = 2.0, driveBump = 0.0, driveLen = 60.0
-    var driveVeh = 0, driveDirt = false, driveFreeze = false
+    var driveVeh = 0, driveDirt = false, driveFreeze = false, driveTow = false
+    // a party at your camp: the neighbors stay till late
+    var partyDay = -1, partyArea: Area = .ltva, partyX = 0.0, partyT = 0.0
     // something on the shoulder worth pulling over for: 0 a broken-down van, 1 a free pile
     var stopX = -999.0, stopKind = 0, stopDone = false, stopMsg = "", stopMsgT = 0.0
     let SHOT = 4.2
@@ -546,7 +548,8 @@ final class Game {
         wood = 0; rockVals = []; odd = 0; jewelVals = []; panels = 0
         area = .ltva; rigArea = .ltva
         px = 1260; rigX = 1150; rigFace = 1; inRig = false; vx = 0
-        toy = -1; onToy = false
+        // your first ride: nomads pedal, snowbirds bring the side-by-side
+        toy = life == .nomad ? 0 : 5; toyArea = .ltva; toyX = 1215; onToy = false
         detector = false; permitDays = 14; campDays = 0; business = 0; adDays = 0; page = false; seen = []; boothDay = 0
         active = -1; ringSpot = -1; ringProg = 0; ringPaid = 0
         mapOpen = false
@@ -560,7 +563,7 @@ final class Game {
         cineShots = [0, 1, 2, 3]
         cineCaps = ["I-10, Arizona. Exit 17.", "Every winter, the desert fills up.", "Snowbirds, nomads, skoolies and rockhounds.", "Your first winter · " + dateText(1)]
         cineT = 0
-        hint("start", "Walk with the left pad. Stand by a glowing spot and hold the right side to fill its ring. Let go early and your money comes back. Tap MAP to go somewhere else.")
+        hint("start", "Walk with the left pad. Stand by a glowing spot and hold the right side to fill its ring. Let go early and your money comes back. Tap your " + (life == .nomad ? "bike" : "side-by-side") + " to ride; it's much faster than walking. Tap MAP to go somewhere else.")
     }
 
     func toggleRig() {
@@ -690,6 +693,8 @@ final class Game {
         else if veh == 1 { spd = TOYS[max(0, toy)].speed; driveLen = TOYS[max(0, toy)].len }
         else { driveLen = veh == 3 ? RIGS[RigKind.skoolie.rawValue].len : RIGS[RigKind.minivan.rawValue].len }
         driveSecs = clampD(mi * 2.2 * 150 / max(60, spd), 6, 24)
+        driveTow = veh == 0 && toy >= 0 && toyArea == to
+        if driveTow && toy >= 3 { driveLen += 44 }
         driveLane = 1; driveLaneY = 1; driveSpeed = 0.25; driveScroll = 0
         driveCars = []; driveNext = 1.2; driveBump = 0
         stopX = -999; stopDone = false; stopMsgT = 0
@@ -759,11 +764,17 @@ final class Game {
     }
 
     private func travel(_ to: Area) {
+        let from = area
         area = to
         px = AREAS[to.rawValue].arrive
         vx = 0
         if inRig { rigArea = to; rigX = px; rigFace = px < WORLD / 2 ? 1 : -1 }
         if onToy { toyArea = to; toyX = px }
+        // your ride comes along with the rig: bikes on the rack, the rest on a trailer
+        if inRig && toy >= 0 && toyArea == from {
+            toyArea = to
+            toyX = clampD(px - rigFace * (RIGS[rig.rawValue].len / 2 + 34), 40, WORLD - 40)
+        }
         face = px < WORLD / 2 ? 1 : -1
         cam = clampD(px - W / 2, 0, max(0, WORLD - W))
         active = -1
@@ -825,6 +836,18 @@ final class Game {
             travel(.roadrunner); startDrive(.roadrunner, 5, 0, false)
             driveLeft = 2.5; driveSpeed = 1; driveScroll = 400; driveCars = []
             stopDone = false; stopKind = 0; stopX = W * 0.66; driveFreeze = true
+        }
+        if key == "party" {
+            dayT = 0.7
+            let x = spots.first(where: { $0.kind == .camp })?.x ?? 1260
+            px = x + 40
+            partyDay = day; partyArea = area; partyX = x; partyT = -40; seen.insert(18)
+        }
+        if key == "drivetow" {
+            life = .rver; toy = 5; toyArea = .ltva; rig = .classA; inRig = true; dayT = 0.2
+            travel(.dome); startDrive(.dome, 4, 0, false)
+            driveLeft = 2; driveSpeed = 1; driveScroll = 300; driveCars = [Car(x: W * 0.8, lane: 0, kind: 1, v: 120)]
+            stopDone = true; driveFreeze = true
         }
         if key == "drivetrail" {
             toy = 5; onToy = true; dayT = 0.35
@@ -914,7 +937,7 @@ final class Game {
             if area == .ltva && permitDays <= 0 { return nil }
             if dogCholla { return Offer(label: "Comb the cholla off your dog", cost: 0, earn: 0, dur: 2.4) }
             if cred >= 25 && !page { return Offer(label: "Start a Facebook page", cost: 0, earn: 0, dur: 2) }
-            if dayT > 0.55 && dayT < 0.72 && !seen.contains(18) { return Offer(label: "Host happy hour for the neighbors", cost: 10, earn: 0, dur: 2.2) }
+            if dayT > 0.55 && dayT < 0.72 && !seen.contains(18) { return Offer(label: "Throw a party for the neighbors", cost: 20, earn: 0, dur: 2.2) }
             return health < 96 ? Offer(label: "Rest by your fire", cost: 0, earn: 0, dur: 2.2) : nil
         case .bench:
             if rigArea != area { return nil }
@@ -1094,9 +1117,10 @@ final class Game {
                 hint("page", "Your Facebook page is up. Landmarks, events, finds and the wildlife all make posts that bring followers. At 1,000 followers it starts paying.")
             } else if dayT > 0.55 && dayT < 0.72 && !seen.contains(18) {
                 seen.insert(18)
-                cred += 3
-                float("The neighbors came by with chairs", x, GOLD)
-                post("happy hour at camp", 25)
+                cred += 4
+                partyDay = day; partyArea = area; partyX = x; partyT = time
+                float("Here they come, chairs and coolers", x, GOLD)
+                post("a party at camp", 40)
             } else {
                 health = min(100, health + (upgrades.contains(UP_AWNING) ? 32 : 20))
                 float(upgrades.contains(UP_AWNING) ? "Rested in the shade" : "Rested", x, GREEN)

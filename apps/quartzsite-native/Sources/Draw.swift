@@ -233,7 +233,7 @@ final class Renderer {
             rig(.skoolie, rx, GY + 12, 2, 1)
         } else {
             for (i, sp) in g.spots.enumerated() { spot(i, sp) }
-            if g.phase == .play { critters(ar) }
+            if g.phase == .play { critters(ar); eventCrowds(ar) }
             if g.phase == .play && g.area == .main && g.on(EV_PARADE) { parade() }
             if g.phase == .play { drawYou() }
         }
@@ -499,6 +499,25 @@ final class Renderer {
                 n += 1
             }
         case .scaddan:
+            // the wash itself: a line of palo verde and ironwood, and far rigs back in the bajada
+            var fw = floor((cam * 0.5 - 40) / 46)
+            while fw * 46 < cam * 0.5 + W + 40 {
+                if hashN(fw + 1700) < 0.6 {
+                    let fx = fw * 46 + hashN(fw + 1710) * 20 - cam * 0.5
+                    rig([.classC, .classA, .van, .skoolie][Int(hashN(fw + 1720) * 4) % 4], fx, GY - 9, 0, hashN(fw + 1730) < 0.5 ? 1 : -1, 0.3)
+                    if dark > 0.4 && hashN(fw + 1740) < 0.5 { c.circ(fx + 10, GY - 10, 0.9, Col(0xffb050)); lights.append((fx + 10, GY - 10, 8)) }
+                }
+                fw += 1
+            }
+            var tw = floor((cam * 0.85 - 60) / 70)
+            while tw * 70 < cam * 0.85 + W + 60 {
+                if hashN(tw + 1750) < 0.75 {
+                    let tx = tw * 70 + hashN(tw + 1760) * 40 - cam * 0.85
+                    if hashN(tw + 1770) < 0.5 { paloverde(tx, GY - 2, tw) }
+                    else { ironwood(tx, GY - 2, tw) }
+                }
+                tw += 1
+            }
             let gap = 210.0
             var n = floor((cam * par - 70) / gap)
             while n * gap < cam * par + W + 70 {
@@ -730,7 +749,23 @@ final class Renderer {
             c.poly(Col(0xfff2c0, 0.16 * dark), [nose, base - 9, nose + 110, base - 20, nose + 110, base + 6])
         }
         switch g.driveVeh {
-        case 0: rig(g.rig, x, base, g.panels, 1)
+        case 0:
+            if g.driveTow {
+                let back = x - RIGS[g.rig.rawValue].len / 2
+                if g.toy < 3 {
+                    // bike rack off the back
+                    c.R(back - 4, base - 8, 5, 1.2, Col(0x2a2a2e))
+                    toy(g.toy, back - 7, base - 7.5, 1, -1, 0)
+                } else {
+                    // a little utility trailer
+                    let tx = back - 26
+                    c.R(back - 6, base - 4, 7, 1.2, Col(0x3a3a3e))
+                    c.R(tx - 22, base - 5.5, 44, 2.4, Col(0x4a4a4e))
+                    c.circ(tx, base - 2.6, 2.8, Col(0x22201e)); c.circ(tx, base - 2.6, 1.2, Col(0x9a9a98))
+                    toy(g.toy, tx, base - 5.5, 1, -1, 0)
+                }
+            }
+            rig(g.rig, x, base, g.panels, 1)
         case 1: toy(g.toy, x, base, 1, g.look, g.driveScroll * 0.12)
         case 3: rig(.skoolie, x, base, 0, 1)
         default: rig(.minivan, x, base, 0, 1)
@@ -1088,8 +1123,8 @@ final class Renderer {
 
     /// A rider sitting at (x, hip) in the current transform, facing right, hands forward.
     private func seated(_ x: Double, _ hip: Double, _ look: Int, _ reach: Double) {
-        let k = ((look % 4) + 4) % 4
-        let skin = SKINS[k], shirt = SHIRTS[k], pants = PANTS[k]
+        let lk = lookOf(look)
+        let skin = lk.skin, shirt = lk.shirt, pants = lk.pants
         c.roundCaps(true)
         c.seg(x, hip, x + 4.4, hip - 0.4, 2.2, pants)
         c.seg(x + 4.4, hip - 0.4, x + 5, hip + 4.4, 2, pants.shade(0.85))
@@ -1104,7 +1139,7 @@ final class Renderer {
             c.dome(x + 0.2, hy - 0.2, 3.1, Col(0x2a2a2a))
             c.R(x + 1.4, hy - 1.2, 2.2, 1, Col(0x5a8aaa))
         } else {
-            c.dome(x + 0.3, hy - 0.6, 2.8, [Col(0xd9c07a), Col(0x8a3a5a), Col(0x2f4f7a), Col(0xefe6cf)][k])
+            c.dome(x + 0.3, hy - 0.6, 2.8, lk.hat == 4 ? Col(0x3a2a1e) : lk.hatCol)
         }
     }
 
@@ -1132,10 +1167,24 @@ final class Renderer {
         c.circ(x, base - r, r * 0.5, HUB)
     }
 
+    /// Colours and headwear for a look: 0–3 are the player looks; higher numbers are townsfolk, each a little different.
+    private func lookOf(_ look: Int) -> (skin: Col, shirt: Col, pants: Col, hat: Int, hatCol: Col) {
+        if look >= 0 && look < 4 {
+            return (SKINS[look], SHIRTS[look], PANTS[look], look, [Col(0xd9c07a), Col(0x8a3a5a), Col(0x2f4f7a), Col(0xefe6cf)][look])
+        }
+        let h = Double(look) * 1.618
+        let skins = [Col(0xf0c8a0), Col(0xd9a37a), Col(0xc48a62), Col(0xa8744c), Col(0x8a5a3a), Col(0x6a4430)]
+        let shirts = [Col(0xb5452f), Col(0x4a5a6e), Col(0x3f8f8a), Col(0xd9c9a8), Col(0x7a4a8a), Col(0xe2a03a), Col(0x2f6a4a), Col(0xf4f1ea), Col(0x3a6ea5), Col(0xc85a7a), Col(0x5a5a5e)]
+        let pants = [Col(0x3d4a66), Col(0x2c2c30), Col(0x7a6a4e), Col(0x5a6a7a), Col(0x8a7a5a)]
+        let hats = [Col(0xd9c07a), Col(0x8a3a5a), Col(0x2f4f7a), Col(0xefe6cf), Col(0x3a2a1e), Col(0x8a6a3a), Col(0xb5452f), Col(0x6a5a4a)]
+        func pick(_ a: [Col], _ s: Double) -> Col { return a[Int(hashN(h + s) * Double(a.count)) % a.count] }
+        return (pick(skins, 1), pick(shirts, 2), pick(pants, 3), Int(hashN(h + 4) * 6) % 6, pick(hats, 5))
+    }
+
     func person(_ x: Double, _ base: Double, _ look: Int, _ face: Double, _ ph: Double, _ moving: Bool) {
         if x < -20 || x > W + 20 { return }
-        let k = ((look % 4) + 4) % 4
-        let skin = SKINS[k], shirt = SHIRTS[k], pants = PANTS[k]
+        let lk = lookOf(look)
+        let skin = lk.skin, shirt = lk.shirt, pants = lk.pants
         let sw = moving ? sin(ph) * 3.2 : 0.0
         let hip = base - 7
         let bob = moving ? abs(sin(ph)) * 0.5 : sin(NOW * 2 + Double(look)) * 0.2
@@ -1149,19 +1198,26 @@ final class Renderer {
         let hy = hip - 10.6 - bob
         c.circ(x + face * 0.4, hy, 2.7, skin)
         c.R(x + face * 1.5, hy - 0.5, 0.7, 0.7, Col(0x2a1c14))
-        switch k {
+        let hc = lk.hatCol
+        switch lk.hat {
         case 0:     // straw hat
-            c.dome(x + face * 0.3, hy - 1, 2.6, Col(0xd9c07a))
-            c.ell(x + face * 0.3, hy - 1, 4.6, 0.9, Col(0xc9ae62))
+            c.dome(x + face * 0.3, hy - 1, 2.6, hc)
+            c.ell(x + face * 0.3, hy - 1, 4.6, 0.9, hc.shade(0.92))
         case 1:     // beanie
-            c.dome(x + face * 0.3, hy - 0.4, 2.9, Col(0x8a3a5a))
+            c.dome(x + face * 0.3, hy - 0.4, 2.9, hc)
         case 2:     // ball cap
-            c.dome(x + face * 0.3, hy - 0.8, 2.8, Col(0x2f4f7a))
-            c.R(face > 0 ? x + 2 : x - 5.4, hy - 1.2, 3.4, 0.9, Col(0x2f4f7a))
-        default:    // grey hair and a wide sun hat
+            c.dome(x + face * 0.3, hy - 0.8, 2.8, hc)
+            c.R(face > 0 ? x + 2 : x - 5.4, hy - 1.2, 3.4, 0.9, hc)
+        case 3:     // grey hair and a wide sun hat
             c.dome(x + face * 0.2, hy - 0.2, 2.9, Col(0xd8d8d4))
-            c.ell(x + face * 0.3, hy - 1.8, 5.2, 0.9, Col(0xefe6cf))
-            c.dome(x + face * 0.3, hy - 1.8, 2.3, Col(0xefe6cf))
+            c.ell(x + face * 0.3, hy - 1.8, 5.2, 0.9, hc)
+            c.dome(x + face * 0.3, hy - 1.8, 2.3, hc)
+        case 4:     // just hair
+            c.dome(x + face * 0.1, hy - 0.3, 2.9, [Col(0x2a1c14), Col(0x6a4a2a), Col(0xd8c070), Col(0xc8c8c4)][Int(hashN(Double(look) + 9) * 4) % 4])
+        default:    // cowboy hat
+            c.dome(x + face * 0.3, hy - 1.4, 2.4, hc)
+            c.ell(x + face * 0.3, hy - 1.2, 5, 0.8, hc.shade(0.9))
+            c.R(x + face * 0.3 - 5, hy - 2.2, 1, 1.2, hc.shade(0.9)); c.R(x + face * 0.3 + 4, hy - 2.2, 1, 1.2, hc.shade(0.9))
         }
     }
 
@@ -1880,6 +1936,21 @@ final class Renderer {
             c.circ(x - 14 + hashN(d) * 28, base - 26 + hashN(d + 1) * 10, 3 + hashN(d + 2) * 2.4, Col(0xa8b85a, 0.85).shade(1 - dark * 0.4))
         }
     }
+    /// Desert ironwood: a dark blue-grey dome of a tree along the washes.
+    private func ironwood(_ x: Double, _ base: Double, _ seed: Double) {
+        if x < -40 || x > W + 40 { return }
+        let bark = Col(0x5a4a3e).shade(1 - dark * 0.4)
+        c.roundCaps(true)
+        c.seg(x, base, x + 1, base - 10, 2.2, bark)
+        c.seg(x + 1, base - 8, x - 8, base - 16, 1.4, bark)
+        c.seg(x + 1, base - 9, x + 9, base - 17, 1.4, bark)
+        c.roundCaps(false)
+        for i in 0..<14 {
+            let d = seed + Double(i) * 3.1
+            c.circ(x - 15 + hashN(d) * 30, base - 23 + hashN(d + 1) * 9, 3.4 + hashN(d + 2) * 2.6, Col(0x6a7a72, 0.9).shade(1 - dark * 0.45))
+        }
+    }
+
     /// A desert rock with a lit top.
     private func rock(_ x: Double, _ base: Double, _ r: Double) {
         let col = Col(0x8a6a54).shade(1 - dark * 0.4)
@@ -2171,6 +2242,100 @@ final class Renderer {
     }
 
     /// The Hi Jolly Parade: camels, floats, classic cars and side-by-sides rolling down Main Street.
+    /// Townsfolk wandering a stretch of the world: some strolling, some stopped to talk.
+    private func crowd(_ x0: Double, _ x1: Double, _ n: Int, _ seed: Double) {
+        var folks: [(x: Double, b: Double, look: Int, face: Double, ph: Double, mv: Bool)] = []
+        for i in 0..<n {
+            let d = seed * 31 + Double(i) * 7.3
+            let home = x0 + hashN(d) * (x1 - x0)
+            let still = hashN(d + 1) < 0.4
+            let amp = still ? 0 : 20 + hashN(d + 2) * 70
+            let t = NOW * (0.08 + hashN(d + 3) * 0.12) + hashN(d + 4) * 6.28
+            let sx = home + sin(t) * amp - cam
+            if sx < -20 || sx > W + 20 { continue }
+            let face = still ? (hashN(d + 5) < 0.5 ? 1.0 : -1.0) : (cos(t) >= 0 ? 1.0 : -1.0)
+            folks.append((sx, GY + 2 + hashN(d + 6) * 7, 4 + Int(hashN(d + 7) * 997), face, NOW * 7 + d, !still && abs(cos(t)) > 0.15))
+        }
+        folks.sort { $0.b < $1.b }
+        for f in folks { person(f.x, f.b, f.look, f.face, f.ph, f.mv) }
+    }
+
+    /// The people who turn up for whatever is on, sized to the event.
+    private func eventCrowds(_ ar: Area) {
+        let w = g.WORLD
+        let day = g.dayT < 0.64
+        func at(_ k: SpotKind) -> Double? { return g.spots.first(where: { $0.kind == k })?.x }
+        switch ar {
+        case .tyson:
+            if day && (g.tysonShow() != nil || g.on(EV_RV)) { crowd(160, w - 160, 110, 11) }
+            else if day && g.on(EV_PAN), let x = at(.panorama) { crowd(x - 140, x + 140, 12, 12) }
+        case .main:
+            if day { crowd(0, w, 40, 16) }
+            if day && g.on(EV_RTR), let x = at(.park) { crowd(x - 280, x + 280, 34, 13) }
+            if day && g.on(EV_WESTERN), let x = at(.park) { crowd(x - 240, x + 240, 30, 14) }
+            if day && g.on(EV_PARADE) { crowd(0, w, 160, 15) }
+        case .skoolie:
+            if g.on(EV_SKOOL) { crowd(140, w - 140, day ? 90 : 40, 17) }
+        case .roadrunner:
+            if g.on(EV_QFEST), let x = at(.radio) { crowd(x - 300, x + 300, day ? 26 : 12, 18) }
+        default: break
+        }
+        if g.partyDay == g.day && g.partyArea == ar && g.dayT > 0.5 { party() }
+    }
+
+    /// Your party: neighbors walk over with chairs and coolers, a couple of rigs pull in, lights go up.
+    private func party() {
+        let fx = g.partyX + 4 - cam
+        let et = NOW - g.partyT
+        if fx < -260 || fx > W + 260 { return }
+        // rigs that pulled in, and string lights from a pole
+        if et > 4 {
+            rig(.van, fx + 150, GY - 1, 1, -1, 0.9)
+            toy(4, fx + 205, GY, -1, -1, 0)
+            rig(.skoolie, fx + 290, GY - 1, 2, -1, 0.9)
+        }
+        c.R(fx + 92, GY - 26, 1, 26, Col(0x7a6a5a).shade(1 - dark * 0.4))
+        let bulbs = [Col(0xffd68a), Col(0xff8a6a), Col(0x8ad0ff), Col(0xb8ff8a)]
+        for i in 0..<16 {
+            let t = Double(i) / 15
+            let lx = fx - 40 + 132 * t, ly = GY - 25 + sin(PI * t) * 5
+            c.circ(lx, ly, 1, bulbs[i % 4].alpha(dark > 0.3 ? 1 : 0.6))
+            if dark > 0.3 && i % 3 == 0 { lights.append((lx, ly, 12)) }
+        }
+        // cooler and a folding table
+        c.RR(fx + 30, GY - 4, 9, 5, 1, Col(0x3a6ea5)); c.R(fx + 30, GY - 4.6, 9, 1, Col(0xf4f1ea))
+        c.R(fx + 46, GY - 7, 18, 1.2, Col(0xe8e0d0)); c.R(fx + 47, GY - 6, 0.8, 6, Col(0x8a8a88)); c.R(fx + 62, GY - 6, 0.8, 6, Col(0x8a8a88))
+        c.circ(fx + 50, GY - 8, 1.4, Col(0xd9412e)); c.R(fx + 55, GY - 9.6, 2, 2.6, Col(0xf2c14e)); c.circ(fx + 60, GY - 8, 1.2, Col(0x4f9a5a))
+        // the guests: chairs on the fire's left, people standing and talking on the right
+        let seats: [(Double, Bool)] = [(-46, true), (-34, true), (-22, true), (-58, true), (16, false), (24, false), (68, false), (76, false), (84, false), (104, false), (112, false), (-70, false), (122, false), (40, true)]
+        for (i, s) in seats.enumerated() {
+            let arrive = Double(i) * 0.45
+            let f = clampD((et - arrive) / 3, 0, 1)
+            if f <= 0 { continue }
+            let from = (i % 2 == 0 ? -1.0 : 1.0) * (W * 0.6 + 40)
+            let tx = fx + s.0
+            let gx = f < 1 ? tx + (1 - f) * from : tx
+            let look = 300 + i * 37
+            if f < 1 {
+                person(gx, GY + 3, look, from < 0 ? 1 : -1, NOW * 8 + Double(i), true)
+            } else if s.1 {
+                let chair = [Col(0x2f6a8a), Col(0xb5452f), Col(0x3f8f6a), Col(0x7a4a8a)][i % 4].shade(1 - dark * 0.4)
+                c.seg(tx - 2, GY + 2, tx + 4, GY - 3, 0.5, Col(0x5a5a5a)); c.seg(tx + 4, GY + 2, tx - 2, GY - 3, 0.5, Col(0x5a5a5a))
+                c.R(tx - 3, GY - 4, 8, 1.4, chair); c.R(tx - 3.4, GY - 11, 1.4, 7.4, chair)
+                seated(tx, GY - 4, look, sin(NOW * 1.5 + Double(i)) * 0.3)
+            } else {
+                person(tx, GY + 3, look, s.0 < 30 ? -1 : (i % 2 == 0 ? 1 : -1), 0, false)
+            }
+        }
+        // music in the air
+        if et > 3 {
+            for k in 0..<3 {
+                let t = (NOW * 0.5 + Double(k) / 3).truncatingRemainder(dividingBy: 1)
+                g.text("♪", fx + 10 + sin(t * 6 + Double(k)) * 8, GY - 34 - t * 26, 5, CREAM.alpha(1 - t))
+            }
+        }
+    }
+
     private func parade() {
         let gap = 64.0
         let shift = (NOW * 12).truncatingRemainder(dividingBy: gap * 12)
@@ -2611,7 +2776,7 @@ final class Renderer {
         g.text("HOW DO YOU ROLL?", l, 11, 6, GOLD, align: 1, bold: true)
         let cw = (uw - 8) / 2
         let lifeName = ["NOMAD", "RVER"]
-        let lifeSub = ["Vans, skoolies, Skooliepalooza. Starts with friends: 5 cred.", "A snowbird with a check coming in. Starts with 100 more coins."]
+        let lifeSub = ["Vans, skoolies, Skooliepalooza. Starts with friends (5 cred) and a bicycle.", "A snowbird with a check coming in. Starts with 100 more coins and a side-by-side."]
         for i in 0..<2 {
             let x = l + Double(i) * (cw + 8)
             card(i, x, 17, cw, 36, g.life.rawValue == i)
