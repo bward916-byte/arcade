@@ -504,7 +504,8 @@ let STORY: [String: [Beat]] = [
             Beat(art: "eyes", who: "crane", head: "Silas Crane", cap: "He looks at Bitter End one last time, lit from end to end."),
             Beat(art: "train", head: "The night train", cap: "His private car goes east with the blinds drawn. He never comes back."),
             Beat(art: "vista", who: "dustfall", head: "Dustfall", cap: "Back where it began, the lamps are lit on main street.", from: "lit"),
-            Beat(art: "badge", head: "The end", cap: "The line belongs to the people who live on it.")]
+            Beat(art: "badge", head: "The end", cap: "The line belongs to the people who live on it."),
+            Beat(art: "badge", head: "Dustfall III", cap: "Made by Brian Ward. Thank you for riding the line.")]
 ]
 /// Every stop on the line, with the stage it sits at and the towns passed to reach it: for jumping straight to one.
 let STOPS: [(String, Int, [String])] = [("dustfall", 0, []), ("redwater", 1, ["dustfall"]), ("irongulch", 1, ["dustfall"]), ("lasthope", 2, ["dustfall", "redwater"]), ("timberline", 2, ["dustfall", "irongulch"]), ("coldcreek", 3, ["dustfall", "redwater", "lasthope"]), ("silverpeak", 3, ["dustfall", "irongulch", "timberline"]), ("bitterend", 4, ["dustfall", "redwater", "lasthope", "coldcreek"])]

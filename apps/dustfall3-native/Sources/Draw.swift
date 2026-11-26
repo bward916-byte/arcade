@@ -44,13 +44,14 @@ final class Renderer {
         racks()
         if g.hall.level == 0 { campfire(FIRE_X, 1.0) }
         for bl in g.b where bl.def.gate { gate(bl) }
-        if g.rallyBlock.isEmpty && !g.rallyOn {
-            // point the way out: a bobbing arrow over the east gate, and one at the screen edge when it is off to the right
-            let gx = sx(g.gateE.x + 7), bob = sin(g.clock * 4) * 2
+        if g.lastTown { craneYard() }
+        if (g.rallyBlock.isEmpty && !g.rallyOn) || (g.rallyOn && g.routT < 0) {
+            // point the way: the east gate first, then Crane's yard; an arrow at the screen edge when it is off to the right
+            let gx = sx(g.rallyOn ? g.yardX - 10 : g.gateE.x + 7), bob = sin(g.clock * 4) * 2
             let ax = min(gx, W - 14), ay = gy - 34 + bob
             c.glow(ax, ay, 12, Col(0xffd27a, 0.35), Col(0xffd27a, 0))
             if gx > W - 14 { c.poly(Col(0xf2c14e), [ax - 6, ay - 5, ax + 4, ay, ax - 6, ay + 5]) } else { c.poly(Col(0xf2c14e), [ax - 5, ay - 6, ax + 5, ay - 6, ax, ay + 3]) }
-            c.text("EAST GATE", ax - (gx > W - 14 ? 22 : 0), ay - 9, 4.4, Col(0xf2c14e), face: "Rye-Regular")
+            c.text(g.rallyOn ? "CRANE\u{2019}S YARD" : "EAST GATE", ax - (gx > W - 14 ? 26 : 0), ay - 9, 4.4, Col(0xf2c14e), face: "Rye-Regular")
         }
         for bx in g.boxes { box(bx) }
         coach()
@@ -2389,6 +2390,45 @@ final class Renderer {
             p.append(x + cos(a) * rr); p.append(y + sin(a) * rr)
         }
         c.poly(col, p)
+    }
+
+    /// Crane's company yard past the east gate of the last town: a rail fence, his office, a wagon,
+    /// the company arch, and his men, who run when the town comes for them.
+    private func craneYard() {
+        let yx = g.yardX
+        if !vis(yx, 220) { return }
+        let x = sx(yx).rounded(), wood = Col(0x5a4030), dk = Col(0x2e2218)
+        c.ell(x, gy + 0.6, 110, 2.4, Col(0x000000, 0.12))
+        // the office: dark planks, a tin roof, the company flag
+        let ox = x + 40
+        c.R(ox, gy - 30, 44, 30, Col(0x3e342e)); var pk = 0.0
+        while pk < 44 { c.R(ox + pk, gy - 30, 0.6, 30, Col(0x2a221e)); pk += 5.5 }
+        c.poly(Col(0x6a6e74), [ox - 4, gy - 30, ox + 22, gy - 41, ox + 48, gy - 30]); c.R(ox - 4, gy - 31, 52, 1.4, Col(0x8a8e94))
+        c.R(ox + 17, gy - 14, 10, 14, Col(0x1c1612)); c.R(ox + 5, gy - 24, 8, 7, Col(0xd8a850, g.dark() > 0.4 ? 0.9 : 0.4)); c.R(ox + 31, gy - 24, 8, 7, Col(0xd8a850, g.dark() > 0.4 ? 0.9 : 0.4))
+        c.RR(ox + 8, gy - 38.6, 28, 5, 0.6, Col(0x1c1612)); c.text("OFFICE", ox + 22, gy - 34.8, 3.8, Col(0xd8b860), fit: 26)
+        c.R(ox + 46, gy - 54, 1.2, 54, dk)
+        let wave = sin(g.clock * 3) * 1.4
+        c.poly(Col(0x7a241c), [ox + 47.2, gy - 54, ox + 61, gy - 51 + wave, ox + 47.2, gy - 47]); c.text("C", ox + 52, gy - 49.4, 4, Col(0xead7a4), face: "Rye-Regular")
+        // the wagon, loaded
+        let wx = x - 70
+        c.R(wx, gy - 12, 34, 7, Col(0x6a4a2e)); c.R(wx, gy - 12, 34, 1, Col(0x8a6238)); c.RR(wx + 2, gy - 19, 12, 7, 1, Col(0x8a7450)); c.RR(wx + 15, gy - 18, 10, 6, 1, Col(0x7a6448))
+        for wcx in [wx + 6, wx + 28] { c.circ(wcx, gy - 4, 4, dk); c.circ(wcx, gy - 4, 3, Col(0x6a4a2e)); c.circ(wcx, gy - 4, 0.9, dk) }
+        // rail fence round the pen
+        var fx = x - 110.0
+        while fx < x + 110 { c.R(fx, gy - 11, 1.4, 11, wood); fx += 14 }
+        c.R(x - 110, gy - 9, 220, 1, wood); c.R(x - 110, gy - 5, 220, 1, wood)
+        // the company arch over the road in, which comes down when the town arrives
+        let ax = x - 20, tip = g.routT < 0 ? 0 : min(1.45, g.routT * g.routT * 1.6)
+        c.R(ax - 26, gy - 34, 2.4, 34, dk)
+        c.save(); c.translate(ax + 25, gy); c.rotate(-tip * 0.9); c.translate(-(ax + 25), -gy)
+        c.R(ax + 24, gy - 34, 2.4, 34, dk)
+        c.restore()
+        c.save(); c.translate(ax - 25, gy - 33); c.rotate(tip)
+        c.R(-1, -1.5, 52, 2.4, dk)
+        c.RR(4, 1.5, 44, 8, 0.8, Col(0x7a241c)); c.R(4, 1.5, 44, 0.7, Col(0xa8483a))
+        c.text("CRANE CATTLE & RAIL", 26, 7.4, 3.7, Col(0xead7a4), fit: 42)
+        c.restore()
+        for m in g.yardMen where m.x < g.yardX + 700 { bandit(m) }
     }
 
     private func gate(_ bl: Building) {
