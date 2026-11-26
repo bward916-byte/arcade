@@ -194,6 +194,8 @@ let AREAS: [AreaDef] = [
 ]
 let LANDMARKS = ["Pay respects at Hi Jolly's tomb", "Browse the books", "Read the stage-stop plaque", "Walk the old cemetery", "Walk Celia's Rainbow Gardens"]
 let CAMELS = 6
+/// Traffic on the highway: a car, then rigs. Lengths match the drawings.
+let CAR_LEN: [Double] = [46, 59, 63, 87, 118, 96]
 
 /// Straight-line miles between two places.
 func milesBetween(_ a: Area, _ b: Area) -> Double {
@@ -424,6 +426,15 @@ final class Game {
     var cineT = 0.0
     var inCine: Bool { return !cineShots.isEmpty }
     var cineFreeze = false
+    // the drive between places: a side-on run down the highway (or the trail)
+    struct Car { var x: Double; var lane: Int; var kind: Int; var v: Double }
+    var driving = false
+    var driveTo: Area = .ltva
+    var driveMiles = 0.0, driveLeft = 0.0, driveSecs = 10.0
+    var driveLane = 1, driveLaneY = 1.0, driveSpeed = 0.0, driveScroll = 0.0
+    var driveCars: [Car] = []
+    var driveNext = 2.0, driveBump = 0.0, driveLen = 60.0
+    var driveVeh = 0, driveDirt = false, driveFreeze = false
     let SHOT = 4.2
 
     // the map
@@ -452,7 +463,7 @@ final class Game {
     }
     func areaName(_ a: Area) -> String { return AREAS[a.rawValue].name }
     /// A full-screen card is up and the day stands still.
-    var overlay: Bool { return mapOpen || browseOpen || seasonCard || ended || inCine }
+    var overlay: Bool { return mapOpen || browseOpen || seasonCard || ended || inCine || driving }
     func on(_ e: Int) -> Bool { return day >= EVENTS[e].start && day <= EVENTS[e].end }
     /// Which Tyson Wells show is running today, if any.
     func tysonShow() -> Int? {
@@ -486,6 +497,13 @@ final class Game {
             if inCine {
                 // a tap skips ahead to the last shot, a second tap ends it
                 if cineT < Double(cineShots.count - 1) * SHOT { cineT = Double(cineShots.count - 1) * SHOT } else { cineShots = [] }
+                return
+            }
+            if driving {
+                if id == 65 { driveLeft = 0; driving = false; shown.insert("drive"); events.append(3); return }
+                if driveDirt { return }
+                let lane = y < GY ? 0 : 1
+                if lane != driveLane { driveLane = lane; events.append(3) }
                 return
             }
             if ended {
@@ -652,7 +670,65 @@ final class Game {
         if Double(t.cost) > money { mapMsg = "Not enough coins for that"; mapMsgT = 2.5; return }
         money -= Double(t.cost)
         mapOpen = false
+        let mi = milesBetween(area, to)
+        let hiking = !inRig && !onToy && (to == .trail || area == .trail)
+        let veh = inRig ? 0 : (onToy ? 1 : (area == .skoolie ? 3 : 2))
+        let dirt = to == .trail || area == .trail
         travel(to)
+        if mi >= 1 && !hiking { startDrive(to, mi, veh, dirt) }
+    }
+
+    /// The trip itself: you are already there as far as the save knows; this is the ride.
+    func startDrive(_ to: Area, _ mi: Double, _ veh: Int, _ dirt: Bool) {
+        driving = true; driveTo = to; driveMiles = mi; driveLeft = mi
+        driveVeh = veh; driveDirt = dirt
+        var spd = 150.0
+        if veh == 0 { spd = RIGS[rig.rawValue].speed; driveLen = RIGS[rig.rawValue].len }
+        else if veh == 1 { spd = TOYS[max(0, toy)].speed; driveLen = TOYS[max(0, toy)].len }
+        else { driveLen = veh == 3 ? RIGS[RigKind.skoolie.rawValue].len : RIGS[RigKind.minivan.rawValue].len }
+        driveSecs = clampD(mi * 2.2 * 150 / max(60, spd), 6, 24)
+        driveLane = 1; driveLaneY = 1; driveSpeed = 0.25; driveScroll = 0
+        driveCars = []; driveNext = 1.2; driveBump = 0
+    }
+
+    /// Where a lane's wheels sit on the screen.
+    func laneBase(_ l: Double) -> Double { return GY - 9 + l * 18 }
+
+    private func driveStep(_ dt: Double) {
+        if driveFreeze { return }
+        if driveBump > 0 { driveBump -= dt }
+        driveSpeed += ((driveBump > 0 ? 0.3 : 1) - driveSpeed) * min(1, dt * 1.1)
+        driveLaneY += (Double(driveLane) - driveLaneY) * min(1, dt * 7)
+        let v = 240 * driveSpeed
+        driveScroll += v * dt
+        driveLeft -= dt * driveMiles / driveSecs * driveSpeed
+        if !driveDirt {
+            driveNext -= dt
+            if driveNext <= 0 && driveLeft > driveMiles * 0.12 {
+                driveNext = rnd(1.3, 3)
+                driveCars.append(Car(x: W + 100, lane: Int.random(in: 0...1), kind: Int.random(in: 0..<6), v: rnd(0.3, 0.6) * 240))
+            }
+        }
+        let me = W * 0.3
+        var i = 0
+        while i < driveCars.count {
+            driveCars[i].x -= (v - driveCars[i].v) * dt
+            let car = driveCars[i]
+            if car.x < -160 || car.x > W + 400 { driveCars.remove(at: i); continue }
+            let reach = (driveLen + CAR_LEN[car.kind]) / 2 + 1
+            if driveBump <= 0 && car.lane == driveLane && abs(driveLaneY - Double(driveLane)) < 0.4 && car.x > me && car.x - me < reach {
+                driveBump = 1.3
+                driveSpeed = 0.15
+                health = max(0, health - 3)
+                events.append(6)
+            }
+            i += 1
+        }
+        if driveLeft <= 0 {
+            driveLeft = 0
+            driving = false
+            shown.insert("drive")
+        }
     }
 
     private func travel(_ to: Area) {
@@ -709,6 +785,18 @@ final class Game {
         if !key.hasPrefix("cine") { cineShots = [] } else { cineFreeze = true }
         hintT = 0
         if key == "night" { px = 1690; dayT = 0.8; wood = 3 }
+        if key == "drive" || key == "drivenight" {
+            rig = .classC; inRig = true; dayT = key == "drive" ? 0.3 : 0.78
+            travel(.skoolie); startDrive(.skoolie, 10, 0, false)
+            driveLeft = 6.5; driveSpeed = 1; driveScroll = 900; driveLane = 1; driveLaneY = 1
+            driveCars = [Car(x: W * 0.7, lane: 0, kind: 3, v: 120), Car(x: W * 0.93, lane: 1, kind: 0, v: 130)]
+            driveFreeze = true
+        }
+        if key == "drivetrail" {
+            toy = 5; onToy = true; dayT = 0.35
+            travel(.trail); startDrive(.trail, 3, 1, true)
+            driveLeft = 1.5; driveSpeed = 1; driveScroll = 700; driveFreeze = true
+        }
         if key == "ltva" { px = 760; dayT = 0.3; rig = .classB; inRig = true; rigX = 760 }
         if key == "main" { place(.main, 1610); money = 400; day = 14 }
         if key == "gem" { place(.tyson, 1050); money = 300; day = 7; rockVals = [40] }
@@ -1229,6 +1317,7 @@ final class Game {
         }
         if hintT > 0 && !overlay { hintT -= dt }
         if arriveT > 0 && !overlay { arriveT -= dt }
+        if phase == .play && driving { driveStep(dt) }
         if phase == .play && !overlay { play(dt) }
     }
 

@@ -44,6 +44,7 @@ final class Renderer {
             scene(0.3)
             pickOverlay()
         case .play:
+            if g.driving { driveScene(); return }
             cam = g.cam
             scene(g.dayT)
             hud()
@@ -530,6 +531,141 @@ final class Renderer {
         p.append(W + 5)
         p.append(GY + 1)
         c.poly(col, p)
+    }
+
+    // MARK: the drive
+
+    private func driveScene() {
+        dark = darkness(g.dayT)
+        let sk = skyAt(g.dayT)
+        cam = g.driveScroll
+        let hz = GY - 38
+        c.vfill(0, 0, W, hz + 1, [(0, sk.0), (1, sk.1)])
+        if dark > 0.3 {
+            for i in 0..<60 {
+                let n = Double(i)
+                c.R(hashN(n) * W, hashN(n + 200) * hz * 0.85, 0.8, 0.8, Col(0xffffff, (dark - 0.3) * (0.4 + 0.6 * hashN(n + 400))))
+            }
+            c.glow(W * 0.78, hz * 0.3, 24, Col(0xdfe6ff, 0.3), Col(0xdfe6ff, 0))
+            c.circ(W * 0.78, hz * 0.3, 5, Col(0xeef0fa)); c.circ(W * 0.78 + 2, hz * 0.3 - 1, 4.4, sk.0)
+        } else {
+            c.glow(W * 0.8, hz * 0.32, 42, Col(0xfff0c0, 0.55), Col(0xfff0c0, 0))
+            c.circ(W * 0.8, hz * 0.32, 6.5, Col(0xfff6dc))
+        }
+        clouds(g.weather, sk.1)
+        ridge(0.03, 1.3, hz - 4, 46, Col.mix(Col(0x6a5a80), sk.1, 0.55).shade(1 - dark * 0.55))
+        ridge(0.09, 4.1, hz + 1, 24, Col.mix(Col(0x8a5a4a), sk.1, 0.35).shade(1 - dark * 0.6))
+        c.vfill(0, hz, W, H - hz, [(0, Col(0xdcbc8c).shade(1 - dark * 0.6)), (1, Col(0xc49464).shade(1 - dark * 0.6))])
+        // far side of the road: small cactus and brush drifting by
+        let fp = cam * 0.35
+        var n = floor(fp / 34) - 1
+        while n * 34 < fp + W + 40 {
+            let sx = n * 34 + hashN(n + 900) * 22 - fp
+            let k = hashN(n + 910)
+            if k < 0.28 { saguaro(sx, hz + 10, 13 + hashN(n + 920) * 10, n, SAG, false) }
+            else if k < 0.5 { creosote(sx, hz + 10, n) }
+            else if k < 0.62 { cholla(sx, hz + 10, 0.55, n) }
+            else if k < 0.7 { ocotillo(sx, hz + 10, n) }
+            n += 1
+        }
+        let ry0 = GY - 25, ry1 = GY + 15
+        if g.driveDirt {
+            c.R(0, ry0 + 4, W, ry1 - ry0 - 8, Col(0xb8925e).shade(1 - dark * 0.6))
+            c.R(0, ry0 + 12, W, 2.4, Col(0x9a7448).shade(1 - dark * 0.6))
+            c.R(0, ry1 - 12, W, 2.4, Col(0x9a7448).shade(1 - dark * 0.6))
+            for i in 0..<40 {
+                let d = Double(i)
+                let x = (hashN(d + 30) * (W + 60) - cam).truncatingRemainder(dividingBy: W + 60)
+                c.ell(x < -30 ? x + W + 60 : x, ry0 + 6 + hashN(d + 31) * (ry1 - ry0 - 12), 0.8 + hashN(d + 32) * 1.4, 0.6, Col(0x7a5a3a, 0.6))
+            }
+        } else {
+            let asphalt = Col(0x48484c).shade(1 - dark * 0.5)
+            c.R(0, ry0 - 2, W, 2, Col(0xa89070).shade(1 - dark * 0.6))
+            c.R(0, ry0, W, ry1 - ry0, asphalt)
+            for i in 0..<50 {
+                let d = Double(i)
+                let x = (hashN(d + 50) * (W + 20) - cam).truncatingRemainder(dividingBy: W + 20)
+                c.R(x < -10 ? x + W + 20 : x, ry0 + hashN(d + 51) * (ry1 - ry0), 1, 0.6, asphalt.shade(1.25))
+            }
+            c.R(0, ry0 + 1.6, W, 0.9, Col(0xf2c14e, 0.85))
+            c.R(0, ry1 - 2.4, W, 0.9, Col(0xf4f1ea, 0.85))
+            var d = -cam.truncatingRemainder(dividingBy: 40)
+            while d < W { c.R(d, (ry0 + ry1) / 2 - 0.5, 18, 1, Col(0xf4f1ea, 0.9)); d += 40 }
+            c.R(0, ry1, W, 2, Col(0xa89070).shade(1 - dark * 0.6))
+        }
+        // a green sign now and then, counting down
+        let sgx = W + 80 - (cam * 0.9).truncatingRemainder(dividingBy: W + 260)
+        if !g.driveDirt && sgx > -60 {
+            let post = Col(0x8a8a88).shade(1 - dark * 0.5)
+            c.R(sgx - 20, ry0 - 30, 1.4, 30, post); c.R(sgx + 19, ry0 - 30, 1.4, 30, post)
+            c.RR(sgx - 26, ry0 - 44, 52, 17, 2, Col(0x1f6a3a).shade(1 - dark * 0.4))
+            c.RR(sgx - 24.6, ry0 - 42.6, 49.2, 14.2, 1.4, Col(0xf4f1ea, 0.9))
+            c.RR(sgx - 24, ry0 - 42, 48, 13, 1.2, Col(0x1f6a3a).shade(1 - dark * 0.4))
+            let name = AREAS[g.driveTo.rawValue].name.uppercased()
+            g.text(name.count > 12 ? String(name.prefix(12)) : name, sgx, ry0 - 38.5, 3.6, Col(0xf4f1ea), bold: true)
+            g.text("\(Int(g.driveLeft.rounded(.up))) mi", sgx, ry0 - 32.5, 3.8, Col(0xf4f1ea), bold: true)
+        }
+        // traffic and you, far lane first
+        let me = W * 0.3
+        let bob = g.driveDirt ? abs(sin(NOW * 9)) * 1.2 : sin(NOW * 22) * 0.25
+        let mb = g.laneBase(g.driveLaneY) - bob
+        for lane in 0...1 {
+            for car in g.driveCars where car.lane == lane { traffic(car) }
+            if (lane == 0) == (g.driveLaneY < 0.5) { driveYou(me, mb) }
+        }
+        // the near shoulder: bigger plants rushing past
+        let np = cam * 1.6
+        n = floor(np / 120) - 1
+        while n * 120 < np + W + 120 {
+            let sx = n * 120 + hashN(n + 960) * 70 - np
+            let k = hashN(n + 970)
+            if k < 0.12 { saguaro(sx, H + 6, 52 + hashN(n + 980) * 16, n, SAG, true) }
+            else if k < 0.35 { barrel(sx, H - 2, 1.2, n) }
+            else if k < 0.55 { creosote(sx, H - 1, n) }
+            else if k < 0.68 { cholla(sx, H - 1, 1.1, n) }
+            else if k < 0.78 { rock(sx, H - 3, 3 + hashN(n + 990) * 3) }
+            n += 1
+        }
+        // where you're headed, and a way to skip
+        let left = g.driveLeft
+        let mi = left == left.rounded() ? "\(Int(left))" : String(format: "%.1f", left)
+        c.RR(W / 2 - 74, 6, 148, 18, 9, Col(0x1c1410, 0.7))
+        g.text("To " + AREAS[g.driveTo.rawValue].name + "  ·  " + mi + " mi", W / 2, 13, 5.4, CREAM, bold: true)
+        c.RR(W / 2 - 60, 19, 120, 2.4, 1.2, Col(0xffffff, 0.2))
+        c.RR(W / 2 - 60, 19, 120 * clampD(1 - left / max(0.01, g.driveMiles), 0, 1), 2.4, 1.2, GOLD)
+        let r = W - g.safeR - 8
+        c.RR(r - 44, 6, 44, 18, 9, Col(0x1c1410, 0.7))
+        g.text("SKIP", r - 22, 15, 5.4, CREAM, bold: true)
+        g.hits.append(Hit(id: 65, x: r - 50, y: 0, w: 56, h: 32))
+        if g.driveBump > 0.5 { g.text("Bump!", me, mb - 44, 8, REDC, bold: true) }
+        if !g.shown.contains("drive") && !g.driveDirt {
+            g.text("Tap high or low to change lanes. Pass the slow traffic.", W / 2, H - 10, 5, CREAM, bold: true, plate: true)
+        }
+    }
+
+    /// Your rig, your ride, or the shuttle you caught, rolling right.
+    private func driveYou(_ x: Double, _ base: Double) {
+        if dark > 0.3 {
+            let nose = x + g.driveLen / 2
+            c.poly(Col(0xfff2c0, 0.16 * dark), [nose, base - 9, nose + 110, base - 20, nose + 110, base + 6])
+        }
+        switch g.driveVeh {
+        case 0: rig(g.rig, x, base, g.panels, 1)
+        case 1: toy(g.toy, x, base, 1, g.look, g.driveScroll * 0.12)
+        case 3: rig(.skoolie, x, base, 0, 1)
+        default: rig(.minivan, x, base, 0, 1)
+        }
+    }
+
+    private func traffic(_ car: Game.Car) {
+        let b = g.laneBase(Double(car.lane))
+        let kinds: [RigKind] = [.minivan, .minivan, .van, .classC, .classA, .skoolie]
+        if car.kind == 0 { toy(4, car.x, b, 1, Int(hashN(car.v) * 4), g.driveScroll * 0.1) }
+        else { rig(kinds[car.kind], car.x, b, 0, 1) }
+        if dark > 0.3 {
+            let tail = car.x - CAR_LEN[car.kind] / 2
+            c.glow(tail, b - 7, 7, Col(0xff3020, 0.5 * dark), Col(0xff3020, 0))
+        }
     }
 
     // MARK: plants
