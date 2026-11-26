@@ -1030,7 +1030,8 @@ final class Game {
 
     private func sellOffer() -> Offer? {
         // now and then a collector at the table pays well over the going price
-        let collector = hashN(Double(day * 13 + rocks * 3 + odd * 7 + jewelry * 11) + 0.5) > 0.72
+        let mix: Int = day * 13 + rocks * 3 + odd * 7 + jewelry * 11
+        let collector: Bool = hashN(Double(mix) + 0.5) > 0.72
         let m = collector ? 1.35 : 1.0
         let who = collector ? "A collector wants " : "Sell "
         if let v = jewelVals.first { return Offer(label: who + (collector ? "your pendant" : "a pendant"), cost: 0, earn: Int(Double(v) * m), dur: 1.1) }
