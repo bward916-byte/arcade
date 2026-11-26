@@ -68,7 +68,8 @@ let PLACES: [String: Place] = [
     "silverpeak": Place(name: "SILVER PEAK", bio: .snow, land: "Mountain pass", note: "High and cold. Blizzards blind your deputies."),
     "bitterend": Place(name: "BITTER END", bio: .snow, land: "Deep winter", note: "The end of the line, and the hardest town on it.")
 ]
-let STAGES: [[String]] = [["dustfall"], ["redwater", "irongulch"], ["lasthope", "timberline"], ["coldcreek", "silverpeak"], ["bitterend"]]
+/// One line, no forks: a town in each kind of country, desert to snow.
+let STAGES: [[String]] = [["dustfall"], ["redwater"], ["timberline"], ["irongulch"], ["bitterend"]]
 let STAGE_NEW = ["Saloon, store, sheriff", "Adds stable, bank", "Adds bordello, doctor", "Adds church, blacksmith", "Adds telegraph"]
 func stageOf(_ town: Int) -> [String] { return STAGES[((town % STAGES.count) + STAGES.count) % STAGES.count] }
 func nice(_ s: String) -> String { return s.capitalized }
@@ -87,7 +88,7 @@ let LANDS: [Bio: Land] = [
     .snow: Land(far: 0xb6c1d2, mesa: 0x97a4b8, mesaS: 0x77859a, mesaT: 0xf4f8ff, scrub: 0x476a52, g0: 0xe6ebf2, edge: 0xffffff, street: 0xd6dee9, g1: 0xd6dee9, g2: 0xb9c6d6, speck: 0x9aa8bc, dust: 0xf6f9ff)
 ]
 
-enum BType: String { case store, saloon, sheriff, stable, bank, gateW, gateE, station, train, hall, wireW, wireE, bordello, doctor, church, forge, telegraph, claim, coach, sPost, sTribe, sRuin, sRig, sShow, sFort, sRods, sTower, sHobo, sCar, sGallery }
+enum BType: String { case store, saloon, sheriff, stable, bank, gateW, gateE, station, train, hall, wireW, wireE, bordello, doctor, church, forge, telegraph, claim, coach, sPost, sTribe, sRuin, sRig, sShow, sFort, sRods, sTower, sHobo, sCar, sGallery, sig }
 enum Role { case folk, deputy, miner, rancher }
 
 struct Def {
@@ -142,6 +143,8 @@ let DEFS: [BType: Def] = [
     .wireW: Def(name: "BARBED WIRE", w: 30, h: 10, cost: [6, 10, 13], pay: 0, wall: 0, trim: 0, roof: 0, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: false),
     .wireE: Def(name: "BARBED WIRE", w: 30, h: 10, cost: [6, 10, 13], pay: 0, wall: 0, trim: 0, roof: 0, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: false),
     // the old diggings far out west: staked, then guarded
+    // each town's own trade, bought once: ferry, sawmill, smelter or fur trader, depending on the town
+    .sig: Def(name: "LANDMARK", w: 56, h: 40, cost: [11], pay: 0, wall: 0, trim: 0, roof: 0, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: false),
     .claim: Def(name: "CLAIM", w: 30, h: 26, cost: [6, 7], pay: 0, wall: 0, trim: 0, roof: 0, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: false),
     .train: Def(name: "TRAIN TICKET", w: 60, h: 14, cost: [5], pay: 0, wall: 0, trim: 0, roof: 0, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: false)
 ]
@@ -489,15 +492,15 @@ let STORY: [String: [Beat]] = [
            Beat(art: "eyes", who: "gun", head: "Crane’s riders", cap: "Crane pays his men better out here. Expect bigger raids.")],
     "a3": [Beat(art: "train", head: "Crane’s private train", cap: "Crane has come out in his own rail car to watch you fail.")],
     "a4": [Beat(art: "map", head: "The rail line", cap: "Bitter End. This is the last town on the line."),
-           Beat(art: "eyes", who: "crane", head: "Silas Crane", cap: "Crane is here himself. Get every building here to its best and he is finished.")],
+           Beat(art: "eyes", who: "crane", head: "Silas Crane", cap: "Crane is here himself. Gather twelve townsfolk and run him out of his own yard.")],
     "won": [Beat(art: "hand", head: "You won the duel", cap: "Crane’s gunfighter is beaten."),
             Beat(art: "eyes", who: "crane", head: "Silas Crane", cap: "Crane hears about it the same night. He will send another.")],
     "storm": [Beat(art: "storm", head: "Storm season", cap: "The first big thunderstorm rolls in. Lightning can set your roofs on fire.")],
     "varney": [Beat(art: "poster", head: "A face from a poster", cap: "A boss rides with tonight’s raiders: Varney, wanted in three territories. Somebody is paying him."),
                Beat(art: "eyes", who: "rider", head: "You, the rider", cap: "He is slow, he is hard to kill, and he shoots back. Bring him down and the rest will run.")],
-    "locked": [Beat(art: "shut", who: "irongulch", head: "Iron Gulch", cap: "Down the line the towns get bigger. A bank, a stable, a stage road, and Crane’s chain across the street."),
-               Beat(art: "shut", who: "coldcreek", head: "Cold Creek", cap: "A church and a smithy under the snow. Nobody has rung that bell in years."),
-               Beat(art: "shut", who: "bitterend", head: "Bitter End", cap: "Where the rails stop, Silas Crane is waiting. Seven towns stand shut between here and him.")],
+    "locked": [Beat(art: "shut", who: "redwater", head: "Redwater", cap: "Down the line the towns get bigger. A bank, a stable, a ferry on the river, and Crane’s chain across the street."),
+               Beat(art: "shut", who: "timberline", head: "Timberline", cap: "A sawmill gone quiet in the pines. Nobody has rung the church bell in years."),
+               Beat(art: "shut", who: "bitterend", head: "Bitter End", cap: "Where the rails stop, Silas Crane is waiting. Four towns stand shut between here and him.")],
     "end": [Beat(art: "runout", head: "Run out of Bitter End", cap: "The whole town comes behind you with torches and shovels. Crane\u{2019}s men drop everything and ride."),
             Beat(art: "map", who: "all", head: "The line is free", cap: "Every town you rebuilt still stands. There is nothing left for Crane to buy."),
             Beat(art: "wire", head: "On every wire", cap: "The telegraph carries it up and down the line: Crane is selling out.", lines: ["CRANE CATTLE AND RAIL", "ALL HOLDINGS FOR SALE", "THE COMPANY IS CLOSED"]),
@@ -508,7 +511,7 @@ let STORY: [String: [Beat]] = [
             Beat(art: "badge", head: "Dustfall III", cap: "Made by Brian Ward. Thank you for riding the line.")]
 ]
 /// Every stop on the line, with the stage it sits at and the towns passed to reach it: for jumping straight to one.
-let STOPS: [(String, Int, [String])] = [("dustfall", 0, []), ("redwater", 1, ["dustfall"]), ("irongulch", 1, ["dustfall"]), ("lasthope", 2, ["dustfall", "redwater"]), ("timberline", 2, ["dustfall", "irongulch"]), ("coldcreek", 3, ["dustfall", "redwater", "lasthope"]), ("silverpeak", 3, ["dustfall", "irongulch", "timberline"]), ("bitterend", 4, ["dustfall", "redwater", "lasthope", "coldcreek"])]
+let STOPS: [(String, Int, [String])] = [("dustfall", 0, []), ("redwater", 1, ["dustfall"]), ("timberline", 2, ["dustfall", "redwater"]), ("irongulch", 3, ["dustfall", "redwater", "timberline"]), ("bitterend", 4, ["dustfall", "redwater", "timberline", "irongulch"])]
 /// What you see riding in on each town for the first time.
 let ARRIVE: [String: String] = [
     "redwater": "Green country on a slow river, and every roof on main street boarded up.",

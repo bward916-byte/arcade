@@ -549,7 +549,7 @@ final class GameViewController: UIViewController {
         if !demoDone && sw > sh {
             demoDone = true
             let args = ProcessInfo.processInfo.arguments
-            for name in ["day", "night", "train", "snow", "storm", "map", "duel", "coach", "west", "west2", "fire", "yard", "over", "lv0", "lv1", "lv2", "lv3", "lv4", "lv5", "lv6", "lv7", "fort", "post", "mission", "gate0", "march", "rout", "rally", "see0", "see1", "see2", "see3", "see4", "see5", "see6", "see7", "see8", "see9"] where args.contains("-demo-" + name) { demoMode = true; game.demo(name) }
+            for name in ["day", "night", "train", "snow", "storm", "map", "duel", "coach", "west", "west2", "fire", "yard", "over", "lv0", "lv1", "lv2", "lv3", "lv4", "sig1", "sig2", "sig3", "sig4", "wild1", "wild2", "wild3", "wild4", "lv5", "lv6", "lv7", "fort", "post", "mission", "gate0", "march", "rout", "rally", "see0", "see1", "see2", "see3", "see4", "see5", "see6", "see7", "see8", "see9"] where args.contains("-demo-" + name) { demoMode = true; game.demo(name) }
             if args.contains("-demo-map") { showMap(choose: true) }
             if args.contains("-demo-intro") { game.beginIntro() }
             if args.contains("-demo-plain") { demoMode = true; game.demo("day"); plainInfo = true }
@@ -773,7 +773,7 @@ final class GameViewController: UIViewController {
         for v in card.subviews where v is UIButton { v.removeFromSuperview() }
         let body = UILabel(frame: CGRect(x: 24, y: 44, width: 412, height: 78))
         body.numberOfLines = 0; body.textAlignment = .center; body.font = serif(15, bold: false); body.textColor = cream
-        body.text = "Dustfall is yours to keep, free. Seven bigger towns wait down the track: banks and stage roads, a church, the telegraph, and Silas Crane at the end of the rails."
+        body.text = "Dustfall is yours to keep, free. Four bigger towns wait down the track: a river ferry, a sawmill in the pines, a copper smelter in the canyon, and Silas Crane at the end of the rails."
         card.addSubview(body)
         let buy = UIButton(type: .system)
         let price = shop.product?.displayPrice ?? "$1.99"
@@ -989,18 +989,12 @@ final class GameViewController: UIViewController {
                     if nearRail(jx, jy - 8, col >= 3 ? 30 : 20) { xx += 44; gxI += 1; continue }
                     if col == 0 {
                         if rr < 0.3 { cactus(jx, jy, kk) } else if rr < 0.5 { mesa(jx, jy, 34 * kk, 15 * kk, false) } else if rr < 0.68 { dune(jx, jy, 30 * kk) }
-                    } else if col == 1 && top {
-                        if rr < 0.45 { tuft(jx, jy) } else if rr < 0.72 { tree(jx, jy, kk) }
                     } else if col == 1 {
-                        if rr < 0.6 { mesa(jx, jy, 30 * kk, 24 * kk, true) } else if rr < 0.78 { cactus(jx, jy, kk * 0.9) }
-                    } else if col == 2 && top {
-                        if rr < 0.55 { dune(jx, jy, 34 * kk) } else if rr < 0.7 { cactus(jx, jy, kk) }
+                        if rr < 0.45 { tuft(jx, jy) } else if rr < 0.72 { tree(jx, jy, kk) }
                     } else if col == 2 {
                         if rr < 0.82 { pine(jx, jy, kk, false); pine(jx + 9 * kk, jy + 3, kk * 0.8, false) }
-                    } else if col == 3 && top {
-                        if rr < 0.35 { pine(jx, jy, kk, true) } else if rr < 0.62 { mountain(jx, jy, 40 * kk, 30 * kk) }
                     } else if col == 3 {
-                        if rr < 0.55 { mountain(jx, jy, 50 * kk, 38 * kk) } else if rr < 0.7 { pine(jx, jy, kk, true) }
+                        if rr < 0.6 { mesa(jx, jy, 30 * kk, 24 * kk, true) } else if rr < 0.78 { cactus(jx, jy, kk * 0.9) }
                     } else {
                         if rr < 0.55 { mountain(jx, jy, 54 * kk, 42 * kk) } else if rr < 0.72 { pine(jx, jy, kk, true) }
                     }

@@ -34,10 +34,12 @@ final class Renderer {
             c.R(x - 6, gy - 5, 12, 5, Col(0x6a4a2e)); c.R(x - 5, gy - 5, 10, 1.4, Col(0x8fc4d4)); c.R(x - 6, gy - 2, 1.4, 2, Col(0x4a3424)); c.R(x + 4.6, gy - 2, 1.4, 2, Col(0x4a3424))
         }
         for bl in g.b where bl.def.wall != 0 && !bl.def.gate { building(bl, dk) }
+        if g.bio == .snow { for bl in g.b where bl.def.wall != 0 && !bl.def.gate && bl.level > 0 && !bl.building && vis(bl.x, bl.def.w) { snowCap(bl) } }
         fires()
         centre()
         for bl in g.b where bl.wire { wire(bl) }
         if g.b.contains(where: { $0 === g.claim }) { claimSite() }
+        if g.b.contains(where: { $0 === g.sig }) { sigSite() }
         if g.b.contains(where: { $0 === g.stable }) { ranch() }
         townSign()
         rail(dk)
@@ -1240,6 +1242,7 @@ final class Renderer {
         c.vfill(x, gy - 10, w, 8, [(0, Col(0x3a2a1c, 0)), (1, Col(0x3a2a1c, 0.3))])
         c.R(x, gy - h, 1.8, h - 2, trim); c.R(x + w - 1.8, gy - h, 1.8, h - 2, trim)
         c.R(x, gy - 5, w, 3, wallD.alpha(0.5))
+        regionWall(bl, x, w, h)
         // the false front, its cornice and dentils
         if bl.type == .stable {
             // a barn: gable, hayloft door and hoist
@@ -1519,6 +1522,316 @@ final class Renderer {
     }
 
     /// The old claim out west: a weathered sign and a spoil heap; staked, a windlass over the shaft; guarded, a lookout beside it.
+    /// The wall in the building style of the country: adobe, painted boards, logs, sandstone, or a stone footing under snow.
+    private func regionWall(_ bl: Building, _ x: Double, _ w: Double, _ h: Double) {
+        let top = gy - h, hs0 = bl.x * 0.17
+        switch g.bio {
+        case .desert:
+            // adobe: plaster over mud brick, patched and worn, roof beams poking out under the parapet
+            c.R(x, top, w, h - 2, Col(0xc8996c, 0.5))
+            for k in 0..<5 { let r = hashN(hs0 + Double(k) * 3.3); c.RR(x + 3 + r * (w - 16), top + 4 + hashN(hs0 + Double(k)) * (h - 14), 8 + r * 6, 3 + r * 3, 1.5, Col(k % 2 == 0 ? 0xb88a5e : 0xdcb488, 0.45)) }
+            var vx = x + 4
+            while vx < x + w - 3 { c.R(vx, top + 1.5, 2.6, 2, Col(0x4a3220)); c.R(vx + 0.4, top + 1.7, 1.8, 0.6, Col(0x7a5a3a)); vx += 9 }
+            c.R(x, gy - 6, w, 4, Col(0x9a6e48, 0.35))
+        case .river:
+            // painted clapboard in a river-town colour, a white rail at the eaves
+            let paints: [UInt32] = [0x7fb2c8, 0x9cc8a2, 0xe8cf7a, 0xe0a08a, 0xc0a8d8]
+            c.R(x, top, w, h - 2, Col(paints[Int(hashN(hs0) * 5) % 5], 0.42))
+            c.R(x, top, w, 1.4, Col(0xf4ecd8, 0.85)); c.R(x, gy - 4, w, 1, Col(0xf4ecd8, 0.6))
+        case .pine:
+            // squared logs laid up with the ends showing at the corners
+            var yy = top, k = 0
+            while yy < gy - 3 {
+                let lh = min(4.4, gy - 2 - yy)
+                c.RR(x - 1, yy, w + 2, lh, lh / 2, Col(k % 2 == 0 ? 0x7a5530 : 0x6c4a2a))
+                c.R(x, yy + 0.8, w, 0.6, Col(0xffffff, 0.1)); c.R(x, yy + lh - 0.8, w, 0.6, Col(0x000000, 0.22))
+                for ex in [x - 1.5, x + w + 1.5] { c.circ(ex, yy + lh / 2, lh / 2, Col(0xc9a06a)); c.circ(ex, yy + lh / 2, lh / 4, Col(0xa8804e)) }
+                yy += 4.4; k += 1
+            }
+        case .canyon:
+            // red sandstone laid in courses
+            var yy = top, row = 0
+            while yy < gy - 3 {
+                var bx = x - (row % 2 == 0 ? 0 : 4)
+                var n = 0
+                while bx < x + w {
+                    let bw = 6 + hashN(hs0 + Double(row) * 7.1 + Double(n) * 1.3) * 5
+                    let cols: [UInt32] = [0xc0724a, 0xb06640, 0xcc8256]
+                    c.R(max(x, bx), yy, min(bw, x + w - max(x, bx)) - 0.6, 3.8, Col(cols[(row + n) % 3]))
+                    bx += bw; n += 1
+                }
+                c.R(x, yy + 3.8, w, 0.6, Col(0x6a3220, 0.55))
+                yy += 4.4; row += 1
+            }
+        case .snow:
+            // a stone footing, frost on the boards above it
+            let fy = gy - min(h * 0.42, 15)
+            var yy = fy, row = 0
+            while yy < gy - 3 {
+                var bx = x - (row % 2 == 0 ? 0 : 3)
+                var n = 0
+                while bx < x + w {
+                    let bw = 5 + hashN(hs0 + Double(row) * 5.3 + Double(n)) * 4
+                    let cols: [UInt32] = [0x8a8a92, 0x9a9aa2, 0x7a7a84]
+                    c.RR(max(x, bx), yy, min(bw, x + w - max(x, bx)) - 0.6, 3.6, 1, Col(cols[(row + n) % 3]))
+                    bx += bw; n += 1
+                }
+                yy += 4.1; row += 1
+            }
+            c.vfill(x, top, w, fy - top, [(0, Col(0xffffff, 0.16)), (1, Col(0xffffff, 0))])
+        }
+    }
+
+    /// Snow lying on the roofs and fronts in the snow country, with icicles along the eaves.
+    private func snowCap(_ bl: Building) {
+        let d = bl.def, x = sx(bl.x).rounded(), w = d.w, lv = bl.level
+        let h = d.h + Double(max(0, lv - 1)) * 5, fh = 11.0 + Double(lv) * 2
+        let topY = gy - h - fh - 3
+        if bl.type == .stable {
+            let ax = x + w / 2, ay = gy - h - fh - 9
+            c.poly(Col(0xf4f8ff), [x - 5, gy - h + 0.4, ax, ay - 1.2, x + w + 5, gy - h + 0.4, x + w + 2, gy - h - 1.4, ax, ay + 2.6, x - 2, gy - h - 1.4])
+        } else {
+            c.RR(x - 5, topY - 2.6, w + 10, 3.4, 1.6, Col(0xf4f8ff)); c.R(x - 4, topY + 0.4, w + 8, 0.6, Col(0xc8d4e4))
+        }
+        var k = 0
+        var ix = x + 1.5
+        while ix < x + w - 1 {
+            let len = 1.5 + hashN(bl.x * 0.3 + Double(k) * 1.9) * 4
+            c.poly(Col(0xdfeaf6, 0.9), [ix, gy - h, ix + 1.4, gy - h, ix + 0.7, gy - h + len])
+            ix += 4 + hashN(bl.x + Double(k)) * 3; k += 1
+        }
+        for wn in d.wins { c.R(x + wn.0, gy - h + 6, wn.1, 1.2, Col(0xf4f8ff, 0.9)) }
+    }
+
+    /// The ruin out west, as it is in each country but the desert.
+    private func ruinAlt() {
+        let x = sx(-434).rounded(), t = g.clock, dkw = Col(0x2e2218)
+        c.ell(x, gy + 0.6, 42, 2, Col(0x000000, 0.14))
+        switch g.bio {
+        case .river:
+            // a sternwheeler aground in the mud: tilted hull, the cabin stove in, the wheel half sunk, the stack down
+            c.ell(x, gy + 0.4, 40, 3, Col(0x5a6a5a, 0.6))
+            c.save(); c.translate(x, gy); c.rotate(-0.08)
+            c.poly(Col(0xd8d0bc), [-36, -4, 30, -4, 34, -10, -34, -10]); c.R(-34, -11, 68, 1.2, Col(0x8a3a2a))
+            c.poly(Col(0x5a4a3a), [-38, -3, 34, -3, 30, 2, -32, 2])
+            c.R(-24, -22, 34, 11, Col(0xe8e0cc)); c.R(-26, -23.4, 38, 1.6, Col(0x8a3a2a))
+            for k in 0..<6 { c.R(-21 + Double(k) * 5.4, -19, 2.6, 4, Col(0x2a2a30)) }
+            c.poly(Col(0x1c1612), [-6, -22, 2, -22, 4, -15, -4, -12])
+            c.R(-14, -24, 3, 1.4, Col(0x2a2a30)); c.seg(-12.5, -24, 6, -34, 2.6, Col(0x2a2a30))
+            c.restore()
+            let wx = x + 36
+            c.circ(wx, gy - 4, 10, Col(0x8a3a2a)); c.circ(wx, gy - 4, 8.6, Col(0x5a6a5a, 0.4))
+            for k in 0..<8 { let an = Double(k) * PI / 4 + 0.3; c.seg(wx, gy - 4, wx + cos(an) * 9.4, gy - 4 + sin(an) * 9.4, 1, Col(0x6a2a1c)) }
+            c.R(wx - 12, gy - 2, 24, 6, Col(0x5a6a5a, 0.75))
+            for k in 0..<6 { let rx = x - 42 + Double(k) * 5 + (k > 2 ? 64 : 0); c.seg(rx, gy, rx - 1 + sin(t + Double(k)) * 0.6, gy - 7, 0.7, Col(0x6a7a3a)) }
+        case .pine:
+            // a logging camp gone to seed: the bunkhouse fallen in, a long saw rusting, stumps, a length of flume on trestles
+            c.R(x - 36, gy - 10, 26, 10, Col(0x5a4026))
+            for k in 0..<3 { c.RR(x - 37, gy - 3.6 - Double(k) * 3.4, 28, 3.4, 1.7, Col(k % 2 == 0 ? 0x6a4a2e : 0x5a3e24)) }
+            c.poly(Col(0x3a2a20), [x - 38, gy - 10, x - 22, gy - 18, x - 8, gy - 8, x - 12, gy - 6])
+            c.R(x - 30, gy - 8, 6, 8, Col(0x1c1612))
+            for sx2 in [x - 2.0, x + 8, x + 30] { c.R(sx2, gy - 4, 6, 4, Col(0x7a5530)); c.ell(sx2 + 3, gy - 4, 3, 1, Col(0xc9a06a)) }
+            c.seg(x + 12, gy - 1, x + 26, gy - 6, 1.4, Col(0x8a6a5a)); for k in 0..<7 { c.R(x + 13 + Double(k) * 2, gy - 1.6 - Double(k) * 0.7, 0.6, 1.4, Col(0x6a5a4a)) }
+            for k in 0..<3 { let fx = x + 14 + Double(k) * 10; c.seg(fx, gy, fx + 3, gy - 18, 0.9, dkw); c.seg(fx + 6, gy, fx + 3, gy - 18, 0.9, dkw) }
+            c.poly(Col(0x7a5a3a), [x + 12, gy - 18, x + 46, gy - 22, x + 46, gy - 19, x + 12, gy - 15])
+        case .canyon:
+            // cliff dwellings: rooms of stone built into an overhang, dark T-shaped doors, a pole ladder
+            c.poly(Col(0xa85a38), [x - 44, gy, x - 40, gy - 44, x - 20, gy - 52, x + 22, gy - 50, x + 44, gy - 40, x + 46, gy])
+            c.poly(Col(0x5a2a1c, 0.75), [x - 34, gy - 14, x - 30, gy - 38, x + 34, gy - 36, x + 38, gy - 14])
+            let rooms: [(Double, Double, Double, Double)] = [(-28, -24, 14, 10), (-12, -26, 16, 12), (6, -24, 12, 10), (20, -22, 12, 8), (-20, -36, 12, 9), (0, -36, 14, 9)]
+            for (i, r) in rooms.enumerated() {
+                let (rx, ry, rw, rh) = r
+                c.R(x + rx, gy + ry - 14 + 14, rw, rh, Col(i % 2 == 0 ? 0xc98a5e : 0xb87a50))
+                var yy = gy + ry + 3
+                while yy < gy + ry + rh { c.R(x + rx, yy, rw, 0.5, Col(0x7a4a2e, 0.5)); yy += 3 }
+                let dx2 = x + rx + rw / 2
+                c.R(dx2 - 1.6, gy + ry + 2, 3.2, 3, Col(0x1c1210)); c.R(dx2 - 0.9, gy + ry + 4.6, 1.8, 3, Col(0x1c1210))
+            }
+            c.seg(x - 8, gy, x - 4, gy - 24, 0.8, dkw); c.seg(x - 4, gy, x, gy - 24, 0.8, dkw)
+            var ly = gy - 3.0
+            while ly > gy - 24 { c.seg(x - 7.5 + (gy - ly) / 6, ly, x - 3.6 + (gy - ly) / 6, ly, 0.6, dkw); ly -= 4 }
+        default:
+            // a trapper's cabin, half under the drifts: a sagging roof, the door hanging, traps on the wall
+            c.R(x - 20, gy - 16, 34, 16, Col(0x5a4026))
+            for k in 0..<4 { c.RR(x - 21, gy - 4 - Double(k) * 4, 36, 4, 2, Col(k % 2 == 0 ? 0x6a4a2e : 0x5a3e24)) }
+            c.poly(Col(0x3a2a20), [x - 24, gy - 16, x - 2, gy - 28, x + 18, gy - 15])
+            c.poly(Col(0xf4f8ff), [x - 25, gy - 16.4, x - 2, gy - 29, x + 19, gy - 15.4, x + 12, gy - 17.6, x - 2, gy - 25, x - 19, gy - 17.6])
+            c.save(); c.translate(x - 8, gy - 12); c.rotate(0.3); c.R(0, 0, 7, 12, Col(0x4a3424)); c.restore()
+            c.R(x - 9, gy - 12, 8, 12, Col(0x1c1612))
+            for k in 0..<2 { c.ellStroke(x + 6 + Double(k) * 5, gy - 10, 1.8, 1.8, 0.5, Col(0x6a6a72)); c.seg(x + 6 + Double(k) * 5, gy - 12, x + 6 + Double(k) * 5, gy - 14, 0.4, Col(0x6a6a72)) }
+            c.poly(Col(0xeef3fa), [x - 34, gy, x - 26, gy - 7, x - 16, gy - 5, x - 10, gy, x + 30, gy, x + 26, gy - 4, x + 38, gy])
+        }
+    }
+
+    /// The works out west in the river, pine and snow country: a fish weir, a tar kiln, an ice house.
+    private func rigAlt() {
+        let x = sx(-600).rounded(), t = g.clock, dkw = Col(0x2e2218)
+        let built = g.rigLv > 0, broken = g.rigBurn
+        switch g.bio {
+        case .river:
+            c.ell(x, gy + 0.6, 30, 4, Col(0x4f7a8a, 0.75)); c.ell(x - 4, gy - 0.4, 18, 1.4, Col(0xffffff, 0.18))
+            if built {
+                for k in 0..<9 {
+                    let sxx = x - 22 + Double(k) * 5.5, gone = broken && (k == 3 || k == 4 || k == 6)
+                    c.R(sxx, gy - (gone ? 3 : 9), 1.2, gone ? 4 : 10, dkw)
+                }
+                if !broken { c.R(x - 22, gy - 6, 45, 0.7, Col(0x7a6a4a)); c.R(x - 22, gy - 3.4, 45, 0.7, Col(0x7a6a4a)) }
+                c.R(x + 26, gy - 14, 1, 14, dkw); c.R(x + 40, gy - 14, 1, 14, dkw); c.R(x + 26, gy - 14, 15, 0.8, dkw)
+                for k in 0..<4 { c.ell(x + 29 + Double(k) * 3.4, gy - 11, 0.9, 2.4, Col(0xa8b4b8)) }
+                if !broken { let u = (t * 0.8).truncatingRemainder(dividingBy: 1); if u < 0.4 { let fy = -sin(u / 0.4 * PI) * 7; c.ell(x - 8 + u * 14, gy - 1 + fy, 2.2, 1, Col(0xb8c4c8)) } }
+            } else {
+                c.save(); c.translate(x + 20, gy - 2); c.rotate(-0.15); c.poly(Col(0x6a4a2e), [-10, -3, 10, -3, 7, 1, -7, 1]); c.restore()
+                c.R(x - 18, gy - 14, 1.2, 14, dkw); c.RR(x - 25, gy - 20, 15, 7, 1, Col(0xead7a4)); c.text("FISH", x - 17.5, gy - 14.8, 4.2, Col(0x2a1c14), face: "Rye-Regular")
+            }
+            for k in 0..<5 { let rx = x - 30 + Double(k) * 3; c.seg(rx, gy, rx + sin(t + Double(k)) * 0.8, gy - 8, 0.7, Col(0x6a7a3a)) }
+        case .pine:
+            if built {
+                // a tar kiln: an earth mound over smouldering pine, a run-off trough, barrels
+                c.dome(x, gy, 16, Col(0x5a4a3a)); c.dome(x, gy, 13, Col(0x6a5844))
+                for k in 0..<5 { c.R(x - 10 + Double(k) * 5, gy - 9 + abs(Double(k) - 2) * 2, 2, 1, Col(0x4a3a2e)) }
+                c.R(x + 14, gy - 2, 12, 1.6, Col(0x3a2a20))
+                for k in 0..<3 { c.RR(x + 20 + Double(k) * 7, gy - 8, 6, 8, 1.5, Col(0x4a3a30)); c.R(x + 20 + Double(k) * 7, gy - 6, 6, 0.6, Col(0x2a2a2a)) }
+                if broken {
+                    for k in 0..<4 { let f = 8 + sin(t * 11 + Double(k) * 2) * 3; c.poly(Col(0xf08a2a), [x - 8 + Double(k) * 5, gy - 14, x - 6 + Double(k) * 5, gy - 14 - f, x - 4 + Double(k) * 5, gy - 14]) }
+                } else {
+                    for k in 0..<3 { let u = (t * 0.3 + Double(k) / 3).truncatingRemainder(dividingBy: 1); c.circ(x + sin(u * 5) * 3, gy - 18 - u * 22, 2 + u * 5, Col(0x6a6a70, 0.45 * (1 - u))) }
+                }
+            } else {
+                // pitch pines with tapping cuts and pails
+                for k in 0..<2 {
+                    let tx = x - 10 + Double(k) * 20
+                    c.R(tx - 2, gy - 22, 4, 22, Col(0x5a3e24)); c.poly(Col(0xd8b860), [tx - 1.6, gy - 12, tx + 1.6, gy - 12, tx, gy - 7])
+                    c.RR(tx - 2.4, gy - 7, 4.8, 3.6, 0.8, Col(0x7a7a82))
+                }
+                c.R(x + 18, gy - 12, 1.2, 12, dkw); c.RR(x + 12, gy - 18, 14, 7, 1, Col(0xead7a4)); c.text("TAR", x + 19, gy - 12.8, 4.2, Col(0x2a1c14), face: "Rye-Regular")
+            }
+        default:
+            c.ell(x, gy + 0.8, 34, 3, Col(0xcfe0ee)); c.ell(x - 6, gy + 0.2, 16, 1, Col(0xffffff, 0.6))
+            if built {
+                // an ice house: a low plank house banked with sawdust, cut blocks stacked, a sled
+                c.R(x - 18, gy - 16, 26, 16, Col(0x6a5a4a)); var k = 0.0
+                while k < 26 { c.R(x - 18 + k, gy - 16, 0.5, 16, Col(0x000000, 0.2)); k += 3 }
+                if broken { c.poly(Col(0x3a3030), [x - 21, gy - 16, x - 5, gy - 9, x + 11, gy - 16]) }
+                else { c.poly(Col(0x3a3030), [x - 21, gy - 16, x - 5, gy - 24, x + 11, gy - 16]); c.poly(Col(0xf4f8ff), [x - 21, gy - 16.4, x - 5, gy - 25, x + 11, gy - 16.4, x - 5, gy - 22]) }
+                c.R(x - 9, gy - 11, 8, 11, Col(0x2a2018)); c.R(x - 18, gy - 3, 26, 3, Col(0xc9a86a))
+                for k2 in 0..<5 { c.R(x + 12 + Double(k2 % 3) * 6, gy - 5 - Double(k2 / 3) * 5, 5.4, 4.6, Col(0xbcd8ec)); c.R(x + 12 + Double(k2 % 3) * 6, gy - 5 - Double(k2 / 3) * 5, 5.4, 0.8, Col(0xffffff, 0.8)) }
+                c.R(x - 34, gy - 4, 12, 1.4, Col(0x5a4026)); c.seg(x - 34, gy - 2.6, x - 20, gy - 2.6, 0.7, Col(0x3a2a1c))
+            } else {
+                c.ell(x + 6, gy + 0.4, 3, 1.2, Col(0x2a4a6a)); c.seg(x + 3, gy, x - 4, gy - 9, 0.6, dkw); c.seg(x - 4, gy - 9, x + 5, gy, 0.3, Col(0xdddddd))
+                c.R(x - 18, gy - 12, 1.2, 12, dkw); c.RR(x - 25, gy - 18, 15, 7, 1, Col(0xead7a4)); c.text("ICE", x - 17.5, gy - 12.8, 4.2, Col(0x2a1c14), face: "Rye-Regular")
+            }
+        }
+    }
+
+    /// Each town's own trade, drawn where it stands: unopened, it is a wreck with a painted board; opened, it works.
+    private func sigSite() {
+        let bl = g.sig
+        if !vis(bl.x + 28, 90) { return }
+        let x = sx(bl.x).rounded(), on = bl.level > 0, t = g.clock
+        let dk = Col(0x2e2218), wood = Col(0x6a4a2e), woodL = Col(0x8a6238), plank = Col(0x9a7a52)
+        func board(_ bx: Double, _ by: Double, _ text: String, _ wdt: Double) {
+            c.R(bx + wdt / 2 - 0.7, by + 7, 1.4, gy - by - 7, dk)
+            c.RR(bx, by, wdt, 7.5, 0.8, on ? Col(0xead7a4) : Col(0x9a8a70)); c.R(bx, by, wdt, 0.7, Col(0xfff4d8, on ? 1 : 0.4))
+            c.text(text, bx + wdt / 2, by + 5.6, 4, Col(0x4a2a22), face: "Rye-Regular", fit: wdt - 3)
+        }
+        c.ell(x + 28, gy + 0.8, 40, 2.2, Col(0x000000, 0.13))
+        switch g.place {
+        case "redwater":
+            // the ferry: a plank landing on piles, the toll shack, a cable across the ford, and the flatboat on it
+            let r0 = sx(g.river.0), r1 = sx(g.river.1)
+            c.R(x - 2, gy - 6, 40, 2.2, plank); c.R(x - 2, gy - 6, 40, 0.6, Col(0xc4a474))
+            for px2 in [x, x + 12, x + 24, x + 36] { c.R(px2, gy - 4, 1.8, 6, dk) }
+            c.R(x + 2, gy - 24, 15, 18, wood); c.R(x + 2, gy - 24, 15, 0.8, woodL); var k = 0.0
+            while k < 15 { c.R(x + 2 + k, gy - 24, 0.5, 18, Col(0x000000, 0.18)); k += 3 }
+            c.poly(Col(0x4a3424), [x, gy - 24, x + 9.5, gy - 31, x + 19, gy - 24])
+            c.R(x + 6, gy - 18, 6, 5, on ? Col(0xffd98a, g.dark() > 0.4 ? 0.9 : 0.4) : Col(0x1c1612))
+            c.R(r0 - 2, gy - 22, 1.6, 22, dk); c.R(r1 + 1, gy - 22, 1.6, 22, dk)
+            if on {
+                c.seg(r0 - 1.2, gy - 20, r1 + 1.8, gy - 20, 0.6, Col(0x3a3a3a))
+                let fx = r0 + (r1 - r0) * (0.5 + 0.38 * sin(t * 0.35)), bob = sin(t * 2.2) * 0.6
+                c.R(fx - 13, gy - 4 + bob, 26, 3, Col(0x7a5632)); c.R(fx - 13, gy - 4 + bob, 26, 0.6, Col(0xa8845a)); c.R(fx - 13, gy - 5.6 + bob, 1, 1.6, dk); c.R(fx + 12, gy - 5.6 + bob, 1, 1.6, dk)
+                c.seg(fx, gy - 4 + bob, fx, gy - 20, 0.5, Col(0x3a3a3a, 0.7))
+                person(g.river.0 + (g.river.1 - g.river.0) * (0.5 + 0.38 * sin(t * 0.35)) - 6, 0, 1, false, 5, .folk, false)
+                for k2 in 0..<3 { let u = (t * 0.7 + Double(k2) / 3).truncatingRemainder(dividingBy: 1); c.R(fx - 15 - u * 8, gy - 2.6 + bob, 3, 0.5, Col(0xffffff, 0.6 * (1 - u))) }
+            } else {
+                c.seg(r0 - 1.2, gy - 20, r0 + 6, gy - 6, 0.6, Col(0x3a3a3a)); c.poly(Col(0x5a4026), [r0 + 4, gy - 1, r0 + 22, gy - 3.6, r0 + 24, gy - 1])
+            }
+            board(x + 20, gy - 32, "FERRY", 18)
+        case "timberline":
+            // the sawmill: an open shed on posts, a big blade, a log on the carriage, the engine, sawdust and stacked lumber
+            let rx = x, sh = Col(0x4a3424)
+            for k in 0..<4 { let lx = rx - 24 + Double(k % 2) * 5; c.RR(lx, gy - 5 - Double(k / 2) * 4.6, 20, 4.6, 2.3, Col(0x7a5530)); c.circ(lx + 20, gy - 2.7 - Double(k / 2) * 4.6, 2.3, Col(0xc9a06a)); c.circ(lx + 20, gy - 2.7 - Double(k / 2) * 4.6, 1, Col(0x8a6238)) }
+            for px2 in [rx + 2, rx + 30, rx + 58] { c.R(px2, gy - 30, 2, 30, dk) }
+            c.poly(on ? Col(0x5a4a40) : Col(0x3a3230), [rx - 3, gy - 30, rx + 31, gy - 38, rx + 65, gy - 30, rx + 65, gy - 28, rx - 3, gy - 28])
+            if !on { c.poly(Col(0x1c1612), [rx + 22, gy - 34, rx + 30, gy - 29, rx + 38, gy - 33, rx + 32, gy - 37]) }
+            c.R(rx + 6, gy - 10, 46, 3, sh); c.R(rx + 8, gy - 7, 1.6, 7, sh); c.R(rx + 48, gy - 7, 1.6, 7, sh)
+            let lg = on ? (t * 6).truncatingRemainder(dividingBy: 26) : 8
+            c.RR(rx + 8 + lg, gy - 15, 20, 5, 2.5, Col(0x7a5530)); c.circ(rx + 8 + lg, gy - 12.5, 2.5, Col(0xc9a06a))
+            let bxx = rx + 34, byy = gy - 14
+            c.circ(bxx, byy, 7, Col(on ? 0xb8bcc4 : 0x7a6a5a)); c.circ(bxx, byy, 1.4, Col(0x3a3a3a))
+            let spin = on ? t * 20 : 0.4
+            for k in 0..<12 { let an = Double(k) * PI / 6 + spin; c.poly(Col(on ? 0xd8dce4 : 0x6a5a4a), [bxx + cos(an) * 6.6, byy + sin(an) * 6.6, bxx + cos(an + 0.2) * 8.4, byy + sin(an + 0.2) * 8.4, bxx + cos(an + 0.4) * 6.6, byy + sin(an + 0.4) * 6.6]) }
+            c.R(rx + 50, gy - 17, 10, 10, Col(0x3a3a42)); c.R(rx + 54, gy - 27, 2.6, 10, Col(0x2a2a30))
+            if on {
+                for k in 0..<3 { let u = (t * 0.5 + Double(k) / 3).truncatingRemainder(dividingBy: 1); c.circ(rx + 55 + u * 6, gy - 28 - u * 18, 2 + u * 4, Col(0xe8e8e8, 0.5 * (1 - u))) }
+                for k in 0..<5 { let u = (t * 1.4 + Double(k) * 0.2).truncatingRemainder(dividingBy: 1); c.R(bxx - 2 - u * 10, byy + 6 + u * 6, 0.8, 0.8, Col(0xe8c88a, 1 - u)) }
+                person(g.sig.x + 24, t * 3, 1, false, 7, .folk, true)
+            }
+            for k in 0..<4 { c.R(rx + 66, gy - 2 - Double(k) * 2, 20, 1.8, Col(k % 2 == 0 ? 0xc9a06a : 0xb88e5a)) }
+            board(rx - 22, gy - 34, "SAWMILL", 22)
+        case "irongulch":
+            // the smelter: a stone furnace with a glowing mouth, a tall brick stack, an ore cart and the slag heap
+            let fx = x + 6
+            c.poly(Col(0x8a6a58), [fx, gy, fx + 4, gy - 30, fx + 28, gy - 30, fx + 32, gy])
+            var ry = gy - 4.0, row = 0
+            while ry > gy - 30 { c.R(fx + 1, ry, 30, 0.5, Col(0x5a4030, 0.5)); c.R(fx + (row % 2 == 0 ? 7 : 13), ry, 0.5, 4, Col(0x5a4030, 0.5)); c.R(fx + (row % 2 == 0 ? 19 : 25), ry, 0.5, 4, Col(0x5a4030, 0.5)); ry -= 4; row += 1 }
+            c.dome(fx + 16, gy - 2, 6, Col(0x1c1210))
+            if on {
+                let fl = 0.7 + 0.3 * sin(t * 9)
+                c.dome(fx + 16, gy - 2, 5, Col(0xff8a2a, fl)); c.glow(fx + 16, gy - 4, 16, Col(0xff9a3a, 0.35 * fl), Col(0xff9a3a, 0))
+            }
+            let cx2 = fx + 36, top = on ? gy - 76 : gy - 44
+            c.R(cx2, top, 7, gy - top - 2, Col(0x9a4a34)); var by2 = gy - 4.0
+            while by2 > top { c.R(cx2, by2, 7, 0.5, Col(0x5a2a1c, 0.6)); by2 -= 3 }
+            c.R(cx2 - 1, top, 9, 2, Col(0x6a2a1c))
+            if !on { c.poly(Col(0x9a4a34), [cx2, top, cx2 + 3, top - 4, cx2 + 7, top]) }
+            if on { for k in 0..<5 { let u = (t * 0.35 + Double(k) / 5).truncatingRemainder(dividingBy: 1); c.circ(cx2 + 3.5 + u * 26 + sin(u * 6) * 3, top - 3 - u * 40, 3 + u * 9, Col(0x4a4a50, 0.55 * (1 - u))) } }
+            c.R(x - 30, gy - 1.4, 32, 0.8, Col(0x5a5a62)); c.R(x - 30, gy - 0.6, 32, 0.6, Col(0x3a3a42))
+            let cart = on ? x - 26 + (0.5 + 0.5 * sin(t * 0.6)) * 14 : x - 18
+            c.poly(Col(0x5a5a62), [cart - 6, gy - 8, cart + 6, gy - 8, cart + 5, gy - 2.4, cart - 5, gy - 2.4]); c.circ(cart - 3, gy - 1.6, 1.4, Col(0x2a2a30)); c.circ(cart + 3, gy - 1.6, 1.4, Col(0x2a2a30))
+            for k in 0..<4 { c.circ(cart - 3 + Double(k) * 2, gy - 8.6, 1.4, Col(k % 2 == 0 ? 0x5a8a6a : 0x9a6a3a)) }
+            c.poly(Col(0x3a3236), [x + 46, gy, x + 54, gy - 7, x + 62, gy - 5, x + 70, gy])
+            board(x - 6, gy - 40, "SMELTER", 22)
+        case "bitterend":
+            // the fur trader: a log cabin under deep snow, pelts stretched on hoops, antlers over the door, snowshoes
+            let cx2 = x + 4, wall = Col(0x6a4a30)
+            for k in 0..<6 { let yy = gy - 4.6 - Double(k) * 4.4; c.RR(cx2 - 2, yy, 46, 4.4, 2.2, k % 2 == 0 ? wall : Col(0x7a5636)); c.circ(cx2 - 2, yy + 2.2, 2.2, Col(0xb8946a)); c.circ(cx2 + 44, yy + 2.2, 2.2, Col(0xb8946a)) }
+            c.poly(Col(0x3a2a20), [cx2 - 6, gy - 28, cx2 + 21, gy - 44, cx2 + 48, gy - 28])
+            c.poly(Col(0xf4f8ff), [cx2 - 7, gy - 28.4, cx2 + 21, gy - 45, cx2 + 49, gy - 28.4, cx2 + 44, gy - 30, cx2 + 21, gy - 42, cx2 - 2, gy - 30])
+            for k in 0..<6 { let ix = cx2 + Double(k) * 8; c.poly(Col(0xdfe8f4), [ix, gy - 28, ix + 1.4, gy - 28, ix + 0.7, gy - 24 - hashN(Double(k)) * 2]) }
+            c.R(cx2 + 16, gy - 16, 10, 16, Col(0x2a1c14)); c.R(cx2 + 3, gy - 20, 8, 7, on ? Col(0xffd98a, g.dark() > 0.4 ? 0.95 : 0.5) : Col(0x1c1612))
+            c.seg(cx2 + 17, gy - 21, cx2 + 13, gy - 26, 0.8, Col(0xd8ccb0)); c.seg(cx2 + 25, gy - 21, cx2 + 29, gy - 26, 0.8, Col(0xd8ccb0)); c.seg(cx2 + 14.4, gy - 24, cx2 + 12, gy - 24.4, 0.6, Col(0xd8ccb0)); c.seg(cx2 + 27.6, gy - 24, cx2 + 30, gy - 24.4, 0.6, Col(0xd8ccb0))
+            if on {
+                let pc: [UInt32] = [0x8a5a34, 0x5a3c26, 0xc9a06a]
+                for k in 0..<3 {
+                    let hx = cx2 + 56 + Double(k) * 11
+                    c.R(hx - 0.5, gy - 18, 1, 18, dk); c.ellStroke(hx, gy - 16, 4.6, 6, 0.6, Col(0x5a4026))
+                    c.ell(hx, gy - 16, 3.6, 5, Col(pc[k])); c.ell(hx - 0.8, gy - 18, 1.2, 1.6, Col(0xffffff, 0.12))
+                }
+                let sm = (t * 0.4).truncatingRemainder(dividingBy: 1)
+                for k in 0..<3 { let u = (sm + Double(k) / 3).truncatingRemainder(dividingBy: 1); c.circ(cx2 + 36 + u * 4, gy - 46 - u * 20, 2 + u * 4, Col(0xe8ecf2, 0.5 * (1 - u))) }
+            }
+            c.R(cx2 + 34, gy - 50, 4, 10, Col(0x5a5a5a))
+            c.ellStroke(cx2 + 50, gy - 9, 2.4, 7, 0.6, Col(0x5a4026)); c.ellStroke(cx2 + 52.6, gy - 9, 2.4, 7, 0.6, Col(0x5a4026))
+            board(cx2 - 26, gy - 30, "FURS", 18)
+        default: break
+        }
+        if !on && bl.payable {
+            // an unopened trade: a faint "for sale" chalk mark where coins go
+            c.text("OPEN \u{00B7} \(bl.cost)", bl.type == .sig ? sx(bl.cx) : x, gy - 52, 4.4, Col(0xf2c14e, 0.85), face: "Rye-Regular")
+        }
+    }
+
     private func claimSite() {
         let cl = g.claim
         if !vis(cl.x, 70) { return }
@@ -1996,7 +2309,8 @@ final class Renderer {
             campfire(-250 - 2, 0.6)
             if g.scoutDays > 0 { c.R(x + 54, gy - 30, 1.2, 30, dkw); c.poly(Col(0xc0392b), [x + 55, gy - 30, x + 63, gy - 27.5, x + 55, gy - 25]) }
         }
-        if vis(-434, 80) {
+        if vis(-434, 80) && g.bio != .desert { ruinAlt() }
+        if vis(-434, 80) && g.bio == .desert {
             // the old bank: broken stone walls, the arched door, two stumps of column, the vault door where it fell
             let x = sx(-434).rounded()
             let stone = Col(0x8a7c6c), sh = Col(0x6a5e52), lt = Col(0xa89a88)
@@ -2021,7 +2335,8 @@ final class Renderer {
             for k in 0..<7 { c.RR(x - 30 + hashN(Double(k) * 3.7) * 62, gy - 2.2, 3 + hashN(Double(k)) * 2, 2.4, 1, k % 2 == 0 ? sh : stone) }
             for k in 0..<5 { let wxx = x - 28 + Double(k) * 13; c.seg(wxx, gy, wxx - 1.5, gy - 5, 0.6, Col(0x6a7a4a)); c.seg(wxx, gy, wxx + 1.6, gy - 4, 0.6, Col(0x6a7a4a)) }
         }
-        if vis(-600, 60) {
+        if vis(-600, 60) && g.bio != .desert && g.bio != .canyon { rigAlt() }
+        if vis(-600, 60) && (g.bio == .desert || g.bio == .canyon) {
             let x = sx(-600).rounded()
             c.ell(x, gy + 1, 18, 2.5, Col(0x14121a, 0.85))
             if g.rigLv > 0 {

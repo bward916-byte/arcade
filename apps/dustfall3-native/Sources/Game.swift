@@ -378,6 +378,28 @@ final class Game {
     var mustangs: [Mustang] = []
     var mustangRange: (Double, Double) { return (WEST + 70, 84) }
     var rigPay: Int { return 6 + town }
+    /// The two sights out west that change with the country: the ruin you salvage, and the works that pays each dawn.
+    var ruinName: String {
+        switch bio { case .river: return "Wrecked riverboat"; case .pine: return "Old logging camp"; case .canyon: return "Cliff dwellings"; case .snow: return "Trapper\u{2019}s cabin"; default: return "Ghost town" }
+    }
+    var ruinFind: String {
+        switch bio {
+        case .river: return "The crew wades into the flooded hold and comes out with the purser\u{2019}s cashbox. The wreck will be worth another look in a couple of days."
+        case .pine: return "Under the old cookhouse floor the crew finds a payroll tin. The camp will be worth another look in a couple of days."
+        case .canyon: return "High in the rock rooms the crew finds an old trader\u{2019}s cache. The cliffs will be worth another look in a couple of days."
+        case .snow: return "In the root cellar the crew finds a trapper\u{2019}s stash of coin. The cabin will be worth another look in a couple of days."
+        default: return "The crew turns up a strongbox under the old bank floor. The ruins will be worth another look in a couple of days."
+        }
+    }
+    /// (the spot before, the works after, the row on the takings card, what puts it out of action)
+    var rigNames: (String, String, String, String) {
+        switch bio {
+        case .river: return ("Fishing spot", "Fish weir", "Fish", "Lightning has split the fish weir")
+        case .pine: return ("Pitch pines", "Tar kiln", "Pine tar", "Lightning has set the tar kiln alight")
+        case .snow: return ("Frozen lake", "Ice house", "Ice", "The ice house roof has fallen in")
+        default: return ("Oil seep", "Oil derrick", "Oil", "Lightning has set the oil derrick alight")
+        }
+    }
     var ruinPay: Int { return 7 + 2 * town }
 
     /// What the trading post has on the counter today, or nil if it has sold out.
@@ -407,16 +429,16 @@ final class Game {
             sfx?.box()
             for _ in 0..<14 { parts.append(Part(x: x + rnd(-18, 18), y: -rnd(2, 16), vx: rnd(-14, 14), vy: -rnd(6, 16), life: rnd(1.2, 2.2), max: 2.2, c: Col(0xb9a98a, 0.8), s: 3, grav: 0)) }
             for _ in 0..<ruinPay { dropCoin(x + rnd(-12, 12), rnd(4, 14)) }
-            hint("ruin", "The crew turns up a strongbox under the old bank floor. The ruins will be worth another look in a couple of days.", again: true)
+            hint("ruin", ruinFind, again: true)
         case .sRig:
             if rigLv == 0 {
                 rigLv = 1
                 sfx?.fanfare(); puff(x, -40, 14, Col(0x1c1a22), 60)
-                hint("rig", "The derrick is up and pumping. It pays \(rigPay) coins at the town centre every dawn. Lightning can set it alight.", again: true)
+                hint("rig", "The \(rigNames.1.lowercased()) is working. It pays \(rigPay) coins at the town centre every dawn\(bio == .snow ? "" : ", though lightning can put it out of action").", again: true)
             } else {
                 rigBurn = false
                 sfx?.recruit(); puff(x, -30, 10, Col(0xd8dde2), 30)
-                hint("capped", "The well is capped and pumping again.", again: true)
+                hint("capped", "The \(rigNames.1.lowercased()) is mended and working again.", again: true)
             }
         case .sShow:
             showUsed = true
@@ -501,10 +523,10 @@ final class Game {
         case .sTribe:
             return scoutDays > 0 ? "Scout camp: the scouts ride for you \(scoutDays) more \(scoutDays > 1 ? "days" : "day")." : "Scout camp: 4 coins\(go) hires the scouts for three days. They name the side each raid comes from, and ambush two raiders on the trail."
         case .sRuin:
-            return ruinCool > 0 ? "Ghost town: picked over. Worth another look in \(ruinCool) \(ruinCool > 1 ? "days" : "day")." : "Ghost town: 3 coins\(go) pays for a day of salvage. There is about \(ruinPay) left in these walls."
+            return ruinCool > 0 ? "\(ruinName): picked over. Worth another look in \(ruinCool) \(ruinCool > 1 ? "days" : "day")." : "\(ruinName): 3 coins\(go) pays for a day of salvage. There is about \(ruinPay) to be found."
         case .sRig:
-            if rigLv == 0 { return "Oil seep: 14 coins\(go) raises a derrick. It pays \(rigPay) coins at the town centre every dawn." }
-            return rigBurn ? "Oil derrick: on fire. 3 coins\(go) pays a crew to cap it. It pays nothing while it burns." : "Oil derrick: pumping. Pays \(rigPay) coins at the town centre every dawn. Lightning can set it alight."
+            if rigLv == 0 { return "\(rigNames.0): 14 coins\(go) builds a \(rigNames.1.lowercased()). It pays \(rigPay) coins at the town centre every dawn." }
+            return rigBurn ? "\(rigNames.1): out of action. 3 coins\(go) pays a crew to mend it. It pays nothing until then." : "\(rigNames.1): working. Pays \(rigPay) coins at the town centre every dawn."
         case .sShow:
             return showUsed ? "Medicine show: one bottle to a customer. He moves on in the morning." : "Medicine show: 3 coins\(go) for a bottle of tonic. It might put fire in your horse, pay out handsomely, or be coloured water."
         case .sGallery:
@@ -700,6 +722,28 @@ final class Game {
     var forge = Building(.forge, 1864)
     var telegraph = Building(.telegraph, 1948)
     var claim = Building(.claim, 528)
+    /// The town's signature building: Redwater's ferry, Timberline's sawmill, Iron Gulch's smelter, Bitter End's fur trader.
+    var sig = Building(.sig, 0)
+    var sigName: String {
+        switch place {
+        case "redwater": return "Ferry"
+        case "timberline": return "Sawmill"
+        case "irongulch": return "Copper smelter"
+        case "bitterend": return "Fur trader"
+        default: return ""
+        }
+    }
+    var sigOn: Bool { return sig.level > 0 && b.contains { $0 === sig } }
+    /// What the signature building does, for the info line and the arrival note.
+    var sigWhat: String {
+        switch place {
+        case "redwater": return "Tolls from the ford: 3 coins at dawn, 6 after the river floods."
+        case "timberline": return "Sawn lumber: every other building here costs a quarter less."
+        case "irongulch": return "Prospectors bring 2 coins each at dawn instead of 1, but the smoke draws one more raider a night."
+        case "bitterend": return "Furs: 2 coins at dawn, and 1 more for every rancher, who trap all winter."
+        default: return ""
+        }
+    }
     var herd: [Cow] = []
     var raided = false          // raiders came last night
 
@@ -790,7 +834,7 @@ final class Game {
             // lightning can set the derrick alight
             if rigLv > 0 && !rigBurn && chance(0.15) {
                 rigBurn = true; hitX = sRig.cx
-                hint("rigfire", "Lightning has set the oil derrick alight. It pays nothing until a crew caps it: 3 coins at the derrick.", again: true)
+                hint("rigfire", "\(rigNames.3). It pays nothing until a crew mends it: 3 coins there.", again: true)
             }
             bolt = 0.35; boltX = hitX
             sfx?.thunder(clampD(1 - abs(hitX - px) / 600, 0.3, 1))
@@ -859,6 +903,8 @@ final class Game {
         hall = Building(.hall, 1352); wireW = Building(.wireW, 904); wireE = Building(.wireE, EX(1975))
         bordello = Building(.bordello, 1490); doctor = Building(.doctor, 1704); church = Building(.church, 1786)
         forge = Building(.forge, 1864); telegraph = Building(.telegraph, 1948); claim = Building(.claim, 528)
+        let sigX: Double = place == "redwater" ? EX(2132) : (place == "bitterend" ? EX(1700) : 352)
+        sig = Building(.sig, sigX)
         herd = []; raided = false; wx = 0; bolt = 0
         b = [store, saloon, sheriff]
         let stage = town % STAGES.count + (town >= STAGES.count ? STAGES.count : 0)
@@ -890,6 +936,7 @@ final class Game {
             }
         }
         // no railroad in the last town: the rails stop here
+        if !sigName.isEmpty { b.append(sig) }
         b.append(hall); if !lastTown { b.append(station) }; b.append(gateW); b.append(gateE); b.append(wireW); b.append(wireE); b.append(ticket)
         for bl in b { bl.scale = 1 + 0.12 * Double(town) }
         ticket.live = false
@@ -902,7 +949,7 @@ final class Game {
         setCaps()
         side = bio == .canyon || chance(0.5) ? 1 : -1
         duskDone = false; raidOn = false; badgePaid = 0; pickPaid = 0; rackN = [:]; shake = 0; flash = 0
-        duelWon = false; storyRest = 0; dawnRows = []; rallyOn = false; endNow = false; routT = -1; yardMen = []; toTitle = false; zoom = 1
+        duelWon = false; storyRest = 0; dawnRows = []; rallyOn = false; endNow = false; toTitle = false; zoom = 1
         info = ""; slotsFor = nil
     }
 
@@ -920,6 +967,9 @@ final class Game {
     private func setCaps() {
         // what each site costs right now, or 0 if there is nothing to buy there at the moment
         sPost.dyn = postItem()?.2 ?? 0
+        // Timberline's sawmill takes a quarter off everything else in town
+        let base = 1 + 0.12 * Double(town), saw = place == "timberline" && sigOn
+        for bl in b where bl !== sig { bl.scale = base * (saw ? 0.75 : 1) }
         sTribe.dyn = scoutDays > 0 ? 0 : 4
         sRuin.dyn = ruinCool > 0 ? 0 : 3
         sRig.dyn = rigLv == 0 ? 14 : (rigBurn ? 3 : 0)
@@ -1098,7 +1148,8 @@ final class Game {
         hintT = 0
         // lv0 to lv7: each town on the line, opened up, for a picture of every one
         let stops = STOPS
-        if name.hasPrefix("lv"), let n = Int(name.dropFirst(2)), n >= 0, n < stops.count {
+        let pre = ["lv", "sig", "wild"].first { name.hasPrefix($0) } ?? ""
+        if !pre.isEmpty, let n = Int(name.dropFirst(pre.count)), n >= 0, n < stops.count {
             place = stops[n].0; town = stops[n].1; log = stops[n].2
             day = 4 + town * 9; day0 = day - 4
             layTown()
@@ -1107,6 +1158,8 @@ final class Game {
             if town >= 3 { church.level = 1; forge.level = 1 }
             if town >= 4 { telegraph.level = 1 }
             t = 0.3
+            if pre == "sig" { sig.level = 1; px = sig.x + (place == "redwater" ? 10 : 30); pdir = 1; noStory = true; hintT = 0 }
+            if pre == "wild" { rigLv = 1; px = -520; pdir = -1; noStory = true; hintT = 0 }
         }
         if name == "duel" { day = 5; t = 0.4 }
         if name == "west" { day = 6; t = 0.35 }
@@ -1576,6 +1629,16 @@ final class Game {
                 hint("guard", "A shotgun guard climbs up beside the driver. If the stage gets through, the line pays you \(coachPay) coins at dawn.", again: true)
             } else if bl.paid >= bl.cost && bl.virt {
                 bl.paid = 0; bl.live = false; board()
+            } else if bl.paid >= bl.cost && bl.type == .sig {
+                bl.paid = 0; bl.level = 1; bl.flash = 0.5
+                sfx?.fanfare(); puff(bl.cx, -20, 18, GOLD, 60); buzz(2)
+                let done: [String: String] = [
+                    "redwater": "The ferry is back on the river. Tolls from the ford come in every dawn, and double after a flood.",
+                    "timberline": "The saw is turning. Every other building in Timberline now costs a quarter less.",
+                    "irongulch": "The smelter is lit. Prospectors bring 2 coins each at dawn now, but the smoke draws one more raider a night.",
+                    "bitterend": "The fur trader is open. 2 coins at dawn, and 1 more for every rancher out on the trap lines."]
+                hint("sig" + place, done[place] ?? "", again: true)
+                onSave?()
             } else if bl.paid >= bl.cost && bl.type == .claim {
                 bl.paid = 0; bl.level += 1; bl.flash = 0.4
                 sfx?.fanfare(); puff(bl.cx, -12, 14, GOLD, 50)
@@ -1815,7 +1878,7 @@ final class Game {
     private func dusk() {
         duskDone = true
         let d = day - day0 + town         // every town down the line starts a night harder
-        let n = raidSize(d)
+        let n = raidSize(d) + (place == "irongulch" && sigOn && raidSize(d) > 0 ? 1 : 0)      // smoke from the smelter draws them
         if n == 0 { hint("dusk1", "Night is coming. The first night is quiet; raiders come from the second."); return }
         for i in 0..<n {
             let main = (town > 0 ? i % 3 : i % 2) != 0        // down the line, two in three come from the same side
@@ -1859,8 +1922,14 @@ final class Game {
         for _ in 0..<(plain / 2) { dropCoin(FIRE_X + rnd(-20, 20), 6); total += 1 }
         if plain / 2 > 0 { paid.append(("Townsfolk", plain / 2)) }
         let diggers = folk.filter { $0.role == .miner }.count
-        for f in folk where f.role == .miner { dropCoin(store.x + 30, 8); total += 1; f.wait = 0 }
-        if diggers > 0 { paid.append(("Mine", diggers)) }
+        let per = place == "irongulch" && sigOn ? 2 : 1          // the smelter pays double for ore
+        for f in folk where f.role == .miner { for _ in 0..<per { dropCoin(store.x + 30, 8) }; total += per; f.wait = 0 }
+        if diggers > 0 { paid.append(("Mine", diggers * per)) }
+        if sigOn && (place == "redwater" || place == "bitterend") {
+            let n = place == "redwater" ? (flood >= day - 1 ? 6 : 3) : 2 + folk.filter { $0.role == .rancher }.count
+            for _ in 0..<n { dropCoin(sig.cx, 8) }
+            total += n; paid.append((place == "redwater" ? "Ferry" : "Furs", n))
+        }
         if town > 0 {
             let interest = min(3 * bankB.level, bank / 8)
             bank += interest
@@ -1892,7 +1961,7 @@ final class Game {
         ghostX = nil; ufo = nil
         ufoAt = day - day0 >= 2 && chance(0.36) ? rnd(0.8, 0.93) : 0
         ghostAt = chance(0.4) ? rnd(0.82, 0.96) : 0
-        if rigLv > 0 && !rigBurn { for _ in 0..<rigPay { dropCoin(FIRE_X + rnd(-12, 12), 6) }; total += rigPay; paid.append(("Oil", rigPay)) }
+        if rigLv > 0 && !rigBurn { for _ in 0..<rigPay { dropCoin(FIRE_X + rnd(-12, 12), 6) }; total += rigPay; paid.append((rigNames.2, rigPay)) }
         let lnW = day - day0
         showOn = lnW >= 2 && lnW % 4 == 2; showUsed = false
         if showOn { note += " A medicine show has pulled up west of town. He is gone by morning." }
@@ -2122,7 +2191,7 @@ final class Game {
         coins = carry + (town % STAGES.count == STAGES.count - 1 ? 8 : 0); bank = 0      // the last town is the hardest: a few more to start on
         fade = 1
         let news = [1: "a stable and a bank", 2: "a bordello and a doctor", 3: "a church and a blacksmith", 4: "a telegraph office"]
-        let extra = news[town].map { " This town has \($0) to open as well." } ?? ""
+        let extra = (news[town].map { " This town has \($0) to open as well." } ?? "") + (sigName.isEmpty ? "" : " Its trade is the \(sigName.lowercased()), \(place == "redwater" ? "at the ford east of town" : (place == "bitterend" ? "at the east end of main street" : "outside the west gate")).")
         hint("arrive\(town)", "\(nice(townName)): \(here.land.lowercased()). \(here.note) You step off with \(carry) coins, and everything here is boarded up.\(extra)" + (lastTown ? " No train comes past here. Gather \(RALLY_N) townsfolk and run Crane out." : ""), again: true)
         onSave?()
     }
@@ -2712,6 +2781,12 @@ final class Game {
         if bl.isHall && bl.level < bl.maxLevel && !bl.building {
             slotsFor = bl
             info = (bl.level == 0 ? "Town centre: \(bl.cost) coins for a town square, so buildings can reach level 2" : (bl.level == 1 ? "Town centre: \(bl.cost) coins for a clock tower, so buildings can reach level 3 and the railroad can come" : "Town centre: \(bl.cost) coins for a bell and a gilded dial, so buildings can reach their last level")) + (bl.paid > 0 ? " (\(bl.paid) in)" : "")
+            return
+        }
+        if bl.type == .sig {
+            if bl.level >= 1 { info = "\(sigName): open. \(sigWhat)"; return }
+            slotsFor = bl
+            info = "\(sigName): \(bl.cost) coins to open it. \(sigWhat)"
             return
         }
         if bl.type == .claim {
