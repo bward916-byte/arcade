@@ -649,7 +649,7 @@ final class Game {
     private func go(_ to: Area) {
         let t = trip(to)
         if !t.ok { mapMsg = t.how; mapMsgT = 2.5; return }
-        if Double(t.cost) > money { mapMsg = "Not enough money for that"; mapMsgT = 2.5; return }
+        if Double(t.cost) > money { mapMsg = "Not enough coins for that"; mapMsgT = 2.5; return }
         money -= Double(t.cost)
         mapOpen = false
         travel(to)
@@ -1125,14 +1125,14 @@ final class Game {
             let r = Double.random(in: 0..<1)
             if r < 0.4 && rocks < packCap { rockVals.append(Int(rnd(25, 60))); float("Found a specimen", x, CREAM) }
             else if r < 0.6 && odd < 3 { odd += 1; float("Found an old lantern", x, CREAM) }
-            else if r < 0.8 { let g = Int(rnd(20, 60)); money += Double(g); float("+$\(g) in gold", x, GOLD) }
+            else if r < 0.8 { let g = Int(rnd(20, 60)); money += Double(g); float("+\(g) in gold", x, GOLD) }
             else { float("Just bats", x, CREAM) }
             cred += 1
         case .detect:
             let r = Double.random(in: 0..<1)
-            if r < 0.5 { let g = Int(rnd(1, 6)); money += Double(g); float("Old coins +$\(g)", x, GOLD) }
+            if r < 0.5 { let g = Int(rnd(1, 6)); money += Double(g); float("Old coins +\(g)", x, GOLD) }
             else if r < 0.65 && odd < 3 { odd += 1; float("A rusty spur", x, CREAM) }
-            else if r < 0.73 { let g = Int(rnd(40, 120)); money += Double(g); float("Gold nugget! +$\(g)", x, GOLD); cred += 2; post("a gold nugget", 80) }
+            else if r < 0.73 { let g = Int(rnd(40, 120)); money += Double(g); float("Gold nugget! +\(g)", x, GOLD); cred += 2; post("a gold nugget", 80) }
             else { float("Pull tab", x, CREAM) }
         case .rockhound:
             health = max(0, health - 4)
@@ -1160,7 +1160,7 @@ final class Game {
             health = max(0, health - 6)
             let r = Double.random(in: 0..<1)
             if r < 0.45 && odd < 3 { odd += 1; float("Found an old canteen", x, CREAM) }
-            else if r < 0.75 { let g = Int(rnd(8, 28)); money += Double(g); float("Stashed silver +$\(g)", x, GOLD) }
+            else if r < 0.75 { let g = Int(rnd(8, 28)); money += Double(g); float("Stashed silver +\(g)", x, GOLD) }
             else { float("Just packrat nests", x, CREAM) }
             cred += 1
         case .parade:
@@ -1174,7 +1174,7 @@ final class Game {
                 resident = true
                 float("A site of your own", x, GOLD)
                 hintT = 0
-                hint("resident", "You live at Holiday Palms now: $8 a day, rest any time, and you can stay the summer when the snowbirds leave.")
+                hint("resident", "You live at Holiday Palms now: 8 coins a day, rest any time, and you can stay the summer when the snowbirds leave.")
             } else {
                 health = min(100, health + 30)
                 float("Rested", x, GREEN)
@@ -1193,7 +1193,7 @@ final class Game {
         }
         if o.earn > 0 {
             money += Double(o.earn)
-            float("+$\(o.earn)", x, GREEN)
+            float("+\(o.earn)", x, GREEN)
             events.append(5)
         }
         if o.cost > 0 { events.append(6) }
@@ -1205,7 +1205,7 @@ final class Game {
     private func refund() {
         if ringPaid > 0.5 {
             money += ringPaid
-            float("$\(Int(ringPaid.rounded())) back", px, GOLD)
+            float("\(Int(ringPaid.rounded())) back", px, GOLD)
             events.append(2)
         }
         ringPaid = 0
@@ -1258,7 +1258,7 @@ final class Game {
                     money -= 150
                     health = max(0, health - 15)
                     hintT = 0
-                    hint("stuck\(day)", "Your rig was parked by a wash when it ran. The tow out cost $150. Never camp in a wash.")
+                    hint("stuck\(day)", "Your rig was parked by a wash when it ran. The tow out cost 150 coins. Never camp in a wash.")
                     break
                 }
             }
@@ -1294,7 +1294,7 @@ final class Game {
         }
         if total != 0 {
             money += Double(total)
-            float((total > 0 ? "+$\(total)" : "-$\(-total)") + " overnight", px, total > 0 ? GREEN : REDC)
+            float((total > 0 ? "+\(total)" : "-\(-total)") + " overnight", px, total > 0 ? GREEN : REDC)
         }
         if day == SEASON_END - 6 { hintT = 0; hint("seasonsoon\(year)", "The season ends April 15. Snowbirds head north; if you have a year-round RV site or a house, you can stay the summer.") }
         if day > SEASON_END {
@@ -1382,7 +1382,7 @@ final class Game {
     private func buyWare(_ k: Int) {
         if wares[k].sold { return }
         if rocks >= packCap { mapMsg = "Your pack is full"; mapMsgT = 2; return }
-        if Double(wares[k].price) > money { mapMsg = "Not enough money"; mapMsgT = 2; return }
+        if Double(wares[k].price) > money { mapMsg = "Not enough coins"; mapMsgT = 2; return }
         money -= Double(wares[k].price)
         events.append(6)
         rockVals.append(Int(rnd(Double(wares[k].lo), Double(wares[k].hi))))
@@ -1453,7 +1453,7 @@ final class Game {
         if step > money + 0.001 {
             refund()
             holdLock = true
-            float("Not enough cash", px, REDC)
+            float("Not enough coins", px, REDC)
             return
         }
         money -= step

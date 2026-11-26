@@ -187,6 +187,13 @@ final class Renderer {
             x = 0
             while x <= W { c.R(x, GY + g.ground(x + cam) - 0.4, 4.4, 0.9, Col(0xe0c49a)); x += 4 }
         }
+        if !paved {
+            var r0 = floor((cam - 40) / 90)
+            while r0 * 90 < cam + W + 40 {
+                if hashN(r0 + 2100 + seed) < 0.55 { rock(r0 * 90 + hashN(r0 + 2110) * 60 - cam, GY + 2 + hashN(r0 + 2120) * 3, 1.6 + hashN(r0 + 2130) * 2.6) }
+                r0 += 1
+            }
+        }
         var n = floor(cam / 23) - 1
         while n * 23 < cam + W + 23 {
             let sx = n * 23 + hashN(n + 50) * 20 - cam
@@ -204,10 +211,13 @@ final class Renderer {
                 let sx = wx - cam
                 let k = hashN(n + 31 + seed)
                 if ar == .skoolie && k < 0.25 { palm(sx, GY + 1, 40 + hashN(n + 5) * 22, n) }
-                else if k < 0.36 { saguaro(sx, GY + 1, 26 + hashN(n + 5) * 20, n, SAG, true) }
-                else if k < 0.6 { cholla(sx, GY + 1, 0.8 + hashN(n + 6) * 0.5, n) }
-                else if k < 0.8 { creosote(sx, GY + 1, n) }
-                else { ocotillo(sx, GY + 1, n) }
+                else if k < 0.3 { saguaro(sx, GY + 1, 26 + hashN(n + 5) * 20, n, SAG, true) }
+                else if k < 0.48 { cholla(sx, GY + 1, 0.8 + hashN(n + 6) * 0.5, n) }
+                else if k < 0.62 { creosote(sx, GY + 1, n) }
+                else if k < 0.72 { ocotillo(sx, GY + 1, n) }
+                else if k < 0.8 { barrel(sx, GY + 1, 0.9 + hashN(n + 8) * 0.5, n) }
+                else if k < 0.88 { beavertail(sx, GY + 1, n) }
+                else { paloverde(sx, GY + 1, n) }
             }
             n += 1
         }
@@ -397,11 +407,21 @@ final class Renderer {
                 let h = 18 + hashN(n + 1310) * 12
                 let col = walls[Int(hashN(n + 1320) * 5) % 5].shade(1 - dark * 0.5)
                 c.R(sx, GY - h, w, h + 1, col)
+                for i in 0..<18 { let d = n * 7.1 + Double(i); c.R(sx + hashN(d) * w, GY - h + hashN(d + 3) * h, 0.7, 0.7, hashN(d + 5) < 0.5 ? col.shade(0.9) : col.shade(1.07)) }
                 c.R(sx + w * 0.2, GY - h - 5, w * 0.6, 5, col)
-                c.R(sx, GY - h * 0.55, w, 2.4, col.shade(0.7))
-                c.R(sx + 5, GY - h * 0.45, w * 0.3, h * 0.35, GLASS.alpha(0.8))
-                c.R(sx + w * 0.55, GY - h * 0.45, 7, h * 0.45, col.shade(0.55))
-                if dark > 0.3 { lights.append((sx + w * 0.3, GY - h * 0.3, 14)) }
+                c.R(sx + w * 0.2 - 0.6, GY - h - 5.6, w * 0.6 + 1.2, 1, col.shade(1.12))
+                c.R(sx - 0.6, GY - h - 0.6, w + 1.2, 1, col.shade(1.12))
+                c.R(sx, GY - h + 0.4, w, 1.2, Col(0x000000, 0.14))
+                let signs: [Col] = [Col(0xb5452f), Col(0x2f5a7a), Col(0x3f8f6a), Col(0x7a4a8a), Col(0x2a2a2e)]
+                c.RR(sx + w * 0.26, GY - h - 4.2, w * 0.48, 3.4, 0.6, signs[Int(hashN(n + 1340) * 5) % 5].shade(1 - dark * 0.4))
+                for i in 0..<5 { c.R(sx + w * 0.3 + Double(i) * w * 0.08, GY - h - 3.1, w * 0.05, 1.2, Col(0xf4f1ea, 0.7)) }
+                let awn = [Col(0xd9412e), Col(0x3a6ea5), Col(0x4f9a5a), Col(0xf2c14e)][Int(hashN(n + 1350) * 4) % 4].shade(1 - dark * 0.4)
+                pane(sx + 5, GY - h * 0.45, w * 0.3, h * 0.33)
+                c.poly(awn, [sx + 3, GY - h * 0.5, sx + 7 + w * 0.3, GY - h * 0.5, sx + 9 + w * 0.3, GY - h * 0.5 + 3.4, sx + 1, GY - h * 0.5 + 3.4])
+                for i in 0..<4 { c.R(sx + 3 + Double(i) * (w * 0.3 + 4) / 4, GY - h * 0.5, (w * 0.3 + 4) / 8, 3.4, Col(0xf4f1ea, 0.5)) }
+                doorway(sx + w * 0.55, GY - h * 0.45, 7, h * 0.45, col.shade(0.55))
+                c.R(sx + w * 0.72, GY - h - 3, 6, 3, Col(0xc0c0bc).shade(1 - dark * 0.5))
+                c.R(sx + w * 0.72 + 1, GY - h - 2.2, 4, 0.5, Col(0x8a8a88))
                 if hashN(n + 1330) < 0.5 {
                     c.R(sx + w + 8, GY - 30, 0.8, 31, Col(0x5a4a3a).shade(1 - dark * 0.5))
                     c.R(sx + w + 5, GY - 29, 7, 0.8, Col(0x5a4a3a).shade(1 - dark * 0.5))
@@ -1029,7 +1049,7 @@ final class Renderer {
             let tc = Col(0xefe9dc)
             c.RR(x - 34, GY - 26, 46, 21, 6, tc)
             c.R(x - 34, GY - 14, 46, 1.6, Col(0x3a6ea5))
-            c.RR(x - 28, GY - 22, 9, 6, 1, GLASS); c.RR(x + 1, GY - 22, 7, 6, 1, GLASS)
+            pane(x - 28, GY - 22, 9, 6); pane(x + 1, GY - 22, 7, 6)
             c.R(x - 14, GY - 22, 7, 16, tc.shade(0.88))
             c.seg(x + 12, GY - 8, x + 18, GY - 3, 1, Col(0x4a4a4a))
             wheelAt(x - 14, GY, 3.6)
@@ -1074,12 +1094,12 @@ final class Renderer {
             top = 46
         case .tools:
             let wall = Col(0xb9b3a6)
-            c.R(x - 42, GY - 38, 84, 38, wall)
+            facade(x - 42, GY - 38, 84, 38, wall)
             var lx = x - 42.0
             while lx < x + 42 { c.R(lx, GY - 38, 0.7, 38, wall.shade(0.86)); lx += 4.5 }
             c.poly(Col(0x7a8088), [x - 45, GY - 38, x - 40, GY - 44, x + 40, GY - 44, x + 45, GY - 38])
-            c.R(x - 9, GY - 22, 18, 22, Col(0x33302c))
-            c.R(x - 34, GY - 26, 16, 10, GLASS); c.R(x + 18, GY - 26, 16, 10, GLASS)
+            doorway(x - 9, GY - 22, 18, 22, Col(0x33302c))
+            pane(x - 34, GY - 26, 16, 10); pane(x + 18, GY - 26, 16, 10)
             c.RR(x - 28, GY - 57, 56, 12, 2, Col(0xa32a22))
             g.text("KB TOOLS", x, GY - 51, 7, CREAM, bold: true)
             for j in 0..<3 { c.RR(x + 24 + Double(j) * 5, GY - 9, 4, 9, 1.5, Col(0xe8e8e4)) }
@@ -1118,12 +1138,12 @@ final class Renderer {
         case .hall:
             // Town Hall: adobe with a parapet and a flag
             let adobe = Col(0xd9b48a)
-            c.R(x - 40, GY - 32, 80, 32, adobe)
+            facade(x - 40, GY - 32, 80, 32, adobe)
             c.R(x - 42, GY - 36, 84, 5, adobe.shade(1.08))
             c.R(x - 12, GY - 40, 24, 5, adobe.shade(1.08))
             for j in 0..<6 { c.R(x - 36 + Double(j) * 14, GY - 30, 1.4, 2, Col(0x6a4a2a)) }
-            c.R(x - 7, GY - 22, 14, 22, Col(0x5a3a22)); c.R(x - 0.3, GY - 22, 0.6, 22, Col(0x3a2414))
-            c.R(x - 33, GY - 22, 14, 10, GLASS); c.R(x + 19, GY - 22, 14, 10, GLASS)
+            doorway(x - 7, GY - 22, 14, 22, Col(0x5a3a22)); c.R(x - 0.3, GY - 22, 0.6, 22, Col(0x3a2414))
+            pane(x - 33, GY - 22, 14, 10); pane(x + 19, GY - 22, 14, 10)
             g.text("TOWN HALL", x, GY - 29, 4.6, Col(0x5a3a22), bold: true)
             c.R(x + 48, GY - 48, 0.8, 48, Col(0xb8b8b4))
             for j in 0..<4 { c.R(x + 49, GY - 48 + Double(j) * 2, 10 + sin(NOW * 3 + Double(j)) * 0.6, 1, j % 2 == 0 ? Col(0xc8281e) : Col(0xf4f4f0)) }
@@ -1168,11 +1188,11 @@ final class Renderer {
         case .gemworld:
             // Gem World on Main Street, with its wheel-rim camel out front
             let wall = Col(0xe8dcc4)
-            c.R(x - 36, GY - 30, 72, 30, wall)
+            facade(x - 36, GY - 30, 72, 30, wall)
             c.RR(x - 30, GY - 44, 60, 12, 2, Col(0x6a3a7a))
             g.text("GEM WORLD", x, GY - 38, 6, CREAM, bold: true)
-            c.R(x - 6, GY - 20, 12, 20, Col(0x4a3424))
-            c.R(x - 30, GY - 22, 18, 10, GLASS); c.R(x + 12, GY - 22, 18, 10, GLASS)
+            doorway(x - 6, GY - 20, 12, 20, Col(0x4a3424))
+            pane(x - 30, GY - 22, 18, 10); pane(x + 12, GY - 22, 18, 10)
             for j in 0..<4 { gem(x - 27 + Double(j) * 4.4, GY - 13, 1.4, [Col(0x9a5ad0), Col(0xf0f0f4), Col(0xe2742e), Col(0x2fa7a0)][j]) }
             label = false
             top = 52
@@ -1207,13 +1227,13 @@ final class Renderer {
         case .yacht:
             // the Quartzsite Yacht Club: a desert bar with a boat on the roof sign
             let wall = Col(0x3a6ea5)
-            c.R(x - 34, GY - 26, 68, 26, wall)
+            facade(x - 34, GY - 26, 68, 26, wall)
             c.R(x - 34, GY - 28, 68, 2, Col(0xf4f4f0))
             c.poly(Col(0xf4f4f0), [x - 18, GY - 34, x + 18, GY - 34, x + 12, GY - 29, x - 12, GY - 29])
             c.seg(x, GY - 34, x, GY - 46, 0.8, Col(0xf4f4f0)); c.poly(Col(0xf4f4f0), [x + 0.6, GY - 45, x + 10, GY - 36, x + 0.6, GY - 36])
             g.text("YACHT CLUB", x, GY - 21, 4.6, CREAM, bold: true)
-            c.R(x - 6, GY - 15, 12, 15, Col(0x2a2018))
-            c.R(x - 28, GY - 15, 14, 8, GLASS); c.R(x + 14, GY - 15, 14, 8, GLASS)
+            doorway(x - 6, GY - 15, 12, 15, Col(0x2a2018))
+            pane(x - 28, GY - 15, 14, 8); pane(x + 14, GY - 15, 14, 8)
             if dark > 0.3 { lights.append((x, GY - 12, 30)) }
             label = false
             top = 54
@@ -1262,7 +1282,7 @@ final class Renderer {
         case .office:
             let tc = Col(0xefe9dc)
             c.RR(x - 22, GY - 22, 44, 18, 4, tc)
-            c.RR(x - 16, GY - 19, 10, 6, 1, GLASS)
+            pane(x - 16, GY - 19, 10, 6)
             c.R(x + 2, GY - 19, 8, 15, tc.shade(0.88))
             c.R(x - 22, GY - 12, 44, 1.4, Col(0x3a6ea5))
             wheelAt(x - 8, GY, 3.4)
@@ -1314,7 +1334,7 @@ final class Renderer {
             let woodD = Col(0x6a4a2e).shade(1 - dark * 0.35)
             c.R(x - 24, GY - 22, 34, 22, woodD)
             c.poly(Col(0x4a3420).shade(1 - dark * 0.35), [x - 27, GY - 22, x - 7, GY - 31, x + 13, GY - 22])
-            c.R(x - 11, GY - 15, 8, 15, Col(0x241810))
+            doorway(x - 11, GY - 15, 8, 15, Col(0x241810))
             c.R(x - 20, GY - 16, 6, 6, Col(0x1c1410))
             let st = Col(0x9a8a78).shade(1 - dark * 0.35)
             c.RR(x + 16, GY - 14, 18, 14, 2, st)
@@ -1348,10 +1368,10 @@ final class Renderer {
         case .house:
             // a small block house with a carport and a gravel yard
             let wall = Col(0xe2d0ac)
-            c.R(x - 30, GY - 24, 44, 24, wall)
+            facade(x - 30, GY - 24, 44, 24, wall)
             c.poly(Col(0x7a4a34), [x - 34, GY - 24, x - 8, GY - 36, x + 18, GY - 24])
-            c.R(x - 6, GY - 16, 9, 16, Col(0x6a4a2e))
-            c.R(x - 24, GY - 18, 12, 8, GLASS)
+            doorway(x - 6, GY - 16, 9, 16, Col(0x6a4a2e))
+            pane(x - 24, GY - 18, 12, 8)
             c.R(x + 14, GY - 20, 26, 2, Col(0x8a8f96)); c.R(x + 38, GY - 20, 1, 20, Col(0x8a8f96))
             c.R(x + 30, GY - 30, 8, 6, Col(0xb8b8b4))
             for j in 0..<8 { c.ell(x - 34 + Double(j) * 10, GY - 0.6, 3, 1, Col(0xa89880)) }
@@ -1414,10 +1434,10 @@ final class Renderer {
         case .computer:
             // The Computer Corner: a small shop with a dish on the roof
             let wall = Col(0xd8d4cc)
-            c.R(x - 26, GY - 24, 52, 24, wall)
+            facade(x - 26, GY - 24, 52, 24, wall)
             c.R(x - 28, GY - 26, 56, 3, Col(0x3a6ea5))
-            c.R(x - 6, GY - 16, 12, 16, Col(0x3a3a3e))
-            c.R(x - 22, GY - 18, 12, 8, GLASS); c.R(x + 10, GY - 18, 12, 8, GLASS)
+            doorway(x - 6, GY - 16, 12, 16, Col(0x3a3a3e))
+            pane(x - 22, GY - 18, 12, 8); pane(x + 10, GY - 18, 12, 8)
             c.R(x + 14, GY - 32, 1, 6, Col(0x8a8a8a)); c.RR(x + 9.6, GY - 34, 10, 3, 1.4, Col(0xf4f4f0))
             c.RR(x - 24, GY - 36, 30, 8, 1.4, Col(0x2a2a2e))
             g.text("COMPUTER CORNER", x - 9, GY - 32, 3.2, Col(0x8ad0f0), bold: true)
@@ -1480,11 +1500,11 @@ final class Renderer {
             } else if sp.arg == 1 {
                 // Reader's Oasis: the desert bookstore with tables of books out front
                 let wall = Col(0xe2d2b4)
-                c.R(x - 34, GY - 30, 68, 30, wall)
+                facade(x - 34, GY - 30, 68, 30, wall)
                 c.poly(Col(0x9a4a3a), [x - 38, GY - 30, x - 30, GY - 38, x + 30, GY - 38, x + 38, GY - 30])
                 c.RR(x - 26, GY - 47, 52, 10, 2, Col(0x2f5a4a))
                 g.text("READER'S OASIS", x, GY - 42, 4.6, CREAM, bold: true)
-                c.R(x - 6, GY - 20, 12, 20, Col(0x4a3424))
+                doorway(x - 6, GY - 20, 12, 20, Col(0x4a3424))
                 let spines: [Col] = [Col(0xb5452f), Col(0x3a6ea5), Col(0xf2c14e), Col(0x3f8f8a), Col(0x7a4a8a), Col(0xe8dcc4)]
                 for side in [-1.0, 1.0] {
                     let tx = x + side * 22
@@ -1500,7 +1520,7 @@ final class Renderer {
                 c.curve(x - 23, GY, x, GY - 46, x + 23, GY, 1.2, Col(0xf2c14e))
                 c.curve(x - 20, GY, x, GY - 40, x + 20, GY, 1.2, Col(0x4f9a5a))
                 c.curve(x - 17, GY, x, GY - 34, x + 17, GY, 1.2, Col(0x3a6ea5))
-                for j in 0..<3 { let hx = x - 12 + Double(j) * 9; c.R(hx - 3, GY - 5, 6, 5, Col(0xb89a74)); c.poly(Col(0x7a4a34), [hx - 4, GY - 5, hx, GY - 8, hx + 4, GY - 5]) }
+                for j in 0..<3 { let hx = x - 12 + Double(j) * 9; doorway(hx - 3, GY - 5, 6, 5, Col(0xb89a74)); c.poly(Col(0x7a4a34), [hx - 4, GY - 5, hx, GY - 8, hx + 4, GY - 5]) }
                 cholla(x - 34, GY + 1, 0.8, 12); creosote(x + 34, GY + 1, 13)
                 c.R(x - 1, GY - 16, 2, 0.1, wood)
                 g.text("CELIA'S RAINBOW GARDENS", x, GY - 58, 3.8, CREAM, bold: true)
@@ -1508,13 +1528,13 @@ final class Renderer {
                 top = 60
             } else if sp.arg == 2 {
                 // Tyson's Well: the 1864 stage stop, marked by a plaque on a stone base
-                c.R(x - 8, GY - 12, 16, 12, Col(0xa89880))
+                doorway(x - 8, GY - 12, 16, 12, Col(0xa89880))
                 for j in 0..<10 { let d = Double(j); c.ell(x - 6 + hashN(d + 140) * 12, GY - 2 - hashN(d + 141) * 9, 1.8, 1.2, Col(0x8a7a64)) }
                 c.RR(x - 6, GY - 20, 12, 9, 1, Col(0x6a4a2a))
                 c.RR(x - 5, GY - 19, 10, 7, 0.6, Col(0x9a7a3a))
                 g.text("1864", x, GY - 15.4, 3, CREAM, bold: true)
                 c.seg(x + 16, GY, x + 16, GY - 18, 0.9, wood); c.seg(x + 26, GY, x + 26, GY - 18, 0.9, wood)
-                c.R(x + 14, GY - 19, 14, 1.4, wood); c.R(x + 18, GY - 12, 6, 12, Col(0x6a6a6a))
+                c.R(x + 14, GY - 19, 14, 1.4, wood); doorway(x + 18, GY - 12, 6, 12, Col(0x6a6a6a))
                 top = 34
             } else {
                 // the old Ehrenberg pioneer cemetery: a wooden arch, rock-covered graves, a few crosses
@@ -1540,6 +1560,88 @@ final class Renderer {
         }
     }
 
+    /// A stucco or block wall: a little texture, a shadow under the roofline, a darker footing.
+    private func facade(_ x: Double, _ y: Double, _ w: Double, _ h: Double, _ col: Col) {
+        let cc = col.shade(1 - dark * 0.45)
+        c.R(x, y, w, h, cc)
+        let n = min(90, Int(w * h / 40))
+        for i in 0..<n {
+            let d = Double(i) * 1.37 + w * 0.13 + h * 0.71
+            c.R(x + hashN(d) * w, y + hashN(d + 9) * h, 0.8, 0.6, hashN(d + 5) < 0.5 ? cc.shade(0.92) : cc.shade(1.06))
+        }
+        c.R(x, y, w, 1.8, Col(0x000000, 0.16))
+        c.R(x, y + h - 1.6, w, 1.6, cc.shade(0.8))
+    }
+    /// A framed window with a sill, a glint by day and warm light at night.
+    private func pane(_ x: Double, _ y: Double, _ w: Double, _ h: Double) {
+        let frame = Col(0xefe8da).shade(1 - dark * 0.5)
+        c.R(x - 0.9, y - 0.9, w + 1.8, h + 1.8, frame)
+        if dark > 0.35 {
+            c.R(x, y, w, h, Col(0xffd68a))
+            lights.append((x + w / 2, y + h / 2, max(10, w * 1.3)))
+        } else {
+            c.vfill(x, y, w, h, [(0, Col(0x7a98b4)), (1, Col(0x2b3a4a))])
+            c.poly(Col(0xffffff, 0.2), [x + w * 0.12, y + h, x + w * 0.42, y, x + w * 0.6, y, x + w * 0.3, y + h])
+        }
+        c.R(x + w / 2 - 0.3, y, 0.6, h, frame)
+        c.R(x - 1.6, y + h + 0.9, w + 3.2, 1.2, frame.shade(0.88))
+    }
+    /// A paneled door with a frame and a brass knob.
+    private func doorway(_ x: Double, _ y: Double, _ w: Double, _ h: Double, _ col: Col) {
+        let cc = col.shade(1 - dark * 0.3)
+        c.R(x - 0.8, y - 0.8, w + 1.6, h + 0.8, Col(0xefe8da).shade(1 - dark * 0.5))
+        c.R(x, y, w, h, cc)
+        if w > 4 {
+            c.R(x + 1.2, y + 1.4, w - 2.4, h * 0.4, cc.shade(1.14))
+            c.R(x + 1.2, y + h * 0.5, w - 2.4, h * 0.4, cc.shade(1.14))
+        }
+        c.circ(x + w - 1.6, y + h * 0.56, 0.6, GOLD)
+    }
+
+    /// A barrel cactus, ribbed, with yellow flowers on top.
+    private func barrel(_ x: Double, _ base: Double, _ s: Double, _ seed: Double) {
+        if x < -20 || x > W + 20 { return }
+        let col = Col(0x5a8a4a).shade(1 - dark * 0.35)
+        c.ell(x, base - 5 * s, 4 * s, 5.4 * s, col)
+        for k in -1...1 { c.R(x + Double(k) * 1.6 * s - 0.25, base - 9.6 * s, 0.5, 9 * s, col.shade(0.8)) }
+        c.ell(x, base - 10.2 * s, 2.6 * s, 1 * s, Col(0xe8c040))
+        c.ell(x, base - 5 * s, 4 * s, 5.4 * s, Col(0xd04a3a, 0.12))
+    }
+    /// Beavertail prickly pear: flat blue-green pads, magenta flowers on the edges.
+    private func beavertail(_ x: Double, _ base: Double, _ seed: Double) {
+        if x < -20 || x > W + 20 { return }
+        let col = Col(0x7a8a9a).shade(1 - dark * 0.35)
+        let pads: [(Double, Double, Double)] = [(0, -4, 0), (-5, -7, -0.4), (5, -8, 0.4), (1, -12, 0.1)]
+        for (k, p) in pads.enumerated() where k < 2 + Int(hashN(seed) * 3) {
+            c.save(); c.translate(x + p.0, base + p.1); c.rotate(p.2)
+            c.ell(0, 0, 3, 4.4, col)
+            for d in 0..<4 { c.circ(-1.6 + Double(d % 2) * 3.2, -1.6 + Double(d / 2) * 3.2, 0.3, Col(0xe8e0c8)) }
+            c.restore()
+        }
+        if hashN(seed + 2) < 0.6 { c.circ(x - 5, base - 11.6, 1.1, Col(0xd04a8a)); c.circ(x + 6, base - 12.4, 1.1, Col(0xd04a8a)) }
+    }
+    /// A palo verde: green bark, a feathery yellow-green canopy.
+    private func paloverde(_ x: Double, _ base: Double, _ seed: Double) {
+        if x < -40 || x > W + 40 { return }
+        let bark = Col(0x7a9a4a).shade(1 - dark * 0.4)
+        c.roundCaps(true)
+        c.seg(x, base, x - 1, base - 12, 2, bark)
+        c.seg(x - 1, base - 10, x - 9, base - 20, 1.3, bark)
+        c.seg(x - 1, base - 11, x + 8, base - 21, 1.3, bark)
+        c.roundCaps(false)
+        for i in 0..<16 {
+            let d = seed + Double(i) * 2.3
+            c.circ(x - 14 + hashN(d) * 28, base - 26 + hashN(d + 1) * 10, 3 + hashN(d + 2) * 2.4, Col(0xa8b85a, 0.85).shade(1 - dark * 0.4))
+        }
+    }
+    /// A desert rock with a lit top.
+    private func rock(_ x: Double, _ base: Double, _ r: Double) {
+        let col = Col(0x8a6a54).shade(1 - dark * 0.4)
+        c.ell(x, base - r * 0.4, r, r * 0.6, col)
+        c.ell(x - r * 0.2, base - r * 0.65, r * 0.6, r * 0.25, col.shade(1.25))
+        c.ell(x, base + 0.3, r * 1.1, r * 0.2, Col(0x000000, 0.15))
+    }
+
     /// A concrete vault toilet like the ones at the LTVA.
     private func outhouse(_ x: Double, _ base: Double, _ s: Double) {
         if x < -30 || x > W + 30 { return }
@@ -1556,6 +1658,14 @@ final class Renderer {
         c.R(-4, -17, 3, 3, Col(0x2a4a8a))
         c.R(-12, -2, 24, 2, wall.shade(0.8))
         c.restore()
+    }
+
+    /// A gold coin, the game's money.
+    func coin(_ x: Double, _ y: Double, _ r: Double) {
+        c.circ(x, y, r, Col(0xb8862a))
+        c.circ(x, y, r * 0.82, GOLD)
+        c.arcStroke(x, y, r * 0.55, 0, PI * 2, max(0.4, r * 0.12), Col(0xb8862a))
+        c.circ(x - r * 0.3, y - r * 0.3, r * 0.22, Col(0xfff2c0, 0.8))
     }
 
     // MARK: ring, HUD, screens
@@ -1575,7 +1685,7 @@ final class Renderer {
             c.arcStroke(x, y, r, -PI / 2, -PI / 2 + PI * 2 * min(1, g.ringProg), 2.6, o.earn > 0 ? GREEN : GOLD)
             c.roundCaps(false)
         }
-        let label = o.earn > 0 ? "+$\(o.earn)" : (o.cost > 0 ? "$\(o.cost)" : "FREE")
+        let label = o.earn > 0 ? "+\(o.earn)" : "\(o.cost)"
         let short = Double(o.cost) > g.money + g.ringPaid
         g.text(label, x, y, label.count > 4 ? 5.6 : 7, short ? REDC : (o.earn > 0 ? GREEN : CREAM), bold: true)
         g.text(o.label, x, y + 18, 5, CREAM)
@@ -1585,7 +1695,8 @@ final class Renderer {
     private func hud() {
         let l = g.safeL + 8, r = W - g.safeR - 8
         c.RR(l, 5, 132, 14, 7, Col(0x1c1410, 0.68))
-        g.text("$\(Int((g.money + 0.0001).rounded(.down)))", l + 7, 12, 7.5, GOLD, align: 1, bold: true)
+        coin(l + 10, 12, 4)
+        g.text("\(Int((g.money + 0.0001).rounded(.down)))", l + 17, 12, 7.5, GOLD, align: 1, bold: true)
         // health
         let hx = l + 46
         c.circ(hx, 11, 2, REDC); c.circ(hx + 3, 11, 2, REDC)
@@ -1710,7 +1821,7 @@ final class Renderer {
             g.text(AREAS[a].name, lx + 5, ry + rowH * 0.32, 5, ink.alpha(t.ok || here ? 1 : 0.5), align: 1, bold: true)
             var sub: String
             if here { sub = "You're here" }
-            else if t.ok { let m = milesBetween(g.area, to); sub = (m == m.rounded() ? "\(Int(m))" : "\(m)") + " mi · " + (t.cost == 0 ? "free" : "$\(t.cost)") }
+            else if t.ok { let m = milesBetween(g.area, to); sub = (m == m.rounded() ? "\(Int(m))" : "\(m)") + " mi · " + (t.cost == 0 ? "0 coins" : "\(t.cost) coins") }
             else { sub = t.how }
             g.text(sub, lx + 5, ry + rowH * 0.68, 3.8, here ? ink.alpha(0.7) : (t.ok ? Col(0x2f6a3a) : REDC.shade(0.8)), align: 1)
             if !here { g.hits.append(Hit(id: 70 + a, x: lx, y: ry, w: lw, h: rowH - 3)) }
@@ -1747,7 +1858,7 @@ final class Renderer {
         c.RR(x0, y0, x1 - x0, y1 - y0, 6, Col(0x3a2c3a))
         g.hits.append(Hit(id: 88, x: x0, y: y0, w: x1 - x0, h: y1 - y0))
         g.text("ON THE TABLES", x0 + 10, y0 + 10, 8, GOLD, align: 1, bold: true)
-        g.text("$\(Int(g.money))  ·  pack \(g.rocks)/\(g.packCap)", x0 + 96, y0 + 10, 5.4, CREAM.alpha(0.8), align: 1, bold: true)
+        g.text("\(Int(g.money)) coins  ·  pack \(g.rocks)/\(g.packCap)", x0 + 96, y0 + 10, 5.4, CREAM.alpha(0.8), align: 1, bold: true)
         c.circ(x1 - 11, y0 + 10, 6, Col(0xffffff, 0.15))
         c.seg(x1 - 14, y0 + 7, x1 - 8, y0 + 13, 1, CREAM); c.seg(x1 - 8, y0 + 7, x1 - 14, y0 + 13, 1, CREAM)
         g.hits.append(Hit(id: 89, x: x1 - 22, y: y0, w: 22, h: 22))
@@ -1767,8 +1878,9 @@ final class Renderer {
             if w.sold {
                 g.text("Yours", cx + 32, cy + ch - 8, 5, GOLD, align: 1, bold: true)
             } else {
-                g.text("$\(w.price)", cx + 32, cy + ch - 12, 6.4, Double(w.price) > g.money ? REDC : Col(0x2f6a3a), align: 1, bold: true)
-                g.text("sells for about $\(w.lo)–\(w.hi)", cx + 32, cy + ch - 5, 3.4, ink.alpha(0.65), align: 1)
+                coin(cx + 35, cy + ch - 12, 3.2)
+                g.text("\(w.price)", cx + 41, cy + ch - 12, 6.4, Double(w.price) > g.money ? REDC : Col(0x2f6a3a), align: 1, bold: true)
+                g.text("sells for about \(w.lo)–\(w.hi) coins", cx + 32, cy + ch - 5, 3.4, ink.alpha(0.65), align: 1)
                 g.hits.append(Hit(id: 90 + k, x: cx, y: cy, w: cw, h: ch))
             }
         }
@@ -2253,7 +2365,7 @@ final class Renderer {
         g.text("HOW DO YOU ROLL?", l, 11, 6, GOLD, align: 1, bold: true)
         let cw = (uw - 8) / 2
         let lifeName = ["NOMAD", "RVER"]
-        let lifeSub = ["Vans, skoolies, Skooliepalooza. Starts with friends: 5 cred.", "A snowbird with a check coming in. Starts with $100 more."]
+        let lifeSub = ["Vans, skoolies, Skooliepalooza. Starts with friends: 5 cred.", "A snowbird with a check coming in. Starts with 100 more coins."]
         for i in 0..<2 {
             let x = l + Double(i) * (cw + 8)
             card(i, x, 17, cw, 36, g.life.rawValue == i)
@@ -2270,7 +2382,8 @@ final class Renderer {
             rig(START_RIGS[i], x + 29, 105, 0, 1, 0.74)
             let cash = Int(START_CASH[i]) + (g.life == .rver ? 100 : 0)
             g.text(RIGS[START_RIGS[i].rawValue].name, x + 57, 84, 6, CREAM, align: 1, bold: true)
-            g.text("$\(cash) cash", x + 57, 96, 5.4, GOLD, align: 1)
+            coin(x + 60, 96, 3)
+            g.text("\(cash) coins", x + 65, 96, 5.4, GOLD, align: 1)
         }
 
         g.text("YOU", l, 124, 6, GOLD, align: 1, bold: true)

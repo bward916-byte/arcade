@@ -63,7 +63,7 @@ jobs:
           xcrun simctl boot "$UDID"
           xcrun simctl bootstatus "$UDID" -b
           xcrun simctl install "$UDID" "$APP"
-          for shot in dog camels main happy; do
+          for shot in main night gem browse ltva pick; do
             xcrun simctl terminate "$UDID" com.brianward.quartzsitewinter 2>/dev/null || true
             if [ "$shot" = title ]; then
               xcrun simctl launch "$UDID" com.brianward.quartzsitewinter
