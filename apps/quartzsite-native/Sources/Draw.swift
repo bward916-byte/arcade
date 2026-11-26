@@ -1373,7 +1373,7 @@ final class Renderer {
                     let t = (NOW * 0.7 + Double(k) / 2).truncatingRemainder(dividingBy: 1)
                     c.circ(x + 26.6 + sin(t * 6) * 0.8, GY - 13.5 - t * 6, 0.6 + t, Col(0xffffff, (1 - t) * 0.5))
                 }
-                if !near { g.text("Morning, neighbor!", x + 30, GY - 32, 4.4, CREAM, bold: true, plate: true) }
+                if !near { g.text("Morning! It's " + g.neighbor(0).0 + ".", x + 30, GY - 32, 4.4, CREAM, bold: true, plate: true) }
             }
             if g.rigArea == g.area || g.phase != .play {
                 fire(x + 4, GY + 3)
@@ -2073,7 +2073,8 @@ final class Renderer {
             top = 30
         }
         if label && !near {
-            g.text(sp.name, x, GY - top, 5, CREAM.alpha(0.8), bold: true)
+            let nm = sp.kind == .fire && g.phase == .play ? { let n = g.neighbor(sp.x > 1400 ? 2 : 4).0; return (n + (n.hasSuffix("s") ? "' FIRE" : "'S FIRE")).uppercased() }() : sp.name
+            g.text(nm, x, GY - top, 5, CREAM.alpha(0.8), bold: true)
         }
     }
 

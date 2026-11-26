@@ -203,6 +203,17 @@ let AREAS: [AreaDef] = [
 ]
 let LANDMARKS = ["Pay respects at Hi Jolly's tomb", "Browse the books", "Read the stage-stop plaque", "Walk the old cemetery", "Walk Celia's Rainbow Gardens"]
 let CAMELS = 6
+/// The people camped around you. Short name, who they are.
+let NEIGHBORS: [(String, String)] = [
+    ("Marge & Hal", "snowbirds from Minnesota, 22nd winter"),
+    ("Dusty", "full-timer in a '78 Airstream"),
+    ("Tess", "travels with three rescue dogs"),
+    ("Ray", "retired lineman, fixes anything solar"),
+    ("The Okafors", "first winter in their skoolie"),
+    ("Bev", "paints rocks and leaves them on trails"),
+    ("Juan", "sells tamales from his van on weekends"),
+    ("Gloria", "has been coming since 1979")
+]
 /// Odd jobs pinned to the bulletin board: one a day, a new one each morning.
 let JOBS: [(String, Int)] = [("Wash a Class A", 40), ("Help set up a vendor tent", 30), ("Haul water for a neighbor", 20), ("Fix a flat on a fifth wheel", 35), ("Dog-sit for the day", 25), ("Install a neighbor's solar panel", 50), ("Unload a rock dealer's trailer", 45)]
 /// Traffic on the highway: a car, then rigs. Lengths match the drawings.
@@ -511,6 +522,11 @@ final class Game {
     struct PagePost { var text: String; var day: Int; var likes: Int; var comments: Int }
     var phoneOpen = false
     var tomorrow = 0                      // the forecast for tomorrow
+
+    /// Who's around today: the same faces, rotating through the week.
+    func neighbor(_ salt: Int) -> (String, String) {
+        return NEIGHBORS[(day + salt * 3 + area.rawValue * 5) % NEIGHBORS.count]
+    }
     var phoneTab = 0                      // 0 your page, 1 goals
 
     /// Things worth doing in a Quartzsite life, checked off as you go.
@@ -1132,7 +1148,7 @@ final class Game {
             if rigArea != area { return nil }
             return rocks > 0 && jewelry < 4 ? Offer(label: "Wire-wrap a pendant", cost: 0, earn: 0, dur: 2.6) : nil
         case .fire:
-            return wood > 0 ? Offer(label: "Sell a bundle of firewood", cost: 0, earn: 10, dur: 0.9) : nil
+            return wood > 0 ? Offer(label: "Sell " + neighbor(sp.x > 1400 ? 2 : 4).0 + " a bundle of firewood", cost: 0, earn: 10, dur: 0.9) : nil
         case .host:
             if permitDays < 4 { return Offer(label: "14-day LTVA permit", cost: 40, earn: 0, dur: 1.2) }
             return wood < 10 ? Offer(label: "Buy a firewood bundle from the host", cost: 7, earn: 0, dur: 0.8) : nil
@@ -1252,8 +1268,8 @@ final class Game {
         case .bench:
             if rigArea != area { return "Your tools are with your rig" }
             return jewelry >= 4 ? "Plenty made. Sell them from a booth at a show" : "Bring rough rock or a specimen to work"
-        case .fire: return "Buy firewood at Big Market or from the camp host"
-        case .host: return "Permit good for \(permitDays) more days"
+        case .fire: return neighbor(sp.x > 1400 ? 2 : 4).0 + " needs firewood. Buy it at Big Market or from the host"
+        case .host: return "Camp host Gloria: permit good for \(permitDays) more days"
         case .station: return rig == .tent ? "Tents don't need it" : (seen.contains(11) ? "Done for today" : "Drive your rig over to dump and fill")
         case .outhouse: return "You're good for now"
         case .pizza: return "Back tomorrow for another slice"
@@ -1327,10 +1343,12 @@ final class Game {
                 cred += 1
                 if rocks < packCap && Double.random(in: 0..<1) < 0.25 {
                     rockVals.append(Int(rnd(18, 40)))
-                    float("They gave you a geode they cracked", x, GOLD)
+                    float(neighbor(0).0 + " gave you a geode they cracked", x, GOLD)
                 } else {
-                    let tips = ["They swear the agate's better after rain", "Gem show crowds are lighter before ten", "Their dog and yours are friends now", "Ten minutes of solar talk. Worth it", "They know a guy with a cheap used side-by-side"]
-                    float(tips[day % tips.count], x, CREAM)
+                    let tips = ["The agate's better after rain.", "Gem show crowds are lighter before ten.", "Your dog and ours should be friends.", "Ask me anything about solar.", "I know a guy with a cheap used side-by-side.", "The dump station line is short at lunch.", "Coffee's on any morning you want it."]
+                    let n = neighbor(0)
+                    float(n.0 + ": \"" + tips[day % tips.count] + "\"", x, CREAM)
+                    hint("met" + n.0, "You met " + n.0 + ", " + n.1 + ".")
                 }
             } else if rigArea != area {
                 rigArea = area
