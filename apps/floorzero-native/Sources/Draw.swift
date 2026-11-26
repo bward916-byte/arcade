@@ -2037,13 +2037,12 @@ final class Renderer {
             let drop = rt * 900
             cv.R(0, 0, W, VIEW_H, Col(0x0b0c0e))
             cv.R(W / 2 - 260, 0, 520, VIEW_H, Col(0x14151a))
-            for i in 0..<6 {
-                let y = (Double(i) * 180 - drop).truncatingRemainder(dividingBy: 1080)
-                let yy = y < -150 ? y + 1080 : y
+            let j0 = Int(((drop - 200) / 180).rounded(.down))
+            for j in j0..<(j0 + 6) {
+                let yy = Double(j) * 180 - drop
                 cv.R(W / 2 - 260, yy, 520, 10, Col(0x24262c))
                 cv.R(W / 2 + 160, yy + 20, 90, 130, Col(0x2a2e36)); cv.R(W / 2 + 205, yy + 20, 2, 130, Col(0x0a0a0c))
-                let fl = g.rideFrom - Int((drop + Double(i) * 180) / 360)
-                cv.text("\(max(0, fl))", W / 2 + 205, yy + 14, 12, MINT.alpha(0.7), 1, 2)
+                cv.text("\(max(0, g.rideFrom - j))", W / 2 + 205, yy + 14, 12, MINT.alpha(0.7), 1, 2)
             }
             cv.R(W / 2 - 4, 0, 8, VIEW_H, Col(0x4a4a50)); cv.R(W / 2 - 1, 0, 2, VIEW_H, Col(0x8a8a92))
             var p = Pose()
