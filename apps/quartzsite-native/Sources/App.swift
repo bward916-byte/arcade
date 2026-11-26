@@ -143,7 +143,7 @@ final class GameViewController: UIViewController {
         renderer = Renderer(game: game, canvas: cv)
         if !demoDone {
             demoDone = true
-            for key in ["pick", "rigs", "play", "night", "ltva", "main", "gem", "tyson", "dome", "toys", "ride", "skoolie", "map", "trail", "scaddan", "browse", "parade", "home", "season", "end", "gear", "computer", "rain", "windy", "critters", "page", "qfest", "western", "trailride", "cine0", "cine1", "cine2", "cine3", "cine4", "happy", "cleanup", "dog", "camels", "drive", "drivenight", "drivetrail", "drivestop", "drivetow", "party", "gemworld", "mainwest", "maineast", "mainnight", "readers", "dust", "gen", "propane", "phone", "wildnight", "rainbow", "windy", "booth", "haggle", "river", "food", "blm", "coffee", "flood", "rvshow"] where ProcessInfo.processInfo.arguments.contains("-demo-" + key) {
+            for key in ["pick", "rigs", "play", "night", "ltva", "main", "gem", "tyson", "dome", "toys", "ride", "skoolie", "map", "trail", "scaddan", "browse", "parade", "home", "season", "end", "gear", "computer", "rain", "windy", "critters", "page", "qfest", "western", "trailride", "cine0", "cine1", "cine2", "cine3", "cine4", "happy", "cleanup", "dog", "camels", "drive", "drivenight", "drivetrail", "drivestop", "drivetow", "party", "gemworld", "mainwest", "maineast", "mainnight", "readers", "dust", "gen", "propane", "phone", "wildnight", "rainbow", "windy", "booth", "haggle", "river", "food", "blm", "coffee", "flood", "rvshow", "goals"] where ProcessInfo.processInfo.arguments.contains("-demo-" + key) {
                 game.demo(key)
             }
         }

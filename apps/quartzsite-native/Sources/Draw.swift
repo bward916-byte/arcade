@@ -2301,17 +2301,17 @@ final class Renderer {
         g.text(g.muted ? "OFF" : "ON", r - 7, 47.5, 4, CREAM.alpha(0.8), bold: true)
         g.hits.append(Hit(id: 63, x: r - 36, y: 42, w: 40, h: 18))
         // a quick way for testers to write in
-        let fy = g.page ? 74.0 : 58.0
+        let fy = 74.0
         c.RR(r - 30, fy, 30, 13, 6.5, Col(0x1c1410, 0.68))
         g.text("?", r - 21, fy + 6.5, 5.2, CREAM, bold: true)
         g.text("bug", r - 10, fy + 6.5, 3.4, CREAM.alpha(0.8))
         g.hits.append(Hit(id: 69, x: r - 36, y: fy + 1, w: 40, h: 16))
-        // your phone, once the page is up
-        if g.page {
+        // your phone
+        do {
             c.RR(r - 30, 58, 30, 13, 6.5, Col(0x1c1410, 0.68))
             c.RR(r - 25.6, 59.6, 5.6, 9.8, 1.2, CREAM); c.R(r - 24.6, 61, 3.6, 6.6, Col(0x3b5bdb))
-            g.text(g.followersText(), r - 10, 64.5, 4, CREAM, bold: true)
-            if !g.seen.contains(26) { c.circ(r - 2, 59.5, 2, REDC) }
+            g.text(g.page ? g.followersText() : "goals", r - 10, 64.5, g.page ? 4 : 3.4, CREAM, bold: true)
+            if g.page && !g.seen.contains(26) { c.circ(r - 2, 59.5, 2, REDC) }
             g.hits.append(Hit(id: 67, x: r - 36, y: 60, w: 40, h: 18))
         }
 
@@ -2447,15 +2447,29 @@ final class Renderer {
         c.dome(x0 + 16, y0 + 32, 6.4, SHIRTS[k])
         c.circ(x0 + 16, y0 + 22.6, 4, SKINS[k])
         c.dome(x0 + 16, y0 + 20.4, 4.2, Col(0x5a3a22))
-        g.text(g.life == .nomad ? "Nomad Life in Quartzsite" : "Snowbird Days in Quartzsite", x0 + 29, y0 + 19, 4.4, CREAM, align: 1, bold: true)
-        g.text("\(g.followersText()) followers  ·  \(g.cred) cred", x0 + 29, y0 + 27, 3.6, CREAM.alpha(0.85), align: 1)
-        if g.followers >= 1000 {
+        g.text(g.page ? (g.life == .nomad ? "Nomad Life in Quartzsite" : "Snowbird Days in Quartzsite") : "Your phone", x0 + 29, y0 + 19, 4.4, CREAM, align: 1, bold: true)
+        g.text(g.page ? "\(g.followersText()) followers  ·  \(g.cred) cred" : "\(g.cred) cred  ·  no page yet", x0 + 29, y0 + 27, 3.6, CREAM.alpha(0.85), align: 1)
+        if !g.page {
+            g.text("Start one at the Computer Corner", x0 + 29, y0 + 34, 3.2, CREAM.alpha(0.8), align: 1)
+        } else if g.followers >= 1000 {
             g.text("Monetized  ·  paid \(g.pagePay) coins this morning", x0 + 29, y0 + 34, 3.2, Col(0xb8f0c0), align: 1, bold: true)
         } else {
             c.RR(x0 + 29, y0 + 32.6, 70, 2.6, 1.3, Col(0xffffff, 0.3))
             c.RR(x0 + 29, y0 + 32.6, 70 * Double(g.followers) / 1000, 2.6, 1.3, GOLD)
             g.text("\(1000 - g.followers) to go", x0 + 102, y0 + 34, 3, CREAM, align: 1)
         }
+        if g.phoneTab == 1 {
+            // goals: a checklist for a Quartzsite life
+            let gl = g.goals()
+            let doneN = gl.filter { $0.1 }.count
+            g.text("GOALS  ·  \(doneN) of \(gl.count) done", x0 + 8, y0 + 46, 4, Col(0x3b5bdb), align: 1, bold: true)
+            for (i, item) in gl.enumerated() {
+                let gy = y0 + 54 + Double(i) * 9
+                c.RR(x0 + 8, gy - 3, 6, 6, 1.4, item.1 ? Col(0x3fb06a) : Col(0xd8d8dc))
+                if item.1 { c.seg(x0 + 9.4, gy, x0 + 10.6, gy + 1.4, 0.7, CREAM); c.seg(x0 + 10.6, gy + 1.4, x0 + 12.8, gy - 1.6, 0.7, CREAM) }
+                g.text(item.0, x0 + 18, gy, 3.6, item.1 ? Col(0x8a8a8e) : Col(0x1c1c1e), align: 1, bold: !item.1)
+            }
+        } else {
         // the weather: today, tonight, tomorrow
         let td = g.temps(g.weather, g.day), tm = g.temps(g.tomorrow, g.day + 1)
         c.RR(x0 + 6, y0 + 42, pw - 12, 12, 3, Col(0xfff4d8))
@@ -2463,6 +2477,9 @@ final class Renderer {
         g.text(g.weatherName(g.weather) + " \(td.0)°  ·  tonight \(td.1)°", x0 + 20, y0 + 48, 3.4, Col(0x5a3a1e), align: 1, bold: true)
         weatherIcon(x0 + pw - 40, y0 + 48, g.tomorrow)
         g.text("Tmrw \(tm.0)°", x0 + pw - 33, y0 + 48, 3.2, Col(0x5a3a1e), align: 1)
+        if !g.page {
+            g.text("No page yet. Start one at the Computer Corner on Main Street to post photos, grow followers and get paid.", x0 + pw / 2, y0 + 90, 3.8, Col(0x5a5a5e), wrap: pw - 20)
+        } else {
         // today's photo
         let subj = g.photoSubject()
         let can = !g.seen.contains(26)
@@ -2483,6 +2500,16 @@ final class Renderer {
             g.text(p.text.prefix(1).uppercased() + p.text.dropFirst(), x0 + 20, fy + 12.5, 3.8, Col(0x1c1c1e), align: 1, bold: true)
             g.text("♥ \(p.likes)   ·   \(p.comments) comments", x0 + 20, fy + 19, 3.2, Col(0xd9412e), align: 1)
             fy += 27
+        }
+        }
+        }
+        // tabs
+        let tabs = ["Page", "Goals"]
+        for (t, name) in tabs.enumerated() {
+            let tx = x0 + 10 + Double(t) * (pw - 20) / 2, tw = (pw - 20) / 2 - 4
+            c.RR(tx, y0 + ph - 13, tw, 10, 5, g.phoneTab == t ? Col(0x3b5bdb) : Col(0xd8d8dc))
+            g.text(name, tx + tw / 2, y0 + ph - 8, 3.8, g.phoneTab == t ? CREAM : Col(0x3a3a3e), bold: true)
+            g.hits.append(Hit(id: 72 + t, x: tx, y: y0 + ph - 16, w: tw, h: 15))
         }
         g.text("tap outside to close", W / 2, y0 + ph + 1.6, 3.2, CREAM.alpha(0.7))
     }

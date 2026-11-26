@@ -511,6 +511,25 @@ final class Game {
     struct PagePost { var text: String; var day: Int; var likes: Int; var comments: Int }
     var phoneOpen = false
     var tomorrow = 0                      // the forecast for tomorrow
+    var phoneTab = 0                      // 0 your page, 1 goals
+
+    /// Things worth doing in a Quartzsite life, checked off as you go.
+    func goals() -> [(String, Bool)] {
+        return [
+            ("Start your page at the Computer Corner", page),
+            ("Reach 1,000 followers and get paid", followers >= 1000),
+            ("Sell at a show booth", stats[4] > 0),
+            ("Throw a party for the neighbors", stats[7] > 0 || partyDay >= 0),
+            ("Visit all \(CAMELS) camel sculptures", camels.count >= CAMELS),
+            ("Put solar on your rig", panels > 0),
+            ("Trade up to a bigger rig", rig.rawValue > START_RIGS[min(pickRig, START_RIGS.count - 1)].rawValue),
+            ("Start a business at Town Hall", business > 0),
+            ("Adopt a dog from the dog park", hasDog),
+            ("Earn 50 cred", cred >= 50),
+            ("Save 5,000 coins", money >= 5000),
+            ("Get a year-round RV site or a house", resident || house)
+        ]
+    }
 
     /// Highs and lows for the day: mild winter days, cold nights, warming into March.
     func temps(_ w: Int, _ d: Int) -> (Int, Int) {
@@ -609,7 +628,10 @@ final class Game {
                 return
             }
             if phoneOpen {
-                if id == 68 { postPhoto() } else { phoneOpen = false; events.append(3) }
+                if id == 68 { postPhoto() }
+                else if id == 72 { phoneTab = 0; events.append(3) }
+                else if id == 73 { phoneTab = 1; events.append(3) }
+                else { phoneOpen = false; events.append(3) }
                 return
             }
             if browseOpen {
@@ -630,7 +652,7 @@ final class Game {
             if id == 52 { openBrowse() }
             if id == 63 { muted = !muted }
             if id == 69 { refund(); feedback(); return }
-            if id == 67 && page { refund(); phoneOpen = true; events.append(3); hint("phone", "Your page. Post one photo a day from wherever you are: events, landmarks, sunsets and starry nights reach the most people.") }
+            if id == 67 { refund(); phoneOpen = true; events.append(3); hint("phone", "Your page. Post one photo a day from wherever you are: events, landmarks, sunsets and starry nights reach the most people.") }
         }
     }
 
@@ -1010,6 +1032,10 @@ final class Game {
             place(.main, 420); page = true; cred = 40; followers = 1460; pagePay = 36; dayT = 0.35; clockFreeze = true
             posts = [PagePost(text: "pizza at Silly Al's", day: 3, likes: 88, comments: 9), PagePost(text: "a photo of the sunset at La Posa South", day: 2, likes: 141, comments: 17), PagePost(text: "a party at camp", day: 1, likes: 203, comments: 31), PagePost(text: "helping a stranded van on the highway", day: 1, likes: 64, comments: 5)]
             shown.insert("phone"); phoneOpen = true
+        }
+        if key == "goals" {
+            place(.main, 420); page = true; followers = 320; hasDog = true; camels = [0, 1, 2]; panels = 1; dayT = 0.35; clockFreeze = true
+            shown.insert("phone"); phoneOpen = true; phoneTab = 1
         }
         if key == "qfest" { place(.roadrunner, 900); day = 22; dayT = 0.4 }
         if key == "western" { place(.main, 3600); day = 82; dayT = 0.45 }
