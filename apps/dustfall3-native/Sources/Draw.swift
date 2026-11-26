@@ -22,6 +22,8 @@ final class Renderer {
         mesas(dk, dusk)
         groundBand(dk)
         tufts()
+        groundProps()
+        hoofprints()
         scenery()
         landmarks()
         sites(dk)
@@ -99,9 +101,11 @@ final class Renderer {
         }
         c.alpha(1)
         if g.tripT < 0 { rider() }
+        breath()
         coins()
         effects()
         drifting(dk)
+        mist()
         night(dk)
         skyThings()
         weather(dk)
@@ -3324,6 +3328,130 @@ final class Renderer {
         }
     }
 
+    /// Small things on the open ground outside the walls, different in each country.
+    private func groundProps() {
+        let step = 26.0
+        var wx = (floor((g.cam - 40) / step)) * step
+        while wx < g.cam + W + 40 {
+            defer { wx += step }
+            if wx > g.gateW.x - 30 && wx < g.gateE.x + 30 { continue }      // the street itself stays clear
+            if g.bio == .river && wx > g.river.0 - 10 && wx < g.river.1 + 10 { continue }
+            let r = hashN(wx * 0.731 + 3.3), r2 = hashN(wx * 1.37 + 9.1)
+            if r > 0.42 { continue }
+            let x = sx(wx + (r2 - 0.5) * 14).rounded(), y = gy + 6 + r2 * 14, k = 0.8 + r2 * 0.5
+            switch g.bio {
+            case .desert:
+                if r < 0.16 {
+                    // prickly pear: pads, spines, a red fruit or two
+                    let pad = Col(0x5d8a4e), padL = Col(0x7aa862)
+                    c.ell(x, y - 4 * k, 3.4 * k, 4.2 * k, pad); c.ell(x - 4 * k, y - 2.4 * k, 3 * k, 3.6 * k, pad); c.ell(x + 3.6 * k, y - 7.6 * k, 2.6 * k, 3.2 * k, padL)
+                    c.circ(x + 3.6 * k, y - 11 * k, 1 * k, Col(0xc0384a)); c.circ(x - 1, y - 8.6 * k, 0.9 * k, Col(0xc0384a))
+                    for j in 0..<5 { c.R(x - 3 + Double(j) * 1.6, y - 6 + Double(j % 2) * 3, 0.5, 0.5, Col(0xf4ecd0)) }
+                } else if r < 0.3 {
+                    // a patch of cracked hardpan
+                    c.ell(x, y, 12 * k, 2.6 * k, Col(0xc9a070, 0.5))
+                    c.seg(x - 9 * k, y, x - 2, y - 1, 0.4, Col(0x7a5a3a, 0.6)); c.seg(x - 2, y - 1, x + 4, y + 1, 0.4, Col(0x7a5a3a, 0.6)); c.seg(x - 2, y - 1, x, y - 2.2, 0.4, Col(0x7a5a3a, 0.6)); c.seg(x + 4, y + 1, x + 9 * k, y, 0.4, Col(0x7a5a3a, 0.6))
+                } else if r < 0.34 {
+                    // a bleached steer skull
+                    c.ell(x, y - 1.6, 2.6, 2, Col(0xeee6d4)); c.R(x - 1.6, y - 0.4, 3.2, 1.6, Col(0xe0d6c0)); c.circ(x - 1, y - 2, 0.6, Col(0x2a2018)); c.circ(x + 1, y - 2, 0.6, Col(0x2a2018))
+                    c.seg(x - 2.2, y - 3, x - 6, y - 5, 0.8, Col(0xe8dcc4)); c.seg(x + 2.2, y - 3, x + 6, y - 5, 0.8, Col(0xe8dcc4))
+                } else {
+                    for j in 0..<5 { let a = Double(j) * 0.5 - 1; c.seg(x, y, x + a * 4 * k, y - 4 * k - abs(a), 0.6, Col(0x8a9a6a)) }
+                }
+            case .river:
+                if r < 0.22 {
+                    // cattails and reeds
+                    for j in 0..<5 {
+                        let rx = x - 5 + Double(j) * 2.4, h2 = (7 + hashN(wx + Double(j)) * 7) * k, sw = sin(g.clock * 1.4 + rx * 0.2) * 0.8
+                        c.seg(rx, y, rx + sw, y - h2, 0.6, Col(0x5a7a3a))
+                        if j % 2 == 0 { c.RR(rx + sw - 0.9, y - h2 - 1, 1.8, 4, 0.9, Col(0x6a4026)) }
+                    }
+                } else if r < 0.34 {
+                    // a puddle catching the sky
+                    c.ell(x, y, 9 * k, 1.8 * k, Col(0x8ab4c8, 0.7)); c.ell(x - 2, y - 0.4, 4 * k, 0.6, Col(0xffffff, 0.35))
+                } else {
+                    for j in 0..<4 { c.circ(x + Double(j) * 3 - 4, y - 1.2, 1.6 * k, Col(0x6a8a44)) }
+                    c.circ(x, y - 2.6, 0.8, Col(0xf2e6a0))
+                }
+            case .pine:
+                if r < 0.18 {
+                    // a fern
+                    for j in 0..<6 {
+                        let a = -1.25 + Double(j) * 0.5, l = (7 + hashN(wx + Double(j)) * 3) * k
+                        c.seg(x, y, x + sin(a) * l, y - cos(a) * l * 0.8, 0.7, Col(0x3f6a3a))
+                        for q in 1..<4 { let u = Double(q) / 4; c.seg(x + sin(a) * l * u, y - cos(a) * l * 0.8 * u, x + sin(a) * l * u + 1.4, y - cos(a) * l * 0.8 * u - 1.4, 0.4, Col(0x5a8a4a)) }
+                    }
+                } else if r < 0.28 {
+                    // a fallen log with moss
+                    c.RR(x - 10 * k, y - 3.6, 20 * k, 3.6, 1.8, Col(0x5a3e26)); c.circ(x + 10 * k, y - 1.8, 1.8, Col(0xb8946a)); c.R(x - 8 * k, y - 3.8, 9 * k, 1, Col(0x5a8a3a))
+                } else if r < 0.35 {
+                    // red-capped mushrooms
+                    for j in 0..<2 { let mx = x + Double(j) * 4; c.R(mx - 0.5, y - 3, 1, 3, Col(0xeee6d4)); c.dome(mx, y - 3, 2.2, Col(0xc0392b)); c.circ(mx - 0.8, y - 4, 0.4, Col(0xffffff)) }
+                } else {
+                    for j in 0..<3 { c.ell(x + Double(j) * 4, y - 0.8, 1.2, 0.8, Col(0x6a4a2e)) }
+                }
+            case .canyon:
+                if r < 0.2 {
+                    // red boulders, lit from the left
+                    c.ell(x, y - 3 * k, 6 * k, 3.4 * k, Col(0xa85a38)); c.ell(x - 1.4 * k, y - 4 * k, 3.6 * k, 2 * k, Col(0xc8784a)); c.ell(x + 6 * k, y - 1.6 * k, 3 * k, 1.8 * k, Col(0x9a4e30))
+                } else if r < 0.28 {
+                    // a little hoodoo with its cap rock
+                    c.poly(Col(0xb8643e), [x - 3 * k, y, x - 2 * k, y - 10 * k, x + 2 * k, y - 10 * k, x + 3 * k, y]); c.ell(x, y - 10.6 * k, 3.6 * k, 1.6 * k, Col(0x7a4a30))
+                } else {
+                    // sage
+                    c.ell(x, y - 2.4, 5 * k, 2.6 * k, Col(0x8a9a7a)); c.ell(x - 2, y - 3.2, 2.4 * k, 1.4 * k, Col(0xa6b496))
+                }
+            case .snow:
+                if r < 0.2 {
+                    // a drift, blue in its shadow
+                    c.ell(x, y - 1, 12 * k, 3.4 * k, Col(0xf4f8ff)); c.ell(x + 4 * k, y - 0.2, 8 * k, 1.6 * k, Col(0xc8d6e8)); c.ell(x - 3 * k, y - 2.6 * k, 5 * k, 1.2 * k, Col(0xffffff))
+                } else if r < 0.3 {
+                    // a frozen puddle
+                    c.ell(x, y, 8 * k, 1.6 * k, Col(0xbcd8ec)); c.seg(x - 4, y, x + 3, y - 0.6, 0.4, Col(0xffffff, 0.8))
+                } else {
+                    // bare twigs poking through
+                    for j in 0..<4 { let a = Double(j) * 0.45 - 0.7; c.seg(x, y, x + a * 6, y - 6 * k, 0.5, Col(0x4a3a2e)) }
+                }
+            }
+        }
+    }
+
+    /// Hoofprints where the horse has been.
+    private func hoofprints() {
+        let life = g.bio == .snow ? 14.0 : 4.0
+        for p in g.prints where vis(p.x, 10) {
+            let a = max(0, 1 - p.age / life), x = sx(p.x)
+            let col = g.bio == .snow ? Col(0x9aaac4, 0.55 * a) : Col(0x6a4a2e, 0.28 * a)
+            c.ell(x, gy + 3, 1.6, 0.6, col); c.ell(x + p.dir * 5, gy + 5, 1.6, 0.6, col)
+        }
+    }
+
+    /// Breath in the cold: the horse and its rider, now and then.
+    private func breath() {
+        if g.bio != .snow || g.tripT >= 0 { return }
+        let x = sx(g.px), d = g.pdir
+        for k in 0..<2 {
+            let u = (g.clock * 0.55 + Double(k) * 0.5).truncatingRemainder(dividingBy: 1)
+            if u > 0.6 { continue }
+            let a = 0.45 * (1 - u / 0.6)
+            c.circ(x + d * (20 + u * 10), gy - 26 - u * 4 - HLIFT, 1.4 + u * 4, Col(0xffffff, a))
+            c.circ(x + d * (5 + u * 7), gy - 42 - u * 3 - HLIFT, 1 + u * 2.6, Col(0xffffff, a * 0.8))
+        }
+    }
+
+    /// Low mist in the early morning, over the river and in the pines.
+    private func mist() {
+        if g.bio != .river && g.bio != .pine { return }
+        let a = clampD((0.24 - g.t) / 0.1, 0, 1) + (g.bio == .river ? clampD((g.t - 0.66) / 0.06, 0, 1) * clampD((0.78 - g.t) / 0.04, 0, 1) * 0.6 : 0)
+        if a <= 0.01 { return }
+        for i in 0..<9 {
+            let span = W + 260
+            let x = (hashN(Double(i) * 3.7) * span + g.clock * (4 + Double(i % 3) * 2) - g.cam * 0.6).truncatingRemainder(dividingBy: span) - 130
+            let y = gy - 4 + hashN(Double(i) * 1.3) * 14
+            c.ell(x < -130 ? x + span : x, y, 70 + hashN(Double(i)) * 60, 6 + hashN(Double(i) * 2.1) * 5, Col(0xf4f6f8, 0.16 * a))
+        }
+    }
+
     /// Rain, snow, dust and lightning, over everything.
     private func weather(_ dk: Double) {
         let rain = g.rainI(), snowy = g.bio == .snow
@@ -3340,6 +3468,13 @@ final class Renderer {
                 let x = (hashN(Double(i) * 5.3) * W + sin(g.clock * 0.8 + Double(i)) * 6 - g.cam * 0.3).truncatingRemainder(dividingBy: W)
                 let y = (hashN(Double(i) * 8.1) * H + g.clock * (14 + hashN(Double(i)) * 14)).truncatingRemainder(dividingBy: H)
                 c.R(x < 0 ? x + W : x, y, 1.4, 1.4, Col(0xffffff, 0.85))
+            }
+        } else if snowy {
+            // the odd flake drifting down even on a clear day
+            for i in 0..<16 {
+                let x = (hashN(Double(i) * 5.3) * W + sin(g.clock * 0.6 + Double(i)) * 8 - g.cam * 0.3).truncatingRemainder(dividingBy: W)
+                let y = (hashN(Double(i) * 8.1) * H + g.clock * (8 + hashN(Double(i)) * 8)).truncatingRemainder(dividingBy: H)
+                c.R(x < 0 ? x + W : x, y, 1.1, 1.1, Col(0xffffff, 0.6))
             }
         } else if rain > 0.03 {
             c.R(0, 0, W, H, Col(0x2a3440, 0.16 * rain))

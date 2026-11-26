@@ -1225,7 +1225,7 @@ final class Game {
         if name == "mission" { px = missionX + 40; pdir = -1 }
         // set last, after the catch-all above has put the rider on main street
         if name.hasPrefix("sig") { sig.level = 1; px = sig.x + (place == "redwater" ? 10 : 30); pdir = 1; noStory = true; hintT = 0 }
-        if name.hasPrefix("wild") { rigLv = 1; px = -520; pdir = -1; noStory = true; hintT = 0 }
+        if name.hasPrefix("wild") { rigLv = 1; px = -520; pdir = -1; noStory = true; hintT = 0; if bio == .river || bio == .pine { t = 0.13 } }
         if name == "gate0" {
             place = "bitterend"; town = 4; log = ["dustfall", "redwater", "lasthope", "coldcreek"]; day = 36; day0 = 33; layTown()
             t = 0.4; noStory = true; hintT = 0; px = gateW.x + 30; pdir = -1
@@ -1374,7 +1374,22 @@ final class Game {
         sfx?.music(clock, mode)
     }
 
+    /// Hoofprints behind the horse: they last in snow, and blow away quickly in dust.
+    var prints: [(x: Double, dir: Double, age: Double)] = []
+    private var printAt = 0.0
+    private func updPrints(_ dt: Double) {
+        let life = bio == .snow ? 14.0 : 4.0
+        for i in prints.indices { prints[i].age += dt }
+        prints.removeAll { $0.age > life }
+        if abs(pvx) > 20 && abs(px - printAt) > 9 && bio != .river {
+            printAt = px
+            prints.append((px - (pvx > 0 ? 1 : -1) * 6, pvx > 0 ? 1 : -1, 0))
+            if prints.count > 70 { prints.removeFirst() }
+        }
+    }
+
     private func updPlayer(_ dt: Double) {
+        updPrints(dt)
         if tripT >= 0 { pvx = 0; return }       // aboard the train
         // a fresh horse gallops flat out for a few seconds, then settles to its usual pace until it has caught its wind
         let shoes = forge.level >= 2
