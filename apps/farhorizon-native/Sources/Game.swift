@@ -127,6 +127,11 @@ final class Game {
     var legDrank = 0.0
     // the stores counter ticking down on the top bar
     var sdLast = -1
+    // a small chance offered between events: a quick game the player can take or leave
+    var offerK = ""
+    var offerT = 0.0
+    var offerDone = false
+    var lastEvEnd = 0.0
     var sdFloat: [(Double, Int)] = []
     // the camera: close on the deck while under way, pulling back when there is something far off to see
     var camZ = 1.0
@@ -557,6 +562,7 @@ final class Game {
         legAte = 0; legDrank = 0
         evMarks = []
         nextEvAt = nowDays() + rnd(2, 4)
+        lastEvEnd = nowDays(); offerDone = false; offerK = ""
         autoPost()
         mode = .sail
         card = nil
@@ -694,6 +700,10 @@ final class Game {
                 snd?.noise(0.35, 0.14, 700, 1)
             }
         case .sail:
+            if !offerK.isEmpty && card == nil && play == nil {
+                offerT += dt
+                if offerT > 6.5 || !sceneK.isEmpty || !omenK.isEmpty { offerK = "" }
+            }
             // keep the voyage safe at sea too, between events
             saveT -= dt
             if saveT <= 0 && card == nil && play == nil && omenK.isEmpty && sceneK.isEmpty && !over { saveT = 6; saveGame() }
@@ -716,6 +726,7 @@ final class Game {
                     // whatever it was is over: nothing more for a week at the least
                     sceneK = ""
                     nextEvAt = nowDays() + rnd(4, 6)
+                    lastEvEnd = nowDays(); offerDone = false
                 }
                 // she gathers way again after whatever stopped her
                 pace = min(1, pace + dt / 0.8)
@@ -731,7 +742,16 @@ final class Game {
                 legAte += f0 - food
                 if dist >= legLen {
                     arrive()
+                } else if offerK.isEmpty && !offerDone && nowDays() > lastEvEnd + 1.2 && nextEvAt - nowDays() > 1.6 {
+                    // midway between events, offer something to do
+                    offerDone = true
+                    var pool = ["flyfish", "trim", "cask", "gleam"]
+                    if bait > 0 { pool.append("fishing") }
+                    offerK = pool.randomElement() ?? "flyfish"
+                    offerT = 0
+                    snd?.bell()
                 } else if nowDays() >= nextEvAt {
+                    offerK = ""
                     nextEvAt = nowDays() + rnd(4, 6)
                     rollEvent()
                 } else if dayT >= DAYLEN {
@@ -837,6 +857,10 @@ final class Game {
         if name == "evrogue" { startOmen("rogue"); sceneT = 3.4; omenT = 2.6; Game.omenHold = true; return }
         if name == "evrogue2" { startOmen("rogue"); sceneT = 5; omenK = ""; event("rogue"); return }
         if name == "wideshot" { leg = 1; mode = .sail; nextEvAt = 9999; T = 2.5 / 0.035; camZ = 1.1; return }
+        if name == "offer" { leg = 1; mode = .sail; nextEvAt = 9999; offerK = "flyfish"; offerT = 1; offerDone = true; return }
+        if name == "mgfly" { leg = 1; mode = .sail; nextEvAt = 9999; startOdd("flyfish"); return }
+        if name == "mgcask" { leg = 1; mode = .sail; nextEvAt = 9999; startOdd("cask"); return }
+        if name == "mggleam" { leg = 1; mode = .sail; nextEvAt = 9999; startOdd("gleam"); return }
         if name == "intro" { mode = .title; showIntro(); return }
         if name == "outfit" { shipI = 1; crew = ship.crew; hull = Double(ship.hull); syncMen(); marketPort = false; mode = .outfit; provision(storesNeeded() + 8); return }
         if name == "lowsea" { leg = 1; mode = .sail; legLen = 300; dist = 60; food = 6; deckForce = 0; camZ = 2.6; nextEvAt = 9999; return }

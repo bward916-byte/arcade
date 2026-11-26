@@ -972,6 +972,30 @@ extension Game {
         btn(c, W / 2 - bw - 6, by, bw, 44, half ? "Rations: half" : "Rations: full", half ? "saves food, risks sickness" : "tap to halve") { [unowned self] in
             self.half = !self.half
         }
+        if !offerK.isEmpty && card == nil && play == nil && sceneK.isEmpty {
+            // a chance going by: a badge with a ring that runs down
+            let info: [String: (String, String)] = ["flyfish": ("Flying fish!", "tap to catch"), "trim": ("A fresh wind!", "tap to trim sails"), "cask": ("A cask adrift!", "tap to hook it"), "gleam": ("Something glints", "tap to net it"), "fishing": ("Fish jumping!", "tap: lines out")]
+            let (t1, t2) = info[offerK] ?? ("Something to do", "tap")
+            let k = clampD(offerT / 6.5, 0, 1)
+            let pop = 1 - pow(1 - min(1, offerT / 0.3), 3)
+            let ox = W - safeR - 110, oy = H * 0.42 + sin(T * 2.4) * 5
+            let ow = max(textW(t1, 15, FONTB), textW(t2, 12, FONTI)) + 62
+            c.save()
+            c.translate(ox, oy); c.scale(pop, pop); c.translate(-ox, -oy)
+            c.glow(ox, oy, 80, Col(0xffd257, 0.3 + 0.15 * sin(T * 6)), Col(0xffd257, 0))
+            c.RR(ox - ow / 2 + 2, oy - 24 + 3, ow, 48, 24, Col(0x000000, 0.35))
+            c.RRGrad(ox - ow / 2, oy - 24, ow, 48, 24, [(0, Col(0xffe9a0)), (1, Col(0xd49a2a))])
+            c.RRStroke(ox - ow / 2, oy - 24, ow, 48, 24, 2, Col(0xfff6d8))
+            c.circ(ox - ow / 2 + 24, oy, 17, Col(0x2a1808, 0.85))
+            c.arcStroke(ox - ow / 2 + 24, oy, 19, -PI / 2, -PI / 2 + PI * 2 * (1 - k), 3, k > 0.7 ? Col(0xff5a3c) : Col(0x2a8a3c))
+            let ik: [String: String] = ["flyfish": "bait", "trim": "day", "cask": "planks", "gleam": "gold", "fishing": "bait"]
+            icon(c, ik[offerK] ?? "gold", ox - ow / 2 + 24, oy, 20)
+            c.text(t1, ox - ow / 2 + 48, oy - 2, 15, Col(0x2a1806), -1, FONTB)
+            c.text(t2, ox - ow / 2 + 48, oy + 14, 12, Col(0x4a2a0e), -1, FONTI)
+            c.restore()
+            let kk = offerK
+            hits.append(Hit(x: ox - ow / 2 - 10, y: oy - 34, w: ow + 20, h: 68, act: { [unowned self] in self.startOdd(kk) }))
+        }
         if sd < tg && !half {
             coach(c, W / 2 - bw / 2 - 6, by, "Stores are short: halve rations", below: false)
         } else if leg == 0 && day <= 2 && sceneK.isEmpty {

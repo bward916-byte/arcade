@@ -101,6 +101,9 @@ extension Game {
                 } else if p.theme == "fire" {
                     x = rnd(W * 0.44, W - safeR - 40)
                     y = quayY() - rnd(26, 58)
+                } else if p.theme == "flyfish" {
+                    x = sx + rnd(-0.45, 0.5) * len
+                    y = wy - rnd(0.22, 0.62) * len
                 } else {
                     x = rnd(W * 0.6, W - safeR - 50)
                     y = rnd(wy - 6, H - safeB - 40)
@@ -121,7 +124,7 @@ extension Game {
                         shake = 0.25
                         snd?.thud()
                         buzz?(true)
-                        p.say(p.theme == "leak" ? "She's taking water!" : (p.theme == "thief" ? "He ducks away!" : (p.theme == "rats" ? "Into the stores!" : (p.theme == "fire" ? "It has the roof!" : (p.theme == "shark" ? "It hits the raft!" : "Struck a rock!")))), false)
+                        p.say(p.theme == "leak" ? "She's taking water!" : (p.theme == "thief" ? "He ducks away!" : (p.theme == "rats" ? "Into the stores!" : (p.theme == "fire" ? "It has the roof!" : (p.theme == "shark" ? "It hits the raft!" : (p.theme == "flyfish" ? "Over the side!" : (p.theme == "gleam" ? "Sunk!" : "Struck a rock!")))))), false)
                     } else {
                         open += 1
                     }
@@ -288,6 +291,21 @@ extension Game {
                 c.circ(mx, my - 4, 5, Col(0xe3b58a))
                 c.seg(mx - 3, my, mx - 10, my - 12 + sin(T * 9) * 3, 2.2, Col(0xe3b58a)); c.seg(mx + 3, my, mx + 10, my - 12 - sin(T * 9) * 3, 2.2, Col(0xe3b58a))
             }
+            if p.theme == "cask" {
+                // the cask, bobbing off the quarter, and the boathook reaching for it
+                let cx = sx - len * 0.7, cy = wy + 18 + sin(T * 2.2) * 3
+                c.save(); c.translate(cx, cy); c.rotate(sin(T * 1.6) * 0.25)
+                c.RR(-9, -7, 18, 14, 4, Col(0x8a6238)); c.R(-9, -3, 18, 1.4, Col(0x2a1a0c)); c.R(-9, 2, 18, 1.4, Col(0x2a1a0c))
+                c.restore()
+                c.ellStroke(cx, cy + 8, 20, 4, 1.2, Col(0xffffff, 0.55))
+                let reach = (p.pos - 0.5) * 30
+                c.seg(sx - len * 0.45, wy - len * 0.12, cx + reach, cy - 10, 1.6, Col(0x6b4a26))
+            }
+            if p.theme == "trim" {
+                // the sail filling and spilling as the marker swings
+                let fill = 1 - abs(p.pos - 0.5) * 2
+                c.textS(fill > 0.7 ? "Drawing well" : "Luffing", sx + len * 0.1, wy - len * 0.95, 13, fill > 0.7 ? Col(0x9ff0aa) : Col(0xffc8a0), 0, FONTB)
+            }
             if p.theme == "run" {
                 // the pirate, astern and gaining or falling back
                 let gap = 0.16 - Double(p.score) * 0.05 + Double(p.tries - p.score) * 0.04
@@ -349,6 +367,24 @@ extension Game {
                         }
                         c.glow(tg.x, tg.y - 8, 40, Col(0xff8a30, 0.5), Col(0xff8a30, 0))
                         c.circ(tg.x + sin(T * 2) * 4, tg.y - 30 - k * 14, 6 + k * 6, Col(0x3a3a3a, 0.4))
+                    } else if p.theme == "flyfish" {
+                        // a silver fish skipping through the air over the deck, fins out like wings
+                        let fx = tg.x + sin(tg.age * 5 + tg.y) * 10, fy = tg.y + cos(tg.age * 6 + tg.x) * 5
+                        let dirn: Double = Int(tg.x) % 2 == 0 ? 1 : -1
+                        c.ell(fx, fy, 9, 3.6, Col(0x9ec8e0)); c.ell(fx + dirn * 1, fy + 1, 7, 1.6, Col(0xe8f4fa))
+                        c.poly(Col(0x6a9ab8), [fx - dirn * 8, fy, fx - dirn * 14, fy - 4, fx - dirn * 13, fy + 4])
+                        let wf = sin(T * 26 + tg.x) * 4
+                        c.poly(Col(0xcfe6f2, 0.9), [fx - dirn * 2, fy - 1, fx + dirn * 4, fy - 10 - wf, fx + dirn * 6, fy - 1])
+                        c.circ(fx + dirn * 6, fy - 0.8, 0.9, Col(0x0c1014))
+                        for j in 0..<3 { c.circ(fx - dirn * (14 + Double(j) * 5), fy + 2 + Double(j), 1, Col(0xbfe6ff, 0.6 - Double(j) * 0.18)) }
+                    } else if p.theme == "gleam" {
+                        // something bright turning over in the swell
+                        let rise = min(1, tg.age / 0.2)
+                        c.ellStroke(tg.x, tg.y + 5, 18, 4, 1.2, Col(0xffffff, 0.5))
+                        c.glow(tg.x, tg.y, 26 * rise, Col(0xffe08a, 0.7), Col(0xffe08a, 0))
+                        let sp = 6 + 3 * sin(T * 9 + tg.x)
+                        c.seg(tg.x - sp * rise, tg.y, tg.x + sp * rise, tg.y, 1.6, Col(0xfff8d0)); c.seg(tg.x, tg.y - sp * rise, tg.x, tg.y + sp * rise, 1.6, Col(0xfff8d0))
+                        c.circ(tg.x, tg.y, 3.4, Col(0xffd257))
                     } else if p.theme == "rats" {
                         let rx = tg.x + sin(T * 14 + tg.x) * 3
                         c.ell(rx, tg.y, 10, 5.5, Col(0x5a5560)); c.circ(rx + 9, tg.y - 1, 4, Col(0x5a5560)); c.circ(rx + 10, tg.y - 5, 2, Col(0x8a8590))
@@ -368,13 +404,13 @@ extension Game {
                         c.RR(tg.x - 9, tg.y - 6, 18, 12, 2, Col(0xc9a86a, 0.5 + 0.5 * a))
                         c.circ(tg.x - 6, tg.y - 3, 1.2, Col(0x3a2412)); c.circ(tg.x + 6, tg.y + 3, 1.2, Col(0x3a2412))
                     } else {
-                        c.textS(p.theme == "shark" ? "Driven off!" : p.theme == "fire" ? "Doused!" : (p.theme == "thief" || p.theme == "rats" ? "Got him!" : "Clear!"), tg.x, tg.y - 20 - (1 - a) * 14, 15, Col(0x9ff0aa, a), 0, FONTB)
+                        c.textS(p.theme == "shark" ? "Driven off!" : p.theme == "fire" ? "Doused!" : (p.theme == "thief" || p.theme == "rats" ? "Got him!" : (p.theme == "flyfish" || p.theme == "gleam" ? "Got it!" : "Clear!")), tg.x, tg.y - 20 - (1 - a) * 14, 15, Col(0x9ff0aa, a), 0, FONTB)
                     }
                 } else if tg.state == 2 && tg.age < 0.7 {
                     c.textS("✕", tg.x, tg.y, 26, Col(0xff5a3c, 1 - tg.age / 0.7), 0, FONTB)
                 }
             }
-            c.textS((p.theme == "leak" ? "Plugged " : (p.theme == "fire" ? "Doused " : (p.theme == "thief" || p.theme == "rats" ? "Caught " : "Cleared "))) + "\(p.score) / \(p.total)", W / 2, H - safeB - 22, 16, CREAM, 0, FONTB)
+            c.textS((p.theme == "leak" ? "Plugged " : (p.theme == "fire" ? "Doused " : (p.theme == "thief" || p.theme == "rats" || p.theme == "flyfish" || p.theme == "gleam" ? "Caught " : "Cleared "))) + "\(p.score) / \(p.total)", W / 2, H - safeB - 22, 16, CREAM, 0, FONTB)
         case .pick:
             let r = pickRects(p)
             for (i, q) in r.enumerated() {
@@ -437,6 +473,63 @@ extension Game {
             c.restore()
         }
         _ = sx; _ = wy
+    }
+
+    // ---------- small games offered between events: take them or leave them
+    func startOdd(_ k: String) {
+        offerK = ""
+        switch k {
+        case "flyfish":
+            let p = Play(.taps, "flyfish", "Flying fish!", "A school is skipping over the deck. Tap to catch them") { [unowned self] p in
+                let got = self.addGood("food", p.score)
+                self.done(p.score == 0 ? "Every one sails over the far rail" : "\(p.score) flying fish for the pot: +\(got) stores")
+            }
+            p.total = 7
+            p.life = 1.25
+            evTitle = p.title
+            startPlay(p)
+        case "trim":
+            let p = Play(.timing, "trim", "A fresh wind", "Trim the sails each time she would luff") { [unowned self] p in
+                let gain = Double(p.score * 10 + p.perfect * 6)
+                self.dist = min(self.legLen - 1, self.dist + gain)
+                self.done(p.score == 0 ? "The sails flog and the wind goes by" : "She leans to it and flies: \(Int(gain)) leagues made good")
+            }
+            p.rounds = 3
+            p.zone = clampD(0.22 + 0.04 * E("rig"), 0.18, 0.34)
+            p.speed = 1.2
+            evTitle = p.title
+            startPlay(p)
+        case "cask":
+            let p = Play(.timing, "cask", "A cask adrift", "Reach with the boathook. Three tries") { [unowned self] p in
+                if p.score == 0 { self.done("It bobs away astern, out of reach"); return }
+                switch rndI(0, 3) {
+                case 0: self.done("Ship's biscuit, still dry: +\(self.addGood("food", 6)) stores")
+                case 1: self.done("Good oak staves: +\(self.addGood("planks", 2)) planks")
+                case 2: self.gold += 30; self.snd?.coin(); self.done("Someone's savings, sealed in wax: +30 gold")
+                default: self.done("Dry powder in a tarred keg: +\(self.addGood("powder", 2)) powder")
+                }
+            }
+            p.rounds = 3
+            p.stopOnHit = true
+            p.zone = 0.2
+            p.speed = 1.35
+            evTitle = p.title
+            startPlay(p)
+        case "gleam":
+            let p = Play(.taps, "gleam", "Glinting in the swell", "Wreckage from some poor ship. Tap the bright things before they sink") { [unowned self] p in
+                let g = p.score * 6
+                self.gold += g
+                if g > 0 { self.snd?.coin() }
+                self.done(p.score == 0 ? "They sink before the net is over" : "Brass, silver and a pocket watch: +\(g) gold")
+            }
+            p.total = 5
+            p.life = 1.1
+            evTitle = p.title
+            startPlay(p)
+        default:
+            evTitle = "Fish running"
+            playFish()
+        }
     }
 
     // ---------- the games behind each event
