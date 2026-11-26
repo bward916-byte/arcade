@@ -595,8 +595,9 @@ final class Renderer {
             var q = floor(bp / 520) - 1
             let ads = ["ROCKS · GEMS · FOSSILS  NEXT EXIT", "QUARTZSITE  ROCK & RV CAPITAL", "FREE DUMP & WATER  WITH FILL-UP", "METEORITES! SKULLS! ODDITIES!", "TYSON WELLS  ROCK & GEM SHOW"]
             while q * 520 < bp + W + 200 {
-                if hashN(q + 700) < 0.6 {
-                    let bx = q * 520 + 300 - bp
+                let bx = q * 520 + 300 - bp
+                let sgn = W + 80 - (cam * 0.9).truncatingRemainder(dividingBy: W + 260)
+                if hashN(q + 700) < 0.6 && abs(bx - sgn) > 95 {
                     let leg = Col(0x5a4a3a).shade(1 - dark * 0.5)
                     c.R(bx - 18, hz - 8, 1.6, 18, leg); c.R(bx + 16, hz - 8, 1.6, 18, leg)
                     c.R(bx - 32, hz - 30, 64, 22, Col(0x2a2420).shade(1 - dark * 0.3))
