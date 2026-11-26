@@ -671,6 +671,27 @@ final class Renderer {
                 c.circ(me - g.driveLen / 2 - 2 - t * 56, mb - 2 - t * 9, 2 + t * 7, Col(0xd8b88a, (1 - t) * 0.45).shade(1 - dark * 0.5))
             }
         }
+        // something on the near shoulder: tap it to pull over
+        if !g.stopDone && g.stopX > -80 {
+            let sx = g.stopX, sb = g.laneBase(1) + 14
+            if g.stopKind == 0 {
+                rig(.van, sx, sb, 0, -1, 0.8)
+                c.poly(Col(0xf4f1ea, 0.85).shade(1 - dark * 0.4), [sx + 30, sb - 15, sx + 34, sb - 23, sx + 34, sb - 15])
+                person(sx + 30, sb + 1, 2, -1, NOW * 6, false)
+                c.seg(sx + 31, sb - 15, sx + 33 + sin(NOW * 8) * 2, sb - 22, 0.9, Col(0xd9a88a))
+                c.poly(Col(0xf2862e), [sx - 40, sb, sx - 38, sb - 5, sx - 36, sb])
+            } else {
+                for k in 0..<3 { c.R(sx - 12 + Double(k) * 7, sb - 6 - Double(k % 2) * 2, 6, 6 + Double(k % 2) * 2, Col(0xb8925e).shade(0.9 + Double(k) * 0.06)) }
+                c.R(sx + 12, sb - 14, 1, 14, Col(0x6a4e30))
+                c.R(sx + 6, sb - 18, 13, 6, Col(0xf4f1ea))
+                g.text("FREE", sx + 12.5, sb - 15, 3.6, Col(0xd9412e), bold: true)
+                c.circ(sx - 6, sb - 9, 1.2, Col(0x2fa7a0)); c.circ(sx + 2, sb - 11, 1, Col(0xd04a8a))
+            }
+            let pulse = 0.5 + 0.5 * sin(NOW * 5)
+            c.glow(sx, sb - 10, 30, Col(0xfff0b0, 0.22 + 0.15 * pulse), Col(0xfff0b0, 0))
+            g.text(g.stopKind == 0 ? "Help?" : "Stop?", sx, sb - 34, 5, CREAM, bold: true, plate: true)
+            g.hits.append(Hit(id: 66, x: sx - 46, y: sb - 44, w: 92, h: 52))
+        }
         // the near shoulder: bigger plants rushing past
         let np = cam * 1.6
         n = floor(np / 120) - 1
@@ -696,6 +717,7 @@ final class Renderer {
         g.text("SKIP", r - 22, 15, 5.4, CREAM, bold: true)
         g.hits.append(Hit(id: 65, x: r - 50, y: 0, w: 56, h: 32))
         if g.driveBump > 0.5 { g.text("Bump!", me, mb - 44, 8, REDC, bold: true) }
+        if g.stopMsgT > 0 { g.text(g.stopMsg, W / 2, 38, 5.6, GOLD, bold: true, plate: true) }
         if !g.shown.contains("drive") && !g.driveDirt {
             g.text("Tap high or low to change lanes. Pass the slow traffic.", W / 2, H - 10, 5, CREAM, bold: true, plate: true)
         }

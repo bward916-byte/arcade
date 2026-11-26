@@ -435,6 +435,8 @@ final class Game {
     var driveCars: [Car] = []
     var driveNext = 2.0, driveBump = 0.0, driveLen = 60.0
     var driveVeh = 0, driveDirt = false, driveFreeze = false
+    // something on the shoulder worth pulling over for: 0 a broken-down van, 1 a free pile
+    var stopX = -999.0, stopKind = 0, stopDone = false, stopMsg = "", stopMsgT = 0.0
     let SHOT = 4.2
 
     // the map
@@ -501,6 +503,7 @@ final class Game {
             }
             if driving {
                 if id == 65 { driveLeft = 0; driving = false; shown.insert("drive"); events.append(3); return }
+                if id == 66 && !stopDone { pullOver(); return }
                 if driveDirt { return }
                 let lane = y < GY ? 0 : 1
                 if lane != driveLane { driveLane = lane; events.append(3) }
@@ -689,6 +692,25 @@ final class Game {
         driveSecs = clampD(mi * 2.2 * 150 / max(60, spd), 6, 24)
         driveLane = 1; driveLaneY = 1; driveSpeed = 0.25; driveScroll = 0
         driveCars = []; driveNext = 1.2; driveBump = 0
+        stopX = -999; stopDone = false; stopMsgT = 0
+        stopKind = Double.random(in: 0..<1) < 0.5 ? 0 : 1
+        if dirt || Double.random(in: 0..<1) > 0.6 { stopDone = true }
+    }
+
+    /// Pull over for whatever is on the shoulder.
+    private func pullOver() {
+        stopDone = true
+        driveSpeed = 0.08
+        if stopKind == 0 {
+            cred += 2
+            stopMsg = "You helped a stranded van get going.  +2 cred"
+            post("helping a stranded van on the highway", 6)
+        } else {
+            odd += 1
+            stopMsg = "A FREE sign and a box of oddities.  +1 oddity"
+        }
+        stopMsgT = 2.6
+        events.append(1)
     }
 
     /// Where a lane's wheels sit on the screen.
@@ -708,6 +730,11 @@ final class Game {
                 driveNext = rnd(1.3, 3)
                 driveCars.append(Car(x: W + 100, lane: Int.random(in: 0...1), kind: Int.random(in: 0..<6), v: rnd(0.3, 0.6) * 240))
             }
+        }
+        if stopMsgT > 0 { stopMsgT -= dt }
+        if !stopDone {
+            if stopX < -900 && driveLeft < driveMiles * 0.6 { stopX = W + 70 }
+            if stopX > -900 { stopX -= v * dt; if stopX < -80 { stopDone = true } }
         }
         let me = W * 0.3
         var i = 0
@@ -791,6 +818,13 @@ final class Game {
             driveLeft = 6.5; driveSpeed = 1; driveScroll = 900; driveLane = 1; driveLaneY = 1
             driveCars = [Car(x: W * 0.7, lane: 0, kind: 3, v: 120), Car(x: W * 0.93, lane: 1, kind: 0, v: 130)]
             driveFreeze = true
+            if key == "drivenight" { stopDone = false; stopKind = 1; stopX = W * 0.62 }
+        }
+        if key == "drivestop" {
+            rig = .classB; inRig = true; dayT = 0.25
+            travel(.roadrunner); startDrive(.roadrunner, 5, 0, false)
+            driveLeft = 2.5; driveSpeed = 1; driveScroll = 400; driveCars = []
+            stopDone = false; stopKind = 0; stopX = W * 0.66; driveFreeze = true
         }
         if key == "drivetrail" {
             toy = 5; onToy = true; dayT = 0.35
