@@ -2456,19 +2456,27 @@ final class Renderer {
             c.RR(x0 + 29, y0 + 32.6, 70 * Double(g.followers) / 1000, 2.6, 1.3, GOLD)
             g.text("\(1000 - g.followers) to go", x0 + 102, y0 + 34, 3, CREAM, align: 1)
         }
+        // the weather: today, tonight, tomorrow
+        let td = g.temps(g.weather, g.day), tm = g.temps(g.tomorrow, g.day + 1)
+        c.RR(x0 + 6, y0 + 42, pw - 12, 12, 3, Col(0xfff4d8))
+        weatherIcon(x0 + 13, y0 + 48, g.weather)
+        g.text(g.weatherName(g.weather) + " \(td.0)°  ·  tonight \(td.1)°", x0 + 20, y0 + 48, 3.4, Col(0x5a3a1e), align: 1, bold: true)
+        weatherIcon(x0 + pw - 40, y0 + 48, g.tomorrow)
+        g.text("Tmrw \(tm.0)°", x0 + pw - 33, y0 + 48, 3.2, Col(0x5a3a1e), align: 1)
         // today's photo
         let subj = g.photoSubject()
         let can = !g.seen.contains(26)
-        c.RR(x0 + 6, y0 + 43, pw - 12, 18, 4, can ? Col(0x3b5bdb, 0.12) : Col(0x000000, 0.05))
-        c.RR(x0 + 9, y0 + 46, 16, 12, 2, Col(0x8ab4f8))
-        c.circ(x0 + 17, y0 + 52, 3.4, Col(0x2a2a2e)); c.circ(x0 + 17, y0 + 52, 2, Col(0x5a7ab4))
-        g.text(can ? "Post today's photo" : "Posted today's photo", x0 + 30, y0 + 49.5, 4, can ? Col(0x3b5bdb) : Col(0x6a6a6e), align: 1, bold: true)
-        g.text(can ? "a photo " + subj.0 + "  ·  about +\(subj.1 * (g.upgrades.contains(UP_STARLINK) ? 2 : 1) + g.cred / 4)" : "Come back tomorrow", x0 + 30, y0 + 56, 3, Col(0x6a6a6e), align: 1)
-        if can { g.hits.append(Hit(id: 68, x: x0 + 6, y: y0 + 43, w: pw - 12, h: 18)) }
+        let py = y0 + 57
+        c.RR(x0 + 6, py, pw - 12, 18, 4, can ? Col(0x3b5bdb, 0.12) : Col(0x000000, 0.05))
+        c.RR(x0 + 9, py + 3, 16, 12, 2, Col(0x8ab4f8))
+        c.circ(x0 + 17, py + 9, 3.4, Col(0x2a2a2e)); c.circ(x0 + 17, py + 9, 2, Col(0x5a7ab4))
+        g.text(can ? "Post today's photo" : "Posted today's photo", x0 + 30, py + 6.5, 4, can ? Col(0x3b5bdb) : Col(0x6a6a6e), align: 1, bold: true)
+        g.text(can ? "a photo " + subj.0 + "  ·  about +\(subj.1 * (g.upgrades.contains(UP_STARLINK) ? 2 : 1) + g.cred / 4)" : "Come back tomorrow", x0 + 30, py + 13, 3, Col(0x6a6a6e), align: 1)
+        if can { g.hits.append(Hit(id: 68, x: x0 + 6, y: py, w: pw - 12, h: 18)) }
         // the feed
-        var fy = y0 + 66
+        var fy = y0 + 80
         if g.posts.isEmpty { g.text("No posts yet. Landmarks, events and finds make good ones.", x0 + pw / 2, fy + 10, 3.4, Col(0x6a6a6e), wrap: pw - 16) }
-        for p in g.posts.prefix(4) {
+        for p in g.posts.prefix(3) {
             c.RR(x0 + 6, fy, pw - 12, 24, 4, Col(0xffffff))
             c.circ(x0 + 13, fy + 7, 3.4, Col(0xe8c9a0))
             g.text(dateText(p.day), x0 + 20, fy + 6, 3, Col(0x8a8a8e), align: 1)
@@ -2477,6 +2485,22 @@ final class Renderer {
             fy += 27
         }
         g.text("tap outside to close", W / 2, y0 + ph + 1.6, 3.2, CREAM.alpha(0.7))
+    }
+
+    /// A tiny weather glyph for the phone.
+    private func weatherIcon(_ x: Double, _ y: Double, _ w: Int) {
+        switch w {
+        case 0:
+            c.circ(x, y, 2.6, Col(0xf2b02e))
+            for k in 0..<8 { let a = Double(k) * PI / 4; c.seg(x + cos(a) * 3.4, y + sin(a) * 3.4, x + cos(a) * 4.4, y + sin(a) * 4.4, 0.5, Col(0xf2b02e)) }
+        case 1:
+            for k in 0..<3 { c.seg(x - 4, y - 2 + Double(k) * 2, x + 3 - Double(k), y - 2 + Double(k) * 2, 0.7, Col(0x8a8a8e)) }
+        case 2:
+            c.circ(x - 1.4, y, 2.2, Col(0xa8acb4)); c.circ(x + 1.6, y - 0.6, 2.6, Col(0xa8acb4)); c.R(x - 3.6, y, 7.6, 2.2, Col(0xa8acb4))
+        default:
+            c.circ(x - 1.4, y - 1, 2.2, Col(0x8a8e98)); c.circ(x + 1.6, y - 1.6, 2.6, Col(0x8a8e98)); c.R(x - 3.6, y - 1, 7.6, 2, Col(0x8a8e98))
+            for k in 0..<3 { c.seg(x - 2 + Double(k) * 2, y + 1.6, x - 3 + Double(k) * 2, y + 3.6, 0.5, Col(0x3a6ea5)) }
+        }
     }
 
     private func browseOverlay() {
@@ -2620,6 +2644,27 @@ final class Renderer {
         for f in folks { person(f.x, f.b, f.look, f.face, f.ph, f.mv) }
     }
 
+    /// The RV show: shiny new rigs lined up with flags and show-price placards.
+    private func rvShowLot() {
+        let rows: [(Double, RigKind, Int)] = [(2215, .classB, 0), (2585, .classA, 1), (2900, .classC, 2)]
+        for (k, r) in rows.enumerated() {
+            let x = r.0 - cam
+            if x < -90 || x > W + 90 { continue }
+            c.ell(x, GY + 1, 46, 3, Col(0x000000, 0.12))
+            rig(r.1, x, GY, 2, k % 2 == 0 ? 1 : -1, 0.9)
+            // pennant string over the lot
+            for j in 0..<9 {
+                let fx = x - 44 + Double(j) * 11
+                c.poly([Col(0xd9412e), Col(0xf2c14e), Col(0x3a6ea5)][j % 3], [fx, GY - 52, fx + 8, GY - 52, fx + 4, GY - 46 + sin(NOW * 3 + Double(j)) * 0.6])
+            }
+            c.seg(x - 46, GY - 52, x + 54, GY - 52, 0.4, Col(0x6a6a6a))
+            c.R(x + 30, GY - 14, 1, 14, Col(0x8a8a88))
+            c.RR(x + 20, GY - 24, 22, 11, 1, Col(0xf4f1ea))
+            g.text("SHOW", x + 31, GY - 20.8, 2.8, REDC, bold: true)
+            g.text("PRICE", x + 31, GY - 16.6, 2.8, REDC, bold: true)
+        }
+    }
+
     /// Show food: kettle corn, a taco truck, a barbecue smoker.
     private func foodTruck(_ wx: Double, _ kind: Int) {
         let x = wx - cam
@@ -2680,6 +2725,7 @@ final class Renderer {
         func at(_ k: SpotKind) -> Double? { return g.spots.first(where: { $0.kind == k })?.x }
         switch ar {
         case .tyson:
+            if g.on(EV_RV) { rvShowLot() }
             if day && (g.tysonShow() != nil || g.on(EV_RV)) {
                 foodTruck(860, 0); foodTruck(1730, 1); foodTruck(2240, 2)
                 crowd(160, w - 160, 110, 11)

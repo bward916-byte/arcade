@@ -510,6 +510,15 @@ final class Game {
     // your page, on your phone
     struct PagePost { var text: String; var day: Int; var likes: Int; var comments: Int }
     var phoneOpen = false
+    var tomorrow = 0                      // the forecast for tomorrow
+
+    /// Highs and lows for the day: mild winter days, cold nights, warming into March.
+    func temps(_ w: Int, _ d: Int) -> (Int, Int) {
+        let base = d < 35 ? (66, 40) : (d < 63 ? (70, 43) : (77, 50))
+        let adj = w == 3 ? -7 : (w == 2 ? -3 : (w == 1 ? -1 : 0))
+        return (base.0 + adj, base.1 + (w >= 2 ? 4 : 0))
+    }
+    func weatherName(_ w: Int) -> String { return ["Sunny", "Windy", "Cloudy", "Rain"][max(0, min(3, w))] }
     var openURL: String? = nil            // the app opens this (feedback email)
 
     /// A morning visit: most days a neighbor wanders over with coffee.
@@ -991,6 +1000,7 @@ final class Game {
             day = 8; place(.tyson, 900); money = 500; dayT = 0.3; clockFreeze = true; openBrowse()
             wares[0].haggled = true; wares[0].price = Int(Double(wares[0].price) * 0.8); mapMsg = wares[0].who + ": \"Alright, \(wares[0].price) and it's yours.\""; mapMsgT = 99
         }
+        if key == "rvshow" { day = 22; place(.tyson, 2560); dayT = 0.3; clockFreeze = true }
         if key == "flood" { place(.roadrunner, 400); weather = 3; dayT = 0.3; clockFreeze = true }
         if key == "coffee" { dayT = 0.12; clockFreeze = true; px = rigX + 120; day = 2 }
         if key == "wildnight" { place(.ltva, 600); dayT = 0.82; clockFreeze = true }
@@ -1651,8 +1661,10 @@ final class Game {
             hintT = 0
             hint("cholla\(day)", "Your dog got into a cholla. Comb it out at your camp. Never grab it with bare fingers.")
         }
+        // today's weather is what yesterday's forecast said; roll the next one
+        weather = tomorrow
         let roll = Double.random(in: 0..<1)
-        weather = roll < 0.72 ? 0 : (roll < 0.86 ? 1 : (roll < 0.95 ? 2 : 3))
+        tomorrow = roll < 0.72 ? 0 : (roll < 0.86 ? 1 : (roll < 0.95 ? 2 : 3))
         if weather == 3 {
             afterRain = 3
             hintT = 0
