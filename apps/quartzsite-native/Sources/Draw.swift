@@ -1353,6 +1353,16 @@ final class Renderer {
             }
             top = 38
         case .camp:
+            if g.neighborVisit {
+                // a neighbor over for coffee, mug in hand
+                person(x + 30, GY + 3, 505 + g.day * 7, -1, 0, false)
+                c.R(x + 25.4, GY - 12, 2.4, 2.6, Col(0xf4f1ea))
+                for k in 0..<2 {
+                    let t = (NOW * 0.7 + Double(k) / 2).truncatingRemainder(dividingBy: 1)
+                    c.circ(x + 26.6 + sin(t * 6) * 0.8, GY - 13.5 - t * 6, 0.6 + t, Col(0xffffff, (1 - t) * 0.5))
+                }
+                if !near { g.text("Morning, neighbor!", x + 30, GY - 32, 4.4, CREAM, bold: true, plate: true) }
+            }
             if g.rigArea == g.area || g.phase != .play {
                 fire(x + 4, GY + 3)
             } else {
@@ -2278,6 +2288,12 @@ final class Renderer {
         else { c.arcStroke(r - 19.6, 47.5, 3, -0.8, 0.8, 0.7, CREAM); c.arcStroke(r - 19.6, 47.5, 5.4, -0.8, 0.8, 0.7, CREAM.alpha(0.7)) }
         g.text(g.muted ? "OFF" : "ON", r - 7, 47.5, 4, CREAM.alpha(0.8), bold: true)
         g.hits.append(Hit(id: 63, x: r - 36, y: 42, w: 40, h: 18))
+        // a quick way for testers to write in
+        let fy = g.page ? 74.0 : 58.0
+        c.RR(r - 30, fy, 30, 13, 6.5, Col(0x1c1410, 0.68))
+        g.text("?", r - 21, fy + 6.5, 5.2, CREAM, bold: true)
+        g.text("bug", r - 10, fy + 6.5, 3.4, CREAM.alpha(0.8))
+        g.hits.append(Hit(id: 69, x: r - 36, y: fy + 1, w: 40, h: 16))
         // your phone, once the page is up
         if g.page {
             c.RR(r - 30, 58, 30, 13, 6.5, Col(0x1c1410, 0.68))
@@ -3325,6 +3341,10 @@ final class Renderer {
         } else {
             g.text("Tap to roll in", W / 2, H - 40, 8, CREAM.alpha(0.65 + 0.35 * sin(NOW * 3)), bold: true)
         }
+        let fr = W - g.safeR - 12
+        c.RR(fr - 64, H - 34, 64, 15, 7.5, Col(0x1c1410, 0.65))
+        g.text("Send feedback", fr - 32, H - 26.5, 4.6, CREAM, bold: true)
+        g.hits.append(Hit(id: 69, x: fr - 70, y: H - 40, w: 76, h: 26))
     }
 
     private func card(_ id: Int, _ x: Double, _ y: Double, _ w: Double, _ h: Double, _ on: Bool) {

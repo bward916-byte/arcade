@@ -143,7 +143,7 @@ final class GameViewController: UIViewController {
         renderer = Renderer(game: game, canvas: cv)
         if !demoDone {
             demoDone = true
-            for key in ["pick", "rigs", "play", "night", "ltva", "main", "gem", "tyson", "dome", "toys", "ride", "skoolie", "map", "trail", "scaddan", "browse", "parade", "home", "season", "end", "gear", "computer", "rain", "windy", "critters", "page", "qfest", "western", "trailride", "cine0", "cine1", "cine2", "cine3", "cine4", "happy", "cleanup", "dog", "camels", "drive", "drivenight", "drivetrail", "drivestop", "drivetow", "party", "gemworld", "mainwest", "maineast", "mainnight", "readers", "dust", "gen", "propane", "phone", "wildnight", "rainbow", "windy", "booth", "haggle", "river", "food", "blm"] where ProcessInfo.processInfo.arguments.contains("-demo-" + key) {
+            for key in ["pick", "rigs", "play", "night", "ltva", "main", "gem", "tyson", "dome", "toys", "ride", "skoolie", "map", "trail", "scaddan", "browse", "parade", "home", "season", "end", "gear", "computer", "rain", "windy", "critters", "page", "qfest", "western", "trailride", "cine0", "cine1", "cine2", "cine3", "cine4", "happy", "cleanup", "dog", "camels", "drive", "drivenight", "drivetrail", "drivestop", "drivetow", "party", "gemworld", "mainwest", "maineast", "mainnight", "readers", "dust", "gen", "propane", "phone", "wildnight", "rainbow", "windy", "booth", "haggle", "river", "food", "blm", "coffee"] where ProcessInfo.processInfo.arguments.contains("-demo-" + key) {
                 game.demo(key)
             }
         }
@@ -168,6 +168,10 @@ final class GameViewController: UIViewController {
         last = now
         if paused { return }
         game.update(min(0.05, max(0, raw)))
+        if let u = game.openURL {
+            game.openURL = nil
+            if let url = URL(string: u) { UIApplication.shared.open(url) }
+        }
         guard let r = renderer, let cv = canvas else { return }
         r.draw()
         stage.layer.contents = cv.image()

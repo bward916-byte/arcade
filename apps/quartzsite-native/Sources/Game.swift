@@ -510,6 +510,21 @@ final class Game {
     // your page, on your phone
     struct PagePost { var text: String; var day: Int; var likes: Int; var comments: Int }
     var phoneOpen = false
+    var openURL: String? = nil            // the app opens this (feedback email)
+
+    /// A morning visit: most days a neighbor wanders over with coffee.
+    var neighborVisit: Bool {
+        return phase == .play && rigArea == area && dayT > 0.02 && dayT < 0.25 && !seen.contains(27) && hashN(Double(day) * 3.7 + 0.2) < 0.6
+    }
+
+    /// An email to the developer, with the build and where you are filled in.
+    func feedback() {
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "?"
+        let body = "Build \(build) · \(dateText(day)) · \(areaName(area))\n\nWhat happened, or what's not right about Quartzsite:\n\n"
+        let enc = body.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        openURL = "mailto:bward916@gmail.com?subject=Quartzsite%20Winter%20beta%20feedback&body=" + enc
+        events.append(3)
+    }
     var posts: [PagePost] = []
     var pagePay = 0                       // what the page paid this morning
 
@@ -550,6 +565,7 @@ final class Game {
         for h in hits where x >= h.x && x <= h.x + h.w && y >= h.y && y <= h.y + h.h { id = h.id }
         switch phase {
         case .title:
+            if id == 69 { feedback(); return }
             if id == 2 || !hasSave { phase = .pick } else if id == 1 { phase = .play; arriveT = 4.5 } else { return }
             events.append(3)
         case .pick:
@@ -604,6 +620,7 @@ final class Game {
             if id == 60 { openMap() }
             if id == 52 { openBrowse() }
             if id == 63 { muted = !muted }
+            if id == 69 { refund(); feedback(); return }
             if id == 67 && page { refund(); phoneOpen = true; events.append(3); hint("phone", "Your page. Post one photo a day from wherever you are: events, landmarks, sunsets and starry nights reach the most people.") }
         }
     }
@@ -974,6 +991,7 @@ final class Game {
             day = 8; place(.tyson, 900); money = 500; dayT = 0.3; clockFreeze = true; openBrowse()
             wares[0].haggled = true; wares[0].price = Int(Double(wares[0].price) * 0.8); mapMsg = wares[0].who + ": \"Alright, \(wares[0].price) and it's yours.\""; mapMsgT = 99
         }
+        if key == "coffee" { dayT = 0.12; clockFreeze = true; px = rigX + 120; day = 2 }
         if key == "wildnight" { place(.ltva, 600); dayT = 0.82; clockFreeze = true }
         if key == "rainbow" { place(.dome, 600); dayT = 0.15; afterRain = 2; weather = 0; clockFreeze = true }
         if key == "windy" { place(.scaddan, 900); dayT = 0.3; weather = 1; clockFreeze = true }
@@ -1069,6 +1087,7 @@ final class Game {
             if area == .ltva && permitDays <= 0 { return nil }
             if dogCholla { return Offer(label: "Comb the cholla off your dog", cost: 0, earn: 0, dur: 2.4) }
             if genOn { return Offer(label: "Shut off the generator", cost: 0, earn: 0, dur: 0.8) }
+            if neighborVisit { return Offer(label: "Coffee with the neighbor", cost: 0, earn: 0, dur: 1.6) }
             if cred >= 25 && !page { return Offer(label: "Start a Facebook page", cost: 0, earn: 0, dur: 2) }
             if dayT > 0.55 && dayT < 0.72 && !seen.contains(18) { return Offer(label: "Throw a party for the neighbors", cost: 20, earn: 0, dur: 2.2) }
             return health < 96 ? Offer(label: "Rest by your fire", cost: 0, earn: 0, dur: 2.2) : nil
@@ -1264,7 +1283,18 @@ final class Game {
             wood += 1
             float("+1 firewood", x, CREAM)
         case .camp:
-            if rigArea != area {
+            if o.label.hasPrefix("Coffee") {
+                seen.insert(27)
+                health = min(100, health + 5)
+                cred += 1
+                if rocks < packCap && Double.random(in: 0..<1) < 0.25 {
+                    rockVals.append(Int(rnd(18, 40)))
+                    float("They gave you a geode they cracked", x, GOLD)
+                } else {
+                    let tips = ["They swear the agate's better after rain", "Gem show crowds are lighter before ten", "Their dog and yours are friends now", "Ten minutes of solar talk. Worth it", "They know a guy with a cheap used side-by-side"]
+                    float(tips[day % tips.count], x, CREAM)
+                }
+            } else if rigArea != area {
                 rigArea = area
                 rigX = x - 60
                 campDays = 0
