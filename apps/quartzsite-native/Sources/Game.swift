@@ -888,6 +888,10 @@ final class Game {
             place(.ltva, 1500); toy = 5; toyArea = .ltva; toyX = 1500; onToy = true; vx = 140; dayT = 0.3
             clockFreeze = true; dustAmt = 1; madT = 99; madX = 1640; madText = "Slow down! You're dusting our camp!"
         }
+        if key == "gena" { dayT = 0.8; clockFreeze = true; px = rigX + 30 }
+        if key == "genb" { dayT = 0.5; clockFreeze = true; genOn = true; px = rigX + 30 }
+        if key == "genc" { dayT = 0.8; clockFreeze = true; genOn = true; px = 300 }
+        if key == "gend" { dayT = 0.8; clockFreeze = true; madT = 99; madX = rigX + 70; madText = "test"; px = rigX + 30 }
         if key == "gen" {
             dayT = 0.8; clockFreeze = true; genOn = true; madT = 99; madX = rigX + 70; madText = "It's after ten! Shut that generator off!"
             px = rigX + 30
