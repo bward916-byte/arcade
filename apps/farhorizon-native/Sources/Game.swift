@@ -857,10 +857,10 @@ final class Game {
         if name == "evrogue" { startOmen("rogue"); sceneT = 3.4; omenT = 2.6; Game.omenHold = true; return }
         if name == "evrogue2" { startOmen("rogue"); sceneT = 5; omenK = ""; event("rogue"); return }
         if name == "wideshot" { leg = 1; mode = .sail; nextEvAt = 9999; T = 2.5 / 0.035; camZ = 1.1; return }
-        if name == "offer" { leg = 1; mode = .sail; nextEvAt = 9999; offerK = "flyfish"; offerT = 1; offerDone = true; return }
-        if name == "mgfly" { leg = 1; mode = .sail; nextEvAt = 9999; startOdd("flyfish"); return }
+        if name == "offer" { leg = 1; mode = .sail; nextEvAt = 9999; offerK = "flyfish"; offerT = -100; offerDone = true; return }
+        if name == "mgfly" { leg = 1; mode = .sail; nextEvAt = 9999; startOdd("flyfish"); play?.total = 60; return }
         if name == "mgcask" { leg = 1; mode = .sail; nextEvAt = 9999; startOdd("cask"); return }
-        if name == "mggleam" { leg = 1; mode = .sail; nextEvAt = 9999; startOdd("gleam"); return }
+        if name == "mggleam" { leg = 1; mode = .sail; nextEvAt = 9999; startOdd("gleam"); play?.total = 60; return }
         if name == "intro" { mode = .title; showIntro(); return }
         if name == "outfit" { shipI = 1; crew = ship.crew; hull = Double(ship.hull); syncMen(); marketPort = false; mode = .outfit; provision(storesNeeded() + 8); return }
         if name == "lowsea" { leg = 1; mode = .sail; legLen = 300; dist = 60; food = 6; deckForce = 0; camZ = 2.6; nextEvAt = 9999; return }
