@@ -1331,6 +1331,18 @@ final class Renderer {
         let wood = Col(0x8a6238)
         switch sp.kind {
         case .wash:
+            if g.weather == 3 && g.phase == .play {
+                // a flash flood: muddy water running fast through the wash
+                c.vfill(x - 60, GY - 3, 120, 9, [(0, Col(0x9a7a52).shade(1 - dark * 0.5)), (1, Col(0x6a4e30).shade(1 - dark * 0.5))])
+                for k in 0..<16 {
+                    let d = Double(k)
+                    let fx = (hashN(d + 120) * 120 + NOW * (40 + hashN(d + 121) * 30)).truncatingRemainder(dividingBy: 120) - 60
+                    c.R(x + fx, GY - 2 + hashN(d + 122) * 6, 5 + hashN(d + 123) * 7, 0.7, Col(0xe8d8b8, 0.55))
+                }
+                c.RR(x + 36, GY - 22, 26, 12, 1, Col(0xf2c14e))
+                g.text("FLOODED", x + 49, GY - 17.6, 3.2, INK, bold: true)
+                c.R(x + 48.4, GY - 10, 1.2, 10, Col(0x6a6a6a))
+            }
             let dw = Col(0x5a4230)
             c.roundCaps(true)
             c.seg(x - 20, GY, x - 22, GY - 22, 2.4, dw)

@@ -991,6 +991,7 @@ final class Game {
             day = 8; place(.tyson, 900); money = 500; dayT = 0.3; clockFreeze = true; openBrowse()
             wares[0].haggled = true; wares[0].price = Int(Double(wares[0].price) * 0.8); mapMsg = wares[0].who + ": \"Alright, \(wares[0].price) and it's yours.\""; mapMsgT = 99
         }
+        if key == "flood" { place(.roadrunner, 400); weather = 3; dayT = 0.3; clockFreeze = true }
         if key == "coffee" { dayT = 0.12; clockFreeze = true; px = rigX + 120; day = 2 }
         if key == "wildnight" { place(.ltva, 600); dayT = 0.82; clockFreeze = true }
         if key == "rainbow" { place(.dome, 600); dayT = 0.15; afterRain = 2; weather = 0; clockFreeze = true }

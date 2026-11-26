@@ -161,6 +161,43 @@ final class Sound {
         }
     }
 
+    // ---------- the sounds of a place: generators, crowds, traffic, engines, owls, running water
+    private var genT = 0.0, crowdT = 0.0, carT = 0.0, motorT = 0.0, owlT = 0.0, roadT = 0.0, floodT = 0.0
+    func places(_ now: Double, gen: Double, crowd: Double, traffic: Bool, motor: Double, owl: Bool, road: Bool, flood: Double) {
+        if muted || !running { return }
+        if gen > 0.05 && now > genT {
+            genT = now + 0.5
+            tone(58, 0.55, 2, 0.009 * gen)
+            noise(0.55, 0.012 * gen, 220, 1.2)
+        }
+        if crowd > 0.05 && now > crowdT {
+            crowdT = now + Double.random(in: 0.35..<0.8)
+            noise(1.2, 0.018 * crowd, Double.random(in: 450..<1100), 2.2)
+            if Double.random(in: 0..<1) < 0.12 { tone(Double.random(in: 300..<420), 0.18, 0, 0.012 * crowd, 260) }
+        }
+        if traffic && now > carT {
+            carT = now + Double.random(in: 5..<11)
+            noise(1.8, 0.03, Double.random(in: 500..<900), 0.7)
+            tone(70, 1.4, 3, 0.012, 55)
+        }
+        if motor > 0.05 && now > motorT {
+            motorT = now + 0.18
+            tone(70 + motor * 90, 0.22, 3, 0.012 + motor * 0.012, 72 + motor * 95)
+        }
+        if owl && now > owlT {
+            owlT = now + Double.random(in: 12..<24)
+            tone(330, 0.35, 0, 0.018, 300); tone(330, 0.25, 0, 0.014, 300, 0.45); tone(330, 0.5, 0, 0.016, 290, 0.8)
+        }
+        if road && now > roadT {
+            roadT = now + 0.45
+            noise(0.6, 0.028, 260, 0.9)
+        }
+        if flood > 0.05 && now > floodT {
+            floodT = now + 0.4
+            noise(0.7, 0.04 * flood, 900, 0.5)
+        }
+    }
+
     // ---------- music: a picked guitar, slow by day, slower at night, livelier on event days
     private var seqT = 0.0
     private var seqI = 0
