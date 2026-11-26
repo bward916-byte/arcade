@@ -63,7 +63,7 @@ jobs:
           xcrun simctl boot "$UDID"
           xcrun simctl bootstatus "$UDID" -b
           xcrun simctl install "$UDID" "$APP"
-          for shot in gen party propane dust; do
+          for shot in gen; do
             xcrun simctl terminate "$UDID" com.brianward.quartzsitewinter 2>/dev/null || true
             if [ "$shot" = title ]; then
               xcrun simctl launch "$UDID" com.brianward.quartzsitewinter
@@ -73,6 +73,23 @@ jobs:
             sleep 9
             xcrun simctl io "$UDID" screenshot "$RUNNER_TEMP/shots/$shot.png"
           done
+          # if a demo crashed, keep the crashing thread for the log
+          CR=$(ls -t "$HOME"/Library/Logs/DiagnosticReports/*uartzsite* 2>/dev/null | head -1)
+          if [ -n "$CR" ]; then
+            python3 - "$CR" > "$RUNNER_TEMP/crash.txt" <<'PY' || true
+          import json, sys
+          raw = open(sys.argv[1]).read()
+          body = raw[raw.index('\n') + 1:] if raw.startswith('{') else raw
+          try:
+              d = json.loads(body)
+              print(d.get('exception'), d.get('termination', {}).get('indicator'))
+              t = d['threads'][d.get('faultingThread', 0)]
+              for f in t['frames'][:25]:
+                  print(f.get('imageIndex'), f.get('symbol'), f.get('sourceFile'), f.get('sourceLine'))
+          except Exception as e:
+              print('could not parse', e); print(raw[:4000])
+          PY
+          fi
 
       - name: Sign and upload to TestFlight
         id: testflight
@@ -119,6 +136,8 @@ jobs:
             grep -iE "error|\*\* EXPORT" "$RUNNER_TEMP/export.log" | head -n 30 || true
             echo "---- upload"
             tail -n 25 "$RUNNER_TEMP/upload.log" || true
+            echo "---- crash"
+            cat "$RUNNER_TEMP/crash.txt" 2>/dev/null || true
           } 2>/dev/null | sed -e "s/${ASC_KEY_ID:-no-key-id}/***/g" -e "s/${ASC_ISSUER_ID:-no-issuer-id}/***/g" > log.txt
           for f in "$RUNNER_TEMP"/shots/*.png; do
             if [ -f "$f" ]; then sips -Z 1300 "$f" --out "$OUT/$(basename "$f")" >/dev/null 2>&1 || true; fi
