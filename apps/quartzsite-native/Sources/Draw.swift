@@ -2383,7 +2383,7 @@ final class Renderer {
             let cash = Int(START_CASH[i]) + (g.life == .rver ? 100 : 0)
             g.text(RIGS[START_RIGS[i].rawValue].name, x + 57, 84, 6, CREAM, align: 1, bold: true)
             coin(x + 60, 96, 3)
-            g.text("\(cash) coins", x + 65, 96, 5.4, GOLD, align: 1)
+            g.text("start with \(cash)", x + 65, 96, 5.4, GOLD, align: 1)
         }
 
         g.text("YOU", l, 124, 6, GOLD, align: 1, bold: true)
