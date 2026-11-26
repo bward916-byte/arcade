@@ -94,7 +94,7 @@ let EV_GEM = 0, EV_RTR = 1, EV_RV = 2, EV_SELL = 3, EV_SKOOL = 4, EV_CRAFT = 5, 
 let SEASON_END = 109
 let START_WEEKDAY = 1   // Monday
 
-enum SpotKind { case camp, bench, fire, wash, host, station, outhouse, board, grocery, gemworld, landmark, park, hall, yacht, lot, rides, tools, panorama, vendors, office, booth, bigtent, mine, detect, rockhound, river, skoolie, circle, cabin, parade, rvpark, house, computer, radio, cleanup }
+enum SpotKind { case camp, bench, fire, wash, host, station, outhouse, board, grocery, gemworld, landmark, park, hall, yacht, lot, rides, tools, panorama, vendors, office, booth, bigtent, mine, detect, rockhound, river, skoolie, circle, cabin, parade, rvpark, house, computer, radio, cleanup, camel, dogpark, stray }
 struct Spot {
     let kind: SpotKind
     let x: Double
@@ -129,15 +129,21 @@ let AREAS: [AreaDef] = [
         Spot(kind: .grocery, x: 690, name: "POP-UP GROCERY"),
         Spot(kind: .computer, x: 840, name: "THE COMPUTER CORNER"),
         Spot(kind: .gemworld, x: 990, name: "GEM WORLD"),
+        Spot(kind: .camel, x: 1140, name: "THE RED GHOST", arg: 0),
         Spot(kind: .landmark, x: 1300, name: "READER'S OASIS", arg: 1),
+        Spot(kind: .dogpark, x: 1460, name: "QUARTZSITE DOG PARK"),
         Spot(kind: .park, x: 1620, name: "TOWN PARK"),
+        Spot(kind: .landmark, x: 1780, name: "CELIA'S RAINBOW GARDENS", arg: 4),
         Spot(kind: .board, x: 1920, name: "COMMUNITY BOARD"),
         Spot(kind: .hall, x: 2180, name: "TOWN HALL"),
+        Spot(kind: .camel, x: 2330, name: "CAMEL SCULPTURE", arg: 1),
         Spot(kind: .yacht, x: 2480, name: "QUARTZSITE YACHT CLUB"),
         Spot(kind: .lot, x: 2800, name: "USED RIGS"),
+        Spot(kind: .camel, x: 2970, name: "CAMEL SCULPTURE", arg: 2),
         Spot(kind: .rides, x: 3140, name: "RIDES FOR SALE"),
         Spot(kind: .rvpark, x: 3480, name: "HOLIDAY PALMS RV PARK"),
-        Spot(kind: .house, x: 3840, name: "HOUSE FOR SALE")
+        Spot(kind: .house, x: 3840, name: "HOUSE FOR SALE"),
+        Spot(kind: .camel, x: 4010, name: "CAMEL SCULPTURE", arg: 3)
     ]),
     AreaDef(name: "Tyson Wells", sub: "The show grounds on Kuehn Street", w: 3000, arrive: 160, lat: 33.6625, lon: -114.2215, spots: [
         Spot(kind: .tools, x: 380, name: "KB TOOLS"),
@@ -146,7 +152,9 @@ let AREAS: [AreaDef] = [
         Spot(kind: .office, x: 1370, name: "SHOW OFFICE"),
         Spot(kind: .booth, x: 1580, name: "YOUR BOOTH", arg: 0),
         Spot(kind: .landmark, x: 1880, name: "TYSON'S WELL", arg: 2),
-        Spot(kind: .bigtent, x: 2400, name: "THE BIG TENT")
+        Spot(kind: .camel, x: 2100, name: "CAMEL SCULPTURE", arg: 4),
+        Spot(kind: .bigtent, x: 2400, name: "THE BIG TENT"),
+        Spot(kind: .camel, x: 2760, name: "CAMEL SCULPTURE", arg: 5)
     ]),
     AreaDef(name: "Dome Rock", sub: "Free BLM camping west of town · 14-day limit", w: 2640, arrive: 2350, lat: 33.648, lon: -114.33, spots: [
         Spot(kind: .rockhound, x: 430, name: "ROCKHOUNDING"),
@@ -170,6 +178,7 @@ let AREAS: [AreaDef] = [
     ]),
     AreaDef(name: "Scaddan Wash", sub: "Free 14-day BLM camping east of town", w: 2200, arrive: 300, lat: 33.6493, lon: -114.1512, spots: [
         Spot(kind: .camp, x: 640, name: "DISPERSED CAMP"),
+        Spot(kind: .stray, x: 1300, name: "BY THE WASH"),
         Spot(kind: .fire, x: 1080, name: "NOMAD FIRE"),
         Spot(kind: .rockhound, x: 1520, name: "WASH AGATES"),
         Spot(kind: .wash, x: 1900, name: "MESQUITE WASH"),
@@ -183,7 +192,8 @@ let AREAS: [AreaDef] = [
         Spot(kind: .bench, x: 1590, name: "JEWELRY BENCH")
     ])
 ]
-let LANDMARKS = ["Pay respects at Hi Jolly's tomb", "Browse the books", "Read the stage-stop plaque", "Walk the old cemetery"]
+let LANDMARKS = ["Pay respects at Hi Jolly's tomb", "Browse the books", "Read the stage-stop plaque", "Walk the old cemetery", "Walk Celia's Rainbow Gardens"]
+let CAMELS = 6
 
 /// Straight-line miles between two places.
 func milesBetween(_ a: Area, _ b: Area) -> Double {
@@ -288,6 +298,9 @@ struct SaveData: Codable {
     var house: Bool
     var upgrades: [Int]
     var followers: Int
+    var camels: [Int]
+    var hasDog: Bool
+    var dogCholla: Bool
     var weather: Int
     var afterRain: Int
 }
@@ -388,6 +401,10 @@ final class Game {
     var muted = false
     /// People following your Facebook page. It starts paying at 1,000.
     var followers = 0
+    /// Camel sculptures you've photographed on the self-guided tour.
+    var camels: Set<Int> = []
+    var hasDog = false
+    var dogCholla = false
     /// 0 clear, 1 windy with dust, 2 cloudy, 3 rain. Washes run on rain days; rockhounding is best the two days after.
     var weather = 0
     var afterRain = 0
@@ -514,7 +531,7 @@ final class Game {
         mapOpen = false
         browseOpen = false; seasonCard = false; ended = false
         age = life == .nomad ? 31 : 61
-        year = 1; resident = false; house = false; upgrades = []; followers = 0; weather = 0; afterRain = 0
+        year = 1; resident = false; house = false; upgrades = []; followers = 0; camels = []; hasDog = false; dogCholla = false; weather = 0; afterRain = 0
         shown = []
         floaters = []
         phase = .play
@@ -664,6 +681,7 @@ final class Game {
                         area: area.rawValue, rigArea: rigArea.rawValue, toy: toy, toyArea: toyArea.rawValue, toyX: onToy ? px : toyX,
                         permitDays: permitDays, business: business, adDays: adDays, page: page, jewelVals: jewelVals, detector: detector, campDays: campDays,
                         age: age, year: year, resident: resident, house: house, upgrades: Array(upgrades), followers: followers,
+                        camels: Array(camels), hasDog: hasDog, dogCholla: dogCholla,
                         weather: weather, afterRain: afterRain)
     }
     func restore(_ s: SaveData) {
@@ -676,7 +694,7 @@ final class Game {
         toy = s.toy; toyArea = Area(rawValue: s.toyArea) ?? .main; toyX = s.toyX
         permitDays = s.permitDays; business = s.business; adDays = s.adDays; page = s.page; jewelVals = s.jewelVals; detector = s.detector
         campDays = s.campDays
-        age = s.age; year = s.year; resident = s.resident; house = s.house; upgrades = Set(s.upgrades); followers = s.followers; weather = s.weather; afterRain = s.afterRain
+        age = s.age; year = s.year; resident = s.resident; house = s.house; upgrades = Set(s.upgrades); followers = s.followers; camels = Set(s.camels); hasDog = s.hasDog; dogCholla = s.dogCholla; weather = s.weather; afterRain = s.afterRain
         inRig = false; onToy = false
         shown = ["start"]
         hasSave = true
@@ -705,6 +723,8 @@ final class Game {
         if key == "cine4" { cineShots = [4]; cineCaps = ["April. The snowbirds head north."]; cineT = 2 }
         if key == "happy" { px = 1260; dayT = 0.6; rig = .classC; life = .rver }
         if key == "cleanup" { place(.dome, 2380); dayT = 0.3 }
+        if key == "dog" { place(.main, 1460); hasDog = true; dayT = 0.3 }
+        if key == "camels" { place(.tyson, 2760); camels = [0, 1, 2, 3, 4] }
         if key == "page" { place(.dome, 120); page = true; cred = 60; followers = 940; upgrades = [3]; dayT = 0.3 }
         if key == "qfest" { place(.roadrunner, 900); day = 22; dayT = 0.4 }
         if key == "western" { place(.main, 1610); day = 82; dayT = 0.45 }
@@ -770,6 +790,7 @@ final class Game {
                 return rig == .tent ? Offer(label: "Pitch your tent here", cost: 0, earn: 0, dur: 2) : nil
             }
             if area == .ltva && permitDays <= 0 { return nil }
+            if dogCholla { return Offer(label: "Comb the cholla off your dog", cost: 0, earn: 0, dur: 2.4) }
             if cred >= 25 && !page { return Offer(label: "Start a Facebook page", cost: 0, earn: 0, dur: 2) }
             if dayT > 0.55 && dayT < 0.72 && !seen.contains(18) { return Offer(label: "Host happy hour for the neighbors", cost: 10, earn: 0, dur: 2.2) }
             return health < 96 ? Offer(label: "Rest by your fire", cost: 0, earn: 0, dur: 2.2) : nil
@@ -810,6 +831,12 @@ final class Game {
             if panels < 2 { return Offer(label: panels == 0 ? "Solar panel" : "Second solar panel", cost: panels == 0 ? 120 : 200, earn: 0, dur: 1.6) }
             for u in [UP_LITHIUM, UP_AWNING, UP_RACK] where !upgrades.contains(u) { return Offer(label: UPGRADES[u].0, cost: UPGRADES[u].1, earn: 0, dur: 1.8) }
             return nil
+        case .camel:
+            return camels.contains(sp.arg) ? nil : Offer(label: "Photograph the camel sculpture", cost: 0, earn: 0, dur: 1.2)
+        case .dogpark:
+            return hasDog && !seen.contains(22) ? Offer(label: "Let your dog run", cost: 0, earn: 0, dur: 2) : nil
+        case .stray:
+            return hasDog ? nil : Offer(label: "Share your sandwich with the stray", cost: 5, earn: 0, dur: 2.4)
         case .cleanup:
             return seen.contains(21) || health < 15 ? nil : Offer(label: "Pick up trash with the cleanup crew", cost: 0, earn: 0, dur: 2.4)
         case .radio:
@@ -889,6 +916,9 @@ final class Game {
         case .lot: return "Top of the line. Nothing bigger here"
         case .rides: return "Nothing faster for sale"
         case .tools: return rig == .tent ? "Gear needs a rig. Trade up first" : "Your rig is fully kitted out"
+        case .camel: return "On the tour: \(camels.count) of \(CAMELS) camels"
+        case .dogpark: return hasDog ? "Tired dog, happy dog" : "Off-leash, away from cholla and coyotes"
+        case .stray: return "Your dog came from here"
         case .cleanup: return seen.contains(21) ? "The desert looks better. Back tomorrow" : "Too worn out. Rest first"
         case .radio: return on(EV_QFEST) ? "73 till tomorrow" : "Quartzfest ham radio week: " + EVENTS[EV_QFEST].when
         case .computer: return rig == .tent ? "A dish needs a roof. Trade up first" : "Your dish is up. Your page reaches twice as far"
@@ -931,6 +961,9 @@ final class Game {
                 rigX = x - 60
                 campDays = 0
                 float("Tent pitched", x, CREAM)
+            } else if dogCholla {
+                dogCholla = false
+                float("Flicked it off with the comb, pulled the spines", x, GREEN)
             } else if cred >= 25 && !page {
                 page = true
                 float("Your page is live", x, GOLD)
@@ -1035,6 +1068,29 @@ final class Game {
                 hintT = 0
                 hint("up\(u)", why[u] ?? "")
             }
+        case .camel:
+            camels.insert(sp.arg)
+            cred += 1
+            float("Camel \(camels.count) of \(CAMELS)", x, GOLD)
+            post("a camel sculpture", 15)
+            if camels.count == CAMELS {
+                cred += 10
+                post("the whole camel sculpture tour", 150)
+                hintT = 0
+                hint("camels", "You found every camel on the tour. Hi Jolly would be proud.")
+            }
+        case .dogpark:
+            seen.insert(22)
+            cred += 1
+            health = min(100, health + 6)
+            float("Zoomies", x, GOLD)
+            post("the dog at the dog park", 40)
+        case .stray:
+            hasDog = true
+            cred += 2
+            float("You have a dog now", x, GOLD)
+            hintT = 0
+            hint("dog", "The dog follows you everywhere. Watch for cholla: if it gets stuck in the fur, comb it out at your camp.")
         case .cleanup:
             seen.insert(21)
             cred += 2
@@ -1086,7 +1142,7 @@ final class Game {
             seen.insert(sp.arg)
             cred += 1
             float("+1 cred", x, GOLD)
-            post(["Hi Jolly's tomb", "Reader's Oasis", "Tyson's Well", "the pioneer cemetery"][sp.arg], 20)
+            post(["Hi Jolly's tomb", "Reader's Oasis", "Tyson's Well", "the pioneer cemetery", "Celia's Rainbow Gardens"][sp.arg], 20)
         case .river:
             health = min(100, health + 14)
             float("Calm", x, GREEN)
@@ -1186,6 +1242,11 @@ final class Game {
         jewelSell = rockSell + Int(rnd(8, 20))
         seen = []
         if afterRain > 0 { afterRain -= 1 }
+        if hasDog && !dogCholla && area != .main && area != .tyson && Double.random(in: 0..<1) < 0.15 {
+            dogCholla = true
+            hintT = 0
+            hint("cholla\(day)", "Your dog got into a cholla. Comb it out at your camp. Never grab it with bare fingers.")
+        }
         let roll = Double.random(in: 0..<1)
         weather = roll < 0.72 ? 0 : (roll < 0.86 ? 1 : (roll < 0.95 ? 2 : 3))
         if weather == 3 {

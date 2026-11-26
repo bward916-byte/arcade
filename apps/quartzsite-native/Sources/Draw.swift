@@ -308,6 +308,10 @@ final class Renderer {
                 g.hits.append(Hit(id: 51, x: tx - len / 2 - 8, y: GY - 34, w: len + 16, h: 52))
             }
         }
+        if g.hasDog && !g.inRig {
+            let dx = g.px - g.face * (g.onToy ? 26 : 13)
+            dog(dx - cam, GY + 6 + g.ground(dx), g.face, g.walk * (g.onToy ? 1.6 : 1) + (abs(g.vx) > 4 ? 0 : NOW * 0.5), g.dogCholla)
+        }
         if !g.inRig && !g.onToy { person(g.px - cam, GY + 6 + g.ground(g.px), g.look, g.face, g.walk, abs(g.vx) > 4) }
     }
 
@@ -1170,10 +1174,6 @@ final class Renderer {
             c.R(x - 6, GY - 20, 12, 20, Col(0x4a3424))
             c.R(x - 30, GY - 22, 18, 10, GLASS); c.R(x + 12, GY - 22, 18, 10, GLASS)
             for j in 0..<4 { gem(x - 27 + Double(j) * 4.4, GY - 13, 1.4, [Col(0x9a5ad0), Col(0xf0f0f4), Col(0xe2742e), Col(0x2fa7a0)][j]) }
-            let rim = Col(0x7a2a1e)
-            c.ellStroke(x + 48, GY - 13, 6, 4, 1, rim); c.ellStroke(x + 46, GY - 18, 2.4, 2.4, 0.9, rim)
-            c.seg(x + 53, GY - 15, x + 57, GY - 22, 1, rim); c.ellStroke(x + 58, GY - 23, 2, 1.2, 0.8, rim)
-            for q in [43.0, 46.0, 50.0, 53.0] { c.seg(x + q, GY - 10, x + q, GY, 0.8, rim) }
             label = false
             top = 52
         case .park:
@@ -1384,6 +1384,22 @@ final class Renderer {
             g.text("QUARTZFEST", x, GY - 40, 4.4, Col(0x8ad0f0), bold: true)
             label = false
             top = 50
+        case .camel:
+            camelSculpture(x, GY, sp.arg)
+            if g.phase == .play && g.camels.contains(sp.arg) { c.circ(x + 14, GY - 30, 3, GOLD); c.seg(x + 12.6, GY - 30, x + 13.6, GY - 29, 0.6, INK); c.seg(x + 13.6, GY - 29, x + 15.6, GY - 31.4, 0.6, INK) }
+            top = 40
+        case .dogpark:
+            // a fenced off-leash park with a gate and a water bowl
+            for j in 0..<13 { c.R(x - 48 + Double(j) * 8, GY - 12, 0.6, 12, Col(0x8a8f96)) }
+            c.R(x - 48, GY - 12, 96, 0.6, Col(0x8a8f96)); c.R(x - 48, GY - 6, 96, 0.5, Col(0x8a8f96))
+            c.ell(x + 20, GY - 0.5, 3, 1, Col(0x3a6ea5))
+            if g.phase == .play && g.hasDog && g.seen.contains(22) { dog(x - 10 + sin(NOW * 2) * 30, GY + 1, cos(NOW * 2) > 0 ? 1 : -1, NOW * 12, false) }
+            else { dog(x - 20, GY + 1, 1, NOW * 3, false); dog(x + 6, GY + 1, -1, NOW * 3 + 1, false) }
+            top = 26
+        case .stray:
+            if g.phase == .play && g.hasDog { top = 20; label = false; break }
+            dog(x, GY + 2, -1, NOW * 1.5, false)
+            top = 22
         case .cleanup:
             // a cleanup crew's pickup with trash bags, a sign and a couple of volunteers
             c.poly(Col(0x9a3a2a), [x - 26, GY - 4, x - 26, GY - 12, x - 4, GY - 12, x, GY - 17, x + 12, GY - 17, x + 16, GY - 11, x + 24, GY - 10, x + 24, GY - 4])
@@ -1478,6 +1494,18 @@ final class Renderer {
                 }
                 label = false
                 top = 56
+            } else if sp.arg == 4 {
+                // Celia's Rainbow Gardens: desert plantings, a rainbow arch, a little pioneer village
+                c.curve(x - 26, GY, x, GY - 52, x + 26, GY, 1.2, Col(0xd9412e))
+                c.curve(x - 23, GY, x, GY - 46, x + 23, GY, 1.2, Col(0xf2c14e))
+                c.curve(x - 20, GY, x, GY - 40, x + 20, GY, 1.2, Col(0x4f9a5a))
+                c.curve(x - 17, GY, x, GY - 34, x + 17, GY, 1.2, Col(0x3a6ea5))
+                for j in 0..<3 { let hx = x - 12 + Double(j) * 9; c.R(hx - 3, GY - 5, 6, 5, Col(0xb89a74)); c.poly(Col(0x7a4a34), [hx - 4, GY - 5, hx, GY - 8, hx + 4, GY - 5]) }
+                cholla(x - 34, GY + 1, 0.8, 12); creosote(x + 34, GY + 1, 13)
+                c.R(x - 1, GY - 16, 2, 0.1, wood)
+                g.text("CELIA'S RAINBOW GARDENS", x, GY - 58, 3.8, CREAM, bold: true)
+                label = false
+                top = 60
             } else if sp.arg == 2 {
                 // Tyson's Well: the 1864 stage stop, marked by a plaque on a stone base
                 c.R(x - 8, GY - 12, 16, 12, Col(0xa89880))
@@ -2151,6 +2179,45 @@ final class Renderer {
         saguaro(W * 0.3, GY + 20, 64, 61, SAG, true)
         if g.rig != .tent { rig(g.rig, W * 0.66, GY + 16, g.panels, -1) }
         g.text("110°", W * 0.84, GY * 0.3, 14, Col(0xd9412e, 0.85), bold: true)
+    }
+
+    /// The town's camel sculptures, each made differently: wheel rims, scrap steel, painted plate.
+    private func camelSculpture(_ x: Double, _ base: Double, _ k: Int) {
+        let cols: [Col] = [Col(0x7a2a1e), Col(0x5a5a5e), Col(0xc8902e), Col(0x3a6ea5), Col(0x8a6a4a), Col(0xb5452f)]
+        let col = cols[k % 6].shade(1 - dark * 0.4)
+        c.R(x - 12, base - 2, 24, 2, Col(0x8a8580))
+        if k == 0 {
+            // the Red Ghost, built of wheel rims
+            c.ellStroke(x, base - 15, 8, 5, 1.2, col); c.ellStroke(x - 2, base - 21, 3.2, 3.2, 1, col)
+            c.seg(x + 7, base - 17, x + 12, base - 26, 1.2, col); c.ellStroke(x + 13, base - 27, 2.6, 1.6, 1, col)
+            for q in [-6.0, -3.0, 3.0, 6.0] { c.seg(x + q, base - 11, x + q, base - 2, 1, col) }
+            return
+        }
+        let sw = 0.0
+        for (lx, s0) in [(-5.0, sw), (-2.4, sw), (3.0, sw), (5.6, sw)] { c.seg(x + lx, base - 12, x + lx + s0, base - 2, 1.3, col.shade(0.85)) }
+        c.ell(x, base - 15, 9, 4.6, col)
+        c.ell(x - 1, base - 19.6, 4.6, 3.8, col)
+        if k % 2 == 0 { c.ell(x + 3.6, base - 19, 3, 3, col) }
+        c.curve(x + 8, base - 15, x + 12, base - 20, x + 12, base - 26, 2, col)
+        c.ell(x + 14, base - 26.6, 3, 1.6, col)
+        if k == 3 { for j in 0..<4 { c.circ(x - 5 + Double(j) * 3.4, base - 15, 1, [Col(0xf2c14e), Col(0xd9412e), Col(0xf4f1ea), Col(0x4f9a5a)][j]) } }
+    }
+
+    /// A medium dog trotting along, tail going.
+    func dog(_ x: Double, _ base: Double, _ dir: Double, _ ph: Double, _ limp: Bool) {
+        if x < -12 || x > W + 12 { return }
+        let col = Col(0xa8743e).shade(1 - dark * 0.4)
+        let sw = sin(ph) * 1.4
+        c.roundCaps(true)
+        c.seg(x - 2.6 * dir, base - 3.4, x - 2.6 * dir + sw, base, 0.9, col.shade(0.85))
+        c.seg(x + 2.6 * dir, base - 3.4, x + 2.6 * dir - (limp ? 0 : sw), base - (limp ? 1 : 0), 0.9, col.shade(0.85))
+        c.ell(x, base - 4.2, 3.6, 1.8, col)
+        c.seg(x - 3.4 * dir, base - 4.6, x - 5.4 * dir, base - 7 + sin(ph * 2) * 1, 0.7, col)
+        c.circ(x + 3.6 * dir, base - 6.2, 1.7, col)
+        c.ell(x + 5 * dir, base - 5.8, 1.2, 0.8, col.shade(0.9))
+        c.poly(col.shade(0.7), [x + 2.8 * dir, base - 7.4, x + 3.4 * dir, base - 9, x + 4 * dir, base - 7.2])
+        c.roundCaps(false)
+        if limp { c.circ(x - 1, base - 4.4, 1, Col(0xd8d4a0)) }
     }
 
     private func titleOverlay() {
