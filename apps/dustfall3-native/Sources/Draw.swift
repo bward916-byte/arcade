@@ -1613,21 +1613,54 @@ final class Renderer {
         c.ell(x, gy + 0.6, 42, 2, Col(0x000000, 0.14))
         switch g.bio {
         case .river:
-            // a sternwheeler aground in the mud: tilted hull, the cabin stove in, the wheel half sunk, the stack down
-            c.ell(x, gy + 0.4, 40, 3, Col(0x5a6a5a, 0.6))
-            c.save(); c.translate(x, gy); c.rotate(-0.08)
-            c.poly(Col(0xd8d0bc), [-36, -4, 30, -4, 34, -10, -34, -10]); c.R(-34, -11, 68, 1.2, Col(0x8a3a2a))
-            c.poly(Col(0x5a4a3a), [-38, -3, 34, -3, 30, 2, -32, 2])
-            c.R(-24, -22, 34, 11, Col(0xe8e0cc)); c.R(-26, -23.4, 38, 1.6, Col(0x8a3a2a))
-            for k in 0..<6 { c.R(-21 + Double(k) * 5.4, -19, 2.6, 4, Col(0x2a2a30)) }
-            c.poly(Col(0x1c1612), [-6, -22, 2, -22, 4, -15, -4, -12])
-            c.R(-14, -24, 3, 1.4, Col(0x2a2a30)); c.seg(-12.5, -24, 6, -34, 2.6, Col(0x2a2a30))
+            // a sternwheeler aground in the mud: hull and guards, two decks of cabins with railings, the pilothouse,
+            // twin stacks (one down), the paddlewheel in its housing, a lifeboat hanging by one davit, water and reeds
+            c.ell(x + 4, gy + 1, 50, 4, Col(0x4f6a6a, 0.7)); c.ell(x - 8, gy, 30, 1.2, Col(0xffffff, 0.15))
+            c.save(); c.translate(x, gy); c.rotate(-0.07)
+            c.poly(Col(0x4a3a2c), [-46, -6, 30, -6, 32, 1, -38, 1])
+            c.poly(Col(0x5a4634), [-46, -6, -52, -10, -46, -10])
+            var hp = -44.0
+            while hp < 30 { c.R(hp, -5.4, 0.5, 6, Col(0x2a2018, 0.6)); hp += 5 }
+            c.R(-50, -11, 82, 1.6, Col(0xc9b48a)); c.R(-50, -9.6, 82, 0.8, Col(0x8a3a2a))
+            c.R(-44, -20, 70, 9, Col(0x2a2420))
+            var pp = -44.0
+            while pp <= 26 { c.R(pp, -20, 1.2, 9, Col(0xe8e0cc)); pp += 7 }
+            for k in 0..<3 { c.RR(-38 + Double(k) * 6, -17, 5, 6, 1, Col(0xe8e2d0)); c.R(-38 + Double(k) * 6, -15, 5, 0.6, Col(0x8a7a5a)) }
+            for k in 0..<2 { c.RR(4 + Double(k) * 5, -16.6, 4, 5.6, 1.2, Col(0x6a4a2e)); c.R(4 + Double(k) * 5, -15, 4, 0.6, Col(0x3a3a3a)) }
+            c.R(-46, -21.6, 74, 1.6, Col(0xd8d0bc))
+            c.R(-40, -31, 62, 9.4, Col(0xf0ead8)); c.R(-40, -31, 62, 0.8, Col(0xffffff))
+            for k in 0..<10 { let wx2 = -38 + Double(k) * 6; c.R(wx2, -29, 3, 5.4, k == 3 || k == 7 ? Col(0x1c1612) : Col(0x3a4a5a)); c.R(wx2, -29, 3, 0.6, Col(0x8a3a2a)) }
+            c.poly(Col(0x1c1612), [-14, -31, -6, -31, -8, -24, -13, -26])
+            c.R(-46, -24.6, 74, 0.6, Col(0xd8d0bc))
+            var bal = -46.0
+            while bal < 28 { c.R(bal, -24, 0.5, 2.4, Col(0xd8d0bc)); bal += 2 }
+            c.R(-44, -33, 70, 2, Col(0xd8d0bc)); c.R(-44, -33, 70, 0.6, Col(0x8a3a2a))
+            c.R(-22, -39, 30, 6, Col(0xf0ead8)); for k in 0..<5 { c.R(-20 + Double(k) * 6, -37.6, 3, 3, Col(0x3a4a5a)) }
+            c.R(-24, -40.4, 34, 1.4, Col(0xd8d0bc))
+            c.R(-10, -47, 11, 6.6, Col(0xf0ead8)); c.R(-9, -45.6, 9, 3, Col(0x6a8aa0)); c.poly(Col(0x8a3a2a), [-12, -47, -4.5, -51, 3, -47])
+            c.R(-9, -45.6, 3, 3, Col(0x1c1612))
+            c.R(-30, -58, 3.4, 25, Col(0x2a2a30)); for k in 0..<5 { c.poly(Col(0x2a2a30), [-31.6 + Double(k) * 1.6, -58, -30.8 + Double(k) * 1.6, -61.4, -30 + Double(k) * 1.6, -58]) }
+            c.R(-30, -46, 3.4, 0.8, Col(0x6a6a72))
+            c.seg(-22, -34, 2, -52, 3.2, Col(0x2a2a30)); c.R(-1, -54, 4, 1.4, Col(0x2a2a30))
+            c.RR(-36, -21, 20, 4.4, 1, Col(0xead7a4)); c.text("REDWATER BELLE", -26, -17.8, 2.6, Col(0x8a3a2a), fit: 18)
             c.restore()
-            let wx = x + 36
-            c.circ(wx, gy - 4, 10, Col(0x8a3a2a)); c.circ(wx, gy - 4, 8.6, Col(0x5a6a5a, 0.4))
-            for k in 0..<8 { let an = Double(k) * PI / 4 + 0.3; c.seg(wx, gy - 4, wx + cos(an) * 9.4, gy - 4 + sin(an) * 9.4, 1, Col(0x6a2a1c)) }
-            c.R(wx - 12, gy - 2, 24, 6, Col(0x5a6a5a, 0.75))
-            for k in 0..<6 { let rx = x - 42 + Double(k) * 5 + (k > 2 ? 64 : 0); c.seg(rx, gy, rx - 1 + sin(t + Double(k)) * 0.6, gy - 7, 0.7, Col(0x6a7a3a)) }
+            let wx = x + 34
+            c.R(wx - 13, gy - 28, 4, 22, Col(0xe8e0cc)); c.poly(Col(0xd8d0bc), [wx - 14, gy - 28, wx, gy - 34, wx + 14, gy - 26, wx + 14, gy - 24, wx - 14, gy - 26])
+            c.circ(wx, gy - 10, 12, Col(0x8a3a2a)); c.circ(wx, gy - 10, 10.6, Col(0x3a3a3a, 0.25))
+            for k in 0..<10 where k != 3 && k != 7 {
+                let an = Double(k) * PI / 5 + 0.2
+                c.seg(wx, gy - 10, wx + cos(an) * 11.4, gy - 10 + sin(an) * 11.4, 0.8, Col(0x6a2a1c))
+                c.R(wx + cos(an) * 10 - 1.4, gy - 10 + sin(an) * 10 - 1.4, 2.8, 2.8, Col(0x5a4634))
+            }
+            c.circ(wx, gy - 10, 2, Col(0x3a3a3a))
+            c.R(wx - 16, gy - 4, 32, 7, Col(0x4f6a6a, 0.8)); c.R(wx - 14, gy - 4, 28, 0.6, Col(0xffffff, 0.25))
+            let lb = x - 42
+            c.seg(lb, gy - 34, lb - 4, gy - 40, 0.8, Col(0x6a6a72)); c.seg(lb - 4, gy - 40, lb - 6, gy - 30, 0.4, Col(0x8a7a5a))
+            c.save(); c.translate(lb - 6, gy - 28); c.rotate(1.1 + sin(t * 0.8) * 0.04); c.poly(Col(0xe8e0cc), [-6, -1.6, 6, -1.6, 4, 1.6, -4, 1.6]); c.R(-6, -1.6, 12, 0.6, Col(0x8a3a2a)); c.restore()
+            for k in 0..<9 { let rx = x - 56 + Double(k) * 4 + (k > 4 ? 98 : 0); c.seg(rx, gy + 1, rx - 1 + sin(t + Double(k)) * 0.7, gy - 7 - hashN(Double(k)) * 4, 0.7, Col(0x6a7a3a)) }
+            let hx = x + 58
+            c.seg(hx, gy, hx, gy - 9, 0.5, Col(0x8a8a8a)); c.seg(hx + 1.6, gy, hx + 1, gy - 9, 0.5, Col(0x8a8a8a))
+            c.ell(hx + 1, gy - 12, 3.6, 2.4, Col(0x9aa6b4)); c.seg(hx + 3, gy - 13, hx + 4, gy - 19, 0.9, Col(0x9aa6b4)); c.circ(hx + 4.4, gy - 19.6, 1.2, Col(0xb8c4d0)); c.seg(hx + 5.4, gy - 19.6, hx + 9, gy - 18.6, 0.6, Col(0xd8a850))
         case .pine:
             // a logging camp gone to seed: the bunkhouse fallen in, a long saw rusting, stumps, a length of flume on trestles
             c.R(x - 36, gy - 10, 26, 10, Col(0x5a4026))
@@ -1753,7 +1786,14 @@ final class Renderer {
             if on {
                 c.seg(r0 - 1.2, gy - 20, r1 + 1.8, gy - 20, 0.6, Col(0x3a3a3a))
                 let fx = r0 + (r1 - r0) * (0.5 + 0.38 * sin(t * 0.35)), bob = sin(t * 2.2) * 0.6
-                c.R(fx - 13, gy - 4 + bob, 26, 3, Col(0x7a5632)); c.R(fx - 13, gy - 4 + bob, 26, 0.6, Col(0xa8845a)); c.R(fx - 13, gy - 5.6 + bob, 1, 1.6, dk); c.R(fx + 12, gy - 5.6 + bob, 1, 1.6, dk)
+                c.poly(Col(0x5a4026), [fx - 15, gy - 4 + bob, fx + 15, gy - 4 + bob, fx + 13, gy - 0.6 + bob, fx - 13, gy - 0.6 + bob])
+                c.R(fx - 15, gy - 4.6 + bob, 30, 1.6, Col(0x8a6238)); var pl = -14.0
+                while pl < 15 { c.R(fx + pl, gy - 4.4 + bob, 0.4, 1.2, Col(0x3a2a1c, 0.6)); pl += 3 }
+                for rxx in [-14.0, -7, 0, 7, 14] { c.R(fx + rxx, gy - 9 + bob, 0.8, 4.6, dk) }
+                c.R(fx - 14, gy - 9 + bob, 29, 0.8, dk); c.R(fx - 14, gy - 7 + bob, 29, 0.5, dk)
+                c.RR(fx + 3, gy - 9 + bob, 6, 4.6, 0.6, Col(0x9a7a52)); c.seg(fx + 3, gy - 9 + bob, fx + 9, gy - 4.4 + bob, 0.4, Col(0x5a4026))
+                c.ellStroke(fx - 6, gy - 8 + bob, 3, 3, 0.7, Col(0x3a2a1c)); c.seg(fx - 9, gy - 8 + bob, fx - 3, gy - 8 + bob, 0.4, Col(0x3a2a1c))
+                c.R(fx + 11, gy - 13 + bob, 0.8, 4, dk); c.R(fx + 10.2, gy - 15 + bob, 2.4, 2.4, Col(0xffd27a, g.dark() > 0.4 ? 0.95 : 0.5))
                 c.seg(fx, gy - 4 + bob, fx, gy - 20, 0.5, Col(0x3a3a3a, 0.7))
                 person(g.river.0 + (g.river.1 - g.river.0) * (0.5 + 0.38 * sin(t * 0.35)) - 6, 0, 1, false, 5, .folk, false)
                 for k2 in 0..<3 { let u = (t * 0.7 + Double(k2) / 3).truncatingRemainder(dividingBy: 1); c.R(fx - 15 - u * 8, gy - 2.6 + bob, 3, 0.5, Col(0xffffff, 0.6 * (1 - u))) }
@@ -3448,7 +3488,8 @@ final class Renderer {
             let span = W + 260
             let x = (hashN(Double(i) * 3.7) * span + g.clock * (4 + Double(i % 3) * 2) - g.cam * 0.6).truncatingRemainder(dividingBy: span) - 130
             let y = gy - 4 + hashN(Double(i) * 1.3) * 14
-            c.ell(x < -130 ? x + span : x, y, 70 + hashN(Double(i)) * 60, 6 + hashN(Double(i) * 2.1) * 5, Col(0xf4f6f8, 0.16 * a))
+            c.ell(x < -130 ? x + span : x, y, 70 + hashN(Double(i)) * 60, 9 + hashN(Double(i) * 2.1) * 8, Col(0xf4f6f8, 0.28 * a))
+            c.ell(x < -130 ? x + span : x, y - 6, 40 + hashN(Double(i) * 4) * 40, 5, Col(0xffffff, 0.18 * a))
         }
     }
 
