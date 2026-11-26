@@ -1296,6 +1296,21 @@ final class Renderer {
                 for j in 0..<5 { c.circ(x - 1 + Double(j) * 2.5, GY + 3, 1.2, Col(0x7a7068)) }
             }
             c.poly(Col(0x3f6a8a), [x + 16, GY + 2, x + 17, GY - 8, x + 19, GY - 8, x + 20, GY - 2, x + 25, GY - 2, x + 25, GY + 2])
+            if g.rigArea == g.area && g.phase == .play {
+                // home: an outdoor rug, a second chair, a little table with a lantern, the solar suitcase, the dog's bowl
+                let rug = [Col(0xb5452f), Col(0xf2c14e), Col(0x3a6ea5), Col(0x3f8f6a)]
+                for k in 0..<8 { c.R(x - 34 + Double(k) * 4, GY + 4.5, 4, 2.4, rug[k % 4].shade(1 - dark * 0.5)) }
+                c.poly(Col(0xb5452f).shade(1 - dark * 0.4), [x - 12, GY + 2, x - 11, GY - 8, x - 9, GY - 8, x - 8, GY - 2, x - 3, GY - 2, x - 3, GY + 2])
+                c.R(x + 28, GY - 7, 10, 1.4, Col(0xe8e0d0).shade(1 - dark * 0.4))
+                c.R(x + 29, GY - 6, 0.8, 7, Col(0x8a8a88)); c.R(x + 36, GY - 6, 0.8, 7, Col(0x8a8a88))
+                c.RR(x + 31, GY - 11, 3, 4, 0.8, Col(0x2a2a2e)); c.circ(x + 32.5, GY - 9, 1, Col(0xffd68a))
+                if dark > 0.3 { lights.append((x + 32.5, GY - 9, 22)) }
+                if g.panels > 0 {
+                    c.poly(Col(0x24324a).shade(1 - dark * 0.3), [x + 44, GY + 2, x + 48, GY - 10, x + 62, GY - 10, x + 58, GY + 2])
+                    for k in 0..<3 { c.seg(x + 46.6 + Double(k) * 4.4, GY - 1, x + 50 + Double(k) * 4.4, GY - 9.6, 0.3, Col(0x6a8aaa)) }
+                }
+                if g.hasDog { c.ell(x - 22, GY + 2.4, 2.4, 0.9, Col(0x3a6ea5)); c.ell(x - 22, GY + 2, 1.6, 0.5, Col(0x8ab4d8)) }
+            }
             top = 30
         case .bench:
             c.R(x - 12, GY - 9, 24, 1.6, Col(0xd8d4cc))

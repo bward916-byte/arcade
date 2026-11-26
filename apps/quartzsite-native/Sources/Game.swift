@@ -43,8 +43,8 @@ struct ToyDef {
     let range: Double
 }
 let TOYS: [ToyDef] = [
-    ToyDef(name: "Bicycle", price: 60, speed: 80, len: 20, perMile: 0, range: 6),
-    ToyDef(name: "E-bike", price: 350, speed: 100, len: 21, perMile: 0, range: 15),
+    ToyDef(name: "Bicycle", price: 60, speed: 115, len: 20, perMile: 0, range: 6),
+    ToyDef(name: "E-bike", price: 350, speed: 140, len: 21, perMile: 0, range: 15),
     ToyDef(name: "Dirt bike", price: 800, speed: 150, len: 25, perMile: 0.07, range: 0),
     ToyDef(name: "Quad", price: 1200, speed: 135, len: 27, perMile: 0.15, range: 0),
     ToyDef(name: "Used car", price: 1800, speed: 160, len: 46, perMile: 0.15, range: 0),
@@ -194,6 +194,8 @@ let AREAS: [AreaDef] = [
 ]
 let LANDMARKS = ["Pay respects at Hi Jolly's tomb", "Browse the books", "Read the stage-stop plaque", "Walk the old cemetery", "Walk Celia's Rainbow Gardens"]
 let CAMELS = 6
+/// Odd jobs pinned to the bulletin board: one a day, a new one each morning.
+let JOBS: [(String, Int)] = [("Wash a Class A", 40), ("Help set up a vendor tent", 30), ("Haul water for a neighbor", 20), ("Fix a flat on a fifth wheel", 35), ("Dog-sit for the day", 25), ("Install a neighbor's solar panel", 50), ("Unload a rock dealer's trailer", 45)]
 /// Traffic on the highway: a car, then rigs. Lengths match the drawings.
 let CAR_LEN: [Double] = [46, 59, 63, 87, 118, 96]
 
@@ -975,7 +977,9 @@ final class Game {
         case .outhouse:
             return health < 96 ? Offer(label: "Use the outhouse", cost: 0, earn: 0, dur: 1.0) : nil
         case .board:
-            return business > 0 && adDays == 0 ? Offer(label: "Post an ad: " + BIZ[business - 1].name, cost: 10, earn: 0, dur: 1.2) : nil
+            if business > 0 && adDays == 0 { return Offer(label: "Post an ad: " + BIZ[business - 1].name, cost: 10, earn: 0, dur: 1.2) }
+            if !seen.contains(23) && health > 15 { let j = JOBS[day % JOBS.count]; return Offer(label: "Odd job: " + j.0, cost: 0, earn: j.1, dur: 2.6) }
+            return nil
         case .grocery:
             return health < 96 ? Offer(label: "Groceries", cost: 15, earn: 0, dur: 1.0) : nil
         case .gemworld:
@@ -1079,7 +1083,8 @@ final class Game {
         case .station: return rig == .tent ? "Tents don't need it" : (seen.contains(11) ? "Done for today" : "Drive your rig over to dump and fill")
         case .outhouse: return "You're good for now"
         case .board:
-            if business == 0 { return "Start a business at Town Hall, then advertise here" }
+            if seen.contains(23) { return business > 0 ? "Your ad is up \(adDays) more days. New jobs tomorrow" : "New odd jobs go up every morning" }
+            if business == 0 { return "Too worn out for work. Rest first" }
             return "Your ad is up \(adDays) more days"
         case .grocery: return "You're not hungry"
         case .gemworld: return "Pack is full"
@@ -1176,9 +1181,15 @@ final class Game {
             health = min(100, health + 6)
             float("Relief", x, GREEN)
         case .board:
-            adDays = 3
-            cred += 1
-            float("Ad posted for 3 days", x, CREAM)
+            if o.label.hasPrefix("Odd job") {
+                seen.insert(23)
+                health = max(0, health - 8)
+                cred += 1
+            } else {
+                adDays = 3
+                cred += 1
+                float("Ad posted for 3 days", x, CREAM)
+            }
         case .grocery:
             health = min(100, health + 45)
             float("Fed", x, GREEN)
