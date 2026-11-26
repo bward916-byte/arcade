@@ -631,6 +631,47 @@ extension Game {
             c.restore()
         }
     }
+    /// A wall of green water marching in from ahead; the ship climbs its face.
+    func rogueWave(_ c: Canvas, _ wy: Double, front: Bool) {
+        let k = smooth(sceneT / 3.2)
+        let cx = lerp(W * 1.25, W * 0.62, k)
+        let h = lerp(30, H * 0.42, k)
+        let base = wy + 30
+        if !front {
+            // the back of it, far side, dark
+            c.pathFill(Col(0x1c4a60)) { p in
+                p.move(to: CGPoint(x: cx - h * 2.2, y: base))
+                p.addQuadCurve(to: CGPoint(x: cx, y: base - h), control: CGPoint(x: cx - h * 1.0, y: base - h * 0.2))
+                p.addQuadCurve(to: CGPoint(x: cx + h * 1.6, y: base), control: CGPoint(x: cx + h * 0.6, y: base - h * 1.05))
+                p.closeSubpath()
+            }
+            c.pathFill(Col(0x2e7a8e, 0.85)) { p in
+                p.move(to: CGPoint(x: cx - h * 1.6, y: base))
+                p.addQuadCurve(to: CGPoint(x: cx - h * 0.08, y: base - h * 0.96), control: CGPoint(x: cx - h * 0.8, y: base - h * 0.15))
+                p.addLine(to: CGPoint(x: cx + h * 0.1, y: base))
+                p.closeSubpath()
+            }
+            // streaks down its face
+            for j in 0..<7 {
+                let f = Double(j) / 7
+                let sx = cx - h * (0.2 + f * 1.1)
+                c.seg(sx, base - h * (0.9 - f * 0.8), sx - h * 0.12, base - h * (0.6 - f * 0.55), 1.4, Col(0xd8f4ff, 0.35))
+            }
+        } else {
+            // the crest curling over, foam blowing off it
+            let cr = cx - h * 0.02, ct = wy + 30 - h
+            c.pathFill(Col(0xf2fbff, 0.95)) { p in
+                p.move(to: CGPoint(x: cr - h * 0.35, y: ct + h * 0.12))
+                p.addQuadCurve(to: CGPoint(x: cr + h * 0.1, y: ct - h * 0.04), control: CGPoint(x: cr - h * 0.15, y: ct - h * 0.06))
+                p.addQuadCurve(to: CGPoint(x: cr - h * 0.22, y: ct + h * 0.22), control: CGPoint(x: cr + h * 0.02, y: ct + h * 0.16))
+                p.closeSubpath()
+            }
+            for j in 0..<14 {
+                let ph = (T * 0.9 + Double(j) / 14).truncatingRemainder(dividingBy: 1)
+                c.circ(cr - h * 0.2 - ph * h * 0.6 + sin(Double(j) * 3) * 10, ct + ph * 18 - sin(ph * PI) * 26, 2 + ph * 5, Col(0xffffff, 0.75 * (1 - ph)))
+            }
+        }
+    }
     /// One arm of the kraken: up out of the water, curling over, feeling about.
     func krakenArm(_ c: Canvas, _ x: Double, _ y: Double, _ h: Double, _ ph: Double) {
         let rise = clampD(sceneT / 1.2, 0, 1)
@@ -671,6 +712,21 @@ extension Game {
         let acting = omen || card != nil
         let deckEv = Game.deckScenes.contains(sceneK)
         var zT = 2.6, fxT = W * 0.5, fyT = H * 0.66
+        if !acting && play == nil && sceneK.isEmpty {
+            // nothing happening: the camera keeps moving, close on the deck, along to the bow, then out to the whole sea
+            let cyc = T * 0.035
+            let shot = Int(cyc) % 3
+            let ph = cyc - floor(cyc)
+            let inOut = smooth((ph - 0.08) / 0.2) * (1 - smooth((ph - 0.8) / 0.18))
+            let pan = sin(T * 0.11) * W * 0.07
+            if shot == 1 {
+                zT = lerp(2.6, 2.2, inOut); fxT = W * 0.5 + pan - inOut * W * 0.16; fyT = H * 0.66 - inOut * H * 0.04
+            } else if shot == 2 {
+                zT = lerp(2.6, 1.05, inOut); fxT = lerp(W * 0.5 + pan, pv.0, inOut); fyT = lerp(H * 0.66, pv.1, inOut)
+            } else {
+                fxT = W * 0.5 + pan
+            }
+        }
         if play != nil || (acting && !sceneK.isEmpty && !deckEv) {
             zT = 1; fxT = pv.0; fyT = pv.1
             if sceneK == "overboard" && play == nil { zT = 1.35; fxT = W * 0.58; fyT = H * 0.6 }
@@ -795,6 +851,8 @@ extension Game {
                 for g in 0..<6 { let a = -PI / 2 + (Double(g) - 2.5) * 0.14; c.seg(wx - 40, base - 2, wx - 40 + cos(a) * 46 * sin(k * PI), base - 2 + sin(a) * 52 * sin(k * PI), 1.8, Col(0xffffff, 0.8 * (1 - k))) }
                 c.ell(wx - 30, base, 44, 7, wBody)
             }
+        } else if theme == "rogue" {
+            rogueWave(c, wy, front: false)
         } else if theme == "spout" {
             // a rope of water from the cloud to the sea, writhing as it comes
             let cx = W * 1.02 - W * 0.24 * near
@@ -851,7 +909,17 @@ extension Game {
                 for a in [-2.5, -1.8, -1.0, -0.3, 0.4] { c.curve(px + 8 + sw, wy - 84, px + 8 + sw + cos(a) * 22, wy - 90 + sin(a) * 20, px + 8 + sw + cos(a) * 40, wy - 76 + sin(a) * 28, 4.5, Col(0x3f7a3c)) }
             }
         }
+        // she rolls and heaves with the sea, more in a blow; a giant wave lifts her bow to the sky
+        let rg = sceneK == "rogue" ? smooth((sceneT - 2.4) / 1.4) : 0
+        let roll = sin(T * 0.8) * 0.012 * (1 + 3 * rough) + sin(T * 1.9) * 0.004 * rough - rg * 0.24
+        let heave = sin(T * 1.1) * 2 * (1 + 2 * rough) - rg * 46
+        c.save()
+        c.translate(W * 0.42, wy + heave)
+        c.rotate(roll)
+        c.translate(-W * 0.42, -wy)
         drawShip(c, W * 0.42, wy, min(W * 0.3, 280) * ship.len, ship.masts, life: true)
+        c.restore()
+        if sceneK == "rogue" { rogueWave(c, wy, front: true) }
         foreWave(c, wy + 5, 0, W)
         seaLifeFront(c, hz, wy)
         if theme == "kraken" {

@@ -17,9 +17,9 @@ extension Game {
     /// How long each event is watched before the question is put. The big ones are given more room.
     static func omenSecs(_ k: String) -> Double {
         switch k {
-        case "kraken", "plank", "comet", "whitewhale", "stelmo", "neptune", "lightning": return 6.4
-        case "pirates", "blockade", "storm", "spout", "ghost", "whale", "fall", "galley", "brawl", "overboard", "albatross", "grumble": return 5.4
-        default: return 4.4
+        case "kraken", "plank", "comet", "whitewhale", "stelmo", "neptune", "lightning", "rogue": return 5.0
+        case "pirates", "blockade", "storm", "spout", "ghost", "whale", "fall", "galley", "brawl", "overboard", "albatross", "grumble": return 4.2
+        default: return 3.4
         }
     }
     /// What is shouted on deck as it happens.
@@ -46,6 +46,7 @@ extension Game {
         "rats": ["Rats!", "They're in the bread!", "Get the broom!"],
         "whale": ["There she blows!", "Look at the size of her!"],
         "spout": ["Waterspout!", "It's coming this way!", "Hard over!"],
+        "rogue": ["Look at THAT!", "Hold on to something!", "Bow on! Bow on!"],
         "spar": ["The yard's gone!", "Stand from under!", "Haul! Haul!"],
         "stowaway": ["Captain! Look here!", "Let go of me!", "Found him in a cask"],
         "catch": ["It's a monster!", "Mind its teeth!", "Hold it! HOLD IT!"],
@@ -88,6 +89,7 @@ extension Game {
         "rats": ("Squealing in the stores", "Rats, and plenty of them"),
         "whale": ("There she blows!", "A whale, close aboard to starboard"),
         "spout": ("A waterspout!", "A twisting column is walking across the sea"),
+        "rogue": ("The sea rises up ahead", "A wave as tall as the mainmast"),
         "spar": ("A crack like a gunshot", "The main yard has carried away"),
         "stowaway": ("A shout from the hold", "The cooper has found someone in a cask"),
         "catch": ("The stern line goes bar-tight", "Something big is coming over the rail"),
@@ -134,7 +136,7 @@ extension Game {
             ("sick", 0.9, 0.9), ("merchant", 1, 2.2), ("bottle", 0.8, 0.8), ("leak", 1.1, 0.9), ("castaway", 0.8, 0.8),
             ("ghost", 1.2, 0.6), ("dolphins", 1, 1.6), ("fog", 1, 1.2), ("overboard", 0.8, 0.7),
             ("fall", 1.1, 1.0), ("brawl", 1.0, 1.0), ("galley", 0.9, 0.9), ("rats", 0.9, 1.0),
-            ("whale", 1.0, 0.6), ("spout", 0.9, 0.6), ("spar", 1.0, 0.9), ("stowaway", 0.7, 0.9), ("catch", 0.9, 1.1),
+            ("whale", 1.0, 0.6), ("spout", 0.9, 0.6), ("rogue", 1.0, 0.7), ("spar", 1.0, 0.9), ("stowaway", 0.7, 0.9), ("catch", 0.9, 1.1),
             ("scurvy", 1.0, 0.5), ("foulwater", 0.9, 0.7), ("weevils", 0.9, 0.8),
             ("neptune", 0.7, 0.4), ("albatross", 0.8, 0.6), ("grumble", 0.8, 0.8), ("flotsam", 0.9, 1.1), ("lightning", 0.8, 0.4)
         ]
@@ -489,6 +491,26 @@ extension Game {
                     }
                 },
                 Opt("Watch her go") { [unowned self] in self.done("The whole watch lines the rail until she sounds") }
+            ])
+        case "rogue":
+            logIt("Met a giant wave")
+            show("A giant wave", "She is climbing a wall of water, bow to the sky. Everything not lashed down is sliding aft.", [
+                Opt("Meet it bow on", "she may take damage") { [unowned self] in
+                    if chance(0.6) {
+                        self.done("Up, over, and down the far side with a crash. She shakes herself and sails on")
+                    } else {
+                        self.dmg(8)
+                        if !self.over { self.done("She buries her bow in the next one. The head rails are gone: -8 hull") }
+                    }
+                },
+                Opt("Run before it", "lose \(SUNS) days") { [unowned self] in
+                    self.passDays(1)
+                    if !self.over { self.done("You turn and run, and it rolls under you. Far off course now") }
+                },
+                Opt("Lash the crew down", "-4 stores washed away") { [unowned self] in
+                    self.food = max(0, self.food - 4)
+                    self.done("Every man holds. Some casks do not: -4 stores")
+                }
             ])
         case "spout":
             logIt("Met a waterspout")

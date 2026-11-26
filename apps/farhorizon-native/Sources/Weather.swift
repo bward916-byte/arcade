@@ -19,10 +19,11 @@ extension Game {
         wxDays -= 1
         if wxDays > 0 { return }
         let r = rnd(0, 1)
-        if r < 0.5 { setWeather(0, days: rndI(1, 3)) }
-        else if r < 0.7 { setWeather(1, days: rndI(1, 2)) }
-        else if r < 0.87 { setWeather(2, days: rndI(1, 2)) }
-        else if r < 0.93 { setWeather(3, days: 1) }
+        // the weather turns often, so no stretch of sea looks like the last
+        if r < 0.4 { setWeather(0, days: rndI(1, 2)) }
+        else if r < 0.6 { setWeather(1, days: 1) }
+        else if r < 0.78 { setWeather(2, days: rndI(1, 2)) }
+        else if r < 0.92 { setWeather(3, days: 1) }
         else { setWeather(4, days: 1) }
     }
     /// What the day's weather does to the ship, beyond how it looks.

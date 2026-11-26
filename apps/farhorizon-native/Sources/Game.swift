@@ -556,7 +556,7 @@ final class Game {
         dist = 0; dayT = 0; sinceEvent = 0
         legAte = 0; legDrank = 0
         evMarks = []
-        nextEvAt = nowDays() + rnd(4, 7)
+        nextEvAt = nowDays() + rnd(2, 4)
         autoPost()
         mode = .sail
         card = nil
@@ -715,7 +715,7 @@ final class Game {
                 if !sceneK.isEmpty {
                     // whatever it was is over: nothing more for a week at the least
                     sceneK = ""
-                    nextEvAt = nowDays() + rnd(7, 11)
+                    nextEvAt = nowDays() + rnd(4, 6)
                 }
                 // she gathers way again after whatever stopped her
                 pace = min(1, pace + dt / 0.8)
@@ -732,7 +732,7 @@ final class Game {
                 if dist >= legLen {
                     arrive()
                 } else if nowDays() >= nextEvAt {
-                    nextEvAt = nowDays() + rnd(7, 11)
+                    nextEvAt = nowDays() + rnd(4, 6)
                     rollEvent()
                 } else if dayT >= DAYLEN {
                     dayT = 0
@@ -834,6 +834,9 @@ final class Game {
         if name == "coach3" { UserDefaults.standard.set(false, forKey: "fh_coached"); leg = 1; mode = .port; food = 4; portJobs = []; return }
         if name == "choices" { UserDefaults.standard.set(true, forKey: "fh_coached"); leg = 1; mode = .sail; food = 40; powder = 5; planks = 4; event("kraken"); cardT = 9; return }
         if name == "chartc" { UserDefaults.standard.set(false, forKey: "fh_coached"); leg = 0; mode = .chart; return }
+        if name == "evrogue" { startOmen("rogue"); sceneT = 3.4; omenT = 2.6; Game.omenHold = true; return }
+        if name == "evrogue2" { startOmen("rogue"); sceneT = 5; omenK = ""; event("rogue"); return }
+        if name == "wideshot" { leg = 1; mode = .sail; nextEvAt = 9999; T = 2.5 / 0.035; camZ = 1.1; return }
         if name == "intro" { mode = .title; showIntro(); return }
         if name == "outfit" { shipI = 1; crew = ship.crew; hull = Double(ship.hull); syncMen(); marketPort = false; mode = .outfit; provision(storesNeeded() + 8); return }
         if name == "lowsea" { leg = 1; mode = .sail; legLen = 300; dist = 60; food = 6; deckForce = 0; camZ = 2.6; nextEvAt = 9999; return }
