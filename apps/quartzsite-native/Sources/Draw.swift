@@ -571,8 +571,9 @@ final class Renderer {
         let ry0 = GY - 25, ry1 = GY + 15
         if g.driveDirt {
             c.R(0, ry0 + 4, W, ry1 - ry0 - 8, Col(0xb8925e).shade(1 - dark * 0.6))
-            c.R(0, ry0 + 12, W, 2.4, Col(0x9a7448).shade(1 - dark * 0.6))
-            c.R(0, ry1 - 12, W, 2.4, Col(0x9a7448).shade(1 - dark * 0.6))
+            let lb = g.laneBase(1)
+            c.R(0, lb - 7, W, 2.4, Col(0x9a7448).shade(1 - dark * 0.6))
+            c.R(0, lb - 1.4, W, 2.6, Col(0x9a7448).shade(1 - dark * 0.6))
             for i in 0..<40 {
                 let d = Double(i)
                 let x = (hashN(d + 30) * (W + 60) - cam).truncatingRemainder(dividingBy: W + 60)
@@ -601,7 +602,7 @@ final class Renderer {
             c.RR(sgx - 26, ry0 - 44, 52, 17, 2, Col(0x1f6a3a).shade(1 - dark * 0.4))
             c.RR(sgx - 24.6, ry0 - 42.6, 49.2, 14.2, 1.4, Col(0xf4f1ea, 0.9))
             c.RR(sgx - 24, ry0 - 42, 48, 13, 1.2, Col(0x1f6a3a).shade(1 - dark * 0.4))
-            let name = AREAS[g.driveTo.rawValue].name.uppercased()
+            let name = (g.driveTo == .skoolie ? "Ehrenberg" : AREAS[g.driveTo.rawValue].name).uppercased()
             g.text(name.count > 12 ? String(name.prefix(12)) : name, sgx, ry0 - 38.5, 3.6, Col(0xf4f1ea), bold: true)
             g.text("\(Int(g.driveLeft.rounded(.up))) mi", sgx, ry0 - 32.5, 3.8, Col(0xf4f1ea), bold: true)
         }
