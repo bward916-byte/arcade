@@ -2025,7 +2025,7 @@ final class Game {
     var yardMen: [Bandit] = []
     var routT = -1.0             // his men have seen the town coming and are running
     var toTitle = false          // after the last scene, back to the title
-    var craneX: Double { return min(gateE.x + 300, WORLD - 170) }
+    var craneX: Double { return EX(2425) }      // between the two drifter camps east of town
 
     private func updRally(_ dt: Double) {
         if rallyBlock == "done" { return }
@@ -2594,7 +2594,7 @@ final class Game {
         if state != .play || over || !cut.isEmpty || gallery != nil || duel != nil || choosing { return "" }
         if dark() > 0.5 { return raidOn ? "Tonight: hold the gates until dawn." : "" }
         if folk.isEmpty { return "Next: toss a coin to a drifter at a campfire outside town." }
-        if lastTown && !seen.contains("st_end") {
+        if lastTown && !seen.contains("st_end") && rallyBlock != "done" {
             if rallyOn { return routT >= 0 ? "" : "Keep riding east to Crane\u{2019}s yard: the town is behind you." }
             let why = rallyBlock
             if why.isEmpty { return "Bitter End is ready. Ride out the east gate and they will follow you to run Crane off." }
