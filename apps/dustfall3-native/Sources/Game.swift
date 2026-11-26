@@ -1179,7 +1179,7 @@ final class Game {
         if name == "rout" {
             place = "bitterend"; town = 4; log = ["dustfall", "redwater", "lasthope", "coldcreek"]; day = 36; day0 = 33; layTown()
             t = 0.3; noStory = true; hintT = 0; pdir = 1
-            px = craneX - 85; holdRout = 2.7
+            px = craneX + 30; holdRout = 1.75
             for k in 0..<14 { folk.append(Folk(x: px - 20 - Double(k) * 7)) }
             rallyOn = true
         }
