@@ -1166,6 +1166,14 @@ final class Game {
             place = "bitterend"; town = 4; log = ["dustfall", "redwater", "lasthope", "coldcreek"]; day = 36; day0 = 33; layTown()
             t = 0.4; noStory = true; hintT = 0; px = gateW.x + 30; pdir = -1
         }
+        if name == "march" {
+            // the real thing, not posed: twelve-plus at work in town, a raider still hanging about, and you already past the east gate
+            place = "bitterend"; town = 4; log = ["dustfall", "redwater", "lasthope", "coldcreek"]; day = 36; day0 = 33; layTown()
+            t = 0.3; noStory = true; hintT = 0; pdir = 1
+            for k in 0..<14 { folk.append(Folk(x: 1200 + Double(k) * 30)) }
+            bandits.append(Bandit(x: 700, rider: false, side: -1, hp: 2))
+            px = gateE.x + 60
+        }
         if name == "rally" {
             place = "bitterend"; town = 4; log = ["dustfall", "redwater", "lasthope", "coldcreek"]; day = 36; day0 = 33; layTown()
             t = 0.4; noStory = true; hintT = 0; seen.insert("rally")
@@ -1256,7 +1264,7 @@ final class Game {
         updPlayer(dt)
         updCoins(dt)
         updFolk(dt)
-        updRally()
+        updRally(dt)
         updBuild(dt)
         updRaid(dt)
         updBandits(dt)
@@ -1987,12 +1995,23 @@ final class Game {
     }
 
     /// In the last town: gather enough townsfolk, then lead them out the east gate to run Crane off.
-    private func updRally() {
-        if !lastTown || endNow || seen.contains("st_end") { return }
-        let ready = folk.count >= RALLY_N && dark() < 0.4 && bandits.isEmpty && cut.isEmpty && duel == nil && gallery == nil
+    /// Why the last town won't march yet, or "" when it will.
+    var rallyBlock: String {
+        if !lastTown || endNow || seen.contains("st_end") { return "done" }
+        let n = folk.filter { !$0.sick }.count
+        if n < RALLY_N { return "Townsfolk: \(n) of \(RALLY_N). Gather \(RALLY_N) to run Crane out of Bitter End." }
+        if dark() > 0.5 { return "Bitter End is ready. They will march at first light." }
+        if duel != nil || gallery != nil || !cut.isEmpty { return "wait" }
+        return ""
+    }
+    var rallyT = 0.0
+
+    private func updRally(_ dt: Double) {
+        if rallyBlock == "done" { return }
         if !rallyOn {
             // they gather only once you ride out the east gate; until then the town gets on with its work
-            if ready && px > gateE.x + 20 {
+            if rallyBlock.isEmpty && px > gateE.x + 20 {
+                rallyT = 0
                 rallyOn = true; buzz(2); sfx?.fanfare(); flash = 0.3
                 hint("rally", "Bitter End comes out behind you, torches up. Keep riding east: they will follow you to Crane\u{2019}s yard.", again: true)
             }
@@ -2000,9 +2019,10 @@ final class Game {
         }
         // turn back into town, or let night fall, and they go back to work
         if dark() > 0.5 || px < gateE.x - 40 { rallyOn = false; return }
+        rallyT += dt
         // sparks off the torches as they go
         for f in folk where chance(0.05) { parts.append(Part(x: f.x - f.dir * 4, y: -24, vx: rnd(-8, 8), vy: -rnd(10, 30), life: 0.6, max: 0.6, c: Col(0xffb04a), s: 1, grav: 0)) }
-        if px > gateE.x + 180 && folk.filter({ $0.x > gateE.x }).count * 2 >= folk.count {
+        if px > gateE.x + 180 && (folk.filter({ $0.x > gateE.x }).count * 2 >= folk.count || rallyT > 12) {
             endNow = true; rallyOn = false
         }
     }
@@ -2535,8 +2555,10 @@ final class Game {
         if dark() > 0.5 { return raidOn ? "Tonight: hold the gates until dawn." : "" }
         if folk.isEmpty { return "Next: toss a coin to a drifter at a campfire outside town." }
         if lastTown && !seen.contains("st_end") {
-            if rallyOn { return "Lead them out the east gate to run Crane off." }
-            if folk.count >= RALLY_N { return "Bitter End is ready. Ride out the east gate by day and they will follow you to run Crane off." }
+            if rallyOn { return "Keep riding east: they are behind you." }
+            let why = rallyBlock
+            if why.isEmpty { return "Bitter End is ready. Ride out the east gate and they will follow you to run Crane off." }
+            if why != "wait" && why != "done" && (folk.count >= RALLY_N || !why.hasPrefix("Townsfolk")) { return why }
             if folk.count >= RALLY_N / 2 { return "Townsfolk: \(folk.count) of \(RALLY_N). Gather \(RALLY_N) to run Crane out of Bitter End." }
         }
         if rackN.values.contains(where: { $0 > 0 }) && !folk.contains(where: { $0.role == .folk && !$0.sick }) { return "Next: the racks are full but no townsman is free. Hire a drifter at a campfire." }

@@ -44,7 +44,7 @@ final class Renderer {
         racks()
         if g.hall.level == 0 { campfire(FIRE_X, 1.0) }
         for bl in g.b where bl.def.gate { gate(bl) }
-        if g.lastTown && g.folk.count >= RALLY_N && !g.rallyOn && !g.endNow {
+        if g.rallyBlock.isEmpty && !g.rallyOn {
             // point the way out: a bobbing arrow over the east gate, and one at the screen edge when it is off to the right
             let gx = sx(g.gateE.x + 7), bob = sin(g.clock * 4) * 2
             let ax = min(gx, W - 14), ay = gy - 34 + bob
