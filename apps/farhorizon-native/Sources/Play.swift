@@ -41,7 +41,30 @@ final class Play {
     var msgT = 0.0
     var msgGood = true
     var endT = -1.0
+    var endLen = 1.0
     var finished = false
+    // the show: a streak counter, words that jump off the screen, a flash on a perfect, the marker's trail
+    var streak = 0
+    var bestStreak = 0
+    var pops: [(x: Double, y: Double, t: Double, s: String, good: Bool, big: Bool)] = []
+    var flash = 0.0
+    var trail: [Double] = []
+    var starsShown = 0
+    /// How well it went, out of three, for the banner at the end.
+    func stars() -> Int {
+        switch kind {
+        case .timing:
+            if stopOnHit { return score > 0 ? (perfect > 0 ? 3 : 2) : 0 }
+            let r = Double(score) / Double(max(1, rounds))
+            return r >= 1 ? (perfect * 2 >= rounds ? 3 : 2) : (r >= 0.5 ? 1 : 0)
+        case .taps:
+            let r = Double(score) / Double(max(1, total))
+            return r >= 1 ? 3 : (r >= 0.67 ? 2 : (r >= 0.34 ? 1 : 0))
+        case .pick:
+            return -1
+        }
+    }
+    func pop(_ x: Double, _ y: Double, _ s: String, _ good: Bool, big: Bool = false) { pops.append((x, y, 0, s, good, big)) }
     let finish: (Play) -> Void
 
     init(_ kind: Kind, _ theme: String, _ title: String, _ hint: String, _ finish: @escaping (Play) -> Void) {
@@ -51,7 +74,7 @@ final class Play {
 }
 
 /// What can lie under a spot: 0 nothing, 1 some gold, 2 a hoard, 3 stores, 4 planks, 5 powder, 6 water, 7 trouble, 8 a map
-let SPOT_NAMES = ["Empty", "Gold", "Treasure!", "Food", "Planks", "Powder", "Water", "Trouble!", "A map"]
+let SPOT_NAMES = ["Empty", "Gold", "Treasure!", "Stores", "Planks", "Powder", "Stores", "Trouble!", "A map"]
 
 extension Game {
     func startPlay(_ p: Play) {
@@ -70,6 +93,18 @@ extension Game {
         guard let p = play else { return }
         p.t += dt
         p.msgT = max(0, p.msgT - dt)
+        p.flash = max(0, p.flash - dt)
+        for i in 0..<p.pops.count { p.pops[i].t += dt }
+        p.pops.removeAll { $0.t > 1.1 }
+        if p.endT >= 0 && p.kind != .pick {
+            let el = p.endLen - p.endT
+            let st = p.stars()
+            if p.starsShown < st && el > 0.25 + Double(p.starsShown) * 0.22 {
+                p.starsShown += 1
+                snd?.coin()
+                buzz?(false)
+            }
+        }
         // the sea keeps moving behind the game
         tod = (tod + dt / DAYLEN * 0.05).truncatingRemainder(dividingBy: 1)
         scroll += dt * (mode == .port || p.theme == "wreck" || p.theme == "island" || p.theme == "ghost" ? 8 : 70 * ship.speed)
@@ -85,6 +120,8 @@ extension Game {
         switch p.kind {
         case .timing:
             p.pos += p.dir * p.speed * dt
+            p.trail.append(p.pos)
+            if p.trail.count > 9 { p.trail.removeFirst() }
             if p.pos > 1 { p.pos = 1; p.dir = -1 }
             if p.pos < 0 { p.pos = 0; p.dir = 1 }
         case .taps:
@@ -121,6 +158,8 @@ extension Game {
                         p.targets[i].state = 2
                         p.targets[i].age = 0
                         p.missed += 1
+                        p.streak = 0
+                        p.pop(p.targets[i].x, p.targets[i].y - 26, "Missed", false)
                         shake = 0.25
                         snd?.thud()
                         buzz?(true)
@@ -130,7 +169,7 @@ extension Game {
                     }
                 }
             }
-            if p.spawned >= p.total && open == 0 { p.endT = 0.9 }
+            if p.spawned >= p.total && open == 0 { p.endT = 1.6; p.endLen = 1.6 }
         case .pick:
             for i in 0..<p.open.count where p.open[i] >= 0 { p.open[i] += dt }
         }
@@ -148,6 +187,17 @@ extension Game {
                 let perfect = d < p.zone / 6
                 if perfect { p.perfect += 1 }
                 p.marks.append(perfect ? 2 : 1)
+                p.streak += 1
+                p.bestStreak = max(p.bestStreak, p.streak)
+                let barY = H - safeB - 58
+                if perfect {
+                    p.flash = 0.35
+                    shake = max(shake, 0.12)
+                    p.pop(W / 2, barY - 40, "PERFECT!", true, big: true)
+                } else {
+                    p.pop(W / 2, barY - 34, "Good", true)
+                }
+                if p.streak >= 2 { p.pop(W / 2 + 120, barY - 18, "\(p.streak) in a row!", true) }
                 snd?.good()
                 buzz?(false)
                 puff(W / 2, H - safeB - 60, perfect ? 26 : 14, Col(0xffe08a), 220, 300, 2.6, 0.5)
@@ -162,6 +212,8 @@ extension Game {
                 }
             } else {
                 p.marks.append(0)
+                p.streak = 0
+                p.pop(W / 2 + (p.pos - 0.5) * min(W * 0.62, 480), H - safeB - 92, p.pos < 0.5 ? "Too soon" : "Too late", false)
                 snd?.thud()
                 buzz?(true)
                 switch p.theme {
@@ -177,7 +229,7 @@ extension Game {
             p.speed *= 1.1
             p.pos = chance(0.5) ? 0.02 : 0.98
             p.dir = p.pos < 0.5 ? 1 : -1
-            if p.tries >= p.rounds || (p.stopOnHit && p.score > 0) { p.endT = 1.0 }
+            if p.tries >= p.rounds || (p.stopOnHit && p.score > 0) { p.endT = 1.6; p.endLen = 1.6 }
         case .taps:
             var best = -1
             var bd = 52.0
@@ -189,6 +241,16 @@ extension Game {
                 p.targets[best].state = 1
                 p.targets[best].age = 0
                 p.score += 1
+                p.streak += 1
+                p.bestStreak = max(p.bestStreak, p.streak)
+                let tq = p.targets[best]
+                // quicker taps earn a louder cheer
+                p.pop(tq.x, tq.y - 30, "+1", true)
+                if p.streak >= 3 { p.pop(tq.x, tq.y - 52, "\(p.streak) in a row!", true, big: p.streak >= 5) }
+                for j in 0..<10 {
+                    let a = Double(j) / 10 * PI * 2
+                    p.pops.append((tq.x + cos(a) * 4, tq.y + sin(a) * 4, 0, "•", true, false))
+                }
                 buzz?(false)
                 if p.theme == "leak" { snd?.thud(); puff(p.targets[best].x, p.targets[best].y, 10, Col(0xc9a86a), 120, 260, 2.4, 0.4) } else { snd?.good(); puff(p.targets[best].x, p.targets[best].y, 12, Col(0xffffff, 0.9), 150, 260, 2.2, 0.4) }
             }
@@ -326,11 +388,19 @@ extension Game {
             let pulse = 0.75 + 0.25 * sin(T * 6)
             c.RRGrad(W / 2 - zw / 2, y, zw, h, 6, [(0, Col(0x7fd88a, pulse)), (1, Col(0x3a9a4c, pulse))])
             c.RR(W / 2 - zw / 6, y, zw / 3, h, 4, Col(0xffe08a, 0.95))
+            // the zone lights up while the marker is in it
+            let inZone = abs(p.pos - 0.5) < p.zone / 2
+            if inZone && p.endT < 0 { c.RR(W / 2 - zw / 2 - 3, y - 3, zw + 6, h + 6, 8, Col(0xfff2a0, 0.35 + 0.25 * sin(T * 30))) }
+            for i in 0..<10 { let tx = x + w * Double(i + 1) / 11; c.seg(tx, y + h - 5, tx, y + h - 1, 1, Col(0xffffff, 0.25)) }
+            for (i, tp) in p.trail.enumerated() {
+                let f = Double(i + 1) / Double(p.trail.count + 1)
+                c.RR(x + w * tp - 2.5, y - 4, 5, h + 8, 2.5, Col(0xffffff, 0.22 * f))
+            }
             let mx = x + w * p.pos
             c.glow(mx, y + h / 2, 30, Col(0xffffff, 0.5), Col(0xffffff, 0))
             c.RR(mx - 3.5, y - 7, 7, h + 14, 3.5, WHITE)
             c.poly(WHITE, [mx - 9, y - 14, mx + 9, y - 14, mx, y - 4])
-            c.textS(p.endT < 0 ? "Tap when the marker is in the middle" : "", W / 2, y + h + 22, 13, CREAM, 0, FONTI)
+            c.textS(p.endT < 0 ? (p.streak >= 2 ? "\(p.streak) in a row! Keep it going" : "Tap when the marker is in the middle") : "", W / 2, y + h + 22, 13, p.streak >= 2 ? Col(0xfff2a0) : CREAM, 0, FONTI)
         case .taps:
             for tg in p.targets {
                 if tg.state == 0 {
@@ -369,7 +439,8 @@ extension Game {
                         c.circ(tg.x + sin(T * 2) * 4, tg.y - 30 - k * 14, 6 + k * 6, Col(0x3a3a3a, 0.4))
                     } else if p.theme == "flyfish" {
                         // a silver fish skipping through the air over the deck, fins out like wings
-                        let fx = tg.x + sin(tg.age * 5 + tg.y) * 10, fy = tg.y + cos(tg.age * 6 + tg.x) * 5
+                        c.save(); c.translate(tg.x, tg.y); c.scale(1.7, 1.7); c.translate(-tg.x, -tg.y)
+                        let fx = tg.x + sin(tg.age * 5 + tg.y) * 6, fy = tg.y + cos(tg.age * 6 + tg.x) * 3
                         let dirn: Double = Int(tg.x) % 2 == 0 ? 1 : -1
                         c.ell(fx, fy, 9, 3.6, Col(0x9ec8e0)); c.ell(fx + dirn * 1, fy + 1, 7, 1.6, Col(0xe8f4fa))
                         c.poly(Col(0x6a9ab8), [fx - dirn * 8, fy, fx - dirn * 14, fy - 4, fx - dirn * 13, fy + 4])
@@ -377,6 +448,7 @@ extension Game {
                         c.poly(Col(0xcfe6f2, 0.9), [fx - dirn * 2, fy - 1, fx + dirn * 4, fy - 10 - wf, fx + dirn * 6, fy - 1])
                         c.circ(fx + dirn * 6, fy - 0.8, 0.9, Col(0x0c1014))
                         for j in 0..<3 { c.circ(fx - dirn * (14 + Double(j) * 5), fy + 2 + Double(j), 1, Col(0xbfe6ff, 0.6 - Double(j) * 0.18)) }
+                        c.restore()
                     } else if p.theme == "gleam" {
                         // something bright turning over in the swell
                         let rise = min(1, tg.age / 0.2)
@@ -384,7 +456,7 @@ extension Game {
                         c.glow(tg.x, tg.y, 26 * rise, Col(0xffe08a, 0.7), Col(0xffe08a, 0))
                         let sp = 6 + 3 * sin(T * 9 + tg.x)
                         c.seg(tg.x - sp * rise, tg.y, tg.x + sp * rise, tg.y, 1.6, Col(0xfff8d0)); c.seg(tg.x, tg.y - sp * rise, tg.x, tg.y + sp * rise, 1.6, Col(0xfff8d0))
-                        c.circ(tg.x, tg.y, 3.4, Col(0xffd257))
+                        c.circ(tg.x, tg.y, 5, Col(0xffd257)); c.circ(tg.x - 1.5, tg.y - 1.5, 1.6, Col(0xfffbe0))
                     } else if p.theme == "rats" {
                         let rx = tg.x + sin(T * 14 + tg.x) * 3
                         c.ell(rx, tg.y, 10, 5.5, Col(0x5a5560)); c.circ(rx + 9, tg.y - 1, 4, Col(0x5a5560)); c.circ(rx + 10, tg.y - 5, 2, Col(0x8a8590))
@@ -461,6 +533,60 @@ extension Game {
                 c.restore()
             }
             c.textS(p.picksLeft > 0 ? "Picks left: \(p.picksLeft)" : "", W / 2, H - safeB - 12, 15, CREAM, 0, FONTB)
+        }
+        for pp in p.pops {
+            if pp.t < 0 { continue }
+            if pp.s == "•" {
+                // a spark flying out from a hit
+                let a = Double(abs(Int(pp.x * 13 + pp.y * 7)) % 10) / 10 * PI * 2
+                let r = 6 + pp.t * 90
+                c.circ(pp.x + cos(a) * r, pp.y + sin(a) * r + pp.t * pp.t * 60, 2.6 * (1 - pp.t), Col(0xffe08a, max(0, 1 - pp.t / 0.6)))
+                continue
+            }
+            let a = max(0, 1 - pp.t / 1.1)
+            let sc = pp.big ? 1 + 0.6 * max(0, 0.25 - pp.t) * 4 : 1
+            c.save()
+            c.alpha(a)
+            c.translate(pp.x, pp.y - pp.t * 34)
+            c.scale(sc, sc)
+            c.textS(pp.s, 0, 0, pp.big ? 28 : 17, pp.good ? (pp.big ? Col(0xfff2a0) : Col(0x9ff0aa)) : Col(0xff9a8a), 0, FONTB)
+            c.restore()
+        }
+        if p.flash > 0 { c.R(0, 0, W, H, Col(0xfff8e0, p.flash * 0.9)) }
+        if p.endT >= 0 && p.kind != .pick {
+            // how it went: up to three stars ring up one after another
+            let el = p.endLen - p.endT
+            let st = p.stars()
+            let a = min(1, el / 0.2)
+            let words = ["Bad luck", "Not bad", "Well done!", "Masterly!"][max(0, min(3, st))]
+            let bw2 = 280.0, bh2 = 96.0, bx2 = W / 2 - bw2 / 2, by2 = H * 0.5 - bh2 / 2 - 20
+            c.save()
+            c.alpha(a)
+            c.translate(W / 2, by2 + bh2 / 2); let sc = 0.8 + 0.2 * min(1, el / 0.25); c.scale(sc, sc); c.translate(-W / 2, -(by2 + bh2 / 2))
+            c.RR(bx2 + 3, by2 + 4, bw2, bh2, 18, Col(0x000000, 0.4))
+            c.RRGrad(bx2, by2, bw2, bh2, 18, [(0, Col(0x3a2412, 0.97)), (1, Col(0x1e1108, 0.97))])
+            c.RRStroke(bx2, by2, bw2, bh2, 18, 2, Col(0xd2a455))
+            c.text(words, W / 2, by2 + 30, 22, st >= 2 ? GOLD : CREAM, 0, FONTD)
+            for i in 0..<3 {
+                let sx2 = W / 2 + Double(i - 1) * 50, sy2 = by2 + 64
+                let on = i < p.starsShown
+                let popK = on ? min(1, (el - 0.25 - Double(i) * 0.22) / 0.15) : 1
+                let r = 17 * (on ? 1 + 0.4 * (1 - popK) : 1)
+                var pts: [Double] = []
+                for k in 0..<10 {
+                    let ang = -PI / 2 + Double(k) * PI / 5
+                    let rr = k % 2 == 0 ? r : r * 0.45
+                    pts.append(sx2 + cos(ang) * rr); pts.append(sy2 + sin(ang) * rr)
+                }
+                if on {
+                    c.glow(sx2, sy2, 30, Col(0xffd257, 0.5), Col(0xffd257, 0))
+                    c.poly(Col(0xffd257), pts)
+                } else {
+                    c.poly(Col(0x000000, 0.35), pts)
+                }
+            }
+            if p.bestStreak >= 3 { c.text("Best run: \(p.bestStreak) in a row", W / 2, by2 + bh2 + 18, 13, CREAM.alpha(0.85), 0, FONTI) }
+            c.restore()
         }
         if p.msgT > 0 && !p.msg.isEmpty {
             let a = min(1, p.msgT * 2.5)

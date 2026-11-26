@@ -863,6 +863,8 @@ final class Game {
         if name == "offer" { leg = 1; mode = .sail; nextEvAt = 9999; offerK = "flyfish"; offerT = 2; Game.offerHold = true; offerDone = true; return }
         if name == "mgfly" { leg = 1; mode = .sail; nextEvAt = 9999; startOdd("flyfish"); play?.total = 60; return }
         if name == "mgcask" { leg = 1; mode = .sail; nextEvAt = 9999; startOdd("cask"); return }
+        if name == "mgstars" { leg = 1; mode = .sail; nextEvAt = 9999; startOdd("trim"); play?.score = 3; play?.tries = 3; play?.perfect = 2; play?.marks = [2, 1, 2]; play?.endT = 99; play?.endLen = 100; play?.starsShown = 3; return }
+        if name == "mgstreak" { leg = 1; mode = .sail; nextEvAt = 9999; startOdd("trim"); play?.streak = 2; play?.marks = [2, 1]; play?.tries = 2; play?.score = 2; play?.pop(W / 2, H - 200, "PERFECT!", true, big: true); return }
         if name == "mggleam" { leg = 1; mode = .sail; nextEvAt = 9999; startOdd("gleam"); play?.total = 60; return }
         if name == "intro" { mode = .title; showIntro(); return }
         if name == "outfit" { shipI = 1; crew = ship.crew; hull = Double(ship.hull); syncMen(); marketPort = false; mode = .outfit; provision(storesNeeded() + 8); return }
