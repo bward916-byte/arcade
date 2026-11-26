@@ -696,7 +696,7 @@ final class GameViewController: UIViewController {
             v.alpha = 0; v.transform = CGAffineTransform(translationX: 24, y: 0)
             UIView.animate(withDuration: 0.3, delay: 0.25 + Double(i) * 0.22, options: [], animations: { v.alpha = 1; v.transform = .identity }, completion: nil)
         }
-        dawnHideAt = CACurrentMediaTime() + 8 + Double(rows.count) * 0.45
+        dawnHideAt = CACurrentMediaTime() + 5.5 + Double(rows.count) * 0.35
     }
 
     // ---------- two cards off the pause menu: who holds which job, and a way to step off the train at any town
