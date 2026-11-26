@@ -2,8 +2,8 @@ import Foundation
 
 enum Mode { case title, intro, card, play, pick, ride, dead, ending }
 enum ZKind { case zed, runner, dog, rat, bloater, boss, crawler, spitter, crow, wheel, riot, burner, screamer }
-enum FloorKind { case normal, hole, wall, lift, roof, street, safe }
-enum RideKind { case stairs, hole, lift }
+enum FloorKind { case normal, hole, wall, lift, roof, street, safe, rope }
+enum RideKind { case stairs, hole, lift, rope, ladder, shaft }
 
 final class Zed {
     let id: Int
@@ -104,6 +104,8 @@ final class Floor {
     var exitX = 0.0
     var exitRight = true
     var fireStairs = false
+    /// The elevator car is gone: pry the doors and slide down the cable.
+    var shaft = false
     var escape = false
     var holeX = 0.0
     var liftX = 900.0
@@ -207,6 +209,11 @@ final class Game {
     var nameT = 0.0
 
     var rideKind = RideKind.stairs
+    /// On the rope a zombie lunges out of a window: tap to kick it off.
+    var rideTap = false
+    var grabDone = false
+    var grabWon = false
+    var rideFreeze = -1.0
     var rideT = 0.0
     var rideDur = 0.0
     var rideTo = 0
@@ -404,9 +411,10 @@ final class Game {
         f.exitX = f.exitRight ? FLOOR_W - 150 : 150
         let bossFloor = tower == 0 && n == 32
         let valveFloor = tower == 0 && n == 12
-        if n > top { f.kind = .roof } else if n <= 0 { f.kind = .street } else if bossFloor || valveFloor { f.kind = .normal } else if isCheckpoint(n) { f.kind = .safe } else if n % 9 == 3 { f.kind = .lift } else if k % 10 == 5 && n > 6 { f.kind = .wall } else if k % 5 == 1 && n > 3 { f.kind = .hole }
+        if n > top { f.kind = .roof } else if n <= 0 { f.kind = .street } else if bossFloor || valveFloor { f.kind = .normal } else if isCheckpoint(n) { f.kind = .safe } else if n % 9 == 3 { f.kind = .lift } else if k % 10 == 5 && n > 6 { f.kind = .wall } else if k % 10 == 3 && n > 6 { f.kind = .rope } else if k % 5 == 1 && n > 3 { f.kind = .hole }
         // the last two floors above a safe room are outside, on the fire escape
         if f.kind == .normal && !bossFloor && !valveFloor && n > 3 && n <= top && (k % 10 == 8 || k % 10 == 9) { f.escape = true }
+        if f.kind == .lift && (n / 9) % 2 == 0 { f.shaft = true }
         if f.kind == .hole {
             f.holeX = f.exitRight ? 1240 : 560
             f.fireStairs = (k / 5) % 2 == 0
@@ -520,10 +528,18 @@ final class Game {
         rideFrom = floorN
         rideTo = to
         rideT = 0
-        rideDur = kind == .stairs ? 0.5 : (kind == .hole ? 0.8 : 1.5)
+        switch kind {
+        case .stairs: rideDur = 0.5
+        case .hole: rideDur = 0.8
+        case .lift: rideDur = 1.5
+        case .rope: rideDur = 3.0
+        case .ladder: rideDur = 1.4
+        case .shaft: rideDur = 1.7
+        }
+        rideTap = false; grabDone = false; grabWon = false
         mode = .ride
         input = Input()
-        if kind == .hole { snd?.drop(); buzz(2) } else if kind == .lift { snd?.ding(); snd?.liftHum() } else { snd?.door(); snd?.stairs() }
+        if kind == .rope || kind == .shaft { snd?.whoosh(); buzz(1) } else if kind == .ladder { snd?.stairs() } else if kind == .hole { snd?.drop(); buzz(2) } else if kind == .lift { snd?.ding(); snd?.liftHum() } else { snd?.door(); snd?.stairs() }
     }
     func arrive() {
         let old = floorN
@@ -550,7 +566,8 @@ final class Game {
         case .street: say("THE STREET. GET TO THE PLAZA.", 4)
         case .wall: say("FLOOR \(n) — FIRE. CUT THROUGH THE \(sideName).", 4)
         case .hole: say(f.fireStairs ? "FLOOR \(n) — STAIRS ON FIRE. DROP THROUGH THE FLOOR." : "FLOOR \(n) — STAIRS GONE. DROP THROUGH THE FLOOR.", 4)
-        case .lift: say("FLOOR \(n) — STAIRS BLOCKED. CLEAR IT. TAKE THE ELEVATOR.", 4)
+        case .lift: say(f.shaft ? "FLOOR \(n) — NO CAR. CLEAR IT. SLIDE DOWN THE SHAFT." : "FLOOR \(n) — STAIRS BLOCKED. CLEAR IT. TAKE THE ELEVATOR.", 4)
+        case .rope: say("FLOOR \(n) — STAIRS COLLAPSED. ROPE DOWN THE OUTSIDE.", 4)
         case .normal:
             if f.escape { say("FLOOR \(n) — STAIRWELL GONE. OUT ON THE FIRE ESCAPE.", 3.5) } else if f.boss { snd?.roar(); say("FLOOR 32 — DR. MARR.", 4) } else if tower == 0 && n == 12 && !valveShut { say("FLOOR 12 — THE WATER MAIN. SHUT IT.", 4) } else if f.pack == 1 { say("FLOOR \(n) — DOGS. THEY ARE FAST.") } else if f.pack == 2 { say("FLOOR \(n) — RATS.") } else { say("FLOOR \(n) — \(zone(n).name)", 2.2) }
         }
@@ -627,6 +644,20 @@ final class Game {
             if pickChosen >= 0 { pickOutT += dt; if pickOutT > 0.45 { applyPick() } }
         case .ride:
             rideT += dt
+            if rideFreeze >= 0 { rideT = rideFreeze }
+            if rideKind == .rope && !grabDone && rideT > 1.15 {
+                if auto && rideT > 1.4 { rideTap = true }
+                if rideTap {
+                    grabDone = true; grabWon = true
+                    snd?.bigHit(); snd?.squelch(); buzz(2); shake = 10
+                    floaters.append(Floater(x: 0, y: 0, text: "KICKED OFF", col: GOLD, t: 0, size: 26))
+                } else if rideT > 1.9 {
+                    grabDone = true; grabWon = false
+                    hero.hp = max(1, hero.hp - 14 * (1 - 0.15 * Double(lv("armor"))))
+                    snd?.groan(1); buzz(3); flash = 0.5; flashCol = HOT; shake = 12
+                }
+            }
+            rideTap = false
             updateFx(dt)
             if rideT >= rideDur { arrive() }
         case .dead:
@@ -1395,7 +1426,7 @@ final class Game {
     private func updateArsenal(_ dt: Double) {
         let h = hero
         let f = floor
-        let scale = 1 + Double(depth) * 0.008
+        let scale = (1 + Double(depth) * 0.008) * 0.8
         if gunT > 0 { gunT -= dt }
         if kickT > 0 { kickT -= dt }
         if h.atkT >= 0 || supT >= 0 {
@@ -1411,12 +1442,12 @@ final class Game {
         var l = lv("smg")
         if l > 0 {
             cdSmg -= dt
-            if cdSmg <= 0, let z = nearest(560), ready(1) { cdSmg = 0.17; raise(1, 0.3); gunHit(z, (4 + 3 * Double(l)) * scale, Col(0xffe6a0), 2); snd?.shot(); casing() }
+            if cdSmg <= 0, let z = nearest(560, facing: true), ready(1) { cdSmg = 0.17; raise(1, 0.3); gunHit(z, (4 + 3 * Double(l)) * scale, Col(0xffe6a0), 2); snd?.shot(); casing() }
         }
         l = lv("minigun")
         if l > 0 {
             cdMini -= dt
-            if cdMini <= 0, let z = nearest(760), ready(3) { cdMini = 0.055; raise(3, 0.3); gunHit(z, (4 + 2 * Double(l)) * scale, Col(0xffc060), 2.5, fromY: -84); casing(); if chance(0.3) { snd?.shot() } }
+            if cdMini <= 0, let z = nearest(760, facing: true), ready(3) { cdMini = 0.055; raise(3, 0.3); gunHit(z, (4 + 2 * Double(l)) * scale, Col(0xffc060), 2.5, fromY: -84); casing(); if chance(0.3) { snd?.shot() } }
         }
         l = lv("shotgun")
         if l > 0 {
@@ -1623,9 +1654,13 @@ final class Game {
             if abs(h.x - f.exitX) < 60 && sayCd <= 0 { sayCd = 3; say(f.fireStairs ? "THE STAIRS ARE BURNING. USE THE HOLE." : "THE STAIRS ARE GONE. USE THE HOLE.") }
             return
         }
+        if f.kind == .rope {
+            if abs(h.x - f.exitX) < 44 { startRide(.rope, to: descTarget(f.n, 2)) }
+            return
+        }
         if f.kind == .lift {
             if abs(h.x - f.liftX) < 40 {
-                if threatCount == 0 { startRide(.lift, to: descTarget(f.n, 3)) } else if sayCd <= 0 { sayCd = 2.5; say("CLEAR THE FLOOR FIRST.  \(threatCount) LEFT") }
+                if threatCount == 0 { startRide(f.shaft ? .shaft : .lift, to: descTarget(f.n, 3)) } else if sayCd <= 0 { sayCd = 2.5; say("CLEAR THE FLOOR FIRST.  \(threatCount) LEFT") }
             } else if abs(h.x - f.exitX) < 60 && sayCd <= 0 { sayCd = 3; say("STAIRS BLOCKED. TAKE THE ELEVATOR.") }
             return
         }
@@ -1639,7 +1674,7 @@ final class Game {
                 return
             }
             if f.kind == .street { towerDone(); return }
-            startRide(.stairs, to: f.n - 1)
+            startRide(f.escape ? .ladder : .stairs, to: f.n - 1)
         }
     }
     var aliveBoss: Bool { return floor.zeds.contains(where: { $0.alive && $0.kind == .boss }) }
@@ -1716,6 +1751,8 @@ final class Game {
         case "escape": ups = ["smg": 1, "nade": 1]; floorN = 74
         case "guns": ups = ["shotgun": 3, "dmg": 3]; floorN = 71
         case "bat": ups = ["dmg": 3]; floorN = 71
+        case "ropeF": ups = ["smg": 1]; floorN = 80
+        case "ropeR", "ladderR", "shaftR", "ropeK": floorN = 80
         case "resid": ups = ["smg": 1]; floorN = 50
         case "surgery": tower = 1; ups = ["smg": 1]; floorN = 31
         case "pent": tower = 2; ups = ["smg": 1]; floorN = 53
@@ -1746,6 +1783,13 @@ final class Game {
         cpFloor = floorN; cpUps = ups
         if what == "safe" { hero.x = FLOOR_W / 2 - 320 }
         if what == "gun" { floor.gunT = 1.4; hero.x = 300 }
+        if what == "ropeF" { hero.x = floor.exitX - (floor.exitRight ? 320 : -320); hero.face = floor.exitRight ? 1 : -1 }
+        if what == "ropeR" || what == "ladderR" || what == "shaftR" || what == "ropeK" {
+            startRide(what == "ladderR" ? .ladder : (what == "shaftR" ? .shaft : .rope), to: 78)
+            rideFreeze = what == "ropeR" ? 1.5 : (what == "ropeK" ? 2.05 : 0.7)
+            if what == "ropeK" { grabDone = true; grabWon = true }
+            return
+        }
         if what == "pick" { rollPick(); mode = .pick; pickT = 0 } else { mode = .play; auto = ["play", "dogs", "boss", "gun", "escape", "hosp", "hotel", "casino", "mall", "lab", "lobby", "guns", "bat", "resid", "surgery", "pent", "ball", "fire", "hole", "lift", "street", "safe", "types"].contains(what) }
     }
 

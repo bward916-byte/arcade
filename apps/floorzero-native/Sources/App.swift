@@ -78,7 +78,7 @@ final class GameViewController: UIViewController {
         if !started {
             started = true
             let args = ProcessInfo.processInfo.arguments
-            for what in ["play", "fire", "dogs", "boss", "hole", "lift", "pick", "street", "types", "safe", "gun", "escape", "hosp", "hotel", "casino", "mall", "lab", "lobby", "guns", "bat", "resid", "surgery", "pent", "ball"] where args.contains("-demo-\(what)") { game.demo(what) }
+            for what in ["play", "fire", "dogs", "boss", "hole", "lift", "pick", "street", "types", "safe", "gun", "escape", "hosp", "hotel", "casino", "mall", "lab", "lobby", "guns", "bat", "resid", "surgery", "pent", "ball", "ropeF", "ropeR", "ropeK", "ladderR", "shaftR"] where args.contains("-demo-\(what)") { game.demo(what) }
             for i in 0..<5 where args.contains("-demo-intro\(i)") { game.newGame(); game.introT = Double(i) * 1.8 + 1.3; game.introFreeze = true }
             if args.contains("-demo-bot") {
                 let report = game.botRun(40)
@@ -136,6 +136,8 @@ final class GameViewController: UIViewController {
                 if game.hasSave && game.contRect.has(x, y) { game.auto = false; game.resume(); sound.pick() } else if game.playRect.has(x, y) { game.auto = false; game.newGame() }
             case .intro, .card, .ending:
                 game.tapAdvance()
+            case .ride:
+                game.rideTap = true
             case .pick:
                 for i in 0..<game.pickOpts.count where game.pickRect(i).has(x, y) { game.choosePick(i); break }
             case .play:

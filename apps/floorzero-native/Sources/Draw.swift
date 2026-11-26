@@ -1121,17 +1121,48 @@ final class Renderer {
         for (px2, r) in f.pools { cv.ell(px2, GY + 8, r, r * 0.16, Col(0x5a0c10, 0.75)) }
         // the way out
         let ex = f.exitX
-        // a stairwell door: frame, the first steps going down, a rail, green exit light from above
-        cv.R(ex - 52, GY - 198, 104, 198, Col.mix(z.trim, BLACK, 0.6))
-        cv.R(ex - 44, GY - 190, 88, 190, Col(0x06070a))
-        for i in 0..<7 {
-            let k = Double(i), fade = 0.95 - k * 0.12
-            cv.R(ex - 44 + k * 8, GY - 13 - k * 16, 88 - k * 8, 13, Col(0x151820).alpha(fade))
-            cv.R(ex - 44 + k * 8, GY - 16 - k * 16, 88 - k * 8, 3, Col(0x3a4150).alpha(fade))
+        if f.kind == .rope {
+            // the stairs caved in, so out the window: glass smashed out, a fire hose tied to the radiator and thrown over the sill
+            cv.R(ex - 66, GY - 222, 132, 150, Col.mix(z.trim, BLACK, 0.55))
+            cv.vfill(ex - 58, GY - 214, 116, 134, [(0, Col(0x0a0c1c)), (1, Col(0x2a1410))])
+            for i in 0..<6 {
+                let bx = ex - 56 + Double(i) * 19, bh = 30 + hashN(Double(i) + 4) * 50
+                cv.R(bx, GY - 80 - bh, 15, bh, Col(0x05060c))
+                if hashN(Double(i) + 9) > 0.5 { cv.R(bx + 4, GY - 76 - bh * 0.6, 4, 4, rgba(255, 200, 120, 0.7)) }
+            }
+            cv.lighter(true); cv.glow(ex + 20, GY - 84, 46, rgba(255, 110, 30, 0.35 + 0.1 * sin(t * 6))); cv.lighter(false)
+            let gl = Col(0xbfe0ff).alpha(0.55)
+            cv.poly(gl, [ex - 58, GY - 214, ex - 30, GY - 214, ex - 48, GY - 188, ex - 58, GY - 170])
+            cv.poly(gl, [ex + 58, GY - 214, ex + 40, GY - 214, ex + 52, GY - 180])
+            cv.poly(gl, [ex - 58, GY - 80, ex - 40, GY - 80, ex - 58, GY - 104])
+            cv.poly(gl, [ex + 58, GY - 80, ex + 30, GY - 80, ex + 50, GY - 98, ex + 58, GY - 120])
+            cv.R(ex - 70, GY - 80, 140, 10, Col.mix(z.trim, WHITE, 0.15))
+            // radiator and the hose
+            cv.R(ex - 50, GY - 62, 100, 56, Col(0x6a707a))
+            for i in 0..<8 { cv.R(ex - 46 + Double(i) * 12.5, GY - 60, 7, 52, Col(0x8a909a)) }
+            let hose = Col(0xc23a22)
+            cv.ring(ex - 10, GY - 34, 14, 6, hose)
+            cv.line(hose, 7, [ex - 10, GY - 48, ex - 4, GY - 76, ex + 8, GY - 84, ex + 20, GY - 76, ex + 24, GY - 40, ex + 28, GY + 12])
+            cv.line(Col(0x8a2414), 2, [ex - 4, GY - 76, ex + 8, GY - 84, ex + 20, GY - 76])
+        } else if f.escape {
+            // a hatch in the landing with a ladder going down
+            cv.R(ex - 40, GY - 2, 80, 14, Col(0x020203))
+            cv.R(ex - 26, GY - 150, 5, 160, Col(0x4a5262)); cv.R(ex + 21, GY - 150, 5, 160, Col(0x4a5262))
+            for i in 0..<8 { cv.R(ex - 22, GY - 140 + Double(i) * 19, 44, 4, Col(0x5a6272)) }
+            cv.seg(ex - 24, GY - 150, ex - 34, GY - 166, 4, Col(0x4a5262)); cv.seg(ex + 24, GY - 150, ex + 34, GY - 166, 4, Col(0x4a5262))
+        } else {
+            // a stairwell door: frame, the first steps going down, a rail, green exit light from above
+            cv.R(ex - 52, GY - 198, 104, 198, Col.mix(z.trim, BLACK, 0.6))
+            cv.R(ex - 44, GY - 190, 88, 190, Col(0x06070a))
+            for i in 0..<7 {
+                let k = Double(i), fade = 0.95 - k * 0.12
+                cv.R(ex - 44 + k * 8, GY - 13 - k * 16, 88 - k * 8, 13, Col(0x151820).alpha(fade))
+                cv.R(ex - 44 + k * 8, GY - 16 - k * 16, 88 - k * 8, 3, Col(0x3a4150).alpha(fade))
+            }
+            cv.seg(ex - 40, GY - 62, ex + 42, GY - 160, 3.5, Col(0x4a5262)); cv.seg(ex - 40, GY - 62, ex - 40, GY - 16, 3, Col(0x4a5262))
+            cv.vfill(ex - 44, GY - 190, 88, 80, [(0, rgba(125, 255, 176, 0.24)), (1, rgba(125, 255, 176, 0))])
+            cv.RRStroke(ex - 44, GY - 190, 88, 190, 2, 4, Col.mix(z.trim, BLACK, 0.2))
         }
-        cv.seg(ex - 40, GY - 62, ex + 42, GY - 160, 3.5, Col(0x4a5262)); cv.seg(ex - 40, GY - 62, ex - 40, GY - 16, 3, Col(0x4a5262))
-        cv.vfill(ex - 44, GY - 190, 88, 80, [(0, rgba(125, 255, 176, 0.24)), (1, rgba(125, 255, 176, 0))])
-        cv.RRStroke(ex - 44, GY - 190, 88, 190, 2, 4, Col.mix(z.trim, BLACK, 0.2))
         if f.kind == .hole {
             if f.fireStairs { flameWall(cv, ex, 190, 260, 1.3, t); flameWall(cv, ex + 10, 110, 190, 3.7, t) } else {
                 cv.poly(Col(0x4a443c), [ex - 90, GY, ex - 50, GY - 80, ex - 10, GY - 50, ex + 30, GY - 120, ex + 86, GY])
@@ -1150,12 +1181,25 @@ final class Renderer {
             let lx = f.liftX
             let clear = g.threatCount == 0
             cv.R(lx - 62, GY - 196, 124, 196, Col(0x2a2e36))
+            if f.shaft {
+                // no car: the doors are pried apart on an empty shaft with the cable hanging in it
+                cv.R(lx - 54, GY - 188, 108, 188, Col(0x030304))
+                cv.R(lx - 3, GY - 188, 6, 188, Col(0x3a3a3e)); cv.R(lx - 1, GY - 188, 2, 188, Col(0x6a6a70))
+                for i in 0..<4 { cv.R(lx - 54, GY - 160 + Double(i) * 44, 108, 3, Col(0x15161a)) }
+                cv.R(lx - 70, GY - 188, 20, 188, Col(0x8a929c)); cv.R(lx + 50, GY - 188, 20, 188, Col(0x7c848e))
+                cv.seg(lx - 40, GY - 120, lx + 40, GY - 118, 4, Col(0xd8a020))
+            } else {
             cv.R(lx - 54, GY - 188, 52, 188, Col(0x8a929c))
             cv.R(lx + 2, GY - 188, 52, 188, Col(0x7c848e))
             cv.R(lx - 1, GY - 188, 2, 188, Col(0x1a1c20))
+            }
             cv.RR(lx - 22, GY - 224, 44, 20, 3, Col(0x0a0a0c))
             cv.text("\(f.n)", lx, GY - 209, 13, clear ? MINT : HOT, 1, 3)
-            sign(cv, clear ? "ELEVATOR" : "CLEAR THE FLOOR", lx, GY - 250, clear ? MINT : HOT, t, arrow: clear)
+            sign(cv, clear ? (f.shaft ? "SLIDE DOWN" : "ELEVATOR") : "CLEAR THE FLOOR", lx, GY - 250, clear ? MINT : HOT, t, arrow: clear)
+        } else if f.kind == .rope {
+            sign(cv, "ROPE DOWN", ex, GY - 250, MINT, t)
+        } else if f.escape {
+            sign(cv, "LADDER DOWN", ex, GY - 214, MINT, t)
         } else {
             sign(cv, "STAIRS", ex, GY - 214, MINT, t)
         }
@@ -1918,8 +1962,117 @@ final class Renderer {
             cv.RR(W / 2 - 60, 12, 120, 44, 8, Col(0x0a0a0c))
             cv.text("\(n)", W / 2, 46, 32, MINT, 1, 3)
             cv.poly(MINT, [W / 2 + 76, 26, W / 2 + 96, 26, W / 2 + 86, 42])
+        case .rope:
+            // rappelling down the outside of the tower; a zombie lunges out of a window on the way
+            let rt = g.rideT
+            let drop = rt * 300
+            outsideWall(cv, W, drop)
+            let cx = W / 2 + 40
+            let swing = sin(rt * 3.2) * 18
+            let hy = 330 + sin(rt * 6.5) * 6
+            cv.seg(cx + 10, -20, cx + 10 + swing * 0.4, hy - 150, 6, Col(0xc23a22))
+            cv.seg(cx + 10 + swing * 0.4, hy - 150, cx + swing, hy - 112, 6, Col(0xc23a22))
+            var p = Pose()
+            p.armF = 2.9; p.elbF = 0.35; p.armB = 2.6; p.elbB = 0.5; p.wpn = 2.4
+            p.hipF = 1.25; p.kneeF = 1.4; p.hipB = 0.9; p.kneeB = 1.2; p.lean = -0.15
+            let kick = g.grabDone && g.grabWon ? clampD((rt - 1.15) / 0.25, 0, 1) * (1 - clampD((rt - 1.6) / 0.3, 0, 1)) : 0
+            if kick > 0 { p.hipF = lerp(1.25, -1.2, kick); p.kneeF = lerp(1.4, 0.1, kick) }
+            figure(cv, cx + swing, hy, -1, 1.15, heroLook(g.tw), p)
+            // the window and who is in it
+            let wy = 560 - (rt - 0.6) * 300
+            if rt > 0.6 && rt < 2.8 {
+                let wx = cx - 170
+                cv.R(wx - 70, wy - 150, 140, 150, Col(0x1a1310)); cv.R(wx - 62, wy - 142, 124, 134, Col(0x2a0e0a))
+                cv.lighter(true); cv.glow(wx, wy - 70, 80, rgba(255, 110, 30, 0.4)); cv.lighter(false)
+                let z = Zed(id: 0, kind: .zed, x: 0, depth: 3, seed: 0.37)
+                var zp = zedPose(z, g.t)
+                zp.armF = 1.55; zp.armB = 1.45; zp.elbF = 0.1; zp.elbB = 0.2; zp.jaw = 1
+                if !g.grabDone {
+                    let reach = clampD((rt - 0.9) / 0.9, 0, 1)
+                    figure(cv, wx + reach * 70, wy - 10, 1, 1.1, zedLook(z), zp)
+                } else if g.grabWon {
+                    let k = rt - 1.15
+                    cv.save(); cv.translate(wx + 60 + k * 260, wy + k * k * 900); cv.rotate(k * 5)
+                    figure(cv, 0, 0, 1, 1.1, zedLook(z), fallPose(g.t))
+                    cv.restore()
+                    for i in 0..<10 { let fi = Double(i); cv.circ(wx + 80 + fi * 18 + k * 120, wy - 100 + hashN(fi) * 40 + k * 200, 4 + hashN(fi + 3) * 4, BLOOD.alpha(max(0, 1 - k))) }
+                } else {
+                    figure(cv, wx + 90, wy - 10, 1, 1.1, zedLook(z), zp)
+                }
+                cv.R(wx - 76, wy - 6, 152, 12, Col(0x6a5a50))
+            }
+            if !g.grabDone && rt > 0.95 {
+                let b = 0.5 + 0.5 * sin(g.t * 18)
+                cv.ring(cx + swing, hy - 90, 70 + b * 10, 5, GOLD.alpha(0.6 + 0.4 * b))
+                cv.stamp("TAP TO KICK!", W / 2, 110, 48, GOLD, 1)
+            } else if g.grabDone && rt < 2.4 {
+                cv.stamp(g.grabWon ? "KICKED OFF!" : "GRABBED!", W / 2, 110, 48, g.grabWon ? GOLD : HOT, 1)
+            }
+            cv.stamp("FLOOR \(max(0, g.rideTo))", W / 2, 500, 40, hue, 1)
+        case .ladder:
+            // down the fire escape ladder, hand over hand
+            let rt = g.rideT
+            outsideWall(cv, W, rt * 220)
+            let cx = W / 2
+            let steel = Col(0x3a4150), steelL = Col(0x5a6272)
+            cv.R(cx - 44, 0, 8, VIEW_H, steel); cv.R(cx + 36, 0, 8, VIEW_H, steel)
+            let off = (rt * 220).truncatingRemainder(dividingBy: 34)
+            var y = -34 + off
+            while y < VIEW_H { cv.R(cx - 40, y, 80, 6, steelL); y += 34 }
+            let gy = 640 - rt * 220
+            if gy > -20 && gy < VIEW_H + 20 {
+                cv.R(0, gy, W, 14, steel); var gx = 0.0; while gx < W { cv.R(gx, gy + 3, 2, 8, Col(0x14171d)); gx += 14 }
+                cv.R(0, gy - 56, W, 4, steel)
+            }
+            let ph = rt * 9
+            var p = Pose()
+            p.armF = 2.8 + 0.35 * sin(ph); p.elbF = 0.4; p.armB = 2.8 - 0.35 * sin(ph); p.elbB = 0.4; p.wpn = 2.3
+            p.hipF = 0.9 + 0.5 * max(0, sin(ph)); p.kneeF = 1.2; p.hipB = 0.9 + 0.5 * max(0, -sin(ph)); p.kneeB = 1.2
+            figure(cv, cx, 360 + sin(ph * 2) * 4, 1, 1.15, heroLook(g.tw), p)
+            cv.stamp("FIRE ESCAPE", W / 2, 110, 44, hue, 1)
+            cv.stamp("FLOOR \(max(0, g.rideTo))", W / 2, 500, 40, hue, 1)
+        case .shaft:
+            // sliding down the elevator cable with sparks off the gloves
+            let rt = g.rideT
+            let drop = rt * 900
+            cv.R(0, 0, W, VIEW_H, Col(0x0b0c0e))
+            cv.R(W / 2 - 260, 0, 520, VIEW_H, Col(0x14151a))
+            for i in 0..<6 {
+                let y = (Double(i) * 180 - drop).truncatingRemainder(dividingBy: 1080)
+                let yy = y < -150 ? y + 1080 : y
+                cv.R(W / 2 - 260, yy, 520, 10, Col(0x24262c))
+                cv.R(W / 2 + 160, yy + 20, 90, 130, Col(0x2a2e36)); cv.R(W / 2 + 205, yy + 20, 2, 130, Col(0x0a0a0c))
+                let fl = g.rideFrom - Int((drop + Double(i) * 180) / 360)
+                cv.text("\(max(0, fl))", W / 2 + 205, yy + 14, 12, MINT.alpha(0.7), 1, 2)
+            }
+            cv.R(W / 2 - 4, 0, 8, VIEW_H, Col(0x4a4a50)); cv.R(W / 2 - 1, 0, 2, VIEW_H, Col(0x8a8a92))
+            var p = Pose()
+            p.armF = 3.0; p.elbF = 0.2; p.armB = 2.9; p.elbB = 0.3; p.wpn = 2.4
+            p.hipF = 0.4; p.kneeF = 0.6; p.hipB = 0.2; p.kneeB = 0.5
+            figure(cv, W / 2 + 6, 380, 1, 1.15, heroLook(g.tw), p)
+            cv.lighter(true)
+            for i in 0..<14 {
+                let fi = Double(i)
+                let k = (g.t * 3 + hashN(fi)).truncatingRemainder(dividingBy: 1)
+                cv.circ(W / 2 + (hashN(fi + 2) - 0.5) * 80 * k, 220 + k * 160, 3 * (1 - k) + 1, rgba(255, 200 - k * 120, 60, 1 - k))
+            }
+            cv.glow(W / 2, 220, 40, rgba(255, 170, 60, 0.5))
+            cv.lighter(false)
+            cv.stamp("ELEVATOR SHAFT", W / 2, 110, 44, hue, 1)
+            cv.stamp("FLOOR \(max(0, g.rideTo))", W / 2, 500, 40, hue, 1)
         }
         if u < 0.15 { cv.R(0, 0, W, VIEW_H, BLACK.alpha(1 - u / 0.15)) }
+    }
+    /// The tower's outside brick face, scrolling up as you go down.
+    private func outsideWall(_ cv: Canvas, _ W: Double, _ drop: Double) {
+        cv.R(0, 0, W, VIEW_H, Col(0x0a0b12))
+        if let im = wallFor("hall_brick.jpg", Col(0x050814).alpha(0.35), VIEW_H, cv.sc) {
+            let y0 = -(drop.truncatingRemainder(dividingBy: VIEW_H))
+            wallTiles(cv, im, 0, W, y0, VIEW_H, 7)
+            wallTiles(cv, im, 0, W, y0 + VIEW_H, VIEW_H, 8)
+        }
+        cv.lighter(true); cv.R(0, 0, W, VIEW_H, rgba(255, 110, 40, 0.05)); cv.lighter(false)
+        cv.vfill(0, 0, W, 120, [(0, BLACK.alpha(0.5)), (1, BLACK.alpha(0))])
     }
     private func fallPose(_ t: Double) -> Pose {
         var p = Pose()
