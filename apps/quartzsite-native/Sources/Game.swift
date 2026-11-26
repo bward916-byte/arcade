@@ -521,6 +521,8 @@ final class Game {
     var overlay: Bool { return mapOpen || browseOpen || seasonCard || ended || inCine || driving || phoneOpen || tourOpen || mineOpen || boardOpen }
     var tourOpen = false, tourBus = 0
     var boardOpen = false
+    var petT = -99.0                      // when you last petted the dog
+    var petDay = -1
 
     /// The next event on the calendar, for the board.
     func nextEvent() -> EventDef? {
@@ -685,6 +687,16 @@ final class Game {
             if id == 52 { openBrowse() }
             if id == 63 { muted = !muted }
             if id == 69 { refund(); feedback(); return }
+            if id == 76 && hasDog {
+                petT = time
+                events.append(5)
+                if petDay != day {
+                    petDay = day
+                    health = min(100, health + 4)
+                    float(dogCholla ? "Careful. Comb that cholla out at camp" : ["Good dog.", "Best dog in Quartzsite.", "Who's a good dog?"][day % 3], px, CREAM)
+                }
+                return
+            }
             if id == 67 { refund(); phoneOpen = true; events.append(3); hint("phone", "Your page. Post one photo a day from wherever you are: events, landmarks, sunsets and starry nights reach the most people.") }
         }
     }

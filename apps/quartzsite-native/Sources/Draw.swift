@@ -385,7 +385,17 @@ final class Renderer {
         }
         if g.hasDog && !g.inRig {
             let dx = g.px - g.face * (g.onToy ? 26 : 13)
-            dog(dx - cam, GY + 6 + g.ground(dx), g.face, g.walk * (g.onToy ? 1.6 : 1) + (abs(g.vx) > 4 ? 0 : NOW * 0.5), g.dogCholla)
+            let happy = NOW - g.petT < 2.5
+            dog(dx - cam, GY + 6 + g.ground(dx) - (happy ? abs(sin(NOW * 12)) * 2 : 0), g.face, g.walk * (g.onToy ? 1.6 : 1) + (abs(g.vx) > 4 ? 0 : NOW * (happy ? 6 : 0.5)), g.dogCholla)
+            if happy {
+                let t = (NOW - g.petT) / 2.5
+                for k in 0..<3 {
+                    let hx = dx - cam + Double(k - 1) * 5, hy = GY - 4 - t * 18 - Double(k) * 3
+                    c.circ(hx - 1, hy, 1.3, Col(0xe0405a, 1 - t)); c.circ(hx + 1, hy, 1.3, Col(0xe0405a, 1 - t))
+                    c.poly(Col(0xe0405a, 1 - t), [hx - 2.3, hy + 0.4, hx + 2.3, hy + 0.4, hx, hy + 3])
+                }
+            }
+            if !g.onToy && g.phase == .play { g.hits.append(Hit(id: 76, x: dx - cam - 12, y: GY - 10, w: 24, h: 22)) }
         }
         if !g.inRig && !g.onToy { person(g.px - cam, GY + 6 + g.ground(g.px), g.look, g.face, g.walk, abs(g.vx) > 4) }
     }
@@ -2797,8 +2807,8 @@ final class Renderer {
             c.R(nx + 1.4, ny + 1.6, nw, nh, Col(0x000000, 0.18))
             c.R(nx, ny, nw, nh, n.2)
             c.circ(nx + nw / 2, ny + 3, 2, [Col(0xd9412e), Col(0x3a6ea5), Col(0xf2c14e), Col(0x3f8f6a)][k % 4])
-            g.text(n.0, nx + nw / 2, ny + 11, 4.2, Col(0x2a1e14), bold: true)
-            g.text(n.1, nx + nw / 2, ny + 24, 3.4, Col(0x3a2c1e), wrap: nw - 10)
+            g.text(n.0, nx + nw / 2, ny + 12, 5.2, Col(0x2a1e14), bold: true)
+            g.text(n.1, nx + nw / 2, ny + 30, 4.6, Col(0x3a2c1e), wrap: nw - 10)
             if k == 3 || k == 2 {
                 for t in 0..<6 { c.R(nx + 3 + Double(t) * (nw - 6) / 6, ny + nh - 9, (nw - 6) / 6 - 1.2, 9, n.2.shade(0.94)) }
             }
