@@ -1466,6 +1466,14 @@ final class Renderer {
             doorway(x - 6, GY - 20, 12, 20, Col(0x4a3424))
             pane(x - 30, GY - 22, 18, 10); pane(x + 12, GY - 22, 18, 10)
             for j in 0..<4 { gem(x - 27 + Double(j) * 4.4, GY - 13, 1.4, [Col(0x9a5ad0), Col(0xf0f0f4), Col(0xe2742e), Col(0x2fa7a0)][j]) }
+            // flats stacked out front on a pallet
+            c.R(x + 40, GY - 2, 22, 2, Col(0x8a6238))
+            for r in 0..<3 {
+                c.R(x + 41, GY - 5 - Double(r) * 3, 20, 3, Col(0xb8925e).shade(1 - Double(r) * 0.06))
+                for q in 0..<5 { c.circ(x + 43 + Double(q) * 4, GY - 4.4 - Double(r) * 3, 0.9, [Col(0x9a5ad0), Col(0xe2742e), Col(0x2fa7a0), Col(0xf0f0f4), Col(0xc85a3a)][(q + r) % 5]) }
+            }
+            g.text("WHOLESALE", x, GY - 47.5, 3.6, GOLD, bold: true)
+            if g.phase == .play { g.hits.append(Hit(id: 52, x: x - 36, y: GY - 46, w: 100, h: 46)) }
             label = false
             top = 52
         case .park:
@@ -2174,7 +2182,7 @@ final class Renderer {
         let ink = Col(0x2a1e14)
         c.RR(x0, y0, x1 - x0, y1 - y0, 6, Col(0x3a2c3a))
         g.hits.append(Hit(id: 88, x: x0, y: y0, w: x1 - x0, h: y1 - y0))
-        g.text("ON THE TABLES", x0 + 10, y0 + 10, 8, GOLD, align: 1, bold: true)
+        g.text(g.shop == 1 ? "GEM WORLD" : "ON THE TABLES", x0 + 10, y0 + 10, 8, GOLD, align: 1, bold: true)
         g.text("\(Int(g.money)) coins  ·  pack \(g.rocks)/\(g.packCap)", x0 + 96, y0 + 10, 5.4, CREAM.alpha(0.8), align: 1, bold: true)
         c.circ(x1 - 11, y0 + 10, 6, Col(0xffffff, 0.15))
         c.seg(x1 - 14, y0 + 7, x1 - 8, y0 + 13, 1, CREAM); c.seg(x1 - 8, y0 + 7, x1 - 14, y0 + 13, 1, CREAM)
@@ -2189,7 +2197,14 @@ final class Renderer {
             // the stone itself
             let n = WARE_NAMES.firstIndex(of: w.name) ?? 0
             c.ell(cx + 16, cy + ch * 0.5 + 6, 11, 3, Col(0x000000, 0.18))
-            gem(cx + 16, cy + ch * 0.5 + 6, 7, stones[n].shade(w.sold ? 0.5 : 1))
+            if w.name.hasPrefix("Flat") {
+                // a shallow tray full of small stones
+                c.RR(cx + 3, cy + ch * 0.5 - 4, 26, 13, 1.5, Col(0x8a6238).shade(w.sold ? 0.5 : 1))
+                c.R(cx + 4.5, cy + ch * 0.5 - 2.5, 23, 10, Col(0xb8925e).shade(w.sold ? 0.5 : 1))
+                for q in 0..<12 { gem(cx + 7 + Double(q % 4) * 5.6, cy + ch * 0.5 + 0.5 + Double(q / 4) * 3.2, 1.6, stones[(q * 3 + k) % stones.count].shade(w.sold ? 0.5 : 1)) }
+            } else {
+                gem(cx + 16, cy + ch * 0.5 + 6, 7, stones[n].shade(w.sold ? 0.5 : 1))
+            }
             g.text(w.name, cx + 32, cy + 9, 5, w.sold ? CREAM.alpha(0.5) : ink, align: 1, bold: true, wrap: cw - 36)
             g.text(w.who, cx + 32, cy + 20, 3.6, w.sold ? CREAM.alpha(0.4) : ink.alpha(0.7), align: 1, wrap: cw - 36)
             if w.sold {

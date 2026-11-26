@@ -418,6 +418,9 @@ final class Game {
     // the gem show up close
     var browseOpen = false
     var wares: [Ware] = []
+    var shop = 0                          // 0 the show tables at Tyson Wells, 1 Gem World
+    var stock: [Int: (Int, [Ware])] = [:] // each shop's stock for the day
+    var dug: [String: Int] = [:]          // finds taken today, by place
     var waresDay = -1
 
     // cinematics: a list of shots, four seconds each, with a caption for each
@@ -782,6 +785,7 @@ final class Game {
         floaters = []
         arriveT = 4.5
         events.append(4)
+        if to == .main { hint("gwtap", "Tap the Gem World storefront to browse its flats and specimens.") }
         if to == .skoolie && !on(EV_SKOOL) { hint("skoolnot", "Quiet out here. Skooliepalooza gathers on " + EVENTS[EV_SKOOL].when + ".") }
         if to == .tyson && tysonShow() == nil { hint("tysonnot", "The show grounds are empty today. Next: " + nextOf([EV_GEM, EV_SELL, EV_CRAFT]) + ".") }
     }
@@ -842,6 +846,10 @@ final class Game {
             let x = spots.first(where: { $0.kind == .camp })?.x ?? 1260
             px = x + 40
             partyDay = day; partyArea = area; partyX = x; partyT = -40; seen.insert(18)
+        }
+        if key == "gemworld" {
+            let x = spots.first(where: { $0.kind == .gemworld })?.x ?? 0
+            area = .main; px = x - 20; money = 600; dayT = 0.3; shown.insert("gwtap"); openBrowse()
         }
         if key == "drivetow" {
             life = .rver; toy = 5; toyArea = .ltva; rig = .classA; inRig = true; dayT = 0.2
@@ -911,6 +919,21 @@ final class Game {
         return max(20, TOYS[n].price - (toy >= 0 ? TOYS[toy].price / 2 : 0))
     }
     /// What you'd sell first from your booth.
+    /// Finds are limited: each spot gives up only so much in a day.
+    func left(_ i: Int) -> Int {
+        let cap: Int
+        switch spots[i].kind {
+        case .rockhound: cap = 3
+        case .detect: cap = 4
+        case .mine: cap = 2
+        case .gemworld: cap = 3
+        case .vendors: cap = 4
+        case .skoolie: cap = 2
+        default: return 99
+        }
+        return cap - (dug["\(area.rawValue)-\(i)"] ?? 0)
+    }
+
     private func sellOffer() -> Offer? {
         if let v = jewelVals.first { return Offer(label: "Sell a pendant", cost: 0, earn: v, dur: 1.1) }
         if odd > 0 { return Offer(label: "Sell an oddity", cost: 0, earn: oddSell, dur: 1.1) }
@@ -926,6 +949,7 @@ final class Game {
     func offer(_ i: Int) -> Offer? {
         let sp = spots[i]
         if inRig && sp.kind != .station { return nil }
+        if left(i) <= 0 { return nil }
         switch sp.kind {
         case .wash:
             if weather == 3 { return nil }
@@ -955,7 +979,7 @@ final class Game {
         case .grocery:
             return health < 96 ? Offer(label: "Groceries", cost: 15, earn: 0, dur: 1.0) : nil
         case .gemworld:
-            return rocks < packCap ? Offer(label: "Rough rock to work", cost: rockBuy + 14, earn: 0, dur: 1.0) : nil
+            return rocks < packCap ? Offer(label: "Rough rock to work (\(left(i)) left today)", cost: rockBuy + 14, earn: 0, dur: 1.0) : nil
         case .park:
             if on(EV_WESTERN) { return seen.contains(16) ? nil : Offer(label: "Cowboy poetry and live country music", cost: 0, earn: 0, dur: 2) }
             if on(EV_RTR) { return seen.contains(12) ? nil : Offer(label: "Rubber Tramp Rendezvous: talks and the free pile", cost: 0, earn: 0, dur: 2) }
@@ -1004,11 +1028,11 @@ final class Game {
             guard on(EV_RV), let n = nextRig() else { return nil }
             return Offer(label: "Show deal: " + RIGS[n.rawValue].name, cost: lotPrice(n) * 85 / 100, earn: 0, dur: 2.2)
         case .mine:
-            return health > 20 ? Offer(label: "Explore the old mine", cost: 0, earn: 0, dur: 3) : nil
+            return health > 20 ? Offer(label: "Explore the old mine (\(left(i)) left today)", cost: 0, earn: 0, dur: 3) : nil
         case .detect:
-            return detector ? Offer(label: "Swing the detector", cost: 0, earn: 0, dur: 2.6) : nil
+            return detector ? Offer(label: "Swing the detector (\(left(i)) left today)", cost: 0, earn: 0, dur: 2.6) : nil
         case .rockhound:
-            return rocks < packCap && health > 10 ? Offer(label: "Look for quartz on the hillside", cost: 0, earn: 0, dur: 2.2) : nil
+            return rocks < packCap && health > 10 ? Offer(label: "Look for quartz (\(left(i)) left today)", cost: 0, earn: 0, dur: 2.2) : nil
         case .landmark:
             return seen.contains(sp.arg) ? nil : Offer(label: LANDMARKS[sp.arg], cost: 0, earn: 0, dur: 1.5)
         case .river:
@@ -1034,6 +1058,13 @@ final class Game {
     func note(_ i: Int) -> String {
         let sp = spots[i]
         if inRig { return sp.kind == .station ? "Done for today" : "Tap your rig to get out" }
+        if left(i) <= 0 {
+            switch sp.kind {
+            case .gemworld, .vendors, .skoolie: return "Sold out of that today. More tomorrow"
+            case .mine: return "Explored enough for one day"
+            default: return "Picked over for today. Come back tomorrow"
+            }
+        }
         switch sp.kind {
         case .wash: return weather == 3 ? "The wash is running. Stay out of it" : "Arms full. Sell it at the neighbors' fire"
         case .camp:
@@ -1096,6 +1127,7 @@ final class Game {
     private func complete(_ i: Int, _ o: Offer) {
         let sp = spots[i]
         let x = sp.x
+        dug["\(area.rawValue)-\(i)", default: 0] += 1
         switch sp.kind {
         case .wash:
             wood += 1
@@ -1388,6 +1420,7 @@ final class Game {
         oddSell = oddBuy + Int(rnd(14, 40))
         jewelSell = rockSell + Int(rnd(8, 20))
         seen = []
+        dug = [:]
         if afterRain > 0 { afterRain -= 1 }
         if hasDog && !dogCholla && area != .main && area != .tyson && Double.random(in: 0..<1) < 0.15 {
             dogCholla = true
@@ -1509,10 +1542,16 @@ final class Game {
     // MARK: the gem show up close
 
     func openBrowse() {
-        if tysonShow() != EV_GEM { return }
+        let s: Int
+        if area == .main { s = 1 } else if area == .tyson && tysonShow() == EV_GEM { s = 0 } else { return }
         refund()
-        if waresDay != day {
-            waresDay = day
+        if waresDay == day { stock[shop] = (day, wares) }
+        shop = s
+        if let st = stock[s], st.0 == day {
+            wares = st.1
+        } else if s == 1 {
+            wares = gemWorldStock()
+        } else {
             wares = []
             for k in 0..<6 {
                 let n = Int(hashN(Double(day * 13 + k)) * 10) % 10
@@ -1522,8 +1561,29 @@ final class Game {
                 wares.append(Ware(name: WARE_NAMES[n], who: seller.0, price: max(5, Int(Double(w) * pct / 100)), lo: Int(Double(w) * 0.8), hi: Int(Double(w) * 1.15), sold: false))
             }
         }
+        waresDay = day
         browseOpen = true
         mapMsg = ""
+        if s == 1 { hint("gemworld", "Gem World is wholesale. A flat is a whole tray of small stones bought cheap to resell at a booth. Single specimens are in the cases. Stock changes every day.") }
+    }
+
+    /// Gem World's floor today: two wholesale flats and four specimens, below show prices.
+    private func gemWorldStock() -> [Ware] {
+        var out: [Ware] = []
+        let flats = [("Flat of tumbled stones", 110), ("Flat of geode halves", 150), ("Flat of quartz points", 95), ("Flat of polished jasper", 120), ("Flat of desert roses", 85)]
+        for k in 0..<2 {
+            let f = flats[(day * 3 + k * 2) % flats.count]
+            let pct = 0.6 + hashN(Double(day * 11 + k)) * 0.12
+            out.append(Ware(name: f.0, who: "Wholesale · 24 pieces", price: Int(Double(f.1) * pct), lo: Int(Double(f.1) * 0.85), hi: Int(Double(f.1) * 1.15), sold: false))
+        }
+        let where_ = ["Specimen room", "Back warehouse", "Glass case", "Bins by the register"]
+        for k in 0..<4 {
+            let n = Int(hashN(Double(day * 17 + k + 40)) * 10) % 10
+            let w = WARE_WORTH[n]
+            let pct = 0.7 + hashN(Double(day * 5 + k) + 0.3) * 0.12
+            out.append(Ware(name: WARE_NAMES[n], who: where_[k], price: max(5, Int(Double(w) * pct)), lo: Int(Double(w) * 0.8), hi: Int(Double(w) * 1.15), sold: false))
+        }
+        return out
     }
 
     private func buyWare(_ k: Int) {
