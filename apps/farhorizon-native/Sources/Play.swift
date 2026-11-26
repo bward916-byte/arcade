@@ -366,7 +366,7 @@ extension Game {
             if p.theme == "trim" {
                 // the sail filling and spilling as the marker swings
                 let fill = 1 - abs(p.pos - 0.5) * 2
-                c.textS(fill > 0.7 ? "Drawing well" : "Luffing", sx + len * 0.1, wy - len * 0.95, 13, fill > 0.7 ? Col(0x9ff0aa) : Col(0xffc8a0), 0, FONTB)
+                c.textS(fill > 0.7 ? "Drawing well" : "Luffing", W / 2 - min(W * 0.62, 480) / 2 + 50, H - safeB - 74, 13, fill > 0.7 ? Col(0x9ff0aa) : Col(0xffc8a0), 0, FONTB)
             }
             if p.theme == "run" {
                 // the pirate, astern and gaining or falling back
