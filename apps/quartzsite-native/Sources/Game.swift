@@ -236,10 +236,11 @@ struct Offer {
 struct Ware {
     let name: String
     let who: String
-    let price: Int
+    var price: Int
     let lo: Int
     let hi: Int
     var sold: Bool
+    var haggled = false
 }
 let WARE_NAMES = ["Amethyst cluster", "Fire agate slab", "Quartz point", "Geode pair", "Petrified wood round", "Chrysocolla nugget", "Turquoise nugget", "Desert rose", "Jasper slab", "Opal chip"]
 let WARE_WORTH = [60, 90, 24, 40, 55, 45, 70, 20, 30, 80]
@@ -584,7 +585,8 @@ final class Game {
                 return
             }
             if browseOpen {
-                if id >= 90 && id < 90 + wares.count { buyWare(id - 90) } else if id == 89 || id < 0 { browseOpen = false }
+                if id >= 100 && id < 100 + wares.count { haggle(id - 100) }
+                else if id >= 90 && id < 90 + wares.count { buyWare(id - 90) } else if id == 89 || id < 0 { browseOpen = false }
                 events.append(3)
                 return
             }
@@ -955,6 +957,14 @@ final class Game {
         if key == "dog" { place(.main, 3790); hasDog = true; dayT = 0.3 }
         if key == "camels" { place(.tyson, 2760); camels = [0, 1, 2, 3, 4] }
         if key == "page" { place(.dome, 120); page = true; cred = 60; followers = 940; upgrades = [3]; dayT = 0.3 }
+        if key == "booth" {
+            day = 8; area = .tyson; let x = spots.first(where: { $0.kind == .booth })?.x ?? 0
+            place(.tyson, x - 20); boothDay = day; rockVals = [40, 55, 70]; odd = 2; dayT = 0.3; clockFreeze = true
+        }
+        if key == "haggle" {
+            day = 8; place(.tyson, 900); money = 500; dayT = 0.3; clockFreeze = true; openBrowse()
+            wares[0].haggled = true; wares[0].price = Int(Double(wares[0].price) * 0.8); mapMsg = wares[0].who + ": \"Alright, \(wares[0].price) and it's yours.\""; mapMsgT = 99
+        }
         if key == "wildnight" { place(.ltva, 600); dayT = 0.82; clockFreeze = true }
         if key == "rainbow" { place(.dome, 600); dayT = 0.15; afterRain = 2; weather = 0; clockFreeze = true }
         if key == "windy" { place(.scaddan, 900); dayT = 0.3; weather = 1; clockFreeze = true }
@@ -1019,9 +1029,13 @@ final class Game {
     }
 
     private func sellOffer() -> Offer? {
-        if let v = jewelVals.first { return Offer(label: "Sell a pendant", cost: 0, earn: v, dur: 1.1) }
-        if odd > 0 { return Offer(label: "Sell an oddity", cost: 0, earn: oddSell, dur: 1.1) }
-        if let v = rockVals.first { return Offer(label: "Sell a specimen", cost: 0, earn: v, dur: 1.1) }
+        // now and then a collector at the table pays well over the going price
+        let collector = hashN(Double(day * 13 + rocks * 3 + odd * 7 + jewelry * 11) + 0.5) > 0.72
+        let m = collector ? 1.35 : 1.0
+        let who = collector ? "A collector wants " : "Sell "
+        if let v = jewelVals.first { return Offer(label: who + (collector ? "your pendant" : "a pendant"), cost: 0, earn: Int(Double(v) * m), dur: 1.1) }
+        if odd > 0 { return Offer(label: who + (collector ? "your oddity" : "an oddity"), cost: 0, earn: Int(Double(oddSell) * m), dur: 1.1) }
+        if let v = rockVals.first { return Offer(label: who + (collector ? "your specimen" : "a specimen"), cost: 0, earn: Int(Double(v) * m), dur: 1.1) }
         return nil
     }
     func boothOpen(_ i: Int) -> Bool {
@@ -1426,6 +1440,7 @@ final class Game {
             boothDay = day
             float("Your booth is set up", x, CREAM)
         case .booth:
+            if o.label.hasPrefix("A collector") { float("Sold to a collector!", x, GOLD) } else { float("Sold!", x, GREEN) }
             if !jewelVals.isEmpty { jewelVals.removeFirst(); cred += 2 } else if odd > 0 { odd -= 1; cred += 3 } else { rockVals.removeFirst(); cred += 2 }
             if sp.arg == 1 { cred += 1 }
         case .mine:
@@ -1733,6 +1748,23 @@ final class Game {
             out.append(Ware(name: WARE_NAMES[n], who: where_[k], price: max(5, Int(Double(w) * pct)), lo: Int(Double(w) * 0.8), hi: Int(Double(w) * 1.15), sold: false))
         }
         return out
+    }
+
+    /// Ask for a better price: about half the time they come down a fifth. Once per piece.
+    private func haggle(_ k: Int) {
+        if wares[k].sold || wares[k].haggled { return }
+        wares[k].haggled = true
+        let who = shop == 1 ? "The clerk" : wares[k].who.components(separatedBy: " ·").first ?? "The seller"
+        let odds = 0.45 + min(0.25, Double(cred) / 200)
+        if Double.random(in: 0..<1) < odds {
+            wares[k].price = max(3, Int((Double(wares[k].price) * 0.8).rounded()))
+            mapMsg = who + ": \"Alright, \(wares[k].price) and it's yours.\""
+            events.append(1)
+        } else {
+            mapMsg = who + ": \"Sorry, that's firm.\""
+            events.append(3)
+        }
+        mapMsgT = 3
     }
 
     private func buyWare(_ k: Int) {

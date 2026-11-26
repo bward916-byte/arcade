@@ -1754,10 +1754,19 @@ final class Renderer {
                 break
             }
             canopy(x, 22, Col(0x9a5ad0), Col(0xf4f1ea))
+            // shoppers at your table, and a hand-lettered sign
+            if g.phase == .play {
+                person(x - 26, GY + 3, 600 + g.day * 3, 1, 0, false)
+                person(x + 25, GY + 3, 611 + g.day * 5, -1, 0, false)
+                if Int(NOW / 6) % 2 == 0 { person(x + 33, GY + 4, 622 + g.day, -1, 0, false) }
+            }
+            c.RR(x - 12, GY - 30, 24, 7, 1, Col(0xf4f1ea))
+            g.text("ROCKS · ODDITIES", x, GY - 26.5, 2.6, Col(0x7a2f3a), bold: true)
             c.R(x - 16, GY - 9, 32, 9, Col(0x7a2f3a))
             c.R(x - 17, GY - 10, 34, 1.4, Col(0x9a4a54))
             for j in 0..<g.rocks { gem(x - 12 + Double(j) * 5, GY - 10, 2.2, [Col(0x9a5ad0), Col(0xe2742e), Col(0x2fa7a0)][j % 3]) }
             for j in 0..<g.odd { skull(x + 3 + Double(j) * 5, GY - 10, 0.65) }
+            for j in 0..<min(6, g.rocks + g.odd) { c.R(x - 13 + Double(j) * 5, GY - 7.4, 2.4, 1.6, Col(0xf4f1ea)) }
             for j in 0..<g.jewelry { c.curve(x - 14 + Double(j) * 4, GY - 10, x - 12 + Double(j) * 4, GY - 15, x - 10 + Double(j) * 4, GY - 10, 0.4, Col(0xd9b46a)) }
             top = 40
         case .bigtent:
@@ -2454,6 +2463,13 @@ final class Renderer {
                 g.text("\(w.price)", cx + 41, cy + ch - 12, 6.4, Double(w.price) > g.money ? REDC : Col(0x2f6a3a), align: 1, bold: true)
                 g.text("sells for about \(w.lo)–\(w.hi) coins", cx + 32, cy + ch - 5, 3.4, ink.alpha(0.65), align: 1)
                 g.hits.append(Hit(id: 90 + k, x: cx, y: cy, w: cw, h: ch))
+                if !w.haggled {
+                    c.RR(cx + cw - 30, cy + 3, 27, 9, 4.5, Col(0x2a1e14, 0.85))
+                    g.text("Haggle", cx + cw - 16.5, cy + 7.5, 3.8, GOLD, bold: true)
+                    g.hits.append(Hit(id: 100 + k, x: cx + cw - 34, y: cy, w: 34, h: 15))
+                } else {
+                    g.text("haggled", cx + cw - 16.5, cy + 7.5, 3.4, ink.alpha(0.45))
+                }
             }
         }
         if g.mapMsgT > 0 { g.text(g.mapMsg, (x0 + x1) / 2, (y0 + y1) / 2, 6, CREAM.alpha(clampD(g.mapMsgT, 0, 1)), bold: true, plate: true) }
