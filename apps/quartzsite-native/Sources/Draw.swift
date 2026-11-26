@@ -1384,6 +1384,17 @@ final class Renderer {
             g.text("QUARTZFEST", x, GY - 40, 4.4, Col(0x8ad0f0), bold: true)
             label = false
             top = 50
+        case .cleanup:
+            // a cleanup crew's pickup with trash bags, a sign and a couple of volunteers
+            c.poly(Col(0x9a3a2a), [x - 26, GY - 4, x - 26, GY - 12, x - 4, GY - 12, x, GY - 17, x + 12, GY - 17, x + 16, GY - 11, x + 24, GY - 10, x + 24, GY - 4])
+            c.poly(GLASS, [x + 1, GY - 16, x + 11, GY - 16, x + 14, GY - 11.4, x + 1, GY - 11.4])
+            for wx in [-16.0, 14.0] { c.circ(x + wx, GY - 3.4, 3.4, TIRE); c.circ(x + wx, GY - 3.4, 1.4, HUB) }
+            for j in 0..<3 { c.circ(x - 22 + Double(j) * 6, GY - 14, 3, Col(0x2a2a2a)); c.R(x - 22.6 + Double(j) * 6, GY - 17.6, 1.2, 1.4, Col(0x2a2a2a)) }
+            person(x + 34, GY + 2, 0, -1, 0, false); person(x + 46, GY + 2, 2, -1, 0, false)
+            c.R(x - 44, GY - 16, 0.8, 16, wood); c.RR(x - 56, GY - 24, 24, 9, 1, Col(0x4f9a5a))
+            g.text("CLEANUP", x - 44, GY - 19.6, 3.4, CREAM, bold: true)
+            label = false
+            top = 32
         case .computer:
             // The Computer Corner: a small shop with a dish on the roof
             let wall = Col(0xd8d4cc)
@@ -2115,7 +2126,7 @@ final class Renderer {
         for k in 0..<6 {
             let d = Double(k)
             let t = ((d / 6 + u * 0.25).truncatingRemainder(dividingBy: 1))
-            let y = H - t * (H - GY)
+            let y = H - 22 - t * (H - 22 - GY)
             let sc = 0.15 + (1 - t) * 0.6
             let x = W * 0.5 + (1 - t) * W * 0.12
             rig([RigKind.classA, .classC, .skoolie, .classB, .van, .classA][k], x, y, 0, 1, sc)

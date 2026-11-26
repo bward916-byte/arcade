@@ -94,7 +94,7 @@ let EV_GEM = 0, EV_RTR = 1, EV_RV = 2, EV_SELL = 3, EV_SKOOL = 4, EV_CRAFT = 5, 
 let SEASON_END = 109
 let START_WEEKDAY = 1   // Monday
 
-enum SpotKind { case camp, bench, fire, wash, host, station, outhouse, board, grocery, gemworld, landmark, park, hall, yacht, lot, rides, tools, panorama, vendors, office, booth, bigtent, mine, detect, rockhound, river, skoolie, circle, cabin, parade, rvpark, house, computer, radio }
+enum SpotKind { case camp, bench, fire, wash, host, station, outhouse, board, grocery, gemworld, landmark, park, hall, yacht, lot, rides, tools, panorama, vendors, office, booth, bigtent, mine, detect, rockhound, river, skoolie, circle, cabin, parade, rvpark, house, computer, radio, cleanup }
 struct Spot {
     let kind: SpotKind
     let x: Double
@@ -154,7 +154,8 @@ let AREAS: [AreaDef] = [
         Spot(kind: .detect, x: 1220, name: "OLD PLACER DIGGINGS"),
         Spot(kind: .camp, x: 1620, name: "YOUR CAMP"),
         Spot(kind: .bench, x: 1760, name: "JEWELRY BENCH"),
-        Spot(kind: .wash, x: 2080, name: "DRY WASH")
+        Spot(kind: .wash, x: 2080, name: "DRY WASH"),
+        Spot(kind: .cleanup, x: 2380, name: "DESERT CLEANUP")
     ]),
     AreaDef(name: "Near Ehrenberg", sub: "Public land 10 miles west, toward the river", w: 2200, arrive: 1960, lat: 33.625, lon: -114.39, spots: [
         Spot(kind: .river, x: 260, name: "THE RIVER"),
@@ -171,10 +172,12 @@ let AREAS: [AreaDef] = [
         Spot(kind: .camp, x: 640, name: "DISPERSED CAMP"),
         Spot(kind: .fire, x: 1080, name: "NOMAD FIRE"),
         Spot(kind: .rockhound, x: 1520, name: "WASH AGATES"),
-        Spot(kind: .wash, x: 1900, name: "MESQUITE WASH")
+        Spot(kind: .wash, x: 1900, name: "MESQUITE WASH"),
+        Spot(kind: .cleanup, x: 300, name: "DESERT CLEANUP")
     ]),
     AreaDef(name: "Road Runner", sub: "Free BLM camping 5 miles south · 14-day limit", w: 2300, arrive: 2050, lat: 33.5807, lon: -114.2181, spots: [
         Spot(kind: .wash, x: 400, name: "DRY WASH"),
+        Spot(kind: .cleanup, x: 160, name: "DESERT CLEANUP"),
         Spot(kind: .radio, x: 900, name: "QUARTZFEST"),
         Spot(kind: .camp, x: 1450, name: "YOUR CAMP"),
         Spot(kind: .bench, x: 1590, name: "JEWELRY BENCH")
@@ -700,6 +703,8 @@ final class Game {
         if key == "cine2" { cineT = 10.2 }
         if key == "cine3" { cineT = 15 }
         if key == "cine4" { cineShots = [4]; cineCaps = ["April. The snowbirds head north."]; cineT = 2 }
+        if key == "happy" { px = 1260; dayT = 0.6; rig = .classC; life = .rver }
+        if key == "cleanup" { place(.dome, 2380); dayT = 0.3 }
         if key == "page" { place(.dome, 120); page = true; cred = 60; followers = 940; upgrades = [3]; dayT = 0.3 }
         if key == "qfest" { place(.roadrunner, 900); day = 22; dayT = 0.4 }
         if key == "western" { place(.main, 1610); day = 82; dayT = 0.45 }
@@ -766,6 +771,7 @@ final class Game {
             }
             if area == .ltva && permitDays <= 0 { return nil }
             if cred >= 25 && !page { return Offer(label: "Start a Facebook page", cost: 0, earn: 0, dur: 2) }
+            if dayT > 0.55 && dayT < 0.72 && !seen.contains(18) { return Offer(label: "Host happy hour for the neighbors", cost: 10, earn: 0, dur: 2.2) }
             return health < 96 ? Offer(label: "Rest by your fire", cost: 0, earn: 0, dur: 2.2) : nil
         case .bench:
             if rigArea != area { return nil }
@@ -787,6 +793,7 @@ final class Game {
         case .park:
             if on(EV_WESTERN) { return seen.contains(16) ? nil : Offer(label: "Cowboy poetry and live country music", cost: 0, earn: 0, dur: 2) }
             if on(EV_RTR) { return seen.contains(12) ? nil : Offer(label: "Rubber Tramp Rendezvous: talks and the free pile", cost: 0, earn: 0, dur: 2) }
+            if dayT < 0.4 && !seen.contains(19) { return Offer(label: "Play pickleball", cost: 0, earn: 0, dur: 2.2) }
             return health < 96 && !seen.contains(14) ? Offer(label: "Rest in the shade", cost: 0, earn: 0, dur: 1.6) : nil
         case .hall:
             return business < BIZ.count ? Offer(label: "License: " + BIZ[business].name, cost: BIZ[business].cost, earn: 0, dur: 2.2) : nil
@@ -803,6 +810,8 @@ final class Game {
             if panels < 2 { return Offer(label: panels == 0 ? "Solar panel" : "Second solar panel", cost: panels == 0 ? 120 : 200, earn: 0, dur: 1.6) }
             for u in [UP_LITHIUM, UP_AWNING, UP_RACK] where !upgrades.contains(u) { return Offer(label: UPGRADES[u].0, cost: UPGRADES[u].1, earn: 0, dur: 1.8) }
             return nil
+        case .cleanup:
+            return seen.contains(21) || health < 15 ? nil : Offer(label: "Pick up trash with the cleanup crew", cost: 0, earn: 0, dur: 2.4)
         case .radio:
             return on(EV_QFEST) && !seen.contains(17) ? Offer(label: "Get on the air with the hams", cost: 0, earn: 0, dur: 2.2) : nil
         case .computer:
@@ -880,6 +889,7 @@ final class Game {
         case .lot: return "Top of the line. Nothing bigger here"
         case .rides: return "Nothing faster for sale"
         case .tools: return rig == .tent ? "Gear needs a rig. Trade up first" : "Your rig is fully kitted out"
+        case .cleanup: return seen.contains(21) ? "The desert looks better. Back tomorrow" : "Too worn out. Rest first"
         case .radio: return on(EV_QFEST) ? "73 till tomorrow" : "Quartzfest ham radio week: " + EVENTS[EV_QFEST].when
         case .computer: return rig == .tent ? "A dish needs a roof. Trade up first" : "Your dish is up. Your page reaches twice as far"
         case .panorama: return on(EV_PAN) ? "Try the old placer diggings at Dome Rock" : "Open " + EVENTS[EV_PAN].when
@@ -927,6 +937,11 @@ final class Game {
                 hintT = 0
                 followers = cred * 3
                 hint("page", "Your Facebook page is up. Landmarks, events, finds and the wildlife all make posts that bring followers. At 1,000 followers it starts paying.")
+            } else if dayT > 0.55 && dayT < 0.72 && !seen.contains(18) {
+                seen.insert(18)
+                cred += 3
+                float("The neighbors came by with chairs", x, GOLD)
+                post("happy hour at camp", 25)
             } else {
                 health = min(100, health + (upgrades.contains(UP_AWNING) ? 32 : 20))
                 float(upgrades.contains(UP_AWNING) ? "Rested in the shade" : "Rested", x, GREEN)
@@ -971,6 +986,11 @@ final class Game {
                 cred += 2
                 if odd < 3 { odd += 1; float("Free pile: an old lantern", x, CREAM) } else { float("+2 cred", x, GOLD) }
                 post("the Rubber Tramp Rendezvous", 50)
+            } else if dayT < 0.4 && !seen.contains(19) {
+                seen.insert(19)
+                cred += 2
+                health = min(100, health + 8)
+                float("Won a game of doubles", x, GOLD)
             } else {
                 seen.insert(14)
                 health = min(100, health + 10)
@@ -1015,6 +1035,12 @@ final class Game {
                 hintT = 0
                 hint("up\(u)", why[u] ?? "")
             }
+        case .cleanup:
+            seen.insert(21)
+            cred += 2
+            health = max(0, health - 4)
+            float("Two bags of trash out of the wash", x, GOLD)
+            post("a desert cleanup", 20)
         case .radio:
             seen.insert(17)
             cred += 2
