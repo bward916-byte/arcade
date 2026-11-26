@@ -1069,7 +1069,7 @@ final class Game {
         }
         if key == "rvshow" { day = 22; place(.tyson, 2560); dayT = 0.3; clockFreeze = true }
         if key == "board" { place(.main, 3170); day = 9; dayT = 0.3; clockFreeze = true; business = 1; adDays = 2; boardOpen = true }
-        if key == "minein" { place(.dome, 820); dayT = 0.3; clockFreeze = true; mineFind = 2; mineText = "Color in the pan from the back of the drift: 42 coins in gold."; mineOpen = true }
+        if key == "minein" { place(.dome, 820); dayT = 0.3; clockFreeze = true; detector = true; mineFind = 2; mineText = "Your detector sounds off over the old ore dump at the portal: a small nugget, 42 coins."; mineOpen = true }
         if key == "tour" { day = 24; place(.skoolie, 1480); dayT = 0.3; clockFreeze = true; tourBus = 0; tourOpen = true }
         if key == "newyear" { place(.ltva, 1400); day = 4; dayT = 0.81; clockFreeze = true }
         if key == "xmas" { place(.main, 2300); day = 2; dayT = 0.76; clockFreeze = true }
@@ -1609,7 +1609,7 @@ final class Game {
             let r = Double.random(in: 0..<1)
             if r < 0.4 && rocks < packCap { let v = Int(rnd(25, 60)); rockVals.append(v); mineFind = 0; mineText = "A quartz vein in the wall. You chip out a specimen worth about \(v)." }
             else if r < 0.6 && odd < 3 { odd += 1; mineFind = 1; mineText = "An old carbide lantern on a timber ledge. Someone will want that." }
-            else if r < 0.8 { let g = Int(rnd(20, 60)); money += Double(g); mineFind = 2; mineText = "Color in the pan from the back of the drift: \(g) coins in gold." }
+            else if r < 0.8 && detector { let g = Int(rnd(20, 60)); money += Double(g); mineFind = 2; mineText = "Your detector sounds off over the old ore dump at the portal: a small nugget, \(g) coins." }
             else { mineFind = 3; mineText = "Just bats, and the cold air of the old drift. Good to see, though." }
             cred += 1
             mineOpen = true

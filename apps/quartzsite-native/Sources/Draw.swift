@@ -2721,58 +2721,84 @@ final class Renderer {
         g.text("tap anywhere to step back outside", W / 2, y0 + h + 6, 3.4, CREAM.alpha(0.7))
     }
 
-    /// Inside the Gold Eye: a timbered drift by lantern light, rails into the dark, and what you found.
+    /// Inside the Gold Eye, side on: daylight at the portal, a timbered drift running into the hill,
+    /// rails underfoot, a quartz vein in the wall, and only your lantern to see by.
     private func mineOverlay() {
         g.hits.removeAll(keepingCapacity: true)
         g.texts.removeAll(keepingCapacity: true)
         c.R(0, 0, W, H, Col(0x050403, 0.8))
         g.hits.append(Hit(id: -1, x: 0, y: 0, w: W, h: H))
-        let w = min(320.0, W - g.safeL - g.safeR - 20), h = 160.0
+        let w = min(330.0, W - g.safeL - g.safeR - 20), h = 160.0
         let x0 = (W - w) / 2, y0 = (H - h) / 2
-        let cx = x0 + w / 2, vy = y0 + h * 0.42
-        c.RR(x0, y0, w, h, 10, Col(0x1a120c))
-        // the drift narrowing away: rock walls in perspective
-        c.poly(Col(0x3a2a1e), [x0, y0, cx - 18, vy - 14, cx - 18, vy + 14, x0, y0 + h])
-        c.poly(Col(0x32241a), [x0 + w, y0, cx + 18, vy - 14, cx + 18, vy + 14, x0 + w, y0 + h])
-        c.poly(Col(0x2a1e14), [x0, y0, x0 + w, y0, cx + 18, vy - 14, cx - 18, vy - 14])
-        c.poly(Col(0x4a3626), [x0, y0 + h, x0 + w, y0 + h, cx + 18, vy + 14, cx - 18, vy + 14])
-        c.R(cx - 18, vy - 14, 36, 28, Col(0x050403))
-        // timber sets getting smaller into the dark
-        for k in 0..<5 {
-            let t = Double(k) / 5
-            let sx = (w / 2 - 18) * (1 - t) + 18, sy = (h * 0.42 - 14) * (1 - t) + 14
-            let tw = Col(0x7a5632).shade(1 - t * 0.7)
-            c.R(cx - sx, vy - sy, 4 * (1 - t) + 1, sy * 2, tw)
-            c.R(cx + sx - 4 * (1 - t) - 1, vy - sy, 4 * (1 - t) + 1, sy * 2, tw)
-            c.R(cx - sx, vy - sy, sx * 2, 4 * (1 - t) + 1, tw)
+        let roof = y0 + 54, floor = y0 + 112
+        c.save()
+        c.RR(x0, y0, w, h, 10, Col(0x3a2e26))
+        // the hill in cross-section: layered rock above and below the drift
+        let strata = [Col(0x5a4636), Col(0x4e3c2e), Col(0x645040), Col(0x4a3a2c)]
+        for k in 0..<6 {
+            let yy = y0 + Double(k) * 9
+            c.poly(strata[k % 4], [x0, yy, x0 + w, yy + 4 + sin(Double(k)) * 3, x0 + w, yy + 13, x0, yy + 9])
         }
-        // rails
-        c.seg(cx - 50, y0 + h, cx - 6, vy + 14, 1.4, Col(0x6a6a6e))
-        c.seg(cx + 50, y0 + h, cx + 6, vy + 14, 1.4, Col(0x6a6a6e))
-        // your lantern's warm light
-        c.glow(cx - 60, y0 + h * 0.55, 110, Col(0xffb050, 0.32 + 0.04 * sin(NOW * 9)), Col(0xffb050, 0))
-        // what you found, in the light
-        let fx = cx - 60, fy = y0 + h * 0.66
+        for k in 0..<4 { c.R(x0, floor + Double(k) * 12, w, 12, strata[(k + 1) % 4].shade(0.9)) }
+        for k in 0..<40 { let d = Double(k) + 500; c.ell(x0 + hashN(d) * w, y0 + hashN(d + 1) * h, 1.6 + hashN(d + 2) * 3, 1 + hashN(d + 3) * 1.6, Col(0x2a2018, 0.5)) }
+        // the desert surface and the portal on the left, daylight pouring in
+        c.R(x0, y0, w, 6, Col(0xc8a070))
+        saguaro(x0 + 30, y0 + 6, 14, 3, SAG, false)
+        c.vfill(x0, roof, 30, floor - roof, [(0, Col(0xf2d8a8)), (1, Col(0xd8b07a))])
+        c.glow(x0 + 18, (roof + floor) / 2, 60, Col(0xffe8b0, 0.35), Col(0xffe8b0, 0))
+        // the drift itself, dark and getting darker
+        c.R(x0 + 30, roof, w - 30, floor - roof, Col(0x1c1410))
+        c.vfill(x0 + w * 0.6, roof, w * 0.4, floor - roof, [(0, Col(0x000000, 0)), (1, Col(0x000000, 0.0))])
+        c.R(x0 + w * 0.72, roof, w * 0.28, floor - roof, Col(0x000000, 0.45))
+        // rails and ties
+        for k in 0..<Int((w - 30) / 7) { c.R(x0 + 32 + Double(k) * 7, floor - 2.4, 4, 2.4, Col(0x4a3420)) }
+        c.R(x0 + 30, floor - 3.4, w - 30, 0.9, Col(0x7a7a7e))
+        // timber sets every few yards: two posts and a cap
+        var tx = x0 + 44
+        while tx < x0 + w - 6 {
+            let tw = Col(0x8a6238).shade(max(0.35, 1 - (tx - x0) / w * 0.8))
+            c.R(tx, roof, 3.4, floor - roof - 3, tw)
+            c.R(tx - 3, roof, 9.4, 3.4, tw.shade(1.1))
+            tx += 46
+        }
+        // the quartz vein in the wall
+        c.roundCaps(true)
+        c.seg(x0 + w * 0.42, roof + 6, x0 + w * 0.48, roof + 22, 2.4, Col(0xe8e4dc))
+        c.seg(x0 + w * 0.48, roof + 22, x0 + w * 0.44, roof + 40, 2, Col(0xe8e4dc))
+        c.roundCaps(false)
+        for k in 0..<4 { let t = sin(NOW * 3 + Double(k) * 1.7); if t > 0.6 { c.circ(x0 + w * 0.43 + Double(k) * 2, roof + 10 + Double(k) * 8, 0.9, Col(0xffffff)) } }
+        // you, with a lantern (and the detector, if you found gold with it)
+        let px = x0 + w * 0.36
+        c.glow(px + 6, floor - 22, 70, Col(0xffb050, 0.28 + 0.03 * sin(NOW * 9)), Col(0xffb050, 0))
+        person(px, floor - 2, g.look, 1, 0, false)
+        c.seg(px + 3, floor - 14, px + 7, floor - 17, 0.8, Col(0x6a5a4a))
+        c.RR(px + 5.6, floor - 17, 3.4, 5, 1, Col(0xffd080))
         switch g.mineFind {
         case 0:
-            c.poly(Col(0x5a4a3e), [fx - 22, fy + 10, fx - 14, fy - 8, fx + 16, fy - 10, fx + 22, fy + 10])
-            gem(fx - 2, fy - 2, 6, Col(0xf0f0f4)); gem(fx + 8, fy, 4, Col(0xe8e0f0))
+            c.poly(Col(0x6a5848), [px + 18, floor - 2, px + 21, floor - 8, px + 28, floor - 9, px + 31, floor - 2])
+            gem(px + 24, floor - 6, 3, Col(0xf0f0f4))
         case 1:
-            c.RR(fx - 5, fy - 10, 10, 16, 2, Col(0x8a6a3a)); c.circ(fx, fy - 2, 3, Col(0xffd080, 0.8)); c.arcStroke(fx, fy - 10, 5, PI, PI * 2, 0.8, Col(0x6a5a4a))
+            c.R(x0 + w * 0.52, roof + 26, 18, 2, Col(0x6a4a2a))
+            c.RR(x0 + w * 0.52 + 6, roof + 18, 6, 8, 1.4, Col(0x8a6a3a)); c.circ(x0 + w * 0.52 + 9, roof + 22, 1.6, Col(0xffd080, 0.7))
         case 2:
-            c.ell(fx, fy + 4, 18, 5, Col(0x3a3a3e)); c.ell(fx, fy + 2, 15, 3.6, Col(0x6a5a4a))
-            for k in 0..<7 { c.circ(fx - 8 + hashN(Double(k) + 60) * 16, fy + 1 + hashN(Double(k) + 61) * 3, 0.9, GOLD) }
+            c.seg(px - 2, floor - 12, px - 12, floor - 3, 0.8, Col(0x3a3a3e))
+            c.ell(px - 14, floor - 2.4, 5, 1.4, Col(0x2a2a2e))
+            let beep = sin(NOW * 14) > 0
+            if beep { g.text("beep", px - 14, floor - 12, 3.2, GOLD, bold: true) }
+            c.circ(px - 20, floor - 1.6, 1.4, GOLD)
         default:
             for k in 0..<5 {
-                let bx = cx + (hashN(Double(k) + 70) - 0.5) * 60, by = vy - 20 + sin(NOW * 4 + Double(k)) * 6
-                let f = sin(NOW * 18 + Double(k)) * 3
-                c.poly(Col(0x1a1410), [bx - 6, by - f, bx, by + 1, bx + 6, by - f, bx, by - 1])
+                let bx = x0 + w * (0.55 + Double(k) * 0.07), by = roof + 4
+                let sw = sin(NOW * 2 + Double(k)) * 0.6
+                c.ell(bx + sw, by + 3, 1.4, 2.6, Col(0x14100c))
+                c.poly(Col(0x14100c), [bx - 2.4 + sw, by + 1, bx + sw, by + 4, bx + 2.4 + sw, by + 1])
             }
         }
-        c.RR(x0 + 10, y0 + h - 26, w - 20, 18, 4, Col(0x000000, 0.6))
-        g.text(g.mineText, W / 2, y0 + h - 17, 4.4, CREAM, bold: true, wrap: w - 30)
-        g.text("THE GOLD EYE", W / 2, y0 + 12, 6, GOLD, bold: true)
-        g.text("tap anywhere to climb back out", W / 2, y0 + h + 6, 3.4, CREAM.alpha(0.7))
+        c.restore()
+        c.RR(x0 + 10, y0 + h - 24, w - 20, 18, 4, Col(0x000000, 0.65))
+        g.text(g.mineText, W / 2, y0 + h - 15, 4.4, CREAM, bold: true, wrap: w - 30)
+        g.text("THE GOLD EYE", W / 2, y0 + 18, 6, GOLD, bold: true)
+        g.text("tap anywhere to walk back out", W / 2, y0 + h + 6, 3.4, CREAM.alpha(0.7))
     }
 
     /// The community board up close: cork, pushpins, flyers with tear-off tabs.
