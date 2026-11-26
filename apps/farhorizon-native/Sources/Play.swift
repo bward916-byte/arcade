@@ -371,7 +371,7 @@ extension Game {
             }
             if p.theme == "turtle" {
                 // a big sea turtle paddling just under the surface off the quarter
-                let cx = sx - len * 0.68 + sin(T * 0.6) * 14, cy = wy + 22 + sin(T * 1.8) * 2
+                let cx = sx + len * 0.66 + sin(T * 0.6) * 14, cy = wy + 6 + sin(T * 1.8) * 2
                 c.ell(cx, cy, 20, 11, Col(0x4a6a3a)); c.ell(cx - 2, cy - 2, 15, 7, Col(0x6a8a4a))
                 for j in 0..<3 { c.ellStroke(cx - 8 + Double(j) * 7, cy - 2, 3.5, 2.5, 1, Col(0x3a5a2a)) }
                 c.ell(cx + 22, cy - 1, 6, 4.5, Col(0x8aa06a)); c.circ(cx + 25, cy - 2.5, 1, Col(0x0c1014))
@@ -379,7 +379,7 @@ extension Game {
                 c.ell(cx + 10, cy + 10 + fl, 9, 3, Col(0x5a7a4a)); c.ell(cx - 12, cy + 10 - fl, 7, 2.5, Col(0x5a7a4a))
                 c.ellStroke(cx, cy + 8, 30, 5, 1.2, Col(0xffffff, 0.5))
                 let reach = (p.pos - 0.5) * 30
-                c.curve(sx - len * 0.45, wy - len * 0.12, (sx - len * 0.45 + cx) / 2, wy - len * 0.2, cx + reach, cy - 8, 1.2, Col(0xd9cdb0))
+                c.curve(sx + len * 0.42, wy - len * 0.12, (sx + len * 0.42 + cx) / 2, wy - len * 0.2, cx + reach, cy - 8, 1.2, Col(0xd9cdb0))
             }
             if p.theme == "trim" {
                 // the sail filling and spilling as the marker swings
