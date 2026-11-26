@@ -2528,9 +2528,11 @@ final class Renderer {
         }
         if g.genOn && g.rigArea == g.area {
             let gx = g.rigX - cam - g.rigFace * (RIGS[g.rig.rawValue].len / 2 + 12)
-            c.RR(gx - 5, GY - 7, 10, 7, 1.4, Col(0xd9412e).shade(1 - dark * 0.4))
-            c.R(gx - 4, GY - 5.6, 8, 2.4, Col(0x2a2a2e))
-            c.R(gx - 5, GY - 7.8, 10, 1, Col(0x4a4a4e))
+            c.RR(gx - 8, GY - 11, 16, 11, 2, Col(0x2a2a2e))
+            c.RR(gx - 7, GY - 10, 14, 9, 1.6, Col(0xe8a020).shade(1 - dark * 0.25))
+            c.R(gx - 5, GY - 7, 10, 3, Col(0x2a2a2e))
+            c.R(gx - 6, GY - 12.6, 12, 1.4, Col(0x4a4a4e))
+            c.circ(gx + 4.6, GY - 2.6, 0.8, Col(0x60ff70))
             for i in 0..<4 {
                 let t = (NOW * 1.2 + Double(i) / 4).truncatingRemainder(dividingBy: 1)
                 c.circ(gx + 5 + t * 6, GY - 6 - t * 14, 1 + t * 3, Col(0x8a8a88, (1 - t) * 0.4))
