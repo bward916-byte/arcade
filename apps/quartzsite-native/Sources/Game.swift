@@ -94,7 +94,7 @@ let EV_GEM = 0, EV_RTR = 1, EV_RV = 2, EV_SELL = 3, EV_SKOOL = 4, EV_CRAFT = 5, 
 let SEASON_END = 109
 let START_WEEKDAY = 1   // Monday
 
-enum SpotKind { case camp, bench, fire, wash, host, station, outhouse, board, grocery, gemworld, landmark, park, hall, yacht, lot, rides, tools, panorama, vendors, office, booth, bigtent, mine, detect, rockhound, river, skoolie, circle, cabin, parade, rvpark, house, computer, radio, cleanup, camel, dogpark, stray, pizza, post, laundry, shop, tour, hike, bar }
+enum SpotKind { case camp, bench, fire, wash, host, station, outhouse, board, grocery, gemworld, landmark, park, hall, yacht, lot, rides, tools, panorama, vendors, office, booth, bigtent, mine, detect, rockhound, river, skoolie, circle, cabin, parade, rvpark, house, computer, radio, cleanup, camel, dogpark, stray, pizza, post, laundry, shop, tour, hike, bar, watch, village }
 struct Spot {
     let kind: SpotKind
     let x: Double
@@ -174,7 +174,7 @@ let AREAS: [AreaDef] = [
         Spot(kind: .wash, x: 2080, name: "DRY WASH"),
         Spot(kind: .cleanup, x: 2380, name: "DESERT CLEANUP")
     ]),
-    AreaDef(name: "Near Ehrenberg", sub: "Public land 10 miles west, toward the river", w: 2200, arrive: 1960, lat: 33.625, lon: -114.39, spots: [
+    AreaDef(name: "Ehrenberg", sub: "Public land 10 miles west, toward the river", w: 2200, arrive: 1960, lat: 33.625, lon: -114.39, spots: [
         Spot(kind: .river, x: 260, name: "THE RIVER"),
         Spot(kind: .skoolie, x: 660, name: "SKOOLIEPALOOZA"),
         Spot(kind: .booth, x: 960, name: "YOUR SPOT", arg: 1),
@@ -226,6 +226,42 @@ let AREAS: [AreaDef] = [
     AreaDef(name: "Blythe Intaglios", sub: "Across the river, north of Blythe, California · giant figures in the desert floor", w: 1800, arrive: 160, lat: 33.8, lon: -114.532, spots: [
         Spot(kind: .hike, x: 960, name: "THE INTAGLIOS", arg: 1)
     ])
+]
+/// The same desert, a thousand years ago: what's there to see in each place, area by area.
+let PAST_SPOTS: [[Spot]] = [
+    [Spot(kind: .watch, x: 900, name: "PRONGHORN", arg: 0), Spot(kind: .watch, x: 1700, name: "SAGUARO FOREST", arg: 8)],
+    [Spot(kind: .watch, x: 1200, name: "OLD FOOT TRAIL", arg: 11), Spot(kind: .watch, x: 2600, name: "QUAIL", arg: 7)],
+    [Spot(kind: .watch, x: 1400, name: "MULE DEER", arg: 5)],
+    [Spot(kind: .watch, x: 900, name: "BIGHORN", arg: 1)],
+    [Spot(kind: .watch, x: 260, name: "BEAVER POND", arg: 4), Spot(kind: .village, x: 900, name: "RIVER VILLAGE")],
+    [Spot(kind: .watch, x: 1200, name: "COYOTES", arg: 6)],
+    [Spot(kind: .watch, x: 1000, name: "DESERT TORTOISE", arg: 3)],
+    [Spot(kind: .watch, x: 900, name: "ROADRUNNER", arg: 12)],
+    [Spot(kind: .watch, x: 1000, name: "CHUCKWALLA", arg: 13)],
+    [Spot(kind: .watch, x: 1100, name: "GOLDEN EAGLE", arg: 14)],
+    [Spot(kind: .watch, x: 900, name: "KIT FOX", arg: 15)],
+    [Spot(kind: .watch, x: 400, name: "CONDOR", arg: 2), Spot(kind: .watch, x: 980, name: "FAN PALMS", arg: 10)],
+    [Spot(kind: .watch, x: 900, name: "BIGHORN", arg: 1)],
+    [Spot(kind: .watch, x: 960, name: "THE GREAT FIGURES", arg: 9)]
+]
+/// What you note down watching each thing, back in 1026.
+let WILD: [(String, String)] = [
+    ("pronghorn", "Pronghorn: the fastest runners in North America, racing across the flats"),
+    ("bighorn", "Desert bighorn, picking their way along the ledges"),
+    ("condor", "A California condor, wings nine feet across, riding the thermals"),
+    ("desert tortoise", "A desert tortoise out on a warm winter afternoon"),
+    ("beavers", "Beavers working the willows along the river"),
+    ("mule deer", "Mule deer browsing at the edge of the mesquite"),
+    ("coyotes", "A coyote family trotting down the wash"),
+    ("quail", "A covey of Gambel's quail, topknots bobbing"),
+    ("saguaro forest", "A forest of saguaros, some already a century and a half old"),
+    ("the great figures", "The great figures, freshly scraped into the dark desert pavement"),
+    ("fan palms", "Fan palms in the canyon, with a spring at their feet"),
+    ("old foot trail", "A foot trail toward the river, broken buff pottery along its edge"),
+    ("roadrunner", "A roadrunner sprinting after a lizard"),
+    ("chuckwalla", "A chuckwalla sunning on a black rock, puffing up at you"),
+    ("golden eagle", "A golden eagle on a snag, watching the whole valley"),
+    ("kit fox", "A kit fox, all ears, at the mouth of its den")
 ]
 let LANDMARKS = ["Pay respects at Hi Jolly's tomb", "Browse the books", "Read the stage-stop plaque", "Walk the old cemetery", "Walk Celia's Rainbow Gardens"]
 let CAMELS = 6
@@ -357,6 +393,8 @@ struct SaveData: Codable {
     var tanks: Double?
     var propane: Double?
     var stats: [Int]?
+    var notes: [Int]?
+    var era: Int?
 }
 
 final class Input {
@@ -392,7 +430,26 @@ final class Game {
     // where everything is
     var area = Area.ltva
     var rigArea = Area.ltva
-    var spots: [Spot] { return AREAS[area.rawValue].spots }
+    var spots: [Spot] { return inPast ? PAST_SPOTS[area.rawValue] : AREAS[area.rawValue].spots }
+    // a thousand years back: same land, no roads, no rigs
+    var era = 0
+    var inPast: Bool { return era == 1 }
+    var fieldNotes: Set<Int> = []
+    var flashT = 0.0
+    var rigHere: Bool { return !inPast && rigArea == area }
+    var toyHere: Bool { return !inPast && toyArea == area }
+
+    /// Step through: your rig and rides stay in 2026; you go on foot.
+    func timeTravel() {
+        refund()
+        era = inPast ? 0 : 1
+        inRig = false; onToy = false; vx = 0
+        mapOpen = false
+        flashT = 1.2
+        arriveT = 4.5
+        events.append(7)
+        if inPast { hintT = 0; hint("past", "Winter, 1026. No roads, no rigs, saguaros everywhere. The river people farm the floodplain at Ehrenberg. Walk the old trails, watch quietly, and fill your field notes. Open the map to come home.") }
+    }
     var WORLD: Double { return AREAS[area.rawValue].w }
 
     // the day
@@ -587,7 +644,7 @@ final class Game {
             ("Trade up to a bigger rig", rig.rawValue > START_RIGS[min(pickRig, START_RIGS.count - 1)].rawValue),
             ("Start a business at Town Hall", business > 0),
             ("Adopt a dog from the dog park", hasDog),
-            ("Earn 50 cred", cred >= 50),
+            ("Go back 1,000 years and fill your field notes", fieldNotes.count >= 10),
             ("Save 5,000 coins", money >= 5000),
             ("Get a year-round RV site or a house", resident || house)
         ]
@@ -604,7 +661,7 @@ final class Game {
 
     /// A morning visit: most days a neighbor wanders over with coffee.
     var neighborVisit: Bool {
-        return phase == .play && rigArea == area && dayT > 0.02 && dayT < 0.25 && !seen.contains(27) && hashN(Double(day) * 3.7 + 0.2) < 0.6
+        return phase == .play && rigHere && dayT > 0.02 && dayT < 0.25 && !seen.contains(27) && hashN(Double(day) * 3.7 + 0.2) < 0.6
     }
 
     /// An email to the developer, with the build and where you are filled in.
@@ -629,6 +686,7 @@ final class Game {
         return ("from " + areaName(area), 8)
     }
     func postPhoto() {
+        if inPast { float("No signal for another thousand years", px, CREAM); return }
         if seen.contains(26) { return }
         seen.insert(26)
         let s = photoSubject()
@@ -707,6 +765,7 @@ final class Game {
             }
             if mapOpen {
                 if id == 64 { testWeek(); return }
+                if id == 85 { timeTravel(); return }
                 if id >= 70 && id < 70 + AREAS.count { go(Area(rawValue: id - 70) ?? area) } else if id == 61 || id < 0 { mapOpen = false }
                 events.append(3)
                 return
@@ -727,6 +786,7 @@ final class Game {
                 }
                 return
             }
+            if id == 67 && inPast { float("No signal. Not for another thousand years", px, CREAM); return }
             if id == 67 { refund(); phoneOpen = true; events.append(3); hint("phone", "Your page. Post one photo a day from wherever you are: events, landmarks, sunsets and starry nights reach the most people.") }
         }
     }
@@ -837,6 +897,7 @@ final class Game {
     /// How you would get from here to there right now.
     func trip(_ to: Area) -> Trip {
         if to == area { return Trip(ok: false, cost: 0, how: "You're here") }
+        if inPast { return Trip(ok: true, cost: 0, how: "Walk the old trails") }
         let mi = milesBetween(area, to)
         if to == .trail || area == .trail {
             if inRig || (onToy && toy == 4) { return Trip(ok: false, cost: 0, how: "Too rough. Take a side-by-side or bike") }
@@ -873,7 +934,7 @@ final class Game {
         mapOpen = false
         let mi = milesBetween(area, to)
         stats[3] += Int(mi.rounded())
-        let hiking = !inRig && !onToy && (to == .trail || area == .trail)
+        let hiking = inPast || (!inRig && !onToy && (to == .trail || area == .trail))
         let veh = inRig ? 0 : (onToy ? 1 : (area == .skoolie ? 3 : 2))
         let dirt = to == .trail || area == .trail
         travel(to)
@@ -993,7 +1054,7 @@ final class Game {
                         permitDays: permitDays, business: business, adDays: adDays, page: page, jewelVals: jewelVals, detector: detector, campDays: campDays,
                         age: age, year: year, resident: resident, house: house, upgrades: Array(upgrades), followers: followers,
                         camels: Array(camels), hasDog: hasDog, dogCholla: dogCholla,
-                        weather: weather, afterRain: afterRain, tanks: tanks, propane: propane, stats: stats)
+                        weather: weather, afterRain: afterRain, tanks: tanks, propane: propane, stats: stats, notes: Array(fieldNotes), era: era)
     }
     func restore(_ s: SaveData) {
         life = Life(rawValue: s.life) ?? .nomad
@@ -1008,6 +1069,7 @@ final class Game {
         age = s.age; year = s.year; resident = s.resident; house = s.house; upgrades = Set(s.upgrades); followers = s.followers; camels = Set(s.camels); hasDog = s.hasDog; dogCholla = s.dogCholla; weather = s.weather; afterRain = s.afterRain
         tanks = s.tanks ?? 100; propane = s.propane ?? 100
         if let st = s.stats, st.count == 8 { stats = st }
+        fieldNotes = Set(s.notes ?? []); era = s.era ?? 0
         inRig = false; onToy = false
         shown = ["start"]
         hasSave = true
@@ -1103,6 +1165,9 @@ final class Game {
         if key == "plomosa" { place(.plomosa, 1200); dayT = 0.3; clockFreeze = true }
         if key == "crystal" { place(.crystal, 840); dayT = 0.35; clockFreeze = true }
         if key == "palms" { place(.palms, 960); dayT = 0.3; clockFreeze = true }
+        if key == "past" { place(.ltva, 1500); era = 1; dayT = 0.3; clockFreeze = true }
+        if key == "pastriver" { place(.skoolie, 800); era = 1; dayT = 0.35; clockFreeze = true }
+        if key == "pastmain" { place(.main, 1200); era = 1; dayT = 0.6; clockFreeze = true }
         if key == "desertbar" { day = 6; place(.desertbar, 960); dayT = 0.45; clockFreeze = true }
         if key == "intaglios" { place(.intaglios, 940); dayT = 0.25; clockFreeze = true }
         if key == "board" { place(.main, 3170); day = 9; dayT = 0.3; clockFreeze = true; business = 1; adDays = 2; boardOpen = true }
@@ -1304,6 +1369,10 @@ final class Game {
             return seen.contains(sp.arg) ? nil : Offer(label: LANDMARKS[sp.arg], cost: 0, earn: 0, dur: 1.5)
         case .river:
             return health < 96 ? Offer(label: "Sit by the river", cost: 0, earn: 0, dur: 2.2) : nil
+        case .watch:
+            return !fieldNotes.contains(sp.arg) ? Offer(label: "Watch quietly: " + WILD[sp.arg].0, cost: 0, earn: 0, dur: 2.2) : nil
+        case .village:
+            return !fieldNotes.contains(20) ? Offer(label: "Visit the river village", cost: 0, earn: 0, dur: 2.4) : nil
         case .hike:
             if sp.arg == 1 { return !seen.contains(30) ? Offer(label: "Walk the fence line to the figures", cost: 0, earn: 0, dur: 1.8) : nil }
             return !seen.contains(29) && health > 15 ? Offer(label: "Hike up to the palms", cost: 0, earn: 0, dur: 2.6) : nil
@@ -1393,6 +1462,8 @@ final class Game {
         case .rockhound: return rocks >= packCap ? "Pack is full" : "Too worn out. Rest first"
         case .landmark: return "You've been here today"
         case .river: return "The river's nice today"
+        case .watch: return "In your field notes. Sit and watch as long as you like"
+        case .village: return "They wave as you pass. You're always welcome to watch the work"
         case .hike:
             if sp.arg == 1 { return "You've seen them today. Stay outside the fences" }
             return seen.contains(29) ? "One climb a day is plenty" : "Too worn out. Rest first"
@@ -1682,6 +1753,18 @@ final class Game {
         case .river:
             health = min(100, health + 14)
             float("Calm", x, GREEN)
+        case .watch:
+            fieldNotes.insert(sp.arg)
+            health = min(100, health + 4)
+            float(WILD[sp.arg].1, x, GREEN)
+            float("Field notes \(fieldNotes.count)", x, GOLD)
+        case .village:
+            fieldNotes.insert(20)
+            health = min(100, health + 10)
+            cred += 3
+            float("They share tepary beans and river fish, served in buff pottery", x, GOLD)
+            hintT = 0
+            hint("village", "The river people farm the floodplain after the summer floods and trade along desert trails as far as the coast. Their descendants, River Yuman peoples like the Mojave and Quechan, still live along the Colorado today.")
         case .hike:
             if sp.arg == 1 {
                 seen.insert(30)
@@ -1785,6 +1868,7 @@ final class Game {
         }
         if hintT > 0 && !overlay { hintT -= dt }
         if arriveT > 0 && !overlay { arriveT -= dt }
+        if flashT > 0 { flashT -= dt }
         if phase == .play && driving { driveStep(dt) }
         if phase == .play && !overlay { play(dt) }
     }
@@ -1800,7 +1884,7 @@ final class Game {
         seen = []
         dug = [:]
         if afterRain > 0 { afterRain -= 1 }
-        if rig != .tent && !resident && !house {
+        if rig != .tent && !resident && !house && !inPast {
             tanks = max(0, tanks - 22)
             propane = max(0, propane - (weather >= 2 ? 12 : 8))
             if tanks <= 0 {
@@ -2020,12 +2104,12 @@ final class Game {
         if !clockFreeze { dayT += dt / DAYLEN }
         if dayT >= 1 { dayT -= 1; dawn() }
         // no solar yet: the generator comes on at dusk to keep the lights on
-        if before < 0.64 && dayT >= 0.64 && rigArea != .main && rigArea != .tyson && rig != .tent && panels == 0 && !resident && !house {
+        if !inPast && before < 0.64 && dayT >= 0.64 && rigArea != .main && rigArea != .tyson && rig != .tent && panels == 0 && !resident && !house {
             genOn = true
             hint("gen", "No solar yet, so your generator runs in the evening. Shut it off at your camp before 10 PM. Quiet hours run until 6 AM. Solar panels at K&B Tools mean no generator at all.")
         }
         if genOn && dayT < 0.3 { genOn = false }
-        if genOn && quietHours && genMadDay != day && rigArea == area {
+        if genOn && quietHours && genMadDay != day && rigHere {
             genMadDay = day
             cred = max(0, cred - 2)
             madT = 4; madX = rigX + 70; madText = "It's after ten! Shut that generator off!"
@@ -2086,8 +2170,8 @@ final class Game {
         } else {
             speedT = max(0, speedT - dt)
         }
-        nearRig = rigArea == area && (inRig || abs(px - rigX) < RIGS[rig.rawValue].len / 2 + 22)
-        nearToy = toy >= 0 && toyArea == area && !inRig && (onToy || abs(px - toyX) < TOYS[toy].len / 2 + 18)
+        nearRig = rigHere && (inRig || abs(px - rigX) < RIGS[rig.rawValue].len / 2 + 22)
+        nearToy = toy >= 0 && toyHere && !inRig && (onToy || abs(px - toyX) < TOYS[toy].len / 2 + 18)
 
         // wild burros nearby make a good post, once a day
         if page && !seen.contains(20) && (area == .dome || area == .trail || area == .scaddan) && (dayT < 0.6 || dayT > 0.95) && abs(px - herdX()) < 50 {
