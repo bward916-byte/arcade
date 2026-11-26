@@ -316,6 +316,8 @@ struct SaveData: Codable {
     var dogCholla: Bool
     var weather: Int
     var afterRain: Int
+    var tanks: Double?
+    var propane: Double?
 }
 
 final class Input {
@@ -437,6 +439,9 @@ final class Game {
     var dustAmt = 0.0, speedT = 0.0, dustCool = 0.0
     var madT = 0.0, madX = 0.0, madText = ""
     var genOn = false, genMadDay = -1
+    // living in a rig: the tanks fill up and the propane runs down
+    var tanks = 100.0, propane = 100.0
+    var clockFreeze = false               // screenshots only
 
     /// The clock: 7 AM at first light (0), 6 PM at dusk (0.66), and 7 AM again at 1.
     func hour() -> Double {
@@ -827,7 +832,7 @@ final class Game {
                         permitDays: permitDays, business: business, adDays: adDays, page: page, jewelVals: jewelVals, detector: detector, campDays: campDays,
                         age: age, year: year, resident: resident, house: house, upgrades: Array(upgrades), followers: followers,
                         camels: Array(camels), hasDog: hasDog, dogCholla: dogCholla,
-                        weather: weather, afterRain: afterRain)
+                        weather: weather, afterRain: afterRain, tanks: tanks, propane: propane)
     }
     func restore(_ s: SaveData) {
         life = Life(rawValue: s.life) ?? .nomad
@@ -840,6 +845,7 @@ final class Game {
         permitDays = s.permitDays; business = s.business; adDays = s.adDays; page = s.page; jewelVals = s.jewelVals; detector = s.detector
         campDays = s.campDays
         age = s.age; year = s.year; resident = s.resident; house = s.house; upgrades = Set(s.upgrades); followers = s.followers; camels = Set(s.camels); hasDog = s.hasDog; dogCholla = s.dogCholla; weather = s.weather; afterRain = s.afterRain
+        tanks = s.tanks ?? 100; propane = s.propane ?? 100
         inRig = false; onToy = false
         shown = ["start"]
         hasSave = true
@@ -869,7 +875,7 @@ final class Game {
             stopDone = false; stopKind = 0; stopX = W * 0.66; driveFreeze = true
         }
         if key == "party" {
-            dayT = 0.7
+            dayT = 0.7; clockFreeze = true
             let x = spots.first(where: { $0.kind == .camp })?.x ?? 1260
             px = x + 40
             partyDay = day; partyArea = area; partyX = x; partyT = -40; seen.insert(18)
@@ -880,10 +886,10 @@ final class Game {
         }
         if key == "dust" {
             place(.ltva, 1500); toy = 5; toyArea = .ltva; toyX = 1500; onToy = true; vx = 140; dayT = 0.3
-            dustAmt = 1; madT = 3; madX = 1640; madText = "Slow down! You're dusting our camp!"
+            clockFreeze = true; dustAmt = 1; madT = 99; madX = 1640; madText = "Slow down! You're dusting our camp!"
         }
         if key == "gen" {
-            dayT = 0.8; genOn = true; madT = 3; madX = rigX + 70; madText = "It's after ten! Shut that generator off!"
+            dayT = 0.8; clockFreeze = true; genOn = true; madT = 99; madX = rigX + 70; madText = "It's after ten! Shut that generator off!"
             px = rigX + 30
         }
         if key == "drivetow" {
@@ -901,7 +907,8 @@ final class Game {
         if key == "main" { place(.main, 3600); money = 400; day = 14 }
         if key == "mainwest" { place(.main, 1830); money = 400; day = 9; dayT = 0.35 }
         if key == "maineast" { place(.main, 2740); money = 400; day = 9; dayT = 0.4 }
-        if key == "mainnight" { place(.main, 2700); money = 400; day = 9; dayT = 0.78 }
+        if key == "mainnight" { place(.main, 2700); money = 400; day = 9; dayT = 0.78; clockFreeze = true }
+        if key == "propane" { place(.main, 4080); money = 400; propane = 20; tanks = 30; dayT = 0.4; clockFreeze = true }
         if key == "readers" { place(.main, 4120); money = 400; day = 9; dayT = 0.3 }
         if key == "gem" { place(.tyson, 1050); money = 300; day = 7; rockVals = [40] }
         if key == "rain" { place(.dome, 2060); rig = .classB; rigArea = .dome; rigX = 1500; weather = 3; dayT = 0.3 }
@@ -1055,6 +1062,7 @@ final class Game {
         case .laundry:
             return seen.contains(25) || health >= 96 ? nil : Offer(label: "Shower and laundry", cost: 11, earn: 0, dur: 2)
         case .shop:
+            if (sp.arg == 1 || sp.arg == 5) && rig != .tent && propane < 90 { return Offer(label: "Fill propane", cost: Int((100 - propane) * 0.3) + 4, earn: 0, dur: 1.4) }
             return nil
         case .cleanup:
             return seen.contains(21) || health < 15 ? nil : Offer(label: "Pick up trash with the cleanup crew", cost: 0, earn: 0, dur: 2.4)
@@ -1228,6 +1236,7 @@ final class Game {
             float("Permit for 14 more days", x, CREAM)
         case .station:
             seen.insert(11)
+            tanks = 100
             health = min(100, health + 10)
             float("Tanks dumped, water full", x, GREEN)
         case .pizza:
@@ -1247,7 +1256,8 @@ final class Game {
             health = min(100, health + 30)
             float("Hot shower, clean clothes", x, GREEN)
         case .shop:
-            break
+            propane = 100
+            float("Propane full", x, CREAM)
         case .outhouse:
             health = min(100, health + 6)
             float("Relief", x, GREEN)
@@ -1504,6 +1514,24 @@ final class Game {
         seen = []
         dug = [:]
         if afterRain > 0 { afterRain -= 1 }
+        if rig != .tent && !resident && !house {
+            tanks = max(0, tanks - 22)
+            propane = max(0, propane - (weather >= 2 ? 12 : 8))
+            if tanks <= 0 {
+                health = max(0, health - 12)
+                hintT = 0
+                hint("tanks\(day)", "Fresh water's gone and the gray tank is full. Drive the rig to a dump station to dump and fill.")
+            } else if tanks < 30 {
+                hint("tankslow", "Your tanks are getting full. Drive the rig to the dump and water station at La Posa South.")
+            }
+            if propane <= 0 {
+                health = max(0, health - 10)
+                hintT = 0
+                hint("propane\(day)", "Out of propane: no heater and a cold night. Fill up at Pattie's or Q View on Main Street.")
+            } else if propane < 25 {
+                hint("propanelow", "Propane's running low. Pattie's and Q View on Main Street fill tanks.")
+            }
+        }
         if hasDog && !dogCholla && area != .main && area != .tyson && Double.random(in: 0..<1) < 0.15 {
             dogCholla = true
             hintT = 0
@@ -1682,7 +1710,7 @@ final class Game {
 
     private func play(_ dt: Double) {
         let before = dayT
-        dayT += dt / DAYLEN
+        if !clockFreeze { dayT += dt / DAYLEN }
         if dayT >= 1 { dayT -= 1; dawn() }
         // no solar yet: the generator comes on at dusk to keep the lights on
         if before < 0.64 && dayT >= 0.64 && rigArea != .main && rigArea != .tyson && rig != .tent && panels == 0 && !resident && !house {

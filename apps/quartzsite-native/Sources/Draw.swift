@@ -2192,6 +2192,10 @@ final class Renderer {
         if g.jewelry > 0 { pack += "  ·  pendants \(g.jewelry)" }
         if g.rocks > 0 { pack += "  ·  specimens \(g.rocks)" }
         if g.odd > 0 { pack += "  ·  oddities \(g.odd)" }
+        if g.rig != .tent && !g.resident && !g.house {
+            if g.tanks < 40 { pack += "  ·  tanks \(Int(100 - g.tanks))% full" }
+            if g.propane < 40 { pack += "  ·  propane \(Int(g.propane))%" }
+        }
         if g.page { pack += "  ·  \(g.followersText()) followers" }
         g.text(pack, r, 12, 5.5, CREAM, align: 2, bold: true, plate: true)
         // the map button
