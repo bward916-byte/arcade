@@ -2050,7 +2050,7 @@ final class Renderer {
             for i in 0..<10 {
                 let t = Double(i) / 9
                 let lx = x - 14 + 34 * t, ly = b - 13 + sin(PI * t) * 3
-                c.circ(lx, ly, 0.7, bulbs[(i + Int(seed)) % 4].alpha(0.6 + 0.4 * dark))
+                c.circ(lx, ly, 0.7, bulbs[((i + Int(seed)) % 4 + 4) % 4].alpha(0.6 + 0.4 * dark))
             }
             lights.append((x + 3, b - 11, 16))
         }
