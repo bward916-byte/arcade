@@ -94,7 +94,7 @@ let EV_GEM = 0, EV_RTR = 1, EV_RV = 2, EV_SELL = 3, EV_SKOOL = 4, EV_CRAFT = 5, 
 let SEASON_END = 109
 let START_WEEKDAY = 1   // Monday
 
-enum SpotKind { case camp, bench, fire, wash, host, station, outhouse, board, grocery, gemworld, landmark, park, hall, yacht, lot, rides, tools, panorama, vendors, office, booth, bigtent, mine, detect, rockhound, river, skoolie, circle, cabin, parade, rvpark, house, computer, radio, cleanup, camel, dogpark, stray }
+enum SpotKind { case camp, bench, fire, wash, host, station, outhouse, board, grocery, gemworld, landmark, park, hall, yacht, lot, rides, tools, panorama, vendors, office, booth, bigtent, mine, detect, rockhound, river, skoolie, circle, cabin, parade, rvpark, house, computer, radio, cleanup, camel, dogpark, stray, pizza, post, laundry, shop }
 struct Spot {
     let kind: SpotKind
     let x: Double
@@ -123,27 +123,36 @@ let AREAS: [AreaDef] = [
         Spot(kind: .fire, x: 1710, name: "NEIGHBORS' FIRE"),
         Spot(kind: .wash, x: 2150, name: "DRY WASH")
     ]),
-    AreaDef(name: "Main Street", sub: "Quartzsite, in season", w: 4140, arrive: 180, lat: 33.667, lon: -114.214, spots: [
-        Spot(kind: .landmark, x: 390, name: "HI JOLLY MONUMENT", arg: 0),
-        Spot(kind: .parade, x: 540, name: "PARADE ROUTE"),
-        Spot(kind: .grocery, x: 690, name: "POP-UP GROCERY"),
-        Spot(kind: .computer, x: 840, name: "THE COMPUTER CORNER"),
-        Spot(kind: .gemworld, x: 990, name: "GEM WORLD"),
-        Spot(kind: .camel, x: 1140, name: "THE RED GHOST", arg: 0),
-        Spot(kind: .landmark, x: 1300, name: "READER'S OASIS", arg: 1),
-        Spot(kind: .dogpark, x: 1460, name: "QUARTZSITE DOG PARK"),
-        Spot(kind: .park, x: 1620, name: "TOWN PARK"),
-        Spot(kind: .landmark, x: 1780, name: "CELIA'S RAINBOW GARDENS", arg: 4),
-        Spot(kind: .board, x: 1920, name: "COMMUNITY BOARD"),
-        Spot(kind: .hall, x: 2180, name: "TOWN HALL"),
-        Spot(kind: .camel, x: 2330, name: "CAMEL SCULPTURE", arg: 1),
-        Spot(kind: .yacht, x: 2480, name: "QUARTZSITE YACHT CLUB"),
-        Spot(kind: .lot, x: 2800, name: "USED RIGS"),
-        Spot(kind: .camel, x: 2970, name: "CAMEL SCULPTURE", arg: 2),
-        Spot(kind: .rides, x: 3140, name: "RIDES FOR SALE"),
-        Spot(kind: .rvpark, x: 3480, name: "HOLIDAY PALMS RV PARK"),
-        Spot(kind: .house, x: 3840, name: "HOUSE FOR SALE"),
-        Spot(kind: .camel, x: 4010, name: "CAMEL SCULPTURE", arg: 3)
+    AreaDef(name: "Main Street", sub: "Quartzsite, in season · west to east along Main", w: 4800, arrive: 180, lat: 33.667, lon: -114.214, spots: [
+        Spot(kind: .gemworld, x: 200, name: "GEM WORLD"),
+        Spot(kind: .landmark, x: 400, name: "HI JOLLY MONUMENT", arg: 0),
+        Spot(kind: .lot, x: 560, name: "USED RIGS"),
+        Spot(kind: .shop, x: 760, name: "BIG MARKET", arg: 0),
+        Spot(kind: .rides, x: 930, name: "RIDES FOR SALE"),
+        Spot(kind: .shop, x: 1090, name: "Q VIEW RV PARK", arg: 1),
+        Spot(kind: .camel, x: 1240, name: "CAMEL SCULPTURE", arg: 1),
+        Spot(kind: .rvpark, x: 1440, name: "HOLIDAY PALMS RV PARK"),
+        Spot(kind: .yacht, x: 1660, name: "QUARTZSITE YACHT CLUB"),
+        Spot(kind: .pizza, x: 1820, name: "SILLY AL'S PIZZA"),
+        Spot(kind: .post, x: 1980, name: "POST OFFICE"),
+        Spot(kind: .shop, x: 2120, name: "HAPPY VALLEY PHARMACY", arg: 2),
+        Spot(kind: .camel, x: 2260, name: "THE RED GHOST", arg: 0),
+        Spot(kind: .parade, x: 2420, name: "PARADE ROUTE"),
+        Spot(kind: .shop, x: 2570, name: "AUTO PARTS", arg: 3),
+        Spot(kind: .grocery, x: 2710, name: "ROADRUNNER MARKET"),
+        Spot(kind: .laundry, x: 2880, name: "MAIN STREET LAUNDROMAT"),
+        Spot(kind: .computer, x: 3030, name: "THE COMPUTER CORNER"),
+        Spot(kind: .board, x: 3170, name: "COMMUNITY BOARD"),
+        Spot(kind: .hall, x: 3310, name: "TOWN HALL"),
+        Spot(kind: .landmark, x: 3460, name: "CELIA'S RAINBOW GARDENS", arg: 4),
+        Spot(kind: .park, x: 3620, name: "TOWN PARK"),
+        Spot(kind: .dogpark, x: 3790, name: "QUARTZSITE DOG PARK"),
+        Spot(kind: .shop, x: 3940, name: "COYOTE FRESH FOODS", arg: 4),
+        Spot(kind: .shop, x: 4080, name: "PATTIE'S RV PARK & PROPANE", arg: 5),
+        Spot(kind: .landmark, x: 4230, name: "READER'S OASIS", arg: 1),
+        Spot(kind: .house, x: 4420, name: "HOUSE FOR SALE"),
+        Spot(kind: .camel, x: 4590, name: "CAMEL SCULPTURE", arg: 2),
+        Spot(kind: .camel, x: 4720, name: "CAMEL SCULPTURE", arg: 3)
     ]),
     AreaDef(name: "Tyson Wells", sub: "The show grounds on Kuehn Street", w: 3000, arrive: 160, lat: 33.6625, lon: -114.2215, spots: [
         Spot(kind: .tools, x: 380, name: "KB TOOLS"),
@@ -423,6 +432,7 @@ final class Game {
     var shop = 0                          // 0 the show tables at Tyson Wells, 1 Gem World
     var stock: [Int: (Int, [Ware])] = [:] // each shop's stock for the day
     var dug: [String: Int] = [:]          // finds taken today, by place
+    var mailDay = -6                      // the last General Delivery pickup
     var waresDay = -1
 
     // cinematics: a list of shots, four seconds each, with a caption for each
@@ -865,7 +875,11 @@ final class Game {
             driveLeft = 1.5; driveSpeed = 1; driveScroll = 700; driveFreeze = true
         }
         if key == "ltva" { px = 760; dayT = 0.3; rig = .classB; inRig = true; rigX = 760 }
-        if key == "main" { place(.main, 1610); money = 400; day = 14 }
+        if key == "main" { place(.main, 3600); money = 400; day = 14 }
+        if key == "mainwest" { place(.main, 1830); money = 400; day = 9; dayT = 0.35 }
+        if key == "maineast" { place(.main, 2740); money = 400; day = 9; dayT = 0.4 }
+        if key == "mainnight" { place(.main, 2700); money = 400; day = 9; dayT = 0.78 }
+        if key == "readers" { place(.main, 4120); money = 400; day = 9; dayT = 0.3 }
         if key == "gem" { place(.tyson, 1050); money = 300; day = 7; rockVals = [40] }
         if key == "rain" { place(.dome, 2060); rig = .classB; rigArea = .dome; rigX = 1500; weather = 3; dayT = 0.3 }
         if key == "windy" { px = 1500; weather = 1; dayT = 0.25 }
@@ -878,21 +892,21 @@ final class Game {
         if key == "cine4" { cineShots = [4]; cineCaps = ["April. The snowbirds head north."]; cineT = 2 }
         if key == "happy" { px = 1260; dayT = 0.6; rig = .classC; life = .rver }
         if key == "cleanup" { place(.dome, 2380); dayT = 0.3 }
-        if key == "dog" { place(.main, 1460); hasDog = true; dayT = 0.3 }
+        if key == "dog" { place(.main, 3790); hasDog = true; dayT = 0.3 }
         if key == "camels" { place(.tyson, 2760); camels = [0, 1, 2, 3, 4] }
         if key == "page" { place(.dome, 120); page = true; cred = 60; followers = 940; upgrades = [3]; dayT = 0.3 }
         if key == "qfest" { place(.roadrunner, 900); day = 22; dayT = 0.4 }
-        if key == "western" { place(.main, 1610); day = 82; dayT = 0.45 }
+        if key == "western" { place(.main, 3600); day = 82; dayT = 0.45 }
         if key == "gear" { life = .rver; rig = .classC; panels = 2; upgrades = [0, 1, 2, 3]; rigX = 1150; px = 1240; dayT = 0.35 }
-        if key == "computer" { place(.main, 830); rig = .van }
+        if key == "computer" { place(.main, 3030); rig = .van }
         if key == "browse" { place(.tyson, 1050); money = 300; day = 7; openBrowse() }
-        if key == "parade" { place(.main, 560); day = 13; dayT = 0.3 }
-        if key == "home" { place(.main, 3700); money = 25000; day = 60; life = .rver; resident = true; dayT = 0.6 }
+        if key == "parade" { place(.main, 2420); day = 13; dayT = 0.3 }
+        if key == "home" { place(.main, 4340); money = 25000; day = 60; life = .rver; resident = true; dayT = 0.6 }
         if key == "season" { day = SEASON_END + 1; resident = true; business = 2; cred = 40; seasonCard = true }
         if key == "end" { age = 84; year = 24; cred = 210; money = 18000; house = true; finish() }
         if key == "tyson" { life = .rver; place(.tyson, 2390); money = 3000; day = 21; rig = .classB }
         if key == "dome" { place(.dome, 800); rig = .classB; rigArea = .dome; rigX = 1520; dayT = 0.56 }
-        if key == "toys" { place(.main, 3130); money = 3000; toy = 3; toyArea = .main; toyX = 3050 }
+        if key == "toys" { place(.main, 930); money = 3000; toy = 3; toyArea = .main; toyX = 860 }
         if key == "ride" { place(.dome, 1260); toy = 6; toyArea = .dome; toyX = 1260; onToy = true; detector = true }
         if key == "skoolie" { place(.skoolie, 650); money = 240; day = 22; rig = .skoolie; rigArea = .skoolie; rigX = 880; panels = 2; dayT = 0.58 }
         if key == "trail" { place(.trail, 1080); toy = 3; toyArea = .trail; toyX = 1080; onToy = true; dayT = 0.42 }
@@ -1010,6 +1024,14 @@ final class Game {
             return hasDog && !seen.contains(22) ? Offer(label: "Let your dog run", cost: 0, earn: 0, dur: 2) : nil
         case .stray:
             return hasDog ? nil : Offer(label: "Share your sandwich with the stray", cost: 5, earn: 0, dur: 2.4)
+        case .pizza:
+            return seen.contains(24) ? nil : Offer(label: "Pizza and a cold one", cost: 14, earn: 0, dur: 1.6)
+        case .post:
+            return day - mailDay >= 7 ? Offer(label: "Pick up your General Delivery mail", cost: 0, earn: 0, dur: 1.2) : nil
+        case .laundry:
+            return seen.contains(25) || health >= 96 ? nil : Offer(label: "Shower and laundry", cost: 11, earn: 0, dur: 2)
+        case .shop:
+            return nil
         case .cleanup:
             return seen.contains(21) || health < 15 ? nil : Offer(label: "Pick up trash with the cleanup crew", cost: 0, earn: 0, dur: 2.4)
         case .radio:
@@ -1082,6 +1104,10 @@ final class Game {
         case .host: return "Permit good for \(permitDays) more days"
         case .station: return rig == .tent ? "Tents don't need it" : (seen.contains(11) ? "Done for today" : "Drive your rig over to dump and fill")
         case .outhouse: return "You're good for now"
+        case .pizza: return "Back tomorrow for another slice"
+        case .post: return "Next mail in \(7 - (day - mailDay)) days"
+        case .laundry: return seen.contains(25) ? "Clean as a whistle" : "You're clean enough"
+        case .shop: return ["Hardware, groceries and RV basics", "RV spaces and propane", "Prescriptions. Call ahead in summer", "Parts for the rig", "Fresh meat, deli and quick groceries", "RV spaces and propane fills"][max(0, min(5, sp.arg))]
         case .board:
             if seen.contains(23) { return business > 0 ? "Your ad is up \(adDays) more days. New jobs tomorrow" : "New odd jobs go up every morning" }
             if business == 0 { return "Too worn out for work. Rest first" }
@@ -1177,6 +1203,24 @@ final class Game {
             seen.insert(11)
             health = min(100, health + 10)
             float("Tanks dumped, water full", x, GREEN)
+        case .pizza:
+            seen.insert(24)
+            health = min(100, health + 30)
+            cred += 1
+            float("Best slice in town", x, GREEN)
+            post("pizza at Silly Al's", 15)
+        case .post:
+            mailDay = day
+            let amt = life == .rver ? 120 : 30
+            money += Double(amt)
+            float(life == .rver ? "Your check came  +\(amt)" : "A card from home with \(amt) inside", x, GOLD)
+            events.append(5)
+        case .laundry:
+            seen.insert(25)
+            health = min(100, health + 30)
+            float("Hot shower, clean clothes", x, GREEN)
+        case .shop:
+            break
         case .outhouse:
             health = min(100, health + 6)
             float("Relief", x, GREEN)

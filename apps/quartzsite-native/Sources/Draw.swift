@@ -233,7 +233,12 @@ final class Renderer {
             rig(.skoolie, rx, GY + 12, 2, 1)
         } else {
             for (i, sp) in g.spots.enumerated() { spot(i, sp) }
-            if g.phase == .play { critters(ar); eventCrowds(ar) }
+            if g.phase == .play {
+                critters(ar)
+                eventCrowds(ar)
+                if ar == .main { mainDecor() }
+                if ar == .main || ar == .tyson { streetTraffic(ar) }
+            }
             if g.phase == .play && g.area == .main && g.on(EV_PARADE) { parade() }
             if g.phase == .play { drawYou() }
         }
@@ -1368,17 +1373,142 @@ final class Renderer {
             }
             top = 50
         case .grocery:
-            canopy(x, 30, Col(0xf4f1ea), Col(0x4f9a5a))
-            person(x + 2, GY - 1, 0, -1, 0, false)
-            c.R(x - 24, GY - 10, 48, 2, Col(0x8a6a44))
-            c.R(x - 22, GY - 8, 1.2, 8, Col(0x6a4e30)); c.R(x + 21, GY - 8, 1.2, 8, Col(0x6a4e30))
-            let fruit: [Col] = [Col(0xd9412e), Col(0xf29a2e), Col(0x6aa84a), Col(0xf2d24e)]
-            for j in 0..<4 {
-                let bx = x - 22 + Double(j) * 11.5
-                c.RR(bx, GY - 16, 10, 6, 1, Col(0xa98558))
-                for q in 0..<3 { c.circ(bx + 2 + Double(q) * 3, GY - 16.5, 1.6, fruit[j]) }
+            // Roadrunner Market: a long white block with red lettering and a roadrunner at each end
+            let wall = Col(0xf2eee6)
+            facade(x - 58, GY - 30, 116, 30, wall)
+            let band = Col(0xd9776a).shade(1 - dark * 0.4)
+            c.R(x - 58, GY - 8, 116, 7, band)
+            var sc = x - 58.0
+            while sc < x + 58 { c.poly(wall.shade(1 - dark * 0.45), [sc, GY - 8, sc + 6, GY - 8, sc + 3, GY - 5]); sc += 6 }
+            c.R(x - 60, GY - 39, 120, 10, wall.shade(1 - dark * 0.45))
+            c.R(x - 60, GY - 29.4, 120, 0.8, Col(0x000000, 0.12))
+            g.text("ROADRUNNER MARKET", x, GY - 34.5, 5.4, Col(0xc8281e), bold: true)
+            roadrunnerSign(x - 50, GY - 34, 1, Col(0xc8281e)); roadrunnerSign(x + 50, GY - 34, -1, Col(0xc8281e))
+            g.text("DELI · ICE · BEER · PRODUCE", x - 8, GY - 25.5, 2.8, Col(0x3a3a3e), bold: true)
+            pane(x - 52, GY - 21, 15, 10); pane(x - 33, GY - 21, 15, 10); pane(x - 14, GY - 21, 15, 10)
+            doorway(x + 30, GY - 18, 14, 18, Col(0x6a4a34))
+            c.arcStroke(x + 37, GY - 18, 8, PI, PI * 2, 1.4, wall.shade(0.8))
+            c.R(x + 10, GY - 10, 13, 10, Col(0xf4f4f8).shade(1 - dark * 0.4)); g.text("ICE", x + 16.5, GY - 6, 3, Col(0x3a6ea5), bold: true)
+            if dark > 0.3 { lights.append((x - 30, GY - 16, 30)) }
+            label = false
+            top = 56
+        case .pizza:
+            // Silly Al's: low stucco under a red tile roof, a patio out front
+            facade(x - 40, GY - 26, 80, 26, Col(0xe8d8bc))
+            c.poly(Col(0xb8422e).shade(1 - dark * 0.4), [x - 46, GY - 26, x - 38, GY - 34, x + 38, GY - 34, x + 46, GY - 26])
+            for j in 0..<16 { c.R(x - 42 + Double(j) * 5.4, GY - 30, 0.6, 3.6, Col(0x8a2e1e).shade(1 - dark * 0.4)) }
+            c.RR(x - 32, GY - 47, 64, 11, 2, Col(0x2a2a2e))
+            g.text("SILLY AL'S PIZZA", x, GY - 41.5, 4.4, Col(0xf2c14e), bold: true)
+            pane(x - 34, GY - 20, 18, 11); pane(x + 16, GY - 20, 18, 11)
+            doorway(x - 6, GY - 20, 12, 20, Col(0x5a2e1e))
+            c.R(x + 54, GY - 22, 1, 22, Col(0x6a6a6a))
+            c.poly(Col(0xd9412e).shade(1 - dark * 0.4), [x + 42, GY - 20, x + 54.5, GY - 26, x + 67, GY - 20])
+            c.R(x + 47, GY - 7, 15, 1.4, wood); c.R(x + 48, GY - 6, 1, 6, wood); c.R(x + 60, GY - 6, 1, 6, wood)
+            if dark > 0.3 { g.text("OPEN", x + 25, GY - 14, 3.2, Col(0xff5a6a), bold: true); lights.append((x + 25, GY - 14, 16)) }
+            label = false
+            top = 54
+        case .post:
+            // the post office: tan brick, the flag out front, a blue collection box
+            facade(x - 36, GY - 26, 72, 26, Col(0xc9a07a))
+            c.R(x - 40, GY - 29, 80, 3.4, Col(0xe8e0d0).shade(1 - dark * 0.4))
+            g.text("POST OFFICE", x, GY - 21.5, 4.2, Col(0x24324a), bold: true)
+            g.text("QUARTZSITE, AZ 85346", x, GY - 17, 2.4, Col(0x24324a))
+            doorway(x - 7, GY - 14, 14, 14, Col(0x3a4a5a)); pane(x - 30, GY - 13, 14, 8); pane(x + 16, GY - 13, 14, 8)
+            c.R(x - 54, GY - 50, 1, 50, Col(0xc8c8c4).shade(1 - dark * 0.4))
+            let wv = sin(NOW * 4) * 0.8
+            for j in 0..<5 {
+                let yy = GY - 49 + Double(j) * 1.6
+                c.poly((j % 2 == 0 ? Col(0xc8281e) : Col(0xf4f4f0)).shade(1 - dark * 0.4), [x - 53, yy, x - 46, yy + wv * 0.5, x - 39, yy + wv, x - 39, yy + wv + 1.6, x - 46, yy + wv * 0.5 + 1.6, x - 53, yy + 1.6])
             }
-            top = 46
+            c.R(x - 53, GY - 49, 6, 4.8, Col(0x24324a).shade(1 - dark * 0.4))
+            c.RR(x + 44, GY - 12, 7, 10, 2.5, Col(0x2a4a8a).shade(1 - dark * 0.4))
+            c.R(x + 44.6, GY - 2, 1, 2, Col(0x2a2a2e)); c.R(x + 49.4, GY - 2, 1, 2, Col(0x2a2a2e))
+            label = false
+            top = 56
+        case .laundry:
+            // Main Street Laundromat: a tan metal building, a palm, an old orange van parked out front
+            let tan = Col(0xc8b89a)
+            facade(x - 34, GY - 24, 68, 24, tan)
+            var rib = x - 34.0
+            while rib < x + 34 { c.R(rib, GY - 24, 0.6, 24, tan.shade(0.88 - dark * 0.4)); rib += 3.4 }
+            c.poly(tan.shade(1.08 - dark * 0.45), [x - 38, GY - 24, x, GY - 33, x + 38, GY - 24])
+            pane(x - 26, GY - 18, 14, 9); doorway(x - 4, GY - 18, 10, 18, Col(0x5a5a5e)); pane(x + 12, GY - 18, 14, 9)
+            c.R(x + 52, GY - 38, 1.4, 38, Col(0x8a8a88))
+            c.RR(x + 40, GY - 51, 26, 14, 2, Col(0xf4f4f0).shade(1 - dark * 0.3))
+            g.text("LAUNDRY", x + 53, GY - 46.5, 3.2, Col(0x2f5a8a), bold: true)
+            g.text("SHOWERS", x + 53, GY - 41.5, 3.2, Col(0x2f5a8a), bold: true)
+            palm(x - 46, GY + 1, 36, 11)
+            let vo = Col(0xe2862e).shade(1 - dark * 0.4)
+            c.RR(x - 30, GY - 9, 32, 9, 3, vo)
+            c.R(x - 26, GY - 7.4, 5, 3, GLASS); c.R(x - 19, GY - 7.4, 5, 3, GLASS); c.R(x - 12, GY - 7.4, 5, 3, GLASS)
+            c.poly(GLASS, [x - 5, GY - 7.4, x - 1, GY - 7.4, x + 1.4, GY - 4.4, x - 5, GY - 4.4])
+            c.R(x - 31, GY - 1.6, 34, 1, Col(0xc8c8c4))
+            for wx in [-23.0, -4.0] { c.circ(x + wx, GY + 0.4, 2.4, TIRE); c.circ(x + wx, GY + 0.4, 1, HUB) }
+            label = false
+            top = 56
+        case .shop:
+            label = false
+            switch sp.arg {
+            case 0:
+                // Big Market: hardware, groceries, RV basics
+                facade(x - 52, GY - 32, 104, 32, Col(0xe8e4dc))
+                c.R(x - 52, GY - 32, 104, 8, Col(0xb5452f).shade(1 - dark * 0.4))
+                g.text("BIG MARKET", x, GY - 28, 5.2, CREAM, bold: true)
+                g.text("HARDWARE · GROCERIES · RV PARTS", x, GY - 20.5, 2.8, Col(0x3a3a3e), bold: true)
+                pane(x - 44, GY - 16, 20, 10); pane(x + 24, GY - 16, 20, 10)
+                doorway(x - 8, GY - 16, 16, 16, Col(0x5a5a5e))
+                c.R(x + 56, GY - 14, 14, 14, Col(0x8a8a88, 0.45))
+                for j in 0..<3 { c.RR(x + 57.4 + Double(j) * 4.2, GY - 9, 3.4, 8, 1.6, Col(0xf4f4f0)) }
+                top = 44
+            case 1, 5:
+                // an RV park with a propane fill out front
+                c.R(x - 1, GY - 40, 2, 40, Col(0x7a6a5a))
+                c.RR(x - 32, GY - 53, 64, 14, 2, (sp.arg == 1 ? Col(0x2f5a7a) : Col(0x7a3a2a)).shade(1 - dark * 0.3))
+                g.text(sp.arg == 1 ? "Q VIEW RV PARK" : "PATTIE'S RV PARK", x, GY - 48.5, 3.8, CREAM, bold: true)
+                g.text("RV SPACES · PROPANE", x, GY - 43, 2.8, CREAM.alpha(0.85))
+                rig(.classC, x + 72, GY - 2, 1, -1, 0.5); rig(.classA, x - 70, GY - 2, 2, 1, 0.5)
+                facade(x - 44, GY - 18, 26, 18, Col(0xd9c9a8))
+                pane(x - 41, GY - 14, 8, 6); doorway(x - 29, GY - 14, 7, 14, Col(0x5a3a22))
+                c.RR(x + 12, GY - 12, 32, 9, 4.5, Col(0xf4f4f0).shade(1 - dark * 0.4))
+                c.R(x + 16, GY - 3, 1.4, 3, Col(0x6a6a6a)); c.R(x + 38, GY - 3, 1.4, 3, Col(0x6a6a6a))
+                c.R(x + 26, GY - 14, 4, 2, Col(0x8a8a88))
+                g.text("PROPANE", x + 28, GY - 7.5, 2.6, Col(0xc8281e), bold: true)
+                top = 60
+            case 2:
+                // Happy Valley Pharmacy
+                facade(x - 30, GY - 26, 60, 26, Col(0xe0d4bc))
+                c.RR(x - 32, GY - 36, 64, 9, 2, Col(0x2f6a4a).shade(1 - dark * 0.3))
+                g.text("HAPPY VALLEY PHARMACY", x, GY - 31.5, 3.2, CREAM, bold: true)
+                c.R(x + 16, GY - 21, 8, 2.4, Col(0x3fb06a)); c.R(x + 18.8, GY - 23.8, 2.4, 8, Col(0x3fb06a))
+                pane(x - 24, GY - 18, 16, 10); doorway(x - 4, GY - 18, 10, 18, Col(0x4a5a5a))
+                top = 44
+            case 3:
+                // the auto parts store next to the market
+                facade(x - 40, GY - 24, 80, 24, Col(0xf0ece4))
+                c.poly(Col(0x9aa0a6).shade(1 - dark * 0.4), [x - 44, GY - 24, x - 40, GY - 28, x + 40, GY - 28, x + 44, GY - 24])
+                g.text("AUTO PARTS", x - 12, GY - 19.5, 4.4, Col(0xc8281e), bold: true)
+                pane(x - 34, GY - 14, 14, 8); pane(x - 4, GY - 14, 14, 8); doorway(x + 24, GY - 16, 10, 16, Col(0x3a3a3e))
+                c.circ(x + 34, GY - 22, 3, Col(0x3a6ea5)); g.text("P", x + 34, GY - 22, 3, CREAM, bold: true)
+                top = 40
+            default:
+                // Coyote Fresh Foods, with a howling coyote on the sign
+                facade(x - 40, GY - 28, 80, 28, Col(0xc9a07a))
+                c.R(x - 44, GY - 30, 88, 3, Col(0x8a5a3a).shade(1 - dark * 0.4))
+                c.RR(x - 34, GY - 41, 68, 10, 2, Col(0x3a2a1e))
+                g.text("COYOTE FRESH FOODS", x + 5, GY - 36, 3.4, Col(0xf2c14e), bold: true)
+                let cy = Col(0xf2c14e)
+                c.ell(x - 26, GY - 35, 2.6, 1.3, cy); c.circ(x - 23.4, GY - 37.6, 1, cy)
+                c.seg(x - 23, GY - 38, x - 21.6, GY - 40.2, 0.6, cy); c.seg(x - 28.4, GY - 35, x - 30.6, GY - 33.6, 0.6, cy)
+                c.seg(x - 27.6, GY - 34, x - 28, GY - 32.4, 0.5, cy); c.seg(x - 24.6, GY - 34, x - 24.4, GY - 32.4, 0.5, cy)
+                pane(x - 34, GY - 20, 18, 10); pane(x + 16, GY - 20, 18, 10); doorway(x - 6, GY - 20, 12, 20, Col(0x4a3424))
+                let fruit: [Col] = [Col(0xd9412e), Col(0xf29a2e), Col(0x6aa84a)]
+                for j in 0..<3 {
+                    let bx = x + 46 + Double(j) * 9
+                    c.RR(bx, GY - 6, 8, 6, 1, Col(0xa98558))
+                    for q in 0..<3 { c.circ(bx + 1.6 + Double(q) * 2.4, GY - 6.4, 1.3, fruit[j]) }
+                }
+                top = 50
+            }
         case .tools:
             let wall = Col(0xb9b3a6)
             facade(x - 42, GY - 38, 84, 38, wall)
@@ -1794,11 +1924,13 @@ final class Renderer {
                 top = 52
             } else if sp.arg == 1 {
                 // Reader's Oasis: the desert bookstore with tables of books out front
-                let wall = Col(0xe2d2b4)
-                facade(x - 34, GY - 30, 68, 30, wall)
-                c.poly(Col(0x9a4a3a), [x - 38, GY - 30, x - 30, GY - 38, x + 30, GY - 38, x + 38, GY - 30])
-                c.RR(x - 26, GY - 47, 52, 10, 2, Col(0x2f5a4a))
-                g.text("READER'S OASIS", x, GY - 42, 4.6, CREAM, bold: true)
+                // weathered brown wood, a flat roof with a long sign across the front, a shaded porch
+                let wall = Col(0x8a6a4a)
+                facade(x - 34, GY - 26, 68, 26, wall)
+                c.R(x - 42, GY - 28, 84, 3, Col(0x5a4030).shade(1 - dark * 0.4))
+                for px2 in [-41.0, -15.0, 14.0, 40.0] { c.R(x + px2, GY - 26, 1.4, 26, Col(0x5a4030).shade(1 - dark * 0.4)) }
+                c.RR(x - 36, GY - 39, 72, 11, 1, Col(0xefe6cf).shade(1 - dark * 0.4))
+                g.text("READER'S OASIS BOOKS", x, GY - 33.5, 4.2, Col(0x3a2a1e), bold: true)
                 doorway(x - 6, GY - 20, 12, 20, Col(0x4a3424))
                 let spines: [Col] = [Col(0xb5452f), Col(0x3a6ea5), Col(0xf2c14e), Col(0x3f8f8a), Col(0x7a4a8a), Col(0xe8dcc4)]
                 for side in [-1.0, 1.0] {
@@ -2363,6 +2495,68 @@ final class Renderer {
                 let t = (NOW * 0.5 + Double(k) / 3).truncatingRemainder(dividingBy: 1)
                 g.text("♪", fx + 10 + sin(t * 6 + Double(k)) * 8, GY - 34 - t * 26, 5, CREAM.alpha(1 - t))
             }
+        }
+    }
+
+    /// A roadrunner on a sign, running.
+    private func roadrunnerSign(_ x: Double, _ y: Double, _ dir: Double, _ col: Col) {
+        c.ell(x, y, 3, 1.3, col)
+        c.seg(x - 2.4 * dir, y - 0.3, x - 7 * dir, y - 2.8, 0.9, col)
+        c.circ(x + 3 * dir, y - 1.8, 1.2, col)
+        c.seg(x + 4 * dir, y - 1.8, x + 6.6 * dir, y - 1.3, 0.5, col)
+        c.seg(x + 2.6 * dir, y - 2.8, x + 1.8 * dir, y - 4.2, 0.5, col)
+        c.seg(x, y + 1, x - 1.4 * dir, y + 3.4, 0.4, col); c.seg(x + 0.8 * dir, y + 1, x + 2 * dir, y + 3.2, 0.4, col)
+    }
+
+    /// Main Street furniture: street lights, and the signal at Central Boulevard (US 95).
+    private func mainDecor() {
+        let pole = Col(0x6a6a6c).shade(1 - dark * 0.4)
+        var n = floor((cam - 40) / 320)
+        while n * 320 < cam + W + 40 {
+            let sx = n * 320 + 150 - cam
+            c.R(sx - 0.6, GY - 44, 1.2, 46, pole)
+            c.seg(sx, GY - 44, sx + 7, GY - 45, 0.8, pole)
+            c.RR(sx + 5, GY - 46, 5, 2, 0.8, pole)
+            if dark > 0.3 { c.R(sx + 5.6, GY - 44.4, 3.8, 0.8, Col(0xffe7a0)); lights.append((sx + 7.5, GY - 40, 34)) }
+            n += 1
+        }
+        // the intersection with Central Blvd / US 95
+        let ix = 2340 - cam
+        if ix > -60 && ix < W + 60 {
+            for k in 0..<6 { c.R(ix - 12 + Double(k) * 4.4, GY + 6.4, 2.4, 10, Col(0xf4f4f0, 0.75)) }
+            c.R(ix + 16, GY - 40, 1.6, 41, pole)
+            c.RR(ix + 12.4, GY - 52, 8.8, 13, 1.6, Col(0x2a2a2e))
+            let t = (NOW + 3).truncatingRemainder(dividingBy: 14)
+            let lit = t < 6 ? 2 : (t < 7.6 ? 1 : 0)
+            let on: [Col] = [Col(0xff4030), Col(0xffc030), Col(0x40e070)]
+            for k in 0..<3 {
+                let ly = GY - 49 + Double(k) * 3.8
+                c.circ(ix + 16.8, ly, 1.4, k == lit ? on[k] : Col(0x3a3a3c))
+                if k == lit { lights.append((ix + 16.8, ly, 10)) }
+            }
+            c.R(ix + 4, GY - 36, 26, 4, Col(0x1f6a3a)); g.text("MAIN ST", ix + 17, GY - 34, 2.6, CREAM, bold: true)
+            c.R(ix + 4, GY - 31, 26, 4, Col(0x1f6a3a)); g.text("CENTRAL BLVD", ix + 17, GY - 29, 2.4, CREAM, bold: true)
+            c.RR(ix + 22, GY - 26, 8, 8, 1, Col(0xf4f4f0)); g.text("95", ix + 26, GY - 22, 3, INK, bold: true)
+        }
+    }
+
+    /// Cars and rigs rolling along the street, busier in show season.
+    private func streetTraffic(_ ar: Area) {
+        let span = g.WORLD + 400
+        let busy = g.on(EV_GEM) || g.on(EV_RTR) || g.on(EV_RV) || g.on(EV_SELL) || g.on(EV_CRAFT)
+        let n = busy ? 6 : 3
+        let kinds: [RigKind] = [.classA, .minivan, .van, .classC, .skoolie, .classB]
+        for k in 0..<n {
+            let dir = k % 2 == 0 ? 1.0 : -1.0
+            let sp = 36 + hashN(Double(k) + 60) * 22
+            var wx = (NOW * sp + hashN(Double(k) + 61) * span).truncatingRemainder(dividingBy: span)
+            if dir < 0 { wx = span - wx }
+            let sx = wx - 200 - cam
+            if sx < -130 || sx > W + 130 { continue }
+            let base = dir > 0 ? GY + 12 : GY + 17
+            if k % 3 == 2 { toy(4, sx, base, dir, 4 + k * 13, NOW * sp * 0.1) }
+            else { rig(kinds[(k + Int(ar.rawValue)) % kinds.count], sx, base, 0, dir, 0.62) }
+            if dark > 0.3 { c.glow(sx + dir * 26, base - 5, 16, Col(0xfff2c0, 0.3), Col(0xfff2c0, 0)) }
         }
     }
 
