@@ -2730,20 +2730,22 @@ final class Renderer {
         g.hits.append(Hit(id: -1, x: 0, y: 0, w: W, h: H))
         let w = min(330.0, W - g.safeL - g.safeR - 20), h = 160.0
         let x0 = (W - w) / 2, y0 = (H - h) / 2
-        let roof = y0 + 54, floor = y0 + 112
+        let roof = y0 + 60, floor = y0 + 114
         c.save()
         c.RR(x0, y0, w, h, 10, Col(0x3a2e26))
         // the hill in cross-section: layered rock above and below the drift
         let strata = [Col(0x5a4636), Col(0x4e3c2e), Col(0x645040), Col(0x4a3a2c)]
-        for k in 0..<6 {
-            let yy = y0 + Double(k) * 9
+        for k in 0..<5 {
+            let yy = y0 + 24 + Double(k) * 8
             c.poly(strata[k % 4], [x0, yy, x0 + w, yy + 4 + sin(Double(k)) * 3, x0 + w, yy + 13, x0, yy + 9])
         }
         for k in 0..<4 { c.R(x0, floor + Double(k) * 12, w, 12, strata[(k + 1) % 4].shade(0.9)) }
         for k in 0..<40 { let d = Double(k) + 500; c.ell(x0 + hashN(d) * w, y0 + hashN(d + 1) * h, 1.6 + hashN(d + 2) * 3, 1 + hashN(d + 3) * 1.6, Col(0x2a2018, 0.5)) }
-        // the desert surface and the portal on the left, daylight pouring in
-        c.R(x0, y0, w, 6, Col(0xc8a070))
-        saguaro(x0 + 30, y0 + 6, 14, 3, SAG, false)
+        // sky and the desert surface on top, the portal on the left with daylight pouring in
+        c.vfill(x0, y0, w, 22, [(0, Col(0x7ab4e0)), (1, Col(0xd8e8f0))])
+        c.R(x0, y0 + 21, w, 4, Col(0xc8a070))
+        saguaro(x0 + 24, y0 + 22, 15, 3, SAG, false)
+        saguaro(x0 + w - 40, y0 + 22, 11, 7, SAG, false)
         c.vfill(x0, roof, 30, floor - roof, [(0, Col(0xf2d8a8)), (1, Col(0xd8b07a))])
         c.glow(x0 + 18, (roof + floor) / 2, 60, Col(0xffe8b0, 0.35), Col(0xffe8b0, 0))
         // the drift itself, dark and getting darker
@@ -2761,12 +2763,12 @@ final class Renderer {
             c.R(tx - 3, roof, 9.4, 3.4, tw.shade(1.1))
             tx += 46
         }
-        // the quartz vein in the wall
-        c.roundCaps(true)
-        c.seg(x0 + w * 0.42, roof + 6, x0 + w * 0.48, roof + 22, 2.4, Col(0xe8e4dc))
-        c.seg(x0 + w * 0.48, roof + 22, x0 + w * 0.44, roof + 40, 2, Col(0xe8e4dc))
-        c.roundCaps(false)
-        for k in 0..<4 { let t = sin(NOW * 3 + Double(k) * 1.7); if t > 0.6 { c.circ(x0 + w * 0.43 + Double(k) * 2, roof + 10 + Double(k) * 8, 0.9, Col(0xffffff)) } }
+        // the quartz vein the miners followed, cutting down through the rock into the drift's back wall
+        let vein: [Double] = [x0 + w * 0.40, y0 + 30, x0 + w * 0.44, y0 + 40, x0 + w * 0.42, y0 + 50, x0 + w * 0.47, roof, x0 + w * 0.45, roof + 16]
+        for k in stride(from: 0, to: vein.count - 2, by: 2) {
+            c.seg(vein[k], vein[k + 1], vein[k + 2], vein[k + 3], k < 6 ? 2.6 : 1.4, Col(0xe8e4dc, k < 6 ? 0.9 : 0.35))
+        }
+        for k in 0..<4 { let t = sin(NOW * 3 + Double(k) * 1.7); if t > 0.6 { c.circ(x0 + w * 0.41 + Double(k) * 1.6, y0 + 34 + Double(k) * 6, 0.9, Col(0xffffff)) } }
         // you, with a lantern (and the detector, if you found gold with it)
         let px = x0 + w * 0.36
         c.glow(px + 6, floor - 22, 70, Col(0xffb050, 0.28 + 0.03 * sin(NOW * 9)), Col(0xffb050, 0))
@@ -2797,7 +2799,7 @@ final class Renderer {
         c.restore()
         c.RR(x0 + 10, y0 + h - 24, w - 20, 18, 4, Col(0x000000, 0.65))
         g.text(g.mineText, W / 2, y0 + h - 15, 4.4, CREAM, bold: true, wrap: w - 30)
-        g.text("THE GOLD EYE", W / 2, y0 + 18, 6, GOLD, bold: true)
+        g.text("THE GOLD EYE", x0 + w / 2, y0 + 11, 5.4, Col(0x3a2414), bold: true)
         g.text("tap anywhere to walk back out", W / 2, y0 + h + 6, 3.4, CREAM.alpha(0.7))
     }
 
