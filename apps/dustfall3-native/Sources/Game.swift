@@ -2608,6 +2608,12 @@ final class Game {
     func advice() -> String {
         if state != .play || over || !cut.isEmpty || gallery != nil || duel != nil || choosing { return "" }
         if dark() > 0.5 { return raidOn ? "Tonight: hold the gates until dawn." : "" }
+        if TESTBUILD && lastTown {
+            // test builds: say exactly where the march stands, so a stuck ending can be pinned down
+            let n = folk.filter { !$0.sick }.count, rb = rallyBlock
+            let why = rb.isEmpty ? "none" : (rb == "done" ? "done" : (rb == "wait" ? "scene/duel/gallery" : (dark() > 0.5 ? "night" : "folk")))
+            return "TEST march: folk \(n)/\(RALLY_N) \u{00B7} \(dark() > 0.5 ? "night" : "day") \u{00B7} \(rallyOn ? (routT >= 0 ? "routing" : "marching") : "waiting") \u{00B7} block \(why) \u{00B7} gate \(Int(gateE.x - px)) \u{00B7} yard \(Int(craneX - px))"
+        }
         if folk.isEmpty { return "Next: toss a coin to a drifter at a campfire outside town." }
         if lastTown && !seen.contains("st_end") && rallyBlock != "done" {
             if rallyOn { return routT >= 0 ? "" : "Keep riding east to Crane\u{2019}s yard: the town is behind you." }
