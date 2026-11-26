@@ -51,6 +51,7 @@ final class Renderer {
             if g.browseOpen { browseOverlay() }
             if g.seasonCard { seasonOverlay() }
             if g.ended { endOverlay() }
+            if g.inCine { cinematic() }
         }
     }
 
@@ -177,6 +178,15 @@ final class Renderer {
             c.R(0, GY + 10, W, 0.8, Col(0xa98558, 0.5))
             c.R(0, GY + 13, W, 0.8, Col(0xa98558, 0.4))
         }
+        if ar == .trail && g.phase == .play {
+            var pts: [Double] = [0, GY + 3]
+            var x = 0.0
+            while x <= W + 4 { pts.append(x); pts.append(GY + g.ground(x + cam)); x += 4 }
+            pts.append(W + 4); pts.append(GY + 3)
+            c.poly(Col(0xc9a372), pts)
+            x = 0
+            while x <= W { c.R(x, GY + g.ground(x + cam) - 0.4, 4.4, 0.9, Col(0xe0c49a)); x += 4 }
+        }
         var n = floor(cam / 23) - 1
         while n * 23 < cam + W + 23 {
             let sx = n * 23 + hashN(n + 50) * 20 - cam
@@ -281,12 +291,24 @@ final class Renderer {
                 c.glow(tx, GY - 8, len * 0.9, Col(0xffe9a0, pulse), Col(0xffe9a0, 0))
                 g.text("Tap to ride", tx, GY - 26, 5.5, CREAM)
             }
-            toy(g.toy, tx, g.onToy ? GY + 7 : GY + 2, g.onToy ? g.face : 1, g.onToy ? g.look : -1, g.onToy ? g.walk : 0)
+            let gx = (g.onToy ? g.px : g.toyX)
+            let tb = (g.onToy ? GY + 7 : GY + 2) + g.ground(gx)
+            if g.area == .trail {
+                // tilt with the ground, and buck a little at speed
+                let hop = g.onToy ? abs(sin(gx * 0.09)) * min(1, abs(g.vx) / 160) * 2.4 : 0
+                c.save()
+                c.translate(tx, tb - hop)
+                c.rotate(g.slope(gx) * 0.9)
+                toy(g.toy, 0, 0, g.onToy ? g.face : 1, g.onToy ? g.look : -1, g.onToy ? g.walk : 0)
+                c.restore()
+            } else {
+                toy(g.toy, tx, tb, g.onToy ? g.face : 1, g.onToy ? g.look : -1, g.onToy ? g.walk : 0)
+            }
             if g.nearToy {
                 g.hits.append(Hit(id: 51, x: tx - len / 2 - 8, y: GY - 34, w: len + 16, h: 52))
             }
         }
-        if !g.inRig && !g.onToy { person(g.px - cam, GY + 6, g.look, g.face, g.walk, abs(g.vx) > 4) }
+        if !g.inRig && !g.onToy { person(g.px - cam, GY + 6 + g.ground(g.px), g.look, g.face, g.walk, abs(g.vx) > 4) }
     }
 
     /// The extras on your own rig: a roof rack, a Starlink dish, and the awning rolled out when you're parked.
@@ -1940,6 +1962,179 @@ final class Renderer {
         c.poly(col, [x + 4.4, base - 7.6, x + 9, base - 7, x + 5, base - 5.4])
         c.poly(col, [x + 5, base - 7.6, x + 5.6, base - 10, x + 6.4, base - 7.6])
         c.circ(x + 6.6, base - 7.2, 0.5, Col(0xffe080, 0.9))
+    }
+
+    // MARK: cinematics
+
+    /// The current shot of a cinematic, with fades between shots and a caption.
+    private func cinematic() {
+        g.hits.removeAll(keepingCapacity: true)
+        g.texts.removeAll(keepingCapacity: true)
+        let i = min(g.cineShots.count - 1, Int(g.cineT / g.SHOT))
+        let u = (g.cineT - Double(i) * g.SHOT) / g.SHOT
+        c.R(0, 0, W, H, Col(0x000000))
+        switch g.cineShots[i] {
+        case 0: shotHighway(u)
+        case 1: shotWide(u)
+        case 2: shotFire(u)
+        case 3: shotDawn(u)
+        case 4: shotNorth(u)
+        default: shotSummer(u)
+        }
+        // letterbox, caption, fades
+        c.R(0, 0, W, 14, Col(0x000000)); c.R(0, H - 14, W, 14, Col(0x000000))
+        let cap = g.cineCaps[min(i, g.cineCaps.count - 1)]
+        let a = clampD(min(u * 4, (1 - u) * 4), 0, 1)
+        if g.cineShots[i] == 3 {
+            g.text("QUARTZSITE", W / 2, H * 0.36, 26, CREAM.alpha(a), bold: true)
+            g.text(cap, W / 2, H * 0.36 + 20, 7, GOLD.alpha(a), bold: true)
+        } else {
+            g.text(cap, W / 2, H - 26, 7, CREAM.alpha(a), bold: true)
+        }
+        g.text("tap to skip", W - g.safeR - 30, 7, 4, CREAM.alpha(0.4))
+        let fade = clampD(1 - min(u, 1 - u) * 6, 0, 1)
+        if fade > 0 { c.R(0, 0, W, H, Col(0x000000, fade)) }
+    }
+
+    @discardableResult
+    private func cineSky(_ t: Double) -> Col {
+        let sk = skyAt(t)
+        c.vfill(0, 0, W, H, [(0, sk.0), (1, sk.1)])
+        return sk.1
+    }
+
+    /// I-10 at sunset: your rig rolls past saguaros toward the Quartzsite exit sign.
+    private func shotHighway(_ u: Double) {
+        let haze = cineSky(0.61)
+        dark = 0.15
+        c.glow(W * 0.7, GY * 0.62, 70, Col(0xffd0a0, 0.6), Col(0xffd0a0, 0))
+        c.circ(W * 0.7, GY * 0.62, 9, Col(0xfff0d0))
+        let pan = u * 260
+        cam = pan
+        ridge(0.1, 2.2, GY - 4, 50, Col.mix(Col(0x6a4a6a), haze, 0.5))
+        ridge(0.3, 6.1, GY, 22, Col.mix(Col(0x5a3a3a), haze, 0.3))
+        c.R(0, GY, W, H - GY, Col(0x6a4a3a))
+        c.R(0, GY + 6, W, 14, Col(0x3a3634))
+        var lx = -(pan * 2).truncatingRemainder(dividingBy: 26)
+        while lx < W { c.R(lx, GY + 12.6, 12, 0.9, Col(0xf2c14e, 0.9)); lx += 26 }
+        // the exit sign slides in
+        let sx = W * 1.1 - u * W * 0.55
+        c.R(sx - 1, GY - 40, 2, 46, Col(0x8a8f96)); c.R(sx + 50, GY - 40, 2, 46, Col(0x8a8f96))
+        c.RR(sx - 6, GY - 66, 64, 28, 3, Col(0xf4f4f0)); c.RR(sx - 5, GY - 65, 62, 26, 2.6, Col(0x1f6b3a))
+        g.text("EXIT 17", sx + 26, GY - 58, 5.6, CREAM, bold: true)
+        g.text("QUARTZSITE", sx + 26, GY - 47.4, 6, CREAM, bold: true)
+        // saguaros sliding past in silhouette
+        for k in 0..<6 {
+            let d = Double(k)
+            let x = (d * 120 - pan * 1.6).truncatingRemainder(dividingBy: W + 200) + (d * 120 - pan * 1.6 < 0 ? W + 200 : 0) - 60
+            saguaro(x, GY + 2, 50 + hashN(d + 40) * 30, d + 41, Col(0x2a2a24), false)
+        }
+        let rk = g.rig == .tent ? RigKind.minivan : g.rig
+        rig(rk, W * 0.42, GY + 18, g.panels, 1)
+        for k in 0..<4 { let d = Double(k); c.circ(W * 0.42 - RIGS[rk.rawValue].len / 2 - 6 - d * 8, GY + 16 - d, 3 + d * 1.6, Col(0xe8c8a0, 0.25 - d * 0.05)) }
+    }
+
+    /// The whole La Posa spread out at dusk: rows and rows of rigs, saguaros and cholla glowing in front.
+    private func shotWide(_ u: Double) {
+        let haze = cineSky(0.63)
+        dark = 0.2
+        c.glow(W * 0.25, GY * 0.75, 60, Col(0xffb070, 0.55), Col(0xffb070, 0))
+        cam = u * 120
+        ridge(0.08, 3.3, GY - 10, 46, Col.mix(Col(0x5a4a6a), haze, 0.55))
+        c.R(0, GY - 14, W, H, Col(0x8a6a4e))
+        for row in 0..<4 {
+            let r = Double(row)
+            let s = 0.22 + r * 0.08
+            let y = GY - 12 + r * 9
+            var x = -40.0 - (cam * (0.3 + r * 0.2)).truncatingRemainder(dividingBy: 40)
+            var k = 0.0
+            while x < W + 40 {
+                let kinds: [RigKind] = [.classA, .classC, .classB, .van, .skoolie, .classA]
+                rig(kinds[Int(hashN(k + r * 31) * 6) % 6], x, y, 0, hashN(k + r * 7) < 0.5 ? 1 : -1, s)
+                x += 34 + r * 12 + hashN(k + r * 3) * 14
+                k += 1
+            }
+        }
+        // the foreground garden, lit gold from the low sun
+        dark = 0
+        for k in 0..<5 {
+            let d = Double(k)
+            let x = d * W / 4 + 20 - u * 30
+            if k % 2 == 0 { saguaro(x, H - 10, 70 + hashN(d) * 20, d + 9, Col(0x3a5a34), true) } else { cholla(x, H - 12, 2.2, d + 5) }
+        }
+    }
+
+    /// Night at camp: the fire, the chairs, the stars.
+    private func shotFire(_ u: Double) {
+        cineSky(0.85)
+        dark = 1
+        for i in 0..<120 {
+            let n = Double(i)
+            c.R(hashN(n + 5) * W, hashN(n + 205) * H * 0.7, 0.9, 0.9, Col(0xffffff, 0.3 + 0.6 * hashN(n + 405) * (0.6 + 0.4 * sin(NOW * 2 + n))))
+        }
+        c.R(0, H * 0.68, W, H, Col(0x1a1418))
+        let fx = W * 0.5, fy = H * 0.78
+        c.glow(fx, fy - 10, 110 + sin(NOW * 9) * 6, Col(0xffa040, 0.55), Col(0xffa040, 0))
+        c.save(); c.translate(fx, fy); c.scale(3, 3)
+        fire(0, 0)
+        c.restore()
+        c.save(); c.translate(fx - 60, fy + 10); c.scale(2.6, 2.6); person(0, 0, 1, 1, 0, false); c.restore()
+        c.save(); c.translate(fx + 64, fy + 10); c.scale(2.6, 2.6); person(0, 0, 3, -1, 0, false); c.restore()
+        c.save(); c.translate(W * 0.86, H * 0.68); c.scale(1.4, 1.4); rig(.classB, 0, 0, 0, -1); c.restore()
+        saguaro(W * 0.12, H * 0.7, 60, 3, Col(0x0e0c10), false)
+    }
+
+    /// Dawn over a cholla garden, the sun coming up behind the title.
+    private func shotDawn(_ u: Double) {
+        cineSky(0.02 + u * 0.06)
+        dark = 0
+        let sy = GY * 0.95 - u * 30
+        c.glow(W * 0.5, sy, 90, Col(0xffe0a0, 0.6), Col(0xffe0a0, 0))
+        c.circ(W * 0.5, sy, 10, Col(0xfff2d0))
+        ridge(0.1, 1.7, GY - 2, 40, Col(0x6a4a5a))
+        c.R(0, GY, W, H - GY, Col(0x9a7454))
+        for k in 0..<7 { let d = Double(k); cholla(d * W / 6 + 10, H - 8 - hashN(d) * 10, 1.8 + hashN(d + 3) * 0.8, d + 20) }
+        saguaro(W * 0.15, H - 4, 90, 31, Col(0x2e4a2c), true)
+        saguaro(W * 0.86, H - 4, 76, 33, Col(0x2e4a2c), true)
+    }
+
+    /// April: a line of rigs heading up Highway 95 into the sunset.
+    private func shotNorth(_ u: Double) {
+        let haze = cineSky(0.64)
+        dark = 0.25
+        ridge(0.1, 5.2, GY - 6, 44, Col.mix(Col(0x5a3a5a), haze, 0.4))
+        c.R(0, GY, W, H - GY, Col(0x7a5a44))
+        // the road runs away from us toward the horizon
+        c.poly(Col(0x3a3634), [W * 0.46, GY, W * 0.54, GY, W * 0.9, H, W * 0.1, H])
+        c.seg(W * 0.5, GY, W * 0.5, H, 0.8, Col(0xf2c14e, 0.8))
+        for k in 0..<6 {
+            let d = Double(k)
+            let t = ((d / 6 + u * 0.25).truncatingRemainder(dividingBy: 1))
+            let y = H - t * (H - GY)
+            let sc = 0.15 + (1 - t) * 0.6
+            let x = W * 0.5 + (1 - t) * W * 0.12
+            rig([RigKind.classA, .classC, .skoolie, .classB, .van, .classA][k], x, y, 0, 1, sc)
+        }
+        c.R(W * 0.2 - 1, GY - 20, 2, 26, Col(0x8a8f96)); c.RR(W * 0.2 - 14, GY - 30, 28, 12, 2, Col(0xf4f4f0))
+        g.text("95 NORTH", W * 0.2, GY - 24, 4.4, INK, bold: true)
+        saguaro(W * 0.88, H, 80, 51, Col(0x2a2a24), false)
+    }
+
+    /// Summer: heat shimmer and an empty desert.
+    private func shotSummer(_ u: Double) {
+        cineSky(0.3)
+        dark = 0
+        c.glow(W * 0.5, GY * 0.25, 120, Col(0xfff8e0, 0.7), Col(0xfff8e0, 0))
+        c.circ(W * 0.5, GY * 0.25, 12, Col(0xffffff))
+        ridge(0.1, 8.1, GY - 4, 40, Col(0xc0a090))
+        c.R(0, GY, W, H - GY, Col(0xe0c49a))
+        for k in 0..<10 {
+            let y = GY - 6 + Double(k) * 1.6
+            c.R(0, y + sin(NOW * 6 + Double(k)) * 0.8, W, 0.6, Col(0xffffff, 0.12))
+        }
+        saguaro(W * 0.3, GY + 20, 64, 61, SAG, true)
+        if g.rig != .tent { rig(g.rig, W * 0.66, GY + 16, g.panels, -1) }
+        g.text("110°", W * 0.84, GY * 0.3, 14, Col(0xd9412e, 0.85), bold: true)
     }
 
     private func titleOverlay() {

@@ -398,6 +398,13 @@ final class Game {
     var wares: [Ware] = []
     var waresDay = -1
 
+    // cinematics: a list of shots, four seconds each, with a caption for each
+    var cineShots: [Int] = []
+    var cineCaps: [String] = []
+    var cineT = 0.0
+    var inCine: Bool { return !cineShots.isEmpty }
+    let SHOT = 4.2
+
     // the map
     var mapOpen = false
     var mapMsg = ""
@@ -424,7 +431,7 @@ final class Game {
     }
     func areaName(_ a: Area) -> String { return AREAS[a.rawValue].name }
     /// A full-screen card is up and the day stands still.
-    var overlay: Bool { return mapOpen || browseOpen || seasonCard || ended }
+    var overlay: Bool { return mapOpen || browseOpen || seasonCard || ended || inCine }
     func on(_ e: Int) -> Bool { return day >= EVENTS[e].start && day <= EVENTS[e].end }
     /// Which Tyson Wells show is running today, if any.
     func tysonShow() -> Int? {
@@ -455,6 +462,11 @@ final class Game {
             if id == 99 { begin() }
             if id >= 0 { events.append(3) }
         case .play:
+            if inCine {
+                // a tap skips ahead to the last shot, a second tap ends it
+                if cineT < Double(cineShots.count - 1) * SHOT { cineT = Double(cineShots.count - 1) * SHOT } else { cineShots = [] }
+                return
+            }
             if ended {
                 if id == 82 { hasSave = false; ended = false; phase = .pick }
                 return
@@ -502,6 +514,9 @@ final class Game {
         floaters = []
         phase = .play
         arriveT = 4.5
+        cineShots = [0, 1, 2, 3]
+        cineCaps = ["I-10, Arizona. Exit 17.", "Every winter, the desert fills up.", "Snowbirds, nomads, skoolies and rockhounds.", "Your first winter · " + dateText(1)]
+        cineT = 0
         hint("start", "Walk with the left pad. Stand by a glowing spot and hold the right side to fill its ring. Let go early and your money comes back. Tap MAP to go somewhere else.")
     }
 
@@ -554,6 +569,18 @@ final class Game {
     func followersText() -> String {
         return followers >= 1000 ? String(format: "%.1fk", Double(followers) / 1000) : "\(followers)"
     }
+
+    /// How far the ground rises above the road line at x (negative is up). Only Pipeline Trail is rough,
+    /// and it flattens out around the places you stop.
+    func ground(_ x: Double) -> Double {
+        if area != .trail { return 0 }
+        var flat = 1.0
+        for sp in spots { flat = min(flat, clampD((abs(x - sp.x) - 40) / 60, 0, 1)) }
+        if x < 260 { flat = min(flat, clampD((x - 160) / 100, 0, 1)) }
+        let h = 5 + 4 * sin(x * 0.021) + 2.5 * sin(x * 0.057 + 1.3)
+        return -max(0, h) * flat
+    }
+    func slope(_ x: Double) -> Double { return atan((ground(x + 4) - ground(x - 4)) / 8) }
 
     /// Where the burro herd is grazing right now, in world pixels (the drawing uses the same).
     func herdX() -> Double { return (time * 4 + 340).truncatingRemainder(dividingBy: WORLD + 400) - 200 + 39 }
@@ -648,6 +675,7 @@ final class Game {
         if key == "rigs" { showRigs = true; return }
         life = .nomad; pickRig = 1; look = 1
         begin()
+        if !key.hasPrefix("cine") { cineShots = [] }
         hintT = 0
         if key == "night" { px = 1690; dayT = 0.8; wood = 3 }
         if key == "ltva" { px = 760; dayT = 0.3; rig = .classB; inRig = true; rigX = 760 }
@@ -656,6 +684,12 @@ final class Game {
         if key == "rain" { place(.dome, 2060); rig = .classB; rigArea = .dome; rigX = 1500; weather = 3; dayT = 0.3 }
         if key == "windy" { px = 1500; weather = 1; dayT = 0.25 }
         if key == "critters" { place(.dome, 260); dayT = 0.42 }
+        if key == "trailride" { place(.trail, 640); toy = 6; toyArea = .trail; toyX = 640; onToy = true; vx = 150; dayT = 0.3 }
+        if key == "cine0" { cineT = 1.5 }
+        if key == "cine1" { cineT = 5.8 }
+        if key == "cine2" { cineT = 10.2 }
+        if key == "cine3" { cineT = 15 }
+        if key == "cine4" { cineShots = [4]; cineCaps = ["April. The snowbirds head north."]; cineT = 2 }
         if key == "page" { place(.dome, 120); page = true; cred = 60; followers = 940; upgrades = [3]; dayT = 0.3 }
         if key == "qfest" { place(.roadrunner, 900); day = 22; dayT = 0.4 }
         if key == "western" { place(.main, 1610); day = 82; dayT = 0.45 }
@@ -1097,6 +1131,10 @@ final class Game {
             if floaters[i].t > 1.8 { floaters.remove(at: i) } else { i += 1 }
         }
         if mapMsgT > 0 { mapMsgT -= dt }
+        if inCine {
+            cineT += dt
+            if cineT >= Double(cineShots.count) * SHOT { cineShots = [] }
+        }
         if hintT > 0 && !overlay { hintT -= dt }
         if arriveT > 0 && !overlay { arriveT -= dt }
         if phase == .play && !overlay { play(dt) }
@@ -1197,6 +1235,14 @@ final class Game {
             finish()
             return
         }
+        if stay {
+            cineShots = [5, 3]
+            cineCaps = ["Summer. 110 in the shade, and you stayed.", "Winter \(year) · age \(age)"]
+        } else {
+            cineShots = [4, 0, 3]
+            cineCaps = ["April. The snowbirds head north.", "October. Back down I-10.", "Winter \(year) · age \(age)"]
+        }
+        cineT = 0
         arriveT = 4.5
         hintT = 0
         hint("season\(year)", "Season \(year). You're \(age) now. " + (stay ? "You rode out the summer in Quartzsite." : "Back from up north, and the desert is filling up again."))
