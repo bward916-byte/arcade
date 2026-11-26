@@ -2992,7 +2992,7 @@ final class Renderer {
             if jc < 5 { jackrabbit(W + 30 - jc * (W + 60) / 5, GY + 5, NOW * 9) }
         }
         // a red-tailed hawk circling high
-        if !night {
+        if !night && g.weather < 2 {
             let ha = NOW * 0.35
             hawk(W * 0.55 + cos(ha) * 60, GY * 0.22 + sin(ha) * 10, NOW)
         }
