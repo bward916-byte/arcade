@@ -5,7 +5,7 @@ import Foundation
 enum Phase { case title, pick, play }
 enum Life: Int { case nomad = 0, rver = 1 }
 enum RigKind: Int { case tent = 0, minivan, van, skoolie, classB, classC, classA }
-enum Area: Int { case ltva = 0, main, tyson, dome, skoolie, trail, scaddan, roadrunner }
+enum Area: Int { case ltva = 0, main, tyson, dome, skoolie, trail, scaddan, roadrunner, hijolly, plomosa, crystal, palms }
 
 struct RigDef {
     let name: String
@@ -94,7 +94,7 @@ let EV_GEM = 0, EV_RTR = 1, EV_RV = 2, EV_SELL = 3, EV_SKOOL = 4, EV_CRAFT = 5, 
 let SEASON_END = 109
 let START_WEEKDAY = 1   // Monday
 
-enum SpotKind { case camp, bench, fire, wash, host, station, outhouse, board, grocery, gemworld, landmark, park, hall, yacht, lot, rides, tools, panorama, vendors, office, booth, bigtent, mine, detect, rockhound, river, skoolie, circle, cabin, parade, rvpark, house, computer, radio, cleanup, camel, dogpark, stray, pizza, post, laundry, shop, tour }
+enum SpotKind { case camp, bench, fire, wash, host, station, outhouse, board, grocery, gemworld, landmark, park, hall, yacht, lot, rides, tools, panorama, vendors, office, booth, bigtent, mine, detect, rockhound, river, skoolie, circle, cabin, parade, rvpark, house, computer, radio, cleanup, camel, dogpark, stray, pizza, post, laundry, shop, tour, hike }
 struct Spot {
     let kind: SpotKind
     let x: Double
@@ -200,6 +200,25 @@ let AREAS: [AreaDef] = [
         Spot(kind: .radio, x: 900, name: "QUARTZFEST"),
         Spot(kind: .camp, x: 1450, name: "YOUR CAMP"),
         Spot(kind: .bench, x: 1590, name: "JEWELRY BENCH")
+    ]),
+    AreaDef(name: "Hi Jolly", sub: "Free BLM camping 3 miles north · 14-day limit", w: 2200, arrive: 160, lat: 33.7097, lon: -114.2168, spots: [
+        Spot(kind: .wash, x: 520, name: "DRY WASH"),
+        Spot(kind: .fire, x: 880, name: "NEIGHBORS' FIRE"),
+        Spot(kind: .camp, x: 1280, name: "YOUR CAMP"),
+        Spot(kind: .cleanup, x: 1760, name: "DESERT CLEANUP")
+    ]),
+    AreaDef(name: "Plomosa Road", sub: "BLM camping 6 miles north under the Plomosa Mountains · 14-day limit", w: 2400, arrive: 160, lat: 33.749, lon: -114.216, spots: [
+        Spot(kind: .wash, x: 460, name: "DRY WASH"),
+        Spot(kind: .fire, x: 900, name: "NOMAD FIRE"),
+        Spot(kind: .camp, x: 1380, name: "YOUR CAMP"),
+        Spot(kind: .detect, x: 1900, name: "OLD PLACER GROUND")
+    ]),
+    AreaDef(name: "Crystal Hill", sub: "Kofa refuge, 12 miles southeast · quartz crystals in the hillside", w: 2000, arrive: 160, lat: 33.526, lon: -114.118, spots: [
+        Spot(kind: .rockhound, x: 860, name: "CRYSTAL HILL"),
+        Spot(kind: .camp, x: 1480, name: "KOFA CAMP")
+    ]),
+    AreaDef(name: "Palm Canyon", sub: "Kofa refuge, 25 miles south · native palms up a side canyon", w: 1700, arrive: 160, lat: 33.36, lon: -114.106, spots: [
+        Spot(kind: .hike, x: 980, name: "PALM CANYON TRAIL")
     ])
 ]
 let LANDMARKS = ["Pay respects at Hi Jolly's tomb", "Browse the books", "Read the stage-stop plaque", "Walk the old cemetery", "Walk Celia's Rainbow Gardens"]
@@ -822,6 +841,7 @@ final class Game {
             return Trip(ok: true, cost: Int((mi * t.perMile).rounded(.up)), how: "Ride the " + t.name.lowercased())
         }
         if to == .skoolie { return Trip(ok: false, cost: 0, how: "10 miles out. You need wheels") }
+        if to == .crystal || to == .palms { return Trip(ok: false, cost: 0, how: "\(Int(mi)) miles out. You need wheels") }
         if area == .skoolie { return Trip(ok: true, cost: 0, how: "Ride back with a nomad family") }
         return Trip(ok: true, cost: 2, how: "Camel Express dial-a-ride")
     }
@@ -1068,6 +1088,10 @@ final class Game {
             wares[0].haggled = true; wares[0].price = Int(Double(wares[0].price) * 0.8); mapMsg = wares[0].who + ": \"Alright, \(wares[0].price) and it's yours.\""; mapMsgT = 99
         }
         if key == "rvshow" { day = 22; place(.tyson, 2560); dayT = 0.3; clockFreeze = true }
+        if key == "hijolly" { place(.hijolly, 900); dayT = 0.6; clockFreeze = true }
+        if key == "plomosa" { place(.plomosa, 1200); dayT = 0.3; clockFreeze = true }
+        if key == "crystal" { place(.crystal, 840); dayT = 0.35; clockFreeze = true }
+        if key == "palms" { place(.palms, 960); dayT = 0.3; clockFreeze = true }
         if key == "board" { place(.main, 3170); day = 9; dayT = 0.3; clockFreeze = true; business = 1; adDays = 2; boardOpen = true }
         if key == "minein" { place(.dome, 820); dayT = 0.3; clockFreeze = true; detector = true; mineFind = 2; mineText = "Your detector sounds off over the old ore dump at the portal: a small nugget, 42 coins."; mineOpen = true }
         if key == "tour" { day = 24; place(.skoolie, 1480); dayT = 0.3; clockFreeze = true; tourBus = 0; tourOpen = true }
@@ -1267,6 +1291,8 @@ final class Game {
             return seen.contains(sp.arg) ? nil : Offer(label: LANDMARKS[sp.arg], cost: 0, earn: 0, dur: 1.5)
         case .river:
             return health < 96 ? Offer(label: "Sit by the river", cost: 0, earn: 0, dur: 2.2) : nil
+        case .hike:
+            return !seen.contains(29) && health > 15 ? Offer(label: "Hike up to the palms", cost: 0, earn: 0, dur: 2.6) : nil
         case .skoolie:
             return on(EV_SKOOL) && odd < 3 ? Offer(label: "Cow skull or other oddity", cost: oddBuy, earn: 0, dur: 1.0) : nil
         case .circle:
@@ -1351,6 +1377,7 @@ final class Game {
         case .rockhound: return rocks >= packCap ? "Pack is full" : "Too worn out. Rest first"
         case .landmark: return "You've been here today"
         case .river: return "The river's nice today"
+        case .hike: return seen.contains(29) ? "One climb a day is plenty" : "Too worn out. Rest first"
         case .skoolie: return on(EV_SKOOL) ? "Pack is full" : "Skooliepalooza: " + EVENTS[EV_SKOOL].when + " (projected)"
         case .circle: return on(EV_SKOOL) ? "See you tomorrow" : "Skooliepalooza: " + EVENTS[EV_SKOOL].when + " (projected)"
         case .cabin: return "Too worn out. Rest first"
@@ -1622,7 +1649,11 @@ final class Game {
             else { float("Pull tab", x, CREAM) }
         case .rockhound:
             health = max(0, health - 4)
-            if afterRain > 0 { rockVals.append(Int(rnd(30, 60))); float("Washed out of the bank after the rain", x, GOLD) }
+            if area == .crystal {
+                if Double.random(in: 0..<1) < 0.7 { rockVals.append(Int(rnd(30, 80))); float("+1 quartz crystal, clear as glass", x, GOLD) } else { float("Just broken shards", x, CREAM) }
+                hint("kofa", "Crystal Hill is in the Kofa refuge: hand collecting only, and only a small amount each year. Leave the hill for the next person.")
+            }
+            else if afterRain > 0 { rockVals.append(Int(rnd(30, 60))); float("Washed out of the bank after the rain", x, GOLD) }
             else if Double.random(in: 0..<1) < 0.55 { rockVals.append(Int(rnd(16, 40))); float("+1 quartz", x, CREAM) } else { float("Pretty gravel", x, CREAM) }
         case .landmark:
             seen.insert(sp.arg)
@@ -1632,6 +1663,12 @@ final class Game {
         case .river:
             health = min(100, health + 14)
             float("Calm", x, GREEN)
+        case .hike:
+            seen.insert(29)
+            health = max(0, health - 6)
+            cred += 2
+            float("California fan palms: some of the only native palms in Arizona", x, GREEN)
+            post("hiking to the hidden palms in Kofa", 30)
         case .skoolie:
             odd += 1
             cred += 1

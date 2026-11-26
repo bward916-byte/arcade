@@ -203,7 +203,7 @@ final class Renderer {
         ridge(0.3, 8.7 + seed, GY + 1, ar == .skoolie ? 8 : (ar == .trail ? 24 : 17), Col.mix(Col(0x8a5a3e), haze, 0.12).shade(1 - dark * 0.65))
 
         // a far stand of saguaros on the low hills
-        if ar == .ltva || ar == .dome || ar == .trail || ar == .scaddan || ar == .roadrunner {
+        if [Area.ltva, .dome, .trail, .scaddan, .roadrunner, .hijolly, .plomosa, .crystal, .palms].contains(ar) {
             var n = floor((cam * 0.3 - 20) / 46)
             while n * 46 < cam * 0.3 + W + 20 {
                 if hashN(n + 900 + seed) < (ar == .dome || ar == .trail ? 0.85 : 0.5) {
@@ -657,8 +657,49 @@ final class Renderer {
                 }
                 n += 1
             }
-        case .roadrunner:
-            let fest = g.phase == .play && g.on(EV_QFEST)
+        case .hijolly, .plomosa:
+            // boondockers spread out across the open desert
+            let gap = ar == .hijolly ? 180.0 : 240.0
+            var n = floor((cam * par - 70) / gap)
+            while n * gap < cam * par + W + 70 {
+                if hashN(n + 1900 + Double(ar.rawValue)) < 0.6 {
+                    let sx = n * gap + hashN(n + 1910) * 80 - cam * par
+                    let kinds: [RigKind] = [.classA, .classC, .van, .skoolie, .classB, .minivan]
+                    rig(kinds[Int(hashN(n + 1920 + Double(ar.rawValue)) * 6) % 6], sx, GY + 0.5, 2, hashN(n + 1930) < 0.5 ? 1 : -1, 0.5); campDress(sx, n)
+                }
+                n += 1
+            }
+        case .crystal:
+            // the Kofa's jagged volcanic ridges, a few campers, quartz glinting on the slope
+            let kx = W * 0.5 - cam * 0.18
+            let kofa = Col(0x7a5a4a).shade(1 - dark * 0.6)
+            c.poly(kofa, [kx - 260, GY + 1, kx - 200, GY - 40, kx - 170, GY - 28, kx - 130, GY - 62, kx - 90, GY - 44, kx - 40, GY - 70, kx + 10, GY - 38, kx + 60, GY - 52, kx + 120, GY - 30, kx + 200, GY + 1])
+            c.poly(kofa.shade(0.85), [kx - 40, GY - 70, kx + 10, GY - 38, kx - 20, GY + 1, kx - 70, GY + 1])
+            var n = floor((cam * par - 70) / 400)
+            while n * 400 < cam * par + W + 70 {
+                if hashN(n + 1950) < 0.5 { rig([.van, .classB, .classC][Int(hashN(n + 1960) * 3) % 3], n * 400 + hashN(n + 1970) * 120 - cam * par, GY + 0.5, 1, 1, 0.5); campDress(n * 400 - cam * par, n) }
+                n += 1
+            }
+            for k in 0..<30 {
+                let d = Double(k) + 1980
+                let gx = (hashN(d) * 2000 - cam * 0.9)
+                if gx > -10 && gx < W + 10 && sin(NOW * 2 + d) > 0.7 { c.circ(gx, GY - 2 - hashN(d + 1) * 10, 0.8, Col(0xffffff, 0.9)) }
+            }
+        case .palms:
+            // the canyon wall, with the palms tucked high in a shady slot
+            let cx = W * 0.55 - cam * 0.3
+            let wall = Col(0x8a6450).shade(1 - dark * 0.6)
+            c.poly(wall, [cx - 320, GY + 1, cx - 300, GY - 70, cx - 220, GY - 90, cx - 120, GY - 84, cx - 60, GY - 100, cx + 40, GY - 96, cx + 140, GY - 82, cx + 260, GY - 88, cx + 340, GY + 1])
+            c.poly(Col(0x3a2a24).shade(1 - dark * 0.5), [cx - 34, GY - 98, cx - 14, GY - 98, cx - 4, GY - 20, cx - 40, GY - 20])
+            for k in 0..<4 {
+                let px = cx - 30 + Double(k) * 7, py = GY - 62 + Double(k % 2) * 6
+                c.R(px - 0.6, py, 1.2, 10, Col(0x6a5040))
+                for f in 0..<7 {
+                    let a = Double(f) / 6 * PI
+                    c.seg(px, py, px + cos(a) * 5, py - sin(a) * 4 + 1, 1, Col(0x4f7a3a).shade(1 - dark * 0.5))
+                }
+            }
+            for k in 0..<8 { let d = Double(k) + 2000; c.R(cx - 300 + hashN(d) * 620, GY - 80 + hashN(d + 1) * 60, 18, 0.7, wall.shade(0.85)) }
             let gap = fest ? 80.0 : 280.0
             var n = floor((cam * par - 70) / gap)
             while n * gap < cam * par + W + 70 {
@@ -2212,6 +2253,16 @@ final class Renderer {
                 label = false
                 top = 40
             }
+        case .hike:
+            // a brown refuge trailhead sign and a sign-in box
+            let post = Col(0x5a4030).shade(1 - dark * 0.4)
+            c.R(x - 16, GY - 24, 2, 24, post); c.R(x + 14, GY - 24, 2, 24, post)
+            c.RR(x - 22, GY - 38, 44, 15, 1.5, Col(0x5a3a22).shade(1 - dark * 0.4))
+            g.text("PALM CANYON", x, GY - 33, 3.6, Col(0xf2e8c8), bold: true)
+            g.text("TRAIL · 0.5 MI", x, GY - 27.6, 2.8, Col(0xf2e8c8, 0.85))
+            c.R(x + 30, GY - 12, 1.4, 12, post); c.RR(x + 26, GY - 18, 10, 7, 1, Col(0x8a8a88))
+            label = false
+            top = 46
         case .river:
             c.seg(x - 4, GY, x - 2, GY - 7, 0.8, Col(0xb8b8b4)); c.seg(x + 4, GY, x + 2, GY - 7, 0.8, Col(0xb8b8b4))
             c.R(x - 4, GY - 7.6, 8, 1.4, Col(0x3a8a6a)); c.R(x - 3.6, GY - 13, 1.2, 6, Col(0x3a8a6a))
@@ -2504,7 +2555,9 @@ final class Renderer {
         c.RR(mx0, my0, mw, mh, 3, Col(0xe2cfa4))
         let lonA = -114.42, lonB = -114.13, latA = 33.57, latB = 33.69
         func mp(_ lat: Double, _ lon: Double) -> (Double, Double) {
-            return (mx0 + (lon - lonA) / (lonB - lonA) * mw, my0 + (latB - lat) / (latB - latA) * mh)
+            // places off the sketch sit on its edge, pointing the way
+            let x = mx0 + (lon - lonA) / (lonB - lonA) * mw, y = my0 + (latB - lat) / (latB - latA) * mh
+            return (clampD(x, mx0 + 6, mx0 + mw - 6), clampD(y, my0 + 6, my0 + mh - 6))
         }
         // the Dome Rock Mountains and the river side
         let dr = mp(33.635, -114.345)
@@ -2530,28 +2583,32 @@ final class Renderer {
             if here { c.circ(p.0, p.1, 5 + sin(NOW * 4) * 0.8, GOLD.alpha(0.5)) }
             c.circ(p.0, p.1, 2.6, here ? GOLD : REDC)
             c.circ(p.0, p.1, 1, CREAM)
-            let off: [(Double, Double, Int)] = [(-4, 4, 2), (4, -5, 1), (-4, 4, 2), (0, -6, 0), (0, 6, 0), (0, 6, 0), (0, -6, 0), (-4, 3, 2)]
-            g.text(d.name, p.0 + off[a].0, p.1 + off[a].1, 3.6, ink, align: off[a].2, bold: true)
+            let off: [(Double, Double, Int)] = [(-4, 4, 2), (4, -5, 1), (-4, 4, 2), (0, -6, 0), (0, 6, 0), (0, 6, 0), (0, -6, 0), (-4, 3, 2), (5, 0, 1), (5, 0, 1), (-5, 0, 2), (-5, 0, 2)]
+            let o = a < off.count ? off[a] : (0.0, -6.0, 0)
+            g.text(d.name, p.0 + o.0, p.1 + o.1, 3.6, ink, align: o.2, bold: true)
         }
 
         // the list of places: tap one to go
         let lx = mx0 + mw + 10, lw = x1 - 10 - lx
         let how: String = g.inRig ? "In your " + RIGS[g.rig.rawValue].name.lowercased() : (g.onToy ? "On your " + TOYS[g.toy].name.lowercased() : "On foot: Camel Express dial-a-ride")
         g.text(how, lx, y0 + 24, 4.4, ink.alpha(0.75), align: 1, bold: true)
-        let rowH = (mh - 6) / Double(AREAS.count)
+        let perCol = (AREAS.count + 1) / 2
+        let rowH = (mh - 6) / Double(perCol)
+        let cw = (lw - 4) / 2
         for a in AREAS.indices {
             let to = Area(rawValue: a) ?? .main
-            let ry = my0 + 8 + Double(a) * rowH
+            let ry = my0 + 8 + Double(a % perCol) * rowH
+            let cx0 = lx + Double(a / perCol) * (cw + 4)
             let t = g.trip(to)
             let here = to == g.area
-            c.RR(lx, ry, lw, rowH - 3, 3, here ? GOLD.alpha(0.35) : (t.ok ? Col(0xffffff, 0.45) : ink.alpha(0.08)))
-            g.text(AREAS[a].name, lx + 5, ry + rowH * 0.32, 5, ink.alpha(t.ok || here ? 1 : 0.5), align: 1, bold: true)
+            c.RR(cx0, ry, cw, rowH - 3, 3, here ? GOLD.alpha(0.35) : (t.ok ? Col(0xffffff, 0.45) : ink.alpha(0.08)))
+            g.text(AREAS[a].name, cx0 + 4, ry + rowH * 0.32, 4.4, ink.alpha(t.ok || here ? 1 : 0.5), align: 1, bold: true)
             var sub: String
             if here { sub = "You're here" }
             else if t.ok { let m = milesBetween(g.area, to); sub = (m == m.rounded() ? "\(Int(m))" : "\(m)") + " mi · " + (t.cost == 0 ? "0 coins" : "\(t.cost) coins") }
             else { sub = t.how }
-            g.text(sub, lx + 5, ry + rowH * 0.68, 3.8, here ? ink.alpha(0.7) : (t.ok ? Col(0x2f6a3a) : REDC.shade(0.8)), align: 1)
-            if !here { g.hits.append(Hit(id: 70 + a, x: lx, y: ry, w: lw, h: rowH - 3)) }
+            g.text(sub, cx0 + 4, ry + rowH * 0.68, 3.2, here ? ink.alpha(0.7) : (t.ok ? Col(0x2f6a3a) : REDC.shade(0.8)), align: 1)
+            if !here { g.hits.append(Hit(id: 70 + a, x: cx0, y: ry, w: cw, h: rowH - 3)) }
         }
 
         // the calendar
