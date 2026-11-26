@@ -44,6 +44,14 @@ final class Renderer {
         racks()
         if g.hall.level == 0 { campfire(FIRE_X, 1.0) }
         for bl in g.b where bl.def.gate { gate(bl) }
+        if g.lastTown && g.folk.count >= RALLY_N && !g.rallyOn && !g.endNow {
+            // point the way out: a bobbing arrow over the east gate, and one at the screen edge when it is off to the right
+            let gx = sx(g.gateE.x + 7), bob = sin(g.clock * 4) * 2
+            let ax = min(gx, W - 14), ay = gy - 34 + bob
+            c.glow(ax, ay, 12, Col(0xffd27a, 0.35), Col(0xffd27a, 0))
+            if gx > W - 14 { c.poly(Col(0xf2c14e), [ax - 6, ay - 5, ax + 4, ay, ax - 6, ay + 5]) } else { c.poly(Col(0xf2c14e), [ax - 5, ay - 6, ax + 5, ay - 6, ax, ay + 3]) }
+            c.text("EAST GATE", ax - (gx > W - 14 ? 22 : 0), ay - 9, 4.4, Col(0xf2c14e), face: "Rye-Regular")
+        }
         for bx in g.boxes { box(bx) }
         coach()
         for w in g.strays { cowAt(w.x, w.dir, 1, w.seed, w.phase, horns: true) }

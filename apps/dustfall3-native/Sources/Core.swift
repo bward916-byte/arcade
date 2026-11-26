@@ -108,11 +108,11 @@ struct Def {
 }
 
 let DEFS: [BType: Def] = [
-    .store: Def(name: "STORE", w: 70, h: 36, cost: [7, 12, 18, 26], pay: 4, wall: 0x7d9484, trim: 0xe6d6ac, roof: 0xb44a3c, sign: 0x35523f, ink: 0xead7a4, doorX: 49, doorW: 13, wins: [(6, 35)], gate: false),
-    .saloon: Def(name: "SALOON", w: 86, h: 40, cost: [6, 10, 16, 24], pay: 3, wall: 0xa9683a, trim: 0x6a3c20, roof: 0x6a3c20, sign: 0xead7a4, ink: 0x8a2b22, doorX: 36, doorW: 14, wins: [(8, 14), (64, 14)], gate: false),
-    .sheriff: Def(name: "SHERIFF", w: 66, h: 36, cost: [8, 12, 18, 26], pay: 0, wall: 0x5f7896, trim: 0xe6d6ac, roof: 0x34445a, sign: 0xead7a4, ink: 0x27364a, doorX: 8, doorW: 13, wins: [(32, 24)], gate: false),
-    .stable: Def(name: "STABLE", w: 76, h: 36, cost: [6, 12, 20], pay: 0, wall: 0x9a4433, trim: 0xead7a4, roof: 0x4a2a22, sign: 0xead7a4, ink: 0x6a2a20, doorX: 26, doorW: 24, wins: [(8, 10), (58, 10)], gate: false),
-    .bank: Def(name: "BANK", w: 64, h: 38, cost: [10, 16, 24], pay: 0, wall: 0xb9b2a4, trim: 0x3d4a44, roof: 0x3d4a44, sign: 0x2f3a36, ink: 0xe8d9a0, doorX: 25, doorW: 14, wins: [(6, 12), (46, 12)], gate: false),
+    .store: Def(name: "STORE", w: 70, h: 36, cost: [7, 12, 18], pay: 4, wall: 0x7d9484, trim: 0xe6d6ac, roof: 0xb44a3c, sign: 0x35523f, ink: 0xead7a4, doorX: 49, doorW: 13, wins: [(6, 35)], gate: false),
+    .saloon: Def(name: "SALOON", w: 86, h: 40, cost: [6, 10, 16], pay: 3, wall: 0xa9683a, trim: 0x6a3c20, roof: 0x6a3c20, sign: 0xead7a4, ink: 0x8a2b22, doorX: 36, doorW: 14, wins: [(8, 14), (64, 14)], gate: false),
+    .sheriff: Def(name: "SHERIFF", w: 66, h: 36, cost: [8, 12, 18], pay: 0, wall: 0x5f7896, trim: 0xe6d6ac, roof: 0x34445a, sign: 0xead7a4, ink: 0x27364a, doorX: 8, doorW: 13, wins: [(32, 24)], gate: false),
+    .stable: Def(name: "STABLE", w: 76, h: 36, cost: [6, 12], pay: 0, wall: 0x9a4433, trim: 0xead7a4, roof: 0x4a2a22, sign: 0xead7a4, ink: 0x6a2a20, doorX: 26, doorW: 24, wins: [(8, 10), (58, 10)], gate: false),
+    .bank: Def(name: "BANK", w: 64, h: 38, cost: [10, 16], pay: 0, wall: 0xb9b2a4, trim: 0x3d4a44, roof: 0x3d4a44, sign: 0x2f3a36, ink: 0xe8d9a0, doorX: 25, doorW: 14, wins: [(6, 12), (46, 12)], gate: false),
     .gateW: Def(name: "WEST GATE", w: 14, h: 16, cost: [4, 8, 14], pay: 0, wall: 0x7a5632, trim: 0x4a3424, roof: 0x4a3424, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: true),
     .gateE: Def(name: "EAST GATE", w: 14, h: 16, cost: [4, 8, 14], pay: 0, wall: 0x7a5632, trim: 0x4a3424, roof: 0x4a3424, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: true),
     .station: Def(name: "STATION", w: 84, h: 38, cost: [20], pay: 0, wall: 0xc9a65a, trim: 0x6a2f26, roof: 0x4a3a34, sign: 0xead7a4, ink: 0x4a2a22, doorX: 36, doorW: 13, wins: [(8, 16), (60, 16)], gate: false),
@@ -131,13 +131,13 @@ let DEFS: [BType: Def] = [
     // the stagecoach while it waters its team: where a guard is paid for
     .coach: Def(name: "STAGECOACH", w: 38, h: 14, cost: [3], pay: 0, wall: 0, trim: 0, roof: 0, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: false),
     // not a building: the passenger car, where a ticket is paid
-    .bordello: Def(name: "BORDELLO", w: 74, h: 38, cost: [9, 14, 20, 28], pay: 5, wall: 0xb0506a, trim: 0xf0d9c0, roof: 0x5a2030, sign: 0xf0d9c0, ink: 0x8a2040, doorX: 30, doorW: 14, wins: [(8, 13), (53, 13)], gate: false),
-    .doctor: Def(name: "DOCTOR", w: 58, h: 36, cost: [8, 14], pay: 0, wall: 0xd9d2c0, trim: 0x3d6a5a, roof: 0x3d5a50, sign: 0xf4ecd6, ink: 0x3d6a5a, doorX: 8, doorW: 13, wins: [(29, 20)], gate: false),
-    .church: Def(name: "CHURCH", w: 54, h: 40, cost: [10, 16], pay: 0, wall: 0xe8e2d2, trim: 0x6a5a4a, roof: 0x5a4a40, sign: 0xe8e2d2, ink: 0x5a4a40, doorX: 20, doorW: 14, wins: [(5, 9), (40, 9)], gate: false),
-    .forge: Def(name: "SMITHY", w: 60, h: 36, cost: [9, 14, 22], pay: 0, wall: 0x6e5a4a, trim: 0x2e2622, roof: 0x2e2622, sign: 0x2e2622, ink: 0xe89a4a, doorX: 34, doorW: 18, wins: [(7, 16)], gate: false),
-    .telegraph: Def(name: "TELEGRAPH", w: 62, h: 36, cost: [8, 14], pay: 0, wall: 0xc9b98a, trim: 0x4a5a6a, roof: 0x3a4652, sign: 0xe8e2d2, ink: 0x2f3a46, doorX: 42, doorW: 13, wins: [(7, 26)], gate: false),
+    .bordello: Def(name: "BORDELLO", w: 74, h: 38, cost: [9, 14, 20], pay: 5, wall: 0xb0506a, trim: 0xf0d9c0, roof: 0x5a2030, sign: 0xf0d9c0, ink: 0x8a2040, doorX: 30, doorW: 14, wins: [(8, 13), (53, 13)], gate: false),
+    .doctor: Def(name: "DOCTOR", w: 58, h: 36, cost: [8], pay: 0, wall: 0xd9d2c0, trim: 0x3d6a5a, roof: 0x3d5a50, sign: 0xf4ecd6, ink: 0x3d6a5a, doorX: 8, doorW: 13, wins: [(29, 20)], gate: false),
+    .church: Def(name: "CHURCH", w: 54, h: 40, cost: [10], pay: 0, wall: 0xe8e2d2, trim: 0x6a5a4a, roof: 0x5a4a40, sign: 0xe8e2d2, ink: 0x5a4a40, doorX: 20, doorW: 14, wins: [(5, 9), (40, 9)], gate: false),
+    .forge: Def(name: "SMITHY", w: 60, h: 36, cost: [9, 14], pay: 0, wall: 0x6e5a4a, trim: 0x2e2622, roof: 0x2e2622, sign: 0x2e2622, ink: 0xe89a4a, doorX: 34, doorW: 18, wins: [(7, 16)], gate: false),
+    .telegraph: Def(name: "TELEGRAPH", w: 62, h: 36, cost: [8], pay: 0, wall: 0xc9b98a, trim: 0x4a5a6a, roof: 0x3a4652, sign: 0xe8e2d2, ink: 0x2f3a46, doorX: 42, doorW: 13, wins: [(7, 26)], gate: false),
     // the town centre: campfire, then a square, then a clock tower
-    .hall: Def(name: "TOWN CENTRE", w: 26, h: 14, cost: [12, 20, 28], pay: 0, wall: 0, trim: 0, roof: 0, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: false),
+    .hall: Def(name: "TOWN CENTRE", w: 26, h: 14, cost: [12, 20], pay: 0, wall: 0, trim: 0, roof: 0, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: false),
     // outside each gate: barbed wire, a second apron that cuts, then a sharpshooter's nest
     .wireW: Def(name: "BARBED WIRE", w: 30, h: 10, cost: [6, 10, 16], pay: 0, wall: 0, trim: 0, roof: 0, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: false),
     .wireE: Def(name: "BARBED WIRE", w: 30, h: 10, cost: [6, 10, 16], pay: 0, wall: 0, trim: 0, roof: 0, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: false),

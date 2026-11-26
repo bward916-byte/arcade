@@ -1177,7 +1177,7 @@ final class Game {
             // a walk down the whole of the last town, a screen at a time, with everything built
             place = "bitterend"; town = 4; log = ["dustfall", "redwater", "lasthope", "coldcreek"]; day = 36; day0 = 33; layTown()
             for bl in b where [BType.store, .saloon, .sheriff, .stable, .bank, .station, .bordello, .doctor, .church, .forge, .telegraph, .claim].contains(bl.type) { bl.level = 2 }
-            hall.level = 3; gateW.level = 2; gateE.level = 2; t = 0.4; noStory = true; hintT = 0
+            hall.level = 2; gateW.level = 2; gateE.level = 2; t = 0.4; noStory = true; hintT = 0
             px = WEST + 200 + Double(n) * 390
         }
         cam = clampD(px - W / 2, WEST, WORLD - W)
@@ -1920,8 +1920,7 @@ final class Game {
         if extra > 0 { for _ in 0..<extra { dropCoin(FIRE_X + rnd(-24, 24), 7) }; total += extra; paid.append(("Trade", extra)) }
         // the takings go up on a card; the line of text carries only the day's news
         dawnRows = paid; dawnTotal = total; dawnSeq += 1
-        if !note.isEmpty { hint("dawn\(day)", "Day \(day).\(note)", again: true) }
-        else if total == 0 { hint("dawn\(day)", "Day \(day). Nothing paid out this morning. Open the store or the saloon.", again: true) }
+        // no line of text at dawn: the coin card says it all
         onSave?()
     }
 

@@ -389,7 +389,8 @@ final class GameViewController: UIViewController {
         dawnCard.backgroundColor = UIColor(red: 0.17, green: 0.11, blue: 0.07, alpha: 0.92)
         dawnCard.layer.cornerRadius = 10; dawnCard.layer.borderWidth = 1.5
         dawnCard.layer.borderColor = UIColor(red: 0.79, green: 0.6, blue: 0.24, alpha: 0.85).cgColor
-        dawnCard.isUserInteractionEnabled = false
+        dawnCard.isUserInteractionEnabled = true
+        dawnCard.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(closeDawn)))
         dawnCard.isHidden = true
         view.addSubview(dawnCard)
         sheetBox.backgroundColor = UIColor(red: 0.06, green: 0.03, blue: 0.02, alpha: 0.7)
@@ -654,6 +655,8 @@ final class GameViewController: UIViewController {
     }
 
     /// The morning's takings, source by source: each row slides in after the last, with a coin for every coin paid.
+    @objc private func closeDawn() { dawnHideAt = 0 }
+
     private func showDawn() {
         for v in dawnCard.subviews { v.removeFromSuperview() }
         let rows = game.dawnRows
