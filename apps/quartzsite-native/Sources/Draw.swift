@@ -112,6 +112,35 @@ final class Renderer {
                 c.R(hashN(n) * W, hashN(n + 200) * GY * 0.8, 0.8, 0.8, Col(0xffffff, (dark - 0.3) * 1.2 * tw * (0.4 + 0.6 * hashN(n + 400))))
             }
         }
+        // the Milky Way on clear desert nights, and now and then a shooting star
+        let clearSky = g.phase != .play || g.weather < 2
+        if dark > 0.6 && clearSky {
+            let a = (dark - 0.6) * 2.5
+            for i in 0..<160 {
+                let n = Double(i) + 900
+                let u = hashN(n)
+                let bx = u * W * 1.1 - W * 0.05
+                let by = GY * 0.75 - u * GY * 0.62 + (hashN(n + 1) - 0.5) * 22 * (0.6 + hashN(n + 2))
+                c.R(bx, by, 0.6, 0.6, Col(0xe8eaff, a * (0.15 + 0.45 * hashN(n + 3))))
+            }
+            for i in 0..<7 {
+                let u = Double(i) / 6
+                c.glow(W * (0.05 + u * 0.95), GY * 0.75 - u * GY * 0.62, 26, Col(0xb8c0ff, 0.06 * a), Col(0xb8c0ff, 0))
+            }
+            let st = (NOW + 3).truncatingRemainder(dividingBy: 17)
+            if st < 0.8 {
+                let sx0 = W * (0.2 + hashN(floor((NOW + 3) / 17)) * 0.5), sy0 = GY * 0.12
+                let p = st / 0.8
+                c.seg(sx0 + p * 60 - 18, sy0 + p * 22 - 6.6, sx0 + p * 60, sy0 + p * 22, 0.7, Col(0xffffff, (1 - p) * 0.9))
+            }
+        }
+        // a rainbow the morning after rain
+        if g.phase == .play && g.afterRain > 0 && t > 0.05 && t < 0.35 && g.weather < 3 {
+            let rb: [Col] = [Col(0xff5a4a), Col(0xffa040), Col(0xffe060), Col(0x60d070), Col(0x5a9aff), Col(0x8a6aff)]
+            for (k, col) in rb.enumerated() {
+                c.arcStroke(W * 0.62, GY + 10, GY * 0.78 - Double(k) * 2.2, PI * 1.05, PI * 1.95, 2.2, col.alpha(0.22))
+            }
+        }
         // sun by day, moon by night
         if t < 0.7 {
             let f = t / 0.68
@@ -2337,6 +2366,8 @@ final class Renderer {
     /// Up close at the Rock & Gem Show: six things on the tables, who's selling, and what each should fetch.
     /// Your phone: the page, its followers and what it pays, and today's photo.
     private func phoneOverlay() {
+        g.hits.removeAll(keepingCapacity: true)
+        g.texts.removeAll(keepingCapacity: true)
         c.R(0, 0, W, H, Col(0x000000, 0.5))
         g.hits.append(Hit(id: -1, x: 0, y: 0, w: W, h: H))
         let pw = 132.0, ph = 176.0, x0 = W / 2 - pw / 2, y0 = (H - ph) / 2
@@ -2792,12 +2823,76 @@ final class Renderer {
             let cyc = (NOW + 7).truncatingRemainder(dividingBy: 24)
             if cyc < 6 { roadrunner(g.px - cam - W * 0.6 + cyc * (W * 1.2 / 6), GY + 8, NOW * 30) }
         }
+        // a jackrabbit, all ears, bounding through by day
+        if !night && ar != .skoolie {
+            let jc = (NOW + 13).truncatingRemainder(dividingBy: 19)
+            if jc < 5 { jackrabbit(W + 30 - jc * (W + 60) / 5, GY + 5, NOW * 9) }
+        }
+        // a red-tailed hawk circling high
+        if !night {
+            let ha = NOW * 0.35
+            hawk(W * 0.55 + cos(ha) * 60, GY * 0.22 + sin(ha) * 10, NOW)
+        }
+        // a great horned owl on a saguaro at night
+        if night && (ar == .ltva || ar == .dome || ar == .scaddan || ar == .roadrunner) {
+            let ox = 520 - cam
+            if ox > -20 && ox < W + 20 {
+                saguaro(ox, GY + 1, 44, 77, SAG, true)
+                owl(ox, GY - 45, NOW)
+            }
+        }
+        // a dust devil spinning across on windy days
+        if g.weather == 1 && !night {
+            let dc = (NOW + 5).truncatingRemainder(dividingBy: 26)
+            if dc < 13 { dustDevil(-30 + dc * (W + 60) / 13, GY + 2) }
+        }
         // a coyote trotting past at night
         if night {
             let cx = (NOW * 18).truncatingRemainder(dividingBy: w + 300) - 150
             coyote(cx - cam, GY + 4, NOW * 10)
         }
         ravens()
+    }
+    private func jackrabbit(_ x: Double, _ base: Double, _ ph: Double) {
+        if x < -20 || x > W + 20 { return }
+        let col = Col(0x9a8a72).shade(1 - dark * 0.5)
+        let hop = abs(sin(ph)) * 5
+        let y = base - hop
+        c.ell(x, y - 4, 4.4, 2.6, col)
+        c.circ(x - 4, y - 6, 2, col)
+        c.ell(x - 3.6, y - 11, 0.9, 3.6, col); c.ell(x - 5, y - 10.6, 0.9, 3.4, col.shade(0.9))
+        c.ell(x - 3.6, y - 11, 0.4, 2.4, Col(0xd8a0a0, 0.6))
+        c.circ(x + 4.2, y - 4.6, 1.1, Col(0xf2ede4))
+        c.seg(x + 2, y - 2, x + 4 + (hop > 2 ? 3 : 0), y, 0.9, col.shade(0.85))
+        c.circ(x - 4.8, y - 6.4, 0.4, INK)
+    }
+    private func hawk(_ x: Double, _ y: Double, _ t: Double) {
+        let col = Col(0x5a4030)
+        let f = sin(t * 1.4) * 1.2
+        c.poly(col, [x - 9, y - f, x - 2, y - 1, x, y - 2, x + 2, y - 1, x + 9, y - f, x + 2, y + 1, x - 2, y + 1])
+        c.poly(Col(0xb8502e), [x - 1.2, y + 1, x + 1.2, y + 1, x + 1.6, y + 3.4, x - 1.6, y + 3.4])
+    }
+    private func owl(_ x: Double, _ y: Double, _ t: Double) {
+        let col = Col(0x6a5a48).shade(0.6)
+        c.ell(x, y, 3.2, 4.4, col)
+        c.circ(x, y - 4.4, 2.8, col)
+        c.poly(col, [x - 2.6, y - 6, x - 2, y - 8.4, x - 0.8, y - 6.4])
+        c.poly(col, [x + 2.6, y - 6, x + 2, y - 8.4, x + 0.8, y - 6.4])
+        let blink = sin(t * 0.9) > 0.97
+        if !blink { c.circ(x - 1.1, y - 4.6, 0.8, Col(0xffd040)); c.circ(x + 1.1, y - 4.6, 0.8, Col(0xffd040)) }
+        if (t.truncatingRemainder(dividingBy: 9)) < 1.6 { g.text("hoo-hoo", x + 10, y - 10, 3.2, CREAM.alpha(0.6)) }
+    }
+    private func dustDevil(_ x: Double, _ base: Double) {
+        for i in 0..<16 {
+            let f = Double(i) / 15
+            let r = 2 + f * 9
+            let sw = sin(NOW * 6 + f * 5) * f * 5
+            c.ell(x + sw, base - f * 46, r, r * 0.35, Col(0xd8bc90, 0.22 * (1 - f * 0.5)).shade(1 - dark * 0.5))
+        }
+        for k in 0..<5 {
+            let a = NOW * 7 + Double(k) * 1.3
+            c.circ(x + cos(a) * 8, base - 10 - Double(k) * 7, 0.7, Col(0x8a6a44, 0.6))
+        }
     }
     private func ravens() {
         if dark > 0.5 { return }

@@ -955,6 +955,9 @@ final class Game {
         if key == "dog" { place(.main, 3790); hasDog = true; dayT = 0.3 }
         if key == "camels" { place(.tyson, 2760); camels = [0, 1, 2, 3, 4] }
         if key == "page" { place(.dome, 120); page = true; cred = 60; followers = 940; upgrades = [3]; dayT = 0.3 }
+        if key == "wildnight" { place(.ltva, 600); dayT = 0.82; clockFreeze = true }
+        if key == "rainbow" { place(.dome, 600); dayT = 0.15; afterRain = 2; weather = 0; clockFreeze = true }
+        if key == "windy" { place(.scaddan, 900); dayT = 0.3; weather = 1; clockFreeze = true }
         if key == "phone" {
             place(.main, 420); page = true; cred = 40; followers = 1460; pagePay = 36; dayT = 0.35; clockFreeze = true
             posts = [PagePost(text: "pizza at Silly Al's", day: 3, likes: 88, comments: 9), PagePost(text: "a photo of the sunset at La Posa South", day: 2, likes: 141, comments: 17), PagePost(text: "a party at camp", day: 1, likes: 203, comments: 31), PagePost(text: "helping a stranded van on the highway", day: 1, likes: 64, comments: 5)]
