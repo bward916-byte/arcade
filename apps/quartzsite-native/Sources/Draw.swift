@@ -700,6 +700,8 @@ final class Renderer {
                 }
             }
             for k in 0..<8 { let d = Double(k) + 2000; c.R(cx - 300 + hashN(d) * 620, GY - 80 + hashN(d + 1) * 60, 18, 0.7, wall.shade(0.85)) }
+        case .roadrunner:
+            let fest = g.phase == .play && g.on(EV_QFEST)
             let gap = fest ? 80.0 : 280.0
             var n = floor((cam * par - 70) / gap)
             while n * gap < cam * par + W + 70 {
