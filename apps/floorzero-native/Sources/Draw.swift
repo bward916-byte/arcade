@@ -318,6 +318,38 @@ final class Renderer {
         if f.n % 2 == 0 { sign(cv, "FIRE ESCAPE", f.exitX - d * 520, GY - 250, HOT, t, arrow: false) }
     }
     private var camX = 0.0
+    // ---------- smoothing: poses ease toward where they are going instead of snapping between states
+    private var lastT = -1.0
+    private var rdt = 1.0 / 60
+    private var frameN = 0
+    private var heroP: Pose?
+    private var zedP: [ObjectIdentifier: (Pose, Int)] = [:]
+    private func blend(_ a: Pose, _ b: Pose, _ k: Double) -> Pose {
+        var p = b
+        p.lean = lerp(a.lean, b.lean, k); p.head = lerp(a.head, b.head, k); p.bob = lerp(a.bob, b.bob, k)
+        p.hipF = lerp(a.hipF, b.hipF, k); p.kneeF = lerp(a.kneeF, b.kneeF, k); p.hipB = lerp(a.hipB, b.hipB, k); p.kneeB = lerp(a.kneeB, b.kneeB, k)
+        p.armF = lerp(a.armF, b.armF, k); p.elbF = lerp(a.elbF, b.elbF, k); p.armB = lerp(a.armB, b.armB, k); p.elbB = lerp(a.elbB, b.elbB, k)
+        p.wpn = lerp(a.wpn, b.wpn, k); p.jaw = lerp(a.jaw, b.jaw, k)
+        return p
+    }
+    private func ease(_ rate: Double) -> Double { return 1 - exp(-rate * rdt) }
+    private func smoothHero(_ g: Game) -> Pose {
+        let tgt = heroPose(g)
+        let h = g.hero
+        // swings stay snappy, everything else (stopping, turning to shoot, getting hurt) glides
+        let rate: Double = h.atkT >= 0 || g.supT >= 0 ? 34 : (h.hurtT > 0 ? 26 : 15)
+        let p = heroP.map { blend($0, tgt, ease(rate)) } ?? tgt
+        heroP = p
+        return p
+    }
+    private func smoothZed(_ z: Zed, _ t: Double) -> Pose {
+        let tgt = zedPose(z, t)
+        let id = ObjectIdentifier(z)
+        let rate: Double = z.atkT >= 0 ? 26 : 13
+        let p = zedP[id].map { blend($0.0, tgt, ease(rate)) } ?? tgt
+        zedP[id] = (p, frameN)
+        return p
+    }
     private var camFloor = -99
     var paused = false
 
@@ -1220,7 +1252,11 @@ final class Renderer {
         let f = g.floor
         let t = g.t
         let target = clampD(h.x - W / 2 + h.face * 70, -40, FLOOR_W - W + 40)
-        if camFloor != f.n || abs(target - camX) > 700 { camX = target; camFloor = f.n } else { camX += (target - camX) * 0.14 }
+        rdt = lastT < 0 ? 1.0 / 60 : clampD(g.t - lastT, 0, 0.05)
+        lastT = g.t
+        frameN += 1
+        if frameN % 120 == 0 { zedP = zedP.filter { frameN - $0.value.1 < 30 } }
+        if camFloor != f.n || abs(target - camX) > 700 { camX = target; camFloor = f.n; zedP = [:] } else { camX += (target - camX) * ease(9) }
         cv.save()
         if g.shake > 0 { cv.translate(rnd(-1, 1) * g.shake, rnd(-1, 1) * g.shake * 0.6) }
         if g.zoom > 1.001 { cv.translate(W / 2, GY - 60); cv.scale(g.zoom, g.zoom); cv.translate(-W / 2, -(GY - 60)) }
@@ -1240,7 +1276,7 @@ final class Renderer {
             var hface = h.face
             if h.atkT >= 0 && h.atkStyle == 6 { hface = sin(h.atkT / 0.4 * PI * 4) >= 0 ? h.face : -h.face }
             var hl = heroLook(g.tw); hl.tier = g.lv("dmg"); hl.gun = g.heldGun; hl.slung = hl.gun > 0 ? -1 : g.slungGun
-            figure(cv, h.x, gy - h.jump, hface, 1, hl, heroPose(g), flash: hf, alpha: ha)
+            figure(cv, h.x, gy - h.jump, hface, 1, hl, smoothHero(g), flash: hf, alpha: ha)
         } else {
             figure(cv, h.x, gy, h.face, 1, heroLook(g.tw), Pose(), fall: min(1, g.deadT * 3))
         }
@@ -1402,7 +1438,7 @@ final class Renderer {
             if z.kind == .boss && z.alive { cv.lighter(true); cv.glow(z.x, gy - 140, 190, rgba(90, 255, 150, 0.22)); cv.lighter(false) }
             if z.kind == .spitter && z.alive { cv.lighter(true); cv.glow(z.x + z.face * 8, gy - 118, 46, rgba(140, 255, 120, 0.3 + 0.2 * sin(t * 6))); cv.lighter(false) }
             let fall: Double = z.alive ? 0 : (z.kind == .crawler ? 0 : min(1, z.deadT * 3.2))
-            figure(cv, z.x, gy, z.face, z.scale, zedLook(z), zedPose(z, t), flash: z.flash, fall: fall, alpha: a)
+            figure(cv, z.x, gy, z.face, z.scale, zedLook(z), smoothZed(z, t), flash: z.flash, fall: fall, alpha: a)
             if z.burn > 0 && z.alive { cv.lighter(true); cv.glow(z.x, gy - 80 * z.scale, 70 * z.scale, rgba(255, 140, 40, 0.5)); cv.lighter(false) }
             if z.kind == .wheel && z.alive {
                 // the near wheel, over the rider's hip, turning as it rolls
