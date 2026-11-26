@@ -298,7 +298,7 @@ extension Game {
                 },
                 Opt("Leave them to it", "they will eat") { [unowned self] in
                     self.food = max(0, self.food - 6)
-                    self.done("They get fat on your stores: -6 food")
+                    self.done("They get fat on your stores: -6 stores")
                 }
             ])
         case "neptune":
@@ -318,15 +318,15 @@ extension Game {
         case "albatross":
             logIt("An albatross landed aboard")
             show("An albatross", "She sits on the rail, as long across the wings as two men are tall, and will not be shooed.", [
-                Opt("Feed her", "-2 food · they bring fair winds") { [unowned self] in
+                Opt("Feed her", "-2 stores · they bring fair winds") { [unowned self] in
                     self.food = max(0, self.food - 2)
                     self.dist = min(self.legLen - 1, self.dist + 40)
                     self.done("She takes the fish, stays a day, and the wind stays with her: 40 leagues made good")
                 },
-                Opt("She will make a dinner", "+4 food · the hands will not like it") { [unowned self] in
+                Opt("She will make a dinner", "+4 stores · the hands will not like it") { [unowned self] in
                     self.addGood("food", 4)
                     if chance(0.6) { self.setWeather(3, days: 1); self.dmg(6) }
-                    if !self.over { self.done("The watch eats in silence. By night the glass is falling: +4 food") }
+                    if !self.over { self.done("The watch eats in silence. By night the glass is falling: +4 stores") }
                 }
             ])
         case "grumble":
@@ -337,9 +337,9 @@ extension Game {
                     self.gold -= bonus
                     self.done("Coin in the hand settles most arguments: -\(bonus) gold")
                 },
-                Opt("Open the good stores", "-5 food") { [unowned self] in
+                Opt("Open the good stores", "-5 stores") { [unowned self] in
                     self.food = max(0, self.food - 5)
-                    self.done("A proper dinner, and the talk dies down: -5 food")
+                    self.done("A proper dinner, and the talk dies down: -5 stores")
                 },
                 Opt("Make an example", "one man to the gratings") { [unowned self] in
                     self.toastText = ""
@@ -352,7 +352,7 @@ extension Game {
             show("Flotsam", "A dozen casks and crates, lashed together, low in the water. No ship in sight.", [
                 Opt("Hook them aboard", "who knows what") { [unowned self] in
                     let r = rndI(0, 2)
-                    if r == 0 { let a = self.addGood("food", 7); self.done("Salt pork, and still good: +\(a) food") }
+                    if r == 0 { let a = self.addGood("food", 7); self.done("Salt pork, and still good: +\(a) stores") }
                     else if r == 1 { let a = self.addGood("planks", 3); self.done("Good sawn timber: +\(a) planks") }
                     else { let a = self.addGood("powder", 2); self.done("Powder, dry in tarred kegs: +\(a) powder") }
                 },
@@ -385,9 +385,9 @@ extension Game {
                     if !self.over { self.toastText = ""; self.hurtOne("the kraken") }
                     if !self.over { self.done("Hacked through, arm by arm. The rail is gone and the planks are sprung") }
                 },
-                Opt("Throw it the stores", "-10 food") { [unowned self] in
+                Opt("Throw it the stores", "-10 stores") { [unowned self] in
                     self.food = max(0, self.food - 10)
-                    self.done("Cask after cask goes over. It takes them, and leaves you: -10 food")
+                    self.done("Cask after cask goes over. It takes them, and leaves you: -10 stores")
                 }
             ])
         case "stelmo":
@@ -437,9 +437,9 @@ extension Game {
         case "scurvy":
             logIt("Scurvy aboard")
             show("Scurvy", "Too long on salt meat. Half the watch can barely haul, and it will get worse.", [
-                Opt("Fresh food for the sick", food >= 5 ? "the best of the stores · -5 food" : "there is not enough food", off: food < 5) { [unowned self] in
+                Opt("Fresh food for the sick", food >= 5 ? "the best of the stores · -5 stores" : "not enough stores", off: food < 5) { [unowned self] in
                     self.food = max(0, self.food - 5)
-                    self.done("Onions, lime juice and the last of the fruit. They mend slowly: -5 food")
+                    self.done("Onions, lime juice and the last of the fruit. They mend slowly: -5 stores")
                 },
                 Opt("Work them regardless", "two will go down") { [unowned self] in
                     self.toastText = ""
@@ -464,11 +464,11 @@ extension Game {
             ])
         case "weevils":
             logIt("Weevils in the bread")
-            let lost = Int((food * 0.25).rounded())
+            let lost = Int((food * 0.15).rounded())
             show("Weevils", "The biscuit is alive, and the flour has gone grey with them.", [
-                Opt("Throw out the worst", "-\(lost) food") { [unowned self] in
+                Opt("Throw out the worst", "-\(lost) stores") { [unowned self] in
                     self.food = max(0, self.food - Double(lost))
-                    self.done("A quarter of the bread goes to the fish: -\(lost) food")
+                    self.done("A quarter of the bread goes to the fish: -\(lost) stores")
                 },
                 Opt("Pick them out", "all hands · lose \(SUNS) days") { [unowned self] in
                     self.passDays(1)
@@ -481,7 +481,7 @@ extension Game {
                 Opt("Lower the boat", "meat and oil, if it goes well") { [unowned self] in
                     if chance(0.55) {
                         let a = self.addGood("food", 12)
-                        self.done("Two days of butchery over the side: +\(a) food")
+                        self.done("Two days of butchery over the side: +\(a) stores")
                     } else {
                         self.dmg(8)
                         if !self.over { self.hurtOne("the whale's flukes") }
@@ -526,7 +526,7 @@ extension Game {
                     self.syncMen()
                     self.done("He is rated ship's boy and given a hammock")
                 },
-                Opt("Feed him, land him next port", "-2 food") { [unowned self] in
+                Opt("Feed him, land him next port", "-2 stores") { [unowned self] in
                     self.food = max(0, self.food - 2)
                     self.done("He eats like three men and sleeps for a day")
                 }
@@ -536,12 +536,12 @@ extension Game {
             show("A monster on the line", "It takes four hands to get it over the rail, and now it is beating the deck to pieces.", [
                 Opt("Salt it down", "food for the cask") { [unowned self] in
                     let a = self.addGood("food", 8)
-                    self.done("Cut, salted and stowed: +\(a) food")
+                    self.done("Cut, salted and stowed: +\(a) stores")
                 },
                 Opt("Feast tonight", "the laid-up mend faster") { [unowned self] in
                     self.addGood("food", 3)
                     for m in self.men where m.st != 0 { m.d = max(1, m.d - 2) }
-                    self.done("Fresh fish for all hands: +3 food, and the sick are the better for it")
+                    self.done("Fresh fish for all hands: +3 stores, and the sick are the better for it")
                 }
             ])
         case "merchant":

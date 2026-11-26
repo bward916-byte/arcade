@@ -50,7 +50,7 @@ final class Play {
     func say(_ s: String, _ good: Bool) { msg = s; msgT = 1.1; msgGood = good }
 }
 
-/// What can lie under a spot: 0 nothing, 1 some gold, 2 a hoard, 3 food, 4 planks, 5 powder, 6 water, 7 trouble, 8 a map
+/// What can lie under a spot: 0 nothing, 1 some gold, 2 a hoard, 3 stores, 4 planks, 5 powder, 6 water, 7 trouble, 8 a map
 let SPOT_NAMES = ["Empty", "Gold", "Treasure!", "Food", "Planks", "Powder", "Water", "Trouble!", "A map"]
 
 extension Game {
@@ -475,7 +475,7 @@ extension Game {
         let p = Play(.timing, "fish", "Fish running", "Strike as each one takes the bait") { [unowned self] p in
             let raw = Double(p.score * rndI(3, 5) + p.perfect * 3) * (1 + 0.2 * self.E("fish"))
             let got = self.addGood("food", Int(raw))
-            self.done(p.score == 0 ? "Not a bite. The bait is gone" : (got > 0 ? "A fine catch: +\(got) food" : "The hold is full"))
+            self.done(p.score == 0 ? "Not a bite. The bait is gone" : (got > 0 ? "A fine catch: +\(got) stores" : "The hold is full"))
         }
         p.rounds = max(1, used)
         p.zone = clampD(0.22 + 0.05 * E("fish"), 0.18, 0.36)
@@ -532,7 +532,7 @@ extension Game {
                 switch what {
                 case 1: g += rndI(30, 70)
                 case 2: g += Int(Double(rndI(160, 280)) * (theme == "island" && self.hasMap ? 2.2 : 1))
-                case 3: parts.append("+\(self.addGood("food", 8)) food")
+                case 3: parts.append("+\(self.addGood("food", 8)) stores")
                 case 4: parts.append("+\(self.addGood("planks", 5)) planks")
                 case 5: parts.append("+\(self.addGood("powder", 3)) powder")
                 case 6: parts.append("+\(self.addGood("food", 6)) stores")
@@ -591,7 +591,7 @@ extension Game {
             let eaten = Double(p.missed * 2)
             self.food = max(0, self.food - eaten)
             if p.missed == 0 { self.gold += 20; self.snd?.coin() }
-            self.done(p.missed == 0 ? "Not one got aboard. The harbour master pays a 20 gold bounty" : "\(p.missed) got into the hold: \(Int(eaten)) food spoiled")
+            self.done(p.missed == 0 ? "Not one got aboard. The harbour master pays a 20 gold bounty" : "\(p.missed) got into the hold: \(Int(eaten)) stores spoiled")
         }
         p.total = 6
         p.life = 1.2
@@ -742,7 +742,7 @@ extension Game {
         let f = addGood("food", 6)
         var healed = ""
         if let m = men.first(where: { !$0.fit }) { m.st = 0; m.d = 0; healed = " " + m.n + " is back on his feet." ; autoPost() }
-        show("Festival night", "Drums, roast pig and fireworks over the harbour. The crew come back singing.\n+\(f) food from the feast." + healed, [Opt("Watch the fireworks") { [unowned self] in self.card = nil }])
+        show("Festival night", "Drums, roast pig and fireworks over the harbour. The crew come back singing.\n+\(f) stores from the feast." + healed, [Opt("Watch the fireworks") { [unowned self] in self.card = nil }])
     }
 
     func playWreck() {

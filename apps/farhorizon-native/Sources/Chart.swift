@@ -234,9 +234,9 @@ extension Game {
             if !UserDefaults.standard.bool(forKey: "fh_coached") && card == nil {
                 let t = "Tap a port to sail there. The farther one takes longer: check your stores"
                 let tw = textW(t, 14, FONTB) + 28
-                c.RR(W / 2 - tw / 2, H - safeB - 44, tw, 30, 15, Col(0xfff8e6))
-                c.RRStroke(W / 2 - tw / 2, H - safeB - 44, tw, 30, 15, 2, Col(0xd2a455))
-                c.text(t, W / 2, H - safeB - 24, 14, Col(0x2a1808), 0, FONTB)
+                c.RR(W / 2 - tw / 2, 40, tw, 30, 15, Col(0xfff8e6))
+                c.RRStroke(W / 2 - tw / 2, 40, tw, 30, 15, 2, Col(0xd2a455))
+                c.text(t, W / 2, 60, 14, Col(0x2a1808), 0, FONTB)
             }
         }
         c.R(0, 0, W, H, Col(0x17100a))

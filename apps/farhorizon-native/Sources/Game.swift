@@ -833,6 +833,7 @@ final class Game {
         if name == "coach2" { UserDefaults.standard.set(false, forKey: "fh_coached"); leg = 0; mode = .sail; legLen = 300; dist = 20; food = 60; day = 1; dayT = 1; deckForce = 0; camZ = 2.6; nextEvAt = 9999; return }
         if name == "coach3" { UserDefaults.standard.set(false, forKey: "fh_coached"); leg = 1; mode = .port; food = 4; portJobs = []; return }
         if name == "choices" { UserDefaults.standard.set(true, forKey: "fh_coached"); leg = 1; mode = .sail; food = 40; powder = 5; planks = 4; event("kraken"); cardT = 9; return }
+        if name == "chartc" { UserDefaults.standard.set(false, forKey: "fh_coached"); leg = 0; mode = .chart; return }
         if name == "intro" { mode = .title; showIntro(); return }
         if name == "outfit" { shipI = 1; crew = ship.crew; hull = Double(ship.hull); syncMen(); marketPort = false; mode = .outfit; provision(storesNeeded() + 8); return }
         if name == "lowsea" { leg = 1; mode = .sail; legLen = 300; dist = 60; food = 6; deckForce = 0; camZ = 2.6; nextEvAt = 9999; return }
