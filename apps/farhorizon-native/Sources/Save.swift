@@ -27,7 +27,11 @@ extension Game {
             "perkRip": perkRip, "perkWind": perkWind, "perkFury": perkFury,
             "cargoPay": cargoPay, "cargoHold": cargoHold, "fareDue": fareDue, "fareBy": fareBy, "bounty": bounty,
             "weather": weather, "wellUsed": wellUsed, "portJobs": portJobs, "jobsDone": Array(jobsDone),
-            "blk": blk, "fights": fights, "tod": tod, "rot": rot
+            "blk": blk, "fights": fights, "tod": tod, "rot": rot,
+            // where she is on a passage, if she is at sea
+            "atSea": mode == .sail, "dist": dist, "legLen": legLen, "dayT": dayT, "nextEvAt": nextEvAt, "legFrom": legFrom,
+            "leg0Day": leg0Day, "leg0Gold": leg0Gold, "leg0Crew": leg0Crew, "leg0Fights": leg0Fights, "legEvents": legEvents,
+            "legAte": legAte, "sea": sea, "halfDays": halfDays, "rareSeen": Array(rareSeen)
         ]
         UserDefaults.standard.set(d, forKey: Game.saveKey)
     }
@@ -85,6 +89,24 @@ extension Game {
         rot = d["rot"] as? Double ?? 0
         saluteN = 0
         mode = .port
+        rareSeen = Set(d["rareSeen"] as? [String] ?? [])
+        if d["atSea"] as? Bool ?? false {
+            // back out on the passage where it was left
+            dist = d["dist"] as? Double ?? 0
+            legLen = d["legLen"] as? Double ?? max(1, nextLegLen())
+            dayT = d["dayT"] as? Double ?? 0
+            nextEvAt = d["nextEvAt"] as? Double ?? nowDays() + 5
+            legFrom = d["legFrom"] as? String ?? here.n
+            leg0Day = d["leg0Day"] as? Int ?? day
+            leg0Gold = d["leg0Gold"] as? Int ?? gold
+            leg0Crew = d["leg0Crew"] as? Int ?? crew
+            leg0Fights = d["leg0Fights"] as? Int ?? fights
+            legEvents = d["legEvents"] as? Int ?? 0
+            legAte = d["legAte"] as? Double ?? 0
+            sea = d["sea"] as? Int ?? 0
+            halfDays = d["halfDays"] as? Int ?? 0
+            mode = .sail
+        }
         return true
     }
 }

@@ -458,14 +458,14 @@ extension Game {
                 self.mode = .pick
                 if !UserDefaults.standard.bool(forKey: "fh_intro") { self.showIntro() }
             }
-            btn(c, bx - 100, by0 + 162, 200, 34, "How to play", size: 14) { [unowned self] in self.showIntro() }
+            btn(c, bx - 100, by0 + 162, 200, 34, "How to play", size: 14) { [unowned self] in UserDefaults.standard.set(false, forKey: "fh_coached"); self.showIntro() }
         } else {
             btn(c, bx - 110, by0 + 60, 220, 52, "New voyage", gold: true, size: 20) { [unowned self] in
                 self.newGame()
                 self.mode = .pick
                 if !UserDefaults.standard.bool(forKey: "fh_intro") { self.showIntro() }
             }
-            btn(c, bx - 100, by0 + 122, 200, 34, "How to play", size: 14) { [unowned self] in self.showIntro() }
+            btn(c, bx - 100, by0 + 122, 200, 34, "How to play", size: 14) { [unowned self] in UserDefaults.standard.set(false, forKey: "fh_coached"); self.showIntro() }
         }
     }
 
@@ -524,6 +524,7 @@ extension Game {
             let sub = aboard ? "\(o.1) days · aboard ✓" : "\(o.1) days · \(storeCost(o.1)) gold"
             btn(c, px + 20 + Double(i) * (ow + 8), oy, ow, oh, o.0, sub, gold: i == 1 && !aboard, off: aboard, size: 17) { [unowned self] in self.provision(o.1) }
         }
+        let coachHere = !marketPort || leg <= 1
         // everything else, a step at a time
         let colW = (pw - 40 - 12) / 2
         let gy = oy + oh + 10
@@ -548,6 +549,13 @@ extension Game {
         let bw = (pw - 40 - 12) / 2
         c.text(haveD >= need ? "Stores are enough for the passage." : "Buy at least \(need) days of stores before sailing.", px + 22, by + 26, 13.5, haveD >= need ? Col(0xb8e6a0) : Col(0xffc8b8), -1, FONTB)
         btn(c, px + 20 + bw + 12, by, bw, 44, marketPort ? "Done" : "Cast off", gold: haveD >= need, size: 18) { [unowned self] in self.leaveMarket() }
+        if coachHere {
+            if haveD < need {
+                coach(c, px + 20 + ow + 8 + ow / 2, oy + oh, "Tap to buy stores for the passage", below: true)
+            } else {
+                coach(c, px + 20 + bw + 12 + bw / 2, by, marketPort ? "Stores bought. Back to the port" : "Stores aboard. Now cast off", below: false)
+            }
+        }
     }
 
     // ---------- sailing
@@ -587,7 +595,7 @@ extension Game {
         // in words
         let left = Int(max(0, legLen - dist))
         let days = Int((Double(left) / perDay).rounded(.up))
-        let line = "Leg \(min(5, leg + 1)) of 5  ·  \(Int(k * 100))% sailed  ·  \(left) leagues to go" + (days > 0 ? ", about \(days) day\(days == 1 ? "" : "s")" : "") + "  ·  " + weatherName
+        let line = "Passage \(min(5, leg + 1)) of 5 to Santa Aurelia  ·  \(left) leagues" + (days > 0 ? ", about \(days) day\(days == 1 ? "" : "s") to go" : "") + "  ·  " + weatherName
         c.text(line, W / 2, by + bh - 7, 11.5, CREAM.alpha(0.9), 0, FONT)
     }
 
@@ -895,6 +903,11 @@ extension Game {
         let bw = 172.0, by = H - safeB - 50
         btn(c, W / 2 - bw - 6, by, bw, 44, half ? "Rations: half" : "Rations: full", half ? "saves food, risks sickness" : "tap to halve") { [unowned self] in
             self.half = !self.half
+        }
+        if sd < tg && !half {
+            coach(c, W / 2 - bw / 2 - 6, by, "Stores are short: halve rations", below: false)
+        } else if leg == 0 && day <= 2 && sceneK.isEmpty {
+            coach(c, W / 2, 80, "Your passage. Stores (top left) count down each day", below: true)
         }
         btn(c, W / 2 + 6, by, bw, 44, "Stop and fish", bait > 0 ? "lose \(SUNS) days · \(bait) bait" : "no bait", off: bait < 1) { [unowned self] in
             self.passDays(1)

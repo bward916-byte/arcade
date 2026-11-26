@@ -169,6 +169,15 @@ extension Game {
             c.save()
             c.alpha(a)
             btn(c, px + 20 + Double(col) * (bw + 8), by + Double(row) * (bh + 8) + 14 * (1 - a), bw, bh, o.label, o.sub, gold: i == 0 && !o.off, off: o.off, o.act)
+            if !o.off, let tag = effectTag(o.sub) {
+                // what the choice costs or brings, as a tag on the top corner of its button
+                let tx2 = px + 20 + Double(col) * (bw + 8) + bw - 6, ty2 = by + Double(row) * (bh + 8) + 14 * (1 - a) - 7
+                let tw2 = textW(tag.1, 12, FONTB) + 30
+                c.RR(tx2 - tw2, ty2, tw2, 20, 10, Col(0x1c1108, 0.95))
+                c.RRStroke(tx2 - tw2, ty2, tw2, 20, 10, 1.2, tag.2)
+                icon(c, tag.0, tx2 - tw2 + 12, ty2 + 10, 14)
+                c.text(tag.1, tx2 - tw2 + 22, ty2 + 14.5, 12, tag.2, -1, FONTB)
+            }
             if !o.pic.isEmpty {
                 if o.off { c.alpha(a * 0.45) }
                 optPic(c, o.pic, px + 20 + Double(col) * (bw + 8) + 26, by + Double(row) * (bh + 8) + 14 * (1 - a) + bh / 2, Double(i))
@@ -405,6 +414,59 @@ extension Game {
         }
     }
 
+    /// Reads a choice's small print for what it costs or brings: "+120 gold", "-4 stores", "lose 4 days", or a risk.
+    func effectTag(_ sub: String) -> (String, String, Col)? {
+        let s = sub.lowercased()
+        let red = Col(0xff7a5a), green = Col(0x9fe08a), amber = Col(0xffc060)
+        if let r = s.range(of: "[+-] ?[0-9]+ (stores|gold|powder|planks|bait|blades|food)", options: .regularExpression) {
+            let m = String(s[r])
+            let plus = m.hasPrefix("+")
+            let num = String(m.filter { $0.isNumber })
+            let keys: [(String, String)] = [("stores", "food"), ("food", "food"), ("gold", "gold"), ("powder", "powder"), ("planks", "planks"), ("bait", "bait"), ("blades", "arms")]
+            let key = keys.first(where: { m.contains($0.0) })?.1 ?? "gold"
+            return (key, (plus ? "+" : "−") + num, plus ? green : red)
+        }
+        if let r = s.range(of: "lose [0-9]+ days", options: .regularExpression) {
+            return ("day", "−" + String(String(s[r]).filter { $0.isNumber }) + " days", red)
+        }
+        if let r = s.range(of: "^[0-9]+ gold", options: .regularExpression) {
+            return ("gold", "−" + String(String(s[r]).filter { $0.isNumber }), red)
+        }
+        for w in ["hurt", "lash", "risk", "danger", "may ", "will not like", "one will", "stove", "sicken", "two will"] where s.contains(w) {
+            return ("crew", "risky", amber)
+        }
+        return nil
+    }
+
+    /// A pointing hand and a word of advice. Only on the first voyage, until the player has sailed from a port.
+    func coach(_ c: Canvas, _ tx: Double, _ ty: Double, _ text: String, below: Bool) {
+        if UserDefaults.standard.bool(forKey: "fh_coached") || card != nil || sum != nil || play != nil { return }
+        let ph = (T * 0.9).truncatingRemainder(dividingBy: 1)
+        c.circStroke(tx, ty, 8 + ph * 20, 2.4, Col(0xffe08a, 0.9 * (1 - ph)))
+        let bob = abs(sin(T * 4)) * 7
+        let dir: Double = below ? 1 : -1
+        let hy = ty + dir * (8 + bob)
+        c.save()
+        c.translate(tx, hy)
+        if !below { c.rotate(PI) }
+        // a gloved hand, one finger out
+        c.RR(-4.5 + 1.5, 2, 9, 20, 4.5, Col(0x000000, 0.25))
+        c.RR(-4.5, 0, 9, 20, 4.5, WHITE)
+        c.RR(-11, 14, 24, 20, 8, WHITE)
+        for k in 0..<3 { c.seg(-6 + Double(k) * 6, 15, -6 + Double(k) * 6, 19, 1, Col(0x9a8a7a)) }
+        c.RRStroke(-4.5, 0, 9, 20, 4.5, 1.2, Col(0x3a2412))
+        c.RRStroke(-11, 14, 24, 20, 8, 1.2, Col(0x3a2412))
+        c.R(-9, 32, 20, 6, Col(0xd2a455))
+        c.restore()
+        let tw = textW(text, 14, FONTB) + 28
+        let bx = clampD(tx - tw / 2, safeL + 4, W - safeR - tw - 4)
+        let byy = below ? hy + 44 : hy - 44 - 30
+        c.RR(bx + 2, byy + 3, tw, 30, 15, Col(0x000000, 0.35))
+        c.RR(bx, byy, tw, 30, 15, Col(0xfff8e6))
+        c.RRStroke(bx, byy, tw, 30, 15, 2, Col(0xd2a455))
+        c.text(text, bx + tw / 2, byy + 20, 14, Col(0x2a1808), 0, FONTB)
+    }
+
     func drawHUD(_ c: Canvas) {
         var x = safeL
         x = pill(c, x, "day", "Day \(cal)")
@@ -412,7 +474,18 @@ extension Game {
         // stores in days, the way the captain thinks of them; red when they will not last to port
         let sdays = storeDays()
         let short = mode == .sail ? sdays < daysToGo() : sdays < storesNeeded()
+        let fx0 = x
         x = pill(c, x, "food", "\(sdays) days", warn: short)
+        // each day eaten floats up off the counter, so the player sees the stores going
+        if mode == .sail && card == nil && play == nil {
+            if sdLast >= 0 && sdays < sdLast && sdLast - sdays < 6 { sdFloat.append((T, sdLast - sdays)) }
+        }
+        sdLast = sdays
+        sdFloat.removeAll { T - $0.0 > 1.5 }
+        for f in sdFloat {
+            let age = T - f.0
+            c.text("−\(f.1) day", (fx0 + x - 5) / 2, 44 + age * 16, 12, Col(0xffb0a0, max(0, 1 - age / 1.5)), 0, FONTB)
+        }
         x = pill(c, x, "planks", "\(planks)")
         x = pill(c, x, "bait", "\(bait)")
         x = pill(c, x, "powder", "\(powder)")

@@ -611,6 +611,10 @@ extension Game {
         }
 
         // ---- where to go: each door shows what is waiting behind it
+        let coachAt: (Double, Double, String)? = {
+            if !(need.foodOK && need.hullOK && need.wagesOK) { return (safeL + 150, sy, "Tick off this list, then set sail") }
+            return (W - safeR - bw / 2, by, "All ready: set sail")
+        }()
         let ready = need.foodOK && need.waterOK && need.hullOK && need.wagesOK
         let tiles: [(String, String, Int)] = [
             ("Market", !need.foodOK ? "buy stores: step 1" : (lacksText().isEmpty ? "stores are good" : lacksText()), need.foodOK ? 0 : 1),
@@ -692,5 +696,6 @@ extension Game {
                 c.glow(x + bw / 2, by + bh / 2, bw * 0.7, Col(0xffd257, 0.2 + 0.12 * sin(T * 4)), Col(0xffd257, 0))
             }
         }
+        if let ca = coachAt, leg >= 1 { coach(c, ca.0, ca.1, ca.2, below: false) }
     }
 }

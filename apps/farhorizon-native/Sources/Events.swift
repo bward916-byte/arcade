@@ -821,7 +821,11 @@ extension Game {
         let due = wagesDue()
         let short = gold < due
         show("Your ship", "Ready to cast off? The crew is owed \(due) gold in wages" + (short ? " — more than you have. Unpaid men may desert." : "."), [
-            Opt("Set sail") { [unowned self] in self.card = nil; self.mode = .chart },
+            Opt("Set sail") { [unowned self] in
+                // the first port is behind them: no more pointing hands
+                if self.leg >= 1 { UserDefaults.standard.set(true, forKey: "fh_coached") }
+                self.card = nil; self.mode = .chart
+            },
             Opt("Stay") { [unowned self] in self.card = nil }
         ])
     }
