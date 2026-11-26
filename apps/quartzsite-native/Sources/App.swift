@@ -143,7 +143,7 @@ final class GameViewController: UIViewController {
         renderer = Renderer(game: game, canvas: cv)
         if !demoDone {
             demoDone = true
-            for key in ["pick", "rigs", "play", "night", "ltva", "main", "gem", "tyson", "dome", "toys", "ride", "skoolie", "map", "trail", "scaddan", "browse", "parade", "home", "season", "end", "gear", "computer", "rain", "windy", "critters", "page", "qfest", "western", "trailride", "cine0", "cine1", "cine2", "cine3", "cine4", "happy", "cleanup", "dog", "camels", "drive", "drivenight", "drivetrail", "drivestop", "drivetow", "party", "gemworld", "mainwest", "maineast", "mainnight", "readers", "dust", "gen", "propane", "phone", "wildnight", "rainbow", "windy", "booth", "haggle", "river", "food", "blm", "coffee", "flood", "rvshow", "goals"] where ProcessInfo.processInfo.arguments.contains("-demo-" + key) {
+            for key in ["pick", "rigs", "play", "night", "ltva", "main", "gem", "tyson", "dome", "toys", "ride", "skoolie", "map", "trail", "scaddan", "browse", "parade", "home", "season", "end", "gear", "computer", "rain", "windy", "critters", "page", "qfest", "western", "trailride", "cine0", "cine1", "cine2", "cine3", "cine4", "happy", "cleanup", "dog", "camels", "drive", "drivenight", "drivetrail", "drivestop", "drivetow", "party", "gemworld", "mainwest", "maineast", "mainnight", "readers", "dust", "gen", "propane", "phone", "wildnight", "rainbow", "windy", "booth", "haggle", "river", "food", "blm", "coffee", "flood", "rvshow", "goals", "newyear", "xmas"] where ProcessInfo.processInfo.arguments.contains("-demo-" + key) {
                 game.demo(key)
             }
         }
@@ -215,7 +215,7 @@ final class GameViewController: UIViewController {
                 let camping = [Area.ltva, .dome, .scaddan, .roadrunner].contains(game.area)
                 var flood = 0.0
                 if game.weather == 3 { for sp in game.spots where sp.kind == .wash { flood = max(flood, 1 - abs(sp.x - game.px) / 260) } }
-                sound.places(now, gen: gen, crowd: game.driving ? 0 : crowdNear, traffic: !game.driving && (game.area == .main || game.area == .tyson), motor: game.driving ? 0 : motor, owl: camping && dk > 0.7 && !game.driving, road: game.driving && !game.driveDirt, flood: game.driving ? 0 : flood)
+                sound.places(now, gen: gen, crowd: game.driving ? 0 : crowdNear, traffic: !game.driving && (game.area == .main || game.area == .tyson), motor: game.driving ? 0 : motor, owl: camping && dk > 0.7 && !game.driving, road: game.driving && !game.driveDirt, flood: game.driving ? 0 : flood, fireworks: game.fireworks)
             }
             var eventOn = false
             for e in EVENTS.indices where e != EV_PAN && game.on(e) && EVENTS[e].area == game.area { eventOn = true }

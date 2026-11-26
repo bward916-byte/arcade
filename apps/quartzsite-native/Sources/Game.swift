@@ -155,7 +155,7 @@ let AREAS: [AreaDef] = [
         Spot(kind: .camel, x: 4720, name: "CAMEL SCULPTURE", arg: 3)
     ]),
     AreaDef(name: "Tyson Wells", sub: "The show grounds on Kuehn Street", w: 3000, arrive: 160, lat: 33.6625, lon: -114.2215, spots: [
-        Spot(kind: .tools, x: 380, name: "KB TOOLS"),
+        Spot(kind: .tools, x: 380, name: "K&B TOOLS"),
         Spot(kind: .panorama, x: 700, name: "PROSPECTORS PANORAMA"),
         Spot(kind: .vendors, x: 1060, name: "SHOW VENDORS"),
         Spot(kind: .office, x: 1370, name: "SHOW OFFICE"),
@@ -522,6 +522,11 @@ final class Game {
     struct PagePost { var text: String; var day: Int; var likes: Int; var comments: Int }
     var phoneOpen = false
     var tomorrow = 0                      // the forecast for tomorrow
+
+    /// New Year's Eve: fireworks over town from 11:30 to 12:30.
+    var fireworks: Bool { return phase == .play && day == 4 && dayT > 0.8 && dayT < 0.835 }
+    /// Holiday lights stay up through Three Kings Day, January 6.
+    var holidays: Bool { return day <= 10 }
 
     /// Who's around today: the same faces, rotating through the week.
     func neighbor(_ salt: Int) -> (String, String) {
@@ -1039,6 +1044,8 @@ final class Game {
             wares[0].haggled = true; wares[0].price = Int(Double(wares[0].price) * 0.8); mapMsg = wares[0].who + ": \"Alright, \(wares[0].price) and it's yours.\""; mapMsgT = 99
         }
         if key == "rvshow" { day = 22; place(.tyson, 2560); dayT = 0.3; clockFreeze = true }
+        if key == "newyear" { place(.ltva, 1400); day = 4; dayT = 0.81; clockFreeze = true }
+        if key == "xmas" { place(.main, 2300); day = 2; dayT = 0.76; clockFreeze = true }
         if key == "flood" { place(.roadrunner, 400); weather = 3; dayT = 0.3; clockFreeze = true }
         if key == "coffee" { dayT = 0.12; clockFreeze = true; px = rigX + 120; day = 2 }
         if key == "wildnight" { place(.ltva, 600); dayT = 0.82; clockFreeze = true }
@@ -1904,7 +1911,7 @@ final class Game {
         // no solar yet: the generator comes on at dusk to keep the lights on
         if before < 0.64 && dayT >= 0.64 && rigArea != .main && rigArea != .tyson && rig != .tent && panels == 0 && !resident && !house {
             genOn = true
-            hint("gen", "No solar yet, so your generator runs in the evening. Shut it off at your camp before 10 PM. Quiet hours run until 6 AM. Solar panels at KB Tools mean no generator at all.")
+            hint("gen", "No solar yet, so your generator runs in the evening. Shut it off at your camp before 10 PM. Quiet hours run until 6 AM. Solar panels at K&B Tools mean no generator at all.")
         }
         if genOn && dayT < 0.3 { genOn = false }
         if genOn && quietHours && genMadDay != day && rigArea == area {

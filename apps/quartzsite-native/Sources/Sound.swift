@@ -163,8 +163,15 @@ final class Sound {
 
     // ---------- the sounds of a place: generators, crowds, traffic, engines, owls, running water
     private var genT = 0.0, crowdT = 0.0, carT = 0.0, motorT = 0.0, owlT = 0.0, roadT = 0.0, floodT = 0.0
-    func places(_ now: Double, gen: Double, crowd: Double, traffic: Bool, motor: Double, owl: Bool, road: Bool, flood: Double) {
+    private var fwT = 0.0
+    func places(_ now: Double, gen: Double, crowd: Double, traffic: Bool, motor: Double, owl: Bool, road: Bool, flood: Double, fireworks: Bool) {
         if muted || !running { return }
+        if fireworks && now > fwT {
+            fwT = now + Double.random(in: 0.4..<1.1)
+            tone(Double.random(in: 900..<1400), 0.5, 0, 0.012, 300)
+            noise(0.35, 0.07, Double.random(in: 300..<900), 0.6, 0.5)
+            noise(0.9, 0.025, 4200, 1.5, 0.55)
+        }
         if gen > 0.05 && now > genT {
             genT = now + 0.5
             tone(58, 0.55, 2, 0.009 * gen)

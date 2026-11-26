@@ -134,6 +134,29 @@ final class Renderer {
                 c.seg(sx0 + p * 60 - 18, sy0 + p * 22 - 6.6, sx0 + p * 60, sy0 + p * 22, 0.7, Col(0xffffff, (1 - p) * 0.9))
             }
         }
+        // New Year's Eve fireworks over town
+        if g.fireworks {
+            let cols: [Col] = [Col(0xff5a5a), Col(0xffd24a), Col(0x6ad0ff), Col(0xb48aff), Col(0x7aff9a), Col(0xffffff)]
+            for k in 0..<5 {
+                let cyc = 2.2 + Double(k) * 0.37
+                let tt = (NOW + Double(k) * 0.9).truncatingRemainder(dividingBy: cyc) / cyc
+                let id = floor((NOW + Double(k) * 0.9) / cyc) + Double(k) * 17
+                let cx = W * (0.12 + hashN(id) * 0.76), cy = GY * (0.12 + hashN(id + 1) * 0.3)
+                let col = cols[Int(hashN(id + 2) * 6) % 6]
+                if tt < 0.25 {
+                    let up = tt / 0.25
+                    c.circ(cx, GY - (GY - cy) * up, 0.9, Col(0xfff0c0, 0.9))
+                } else {
+                    let p = (tt - 0.25) / 0.75
+                    for j in 0..<18 {
+                        let a = Double(j) / 18 * PI * 2
+                        let r = p * (24 + hashN(id + 3) * 16)
+                        c.circ(cx + cos(a) * r, cy + sin(a) * r + p * p * 8, 1.1 * (1 - p) + 0.3, col.alpha(1 - p))
+                    }
+                    if p < 0.2 { c.glow(cx, cy, 30, col.alpha(0.35 * (1 - p * 5)), col.alpha(0)) }
+                }
+            }
+        }
         // a rainbow the morning after rain
         if g.phase == .play && g.afterRain > 0 && t > 0.05 && t < 0.35 && g.weather < 3 {
             let rb: [Col] = [Col(0xff5a4a), Col(0xffa040), Col(0xffe060), Col(0x60d070), Col(0x5a9aff), Col(0x8a6aff)]
@@ -434,7 +457,83 @@ final class Renderer {
                 }
                 n += 1
             }
-        case .main, .tyson:
+        case .tyson:
+            // Tyson Wells as it looks: white metal buildings, big peaked white show tents, flags on tall poles
+            let showOn = g.phase == .play && (g.tysonShow() != nil || g.on(EV_RV))
+            let gap = 150.0
+            var n = floor((cam * par - 160) / gap)
+            while n * gap < cam * par + W + 160 {
+                let sx = n * gap - cam * par
+                if hashN(n + 1800) < 0.42 {
+                    let w = 96 + hashN(n + 1810) * 30, h = 22 + hashN(n + 1811) * 6
+                    let col = Col(0xeceae4).shade(1 - dark * 0.5)
+                    c.R(sx, GY - h, w, h + 1, col)
+                    var rx = sx
+                    while rx < sx + w { c.R(rx, GY - h, 0.5, h, col.shade(0.93)); rx += 3.4 }
+                    c.poly(col.shade(0.88), [sx - 2, GY - h, sx + w / 2, GY - h - 7, sx + w + 2, GY - h])
+                    var d = 0.0
+                    while d + 20 < w {
+                        c.R(sx + 8 + d, GY - 15, 16, 15, col.shade(0.84))
+                        for l in 0..<5 { c.R(sx + 8 + d, GY - 14 + Double(l) * 3, 16, 0.5, col.shade(0.74)) }
+                        d += 30
+                    }
+                } else {
+                    let w = 120 + hashN(n + 1820) * 40
+                    let tent = Col(0xf6f4f0).shade(1 - dark * 0.5)
+                    let peaks = max(2, Int(w / 38))
+                    let pw = w / Double(peaks)
+                    for p in 0..<peaks {
+                        let px0 = sx + Double(p) * pw
+                        c.poly(tent.shade(0.95), [px0, GY - 17, px0 + pw / 2, GY - 29, px0 + pw, GY - 17])
+                        c.seg(px0 + pw / 2, GY - 29, px0 + pw / 2, GY - 32, 0.5, Col(0x9a9a9a))
+                    }
+                    c.R(sx, GY - 17, w, 18, tent)
+                    if showOn {
+                        let wares: [Col] = [Col(0x9a5ad0), Col(0x2fa7a0), Col(0xe2742e), Col(0xd04a8a), Col(0x3a6ea5), Col(0xf2c14e)]
+                        var j = sx + 4
+                        while j < sx + w - 6 { c.R(j, GY - 13 + hashN(j * 0.1) * 3, 4, 6 + hashN(j * 0.2) * 5, wares[Int(hashN(j * 0.3) * 6) % 6].shade(1 - dark * 0.5)); j += 6 }
+                    } else {
+                        var j = sx + 12
+                        while j < sx + w { c.R(j, GY - 17, 0.5, 18, tent.shade(0.88)); j += 12 }
+                    }
+                }
+                // flags on tall poles, and feather flags along the aisles during a show
+                if hashN(n + 1830) < 0.75 {
+                    let fx = sx + gap * 0.82
+                    c.R(fx - 0.5, GY - 50, 1, 50, Col(0xb8b8b4).shade(1 - dark * 0.5))
+                    let wv = sin(NOW * 3 + n) * 1.2
+                    let kind = Int(hashN(n + 1840) * 3)
+                    if kind == 0 {
+                        for st in 0..<5 { c.poly((st % 2 == 0 ? Col(0xc8281e) : Col(0xf4f4f0)).shade(1 - dark * 0.4), [fx + 0.5, GY - 50 + Double(st) * 1.5, fx + 13, GY - 50 + Double(st) * 1.5 + wv, fx + 13, GY - 48.5 + Double(st) * 1.5 + wv, fx + 0.5, GY - 48.5 + Double(st) * 1.5]) }
+                        c.R(fx + 0.5, GY - 50, 5.4, 4.4, Col(0x24324a).shade(1 - dark * 0.4))
+                    } else {
+                        let fc = (kind == 1 ? Col(0xf2c14e) : Col(0x2f5a9a)).shade(1 - dark * 0.4)
+                        c.poly(fc, [fx + 0.5, GY - 50, fx + 13, GY - 50 + wv, fx + 13, GY - 42.5 + wv, fx + 0.5, GY - 42.5])
+                        if kind == 1 { c.circ(fx + 7, GY - 46.4 + wv * 0.5, 1.6, Col(0xc8281e).shade(1 - dark * 0.4)) }
+                    }
+                }
+                if showOn {
+                    for j in 0..<3 { featherFlag(sx + 18 + Double(j) * 46, GY + 1, Int(hashN(n * 3 + Double(j) + 1850) * 5), n + Double(j)) }
+                }
+                n += 1
+            }
+            // chain-link along the lot
+            c.R(0, GY - 9, W, 0.5, Col(0x9a9a98, 0.6))
+            var fp = -((cam * par).truncatingRemainder(dividingBy: 24))
+            while fp < W { c.R(fp, GY - 9, 0.6, 9, Col(0x8a8a88, 0.6)); fp += 24 }
+            if g.phase == .play && g.tysonShow() != nil {
+                let tops: [Col] = [Col(0xf6f4f0), Col(0xf6f4f0), Col(0x3a6ea5), Col(0xf6f4f0), Col(0xd9412e)]
+                var k = floor((cam * 0.85 - 40) / 34)
+                while k * 34 < cam * 0.85 + W + 40 {
+                    let sx = k * 34 - cam * 0.85
+                    let tc = tops[Int(hashN(k + 1700) * 5) % 5].shade(1 - dark * 0.5)
+                    c.R(sx - 12, GY - 14, 0.6, 14, Col(0xcccccc)); c.R(sx + 11.4, GY - 14, 0.6, 14, Col(0xcccccc))
+                    c.poly(tc, [sx - 14, GY - 14, sx - 9, GY - 19, sx + 9, GY - 19, sx + 14, GY - 14])
+                    if hashN(k + 1710) < 0.6 { person(sx + (hashN(k + 1720) - 0.5) * 16, GY + 1, Int(hashN(k + 1730) * 4), hashN(k + 1740) < 0.5 ? 1 : -1, 0, false) }
+                    k += 1
+                }
+            }
+        case .main:
             let gap = 74.0
             var n = floor((cam * par - 80) / gap)
             let walls: [Col] = [Col(0xd9b48a), Col(0xe8dcc4), Col(0xb98a6a), Col(0x9fb7b0), Col(0xe0c890)]
@@ -1532,21 +1631,36 @@ final class Renderer {
             switch sp.arg {
             case 0:
                 // Big Market: hardware, groceries, RV basics
-                facade(x - 52, GY - 32, 104, 32, Col(0xe8e4dc))
-                c.R(x - 52, GY - 32, 104, 8, Col(0xb5452f).shade(1 - dark * 0.4))
-                g.text("BIG MARKET", x, GY - 28, 5.2, CREAM, bold: true)
-                g.text("HARDWARE · GROCERIES · RV PARTS", x, GY - 20.5, 2.8, Col(0x3a3a3e), bold: true)
-                pane(x - 44, GY - 16, 20, 10); pane(x + 24, GY - 16, 20, 10)
-                doorway(x - 8, GY - 16, 16, 16, Col(0x5a5a5e))
+                // tan block: HARDWARE on the left, BIG MARKET on the right, a maroon awning over the door, a carport to the side
+                facade(x - 52, GY - 30, 104, 30, Col(0xd8c4a0))
+                c.R(x - 52, GY - 31.4, 104, 1.6, Col(0xc8b490).shade(1 - dark * 0.4))
+                g.text("HARDWARE", x - 30, GY - 25, 4.4, Col(0xb5281e), bold: true)
+                g.text("RV SUPPLY", x - 30, GY - 20, 3, Col(0x3a3a3e), bold: true)
+                c.RR(x + 10, GY - 29, 36, 8, 1, Col(0xb5281e).shade(1 - dark * 0.3))
+                g.text("BIG MARKET", x + 28, GY - 25, 3.8, CREAM, bold: true)
+                c.poly(Col(0x7a2a2a).shade(1 - dark * 0.4), [x - 16, GY - 17, x + 16, GY - 17, x + 19, GY - 12, x - 19, GY - 12])
+                pane(x - 46, GY - 15, 18, 9); pane(x + 26, GY - 15, 18, 9)
+                doorway(x - 8, GY - 12, 16, 12, Col(0x5a5a5e))
+                c.R(x - 92, GY - 20, 34, 1.6, Col(0x8a8a88).shade(1 - dark * 0.4))
+                for cp in [-90.0, -76.0, -60.0] { c.R(x + cp, GY - 19, 0.9, 19, Col(0x6a6a6a)) }
                 c.R(x + 56, GY - 14, 14, 14, Col(0x8a8a88, 0.45))
                 for j in 0..<3 { c.RR(x + 57.4 + Double(j) * 4.2, GY - 9, 3.4, 8, 1.6, Col(0xf4f4f0)) }
                 top = 44
             case 1, 5:
                 // an RV park with a propane fill out front
-                c.R(x - 1, GY - 40, 2, 40, Col(0x7a6a5a))
-                c.RR(x - 32, GY - 53, 64, 14, 2, (sp.arg == 1 ? Col(0x2f5a7a) : Col(0x7a3a2a)).shade(1 - dark * 0.3))
-                g.text(sp.arg == 1 ? "Q VIEW RV PARK" : "PATTIE'S RV PARK", x, GY - 48.5, 3.8, CREAM, bold: true)
-                g.text("RV SPACES · PROPANE", x, GY - 43, 2.8, CREAM.alpha(0.85))
+                if sp.arg == 1 {
+                    c.R(x - 1, GY - 40, 2, 40, Col(0x7a6a5a))
+                    c.RR(x - 32, GY - 53, 64, 14, 2, Col(0x2f5a7a).shade(1 - dark * 0.3))
+                    g.text("Q VIEW RV PARK", x, GY - 48.5, 3.8, CREAM, bold: true)
+                    g.text("RV SPACES · PROPANE", x, GY - 43, 2.8, CREAM.alpha(0.85))
+                } else {
+                    c.R(x - 26, GY - 40, 2, 40, Col(0x4a4a4e)); c.R(x + 24, GY - 40, 2, 40, Col(0x4a4a4e))
+                    c.RR(x - 30, GY - 54, 60, 16, 2, Col(0xf8f6f2).shade(1 - dark * 0.3))
+                    g.text("PATTIE'S RV PARK", x, GY - 49, 3.8, Col(0x2a2a2e), bold: true)
+                    g.text("& PROPANE", x, GY - 43.5, 3.2, Col(0xb5281e), bold: true)
+                    c.R(x + 90, GY - 14, 22, 14, Col(0xe2662e).shade(1 - dark * 0.4))
+                    for cr in 0..<5 { c.R(x + 91 + Double(cr) * 4.4, GY - 14, 0.5, 14, Col(0xb84a1e)) }
+                }
                 rig(.classC, x + 72, GY - 2, 1, -1, 0.5); rig(.classA, x - 70, GY - 2, 2, 1, 0.5)
                 facade(x - 44, GY - 18, 26, 18, Col(0xd9c9a8))
                 pane(x - 41, GY - 14, 8, 6); doorway(x - 29, GY - 14, 7, 14, Col(0x5a3a22))
@@ -1573,10 +1687,16 @@ final class Renderer {
                 top = 40
             default:
                 // Coyote Fresh Foods, with a howling coyote on the sign
-                facade(x - 40, GY - 28, 80, 28, Col(0xc9a07a))
-                c.R(x - 44, GY - 30, 88, 3, Col(0x8a5a3a).shade(1 - dark * 0.4))
-                c.RR(x - 34, GY - 41, 68, 10, 2, Col(0x3a2a1e))
-                g.text("COYOTE FRESH FOODS", x + 5, GY - 36, 3.4, Col(0xf2c14e), bold: true)
+                // rustic board-and-batten front under a pitched roof, a camel out front, feather flags
+                let boards = Col(0x8a5a3a).shade(1 - dark * 0.45)
+                facade(x - 40, GY - 26, 80, 26, Col(0x9a6a44))
+                var bb = x - 40.0
+                while bb < x + 40 { c.R(bb, GY - 26, 0.7, 26, boards); bb += 4 }
+                c.poly(Col(0x6a4430).shade(1 - dark * 0.4), [x - 44, GY - 26, x, GY - 34, x + 44, GY - 26])
+                camelSculpture(x - 58, GY + 1, 4)
+                featherFlag(x + 50, GY + 1, 3, 4); featherFlag(x + 60, GY + 1, 0, 5)
+                c.RR(x - 34, GY - 44, 68, 10, 2, Col(0x3a2a1e))
+                g.text("COYOTE FRESH FOODS", x + 5, GY - 39, 3.4, Col(0xf2c14e), bold: true)
                 let cy = Col(0xf2c14e)
                 c.ell(x - 26, GY - 35, 2.6, 1.3, cy); c.circ(x - 23.4, GY - 37.6, 1, cy)
                 c.seg(x - 23, GY - 38, x - 21.6, GY - 40.2, 0.6, cy); c.seg(x - 28.4, GY - 35, x - 30.6, GY - 33.6, 0.6, cy)
@@ -1598,8 +1718,9 @@ final class Renderer {
             c.poly(Col(0x7a8088), [x - 45, GY - 38, x - 40, GY - 44, x + 40, GY - 44, x + 45, GY - 38])
             doorway(x - 9, GY - 22, 18, 22, Col(0x33302c))
             pane(x - 34, GY - 26, 16, 10); pane(x + 18, GY - 26, 16, 10)
-            c.RR(x - 28, GY - 57, 56, 12, 2, Col(0xa32a22))
-            g.text("KB TOOLS", x, GY - 51, 7, CREAM, bold: true)
+            c.RR(x - 28, GY - 57, 56, 12, 2, Col(0xf2c418).shade(1 - dark * 0.3))
+            g.text("K&B", x - 10, GY - 51, 7.4, Col(0x2a1e14), bold: true)
+            g.text("TOOLS", x + 13, GY - 51, 4.4, Col(0x2a1e14), bold: true)
             for j in 0..<3 { c.RR(x + 24 + Double(j) * 5, GY - 9, 4, 9, 1.5, Col(0xe8e8e4)) }
             if dark > 0.3 { lights.append((x - 26, GY - 21, 22)); lights.append((x + 26, GY - 21, 22)) }
             label = false
@@ -2136,7 +2257,7 @@ final class Renderer {
             if dark < 0.3 { c.R(x + 30, b - 2, 2, 2, Col(0xd8d4cc)) }
         }
         if dark > 0.3 && hashN(seed + 1605) < 0.65 {
-            let bulbs = [Col(0xffd68a), Col(0xff8a6a), Col(0x8ad0ff), Col(0xb8ff8a)]
+            let bulbs = g.holidays ? [Col(0xff4a4a), Col(0x4aff7a), Col(0xffffff), Col(0xffd040)] : [Col(0xffd68a), Col(0xff8a6a), Col(0x8ad0ff), Col(0xb8ff8a)]
             for i in 0..<10 {
                 let t = Double(i) / 9
                 let lx = x - 14 + 34 * t, ly = b - 13 + sin(PI * t) * 3
@@ -2672,6 +2793,17 @@ final class Renderer {
         for f in folks { person(f.x, f.b, f.look, f.face, f.ph, f.mv) }
     }
 
+    /// A feather flag: the tall curved banners you see along every Quartzsite show aisle.
+    private func featherFlag(_ x: Double, _ base: Double, _ k: Int, _ seed: Double) {
+        if x < -20 || x > W + 20 { return }
+        let cols = [Col(0xe0408a), Col(0x2f7ad0), Col(0xf28a1e), Col(0xf2c418), Col(0x3fb06a)]
+        let col = cols[((k % 5) + 5) % 5].shade(1 - dark * 0.45)
+        let sw = sin(NOW * 2.4 + seed) * 1.2
+        c.seg(x, base, x + sw * 0.4, base - 30, 0.6, Col(0x6a6a6a))
+        c.poly(col, [x, base - 8, x + sw * 0.4, base - 30, x + 4 + sw, base - 28.4, x + 5.6 + sw * 0.8, base - 22, x + 5 + sw * 0.5, base - 12, x + 2, base - 8])
+        c.poly(col.shade(1.18), [x + 1, base - 26, x + 3.4 + sw, base - 26.4, x + 4.2 + sw * 0.8, base - 22, x + 1, base - 20])
+    }
+
     /// The RV show: shiny new rigs lined up with flags and show-price placards.
     private func rvShowLot() {
         let rows: [(Double, RigKind, Int)] = [(2215, .classB, 0), (2585, .classA, 1), (2900, .classC, 2)]
@@ -2895,6 +3027,16 @@ final class Renderer {
             let sx = n * 320 + 150 - cam
             c.R(sx - 0.6, GY - 44, 1.2, 46, pole)
             c.seg(sx, GY - 44, sx + 7, GY - 45, 0.8, pole)
+            if g.holidays {
+                // a lit snowflake on every pole through the holidays
+                let lit = dark > 0.3
+                let fl = lit ? Col(0xcfeaff) : Col(0xe8eef4)
+                for k in 0..<4 {
+                    let a = Double(k) * PI / 4
+                    c.seg(sx - cos(a) * 5, GY - 30 - sin(a) * 5, sx + cos(a) * 5, GY - 30 + sin(a) * 5, 0.6, fl)
+                }
+                if lit { lights.append((sx, GY - 30, 14)) }
+            }
             c.RR(sx + 5, GY - 46, 5, 2, 0.8, pole)
             if dark > 0.3 { c.R(sx + 5.6, GY - 44.4, 3.8, 0.8, Col(0xffe7a0)); lights.append((sx + 7.5, GY - 40, 34)) }
             n += 1
