@@ -390,7 +390,7 @@ final class Renderer {
                 if h < 0.7 {
                     let kinds: [RigKind] = [.classA, .classC, .classA, .classB, .classC, .van, .classA, .skoolie]
                     let k = kinds[Int(hashN(n + 1220) * 8) % 8]
-                    rig(k, sx, GY + 0.5, hashN(n + 1230) < 0.5 ? 2 : 0, hashN(n + 1240) < 0.5 ? 1 : -1, 0.5)
+                    rig(k, sx, GY + 0.5, hashN(n + 1230) < 0.5 ? 2 : 0, hashN(n + 1240) < 0.5 ? 1 : -1, 0.5); campDress(sx, n)
                 } else if h < 0.8 {
                     rig(.tent, sx, GY + 0.5, 0, 1, 0.55)
                 } else if h < 0.88 {
@@ -449,7 +449,7 @@ final class Renderer {
                 if hashN(n + 1400) < 0.6 {
                     let sx = n * gap + hashN(n + 1410) * 120 - cam * par
                     let kinds: [RigKind] = [.van, .classB, .skoolie, .classC, .tent]
-                    rig(kinds[Int(hashN(n + 1420) * 5) % 5], sx, GY + 0.5, 1, hashN(n + 1430) < 0.5 ? 1 : -1, 0.5)
+                    rig(kinds[Int(hashN(n + 1420) * 5) % 5], sx, GY + 0.5, 1, hashN(n + 1430) < 0.5 ? 1 : -1, 0.5); campDress(sx, n)
                 }
                 n += 1
             }
@@ -461,11 +461,11 @@ final class Renderer {
                 let sx = n * gap + hashN(n + 1450) * 20 - cam * par
                 let h = hashN(n + 1460)
                 if gather {
-                    if h < 0.6 { rig(.skoolie, sx, GY + 0.5, 2, hashN(n + 1470) < 0.5 ? 1 : -1, 0.5) }
-                    else if h < 0.85 { rig(.van, sx, GY + 0.5, 1, 1, 0.5) }
+                    if h < 0.6 { rig(.skoolie, sx, GY + 0.5, 2, hashN(n + 1470) < 0.5 ? 1 : -1, 0.5); campDress(sx, n) }
+                    else if h < 0.85 { rig(.van, sx, GY + 0.5, 1, 1, 0.5); campDress(sx, n) }
                     else { rig(.tent, sx, GY + 0.5, 0, 1, 0.55) }
                 } else if h < 0.5 {
-                    rig(.van, sx, GY + 0.5, 1, 1, 0.5)
+                    rig(.van, sx, GY + 0.5, 1, 1, 0.5); campDress(sx, n)
                 }
                 n += 1
             }
@@ -487,7 +487,7 @@ final class Renderer {
                 if hashN(n + 1560) < (fest ? 0.85 : 0.5) {
                     let sx = n * gap + hashN(n + 1570) * 30 - cam * par
                     let kinds: [RigKind] = [.classA, .classC, .van, .classB]
-                    rig(kinds[Int(hashN(n + 1580) * 4) % 4], sx, GY + 0.5, 1, hashN(n + 1590) < 0.5 ? 1 : -1, 0.5)
+                    rig(kinds[Int(hashN(n + 1580) * 4) % 4], sx, GY + 0.5, 1, hashN(n + 1590) < 0.5 ? 1 : -1, 0.5); campDress(sx, n)
                     if fest {
                         // a tall mast with a wire antenna strung off it
                         let h = 34 + hashN(n + 1600) * 20
@@ -505,7 +505,7 @@ final class Renderer {
                 if hashN(n + 1520) < 0.65 {
                     let sx = n * gap + hashN(n + 1530) * 90 - cam * par
                     let kinds: [RigKind] = [.classC, .skoolie, .van, .classA, .minivan]
-                    rig(kinds[Int(hashN(n + 1540) * 5) % 5], sx, GY + 0.5, 2, hashN(n + 1550) < 0.5 ? 1 : -1, 0.5)
+                    rig(kinds[Int(hashN(n + 1540) * 5) % 5], sx, GY + 0.5, 2, hashN(n + 1550) < 0.5 ? 1 : -1, 0.5); campDress(sx, n)
                 }
                 n += 1
             }
@@ -568,6 +568,48 @@ final class Renderer {
             else if k < 0.7 { ocotillo(sx, hz + 10, n) }
             n += 1
         }
+        // the power line along the highway, a hawk now and then
+        if !g.driveDirt {
+            let pp = cam * 0.55
+            var m = floor(pp / 96) - 1
+            var tops: [(Double, Double)] = []
+            while m * 96 < pp + W + 100 { tops.append((m * 96 - pp, m)); m += 1 }
+            let pole = Col(0x6a4e36).shade(1 - dark * 0.5), wire = Col(0x2a2420, 0.55)
+            let ty = hz - 24
+            for (i, t) in tops.enumerated() {
+                c.R(t.0 - 0.8, ty, 1.6, 36, pole)
+                c.R(t.0 - 6, ty + 2, 12, 1.2, pole)
+                if i + 1 < tops.count {
+                    let u = tops[i + 1].0
+                    c.curve(t.0 - 5, ty + 2, (t.0 + u) / 2 - 5, ty + 8, u - 5, ty + 2, 0.4, wire)
+                    c.curve(t.0 + 5, ty + 2, (t.0 + u) / 2 + 5, ty + 8, u + 5, ty + 2, 0.4, wire)
+                }
+                if dark < 0.3 && hashN(t.1 + 500) < 0.2 {
+                    let hk = Col(0x4a3426)
+                    c.ell(t.0, ty - 2.4, 1.4, 2.4, hk); c.circ(t.0 + 0.4, ty - 5, 1, hk)
+                    c.poly(Col(0xe8c040), [t.0 + 1.2, ty - 5.2, t.0 + 2.4, ty - 4.8, t.0 + 1.2, ty - 4.4])
+                }
+            }
+            // a billboard now and then
+            let bp = cam * 0.45
+            var q = floor(bp / 520) - 1
+            let ads = ["ROCKS · GEMS · FOSSILS  NEXT EXIT", "QUARTZSITE  ROCK & RV CAPITAL", "FREE DUMP & WATER  WITH FILL-UP", "METEORITES! SKULLS! ODDITIES!", "TYSON WELLS  ROCK & GEM SHOW"]
+            while q * 520 < bp + W + 200 {
+                if hashN(q + 700) < 0.6 {
+                    let bx = q * 520 + 300 - bp
+                    let leg = Col(0x5a4a3a).shade(1 - dark * 0.5)
+                    c.R(bx - 18, hz - 8, 1.6, 18, leg); c.R(bx + 16, hz - 8, 1.6, 18, leg)
+                    c.R(bx - 32, hz - 30, 64, 22, Col(0x2a2420).shade(1 - dark * 0.3))
+                    c.R(bx - 31, hz - 29, 62, 20, [Col(0xf2c14e), Col(0xf4f1ea), Col(0x3a6ea5), Col(0xd9412e)][Int(hashN(q + 710) * 4) % 4].shade(1 - dark * 0.5))
+                    let ad = ads[Int(hashN(q + 720) * Double(ads.count)) % ads.count]
+                    let parts = ad.components(separatedBy: "  ")
+                    let ink = hashN(q + 710) * 4 >= 2 ? Col(0xf4f1ea) : INK
+                    g.text(parts[0], bx, hz - 22, 4, ink, bold: true)
+                    if parts.count > 1 { g.text(parts[1], bx, hz - 15, 3.4, ink) }
+                }
+                q += 1
+            }
+        }
         let ry0 = GY - 25, ry1 = GY + 15
         if g.driveDirt {
             c.R(0, ry0 + 4, W, ry1 - ry0 - 8, Col(0xb8925e).shade(1 - dark * 0.6))
@@ -593,6 +635,13 @@ final class Renderer {
             var d = -cam.truncatingRemainder(dividingBy: 40)
             while d < W { c.R(d, (ry0 + ry1) / 2 - 0.5, 18, 1, Col(0xf4f1ea, 0.9)); d += 40 }
             c.R(0, ry1, W, 2, Col(0xa89070).shade(1 - dark * 0.6))
+            // mile posts on the shoulder
+            var mp = -(cam.truncatingRemainder(dividingBy: 220)) + 200
+            while mp < W + 10 {
+                c.R(mp - 0.8, ry1 + 2, 1.6, 9, Col(0x1f6a3a).shade(1 - dark * 0.4))
+                c.R(mp - 0.8, ry1 + 3, 1.6, 1.4, Col(0xf4f1ea, 0.9))
+                mp += 220
+            }
         }
         // a green sign now and then, counting down
         let sgx = W + 80 - (cam * 0.9).truncatingRemainder(dividingBy: W + 260)
@@ -613,6 +662,13 @@ final class Renderer {
         for lane in 0...1 {
             for car in g.driveCars where car.lane == lane { traffic(car) }
             if (lane == 0) == (g.driveLaneY < 0.5) { driveYou(me, mb) }
+        }
+        // dust kicked up behind you on the dirt
+        if g.driveDirt {
+            for i in 0..<7 {
+                let t = (NOW * 1.6 + Double(i) / 7).truncatingRemainder(dividingBy: 1)
+                c.circ(me - g.driveLen / 2 - 2 - t * 56, mb - 2 - t * 9, 2 + t * 7, Col(0xd8b88a, (1 - t) * 0.45).shade(1 - dark * 0.5))
+            }
         }
         // the near shoulder: bigger plants rushing past
         let np = cam * 1.6
@@ -1733,6 +1789,36 @@ final class Renderer {
             c.R(x + 1.2, y + h * 0.5, w - 2.4, h * 0.4, cc.shade(1.14))
         }
         c.circ(x + w - 1.6, y + h * 0.56, 0.6, GOLD)
+    }
+
+    /// Life around a parked rig in the background: a flag, camp chairs, string lights at night.
+    private func campDress(_ x: Double, _ seed: Double) {
+        let b = GY + 0.5
+        if hashN(seed + 1601) < 0.45 {
+            let fx = x - 24
+            c.R(fx - 0.35, b - 16, 0.7, 16, Col(0xc8c8c4).shade(1 - dark * 0.5))
+            let fc = [Col(0xd9412e), Col(0x3a6ea5), Col(0xf2c14e), Col(0x4f9a5a), Col(0x8a4aa8)][Int(hashN(seed + 1602) * 5) % 5].shade(1 - dark * 0.5)
+            let wv = sin(NOW * 5 + seed) * 0.8
+            c.poly(fc, [fx, b - 16, fx + 3, b - 15.6 + wv, fx + 6, b - 16 + wv * 0.4, fx + 6, b - 12.6 + wv * 0.4, fx + 3, b - 12.4 + wv, fx, b - 12.8])
+        }
+        if hashN(seed + 1603) < 0.5 {
+            let chair = [Col(0x2f6a8a), Col(0xb5452f), Col(0x3f8f6a)][Int(hashN(seed + 1604) * 3) % 3].shade(1 - dark * 0.5)
+            for k in 0..<2 {
+                let cx = x + 22 + Double(k) * 5
+                c.seg(cx - 1.4, b, cx + 1.4, b - 2.4, 0.4, Col(0x5a5a5a)); c.seg(cx + 1.4, b, cx - 1.4, b - 2.4, 0.4, Col(0x5a5a5a))
+                c.R(cx - 1.6, b - 2.8, 3.2, 0.9, chair); c.R(cx - 1.6, b - 5.4, 0.9, 2.8, chair)
+            }
+            if dark < 0.3 { c.R(x + 30, b - 2, 2, 2, Col(0xd8d4cc)) }
+        }
+        if dark > 0.3 && hashN(seed + 1605) < 0.65 {
+            let bulbs = [Col(0xffd68a), Col(0xff8a6a), Col(0x8ad0ff), Col(0xb8ff8a)]
+            for i in 0..<10 {
+                let t = Double(i) / 9
+                let lx = x - 14 + 34 * t, ly = b - 13 + sin(PI * t) * 3
+                c.circ(lx, ly, 0.7, bulbs[(i + Int(seed)) % 4].alpha(0.6 + 0.4 * dark))
+            }
+            lights.append((x + 3, b - 11, 16))
+        }
     }
 
     /// A barrel cactus, ribbed, with yellow flowers on top.
