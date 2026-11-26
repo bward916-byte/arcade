@@ -902,7 +902,7 @@ final class Game {
         setCaps()
         side = bio == .canyon || chance(0.5) ? 1 : -1
         duskDone = false; raidOn = false; badgePaid = 0; pickPaid = 0; rackN = [:]; shake = 0; flash = 0
-        duelWon = false; storyRest = 0; dawnRows = []; rallyOn = false; endNow = false; routT = -1; yardMen = []; toTitle = false
+        duelWon = false; storyRest = 0; dawnRows = []; rallyOn = false; endNow = false; routT = -1; yardMen = []; toTitle = false; zoom = 1
         info = ""; slotsFor = nil
     }
 
@@ -1179,7 +1179,7 @@ final class Game {
         if name == "rout" {
             place = "bitterend"; town = 4; log = ["dustfall", "redwater", "lasthope", "coldcreek"]; day = 36; day0 = 33; layTown()
             t = 0.3; noStory = true; hintT = 0; pdir = 1
-            px = craneX - 85
+            px = craneX - 85; holdRout = 2.7
             for k in 0..<14 { folk.append(Folk(x: px - 20 - Double(k) * 7)) }
             rallyOn = true
         }
@@ -1240,7 +1240,9 @@ final class Game {
     }
 
     // ---------- one frame
-    func update(_ dt: Double) {
+    func update(_ rawDt: Double) {
+        // the first moments of the rout play in slow motion
+        let dt = routT >= 0 && routT < 1.6 ? rawDt * 0.45 : rawDt
         clock += dt
         if state == .intro { updIntro(dt); updParts(dt); return }
         if state == .title {
@@ -2026,6 +2028,9 @@ final class Game {
     var yardMen: [Bandit] = []
     var routT = -1.0             // his men have seen the town coming and are running
     var toTitle = false          // after the last scene, back to the title
+    var holdRout: Double?        // test stills only: keep the rout at one moment
+    /// Crane's buggy: waiting by his office, then away east once he is in it.
+    var buggyX: Double { let x0 = craneX + 74, u = max(0, routT - 1.5); return x0 + u * 30 + u * u * 55 }
     var craneX: Double { return EX(2490) }      // on the cavalry outpost's ground, which the last town doesn't have
 
     private func updRally(_ dt: Double) {
@@ -2044,6 +2049,7 @@ final class Game {
             // his men run for it, the town cheers, and the sky over the yard goes up in rockets
             let was = routT
             routT += dt
+            if let h = holdRout { routT = h }
             for m in yardMen { m.st = 3; m.x += (m.rider ? 120 : 75) * dt; m.phase += dt * (m.rider ? 9 : 12) }
             for at in [0.9, 1.7, 2.5, 3.2] where was < at && routT >= at {
                 let cols: [UInt32] = [0xb53a2e, 0xead7a4, 0x3f5fa0, 0xf2c14e, 0x5d8a4e]
@@ -2054,7 +2060,15 @@ final class Game {
                 sfx?.gun(0.35); buzz(1)
             }
             if was < 1.2 && routT >= 1.2 { sfx?.fanfare() }
-            if routT > 4.2 { endNow = true; rallyOn = false; toTitle = true; onSave?() }
+            // the picture closes in on the yard, holds, and eases back out before the last scenes
+            zoom = 1 + 0.24 * smooth(0, 0.7, routT) - 0.24 * smooth(3.4, 4.6, routT)
+            if was < 0.7 && routT >= 0.7 {
+                // hats in the air all down the crowd
+                let hc: [UInt32] = [0x6a4a2e, 0x3a2a1c, 0x8a6a44, 0xc9a86a]
+                for (k, f) in folk.enumerated() where k % 2 == 0 { parts.append(Part(x: f.x, y: -30, vx: rnd(-14, 14), vy: -rnd(70, 110), life: 1.6, max: 1.6, c: Col(hc[k % 4]), s: 2.6, grav: 110)) }
+                sfx?.ding()
+            }
+            if routT > 4.8 { zoom = 1; endNow = true; rallyOn = false; toTitle = true; onSave?() }
             return
         }
         if dark() > 0.5 || px < gateE.x - 40 { rallyOn = false; return }
