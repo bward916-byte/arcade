@@ -148,7 +148,9 @@ final class Game {
     // the voyage
     var gold = 1050
     var food = 0.0
-    var water = 0.0
+    /// Food and water are one thing now: stores, counted by the player in days. Old code that speaks of
+    /// water reaches the same casks.
+    var water: Double { get { return food } set { food = newValue } }
     var planks = 0
     var bait = 0
     var powder = 0
@@ -232,7 +234,7 @@ final class Game {
 
     // ---------- the hold
     var holdMax: Int { return ship.hold }
-    var holdUsed: Int { return Int(food.rounded(.up)) + Int(water.rounded(.up)) + planks + bait + powder + arms + cargoHold }
+    var holdUsed: Int { return Int(food.rounded(.up)) + planks + bait + powder + arms + cargoHold }
     func have(_ k: String) -> Int {
         switch k {
         case "food": return Int(food)
@@ -366,30 +368,56 @@ final class Game {
     /// One day of eating, drinking, rot and whatever shortage does to the crew.
     /// What the crew eats and drinks in one watch.
     func ration() -> Double { return Double(crew) * RATION * (half ? 0.5 : 1) }
+    /// Stores the crew gets through in a day on full rations.
+    func fullDay() -> Double { return max(0.05, Double(max(1, crew)) * RATION * (1 - 0.15 * min(2, E("cook"))) / Double(SUNS)) }
+    /// How many days the stores aboard will last at the ration now in force.
+    func storeDays() -> Int { return Int(food / (fullDay() * (half ? 0.5 : 1))) }
+    /// About how many days the next passage takes (the longer of the two ways).
+    func passageDays() -> Int { return Int((nextLegLen() / max(1, 42 * ship.speed)).rounded(.up)) * SUNS }
+    /// What to carry before sailing: the passage and a few days spare.
+    func storesNeeded() -> Int { return passageDays() + SUNS }
+    /// Days left to port on this passage, at the present speed.
+    func daysToGo() -> Int { return Int((max(0, legLen - dist) / max(0.1, dps() / Double(SUNS))).rounded(.up)) }
+    /// Stores costed out for so many days.
+    func storeUnits(_ days: Int) -> Int { return Int((Double(days) * fullDay() * 1.08).rounded(.up)) }
+    func storeCost(_ days: Int) -> Int {
+        guard let g = GOODS.first(where: { $0.k == "food" }) else { return 0 }
+        return max(0, storeUnits(days) - Int(food.rounded(.up))) * price(g)
+    }
+    /// Buy stores up to so many days, as far as gold and hold allow.
+    func provision(_ days: Int) {
+        guard let g = GOODS.first(where: { $0.k == "food" }) else { return }
+        if marketPort && portLacks().contains("food") { toast("They sell no stores here"); return }
+        var n = max(0, storeUnits(days) - Int(food.rounded(.up)))
+        if n == 0 { toast("You already have stores for \(Int(food / fullDay())) days"); return }
+        n = min(n, holdMax - holdUsed)
+        n = min(n, gold / price(g))
+        if n <= 0 { toast(holdMax - holdUsed <= 0 ? "The hold is full" : "Not enough gold"); return }
+        give("food", n)
+        gold -= n * price(g)
+        snd?.coin()
+        let got = Int(food / fullDay())
+        toast(got >= days ? "Stores for \(got) days" : "Stores for \(got) days: all you could \(holdMax - holdUsed <= 0 ? "stow" : "afford")")
+    }
     func consume(drain: Bool = true) {
         if drain {
             let u = ration()
-            let f0 = food, w0 = water
+            let f0 = food
             food = max(0, food - u * (1 - 0.15 * min(2, E("cook"))))
-            water = max(0, water - u)
-            legAte += f0 - food; legDrank += w0 - water
+            legAte += f0 - food
         }
         sea += 1
         halfDays = half ? halfDays + 1 : 0
-        let r = food * 0.02 * (sea > 5 ? 2 : 1) * (E("cook") > 0 ? 0.5 : 1)
+        let r = food * 0.01 * (sea > 5 ? 2 : 1) * (E("cook") > 0 ? 0.5 : 1)
         food -= r
         rot += r
         if rot >= 4 {
-            toast("\(Int(rot)) food spoiled in the hold")
+            toast("\(Int(rot)) stores spoiled in the hold")
             rot -= Double(Int(rot))
         }
         let sick = men.first(where: { $0.st == 2 })
-        if water <= 0 {
-            if let s = sick, chance(0.6) { killMan(s, "dies of thirst") } else { sickOne("no water") }
-        } else if food <= 0 {
-            if chance(0.6) {
-                if let s = sick, chance(0.5) { killMan(s, "starves") } else { sickOne("no food") }
-            }
+        if food <= 0 {
+            if let s = sick, chance(0.6) { killMan(s, "dies of hunger and thirst") } else { sickOne("no stores left") }
         } else if half && chance(0.14) {
             sickOne("weak on half rations")
         } else if sea > 9 && chance(0.12 * (E("cook") > 0 ? 0.5 : 1)) {
@@ -471,7 +499,7 @@ final class Game {
     func autoStock() {
         let per = Double(crew) * RATION
         let watches = Double(Int((nextLegLen() / max(1, 42 * ship.speed)).rounded(.up)) + 2)
-        let want: [(String, Int)] = [("water", Int((per * (watches + 1)).rounded(.up))), ("food", Int((per * (watches + 2)).rounded(.up))), ("planks", 6), ("bait", 6), ("powder", 5), ("arms", min(crew, 8))]
+        let want: [(String, Int)] = [("food", Int((per * (watches + 2)).rounded(.up))), ("planks", 6), ("bait", 6), ("powder", 5), ("arms", min(crew, 8))]
         for w in want {
             guard let g = GOODS.first(where: { $0.k == w.0 }) else { continue }
             if marketPort && portLacks().contains(g.k) { continue }
@@ -485,7 +513,7 @@ final class Game {
     }
     func leaveMarket() {
         if marketPort { mode = .port; return }
-        if food < 1 || water < 1 { toast("You need food and water"); return }
+        if food < 1 { toast("Buy stores first: the crew must eat and drink"); return }
         mode = .chart
     }
     func pickPort(_ row: Int) {
@@ -587,13 +615,12 @@ final class Game {
         if weather == 3 { setWeather(2, days: 1) }
         var warns: [String] = []
         let hullPct = Int((hull / Double(max(1, ship.hull)) * 100).rounded())
-        if water < ration() * 3 { warns.append("water low") }
-        if food < ration() * 3 { warns.append("food low") }
+        if Int(food / fullDay()) < storesNeeded() { warns.append("buy stores before sailing") }
         if hullPct < 60 { warns.append("hull needs repair") }
         let laid = men.filter { $0.st != 0 }.count
         if laid > 0 { warns.append("\(laid) laid up") }
         if gold < wagesDue() { warns.append("short of wages") }
-        sum = LegSum(from: legFrom, to: here.n, days: (day - leg0Day) * SUNS, leagues: Int(legLen), events: legEvents, gold: gold - leg0Gold, lost: max(0, leg0Crew - crew), hull: hullPct, fights: fights - leg0Fights, wages: wagesDue(), ate: Int(legAte.rounded()), drank: Int(legDrank.rounded()), warns: warns)
+        sum = LegSum(from: legFrom, to: here.n, days: (day - leg0Day) * SUNS, leagues: Int(legLen), events: legEvents, gold: gold - leg0Gold, lost: max(0, leg0Crew - crew), hull: hullPct, fights: fights - leg0Fights, wages: wagesDue(), ate: Int((legAte / fullDay()).rounded()), drank: Int(food / fullDay()), warns: warns)
         sumT = 0
         sumRow = -1
         if !portMsg.isEmpty { toast(portMsg) }
@@ -693,10 +720,9 @@ final class Game {
                 scroll += sd * 70 * ship.speed
                 // stores go down steadily as she sails, not in one bite at the end of the watch
                 let ate = ration() * sd / DAYLEN
-                let f0 = food, w0 = water
+                let f0 = food
                 food = max(0, food - ate * (1 - 0.15 * min(2, E("cook"))))
-                water = max(0, water - ate)
-                legAte += f0 - food; legDrank += w0 - water
+                legAte += f0 - food
                 if dist >= legLen {
                     arrive()
                 } else if nowDays() >= nextEvAt {
@@ -797,6 +823,9 @@ final class Game {
         if name == "yard2" { leg = 1; mode = .port; gold = 900; shipwright(); cardT = 9 }
         if name == "yard" { leg = 1; mode = .port; shipwright() }
         if name == "decklife" { ups = ["sails": 2, "hull": 1, "guns": 1]; deckForce = 5; seaForce = 0 }
+        if name == "intro" { mode = .title; showIntro(); return }
+        if name == "outfit" { shipI = 1; crew = ship.crew; hull = Double(ship.hull); syncMen(); marketPort = false; mode = .outfit; provision(storesNeeded() + 8); return }
+        if name == "lowsea" { leg = 1; mode = .sail; legLen = 300; dist = 60; food = 6; deckForce = 0; camZ = 2.6; nextEvAt = 9999; return }
         if name == "town" { leg = 1; mode = .port; portJobs = [1, 8, 11]; tod = 0.3; saluteT = 6; saluteN = 3 }
         if name == "town2" { leg = 2; path[2] = 1; mode = .port; portJobs = [6, 9, 3]; tod = 0.4 }
         if name == "pmarket" { leg = 1; path[1] = 1; mode = .port; openMarket() }

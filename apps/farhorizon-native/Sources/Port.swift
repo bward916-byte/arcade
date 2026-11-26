@@ -55,14 +55,13 @@ extension Game {
 
     /// What the ship needs for the next passage, and whether she has it.
     func portNeeds() -> (days: Int, foodDays: Int, waterDays: Int, foodOK: Bool, waterOK: Bool, hullPct: Int, hullOK: Bool, repair: Int, down: Int, crewOK: Bool, wagesOK: Bool, canUpgrade: Bool) {
-        let days = Int((nextLegLen() / max(1, 42 * ship.speed)).rounded(.up)) + 2
-        let perDay = max(0.1, Double(crew) * RATION)
-        let fd = Int(food / perDay), wd = Int(water / perDay)
+        let days = storesNeeded()
+        let fd = Int(food / fullDay())
         let pct = Int((hull / Double(max(1, ship.hull)) * 100).rounded())
         let down = laidUp()
         var canUp = false
         for y in Game.YARD where up(y.k) < y.max && gold - wagesDue() >= y.cost + up(y.k) * (y.cost * 3 / 4) { canUp = true }
-        return (days * SUNS, fd * SUNS, wd * SUNS, fd >= days, wd >= days, pct, pct >= 70, Int(Double(ship.hull) - hull) * 2, down, down == 0 && crew >= max(2, ship.crew - 2), gold >= wagesDue(), canUp)
+        return (days, fd, fd, fd >= days, fd >= days, pct, pct >= 70, Int(Double(ship.hull) - hull) * 2, down, down == 0 && crew >= max(2, ship.crew - 2), gold >= wagesDue(), canUp)
     }
 
     /// A small townsperson walking the quay.
@@ -575,14 +574,14 @@ extension Game {
         c.RR(safeL, sy, W - safeL - safeR, 26, 13, Col(0x1c1108, 0.86))
         c.RRStroke(safeL, sy, W - safeL - safeR, 26, 13, 1.2, Col(0xd2a455, 0.85))
         var chx = safeL + 12
-        c.text("Next passage \(need.days) days:", chx, sy + 17.5, 12.5, CREAM.alpha(0.85), -1, FONTI)
-        chx += textW("Next passage \(need.days) days:", 12.5, FONTI) + 10
-        let chips: [(String, String, Bool)] = [
-            ("food", "food \(need.foodDays)d", need.foodOK),
-            ("water", "water \(need.waterDays)d", need.waterOK),
-            ("hull", "hull \(need.hullPct)%", need.hullOK),
-            ("crew", need.down > 0 ? "\(need.down) laid up" : "\(crew)/\(ship.crew) hands", need.crewOK),
-            ("gold", "wages \(wagesDue())", need.wagesOK)
+        c.text("Before you sail:", chx, sy + 17.5, 12.5, CREAM.alpha(0.85), -1, FONTI)
+        chx += textW("Before you sail:", 12.5, FONTI) + 10
+        // the three things a passage needs, numbered; tap one to go and see to it
+        let chips: [(String, String, Bool, Int)] = [
+            ("food", "1 Stores \(need.foodDays) of \(need.days) days", need.foodOK, 0),
+            ("hull", "2 Hull \(need.hullPct)%", need.hullOK, 2),
+            ("gold", "3 Wages \(wagesDue()) gold", need.wagesOK, -1),
+            ("crew", need.down > 0 ? "\(need.down) laid up" : "\(crew)/\(ship.crew) hands", need.crewOK, 1)
         ]
         for ch in chips {
             let tw = textW(ch.1, 12.5, FONTB)
@@ -591,7 +590,6 @@ extension Game {
             if !ch.2 { c.RR(chx - 4, sy + 3, tw + 44, 20, 10, Col(0xc0392b, 0.35 + 0.3 * pulse)) }
             icon(c, ch.0, chx + 8, sy + 13 + (ch.2 ? 0 : sin(T * 8) * 1.5), 16)
             c.text(ch.1, chx + 20, sy + 17.5, 12.5, ch.2 ? CREAM : Col(0xffc8b8), -1, FONTB)
-            // a tick, or a cross that throbs
             let mx2 = chx + tw + 30
             if ch.2 {
                 c.roundCaps(true); c.seg(mx2 - 4, sy + 13, mx2 - 1, sy + 17, 2.2, GREENC); c.seg(mx2 - 1, sy + 17, mx2 + 5, sy + 9, 2.2, GREENC); c.roundCaps(false)
@@ -599,17 +597,27 @@ extension Game {
                 let r = 3.6 + pulse * 1.2
                 c.seg(mx2 - r, sy + 13 - r, mx2 + r, sy + 13 + r, 2.4, Col(0xff6a50)); c.seg(mx2 + r, sy + 13 - r, mx2 - r, sy + 13 + r, 2.4, Col(0xff6a50))
             }
+            if ch.3 >= 0 && card == nil && sum == nil {
+                let go = ch.3
+                hits.append(Hit(x: chx - 4, y: sy, w: tw + 44, h: 26, act: { [unowned self] in
+                    switch go {
+                    case 0: self.openMarket()
+                    case 1: self.tavern()
+                    default: self.shipwright()
+                    }
+                }))
+            }
             chx += tw + 46
         }
 
         // ---- where to go: each door shows what is waiting behind it
         let ready = need.foodOK && need.waterOK && need.hullOK && need.wagesOK
         let tiles: [(String, String, Int)] = [
-            ("Market", !need.foodOK && !need.waterOK ? "buy food and water" : (!need.foodOK ? "you need food" : (!need.waterOK ? "you need water" : (lacksText().isEmpty ? "stores are good" : lacksText()))), need.foodOK && need.waterOK ? 0 : 1),
+            ("Market", !need.foodOK ? "buy stores: step 1" : (lacksText().isEmpty ? "stores are good" : lacksText()), need.foodOK ? 0 : 1),
             ("Tavern", need.down > 0 ? "\(need.down) need the surgeon" : (crew < ship.crew ? "\(ship.crew - crew) berths empty" : "crew · maps"), need.down > 0 ? 1 : (crew < ship.crew ? 2 : 0)),
-            ("Shipwright", !need.hullOK ? "repairs: \(need.repair) gold" : (need.canUpgrade ? "upgrade available" : "she is sound"), !need.hullOK ? 1 : (need.canUpgrade ? 2 : 0)),
-            ("Well", wellDry() ? "brackish · no use" : (wellUsed ? "casks filled" : "free fresh water"), wellUsed || wellDry() ? 0 : 2),
-            ("Set sail", ready ? "ready for sea" : "not ready yet", ready ? 0 : 1)
+            ("Shipwright", !need.hullOK ? "step 2: repair \(need.repair) gold" : (need.canUpgrade ? "upgrade available" : "she is sound"), !need.hullOK ? 1 : (need.canUpgrade ? 2 : 0)),
+            ("Well", wellDry() ? "brackish · no use" : (wellUsed ? "casks filled" : "free: +6 stores"), wellUsed || wellDry() ? 0 : 2),
+            ("Set sail", ready ? "ready for sea" : (!need.foodOK ? "buy stores first" : (!need.hullOK ? "repair first" : "pay wages first")), ready ? 0 : 1)
         ]
         for (i, tl) in tiles.enumerated() {
             let x = safeL + Double(i) * (bw + gap)

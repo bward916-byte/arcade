@@ -280,9 +280,9 @@ extension Game {
         case "galley":
             logIt("Fire in the galley")
             show("Fire in the galley!", "The stove has gone over and the deck is alight. The watch is running with buckets.", [
-                Opt("Use the water casks", water >= 4 ? "lose 4 water" : "there is not enough water", off: water < 4) { [unowned self] in
-                    self.water = max(0, self.water - 4)
-                    self.done("Out, and nothing lost but drinking water: -4 water")
+                Opt("Use the water casks", food >= 4 ? "-4 stores" : "not enough stores", off: food < 4) { [unowned self] in
+                    self.food = max(0, self.food - 4)
+                    self.done("Out, and nothing lost but drinking water: -4 stores")
                 },
                 Opt("Smother it with wet canvas", "the planks will scorch") { [unowned self] in
                     self.dmg(7)
@@ -304,11 +304,11 @@ extension Game {
         case "neptune":
             logIt("King Neptune came aboard")
             show("King Neptune's court", "The oldest hand aboard, crowned and bearded with weed, holds court on a cask. Every man who has not crossed these waters goes into the tub.", [
-                Opt("Let them have their day", "-3 water for the tub") { [unowned self] in
-                    self.water = max(0, self.water - 3)
+                Opt("Let them have their day", "-3 stores for the tub") { [unowned self] in
+                    self.food = max(0, self.food - 3)
                     for m in self.men where m.st != 0 { m.d = max(1, m.d - 2) }
                     self.snd?.good()
-                    self.done("The whole ship laughs for a day, and is the better for it: -3 water")
+                    self.done("The whole ship laughs for a day, and is the better for it: -3 stores")
                 },
                 Opt("Back to work, all of you", "the wind is fair") { [unowned self] in
                     self.dist = min(self.legLen - 1, self.dist + 30)
@@ -450,11 +450,11 @@ extension Game {
             ])
         case "foulwater":
             logIt("The water went bad")
-            let lost = Int((water * 0.3).rounded())
+            let lost = Int((food * 0.15).rounded())
             show("Foul water", "Three casks have turned. The smell alone would drop a horse.", [
-                Opt("Pour it over the side", "-\(lost) water") { [unowned self] in
-                    self.water = max(0, self.water - Double(lost))
-                    self.done("Green water over the rail: -\(lost) water")
+                Opt("Pour it over the side", "-\(lost) stores") { [unowned self] in
+                    self.food = max(0, self.food - Double(lost))
+                    self.done("Green water over the rail: -\(lost) stores")
                 },
                 Opt("Drink it anyway", "someone will sicken") { [unowned self] in
                     self.toastText = ""
@@ -603,11 +603,11 @@ extension Game {
                 if a == 0 { self.toast("The hold is full"); return }
                 self.gold -= cost
                 self.snd?.coin()
-                self.toast("+\(a) \(k)")
+                self.toast("+\(a) \(k == "food" ? "stores" : k)")
             }
         }
         show("Merchant ship", "They offer to trade.", [
-            Opt("Food ×10", "50 gold", buy("food", 10, 50)), Opt("Water ×10", "30 gold", buy("water", 10, 30)),
+            Opt("Stores ×10", "60 gold", buy("food", 10, 60)),
             Opt("Planks ×5", "50 gold", buy("planks", 5, 50)), Opt("Sail on") { [unowned self] in self.done("") }
         ])
     }
@@ -794,13 +794,28 @@ extension Game {
         opts.append(Opt("Leave") { [unowned self] in self.card = nil })
         show("The swordmaster", "An old fencing master drinks here. For a price he will show your boarders a thing or two.", opts)
     }
+    /// Three cards that say what the game is and what the player does in it.
+    func showIntro() {
+        UserDefaults.standard.set(true, forKey: "fh_intro")
+        show("Your voyage", "You are captain of a small merchant ship. Your goal: reach Santa Aurelia, five passages away, with your ship and crew still alive.", [
+            Opt("Next") { [unowned self] in
+                self.show("At sea", "A passage takes weeks. Every day the crew eats and drinks your stores. Storms, sickness and pirates come and go, and when something happens you choose what to do.", [
+                    Opt("Next") { [unowned self] in
+                        self.show("In port", "Between passages you stop in a port. Buy stores for the next passage, repair the hull and pay the crew. The checklist at the bottom of the port shows what still needs doing.", [
+                            Opt(self.mode == .title ? "Got it" : "Choose your ship") { [unowned self] in self.card = nil }
+                        ])
+                    }
+                ])
+            }
+        ])
+    }
     func well() {
-        if wellDry() { toast("The well here is brackish. Buy water at the market"); return }
+        if wellDry() { toast("The well here is brackish. Buy stores at the market"); return }
         if wellUsed { toast("The casks are already filled"); return }
         wellUsed = true
-        let a = addGood("water", 10)
+        let a = addGood("food", 6)
         snd?.splash()
-        toast(a > 0 ? "+\(a) fresh water" : "The hold is full")
+        toast(a > 0 ? "Casks filled free: +\(a) stores" : "The hold is full")
     }
     func setSail() {
         let due = wagesDue()

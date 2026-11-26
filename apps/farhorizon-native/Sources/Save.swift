@@ -21,7 +21,7 @@ extension Game {
         for m in men { crewList.append(["n": m.n, "sk": m.sk, "sk2": m.sk2, "post": m.post, "st": m.st, "d": m.d]) }
         let d: [String: Any] = [
             "cal": cal, "port": here.n,
-            "gold": gold, "food": food, "water": water, "planks": planks, "bait": bait, "powder": powder, "arms": arms,
+            "gold": gold, "food": food, "planks": planks, "bait": bait, "powder": powder, "arms": arms,
             "hull": hull, "shipI": shipI, "day": day, "leg": leg, "path": path, "route": route, "half": half,
             "hasMap": hasMap, "men": crewList, "dead": dead, "log": Array(log.suffix(40)), "ups": ups,
             "perkRip": perkRip, "perkWind": perkWind, "perkFury": perkFury,
@@ -39,7 +39,8 @@ extension Game {
         newGame()
         gold = d["gold"] as? Int ?? gold
         food = d["food"] as? Double ?? 0
-        water = d["water"] as? Double ?? 0
+        // older saves kept water apart; it goes into the stores
+        food += d["water"] as? Double ?? 0
         planks = d["planks"] as? Int ?? 0
         bait = d["bait"] as? Int ?? 0
         powder = d["powder"] as? Int ?? 0

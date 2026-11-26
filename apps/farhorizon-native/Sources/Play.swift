@@ -535,7 +535,7 @@ extension Game {
                 case 3: parts.append("+\(self.addGood("food", 8)) food")
                 case 4: parts.append("+\(self.addGood("planks", 5)) planks")
                 case 5: parts.append("+\(self.addGood("powder", 3)) powder")
-                case 6: parts.append("+\(self.addGood("water", 10)) water")
+                case 6: parts.append("+\(self.addGood("food", 6)) stores")
                 case 8: if self.hasMap { g += 60 } else { self.hasMap = true; parts.append("a treasure map") }
                 case 7:
                     let t = trouble()
@@ -825,8 +825,8 @@ extension Game {
         // the tally: each line counts up in turn
         let rows: [(String, String, Int, String, Bool)] = [
             ("day", "Days · \(s.events) event\(s.events == 1 ? "" : "s")" + (s.fights > 0 ? " · \(s.fights) fight\(s.fights == 1 ? "" : "s")" : ""), s.days, "", false),
-            ("food", "Food eaten", s.ate, "-", false),
-            ("water", "Water drunk", s.drank, "-", false),
+            ("food", "Days of stores used", s.ate, "-", false),
+            ("water", "Days of stores left", s.drank, "", s.drank < storesNeeded()),
             ("gold", "Gold won or lost", s.gold, s.gold > 0 ? "+" : "", s.gold < 0),
             ("crew", s.lost > 0 ? "Hands lost" : "All hands safe", s.lost, "", s.lost > 0),
             ("planks", "Hull sound", s.hull, "%", s.hull < 50)

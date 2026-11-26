@@ -394,7 +394,7 @@ extension Game {
         switch k {
         case "day": return "Day \(cal) of the voyage. Wages fall due each time you sail"
         case "gold": return "Gold: buys stores, repairs and upgrades, and pays the crew"
-        case "food": return "Food: the crew eats every day. About \(Int(food / per) * SUNS) days left"
+        case "food": return "Stores: food and water. \(storeDays()) days at this ration" + (mode == .sail ? "; port is \(daysToGo()) days away" : "; the next passage needs \(storesNeeded())")
         case "water": return "Water: the crew drinks every day. About \(Int(water / per) * SUNS) days left"
         case "planks": return "Planks: mend leaks and broken spars at sea"
         case "bait": return "Bait: lets you stop and fish for food"
@@ -409,8 +409,10 @@ extension Game {
         var x = safeL
         x = pill(c, x, "day", "Day \(cal)")
         x = pill(c, x, "gold", "\(gold)")
-        x = pill(c, x, "food", "\(Int(food))", warn: food < Double(crew) * 0.7)
-        x = pill(c, x, "water", "\(Int(water))", warn: water < Double(crew) * 0.7)
+        // stores in days, the way the captain thinks of them; red when they will not last to port
+        let sdays = storeDays()
+        let short = mode == .sail ? sdays < daysToGo() : sdays < storesNeeded()
+        x = pill(c, x, "food", "\(sdays) days", warn: short)
         x = pill(c, x, "planks", "\(planks)")
         x = pill(c, x, "bait", "\(bait)")
         x = pill(c, x, "powder", "\(powder)")

@@ -456,12 +456,16 @@ extension Game {
             btn(c, bx - 130, by0 + 114, 260, 40, "New voyage", size: 16) { [unowned self] in
                 self.newGame()
                 self.mode = .pick
+                if !UserDefaults.standard.bool(forKey: "fh_intro") { self.showIntro() }
             }
+            btn(c, bx - 100, by0 + 162, 200, 34, "How to play", size: 14) { [unowned self] in self.showIntro() }
         } else {
             btn(c, bx - 110, by0 + 60, 220, 52, "New voyage", gold: true, size: 20) { [unowned self] in
                 self.newGame()
                 self.mode = .pick
+                if !UserDefaults.standard.bool(forKey: "fh_intro") { self.showIntro() }
             }
+            btn(c, bx - 100, by0 + 122, 200, 34, "How to play", size: 14) { [unowned self] in self.showIntro() }
         }
     }
 
@@ -508,26 +512,42 @@ extension Game {
         c.text(marketPort ? "Market — " + here.n : "Stock the hold", px + 20, py + 32, 22, GOLD, -1, FONTD)
         let used = holdUsed
         c.text("Hold \(used) / \(holdMax)", px + pw - 20, py + 30, 15, used >= holdMax ? Col(0xffb0a0) : CREAM, 1, FONT)
+        // stores first, counted in days: the one thing every passage needs
+        let need = storesNeeded()
+        let haveD = Int(food / fullDay())
+        let sy = py + 46
+        c.text("Stores feed and water the crew.  Aboard: \(haveD) days.  The next passage takes about \(passageDays()) days.", px + 20, sy + 10, 13, haveD >= need ? CREAM : Col(0xffc8b8), -1, FONTI)
+        let opts: [(String, Int)] = [("Just enough", need), ("Comfortable", need + 8), ("Plenty", need + 16)]
+        let ow = (pw - 40 - 16) / 3, oh = 46.0, oy = sy + 20
+        for (i, o) in opts.enumerated() {
+            let aboard = haveD >= o.1
+            let sub = aboard ? "\(o.1) days · aboard ✓" : "\(o.1) days · \(storeCost(o.1)) gold"
+            btn(c, px + 20 + Double(i) * (ow + 8), oy, ow, oh, o.0, sub, gold: i == 1 && !aboard, off: aboard, size: 17) { [unowned self] in self.provision(o.1) }
+        }
+        // everything else, a step at a time
         let colW = (pw - 40 - 12) / 2
-        let rowH = min(48.0, (ph - 44 - 62) / 3)
+        let gy = oy + oh + 10
+        let rowH = min(46.0, (py + ph - 60 - gy) / 3 - 4)
         for (i, g) in GOODS.enumerated() {
             let col = i % 2, row = i / 2
-            let x = px + 20 + Double(col) * (colW + 12), y = py + 44 + Double(row) * (rowH + 4)
+            let x = px + 20 + Double(col) * (colW + 12), y = gy + Double(row) * (rowH + 4)
             c.RR(x, y, colW, rowH, 9, Col(0x000000, 0.28))
-            icon(c, g.k, x + 22, y + rowH / 2, 26)
-            c.text(g.n, x + 44, y + rowH / 2 - 1, 16, CREAM, -1, FONT)
+            icon(c, g.k, x + 22, y + rowH / 2, 24)
+            c.text(g.n, x + 44, y + rowH / 2 - 1, 15, CREAM, -1, FONT)
             let lacking = marketPort && portLacks().contains(g.k)
-            c.text(lacking ? "not sold here" : "\(price(g)) gold each", x + 44, y + rowH / 2 + 14, 11.5, lacking ? Col(0xff9a8a) : CREAM.alpha(0.75), -1, FONTI)
-            let bs = min(38.0, rowH - 8)
-            let bx = x + colW - bs * 2 - 62
-            btn(c, bx, y + (rowH - bs) / 2, bs, bs, "−", size: 22) { [unowned self] in self.sell(g) }
-            c.text("\(have(g.k))", bx + bs + 26, y + rowH / 2 + 6, 19, GOLD, 0, FONTB)
-            btn(c, bx + bs + 52, y + (rowH - bs) / 2, bs, bs, "+", off: lacking, size: 22) { [unowned self] in self.buy(g) }
+            let useFor: [String: String] = ["food": "days of food and water", "planks": "mend leaks at sea", "bait": "lets you stop and fish", "powder": "a broadside before boarding", "arms": "boarders fight better"]
+            c.text(lacking ? "not sold here" : "\(price(g)) gold · " + (useFor[g.k] ?? ""), x + 44, y + rowH / 2 + 13, 11, lacking ? Col(0xff9a8a) : CREAM.alpha(0.75), -1, FONTI)
+            let bs = min(34.0, rowH - 8)
+            let bx = x + colW - bs * 2 - 58
+            btn(c, bx, y + (rowH - bs) / 2, bs, bs, "−", size: 20) { [unowned self] in self.sell(g) }
+            let shown = g.k == "food" ? "\(haveD)d" : "\(have(g.k))"
+            c.text(shown, bx + bs + 24, y + rowH / 2 + 6, 17, GOLD, 0, FONTB)
+            btn(c, bx + bs + 48, y + (rowH - bs) / 2, bs, bs, "+", off: lacking, size: 20) { [unowned self] in self.buy(g) }
         }
-        let by = py + ph - 54
+        let by = py + ph - 52
         let bw = (pw - 40 - 12) / 2
-        btn(c, px + 20, by, bw, 44, "Stock for me", "enough for the first passage") { [unowned self] in self.autoStock() }
-        btn(c, px + 20 + bw + 12, by, bw, 44, marketPort ? "Done" : "Cast off", gold: true, size: 18) { [unowned self] in self.leaveMarket() }
+        c.text(haveD >= need ? "Stores are enough for the passage." : "Buy at least \(need) days of stores before sailing.", px + 22, by + 26, 13.5, haveD >= need ? Col(0xb8e6a0) : Col(0xffc8b8), -1, FONTB)
+        btn(c, px + 20 + bw + 12, by, bw, 44, marketPort ? "Done" : "Cast off", gold: haveD >= need, size: 18) { [unowned self] in self.leaveMarket() }
     }
 
     // ---------- sailing
@@ -864,7 +884,14 @@ extension Game {
             return
         }
         drawProgress(c)
-        if sceneK.isEmpty { c.textS(lifeCaption(), W / 2, 96, 12.5, CREAM.alpha(0.92), 0, FONTI) }
+        let sd = storeDays(), tg = daysToGo()
+        if sceneK.isEmpty && card == nil && sd < tg {
+            let pul = 0.75 + 0.25 * sin(T * 5)
+            let warnT = "Stores for \(sd) days, port \(tg) days away: halve rations, or stop and fish"
+            let ww = textW(warnT, 13, FONTB) + 28
+            c.RR(W / 2 - ww / 2, 86, ww, 22, 11, Col(0x8a1a10, 0.85 * pul))
+            c.text(warnT, W / 2, 101.5, 13, Col(0xffe6dc), 0, FONTB)
+        } else if sceneK.isEmpty { c.textS(lifeCaption(), W / 2, 96, 12.5, CREAM.alpha(0.92), 0, FONTI) }
         let bw = 172.0, by = H - safeB - 50
         btn(c, W / 2 - bw - 6, by, bw, 44, half ? "Rations: half" : "Rations: full", half ? "saves food, risks sickness" : "tap to halve") { [unowned self] in
             self.half = !self.half

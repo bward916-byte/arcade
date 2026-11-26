@@ -29,8 +29,8 @@ extension Game {
     func weatherDay() {
         switch weather {
         case 2:
-            let w = addGood("water", 3)
-            if w > 0 { toast("Rain fills the casks: +\(w) water") }
+            let w = addGood("food", 2)
+            if w > 0 { toast("Rain fills the casks: +\(w) stores") }
         case 3:
             if E("rig") < 1 {
                 let d = Double(rndI(2, 4))

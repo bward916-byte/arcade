@@ -102,7 +102,7 @@ struct Good {
     let step: Int
 }
 let GOODS: [Good] = [
-    Good(k: "food", n: "Food", p: 4, step: 5), Good(k: "water", n: "Water", p: 2, step: 5), Good(k: "planks", n: "Planks", p: 8, step: 1),
+    Good(k: "food", n: "Stores", p: 6, step: 5), Good(k: "planks", n: "Planks", p: 8, step: 1),
     Good(k: "bait", n: "Bait", p: 3, step: 1), Good(k: "powder", n: "Powder", p: 10, step: 1), Good(k: "arms", n: "Blades", p: 12, step: 1)
 ]
 
