@@ -518,8 +518,9 @@ final class Game {
     }
     func areaName(_ a: Area) -> String { return AREAS[a.rawValue].name }
     /// A full-screen card is up and the day stands still.
-    var overlay: Bool { return mapOpen || browseOpen || seasonCard || ended || inCine || driving || phoneOpen || tourOpen }
+    var overlay: Bool { return mapOpen || browseOpen || seasonCard || ended || inCine || driving || phoneOpen || tourOpen || mineOpen }
     var tourOpen = false, tourBus = 0
+    var mineOpen = false, mineFind = 0, mineText = ""   // inside the Gold Eye: 0 specimen, 1 lantern, 2 gold, 3 bats
     // your page, on your phone
     struct PagePost { var text: String; var day: Int; var likes: Int; var comments: Int }
     var phoneOpen = false
@@ -651,6 +652,7 @@ final class Game {
                 return
             }
             if tourOpen { tourOpen = false; events.append(3); return }
+            if mineOpen { mineOpen = false; events.append(3); return }
             if phoneOpen {
                 if id == 68 { postPhoto() }
                 else if id == 72 { phoneTab = 0; events.append(3) }
@@ -1047,6 +1049,7 @@ final class Game {
             wares[0].haggled = true; wares[0].price = Int(Double(wares[0].price) * 0.8); mapMsg = wares[0].who + ": \"Alright, \(wares[0].price) and it's yours.\""; mapMsgT = 99
         }
         if key == "rvshow" { day = 22; place(.tyson, 2560); dayT = 0.3; clockFreeze = true }
+        if key == "minein" { place(.dome, 820); dayT = 0.3; clockFreeze = true; mineFind = 2; mineText = "Color in the pan from the back of the drift: 42 coins in gold."; mineOpen = true }
         if key == "tour" { day = 24; place(.skoolie, 1480); dayT = 0.3; clockFreeze = true; tourBus = 0; tourOpen = true }
         if key == "newyear" { place(.ltva, 1400); day = 4; dayT = 0.81; clockFreeze = true }
         if key == "xmas" { place(.main, 2300); day = 2; dayT = 0.76; clockFreeze = true }
@@ -1582,11 +1585,13 @@ final class Game {
         case .mine:
             health = max(0, health - 12)
             let r = Double.random(in: 0..<1)
-            if r < 0.4 && rocks < packCap { rockVals.append(Int(rnd(25, 60))); float("Found a specimen", x, CREAM) }
-            else if r < 0.6 && odd < 3 { odd += 1; float("Found an old lantern", x, CREAM) }
-            else if r < 0.8 { let g = Int(rnd(20, 60)); money += Double(g); float("+\(g) in gold", x, GOLD) }
-            else { float("Just bats", x, CREAM) }
+            if r < 0.4 && rocks < packCap { let v = Int(rnd(25, 60)); rockVals.append(v); mineFind = 0; mineText = "A quartz vein in the wall. You chip out a specimen worth about \(v)." }
+            else if r < 0.6 && odd < 3 { odd += 1; mineFind = 1; mineText = "An old carbide lantern on a timber ledge. Someone will want that." }
+            else if r < 0.8 { let g = Int(rnd(20, 60)); money += Double(g); mineFind = 2; mineText = "Color in the pan from the back of the drift: \(g) coins in gold." }
+            else { mineFind = 3; mineText = "Just bats, and the cold air of the old drift. Good to see, though." }
             cred += 1
+            mineOpen = true
+            hint("minesafe", "Real abandoned mines are deadly: bad air, rotten timbers and open shafts. Stay out and stay alive. This one's only a game.")
         case .detect:
             let r = Double.random(in: 0..<1)
             if r < 0.5 { let g = Int(rnd(1, 6)); money += Double(g); float("Old coins +\(g)", x, GOLD) }

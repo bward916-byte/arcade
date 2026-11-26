@@ -52,6 +52,7 @@ final class Renderer {
             if g.browseOpen { browseOverlay() }
             if g.phoneOpen { phoneOverlay() }
             if g.tourOpen { tourOverlay() }
+            if g.mineOpen { mineOverlay() }
             if g.seasonCard { seasonOverlay() }
             if g.ended { endOverlay() }
             if g.inCine { cinematic() }
@@ -2707,6 +2708,60 @@ final class Renderer {
         c.RR(x0 + 10, y0 + 6, w - 20, 16, 4, Col(0x1c1410, 0.75))
         g.text(owners[g.tourBus], W / 2, y0 + 14, 4.4, CREAM, bold: true)
         g.text("tap anywhere to step back outside", W / 2, y0 + h + 6, 3.4, CREAM.alpha(0.7))
+    }
+
+    /// Inside the Gold Eye: a timbered drift by lantern light, rails into the dark, and what you found.
+    private func mineOverlay() {
+        g.hits.removeAll(keepingCapacity: true)
+        g.texts.removeAll(keepingCapacity: true)
+        c.R(0, 0, W, H, Col(0x050403, 0.8))
+        g.hits.append(Hit(id: -1, x: 0, y: 0, w: W, h: H))
+        let w = min(320.0, W - g.safeL - g.safeR - 20), h = 160.0
+        let x0 = (W - w) / 2, y0 = (H - h) / 2
+        let cx = x0 + w / 2, vy = y0 + h * 0.42
+        c.RR(x0, y0, w, h, 10, Col(0x1a120c))
+        // the drift narrowing away: rock walls in perspective
+        c.poly(Col(0x3a2a1e), [x0, y0, cx - 18, vy - 14, cx - 18, vy + 14, x0, y0 + h])
+        c.poly(Col(0x32241a), [x0 + w, y0, cx + 18, vy - 14, cx + 18, vy + 14, x0 + w, y0 + h])
+        c.poly(Col(0x2a1e14), [x0, y0, x0 + w, y0, cx + 18, vy - 14, cx - 18, vy - 14])
+        c.poly(Col(0x4a3626), [x0, y0 + h, x0 + w, y0 + h, cx + 18, vy + 14, cx - 18, vy + 14])
+        c.R(cx - 18, vy - 14, 36, 28, Col(0x050403))
+        // timber sets getting smaller into the dark
+        for k in 0..<5 {
+            let t = Double(k) / 5
+            let sx = (w / 2 - 18) * (1 - t) + 18, sy = (h * 0.42 - 14) * (1 - t) + 14
+            let tw = Col(0x7a5632).shade(1 - t * 0.7)
+            c.R(cx - sx, vy - sy, 4 * (1 - t) + 1, sy * 2, tw)
+            c.R(cx + sx - 4 * (1 - t) - 1, vy - sy, 4 * (1 - t) + 1, sy * 2, tw)
+            c.R(cx - sx, vy - sy, sx * 2, 4 * (1 - t) + 1, tw)
+        }
+        // rails
+        c.seg(cx - 50, y0 + h, cx - 6, vy + 14, 1.4, Col(0x6a6a6e))
+        c.seg(cx + 50, y0 + h, cx + 6, vy + 14, 1.4, Col(0x6a6a6e))
+        // your lantern's warm light
+        c.glow(cx - 60, y0 + h * 0.55, 110, Col(0xffb050, 0.32 + 0.04 * sin(NOW * 9)), Col(0xffb050, 0))
+        // what you found, in the light
+        let fx = cx - 60, fy = y0 + h * 0.66
+        switch g.mineFind {
+        case 0:
+            c.poly(Col(0x5a4a3e), [fx - 22, fy + 10, fx - 14, fy - 8, fx + 16, fy - 10, fx + 22, fy + 10])
+            gem(fx - 2, fy - 2, 6, Col(0xf0f0f4)); gem(fx + 8, fy, 4, Col(0xe8e0f0))
+        case 1:
+            c.RR(fx - 5, fy - 10, 10, 16, 2, Col(0x8a6a3a)); c.circ(fx, fy - 2, 3, Col(0xffd080, 0.8)); c.arcStroke(fx, fy - 10, 5, PI, PI * 2, 0.8, Col(0x6a5a4a))
+        case 2:
+            c.ell(fx, fy + 4, 18, 5, Col(0x3a3a3e)); c.ell(fx, fy + 2, 15, 3.6, Col(0x6a5a4a))
+            for k in 0..<7 { c.circ(fx - 8 + hashN(Double(k) + 60) * 16, fy + 1 + hashN(Double(k) + 61) * 3, 0.9, GOLD) }
+        default:
+            for k in 0..<5 {
+                let bx = cx + (hashN(Double(k) + 70) - 0.5) * 60, by = vy - 20 + sin(NOW * 4 + Double(k)) * 6
+                let f = sin(NOW * 18 + Double(k)) * 3
+                c.poly(Col(0x1a1410), [bx - 6, by - f, bx, by + 1, bx + 6, by - f, bx, by - 1])
+            }
+        }
+        c.RR(x0 + 10, y0 + h - 26, w - 20, 18, 4, Col(0x000000, 0.6))
+        g.text(g.mineText, W / 2, y0 + h - 17, 4.4, CREAM, bold: true, wrap: w - 30)
+        g.text("THE GOLD EYE", W / 2, y0 + 12, 6, GOLD, bold: true)
+        g.text("tap anywhere to climb back out", W / 2, y0 + h + 6, 3.4, CREAM.alpha(0.7))
     }
 
     /// A tiny weather glyph for the phone.
