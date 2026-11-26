@@ -875,7 +875,8 @@ final class Game {
         sRods = Building(.sRods, 992); sTower = Building(.sTower, 1206); sHobo = Building(.sHobo, EX(3090)); sCar = Building(.sCar, EX(3182))
         rodsLv = 0; towerLv = 0; hoboDay = 0; carCool = 0; bell = false; stampDay = 0; stampede = nil; ufo = nil; ufoAt = 0; ghostAt = 0; ghostX = nil
         sGallery = Building(.sGallery, 186); gallery = nil
-        for st in [sPost, sTribe, sRuin, sRig, sShow, sFort, sRods, sTower, sHobo, sCar, sGallery] { st.dyn = 0; b.append(st) }
+        // in the last town Crane's own yard stands where the cavalry would camp
+        for st in [sPost, sTribe, sRuin, sRig, sShow, sFort, sRods, sTower, sHobo, sCar, sGallery] where !(lastTown && st === sFort) { st.dyn = 0; b.append(st) }
         dynamite = 0; loader = false; lantern = false; postSold = 0; scoutDays = 0; ruinCool = 0; rigLv = 0; rigBurn = false
         showOn = false; showUsed = false; oatsDay = 0; wind = 1; blown = false; string = 0; fortNight = false; cav = []
         mustangs = [Mustang(x: -540, seed: 0), Mustang(x: -150, seed: 1), Mustang(x: -360, seed: 2)]
@@ -2025,7 +2026,7 @@ final class Game {
     var yardMen: [Bandit] = []
     var routT = -1.0             // his men have seen the town coming and are running
     var toTitle = false          // after the last scene, back to the title
-    var craneX: Double { return EX(2425) }      // between the two drifter camps east of town
+    var craneX: Double { return EX(2490) }      // on the cavalry outpost's ground, which the last town doesn't have
 
     private func updRally(_ dt: Double) {
         if rallyBlock == "done" { return }

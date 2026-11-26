@@ -2079,7 +2079,7 @@ final class Renderer {
             c.restore()
         }
         let fx = g.sFort.x
-        if vis(fx, 70) {
+        if vis(fx, 70) && !g.lastTown {
             let x = sx(fx).rounded()
             c.save(); c.translate(x, gy); c.scale(1.35, 1.35); c.translate(-x, -gy)
             let lg = Col(0x8a6238), lgD = Col(0x5a3c22), lgL = Col(0xa87a48), blue = Col(0x2f4a7a)
@@ -2398,9 +2398,9 @@ final class Renderer {
         let yx = g.craneX
         if !vis(yx, 220) { return }
         let x = sx(yx).rounded(), wood = Col(0x5a4030), dk = Col(0x2e2218)
-        c.ell(x, gy + 0.6, 110, 2.4, Col(0x000000, 0.12))
+        c.ell(x, gy + 0.6, 86, 2.4, Col(0x000000, 0.12))
         // the office: dark planks, a tin roof, the company flag
-        let ox = x + 40
+        let ox = x + 30
         c.R(ox, gy - 30, 44, 30, Col(0x3e342e)); var pk = 0.0
         while pk < 44 { c.R(ox + pk, gy - 30, 0.6, 30, Col(0x2a221e)); pk += 5.5 }
         c.poly(Col(0x6a6e74), [ox - 4, gy - 30, ox + 22, gy - 41, ox + 48, gy - 30]); c.R(ox - 4, gy - 31, 52, 1.4, Col(0x8a8e94))
@@ -2410,13 +2410,13 @@ final class Renderer {
         let wave = sin(g.clock * 3) * 1.4
         c.poly(Col(0x7a241c), [ox + 47.2, gy - 54, ox + 61, gy - 51 + wave, ox + 47.2, gy - 47]); c.text("C", ox + 52, gy - 49.4, 4, Col(0xead7a4), face: "Rye-Regular")
         // the wagon, loaded
-        let wx = x - 70
+        let wx = x - 76
         c.R(wx, gy - 12, 34, 7, Col(0x6a4a2e)); c.R(wx, gy - 12, 34, 1, Col(0x8a6238)); c.RR(wx + 2, gy - 19, 12, 7, 1, Col(0x8a7450)); c.RR(wx + 15, gy - 18, 10, 6, 1, Col(0x7a6448))
         for wcx in [wx + 6, wx + 28] { c.circ(wcx, gy - 4, 4, dk); c.circ(wcx, gy - 4, 3, Col(0x6a4a2e)); c.circ(wcx, gy - 4, 0.9, dk) }
         // rail fence round the pen
-        var fx = x - 110.0
-        while fx < x + 110 { c.R(fx, gy - 11, 1.4, 11, wood); fx += 14 }
-        c.R(x - 110, gy - 9, 220, 1, wood); c.R(x - 110, gy - 5, 220, 1, wood)
+        var fx = x - 84.0
+        while fx < x + 86 { c.R(fx, gy - 11, 1.4, 11, wood); fx += 14 }
+        c.R(x - 84, gy - 9, 170, 1, wood); c.R(x - 84, gy - 5, 170, 1, wood)
         // the company arch over the road in, which comes down when the town arrives
         let ax = x - 20, tip = g.routT < 0 ? 0 : min(1.45, g.routT * g.routT * 1.6)
         c.R(ax - 26, gy - 34, 2.4, 34, dk)
