@@ -935,10 +935,10 @@ final class Renderer {
             i += 1
         }
     }
-    private func sign(_ cv: Canvas, _ s: String, _ x: Double, _ y: Double, _ col: Col, _ t: Double, arrow: Bool = true) {
+    private func sign(_ cv: Canvas, _ s: String, _ x: Double, _ y: Double, _ col: Col, _ t: Double, arrow: Bool = true, alpha: Double = 1) {
         let w = cv.textW(s, 14, 3) + 22
-        cv.RR(x - w / 2, y - 14, w, 24, 5, Col(0x0d1a13))
-        cv.text(s, x, y + 4, 14, col, 1, 3)
+        cv.RR(x - w / 2, y - 14, w, 24, 5, Col(0x0d1a13).alpha(alpha))
+        cv.text(s, x, y + 4, 14, col.alpha(alpha), 1, 3)
         if arrow {
             let b = sin(t * 5) * 4
             cv.poly(col, [x - 9, y + 16 + b, x + 9, y + 16 + b, x, y + 28 + b])
@@ -993,7 +993,16 @@ final class Renderer {
             wallTiles(cv, im, x0, x1, GY - 300, 300, f.n / 3)
             if f.n % 4 == 0 { cv.R(x0, 0, W, GY, BLACK.alpha(hashN((t * 11).rounded(.down)) > 0.72 ? 0.1 : 0.3)) }
             let who = tenant(z, f.n / 3)
-            if !who.isEmpty && f.kind != .safe { sign(cv, who, 520, GY - 268, Col.mix(z.trim, WHITE, 0.55), t, arrow: false); sign(cv, who, 1290, GY - 268, Col.mix(z.trim, WHITE, 0.55), t, arrow: false) }
+            if !who.isEmpty && f.kind != .safe {
+                // tenant plaques fade out while they pass under the panel at top left or a kill banner
+                let busy = g.floaters.contains { $0.size >= 30 && $0.t < 1.2 }
+                for sx in [520.0, 1290.0] {
+                    let on = sx - x0
+                    var a = clampD((on - 330) / 90, 0, 1)
+                    if busy { a = min(a, 0.25) }
+                    if a > 0.02 { sign(cv, who, sx, GY - 268, Col.mix(z.trim, WHITE, 0.55), t, arrow: false, alpha: a) }
+                }
+            }
         } else {
         cv.R(x0, 0, W, GY - 300, Col.mix(z.wall, BLACK, 0.72))
         cv.R(x0, GY - 300, W, 300, z.wall)
@@ -1840,6 +1849,7 @@ final class Renderer {
         cv.RR(m.x, m.y, m.w, m.h, 14, WHITE.alpha(0.14))
         cv.text((g.snd?.musicOn ?? true) ? "MUSIC: ON" : "MUSIC: OFF", g.W / 2, m.y + 30, 16, WHITE, 1, 2)
         cv.text("Your floor is saved.", g.W / 2, m.y + 74, 13, WHITE.alpha(0.6), 1, 1)
+        cv.text("v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0") (\(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "?"))", g.W / 2, VIEW_H - 18, 10, WHITE.alpha(0.35), 1, 1)
     }
 
     private func ride(_ g: Game, _ cv: Canvas) {
@@ -1929,7 +1939,6 @@ final class Renderer {
         cv.stamp("ZERO", 8, 62, 130, GOLD, 1)
         cv.restore()
         cv.text("GET DOWN. ALL THREE OF YOU.", W / 2, 330, 16, WHITE.alpha(0.85), 1, 3)
-        cv.text("build \(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "?")", W - g.safeR - 14, 22, 11, WHITE.alpha(0.5), 2, 1)
         // play
         let r = g.playRect
         cv.save()
