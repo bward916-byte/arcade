@@ -1158,8 +1158,6 @@ final class Game {
             if town >= 3 { church.level = 1; forge.level = 1 }
             if town >= 4 { telegraph.level = 1 }
             t = 0.3
-            if pre == "sig" { sig.level = 1; px = sig.x + (place == "redwater" ? 10 : 30); pdir = 1; noStory = true; hintT = 0 }
-            if pre == "wild" { rigLv = 1; px = -520; pdir = -1; noStory = true; hintT = 0 }
         }
         if name == "duel" { day = 5; t = 0.4 }
         if name == "west" { day = 6; t = 0.35 }
@@ -1225,6 +1223,9 @@ final class Game {
         if name == "fort" { px = sFort.x - 40 }
         if name == "post" { px = -60 }
         if name == "mission" { px = missionX + 40; pdir = -1 }
+        // set last, after the catch-all above has put the rider on main street
+        if name.hasPrefix("sig") { sig.level = 1; px = sig.x + (place == "redwater" ? 10 : 30); pdir = 1; noStory = true; hintT = 0 }
+        if name.hasPrefix("wild") { rigLv = 1; px = -520; pdir = -1; noStory = true; hintT = 0 }
         if name == "gate0" {
             place = "bitterend"; town = 4; log = ["dustfall", "redwater", "lasthope", "coldcreek"]; day = 36; day0 = 33; layTown()
             t = 0.4; noStory = true; hintT = 0; px = gateW.x + 30; pdir = -1
