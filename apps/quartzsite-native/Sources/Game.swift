@@ -319,6 +319,7 @@ struct SaveData: Codable {
     var afterRain: Int
     var tanks: Double?
     var propane: Double?
+    var stats: [Int]?
 }
 
 final class Input {
@@ -425,6 +426,8 @@ final class Game {
     var weather = 0
     var afterRain = 0
     var seasonCard = false
+    /// This season so far: starting coins, followers and cred, then miles, sales, finds, events and parties.
+    var stats = [150, 0, 0, 0, 0, 0, 0, 0]
     var ended = false
     var endTitle = ""
     var endText = ""
@@ -609,6 +612,7 @@ final class Game {
         rig = START_RIGS[pickRig]
         money = START_CASH[pickRig] + (life == .rver ? 100 : 0)
         cred = life == .nomad ? 5 : 0
+        stats = [Int(money), 0, cred, 0, 0, 0, 0, 0]
         health = 100; day = 1; dayT = 0.12
         wood = 0; rockVals = []; odd = 0; jewelVals = []; panels = 0
         area = .ltva; rigArea = .ltva
@@ -744,6 +748,7 @@ final class Game {
         money -= Double(t.cost)
         mapOpen = false
         let mi = milesBetween(area, to)
+        stats[3] += Int(mi.rounded())
         let hiking = !inRig && !onToy && (to == .trail || area == .trail)
         let veh = inRig ? 0 : (onToy ? 1 : (area == .skoolie ? 3 : 2))
         let dirt = to == .trail || area == .trail
@@ -864,7 +869,7 @@ final class Game {
                         permitDays: permitDays, business: business, adDays: adDays, page: page, jewelVals: jewelVals, detector: detector, campDays: campDays,
                         age: age, year: year, resident: resident, house: house, upgrades: Array(upgrades), followers: followers,
                         camels: Array(camels), hasDog: hasDog, dogCholla: dogCholla,
-                        weather: weather, afterRain: afterRain, tanks: tanks, propane: propane)
+                        weather: weather, afterRain: afterRain, tanks: tanks, propane: propane, stats: stats)
     }
     func restore(_ s: SaveData) {
         life = Life(rawValue: s.life) ?? .nomad
@@ -878,6 +883,7 @@ final class Game {
         campDays = s.campDays
         age = s.age; year = s.year; resident = s.resident; house = s.house; upgrades = Set(s.upgrades); followers = s.followers; camels = Set(s.camels); hasDog = s.hasDog; dogCholla = s.dogCholla; weather = s.weather; afterRain = s.afterRain
         tanks = s.tanks ?? 100; propane = s.propane ?? 100
+        if let st = s.stats, st.count == 8 { stats = st }
         inRig = false; onToy = false
         shown = ["start"]
         hasSave = true
@@ -983,7 +989,7 @@ final class Game {
         if key == "browse" { place(.tyson, 1050); money = 300; day = 7; openBrowse() }
         if key == "parade" { place(.main, 2420); day = 13; dayT = 0.3 }
         if key == "home" { place(.main, 4340); money = 25000; day = 60; life = .rver; resident = true; dayT = 0.6 }
-        if key == "season" { day = SEASON_END + 1; resident = true; business = 2; cred = 40; seasonCard = true }
+        if key == "season" { day = SEASON_END + 1; resident = true; business = 2; cred = 40; money = 2840; followers = 1320; page = true; stats = [150, 0, 5, 214, 18, 31, 9, 3]; seasonCard = true }
         if key == "end" { age = 84; year = 24; cred = 210; money = 18000; house = true; finish() }
         if key == "tyson" { life = .rver; place(.tyson, 2390); money = 3000; day = 21; rig = .classB }
         if key == "dome" { place(.dome, 800); rig = .classB; rigArea = .dome; rigX = 1520; dayT = 0.56 }
@@ -1248,6 +1254,12 @@ final class Game {
         let x = sp.x
         dug["\(area.rawValue)-\(i)", default: 0] += 1
         switch sp.kind {
+        case .park, .radio, .circle, .parade, .bigtent, .vendors: stats[6] += 1
+        case .booth: stats[4] += 1
+        case .mine, .detect, .rockhound, .wash: stats[5] += 1
+        default: break
+        }
+        switch sp.kind {
         case .wash:
             wood += 1
             float("+1 firewood", x, CREAM)
@@ -1273,6 +1285,7 @@ final class Game {
                 seen.insert(18)
                 cred += 4
                 partyDay = day; partyArea = area; partyX = x; partyT = time
+                stats[7] += 1
                 float("Here they come, chairs and coolers", x, GOLD)
                 post("a party at camp", 40)
             } else {
@@ -1655,6 +1668,7 @@ final class Game {
     /// The end of a winter: head north for the summer, or stay if you have a place to live.
     private func newSeason(stay: Bool) {
         seasonCard = false
+        defer { stats = [Int(money), followers, cred, 0, 0, 0, 0, 0] }
         if stay {
             var b = 0
             for k in 0..<business { b += BIZ[k].pay }

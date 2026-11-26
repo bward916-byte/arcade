@@ -502,7 +502,9 @@ final class Renderer {
                 let tc = (NOW * 30).truncatingRemainder(dividingBy: 520) - 50
                 rig(.classC, bx0 + tc, GY - 36, 0, 1, 0.32)
                 let tc2 = 470 - (NOW * 38 + 200).truncatingRemainder(dividingBy: 520)
-                toy(4, bx0 + tc2, GY - 36, -1, 5, 0)
+                c.save(); c.translate(bx0 + tc2, GY - 36); c.scale(0.32, 0.32)
+                toy(4, 0, 0, -1, -1, 0)
+                c.restore()
                 c.R(bx0 + 30, GY - 50, 1, 10, Col(0x6a6a6a)); c.RR(bx0 + 14, GY - 58, 34, 8, 1, Col(0x1f4a8a))
                 g.text("CALIFORNIA", bx0 + 31, GY - 54, 2.8, CREAM, bold: true)
             }
@@ -2521,11 +2523,44 @@ final class Renderer {
     /// April 15: head north or stay the summer.
     private func seasonOverlay() {
         let canStay = g.resident || g.house
-        let body = "The snowbirds are pulling out and it's getting hot. You're \(g.age). " + (canStay ? "You have a place to stay the summer, and your businesses would keep paying." : "Without a year-round site or a house, it's time to head north until the fall.")
-        let r = card("SEASON'S OVER", body)
-        let bw = (r.2 - 40) / 2
-        button(80, "Head north", r.0 + 15, r.1 + r.3 - 30, bw, true)
-        button(81, "Stay the summer", r.0 + 25 + bw, r.1 + r.3 - 30, bw, canStay)
+        g.hits.removeAll(keepingCapacity: true)
+        g.texts.removeAll(keepingCapacity: true)
+        c.R(0, 0, W, H, Col(0x0c0a08, 0.6))
+        let w = min(300.0, W - g.safeL - g.safeR - 30), h = 166.0
+        let x0 = (W - w) / 2, y0 = (H - h) / 2
+        let ink = Col(0x3a2c1e)
+        c.RR(x0, y0, w, h, 8, Col(0xeadfc4))
+        // a sunset strip across the top of the card
+        c.vfill(x0, y0, w, 30, [(0, Col(0xf29a6a)), (1, Col(0xf2c88a))])
+        c.circ(x0 + w * 0.78, y0 + 30, 9, Col(0xfff0c0))
+        c.R(x0, y0 + 26, w, 4, Col(0x8a5a4a))
+        saguaro(x0 + 24, y0 + 30, 20, 3, SAGD, false); saguaro(x0 + w - 22, y0 + 30, 14, 6, SAGD, false)
+        g.text("SEASON \(g.year) IS OVER", W / 2, y0 + 15, 9, Col(0x3a1e14), bold: true)
+        let st = g.stats
+        let coins = Int(g.money) - st[0]
+        let sign: String = coins >= 0 ? "+" : ""
+        let coinNote: String = "coins (" + sign + String(coins) + ")"
+        let fol: String = "+" + String(g.followers - st[1])
+        let credUp: String = "+" + String(g.cred - st[2])
+        var tiles: [(String, String)] = []
+        tiles.append((String(Int(g.money)), coinNote))
+        tiles.append((fol, g.page ? "followers" : "no page yet"))
+        tiles.append((credUp, "cred, now " + String(g.cred)))
+        tiles.append((String(st[3]), "miles driven"))
+        tiles.append((String(st[4]) + " · " + String(st[5]), "sold · found"))
+        tiles.append((String(st[6]) + " · " + String(st[7]), "events · parties"))
+        let tw = (w - 24 - 16) / 3
+        for (k, t) in tiles.enumerated() {
+            let tx = x0 + 12 + Double(k % 3) * (tw + 8), ty = y0 + 36 + Double(k / 3) * 30
+            c.RR(tx, ty, tw, 26, 4, Col(0xffffff, 0.55))
+            g.text(t.0, tx + tw / 2, ty + 10, 7, Col(0x2f6a3a), bold: true)
+            g.text(t.1, tx + tw / 2, ty + 20, 3.6, ink.alpha(0.75))
+        }
+        let body = "The snowbirds are pulling out and it's getting hot. You're \(g.age). " + (canStay ? "You have a place for the summer and your businesses keep paying." : "With no year-round site or house, it's time to head north until fall.")
+        g.text(body, W / 2, y0 + 108, 4.4, ink.alpha(0.85), wrap: w - 30)
+        let bw = (w - 40) / 2
+        button(80, "Head north", x0 + 15, y0 + h - 28, bw, true)
+        button(81, "Stay the summer", x0 + 25 + bw, y0 + h - 28, bw, canStay)
     }
 
     /// The end of a life in the desert.
@@ -2634,8 +2669,8 @@ final class Renderer {
         default: break
         }
         // the party breaks up at 10 PM for quiet hours
-        if ar == .dome { blmSign(90, "DOME ROCK", "BUREAU OF LAND MANAGEMENT · 14-DAY LIMIT") }
-        if ar == .roadrunner { blmSign(70, "ROAD RUNNER", "BUREAU OF LAND MANAGEMENT · 14-DAY LIMIT") }
+        if ar == .dome { blmSign(90, "DOME ROCK", "BLM · 14-DAY LIMIT") }
+        if ar == .roadrunner { blmSign(70, "ROAD RUNNER", "BLM · 14-DAY LIMIT") }
         if g.partyDay == g.day && g.partyArea == ar && g.dayT > 0.5 && g.hour() >= 12 && g.hour() < 22 { party() }
     }
 
