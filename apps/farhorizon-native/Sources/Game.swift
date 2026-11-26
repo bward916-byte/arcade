@@ -132,6 +132,8 @@ final class Game {
     var offerT = 0.0
     var offerDone = false
     var lastEvEnd = 0.0
+    /// For screenshots: keep an offer on screen.
+    static var offerHold = false
     var sdFloat: [(Double, Int)] = []
     // the camera: close on the deck while under way, pulling back when there is something far off to see
     var camZ = 1.0
@@ -702,6 +704,7 @@ final class Game {
         case .sail:
             if !offerK.isEmpty && card == nil && play == nil {
                 offerT += dt
+                if Game.offerHold { offerT = 2 }
                 if offerT > 6.5 || !sceneK.isEmpty || !omenK.isEmpty { offerK = "" }
             }
             // keep the voyage safe at sea too, between events
@@ -857,7 +860,7 @@ final class Game {
         if name == "evrogue" { startOmen("rogue"); sceneT = 3.4; omenT = 2.6; Game.omenHold = true; return }
         if name == "evrogue2" { startOmen("rogue"); sceneT = 5; omenK = ""; event("rogue"); return }
         if name == "wideshot" { leg = 1; mode = .sail; nextEvAt = 9999; T = 2.5 / 0.035; camZ = 1.1; return }
-        if name == "offer" { leg = 1; mode = .sail; nextEvAt = 9999; offerK = "flyfish"; offerT = -100; offerDone = true; return }
+        if name == "offer" { leg = 1; mode = .sail; nextEvAt = 9999; offerK = "flyfish"; offerT = 2; Game.offerHold = true; offerDone = true; return }
         if name == "mgfly" { leg = 1; mode = .sail; nextEvAt = 9999; startOdd("flyfish"); play?.total = 60; return }
         if name == "mgcask" { leg = 1; mode = .sail; nextEvAt = 9999; startOdd("cask"); return }
         if name == "mggleam" { leg = 1; mode = .sail; nextEvAt = 9999; startOdd("gleam"); play?.total = 60; return }

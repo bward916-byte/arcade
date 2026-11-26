@@ -977,7 +977,7 @@ extension Game {
             let info: [String: (String, String)] = ["flyfish": ("Flying fish!", "tap to catch"), "trim": ("A fresh wind!", "tap to trim sails"), "cask": ("A cask adrift!", "tap to hook it"), "gleam": ("Something glints", "tap to net it"), "fishing": ("Fish jumping!", "tap: lines out")]
             let (t1, t2) = info[offerK] ?? ("Something to do", "tap")
             let k = clampD(offerT / 6.5, 0, 1)
-            let pop = 1 - pow(1 - min(1, offerT / 0.3), 3)
+            let pop = 1 - pow(1 - clampD(offerT / 0.3, 0, 1), 3)
             let ox = W - safeR - 110, oy = H * 0.42 + sin(T * 2.4) * 5
             let ow = max(textW(t1, 15, FONTB), textW(t2, 12, FONTI)) + 62
             c.save()
