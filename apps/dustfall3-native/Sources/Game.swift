@@ -903,7 +903,7 @@ final class Game {
         hall = Building(.hall, 1352); wireW = Building(.wireW, 904); wireE = Building(.wireE, EX(1975))
         bordello = Building(.bordello, 1490); doctor = Building(.doctor, 1704); church = Building(.church, 1786)
         forge = Building(.forge, 1864); telegraph = Building(.telegraph, 1948); claim = Building(.claim, 528)
-        let sigX: Double = place == "redwater" ? EX(2132) : (place == "bitterend" ? EX(1700) : 352)
+        let sigX: Double = place == "redwater" ? EX(2132) : (place == "bitterend" ? EX(1700) : 250)       // west of the mission
         sig = Building(.sig, sigX)
         herd = []; raided = false; wx = 0; bolt = 0
         b = [store, saloon, sheriff]
