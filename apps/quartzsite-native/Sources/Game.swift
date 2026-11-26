@@ -502,7 +502,30 @@ final class Game {
     }
     func areaName(_ a: Area) -> String { return AREAS[a.rawValue].name }
     /// A full-screen card is up and the day stands still.
-    var overlay: Bool { return mapOpen || browseOpen || seasonCard || ended || inCine || driving }
+    var overlay: Bool { return mapOpen || browseOpen || seasonCard || ended || inCine || driving || phoneOpen }
+    // your page, on your phone
+    struct PagePost { var text: String; var day: Int; var likes: Int; var comments: Int }
+    var phoneOpen = false
+    var posts: [PagePost] = []
+    var pagePay = 0                       // what the page paid this morning
+
+    /// What's going on right where you stand, for a photo.
+    func photoSubject() -> (String, Int) {
+        let ev: Int? = area == .tyson ? tysonShow() : (area == .skoolie && on(EV_SKOOL) ? EV_SKOOL : (area == .roadrunner && on(EV_QFEST) ? EV_QFEST : (area == .main ? [EV_PARADE, EV_RTR, EV_WESTERN].first(where: { on($0) }) : nil)))
+        if let e = ev { return ("at the " + EVENTS[e].name, 40) }
+        if let sp = spots.first(where: { ($0.kind == .landmark || $0.kind == .camel || $0.kind == .panorama) && abs($0.x - px) < 120 }) { return ("at " + sp.name.capitalized, 25) }
+        if partyDay == day && partyArea == area && dayT > 0.5 { return ("from our party at camp", 30) }
+        if dayT > 0.73 && dayT < 0.95 { return ("of the stars over " + areaName(area), 18) }
+        if dayT > 0.6 && dayT <= 0.73 { return ("of the sunset at " + areaName(area), 22) }
+        return ("from " + areaName(area), 8)
+    }
+    func postPhoto() {
+        if seen.contains(26) { return }
+        seen.insert(26)
+        let s = photoSubject()
+        post("a photo " + s.0, s.1)
+        events.append(1)
+    }
     func on(_ e: Int) -> Bool { return day >= EVENTS[e].start && day <= EVENTS[e].end }
     /// Which Tyson Wells show is running today, if any.
     func tysonShow() -> Int? {
@@ -556,6 +579,10 @@ final class Game {
                 events.append(3)
                 return
             }
+            if phoneOpen {
+                if id == 68 { postPhoto() } else { phoneOpen = false; events.append(3) }
+                return
+            }
             if browseOpen {
                 if id >= 90 && id < 90 + wares.count { buyWare(id - 90) } else if id == 89 || id < 0 { browseOpen = false }
                 events.append(3)
@@ -572,6 +599,7 @@ final class Game {
             if id == 60 { openMap() }
             if id == 52 { openBrowse() }
             if id == 63 { muted = !muted }
+            if id == 67 && page { refund(); phoneOpen = true; events.append(3); hint("phone", "Your page. Post one photo a day from wherever you are: events, landmarks, sunsets and starry nights reach the most people.") }
         }
     }
 
@@ -641,6 +669,8 @@ final class Game {
         let n = reach * (upgrades.contains(UP_STARLINK) ? 2 : 1) + cred / 4
         let before = followers
         followers += n
+        posts.insert(PagePost(text: what, day: day, likes: n * 3 + Int.random(in: 0...12) + followers / 80, comments: n / 3 + Int.random(in: 0...4)), at: 0)
+        if posts.count > 12 { posts.removeLast() }
         float("Posted: " + what + "  +\(n) followers", px, Col(0x8ab4f8))
         if before < 1000 && followers >= 1000 {
             hintT = 0
@@ -925,6 +955,11 @@ final class Game {
         if key == "dog" { place(.main, 3790); hasDog = true; dayT = 0.3 }
         if key == "camels" { place(.tyson, 2760); camels = [0, 1, 2, 3, 4] }
         if key == "page" { place(.dome, 120); page = true; cred = 60; followers = 940; upgrades = [3]; dayT = 0.3 }
+        if key == "phone" {
+            place(.main, 420); page = true; cred = 40; followers = 1460; pagePay = 36; dayT = 0.35; clockFreeze = true
+            posts = [PagePost(text: "pizza at Silly Al's", day: 3, likes: 88, comments: 9), PagePost(text: "a photo of the sunset at La Posa South", day: 2, likes: 141, comments: 17), PagePost(text: "a party at camp", day: 1, likes: 203, comments: 31), PagePost(text: "helping a stranded van on the highway", day: 1, likes: 64, comments: 5)]
+            shown.insert("phone"); phoneOpen = true
+        }
         if key == "qfest" { place(.roadrunner, 900); day = 22; dayT = 0.4 }
         if key == "western" { place(.main, 3600); day = 82; dayT = 0.45 }
         if key == "gear" { life = .rver; rig = .classC; panels = 2; upgrades = [0, 1, 2, 3]; rigX = 1150; px = 1240; dayT = 0.35 }
@@ -1565,7 +1600,8 @@ final class Game {
         }
         if page {
             followers += cred / 5
-            if followers >= 1000 { total += followers / 40 }
+            pagePay = followers >= 1000 ? followers / 40 : 0
+            total += pagePay
         }
         if resident { total -= 8 }
         if permitDays > 0 && rigArea == .ltva {

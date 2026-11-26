@@ -50,6 +50,7 @@ final class Renderer {
             hud()
             if g.mapOpen { mapOverlay() }
             if g.browseOpen { browseOverlay() }
+            if g.phoneOpen { phoneOverlay() }
             if g.seasonCard { seasonOverlay() }
             if g.ended { endOverlay() }
             if g.inCine { cinematic() }
@@ -2211,6 +2212,14 @@ final class Renderer {
         else { c.arcStroke(r - 19.6, 47.5, 3, -0.8, 0.8, 0.7, CREAM); c.arcStroke(r - 19.6, 47.5, 5.4, -0.8, 0.8, 0.7, CREAM.alpha(0.7)) }
         g.text(g.muted ? "OFF" : "ON", r - 7, 47.5, 4, CREAM.alpha(0.8), bold: true)
         g.hits.append(Hit(id: 63, x: r - 36, y: 42, w: 40, h: 18))
+        // your phone, once the page is up
+        if g.page {
+            c.RR(r - 30, 58, 30, 13, 6.5, Col(0x1c1410, 0.68))
+            c.RR(r - 25.6, 59.6, 5.6, 9.8, 1.2, CREAM); c.R(r - 24.6, 61, 3.6, 6.6, Col(0x3b5bdb))
+            g.text(g.followersText(), r - 10, 64.5, 4, CREAM, bold: true)
+            if !g.seen.contains(26) { c.circ(r - 2, 59.5, 2, REDC) }
+            g.hits.append(Hit(id: 67, x: r - 36, y: 60, w: 40, h: 18))
+        }
 
         // the pad and the hold button
         let py = H - 24
@@ -2326,6 +2335,54 @@ final class Renderer {
     }
 
     /// Up close at the Rock & Gem Show: six things on the tables, who's selling, and what each should fetch.
+    /// Your phone: the page, its followers and what it pays, and today's photo.
+    private func phoneOverlay() {
+        c.R(0, 0, W, H, Col(0x000000, 0.5))
+        g.hits.append(Hit(id: -1, x: 0, y: 0, w: W, h: H))
+        let pw = 132.0, ph = 176.0, x0 = W / 2 - pw / 2, y0 = (H - ph) / 2
+        c.RR(x0 - 4, y0 - 4, pw + 8, ph + 8, 14, Col(0x1a1a1e))
+        c.RR(x0, y0, pw, ph, 11, Col(0xf2f3f5))
+        c.RR(x0 + pw / 2 - 16, y0 + 2, 32, 5, 2.5, Col(0x1a1a1e))
+        // header
+        c.R(x0, y0 + 9, pw, 30, Col(0x3b5bdb))
+        c.circ(x0 + 16, y0 + 24, 9, CREAM)
+        c.circ(x0 + 16, y0 + 24, 8, Col(0x8ab4f8))
+        let k = max(0, min(3, g.look))
+        c.dome(x0 + 16, y0 + 32, 6.4, SHIRTS[k])
+        c.circ(x0 + 16, y0 + 22.6, 4, SKINS[k])
+        c.dome(x0 + 16, y0 + 20.4, 4.2, Col(0x5a3a22))
+        g.text(g.life == .nomad ? "Nomad Life in Quartzsite" : "Snowbird Days in Quartzsite", x0 + 29, y0 + 19, 4.4, CREAM, align: 1, bold: true)
+        g.text("\(g.followersText()) followers  ·  \(g.cred) cred", x0 + 29, y0 + 27, 3.6, CREAM.alpha(0.85), align: 1)
+        if g.followers >= 1000 {
+            g.text("Monetized  ·  paid \(g.pagePay) coins this morning", x0 + 29, y0 + 34, 3.2, Col(0xb8f0c0), align: 1, bold: true)
+        } else {
+            c.RR(x0 + 29, y0 + 32.6, 70, 2.6, 1.3, Col(0xffffff, 0.3))
+            c.RR(x0 + 29, y0 + 32.6, 70 * Double(g.followers) / 1000, 2.6, 1.3, GOLD)
+            g.text("\(1000 - g.followers) to go", x0 + 102, y0 + 34, 3, CREAM, align: 1)
+        }
+        // today's photo
+        let subj = g.photoSubject()
+        let can = !g.seen.contains(26)
+        c.RR(x0 + 6, y0 + 43, pw - 12, 18, 4, can ? Col(0x3b5bdb, 0.12) : Col(0x000000, 0.05))
+        c.RR(x0 + 9, y0 + 46, 16, 12, 2, Col(0x8ab4f8))
+        c.circ(x0 + 17, y0 + 52, 3.4, Col(0x2a2a2e)); c.circ(x0 + 17, y0 + 52, 2, Col(0x5a7ab4))
+        g.text(can ? "Post today's photo" : "Posted today's photo", x0 + 30, y0 + 49.5, 4, can ? Col(0x3b5bdb) : Col(0x6a6a6e), align: 1, bold: true)
+        g.text(can ? "a photo " + subj.0 + "  ·  about +\(subj.1 * (g.upgrades.contains(UP_STARLINK) ? 2 : 1) + g.cred / 4)" : "Come back tomorrow", x0 + 30, y0 + 56, 3, Col(0x6a6a6e), align: 1)
+        if can { g.hits.append(Hit(id: 68, x: x0 + 6, y: y0 + 43, w: pw - 12, h: 18)) }
+        // the feed
+        var fy = y0 + 66
+        if g.posts.isEmpty { g.text("No posts yet. Landmarks, events and finds make good ones.", x0 + pw / 2, fy + 10, 3.4, Col(0x6a6a6e), wrap: pw - 16) }
+        for p in g.posts.prefix(4) {
+            c.RR(x0 + 6, fy, pw - 12, 24, 4, Col(0xffffff))
+            c.circ(x0 + 13, fy + 7, 3.4, Col(0xe8c9a0))
+            g.text(dateText(p.day), x0 + 20, fy + 6, 3, Col(0x8a8a8e), align: 1)
+            g.text(p.text.prefix(1).uppercased() + p.text.dropFirst(), x0 + 20, fy + 12.5, 3.8, Col(0x1c1c1e), align: 1, bold: true)
+            g.text("♥ \(p.likes)   ·   \(p.comments) comments", x0 + 20, fy + 19, 3.2, Col(0xd9412e), align: 1)
+            fy += 27
+        }
+        g.text("tap outside to close", W / 2, y0 + ph + 1.6, 3.2, CREAM.alpha(0.7))
+    }
+
     private func browseOverlay() {
         g.hits.removeAll(keepingCapacity: true)
         g.texts.removeAll(keepingCapacity: true)
