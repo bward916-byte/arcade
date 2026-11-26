@@ -957,6 +957,9 @@ final class Game {
         if key == "dog" { place(.main, 3790); hasDog = true; dayT = 0.3 }
         if key == "camels" { place(.tyson, 2760); camels = [0, 1, 2, 3, 4] }
         if key == "page" { place(.dome, 120); page = true; cred = 60; followers = 940; upgrades = [3]; dayT = 0.3 }
+        if key == "river" { place(.skoolie, 220); dayT = 0.25; clockFreeze = true }
+        if key == "food" { day = 8; place(.tyson, 860); dayT = 0.3; clockFreeze = true }
+        if key == "blm" { place(.roadrunner, 120); dayT = 0.3; clockFreeze = true }
         if key == "booth" {
             day = 8; area = .tyson; let x = spots.first(where: { $0.kind == .booth })?.x ?? 0
             place(.tyson, x - 20); boothDay = day; rockVals = [40, 55, 70]; odd = 2; dayT = 0.3; clockFreeze = true

@@ -490,6 +490,32 @@ final class Renderer {
                 n += 1
             }
         case .skoolie:
+            // the Colorado River at the west end, and the I-10 bridge over to Blythe, California
+            let bx0 = 40 - cam * 0.55
+            if bx0 < W + 40 && bx0 + 420 > -40 {
+                let deck = Col(0xc8c0b0).shade(1 - dark * 0.5)
+                for k in 0..<6 { c.R(bx0 + 20 + Double(k) * 72, GY - 30, 7, 30, deck.shade(0.85)) }
+                c.R(bx0, GY - 36, 420, 6, deck)
+                c.R(bx0, GY - 37.4, 420, 1.4, deck.shade(1.1))
+                for k in 0..<42 { c.R(bx0 + Double(k) * 10, GY - 40, 0.7, 3, deck.shade(0.8)) }
+                c.R(bx0, GY - 40, 420, 0.7, deck.shade(0.8))
+                let tc = (NOW * 30).truncatingRemainder(dividingBy: 520) - 50
+                rig(.classC, bx0 + tc, GY - 36, 0, 1, 0.32)
+                let tc2 = 470 - (NOW * 38 + 200).truncatingRemainder(dividingBy: 520)
+                toy(4, bx0 + tc2, GY - 36, -1, 5, 0)
+                c.R(bx0 + 30, GY - 50, 1, 10, Col(0x6a6a6a)); c.RR(bx0 + 14, GY - 58, 34, 8, 1, Col(0x1f4a8a))
+                g.text("CALIFORNIA", bx0 + 31, GY - 54, 2.8, CREAM, bold: true)
+            }
+            let rx1 = 560 - cam
+            if rx1 > -20 {
+                c.vfill(-cam - 40, GY - 9, rx1 + cam + 40, 9, [(0, Col(0x4a7a8a).shade(1 - dark * 0.55)), (1, Col(0x2f5a6a).shade(1 - dark * 0.55))])
+                for k in 0..<14 {
+                    let d = Double(k)
+                    let wx = (hashN(d + 70) * 540 + NOW * 6).truncatingRemainder(dividingBy: 540) - cam
+                    c.R(wx, GY - 7.4 + hashN(d + 71) * 5, 6 + hashN(d + 72) * 8, 0.6, Col(0xffffff, 0.3 * (1 - dark * 0.6)))
+                }
+                for k in 0..<5 { palm(rx1 - 10 - Double(k) * 110 + hashN(Double(k) + 80) * 30, GY - 6, 34 + hashN(Double(k) + 81) * 16, Double(k) + 82) }
+            }
             let gather = g.phase == .play && g.on(EV_SKOOL)
             let gap = gather ? 62.0 : 300.0
             var n = floor((cam * par - 70) / gap)
@@ -2531,6 +2557,59 @@ final class Renderer {
         for f in folks { person(f.x, f.b, f.look, f.face, f.ph, f.mv) }
     }
 
+    /// Show food: kettle corn, a taco truck, a barbecue smoker.
+    private func foodTruck(_ wx: Double, _ kind: Int) {
+        let x = wx - cam
+        if x < -60 || x > W + 60 { return }
+        switch kind {
+        case 0:
+            canopy(x, 20, Col(0xd9412e), Col(0xf4f1ea))
+            c.R(x - 14, GY - 9, 28, 9, Col(0xf4f1ea).shade(1 - dark * 0.4))
+            c.ell(x, GY - 12, 6, 4, Col(0x2a2a2e)); c.R(x - 1, GY - 9, 2, 9, Col(0x3a3a3e))
+            for k in 0..<3 {
+                let t = (NOW * 0.8 + Double(k) / 3).truncatingRemainder(dividingBy: 1)
+                c.circ(x + sin(t * 6) * 2, GY - 16 - t * 16, 1.6 + t * 3, Col(0xffffff, (1 - t) * 0.4))
+            }
+            c.RR(x - 14, GY - 30, 28, 6, 1, Col(0xf2c14e))
+            g.text("KETTLE CORN", x, GY - 27, 2.8, Col(0x7a2f1e), bold: true)
+        case 1:
+            let body = Col(0xf4f1ea).shade(1 - dark * 0.4)
+            c.RR(x - 24, GY - 24, 48, 20, 3, body)
+            c.R(x - 24, GY - 10, 48, 3, Col(0x3f8f6a))
+            c.R(x - 14, GY - 20, 24, 8, Col(0x2a2a2e))
+            c.poly(Col(0x3f8f6a), [x - 16, GY - 21, x + 12, GY - 21, x + 15, GY - 25, x - 19, GY - 25])
+            c.circ(x - 14, GY - 2, 3, TIRE); c.circ(x + 14, GY - 2, 3, TIRE)
+            c.RR(x - 12, GY - 33, 24, 7, 1, Col(0x3f8f6a))
+            g.text("TACOS", x, GY - 29.5, 3.4, CREAM, bold: true)
+            person(x + 2, GY - 11, 801, -1, 0, false)
+        default:
+            let iron = Col(0x2a2a2e)
+            c.RR(x - 16, GY - 13, 26, 9, 4.5, iron)
+            c.R(x + 6, GY - 26, 3, 14, iron)
+            c.R(x - 14, GY - 4, 1.2, 4, iron); c.R(x + 6, GY - 4, 1.2, 4, iron)
+            c.circ(x + 14, GY - 3, 3, TIRE)
+            for k in 0..<5 {
+                let t = (NOW * 0.5 + Double(k) / 5).truncatingRemainder(dividingBy: 1)
+                c.circ(x + 7.5 + t * 10, GY - 28 - t * 24, 2 + t * 6, Col(0xc8c8c4, (1 - t) * 0.5))
+            }
+            c.RR(x - 30, GY - 30, 22, 7, 1, Col(0x7a2f1e))
+            g.text("BBQ", x - 19, GY - 26.5, 3.4, CREAM, bold: true)
+            person(x - 22, GY + 3, 802, 1, 0, false)
+        }
+    }
+
+    /// A brown BLM sign at the way in.
+    private func blmSign(_ wx: Double, _ name: String, _ sub: String) {
+        let x = wx - cam
+        if x < -40 || x > W + 40 { return }
+        let post = Col(0x5a4030).shade(1 - dark * 0.4)
+        c.R(x - 14, GY - 22, 2, 22, post); c.R(x + 12, GY - 22, 2, 22, post)
+        c.RR(x - 20, GY - 34, 40, 14, 1.5, Col(0x6a4a2e).shade(1 - dark * 0.4))
+        c.RR(x - 19, GY - 33, 38, 12, 1, Col(0x5a3a22).shade(1 - dark * 0.4))
+        g.text(name, x, GY - 29, 3.4, Col(0xf2e8c8), bold: true)
+        g.text(sub, x, GY - 24.5, 2.4, Col(0xf2e8c8, 0.85))
+    }
+
     /// The people who turn up for whatever is on, sized to the event.
     private func eventCrowds(_ ar: Area) {
         let w = g.WORLD
@@ -2538,7 +2617,10 @@ final class Renderer {
         func at(_ k: SpotKind) -> Double? { return g.spots.first(where: { $0.kind == k })?.x }
         switch ar {
         case .tyson:
-            if day && (g.tysonShow() != nil || g.on(EV_RV)) { crowd(160, w - 160, 110, 11) }
+            if day && (g.tysonShow() != nil || g.on(EV_RV)) {
+                foodTruck(860, 0); foodTruck(1730, 1); foodTruck(2240, 2)
+                crowd(160, w - 160, 110, 11)
+            }
             else if day && g.on(EV_PAN), let x = at(.panorama) { crowd(x - 140, x + 140, 12, 12) }
         case .main:
             if day { crowd(0, w, 40, 16) }
@@ -2552,6 +2634,8 @@ final class Renderer {
         default: break
         }
         // the party breaks up at 10 PM for quiet hours
+        if ar == .dome { blmSign(90, "DOME ROCK", "BUREAU OF LAND MANAGEMENT · 14-DAY LIMIT") }
+        if ar == .roadrunner { blmSign(70, "ROAD RUNNER", "BUREAU OF LAND MANAGEMENT · 14-DAY LIMIT") }
         if g.partyDay == g.day && g.partyArea == ar && g.dayT > 0.5 && g.hour() >= 12 && g.hour() < 22 { party() }
     }
 
