@@ -85,7 +85,7 @@ let TOWERS: [Tower] = [
                   Zone(from: 25, name: "MEDICAL / LAB", wall: Col(0x8f9ca3), floor: Col(0x6c7d86), trim: Col(0x4f6672)),
                   Zone(from: 10, name: "MALL / GARAGE", wall: Col(0x3a3a3a), floor: Col(0x4a4a4a), trim: Col(0x8a8a8a)),
                   Zone(from: 0, name: "LOBBY", wall: Col(0x2a2620), floor: Col(0x5a4c38), trim: Col(0xc9a24a))]),
-    Tower(who: "MAYA", building: "ST. ANNE HOSPITAL", top: 48, hue: Col(0x7dd3ff), shirt: Col(0x2f9c98), pants: Col(0x25324a), hair: Col(0x1a1414), skin: Col(0xb98056), weapon: 2,
+    Tower(who: "WILLOW", building: "ST. ANNE HOSPITAL", top: 48, hue: Col(0x7dd3ff), shirt: Col(0x2f9c98), pants: Col(0x25324a), hair: Col(0x1a1414), skin: Col(0xb98056), weapon: 2,
           deck: ["CODE BLUE", "DRAGON RUSH", "HUNDRED PALMS", "TRIAGE", "TORNADO KICK", "TIGER SWEEP", "POLE VAULT", "SHADOW STEP", "FLYING DRAGON", "FLATLINE", "LOTUS BLOOM", "IRON PALM WAVE", "WHIRLING MONK", "THUNDER KNEE", "RISING PHOENIX"],
           zones: [Zone(from: 36, name: "WARDS", wall: Col(0x8fa3a8), floor: Col(0x62767c), trim: Col(0x3f5a62)),
                   Zone(from: 24, name: "SURGERY", wall: Col(0x7c9aa0), floor: Col(0x4f6a70), trim: Col(0x2f4a52)),

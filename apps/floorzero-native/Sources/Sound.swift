@@ -75,7 +75,7 @@ final class Sound {
               chords: [Sound.am, Sound.am, Sound.fM, Sound.gM, Sound.am, Sound.am, Sound.dm, Sound.em],
               bass: [0, 99, 0, 99, 0, 99, 12, 99, 0, 99, 0, 7, 99, 0, 12, 99],
               lead: [0, 9, 2, 9, 3, 9, 2, 1, 0, 9, 2, 9, 3, 2, 9, 1]),
-        // Maya: tense and pulsing, D minor
+        // Willow: tense and pulsing, D minor
         Score(bpm: 116, swing: 0, roots: [73.42, 73.42, 58.27, 65.41, 73.42, 73.42, 49, 55],
               chords: [Sound.dm, Sound.dm, Sound.bb, Sound.cM, Sound.dm, Sound.dm, Sound.gm, Sound.aM],
               bass: [0, 99, 0, 99, 0, 99, 0, 99, 0, 99, 0, 99, 0, 99, 12, 12],

@@ -2,7 +2,7 @@
 
 A Swift rewrite of `floor-zero/index.html`. No web view: the game logic is in `Sources/Game.swift` and every shape is drawn with CoreGraphics in `Sources/Draw.swift`.
 
-In this first stage: the title, a five-shot opening, all three towers (Cole 83 floors, Maya 48, Jo 60) from roof to street, swing combos, power moves, zombies, runners, dogs, rats, bloaters and Dr. Marr, the sample and the water main, floor holes, burning stairwells, elevator hold-outs, fire walls with the office bypass, twelve upgrades picked one of two every six floors, saving, pause, sound and haptics.
+In this first stage: the title, a five-shot opening, all three towers (Cole 83 floors, Willow 48, Jo 60) from roof to street, swing combos, power moves, zombies, runners, dogs, rats, bloaters and Dr. Marr, the sample and the water main, floor holes, burning stairwells, elevator hold-outs, fire walls with the office bypass, twelve upgrades picked one of two every six floors, saving, pause, sound and haptics.
 
 Not ported yet: the helicopter roof and other outside help, the emergency-exit rides to other buildings, survivors and notes, the illustrated story panels, the demo and the map.
 
