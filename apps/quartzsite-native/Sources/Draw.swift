@@ -10,6 +10,7 @@ final class Renderer {
     var GY = 0.0
     var cam = 0.0
     var NOW = 0.0
+    var passOn = false, passX = 0.0, passDir = 1.0, passWait = 3.0, passSeed = 0.0, passLast = 0.0, passBike = false, passBrand = 0, passFour = false, passSpeed = 50.0, passArea = -1
     var dark = 0.0
     var lights: [(Double, Double, Double)] = []
 
@@ -5568,19 +5569,37 @@ final class Renderer {
             return
         }
         // now and then someone else tears past on a side-by-side, dust and all
-        if ![Area.main, .tyson, .palms, .intaglios].contains(g.area) && g.dayT < 0.66 {
-            let slot = floor(NOW / 9)
-            let roll = hashN(slot * 3.1 + Double(g.area.rawValue) * 7.7)
-            if roll < 0.7 {
-                let t = (NOW - slot * 9) / 9
-                let dir = hashN(slot + 31) < 0.5 ? 1.0 : -1.0
-                let sx = dir > 0 ? -70 + t * (W + 140) : W + 70 - t * (W + 140)
+        // It is a real thing in the world now: it enters from one edge, keeps its own speed whatever you do, and only
+        // goes away once it has driven off the far side.
+        let pdt = max(0, min(0.1, NOW - passLast))
+        passLast = NOW
+        if passArea != g.area.rawValue { passArea = g.area.rawValue; passOn = false; passWait = 3 }
+        let allowed = ![Area.main, .tyson, .palms, .intaglios].contains(g.area)
+        if !passOn {
+            passWait -= pdt
+            if passWait <= 0 && allowed && g.dayT < 0.66 {
+                passSeed += 1
+                passOn = true
+                passDir = hashN(passSeed + 31) < 0.5 ? 1 : -1
+                passX = passDir > 0 ? cam - 80 : cam + W + 80
+                passBike = hashN(passSeed * 3.1) > 0.78
+                passBrand = Int(hashN(passSeed + 77) * 7) % 7
+                passFour = hashN(passSeed + 78) < 0.35
+                passSpeed = 46 + hashN(passSeed + 79) * 26
+            }
+        } else {
+            passX += passDir * passSpeed * pdt
+            let sx = passX - cam
+            if (passDir > 0 && sx > W + 90) || (passDir < 0 && sx < -90) {
+                passOn = false
+                passWait = 4 + hashN(passSeed + 80) * 9
+            } else {
                 for i in 0..<8 {
                     let u = (NOW * 1.6 + Double(i) / 8).truncatingRemainder(dividingBy: 1)
-                    c.circ(sx - dir * (18 + u * 60), GY + 11 - u * 12, 2.4 + u * 9, Col(0xd8bc90, (1 - u) * 0.32).shade(1 - dark * 0.5))
+                    c.circ(sx - passDir * (18 + u * 60), GY + 11 - u * 12, 2.4 + u * 9, Col(0xd8bc90, (1 - u) * 0.32).shade(1 - dark * 0.5))
                 }
-                if roll < 0.56 { sxs(sx, GY + 13, dir, Int(hashN(slot + 77) * 7) % 7, hashN(slot + 78) < 0.35) }
-                else { toy(2, sx, GY + 13, dir, 300 + Int(slot) % 40, NOW * 25) }
+                if passBike { toy(2, sx, GY + 13, passDir, 300 + Int(passSeed) % 40, NOW * 25) }
+                else { sxs(sx, GY + 13, passDir, passBrand, passFour) }
             }
         }
         if g.onToy && g.dustAmt > 0.12 {
