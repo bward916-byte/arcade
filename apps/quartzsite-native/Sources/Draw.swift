@@ -4813,7 +4813,7 @@ final class Renderer {
             if here { c.circ(p.0, p.1, 5 + sin(NOW * 4) * 0.8, GOLD.alpha(0.5)) }
             c.circ(p.0, p.1, 2.6, here ? GOLD : REDC)
             c.circ(p.0, p.1, 1, CREAM)
-            let off: [(Double, Double, Int)] = [(-4, 4, 2), (4, -5, 1), (-5, 7, 2), (0, -6, 0), (0, 6, 0), (5, 3, 1), (2, 7, 0), (-4, 3, 2), (5, 1, 1), (-5, 1, 2), (-5, -2, 2), (-5, 6, 2), (3, 7, 2), (5, 2, 1)]
+            let off: [(Double, Double, Int)] = [(-4, 4, 2), (4, -5, 1), (-5, 7, 2), (0, -6, 0), (0, 6, 0), (4, 6.5, 1), (5, 1, 1), (-4, 3, 2), (5, 1, 1), (-5, 1, 2), (-5, -2, 2), (-5, 6, 2), (3, 7, 2), (5, 2, 1)]
             let o = a < off.count ? off[a] : (0.0, -6.0, 0)
             let camp = !g.inPast && a == g.rigArea.rawValue
             g.text(d.name + (camp ? " (camp)" : ""), p.0 + o.0, p.1 + o.1, big ? 4.8 : 3.6, ink, align: o.2, bold: true)
