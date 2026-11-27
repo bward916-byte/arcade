@@ -112,7 +112,7 @@ const KEY='foodTruckRush_v1';
 let SV={day:1,coins:0,stars:{},speed:0,patience:0,tips:0,snd:0,best:0,gems:0,streak:0,chest:0,dl:0,ds:0};try{Object.assign(SV,JSON.parse(localStorage.getItem(KEY)||'{}'));}catch(e){}
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(SV));}catch(e){}};
 const unlocked=d=>clamp(2+d,3,12);
-const goalFor=d=>Math.round((120+d*20)*(d%5===0?1.6:1));
+const goalFor=d=>Math.round((230+d*10)*(d%5===0?1.8:1));
 
 /* sound */
 let AC=null;function ac(){if(!AC){try{AC=new(window.AudioContext||window.webkitAudioContext)();}catch(e){}}if(AC&&AC.state==='suspended')AC.resume().catch(()=>{});}
