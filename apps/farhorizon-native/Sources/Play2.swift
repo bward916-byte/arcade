@@ -53,6 +53,8 @@ extension Game {
                     let struck = p.theme == "storm" ? off > p.obst[i].w : off < p.obst[i].w + 0.035
                     let (bx, by, bw, _) = barBox()
                     let px = bx + bw * p.a
+                    let spy = H - safeB - 158 + 130 * 0.84
+                    puff(px, spy, struck ? 14 : 5, struck ? Col(0xffffff, 0.9) : Col(0x9ff0aa, 0.8), struck ? 200 : 90, 240, 2.4, 0.45)
                     if struck {
                         p.missed += 1
                         p.streak = 0
@@ -122,7 +124,11 @@ extension Game {
             p.speed *= 1.12
         case .swipe:
             p.spawned += 1
-            if p.spawned >= p.total { endPlay(p); return }
+            if p.spawned >= p.total {
+                // the last bucket: steam where the fire was, if the chain did its work
+                if p.missed <= 2 { puff(W * 0.66, quayY() - 24, 26, Col(0xe8e8e8, 0.8), 130, -40, 4, 1.2) }
+                endPlay(p); return
+            }
             var d = rndI(0, 3)
             if d == p.cur { d = (d + 1) % 4 }
             p.cur = d
@@ -273,7 +279,7 @@ extension Game {
     private func reelTap(_ p: Play) {
         let surge = p.dir < 0
         p.a -= p.speed
-        p.b += surge ? 0.3 : 0.11
+        p.b += surge ? 0.3 : 0.13
         if p.b > 0.8 { p.cur = 1 }
         let (bx, by, bw, _) = barBox()
         if p.b >= 1 {
@@ -360,7 +366,7 @@ extension Game {
                 // the man with the hammer, winding up while you hold
                 let side: Double = tx > W / 2 ? -1 : 1
                 let wind = p.held ? 2.4 - p.a * 1.2 + sin(T * 20) * 0.05 : 0.6
-                c.save(); c.translate(tx + side * 34, y0 + 4); c.scale(1.7, 1.7)
+                c.save(); c.translate(tx + side * 40, y0 + 6); c.scale(2.6, 2.6)
                 tar(c, 0, 0, Col(0x8a2a22), 1, lean: side * -0.1, aL: wind, aR: wind)
                 c.restore()
             }
@@ -426,7 +432,7 @@ extension Game {
             for j in 0..<5 {
                 let hx = x0 + (fx - 30 - x0) * Double(j) / 4
                 let sw = sin(T * 6 + Double(j) * 1.2) * 0.4
-                c.save(); c.translate(hx, qy); c.scale(1.5, 1.5)
+                c.save(); c.translate(hx, qy); c.scale(2.0, 2.0)
                 tar(c, 0, 0, [Col(0x2a5a8a), Col(0x8a2a22), Col(0x3a6a3a), Col(0x6a4a8a)][j % 4], 1, aL: 0.9 + sw, aR: 0.9 - sw)
                 c.restore()
             }
