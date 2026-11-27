@@ -63,7 +63,7 @@ jobs:
           xcrun simctl boot "$UDID"
           xcrun simctl bootstatus "$UDID" -b
           xcrun simctl install "$UDID" "$APP"
-          for shot in title mggulls mgchest end; do
+          for shot in title g_flyfish g_trim g_cask g_gleam g_turtle g_gulls g_chest g_fish g_storm g_run g_line g_leak g_fog g_wreck g_island g_ghost g_row g_shark g_dock g_thief g_rats g_barrels g_fire g_strong end; do
             xcrun simctl terminate "$UDID" com.brianward.farhorizon 2>/dev/null || true
             if [ "$shot" = title ]; then
               xcrun simctl launch "$UDID" com.brianward.farhorizon

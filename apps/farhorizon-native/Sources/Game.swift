@@ -861,6 +861,36 @@ final class Game {
         if name == "evrogue2" { startOmen("rogue"); sceneT = 5; omenK = ""; event("rogue"); return }
         if name == "wideshot" { leg = 1; mode = .sail; nextEvAt = 9999; T = 2.5 / 0.035; camZ = 1.1; return }
         if name == "offer" { leg = 1; mode = .sail; nextEvAt = 9999; offerK = "flyfish"; offerT = 2; Game.offerHold = true; offerDone = true; return }
+        if name.hasPrefix("g_") {
+            // one still of each game, for the contact sheet
+            let k = String(name.dropFirst(2))
+            leg = 1; nextEvAt = 9999; bait = 3; planks = 6
+            let ashore: [String: Int] = ["dock": 1, "thief": 2, "rats": 3, "barrels": 5, "fire": 6, "strong": 9]
+            if let j = ashore[k] { mode = .port; portJob = j } else { mode = .sail }
+            switch k {
+            case "storm": playStorm(); wxDark = 0.85; wxRain = 1; rough = 1
+            case "run": playRun(2, 100)
+            case "fish": playFish()
+            case "line": playLine()
+            case "leak": playLeak()
+            case "fog": playFog()
+            case "wreck": playWreck()
+            case "island": hasMap = true; playIsland()
+            case "ghost": playGhost()
+            case "dock": playDock()
+            case "thief": playThief()
+            case "rats": playRats()
+            case "barrels": playBarrels()
+            case "row": playRow()
+            case "shark": playShark()
+            case "fire": playFire()
+            case "strong": playStrong()
+            default: startOdd(k)
+            }
+            if play?.kind == .taps { play?.total = 60 }
+            if play?.kind == .pick { play?.tellHold = true }
+            return
+        }
         if name == "mgfly" { leg = 1; mode = .sail; nextEvAt = 9999; startOdd("flyfish"); play?.total = 60; return }
         if name == "mgcask" { leg = 1; mode = .sail; nextEvAt = 9999; startOdd("cask"); return }
         if name == "mgstars" { leg = 1; mode = .sail; nextEvAt = 9999; startOdd("trim"); play?.score = 3; play?.tries = 3; play?.perfect = 2; play?.marks = [2, 1, 2]; play?.endT = 99; play?.endLen = 100; play?.starsShown = 3; return }
