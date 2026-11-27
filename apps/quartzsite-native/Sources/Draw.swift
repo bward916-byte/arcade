@@ -1429,7 +1429,7 @@ final class Renderer {
 
     private func spot(_ i: Int, _ sp: Spot) {
         let x = sp.x - cam
-        let reach = sp.kind == .gemworld ? 170.0 : 130.0
+        let reach = sp.kind == .gemworld ? 170.0 : (sp.kind == .hike && sp.arg == 1 ? 640.0 : 130.0)
         if x < -reach || x > W + reach { return }
         let near = g.phase == .play && g.active == i
         if near {
@@ -2236,42 +2236,60 @@ final class Renderer {
                 label = false
                 top = 40
             }
+        case .hike where sp.arg == 2:
+            // a sagging stretch of cable, and a sign nobody should need
+            c.R(x - 14, GY - 6, 1, 7, Col(0x7a6a5a)); c.R(x + 14, GY - 6, 1, 7, Col(0x7a6a5a))
+            c.curve(x - 14, GY - 4.6, x, GY + 1, x + 14, GY - 4.6, 0.6, Col(0x8a8a88))
+            c.R(x + 18, GY - 12, 1, 12, Col(0x5a4030))
+            c.RR(x + 12, GY - 19, 14, 8, 1, Col(0xf4f1ea))
+            g.text("KEEP OUT", x + 19, GY - 15, 2.4, REDC, bold: true)
+            label = false
+            top = 30
         case .hike where sp.arg == 1:
-            // a giant figure scraped into the dark desert pavement, behind a low protective fence
+            // the giant: 171 feet from head to toe, far longer than the screen is wide, scraped into dark desert pavement.
+            // it lies in front of the trail, behind a cable fence that runs the whole length
             let pave = Col(0x7a5c46).shade(1 - dark * 0.5), line = Col(0xe2d0ac).shade(1 - dark * 0.5)
             let berm = Col(0x5a4232).shade(1 - dark * 0.5)
-            c.ell(x, GY + 8, 112, 7.5, pave)
-            c.ell(x - 10, GY + 8, 96, 5.5, pave.shade(0.93))
+            let depth = H - GY
+            let cy = GY + depth * 0.56
+            let reachY = depth * 0.36
+            c.R(x - 380, GY + 3, 980, depth, pave)
+            for q in 0..<60 {
+                let d = Double(q)
+                c.ell(x - 370 + hashN(d + 5000) * 960, GY + 5 + hashN(d + 5001) * (depth - 6), 1.6 + hashN(d + 5002) * 2, 0.7, pave.shade(0.86))
+            }
             c.roundCaps(true)
-            // the giant: head to the left, arms flung wide, legs apart. Each line is gravel scraped away, with a low berm beside it
             for pass in 0..<2 {
                 let col = pass == 0 ? berm : line
-                let o = pass == 0 ? 0.7 : 0.0
-                let wide = pass == 0 ? 1.2 : 0.0
-                c.circ(x - 72, GY + 7.6 + o, 2.6 + wide * 0.4, col)
-                c.seg(x - 69, GY + 7.6 + o, x - 20, GY + 7.6 + o, 2.6 + wide, col)
-                c.seg(x - 60, GY + 7.6 + o, x - 56, GY + 3.4 + o, 1.3 + wide, col)
-                c.seg(x - 60, GY + 7.6 + o, x - 55, GY + 12.2 + o, 1.3 + wide, col)
-                c.seg(x - 56, GY + 3.4 + o, x - 52, GY + 3 + o, 1.1 + wide, col)
-                c.seg(x - 55, GY + 12.2 + o, x - 51, GY + 12.8 + o, 1.1 + wide, col)
-                c.seg(x - 20, GY + 7.6 + o, x + 12, GY + 4.6 + o, 1.7 + wide, col)
-                c.seg(x - 20, GY + 7.6 + o, x + 12, GY + 11 + o, 1.7 + wide, col)
-                c.seg(x + 12, GY + 4.6 + o, x + 15, GY + 3.6 + o, 1.3 + wide, col)
-                c.seg(x + 12, GY + 11 + o, x + 15, GY + 12 + o, 1.3 + wide, col)
-                // the four-legged animal beside the giant, and a spiral
-                c.seg(x + 44, GY + 8 + o, x + 66, GY + 8 + o, 1.8 + wide, col)
-                c.seg(x + 66, GY + 8 + o, x + 71, GY + 6.4 + o, 1.2 + wide, col)
-                c.seg(x + 44, GY + 8 + o, x + 39, GY + 9.6 + o, 0.8 + wide, col)
+                let o = pass == 0 ? 1.0 : 0.0
+                let wide = pass == 0 ? 2.0 : 0.0
+                // head, body, arms flung wide, legs apart, feet turned out
+                c.ell(x - 300, cy + o, 13 + wide * 0.4, 5.4 + wide * 0.3, col)
+                c.seg(x - 286, cy + o, x - 60, cy + o, 6 + wide, col)
+                c.seg(x - 244, cy + o, x - 226, cy - reachY + o, 3.2 + wide, col)
+                c.seg(x - 244, cy + o, x - 222, cy + reachY + o, 3.2 + wide, col)
+                c.seg(x - 226, cy - reachY + o, x - 204, cy - reachY - 1 + o, 2.6 + wide, col)
+                c.seg(x - 222, cy + reachY + o, x - 200, cy + reachY + 1 + o, 2.6 + wide, col)
+                c.seg(x - 60, cy + o, x + 110, cy - reachY * 0.6 + o, 4.4 + wide, col)
+                c.seg(x - 60, cy + o, x + 110, cy + reachY * 0.6 + o, 4.4 + wide, col)
+                c.seg(x + 110, cy - reachY * 0.6 + o, x + 126, cy - reachY * 0.9 + o, 3 + wide, col)
+                c.seg(x + 110, cy + reachY * 0.6 + o, x + 126, cy + reachY * 0.9 + o, 3 + wide, col)
+                // the four-legged animal, and the spiral, farther along the fence
+                c.seg(x + 300, cy + o, x + 420, cy + o, 5 + wide, col)
+                c.seg(x + 420, cy + o, x + 446, cy - reachY * 0.5 + o, 3.4 + wide, col)
+                c.seg(x + 300, cy + o, x + 276, cy + reachY * 0.4 + o, 2.2 + wide, col)
                 for q in 0..<4 {
-                    let lx = x + 47 + Double(q) * 5.6
-                    c.seg(lx, GY + 8 + o, lx + (q < 2 ? -1.0 : 1.0), GY + (q % 2 == 0 ? 5.2 : 10.8) + o, 0.9 + wide, col)
+                    let lx = x + 316 + Double(q) * 30
+                    c.seg(lx, cy + o, lx + (q < 2 ? -5.0 : 5.0), cy + (q % 2 == 0 ? -reachY * 0.8 : reachY * 0.8) + o, 2.6 + wide, col)
                 }
-                c.arcStroke(x + 88, GY + 8 + o, 3.4, 0, PI * 1.6, 0.8 + wide * 0.6, col)
-                c.arcStroke(x + 88, GY + 8 + o, 1.6, PI, PI * 2.6, 0.7 + wide * 0.6, col)
+                c.arcStroke(x + 520, cy + o, 9, 0, PI * 1.6, 2 + wide * 0.6, col)
+                c.arcStroke(x + 520, cy + o, 4.4, PI, PI * 2.6, 1.8 + wide * 0.6, col)
             }
             c.roundCaps(false)
-            for k in 0..<12 { c.R(x - 110 + Double(k) * 20, GY - 6, 1, 7, Col(0x7a6a5a)) }
-            c.R(x - 110, GY - 5, 222, 0.6, Col(0x8a8a88)); c.R(x - 110, GY - 2.4, 222, 0.6, Col(0x8a8a88))
+            // the fence: posts and two cables between the trail and the figures
+            var fx = x - 380.0
+            while fx <= x + 600 { c.R(fx, GY - 5, 1, 8, Col(0x7a6a5a).shade(1 - dark * 0.4)); fx += 20 }
+            c.R(x - 380, GY - 3.6, 981, 0.6, Col(0x8a8a88)); c.R(x - 380, GY - 0.6, 981, 0.6, Col(0x8a8a88))
             c.RR(x - 18, GY - 26, 36, 12, 1.4, Col(0x5a3a22).shade(1 - dark * 0.4))
             c.R(x - 1, GY - 14, 2, 14, Col(0x5a4030))
             g.text("BLYTHE INTAGLIOS", x, GY - 22.4, 3, Col(0xf2e8c8), bold: true)
@@ -3733,6 +3751,13 @@ final class Renderer {
 
     /// Dust behind a fast ride, your generator chugging, and a neighbor who has had enough.
     private func manners() {
+        if g.area == .intaglios && g.madT > 0 {
+            let sx = g.madX - cam
+            person(sx, GY + 1, 7, g.px < g.madX ? -1 : 1, NOW * 10, g.madT > 3)
+            c.seg(sx, GY - 12, sx + (g.px < g.madX ? -5 : 5), GY - 19 + sin(NOW * 14) * 1.2, 1.4, Col(0x4a6a4a))
+            g.text(g.madText, sx, GY - 30, 4.6, CREAM, bold: true, plate: true)
+            return
+        }
         // now and then someone else tears past on a side-by-side, dust and all
         if [Area.ltva, .dome, .scaddan, .roadrunner].contains(g.area) && g.dayT < 0.62 {
             let t = (NOW + 11).truncatingRemainder(dividingBy: 30)

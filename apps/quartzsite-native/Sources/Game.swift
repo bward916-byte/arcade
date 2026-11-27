@@ -224,7 +224,8 @@ let AREAS: [AreaDef] = [
         Spot(kind: .bar, x: 980, name: "THE DESERT BAR")
     ]),
     AreaDef(name: "Blythe Intaglios", sub: "Across the river, north of Blythe, California · giant figures in the desert floor", w: 1800, arrive: 160, lat: 33.8, lon: -114.532, spots: [
-        Spot(kind: .hike, x: 960, name: "THE INTAGLIOS", arg: 1)
+        Spot(kind: .hike, x: 960, name: "THE INTAGLIOS", arg: 1),
+        Spot(kind: .hike, x: 1160, name: "LOOSE CABLE", arg: 2)
     ])
 ]
 /// The same desert, a thousand years ago: what's there to see in each place, area by area.
@@ -1130,6 +1131,14 @@ final class Game {
         hasSave = true
     }
 
+    /// Crossing the fence at the intaglios: the site steward comes out, and word gets around.
+    private func trespass(_ words: String, _ cost: Int) {
+        cred = max(0, cred - cost)
+        madT = 5; madX = px + 46; madText = words
+        float("-\(cost) cred", px, REDC)
+        events.append(2)
+    }
+
     func startPreview(_ k: Int) {
         previewStash = hasSave ? rawSnapshot() : nil
         previewOpen = false
@@ -1250,6 +1259,7 @@ final class Game {
         if key == "pastriver" { place(.skoolie, 800); era = 1; dayT = 0.35; clockFreeze = true }
         if key == "pastmain" { place(.main, 1200); era = 1; dayT = 0.6; clockFreeze = true }
         if key == "desertbar" { day = 6; place(.desertbar, 960); dayT = 0.45; clockFreeze = true }
+        if key == "intagyell" { place(.intaglios, 1160); dayT = 0.4; clockFreeze = true; madT = 99; madX = 1206; madText = "Hey! Off the figures! Those have been here a thousand years!" }
         if key == "intaglios" { place(.intaglios, 940); dayT = 0.25; clockFreeze = true }
         if key == "board" { place(.main, 3170); day = 9; dayT = 0.3; clockFreeze = true; business = 1; adDays = 2; boardOpen = true }
         if key == "minein" { place(.dome, 820); dayT = 0.3; clockFreeze = true; detector = true; mineFind = 2; mineText = "Your detector sounds off over the old ore dump at the portal: a small nugget, 42 coins."; mineOpen = true }
@@ -1460,6 +1470,7 @@ final class Game {
         case .village:
             return !fieldNotes.contains(20) ? Offer(label: "Visit the river village", cost: 0, earn: 0, dur: 2.4) : nil
         case .hike:
+            if sp.arg == 2 { return !seen.contains(36) ? Offer(label: "Duck under the cable for a closer look", cost: 0, earn: 0, dur: 1.4) : nil }
             if sp.arg == 1 { return !seen.contains(30) ? Offer(label: "Walk the fence line to the figures", cost: 0, earn: 0, dur: 1.8) : nil }
             return !seen.contains(29) && health > 15 ? Offer(label: "Hike up to the palms", cost: 0, earn: 0, dur: 2.6) : nil
         case .bar:
@@ -1554,6 +1565,7 @@ final class Game {
         case .watch: return "In your field notes. Sit and watch as long as you like"
         case .village: return "They wave as you pass. You're always welcome to watch the work"
         case .hike:
+            if sp.arg == 2 { return "Stay outside the fence. One footprint lasts for centuries here" }
             if sp.arg == 1 { return "You've seen them today. Stay outside the fences" }
             return seen.contains(29) ? "One climb a day is plenty" : "Too worn out. Rest first"
         case .bar: return barOpen ? "Back next weekend" : "Open Saturdays and Sundays, noon to sunset"
@@ -1856,7 +1868,10 @@ final class Game {
             hintT = 0
             hint("village", "The river people farm the floodplain after the summer floods and trade along desert trails as far as the coast. Their descendants, River Yuman peoples like the Mojave and Quechan, still live along the Colorado today.")
         case .hike:
-            if sp.arg == 1 {
+            if sp.arg == 2 {
+                seen.insert(36)
+                trespass("Hey! Off the figures! Those have been here a thousand years!", 3)
+            } else if sp.arg == 1 {
                 seen.insert(30)
                 cred += 2
                 float("Figures scraped into the desert floor long, long ago", x, GOLD)
@@ -2274,6 +2289,11 @@ final class Game {
             post("wild burros", 45)
         }
 
+        // no wheels past the fence at the intaglios: tire tracks are what the fences are for
+        if area == .intaglios && !inPast && (onToy || inRig) && px > 560 {
+            px = 556; vx = 0
+            if !seen.contains(37) { seen.insert(37); trespass("No vehicles past the fence! Park here and walk!", 2) }
+        }
         // which spot is in reach
         var best = -1
         var bd = 30.0
