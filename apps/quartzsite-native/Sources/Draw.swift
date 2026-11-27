@@ -6483,7 +6483,7 @@ final class Renderer {
         leg(-5, -sw, dk); leg(4.6, sw, dk)
         c.ell(-0.4, -10.8, 7.2, heavy ? 4 : 3.4, coat); c.ell(4.2, -11, 3.6, heavy ? 4.4 : 3.8, coat); c.ell(-5, -10.8, 3.4, 3.6, coat)
         c.ell(0, -8.8, 5.6, 1.3, kind == 0 ? white : coat.shade(1.14))
-        c.ell(-7.6, -11, 1.9, 2.6, white)
+        c.ell(-7.5, -10.8, 1.1, 2.0, white)
         if kind == 3 { c.seg(-8.2, -11.6, -8.8, -8.6, 0.8, white); c.circ(-8.8, -8.4, 0.6, INK) } else { c.seg(-8, -11.6, -8.8, -9.6, 0.7, dk) }
         leg(-3.6, sw, coat); leg(6, -sw, coat)
         let graze = sin(NOW * 0.5 + ph) > 0.4
