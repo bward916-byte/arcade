@@ -63,7 +63,7 @@ jobs:
           xcrun simctl boot "$UDID"
           xcrun simctl bootstatus "$UDID" -b
           xcrun simctl install "$UDID" "$APP"
-          for shot in map; do
+          for shot in main party ice als kb; do
             xcrun simctl terminate "$UDID" com.brianward.quartzsitewinter 2>/dev/null || true
             if [ "$shot" = title ]; then
               xcrun simctl launch "$UDID" com.brianward.quartzsitewinter
@@ -74,7 +74,7 @@ jobs:
             xcrun simctl io "$UDID" screenshot "$RUNNER_TEMP/shots/$shot.png"
           done
           # the same screens squeezed to an iPhone SE's shape, where layouts are tightest
-          for shot in map; do
+          for shot in main party ice als kb; do
             xcrun simctl terminate "$UDID" com.brianward.quartzsitewinter 2>/dev/null || true
             if [ "$shot" = title ]; then
               xcrun simctl launch "$UDID" com.brianward.quartzsitewinter -se

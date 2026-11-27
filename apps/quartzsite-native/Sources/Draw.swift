@@ -1461,15 +1461,23 @@ final class Renderer {
         c.RR(x - 2.6, hip - 8.6, 5.2, 9, 2, shirt)
         c.seg(x + 0.6, hip - 6.8, x + 4 + reach * 2, hip - 4.6, 1.5, shirt.shade(0.85))
         c.roundCaps(false)
-        let hy = hip - 11.2
-        c.circ(x + 0.4, hy, 2.7, skin)
-        c.R(x + 1.5, hy - 0.5, 0.7, 0.7, Col(0x2a1c14))
+        let hy = hip - 11.6
+        let hair = hairOf(look)
+        c.circ(x + 4.4 + reach * 2, hip - 4.6, 0.8, skin)
+        c.ell(x + 6, hip + 4.6, 1.6, 0.75, Col(0x3a2a1e))
+        c.R(x - 0.5, hy + 1.6, 1.4, 1.6, skin.shade(0.88))
+        c.ell(x - 0.3, hy - 0.1, 1.9, 2.2, hair)
+        c.ell(x + 0.4, hy, 2.0, 2.3, skin)
+        c.poly(skin, [x + 2.1, hy - 0.3, x + 2.9, hy + 0.7, x + 2, hy + 0.9])
+        c.R(x + 1.1, hy - 0.5, 0.6, 0.6, Col(0x2a1c14))
+        c.R(x + 1.1, hy + 1.3, 0.8, 0.22, Col(0x8a4a3a))
         // a helmet on the bikes and quads, the usual hat otherwise
         if reach > 1.2 {
-            c.dome(x + 0.2, hy - 0.2, 3.1, Col(0x2a2a2a))
-            c.R(x + 1.4, hy - 1.2, 2.2, 1, Col(0x5a8aaa))
+            c.dome(x + 0.3, hy + 0.2, 2.7, Col(0x2a2a2a))
+            c.R(x + 1.2, hy - 1, 2, 1, Col(0x5a8aaa))
         } else {
-            c.dome(x + 0.3, hy - 0.6, 2.8, lk.hat == 4 ? Col(0x3a2a1e) : lk.hatCol)
+            c.dome(x + 0.3, hy - 0.6, 2.2, lk.hat == 4 ? hair : lk.hatCol)
+            if lk.hat != 4 && lk.hat != 1 { c.ell(x + 0.6, hy - 0.8, 3.6, 0.6, lk.hatCol.shade(0.9)) }
         }
     }
 
@@ -1495,43 +1503,106 @@ final class Renderer {
         return (pick(skins, 1), pick(shirts, 2), pick(pants, 3), Int(hashN(h + 4) * 6) % 6, pick(hats, 5))
     }
 
+    /// The hair colour that goes with a look.
+    private func hairOf(_ look: Int) -> Col {
+        if look >= 0 && look < 4 { return [Col(0x3a2a1e), Col(0x6a3a22), Col(0x2a1c14), Col(0xd8d8d4)][look] }
+        return [Col(0x2a1c14), Col(0x4a3220), Col(0x6a4a2a), Col(0xa8843e), Col(0xc8c8c4), Col(0x8a8a88), Col(0xe8e4dc)][Int(hashN(Double(look) + 9) * 7) % 7]
+    }
+    /// A person, side-on: shoes, legs that bend at the knee, a torso with shoulders and a waist, two arms with hands,
+    /// a neck, and a head with a face. Build, sleeves, shorts, hair, beards and glasses vary by look.
     func person(_ x: Double, _ base: Double, _ look: Int, _ face: Double, _ ph: Double, _ moving: Bool) {
         if x < -20 || x > W + 20 { return }
         let lk = lookOf(look)
         let skin = lk.skin, shirt = lk.shirt, pants = lk.pants
-        let sw = moving ? sin(ph) * 3.2 : 0.0
-        let hip = base - 7
-        let bob = moving ? abs(sin(ph)) * 0.5 : sin(NOW * 2 + Double(look)) * 0.2
+        let hl = Double(look)
+        let build = 0.88 + hashN(hl + 21) * 0.34
+        let belly = hashN(hl + 22) > 0.62 ? 0.5 + hashN(hl + 23) * 0.9 : 0.0
+        let shorts = hashN(hl + 24) < 0.28
+        let longSleeve = hashN(hl + 25) < 0.45
+        let longHair = look < 4 ? look == 1 : hashN(hl + 26) < 0.36
+        let beard = !longHair && hashN(hl + 27) < 0.3
+        let glasses = hashN(hl + 28) < 0.24
+        let hair = hairOf(look)
+        let shoe = [Col(0x3a2a1e), Col(0x2a2a2e), Col(0x8a6a4a), Col(0xe8e4dc)][Int(hashN(hl + 29) * 4) % 4]
+        let s = moving ? sin(ph) : 0.0
+        let bob = moving ? abs(sin(ph)) * 0.45 : sin(NOW * 2 + hl) * 0.15
+        let hip = base - 9.4
+        let sh = hip - 7.4 - bob
         c.ell(x, base + 0.4, 4, 1, Col(0x000000, 0.2))
         c.roundCaps(true)
-        c.seg(x, hip, x - sw, base, 2.2, pants.shade(0.8))
-        c.seg(x, hip, x + sw, base, 2.2, pants)
-        c.RR(x - 2.7, hip - 8 - bob, 5.4, 9, 2, shirt)
-        c.seg(x - face * 0.4, hip - 6.5 - bob, x - sw * 0.7, hip - 0.8, 1.6, shirt.shade(0.85))
+        // legs: thigh to knee, shin to ankle, the trailing foot lifting off the ground
+        func leg(_ a: Double, _ shade: Double) {
+            let kx = x + a * 2.0 + face * 0.25, ky = hip + 4.7
+            let back = a * face < 0
+            let fx = x + a * 3.5, fy = base - 0.5 - (back && moving ? abs(a) * 0.9 : 0)
+            c.seg(x, hip, kx, ky, 2.2, pants.shade(shade))
+            c.seg(kx, ky, fx, fy, 1.8, (shorts ? skin : pants).shade(shade))
+            c.ell(fx + face * 0.8, fy + 0.1, 1.6, 0.75, shoe.shade(shade))
+        }
+        func arm(_ a: Double, _ shade: Double) {
+            let ex = x + a * 1.5 - face * 0.3, ey = sh + 3.6
+            let hx0 = x + a * 3.0 + face * 0.6, hy0 = sh + 6.8 - abs(a) * 0.5
+            c.seg(x, sh + 0.8, ex, ey, 1.7, shirt.shade(shade))
+            c.seg(ex, ey, hx0, hy0, 1.4, (longSleeve ? shirt : skin).shade(shade))
+            c.circ(hx0, hy0, 0.8, skin.shade(shade))
+        }
+        leg(-s, 0.78)
+        arm(-s, 0.8)
+        leg(s, 1)
         c.roundCaps(false)
-        let hy = hip - 10.6 - bob
-        c.circ(x + face * 0.4, hy, 2.7, skin)
-        c.R(x + face * 1.5, hy - 0.5, 0.7, 0.7, Col(0x2a1c14))
+        // torso: shoulders wider than the waist, a belly on some, a belt, the shirt's own details
+        let hw = 2.5 * build
+        c.poly(shirt, [x - hw, sh + 1, x - hw + 0.9, sh, x + hw - 0.9, sh, x + hw, sh + 1, x + hw * 0.84 + face * belly, hip - 2.6, x + hw * 0.8, hip + 0.4, x - hw * 0.8, hip + 0.4, x - hw * 0.84, hip - 2.6])
+        c.circ(x - hw + 0.9, sh + 0.9, 0.9, shirt); c.circ(x + hw - 0.9, sh + 0.9, 0.9, shirt)
+        c.poly(shirt.shade(0.88), [x - face * hw, sh + 1, x - face * hw * 0.84, hip - 2.6, x - face * hw * 0.8, hip + 0.4, x - face * hw * 0.3, hip + 0.4, x - face * hw * 0.4, sh + 1])
+        switch Int(hashN(hl + 30) * 5) % 5 {
+        case 0: c.R(x + face * 0.7 - 0.12, sh + 1.6, 0.25, 5.6, shirt.shade(0.75)); for q in 0..<3 { c.R(x + face * 0.7 - 0.25, sh + 2.4 + Double(q) * 1.6, 0.5, 0.4, shirt.shade(0.6)) }
+        case 1: for q in 0..<3 { c.R(x - hw * 0.84, sh + 2 + Double(q) * 1.9, hw * 1.68, 0.5, shirt.shade(1.22)) }
+        case 2: c.R(x + face * 0.4, sh + 2.4, 1.5, 1.4, shirt.shade(0.84))
+        case 3: c.poly(shirt.shade(0.7), [x - hw * 0.8, sh + 0.4, x - hw * 0.3, sh + 0.2, x - hw * 0.2, hip + 0.4, x - hw * 0.8, hip + 0.4]); c.poly(shirt.shade(0.7), [x + hw * 0.8, sh + 0.4, x + hw * 0.3, sh + 0.2, x + hw * 0.2, hip + 0.4, x + hw * 0.8, hip + 0.4])
+        default: break
+        }
+        c.poly(skin.shade(0.94), [x - 0.9 + face * 0.4, sh, x + 0.9 + face * 0.4, sh, x + face * 0.7, sh + 1.5])
+        c.RR(x - hw * 0.8, hip - 0.2, hw * 1.6, 1.9, 0.6, pants)
+        c.R(x - hw * 0.8, hip - 0.4, hw * 1.6, 0.7, Col(0x2a1c14, 0.75)); c.R(x + face * 0.5 - 0.4, hip - 0.5, 0.8, 0.9, Col(0xc8b060))
+        // neck, the near arm, then the head
+        c.R(x - 0.7 + face * 0.3, sh - 1.3, 1.4, 1.8, skin.shade(0.88))
+        c.roundCaps(true)
+        arm(s, 1)
+        c.roundCaps(false)
+        let hx = x + face * 0.5, hy = sh - 3.2
+        if longHair { c.ell(hx - face * 1.3, hy + 1.6, 1.5, 3.6, hair) }
+        c.ell(hx - face * 0.7, hy - 0.1, 1.9, 2.2, hair)
+        c.ell(hx, hy, 2.0, 2.3, skin)
+        c.circ(hx - face * 0.6, hy + 0.3, 0.55, skin.shade(0.84))
+        c.poly(skin, [hx + face * 1.7, hy - 0.3, hx + face * 2.5, hy + 0.7, hx + face * 1.6, hy + 0.9])
+        c.R(hx + face * 1.0 - 0.3, hy - 0.5, 0.6, 0.6, Col(0x2a1c14))
+        c.R(hx + face * 1.0 - 0.5, hy - 1.2, 1, 0.25, hair.shade(0.8))
+        c.R(hx + face * 1.1 - 0.4, hy + 1.3, 0.8, 0.22, Col(0x8a4a3a))
+        if beard { c.ell(hx + face * 0.6, hy + 1.7, 1.6, 1.1, hair); c.R(hx + face * 1.1 - 0.4, hy + 1.3, 0.8, 0.2, Col(0x6a3a2e)) }
+        if glasses { c.ellStroke(hx + face * 1.1, hy - 0.3, 0.75, 0.65, 0.2, Col(0x1c1a1a)); c.seg(hx + face * 0.4, hy - 0.4, hx - face * 0.7, hy - 0.2, 0.2, Col(0x1c1a1a)) }
         let hc = lk.hatCol
         switch lk.hat {
         case 0:     // straw hat
-            c.dome(x + face * 0.3, hy - 1, 2.6, hc)
-            c.ell(x + face * 0.3, hy - 1, 4.6, 0.9, hc.shade(0.92))
+            c.dome(hx, hy - 1.2, 2.1, hc)
+            c.ell(hx, hy - 1.2, 4.1, 0.75, hc.shade(0.92))
+            c.R(hx - 2.1, hy - 1.9, 4.2, 0.5, hc.shade(0.7))
         case 1:     // beanie
-            c.dome(x + face * 0.3, hy - 0.4, 2.9, hc)
+            c.dome(hx - face * 0.1, hy - 0.5, 2.2, hc); c.R(hx - 2.2 - face * 0.1, hy - 0.9, 4.4, 0.8, hc.shade(0.85))
         case 2:     // ball cap
-            c.dome(x + face * 0.3, hy - 0.8, 2.8, hc)
-            c.R(face > 0 ? x + 2 : x - 5.4, hy - 1.2, 3.4, 0.9, hc)
+            c.dome(hx, hy - 0.9, 2.15, hc)
+            c.R(face > 0 ? hx + 1.2 : hx - 4.2, hy - 1.3, 3, 0.7, hc.shade(0.85))
         case 3:     // grey hair and a wide sun hat
-            c.dome(x + face * 0.2, hy - 0.2, 2.9, Col(0xd8d8d4))
-            c.ell(x + face * 0.3, hy - 1.8, 5.2, 0.9, hc)
-            c.dome(x + face * 0.3, hy - 1.8, 2.3, hc)
+            c.ell(hx, hy - 1.9, 4.6, 0.8, hc)
+            c.dome(hx, hy - 1.9, 1.9, hc); c.R(hx - 1.9, hy - 2.5, 3.8, 0.5, hc.shade(0.75))
         case 4:     // just hair
-            c.dome(x + face * 0.1, hy - 0.3, 2.9, [Col(0x2a1c14), Col(0x6a4a2a), Col(0xd8c070), Col(0xc8c8c4)][Int(hashN(Double(look) + 9) * 4) % 4])
+            c.dome(hx - face * 0.2, hy - 0.5, 2.15, hair)
+            c.poly(hair, [hx + face * 1.2, hy - 1.6, hx + face * 2.1, hy - 0.9, hx + face * 1.2, hy - 0.5])
         default:    // cowboy hat
-            c.dome(x + face * 0.3, hy - 1.4, 2.4, hc)
-            c.ell(x + face * 0.3, hy - 1.2, 5, 0.8, hc.shade(0.9))
-            c.R(x + face * 0.3 - 5, hy - 2.2, 1, 1.2, hc.shade(0.9)); c.R(x + face * 0.3 + 4, hy - 2.2, 1, 1.2, hc.shade(0.9))
+            c.dome(hx, hy - 1.7, 1.9, hc)
+            c.ell(hx, hy - 1.5, 4.4, 0.7, hc.shade(0.9))
+            c.R(hx - 4.6, hy - 2.4, 0.9, 1.1, hc.shade(0.9)); c.R(hx + 3.7, hy - 2.4, 0.9, 1.1, hc.shade(0.9))
+            c.R(hx - 1.9, hy - 2.2, 3.8, 0.45, Col(0x2a1c14))
         }
     }
 
@@ -3793,6 +3864,76 @@ final class Renderer {
     /// The big animals moving through the ice age valley.
     private func iceWild(_ ar: Area) {
         if dark > 0.5 { return }
+        // hunters on the move: a small band with spears, following the herds
+        let span = g.WORLD + 260
+        let hx0 = (NOW * 6 + Double(ar.rawValue) * 270).truncatingRemainder(dividingBy: span) - 130
+        for k in 0..<3 {
+            let vx = hx0 - Double(k) * 12 - cam
+            let bob = abs(sin(NOW * 5 + Double(k) * 1.3)) * 0.8
+            villager(vx, GY + 2 - bob, 60 + Double(k), 0)
+            c.seg(vx + 3, GY - 2 - bob, vx + 5, GY - 25 - bob, 0.4, Col(0x6a4a2e)); c.poly(Col(0xd8d0c0), [vx + 4.4, GY - 25 - bob, vx + 5.2, GY - 28.4 - bob, vx + 5.8, GY - 25 - bob])
+        }
+        // and all along the valley, the rest of the ice-age country
+        var n = floor((cam - 80) / 250)
+        while n * 250 < cam + W + 80 {
+            let hk = hashN(n * 2.7 + Double(ar.rawValue) * 9 + 9150)
+            let wx = n * 250 + hk * 150
+            let sx = wx - cam
+            n += 1
+            if wx < 100 || wx > g.WORLD - 100 || g.spots.contains(where: { abs($0.x - wx) < 120 }) { continue }
+            let sh = 1 - dark * 0.5
+            switch Int(hk * 100) % 9 {
+            case 0:
+                // bison, bigger and longer in the horn than any left alive
+                for q in 0..<3 {
+                    let bx = sx + Double(q) * 22 + sin(NOW * 0.1 + wx + Double(q)) * 16
+                    let fur = Col(0x4a3426).shade(sh)
+                    for lx in [-5.0, -2.0, 4.0, 7.0] { c.R(bx + lx, GY - 5, 1.5, 6.6, fur.shade(0.85)) }
+                    c.ell(bx, GY - 9, 9, 5, fur); c.ell(bx + 5, GY - 12, 5.4, 5.4, fur.shade(0.9)); c.ell(bx + 10, GY - 8.4, 3, 3.4, fur.shade(0.8))
+                    c.curve(bx + 9, GY - 11.4, bx + 12, GY - 13, bx + 11.4, GY - 15, 0.5, Col(0xe8e0d0).shade(sh))
+                }
+            case 1:
+                // a glyptodont: an armadillo the size of a small car
+                let gx = sx + sin(NOW * 0.06 + wx) * 14
+                c.dome(gx, GY + 1, 10, Col(0x7a6a52).shade(sh))
+                for q in 0..<12 { c.circ(gx - 8 + Double(q % 6) * 3.2, GY - 2.4 - Double(q / 6) * 3.4, 1, Col(0x5a4c3a).shade(sh)) }
+                c.ell(gx + 11, GY - 2.6, 2.8, 2.2, Col(0x6a5a46).shade(sh)); c.circ(gx + 12, GY - 3, 0.3, INK)
+                c.seg(gx - 9.6, GY - 2, gx - 16, GY - 0.6, 1.8, Col(0x6a5a46).shade(sh)); c.R(gx - 6, GY - 0.6, 2.4, 2.2, Col(0x4a3e30)); c.R(gx + 5, GY - 0.6, 2.4, 2.2, Col(0x4a3e30))
+            case 2:
+                // a short-faced bear, standing to get a better look at you
+                let fur = Col(0x5a4030).shade(sh)
+                c.roundCaps(true)
+                c.seg(sx - 2, GY + 1, sx - 2.4, GY - 8, 3.2, fur.shade(0.85)); c.seg(sx + 3, GY + 1, sx + 2.6, GY - 8, 3.2, fur.shade(0.85))
+                c.ell(sx, GY - 15, 5.4, 9, fur); c.circ(sx + 1, GY - 26, 3.4, fur.shade(1.05)); c.ell(sx + 3.8, GY - 25.4, 1.8, 1.4, fur.shade(1.2))
+                c.circ(sx - 1.2, GY - 29, 1, fur); c.circ(sx + 2.6, GY - 29, 1, fur); c.circ(sx + 2.4, GY - 26.6, 0.35, INK)
+                c.seg(sx + 4, GY - 19, sx + 8, GY - 15 + sin(NOW * 1.3) * 1, 2.2, fur)
+                c.roundCaps(false)
+            case 3:
+                // mammoth bones bleaching by a dry pond
+                c.ell(sx, GY + 3, 16, 2, Col(0xc8b89a, 0.7))
+                for q in 0..<6 { c.arcStroke(sx - 8 + Double(q) * 3, GY + 1, 4.4 - abs(Double(q) - 2.5) * 0.5, PI * 1.05, PI * 1.9, 0.6, Col(0xeee8d8).shade(sh)) }
+                c.curve(sx + 12, GY + 1, sx + 20, GY - 6, sx + 16, GY - 11, 1, Col(0xeee8d8).shade(sh)); c.ell(sx + 11, GY - 0.4, 2.6, 1.8, Col(0xe4dcc8).shade(sh))
+            case 4:
+                // a spring: open water, reeds, and the tracks of everything that drinks here
+                c.ell(sx, GY + 4, 20, 2.6, Col(0x4a8aa8, 0.8)); c.ell(sx - 3, GY + 3.6, 9, 0.7, Col(0xdff4ff, 0.5))
+                for q in 0..<9 { let rx = sx - 18 + Double(q) * 1.6; c.seg(rx, GY + 2, rx + sin(NOW + Double(q)) * 0.5, GY - 8 - hashN(wx + Double(q)) * 4, 0.35, Col(0x5a8a4a).shade(sh)) }
+                for q in 0..<7 { c.ell(sx + 22 + Double(q) * 5, GY + 3 + Double(q % 2) * 1.4, 1.1, 0.7, Col(0x6a5238, 0.6)) }
+            case 5:
+                for q in 0..<4 { hoofed(sx + Double(q) * 20 + sin(NOW * 0.12 + wx) * 30, GY + 2 + Double(q % 2), 1.25, 2, Double(q) * 1.2) }
+            case 6:
+                for q in 0..<2 {
+                    c.save(); c.translate(sx + Double(q) * 18 + sin(NOW * 0.2 + wx) * 40, GY + 2); c.scale(1.5, 1.5)
+                    coyote(0, 0, NOW * 2 + Double(q))
+                    c.restore()
+                }
+            case 7:
+                // a giant tortoise
+                let tx = sx + sin(NOW * 0.05 + wx) * 8
+                c.dome(tx, GY + 1, 7, Col(0x6a6a3e).shade(sh)); c.circ(tx + 8.4, GY - 2.6, 1.5, Col(0x8a8a5a).shade(sh)); c.R(tx - 5, GY, 2, 1.6, Col(0x5a5a34)); c.R(tx + 3.4, GY, 2, 1.6, Col(0x5a5a34))
+            default:
+                juniper(sx, GY + 1, 1.3, wx); joshua(sx + 26, GY + 1, 34, wx + 3)
+            }
+        }
         let t = NOW * 0.2
         soar(W * 0.5 + cos(t) * W * 0.3, GY * 0.44 + sin(t * 1.3) * 8, 34, true)
         if [Area.main, .tyson, .hijolly, .roadrunner, .scaddan].contains(ar) {
@@ -3809,7 +3950,15 @@ final class Renderer {
         let base = GY + 1
         switch k {
         case 0:
-            mammoth(x - 30, base, 1.1, 0); mammoth(x + 26, base, 0.9, 1.6); mammoth(x + 2, base + 1, 0.55, 3)
+            // the family grazes its way up and down the wash
+            let herd: [(Double, Double, Double)] = [(-34, 1.1, 0), (30, 0.9, 1.6), (0, 0.55, 3)]
+            for (ox, sc, ph) in herd {
+                let t = NOW * 0.08 + ph
+                let dirM = cos(t) >= 0 ? 1.0 : -1.0
+                c.save(); c.translate(x + ox + sin(t) * 46, 0); c.scale(dirM, 1)
+                mammoth(0, base + (sc < 0.6 ? 1 : 0), sc, ph)
+                c.restore()
+            }
         case 1:
             for q in 0..<4 { joshua(x - 50 + Double(q) * 32, base, 34 + hashN(Double(q) + 9100) * 14, Double(q) + 9110) }
         case 2:
@@ -4622,6 +4771,27 @@ final class Renderer {
             g.text("+\(g.credPopN) cred", sx + 2, 30 - pop * 3, 8 + pop * 3, GOLD, bold: true, plate: true)
         }
         g.text("\(g.cred)", sx + 7, 12, 7, CREAM, align: 1, bold: true)
+        if g.phase == .play && !g.overlay && g.hintT <= 0 && g.arriveT <= 0 {
+            // the strip you are on, end to end: where the places are, where your camp and ride are, where you stand
+            let mw = min(130.0, W * 0.36), mx = W / 2 - mw / 2, my = H - 9.0
+            c.RR(mx - 4, my - 5, mw + 8, 10.6, 5.3, Col(0x14202a, 0.72))
+            c.R(mx, my - 0.3, mw, 0.6, Col(0xf2e8c8, 0.35))
+            func at(_ wx: Double) -> Double { return mx + clampD(wx / g.WORLD, 0, 1) * mw }
+            c.R(at(cam), my - 2.6, max(3, at(cam + W / ZOOM) - at(cam)), 5.2, Col(0xffffff, 0.1))
+            for (i, sp) in g.spots.enumerated() {
+                let left = g.offer(i) != nil
+                c.circ(at(sp.x), my, left ? 1.25 : 0.9, left ? Col(0xf2c14e) : Col(0xf2e8c8, 0.5))
+            }
+            if g.rigHere && !g.inPast {
+                let rxm = at(g.rigX)
+                c.poly(Col(0xe8684a), [rxm - 2, my + 0.6, rxm, my - 3, rxm + 2, my + 0.6]); c.R(rxm - 1.4, my + 0.6, 2.8, 1.6, Col(0xe8684a))
+            }
+            if g.toy >= 0 && g.toyHere && !g.onToy && !g.inPast { c.RR(at(g.toyX) - 1.4, my + 1, 2.8, 1.5, 0.5, Col(0x8ad0ff)) }
+            let pm = at(g.px)
+            c.circ(pm, my, 2.1, Col(0x14202a)); c.circ(pm, my, 1.5, Col(0xffffff))
+            c.poly(Col(0xffffff), [pm + g.face * 2.2, my - 1, pm + g.face * 3.6, my, pm + g.face * 2.2, my + 1])
+            g.hits.append(Hit(id: 60, x: mx - 4, y: my - 6, w: mw + 8, h: 13))
+        }
         if g.credPopT > 0 && !g.overlay {
             // and say it out loud in the middle of the screen: a starburst, a banner, stars flying up to the count
             let u = clampD(g.credPopT / 1.6, 0, 1), t = 1 - u
