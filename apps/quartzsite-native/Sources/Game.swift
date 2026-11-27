@@ -787,7 +787,6 @@ final class Game {
                 }
                 return
             }
-            if id == 67 && inPast { float("No signal. Not for another thousand years", px, CREAM); return }
             if id == 67 { refund(); phoneOpen = true; events.append(3); hint("phone", "Your page. Post one photo a day from wherever you are: events, landmarks, sunsets and starry nights reach the most people.") }
         }
     }
@@ -1758,8 +1757,9 @@ final class Game {
         case .watch:
             fieldNotes.insert(sp.arg)
             health = min(100, health + 4)
-            float(WILD[sp.arg].1, x, GREEN)
-            float("Field notes \(fieldNotes.count)", x, GOLD)
+            hintT = 0
+            hint("wild\(sp.arg)", WILD[sp.arg].1 + ".")
+            float("Field notes \(fieldNotes.count)/17", x, GOLD)
         case .village:
             fieldNotes.insert(20)
             health = min(100, health + 10)
@@ -2123,7 +2123,8 @@ final class Game {
             hint("genaway\(day)", "Your generator ran past 10 PM while you were away. The neighbors are not happy.  -2 cred")
         }
         health = max(0, health - dt * 100 / (DAYLEN * 2.2) * (weather == 1 ? 1.3 : 1))
-        if health < 35 { hint("hungry", "You're run down. Groceries on Main Street, the outhouse and your own camp all help.") }
+        if health < 35 && inPast { hint("hungrypast", "You're run down, and there's no grocery for a thousand years. Open the map and return to 2026.") }
+        else if health < 35 { hint("hungry", "You're run down. Groceries on Main Street, the outhouse and your own camp all help.") }
 
         // moving: on foot, on a ride, or behind the wheel
         let s = abs(input.stick) < 0.15 ? 0 : input.stick

@@ -289,9 +289,9 @@ final class Renderer {
         }
 
         if g.plantShow {
-            let px0 = 40.0
-            cholla(px0, GY + 1, 1.3, 3); beavertail(px0 + 60, GY + 1, 5); paloverde(px0 + 130, GY + 1, 7)
-            mesquite(px0 + 230, GY + 1, 11); ironwood(px0 + 330, GY + 1, 13); cholla(px0 + 410, GY + 1, 1, 17); beavertail(px0 + 460, GY + 1, 19)
+            let px0 = 30.0
+            beavertail(px0, GY + 1, 5); beavertail(px0 + 22, GY + 1, 19); cholla(px0 + 44, GY + 1, 1, 3); cholla(px0 + 64, GY + 1, 0.8, 17)
+            paloverde(px0 + 100, GY + 1, 7); mesquite(px0 + 160, GY + 1, 11); ironwood(px0 + 225, GY + 1, 13); cottonwood(px0 + 285, GY + 1, 2)
         }
         if g.phase == .title {
             // a rig rolling in at sunset, dust behind it
@@ -768,8 +768,10 @@ final class Renderer {
             while tw * 70 < cam * 0.85 + W + 60 {
                 if hashN(tw + 1750) < 0.75 {
                     let tx = tw * 70 + hashN(tw + 1760) * 40 - cam * 0.85
-                    if hashN(tw + 1770) < 0.5 { paloverde(tx, GY - 2, tw) }
-                    else { ironwood(tx, GY - 2, tw) }
+                    let pick = hashN(tw + 1770)
+                    if pick < 0.4 { paloverde(tx, GY - 2, tw, 0.6) }
+                    else if pick < 0.7 { mesquite(tx, GY - 2, tw, 0.6) }
+                    else { ironwood(tx, GY - 2, tw, 0.6) }
                 }
                 tw += 1
             }
@@ -2417,205 +2419,282 @@ final class Renderer {
         c.ell(x, base - 5 * s, 4 * s, 5.4 * s, Col(0xd04a3a, 0.12))
     }
 
-    /// A branching skeleton: draws the limbs and collects the twig tips for foliage.
-    private func limbs(_ x: Double, _ y: Double, _ a: Double, _ len: Double, _ w: Double, _ depth: Int, _ seed: Double, _ bark: Col, _ spread: Double, _ droop: Double, _ tips: inout [(Double, Double)]) {
-        let bend = (hashN(seed) - 0.5) * 0.5
-        let ang = a + bend
-        let ex = x + cos(ang) * len
-        let ey = y + sin(ang) * len
-        c.seg(x, y, ex, ey, w, bark)
-        if depth == 0 { tips.append((ex, ey)); return }
-        let n = hashN(seed + 1) < 0.35 ? 3 : 2
+
+
+
+
+
+
+    /// A tapered limb: wide at the root, narrow at the tip, with a round joint.
+    private func taper(_ x0: Double, _ y0: Double, _ x1: Double, _ y1: Double, _ w0: Double, _ w1: Double, _ col: Col) {
+        let dx = x1 - x0, dy = y1 - y0
+        let len = max(0.001, (dx * dx + dy * dy).squareRoot())
+        let nx = -dy / len, ny = dx / len
+        let a0 = w0 / 2, a1 = w1 / 2
+        c.poly(col, [x0 + nx * a0, y0 + ny * a0, x1 + nx * a1, y1 + ny * a1, x1 - nx * a1, y1 - ny * a1, x0 - nx * a0, y0 - ny * a0])
+        c.circ(x1, y1, a1, col)
+    }
+
+    /// A crooked, tapering bough that forks as it goes. With ink off it only measures, collecting the twig tips.
+    private func bough(_ x: Double, _ y: Double, _ a: Double, _ len: Double, _ w: Double, _ depth: Int, _ seed: Double, _ bark: Col, _ spread: Double, _ droop: Double, _ ink: Bool, _ tips: inout [(Double, Double, Double)]) {
+        let a2 = a + (hashN(seed) - 0.5) * 0.7
+        let mx = x + cos(a) * len * 0.5
+        let my = y + sin(a) * len * 0.5
+        let ex = mx + cos(a2) * len * 0.5
+        let ey = my + sin(a2) * len * 0.5
+        if ink {
+            taper(x, y, mx, my, w, w * 0.84, bark)
+            taper(mx, my, ex, ey, w * 0.84, w * 0.7, bark)
+        }
+        if depth == 0 { tips.append((ex, ey, a2)); return }
+        let n = hashN(seed + 1) < 0.3 ? 3 : 2
         for k in 0..<n {
             let d = Double(k)
             let f = d / Double(n - 1) - 0.5
-            var na = ang + f * spread * 2 + (hashN(seed + 2 + d) - 0.5) * 0.3
+            var na: Double = a2 + f * spread * 2 + (hashN(seed + 2 + d) - 0.5) * 0.35
             na += na > -PI / 2 ? droop : -droop
+            na = max(-PI - 0.3, min(0.3, na))
+            let s2 = abs(seed * 1.7 + d * 13.1 + 3).truncatingRemainder(dividingBy: 9973)
             let nl = len * (0.66 + hashN(seed + 5 + d) * 0.16)
-            limbs(ex, ey, na, nl, max(0.45, w * 0.64), depth - 1, (seed * 1.7 + d * 13.1 + 3).truncatingRemainder(dividingBy: 9973), bark, spread, droop, &tips)
+            bough(ex, ey, na, nl, w * 0.7, depth - 1, s2, bark, spread, droop, ink, &tips)
         }
     }
 
-    /// Teddy bear cholla: a dark trunk of dead joints, short stubby arms of fat golden joints that glow in the sun.
+    /// Teddy bear cholla, waist to chest high: a dark trunk, a dense head of short straw-gold joints that glow in the sun, dropped joints at its foot.
     private func cholla(_ x: Double, _ base: Double, _ s: Double, _ seed: Double) {
         if x < -30 * s || x > W + 30 * s { return }
+        let k = 1 - dark * 0.45
         let lit = clampD(1 - dark, 0.25, 1)
         let dead = Col(0x2e241c).shade(1 - dark * 0.3)
-        let gold = Col.mix(Col(0xb4b46a), Col(0xf0e2a8), hashN(seed + 9)).shade(0.55 + 0.45 * lit)
-        // fallen joints around the foot, waiting to hitch a ride on a boot
-        for k in 0..<4 {
-            let d = Double(k)
-            c.ell(x + (hashN(seed + d + 60) - 0.5) * 18 * s, base + 0.6, 1.5 * s, 0.8 * s, Col(0x8a7a50).shade(0.6 + 0.4 * lit))
+        let gold = Col.mix(Col(0xc9c078), Col(0xf2e6b0), hashN(seed + 9))
+        for i in 0..<5 {
+            let d = Double(i)
+            c.ell(x + (hashN(seed + d + 60) - 0.5) * 16 * s, base + 0.5, 1.3 * s, 0.7 * s, Col(0x9a8c58).shade(k))
         }
-        c.roundCaps(true)
-        let th = (9 + hashN(seed + 1) * 4) * s
-        c.seg(x, base, x + 0.5 * s, base - th, 2.8 * s, dead)
-        for k in 0..<3 {
-            let d = Double(k)
-            c.seg(x - 1 * s, base - 2 * s - d * 3 * s, x + 1.4 * s, base - 3.6 * s - d * 3 * s, 0.6 * s, Col(0x5a4a36).shade(0.6 + 0.4 * lit))
-        }
-        var joints: [(Double, Double, Double, Double)] = []
-        let tx = x + 0.5 * s
-        let ty = base - th
-        joints.append((tx, ty + 1 * s, tx, ty - 4 * s))
-        let arms = 6 + Int(hashN(seed + 2) * 4)
-        for k in 0..<arms {
-            let d = Double(k)
-            var a = -PI / 2 + (hashN(seed + d * 3.1 + 10) - 0.5) * 2.8
+        let th = (8 + hashN(seed + 1) * 3) * s
+        taper(x, base, x + 0.4 * s, base - th, 2.6 * s, 2.0 * s, dead)
+        let tx = x + 0.4 * s, ty = base - th
+        var joints: [(Double, Double, Double, Double, Int)] = []
+        let arms = 9 + Int(hashN(seed + 2) * 4)
+        for i in 0..<arms {
+            let d = Double(i)
+            var a: Double = -PI / 2 + (d / Double(arms - 1) - 0.5) * 2.7 + (hashN(seed + d * 3.1 + 10) - 0.5) * 0.4
             var px = tx
-            var py = ty + hashN(seed + d + 20) * 4 * s
-            let segs = 1 + Int(hashN(seed + d + 30) * 3)
+            var py = ty + hashN(seed + d + 20) * 3 * s
+            let segs = 2 + Int(hashN(seed + d + 30) * 3)
             for q in 0..<segs {
-                let L = (2.4 + hashN(seed + d * 5 + Double(q)) * 1.2) * s
+                let e = Double(q)
+                let L = (1.9 + hashN(seed + d * 5 + e) * 0.8) * s
                 let nx = px + cos(a) * L
                 let ny = py + sin(a) * L
-                joints.append((px, py, nx, ny))
+                joints.append((px, py, nx, ny, q))
                 px = nx; py = ny
-                a += (-PI / 2 - a) * 0.35
+                a += (-PI / 2 - a) * 0.45 + (hashN(seed + d + e + 44) - 0.5) * 0.5
             }
         }
-        for j in joints { c.seg(j.0, j.1, j.2, j.3, 4.2 * s, Col(0xfff0b4, 0.1 * lit)) }
-        let core = Col(0x8a9454).shade(0.55 + 0.45 * lit)
-        for j in joints { c.seg(j.0, j.1, j.2, j.3, 2.8 * s, core) }
-        // dense straw-gold spines: the fuzz that gives the teddy bear its name
-        let spine = Col(0xf4e6b0, 0.9 * lit + 0.1)
-        for (i, j) in joints.enumerated() {
-            for q in 0..<9 {
-                let k = Double(i * 9 + q)
-                let f = hashN(seed + k + 70)
-                let jx = j.0 + (j.2 - j.0) * f
-                let jy = j.1 + (j.3 - j.1) * f
-                let a = hashN(seed + k + 90) * PI * 2
-                let r0 = 0.9 * s, r1 = 2.1 * s
-                c.seg(jx + cos(a) * r0, jy + sin(a) * r0, jx + cos(a) * r1, jy + sin(a) * r1, 0.32 * s, q % 3 == 0 ? gold : spine)
-            }
+        c.roundCaps(true)
+        for i in 0..<3 {
+            let a = PI / 2 + (Double(i) - 1) * 0.9
+            c.seg(tx, ty + 2 * s, tx + cos(a) * 2.4 * s, ty + 2 * s + sin(a) * 1.6 * s, 1.6 * s, dead)
         }
+        let halo = Col(0xfff2c0, 0.2 * lit)
+        let inner = Col.mix(Col(0x7d8a4c), gold, 0.3).shade(0.5 + 0.5 * lit)
+        let outer = Col.mix(Col(0x7d8a4c), gold, 0.75).shade(0.5 + 0.5 * lit)
+        let shine = Col(0xfff8d8, 0.45 * lit)
+        for j in joints { c.seg(j.0, j.1, j.2, j.3, 3.0 * s, halo) }
+        for j in joints { c.seg(j.0, j.1, j.2, j.3, 1.9 * s, j.4 == 0 ? inner : outer) }
+        for j in joints { c.seg(j.0 - 0.3 * s, j.1 - 0.3 * s, j.2 - 0.3 * s, j.3 - 0.3 * s, 0.7 * s, shine) }
         c.roundCaps(false)
     }
 
-    /// Foothill palo verde: smooth green bark from trunk to twig, nearly leafless in winter, airy and wide.
+    /// Foothill palo verde: a short green trunk forking low into smooth green limbs, and a wide broom of fine green twigs. Nearly leafless in winter.
     private func paloverde(_ x: Double, _ base: Double, _ seed: Double, _ s: Double = 1) {
-        if x < -60 * s || x > W + 60 * s { return }
-        let bark = Col(0x86ac64).shade(1 - dark * 0.45)
-        var tips: [(Double, Double)] = []
-        c.roundCaps(true)
-        c.seg(x, base, x, base - 5 * s, 3.2 * s, bark.shade(0.9))
-        let stems = 3 + Int(hashN(seed + 3) * 2)
-        for k in 0..<stems {
-            let f = Double(k) / Double(stems - 1) - 0.5
-            limbs(x, base - 5 * s, -PI / 2 + f * 1.5, 10 * s, 2.2 * s, 3, seed + Double(k) * 7.7, bark, 0.42, 0, &tips)
+        if x < -50 * s || x > W + 50 * s { return }
+        let k = 1 - dark * 0.45
+        let h = 44 * s * (0.85 + hashN(seed + 1) * 0.3)
+        let bark = Col(0x7fa35c).shade(k)
+        let n = 3 + Int(hashN(seed + 3) * 2)
+        let y0 = base - h * 0.1
+        var tips: [(Double, Double, Double)] = []
+        for i in 0..<n {
+            let f = Double(i) / Double(n - 1) - 0.5
+            bough(x + f * 1.5 * s, y0, -PI / 2 + f * 1.25, h * 0.24, 2.4 * s, 3, seed + Double(i) * 7.7, bark, 0.42, 0, false, &tips)
         }
-        let twig = bark.shade(1.12)
-        let leaf = Col(0xbccb6e, 0.75).shade(1 - dark * 0.45)
+        let haze = Col(0xb9c860, 0.13).shade(k)
+        for t in tips { c.circ(t.0, t.1 - h * 0.03, h * 0.085, haze) }
+        taper(x, base, x, y0, 3.4 * s, 2.8 * s, bark.shade(0.88))
+        c.R(x - 1.7 * s, base - 0.6, 3.4 * s, 1, bark.shade(0.7))
+        var unused: [(Double, Double, Double)] = []
+        for i in 0..<n {
+            let f = Double(i) / Double(n - 1) - 0.5
+            bough(x + f * 1.5 * s, y0, -PI / 2 + f * 1.25, h * 0.24, 2.4 * s, 3, seed + Double(i) * 7.7, bark, 0.42, 0, true, &unused)
+        }
+        let twig = Col(0x9dba62, 0.9).shade(k)
+        let nt = s > 0.7 ? 6 : 3
+        let tw = 0.32 * s + 0.1
         for (i, t) in tips.enumerated() {
             let d = Double(i)
-            c.seg(t.0, t.1, t.0 + (hashN(seed + d) - 0.5) * 6 * s, t.1 - 3 * s, 0.5 * s, twig)
-            if hashN(seed + d * 1.3 + 40) < 0.5 { c.circ(t.0, t.1, 1.3 * s, leaf) }
-        }
-        c.roundCaps(false)
-    }
-
-    /// Velvet mesquite: crooked dark trunks, arching limbs that droop at the ends, thin feathery olive leaves, a few pods.
-    private func mesquite(_ x: Double, _ base: Double, _ seed: Double, _ s: Double = 1) {
-        if x < -60 * s || x > W + 60 * s { return }
-        let bark = Col(0x4a3a2c).shade(1 - dark * 0.4)
-        var tips: [(Double, Double)] = []
-        c.roundCaps(true)
-        let trunks = 2 + Int(hashN(seed + 4) * 2)
-        for k in 0..<trunks {
-            let f = Double(k) / Double(trunks - 1) - 0.5
-            limbs(x + f * 4 * s, base, -PI / 2 + f * 1.0, 8 * s, 2.8 * s, 4, seed + Double(k) * 5.3, bark, 0.5, 0.16, &tips)
-        }
-        let leaf = Col(0x6a7a44, 0.6).shade(1 - dark * 0.45)
-        let leaf2 = Col(0x86945a, 0.65).shade(1 - dark * 0.45)
-        for (i, t) in tips.enumerated() {
-            let d = Double(i)
-            c.ell(t.0, t.1 + 1.4 * s, 3.4 * s, 1.8 * s, leaf)
-            for q in 0..<4 {
+            for q in 0..<nt {
                 let e = Double(q)
-                let lx = t.0 + (hashN(seed + d * 4 + e) - 0.5) * 7 * s
-                c.seg(lx, t.1, lx + (e - 1.5) * 0.8 * s, t.1 + 3.2 * s, 0.7 * s, q % 2 == 0 ? leaf2 : leaf)
+                let a: Double = t.2 + (e / Double(nt - 1) - 0.5) * 1.5 + (hashN(seed + d * 5 + e) - 0.5) * 0.3
+                let L = h * (0.07 + hashN(seed + d * 3 + e + 9) * 0.05)
+                c.seg(t.0, t.1, t.0 + cos(a) * L, t.1 + sin(a) * L, tw, twig)
             }
-            c.seg(t.0, t.1, t.0 + 1.6 * s, t.1 + 4 * s, 0.4 * s, bark.shade(1.2))
-            if hashN(seed + d + 77) < 0.12 { c.seg(t.0 - 1 * s, t.1 + 2 * s, t.0 - 2.2 * s, t.1 + 6 * s, 0.7 * s, Col(0xc8a868).shade(1 - dark * 0.45)) }
         }
-        c.roundCaps(false)
     }
 
-    /// Desert ironwood: shaggy grey bark, a dense evergreen crown of blue-grey leaves, lit on top.
-    private func ironwood(_ x: Double, _ base: Double, _ seed: Double, _ s: Double = 1) {
-        if x < -60 * s || x > W + 60 * s { return }
-        let bark = Col(0x7a746c).shade(1 - dark * 0.45)
-        var tips: [(Double, Double)] = []
+    /// Velvet mesquite: crooked near-black trunks leaning apart, a low wide crown, thin olive leaves that hang and sway.
+    private func mesquite(_ x: Double, _ base: Double, _ seed: Double, _ s: Double = 1) {
+        if x < -55 * s || x > W + 55 * s { return }
+        let k = 1 - dark * 0.45
+        let h = 38 * s * (0.85 + hashN(seed + 1) * 0.3)
+        let bark = Col(0x3e3026).shade(1 - dark * 0.35)
+        let n = 2 + Int(hashN(seed + 4) * 2)
+        var tips: [(Double, Double, Double)] = []
+        var unused: [(Double, Double, Double)] = []
+        for pass in 0..<2 {
+            if pass == 1 {
+                let back = Col(0x5f6f3e, 0.5).shade(k)
+                for t in tips { c.ell(t.0, t.1 + h * 0.01, h * 0.11, h * 0.06, back) }
+            }
+            for i in 0..<n {
+                let d = Double(i)
+                let f = d / Double(n - 1) - 0.5
+                let a: Double = -PI / 2 + f * 1.3 + (hashN(seed + d) - 0.5) * 0.2
+                if pass == 0 { bough(x + f * 5 * s, base, a, h * 0.27, 3 * s, 4, seed + d * 5.3, bark, 0.5, 0.12, false, &tips) }
+                else { bough(x + f * 5 * s, base, a, h * 0.27, 3 * s, 4, seed + d * 5.3, bark, 0.5, 0.12, true, &unused) }
+            }
+        }
+        let leaf = Col(0x76873f, 0.6).shade(k)
+        let leaf2 = Col(0x8e9c52, 0.6).shade(k)
+        let lw = 0.5 * s + 0.1
         c.roundCaps(true)
-        c.seg(x, base, x + 1 * s, base - 6 * s, 3.4 * s, bark.shade(0.85))
-        for k in 0..<3 {
-            let f = Double(k) - 1
-            limbs(x + 1 * s, base - 6 * s, -PI / 2 + f * 0.85, 8 * s, 2.4 * s, 3, seed + Double(k) * 6.1, bark, 0.45, 0.12, &tips)
+        for (i, t) in tips.enumerated() {
+            let d = Double(i)
+            c.ell(t.0 + (hashN(seed + d) - 0.5) * h * 0.06, t.1 - h * 0.02, h * 0.1, h * 0.045, i % 2 == 0 ? leaf2 : leaf)
+            for q in 0..<3 {
+                let e = Double(q)
+                let lx = t.0 + (hashN(seed + d * 4 + e + 20) - 0.5) * h * 0.2
+                let ly = t.1 + hashN(seed + d * 4 + e + 40) * h * 0.03
+                let sway = sin(NOW * 1.1 + d + e) * 0.3 * s
+                let drop = h * (0.05 + hashN(seed + d * 2 + e) * 0.05)
+                c.seg(lx, ly, lx + (hashN(seed + d + e) - 0.5) * 1.5 * s + sway, ly + drop, lw, q % 2 == 0 ? leaf2 : leaf)
+            }
         }
-        var lo = x, hi = x, tp = base
-        for t in tips { lo = min(lo, t.0); hi = max(hi, t.0); tp = min(tp, t.1) }
-        let crownY = tp + 7 * s
-        c.ell((lo + hi) / 2, crownY, (hi - lo) / 2 + 5 * s, 9 * s, Col(0x52625c).shade(1 - dark * 0.45))
-        for k in 0..<4 { let d = Double(k); c.seg(x - 1 * s, base - 1 * s - d * 1.4 * s, x + 2 * s, base - 1.6 * s - d * 1.4 * s, 0.5 * s, bark.shade(0.7)) }
-        let under = Col(0x52625c).shade(1 - dark * 0.45)
-        let mid = Col(0x6e7f78).shade(1 - dark * 0.45)
-        let top = Col(0x8a9a90).shade(1 - dark * 0.45)
-        for t in tips { c.circ(t.0, t.1 + 2 * s, 3.4 * s, under) }
-        for (i, t) in tips.enumerated() { c.circ(t.0 + (hashN(seed + Double(i)) - 0.5) * 3 * s, t.1, 2.8 * s, mid) }
-        for (i, t) in tips.enumerated() where hashN(seed + Double(i) + 50) < 0.45 { c.circ(t.0, t.1 - 1.6 * s, 1.8 * s, top) }
         c.roundCaps(false)
     }
 
-    /// Beavertail prickly pear: flat blue-grey pads, blushing purple in the cold, dotted with rows of red-brown glochids. No flowers till spring.
-    private func beavertail(_ x: Double, _ base: Double, _ seed: Double) {
-        if x < -24 || x > W + 24 { return }
-        let lit = clampD(1 - dark, 0.3, 1)
-        let padC = Col.mix(Col(0x7a96a0), Col(0x8a7a96), hashN(seed + 4) * 0.45).shade(0.55 + 0.45 * lit)
-        var pads: [(Double, Double, Double, Double)] = []
-        let n = 3 + Int(hashN(seed) * 3)
-        for k in 0..<n {
-            let d = Double(k)
-            let f = d / Double(n - 1) - 0.5
-            let pa: Double = f * 1.3 + (hashN(seed + d + 1) - 0.5) * 0.3
-            let ps: Double = 1.0 + hashN(seed + d + 2) * 0.4
-            pads.append((x + f * 10, base + 0.5, pa, ps))
+    /// Desert ironwood: a stout grey trunk with shaggy bark, heavy grey limbs, a dense blue-grey evergreen crown lit from above.
+    private func ironwood(_ x: Double, _ base: Double, _ seed: Double, _ s: Double = 1) {
+        if x < -55 * s || x > W + 55 * s { return }
+        let k = 1 - dark * 0.45
+        let h = 46 * s * (0.85 + hashN(seed + 1) * 0.3)
+        let bark = Col(0x857e74).shade(k)
+        let y0 = base - h * 0.16
+        var tips: [(Double, Double, Double)] = []
+        var unused: [(Double, Double, Double)] = []
+        for i in 0..<3 {
+            let f = Double(i) - 1
+            bough(x + f * 1.2 * s, y0, -PI / 2 + f * 0.75, h * 0.22, 3 * s, 3, seed + Double(i) * 6.1, bark, 0.48, 0.06, false, &tips)
         }
-        let firstTier = pads
-        for (k, p) in firstTier.enumerated() where hashN(seed + Double(k) + 11) < 0.45 {
-            let L = 11 * p.3
-            let qx: Double = p.0 + sin(p.2) * L
-            let qy: Double = p.1 - cos(p.2) * L + 1
-            let qa: Double = p.2 + (hashN(seed + Double(k) + 12) - 0.5) * 0.9
-            pads.append((qx, qy, qa, p.3 * 0.72))
+        taper(x, base, x, base - h * 0.17, 4.6 * s, 3.6 * s, bark.shade(0.85))
+        for i in 0..<4 {
+            let d = Double(i)
+            c.seg(x - 1.4 * s, base - 1.5 * s - d * 1.6 * s, x + 1.2 * s, base - 2.3 * s - d * 1.6 * s, 0.4 * s, bark.shade(0.65))
         }
-        for p in pads { pad(p.0, p.1, p.2, p.3, padC) }
+        for i in 0..<3 {
+            let f = Double(i) - 1
+            bough(x + f * 1.2 * s, y0, -PI / 2 + f * 0.75, h * 0.22, 3 * s, 3, seed + Double(i) * 6.1, bark, 0.48, 0.06, true, &unused)
+        }
+        let under = Col(0x4a5a52).shade(k)
+        let mid = Col(0x66786c).shade(k)
+        let top = Col(0x84968a).shade(k)
+        let r = h * 0.105
+        for t in tips { c.circ(t.0, t.1 + r * 0.35, r, under) }
+        for (i, t) in tips.enumerated() { c.circ(t.0 - r * 0.2 + (hashN(seed + Double(i)) - 0.5) * r * 0.5, t.1 - r * 0.15, r * 0.8, mid) }
+        for (i, t) in tips.enumerated() where hashN(seed + Double(i) + 50) < 0.6 { c.circ(t.0 - r * 0.35, t.1 - r * 0.5, r * 0.42, top) }
     }
-    private func pad(_ x: Double, _ y: Double, _ a: Double, _ sz: Double, _ col: Col) {
-        let L = 11 * sz, wm = 4.4 * sz
-        var rightSide: [Double] = []
-        var leftSide: [Double] = []
-        for i in 0...10 {
-            let t = Double(i) / 10
-            let sn: Double = sin(PI * (0.1 + 0.85 * t))
-            let hw: Double = wm * pow(sn, 0.7) * (0.6 + 0.4 * t)
-            rightSide += [hw, -t * L]
-            leftSide = [-hw, -t * L] + leftSide
+
+    /// Fremont cottonwood by the river: a pale trunk, big bare limbs in winter, the last gold leaves hanging on.
+    private func cottonwood(_ x: Double, _ base: Double, _ seed: Double) {
+        if x < -60 || x > W + 60 { return }
+        let k = 1 - dark * 0.45
+        let h = 58 + hashN(seed + 7) * 20
+        let bark = Col(0xa39686).shade(k)
+        var tips: [(Double, Double, Double)] = []
+        taper(x, base, x + 1, base - h * 0.3, 5.5, 4.2, bark.shade(0.9))
+        for i in 0..<3 {
+            let f = Double(i) - 1
+            bough(x + 1, base - h * 0.3, -PI / 2 + f * 0.6, h * 0.2, 3.4, 3, seed + Double(i) * 4.1, bark, 0.4, 0, true, &tips)
         }
-        c.save(); c.translate(x, y); c.rotate(a)
-        c.poly(col.shade(0.82), rightSide + leftSide)
-        var inner: [Double] = []
-        for i in 0..<(rightSide.count / 2) { inner += [rightSide[i * 2] * 0.86 - 0.3 * sz, rightSide[i * 2 + 1] * 0.94] }
-        var innerL: [Double] = []
-        for i in 0..<(leftSide.count / 2) { innerL += [leftSide[i * 2] * 0.86 - 0.3 * sz, leftSide[i * 2 + 1] * 0.94] }
-        c.poly(col, inner + innerL)
-        c.ell(-1.2 * sz, -L * 0.62, 1.4 * sz, L * 0.22, Col(0xffffff, 0.1))
-        let gl = Col(0x6a3e2e, 0.85)
-        for r in 0..<5 {
-            let ry = -L * (0.2 + Double(r) * 0.15)
-            for q in -1...1 { c.circ(Double(q) * 1.5 * sz + (r % 2 == 0 ? 0.75 * sz : 0), ry, 0.26 * sz, gl) }
+        let gold = Col(0xd9b23c, 0.8).shade(k)
+        let twig = bark.shade(1.1)
+        for (i, t) in tips.enumerated() {
+            let d = Double(i)
+            for q in 0..<4 {
+                let a = t.2 + (Double(q) / 3 - 0.5) * 1.4
+                c.seg(t.0, t.1, t.0 + cos(a) * h * 0.06, t.1 + sin(a) * h * 0.06, 0.3, twig)
+            }
+            if hashN(seed + d * 3) < 0.45 {
+                for q in 0..<3 {
+                    let e = Double(q)
+                    c.circ(t.0 + (hashN(seed + d + e) - 0.5) * 5, t.1 + (hashN(seed + d + e + 9) - 0.5) * 5, 0.9, gold)
+                }
+            }
         }
-        c.restore()
+    }
+
+    /// Beavertail prickly pear: a low clump, barely ankle high, of blue-grey pads each about the size of a hand. No flowers till spring.
+    private func beavertail(_ x: Double, _ base: Double, _ seed: Double) {
+        if x < -16 || x > W + 16 { return }
+        let lit = clampD(1 - dark, 0.3, 1)
+        let padC = Col.mix(Col(0x7f9c98), Col(0x8c7f9c), hashN(seed + 4) * 0.5).shade(0.55 + 0.45 * lit)
+        let n = 4 + Int(hashN(seed) * 4)
+        let wid = 2.2 + hashN(seed + 7) * 2.2
+        var pads: [(Double, Double, Double, Double)] = []
+        for i in 0..<n {
+            let d = Double(i)
+            let f = d / Double(n - 1) - 0.5
+            let pa: Double = f * 1.7 + (hashN(seed + d + 1) - 0.5) * 0.5
+            let pl: Double = 2.9 + hashN(seed + d + 2) * 0.9
+            pads.append((x + f * wid * 2, base + 0.4, pa, pl))
+        }
+        let ground = pads
+        for (i, p) in ground.enumerated() where hashN(seed + Double(i) + 11) < 0.7 {
+            let qx: Double = p.0 + sin(p.2) * p.3 * 0.9
+            let qy: Double = p.1 - cos(p.2) * p.3 * 0.9
+            let qa: Double = p.2 + (hashN(seed + Double(i) + 12) - 0.5) * 1.2
+            pads.append((qx, qy, qa, p.3 * 0.85))
+        }
+        c.ell(x, base + 0.6, wid + 2, 0.9, Col(0x000000, 0.12))
+        for (i, p) in pads.enumerated() {
+            pad(p.0, p.1, p.2, p.3, padC.shade(0.78), false)
+            pad(p.0 - 0.12, p.1 - 0.1, p.2, p.3 * 0.9, padC.shade(0.95 + Double(i % 3) * 0.05), true)
+        }
+    }
+    /// One pad: egg-shaped, narrow at the joint, with a few red-brown glochid dots.
+    private func pad(_ x: Double, _ y: Double, _ a: Double, _ L: Double, _ col: Col, _ dots: Bool) {
+        let ca = cos(a), sa = sin(a)
+        var right: [Double] = []
+        var left: [Double] = []
+        for i in 0...8 {
+            let t = Double(i) / 8
+            let sn: Double = max(0, sin(PI * (0.12 + 0.88 * t)))
+            let hw: Double = i == 8 ? 0 : L * 0.42 * pow(sn, 0.8) * (0.55 + 0.45 * t)
+            let py: Double = -t * L
+            right += [x + hw * ca - py * sa, y + hw * sa + py * ca]
+            left = [x - hw * ca - py * sa, y - hw * sa + py * ca] + left
+        }
+        c.poly(col, right + left)
+        if !dots { return }
+        let gl = Col(0x6a3e2e, 0.6)
+        for r in 0..<2 {
+            for q in 0..<2 {
+                let px: Double = (Double(q) - 0.5) * L * 0.3
+                let py: Double = -L * (0.38 + Double(r) * 0.26)
+                c.circ(x + px * ca - py * sa, y + px * sa + py * ca, 0.14, gl)
+            }
+        }
     }
 
     /// A desert rock with a lit top.
@@ -2698,7 +2777,8 @@ final class Renderer {
         c.poly(GOLD, star)
         g.text("\(g.cred)", sx + 7, 12, 7, CREAM, align: 1, bold: true)
 
-        var pack = (g.inPast ? "Winter 1026  ·  " : "") + dateText(g.day) + "  " + g.clockText() + "  ·  " + g.areaName(g.area)
+        var pack = (g.inPast ? "Winter 1026" : dateText(g.day)) + "  " + g.clockText() + "  ·  " + g.areaName(g.area)
+        if g.inPast { pack += "  ·  field notes \(g.fieldNotes.count)/17" }
         if g.wood > 0 { pack += "  ·  firewood \(g.wood)" }
         if g.jewelry > 0 { pack += "  ·  pendants \(g.jewelry)" }
         if g.rocks > 0 { pack += "  ·  specimens \(g.rocks)" }
@@ -3776,23 +3856,6 @@ final class Renderer {
         }
     }
 
-    /// A Fremont cottonwood by the river, mostly bare in winter with the last gold leaves hanging on.
-    private func cottonwood(_ x: Double, _ base: Double, _ seed: Double) {
-        if x < -60 || x > W + 60 { return }
-        let bark = Col(0x9a8a78).shade(1 - dark * 0.5)
-        let h = 46 + hashN(seed + 7) * 22
-        c.roundCaps(true)
-        c.seg(x, base, x + 2, base - h * 0.5, 4, bark)
-        for k in 0..<5 {
-            let d = Double(k)
-            let a = -PI / 2 + (d - 2) * 0.42
-            let ex = x + 2 + cos(a) * h * 0.55, ey = base - h * 0.5 + sin(a) * h * 0.55
-            c.seg(x + 2, base - h * 0.5, ex, ey, 1.6, bark)
-            let gold = Col(0xd8b040, 0.85).shade(1 - dark * 0.5)
-            if hashN(seed + d * 3) < 0.7 { c.circ(ex, ey, 2.2, gold); c.circ(ex - 3, ey + 2, 1.6, gold) }
-        }
-        c.roundCaps(false)
-    }
 
     /// A buff-ware pot, painted red in the river people's style.
     private func pot(_ x: Double, _ base: Double, _ s: Double) {

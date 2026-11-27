@@ -207,7 +207,7 @@ final class GameViewController: UIViewController {
             }
             sound.ambience(now, dk, max(0, fire), game.phase == .play && game.weather == 1, game.phase == .play && game.weather == 3)
             if game.phase == .play {
-                let gen = game.genOn && game.rigArea == game.area ? max(0, 1 - abs(game.rigX - game.px) / 320) : 0
+                let gen = game.genOn && game.rigHere ? max(0, 1 - abs(game.rigX - game.px) / 320) : 0
                 var crowdNear = 0.0
                 for e in EVENTS.indices where e != EV_PAN && game.on(e) && EVENTS[e].area == game.area { crowdNear = 1 }
                 if game.area == .main && crowdNear == 0 && dk < 0.6 { crowdNear = 0.3 }
