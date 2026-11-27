@@ -366,6 +366,9 @@ final class Renderer {
         if g.zooShow {
             let zx = g.px - cam
             bisonAntiquus(zx - 100, GY + 2, 1, NOW); glyptodont(zx - 62, GY + 2, 1, NOW); shortFacedBear(zx - 24, GY + 2, 1, NOW)
+            let zy = GY + 20.0
+            hoofed(zx - 104, zy, 1, 0, 0); hoofed(zx - 78, zy, 1, 1, 1); hoofed(zx - 52, zy, 1, 3, 2); burro(zx - 28, zy, 3)
+            coyote(zx + 22, zy, NOW * 2); javelina(zx + 42, zy, NOW * 8); quail(zx + 54, zy, NOW * 6); roadrunner(zx + 70, zy, NOW * 8); jackrabbit(zx + 92, zy, 0.2)
             smilodon(zx + 22, GY + 2, 1.1); hunter(zx + 46, GY + 2, 61, NOW * 5); direWolf(zx + 68, GY + 2, 1.1, NOW); grazer(zx + 100, GY + 2, 1.05, 2, true)
         }
         if g.plantShow {
@@ -3959,24 +3962,35 @@ final class Renderer {
         c.restore()
     }
     /// A dire wolf: a wolf, only heavier in the head and chest.
+    /// Any wild dog, side on: deep chest, tucked waist, legs that fold, a brush of a tail, pricked ears, a pale
+    /// throat and belly. The colours and the proportions make it a coyote or a dire wolf.
+    private func canid(_ x: Double, _ base: Double, _ kx: Double, _ ky: Double, _ ph: Double, _ fur: Col, _ under: Col, _ dk: Col) {
+        let sw = sin(ph * 3)
+        c.save(); c.translate(x, base); c.scale(kx, ky)
+        c.ell(0, 0.3, 9, 0.9, Col(0x000000, 0.16))
+        c.roundCaps(true)
+        for (lx, a) in [(-5.0, -sw), (5.0, sw)] { c.seg(lx, -7, lx + a * 1.6, -3.4, 1.5, dk); c.seg(lx + a * 1.6, -3.4, lx + a * 2.6, -0.3, 1.0, dk) }
+        c.curve(-7.4, -9, -10.6, -8.4, -11.6, -4.6 + sw * 0.6, 2.2, fur); c.circ(-11.6, -4.6 + sw * 0.6, 1, dk)
+        c.ell(-1, -8.6, 6.8, 3, fur); c.ell(4.2, -8.8, 4, 4.2, fur)
+        c.poly(fur, [-7, -10.6, 4, -12.6, 7, -11, 6, -6, -6, -6.4])
+        c.ell(0, -6.4, 5.6, 1.2, under)
+        c.poly(dk.alpha(0.5), [-6, -11.2, 5, -12.8, 5, -11.6, -6, -10.2])
+        for (lx, a) in [(-4.0, sw), (6.0, -sw)] { c.seg(lx, -7, lx + a * 1.6, -3.4, 1.6, fur); c.seg(lx + a * 1.6, -3.4, lx + a * 2.6, -0.3, 1.1, fur.shade(0.9)); c.ell(lx + a * 2.6 + 0.5, -0.3, 1, 0.5, dk) }
+        c.seg(6.4, -10.6, 9.6, -12.4, 3.2, fur)
+        c.poly(under, [6.4, -9, 9.6, -11, 8, -8])
+        c.ell(10.8, -12.8, 2.8, 2.4, fur); c.poly(fur, [12.4, -13.6, 16.2, -12.2, 12.8, -10.9]); c.poly(under, [12.4, -11.8, 15.8, -11.7, 12.6, -10.9])
+        c.circ(16, -12.3, 0.5, INK)
+        c.poly(fur, [9.2, -14.4, 9.4, -17.6, 11, -15]); c.poly(dk, [9.7, -15, 9.8, -16.8, 10.6, -15.2])
+        c.poly(fur, [11, -14.8, 11.8, -17.4, 12.8, -14.6])
+        c.circ(12.4, -13.4, 0.42, Col(0xe8c040)); c.circ(12.5, -13.4, 0.2, INK)
+        c.roundCaps(false)
+        c.restore()
+    }
+    /// A dire wolf: a wolf, only heavier in the head and chest.
     private func direWolf(_ x: Double, _ base: Double, _ s: Double, _ ph: Double) {
         if x < -30 * s || x > W + 30 * s { return }
         let sh = 1 - dark * 0.5
-        let fur = Col(0x7a6c5e).shade(sh), under = Col(0xc8bca8).shade(sh), dk = Col(0x4a4038).shade(sh)
-        let sw = sin(ph * 3)
-        c.save(); c.translate(x, base); c.scale(s * 0.9, s * 1.3)
-        c.roundCaps(true)
-        for (lx, a) in [(-5.0, -sw), (5.0, sw)] { c.seg(lx, -7, lx + a * 1.6, -3.4, 1.5, dk); c.seg(lx + a * 1.6, -3.4, lx + a * 2.6, 0, 1.1, dk) }
-        c.curve(-7.4, -9, -10.6, -8.4, -11.6, -5 + sw * 0.6, 2, fur)
-        c.ell(0, -8.4, 7.6, 3.4, fur); c.ell(4.4, -8.8, 4, 4.2, fur); c.ell(0, -6.6, 6, 1.4, under)
-        for (lx, a) in [(-4.0, sw), (6.0, -sw)] { c.seg(lx, -7, lx + a * 1.6, -3.4, 1.6, fur); c.seg(lx + a * 1.6, -3.4, lx + a * 2.6, 0, 1.2, fur) }
-        c.seg(6.4, -10.6, 10, -12.6, 3.4, fur)
-        c.ell(11, -12.8, 3, 2.5, fur); c.poly(fur, [12.6, -13.6, 16, -12, 12.8, -10.8]); c.circ(15.8, -12.2, 0.5, INK)
-        c.poly(dk, [9.6, -14.6, 9.8, -17.4, 11.2, -15]); c.poly(dk, [11.2, -14.8, 11.8, -17.2, 12.8, -14.6])
-        c.circ(12.4, -13.4, 0.35, Col(0xe8c040)); c.poly(under, [12.4, -11.6, 15.6, -11.6, 12.6, -10.8])
-        for q in 0..<5 { c.seg(2 + Double(q) * 1.2, -11.8, 1.6 + Double(q) * 1.2, -12.8, 0.3, dk) }
-        c.roundCaps(false)
-        c.restore()
+        canid(x, base, s * 0.8, s * 1.02, ph, Col(0x7a6c5e).shade(sh), Col(0xc8bca8).shade(sh), Col(0x4a4038).shade(sh))
     }
     /// A big cat: tawny and spotted for the jaguar, heavier with long teeth for the sabertooth.
     private func cat(_ x: Double, _ base: Double, _ s: Double, _ col: Col, _ saber: Bool, _ spots: Bool, _ drink: Bool) {
@@ -6300,18 +6314,27 @@ final class Renderer {
         }
         ravens()
     }
+    /// A black-tailed jackrabbit: lean, long hind legs, and enormous black-tipped ears.
     private func jackrabbit(_ x: Double, _ base: Double, _ ph: Double) {
         if x < -20 || x > W + 20 { return }
-        let col = Col(0x9a8a72).shade(1 - dark * 0.5)
+        let sh = 1 - dark * 0.5
+        let col = Col(0x9a8a72).shade(sh), pale = Col(0xe8dcc4).shade(sh)
         let hop = abs(sin(ph)) * 5
+        let air = hop > 2
         let y = base - hop
-        c.ell(x, y - 4, 4.4, 2.6, col)
-        c.circ(x - 4, y - 6, 2, col)
-        c.ell(x - 3.6, y - 11, 0.9, 3.6, col); c.ell(x - 5, y - 10.6, 0.9, 3.4, col.shade(0.9))
-        c.ell(x - 3.6, y - 11, 0.4, 2.4, Col(0xd8a0a0, 0.6))
-        c.circ(x + 4.2, y - 4.6, 1.1, Col(0xf2ede4))
-        c.seg(x + 2, y - 2, x + 4 + (hop > 2 ? 3 : 0), y, 0.9, col.shade(0.85))
-        c.circ(x - 4.8, y - 6.4, 0.4, INK)
+        c.roundCaps(true)
+        // hind leg folded when sitting, stretched back in the air
+        if air { c.seg(x + 2.4, y - 3, x + 7, y - 1, 1.3, col.shade(0.86)); c.seg(x + 7, y - 1, x + 9.6, y - 0.4, 0.8, col.shade(0.86)) }
+        else { c.ell(x + 2.6, y - 2.4, 2.6, 2.2, col.shade(0.9)); c.seg(x + 2, y - 0.5, x + 5.4, y - 0.4, 1, col.shade(0.86)) }
+        c.ell(x, y - 4, 4.6, 2.5, col); c.ell(x, y - 2.8, 3.4, 1, pale)
+        c.seg(x - 2.6, y - 3, x - 3.4 - (air ? 2 : 0), y - 0.4 + (air ? -0.6 : 0), 0.8, col.shade(0.9))
+        c.ell(x - 4.4, y - 6.2, 2.1, 1.7, col); c.ell(x - 6, y - 5.6, 1, 0.8, pale)
+        c.ell(x - 3.4, y - 11.2, 0.95, 4, col); c.ell(x - 3.4, y - 11, 0.42, 2.8, Col(0xd8a0a0, 0.7))
+        c.ell(x - 4.9, y - 10.8, 0.95, 3.8, col.shade(0.88))
+        c.circ(x - 3.4, y - 14.8, 0.75, INK); c.circ(x - 4.9, y - 14.2, 0.7, INK)
+        c.circ(x - 5, y - 6.6, 0.55, Col(0x3a2a1e)); c.circ(x - 5.1, y - 6.7, 0.2, Col(0xf4f0e4)); c.circ(x - 6.8, y - 5.6, 0.25, INK)
+        c.circ(x + 4.4, y - 4.6, 1.1, pale); c.circ(x + 4.6, y - 5.1, 0.6, INK)
+        c.roundCaps(false)
     }
     // MARK: a thousand years ago
 
@@ -6441,37 +6464,54 @@ final class Renderer {
     }
 
     /// Hoofed animals: kind 0 pronghorn, 1 bighorn, 2 mule deer doe, 3 mule deer buck.
+    /// Pronghorn (0), desert bighorn (1), a horse (2) or a mule deer buck (3), drawn to the animal.
     private func hoofed(_ x: Double, _ base: Double, _ s: Double, _ kind: Int, _ ph: Double) {
         if x < -30 || x > W + 30 { return }
-        let tones: [Col] = [Col(0xc08a50), Col(0x9a8064), Col(0x8a7a6a), Col(0x8a7a6a)]
-        let cc = tones[kind].shade(1 - dark * 0.5)
-        let belly = Col(0xf0e8dc).shade(1 - dark * 0.5)
-        let sw = sin(NOW * 1.6 + ph) * s
+        if kind == 2 { grazer(x, base, s * 0.84, ph, false); return }
+        let sh = 1 - dark * 0.5
+        let coat = [Col(0xc08a50), Col(0x9a8064), Col(0x8a7a6a), Col(0x8f7c66)][kind].shade(sh)
+        let dk = coat.shade(0.66)
+        let white = Col(0xf2ece0).shade(sh)
+        let heavy = kind == 1
+        let sw = sin(NOW * 1.6 + ph)
+        c.save(); c.translate(x, base); c.scale(s, s)
+        c.ell(0, 0.3, 9, 0.9, Col(0x000000, 0.16))
         c.roundCaps(true)
-        let legs: [(Double, Double)] = [(-5, sw), (-3, -sw), (4, -sw), (6, sw)]
-        for (lx, s0) in legs { c.seg(x + lx * s, base - 9 * s, x + lx * s + s0, base, 1.1 * s, cc.shade(0.8)) }
-        c.ell(x, base - 11 * s, 8 * s, 3.6 * s, cc)
-        c.ell(x, base - 9.2 * s, 6 * s, 1.5 * s, kind == 0 ? belly : cc.shade(1.1))
-        c.ell(x - 7 * s, base - 11 * s, 2 * s, 2.4 * s, belly)
+        func leg(_ lx: Double, _ a: Double, _ col: Col) {
+            c.seg(lx, -8.6, lx + a * 1.1, -4.2, heavy ? 1.7 : 1.3, col); c.seg(lx + a * 1.1, -4.2, lx + a * 2, -0.6, heavy ? 1.1 : 0.8, col); c.R(lx + a * 2 - 0.6, -0.9, 1.2, 0.9, Col(0x1c1612))
+        }
+        leg(-5, -sw, dk); leg(4.6, sw, dk)
+        c.ell(-0.4, -10.8, 7.2, heavy ? 4 : 3.4, coat); c.ell(4.2, -11, 3.6, heavy ? 4.4 : 3.8, coat); c.ell(-5, -10.8, 3.4, 3.6, coat)
+        c.ell(0, -8.8, 5.6, 1.3, kind == 0 ? white : coat.shade(1.14))
+        c.ell(-7.6, -11, 1.9, 2.6, white)
+        if kind == 3 { c.seg(-8.2, -11.6, -8.8, -8.6, 0.8, white); c.circ(-8.8, -8.4, 0.6, INK) } else { c.seg(-8, -11.6, -8.8, -9.6, 0.7, dk) }
+        leg(-3.6, sw, coat); leg(6, -sw, coat)
         let graze = sin(NOW * 0.5 + ph) > 0.4
-        let hx = x + 9 * s
-        let hy = graze ? base - 4 * s : base - 18 * s
-        c.seg(x + 6 * s, base - 12 * s, hx, hy, 2.4 * s, cc)
-        c.ell(hx + 1.6 * s, hy + 0.4 * s, 2.6 * s, 1.5 * s, cc.shade(0.95))
+        let nx0 = 6.2, ny0 = -12.4
+        let hx = graze ? 10.6 : 9.4, hy = graze ? -2.6 : -18.4
+        c.curve(nx0, ny0, nx0 + 2, (ny0 + hy) / 2, hx, hy, heavy ? 3 : 2.3, coat)
+        if kind == 0 { c.poly(white, [nx0 + 1, ny0 - 1.4, nx0 + 2.6, ny0 - 3.4, nx0 + 2.4, ny0 - 0.6]); c.poly(white, [nx0 + 1.6, ny0 - 3.8, nx0 + 3, ny0 - 5.4, nx0 + 3, ny0 - 3]) }
+        let dip = graze ? 1.0 : 1.5
+        c.seg(hx, hy, hx + 2.8, hy + dip, heavy ? 2.3 : 1.9, coat)
+        c.circ(hx + 3.2, hy + dip + 0.1, 0.85, kind == 1 || kind == 3 ? white : dk)
+        c.circ(hx + 3.7, hy + dip, 0.35, INK)
+        c.circ(hx + 1.0, hy - 0.2, 0.36, INK)
         if kind == 0 {
-            c.seg(hx, hy - 1 * s, hx - 0.4 * s, hy - 5 * s, 0.8 * s, INK)
-            c.R(hx - 2.2 * s, hy + 2 * s, 1.4 * s, 2 * s, belly)
+            c.curve(hx - 0.2, hy - 1, hx - 0.8, hy - 4, hx + 0.6, hy - 5.6, 0.7, INK); c.seg(hx - 0.5, hy - 3.2, hx + 0.9, hy - 3.9, 0.55, INK)
+            c.poly(coat.shade(0.84), [hx - 1.4, hy - 0.8, hx - 2, hy - 3, hx - 0.6, hy - 1.2])
+            c.poly(INK, [hx + 0.2, hy + 0.6, hx + 1.6, hy + 1.6, hx + 0.2, hy + 1.8])
         } else if kind == 1 {
-            c.ellStroke(hx - 1 * s, hy - 0.4 * s, 2.4 * s, 2.4 * s, 1.1 * s, Col(0xc8b898).shade(1 - dark * 0.5))
+            let horn = Col(0xc8b898).shade(sh)
+            c.arcStroke(hx - 1.2, hy - 0.4, 2.7, PI * 0.25, PI * 1.9, 1.5, horn)
+            for q in 0..<5 { let a2 = PI * 0.4 + Double(q) * 0.42; c.seg(hx - 1.2 + cos(a2) * 2, hy - 0.4 + sin(a2) * 2, hx - 1.2 + cos(a2) * 3.4, hy - 0.4 + sin(a2) * 3.4, 0.2, horn.shade(0.7)) }
         } else {
-            c.ell(hx - 1.4 * s, hy - 2.6 * s, 0.9 * s, 2 * s, cc.shade(0.9))
-            if kind == 3 {
-                let ant = Col(0xd8c8a8)
-                c.seg(hx, hy - 1.6 * s, hx - 2 * s, hy - 6 * s, 0.6 * s, ant)
-                c.seg(hx - 1.2 * s, hy - 4 * s, hx + 1 * s, hy - 6.4 * s, 0.6 * s, ant)
-            }
+            let ant = Col(0xd8c8a8).shade(sh)
+            c.poly(coat.shade(0.84), [hx - 1.6, hy - 0.6, hx - 3.4, hy - 3.4, hx - 0.8, hy - 1.6])
+            c.curve(hx - 0.2, hy - 1.2, hx - 2.4, hy - 5, hx - 0.4, hy - 8, 0.6, ant)
+            c.seg(hx - 1.5, hy - 4.4, hx + 0.8, hy - 6, 0.5, ant); c.seg(hx - 1.2, hy - 6.4, hx + 1.4, hy - 8.4, 0.45, ant); c.seg(hx - 1, hy - 2.6, hx + 1.2, hy - 3.6, 0.45, ant)
         }
         c.roundCaps(false)
+        c.restore()
     }
 
     /// A big bird riding the air: the condor shows white under its wings and a bare head.
@@ -6687,60 +6727,90 @@ final class Renderer {
             c.seg(x - 4, y - f, x, y, 0.8, INK); c.seg(x, y, x + 4, y - f, 0.8, INK)
         }
     }
+    /// A wild burro: grey with a pale muzzle and belly, long dark-tipped ears, a stiff upright mane, the dark cross
+    /// over the shoulders, a tufted tail.
     private func burro(_ x: Double, _ base: Double, _ ph: Double) {
         if x < -20 || x > W + 20 { return }
-        let col = Col(0x8a7a6a).shade(1 - dark * 0.5)
-        let sw = sin(NOW * 2 + ph) * 1.2
+        let sh = 1 - dark * 0.5
+        let coat = Col(0x8a7c6e).shade(sh), dk = Col(0x4a4038).shade(sh), pale = Col(0xe8e0d4).shade(sh)
+        let sw = sin(NOW * 2 + ph)
+        c.save(); c.translate(x, base)
+        c.ell(0, 0.3, 8, 0.9, Col(0x000000, 0.16))
         c.roundCaps(true)
-        for (lx, s0) in [(-4.0, sw), (-2.0, -sw), (3.0, -sw), (5.0, sw)] { c.seg(x + lx, base - 6, x + lx + s0, base, 1, col.shade(0.8)) }
-        c.ell(x, base - 8, 6.4, 3, col)
+        func leg(_ lx: Double, _ a: Double, _ col: Col) {
+            c.seg(lx, -6.4, lx + a * 0.9, -3.2, 1.5, col); c.seg(lx + a * 0.9, -3.2, lx + a * 1.6, -0.6, 1.0, col); c.R(lx + a * 1.6 - 0.6, -0.9, 1.2, 0.9, Col(0x1c1612))
+        }
+        leg(-4.2, -sw, coat.shade(0.74)); leg(3.6, sw, coat.shade(0.74))
+        c.curve(-6.4, -9, -8, -6.6, -7.4 + sw * 0.4, -3.6, 0.7, dk); c.circ(-7.4 + sw * 0.4, -3.2, 0.7, dk)
+        c.ell(0, -8.2, 6.4, 3.2, coat); c.ell(3.6, -8.4, 3.2, 3.6, coat); c.ell(-4, -8.2, 3, 3.2, coat)
+        c.ell(0, -6.2, 5, 1.2, pale)
+        c.R(-5, -11.3, 8.4, 0.4, dk); c.R(2.8, -11, 0.5, 3.4, dk)
+        leg(-3, sw, coat); leg(4.8, -sw, coat)
         let graze = sin(NOW * 0.6 + ph) > 0.3
-        let hx = x + 7, hy = graze ? base - 3 : base - 11
-        c.seg(x + 4.4, base - 9, hx, hy, 2.2, col)
-        c.ell(hx + 1, hy, 2.4, 1.4, col.shade(0.95)); c.circ(hx + 2.8, hy + 0.4, 0.9, Col(0xe8e0d4))
-        c.seg(hx - 0.4, hy - 1, hx - 1.2, hy - 4.4, 0.7, col.shade(0.9)); c.seg(hx + 0.4, hy - 1, hx + 0.6, hy - 4.6, 0.7, col.shade(0.9))
-        c.seg(x - 6.4, base - 8.6, x - 7.6, base - 5, 0.6, col.shade(0.7))
+        let hx = graze ? 8.6 : 7.4, hy = graze ? -2.4 : -13
+        c.curve(5, -9.6, 6.6, (hy - 9.6) / 2, hx, hy, 2.6, coat)
+        if !graze { for q in 0..<5 { c.seg(5 + Double(q) * 0.5, -11 - Double(q) * 0.5, 4.6 + Double(q) * 0.5, -12.2 - Double(q) * 0.5, 0.4, dk) } }
+        c.seg(hx, hy, hx + 2.8, hy + 1.3, 2.2, coat); c.circ(hx + 3.2, hy + 1.5, 1.05, pale); c.circ(hx + 3.8, hy + 1.4, 0.3, INK)
+        c.circ(hx + 0.9, hy - 0.2, 0.6, pale); c.circ(hx + 0.9, hy - 0.2, 0.32, INK)
+        c.seg(hx - 0.6, hy - 0.8, hx - 1.6, hy - 4.6, 0.9, coat); c.seg(hx + 0.2, hy - 0.9, hx + 0.4, hy - 4.8, 0.9, coat.shade(0.9))
+        c.circ(hx - 1.6, hy - 4.6, 0.45, dk); c.circ(hx + 0.4, hy - 4.8, 0.45, dk)
         c.roundCaps(false)
-        c.R(x - 4, base - 10.8, 7, 0.6, col.shade(0.6))
+        c.restore()
     }
+    /// A javelina: bristly, salt-and-pepper, a pale collar over the shoulders, a big wedge of a head.
     private func javelina(_ x: Double, _ base: Double, _ ph: Double) {
         if x < -12 || x > W + 12 { return }
-        let col = Col(0x3e3632).shade(1 - dark * 0.3)
+        let sh = 1 - dark * 0.4
+        let col = Col(0x443c36).shade(sh), dk = Col(0x2a2420).shade(sh)
         let sw = sin(ph) * 0.8
-        c.seg(x - 2, base - 2.4, x - 2 + sw, base, 0.8, col); c.seg(x + 2, base - 2.4, x + 2 - sw, base, 0.8, col)
-        c.ell(x, base - 3.6, 4, 2.2, col)
-        c.poly(col, [x - 3.6, base - 3, x - 6, base - 2.6, x - 3.4, base - 1.6])
-        c.R(x - 1.6, base - 5.6, 3.6, 0.6, Col(0xb8b0a4, 0.7))
-        c.circ(x - 5.6, base - 2.7, 0.4, Col(0x1a1614))
+        c.roundCaps(true)
+        for (lx, a) in [(-1.6, sw), (2.4, -sw), (-2.6, -sw), (1.4, sw)] { c.seg(x + lx, base - 2.6, x + lx + a, base - 0.2, 0.75, dk) }
+        c.ell(x + 0.4, base - 3.9, 4.2, 2.4, col)
+        for q in 0..<9 { c.seg(x - 2.6 + Double(q) * 0.8, base - 5.8, x - 2.2 + Double(q) * 0.8, base - 6.8, 0.25, dk) }
+        c.seg(x - 1.4, base - 5.8, x - 2.4, base - 2.2, 0.6, Col(0xc8c0b0, 0.75))
+        c.poly(col, [x - 2.6, base - 5.6, x - 6.8, base - 3.2, x - 6.6, base - 2.2, x - 2.8, base - 2])
+        c.circ(x - 6.7, base - 2.7, 0.55, Col(0x8a6a5e)); c.circ(x - 4.6, base - 4.1, 0.3, Col(0x1a1614))
+        c.poly(dk, [x - 3.4, base - 5.4, x - 3.2, base - 6.6, x - 2.4, base - 5.6])
+        c.seg(x - 5.6, base - 2.4, x - 5.4, base - 1.7, 0.25, Col(0xf0e8d8))
+        c.roundCaps(false)
     }
+    /// Gambel's quail: plump, grey, a chestnut cap, a black face edged in white, and the forward-curling topknot.
     private func quail(_ x: Double, _ base: Double, _ ph: Double) {
         if x < -6 || x > W + 6 { return }
-        let col = Col(0x7a7a84).shade(1 - dark * 0.3)
-        c.ell(x, base - 2 - abs(sin(ph)) * 0.6, 2, 1.5, col)
-        c.circ(x + 1.6, base - 3.4, 0.9, col.shade(0.8))
-        c.seg(x + 1.6, base - 4.2, x + 2.4, base - 5.6, 0.4, INK)
+        let sh = 1 - dark * 0.4
+        let grey = Col(0x7a7e88).shade(sh)
+        let y = base - abs(sin(ph)) * 0.6
+        c.seg(x - 0.4, y - 1, x - 0.4 + sin(ph) * 0.6, base, 0.3, Col(0x4a4a4a)); c.seg(x + 0.4, y - 1, x + 0.4 - sin(ph) * 0.6, base, 0.3, Col(0x4a4a4a))
+        c.ell(x, y - 2.2, 2.3, 1.7, grey); c.poly(grey, [x - 2, y - 2.6, x - 3.6, y - 1.6, x - 1.6, y - 1.2])
+        c.ell(x + 0.4, y - 1.5, 1.4, 0.9, Col(0xe8dcb8).shade(sh)); c.ell(x + 0.3, y - 1.3, 0.6, 0.4, Col(0x2a2420))
+        for q in 0..<3 { c.seg(x - 1.4 + Double(q) * 0.8, y - 2.4, x - 0.8 + Double(q) * 0.8, y - 1.8, 0.2, Col(0x9a6a3a).shade(sh)) }
+        c.circ(x + 1.7, y - 3.7, 1.0, Col(0x2a2420)); c.arcStroke(x + 1.7, y - 3.7, 1.0, PI * 0.9, PI * 2.1, 0.22, Col(0xf4f0e4)); c.dome(x + 1.6, y - 3.9, 0.95, Col(0x8a4a2a).shade(sh))
+        c.poly(Col(0x3a3430), [x + 2.6, y - 3.8, x + 3.3, y - 3.5, x + 2.6, y - 3.3])
+        c.curve(x + 1.7, y - 4.8, x + 2, y - 6.2, x + 2.9, y - 5.8, 0.35, INK); c.circ(x + 2.9, y - 5.8, 0.4, INK)
     }
+    /// A roadrunner at a run: long body held level, a long tail for a rudder, a shaggy crest, streaked brown and buff.
     private func roadrunner(_ x: Double, _ base: Double, _ ph: Double) {
-        if x < -10 || x > W + 10 { return }
-        let col = Col(0x6a5a4a)
-        let sw = sin(ph) * 1.6
-        c.seg(x, base - 3, x + sw, base, 0.5, Col(0x4a4a4a)); c.seg(x, base - 3, x - sw, base, 0.5, Col(0x4a4a4a))
-        c.ell(x, base - 4, 3, 1.4, col)
-        c.seg(x - 2.4, base - 4.4, x - 8, base - 6.4, 1, col)
-        c.circ(x + 3, base - 5.4, 1.1, col)
-        c.seg(x + 3.6, base - 5.4, x + 6, base - 5.2, 0.4, INK)
-        c.seg(x + 2.6, base - 6.2, x + 1.6, base - 7.6, 0.6, col.shade(0.7))
+        if x < -12 || x > W + 12 { return }
+        let sh = 1 - dark * 0.4
+        let col = Col(0x6a5a4a).shade(sh), buff = Col(0xd8c8a4).shade(sh)
+        let sw = sin(ph) * 1.8
+        c.roundCaps(true)
+        c.seg(x - 0.4, base - 3, x + sw, base - 0.2, 0.45, Col(0x5a6a7a)); c.seg(x + 0.4, base - 3, x - sw, base - 0.2, 0.45, Col(0x5a6a7a))
+        c.seg(x + sw, base - 0.2, x + sw + 1, base - 0.1, 0.35, Col(0x5a6a7a)); c.seg(x - sw, base - 0.2, x - sw + 1, base - 0.1, 0.35, Col(0x5a6a7a))
+        c.seg(x - 2.6, base - 4.4, x - 9.6, base - 6.2 + sin(ph * 0.5) * 0.6, 1.2, col); c.seg(x - 6, base - 5.2, x - 10, base - 6.4 + sin(ph * 0.5) * 0.6, 0.5, buff)
+        c.ell(x, base - 4.2, 3.4, 1.6, col); c.ell(x + 0.6, base - 3.6, 2.6, 0.9, buff)
+        for q in 0..<5 { c.seg(x - 2 + Double(q) * 0.9, base - 4.9, x - 1.5 + Double(q) * 0.9, base - 3.9, 0.22, buff) }
+        c.seg(x + 2.4, base - 4.6, x + 3.6, base - 5.8, 1.5, col)
+        c.ell(x + 4, base - 6, 1.3, 1.05, col)
+        c.seg(x + 5, base - 6, x + 7.4, base - 5.7, 0.45, Col(0x2a2420))
+        for q in 0..<4 { c.seg(x + 3.4 + Double(q) * 0.3, base - 6.8, x + 2.4 + Double(q) * 0.3, base - 8.2 + Double(q) * 0.2, 0.3, Col(0x3a2e26)) }
+        c.circ(x + 4.4, base - 6.2, 0.36, Col(0xf0d060)); c.circ(x + 4.45, base - 6.2, 0.18, INK); c.seg(x + 3.6, base - 6, x + 2.8, base - 5.8, 0.3, Col(0xd8684a))
+        c.roundCaps(false)
     }
     private func coyote(_ x: Double, _ base: Double, _ ph: Double) {
         if x < -16 || x > W + 16 { return }
-        let col = Col(0x7a6a52).shade(0.6)
-        let sw = sin(ph) * 1.4
-        for (lx, s0) in [(-4.0, sw), (-2.4, -sw), (3.0, -sw), (4.6, sw)] { c.seg(x + lx, base - 5, x + lx + s0, base, 0.8, col) }
-        c.ell(x, base - 6.4, 5.4, 2.2, col)
-        c.seg(x - 5, base - 6.8, x - 9, base - 4.8, 1.2, col)
-        c.poly(col, [x + 4.4, base - 7.6, x + 9, base - 7, x + 5, base - 5.4])
-        c.poly(col, [x + 5, base - 7.6, x + 5.6, base - 10, x + 6.4, base - 7.6])
-        c.circ(x + 6.6, base - 7.2, 0.5, Col(0xffe080, 0.9))
+        let sh = 1 - dark * 0.5
+        canid(x, base, 0.6, 0.66, ph / 3, Col(0xa88a62).shade(sh), Col(0xe0d0b0).shade(sh), Col(0x5a4634).shade(sh))
     }
 
     // MARK: cinematics
