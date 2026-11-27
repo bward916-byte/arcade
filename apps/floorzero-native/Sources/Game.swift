@@ -777,8 +777,8 @@ final class Game {
                 h.atkStyle = st
             }
             h.crit = -1
-            if h.chain != 3 && sw <= 1 && chance(0.1) { h.crit = Int.random(in: 0..<5); h.atkStyle = [4, 9, 1, 5, 7][h.crit] }
-            if h.chain != 3 && sw > 1 && chance(0.1) { h.crit = sw == 4 ? 3 : (sw == 5 ? 4 : Int.random(in: 0..<3)); h.atkStyle = [4, 9, 1, 5, 7][h.crit] }
+            if h.chain != 3 && sw <= 1 && nearest(210) != nil && chance(0.1) { h.crit = Int.random(in: 0..<5); h.atkStyle = [4, 9, 1, 5, 7][h.crit] }
+            if h.chain != 3 && sw > 1 && nearest(210) != nil && chance(0.1) { h.crit = sw == 4 ? 3 : (sw == 5 ? 4 : Int.random(in: 0..<3)); h.atkStyle = [4, 9, 1, 5, 7][h.crit] }
             h.atkT = 0
             h.atkHit = false
             if mv == 0 && sw != 2 && sw != 3, let z = nearest(190) { h.face = z.x >= h.x ? 1 : -1 }
