@@ -49,7 +49,7 @@ jobs:
       - name: Screenshots in the simulator
         if: steps.archive.outcome == 'success'
         continue-on-error: true
-        timeout-minutes: 15
+        timeout-minutes: 35
         run: |
           set -o pipefail
           mkdir -p "$RUNNER_TEMP/shots"
@@ -73,6 +73,7 @@ jobs:
           # the same screens on the smallest phone and on an iPad, where an iPhone app runs in its compatibility window
           for dev in "iPhone SE" "iPad"; do
             D=$(xcrun simctl list devices available | grep -E "^ +$dev" | head -1 | grep -oE "[0-9A-F-]{36}" || true)
+            if [ -z "$D" ] && [ "$dev" = "iPhone SE" ]; then D=$(xcrun simctl create se3 com.apple.CoreSimulator.SimDeviceType.iPhone-SE-3rd-generation 2>/dev/null || true); fi
             tag=$(echo "$dev" | tr -d ' ' | tr 'A-Z' 'a-z')
             echo "$dev simulator: $D"
             [ -z "$D" ] && continue
