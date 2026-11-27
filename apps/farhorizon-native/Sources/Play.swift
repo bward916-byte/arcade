@@ -128,6 +128,15 @@ extension Game {
                 p.starsShown += 1
                 snd?.coin()
                 buzz?(false)
+                // each star lands with a burst; the third brings the confetti
+                let stx = W / 2 + Double(p.starsShown - 2) * 50
+                puff(stx, H * 0.47, 12, Col(0xffe08a), 200, 260, 2.6, 0.6)
+                if p.starsShown == 3 {
+                    p.flash = 0.3
+                    snd?.good()
+                    let cols = [Col(0xff6a5a), Col(0x7fd88a), Col(0x6ab8ff), Col(0xffe08a), Col(0xf2a0ff)]
+                    for j in 0..<10 { puff(W * (0.25 + 0.055 * Double(j)), H * 0.3, 5, cols[j % 5], 260, 420, 3, 1.1) }
+                }
             }
         }
         // the sea keeps moving behind the game
@@ -210,7 +219,7 @@ extension Game {
         guard let p = play, p.endT < 0 else { return }
         if p.intro { p.intro = false; snd?.click(); return }
         let (qx, qy) = helpSpot()
-        if abs(x - qx) < 24 && abs(y - qy) < 24 { p.intro = true; p.introT = 0; snd?.click(); return }
+        if qx + 16 <= W - safeR && abs(x - qx) < 24 && abs(y - qy) < 24 { p.intro = true; p.introT = 0; snd?.click(); return }
         let (sx, wy, len) = shipSpot()
         switch p.kind {
         case .timing:
@@ -472,6 +481,20 @@ extension Game {
             c.poly(WHITE, [mx - 9, y - 14, mx + 9, y - 14, mx, y - 4])
             c.textS(p.endT < 0 ? (p.streak >= 2 ? "\(p.streak) in a row! Keep it going" : "Tap when the marker is in the middle") : "", W / 2, y + h + 22, 13, p.streak >= 2 ? Col(0xfff2a0) : CREAM, 0, FONTI)
         case .taps:
+            if p.theme == "shark" {
+                // the raft they are circling, and the man on it
+                let (_, wy0, _) = shipSpot()
+                let rx = W * 0.79, ry = (wy0 + H - safeB - 40) / 2 + sin(T * 1.6) * 3
+                c.ellStroke(rx, ry + 8, 46, 6, 1.2, Col(0xffffff, 0.5))
+                for j in 0..<5 { c.RR(rx - 34, ry - 6 + Double(j) * 3.4, 68, 3.4, 1.5, j % 2 == 0 ? Col(0x8a6238) : Col(0x6b4a26)) }
+                c.seg(rx - 20, ry - 6, rx - 20, ry + 11, 1.4, Col(0x3a2412)); c.seg(rx + 20, ry - 6, rx + 20, ry + 11, 1.4, Col(0x3a2412))
+                c.seg(rx + 26, ry - 6, rx + 26, ry - 40, 1.6, Col(0x5a3d20))
+                c.poly(Col(0xe8e0c8), [rx + 26, ry - 40, rx + 26, ry - 26, rx + 42 + sin(T * 5) * 3, ry - 33])
+                let wave = 2.4 + sin(T * 9) * 0.5
+                c.save(); c.translate(rx - 6, ry - 6); c.scale(1.8, 1.8)
+                tar(c, 0, 0, Col(0x9a9080), 1, aL: wave, aR: 0.4)
+                c.restore()
+            }
             for tg in p.targets {
                 if tg.state == 0 {
                     let k = clampD(tg.age / tg.life, 0, 1)
