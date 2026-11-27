@@ -3465,7 +3465,7 @@ final class Renderer {
     private func hoofprints() {
         let life = g.bio == .snow ? 14.0 : 4.0
         for p in g.prints where vis(p.x, 10) {
-            let a = max(0, 1 - p.age / life), x = sx(p.x)
+            let a = clampD(1 - p.age / life, 0, 1), x = sx(p.x)
             let col = g.bio == .snow ? Col(0x6f82a8, 0.85 * a) : Col(0x5a3e26, 0.45 * a)
             c.ell(x, gy + 3, 2.6, 1.1, col); c.ell(x + p.dir * 5, gy + 5.5, 2.6, 1.1, col)
             if g.bio == .snow { c.ell(x, gy + 2.4, 2.6, 0.5, Col(0xffffff, 0.7 * a)); c.ell(x + p.dir * 5, gy + 4.9, 2.6, 0.5, Col(0xffffff, 0.7 * a)) }

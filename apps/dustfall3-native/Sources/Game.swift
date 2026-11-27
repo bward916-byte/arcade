@@ -1233,7 +1233,7 @@ final class Game {
         // standing at the unopened trade, drifters at the camp beside it: the coin should go to the trade
         if name.hasPrefix("mist") { px = -300; pdir = -1; demoT = 0.13; t = 0.13; noStory = true; hintT = 0 }
         if name.hasPrefix("ferry") { sig.level = 1; px = sig.x - 36; pdir = 1; demoT = 0.4; noStory = true; hintT = 0 }
-        if name.hasPrefix("cold") { px = -300; pdir = 1; demoT = 0.4; noStory = true; hintT = 0; for k in 0..<9 { prints.append((px - 8 - Double(k) * 10, 1, Double(k))) } }
+        if name.hasPrefix("cold") { px = -300; pdir = 1; demoT = 0.4; noStory = true; hintT = 0; for k in 0..<9 { prints.append((px - 8 - Double(k) * 10, 1, Double(k) * 0.4 - 8)) } }
         if name.hasPrefix("lv") { demoT = 0.4 }
         if name.hasPrefix("buy") { px = sig.cx; pdir = 1; coins = 20; noStory = true; hintT = 0 }
         if ["finale", "finale2", "gone"].contains(name) {
