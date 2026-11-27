@@ -455,11 +455,13 @@ final class Game {
     var inPast: Bool { return era == 1 }
     var fieldNotes: Set<Int> = []
     var flashT = 0.0
+    var credSeen = -1, credPopT = 0.0, credPopN = 0
     // the contest score: cred earned in one season, so a late start or a long life is no advantage
     var seasonStartCred = 0
     var bestSeason = 0
     var seasonBegan = 0.0
     var rulesOpen = false
+    var mapBig = false
     // looking around: any place, any event, without touching the saved game or the contest score
     var previewing = false
     var previewOpen = false
@@ -811,12 +813,19 @@ final class Game {
                 if id == 64 { testWeek(); return }
                 #endif
                 if id == 85 { timeTravel(); return }
+                if id == 55 { mapBig.toggle(); events.append(3); return }
+                if id == 54 { backToCamp(); events.append(3); return }
                 if id >= 70 && id < 70 + AREAS.count { go(Area(rawValue: id - 70) ?? area) } else if id == 61 || id < 0 { mapOpen = false }
                 events.append(3)
                 return
             }
-            if id == 50 { toggleRig() }
-            if id == 51 { toggleToy() }
+            if id == 50 { shown.insert("rigUsed"); toggleRig() }
+            if id == 51 { shown.insert("toyUsed"); toggleToy() }
+            if id == 53, let b = spots.firstIndex(where: { $0.kind == .board && abs($0.x - px) < 60 }) {
+                _ = b
+                refund(); shown.insert("boardUsed"); boardOpen = true; events.append(3)
+                return
+            }
             if id == 60 { openMap() }
             if id == 52 { openBrowse() }
             if id == 63 { muted = !muted }
@@ -969,6 +978,19 @@ final class Game {
         mapMsg = "Test: skipped to " + dateText(day)
         mapMsgT = 2.5
         if seasonCard { mapOpen = false }
+    }
+
+    /// Straight home: to the place your rig is parked, and to its door.
+    private func backToCamp() {
+        if inPast || inRig { return }
+        if rigArea != area {
+            go(rigArea)
+            if area != rigArea { return }
+        } else {
+            mapOpen = false
+        }
+        if !onToy { px = clampD(rigX - 40, 30, WORLD - 30) } else { px = clampD(rigX - 70, 30, WORLD - 30); toyX = px }
+        cam = clampD(px - W / ZOOM / 2, 0, max(0, WORLD - W / ZOOM))
     }
 
     private func go(_ to: Area) {
@@ -1689,6 +1711,17 @@ final class Game {
             }
         case .outhouse:
             health = min(100, health + 6)
+            // once in a long while somebody has left something behind
+            if Double.random(in: 0..<1) < 0.04 && !seen.contains(38) {
+                seen.insert(38)
+                let finds: [(String, Double, Int)] = [("A gold ring on the shelf! Worth 120 coins", 120, 3), ("A silver belt buckle somebody forgot. 60 coins", 60, 2), ("A wallet with 40 coins. You keep the cash and hand the cards to the host", 40, 4), ("A pocket knife with a turquoise handle. 45 coins", 45, 2)]
+                let f = finds[Int.random(in: 0..<finds.count)]
+                money += f.1; cred += f.2
+                hintT = 0
+                hint("privy\(day)", f.0 + ".")
+                float("A rare find!", x, GOLD)
+                events.append(5)
+            }
             float("Relief", x, GREEN)
         case .board:
             if o.label.hasPrefix("Read") {
@@ -1949,7 +1982,9 @@ final class Game {
     private func refund() {
         if ringPaid > 0.5 {
             money += ringPaid
-            float("\(Int(ringPaid.rounded())) back", px, GOLD)
+            float("Let go early: your \(Int(ringPaid.rounded())) coins came back", px, GOLD)
+            hintT = 0
+            hint("holdfull", "Keep holding HOLD until the ring closes all the way. Letting go early gives your coins back.")
             events.append(2)
         }
         ringPaid = 0
@@ -1974,6 +2009,12 @@ final class Game {
         if hintT > 0 && !overlay { hintT -= dt }
         if arriveT > 0 && !overlay { arriveT -= dt }
         if flashT > 0 { flashT -= dt }
+        if credPopT > 0 { credPopT -= dt }
+        if phase == .play {
+            if credSeen < 0 || previewing { credSeen = cred }
+            if cred > credSeen { credPopN = credPopT > 0 ? credPopN + cred - credSeen : cred - credSeen; credPopT = 1.6; events.append(11) }
+            credSeen = cred
+        }
         if phase == .play && driving { driveStep(dt) }
         if phase == .play && !overlay { play(dt) }
     }

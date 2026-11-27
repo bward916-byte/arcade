@@ -140,11 +140,11 @@ final class Sound {
         }
         if now > windT {
             windT = now + (windy ? 1.6 : 3.5) + Double.random(in: 0..<2)
-            noise(windy ? 3.2 : 2.6, windy ? 0.07 : 0.025, Double.random(in: 280..<620), 0.7)
+            noise(windy ? 2.2 : 1.8, windy ? 0.028 : 0.009, Double.random(in: 420..<900), 0.7)
         }
         if fire > 0.05 && now > crackleT {
-            crackleT = now + Double.random(in: 0.05..<0.25)
-            noise(0.02, 0.06 * fire * (0.5 + dark * 0.5), Double.random(in: 1800..<4200), 3)
+            crackleT = now + Double.random(in: 0.18..<0.7)
+            noise(0.02, 0.024 * fire * (0.5 + dark * 0.5), Double.random(in: 1800..<4200), 3)
         }
         if now > critterT {
             critterT = now + Double.random(in: 9..<20)

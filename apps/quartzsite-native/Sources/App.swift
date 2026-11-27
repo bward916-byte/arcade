@@ -246,6 +246,7 @@ final class GameViewController: UIViewController {
             case 6: sound.spend()
             case 7: sound.dawn()
             case 8: sound.season()
+            case 11: tapDone.notificationOccurred(.success); sound.done()
             case 9: submitScore()
             case 10: showBoard()
             default: break
