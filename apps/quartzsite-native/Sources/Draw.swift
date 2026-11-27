@@ -2931,7 +2931,7 @@ final class Renderer {
 
     private func ring(_ i: Int) {
         let x = g.spots[i].x - cam
-        let y = GY - 68.0
+        let y = GY - (g.spots[i].kind == .gemworld ? 82.0 : 68.0)
         guard let o = g.offer(i) else {
             g.text(g.note(i), x, y + 8, 5, CREAM.alpha(0.9))
             return
