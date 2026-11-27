@@ -3807,15 +3807,16 @@ final class Renderer {
         g.hits.append(Hit(id: -2, x: 0, y: 0, w: W, h: H))
         let x0 = g.safeL + 10, x1 = W - g.safeR - 10, y0 = 5.0, y1 = H - 5
         let w = x1 - x0
-        c.RR(x0, y0, w, y1 - y0, 5, Col(0x21140f))
-        g.text("SILLY AL'S", x0 + 9, y0 + 8.4, 7, GOLD, align: 1, bold: true)
-        g.text("order off the chalkboard  ·  tap the pool table for a game  ·  tap the floor to step back out", x1 - 9, y0 + 8.4, 3.4, CREAM.alpha(0.8), align: 2)
         // the room is drawn big: a low ceiling, so people fill it
         let RW = 118.0
         let S = min((w - 6) / RW, (y1 - y0 - 20) / 46.5)
         let ox = x0 + (w - RW * S) / 2, oy = y1 - 4 - 12 * S
         func sx(_ u: Double) -> Double { return ox + u * S }
         func sy(_ v: Double) -> Double { return oy + v * S }
+        let pt = sy(-34) - 14
+        c.RR(x0, pt, w, y1 - pt, 5, Col(0x21140f))
+        g.text("SILLY AL'S", x0 + 9, pt + 7.4, 7, GOLD, align: 1, bold: true)
+        g.text("order off the chalkboard  ·  tap the pool table for a game  ·  tap the floor to step back out", x1 - 9, pt + 7.4, 3.4, CREAM.alpha(0.8), align: 2)
         g.hits.append(Hit(id: 62, x: ox, y: sy(-34), w: RW * S, h: 34 * S))
         c.save()
         c.translate(ox, oy)
@@ -3915,7 +3916,6 @@ final class Renderer {
         // a booth: red vinyl benches, a checked cloth, a pie and a pitcher
         c.RR(50.4, -13, 4.4, 13, 1, Col(0x8a2e1e)); c.R(51, -12, 0.3, 10, Col(0x6a1e12)); c.R(53.2, -12, 0.3, 10, Col(0x6a1e12))
         c.RR(71.2, -13, 4.4, 13, 1, Col(0x8a2e1e)); c.R(72, -12, 0.3, 10, Col(0x6a1e12)); c.R(74.2, -12, 0.3, 10, Col(0x6a1e12))
-        seated(55.4, -5.4, 622, 0.4)
         c.R(62.4, -7.6, 1.2, 7.6, Col(0x5a5a5a)); c.R(56, -8.8, 14, 1, woodL)
         for q in 0..<7 { c.R(56 + Double(q) * 2, -8.8, 1, 2.6, q % 2 == 0 ? Col(0xc8281e) : Col(0xf4f4f0)); c.R(57 + Double(q) * 2, -8.8, 1, 2.6, q % 2 == 0 ? Col(0xf4f4f0) : Col(0xc8281e)) }
         c.ell(62.4, -9.2, 3.6, 0.7, Col(0xc8c8cc)); c.ell(62.4, -9.5, 3.2, 0.6, Col(0xe0a84a)); for q in 0..<4 { c.circ(60.6 + Double(q) * 1.2, -9.6, 0.3, Col(0xa82a1e)) }
@@ -3953,7 +3953,6 @@ final class Renderer {
         c.poly(Col(0x000000, 0.22), [0, -34, 10, -34, 0, -20]); c.poly(Col(0x000000, 0.22), [RW, -34, RW - 10, -34, RW, -20])
         c.restore()
         // words and taps, in screen space
-        g.text("PIZZA · COLD BEER", sx(21), sy(-29.9), 1.3 * S, Col(0xff8a9a), bold: true)
         g.text("TODAY", sx(63), sy(-27.6), 1.5 * S, Col(0xf2e8c8), bold: true)
         let menu: [(String, String)] = [("Pizza", "10"), ("Big salad", "8"), ("Cold beer", "5")]
         for q in 0..<3 {
@@ -4777,6 +4776,12 @@ final class Renderer {
         let roof = y0 + 60, floor = y0 + 114
         c.save()
         c.RR(x0, y0, w, h, 10, Col(0x3a2e26))
+        // look close: the drift fills the frame, you and your lantern in the middle of it
+        c.clipRect(x0 + 2, y0 + 2, w - 4, h - 4)
+        let mz = 1.7
+        c.translate(x0 + w * 0.4, y0 + h - 30)
+        c.scale(mz, mz)
+        c.translate(-(x0 + w * 0.4), -floor)
         // the hill in cross-section: layered rock above and below the drift
         let strata = [Col(0x5a4636), Col(0x4e3c2e), Col(0x645040), Col(0x4a3a2c)]
         for k in 0..<5 {
@@ -4830,7 +4835,7 @@ final class Renderer {
             c.seg(px - 2, floor - 12, px - 12, floor - 3, 0.8, Col(0x3a3a3e))
             c.ell(px - 14, floor - 2.4, 5, 1.4, Col(0x2a2a2e))
             let beep = sin(NOW * 14) > 0
-            if beep { g.text("beep", px - 14, floor - 12, 3.2, GOLD, bold: true) }
+            if beep { g.text("beep", x0 + w * 0.4 + (px - 14 - x0 - w * 0.4) * mz, y0 + h - 30 - 12 * mz, 4, GOLD, bold: true) }
             c.circ(px - 20, floor - 1.6, 1.4, GOLD)
         default:
             for k in 0..<5 {
@@ -4843,7 +4848,7 @@ final class Renderer {
         c.restore()
         c.RR(x0 + 10, y0 + h - 24, w - 20, 18, 4, Col(0x000000, 0.65))
         g.text(g.mineText, W / 2, y0 + h - 15, 4.4, CREAM, bold: true, wrap: w - 30)
-        g.text("THE GOLD EYE", x0 + w / 2, y0 + 11, 5.4, Col(0x3a2414), bold: true)
+        g.text("IN THE OLD MINE", x0 + w / 2, y0 + 11, 5, CREAM, bold: true, plate: true)
         g.text("tap anywhere to walk back out", W / 2, y0 + h + 6, 3.4, CREAM.alpha(0.7))
     }
 

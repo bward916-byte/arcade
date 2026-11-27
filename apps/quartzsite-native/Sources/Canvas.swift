@@ -33,6 +33,7 @@ final class Canvas {
 
     func clear(_ w: Double, _ h: Double) { cg.clear(CGRect(x: 0, y: 0, width: w, height: h)) }
     func save() { cg.saveGState() }
+    func clipRect(_ x: Double, _ y: Double, _ w: Double, _ h: Double) { cg.clip(to: CGRect(x: x, y: y, width: w, height: h)) }
     func restore() { cg.restoreGState() }
     func translate(_ x: Double, _ y: Double) { cg.translateBy(x: CGFloat(x), y: CGFloat(y)) }
     func scale(_ x: Double, _ y: Double) { cg.scaleBy(x: CGFloat(x), y: CGFloat(y)) }
