@@ -63,7 +63,7 @@ jobs:
           xcrun simctl boot "$UDID"
           xcrun simctl bootstatus "$UDID" -b
           xcrun simctl install "$UDID" "$APP"
-          for shot in title pick ltva night party coffee main mainwest maineast mainnight gemfront gemworld food computer board tyson gem booth haggle rvshow dome minein skoolie tour river trail scaddan qfest hijolly plomosa crystal palms desertbar intaglios past pastriver map phone goals drive season; do
+          for shot in gem mainwest cine0; do
             xcrun simctl terminate "$UDID" com.brianward.quartzsitewinter 2>/dev/null || true
             if [ "$shot" = title ]; then
               xcrun simctl launch "$UDID" com.brianward.quartzsitewinter
@@ -74,7 +74,7 @@ jobs:
             xcrun simctl io "$UDID" screenshot "$RUNNER_TEMP/shots/$shot.png"
           done
           # the same screens squeezed to an iPhone SE's shape, where layouts are tightest
-          for shot in pick title previews rules map ltva main phone gemworld goals season tyson; do
+          for shot in pick gemworld; do
             xcrun simctl terminate "$UDID" com.brianward.quartzsitewinter 2>/dev/null || true
             if [ "$shot" = title ]; then
               xcrun simctl launch "$UDID" com.brianward.quartzsitewinter -se

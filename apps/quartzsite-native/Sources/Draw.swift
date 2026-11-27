@@ -2922,7 +2922,7 @@ final class Renderer {
         let x = g.spots[i].x - cam
         let y = GY - (g.spots[i].kind == .gemworld ? 82.0 : 68.0)
         guard let o = g.offer(i) else {
-            g.text(g.note(i), x, y + 8, 5, CREAM.alpha(0.9))
+            g.text(g.note(i), x, y, 5, CREAM, plate: true)
             return
         }
         let r = 11.0
@@ -2936,8 +2936,8 @@ final class Renderer {
         let label = o.earn > 0 ? "+\(o.earn)" : "\(o.cost)"
         let short = Double(o.cost) > g.money + g.ringPaid
         g.text(label, x, y, label.count > 4 ? 5.6 : 7, short ? REDC : (o.earn > 0 ? GREEN : CREAM), bold: true)
-        g.text(o.label, x, y + 18, 5, CREAM)
-        if g.ringProg <= 0 { g.text("hold", x, y - 17, 4, CREAM.alpha(0.6 + 0.3 * sin(NOW * 4))) }
+        // the words sit above the ring on a dark plate, clear of shop signs and place names below
+        g.text(o.label, x, y - 19, 5, CREAM, plate: true)
     }
 
     private func hud() {
