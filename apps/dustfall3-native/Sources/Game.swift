@@ -2081,18 +2081,11 @@ final class Game {
             if tr.chuff <= 0 { tr.chuff = 1; sfx?.chuff(1); smoke(tr.x + 16) }
             train = tr
             if tripT > 2.6 && !choosing {
-                // the first town is free; the rest of the line is asked for here
-                if town == 0 && !unlocked {
-                    if !payAsk {
-                        payAsk = true
-                        if !seen.contains("st_locked") { seen.insert("st_locked"); cut = STORY["locked"] ?? [] }
-                    }
-                    return
-                }
                 // straight on if there is only one way, or stop at the fork and ask
                 if lastTown { tripT = -1; fade = 0; train = Train(x: STOP, v: 0); ticket.live = false; return }
-                let opts = stageOf(town + 1)
-                if opts.count < 2 { arrive(opts[0]) } else { choosing = true }
+                // the map comes up with the next town on it to tap; past the first town the line is asked for there
+                if town == 0 && !unlocked && !seen.contains("st_locked") { seen.insert("st_locked"); cut = STORY["locked"] ?? [] }
+                choosing = true
             }
             return
         }
@@ -2210,7 +2203,7 @@ final class Game {
     func payDone() { unlocked = true; payAsk = false }
     /// Not now: back on the platform with the ticket money, and the train waiting.
     func payLater() {
-        payAsk = false; tripT = -1; fade = 0
+        payAsk = false; choosing = false; tripT = -1; fade = 0
         coins += ticket.cost
         train = Train(x: STOP, v: 0); ticket.paid = 0; ticket.live = true
         hint("paylater", "You step back down with your ticket money. The train will wait: Dustfall is yours to keep building.", again: true)

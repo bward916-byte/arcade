@@ -62,6 +62,7 @@ final class GameViewController: UIViewController {
     private let introCard = UIView()
     private let burnLogo = BurnLogoView()
     private var logoOn = false
+    private var payKey: String?      // the town tapped on the map while the line is still locked
     private var wasIntro = false
     private var cardSeen = false
     private var nameSeen = 0
@@ -550,7 +551,7 @@ final class GameViewController: UIViewController {
             demoDone = true
             let args = ProcessInfo.processInfo.arguments
             for name in ["day", "night", "train", "snow", "storm", "map", "duel", "coach", "west", "west2", "fire", "yard", "over", "lv0", "lv1", "lv2", "lv3", "lv4", "sig1", "sig2", "sig3", "sig4", "mist1", "mist2", "ferry1", "cold4", "buy1", "finale", "finale2", "gone", "wild0", "wild1", "wild2", "wild3", "wild4", "lv5", "lv6", "lv7", "fort", "post", "mission", "gate0", "march", "rout", "rally", "see0", "see1", "see2", "see3", "see4", "see5", "see6", "see7", "see8", "see9"] where args.contains("-demo-" + name) { demoMode = true; game.demo(name) }
-            if args.contains("-demo-map") { showMap(choose: false) }
+            if args.contains("-demo-map") { showMap(choose: true) }
             if args.contains("-demo-intro") { game.beginIntro() }
             if args.contains("-demo-pay") { demoMode = true; game.demo("day"); showPay() }
             if args.contains("-demo-plain") { demoMode = true; game.demo("day"); plainInfo = true }
@@ -812,6 +813,7 @@ final class GameViewController: UIViewController {
         game.unlocked = true
         sheetBox.isHidden = true; payOpen = false
         if game.payAsk { game.payDone() }
+        if game.choosing, let key = payKey { payKey = nil; mapBox.isHidden = true; mapChoose = false; game.arrive(key) }
         last = 0
     }
     @objc private func payFree() { shop.grant(true); payFinish() }
@@ -836,7 +838,7 @@ final class GameViewController: UIViewController {
     }
     @objc private func payLater() {
         sheetBox.isHidden = true; payOpen = false
-        if game.payAsk { game.payLater() }
+        if game.payAsk || game.choosing { payKey = nil; mapBox.isHidden = true; mapChoose = false; game.payLater() }
         last = 0
     }
 
@@ -1248,7 +1250,7 @@ final class GameViewController: UIViewController {
         put(rose)
         // the title block's lettering
         let head = UILabel(frame: CGRect(x: cart.minX + 6, y: cart.minY + 4, width: cart.width - 12, height: 21))
-        head.text = choose ? "The line forks. Where to?" : "The Territory"
+        head.text = choose ? "Next stop" : "The Territory"
         head.font = rye(17); head.textColor = rust; head.textAlignment = .center
         head.adjustsFontSizeToFitWidth = true; head.minimumScaleFactor = 0.6
         mapBox.addSubview(head)
@@ -1290,7 +1292,7 @@ final class GameViewController: UIViewController {
             }
             let b = UIButton(type: .custom)
             b.frame = plates[i]
-            let second = hereNow ? "Here, day \(game.day - game.day0)" : (been ? "Rebuilt" : pl.land)
+            let second = hereNow ? "Here, day \(game.day - game.day0)" : (been ? "Rebuilt" : (pick ? "Tap to ride on" : pl.land))
             let ps = NSMutableParagraphStyle()
             ps.alignment = .center
             let at = NSMutableAttributedString(string: nice(pl.name), attributes: [.font: rye(14), .foregroundColor: hereNow ? rust : ink, .paragraphStyle: ps])
@@ -1301,6 +1303,7 @@ final class GameViewController: UIViewController {
             b.titleLabel?.layer.shadowColor = paper.cgColor
             b.titleLabel?.layer.shadowOffset = .zero; b.titleLabel?.layer.shadowRadius = 2; b.titleLabel?.layer.shadowOpacity = 1
             b.isUserInteractionEnabled = pick
+            if pick { b.backgroundColor = gold; b.layer.cornerRadius = 8; b.layer.borderWidth = 2; b.layer.borderColor = ink.cgColor; b.titleLabel?.layer.shadowOpacity = 0 }
             b.accessibilityIdentifier = key
             b.addTarget(self, action: #selector(pickPlace(_:)), for: .touchUpInside)
             mapBox.addSubview(b)
@@ -1313,7 +1316,7 @@ final class GameViewController: UIViewController {
             mapBox.addSubview(back)
         } else {
             let ft = UILabel(frame: CGRect(x: 0, y: bh - 40, width: bw, height: 24))
-            ft.text = "You step off with \(game.carryOut()) coins either way."
+            ft.text = "Tap \(nice(PLACES[STAGES[nxt][0]]?.name ?? "the next town")) to ride on. You step off with \(game.carryOut()) coins."
             ft.font = serif(13); ft.textColor = ink; ft.textAlignment = .center
             mapBox.addSubview(ft)
         }
@@ -1324,6 +1327,8 @@ final class GameViewController: UIViewController {
     @objc private func closeMap() { mapBox.isHidden = true }
     @objc private func pickPlace(_ b: UIButton) {
         guard mapChoose, let key = b.accessibilityIdentifier else { return }
+        // the first town is free; the rest of the line is asked for here, at the map
+        if game.town == 0 && !game.unlocked { payKey = key; showPay(); return }
         mapBox.isHidden = true
         mapChoose = false
         game.arrive(key)
@@ -1386,7 +1391,7 @@ final class GameViewController: UIViewController {
             if st != .play { logoOn = false; burnLogo.reset() }
             else if !userPaused && game.cut.isEmpty && !burnLogo.step(min(0.05, max(0, raw))) { logoOn = false; burnLogo.reset() }
         }
-        if game.choosing && mapBox.isHidden { showMap(choose: true) }
+        if game.choosing && mapBox.isHidden && game.cut.isEmpty && !payOpen { showMap(choose: true) }
         if game.over && overBox.isHidden {
             UserDefaults.standard.removeObject(forKey: saveKey)
             overText.text = "They caught you without a coin to your name. You lasted \(game.day) \(game.day > 1 ? "days" : "day")."
