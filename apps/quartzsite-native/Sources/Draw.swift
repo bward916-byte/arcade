@@ -2658,7 +2658,7 @@ final class Renderer {
         }
         if label && !near {
             let nm = sp.kind == .fire && g.phase == .play ? { let n = g.neighbor(sp.x > 1400 ? 2 : 4).0; return (n + (n.hasSuffix("s") ? "' FIRE" : "'S FIRE")).uppercased() }() : sp.name
-            g.text(nm, x, GY - top, 5, CREAM.alpha(0.8), bold: true)
+            g.text(nm.capitalized, x, GY - top - 2, 3.8, CREAM, bold: true, plate: true)
         }
     }
 
@@ -3183,6 +3183,41 @@ final class Renderer {
         }
         var lo = pts[0], hi = pts[0]
         for i in 0..<n { lo = min(lo, pts[i * 2]); hi = max(hi, pts[i * 2]) }
+        // rock texture: gullies running down from the crest, ledges and banding across the faces, scree at the foot
+        func crest(_ x: Double) -> Double {
+            for i in 0..<(n - 1) {
+                let ax = pts[i * 2], bx = pts[i * 2 + 2]
+                if x >= ax && x <= bx && bx > ax { return pts[i * 2 + 1] + (pts[i * 2 + 3] - pts[i * 2 + 1]) * (x - ax) / (bx - ax) }
+            }
+            return GY
+        }
+        if hi - lo > 40 && hi > 0 && lo < W {
+            let cnt = Int((hi - lo) / 9)
+            for k in 0..<cnt {
+                let d = Double(k)
+                let x = lo + (d + hashN(d + lo * 0.01 + 8600)) * (hi - lo) / Double(cnt)
+                if x < -10 || x > W + 10 { continue }
+                let top = crest(x)
+                let room = GY - top
+                if room < 6 { continue }
+                let hk = hashN(d * 1.9 + lo * 0.013 + 8610)
+                if hk < 0.4 {
+                    let lean = (hashN(d + 8620) - 0.5) * 8
+                    c.seg(x, top + 1.5, x + lean, top + room * (0.35 + hk), 0.4, col.shade(0.76))
+                    c.seg(x + 0.8, top + 2, x + lean + 0.8, top + room * (0.3 + hk), 0.25, col.shade(1.16))
+                } else if hk < 0.75 {
+                    let y = top + room * (0.2 + hashN(d + 8630) * 0.65)
+                    let len = 5 + hashN(d + 8640) * 12
+                    c.seg(x - len / 2, y, x + len / 2, y + (hashN(d + 8650) - 0.5) * 1.6, 0.5, col.shade(0.8))
+                    c.seg(x - len / 2, y - 0.6, x + len / 2, y - 0.6 + (hashN(d + 8650) - 0.5) * 1.6, 0.25, col.shade(1.18))
+                } else {
+                    let y = GY - hashN(d + 8660) * min(room * 0.3, 8)
+                    let r = 1 + hashN(d + 8670) * 2.2
+                    c.poly(col.shade(0.72), [x - r, y + r * 0.5, x - r * 0.5, y - r * 0.6, x + r * 0.5, y - r * 0.7, x + r, y + r * 0.5])
+                    c.poly(col.shade(1.2), [x - r * 0.5, y - r * 0.6, x + r * 0.5, y - r * 0.7, x, y])
+                }
+            }
+        }
         let haze = Col(0xe6c8a0).shade(1 - dark * 0.6)
         c.vfill(lo, GY - 22, hi - lo, 23, [(0, haze.alpha(0)), (1, haze.alpha(0.42))])
     }
@@ -3768,53 +3803,168 @@ final class Renderer {
     private func alsOverlay() {
         g.hits.removeAll(keepingCapacity: true)
         g.texts.removeAll(keepingCapacity: true)
-        c.R(0, 0, W, H, Col(0x0c0a08, 0.6))
+        c.R(0, 0, W, H, Col(0x0c0a08, 0.7))
         g.hits.append(Hit(id: -2, x: 0, y: 0, w: W, h: H))
-        let x0 = g.safeL + 16, x1 = W - g.safeR - 16, y0 = 8.0, y1 = H - 8
+        let x0 = g.safeL + 10, x1 = W - g.safeR - 10, y0 = 5.0, y1 = H - 5
         let w = x1 - x0
-        c.RR(x0, y0, w, y1 - y0, 6, Col(0x4a2e22))
-        let fl = y1 - 30
-        c.R(x0, fl, w, 30, Col(0x6a4a34)); for q in 0..<12 { c.R(x0 + Double(q) * w / 12, fl, 0.6, 30, Col(0x4a3222)) }
-        for q in 0..<14 { c.R(x0 + Double(q) * w / 14, y0 + 22, 0.6, fl - y0 - 22, Col(0x3a221a)) }
-        g.text("SILLY AL'S", x0 + 12, y0 + 11, 8, GOLD, align: 1, bold: true)
-        g.text("order at the bar  ·  tap the pool table for a game  ·  tap the floor to step back out", x1 - 12, y0 + 11, 3.8, CREAM.alpha(0.8), align: 2)
-        // the bar: back shelf of bottles, a neon sign, stools, the regulars
-        let bx = x0 + 14, bw = w * 0.42
-        c.R(bx, y0 + 30, bw, 22, Col(0x2a1a14))
-        let glass: [Col] = [Col(0x8ad0a0), Col(0xd8a850), Col(0xb86a4a), Col(0x8ab0e0), Col(0xe8e0c0)]
-        for r in 0..<2 { c.R(bx + 2, y0 + 39 + Double(r) * 10, bw - 4, 0.8, Col(0x8a6238)); for q in 0..<Int(bw / 5) { c.RR(bx + 4 + Double(q) * 5, y0 + 32.4 + Double(r) * 10, 2.2, 6.4, 0.8, glass[(q + r) % 5]) } }
-        c.RR(bx + bw * 0.3, y0 + 23, bw * 0.4, 6, 3, Col(0xff5a6a, 0.25 + 0.1 * sin(NOW * 3)))
-        g.text("PIZZA · COLD BEER", bx + bw * 0.5, y0 + 26, 3.6, Col(0xff8a9a), bold: true)
-        person(bx + bw * 0.72, fl - 14, 640, -1, 0, false)
-        c.R(bx - 2, fl - 26, bw + 4, 3, Col(0xb8742e)); c.R(bx, fl - 23, bw, 23, Col(0x7a4a2a))
+        c.RR(x0, y0, w, y1 - y0, 5, Col(0x21140f))
+        g.text("SILLY AL'S", x0 + 9, y0 + 8.4, 7, GOLD, align: 1, bold: true)
+        g.text("order off the chalkboard  ·  tap the pool table for a game  ·  tap the floor to step back out", x1 - 9, y0 + 8.4, 3.4, CREAM.alpha(0.8), align: 2)
+        // the room is drawn big: a low ceiling, so people fill it
+        let RW = 118.0
+        let S = min((w - 6) / RW, (y1 - y0 - 20) / 46.5)
+        let ox = x0 + (w - RW * S) / 2, oy = y1 - 4 - 12 * S
+        func sx(_ u: Double) -> Double { return ox + u * S }
+        func sy(_ v: Double) -> Double { return oy + v * S }
+        g.hits.append(Hit(id: 62, x: ox, y: sy(-34), w: RW * S, h: 34 * S))
+        c.save()
+        c.translate(ox, oy)
+        c.scale(S, S)
+        let woodD = Col(0x4a2a1a), woodM = Col(0x7a4a2a), woodL = Col(0xb8742e), brass = Col(0xd8b048)
+        // plaster wall, stained and patched, over dark plank wainscot
+        c.R(0, -34, RW, 34, Col(0xd6b676))
+        for q in 0..<90 {
+            let d = Double(q)
+            c.R(hashN(d + 9601) * RW, -31 + hashN(d + 9602) * 17, 0.3 + hashN(d + 9603) * 1.4, 0.2, Col(0xbf9e5e, 0.7))
+        }
+        c.ell(60, -27, 9, 2.4, Col(0xc8a868, 0.6)); c.ell(20, -19, 6, 3, Col(0xdcc088, 0.5))
+        c.R(0, -13, RW, 13, Col(0x6a3e26))
+        var pl = 0.0
+        while pl < RW { c.R(pl, -13, 0.2, 13, woodD); c.R(pl + 1.2, -13 + hashN(pl) * 9, 0.15, 2.4, Col(0x5a321e)); pl += 2.6 }
+        c.R(0, -13.7, RW, 0.9, Col(0x8a5a36)); c.R(0, -0.9, RW, 0.9, Col(0x3a2418))
+        // a low ceiling: stained drop tiles between dark beams
+        c.R(0, -34, RW, 3, Col(0xe4dccb))
+        var tl = 0.0
+        while tl < RW { c.R(tl, -34, 0.15, 3, Col(0xb4ac9c)); tl += 5 }
+        c.ell(44, -32.6, 4, 0.8, Col(0xc8b48a, 0.8)); c.ell(97, -32.4, 3, 0.7, Col(0xc8b48a, 0.8))
+        c.R(0, -31.2, RW, 0.6, woodD)
+        for q in 0..<5 { c.R(8 + Double(q) * 25, -34, 1.8, 3.6, Col(0x5a3a26)) }
+        // red and cream checkerboard tile, scuffed
+        c.R(0, 0, RW, 12, Col(0xe6dcc8))
+        let rows: [(Double, Double, Double)] = [(0, 2.6, 4), (2.6, 3.8, 5.2), (6.4, 5.6, 6.8)]
+        for (r, row) in rows.enumerated() {
+            var tx = -Double(r) * 1.4
+            var k = r
+            while tx < RW { if k % 2 == 0 { c.R(max(0, tx), row.0, min(row.2, RW - max(0, tx)), row.1, Col(0xa63a2c)) }; tx += row.2; k += 1 }
+        }
+        for q in 0..<14 { c.ell(hashN(Double(q) + 9611) * RW, 1 + hashN(Double(q) + 9612) * 10, 2.4, 0.5, Col(0x3a2418, 0.12)) }
+        // a string of pennants and a row of old licence plates up under the ceiling
+        for q in 0..<24 {
+            let u = 2 + Double(q) * 3.5
+            if u > 84 { break }
+            c.poly([Col(0xc8281e), Col(0xf2c418), Col(0x2e5a9a), Col(0x3a8a4a)][q % 4], [u, -30.6, u + 2.6, -30.6, u + 1.3, -28.4 + sin(Double(q)) * 0.3])
+        }
+        // ---- the bar ----
+        // back bar: carved shelves around a spotted mirror, bottles two deep, a register, a TV with the game on
+        c.R(3, -28, 36, 15, woodD); c.R(3, -28.8, 36, 1, woodL)
+        c.R(4.4, -27, 33.2, 12.4, Col(0x9ab0b4)); c.poly(Col(0xffffff, 0.25), [8, -27, 14, -27, 8, -14.6, 4.4, -14.6])
+        for q in 0..<7 { c.circ(6 + hashN(Double(q) + 9620) * 30, -26 + hashN(Double(q) + 9621) * 10, 0.3, Col(0x6a7a7c, 0.6)) }
+        let glassC: [Col] = [Col(0x4a9a6a), Col(0xd8a850), Col(0xb86a4a), Col(0x6a90d0), Col(0xe8e0c0), Col(0x7a3a2a)]
+        for r in 0..<2 {
+            let sv = -21.4 + Double(r) * 6.4
+            c.R(4.4, sv, 33.2, 0.6, woodL)
+            for q in 0..<16 {
+                let bu = 5.4 + Double(q) * 2
+                let bh = 3 + hashN(Double(q + r * 20) + 9630) * 1.6
+                c.RR(bu, sv - bh, 1.3, bh, 0.4, glassC[(q * 3 + r) % 6]); c.R(bu + 0.4, sv - bh - 0.9, 0.5, 1, glassC[(q * 3 + r) % 6].shade(0.8))
+                c.R(bu + 0.15, sv - bh * 0.6, 1, 1, Col(0xf4f0e0, 0.8))
+            }
+        }
+        c.R(3, -13.6, 36, 0.8, woodL)
+        // the TV
+        c.RR(41, -30, 11, 7.4, 0.6, Col(0x141414)); c.R(41.6, -29.4, 9.8, 6.2, Col(0x3a8a4a))
+        c.R(46.4, -29.4, 0.2, 6.2, Col(0xffffff, 0.6)); c.circ(46.5 + sin(NOW * 1.3) * 3.4, -26.4 + cos(NOW * 1.9) * 1.6, 0.4, Col(0xffffff))
+        c.R(41.6, -24, 9.8, 0.8, Col(0x1a2a5a)); c.R(46, -22.6, 1, 1.2, Col(0x2a2a2a))
+        // the bartender, behind the counter
+        person(25, -0.4, 640, -1, 0, false)
+        c.seg(21.4, -13.4, 19, -12.2, 1.2, Col(0xe8e0d0))
+        // the counter: thick wood top, padded rail, panelled front, brass foot rail
+        c.R(2.4, -12.4, 45.2, 1.3, woodL); c.R(2.4, -12.4, 45.2, 0.35, Col(0xd89848)); c.RR(2, -11.3, 46, 1.2, 0.6, Col(0x5a1e16))
+        c.R(3.4, -10.1, 43.6, 10.1, woodM)
+        for q in 0..<6 { c.RR(4.4 + Double(q) * 7.2, -9, 6, 7, 0.5, Col(0x6a3e22)); c.RR(5.2 + Double(q) * 7.2, -8.2, 4.4, 5.4, 0.4, woodM) }
+        c.R(3.4, -1.9, 43.6, 0.45, brass); for q in 0..<5 { c.R(6 + Double(q) * 9.6, -1.9, 0.4, 1.9, brass) }
+        // on the bar: a tap tower, glasses, a pizza on a stand, shakers, a tip jar
+        c.R(31.2, -16.4, 3.6, 1, Col(0xc8c8cc)); c.R(32.6, -15.4, 0.8, 3, Col(0xa8a8ac))
+        for q in 0..<3 { c.R(31.5 + Double(q) * 1.1, -18.6, 0.6, 2.3, [Col(0xc8281e), Col(0xf2c418), Col(0x2e5a9a)][q]) }
+        for q in 0..<4 { c.poly(Col(0xf0d890, 0.9), [36 + Double(q) * 2.2, -12.4, 36.3 + Double(q) * 2.2, -15, 37.5 + Double(q) * 2.2, -15, 37.8 + Double(q) * 2.2, -12.4]); c.R(36.3 + Double(q) * 2.2, -15.4, 1.2, 0.5, Col(0xffffff)) }
+        c.R(11.6, -13.6, 0.5, 1.2, Col(0xc8c8cc)); c.ell(11.8, -13.8, 4.2, 0.8, Col(0xc8c8cc)); c.ell(11.8, -14.2, 3.8, 0.7, Col(0xe0a84a)); for q in 0..<5 { c.circ(9.4 + Double(q) * 1.2, -14.3, 0.3, Col(0xa82a1e)) }
+        c.RR(17, -14.4, 0.9, 2, 0.3, Col(0xf4f4f0)); c.RR(18.2, -14.4, 0.9, 2, 0.3, Col(0xa83a2c)); c.RR(4.4, -15, 1.8, 2.6, 0.4, Col(0xc8e0e8, 0.8)); c.R(4.8, -13.6, 1, 1, Col(0x5a8a4a))
+        // stools and the regulars
         for q in 0..<5 {
-            let sx = bx + 10 + Double(q) * (bw - 20) / 4
-            c.R(sx - 0.6, fl - 12, 1.2, 12, Col(0x8a8f96)); c.ell(sx, fl - 12.6, 4, 1.4, Col(0x8a2e1e))
-            if q % 2 == 0 { seated(sx, fl - 13, 610 + q, 0.3) }
+            let u = 7.5 + Double(q) * 9
+            c.R(u - 0.3, -7.2, 0.6, 7.2, Col(0x9a9ea4)); c.ell(u, -0.2, 2.2, 0.5, Col(0x6a6e74)); c.R(u - 1.4, -3, 2.8, 0.3, Col(0x9a9ea4))
+            c.RR(u - 2.2, -8.2, 4.4, 1.3, 0.6, Col(0x8a2e1e)); c.R(u - 2.2, -7.2, 4.4, 0.3, brass)
+            if q == 0 || q == 2 || q == 3 { seated(u, -8.4, 610 + q, 0.3) }
         }
-        // the back room: a green felt table under a hanging lamp
-        let tx = x0 + w * 0.56, tw = w * 0.36, ty = fl - 22
-        c.R(tx + tw * 0.5 - 0.4, y0 + 22, 0.8, 16, Col(0x2a2a2e)); c.poly(Col(0x2f6a3a), [tx + tw * 0.5 - 12, y0 + 44, tx + tw * 0.5 - 6, y0 + 38, tx + tw * 0.5 + 6, y0 + 38, tx + tw * 0.5 + 12, y0 + 44])
-        c.glow(tx + tw * 0.5, ty + 2, tw * 0.6, Col(0xffe8b0, 0.3), Col(0xffe8b0, 0))
-        c.RR(tx, ty, tw, 13, 2, Col(0x5a3a22)); c.RR(tx + 2.4, ty + 2, tw - 4.8, 8.6, 1, Col(0x2f8a4a))
-        c.R(tx + 5, ty + 13, 3, 9, Col(0x4a2e1a)); c.R(tx + tw - 8, ty + 13, 3, 9, Col(0x4a2e1a))
-        for q in 0..<6 { c.circ(tx + 2.4 + Double(q % 3) * (tw - 4.8) / 2, ty + 2 + Double(q / 3) * 8.6, 1.3, Col(0x12100e)) }
-        let balls: [Col] = [Col(0xf2c418), Col(0x2a5ad0), Col(0xc8281e), Col(0x6a3a8a), Col(0xe8782e), Col(0x1c1a1a), Col(0xf4f4f0)]
-        for q in 0..<7 { c.circ(tx + tw * (0.2 + hashN(Double(q) + 9500) * 0.6), ty + 3.4 + hashN(Double(q) + 9510) * 5.6, 1.1, balls[q]) }
-        c.seg(tx + tw * 0.12, ty + 9, tx - 16, ty + 4, 0.7, Col(0xd8b878))
-        person(tx - 20, fl, 655, 1, 0, false); person(tx + tw + 12, fl, 660, -1, 0, false)
-        g.hits.append(Hit(id: 58, x: tx - 6, y: ty - 8, w: tw + 12, h: 34))
-        tapArrow(tx + tw * 0.5, ty - 2, "Tap for a game")
-        g.hits.append(Hit(id: 62, x: x0, y: y0 + 20, w: w * 0.5, h: 50))
-        let menu: [(String, String)] = [("PIZZA", "10 coins"), ("SALAD", "8 coins"), ("COLD BEER", "5 coins")]
+        // three pendant lamps over the bar
         for q in 0..<3 {
-            let mx = bx + Double(q) * (bw / 3) + 2, mw = bw / 3 - 4
-            c.RR(mx, y0 + 56, mw, 15, 3, GOLD)
-            g.text(menu[q].0, mx + mw / 2, y0 + 61.4, 4.2, INK, bold: true)
-            g.text(menu[q].1, mx + mw / 2, y0 + 66.8, 3, INK.alpha(0.75))
-            g.hits.append(Hit(id: 340 + q, x: mx - 1, y: y0 + 54, w: mw + 2, h: 19))
+            let u = 9 + Double(q) * 14
+            c.R(u - 0.1, -31, 0.2, 4.4, Col(0x2a2a2a)); c.poly(Col(0x8a2e1e), [u - 2.2, -24.6, u - 1, -26.8, u + 1, -26.8, u + 2.2, -24.6])
+            c.glow(u, -23, 9, Col(0xffe0a0, 0.3), Col(0xffe0a0, 0))
         }
-        if g.mapMsgT > 0 { g.text(g.mapMsg, (x0 + x1) / 2, y1 - 12, 5.4, CREAM.alpha(clampD(g.mapMsgT, 0, 1)), bold: true, plate: true) }
+        // ---- the middle of the room ----
+        // the chalkboard menu
+        c.RR(52, -30, 22, 15.4, 0.6, woodL); c.R(52.8, -29.2, 20.4, 13.8, Col(0x243028))
+        for q in 0..<12 { c.R(53.4 + hashN(Double(q) + 9640) * 18, -28.6 + hashN(Double(q) + 9641) * 12.6, 1.6, 0.15, Col(0xffffff, 0.08)) }
+        c.R(52, -14.8, 22, 0.6, woodM); c.R(58, -15.2, 1.6, 0.4, Col(0xf4f4f0)); c.R(61, -15.2, 1.2, 0.4, Col(0xf2c418))
+        // a ceiling fan turning slowly
+        for fu in [46.0, 79.0] {
+            c.R(fu - 0.2, -31, 0.4, 1.4, Col(0x3a3a3a)); c.ell(fu, -29.4, 1.2, 0.5, brass)
+            for k in 0..<4 { let a = NOW * 2.4 + Double(k) * PI / 2; c.seg(fu, -29.4, fu + cos(a) * 7, -29.4 + sin(a) * 0.7, 0.8, woodM) }
+        }
+        // a booth: red vinyl benches, a checked cloth, a pie and a pitcher
+        c.RR(50.4, -13, 4.4, 13, 1, Col(0x8a2e1e)); c.R(51, -12, 0.3, 10, Col(0x6a1e12)); c.R(53.2, -12, 0.3, 10, Col(0x6a1e12))
+        c.RR(71.2, -13, 4.4, 13, 1, Col(0x8a2e1e)); c.R(72, -12, 0.3, 10, Col(0x6a1e12)); c.R(74.2, -12, 0.3, 10, Col(0x6a1e12))
+        seated(55.4, -5.4, 622, 0.4)
+        c.R(62.4, -7.6, 1.2, 7.6, Col(0x5a5a5a)); c.R(56, -8.8, 14, 1, woodL)
+        for q in 0..<7 { c.R(56 + Double(q) * 2, -8.8, 1, 2.6, q % 2 == 0 ? Col(0xc8281e) : Col(0xf4f4f0)); c.R(57 + Double(q) * 2, -8.8, 1, 2.6, q % 2 == 0 ? Col(0xf4f4f0) : Col(0xc8281e)) }
+        c.ell(62.4, -9.2, 3.6, 0.7, Col(0xc8c8cc)); c.ell(62.4, -9.5, 3.2, 0.6, Col(0xe0a84a)); for q in 0..<4 { c.circ(60.6 + Double(q) * 1.2, -9.6, 0.3, Col(0xa82a1e)) }
+        c.poly(Col(0xf0d890, 0.9), [67, -8.8, 66.8, -12.4, 69, -12.4, 68.8, -8.8]); c.RR(58, -11.4, 0.9, 2.6, 0.3, Col(0xa83a2c))
+        // framed photos, a dartboard, a jukebox glowing in the corner
+        for q in 0..<3 {
+            let fu = 76.4 + Double(q % 2) * 4.6, fv = -27.4 + Double(q / 2) * 5.4
+            c.R(fu, fv, 3.8, 4.4, woodD); c.R(fu + 0.5, fv + 0.5, 2.8, 3.4, [Col(0xc8b89a), Col(0x9ab0c8), Col(0xd8c0a0)][q]); c.ell(fu + 1.9, fv + 2.6, 1, 0.8, Col(0x5a4a3a, 0.7))
+        }
+        c.circ(82.4, -19.4, 2.6, Col(0x1c1a1a)); c.circ(82.4, -19.4, 2.1, Col(0xe8e0c8)); c.circ(82.4, -19.4, 1.3, Col(0x2a6a3a)); c.circ(82.4, -19.4, 0.5, Col(0xc8281e))
+        for q in 0..<8 { let a = Double(q) / 8 * PI * 2; c.seg(82.4, -19.4, 82.4 + cos(a) * 2.1, -19.4 + sin(a) * 2.1, 0.1, Col(0x1c1a1a)) }
+        c.RR(77, -13.4, 6.4, 13.4, 2.4, Col(0x7a2218)); c.RR(77.8, -12.4, 4.8, 5.4, 2, Col(0xf8d880))
+        for q in 0..<3 { c.R(78.2 + Double(q) * 1.5, -12 , 1, 4.6, [Col(0xff5a6a), Col(0x5ad0ff), Col(0x8aff7a)][q].alpha(0.5 + 0.4 * sin(NOW * 3 + Double(q) * 2))) }
+        c.R(77.8, -6, 4.8, 0.5, brass); c.R(78.4, -4.6, 3.6, 3, Col(0x3a2418)); c.glow(80.2, -9, 8, Col(0xffd880, 0.22), Col(0xffd880, 0))
+        // ---- the back room: deep green walls, the table under a long shaded lamp ----
+        c.R(86, -31, 32, 18, Col(0x2e4a3a)); c.R(84.6, -31, 1.6, 31, Col(0x5a3a26)); c.R(84.6, -31, 33.4, 1, Col(0x5a3a26))
+        for q in 0..<30 { c.R(86.4 + hashN(Double(q) + 9650) * 31, -30 + hashN(Double(q) + 9651) * 16, 1.2, 0.15, Col(0x24402e)) }
+        // cue rack, score beads, a beer mirror
+        c.R(108.4, -27, 7, 12, woodD); for q in 0..<4 { c.seg(109.6 + Double(q) * 1.5, -26.2, 109.6 + Double(q) * 1.5, -15.6, 0.3, Col(0xd8b878)); c.R(109.4 + Double(q) * 1.5, -17, 0.4, 1.4, Col(0x1c1a1a)) }
+        c.seg(88, -28.6, 100, -28.6, 0.15, Col(0x1c1a1a)); for q in 0..<14 { c.circ(88.6 + Double(q) * 0.8 + (q > 8 ? 1.4 : 0), -28.6, 0.35, q % 2 == 0 ? Col(0xc8281e) : Col(0xf4f4f0)) }
+        c.R(88, -25.4, 6.4, 5, brass); c.R(88.5, -24.9, 5.4, 4, Col(0x8aa8b0)); c.ell(91.2, -22.9, 1.8, 1.2, Col(0xc8281e, 0.7))
+        // the lamp
+        c.seg(97, -31, 97, -24, 0.15, brass); c.seg(107, -31, 107, -24, 0.15, brass)
+        c.poly(Col(0x2a6a3a), [93, -21.4, 95.4, -24, 108.6, -24, 111, -21.4]); c.R(93, -21.6, 18, 0.5, brass)
+        c.poly(Col(0xffe8b0, 0.16), [94, -21, 110, -21, 115, -10.6, 89, -10.6])
+        // the table, side on
+        c.RR(89.6, -10.8, 24.8, 2.4, 0.8, Col(0x5a3018)); c.R(90.6, -10.8, 22.8, 0.7, Col(0x2f8a4a))
+        for q in 0..<3 { c.circ(90.4 + Double(q) * 11.6, -9.4, 0.6, Col(0x12100e)); c.circ(92.6 + Double(q) * 9.2, -8.9, 0.25, Col(0xe8e0d0)) }
+        c.R(91.4, -8.4, 21.2, 2.4, Col(0x4a2814)); c.poly(Col(0x3a2010), [92, -6, 95, -6, 94.2, 0, 92.6, 0]); c.poly(Col(0x3a2010), [109, -6, 112, -6, 111.4, 0, 109.8, 0])
+        let balls: [Col] = [Col(0xf2c418), Col(0x2a5ad0), Col(0xc8281e), Col(0x6a3a8a), Col(0xe8782e), Col(0x1c1a1a), Col(0xf4f4f0)]
+        for q in 0..<7 { c.circ(93 + hashN(Double(q) + 9500) * 18, -11.4, 0.6, balls[q]) }
+        person(87.4, 0.6, 655, 1, 0, false); c.seg(88.6, -10.4, 96, -12.2, 0.3, Col(0xd8b878))
+        person(115.4, 0.6, 660, -1, 0, false); c.seg(116.6, 0, 116, -17, 0.3, Col(0xd8b878))
+        // soft dark at the corners so the lamps do the lighting
+        c.poly(Col(0x000000, 0.22), [0, -34, 10, -34, 0, -20]); c.poly(Col(0x000000, 0.22), [RW, -34, RW - 10, -34, RW, -20])
+        c.restore()
+        // words and taps, in screen space
+        g.text("PIZZA · COLD BEER", sx(21), sy(-29.9), 1.3 * S, Col(0xff8a9a), bold: true)
+        g.text("TODAY", sx(63), sy(-27.6), 1.5 * S, Col(0xf2e8c8), bold: true)
+        let menu: [(String, String)] = [("Pizza", "10"), ("Big salad", "8"), ("Cold beer", "5")]
+        for q in 0..<3 {
+            let v = -24.4 + Double(q) * 3.2
+            g.text(menu[q].0, sx(54), sy(v), 1.45 * S, Col(0xf4f4f0), align: 1, bold: true)
+            g.text(menu[q].1, sx(72), sy(v), 1.45 * S, GOLD, align: 2, bold: true)
+            g.hits.append(Hit(id: 340 + q, x: sx(52), y: sy(v - 1.6), w: 22 * S, h: 3.2 * S))
+        }
+        g.hits.append(Hit(id: 58, x: sx(87), y: sy(-25), w: 30 * S, h: 26 * S))
+        tapArrow(sx(102), sy(-13.4), "Tap for a game")
+        if g.mapMsgT > 0 { g.text(g.mapMsg, (x0 + x1) / 2, y1 - 9, 5.4, CREAM.alpha(clampD(g.mapMsgT, 0, 1)), bold: true, plate: true) }
     }
 
     /// Your own touches on your rig: a painted stripe down the side and a flag flying off the back.
@@ -4518,60 +4668,101 @@ final class Renderer {
     private func tourOverlay() {
         g.hits.removeAll(keepingCapacity: true)
         g.texts.removeAll(keepingCapacity: true)
-        c.R(0, 0, W, H, Col(0x0c0a08, 0.65))
+        c.R(0, 0, W, H, Col(0x0c0a08, 0.72))
         g.hits.append(Hit(id: -1, x: 0, y: 0, w: W, h: H))
-        let w = min(320.0, W - g.safeL - g.safeR - 20), h = 160.0
-        let x0 = (W - w) / 2, y0 = (H - h) / 2
         let wood = [Col(0xc89a62), Col(0x9a6a44), Col(0xd8b484)][g.tourBus]
         let paint = [Col(0x5a8a7a), Col(0xd9c9a8), Col(0x3a5a8a)][g.tourBus]
-        c.RR(x0, y0, w, h, 10, paint)
-        // arched ceiling of tongue-and-groove
-        c.RR(x0, y0, w, 30, 10, wood)
-        for k in 0..<Int(w / 6) { c.R(x0 + Double(k) * 6, y0 + 4, 0.6, 26, wood.shade(0.82)) }
-        // the bus windows down both sides, desert outside
-        for k in 0..<7 {
-            let wx = x0 + 14 + Double(k) * (w - 28) / 7
-            c.RR(wx, y0 + 34, (w - 28) / 7 - 6, 26, 2, Col(0x2a2a2e))
-            c.vfill(wx + 1.4, y0 + 35.4, (w - 28) / 7 - 8.8, 23, [(0, Col(0x8ac0e8)), (0.7, Col(0xe8c89a)), (1, Col(0xc89a6a))])
-            c.R(wx + 1.4, y0 + 46, (w - 28) / 7 - 8.8, 0.8, Col(0x2a2a2e))
+        // a school bus is narrow and low inside, so draw it big: 34 feet of home, cut away along its length
+        let RW = 112.0, RH = 25.0
+        let availW = W - g.safeL - g.safeR - 16
+        let S = min(availW / RW, (H - 34) / (RH + 9))
+        let ox = (W - RW * S) / 2, oy = H / 2 + (RH * 0.5 + 1) * S
+        c.save()
+        c.translate(ox, oy)
+        c.scale(S, S)
+        // the shell: steel below the windows, the curved roof lined in tongue-and-groove
+        c.RR(-2, -RH - 2.4, RW + 4, RH + 9, 4, paint)
+        c.RR(0, -RH, RW, RH, 2.4, Col(0xe8dcc4))
+        c.RR(0, -RH, RW, 4.4, 2.4, wood)
+        var k = 0.0
+        while k < RW { c.R(k, -RH + 0.6, 0.15, 3.6, wood.shade(0.8)); k += 1.6 }
+        c.R(0, -RH + 4.2, RW, 0.5, wood.shade(0.7))
+        // wheel wells boxed in, and the floor
+        c.R(0, 0, RW, 5, wood.shade(0.72))
+        k = 0
+        while k < RW { c.R(k, 0, 0.15, 5, wood.shade(0.55)); k += 4.2 }
+        for q in 0..<12 { c.R(hashN(Double(q) + 9670) * RW, 0.6 + hashN(Double(q) + 9671) * 3.8, 2.2, 0.12, wood.shade(0.6)) }
+        // the row of bus windows with the desert outside, curtains tied back
+        for q in 0..<9 {
+            let wx = 14 + Double(q) * 9.4
+            c.RR(wx, -RH + 6, 7.6, 7, 0.5, Col(0x2a2a2e))
+            c.vfill(wx + 0.5, -RH + 6.5, 6.6, 6, [(0, Col(0x8ac0e8)), (0.62, Col(0xe8c89a)), (0.63, Col(0xb88a62)), (1, Col(0xc89a6a))])
+            c.R(wx + 0.5, -RH + 9.4, 6.6, 0.3, Col(0x2a2a2e))
+            if q % 3 == 1 { c.R(wx + 4, -RH + 9.8, 0.5, 2, Col(0x4a7a3e)); c.R(wx + 3.4, -RH + 10.4, 0.5, 0.8, Col(0x4a7a3e)) }
+            let cur = [Col(0xd9772e), Col(0x8a4aa8), Col(0xf2c14e)][g.tourBus]
+            c.poly(cur, [wx - 0.4, -RH + 5.6, wx + 1.6, -RH + 5.6, wx + 0.4, -RH + 13.2, wx - 0.4, -RH + 13.2])
+            c.poly(cur.shade(0.86), [wx + 8, -RH + 5.6, wx + 6, -RH + 5.6, wx + 7.2, -RH + 13.2, wx + 8, -RH + 13.2])
         }
-        // string lights along the ceiling
-        for k in 0..<22 {
-            let t = Double(k) / 21
-            let lx = x0 + 10 + t * (w - 20), ly = y0 + 30 + sin(t * PI * 3) * 2 + 2
-            c.circ(lx, ly, 1, [Col(0xffd68a), Col(0xff8a6a), Col(0x8ad0ff)][k % 3])
+        c.R(13, -RH + 5.3, 86, 0.4, Col(0x6a4a2e))
+        // string lights swagged along the ceiling
+        for q in 0..<30 {
+            let t = Double(q) / 29
+            c.circ(4 + t * (RW - 8), -RH + 4.9 + abs(sin(t * PI * 5)) * 0.8, 0.35, [Col(0xffd68a), Col(0xff8a6a), Col(0x8ad0ff)][q % 3])
         }
-        // floor
-        c.R(x0, y0 + h - 26, w, 26, wood.shade(0.75))
-        for k in 0..<Int(w / 16) { c.R(x0 + Double(k) * 16, y0 + h - 26, 0.6, 26, wood.shade(0.6)) }
-        // the bed at the back
-        c.RR(x0 + 10, y0 + h - 52, 80, 26, 3, wood.shade(0.9))
-        c.RR(x0 + 12, y0 + h - 58, 76, 10, 3, Col(0xe8dcc4))
+        // the bed across the back, on a platform with drawers, piled with quilts and pillows
+        c.R(1.4, -9.4, 23, 9.4, wood.shade(0.9))
+        for q in 0..<3 { c.RR(2.4 + Double(q) * 7.4, -7.4, 6.4, 6, 0.4, wood.shade(1.05)); c.circ(5.6 + Double(q) * 7.4, -4.4, 0.4, Col(0x3a2a1e)) }
+        c.RR(1.4, -12.4, 23, 3.2, 1, Col(0xe8dcc4))
         let quilt = [Col(0xd9412e), Col(0xf2c14e), Col(0x3a6ea5), Col(0x3f8f6a)]
-        for k in 0..<8 { c.R(x0 + 14 + Double(k) * 9, y0 + h - 50, 9, 8, quilt[(k + g.tourBus) % 4]) }
-        // the wood stove, pipe and glow
-        let sx = x0 + w * 0.48
-        c.RR(sx - 10, y0 + h - 46, 20, 20, 2, Col(0x2a2a2e))
-        c.RR(sx - 6, y0 + h - 40, 12, 9, 1, Col(0xff8a2e, 0.6 + 0.3 * sin(NOW * 7)))
-        c.R(sx - 2, y0 + 30, 4, h - 76, Col(0x3a3a3e))
-        c.glow(sx, y0 + h - 36, 30, Col(0xffa040, 0.25), Col(0xffa040, 0))
-        // kitchen counter with plants and a kettle
-        c.R(x0 + w - 110, y0 + h - 46, 100, 20, wood.shade(0.85))
-        c.R(x0 + w - 110, y0 + h - 48, 100, 2.4, wood.shade(1.1))
-        for k in 0..<3 {
-            let px = x0 + w - 100 + Double(k) * 26
-            c.RR(px, y0 + h - 54, 8, 6, 1, Col(0xc85a3a))
-            for l in 0..<4 { c.ell(px + 4 + Double(l - 2) * 2, y0 + h - 57 - Double(l % 2) * 2, 1.6, 3, Col(0x4f9a5a)) }
-        }
-        c.RR(x0 + w - 32, y0 + h - 55, 10, 7, 3, Col(0x3a6ea5))
-        // a sleeping dog on the rug
-        c.ell(x0 + w * 0.65, y0 + h - 18, 22, 4, Col(0xb5452f, 0.7))
-        c.ell(x0 + w * 0.65, y0 + h - 21, 9, 4, Col(0x8a6a44))
-        c.circ(x0 + w * 0.65 + 8, y0 + h - 22, 3.2, Col(0x8a6a44))
+        for q in 0..<8 { c.R(8 + Double(q) * 2, -12.6, 2, 1.8, quilt[(q + g.tourBus) % 4]); c.R(8 + Double(q) * 2, -10.8, 2, 1.6, quilt[(q + g.tourBus + 2) % 4]) }
+        c.RR(2, -14.4, 5, 2.4, 1, Col(0xf4f0e4)); c.RR(3.4, -15.4, 4.4, 2.2, 1, Col(0xb8d0e0))
+        c.R(1.4, -19, 9, 0.5, wood); for q in 0..<8 { c.R(2 + Double(q) * 1, -19 - 2.2 - hashN(Double(q) + 9680), 0.8, 2.2 + hashN(Double(q) + 9680), quilt[q % 4].shade(0.85)) }
+        // a guitar on the wall, a dreamcatcher, a hanging plant
+        c.ell(28.4, -6.4, 1.8, 2.4, Col(0xb8742e)); c.circ(28.4, -6.6, 0.6, Col(0x2a1a14)); c.R(28.1, -13, 0.6, 5, Col(0x5a3a22))
+        c.seg(34, -RH + 4.6, 34, -RH + 8, 0.12, Col(0x8a7a5a)); c.RR(32.8, -RH + 8, 2.4, 1.8, 0.5, Col(0xc85a3a))
+        for q in 0..<5 { c.curve(34, -RH + 8.4, 33 + Double(q) * 0.7, -RH + 11, 32 + Double(q) * 1, -RH + 12.6 + sin(Double(q)) * 0.6, 0.3, Col(0x4f9a5a)) }
+        // the wood stove on a tiled hearth, its pipe through the roof, kindling beside it
+        let stx = 40.0
+        c.R(stx - 4.4, -0.8, 8.8, 0.8, Col(0x8a8078)); c.R(stx - 4.4, -10, 0.5, 9.4, Col(0x9a9088))
+        c.RR(stx - 2.8, -7, 5.6, 6, 0.5, Col(0x26262a)); c.R(stx - 2.4, -1.2, 0.6, 1.2, Col(0x26262a)); c.R(stx + 1.8, -1.2, 0.6, 1.2, Col(0x26262a))
+        c.RR(stx - 1.8, -5.6, 3.6, 2.8, 0.3, Col(0xff8a2e, 0.6 + 0.3 * sin(NOW * 7)))
+        c.R(stx - 0.6, -RH + 4, 1.2, RH - 11, Col(0x3a3a3e)); c.glow(stx, -4, 9, Col(0xffa040, 0.3), Col(0xffa040, 0))
+        for q in 0..<4 { c.seg(stx + 4.6, -0.4 - Double(q) * 0.5, stx + 8, -0.4 - Double(q) * 0.5, 0.45, Col(0x8a6238)) }
+        c.ell(stx + 1.4, -7.6, 1.2, 0.5, Col(0x3a6ea5)); c.curve(stx + 2.4, -7.6, stx + 3.4, -8.4, stx + 3, -9, 0.2, Col(0x3a6ea5))
+        // the galley: butcher block, a bar sink, a two-burner stove, jars on a shelf, pans hanging, a small fridge
+        c.R(50, -9.6, 26, 9.6, wood.shade(0.85)); c.R(49.6, -10.4, 26.8, 0.9, wood.shade(1.15))
+        for q in 0..<4 { c.RR(51 + Double(q) * 6.3, -8.4, 5.4, 7.4, 0.3, wood.shade(0.98)); c.R(53.4 + Double(q) * 6.3, -7.4, 0.8, 0.3, Col(0x3a2a1e)) }
+        c.RR(54, -10.6, 5, 0.6, 0.3, Col(0xb8bcc0)); c.curve(56.4, -10.6, 56.4, -13.2, 58, -12.2, 0.3, Col(0xb8bcc0))
+        c.R(63, -10.9, 7, 0.6, Col(0x26262a)); c.circ(64.8, -11, 0.9, Col(0x4a4a4e)); c.circ(68.2, -11, 0.9, Col(0x4a4a4e)); c.RR(67, -12.6, 2.6, 1.6, 0.5, Col(0xc8281e))
+        c.R(50, -15.6, 20, 0.5, wood); for q in 0..<8 { c.RR(50.8 + Double(q) * 2.4, -17.8, 1.6, 2.2, 0.3, [Col(0xe0c890), Col(0x9a5a3a), Col(0x7a9a5a), Col(0xe8e0d0)][q % 4]); c.R(50.8 + Double(q) * 2.4, -18.2, 1.6, 0.5, Col(0x8a8a88)) }
+        for q in 0..<3 { c.seg(72 + Double(q) * 1.8, -15.4, 72 + Double(q) * 1.8, -14, 0.12, Col(0x3a3a3e)); c.circ(72 + Double(q) * 1.8, -12.8, 0.9 + Double(q) * 0.15, Col(0x3a3a3e)) }
+        c.RR(77, -12.4, 5.6, 12.4, 0.5, Col(0xe4e4e0)); c.R(77, -7.4, 5.6, 0.2, Col(0xa8a8a4)); c.R(81.6, -11, 0.4, 2.4, Col(0x8a8a88))
+        c.RR(77.6, -11.6, 1.8, 1.4, 0.2, Col(0xf2c14e)); c.RR(79.8, -10.4, 1.4, 1.8, 0.2, Col(0xd9412e))
+        // the dinette: two benches and a fold-down table, a map spread out, a mug
+        c.RR(84.4, -8, 3.6, 8, 0.6, paint.shade(0.8)); c.RR(84.4, -13, 1.2, 5.4, 0.5, paint.shade(0.8))
+        c.RR(96, -8, 3.6, 8, 0.6, paint.shade(0.8)); c.RR(98.4, -13, 1.2, 5.4, 0.5, paint.shade(0.8))
+        c.R(88.6, -8.6, 6.8, 0.7, wood.shade(1.1)); c.R(91.7, -8, 0.6, 8, Col(0x5a5a5a))
+        c.poly(Col(0xf0e8d0), [89.2, -8.7, 93, -8.9, 93.4, -8.6, 89.4, -8.5]); c.RR(94, -9.9, 1, 1.3, 0.2, Col(0x3a6ea5))
+        // the driver's seat and wheel up front, the big windshield
+        c.poly(Col(0x8ac0e8, 0.85), [103, -RH + 5, RW - 1, -RH + 7, RW - 1, -11, 103, -11])
+        c.poly(Col(0xe8c89a, 0.9), [103, -14, RW - 1, -14, RW - 1, -11, 103, -11])
+        c.R(102.4, -RH + 4.6, 0.7, RH - 15.4, Col(0x2a2a2e))
+        c.RR(102.6, -9, 3.4, 9, 0.8, Col(0x3a3a3e)); c.RR(102.6, -15.4, 1.3, 7, 0.6, Col(0x3a3a3e))
+        c.seg(107.4, -8.4, 109.4, -4, 0.5, Col(0x26262a)); c.ellStroke(107, -9.4, 1, 2.6, 0.5, Col(0x26262a))
+        c.R(108.6, -10.8, 2.8, 6, Col(0x4a4a4e)); c.circ(110, -9.4, 0.5, Col(0xffd68a))
+        // a rug, a dog asleep on it, boots by the door
+        c.ell(60, 2.6, 14, 1.4, Col(0xb5452f, 0.85)); c.ell(60, 2.6, 10, 0.9, Col(0xf2c14e, 0.6))
+        c.ell(64, 1.6, 3.6, 1.5, Col(0x8a6a44)); c.circ(67.2, 1.4, 1.2, Col(0x8a6a44)); c.poly(Col(0x6a4e30), [66.6, 0.4, 67.2, -0.5, 67.6, 0.5])
+        c.curve(60.6, 1.8, 59, 1.2 + sin(NOW * 3) * 0.3, 58.4, 2.2, 0.5, Col(0x8a6a44))
+        c.RR(99.6, 2.2, 1.6, 2.2, 0.3, Col(0x5a3a22)); c.RR(101.4, 2.4, 1.6, 2, 0.3, Col(0x5a3a22))
+        // the owners, glad to show it off
+        person(47, 3.4, 300 + g.tourBus * 7, 1, 0, false)
+        person(86.5, 3.6, 311 + g.tourBus * 5, -1, 0, false)
+        c.restore()
         let owners = ["The Okafors' 1998 Thomas, converted in their driveway over two summers", "Dusty's 2004 Blue Bird: 40 feet, a wood stove and 1,200 watts of solar", "Tess's short bus: three dogs, one bed, zero regrets"]
-        c.RR(x0 + 10, y0 + 6, w - 20, 16, 4, Col(0x1c1410, 0.75))
-        g.text(owners[g.tourBus], W / 2, y0 + 14, 4.4, CREAM, bold: true)
-        g.text("tap anywhere to step back outside", W / 2, y0 + h + 6, 3.4, CREAM.alpha(0.7))
+        let cy = oy - (RH + 5.4) * S
+        g.text(owners[g.tourBus], W / 2, max(7, cy), 4.4, CREAM, bold: true, plate: true)
+        g.text("tap anywhere to step back outside", W / 2, min(H - 5, oy + 8.6 * S), 3.4, CREAM.alpha(0.7))
     }
 
     /// Inside the Gold Eye, side on: daylight at the portal, a timbered drift running into the hill,
@@ -6031,7 +6222,7 @@ final class Renderer {
         // nothing from the scene behind should show through or be tappable
         g.texts.removeAll(keepingCapacity: true)
         g.hits.removeAll(keepingCapacity: true)
-        c.R(0, 0, W, H, Col(0x0c0a14, 0.6))
+        c.R(0, 0, W, H, Col(0x0c0a14, 0.84))
         let l = g.safeL + 14
         let uw = W - g.safeL - g.safeR - 28
 

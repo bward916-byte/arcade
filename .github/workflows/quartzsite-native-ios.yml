@@ -63,7 +63,7 @@ jobs:
           xcrun simctl boot "$UDID"
           xcrun simctl bootstatus "$UDID" -b
           xcrun simctl install "$UDID" "$APP"
-          for shot in pick rigs play night ltva main tyson toys skoolie trail scaddan browse parade home season gear computer rain page qfest western party maineast mainnight readers phone booth river hijolly plomosa crystal palms desertbar intaglios past pastriver pastmain tour minein board goals drive dog camels; do
+          for shot in als tour pick palms crystal ltva computer; do
             xcrun simctl terminate "$UDID" com.brianward.quartzsitewinter 2>/dev/null || true
             if [ "$shot" = title ]; then
               xcrun simctl launch "$UDID" com.brianward.quartzsitewinter
