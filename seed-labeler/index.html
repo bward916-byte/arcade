@@ -2253,6 +2253,17 @@ const products = [
     status: "active",
   },
   {
+    id: "opuntia_humifusa_seedling",
+    match: [/Seed Grown Trailing Opuntia humifusa/i, /Opuntia humifusa.*Hardy Prickly Pear/i, /Seed[\s\-]?Grown.*Opuntia humifusa/i],
+    scientific: "Opuntia humifusa",
+    common: "Eastern Prickly Pear — Seed Grown Trailing",
+    productType: "seedling",
+    careInstructions: "plant",
+    synonyms: "Common: Eastern Prickly Pear | Seed-grown trailing young plant",
+    description: "Opuntia humifusa — the Eastern Prickly Pear — is the most cold-hardy prickly pear in cultivation, native across much of the eastern and central United States, from Florida to as far north as Massachusetts and Ontario. Forms low spreading mats of green-blue pads, produces big bright yellow flowers in early summer, and develops edible purple-red fruit (tunas) in fall. Hardy to -25°F or lower when established and dry. This is a seed-grown young trailing plant — already past the fragile seedling stage.",
+    status: "active",
+  },
+  {
     id: "pereskiopsis_cuttings",
     match: [/Pereskiopsis/i],
     scientific: "Pereskiopsis spathulata",
@@ -3169,6 +3180,9 @@ function nameTokens(p) {
 
 /* Which productTypes a title could be, judged by its wording. */
 function titleTypes(line) {
+  // Aquatic goes first — Azolla titles contain "Aquatic Plant" / "Floating Plant"
+  // which would otherwise be matched by the plant/seedling bucket below.
+  if (/\b(azolla|fairy\s+moss|mosquito\s+fern|aquatic\s+plant|floating\s+plant|aquatic)\b/i.test(line)) return ["aquatic"];
   if (/\bpair\b/i.test(line)) return ["pair"];
   if (/\bseedlings?\b/i.test(line)) return ["seedling"];
   if (/\bseed[\s-]?grown\b/i.test(line)) return ["seedling"];
