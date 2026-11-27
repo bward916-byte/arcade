@@ -173,18 +173,45 @@ final class Renderer {
             let blink = (t + (who == "gun" ? 1.3 : 0)).truncatingRemainder(dividingBy: 4.4) < 0.13
             q(0, 0, 200, 112, F[0])
             for i in 0..<5 { q(0, 8 + Double(i) * 22 + sin(t * 0.3 + Double(i)) * 2, 200, 5, F[1]) }
-            q(50, 31, 100, 81, F[4]); q(50, 31, 13, 81, F[5]); q(137, 31, 13, 81, F[5])
-            if who == "crane" { hell(100, 22, 50, 26, F[2]); q(50, 18, 100, 6, F[3]); q(22, 24, 156, 7, F[2]) }
-            else { q(46, -6, 108, 30, F[2]); q(46, 17, 108, 6, F[3]); q(4, 24, 192, 8, F[2]); q(0, 27, 200, 4, F[2]); q(14, 22, 172, 3, F[2]) }
-            q(50, 32, 100, 10, 0x140a06, 0.5); q(50, 42, 100, 4, 0x140a06, 0.2)
-            q(61, 43, 31, 4, F[7]); q(108, 43, 31, 4, F[7]); q(86, 45, 8, 3, F[7]); q(106, 45, 8, 3, F[7])
-            for ex in [66.0, 110.0] {
-                q(ex, 50, 24, 8, 0xf0e6d6); q(ex + 8 + look, 50, 9, 8, F[6]); q(ex + 11 + look, 52, 3, 4, 0x120b08); q(ex + 10 + look, 51, 2, 2, 0xffffff)
-                q(ex, 50, 24, who == "rider" ? 2 : 3, F[5]); q(ex, 56, 24, 2, F[5])
-                if blink { q(ex, 50, 24, 8, F[4]); q(ex, 54, 24, 1, F[7]) }
-                q(ex - 5, 60, 3, 1, F[5]); q(ex + 26, 60, 3, 1, F[5])
+            // light falling on the wall behind, then the head: rounded, shaded down both sides, with ears
+            a.glow(100, 52, 120, Col(F[1], 0.55), Col(F[1], 0))
+            a.ell(46.5, 60, 5, 9, Col(F[5])); a.ell(153.5, 60, 5, 9, Col(F[5]))
+            a.RR(48, 4, 104, 134, 46, Col(F[4]))
+            a.linear(49, 31, 102, 81, 49, 0, 151, 0, [(0, Col(F[5], 0.95)), (0.24, Col(F[5], 0)), (0.7, Col(F[5], 0)), (1, Col(F[5], 1))])
+            a.ell(74, 74, 13, 9, Col(0xff6a4a, 0.07)); a.ell(126, 74, 13, 9, Col(0xff6a4a, 0.07))
+            if who == "crane" {
+                // white side whiskers, and the lines of a long hard life
+                a.RR(48, 38, 8, 46, 4, Col(0xd8d2c4)); a.RR(144, 38, 8, 46, 4, Col(0xd8d2c4))
+                a.curve(66, 37, 100, 34, 134, 37, 0.8, Col(F[5], 0.8)); a.curve(70, 41, 100, 38.5, 130, 41, 0.7, Col(F[5], 0.6))
             }
-            q(95, 55, 10, 25, F[5]); q(92, 79, 16, 4, F[5]); q(97, 58, 3, 18, F[4])
+            if who == "crane" { hell(100, 22, 50, 26, F[2]); q(50, 18, 100, 6, F[3]); a.RR(20, 23, 160, 8, 4, Col(F[2])) }
+            else { q(46, -6, 108, 30, F[2]); q(46, 17, 108, 6, F[3]); a.RR(-4, 22, 208, 10, 5, Col(F[2])); a.RR(10, 20.5, 180, 4, 2, Col(F[2])) }
+            // the brim throws its shadow down over the brow
+            a.vfill(49, 31, 102, 20, [(0, Col(0x140a06, 0.62)), (1, Col(0x140a06, 0))])
+            // brows, heavy toward the nose
+            a.poly(Col(F[7]), [60, 44.5, 92, 46, 93.5, 50.5, 61, 48]); a.poly(Col(F[7]), [140, 44.5, 108, 46, 106.5, 50.5, 139, 48])
+            let hard = who == "gun" || who == "crane"
+            for cx in [78.0, 122.0] {
+                a.ell(cx, 56.5, 14.5, 7, Col(F[5], 0.5))
+                a.ell(cx, 56, 13, 5.2, Col(0xf0e6d6))
+                a.circ(cx + look, 56, 4.7, Col(F[6])); a.ellStroke(cx + look, 56, 4.7, 4.7, 0.8, Col(0x120b08, 0.55))
+                a.circ(cx + look, 56, 2.1, Col(0x120b08)); a.circ(cx + look - 1.5, 54.5, 1.1, Col(0xffffff, 0.95))
+                // the lid, lower on a hard man, and the line of the lashes
+                a.ell(cx, hard ? 51.6 : 50.6, 14.5, hard ? 4 : 3.2, Col(F[4]))
+                a.curve(cx - 13.5, 56.5, cx, hard ? 49.5 : 48, cx + 13.5, 56.5, 1.3, Col(0x241208))
+                a.curve(cx - 12, 57.5, cx, 62.5, cx + 12, 57.5, 0.7, Col(F[5]))
+                a.curve(cx - 10, 62.5, cx, 65.5, cx + 10, 62.5, 0.7, Col(F[5], 0.7))
+                if blink { a.ell(cx, 56, 13.6, 5.8, Col(F[4])); a.curve(cx - 13, 56, cx, 59.5, cx + 13, 56, 1.2, Col(0x241208)) }
+            }
+            if who != "rider" {
+                for sg in [-1.0, 1.0] { for j in 0..<3 { a.seg(100 + sg * 37, 57 + Double(j) * 1.6, 100 + sg * 42, 55 + Double(j) * 3, 0.6, Col(F[5])) } }
+            }
+            // the nose: a shaded side, a lit ridge, the tip and nostrils; and the folds running down from it
+            a.poly(Col(F[5], 0.6), [95, 50, 100, 50, 104, 77, 92, 80])
+            a.seg(100.5, 52, 101.5, 74, 1.6, Col(0xffffff, 0.16))
+            a.ell(100, 80, 9.5, 4.4, Col(F[5])); a.ell(100, 78.4, 6.5, 3.4, Col(F[4]))
+            a.circ(95.4, 81.2, 1.4, Col(0x241208, 0.55)); a.circ(104.6, 81.2, 1.4, Col(0x241208, 0.55))
+            a.curve(89, 80, 82, 88, 84, 99, 0.9, Col(F[5], 0.85)); a.curve(111, 80, 118, 88, 116, 99, 0.9, Col(F[5], 0.85))
             if who == "rider" {
                 q(44, 87, 112, 25, 0xb53a2e); q(44, 87, 112, 3, 0x8f2c23)
                 for i in 0..<9 { q(52 + Double(i) * 12, 94 + Double(i % 2) * 7, 3, 3, 0xead7a4) }
@@ -199,7 +226,11 @@ final class Renderer {
                 for i in 0..<8 { q(118 + Double(i) * 1.6, 34 + Double(i) * 5, 3, 4, 0x8a3a30) }
                 for i in 0..<26 { q(58 + hs(i + 40) * 84, 98 + hs(i + 60) * 12, 1, 1, F[5]) }
             } else {
-                q(70, 85, 60, 7, 0xe8e2d2); q(64, 89, 10, 5, 0xe8e2d2); q(126, 89, 10, 5, 0xe8e2d2); q(86, 97, 28, 3, 0x8a5a44)
+                // a full white moustache, swept out and down at the ends
+                a.ell(85, 88.5, 17, 5.2, Col(0xe8e2d2)); a.ell(115, 88.5, 17, 5.2, Col(0xe8e2d2))
+                a.curve(70, 88, 63, 90, 62, 96, 3.4, Col(0xe8e2d2)); a.curve(130, 88, 137, 90, 138, 96, 3.4, Col(0xe8e2d2))
+                a.curve(74, 90, 86, 92, 99, 88, 0.6, Col(0xb9b2a4)); a.curve(126, 90, 114, 92, 101, 88, 0.6, Col(0xb9b2a4))
+                q(86, 97, 28, 3, 0x8a5a44)
                 q(118, 96, 36, 5, 0x6a4a2e); q(118, 96, 36, 1, 0x8a6240)
                 q(154, 96, 4, 5, sin(t * 3) > 0 ? 0xff8a2a : 0xffcf6b)
                 puffs(5, 0.2, 0.35, 0.4, 0xd8d2dc) { k, i in (158 + k * 18 + sin(t + Double(i)) * 3, 92 - k * 46, 3 + k * 7) }
@@ -946,7 +977,16 @@ final class Renderer {
             let bx = Double(i) * 190 + hashN(Double(i) * 5.3) * 80 - g.cam * 0.22 - 60
             let w = 70 + hashN(Double(i) * 1.7) * 90, h = 26 + hashN(Double(i) * 8.9) * 34
             if bx > -w - 10 && bx < W + 10 {
-                c.poly(far, [bx, gy, bx + 8, gy - h, bx + w - 10, gy - h, bx + w, gy])
+                let farD = Col.mix(far, Col(0x000000), 0.14), farL = Col.mix(far, Col(0xffffff), 0.14 * (1 - dk))
+                c.poly(far, [bx - 6, gy, bx + 3, gy - h * 0.42, bx + 9, gy - h * 0.48, bx + 13, gy - h, bx + w - 15, gy - h, bx + w - 10, gy - h * 0.52, bx + w - 4, gy - h * 0.46, bx + w + 6, gy])
+                c.poly(farD, [bx + w * 0.62, gy, bx + w * 0.66, gy - h, bx + w - 15, gy - h, bx + w - 10, gy - h * 0.52, bx + w - 4, gy - h * 0.46, bx + w + 6, gy])
+                c.R(bx + 13, gy - h, w * 0.5, 1, farL)
+                c.R(bx + 12, gy - h * 0.78, w - 26, 0.8, farD.alpha(0.55)); c.R(bx + 8, gy - h * 0.6, w - 20, 0.8, farD.alpha(0.45)); c.R(bx + 2, gy - h * 0.3, w - 4, 0.8, farD.alpha(0.4))
+                if hashN(Double(i) * 4.4) > 0.55 {
+                    let px2 = bx + w + 14 + hashN(Double(i) * 2.9) * 16, ph2 = h * (0.5 + hashN(Double(i) * 7.3) * 0.4)
+                    c.poly(far, [px2 - 5, gy, px2 - 2.5, gy - ph2 * 0.5, px2 - 2, gy - ph2, px2 + 2.5, gy - ph2, px2 + 3, gy - ph2 * 0.5, px2 + 6, gy])
+                    c.poly(farD, [px2 + 0.6, gy, px2 + 0.8, gy - ph2, px2 + 2.5, gy - ph2, px2 + 3, gy - ph2 * 0.5, px2 + 6, gy])
+                }
             }
             i += 1
         }
@@ -960,6 +1000,14 @@ final class Renderer {
                 if g.bio == .snow { c.R(bx + 12, gy - h, w - 24, 3, cap); c.R(bx + 14, gy - h + 3, w - 34, 1, cap) }
                 c.R(bx + 12, gy - h * 0.7, w - 26, 1, nearD.alpha(0.5))
                 c.R(bx + 8, gy - h * 0.4, w - 14, 1, nearD.alpha(0.5))
+                // gullies the rain has cut down the cliff, and the caprock standing proud of it
+                var gk = 0.0
+                while 16 + gk * 8 < w - 16 {
+                    let gx2 = bx + 16 + gk * 8 + hashN(Double(i) * 3.1 + gk) * 4
+                    c.seg(gx2, gy - h + 2, gx2 + (hashN(gk + Double(i)) - 0.5) * 3, gy - h * (0.5 + hashN(gk * 2.3) * 0.2), 0.7, nearD.alpha(0.4))
+                    gk += 1
+                }
+                c.R(bx + 10, gy - h - 1, w - 20, 1.6, Col.mix(near, Col(0x000000), 0.18))
                 // the lit rim, paler bands of rock, and scree at the foot
                 let nearL = Col.mix(near, Col(0xffffff), 0.2 * (1 - dk))
                 c.R(bx + 12, gy - h, w * 0.5 - 6, 1.2, nearL)
@@ -978,7 +1026,7 @@ final class Renderer {
         let L = g.terrain
         // haze lying along the horizon, so the far country sits back behind the town
         let hz = Col.mix(Col(g.bio == .snow ? 0xf2f6fa : 0xf6e6c4), Col(0x2c2a4a), dk)
-        c.vfill(0, gy - 28, W, 28, [(0, hz.alpha(0)), (1, hz.alpha(0.36))])
+        c.vfill(0, gy - 28, W, 28, [(0, hz.alpha(0)), (1, hz.alpha(0.14))])
         c.vfill(0, gy, W, H - gy, [(0, Col(L.g0)), (0.25, Col(L.g1)), (1, Col(L.g2))])
         c.R(0, gy, W, 1, Col(L.edge))
         // the ford east of a river town
@@ -1000,6 +1048,19 @@ final class Renderer {
         // the main street, packed earth between the gates
         let a = sx(966), b2 = sx(g.gateE.x)
         if b2 > 0 && a < W { c.R(max(0, a), gy + 1, min(W, b2) - max(0, a), 5, Col(L.street)) }
+        // wheel ruts: two worn lines down the street and on out along the trail, broken where the ground is hard
+        var rk = Int((g.cam / 31).rounded(.down)) - 1
+        while Double(rk) * 31 < g.cam + W + 31 {
+            let wx0 = Double(rk) * 31, len = 14 + hashN(Double(rk) * 2.7) * 15
+            let wet = (g.bio == .river || g.flooded) && wx0 + len > g.river.0 - 3 && wx0 < g.river.1 + 3
+            if !wet && hashN(Double(rk) * 5.1) > 0.18 {
+                let inTown = wx0 > 966 && wx0 < g.gateE.x
+                let rc = Col(g.bio == .snow ? 0x8a98b4 : 0x000000, inTown ? 0.2 : 0.11)
+                c.R(sx(wx0), gy + 2.4, len, 0.6, rc); c.R(sx(wx0 + 5), gy + 4.4, len, 0.6, rc)
+                if g.bio != .snow { c.R(sx(wx0), gy + 3, len, 0.3, Col(0xffffff, 0.07)) }
+            }
+            rk += 1
+        }
         var i = Int(g.cam / 23)
         let end = Int((g.cam + W) / 23) + 1
         while i <= end {
@@ -2970,7 +3031,7 @@ final class Renderer {
                 c.R(fxp - 1.2 + dir * 0.5, fyp - 0.4, 2.8, 1.4, boot); c.R(fxp - 1.2 + dir * 0.5, fyp + 0.6, 2.8, 0.4, Col(0x14100e))
             }
             if role == .rancher { c.seg(x - 0.8, gy - 5.6, x - 0.8 + sw, gy - 1.6, 2.6, Col(0x8a6238, 0.9)) }
-            c.R(x - 2.5, gy - 11.6 - bob, 5.2, 6.2, shirt)
+            c.RR(x - 2.6, gy - 11.8 - bob, 5.4, 6.4, 1.3, shirt)
             c.R(x + 1.4, gy - 11.6 - bob, 1.3, 6.2, Col.mix(shirt, Col(0x000000), 0.22))
             c.R(x - 2.5, gy - 6.4 - bob, 5.2, 1, Col(0x2a1c14)); c.R(x - 0.4, gy - 6.5 - bob, 1.2, 1.2, Col(0xd8b860))
             if role == .deputy || k % 3 == 0 { c.R(x - 2.5, gy - 11.6 - bob, 1.5, 5.2, Col(0x2e2622, 0.8)); c.R(x + 1.2, gy - 11.6 - bob, 1.5, 5.2, Col(0x2e2622, 0.8)) }       // a vest
@@ -2989,7 +3050,8 @@ final class Renderer {
         c.seg(x - dir * 2.2, gy - 10.6 - bob, x - dir * 2.6 + sw * 0.5, gy - 6.6 - bob, 1.4, Col.mix(sleeve, Col(0x000000), 0.15))
         // head: a neck, a face with a nose, hair at the back, an eye, sometimes a beard or a neckerchief
         c.R(x - 0.9, gy - 12 - bob, 1.9, 0.9, Col.mix(skin, Col(0x000000), 0.22))
-        c.RR(x - 1.7, gy - 15.2 - bob, 3.8, 3.8, 0.9, skin)
+        c.RR(x - 1.8, gy - 15.3 - bob, 4, 4, 1.7, skin)
+        c.R(x - 1.6, gy - 15.2 - bob, 3.6, 0.9, Col(0x000000, 0.16))
         c.R(x + dir * 2 - 0.35, gy - 13.7 - bob, 0.7, 0.9, Col.mix(skin, Col(0x000000), 0.15))
         c.R(x - dir * 1.5 - 0.5, gy - 14.8 - bob, 1, 2.4, Col([0x2a1c14, 0x6a4a2e, 0x9a8a7a, 0x1c1410][k % 4] as UInt32))
         c.R(x - 2.5, gy - 11.6 - bob, 5.2, 0.7, Col(0xffffff, 0.12))
@@ -3004,6 +3066,7 @@ final class Renderer {
         } else {
             c.RR(x - 3.9, gy - 15.9 - bob, 8.2, 1.2, 0.6, hat); c.RR(x - 2.1, gy - 18 - bob, 4.6, 2.6, 0.9, hat)
             c.R(x - 2.1, gy - 16.4 - bob, 4.6, 0.6, Col.mix(hat, Col(0x000000), 0.4))
+            c.R(x - 1.9, gy - 17.8 - bob, 1.6, 0.6, Col(0xffffff, 0.2)); c.R(x - 3.6, gy - 15.8 - bob, 3, 0.4, Col(0xffffff, 0.16))
         }
         // the small things: a collar and buttons, a brow and a mouth, a crease in the hat, a bun and a shawl
         if woman {

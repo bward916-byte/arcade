@@ -867,6 +867,9 @@ final class Game {
 
     var hintText = ""
     var hintT = 0.0
+    var front = 0                // the farthest town reached: every town up to it can be ridden back to
+    var kept: [Int: SaveData] = [:]   // each town left behind, as it stood when you rode out
+    private var visiting = false
     var holdHint = false        // the town's name is burning over the street: messages wait their turn
     private(set) var seen: Set<String> = []
     var info = ""
@@ -1041,6 +1044,7 @@ final class Game {
 
     func start() {
         reset()
+        front = 0; kept = [:]
         wx = 0; bolt = 0; t = 0.08
         state = .play
         hint("start", "Dustfall burned years ago. Ride with the stick, and hold the coin button to toss coins at drifters and at the boarded-up buildings.")
@@ -1048,6 +1052,13 @@ final class Game {
 
     // ---------- saving
     func snapshot() -> SaveData {
+        var s = townShot()
+        s.front = max(front, town)
+        s.kept = Array(kept.values)
+        return s
+    }
+    /// One town as it stands, without the rest of the line.
+    private func townShot() -> SaveData {
         // coins part-paid into something count as still in the purse
         var purse = coins + badgePaid + pickPaid + rackN.values.reduce(0, +)
         for bl in b { purse += bl.paid + bl.incoming }
@@ -1069,9 +1080,14 @@ final class Game {
 
     /// Picks a saved game up again. A game saved at night comes back at dusk the same night.
     func restore(_ s: SaveData) {
+        let lineFront = front, lineKept = kept
         reset()
         wx = 0; bolt = 0
         town = max(0, s.town); day = max(1, s.day); day0 = s.day0
+        if visiting { front = lineFront; kept = lineKept } else {
+            front = max(town, min(STAGES.count - 1, s.front ?? town)); kept = [:]
+            for k in s.kept ?? [] where k.town >= 0 && k.town <= front && k.town != town { kept[k.town] = k }
+        }
         place = s.place.flatMap { stageOf(town).contains($0) ? $0 : nil } ?? stageOf(town)[0]
         log = s.log ?? []
         if log.count != town || log.enumerated().contains(where: { !stageOf($0.offset).contains($0.element) }) { log = (0..<town).map { stageOf($0)[0] } }
@@ -1122,6 +1138,48 @@ final class Game {
 
     /// Set scenes for the simulator screenshots.
     /// Start play in any town on the line, with a purse to suit: for trying each one without playing up to it.
+    /// Ride back to a town already reached. The town you leave is kept as it stands; the one you come to is as you left it.
+    /// Your purse, your gun and the calendar ride with you, and you step off in the morning.
+    func visit(_ n: Int) {
+        guard n != town, n >= 0, n <= max(front, town), n < STAGES.count else { return }
+        var mine = townShot()
+        let purse = mine.coins, today = day, shots = ammo, known = seen, fr = max(front, town)
+        mine.coins = 0
+        var all = kept
+        all[town] = mine
+        let there = all[n]
+        all[n] = nil
+        front = fr; kept = all
+        if let s = there {
+            visiting = true; restore(s); visiting = false
+            day0 += today + 1 - day
+            coins += purse
+        } else {
+            // a save from before towns were kept: the town stands rebuilt, with its people in it
+            let was = seen
+            reset(); wx = 0; bolt = 0
+            front = fr; kept = all; seen = was
+            town = n; place = stageOf(n)[0]; log = (0..<n).map { stageOf($0)[0] }
+            day0 = today
+            layTown()
+            for bl in b where bl !== ticket && (bl.def.wall != 0 || bl.def.gate || bl === hall || bl === station) {
+                bl.level = bl.maxLevel
+                if bl.def.gate { bl.hp = GHP[min(bl.level, 3)] }
+            }
+            for i in 0..<8 { folk.append(Folk(x: 1180 + Double(i) * 46)) }
+            if station.level > 0 && !lastTown { train = Train(x: STOP, v: 0); ticket.live = true }
+            coins = purse; bank = 0
+            px = 1330; cam = clampD(px - W / 2, WEST, WORLD - W)
+            state = .play
+        }
+        day = today + 1; t = 0.08
+        ammo = max(1, shots); seen = known.union(seen)
+        choosing = false; payAsk = false; tripT = -1
+        nameSeq += 1
+        fade = 1
+        hint("visit", "\(nice(townName)), as you left it. Any town you have reached is a tap away on the map.", again: true)
+        onSave?()
+    }
     func jump(_ n: Int) {
         guard n >= 0, n < STOPS.count else { return }
         start()
@@ -2221,6 +2279,11 @@ final class Game {
     func arrive(_ dest: String) {
         let carry = carryOut()
         choosing = false
+        // the town behind is kept as it stands, with whatever would not fit in the saddlebags
+        var behind = townShot()
+        behind.coins = max(0, behind.coins - carry)
+        kept[town] = behind
+        front = max(front, town + 1)
         log.append(place); place = dest
         town += 1; day += 1; day0 = day - 1; t = 0.08
         layTown()

@@ -244,25 +244,31 @@ final class GameViewController: UIViewController {
 
         // the stick on the left and the gun on the right
         stickRing.isUserInteractionEnabled = false
-        stickRing.layer.borderColor = UIColor(white: 1, alpha: 0.35).cgColor
-        stickRing.layer.borderWidth = 2
-        stickRing.backgroundColor = UIColor(white: 0, alpha: 0.15)
+        let brass = UIColor(red: 0.95, green: 0.76, blue: 0.31, alpha: 0.85)
+        stickRing.layer.borderColor = brass.withAlphaComponent(0.6).cgColor
+        stickRing.layer.borderWidth = 2.5
+        stickRing.backgroundColor = UIColor(red: 0.16, green: 0.1, blue: 0.06, alpha: 0.32)
         knob.isUserInteractionEnabled = false
-        knob.backgroundColor = UIColor(white: 1, alpha: 0.55)
+        knob.backgroundColor = UIColor(red: 0.86, green: 0.68, blue: 0.3, alpha: 0.85)
+        knob.layer.borderColor = UIColor(red: 0.3, green: 0.19, blue: 0.08, alpha: 0.9).cgColor
+        knob.layer.borderWidth = 3
+        knob.layer.shadowColor = UIColor.black.cgColor; knob.layer.shadowOpacity = 0.45; knob.layer.shadowRadius = 4; knob.layer.shadowOffset = CGSize(width: 0, height: 2)
         view.addSubview(stickRing)
         view.addSubview(knob)
         fireBtn.isUserInteractionEnabled = false
         fireBtn.backgroundColor = UIColor(red: 0.55, green: 0.12, blue: 0.1, alpha: 0.7)
-        fireBtn.layer.borderColor = UIColor(white: 1, alpha: 0.45).cgColor
-        fireBtn.layer.borderWidth = 2
+        fireBtn.layer.borderColor = brass.cgColor
+        fireBtn.layer.borderWidth = 3
+        fireBtn.layer.shadowColor = UIColor.black.cgColor; fireBtn.layer.shadowOpacity = 0.45; fireBtn.layer.shadowRadius = 5; fireBtn.layer.shadowOffset = CGSize(width: 0, height: 2)
         fireIcon.image = gunImage()
         fireIcon.contentMode = .center
         fireBtn.addSubview(fireIcon)
         view.addSubview(fireBtn)
         coinBtn.isUserInteractionEnabled = false
         coinBtn.backgroundColor = UIColor(red: 0.3, green: 0.2, blue: 0.08, alpha: 0.7)
-        coinBtn.layer.borderColor = UIColor(white: 1, alpha: 0.45).cgColor
-        coinBtn.layer.borderWidth = 2
+        coinBtn.layer.borderColor = brass.cgColor
+        coinBtn.layer.borderWidth = 3
+        coinBtn.layer.shadowColor = UIColor.black.cgColor; coinBtn.layer.shadowOpacity = 0.45; coinBtn.layer.shadowRadius = 5; coinBtn.layer.shadowOffset = CGSize(width: 0, height: 2)
         coinIcon.image = coinImage()
         coinIcon.contentMode = .center
         coinBtn.addSubview(coinIcon)
@@ -510,7 +516,7 @@ final class GameViewController: UIViewController {
         resumeBtn.frame = CGRect(x: bw / 2 - 140, y: py + 86, width: 280, height: 46)
         soundBtn.frame = CGRect(x: bw / 2 - 140, y: py + 142, width: 134, height: 42)
         mapBtn.frame = CGRect(x: bw / 2 + 6, y: py + 142, width: 134, height: 42)
-        crewBtn.frame = CGRect(x: bw / 2 - 140, y: py + 194, width: 134, height: 42)
+        crewBtn.frame = CGRect(x: bw / 2 - 140, y: py + 194, width: TESTBUILD ? 134 : 280, height: 42)
         townsBtn.frame = CGRect(x: bw / 2 + 6, y: py + 194, width: 134, height: 42)
         restartBtn.frame = CGRect(x: bw / 2 - 140, y: py + 252, width: 280, height: 42)
         mapBox.frame = view.bounds
@@ -559,6 +565,10 @@ final class GameViewController: UIViewController {
             for name in ["day", "night", "train", "snow", "storm", "map", "duel", "coach", "west", "west2", "fire", "yard", "over", "lv0", "lv1", "lv2", "lv3", "lv4", "sig1", "sig2", "sig3", "sig4", "mist1", "mist2", "ferry1", "cold4", "buy1", "finale", "finale2", "gone", "wild0", "wild1", "wild2", "wild3", "wild4", "lv5", "lv6", "lv7", "fort", "post", "mission", "gate0", "march", "rout", "rally", "see0", "see1", "see2", "see3", "see4", "see5", "see6", "see7", "see8", "see9"] where args.contains("-demo-" + name) { demoMode = true; game.demo(name) }
             if args.contains("-demo-map") { showMap(choose: true) }
             if args.contains("-demo-intro") { game.beginIntro() }
+            if args.contains("-demo-visit0") { demoMode = true; game.demo("lv2"); game.front = 2; game.visit(0); game.fade = 0 }
+            if args.contains("-demo-visit") { demoMode = true; game.demo("lv2"); game.front = 2; game.visit(0); game.visit(2); game.fade = 0 }
+            if args.contains("-demo-crane") { demoMode = true; game.demo("day"); game.cut = [Beat(art: "eyes", who: "crane", head: "Silas Crane", cap: "Crane is here himself.")] }
+            if args.contains("-demo-eyes") { demoMode = true; game.demo("day"); game.cut = [Beat(art: "eyes", who: "rider", head: "The rider", cap: "He rides in.")] }
             if args.contains("-demo-pay") { demoMode = true; game.demo("day"); showPay() }
             if args.contains("-demo-plain") { demoMode = true; game.demo("day"); plainInfo = true }
             if args.contains("-demo-burn") { demoMode = true; game.demo("day"); logoOn = true; burnLogo.frozen = 0.52; burnLogo.reset(); burnLogo.ignite(after: 0) }
@@ -879,7 +889,8 @@ final class GameViewController: UIViewController {
         let rust = UIColor(red: 0.54, green: 0.18, blue: 0.15, alpha: 1)
         let paper = UIColor(red: 0.93, green: 0.86, blue: 0.68, alpha: 1)
         let n = STAGES.count
-        let cur = game.town % n, lap = game.town / n, nxt = (cur + 1) % n
+        let cur = game.town % n, nxt = (cur + 1) % n
+        let reach = max(cur, min(n - 1, game.front))
         // the sheet inside its margins
         let mx = l + 18, my: CGFloat = 50
         let mw = bw - l - r - 36, mh = bh - my - 58
@@ -1230,10 +1241,10 @@ final class GameViewController: UIViewController {
             put(cs)
         }
         // a train working the line you have already opened
-        if cur > 0 {
+        if reach > 0 {
             let rp = UIBezierPath()
             rp.move(to: stop(0))
-            for k in 1...cur { rp.addQuadCurve(to: stop(k), controlPoint: bend(stop(k - 1), stop(k), k - 1)) }
+            for k in 1...reach { rp.addQuadCurve(to: stop(k), controlPoint: bend(stop(k - 1), stop(k), k - 1)) }
             let loco = CAShapeLayer()
             let lp = UIBezierPath(roundedRect: CGRect(x: -7, y: -3, width: 14, height: 6), cornerRadius: 1.5)
             lp.append(UIBezierPath(rect: CGRect(x: 2, y: -6, width: 3, height: 4)))
@@ -1244,7 +1255,7 @@ final class GameViewController: UIViewController {
             loco.position = stop(0)
             let ka = CAKeyframeAnimation(keyPath: "position")
             ka.path = rp.cgPath; ka.calculationMode = .paced; ka.rotationMode = .rotateAuto
-            ka.duration = 3.2 * Double(cur); ka.repeatCount = .infinity
+            ka.duration = 3.2 * Double(reach); ka.repeatCount = .infinity
             loco.add(ka, forKey: "run")
             put(loco)
         }
@@ -1267,12 +1278,12 @@ final class GameViewController: UIViewController {
         put(rose)
         // the title block's lettering
         let head = UILabel(frame: CGRect(x: cart.minX + 6, y: cart.minY + 4, width: cart.width - 12, height: 21))
-        head.text = choose ? "Next stop" : "The Territory"
+        head.text = choose ? (cur == reach ? "Next stop" : "Where to?") : "The Territory"
         head.font = rye(17); head.textColor = rust; head.textAlignment = .center
         head.adjustsFontSizeToFitWidth = true; head.minimumScaleFactor = 0.6
         mapBox.addSubview(head)
         let sub = UILabel(frame: CGRect(x: cart.minX + 6, y: cart.minY + 24, width: cart.width - 12, height: 13))
-        sub.text = choose ? "You step off at \(nice(PLACES[STAGES[nxt][0]]?.name ?? "the next town")) with \(game.carryOut()) coins" : "The Crane C. & R. line and its five towns"
+        sub.text = choose ? (cur == reach ? "You step off at \(nice(PLACES[STAGES[nxt][0]]?.name ?? "the next town")) with \(game.carryOut()) coins" : "Tap any town you have reached") : (reach > 0 ? "Tap a town you have reached to ride back to it" : "The Crane C. & R. line and its five towns")
         sub.font = UIFont(name: "Georgia-Italic", size: 9.5) ?? serif(9.5, bold: false); sub.textColor = ink; sub.textAlignment = .center
         sub.adjustsFontSizeToFitWidth = true; sub.minimumScaleFactor = 0.7
         mapBox.addSubview(sub)
@@ -1280,10 +1291,9 @@ final class GameViewController: UIViewController {
         for (i, opts) in STAGES.enumerated() {
             guard let key = opts.first, let pl = PLACES[key] else { continue }
             let p = stop(i)
-            let li = lap * n + i
-            let been = i < cur && li < game.log.count && game.log[li] == key
+            let been = i != cur && i <= reach
             let hereNow = i == cur && key == game.place
-            let pick = choose && i == nxt
+            let pick = choose && i == nxt && cur == reach
             let shut = i > 0 && !game.unlocked && !been && !hereNow
             let ring = CAShapeLayer()
             ring.path = UIBezierPath(ovalIn: CGRect(x: -6, y: -6, width: 12, height: 12)).cgPath
@@ -1322,7 +1332,7 @@ final class GameViewController: UIViewController {
             }
             let b = UIButton(type: .custom)
             b.frame = plates[i]
-            let second = hereNow ? "Here, day \(game.day - game.day0)" : (been ? "Rebuilt" : (pick ? (shut ? "Tap to unlock" : "Tap to ride on") : (shut ? "Locked" : pl.land)))
+            let second = hereNow ? "Here, day \(game.day - game.day0)" : (been ? (i == reach ? "Tap to return" : "Tap to visit") : (pick ? (shut ? "Tap to unlock" : "Tap to ride on") : (shut ? "Locked" : pl.land)))
             let ps = NSMutableParagraphStyle()
             ps.alignment = .center
             let at = NSMutableAttributedString(string: nice(pl.name), attributes: [.font: rye(14), .foregroundColor: hereNow ? rust : ink, .paragraphStyle: ps])
@@ -1332,7 +1342,8 @@ final class GameViewController: UIViewController {
             b.titleLabel?.textAlignment = .center
             b.titleLabel?.layer.shadowColor = paper.cgColor
             b.titleLabel?.layer.shadowOffset = .zero; b.titleLabel?.layer.shadowRadius = 2; b.titleLabel?.layer.shadowOpacity = 1
-            b.isUserInteractionEnabled = pick
+            b.isUserInteractionEnabled = pick || been
+            b.tag = i
             if pick { b.backgroundColor = gold; b.layer.cornerRadius = 8; b.layer.borderWidth = 2; b.layer.borderColor = ink.cgColor; b.titleLabel?.layer.shadowOpacity = 0 }
             b.accessibilityIdentifier = key
             b.addTarget(self, action: #selector(pickPlace(_:)), for: .touchUpInside)
@@ -1364,7 +1375,17 @@ final class GameViewController: UIViewController {
         last = 0
     }
     @objc private func pickPlace(_ b: UIButton) {
-        guard mapChoose, let key = b.accessibilityIdentifier else { return }
+        let i = b.tag
+        if i == game.town { return }
+        if i <= game.front {
+            // a town already reached: ride back to it, as it was left
+            mapBox.isHidden = true; mapChoose = false; payKey = nil
+            if userPaused { closeMenu() }
+            game.visit(i)
+            last = 0
+            return
+        }
+        guard mapChoose, game.town == game.front, i == game.town + 1, let key = b.accessibilityIdentifier else { return }
         // the first town is free; the rest of the line is asked for here, at the map
         if game.town == 0 && !game.unlocked { payKey = key; showPay(); return }
         mapBox.isHidden = true

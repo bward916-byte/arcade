@@ -369,6 +369,8 @@ struct SaveData: Codable {
     var more: [Double]?       // rods, brigade, day the hobos last talked, boxcar cool, boxcars opened, bell, day of the last stampede
     var west: [Double]?       // dynamite, loader, lantern, day the post sold, scout days, ruin cool, rig, rig burning, show on, show used, cavalry
     var extra: [Double]?      // owed, flood, duelDay, wanted man's side (0 for none), his hit points, his days left
+    var front: Int? = nil     // the farthest town reached
+    var kept: [SaveData]? = nil   // the towns left behind, each as it stood
 }
 
 /// The stagecoach: 0 rolling in, 1 stopped by the saloon, 2 rolling out east, 3 held up at the rock arch.
@@ -539,7 +541,7 @@ struct Devil { var x: Double; var vx: Double; var t = 0.0; var life: Double; var
 /// Kinds: 0 bottle, 1 piano, 2 rocking chair, 3 rat, 4 spittoon, 5 lamp, 6 moose head, 7 swing doors, 8 wanted poster, 9 bar bell,
 /// 10 ace on the wall, 11 tossed silver dollar, 12 hat on the rack, 13 clock pendulum.
 /// Test builds carry the cheats: the coin button on the title, and a free unlock when the store has no product yet. False for the App Store.
-let TESTBUILD = true
+let TESTBUILD = false
 /// How many townsfolk it takes, in the last town, to run Crane out.
 let RALLY_N = 12
 /// The saloon is this many screens wide, and the view pans slowly across it.
