@@ -1233,7 +1233,7 @@ final class Game {
         // standing at the unopened trade, drifters at the camp beside it: the coin should go to the trade
         if name.hasPrefix("mist") { px = -300; pdir = -1; demoT = 0.13; t = 0.13; noStory = true; hintT = 0 }
         if name.hasPrefix("ferry") { sig.level = 1; px = sig.x - 36; pdir = 1; demoT = 0.4; noStory = true; hintT = 0 }
-        if name.hasPrefix("cold") { px = -300; pdir = 1; demoT = 0.4; noStory = true; hintT = 0; for k in 0..<9 { prints.append((px - 8 - Double(k) * 10, 1, Double(k) * 0.4 - 8)) } }
+        if name.hasPrefix("cold") { px = -300; pdir = 1; demoT = 0.4; noStory = true; hintT = 0; demoStick = 0.5; px = -520 }
         if name.hasPrefix("lv") { demoT = 0.4 }
         if name.hasPrefix("buy") { px = sig.cx; pdir = 1; coins = 20; noStory = true; hintT = 0 }
         if ["finale", "finale2", "gone"].contains(name) {
@@ -1322,6 +1322,7 @@ final class Game {
         let dt = routT >= 0 && routT < 1.6 ? rawDt * 0.45 : rawDt
         clock += dt
         if let h = demoT { t = h }
+        if let d = demoStick { input.stick = d }
         if state == .intro { updIntro(dt); updParts(dt); return }
         if state == .title {
             titleT += dt
@@ -2143,6 +2144,7 @@ final class Game {
     var toTitle = false          // after the last scene, back to the title
     var holdRout: Double?        // test stills only: keep the rout at one moment
     var demoT: Double?           // test stills only: hold the time of day
+    var demoStick: Double?       // test stills only: ride by itself
     /// Crane's buggy: waiting by his office, then away east once he is in it.
     var buggyX: Double { let x0 = craneX + 74, u = min(8, max(0, routShow - 1.5)); return x0 + u * 30 + u * u * 55 }
     var craneX: Double { return EX(2490) }      // on the cavalry outpost's ground, which the last town doesn't have
