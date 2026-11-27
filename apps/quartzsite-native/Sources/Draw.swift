@@ -2654,7 +2654,7 @@ final class Renderer {
         }
         if sp.kind == .board && g.phase == .play && !g.inRig {
             g.hits.append(Hit(id: 53, x: x - 22, y: GY - 44, w: 44, h: 46))
-            if !g.shown.contains("boardUsed") { tapArrow(x, GY - 40, "Tap here to read") }
+            if !g.shown.contains("boardUsed") { tapArrow(x, GY - 40, "Tap here to read"); label = false }
         }
         if label && !near {
             let nm = sp.kind == .fire && g.phase == .play ? { let n = g.neighbor(sp.x > 1400 ? 2 : 4).0; return (n + (n.hasSuffix("s") ? "' FIRE" : "'S FIRE")).uppercased() }() : sp.name
@@ -5307,6 +5307,8 @@ final class Renderer {
         var n = floor((cam - 40) / 320)
         while n * 320 < cam + W + 40 {
             let sx = n * 320 + 150 - cam
+            // no lamp post planted in front of a shop sign
+            if g.spots.contains(where: { abs($0.x - (n * 320 + 150)) < 46 }) { n += 1; continue }
             c.R(sx - 0.6, GY - 44, 1.2, 46, pole)
             c.seg(sx, GY - 44, sx + 7, GY - 45, 0.8, pole)
             if g.holidays {
