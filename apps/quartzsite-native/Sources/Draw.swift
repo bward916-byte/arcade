@@ -741,22 +741,7 @@ final class Renderer {
                 if gx > -10 && gx < W + 10 && sin(NOW * 2 + d) > 0.7 { c.circ(gx, GY - 2 - hashN(d + 1) * 10, 0.8, Col(0xffffff, 0.9)) }
             }
         case .palms:
-            // the canyon wall, with the palms tucked high in a shady slot
-            let cx = W * 0.5 + 300 - cam * 0.3
-            let wall = Col(0x8a6450).shade(1 - dark * 0.6)
-            c.poly(wall, [cx - 320, GY + 1, cx - 300, GY - 70, cx - 220, GY - 90, cx - 120, GY - 84, cx - 60, GY - 100, cx + 40, GY - 96, cx + 140, GY - 82, cx + 260, GY - 88, cx + 340, GY + 1])
-            c.poly(wall.shade(0.9), [cx - 320, GY + 1, cx - 310, GY - 30, cx - 200, GY - 40, cx - 60, GY - 34, cx + 100, GY - 42, cx + 260, GY - 30, cx + 340, GY + 1])
-            c.poly(Col(0x4a342c).shade(1 - dark * 0.5), [cx - 30, GY - 99, cx - 18, GY - 99, cx - 15, GY - 40, cx - 21, GY - 14, cx - 31, GY - 40])
-            c.poly(wall.shade(1.12), [cx - 34, GY - 14, cx - 8, GY - 14, cx + 6, GY + 1, cx - 48, GY + 1])
-            for k in 0..<4 {
-                let px = cx - 28 + Double(k) * 3.4, py = GY - 62 + Double(k % 2) * 7
-                c.R(px - 0.6, py, 1.2, 10, Col(0x6a5040))
-                for f in 0..<7 {
-                    let a = Double(f) / 6 * PI
-                    c.seg(px, py, px + cos(a) * 5, py - sin(a) * 4 + 1, 1, Col(0x4f7a3a).shade(1 - dark * 0.5))
-                }
-            }
-            for k in 0..<8 { let d = Double(k) + 2000; c.R(cx - 300 + hashN(d) * 620, GY - 80 + hashN(d + 1) * 60, 18, 0.7, wall.shade(0.85)) }
+            canyonWall(W * 0.5 + 300 - cam * 0.3)
         case .roadrunner:
             let fest = g.phase == .play && g.on(EV_QFEST)
             let gap = fest ? 80.0 : 280.0
@@ -2537,7 +2522,7 @@ final class Renderer {
         c.roundCaps(false)
     }
 
-    /// Desert ironwood: a stout grey trunk with shaggy bark, heavy grey limbs, a dense blue-grey evergreen crown lit from above.
+    /// Desert ironwood: a stout grey trunk, heavy grey limbs, one dense blue-grey evergreen crown lit from above.
     private func ironwood(_ x: Double, _ base: Double, _ seed: Double, _ s: Double = 1) {
         if x < -55 * s || x > W + 55 * s { return }
         let k = 1 - dark * 0.45
@@ -2548,28 +2533,23 @@ final class Renderer {
         var unused: [(Double, Double, Double)] = []
         for i in 0..<3 {
             let f = Double(i) - 1
-            bough(x + f * 1.2 * s, y0, -PI / 2 + f * 0.75, h * 0.22, 3 * s, 3, seed + Double(i) * 6.1, bark, 0.48, 0.06, false, &tips)
+            bough(x + f * 1.2 * s, y0, -PI / 2 + f * 0.55, h * 0.2, 3 * s, 3, seed + Double(i) * 6.1, bark, 0.36, 0, false, &tips)
         }
         taper(x, base, x, base - h * 0.17, 4.6 * s, 3.6 * s, bark.shade(0.85))
-        for i in 0..<4 {
-            let d = Double(i)
-            c.seg(x - 1.4 * s, base - 1.5 * s - d * 1.6 * s, x + 1.2 * s, base - 2.3 * s - d * 1.6 * s, 0.4 * s, bark.shade(0.65))
-        }
         for i in 0..<3 {
             let f = Double(i) - 1
-            bough(x + f * 1.2 * s, y0, -PI / 2 + f * 0.75, h * 0.22, 3 * s, 3, seed + Double(i) * 6.1, bark, 0.48, 0.06, true, &unused)
+            bough(x + f * 1.2 * s, y0, -PI / 2 + f * 0.55, h * 0.2, 3 * s, 3, seed + Double(i) * 6.1, bark, 0.36, 0, true, &unused)
         }
         let under = Col(0x4a5a52).shade(k)
         let mid = Col(0x66786c).shade(k)
         let top = Col(0x84968a).shade(k)
-        let r = h * 0.105
-        // fill the heart of the crown so it reads as one dense dome, not a ring
+        let r = h * 0.11
         var mx = 0.0, my = 0.0
         for t in tips { mx += t.0; my += t.1 }
         mx /= Double(max(1, tips.count)); my /= Double(max(1, tips.count))
-        for t in tips { c.circ(t.0 + (mx - t.0) * 0.5, t.1 + (my - t.1) * 0.5, r * 1.1, under) }
+        c.ell(mx, my + r * 0.3, h * 0.3, h * 0.17, under)
         for t in tips { c.circ(t.0, t.1 + r * 0.35, r, under) }
-        for (i, t) in tips.enumerated() where i % 2 == 0 { c.circ(t.0 + (mx - t.0) * 0.45 - r * 0.2, t.1 + (my - t.1) * 0.45 - r * 0.3, r * 0.8, mid) }
+        for t in tips { c.circ(t.0 + (mx - t.0) * 0.45 - r * 0.2, t.1 + (my - t.1) * 0.45 - r * 0.2, r * 0.85, mid) }
         for (i, t) in tips.enumerated() { c.circ(t.0 - r * 0.2 + (hashN(seed + Double(i)) - 0.5) * r * 0.5, t.1 - r * 0.15, r * 0.8, mid) }
         for (i, t) in tips.enumerated() where hashN(seed + Double(i) + 50) < 0.6 { c.circ(t.0 - r * 0.35, t.1 - r * 0.5, r * 0.42, top) }
     }
@@ -2808,6 +2788,36 @@ final class Renderer {
             }
             c.poly(i % 2 == 0 ? leaf2 : leaf, pts)
         }
+    }
+
+    /// Palm Canyon in the Kofa: a jagged volcanic wall with one narrow shadowed slot, the palms green in its throat.
+    private func canyonWall(_ cx: Double) {
+        let k = 1 - dark * 0.6
+        let wall = Col(0x8a6450).shade(k)
+        c.poly(wall, [cx - 330, GY + 1, cx - 300, GY - 48, cx - 250, GY - 62, cx - 200, GY - 54, cx - 150, GY - 70, cx - 90, GY - 60, cx - 44, GY - 74, cx - 27, GY - 67, cx - 18, GY - 57, cx - 9, GY - 70, cx + 40, GY - 64, cx + 90, GY - 72, cx + 150, GY - 56, cx + 210, GY - 66, cx + 270, GY - 50, cx + 340, GY + 1])
+        // lit and shaded faces, and the bedding in the rock
+        c.poly(wall.shade(1.1), [cx - 150, GY - 70, cx - 90, GY - 60, cx - 110, GY - 20, cx - 170, GY - 24])
+        c.poly(wall.shade(0.88), [cx + 90, GY - 72, cx + 150, GY - 56, cx + 130, GY - 18, cx + 70, GY - 22])
+        for i in 0..<9 {
+            let d = Double(i) + 2000
+            c.R(cx - 300 + hashN(d) * 600, GY - 52 + hashN(d + 1) * 30, 14 + hashN(d + 2) * 16, 0.6, wall.shade(0.84))
+        }
+        // talus at the foot of the wall
+        c.poly(wall.shade(1.14), [cx - 330, GY + 1, cx - 290, GY - 14, cx - 120, GY - 18, cx - 40, GY - 12, cx + 60, GY - 18, cx + 240, GY - 13, cx + 340, GY + 1])
+        // the slot
+        let shadow = Col(0x3e2c26).shade(1 - dark * 0.5)
+        c.poly(shadow, [cx - 27, GY - 67, cx - 18, GY - 57, cx - 9, GY - 70, cx - 13, GY - 34, cx - 17, GY - 15, cx - 22, GY - 34])
+        c.poly(shadow.shade(1.35), [cx - 18, GY - 57, cx - 9, GY - 70, cx - 13, GY - 34, cx - 17, GY - 15])
+        for i in 0..<5 {
+            let d = Double(i)
+            let px = cx - 21 + d * 1.9
+            let py = GY - 30 - Double(i % 2) * 5 - d
+            c.R(px - 0.35, py, 0.7, 6, Col(0x6a5040).shade(k))
+            c.R(px - 0.8, py, 1.6, 2.2, Col(0xa8946a).shade(k))
+            c.dome(px, py + 0.4, 2.3, Col(0x5a8a40).shade(1 - dark * 0.5))
+        }
+        // the wash spilling out of the canyon mouth
+        c.poly(Col(0xe2c898, 0.55).shade(k), [cx - 19, GY - 15, cx - 15, GY - 15, cx + 2, GY + 1, cx - 40, GY + 1])
     }
 
     /// A desert rock with a lit top.
@@ -3950,12 +3960,7 @@ final class Renderer {
             c.poly(kofa, [kx - 260, GY + 1, kx - 200, GY - 40, kx - 170, GY - 28, kx - 130, GY - 62, kx - 90, GY - 44, kx - 40, GY - 70, kx + 10, GY - 38, kx + 60, GY - 52, kx + 120, GY - 30, kx + 200, GY + 1])
             c.poly(kofa.shade(0.85), [kx - 40, GY - 70, kx + 10, GY - 38, kx - 20, GY + 1, kx - 70, GY + 1])
         case .palms:
-            let cx = W * 0.5 + 300 - cam * 0.3
-            let wall = Col(0x8a6450).shade(1 - dark * 0.6)
-            c.poly(wall, [cx - 320, GY + 1, cx - 300, GY - 70, cx - 220, GY - 90, cx - 120, GY - 84, cx - 60, GY - 100, cx + 40, GY - 96, cx + 140, GY - 82, cx + 260, GY - 88, cx + 340, GY + 1])
-            c.poly(wall.shade(0.9), [cx - 320, GY + 1, cx - 310, GY - 30, cx - 200, GY - 40, cx - 60, GY - 34, cx + 100, GY - 42, cx + 260, GY - 30, cx + 340, GY + 1])
-            c.poly(Col(0x4a342c).shade(1 - dark * 0.5), [cx - 30, GY - 99, cx - 18, GY - 99, cx - 15, GY - 40, cx - 21, GY - 14, cx - 31, GY - 40])
-            c.poly(wall.shade(1.12), [cx - 34, GY - 14, cx - 8, GY - 14, cx + 6, GY + 1, cx - 48, GY + 1])
+            canyonWall(W * 0.5 + 300 - cam * 0.3)
         default:
             break
         }
@@ -4220,9 +4225,6 @@ final class Renderer {
         if [Area.dome, .crystal, .palms, .desertbar, .intaglios].contains(ar) {
             let t = NOW * 0.18
             soar(W * 0.6 + cos(t) * W * 0.3, GY * 0.3 + sin(t * 1.3) * 10, 24, true)
-        }
-        if ar == .skoolie {
-            hoofed(W * 0.8 - cam * 0.1 + sin(NOW * 0.05) * 60, GY + 2, 0.9, 2, 0.4)
         }
         for k in 0..<5 { quail(260 + Double(k) * 7 - cam + sin(NOW * 0.3) * 20, GY + 2 + Double(k % 2), NOW * 6 + Double(k)) }
     }
@@ -4549,7 +4551,7 @@ final class Renderer {
             g.text("New camper", W / 2 + bw / 2 + 6, H - 41, 7.5, CREAM, bold: true)
             g.hits.append(Hit(id: 2, x: W / 2 + 6, y: H - 56, w: bw, h: 30))
         } else {
-            g.text("Tap to roll in", W / 2, H - 40, 8, CREAM.alpha(0.65 + 0.35 * sin(NOW * 3)), bold: true)
+            g.text("Tap to roll in", W / 2, H - 14, 8, CREAM.alpha(0.65 + 0.35 * sin(NOW * 3)), bold: true)
         }
         let fr = W - g.safeR - 12
         c.RR(fr - 64, H - 34, 64, 15, 7.5, Col(0x1c1410, 0.65))
