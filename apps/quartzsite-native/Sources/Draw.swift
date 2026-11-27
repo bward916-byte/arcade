@@ -419,12 +419,14 @@ final class Renderer {
             // always know which way home is; when you're run down, the camp itself is pointed out
             let rx0 = g.rigX - cam
             let b = abs(sin(NOW * 4)) * 2.4
+            let lx = g.safeL / ZOOM
             if rx0 < -24 {
-                c.poly(GOLD, [8 - b, GY - 34, 15 - b, GY - 38.4, 15 - b, GY - 29.6])
-                g.text("your camp", 18 - b, GY - 34, 4.2, GOLD, align: 1, bold: true, plate: true)
+                c.poly(GOLD, [lx + 8 - b, GY - 34, lx + 15 - b, GY - 38.4, lx + 15 - b, GY - 29.6])
+                g.text("your camp", lx + 18 - b, GY - 34, 4.2, GOLD, align: 1, bold: true, plate: true)
             } else if rx0 > W + 24 {
-                c.poly(GOLD, [W - 8 + b, GY - 34, W - 15 + b, GY - 38.4, W - 15 + b, GY - 29.6])
-                g.text("your camp", W - 18 + b, GY - 34, 4.2, GOLD, align: 2, bold: true, plate: true)
+                let rx1 = W - g.safeR / ZOOM
+                c.poly(GOLD, [rx1 - 8 + b, GY - 34, rx1 - 15 + b, GY - 38.4, rx1 - 15 + b, GY - 29.6])
+                g.text("your camp", rx1 - 18 + b, GY - 34, 4.2, GOLD, align: 2, bold: true, plate: true)
             } else if g.health < 60 && !g.nearRig && !g.onToy {
                 tapArrow(rx0 + 44, GY - 30, "Rest by your fire here")
             }
@@ -1924,7 +1926,7 @@ final class Renderer {
             g.text("GEM WORLD", x, GY - hh + 12, 9, CREAM, bold: true)
             g.text("WHOLESALE  ·  ROUGH  ·  SLABS  ·  BEADS  ·  FINDINGS", x, GY - hh + 19, 3, GOLD, bold: true)
             // a row of high windows under the eaves
-            for w in 0..<7 { if w != 3 { c.RR(x0 + 12 + Double(w) * 41, GY - hh + 8, 14, 6, 0.8, GLASS.shade(1 - dark * 0.3)) } }
+            for w in 0..<7 { if w < 2 || w > 5 { c.RR(x0 + 12 + Double(w) * 41, GY - hh + 8, 14, 6, 0.8, GLASS.shade(1 - dark * 0.3)) } }
             // three tall roll-up doors open onto aisles of pallet racking
             let jewel: [Col] = [Col(0x9a5ad0), Col(0xf0f0f4), Col(0xe2742e), Col(0x2fa7a0), Col(0xc85a3a), Col(0x5a8ad0)]
             for d in 0..<3 {
@@ -3530,13 +3532,13 @@ final class Renderer {
         for r in 0..<2 { c.R(bx + 2, y0 + 39 + Double(r) * 10, bw - 4, 0.8, Col(0x8a6238)); for q in 0..<Int(bw / 5) { c.RR(bx + 4 + Double(q) * 5, y0 + 32.4 + Double(r) * 10, 2.2, 6.4, 0.8, glass[(q + r) % 5]) } }
         c.RR(bx + bw * 0.3, y0 + 23, bw * 0.4, 6, 3, Col(0xff5a6a, 0.25 + 0.1 * sin(NOW * 3)))
         g.text("PIZZA · COLD BEER", bx + bw * 0.5, y0 + 26, 3.6, Col(0xff8a9a), bold: true)
+        person(bx + bw * 0.72, fl - 10, 640, -1, 0, false)
         c.R(bx - 2, fl - 26, bw + 4, 3, Col(0xb8742e)); c.R(bx, fl - 23, bw, 23, Col(0x7a4a2a))
         for q in 0..<5 {
             let sx = bx + 10 + Double(q) * (bw - 20) / 4
             c.R(sx - 0.6, fl - 12, 1.2, 12, Col(0x8a8f96)); c.ell(sx, fl - 12.6, 4, 1.4, Col(0x8a2e1e))
             if q % 2 == 0 { seated(sx, fl - 13, 610 + q, 0.3) }
         }
-        person(bx + bw * 0.5, fl - 24, 640, 1, 0, false)
         // the back room: a green felt table under a hanging lamp
         let tx = x0 + w * 0.56, tw = w * 0.36, ty = fl - 22
         c.R(tx + tw * 0.5 - 0.4, y0 + 22, 0.8, 16, Col(0x2a2a2e)); c.poly(Col(0x2f6a3a), [tx + tw * 0.5 - 12, y0 + 44, tx + tw * 0.5 - 6, y0 + 38, tx + tw * 0.5 + 6, y0 + 38, tx + tw * 0.5 + 12, y0 + 44])
@@ -3765,7 +3767,7 @@ final class Renderer {
         let lab10 = mp(33.652, -114.29), lab95 = mp(33.60 + 0.02, -114.211)
         g.text("I-10", lab10.0, lab10.1 - 5, 3.6, ink.alpha(0.6), bold: true)
         g.text("95", lab95.0 + 4, lab95.1, 3.6, ink.alpha(0.6), bold: true)
-        g.text("to the river", mx0 + 14, my0 + mh - 6, 3.2, Col(0x2a5a80), align: 1)
+        g.text("to the river", mx0 + 14, my0 + mh - 20, 3.2, Col(0x2a5a80), align: 1)
         for a in AREAS.indices {
             let d = AREAS[a]
             let p = mp(d.lat, d.lon)
@@ -3780,9 +3782,9 @@ final class Renderer {
             if !here { g.hits.append(Hit(id: 70 + a, x: p.0 - 9, y: p.1 - 9, w: 18, h: 18)) }
         }
         let iceLabel = g.era == 2 ? "GO TO THE YEAR 1026" : "GO BACK 13,000 YEARS"
-        c.RR(mx0 + mw - 88, my0 + mh - 15, 84, 12, 6, Col(0x4a6a8a))
-        g.text(iceLabel, mx0 + mw - 46, my0 + mh - 9, 3.8, CREAM, bold: true)
-        g.hits.append(Hit(id: 57, x: mx0 + mw - 90, y: my0 + mh - 18, w: 88, h: 18))
+        c.RR(mx0 + 10, my0 + mh - 15, 84, 12, 6, Col(0x4a6a8a))
+        g.text(iceLabel, mx0 + 52, my0 + mh - 9, 3.8, CREAM, bold: true)
+        g.hits.append(Hit(id: 57, x: mx0 + 8, y: my0 + mh - 18, w: 88, h: 18))
         if !g.inPast {
             let mc = mp(33.607, -114.204)
             c.circ(mc.0, mc.1, 1.6, Col(0x6a3a7a))
