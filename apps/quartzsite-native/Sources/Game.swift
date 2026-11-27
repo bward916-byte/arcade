@@ -395,6 +395,9 @@ struct SaveData: Codable {
     var stats: [Int]?
     var notes: [Int]?
     var era: Int?
+    var sStart: Int?
+    var best: Int?
+    var began: Double?
 }
 
 final class Input {
@@ -436,6 +439,12 @@ final class Game {
     var inPast: Bool { return era == 1 }
     var fieldNotes: Set<Int> = []
     var flashT = 0.0
+    // the contest score: cred earned in one season, so a late start or a long life is no advantage
+    var seasonStartCred = 0
+    var bestSeason = 0
+    var seasonBegan = 0.0
+    var rulesOpen = false
+    var seasonCred: Int { return max(0, cred - seasonStartCred) }
     var plantShow = false   // demo only: a lineup of the desert plants
     var rigHere: Bool { return !inPast && rigArea == area }
     var toyHere: Bool { return !inPast && toyArea == area }
@@ -714,6 +723,12 @@ final class Game {
         for h in hits where x >= h.x && x <= h.x + h.w && y >= h.y && y <= h.y + h.h { id = h.id }
         switch phase {
         case .title:
+            if rulesOpen {
+                if id == 84 { events.append(10) } else { rulesOpen = false }
+                events.append(3)
+                return
+            }
+            if id == 83 { rulesOpen = true; events.append(3); return }
             if id == 69 { feedback(); return }
             if id == 2 || !hasSave { phase = .pick } else if id == 1 { phase = .play; arriveT = 4.5 } else { return }
             events.append(3)
@@ -765,7 +780,9 @@ final class Game {
                 return
             }
             if mapOpen {
+                #if DEBUG
                 if id == 64 { testWeek(); return }
+                #endif
                 if id == 85 { timeTravel(); return }
                 if id >= 70 && id < 70 + AREAS.count { go(Area(rawValue: id - 70) ?? area) } else if id == 61 || id < 0 { mapOpen = false }
                 events.append(3)
@@ -795,6 +812,7 @@ final class Game {
         rig = START_RIGS[pickRig]
         money = START_CASH[pickRig] + (life == .rver ? 100 : 0)
         cred = life == .nomad ? 5 : 0
+        seasonStartCred = cred; seasonBegan = Date().timeIntervalSince1970
         stats = [Int(money), 0, cred, 0, 0, 0, 0, 0]
         health = 100; day = 1; dayT = 0.12
         wood = 0; rockVals = []; odd = 0; jewelVals = []; panels = 0
@@ -1054,7 +1072,7 @@ final class Game {
                         permitDays: permitDays, business: business, adDays: adDays, page: page, jewelVals: jewelVals, detector: detector, campDays: campDays,
                         age: age, year: year, resident: resident, house: house, upgrades: Array(upgrades), followers: followers,
                         camels: Array(camels), hasDog: hasDog, dogCholla: dogCholla,
-                        weather: weather, afterRain: afterRain, tanks: tanks, propane: propane, stats: stats, notes: Array(fieldNotes), era: era)
+                        weather: weather, afterRain: afterRain, tanks: tanks, propane: propane, stats: stats, notes: Array(fieldNotes), era: era, sStart: seasonStartCred, best: bestSeason, began: seasonBegan)
     }
     func restore(_ s: SaveData) {
         life = Life(rawValue: s.life) ?? .nomad
@@ -1070,6 +1088,8 @@ final class Game {
         tanks = s.tanks ?? 100; propane = s.propane ?? 100
         if let st = s.stats, st.count == 8 { stats = st }
         fieldNotes = Set(s.notes ?? []); era = s.era ?? 0
+        seasonStartCred = s.sStart ?? s.cred; bestSeason = s.best ?? 0
+        seasonBegan = s.began ?? Date().timeIntervalSince1970
         inRig = false; onToy = false
         shown = ["start"]
         hasSave = true
@@ -1200,6 +1220,7 @@ final class Game {
         if key == "home" { place(.main, 4340); money = 25000; day = 60; life = .rver; resident = true; dayT = 0.6 }
         if key == "season" { day = SEASON_END + 1; resident = true; business = 2; cred = 40; money = 2840; followers = 1320; page = true; stats = [150, 0, 5, 214, 18, 31, 9, 3]; seasonCard = true }
         if key == "end" { age = 84; year = 24; cred = 210; money = 18000; house = true; finish() }
+        if key == "rules" { phase = .title; rulesOpen = true }
         if key == "tyson" { life = .rver; place(.tyson, 2390); money = 3000; day = 21; rig = .classB }
         if key == "dome" { place(.dome, 800); rig = .classB; rigArea = .dome; rigX = 1520; dayT = 0.56 }
         if key == "toys" { place(.main, 930); money = 3000; toy = 3; toyArea = .main; toyX = 860 }
@@ -1963,8 +1984,10 @@ final class Game {
             float((total > 0 ? "+\(total)" : "-\(-total)") + " overnight", px, total > 0 ? GREEN : REDC)
         }
         if day == SEASON_END - 6 { hintT = 0; hint("seasonsoon\(year)", "The season ends April 15. Snowbirds head north; if you have a year-round RV site or a house, you can stay the summer.") }
+        events.append(9)
         if day > SEASON_END {
             refund()
+            bestSeason = max(bestSeason, seasonCred)
             seasonCard = true
             events.append(8)
         }
@@ -1973,6 +1996,8 @@ final class Game {
     /// The end of a winter: head north for the summer, or stay if you have a place to live.
     private func newSeason(stay: Bool) {
         seasonCard = false
+        bestSeason = max(bestSeason, seasonCred)
+        seasonStartCred = cred; seasonBegan = Date().timeIntervalSince1970
         defer { stats = [Int(money), followers, cred, 0, 0, 0, 0, 0] }
         if stay {
             var b = 0

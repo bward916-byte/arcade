@@ -1,4 +1,5 @@
 import UIKit
+import GameKit
 
 @main
 final class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -99,6 +100,7 @@ final class GameViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        signIn()
         view.backgroundColor = .black
         view.isMultipleTouchEnabled = true
         stage.isUserInteractionEnabled = false
@@ -141,12 +143,54 @@ final class GameViewController: UIViewController {
         game.W = Double(w); game.H = Double(h)
         game.GY = Double(h) - clampD((Double(h) * 0.26).rounded(), 34, 50)
         renderer = Renderer(game: game, canvas: cv)
+        #if DEBUG
         if !demoDone {
             demoDone = true
-            for key in ["pick", "rigs", "play", "night", "ltva", "main", "gem", "tyson", "dome", "toys", "ride", "skoolie", "map", "trail", "scaddan", "browse", "parade", "home", "season", "end", "gear", "computer", "rain", "windy", "critters", "page", "qfest", "western", "trailride", "cine0", "cine1", "cine2", "cine3", "cine4", "happy", "cleanup", "dog", "camels", "drive", "drivenight", "drivetrail", "drivestop", "drivetow", "party", "gemworld", "mainwest", "maineast", "mainnight", "readers", "dust", "gen", "propane", "phone", "wildnight", "rainbow", "windy", "booth", "haggle", "river", "food", "blm", "coffee", "flood", "rvshow", "goals", "newyear", "xmas", "tour", "minein", "board", "hijolly", "plomosa", "crystal", "palms", "desertbar", "intaglios", "past", "pastriver", "pastmain", "plants", "gemfront"] where ProcessInfo.processInfo.arguments.contains("-demo-" + key) {
+            for key in ["pick", "rigs", "play", "night", "ltva", "main", "gem", "tyson", "dome", "toys", "ride", "skoolie", "map", "trail", "scaddan", "browse", "parade", "home", "season", "end", "gear", "computer", "rain", "windy", "critters", "page", "qfest", "western", "trailride", "cine0", "cine1", "cine2", "cine3", "cine4", "happy", "cleanup", "dog", "camels", "drive", "drivenight", "drivetrail", "drivestop", "drivetow", "party", "gemworld", "mainwest", "maineast", "mainnight", "readers", "dust", "gen", "propane", "phone", "wildnight", "rainbow", "windy", "booth", "haggle", "river", "food", "blm", "coffee", "flood", "rvshow", "goals", "newyear", "xmas", "tour", "minein", "board", "hijolly", "plomosa", "crystal", "palms", "desertbar", "intaglios", "past", "pastriver", "pastmain", "plants", "gemfront", "rules"] where ProcessInfo.processInfo.arguments.contains("-demo-" + key) {
                 game.demo(key)
             }
         }
+        #endif
+    }
+
+    // MARK: the contest leaderboard
+
+    /// Sign in to Game Center quietly; if the player declines, the game plays the same without a leaderboard.
+    private func signIn() {
+        GKLocalPlayer.local.authenticateHandler = { [weak self] vc, _ in
+            if let vc = vc { self?.present(vc, animated: true) }
+        }
+    }
+
+    /// The leaderboard for the contest running right now, or nil outside both contests.
+    /// A season only counts when it began inside the same contest it is scored in.
+    private func contestBoard(seasonBegan: Double) -> String? {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "America/Los_Angeles") ?? .current
+        func at(_ y: Int, _ m: Int, _ d: Int) -> Double {
+            return cal.date(from: DateComponents(year: y, month: m, day: d))?.timeIntervalSince1970 ?? 0
+        }
+        let now = Date().timeIntervalSince1970
+        let open1 = at(2026, 11, 1), close1 = at(2027, 2, 1), close2 = at(2027, 4, 1)
+        if now >= open1 && now < close1 && seasonBegan >= open1 { return "qw.cred.jan2027" }
+        if now >= close1 && now < close2 && seasonBegan >= close1 { return "qw.cred.mar2027" }
+        return nil
+    }
+
+    private func submitScore() {
+        guard GKLocalPlayer.local.isAuthenticated else { return }
+        guard let board = contestBoard(seasonBegan: game.seasonBegan) else { return }
+        let score = game.seasonCred
+        if score <= 0 { return }
+        GKLeaderboard.submitScore(score, context: 0, player: GKLocalPlayer.local, leaderboardIDs: [board]) { _ in }
+    }
+
+    private func showBoard() {
+        let now = Date().timeIntervalSince1970
+        let board = contestBoard(seasonBegan: now) ?? "qw.cred.mar2027"
+        let vc = GKGameCenterViewController(leaderboardID: board, playerScope: .global, timeScope: .allTime)
+        vc.gameCenterDelegate = self
+        present(vc, animated: true)
     }
 
     func setPaused(_ p: Bool) {
@@ -188,6 +232,8 @@ final class GameViewController: UIViewController {
             case 6: sound.spend()
             case 7: sound.dawn()
             case 8: sound.season()
+            case 9: submitScore()
+            case 10: showBoard()
             default: break
             }
         }
@@ -268,4 +314,10 @@ final class GameViewController: UIViewController {
     }
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) { lift(touches) }
     override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) { lift(touches) }
+}
+
+extension GameViewController: GKGameCenterControllerDelegate {
+    func gameCenterViewControllerDidFinish(_ gameCenterViewController: GKGameCenterViewController) {
+        gameCenterViewController.dismiss(animated: true)
+    }
 }

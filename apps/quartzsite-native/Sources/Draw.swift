@@ -3124,10 +3124,12 @@ final class Renderer {
             let up = next.prefix(2).map { EVENTS[$0].name + " (" + EVENTS[$0].when + ", " + AREAS[EVENTS[$0].area.rawValue].name + ")" }
             g.text("Coming up: " + up.joined(separator: " · "), x0 + 10, cy + 11, 4, ink.alpha(0.75), align: 1, wrap: x1 - x0 - 20)
         }
-        // testing only: skip a week to reach the events
+        #if DEBUG
+        // testing only, never in a released build: skip a week to reach the events
         c.RR(x1 - 66, y0 + 4, 48, 12, 6, REDC.alpha(0.85))
         g.text("TEST: +1 WEEK", x1 - 42, y0 + 10, 3.8, CREAM, bold: true)
         g.hits.append(Hit(id: 64, x: x1 - 68, y: y0 + 2, w: 52, h: 16))
+        #endif
         // the way back in time, and home again
         let tc = g.inPast ? Col(0x3b5bdb) : Col(0x8a5a2e)
         c.RR(x1 - 150, y0 + 4, 78, 12, 6, tc)
@@ -4629,6 +4631,42 @@ final class Renderer {
         c.RR(fr - 64, H - 34, 64, 15, 7.5, Col(0x1c1410, 0.65))
         g.text("Send feedback", fr - 32, H - 26.5, 4.6, CREAM, bold: true)
         g.hits.append(Hit(id: 69, x: fr - 70, y: H - 40, w: 76, h: 26))
+        let fl = g.safeL + 12
+        c.RR(fl, H - 34, 78, 15, 7.5, GOLD)
+        g.text("Contest: win 150 dollars", fl + 39, H - 26.5, 4.4, INK, bold: true)
+        g.hits.append(Hit(id: 83, x: fl - 6, y: H - 40, w: 90, h: 26))
+        if g.rulesOpen { rulesOverlay() }
+    }
+
+    /// The contest's official rules, always a tap away from the title screen.
+    private func rulesOverlay() {
+        g.hits.removeAll(keepingCapacity: true)
+        g.texts.removeAll(keepingCapacity: true)
+        c.R(0, 0, W, H, Col(0x0c0a08, 0.6))
+        let x0 = g.safeL + 16, x1 = W - g.safeR - 16, y0 = 8.0, y1 = H - 8
+        let paper = Col(0xeadfc4), ink = Col(0x3a2c1e)
+        c.RR(x0, y0, x1 - x0, y1 - y0, 6, paper)
+        g.hits.append(Hit(id: -2, x: 0, y: 0, w: W, h: H))
+        g.text("CRED CONTEST: OFFICIAL RULES", x0 + 10, y0 + 10, 7, ink, align: 1, bold: true)
+        g.text("Your best season: \(max(g.bestSeason, g.seasonCred)) cred", x1 - 10, y0 + 10, 4.6, ink.alpha(0.75), align: 2, bold: true)
+        let rules: [String] = [
+            "Two prizes of 150 US dollars. Contest 1 ends January 31, 2027. Contest 2 runs February 1 to March 31, 2027. Each ends at 11:59 PM Pacific time.",
+            "To win, earn the most cred in a single season. A season counts toward a contest only when it is started and scored inside that contest's dates. Your score posts to the Game Center leaderboard each game morning.",
+            "Free to enter. No purchase necessary. This is a game of skill. Open to legal residents of the United States who are 18 or older. Void where prohibited. One prize per person.",
+            "Ties go to the player who posted the score first. Cheating, modified copies of the game, or more than one account disqualify a player. The sponsor's decisions are final.",
+            "The winner must write to bward916@gmail.com within 14 days of the contest's end and prove the Game Center account is theirs. Prizes are paid by check or PayPal. Any taxes are the winner's responsibility.",
+            "Sponsor: Brian Ward, Blythe, California. Apple is not a sponsor of this contest and is not involved in it in any way."
+        ]
+        var ry = y0 + 24
+        for (i, line) in rules.enumerated() {
+            g.text("\(i + 1).", x0 + 10, ry, 4, ink, align: 1, bold: true)
+            g.text(line, x0 + 20, ry, 4, ink, align: 1, wrap: x1 - x0 - 34)
+            ry += i == 1 ? 21 : 17
+        }
+        c.RR(x1 - 92, y1 - 22, 82, 15, 7.5, Col(0x3b5bdb))
+        g.text("Leaderboard", x1 - 51, y1 - 14.5, 5, CREAM, bold: true)
+        g.hits.append(Hit(id: 84, x: x1 - 98, y: y1 - 28, w: 94, h: 26))
+        g.text("tap anywhere to close", x0 + 10, y1 - 14.5, 4, ink.alpha(0.6), align: 1)
     }
 
     private func card(_ id: Int, _ x: Double, _ y: Double, _ w: Double, _ h: Double, _ on: Bool) {
