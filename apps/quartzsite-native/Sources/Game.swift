@@ -1440,6 +1440,10 @@ final class Game {
         if key == "palms" { place(.palms, 960); dayT = 0.3; clockFreeze = true }
         if key == "plants" { place(.plomosa, 300); dayT = 0.3; clockFreeze = true; plantShow = true }
         if key == "ice" { place(.ltva, 1300); era = 2; dayT = 0.3; clockFreeze = true }
+        if key == "icecamel" { place(.tyson, 1200); era = 2; dayT = 0.4; clockFreeze = true }
+        if key == "icesloth" { place(.dome, 900); era = 2; dayT = 0.4; clockFreeze = true }
+        if key == "icewolf" { place(.trail, 1100); era = 2; dayT = 0.4; clockFreeze = true }
+        if key == "icehorse" { place(.scaddan, 1000); era = 2; dayT = 0.4; clockFreeze = true }
         if key == "icecamp" { place(.plomosa, 1100); era = 2; dayT = 0.6; clockFreeze = true }
         if key == "labyrinth" { place(.ltva, 2640); dayT = 0.3; clockFreeze = true }
         if key == "magic" { place(.ltva, 2890); dayT = 0.4; clockFreeze = true }

@@ -3828,23 +3828,139 @@ final class Renderer {
 
     /// A Columbian mammoth.
     private func mammoth(_ x: Double, _ base: Double, _ s: Double, _ ph: Double) {
-        if x < -40 * s || x > W + 40 * s { return }
-        let fur = Col(0x6a4a34).shade(1 - dark * 0.5)
-        let sw = sin(NOW * 1.2 + ph) * s
+        if x < -60 * s || x > W + 60 * s { return }
+        // A Columbian mammoth, thirteen feet at the shoulder: a high domed head, a back that slopes away from the
+        // shoulder hump, column legs, long tusks that sweep down, out and back up, and only a thin coat of hair.
+        let sh = 1 - dark * 0.5
+        let hide = Col(0x6e5240).shade(sh), deep = Col(0x4e3a2c).shade(sh), lite = Col(0x8a6c54).shade(sh)
+        let ivory = Col(0xf0e6d0).shade(1 - dark * 0.4)
+        let k = s * 0.92
+        let sw = sin(NOW * 1.1 + ph)
+        c.save()
+        c.translate(x, base)
+        c.scale(k, k)
+        c.ell(0, 0.6, 26, 2.4, Col(0x000000, 0.2))
         c.roundCaps(true)
-        let legs: [(Double, Double)] = [(-8, sw), (-4, -sw), (6, -sw), (10, sw)]
-        for (lx, s0) in legs { c.seg(x + lx * s, base - 12 * s, x + lx * s + s0, base, 3.6 * s, fur.shade(0.82)) }
-        c.ell(x, base - 16 * s, 13 * s, 8.5 * s, fur)
-        c.ell(x + 5 * s, base - 23 * s, 7 * s, 5.4 * s, fur)
-        c.ell(x + 13 * s, base - 22 * s, 5.4 * s, 6.6 * s, fur.shade(1.06))
-        c.ell(x + 9.6 * s, base - 21 * s, 2.4 * s, 3.4 * s, fur.shade(0.85))
-        let curl = sin(NOW * 0.8 + ph) * 2 * s
-        c.curve(x + 16.6 * s, base - 19 * s, x + 21 * s, base - 9 * s, x + 17 * s + curl, base - 2.4 * s, 2.4 * s, fur.shade(1.06))
-        c.curve(x + 15 * s, base - 16.4 * s, x + 23 * s, base - 8 * s, x + 26 * s, base - 16 * s, 1.1 * s, Col(0xf0e8d8).shade(1 - dark * 0.4))
-        c.circ(x + 14.6 * s, base - 23.4 * s, 0.6 * s, INK)
-        for q in 0..<7 { c.seg(x - 9 * s + Double(q) * 3 * s, base - 9 * s, x - 9.4 * s + Double(q) * 3 * s, base - 6.6 * s, 0.5 * s, fur.shade(0.75)) }
-        c.seg(x - 12.6 * s, base - 18 * s, x - 14 * s, base - 11 * s, 0.8 * s, fur.shade(0.8))
+        func leg(_ lx: Double, _ a: Double, _ col: Col) {
+            let kx = lx + a * 1.6, ky = -9.5
+            c.seg(lx, -21, kx, ky, 6.4, col)
+            c.seg(kx, ky, lx + a * 2.6, -2.2, 5.4, col)
+            c.ell(lx + a * 2.6 + 0.4, -1.4, 3.4, 1.8, col)
+            for q in 0..<3 { c.arcStroke(lx + a * 2.6 + 1.2 + Double(q) * 1.1, -0.4, 0.6, PI, PI * 2, 0.35, Col(0xd8ccb4).shade(sh)) }
+            c.arcStroke(kx, ky + 0.6, 2.6, PI * 0.15, PI * 0.85, 0.3, deep)
+        }
+        // far tusk and far legs
+        c.curve(20, -27, 35, -9, 37.5, -25, 1.9, ivory.shade(0.8))
+        leg(-12, -sw, deep); leg(10, sw, deep)
+        // tail
+        c.curve(-21.4, -27, -24.6, -20, -23.6 + sw * 0.8, -13, 1.2, deep)
+        for q in 0..<4 { c.seg(-23.6 + sw * 0.8, -13, -24.6 + sw * 0.8 + Double(q) * 0.7, -10.2, 0.35, deep) }
+        // the body: rump, barrel, the mass of the shoulder and the hump above it
+        c.ell(-11, -24, 12, 9.4, hide)
+        c.ell(3, -26.5, 12, 12, hide)
+        c.ell(5, -36, 7.4, 5.4, hide)
+        c.poly(hide, [-18, -31, -6, -33.2, 3, -40, 11, -37, 12, -20, -16, -18])
+        c.ell(-4, -17.6, 14, 3.4, deep.shade(1.12))
+        c.curve(-19, -29.6, -6, -34.4, 3.6, -41, 0.7, lite)
+        // thin hair: a fringe along the belly and flank
+        for q in 0..<16 {
+            let d = Double(q)
+            c.seg(-16 + d * 1.9, -15.2 + sin(d) * 0.5, -16.4 + d * 1.9, -12.2 - hashN(d + ph) * 1.6, 0.35, deep)
+        }
+        for q in 0..<9 { let d = Double(q); c.seg(-14 + d * 3, -26 + hashN(d + 3) * 6, -14.6 + d * 3, -23 + hashN(d + 3) * 6, 0.3, deep.shade(1.1)) }
+        // near legs
+        leg(-16, sw, hide); leg(6, -sw, hide)
+        // head: high crown, steep forehead
+        c.ell(17, -37, 6.6, 8.2, hide)
+        c.ell(16, -43.6, 4.6, 3.6, hide)
+        c.poly(hide, [20, -43, 23.4, -36, 23.6, -30, 18, -29])
+        for q in 0..<5 { c.seg(14 + Double(q) * 1.2, -46.6, 13.6 + Double(q) * 1.3, -48.4 + Double(q % 2) * 0.6, 0.35, deep) }
+        // the small ear of a cold-country elephant
+        c.ell(11.6, -36, 3.2, 4.8, deep.shade(1.1)); c.arcStroke(11.6, -36, 2.2, PI * 0.6, PI * 1.5, 0.3, deep)
+        // eye
+        c.circ(20, -38.4, 0.85, Col(0x1c1410)); c.circ(20.25, -38.65, 0.25, Col(0xf4f0e4)); c.arcStroke(20, -38.6, 1.5, PI * 1.1, PI * 1.9, 0.3, deep)
+        // trunk: thick at the brow, tapering, ringed, the tip curling as it feeds
+        let curl = sin(NOW * 0.8 + ph) * 2.6
+        c.curve(22.4, -33, 27, -22, 25, -12, 5, hide)
+        c.curve(25, -12, 24, -6, 21 + curl, -4.4 - abs(curl) * 0.5, 3.2, hide)
+        c.circ(21 + curl, -4.4 - abs(curl) * 0.5, 1.5, hide)
+        for q in 0..<8 { let t = Double(q) / 8; c.seg(22.6 + t * 1.6 - 1.8, -31 + t * 22, 22.6 + t * 1.6 + 2.2, -30.4 + t * 22, 0.25, deep) }
+        // near tusk: out of the socket, down and forward, then sweeping up and in
+        c.curve(20.6, -28.4, 37, -8, 40.5, -26, 2.5, ivory)
+        c.curve(34, -13, 39.6, -14, 40.5, -26, 1.5, ivory)
+        c.curve(22, -26.4, 35, -11, 39.4, -22, 0.35, Col(0xc8b89a).shade(sh))
+        c.ell(21, -29, 2.2, 2, hide.shade(0.9))
         c.roundCaps(false)
+        c.restore()
+    }
+    /// A wild horse or a western camel, drawn to the animal: legs that fold at the knee, deep chest, a neck that
+    /// drops to graze. The horse is dun with a dark upright mane and legs; the camel tall, long-necked, one low hump.
+    private func grazer(_ x: Double, _ base: Double, _ s: Double, _ ph: Double, _ camel: Bool) {
+        if x < -40 * s || x > W + 40 * s { return }
+        let sh = 1 - dark * 0.5
+        let coat = (camel ? Col(0xa88a62) : Col(0xb8925e)).shade(sh)
+        let dk = (camel ? Col(0x7a6040) : Col(0x33261e)).shade(sh)
+        let leg = camel ? 13.0 : 9.0
+        let by = -(leg + (camel ? 4.6 : 4.2))
+        let bl = camel ? 9.5 : 8.5
+        let sw = sin(NOW * 1.6 + ph)
+        c.save()
+        c.translate(x, base)
+        c.scale(s, s)
+        c.ell(0, 0.4, bl + 3, 1.2, Col(0x000000, 0.18))
+        c.roundCaps(true)
+        func legAt(_ lx: Double, _ a: Double, _ shade: Double) {
+            let kx = lx + a * 1.2, ky = -leg * 0.5
+            c.seg(lx, -leg - 0.5, kx, ky, camel ? 1.7 : 1.9, coat.shade(shade))
+            c.seg(kx, ky, lx + a * 2.2, -0.8, 1.1, (camel ? coat : dk).shade(shade))
+            c.R(lx + a * 2.2 - 0.8, -1.1, 1.7, 1.1, Col(0x1c1612))
+        }
+        legAt(-bl * 0.62, -sw, 0.76); legAt(bl * 0.55, sw, 0.76)
+        if camel { c.seg(-bl, by, -bl - 1.4, by + 5, 0.9, dk) }
+        else { c.curve(-bl, by - 1, -bl - 3, by + 3, -bl - 2 + sw * 0.6, by + 9.4, 1.5, dk) }
+        c.ell(0, by, bl, camel ? 4.6 : 4.2, coat)
+        c.ell(bl * 0.55, by - 0.4, bl * 0.5, camel ? 5 : 4.6, coat)
+        c.ell(-bl * 0.55, by - 0.2, bl * 0.5, 4.4, coat)
+        if camel { c.ell(-0.5, by - 4.6, 4.6, 3, coat.shade(0.94)) }
+        c.ell(0, by + 2.6, bl * 0.8, 1.5, coat.shade(camel ? 0.86 : 1.14))
+        if !camel { c.R(-bl * 0.8, by - 4.2, bl * 1.5, 0.4, dk.alpha(0.7)) }
+        legAt(-bl * 0.5, sw, 1); legAt(bl * 0.68, -sw, 1)
+        let graze = sin(NOW * 0.5 + ph) > 0.4
+        let nx0 = bl * 0.8, ny0 = by - 2
+        let nl = camel ? 12.0 : 7.5
+        let hx = nx0 + (graze ? 4.6 : (camel ? 4.0 : 4.6))
+        let hy = graze ? -2.6 : ny0 - nl
+        let bend = camel && !graze ? 3.0 : 0.0
+        c.curve(nx0, ny0, nx0 + (camel ? 5 : 2), (ny0 + hy) / 2 + bend, hx, hy, camel ? 2.6 : 3.4, coat)
+        if !camel { c.curve(nx0 - 1.4, ny0 - 1.8, nx0 + 0.4, (ny0 + hy) / 2 - 1.6, hx - 1.2, hy - 1.4, 1.2, dk) }
+        else { for q in 0..<5 { c.seg(nx0 + 2 + Double(q) * 0.5, ny0 - 1 - Double(q), nx0 + 2.6 + Double(q) * 0.5, ny0 + 0.6 - Double(q), 0.3, dk) } }
+        let dip = graze ? 1.2 : 1.7
+        c.seg(hx, hy, hx + 3.4, hy + dip, camel ? 2.2 : 2.6, coat)
+        c.circ(hx + 3.9, hy + dip + 0.2, camel ? 1.0 : 1.2, camel ? coat.shade(0.9) : dk)
+        c.poly(coat.shade(0.82), [hx - 0.6, hy - 1, hx - 0.2, hy - 3.2, hx + 0.8, hy - 1.2])
+        c.circ(hx + 1.2, hy - 0.2, 0.35, INK)
+        c.roundCaps(false)
+        c.restore()
+    }
+    /// A dire wolf: a wolf, only heavier in the head and chest.
+    private func direWolf(_ x: Double, _ base: Double, _ s: Double, _ ph: Double) {
+        if x < -30 * s || x > W + 30 * s { return }
+        let sh = 1 - dark * 0.5
+        let fur = Col(0x7a6c5e).shade(sh), under = Col(0xc8bca8).shade(sh), dk = Col(0x4a4038).shade(sh)
+        let sw = sin(ph * 3)
+        c.save(); c.translate(x, base); c.scale(s, s)
+        c.roundCaps(true)
+        for (lx, a) in [(-5.0, -sw), (5.0, sw)] { c.seg(lx, -7, lx + a * 1.6, -3.4, 1.5, dk); c.seg(lx + a * 1.6, -3.4, lx + a * 2.6, 0, 1.1, dk) }
+        c.curve(-7.4, -9, -12, -8, -13.4, -4 + sw * 0.6, 2, fur)
+        c.ell(0, -8.4, 7.6, 3.4, fur); c.ell(4.4, -8.8, 4, 4.2, fur); c.ell(0, -6.6, 6, 1.4, under)
+        for (lx, a) in [(-4.0, sw), (6.0, -sw)] { c.seg(lx, -7, lx + a * 1.6, -3.4, 1.6, fur); c.seg(lx + a * 1.6, -3.4, lx + a * 2.6, 0, 1.2, fur) }
+        c.seg(6.4, -10.6, 10, -12.6, 3.4, fur)
+        c.ell(11, -12.8, 3, 2.5, fur); c.poly(fur, [12.6, -13.6, 16, -12, 12.8, -10.8]); c.circ(15.8, -12.2, 0.5, INK)
+        c.poly(dk, [9.6, -14.6, 9.8, -17.4, 11.2, -15]); c.poly(dk, [11.2, -14.8, 11.8, -17.2, 12.8, -14.6])
+        c.circ(12.4, -13.4, 0.35, Col(0xe8c040)); c.poly(under, [12.4, -11.6, 15.6, -11.6, 12.6, -10.8])
+        for q in 0..<5 { c.seg(2 + Double(q) * 1.2, -11.8, 1.6 + Double(q) * 1.2, -12.8, 0.3, dk) }
+        c.roundCaps(false)
+        c.restore()
     }
     /// A big cat: tawny and spotted for the jaguar, heavier with long teeth for the sabertooth.
     private func cat(_ x: Double, _ base: Double, _ s: Double, _ col: Col, _ saber: Bool, _ spots: Bool, _ drink: Bool) {
@@ -3919,13 +4035,9 @@ final class Renderer {
                 for q in 0..<9 { let rx = sx - 18 + Double(q) * 1.6; c.seg(rx, GY + 2, rx + sin(NOW + Double(q)) * 0.5, GY - 8 - hashN(wx + Double(q)) * 4, 0.35, Col(0x5a8a4a).shade(sh)) }
                 for q in 0..<7 { c.ell(sx + 22 + Double(q) * 5, GY + 3 + Double(q % 2) * 1.4, 1.1, 0.7, Col(0x6a5238, 0.6)) }
             case 5:
-                for q in 0..<4 { hoofed(sx + Double(q) * 20 + sin(NOW * 0.12 + wx) * 30, GY + 2 + Double(q % 2), 1.25, 2, Double(q) * 1.2) }
+                for q in 0..<4 { grazer(sx + Double(q) * 26 + sin(NOW * 0.12 + wx) * 30, GY + 2 + Double(q % 2), 0.95, Double(q) * 1.2, q == 3) }
             case 6:
-                for q in 0..<2 {
-                    c.save(); c.translate(sx + Double(q) * 18 + sin(NOW * 0.2 + wx) * 40, GY + 2); c.scale(1.5, 1.5)
-                    coyote(0, 0, NOW * 2 + Double(q))
-                    c.restore()
-                }
+                for q in 0..<2 { direWolf(sx + Double(q) * 22 + sin(NOW * 0.2 + wx) * 40, GY + 2, 1.1, NOW + Double(q)) }
             case 7:
                 // a giant tortoise
                 let tx = sx + sin(NOW * 0.05 + wx) * 8
@@ -3942,7 +4054,7 @@ final class Renderer {
         }
         if [Area.dome, .trail, .plomosa, .crystal, .desertbar].contains(ar) {
             let hx = g.WORLD - (NOW * 11).truncatingRemainder(dividingBy: g.WORLD + 400) + 200
-            for k in 0..<5 { hoofed(hx + Double(k) * 24 - cam, GY + 2 + Double(k % 2), 1.25, 2, Double(k)) }
+            for k in 0..<5 { grazer(hx + Double(k) * 26 - cam, GY + 2 + Double(k % 2), 0.95, Double(k), false) }
         }
     }
     /// What there is to watch, 13,000 years back.
@@ -3963,35 +4075,42 @@ final class Renderer {
             for q in 0..<4 { joshua(x - 50 + Double(q) * 32, base, 34 + hashN(Double(q) + 9100) * 14, Double(q) + 9110) }
         case 2:
             for q in 0..<3 {
-                let cx = x - 28 + Double(q) * 28
-                c.ell(cx - 1, base - 19, 4.6, 3.4, Col(0x8a7a6a).shade(1 - dark * 0.5))
-                hoofed(cx, base + Double(q % 2), 1.5, 2, Double(q) * 1.3)
+                let cx = x - 34 + Double(q) * 34 + sin(NOW * 0.07 + Double(q)) * 8
+                grazer(cx, base + Double(q % 2), 1.05, Double(q) * 1.3, true)
             }
         case 3:
-            joshua(x + 12, base, 40, 9200)
-            let fur = Col(0xa88a5e).shade(1 - dark * 0.5)
+            // a Shasta ground sloth, propped on its tail and hind feet, hauling down a Joshua tree limb with its claws
+            joshua(x + 16, base, 44, 9200)
+            let sh = 1 - dark * 0.5
+            let fur = Col(0xb09468).shade(sh), dk = Col(0x8a6e48).shade(sh)
             c.roundCaps(true)
-            c.seg(x - 8, base - 2, x - 16, base, 3, fur.shade(0.85))
-            c.ell(x - 4, base - 9, 6.4, 9, fur)
-            c.circ(x - 1, base - 20, 3, fur.shade(1.05))
-            c.seg(x - 1, base - 15, x + 8, base - 22 + sin(NOW * 1.5) * 1.4, 2.2, fur)
-            for q in 0..<3 { c.seg(x + 8, base - 22, x + 10, base - 23.4 + Double(q) * 1.2, 0.4, INK) }
-            c.seg(x - 6, base - 2, x - 6, base, 2.6, fur.shade(0.85)); c.seg(x - 1, base - 2, x - 1, base, 2.6, fur.shade(0.85))
+            c.curve(x - 6, base - 5, x - 16, base - 2, x - 22, base, 4.4, dk)
+            c.seg(x - 5, base - 5, x - 1, base, 4.4, dk); c.ell(x + 1.4, base - 0.4, 3.4, 1.4, dk)
+            for q in 0..<3 { c.seg(x + 3.6, base - 0.6 + Double(q) * 0.3, x + 6 , base - 0.2 + Double(q) * 0.5, 0.4, Col(0x2a2018)) }
+            c.ell(x - 4, base - 12, 7.4, 9.4, fur); c.ell(x - 1.6, base - 21, 5.4, 6, fur)
+            for q in 0..<22 { let d = Double(q); c.seg(x - 10 + hashN(d + 9210) * 12, base - 4 - hashN(d + 9211) * 20, x - 10.6 + hashN(d + 9210) * 12, base - 1.6 - hashN(d + 9211) * 20, 0.35, dk) }
+            c.seg(x + 0.6, base - 25, x + 3.4, base - 28.6, 3.2, fur)
+            c.ell(x + 5, base - 30, 3, 2.4, fur); c.ell(x + 7.6, base - 29.4, 1.8, 1.4, fur.shade(0.86)); c.circ(x + 8.8, base - 29.6, 0.45, Col(0x2a2018))
+            c.circ(x + 5.4, base - 30.8, 0.4, INK); c.circ(x + 3.2, base - 31.6, 0.8, dk)
+            let pull = sin(NOW * 1.4) * 1.4
+            c.seg(x + 1, base - 22, x + 7, base - 22 + pull * 0.4, 2.8, fur); c.seg(x + 7, base - 22 + pull * 0.4, x + 12.6, base - 27 + pull, 2.2, fur)
+            for q in 0..<3 { c.curve(x + 12.6, base - 27 + pull, x + 14.6 + Double(q) * 0.5, base - 28.6 + pull, x + 14 + Double(q) * 0.8, base - 30.4 + pull, 0.45, Col(0x2a2018)) }
+            c.seg(x - 1, base - 20, x + 4, base - 15.6, 2.4, dk); for q in 0..<3 { c.seg(x + 4, base - 15.6, x + 6, base - 14.4 + Double(q) * 0.7, 0.4, Col(0x2a2018)) }
             c.roundCaps(false)
         case 4:
             c.R(x - 80, base + 4, 160, 5, Col(0x5a8aa0, 0.6))
             for q in 0..<8 { let u = (NOW * 0.3 + Double(q) / 8).truncatingRemainder(dividingBy: 1); c.R(x - 80 + u * 160, base + 5 + Double(q % 3), 8, 0.6, Col(0xe8f0f4, 0.6)) }
         case 5:
-            for q in 0..<3 {
-                c.save(); c.translate(x - 20 + Double(q) * 20, base + 1 + Double(q % 2)); c.scale(1.5, 1.5)
-                coyote(0, 0, NOW * 2 + Double(q))
+            for q in 0..<4 {
+                let t = NOW * 0.25 + Double(q) * 0.9
+                c.save(); c.translate(x - 30 + Double(q) * 20 + sin(t) * 26, 0); c.scale(cos(t) >= 0 ? 1 : -1, 1)
+                direWolf(0, base + 1 + Double(q % 2), 1.15, NOW + Double(q))
                 c.restore()
             }
         case 6:
             for q in 0..<4 {
-                let hx = x - 36 + Double(q) * 24
-                hoofed(hx, base + Double(q % 2), 1.3, 2, Double(q) * 1.1)
-                c.seg(hx - 9, base - 15, hx - 13, base - 7, 0.9, Col(0x3a2e24))
+                let hx = x - 42 + Double(q) * 28 + sin(NOW * 0.09 + Double(q) * 2) * 10
+                grazer(hx, base + Double(q % 2), 1.0, Double(q) * 1.1, false)
             }
         case 7:
             for q in 0..<16 { let d = Double(q); c.seg(x - 8 + hashN(d + 9300) * 16, base, x - 8 + hashN(d + 9310) * 16, base - 2 - hashN(d + 9320) * 6, 0.5, Col(0x7a6248)) }
