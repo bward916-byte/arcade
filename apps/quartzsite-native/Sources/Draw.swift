@@ -1440,7 +1440,8 @@ final class Renderer {
 
     private func spot(_ i: Int, _ sp: Spot) {
         let x = sp.x - cam
-        if x < -130 || x > W + 130 { return }
+        let reach = sp.kind == .gemworld ? 170.0 : 130.0
+        if x < -reach || x > W + reach { return }
         let near = g.phase == .play && g.active == i
         if near {
             let pulse = 0.28 + 0.12 * sin(NOW * 4)
@@ -1836,24 +1837,52 @@ final class Renderer {
             label = false
             top = 42
         case .gemworld:
-            // Gem World on Main Street, with its wheel-rim camel out front
-            let wall = Col(0xe8dcc4)
-            facade(x - 36, GY - 30, 72, 30, wall)
-            c.RR(x - 30, GY - 44, 60, 12, 2, Col(0x6a3a7a))
-            g.text("GEM WORLD", x, GY - 38, 6, CREAM, bold: true)
-            doorway(x - 6, GY - 20, 12, 20, Col(0x4a3424))
-            pane(x - 30, GY - 22, 18, 10); pane(x + 12, GY - 22, 18, 10)
-            for j in 0..<4 { gem(x - 27 + Double(j) * 4.4, GY - 13, 1.4, [Col(0x9a5ad0), Col(0xf0f0f4), Col(0xe2742e), Col(0x2fa7a0)][j]) }
-            // flats stacked out front on a pallet
-            c.R(x + 40, GY - 2, 22, 2, Col(0x8a6238))
-            for r in 0..<3 {
-                c.R(x + 41, GY - 5 - Double(r) * 3, 20, 3, Col(0xb8925e).shade(1 - Double(r) * 0.06))
-                for q in 0..<5 { c.circ(x + 43 + Double(q) * 4, GY - 4.4 - Double(r) * 3, 0.9, [Col(0x9a5ad0), Col(0xe2742e), Col(0x2fa7a0), Col(0xf0f0f4), Col(0xc85a3a)][(q + r) % 5]) }
+            // Gem World on Main Street: a huge wholesale warehouse, five storefronts long, with a rock yard out front
+            let wall = Col(0xe2d6bc)
+            let x0 = x - 145.0, bw = 290.0
+            facade(x0, GY - 36, bw, 36, wall)
+            // corrugated siding and a long low metal roof
+            var sx = x0 + 3
+            while sx < x0 + bw { c.R(sx, GY - 35, 0.4, 34, wall.shade(0.9 - dark * 0.4)); sx += 4 }
+            let roof = Col(0x8a8f96).shade(1 - dark * 0.45)
+            c.poly(roof, [x0 - 4, GY - 36, x0 + bw * 0.5, GY - 46, x0 + bw + 4, GY - 36])
+            c.R(x0 - 4, GY - 37, bw + 8, 1.6, roof.shade(0.8))
+            // the sign runs most of the building
+            c.RR(x - 70, GY - 58, 140, 15, 2, Col(0x6a3a7a).shade(1 - dark * 0.3))
+            g.text("GEM WORLD", x, GY - 52, 8, CREAM, bold: true)
+            g.text("WHOLESALE  ·  ROUGH  ·  SLABS  ·  BEADS  ·  FINDINGS", x, GY - 45.6, 3, GOLD, bold: true)
+            // three roll-up doors open onto aisles of shelving stacked with flats
+            let jewel: [Col] = [Col(0x9a5ad0), Col(0xf0f0f4), Col(0xe2742e), Col(0x2fa7a0), Col(0xc85a3a), Col(0x5a8ad0)]
+            for d in 0..<3 {
+                let dx = x0 + 34 + Double(d) * 90
+                c.R(dx, GY - 26, 42, 26, Col(0x2a2420).shade(1 - dark * 0.2))
+                c.R(dx, GY - 28, 42, 3, Col(0x9a9a98).shade(1 - dark * 0.4))
+                if dark > 0.35 { c.R(dx, GY - 25, 42, 25, Col(0xffc060, 0.25)); lights.append((dx + 21, GY - 12, 30)) }
+                for r in 0..<4 {
+                    let sy = GY - 22 + Double(r) * 5.4
+                    c.R(dx + 3, sy + 3, 36, 0.7, Col(0x8a6238))
+                    for q in 0..<8 { c.R(dx + 4 + Double(q) * 4.4, sy, 3.6, 3, jewel[(q + r + d) % 6].shade(0.85 - dark * 0.3)) }
+                }
             }
-            g.text("WHOLESALE", x, GY - 47.5, 3.6, GOLD, bold: true)
-            if g.phase == .play { g.hits.append(Hit(id: 52, x: x - 36, y: GY - 46, w: 100, h: 46)) }
+            for w in 0..<4 { pane(x0 + 8 + Double(w) * 90, GY - 24, 18, 11) }
+            doorway(x0 + bw - 22, GY - 20, 11, 20, Col(0x4a3424))
+            // the yard: pallets of flats, bins of rough rock, and a few boulders of rose quartz and amethyst
+            for k in 0..<6 {
+                let px = x0 + 12 + Double(k) * 48
+                c.R(px, GY - 1.6, 20, 1.6, Col(0x8a6238))
+                for r in 0..<(2 + k % 2) {
+                    c.R(px + 1, GY - 4.6 - Double(r) * 3, 18, 3, Col(0xb8925e).shade(1 - Double(r) * 0.06 - dark * 0.3))
+                    for q in 0..<5 { c.circ(px + 3 + Double(q) * 3.6, GY - 4 - Double(r) * 3, 0.9, jewel[(q + r + k) % 6]) }
+                }
+            }
+            for k in 0..<4 {
+                let bx = x0 + 36 + Double(k) * 62
+                c.R(bx, GY - 6, 10, 6, Col(0x6a6a70).shade(1 - dark * 0.4))
+                for q in 0..<4 { c.circ(bx + 1.6 + Double(q) * 2.3, GY - 6.2, 1.5, [Col(0xe8a8b8), Col(0x9a5ad0), Col(0xf0f0f4), Col(0x7ac0a0)][(q + k) % 4].shade(1 - dark * 0.3)) }
+            }
+            if g.phase == .play { g.hits.append(Hit(id: 52, x: x0, y: GY - 58, w: bw, h: 58)) }
             label = false
-            top = 52
+            top = 64
         case .park:
             // Town Park: shade ramadas and palms; banners and a crowd during the Rubber Tramp Rendezvous
             let rtr = g.phase == .play && g.on(EV_RTR)

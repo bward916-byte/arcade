@@ -124,8 +124,8 @@ let AREAS: [AreaDef] = [
         Spot(kind: .wash, x: 2150, name: "DRY WASH")
     ]),
     AreaDef(name: "Main Street", sub: "Quartzsite, in season · west to east along Main", w: 4800, arrive: 180, lat: 33.667, lon: -114.214, spots: [
-        Spot(kind: .gemworld, x: 200, name: "GEM WORLD"),
-        Spot(kind: .landmark, x: 400, name: "HI JOLLY MONUMENT", arg: 0),
+        Spot(kind: .gemworld, x: 230, name: "GEM WORLD"),
+        Spot(kind: .landmark, x: 440, name: "HI JOLLY MONUMENT", arg: 0),
         Spot(kind: .lot, x: 560, name: "USED RIGS"),
         Spot(kind: .shop, x: 760, name: "BIG MARKET", arg: 0),
         Spot(kind: .rides, x: 930, name: "RIDES FOR SALE"),
@@ -1104,6 +1104,7 @@ final class Game {
             px = x + 40
             partyDay = day; partyArea = area; partyX = x; partyT = -40; seen.insert(18)
         }
+        if key == "gemfront" { place(.main, 230); dayT = 0.3; clockFreeze = true }
         if key == "gemworld" {
             let x = spots.first(where: { $0.kind == .gemworld })?.x ?? 0
             area = .main; px = x - 20; money = 600; dayT = 0.3; shown.insert("gwtap"); openBrowse()
@@ -2186,7 +2187,8 @@ final class Game {
         var best = -1
         var bd = 30.0
         for (i, sp) in spots.enumerated() {
-            let d = abs(px - sp.x)
+            // Gem World is a long building: anywhere along its front counts
+            let d = sp.kind == .gemworld ? max(0, abs(px - sp.x) - 110) : abs(px - sp.x)
             if d < bd { bd = d; best = i }
         }
         active = best
