@@ -771,7 +771,7 @@ final class GameViewController: UIViewController {
     // ---------- the rest of the line: asked for once the first town is done, and whenever a locked town is picked
     private func showPay() {
         payOpen = true
-        let card = sheet("Ride the whole line", height: 268)
+        let card = sheet("Ride the whole line", height: TESTBUILD ? 310 : 268)
         for v in card.subviews where v is UIButton { v.removeFromSuperview() }
         let body = UILabel(frame: CGRect(x: 24, y: 44, width: 412, height: 78))
         body.numberOfLines = 0; body.textAlignment = .center; body.font = serif(15, bold: false); body.textColor = cream
@@ -779,7 +779,7 @@ final class GameViewController: UIViewController {
         card.addSubview(body)
         let buy = UIButton(type: .system)
         let price = shop.product?.displayPrice ?? "$1.99"
-        style(buy, shop.product == nil && TESTBUILD ? "Unlock all towns (test build)" : "Unlock all towns  \u{00B7}  " + price, primary: true)
+        style(buy, "Unlock all towns  \u{00B7}  " + price, primary: true)
         buy.frame = CGRect(x: 80, y: 130, width: 300, height: 46)
         buy.addTarget(self, action: #selector(payBuy), for: .touchUpInside)
         card.addSubview(buy)
@@ -795,7 +795,16 @@ final class GameViewController: UIViewController {
         later.frame = CGRect(x: 236, y: 188, width: 184, height: 38)
         later.addTarget(self, action: #selector(payLater), for: .touchUpInside)
         card.addSubview(later)
-        payNote.frame = CGRect(x: 24, y: 234, width: 412, height: 22)
+        if TESTBUILD {
+            // testers only: through the gate without the store
+            let free = UIButton(type: .system)
+            style(free, "Unlock for free (testing)", primary: false)
+            free.titleLabel?.font = serif(14)
+            free.frame = CGRect(x: 110, y: 234, width: 240, height: 36)
+            free.addTarget(self, action: #selector(payFree), for: .touchUpInside)
+            card.addSubview(free)
+        }
+        payNote.frame = CGRect(x: 24, y: TESTBUILD ? 276 : 234, width: 412, height: 22)
         payNote.textAlignment = .center; payNote.font = serif(13, bold: false); payNote.textColor = gold; payNote.text = ""
         card.addSubview(payNote)
     }
@@ -805,9 +814,9 @@ final class GameViewController: UIViewController {
         if game.payAsk { game.payDone() }
         last = 0
     }
+    @objc private func payFree() { shop.grant(true); payFinish() }
     @objc private func payBuy() {
         if shop.product == nil {
-            if TESTBUILD { shop.grant(true); payFinish(); return }
             payNote.text = "The store can\u{2019}t be reached just now. Try again in a moment."
             Task { [weak self] in await self?.shop.refresh() }
             return
