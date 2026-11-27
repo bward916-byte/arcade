@@ -2756,6 +2756,7 @@ final class Renderer {
     private func craneYard() {
         let yx = g.craneX
         if !vis(yx, 220) && !vis(g.buggyX, 60) { return }
+        let rt = g.routShow
         let x = sx(yx).rounded(), wood = Col(0x5a4030), dk = Col(0x2e2218)
         c.ell(x, gy + 0.6, 86, 2.4, Col(0x000000, 0.12))
         // the office: dark planks, a tin roof, the company flag
@@ -2768,7 +2769,7 @@ final class Renderer {
         c.R(ox + 46, gy - 54, 1.2, 54, dk)
         let wave = sin(g.clock * 3) * 1.4
         // the company flag comes down, and the town's goes up in its place
-        let down = g.routT < 0 ? 0 : min(1, max(0, g.routT - 1.0)), up = g.routT < 0 ? 0 : min(1, max(0, g.routT - 2.2) / 1.1)
+        let down = rt < 0 ? 0 : min(1, max(0, rt - 1.0)), up = rt < 0 ? 0 : min(1, max(0, rt - 2.2) / 1.1)
         if down < 1 {
             let fy0 = gy - 54 + down * 46
             c.poly(Col(0x7a241c), [ox + 47.2, fy0, ox + 61, fy0 + 3 + wave, ox + 47.2, fy0 + 7]); c.text("C", ox + 52, fy0 + 4.6, 4, Col(0xead7a4), face: "Rye-Regular")
@@ -2787,7 +2788,7 @@ final class Renderer {
         while fx < x + 86 { c.R(fx, gy - 11, 1.4, 11, wood); fx += 14 }
         c.R(x - 84, gy - 9, 170, 1, wood); c.R(x - 84, gy - 5, 170, 1, wood)
         // the company arch over the road in, which comes down when the town arrives
-        let ax = x - 20, tip = g.routT < 0 ? 0 : min(1.45, g.routT * g.routT * 1.6)
+        let ax = x - 20, tip = rt < 0 ? 0 : min(1.45, rt * rt * 1.6)
         c.R(ax - 26, gy - 34, 2.4, 34, dk)
         c.save(); c.translate(ax + 25, gy); c.rotate(-tip * 0.9); c.translate(-(ax + 25), -gy)
         c.R(ax + 24, gy - 34, 2.4, 34, dk)
@@ -2799,7 +2800,7 @@ final class Renderer {
         c.restore()
         for m in g.yardMen where m.x < g.craneX + 700 { bandit(m) }
         // Crane himself: on his porch, then into the buggy, and gone east
-        let bx = sx(g.buggyX), rolling = g.routT > 1.5, sp = rolling ? min(90, (g.routT - 1.5) * 60) : 0
+        let bx = sx(g.buggyX), rolling = rt > 1.5, sp = rolling ? min(90, (rt - 1.5) * 60) : 0
         _ = horse(bx + 26, 1, g.clock * (rolling ? 9 : 0), sp, Col(0x1c1816), Col(0x0c0a0a), tack: true)
         c.seg(bx + 12, gy - 13, bx + 22, gy - 16, 0.9, Col(0x2a2420))
         for wcx in [bx - 4, bx + 10] {
@@ -2809,8 +2810,8 @@ final class Renderer {
         c.RR(bx - 8, gy - 17, 22, 8, 1.5, Col(0x14100e)); c.R(bx - 8, gy - 17, 22, 0.8, Col(0x5a4a3a))
         c.poly(Col(0x1c1816), [bx - 8, gy - 17, bx - 8, gy - 27, bx - 2, gy - 29, bx + 3, gy - 17])
         // Crane: tall hat, black coat, the cane
-        let onSeat = g.routT > 0.9
-        let cx2 = onSeat ? bx + 6 : sx(g.craneX + 30 + 22 + min(1, max(0, g.routT) / 0.9) * (g.buggyX - g.craneX - 52 + 6))
+        let onSeat = rt > 0.9
+        let cx2 = onSeat ? bx + 6 : sx(g.craneX + 30 + 22 + min(1, max(0, rt) / 0.9) * (g.buggyX - g.craneX - 52 + 6))
         let cy2 = onSeat ? gy - 17 : gy
         c.R(cx2 - 2.6, cy2 - (onSeat ? 10 : 17), 5.2, onSeat ? 10 : 12, Col(0x14100e))
         if !onSeat { c.R(cx2 - 2, cy2 - 6, 1.6, 6, Col(0x14100e)); c.R(cx2 + 0.6, cy2 - 6, 1.6, 6, Col(0x14100e)); c.seg(cx2 + 3.4, cy2 - 10, cx2 + 4.4, cy2, 0.6, Col(0xc9a14a)) }

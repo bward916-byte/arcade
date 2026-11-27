@@ -142,9 +142,9 @@ let DEFS: [BType: Def] = [
     // outside each gate: barbed wire, a second apron that cuts, then a sharpshooter's nest
     .wireW: Def(name: "BARBED WIRE", w: 30, h: 10, cost: [6, 10, 13], pay: 0, wall: 0, trim: 0, roof: 0, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: false),
     .wireE: Def(name: "BARBED WIRE", w: 30, h: 10, cost: [6, 10, 13], pay: 0, wall: 0, trim: 0, roof: 0, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: false),
-    // the old diggings far out west: staked, then guarded
     // each town's own trade, bought once: ferry, sawmill, smelter or fur trader, depending on the town
     .sig: Def(name: "LANDMARK", w: 56, h: 40, cost: [11], pay: 0, wall: 0, trim: 0, roof: 0, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: false),
+    // the old diggings far out west: staked, then guarded
     .claim: Def(name: "CLAIM", w: 30, h: 26, cost: [6, 7], pay: 0, wall: 0, trim: 0, roof: 0, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: false),
     .train: Def(name: "TRAIN TICKET", w: 60, h: 14, cost: [5], pay: 0, wall: 0, trim: 0, roof: 0, sign: 0, ink: 0, doorX: 0, doorW: 0, wins: [], gate: false)
 ]

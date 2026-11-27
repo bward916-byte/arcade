@@ -660,7 +660,7 @@ final class Game {
             case "s1": return town == 0 && day >= 2 && t > 0.03 && t < 0.3
             case "s2": return town == 0 && ln >= 3 && t > 0.03 && t < 0.3
             case "s3": return duelDay == day && t > 0.2 && t < 0.32
-            case "s4": return rigLv > 0
+            case "s4": return rigLv > 0 && (bio == .desert || bio == .canyon)
             case "yard": return px > yardX + 210
             case "ufo": return seen.contains("ufo") && t > 0.03 && t < 0.3
             case "a1": return st == 1 && town > 0 && t > 0.14
@@ -734,6 +734,8 @@ final class Game {
         }
     }
     var sigOn: Bool { return sig.level > 0 && b.contains { $0 === sig } }
+    /// Unopened and within reach: it takes the coin ahead of a drifter who is further off.
+    var sigWants: Bool { return sig.level == 0 && b.contains { $0 === sig } && abs(sig.cx - px) < sig.def.w / 2 + 12 }
     /// What the signature building does, for the info line and the arrival note.
     var sigWhat: String {
         switch place {
@@ -1070,13 +1072,15 @@ final class Game {
         wx = 0; bolt = 0
         town = max(0, s.town); day = max(1, s.day); day0 = s.day0
         place = s.place.flatMap { stageOf(town).contains($0) ? $0 : nil } ?? stageOf(town)[0]
-        log = s.log ?? (0..<town).map { stageOf($0)[0] }
+        log = s.log ?? []
+        if log.count != town || log.enumerated().contains(where: { !stageOf($0.offset).contains($0.element) }) { log = (0..<town).map { stageOf($0)[0] } }
         layTown()
         coins = max(0, s.coins); bank = max(0, s.bank); ammo = max(0, min(6, s.ammo))
         if ammo == 0 { ammo = 6 }
         t = s.t >= 0.72 ? 0.715 : clampD(s.t, 0, 1)
         side = s.side < 0 ? -1 : 1
         seen = Set(s.seen)
+        if seen.contains("cranegone") { yardMen = [] }
         for sb in s.b {
             guard let bl = b.first(where: { $0.type.rawValue == sb.type }) else { continue }
             bl.level = max(0, min(bl.maxLevel, sb.level)); bl.building = sb.building && bl.level < bl.maxLevel
@@ -1126,7 +1130,7 @@ final class Game {
         nameSeq += 1
         coins = 12 + town * 5 + (town == STAGES.count - 1 ? 8 : 0); bank = 0
         fade = 1
-        hint("jump", "\(nice(townName)). You step off the train with \(coins) coins, and everything here is boarded up.", again: true)
+        hint("jump", "\(nice(townName)). You step off with \(coins) coins, and everything here is boarded up.", again: true)
         onSave?()
     }
 
@@ -1148,7 +1152,7 @@ final class Game {
         hintT = 0
         // lv0 to lv7: each town on the line, opened up, for a picture of every one
         let stops = STOPS
-        let pre = ["lv", "sig", "wild"].first { name.hasPrefix($0) } ?? ""
+        let pre = ["lv", "sig", "wild", "buy"].first { name.hasPrefix($0) } ?? ""
         if !pre.isEmpty, let n = Int(name.dropFirst(pre.count)), n >= 0, n < stops.count {
             place = stops[n].0; town = stops[n].1; log = stops[n].2
             day = 4 + town * 9; day0 = day - 4
@@ -1226,12 +1230,24 @@ final class Game {
         // set last, after the catch-all above has put the rider on main street
         if name.hasPrefix("sig") { sig.level = 1; px = sig.x + (place == "redwater" ? 10 : 30); pdir = 1; noStory = true; hintT = 0 }
         if name.hasPrefix("wild") { rigLv = 1; px = -520; pdir = -1; noStory = true; hintT = 0; if bio == .river || bio == .pine { t = 0.13 } }
+        // standing at the unopened trade, drifters at the camp beside it: the coin should go to the trade
+        if name.hasPrefix("buy") { px = sig.cx; pdir = 1; coins = 20; noStory = true; hintT = 0 }
+        if ["finale", "finale2", "gone"].contains(name) {
+            // the last stretch for real: the rout already under way, stories on, every earlier scene already seen
+            place = "bitterend"; town = 4; log = ["dustfall", "redwater", "timberline", "irongulch"]; day = 36; day0 = 33; layTown()
+            t = 0.3; hintT = 0; pdir = 1; px = craneX - 60
+            for k in ["s1", "s2", "s3", "s4", "a1", "a2", "a3", "a4", "yard", "won", "varney", "storm", "ufo"] { seen.insert("st_" + k) }
+            for k in 0..<14 { folk.append(Folk(x: px - 20 - Double(k) * 7)) }
+            if name == "finale" { noStory = false; rallyOn = true; routT = 2.4 }
+            if name == "finale2" { seen.insert("cranegone"); seen.insert("st_end"); toTitle = true; yardMen = [] }
+            if name == "gone" { seen.insert("cranegone"); yardMen = []; noStory = true }
+        }
         if name == "gate0" {
-            place = "bitterend"; town = 4; log = ["dustfall", "redwater", "lasthope", "coldcreek"]; day = 36; day0 = 33; layTown()
+            place = "bitterend"; town = 4; log = ["dustfall", "redwater", "timberline", "irongulch"]; day = 36; day0 = 33; layTown()
             t = 0.4; noStory = true; hintT = 0; px = gateW.x + 30; pdir = -1
         }
         if name == "rout" {
-            place = "bitterend"; town = 4; log = ["dustfall", "redwater", "lasthope", "coldcreek"]; day = 36; day0 = 33; layTown()
+            place = "bitterend"; town = 4; log = ["dustfall", "redwater", "timberline", "irongulch"]; day = 36; day0 = 33; layTown()
             t = 0.3; noStory = true; hintT = 0; pdir = 1
             px = craneX + 30; holdRout = 1.75
             for k in 0..<14 { folk.append(Folk(x: px - 20 - Double(k) * 7)) }
@@ -1239,7 +1255,7 @@ final class Game {
         }
         if name == "march" {
             // the real thing, not posed: twelve-plus at work in town, a raider still hanging about, and you already past the east gate
-            place = "bitterend"; town = 4; log = ["dustfall", "redwater", "lasthope", "coldcreek"]; day = 36; day0 = 33; layTown()
+            place = "bitterend"; town = 4; log = ["dustfall", "redwater", "timberline", "irongulch"]; day = 36; day0 = 33; layTown()
             t = 0.3; noStory = true; hintT = 0; pdir = 1
             for k in 0..<14 { folk.append(Folk(x: 1200 + Double(k) * 30)) }
             bandits.append(Bandit(x: 700, rider: false, side: -1, hp: 2))
@@ -1249,7 +1265,7 @@ final class Game {
             seen.insert("st_end"); star = true
         }
         if name == "rally" {
-            place = "bitterend"; town = 4; log = ["dustfall", "redwater", "lasthope", "coldcreek"]; day = 36; day0 = 33; layTown()
+            place = "bitterend"; town = 4; log = ["dustfall", "redwater", "timberline", "irongulch"]; day = 36; day0 = 33; layTown()
             t = 0.4; noStory = true; hintT = 0; seen.insert("rally")
             px = gateE.x - 20; pdir = 1
             for k in 0..<14 { folk.append(Folk(x: px - 20 - Double(k) * 7)) }
@@ -1257,7 +1273,7 @@ final class Game {
         }
         if name.hasPrefix("see"), let n = Int(name.dropFirst(3)) {
             // a walk down the whole of the last town, a screen at a time, with everything built
-            place = "bitterend"; town = 4; log = ["dustfall", "redwater", "lasthope", "coldcreek"]; day = 36; day0 = 33; layTown()
+            place = "bitterend"; town = 4; log = ["dustfall", "redwater", "timberline", "irongulch"]; day = 36; day0 = 33; layTown()
             for bl in b where [BType.store, .saloon, .sheriff, .stable, .bank, .station, .bordello, .doctor, .church, .forge, .telegraph, .claim].contains(bl.type) { bl.level = 2 }
             hall.level = 2; gateW.level = 2; gateE.level = 2; t = 0.4; noStory = true; hintT = 0
             px = WEST + 200 + Double(n) * 390
@@ -1476,9 +1492,10 @@ final class Game {
         // 1: a drifter at his fire
         var bestD: Drifter?
         var bd = 55.0
+        let sigFirst = sigWants ? abs(sig.cx - px) : 9999
         for d in drifters where !d.taken {
             let dd = abs(d.x - px)
-            if dd < bd { bd = dd; bestD = d }
+            if dd < bd && dd <= sigFirst { bd = dd; bestD = d }
         }
         if let d = bestD {
             d.taken = true
@@ -2116,10 +2133,12 @@ final class Game {
     /// Crane's company yard, out past the east gate of the last town: where the march ends.
     var yardMen: [Bandit] = []
     var routT = -1.0             // his men have seen the town coming and are running
+    /// The same, for drawing: once Crane is gone the yard stays as he left it, even in a game loaded later.
+    var routShow: Double { return routT < 0 && seen.contains("cranegone") ? 99 : routT }
     var toTitle = false          // after the last scene, back to the title
     var holdRout: Double?        // test stills only: keep the rout at one moment
     /// Crane's buggy: waiting by his office, then away east once he is in it.
-    var buggyX: Double { let x0 = craneX + 74, u = max(0, routT - 1.5); return x0 + u * 30 + u * u * 55 }
+    var buggyX: Double { let x0 = craneX + 74, u = min(8, max(0, routShow - 1.5)); return x0 + u * 30 + u * u * 55 }
     var craneX: Double { return EX(2490) }      // on the cavalry outpost's ground, which the last town doesn't have
 
     private func updRally(_ dt: Double) {
@@ -2701,7 +2720,7 @@ final class Game {
     func advice() -> String {
         if state != .play || over || !cut.isEmpty || gallery != nil || duel != nil || choosing { return "" }
         if dark() > 0.5 { return raidOn ? "Tonight: hold the gates until dawn." : "" }
-        if TESTBUILD && lastTown {
+        if TESTBUILD && lastTown && rallyBlock != "done" && folk.filter({ !$0.sick }).count >= RALLY_N {
             // test builds: say exactly where the march stands, so a stuck ending can be pinned down
             let n = folk.filter { !$0.sick }.count, rb = rallyBlock
             let why = rb.isEmpty ? "none" : (rb == "done" ? "done" : (rb == "wait" ? "scene/duel/gallery" : (dark() > 0.5 ? "night" : "folk")))
@@ -2735,7 +2754,8 @@ final class Game {
     /// The line at the bottom of the screen: what the rider is standing at.
     private func updInfo() {
         info = ""; slotsFor = nil
-        for d in drifters where abs(d.x - px) < 55 && !d.taken { info = "Drifter: 1 coin to hire"; return }
+        let sigFirst = sigWants ? abs(sig.cx - px) : 9999
+        for d in drifters where abs(d.x - px) < 55 && abs(d.x - px) <= sigFirst && !d.taken { info = "Drifter: 1 coin to hire"; return }
         let sh = sheriff, st = store
         let free = folk.contains { $0.role == .folk && !$0.sick }
         func waiting(_ bl: Building, _ what: String) -> String {
@@ -2796,7 +2816,7 @@ final class Game {
         }
         if bl.isHall && bl.level < bl.maxLevel && !bl.building {
             slotsFor = bl
-            info = (bl.level == 0 ? "Town centre: \(bl.cost) coins for a town square, so buildings can reach level 2" : (bl.level == 1 ? "Town centre: \(bl.cost) coins for a clock tower, so buildings can reach level 3 and the railroad can come" : "Town centre: \(bl.cost) coins for a bell and a gilded dial, so buildings can reach their last level")) + (bl.paid > 0 ? " (\(bl.paid) in)" : "")
+            info = (bl.level == 0 ? "Town centre: \(bl.cost) coins for a town square, so buildings can reach level 2" : (bl.level == 1 ? "Town centre: \(bl.cost) coins for a clock tower, so buildings can reach level 3\(lastTown ? "" : " and the railroad can come")" : "Town centre: \(bl.cost) coins for a bell and a gilded dial, so buildings can reach their last level")) + (bl.paid > 0 ? " (\(bl.paid) in)" : "")
             return
         }
         if bl.type == .sig {
