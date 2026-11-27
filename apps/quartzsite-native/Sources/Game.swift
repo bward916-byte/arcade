@@ -667,6 +667,7 @@ final class Game {
     // living in a rig: the tanks fill up and the propane runs down
     var tanks = 100.0, propane = 100.0
     var popFreeze = false
+    var zooShow = false
     var clockFreeze = false               // screenshots only
 
     /// The clock: 7 AM at first light (0), 6 PM at dusk (0.66), and 7 AM again at 1.
@@ -1440,6 +1441,8 @@ final class Game {
         if key == "palms" { place(.palms, 960); dayT = 0.3; clockFreeze = true }
         if key == "plants" { place(.plomosa, 300); dayT = 0.3; clockFreeze = true; plantShow = true }
         if key == "ice" { place(.ltva, 1300); era = 2; dayT = 0.3; clockFreeze = true }
+        if key == "zoo" { place(.hijolly, 400); era = 2; dayT = 0.4; clockFreeze = true; zooShow = true }
+        if key == "icecat" { place(.desertbar, 900); era = 2; dayT = 0.4; clockFreeze = true }
         if key == "icecamel" { place(.tyson, 1200); era = 2; dayT = 0.4; clockFreeze = true }
         if key == "icesloth" { place(.dome, 900); era = 2; dayT = 0.4; clockFreeze = true }
         if key == "icewolf" { place(.trail, 1100); era = 2; dayT = 0.4; clockFreeze = true }

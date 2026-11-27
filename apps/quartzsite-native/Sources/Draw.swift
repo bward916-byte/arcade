@@ -363,6 +363,11 @@ final class Renderer {
             n += 1
         }
 
+        if g.zooShow {
+            let zx = g.px - cam
+            bisonAntiquus(zx - 100, GY + 2, 1, NOW); glyptodont(zx - 62, GY + 2, 1, NOW); shortFacedBear(zx - 24, GY + 2, 1, NOW)
+            smilodon(zx + 22, GY + 2, 1.1); hunter(zx + 46, GY + 2, 61, NOW * 5); direWolf(zx + 68, GY + 2, 1.1, NOW); grazer(zx + 100, GY + 2, 1.05, 2, true)
+        }
         if g.plantShow {
             let px0 = 30.0
             beavertail(px0, GY + 1, 5); beavertail(px0 + 22, GY + 1, 19); cholla(px0 + 44, GY + 1, 1, 3); cholla(px0 + 64, GY + 1, 0.8, 17)
@@ -3788,6 +3793,13 @@ final class Renderer {
         let leaf = Col(0x6a8a4a).shade(1 - dark * 0.45)
         var tips: [(Double, Double, Double)] = []
         taper(x, base, x, base - h * 0.4, h * 0.11, h * 0.09, bark)
+        // the trunk keeps its dead leaves as a shaggy grey-brown thatch
+        for q in 0..<14 {
+            let d = Double(q)
+            let ty = base - h * 0.03 - d * h * 0.027
+            c.seg(x - h * 0.05, ty, x - h * 0.05 - 1.6 - hashN(seed + d) * 1.2, ty + 1.8, 0.35, bark.shade(1.25))
+            c.seg(x + h * 0.05, ty, x + h * 0.05 + 1.6 + hashN(seed + d + 9) * 1.2, ty + 1.8, 0.35, bark.shade(0.85))
+        }
         for i in 0..<2 {
             let f = Double(i) - 0.5
             bough(x, base - h * 0.4, -PI / 2 + f * 1.1, h * 0.3, h * 0.085, 1, seed + Double(i) * 4.3, bark, 0.5, 0, true, &tips)
@@ -3807,9 +3819,14 @@ final class Renderer {
         if x < -30 || x > W + 30 { return }
         let g1 = Col(0x3e5a40).shade(1 - dark * 0.45)
         c.seg(x, base, x + 1.5 * s, base - 8 * s, 2 * s, Col(0x6a5a4a).shade(1 - dark * 0.45))
+        c.seg(x + 1.5 * s, base - 8 * s, x - 3 * s, base - 13 * s, 1.1 * s, Col(0x6a5a4a).shade(1 - dark * 0.45)); c.seg(x + 1.5 * s, base - 8 * s, x + 5 * s, base - 14 * s, 1 * s, Col(0x6a5a4a).shade(1 - dark * 0.45))
+        for q in 0..<4 { c.seg(x - 0.6 * s + Double(q) * 0.4 * s, base - 1 * s - Double(q) * 1.6 * s, x - 0.2 * s + Double(q) * 0.4 * s, base - 2.4 * s - Double(q) * 1.6 * s, 0.25 * s, Col(0xa89a88).shade(1 - dark * 0.45)) }
         for i in 0..<7 {
             let d = Double(i)
-            c.circ(x + (hashN(seed + d) - 0.5) * 16 * s, base - 9 * s - hashN(seed + d + 3) * 10 * s, (4 + hashN(seed + d + 6) * 3) * s, i % 2 == 0 ? g1 : g1.shade(1.18))
+            let jx = x + (hashN(seed + d) - 0.5) * 16 * s, jy = base - 9 * s - hashN(seed + d + 3) * 10 * s, jr = (4 + hashN(seed + d + 6) * 3) * s
+            c.circ(jx, jy, jr, i % 2 == 0 ? g1 : g1.shade(1.18))
+            c.arcFill(jx, jy, jr, PI * 0.1, PI * 0.9, g1.shade(0.78))
+            for q in 0..<3 { c.circ(jx + (hashN(d + Double(q) + seed) - 0.5) * jr * 1.4, jy + (hashN(d + Double(q) + seed + 2) - 0.5) * jr, 0.35 * s, Col(0x7a8ab0).shade(1 - dark * 0.45)) }
         }
     }
     /// What grows on the valley floor in the ice age: Joshua trees, creosote, yucca, juniper and bunchgrass.
@@ -3985,8 +4002,7 @@ final class Renderer {
         for k in 0..<3 {
             let vx = hx0 - Double(k) * 12 - cam
             let bob = abs(sin(NOW * 5 + Double(k) * 1.3)) * 0.8
-            villager(vx, GY + 2 - bob, 60 + Double(k), 0)
-            c.seg(vx + 3, GY - 2 - bob, vx + 5, GY - 25 - bob, 0.4, Col(0x6a4a2e)); c.poly(Col(0xd8d0c0), [vx + 4.4, GY - 25 - bob, vx + 5.2, GY - 28.4 - bob, vx + 5.8, GY - 25 - bob])
+            hunter(vx, GY + 2 - bob, 60 + Double(k), NOW * 5 + Double(k) * 1.3)
         }
         // and all along the valley, the rest of the ice-age country
         var n = floor((cam - 80) / 250)
@@ -3999,30 +4015,22 @@ final class Renderer {
             let sh = 1 - dark * 0.5
             switch Int(hk * 100) % 9 {
             case 0:
-                // bison, bigger and longer in the horn than any left alive
                 for q in 0..<3 {
-                    let bx = sx + Double(q) * 22 + sin(NOW * 0.1 + wx + Double(q)) * 16
-                    let fur = Col(0x4a3426).shade(sh)
-                    for lx in [-5.0, -2.0, 4.0, 7.0] { c.R(bx + lx, GY - 5, 1.5, 6.6, fur.shade(0.85)) }
-                    c.ell(bx, GY - 9, 9, 5, fur); c.ell(bx + 5, GY - 12, 5.4, 5.4, fur.shade(0.9)); c.ell(bx + 10, GY - 8.4, 3, 3.4, fur.shade(0.8))
-                    c.curve(bx + 9, GY - 11.4, bx + 12, GY - 13, bx + 11.4, GY - 15, 0.5, Col(0xe8e0d0).shade(sh))
+                    let t = NOW * 0.07 + wx + Double(q) * 1.7
+                    c.save(); c.translate(sx + Double(q) * 30 + sin(t) * 22, 0); c.scale(cos(t) >= 0 ? 1 : -1, 1)
+                    bisonAntiquus(0, GY + 2 + Double(q % 2), q == 1 ? 0.8 : 1, NOW + Double(q))
+                    c.restore()
                 }
             case 1:
-                // a glyptodont: an armadillo the size of a small car
-                let gx = sx + sin(NOW * 0.06 + wx) * 14
-                c.dome(gx, GY + 1, 10, Col(0x7a6a52).shade(sh))
-                for q in 0..<12 { c.circ(gx - 8 + Double(q % 6) * 3.2, GY - 2.4 - Double(q / 6) * 3.4, 1, Col(0x5a4c3a).shade(sh)) }
-                c.ell(gx + 11, GY - 2.6, 2.8, 2.2, Col(0x6a5a46).shade(sh)); c.circ(gx + 12, GY - 3, 0.3, INK)
-                c.seg(gx - 9.6, GY - 2, gx - 16, GY - 0.6, 1.8, Col(0x6a5a46).shade(sh)); c.R(gx - 6, GY - 0.6, 2.4, 2.2, Col(0x4a3e30)); c.R(gx + 5, GY - 0.6, 2.4, 2.2, Col(0x4a3e30))
+                let t = NOW * 0.05 + wx
+                c.save(); c.translate(sx + sin(t) * 18, 0); c.scale(cos(t) >= 0 ? 1 : -1, 1)
+                glyptodont(0, GY + 2, 1, NOW)
+                c.restore()
             case 2:
-                // a short-faced bear, standing to get a better look at you
-                let fur = Col(0x5a4030).shade(sh)
-                c.roundCaps(true)
-                c.seg(sx - 2, GY + 1, sx - 2.4, GY - 8, 3.2, fur.shade(0.85)); c.seg(sx + 3, GY + 1, sx + 2.6, GY - 8, 3.2, fur.shade(0.85))
-                c.ell(sx, GY - 15, 5.4, 9, fur); c.circ(sx + 1, GY - 26, 3.4, fur.shade(1.05)); c.ell(sx + 3.8, GY - 25.4, 1.8, 1.4, fur.shade(1.2))
-                c.circ(sx - 1.2, GY - 29, 1, fur); c.circ(sx + 2.6, GY - 29, 1, fur); c.circ(sx + 2.4, GY - 26.6, 0.35, INK)
-                c.seg(sx + 4, GY - 19, sx + 8, GY - 15 + sin(NOW * 1.3) * 1, 2.2, fur)
-                c.roundCaps(false)
+                let t = NOW * 0.06 + wx
+                c.save(); c.translate(sx + sin(t) * 30, 0); c.scale(cos(t) >= 0 ? 1 : -1, 1)
+                shortFacedBear(0, GY + 2, 1, NOW)
+                c.restore()
             case 3:
                 // mammoth bones bleaching by a dry pond
                 c.ell(sx, GY + 3, 16, 2, Col(0xc8b89a, 0.7))
@@ -4135,7 +4143,7 @@ final class Renderer {
         case 12:
             let rock = Col(0x7a6a5a).shade(1 - dark * 0.5)
             c.poly(rock, [x - 36, base, x - 24, base - 22, x + 10, base - 26, x + 30, base])
-            cat(x - 6, base - 25, 1.2, Col(0xb8925e), true, false, false)
+            smilodon(x - 6, base - 25.4, 1.1)
         default:
             c.ell(x, base + 8, 110, 7, Col(0x5a4636).shade(1 - dark * 0.5))
         }
@@ -4789,6 +4797,144 @@ final class Renderer {
                 c.ell(fx, fy, 1.6, 0.5, Col(0xd8e8f0)); c.poly(Col(0xd8e8f0), [fx - 1.4, fy, fx - 2.6, fy - 0.7, fx - 2.6, fy + 0.7])
             }
         }
+    }
+
+    /// Bison antiquus: taller and longer-horned than a living bison. A great hump, a shaggy front end and beard,
+    /// lean hindquarters, a tufted tail.
+    private func bisonAntiquus(_ x: Double, _ base: Double, _ s: Double, _ ph: Double) {
+        let sh = 1 - dark * 0.5
+        let fur = Col(0x4a3426).shade(sh), wool = Col(0x33241a).shade(sh), hind = Col(0x6a4a34).shade(sh)
+        let sw = sin(ph * 1.4)
+        c.save(); c.translate(x, base); c.scale(s, s)
+        c.ell(0, 0.4, 15, 1.4, Col(0x000000, 0.18))
+        c.roundCaps(true)
+        func leg(_ lx: Double, _ a: Double, _ col: Col, _ w: Double) {
+            c.seg(lx, -9, lx + a * 1.1, -4.4, w, col); c.seg(lx + a * 1.1, -4.4, lx + a * 2, -0.8, w * 0.62, col); c.R(lx + a * 2 - 0.9, -1.1, 1.8, 1.1, Col(0x1c1612))
+        }
+        leg(-9, -sw, wool, 2.4); leg(6, sw, wool, 2.8)
+        c.curve(-13, -13, -15.4, -9, -14.6 + sw * 0.6, -5, 0.8, hind); c.circ(-14.6 + sw * 0.6, -4.6, 0.9, wool)
+        c.ell(-6, -12.6, 8.4, 5.4, hind)
+        c.ell(4, -14.6, 8, 7.6, fur)
+        c.ell(4.6, -20.6, 6, 4.4, fur)
+        c.poly(fur, [-12, -16.6, -2, -19, 3, -24.6, 9, -22, 10, -12, -10, -9])
+        leg(-11, sw, hind, 2.4); leg(4, -sw, fur, 2.9)
+        for q in 0..<12 { let d = Double(q); c.seg(-1 + d * 0.9, -8.6 + sin(d) * 0.6, -1.3 + d * 0.9, -6.4 - hashN(d + 4) * 1.4, 0.4, wool) }
+        // the head carried low, horns long and swept
+        c.ell(11.4, -13.6, 4.6, 5, wool)
+        c.ell(14.4, -11, 3, 3.4, wool.shade(1.15)); c.ell(15.8, -9.6, 1.5, 1.2, Col(0x1c1612))
+        c.curve(11.4, -17.4, 14, -20.6, 13.2, -23.4, 0.9, Col(0xe4dcc8).shade(sh)); c.curve(10.4, -17.6, 8.6, -20, 9.8, -22.6, 0.8, Col(0xb8ae98).shade(sh))
+        c.circ(13.4, -14, 0.45, Col(0xf0e0b0)); c.circ(13.5, -14, 0.25, INK)
+        for q in 0..<6 { c.seg(11 + Double(q) * 0.7, -9, 10.8 + Double(q) * 0.7, -5.6 - Double(q % 2), 0.4, wool) }
+        for q in 0..<7 { c.seg(1 + Double(q) * 1.1, -24.4, 0.6 + Double(q) * 1.1, -25.6, 0.35, wool) }
+        c.roundCaps(false)
+        c.restore()
+    }
+    /// A glyptodont: a domed shell of bony rosettes, an armoured cap on the head, a ringed tail, short thick legs.
+    private func glyptodont(_ x: Double, _ base: Double, _ s: Double, _ ph: Double) {
+        let sh = 1 - dark * 0.5
+        let shell = Col(0x7a6a52).shade(sh), plate = Col(0x5c4e3c).shade(sh), skin = Col(0x6a5a46).shade(sh)
+        let sw = sin(ph * 0.9)
+        c.save(); c.translate(x, base); c.scale(s, s)
+        c.ell(0, 0.4, 14, 1.3, Col(0x000000, 0.18))
+        c.roundCaps(true)
+        for (lx, a) in [(-6.0, -sw), (6.0, sw)] { c.seg(lx, -4, lx + a, -0.8, 3, skin.shade(0.8)); c.ell(lx + a + 0.6, -0.6, 2, 1, Col(0x3a3026)) }
+        // the tail, in armoured rings
+        for q in 0..<6 { let d = Double(q); c.ell(-11.6 - d * 1.9, -4.4 + d * 0.6, 1.9 - d * 0.16, 1.7 - d * 0.14, q % 2 == 0 ? shell : plate) }
+        c.dome(0, -2.4, 12, shell)
+        c.ell(0, -2.4, 12, 2, shell.shade(0.82))
+        for r in 0..<4 {
+            let rr = 10.4 - Double(r) * 2.7
+            let cnt = 9 - r * 2
+            for q in 0..<cnt {
+                let a2 = PI + (Double(q) + 0.5) / Double(cnt) * PI
+                let px = cos(a2) * rr, py = -2.6 + sin(a2) * rr
+                c.circ(px, py, 1.15, plate); c.circ(px, py, 0.5, shell.shade(1.15))
+            }
+        }
+        c.arcStroke(0, -2.4, 12, PI, PI * 2, 0.4, plate)
+        for (lx, a) in [(-4.0, sw), (8.0, -sw)] { c.seg(lx, -4, lx + a, -0.8, 3.2, skin); c.ell(lx + a + 0.6, -0.6, 2.1, 1, Col(0x3a3026)) }
+        c.ell(13.4, -5, 3.2, 2.8, skin); c.dome(13, -5.6, 2.9, plate); c.ell(15.8, -4.2, 1.5, 1.3, skin.shade(0.85))
+        c.circ(14.6, -5.4, 0.35, INK); c.circ(11.4, -7.2, 0.8, skin.shade(0.85))
+        c.roundCaps(false)
+        c.restore()
+    }
+    /// The short-faced bear: long-legged, on all fours taller at the shoulder than you are, a short broad muzzle.
+    private func shortFacedBear(_ x: Double, _ base: Double, _ s: Double, _ ph: Double) {
+        let sh = 1 - dark * 0.5
+        let fur = Col(0x5a4030).shade(sh), dk = Col(0x3e2c20).shade(sh), lt = Col(0x7a5a42).shade(sh)
+        let sw = sin(ph * 1.2)
+        c.save(); c.translate(x, base); c.scale(s, s)
+        c.ell(0, 0.4, 15, 1.4, Col(0x000000, 0.18))
+        c.roundCaps(true)
+        func leg(_ lx: Double, _ a: Double, _ col: Col) {
+            c.seg(lx, -13, lx + a * 1.4, -6.4, 3.6, col); c.seg(lx + a * 1.4, -6.4, lx + a * 2.4, -1.2, 2.8, col); c.ell(lx + a * 2.4 + 1, -0.7, 2.6, 1.1, col)
+            for q in 0..<3 { c.seg(lx + a * 2.4 + 2.4 + Double(q) * 0.5, -0.9, lx + a * 2.4 + 3.2 + Double(q) * 0.5, -0.3, 0.3, Col(0xe8e0d0)) }
+        }
+        leg(-8, -sw, dk); leg(7, sw, dk)
+        c.ell(-5, -17, 9, 6.4, fur); c.ell(5, -18.6, 7.6, 7.4, fur); c.ell(4, -24, 5, 3, fur)
+        c.poly(fur, [-12, -21, 0, -23, 6, -26.6, 11, -22, 10, -13, -12, -12])
+        c.ell(-1, -12.4, 9, 1.8, dk.shade(1.15))
+        leg(-10, sw, fur); leg(5, -sw, fur)
+        c.seg(9, -22, 13, -22.6, 5.4, fur)
+        c.ell(14.6, -22.6, 4, 3.8, fur); c.ell(17.6, -21.6, 2.4, 2.2, lt); c.ell(19.2, -22, 0.9, 0.7, INK)
+        c.circ(12.6, -26, 1.3, fur); c.circ(12.6, -26, 0.6, dk); c.circ(15.6, -26.2, 1.2, fur)
+        c.circ(15.8, -23.6, 0.4, INK); c.seg(16.4, -20.6, 18.6, -20.4, 0.3, dk)
+        for q in 0..<14 { let d = Double(q); c.seg(-11 + d * 1.6, -11.6 + sin(d) * 0.5, -11.3 + d * 1.6, -10 - hashN(d + 6), 0.35, dk) }
+        c.ell(-13.4, -18.4, 1.4, 1.2, dk)
+        c.roundCaps(false)
+        c.restore()
+    }
+    /// Smilodon: built like a bear more than a lion. Massive forequarters, a sloping back, a bobtail, and the sabres.
+    private func smilodon(_ x: Double, _ base: Double, _ s: Double) {
+        let sh = 1 - dark * 0.5
+        let fur = Col(0xb8925e).shade(sh), dk = Col(0x8a6a40).shade(sh), under = Col(0xe0cca0).shade(sh)
+        c.save(); c.translate(x, base); c.scale(s, s)
+        c.roundCaps(true)
+        c.seg(-7, -5, -8, 0, 2.2, dk); c.seg(5, -6, 5, 0, 2.8, dk)
+        c.curve(-9.4, -8.6, -11.6, -9, -12.2, -7 + sin(NOW * 2) * 0.6, 1.4, fur)
+        c.ell(-4.4, -7.4, 6, 3.4, fur); c.ell(3.4, -8.6, 5.4, 4.6, fur)
+        c.poly(fur, [-9, -9.6, 0, -11, 5, -13.4, 8, -11, 7, -6, -9, -5])
+        c.ell(0, -5.4, 6.4, 1.3, under)
+        c.seg(-5, -5, -5.6, 0, 2.3, fur); c.seg(7, -6, 7.4, 0, 3, fur); c.ell(8.4, -0.4, 2, 0.9, fur); c.ell(-4.8, -0.4, 1.8, 0.8, fur)
+        c.seg(7, -11, 9.6, -12.6, 4, fur)
+        c.ell(10.6, -13, 3.2, 2.9, fur); c.ell(13, -12, 1.9, 1.7, under); c.poly(Col(0x3a2a20), [14.2, -12.6, 15, -12, 14.2, -11.6])
+        c.poly(dk, [8.4, -15, 8.6, -17, 10, -15.4]); c.poly(dk, [10.2, -15.4, 10.8, -17.2, 11.8, -15.2])
+        c.circ(11.4, -13.6, 0.4, Col(0xd8c040)); c.circ(11.5, -13.6, 0.2, INK)
+        c.curve(12.6, -11, 12.4, -8.6, 13.2, -6.6, 0.7, Col(0xf4f0e4)); c.curve(11.6, -11, 11.4, -9, 12, -7.4, 0.55, Col(0xd8d0c0))
+        for q in 0..<7 { c.circ(-7 + Double(q) * 2.1, -8.6 + Double(q % 2) * 1.6, 0.4, dk.alpha(0.6)) }
+        c.roundCaps(false)
+        c.restore()
+    }
+    /// A hunter of the end of the ice age: hide tunic and leggings, long hair tied back, a spear with a fluted
+    /// stone point, a pack on the back.
+    private func hunter(_ x: Double, _ base: Double, _ seed: Double, _ ph: Double) {
+        if x < -20 || x > W + 20 { return }
+        let sh = 1 - dark * 0.45
+        let skin = Col(0x8a5a3a).shade(sh), hide = (hashN(seed) < 0.5 ? Col(0xa8845a) : Col(0x8f6e48)).shade(sh), hair = Col(0x1a1412)
+        let s = sin(ph)
+        let hip = base - 9.4, top = hip - 7.4
+        c.ell(x, base + 0.4, 4, 1, Col(0x000000, 0.2))
+        c.roundCaps(true)
+        for (a, d) in [(-s, 0.8), (s, 1.0)] {
+            c.seg(x, hip, x + a * 2, hip + 4.7, 2.2, hide.shade(d)); c.seg(x + a * 2, hip + 4.7, x + a * 3.5, base - 0.5, 1.8, hide.shade(d * 0.9))
+            c.ell(x + a * 3.5 + 0.8, base - 0.3, 1.6, 0.8, Col(0x5a4030).shade(d))
+        }
+        c.RR(x - 4.6, top + 0.4, 3, 6, 1.2, Col(0x6a5238).shade(sh))
+        c.poly(hide, [x - 2.6, top + 1, x - 1.6, top, x + 1.6, top, x + 2.6, top + 1, x + 2.4, hip + 2.4, x - 2.4, hip + 2.4])
+        for q in 0..<6 { c.seg(x - 2.2 + Double(q) * 0.9, hip + 2.4, x - 2.2 + Double(q) * 0.9, hip + 3.6, 0.3, hide.shade(0.8)) }
+        c.R(x - 2.4, hip - 0.6, 4.8, 0.6, Col(0x3a2a1e))
+        c.seg(x, top + 0.8, x + 2.6, top + 4, 1.6, hide); c.seg(x + 2.6, top + 4, x + 3.6, top + 2.4, 1.3, skin); c.circ(x + 3.6, top + 2.2, 0.8, skin)
+        c.roundCaps(false)
+        c.seg(x + 3.4, base - 2, x + 4, top - 12, 0.45, Col(0x6a4a2e))
+        c.poly(Col(0xd8d0c0), [x + 3.5, top - 12, x + 4.1, top - 15.4, x + 4.7, top - 12]); c.R(x + 3.6, top - 12.4, 0.9, 1, Col(0x3a2a1e))
+        c.R(x - 0.4, top - 1.3, 1.4, 1.8, skin.shade(0.88))
+        let hx = x + 0.5, hy = top - 3.2
+        c.ell(hx - 1.3, hy + 1.8, 1.3, 3.2, hair)
+        c.ell(hx - 0.7, hy - 0.1, 1.9, 2.2, hair)
+        c.ell(hx, hy, 2.0, 2.3, skin)
+        c.poly(skin, [hx + 1.7, hy - 0.3, hx + 2.5, hy + 0.7, hx + 1.6, hy + 0.9])
+        c.R(hx + 0.7, hy - 0.5, 0.6, 0.6, hair); c.R(hx + 0.7, hy + 1.3, 0.8, 0.22, Col(0x6a3a2e))
+        c.dome(hx - 0.2, hy - 0.5, 2.1, hair)
     }
 
     /// A desert rock with a lit top.
