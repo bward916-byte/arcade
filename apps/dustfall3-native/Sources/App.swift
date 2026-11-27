@@ -1309,6 +1309,7 @@ final class GameViewController: UIViewController {
         }
     }
 
+    @objc private func nextBeat() { if !game.cut.isEmpty && cutT > 0.9 { game.cut.removeFirst(); sound.click() } }
     @objc private func openMap() { showMap(choose: false) }
     @objc private func closeMap() { mapBox.isHidden = true }
     @objc private func pickPlace(_ b: UIButton) {
