@@ -862,7 +862,7 @@ final class Game {
         if name == "evrogue2" { startOmen("rogue"); sceneT = 5; omenK = ""; event("rogue"); return }
         if name == "wideshot" { leg = 1; mode = .sail; nextEvAt = 9999; T = 2.5 / 0.035; camZ = 1.1; return }
         if name == "offer" { leg = 1; mode = .sail; nextEvAt = 9999; offerK = "flyfish"; offerT = 2; Game.offerHold = true; offerDone = true; return }
-        if name.hasPrefix("g_") {
+        if name.hasPrefix("g_") || name.hasPrefix("h_") {
             // one still of each game, for the contact sheet
             let k = String(name.dropFirst(2))
             leg = 1; nextEvAt = 9999; bait = 3; planks = 6
@@ -892,6 +892,7 @@ final class Game {
             if play?.kind == .hold { play?.held = true }
             if play?.kind == .beat { play?.life = 4; play?.tb = 3 }
             if play?.kind == .pick { play?.tellHold = true }
+            play?.intro = name.hasPrefix("h_")
             return
         }
         if name == "mgfly" { leg = 1; mode = .sail; nextEvAt = 9999; startOdd("flyfish"); play?.total = 60; return }

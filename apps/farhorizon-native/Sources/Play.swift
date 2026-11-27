@@ -38,6 +38,9 @@ final class Play {
     /// one crate with something in it glints for a moment at the start: a clue for sharp eyes
     var tell = -1
     var tellHold = false
+    // the how-to card shown before the game starts
+    var intro = false
+    var introT = 0.0
     // the newer kinds (Play2.swift): two dials, a pause between rounds, a finger held, what is coming
     var a = 0.0
     var b = 0.0
@@ -100,6 +103,7 @@ extension Game {
     func startPlay(_ p: Play) {
         card = nil
         play = p
+        armIntro(p)
         if mode == .port { evTitle = p.title }
         snd?.whoosh()
     }
@@ -111,6 +115,7 @@ extension Game {
 
     func updatePlay(_ dt: Double) {
         guard let p = play else { return }
+        if p.intro { p.introT += dt; return }
         p.t += dt
         p.msgT = max(0, p.msgT - dt)
         p.flash = max(0, p.flash - dt)
@@ -203,6 +208,9 @@ extension Game {
 
     func tapPlay(_ x: Double, _ y: Double) {
         guard let p = play, p.endT < 0 else { return }
+        if p.intro { p.intro = false; snd?.click(); return }
+        let (qx, qy) = helpSpot()
+        if abs(x - qx) < 24 && abs(y - qy) < 24 { p.intro = true; p.introT = 0; snd?.click(); return }
         let (sx, wy, len) = shipSpot()
         switch p.kind {
         case .timing:
@@ -365,7 +373,7 @@ extension Game {
         }
     }
 
-    func drawPlay(_ c: Canvas) {
+    func drawPlayBody(_ c: Canvas) {
         guard let p = play else { return }
         let (sx, wy, len) = shipSpot()
         // what is going on, in a strip under the top bar

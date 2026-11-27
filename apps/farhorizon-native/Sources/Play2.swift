@@ -154,7 +154,7 @@ extension Game {
         }
     }
     func movePlay(_ x: Double, _ y: Double) {
-        guard let p = play, p.endT < 0, card == nil else { return }
+        guard let p = play, p.endT < 0, card == nil, !p.intro else { return }
         if p.kind == .steer { steerTo(p, x) }
         if p.kind == .swipe && p.held && p.wait <= 0 {
             let dx = x - downX, dy = y - downY
@@ -166,7 +166,7 @@ extension Game {
         }
     }
     func releasePlay(_ x: Double, _ y: Double) {
-        guard let p = play, p.endT < 0 else { return }
+        guard let p = play, p.endT < 0, !p.intro else { return }
         if p.kind == .hold && p.held && p.wait <= 0 { holdRelease(p) }
         if p.kind == .swipe { p.held = false }
     }

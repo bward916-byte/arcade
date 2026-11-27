@@ -843,6 +843,7 @@ extension Game {
     /// Three cards that say what the game is and what the player does in it.
     func showIntro() {
         UserDefaults.standard.set(true, forKey: "fh_intro")
+        resetHowTo()
         show("Your voyage", "You are captain of a small merchant ship. Your goal: reach Santa Aurelia, five passages away, with your ship and crew still alive.", [
             Opt("Next") { [unowned self] in
                 self.show("At sea", "A passage takes weeks. Every day the crew eats and drinks your stores. Storms, sickness and pirates come and go, and when something happens you choose what to do.", [
