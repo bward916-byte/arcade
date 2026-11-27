@@ -2610,7 +2610,13 @@ final class Renderer {
         let mid = Col(0x66786c).shade(k)
         let top = Col(0x84968a).shade(k)
         let r = h * 0.105
+        // fill the heart of the crown so it reads as one dense dome, not a ring
+        var mx = 0.0, my = 0.0
+        for t in tips { mx += t.0; my += t.1 }
+        mx /= Double(max(1, tips.count)); my /= Double(max(1, tips.count))
+        for t in tips { c.circ(t.0 + (mx - t.0) * 0.5, t.1 + (my - t.1) * 0.5, r * 1.1, under) }
         for t in tips { c.circ(t.0, t.1 + r * 0.35, r, under) }
+        for (i, t) in tips.enumerated() where i % 2 == 0 { c.circ(t.0 + (mx - t.0) * 0.45 - r * 0.2, t.1 + (my - t.1) * 0.45 - r * 0.3, r * 0.8, mid) }
         for (i, t) in tips.enumerated() { c.circ(t.0 - r * 0.2 + (hashN(seed + Double(i)) - 0.5) * r * 0.5, t.1 - r * 0.15, r * 0.8, mid) }
         for (i, t) in tips.enumerated() where hashN(seed + Double(i) + 50) < 0.6 { c.circ(t.0 - r * 0.35, t.1 - r * 0.5, r * 0.42, top) }
     }
