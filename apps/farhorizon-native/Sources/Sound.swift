@@ -28,6 +28,7 @@ final class Sound {
     private var echo = [Double](repeating: 0, count: 13230)   // 0.3 s
     private var echoI = 0
     private var running = false
+    private var inMusic = false
     var muted = UserDefaults.standard.bool(forKey: "fh_nosound")
     var musicOn = !UserDefaults.standard.bool(forKey: "fh_nomusic")
 
@@ -110,7 +111,8 @@ final class Sound {
     }
 
     private func add(_ v: Voice) {
-        if muted || !running { return }
+        // "sounds off" silences effects only; the music has its own switch
+        if (muted && !inMusic) || !running { return }
         lock.lock()
         if voices.count < 64 { voices.append(v) }
         lock.unlock()
@@ -256,10 +258,12 @@ final class Sound {
     }
     /// Call every frame with the game clock and the mood to play.
     func music(_ now: Double, _ m: String) {
-        if muted || !musicOn || !running { return }
+        if !musicOn || !running { return }
         guard let tr = tracks[m] else { return }
         if m != mood { mood = m; noteI = 0; beat = 0; nextT = now + 0.5 }
         if now < nextT { return }
+        inMusic = true
+        defer { inMusic = false }
         // form: A A B A, with the harmony line joining on the repeats
         let la = tr.a.count, lb = tr.b.count
         let cycle = la * 3 + lb

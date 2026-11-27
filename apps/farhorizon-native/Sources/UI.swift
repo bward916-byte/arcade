@@ -510,7 +510,8 @@ extension Game {
             for k2 in 0..<8 { let a = Double(k2) * PI / 4; c.seg(gx + cos(a) * 5, gy + sin(a) * 5, gx + cos(a) * 8.5, gy + sin(a) * 8.5, 2.6, CREAM) }
             c.roundCaps(false)
             c.circ(gx, gy, 6, CREAM); c.circ(gx, gy, 2.6, Col(0x1c1108))
-            if card == nil && sum == nil && play == nil {
+            // not in the middle of something happening: that would lose it
+            if card == nil && sum == nil && play == nil && omenK.isEmpty && sceneK.isEmpty {
                 hits.append(Hit(x: gx - 20, y: 0, w: 40, h: 38, act: { [unowned self] in self.snd?.click(); self.openSettings() }))
             }
         }

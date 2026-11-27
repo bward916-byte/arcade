@@ -834,9 +834,10 @@ extension Game {
             Opt("Save and quit", "back to the title") { [unowned self] in
                 self.saveGame()
                 self.card = nil
+                self.offerK = ""
                 self.mode = .title
             },
-            Opt("Back to the voyage") { [unowned self] in self.card = nil }
+            Opt("Back") { [unowned self] in self.card = nil }
         ])
     }
     /// Three cards that say what the game is and what the player does in it.

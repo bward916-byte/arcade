@@ -274,7 +274,11 @@ extension Game {
                 p.pop(cx, q.1 - 10, word, what != 7 && what != 0, big: what == 2 || what == 8)
                 if what == 2 { p.flash = 0.4 }
                 if what != 0 && what != 7 {
-                    for j in 0..<(what == 2 ? 20 : 10) { p.pops.append((cx + Double(j % 5) * 3 - 6, cy + Double(j / 5) * 3 - 3, 0, "•", true, false)) }
+                    let n = what == 2 ? 20 : 10
+                    for j in 0..<n {
+                        let a = Double(j) / 10 * PI * 2, r = j < 10 ? 4.0 : 9.0
+                        p.pops.append((cx + cos(a) * r, cy + sin(a) * r, 0, "•", true, false))
+                    }
                 }
                 if p.picksLeft <= 0 { p.endT = 1.7 }
                 break
@@ -379,7 +383,12 @@ extension Game {
                 c.ell(cx + 10, cy + 10 + fl, 9, 3, Col(0x5a7a4a)); c.ell(cx - 12, cy + 10 - fl, 7, 2.5, Col(0x5a7a4a))
                 c.ellStroke(cx, cy + 8, 30, 5, 1.2, Col(0xffffff, 0.5))
                 let reach = (p.pos - 0.5) * 30
-                c.curve(sx + len * 0.42, wy - len * 0.12, (sx + len * 0.42 + cx) / 2, wy - len * 0.2, cx + reach, cy - 8, 1.2, Col(0xd9cdb0))
+                c.curve(sx + len * 0.42, wy - len * 0.12, (sx + len * 0.42 + cx) / 2, wy - len * 0.2, cx + reach, cy - 16, 1.2, Col(0xd9cdb0))
+                // the net swinging on the end of the line
+                let nx = cx + reach, ny = cy - 9
+                c.ellStroke(nx, ny, 13, 7, 1.4, Col(0xd9cdb0))
+                for j in -2...2 { c.seg(nx + Double(j) * 5, ny - 6, nx + Double(j) * 5, ny + 6, 0.7, Col(0xd9cdb0, 0.7)) }
+                c.seg(nx - 12, ny, nx + 12, ny, 0.7, Col(0xd9cdb0, 0.7))
             }
             if p.theme == "trim" {
                 // the sail filling and spilling as the marker swings
@@ -687,7 +696,7 @@ extension Game {
             let p = Play(.timing, "turtle", "A turtle alongside", "Drop the net over her. Three tries") { [unowned self] p in
                 if p.score == 0 { self.done("She dives, and is gone"); return }
                 let got = self.addGood("food", 8 + p.perfect * 3)
-                self.done("Hauled aboard in the net. Turtle soup for a week: +\(got) stores")
+                self.done(got > 0 ? "Hauled aboard in the net. Turtle soup for a week: +\(got) stores" : "Netted, but the hold is full. You let her go")
             }
             p.rounds = 3
             p.stopOnHit = true
@@ -699,17 +708,18 @@ extension Game {
             let p = Play(.taps, "gulls", "Gulls at the catch", "They are diving on the fish drying in the rigging. Tap to shoo them") { [unowned self] p in
                 let saved = max(0, 2 + p.score - p.missed)
                 let got = saved > 0 ? self.addGood("food", saved) : 0
-                self.done(p.missed == 0 ? "Not one fish lost, and the drying finished: +\(got) stores" : "The gulls took \(p.missed), you kept the rest: +\(got) stores")
+                self.done(got == 0 ? "The gulls strip the lines bare" : (p.missed == 0 ? "Not one fish lost, and the drying finished: +\(got) stores" : "The gulls took \(p.missed), you kept the rest: +\(got) stores"))
             }
             p.total = 7
             p.life = 1.15
             evTitle = p.title
             startPlay(p)
         case "chest":
-            evTitle = "A sea chest"
-            var spots = [1, 3, 4, 5, 0]
-            if chance(0.25) { spots[4] = 2 }
-            playPick("wreck", "A sea chest", "Snagged on the anchor cable. Pry open two of the five drawers", spots, 2) { return "" }
+            evTitle = "Crates adrift"
+            var spots = [1, 3, 4, 0, 0]
+            if chance(0.5) { spots[3] = 5 }
+            if chance(0.1) { spots[4] = 2 }
+            playPick("wreck", "Crates adrift", "Five crates lashed to a broken spar. There is time to pry open two", spots, 2) { return "" }
         default:
             evTitle = "Fish running"
             playFish()

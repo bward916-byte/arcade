@@ -974,7 +974,7 @@ extension Game {
         }
         if !offerK.isEmpty && card == nil && play == nil && sceneK.isEmpty {
             // a chance going by: a badge with a ring that runs down
-            let info: [String: (String, String)] = ["flyfish": ("Flying fish!", "tap to catch"), "trim": ("A fresh wind!", "tap to trim sails"), "cask": ("A cask adrift!", "tap to hook it"), "gleam": ("Something glints", "tap to net it"), "fishing": ("Fish jumping!", "tap: lines out"), "turtle": ("A turtle alongside!", "tap to net her"), "gulls": ("Gulls at the catch!", "tap to shoo them"), "chest": ("A sea chest!", "tap to haul it up")]
+            let info: [String: (String, String)] = ["flyfish": ("Flying fish!", "tap to catch"), "trim": ("A fresh wind!", "tap to trim sails"), "cask": ("A cask adrift!", "tap to hook it"), "gleam": ("Something glints", "tap to net it"), "fishing": ("Fish jumping!", "tap: lines out"), "turtle": ("A turtle alongside!", "tap to net her"), "gulls": ("Gulls at the catch!", "tap to shoo them"), "chest": ("Crates adrift!", "tap to haul them in")]
             let (t1, t2) = info[offerK] ?? ("Something to do", "tap")
             let k = clampD(offerT / 6.5, 0, 1)
             let pop = 1 - pow(1 - clampD(offerT / 0.3, 0, 1), 3)
