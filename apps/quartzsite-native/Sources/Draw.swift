@@ -333,7 +333,7 @@ final class Renderer {
             let sx = n * 210 + hashN(n + 400) * 120 - cam * 1.5
             let shadeC = Col(0x2a3a2a).shade(1 - dark * 0.5)
             if hashN(n + 410) < 0.5 {
-                if g.phase == .title { saguaro(sx, H + 14, 120 + hashN(n + 420) * 40, n + 430, shadeC, false) }
+                if g.phase == .title { saguaro(sx, H + 14, 86 + hashN(n + 420) * 26, n + 430, shadeC, false) }
             }
             n += 1
         }
@@ -344,7 +344,7 @@ final class Renderer {
         // dusk colour, then night, then the fires and lamps
         let dusk = clampD(1 - abs(t - 0.62) / 0.08, 0, 1)
         if dusk > 0 { c.R(0, 0, W, H, Col(0xff7a30, 0.1 * dusk)) }
-        if dark > 0 { c.R(0, 0, W, H, Col(0x0a1030, 0.56 * dark)) }
+        if dark > 0 { c.R(0, 0, W, H, Col(0x0a1030, 0.42 * dark)) }
         if dark > 0.15 {
             for l in lights {
                 c.glow(l.0, l.1, l.2, Col(0xffb050, 0.5 * dark), Col(0xffb050, 0))
@@ -699,7 +699,7 @@ final class Renderer {
             // the Buckskin Mountains, rough and red, and a dirt lot full of trucks and side-by-sides
             let bx = W * 0.5 + 200 - cam * 0.2
             let rock = Col(0x9a5a3e).shade(1 - dark * 0.6)
-            c.poly(rock, [bx - 360, GY + 1, bx - 300, GY - 46, bx - 240, GY - 30, bx - 180, GY - 66, bx - 100, GY - 40, bx - 40, GY - 58, bx + 40, GY - 34, bx + 120, GY - 50, bx + 220, GY + 1])
+            massif([bx - 360, GY + 1, bx - 300, GY - 46, bx - 240, GY - 30, bx - 180, GY - 66, bx - 100, GY - 40, bx - 40, GY - 58, bx + 40, GY - 34, bx + 120, GY - 50, bx + 220, GY + 1], rock)
             var n = floor((cam * par - 70) / 90)
             while n * 90 < cam * par + W + 70 {
                 if hashN(n + 2100) < 0.6 {
@@ -711,7 +711,7 @@ final class Renderer {
         case .intaglios:
             // flat desert pavement running to the Big Maria Mountains
             let mx = W * 0.5 - cam * 0.15
-            c.poly(Col(0x7a5a52).shade(1 - dark * 0.6), [mx - 400, GY + 1, mx - 300, GY - 36, mx - 200, GY - 28, mx - 100, GY - 50, mx, GY - 40, mx + 120, GY - 56, mx + 260, GY - 30, mx + 400, GY + 1])
+            massif([mx - 400, GY + 1, mx - 300, GY - 36, mx - 200, GY - 28, mx - 100, GY - 50, mx, GY - 40, mx + 120, GY - 56, mx + 260, GY - 30, mx + 400, GY + 1], Col(0x7a5a52).shade(1 - dark * 0.6))
         case .hijolly, .plomosa:
             // boondockers spread out across the open desert
             let gap = ar == .hijolly ? 180.0 : 240.0
@@ -728,8 +728,7 @@ final class Renderer {
             // the Kofa's jagged volcanic ridges, a few campers, quartz glinting on the slope
             let kx = W * 0.5 - cam * 0.18
             let kofa = Col(0x7a5a4a).shade(1 - dark * 0.6)
-            c.poly(kofa, [kx - 260, GY + 1, kx - 200, GY - 40, kx - 170, GY - 28, kx - 130, GY - 62, kx - 90, GY - 44, kx - 40, GY - 70, kx + 10, GY - 38, kx + 60, GY - 52, kx + 120, GY - 30, kx + 200, GY + 1])
-            c.poly(kofa.shade(0.85), [kx - 40, GY - 70, kx + 10, GY - 38, kx - 20, GY + 1, kx - 70, GY + 1])
+            massif([kx - 260, GY + 1, kx - 200, GY - 40, kx - 170, GY - 28, kx - 130, GY - 62, kx - 90, GY - 44, kx - 40, GY - 70, kx + 10, GY - 38, kx + 60, GY - 52, kx + 120, GY - 30, kx + 200, GY + 1], kofa)
             var n = floor((cam * par - 70) / 400)
             while n * 400 < cam * par + W + 70 {
                 if hashN(n + 1950) < 0.5 { rig([.van, .classB, .classC][Int(hashN(n + 1960) * 3) % 3], n * 400 + hashN(n + 1970) * 120 - cam * par, GY + 0.5, 1, 1, 0.5); campDress(n * 400 - cam * par, n) }
@@ -2221,13 +2220,37 @@ final class Renderer {
             }
         case .hike where sp.arg == 1:
             // a giant figure scraped into the dark desert pavement, behind a low protective fence
-            let pave = Col(0x6a4e3a).shade(1 - dark * 0.5), line = Col(0xd8c4a0).shade(1 - dark * 0.5)
-            c.ell(x, GY + 8, 110, 7, pave)
+            let pave = Col(0x7a5c46).shade(1 - dark * 0.5), line = Col(0xe2d0ac).shade(1 - dark * 0.5)
+            let berm = Col(0x5a4232).shade(1 - dark * 0.5)
+            c.ell(x, GY + 8, 112, 7.5, pave)
+            c.ell(x - 10, GY + 8, 96, 5.5, pave.shade(0.93))
             c.roundCaps(true)
-            c.circ(x - 70, GY + 6, 3, line)
-            c.seg(x - 66, GY + 6, x + 40, GY + 6, 1.6, line)
-            c.seg(x - 40, GY + 6, x - 50, GY + 2, 1, line); c.seg(x - 40, GY + 6, x - 50, GY + 10, 1, line)
-            c.seg(x + 40, GY + 6, x + 60, GY + 2, 1.2, line); c.seg(x + 40, GY + 6, x + 60, GY + 10, 1.2, line)
+            // the giant: head to the left, arms flung wide, legs apart. Each line is gravel scraped away, with a low berm beside it
+            for pass in 0..<2 {
+                let col = pass == 0 ? berm : line
+                let o = pass == 0 ? 0.7 : 0.0
+                let wide = pass == 0 ? 1.2 : 0.0
+                c.circ(x - 72, GY + 7.6 + o, 2.6 + wide * 0.4, col)
+                c.seg(x - 69, GY + 7.6 + o, x - 20, GY + 7.6 + o, 2.6 + wide, col)
+                c.seg(x - 60, GY + 7.6 + o, x - 56, GY + 3.4 + o, 1.3 + wide, col)
+                c.seg(x - 60, GY + 7.6 + o, x - 55, GY + 12.2 + o, 1.3 + wide, col)
+                c.seg(x - 56, GY + 3.4 + o, x - 52, GY + 3 + o, 1.1 + wide, col)
+                c.seg(x - 55, GY + 12.2 + o, x - 51, GY + 12.8 + o, 1.1 + wide, col)
+                c.seg(x - 20, GY + 7.6 + o, x + 12, GY + 4.6 + o, 1.7 + wide, col)
+                c.seg(x - 20, GY + 7.6 + o, x + 12, GY + 11 + o, 1.7 + wide, col)
+                c.seg(x + 12, GY + 4.6 + o, x + 15, GY + 3.6 + o, 1.3 + wide, col)
+                c.seg(x + 12, GY + 11 + o, x + 15, GY + 12 + o, 1.3 + wide, col)
+                // the four-legged animal beside the giant, and a spiral
+                c.seg(x + 44, GY + 8 + o, x + 66, GY + 8 + o, 1.8 + wide, col)
+                c.seg(x + 66, GY + 8 + o, x + 71, GY + 6.4 + o, 1.2 + wide, col)
+                c.seg(x + 44, GY + 8 + o, x + 39, GY + 9.6 + o, 0.8 + wide, col)
+                for q in 0..<4 {
+                    let lx = x + 47 + Double(q) * 5.6
+                    c.seg(lx, GY + 8 + o, lx + (q < 2 ? -1.0 : 1.0), GY + (q % 2 == 0 ? 5.2 : 10.8) + o, 0.9 + wide, col)
+                }
+                c.arcStroke(x + 88, GY + 8 + o, 3.4, 0, PI * 1.6, 0.8 + wide * 0.6, col)
+                c.arcStroke(x + 88, GY + 8 + o, 1.6, PI, PI * 2.6, 0.7 + wide * 0.6, col)
+            }
             c.roundCaps(false)
             for k in 0..<12 { c.R(x - 110 + Double(k) * 20, GY - 6, 1, 7, Col(0x7a6a5a)) }
             c.R(x - 110, GY - 5, 222, 0.6, Col(0x8a8a88)); c.R(x - 110, GY - 2.4, 222, 0.6, Col(0x8a8a88))
@@ -2820,6 +2843,27 @@ final class Renderer {
         c.poly(Col(0xe2c898, 0.55).shade(k), [cx - 19, GY - 15, cx - 15, GY - 15, cx + 2, GY + 1, cx - 40, GY + 1])
     }
 
+    /// A mountain range with some form to it: shaded faces falling away from every peak, a ridge line, and haze where it meets the desert floor.
+    private func massif(_ pts: [Double], _ col: Col) {
+        c.poly(col, pts)
+        let n = pts.count / 2
+        if n < 3 { return }
+        for i in 1..<(n - 1) {
+            let px = pts[i * 2], py = pts[i * 2 + 1]
+            let lx = pts[i * 2 - 2], ly = pts[i * 2 - 1]
+            let rx = pts[i * 2 + 2], ry = pts[i * 2 + 3]
+            if py >= ly || py >= ry { continue }
+            // the shaded side, with a spur running down from the peak
+            c.poly(col.shade(0.84), [px, py, rx, ry, rx, GY + 1, px + (rx - px) * 0.3, GY + 1])
+            c.poly(col.shade(1.1), [px, py, px - (px - lx) * 0.45, py + (ly - py) * 0.5, px - (px - lx) * 0.2, GY + 1, px + (rx - px) * 0.3, GY + 1])
+            c.seg(px, py, px + (rx - px) * 0.18, py + (GY - py) * 0.55, 0.5, col.shade(0.7))
+        }
+        var lo = pts[0], hi = pts[0]
+        for i in 0..<n { lo = min(lo, pts[i * 2]); hi = max(hi, pts[i * 2]) }
+        let haze = Col(0xe6c8a0).shade(1 - dark * 0.6)
+        c.vfill(lo, GY - 22, hi - lo, 23, [(0, haze.alpha(0)), (1, haze.alpha(0.42))])
+    }
+
     /// A desert rock with a lit top.
     private func rock(_ x: Double, _ base: Double, _ r: Double) {
         let col = Col(0x8a6a54).shade(1 - dark * 0.4)
@@ -2858,7 +2902,7 @@ final class Renderer {
 
     private func ring(_ i: Int) {
         let x = g.spots[i].x - cam
-        let y = GY - 84.0
+        let y = GY - 68.0
         guard let o = g.offer(i) else {
             g.text(g.note(i), x, y + 8, 5, CREAM.alpha(0.9))
             return
@@ -3908,7 +3952,7 @@ final class Renderer {
         // a red-tailed hawk circling high
         if !night && g.weather < 2 {
             let ha = NOW * 0.35
-            hawk(W * 0.55 + cos(ha) * 60, GY * 0.22 + sin(ha) * 10, NOW)
+            hawk(W * 0.55 + cos(ha) * 60, GY * 0.42 + sin(ha) * 8, NOW)
         }
         // a great horned owl on a saguaro at night
         if night && (ar == .ltva || ar == .dome || ar == .scaddan || ar == .roadrunner) {
@@ -3950,15 +3994,14 @@ final class Renderer {
         switch ar {
         case .desertbar:
             let bx = W * 0.5 + 200 - cam * 0.2
-            c.poly(Col(0x9a5a3e).shade(1 - dark * 0.6), [bx - 360, GY + 1, bx - 300, GY - 46, bx - 240, GY - 30, bx - 180, GY - 66, bx - 100, GY - 40, bx - 40, GY - 58, bx + 40, GY - 34, bx + 120, GY - 50, bx + 220, GY + 1])
+            massif([bx - 360, GY + 1, bx - 300, GY - 46, bx - 240, GY - 30, bx - 180, GY - 66, bx - 100, GY - 40, bx - 40, GY - 58, bx + 40, GY - 34, bx + 120, GY - 50, bx + 220, GY + 1], Col(0x9a5a3e).shade(1 - dark * 0.6))
         case .intaglios:
             let mx = W * 0.5 - cam * 0.15
-            c.poly(Col(0x7a5a52).shade(1 - dark * 0.6), [mx - 400, GY + 1, mx - 300, GY - 36, mx - 200, GY - 28, mx - 100, GY - 50, mx, GY - 40, mx + 120, GY - 56, mx + 260, GY - 30, mx + 400, GY + 1])
+            massif([mx - 400, GY + 1, mx - 300, GY - 36, mx - 200, GY - 28, mx - 100, GY - 50, mx, GY - 40, mx + 120, GY - 56, mx + 260, GY - 30, mx + 400, GY + 1], Col(0x7a5a52).shade(1 - dark * 0.6))
         case .crystal:
             let kx = W * 0.5 - cam * 0.18
             let kofa = Col(0x7a5a4a).shade(1 - dark * 0.6)
-            c.poly(kofa, [kx - 260, GY + 1, kx - 200, GY - 40, kx - 170, GY - 28, kx - 130, GY - 62, kx - 90, GY - 44, kx - 40, GY - 70, kx + 10, GY - 38, kx + 60, GY - 52, kx + 120, GY - 30, kx + 200, GY + 1])
-            c.poly(kofa.shade(0.85), [kx - 40, GY - 70, kx + 10, GY - 38, kx - 20, GY + 1, kx - 70, GY + 1])
+            massif([kx - 260, GY + 1, kx - 200, GY - 40, kx - 170, GY - 28, kx - 130, GY - 62, kx - 90, GY - 44, kx - 40, GY - 70, kx + 10, GY - 38, kx + 60, GY - 52, kx + 120, GY - 30, kx + 200, GY + 1], kofa)
         case .palms:
             canyonWall(W * 0.5 + 300 - cam * 0.3)
         default:
@@ -4224,7 +4267,7 @@ final class Renderer {
         }
         if [Area.dome, .crystal, .palms, .desertbar, .intaglios].contains(ar) {
             let t = NOW * 0.18
-            soar(W * 0.6 + cos(t) * W * 0.3, GY * 0.3 + sin(t * 1.3) * 10, 24, true)
+            soar(W * 0.6 + cos(t) * W * 0.3, GY * 0.44 + sin(t * 1.3) * 8, 24, true)
         }
         for k in 0..<5 { quail(260 + Double(k) * 7 - cam + sin(NOW * 0.3) * 20, GY + 2 + Double(k % 2), NOW * 6 + Double(k)) }
     }
@@ -4262,7 +4305,7 @@ final class Renderer {
         for i in 0..<2 {
             let d = Double(i)
             let x = (NOW * (14 + d * 6) + d * 260).truncatingRemainder(dividingBy: W + 80) - 40
-            let y = GY * (0.25 + d * 0.15) + sin(NOW * 0.7 + d) * 8
+            let y = GY * (0.44 + d * 0.1) + sin(NOW * 0.7 + d) * 6
             let f = sin(NOW * 6 + d * 2) * 2.2
             c.seg(x - 4, y - f, x, y, 0.8, INK); c.seg(x, y, x + 4, y - f, 0.8, INK)
         }
