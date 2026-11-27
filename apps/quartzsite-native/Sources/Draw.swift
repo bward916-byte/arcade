@@ -3861,7 +3861,6 @@ final class Renderer {
         c.ell(5, -36, 7.4, 5.4, hide)
         c.poly(hide, [-18, -31, -6, -33.2, 3, -40, 11, -37, 12, -20, -16, -18])
         c.ell(-4, -17.6, 14, 3.4, deep.shade(1.12))
-        c.curve(-19, -29.6, -6, -34.4, 3.6, -41, 0.7, lite)
         // thin hair: a fringe along the belly and flank
         for q in 0..<16 {
             let d = Double(q)
@@ -3874,7 +3873,7 @@ final class Renderer {
         c.ell(17, -37, 6.6, 8.2, hide)
         c.ell(16, -43.6, 4.6, 3.6, hide)
         c.poly(hide, [20, -43, 23.4, -36, 23.6, -30, 18, -29])
-        for q in 0..<5 { c.seg(14 + Double(q) * 1.2, -46.6, 13.6 + Double(q) * 1.3, -48.4 + Double(q % 2) * 0.6, 0.35, deep) }
+        for q in 0..<6 { c.seg(13 + Double(q) * 1.1, -46.4, 12.7 + Double(q) * 1.1, -47.3, 0.4, lite) }
         // the small ear of a cold-country elephant
         c.ell(11.6, -36, 3.2, 4.8, deep.shade(1.1)); c.arcStroke(11.6, -36, 2.2, PI * 0.6, PI * 1.5, 0.3, deep)
         // eye
@@ -3898,8 +3897,8 @@ final class Renderer {
     private func grazer(_ x: Double, _ base: Double, _ s: Double, _ ph: Double, _ camel: Bool) {
         if x < -40 * s || x > W + 40 * s { return }
         let sh = 1 - dark * 0.5
-        let coat = (camel ? Col(0xa88a62) : Col(0xb8925e)).shade(sh)
-        let dk = (camel ? Col(0x7a6040) : Col(0x33261e)).shade(sh)
+        let coat = (camel ? Col(0x94744c) : Col(0xb8925e)).shade(sh)
+        let dk = (camel ? Col(0x6a5034) : Col(0x33261e)).shade(sh)
         let leg = camel ? 13.0 : 9.0
         let by = -(leg + (camel ? 4.6 : 4.2))
         let bl = camel ? 9.5 : 8.5
@@ -3911,8 +3910,8 @@ final class Renderer {
         c.roundCaps(true)
         func legAt(_ lx: Double, _ a: Double, _ shade: Double) {
             let kx = lx + a * 1.2, ky = -leg * 0.5
-            c.seg(lx, -leg - 0.5, kx, ky, camel ? 1.7 : 1.9, coat.shade(shade))
-            c.seg(kx, ky, lx + a * 2.2, -0.8, 1.1, (camel ? coat : dk).shade(shade))
+            c.seg(lx, -leg - 0.5, kx, ky, camel ? 2.3 : 2.1, coat.shade(shade))
+            c.seg(kx, ky, lx + a * 2.2, -0.8, camel ? 1.6 : 1.3, (camel ? coat : dk).shade(shade))
             c.R(lx + a * 2.2 - 0.8, -1.1, 1.7, 1.1, Col(0x1c1612))
         }
         legAt(-bl * 0.62, -sw, 0.76); legAt(bl * 0.55, sw, 0.76)
@@ -3923,7 +3922,7 @@ final class Renderer {
         c.ell(-bl * 0.55, by - 0.2, bl * 0.5, 4.4, coat)
         if camel { c.ell(-0.5, by - 4.6, 4.6, 3, coat.shade(0.94)) }
         c.ell(0, by + 2.6, bl * 0.8, 1.5, coat.shade(camel ? 0.86 : 1.14))
-        if !camel { c.R(-bl * 0.8, by - 4.2, bl * 1.5, 0.4, dk.alpha(0.7)) }
+        if !camel { c.R(-bl * 0.7, by - 4.1, bl * 1.3, 0.35, dk.alpha(0.35)) }
         legAt(-bl * 0.5, sw, 1); legAt(bl * 0.68, -sw, 1)
         let graze = sin(NOW * 0.5 + ph) > 0.4
         let nx0 = bl * 0.8, ny0 = by - 2
@@ -3948,10 +3947,10 @@ final class Renderer {
         let sh = 1 - dark * 0.5
         let fur = Col(0x7a6c5e).shade(sh), under = Col(0xc8bca8).shade(sh), dk = Col(0x4a4038).shade(sh)
         let sw = sin(ph * 3)
-        c.save(); c.translate(x, base); c.scale(s, s)
+        c.save(); c.translate(x, base); c.scale(s * 0.9, s * 1.3)
         c.roundCaps(true)
         for (lx, a) in [(-5.0, -sw), (5.0, sw)] { c.seg(lx, -7, lx + a * 1.6, -3.4, 1.5, dk); c.seg(lx + a * 1.6, -3.4, lx + a * 2.6, 0, 1.1, dk) }
-        c.curve(-7.4, -9, -12, -8, -13.4, -4 + sw * 0.6, 2, fur)
+        c.curve(-7.4, -9, -10.6, -8.4, -11.6, -5 + sw * 0.6, 2, fur)
         c.ell(0, -8.4, 7.6, 3.4, fur); c.ell(4.4, -8.8, 4, 4.2, fur); c.ell(0, -6.6, 6, 1.4, under)
         for (lx, a) in [(-4.0, sw), (6.0, -sw)] { c.seg(lx, -7, lx + a * 1.6, -3.4, 1.6, fur); c.seg(lx + a * 1.6, -3.4, lx + a * 2.6, 0, 1.2, fur) }
         c.seg(6.4, -10.6, 10, -12.6, 3.4, fur)
