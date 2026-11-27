@@ -1101,7 +1101,7 @@ const TROPHIES=[['🥄','First 10 customers',S=>S.served>=10],['🍽️','50 cus
  ['⭐','Reach level 5',S=>S.lvl>=5],['🌟','Reach level 10',S=>S.lvl>=10],['📖','Discover 9 recipes',S=>Object.keys(S.disc).length>=9],
  ['🌈','Discover every recipe',S=>Object.keys(S.disc).length>=18],['🍀','Get a Lucky Merge',S=>(S.lucky||0)>=1],['💰','Hold 1,000 coins',S=>S.coins>=1000]];
 function checkTrophies(){if(!S||!S.disc)return;S.tro=S.tro||{};for(const [e,n,f] of TROPHIES){if(!S.tro[n]&&f(S)){S.tro[n]=1;S.gems+=5;toast(`${e} Trophy: ${n}! +5💎`);SFX.level();confetti();save();break;}}}
-setInterval(checkTrophies,1500);
+setInterval(checkTrophies,1500);window.__dbg={get S(){return S;},cc};
 function trophyHTML(){S.tro=S.tro||{};const got=TROPHIES.filter(t=>S.tro[t[1]]).length;return `<div class="bt" style="margin-top:12px">Trophies · ${got}/${TROPHIES.length}</div><div class="tros">`+
   TROPHIES.map(([e,n])=>`<div class="tro${S.tro[n]?'':' lk'}"><span>${S.tro[n]?e:'🔒'}</span><small>${n}</small></div>`).join('')+'</div>';}
 function openBook(){

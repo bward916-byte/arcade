@@ -91,13 +91,13 @@ const MENU=[{k:'burger',n:'Burger',p:8,t:2.6},{k:'fries',n:'Fries',p:5,t:1.8},{k
   {k:'hotdog',n:'Hot Dog',p:7,t:2.2},{k:'donut',n:'Donut',p:6,t:2.0},{k:'boba',n:'Boba',p:7,t:1.9},{k:'pizza',n:'Pizza',p:9,t:3.0},
   {k:'taco',n:'Taco',p:8,t:2.4},{k:'coffee',n:'Coffee',p:5,t:1.4},{k:'cupcake',n:'Cupcake',p:7,t:2.2},{k:'onigiri',n:'Onigiri',p:6,t:1.8}];
 const PALS=['bunny','cat','bear','panda','frog','chick','fox','pig','hamster','alien','raccoon','puppy'];
-const UPG=[{k:'speed',n:'Turbo Stoves',d:'Cook 12% faster',ic:'i_bolt',c:[40,80,140,220,320]},{k:'patience',n:'Comfy Queue',d:'Customers wait 15% longer',ic:'i_heart',c:[40,80,140,220,320]},
-  {k:'tips',n:'Cute Menu',d:'Tips +20%',ic:'i_coin',c:[50,100,170,260,380]}];
+const UPG=[{k:'speed',n:'Turbo Stoves',d:'Cook 12% faster',ic:'i_bolt',c:[150,400,800,1400,2200]},{k:'patience',n:'Comfy Queue',d:'Customers wait 15% longer',ic:'i_heart',c:[150,400,800,1400,2200]},
+  {k:'tips',n:'Cute Menu',d:'Tips +20%',ic:'i_coin',c:[200,500,900,1500,2400]}];
 const KEY='foodTruckRush_v1';
 let SV={day:1,coins:0,stars:{},speed:0,patience:0,tips:0,snd:0,best:0};try{Object.assign(SV,JSON.parse(localStorage.getItem(KEY)||'{}'));}catch(e){}
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(SV));}catch(e){}};
 const unlocked=d=>clamp(2+d,3,12);
-const goalFor=d=>50+d*30;
+const goalFor=d=>120+d*20;
 
 /* sound */
 let AC=null;function ac(){if(!AC){try{AC=new(window.AudioContext||window.webkitAudioContext)();}catch(e){}}if(AC&&AC.state==='suspended')AC.resume().catch(()=>{});}
@@ -123,7 +123,7 @@ function startDay(){const n=unlocked(SV.day);G={t:0,len:75,earned:0,served:0,los
   G.special=pick(G.st).m.k;G.spT=now();
   $('vDay').textContent=SV.day;upd();SFX.bell();}
 const cookDur=m=>m.t*Math.pow(0.88,SV.speed);
-const patienceFor=n=>(16+n*7)*Math.pow(1.15,SV.patience)*clamp(1.1-SV.day*0.02,0.75,1.1);
+const patienceFor=n=>(8+n*5)*Math.pow(1.15,SV.patience)*clamp(1.1-SV.day*0.025,0.55,1.1);
 function spawnCust(){const free=[0,1,2].filter(i=>!G.cust[i]);if(!free.length)return;const i=pick(free),n=G.st.length;
   const cnt=Math.random()<0.45?1:Math.random()<0.7?2:3,items=[];for(let j=0;j<cnt;j++){const s=Math.floor(Math.pow(Math.random(),0.8)*n);items.push({k:MENU[s].k,got:false});}if(Math.random()<0.3)items[0].k=G.special;
   const used=G.cust.filter(Boolean).map(c=>c.a),P2=patienceFor(cnt);
@@ -151,7 +151,7 @@ function tapStation(s,i){const t=now();
 function deliver(f){const c=G.cust[f.ci];if(!c)return;f.it.got=true;f.it.inbound=false;c.bump=now();
   if(c.items.every(x=>x.got))pay(f.ci);}
 function pay(ci){const c=G.cust[ci],base=c.items.reduce((a,it)=>a+MENU.find(m=>m.k===it.k).p*(it.k===G.special?2:1),0),frac=c.pat/c.pmax;
-  G.combo++;const tip=Math.round(base*frac*0.6*Math.pow(1.2,SV.tips)),bonus=G.combo>=3?G.combo:0,tot=(base+tip+bonus+(G.rush?2:0))*(c.vip?2:1);
+  G.combo++;const tip=Math.round(base*frac*0.6*Math.pow(1.2,SV.tips)),bonus=G.combo>=3?Math.min(10,G.combo):0,tot=(base+tip+bonus+(G.rush?2:0))*(c.vip?2:1);
   SV.coins+=tot;G.earned+=tot;G.served++;c.st='out';c.t1=now();c.mood=1;SFX.pay();
   floatT(custX(ci),ledgeY()-bh*0.2,c.vip?`VIP ×2  +${tot}`:`+${tot}`,'#ffd34d',c.vip?1.5:1.3);if(tip>0)floatT(custX(ci),ledgeY()-bh*0.14,`tip ${tip}`,'#fff',0.8);if(bonus)floatT(W/2,ledgeY()-bh*0.26,`Combo x${G.combo}!`,'#ff8a3d',1.2);
   for(let k=0;k<10;k++)P.push({x:custX(ci),y:ledgeY()-bh*0.1,vx:rnd(-160,160),vy:rnd(-380,-160),life:1,k:'coin'});
@@ -168,7 +168,7 @@ function step(dt){const t=now();G.t+=dt;
   G.cust.forEach((c,ci)=>{if(!c||c.st!=='idle')return;c.pat-=dt;if(c.pat<=0){c.st='out';c.t1=t;c.mood=2;G.lost++;G.combo=0;SFX.angry();floatT(custX(ci),ledgeY()-bh*0.2,'Hmph!','#e8574a',1.1);
     FL.forEach(f=>{if(f.ci===ci)f.dead=true;});setTimeout(()=>{if(G)G.cust[ci]=null;},800);}});
   for(let i=FL.length-1;i>=0;i--){const f=FL[i];if(t-f.t0>380){if(!f.dead)deliver(f);FL.splice(i,1);}}
-  if(G.t>=G.len&&!G.cust.some(c=>c&&c.st==='idle')&&!FL.length&&G.run){G.run=false;setTimeout(endDay,600);}
+  if(G.t>=G.len&&!G.cust.some(c=>c&&c.st!=='out')&&!FL.length&&G.run){G.run=false;setTimeout(endDay,600);}
   else if(G.t>=G.len+12&&G.run){G.run=false;setTimeout(endDay,300);}
   upd();}
 function spr(k,x,y,s){const im=ART[k];if(!im)return;ctx.drawImage(im,x-s/2,y-s/2,s,s);}
@@ -187,7 +187,7 @@ function draw(t){ctx.setTransform(DPR,0,0,DPR,0,0);ctx.imageSmoothingEnabled=fal
   // redraw ledge strip over customers
   if(ART.bg){const sy=0.432,ey=0.48;ctx.drawImage(ART.bg,0,ART.bg.height*sy,ART.bg.width,ART.bg.height*(ey-sy),bx,by+bh*sy,bw,bh*(ey-sy));}
   // bubbles
-  G.cust.forEach((c,ci)=>{if(!c||c.st==='out')return;const x=custX(ci),n=c.items.length,is=Math.min(30,W*0.075),pad=5,w2=n*is+(n-1)*3+pad*2,h2=is+pad*2+8;
+  G.cust.forEach((c,ci)=>{if(!c||c.st==='out')return;const x=custX(ci),n=c.items.length,is=Math.min(34,W*0.087),pad=5,w2=n*is+(n-1)*3+pad*2,h2=is+pad*2+8;
     const bxx=clamp(x-w2/2,4,W-w2-4),byy=ly-cs*1.08-h2;box(bxx,byy,w2,h2,c.vip?'#fff1b8':'#fff',c.vip?'#b8860b':'#4a2c1d');if(c.vip){spr('i_star',bxx-2,byy-2,22);ctx.font=FONT(10);ctx.textAlign='center';ctx.textBaseline='alphabetic';ctx.fillStyle='#b8860b';ctx.fillText('VIP',bxx+w2/2,byy-4);}
     c.items.forEach((it,j)=>{const ix=bxx+pad+j*(is+3)+is/2,iy=byy+pad+is/2;ctx.globalAlpha=it.got?0.35:1;spr(it.k,ix,iy,is);ctx.globalAlpha=1;if(it.k===G.special&&!it.got)spr('i_star',ix+is*0.38,iy-is*0.38,is*0.5);
       if(it.got){ctx.fillStyle='#4caf50';ctx.font=FONT(16);ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('✓',ix,iy);}});
@@ -196,7 +196,8 @@ function draw(t){ctx.setTransform(DPR,0,0,DPR,0,0);ctx.imageSmoothingEnabled=fal
   G.st.forEach((s,i)=>{const q=stRect(i),pad=4;let ox=0;if(s.shake&&t-s.shake<300)ox=Math.sin((t-s.shake)*0.08)*4;
     const ready=s.state==='ready';box(q.x+pad+ox,q.y+pad,q.w-pad*2-3,q.h-pad*2-3,ready?'#fff6c2':s.state==='cook'?'#ffe2c8':'#fff3d6');
     const cx=q.x+q.w/2+ox-1.5,cy=q.y+q.h/2-1.5,is=tile*0.62;
-    if(s.state==='idle'){ctx.globalAlpha=0.55;spr(s.m.k,cx,cy,is*0.9);ctx.globalAlpha=1;}
+    if(s.state==='idle'){const want=G.cust.some(c=>c&&c.st==='idle'&&c.items.some(it=>it.k===s.m.k&&!it.got&&!it.inbound));ctx.globalAlpha=want?1:0.45;spr(s.m.k,cx,cy,is*(want?0.92+0.06*Math.sin(t*0.012):0.9));ctx.globalAlpha=1;
+      if(want){ctx.lineWidth=3;ctx.strokeStyle=`rgba(232,87,74,${0.55+0.45*Math.sin(t*0.012)})`;ctx.strokeRect(q.x+pad+ox+3,q.y+pad+3,q.w-pad*2-9,q.h-pad*2-9);}}
     else if(s.state==='cook'){const u=clamp((t-s.t0)/s.dur,0,1);spr(s.m.k,cx,cy,is*(0.55+0.4*u));
       ctx.lineWidth=5;ctx.strokeStyle='#4a2c1d';ctx.beginPath();ctx.arc(cx,cy,tile*0.36,-Math.PI/2,-Math.PI/2+Math.PI*2*u);ctx.stroke();ctx.lineWidth=3;ctx.strokeStyle='#ff8a3d';ctx.stroke();
       if(Math.random()<0.15)P.push({x:cx+rnd(-10,10),y:cy-is*0.3,vx:rnd(-10,10),vy:rnd(-60,-30),life:1,k:'steam'});}
@@ -227,7 +228,7 @@ function endDay(){const gl=goalFor(SV.day),e=G.earned,st=e>=gl*2?3:e>=gl*1.5?2:e
   SV.stars[SV.day]=Math.max(SV.stars[SV.day]||0,st);if(win){SV.day++;SFX.win();}else SFX.angry();save();showSummary(e,gl,st,win);}
 function showSummary(e,gl,st,win){const p=$('dePanel'),SI=ART_SRC.i_star;
   p.innerHTML=`<h2>${win?'Day complete!':'Not quite…'}</h2><div class="stars">${[1,2,3].map(i=>`<img alt="" src="${SI}" class="${i<=st?'':'dim'}">`).join('')}</div>
-   <div class="row"><span>Earned</span><b>${e}</b></div><div class="row"><span>Goal</span><b>${gl}</b></div><div class="row"><span>Served</span><b>${G.served}</b></div><div class="row"><span>Walked away</span><b>${G.lost}</b></div>
+   <div class="row"><span>Earned</span><b>${e}</b></div><div class="row"><span>Goal</span><b>${gl}</b></div><div class="row"><span>★★ / ★★★ at</span><b>${Math.round(gl*1.5)} / ${gl*2}</b></div><div class="row"><span>Served</span><b>${G.served}</b></div><div class="row"><span>Walked away</span><b>${G.lost}</b></div>
    <div id="shop"></div><p style="font-size:13px;margin:8px 0">${win&&unlocked(SV.day)>unlocked(SV.day-1)?`New station tomorrow: <b>${MENU[unlocked(SV.day)-1].n}</b>!`:''}</p>
    <button class="btn ${win?'alt':''}" id="nextDay">${win?`Start Day ${SV.day}`:`Retry Day ${SV.day}`}</button>`;
   renderShop();$('dayEnd').classList.remove('hide');$('nextDay').onclick=()=>{ac();$('dayEnd').classList.add('hide');startDay();};}

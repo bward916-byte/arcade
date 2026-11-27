@@ -20,7 +20,7 @@ button{font-family:inherit;color:var(--ink);cursor:pointer}
 #top{display:flex;gap:6px;align-items:center;padding:calc(env(safe-area-inset-top) + 6px) 8px 6px;background:#4aa3df;border-bottom:3px solid #fff}
 .pill{display:flex;align-items:center;gap:3px;height:36px;background:var(--paper);border-radius:12px;padding:0 9px 0 3px;font-weight:700;font-size:17px;box-shadow:0 2px 0 rgba(0,0,0,.15);white-space:nowrap}
 .pill img{width:30px;height:30px}
-#hearts{display:flex;gap:1px;padding-right:4px}#hearts img{width:26px;height:26px;transition:opacity .2s,transform .2s}#hearts img.off{opacity:.2;filter:grayscale(1);transform:scale(.8)}
+#hearts{display:flex;gap:1px;padding-right:4px}#hearts img{width:24px;height:24px;transition:opacity .2s,transform .2s}#hearts img.off{opacity:.2;filter:grayscale(1);transform:scale(.8)}
 .sp{flex:1}
 .ib{width:38px;height:36px;border:0;border-radius:12px;background:var(--paper);font-size:18px;box-shadow:0 2px 0 rgba(0,0,0,.15);padding:0}
 #stage{flex:1;position:relative;min-height:0}
@@ -99,7 +99,8 @@ const RECIPES=[{k:'burger',n:'Burger',need:['bun','patty','cheese']},{k:'taco',n
 const INGS=['bun','patty','cheese','lettuce','tomato','sausage','tortilla','scoop','cherry'];
 const ANIMALS=['bunny','cat','bear','panda','frog','chick','fox','pig'];
 const OBST=['cone','rock','pothole','puddle'];
-const TRUCKS=[{k:'truck_mint',n:'Minty',c:0},{k:'truck_pink',n:'Bubblegum',c:150},{k:'truck_yellow',n:'Sunny',c:400}];
+const TRUCKS=[{k:'truck_mint',n:'Minty',c:0,p:'Classic'},{k:'truck_pink',n:'Bubblegum',c:600,p:'4 hearts'},{k:'truck_yellow',n:'Sunny',c:2000,p:'Coin magnet'}];
+const maxHp=()=>SV.truck==='truck_pink'?4:3;
 const KEY='foodTruckRoadTrip_v1';
 let SV={best:0,bank:0,own:['truck_mint'],truck:'truck_mint',snd:0,bestDist:0};try{Object.assign(SV,JSON.parse(localStorage.getItem(KEY)||'{}'));}catch(e){}
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(SV));}catch(e){}};
@@ -146,9 +147,9 @@ function newOrder(){const r=pick(RECIPES);G.order={r,got:r.need.map(()=>false),a
 function drawOrder(){const o=G.order,el=$('slots');$('oAni').src=ART_SRC[o.ani];$('oFood').src=ART_SRC[o.r.k];el.replaceChildren();
   o.r.need.forEach((k,i)=>{const d=document.createElement('div');d.className='slot'+(o.got[i]?' got':'');const im=document.createElement('img');im.src=ART_SRC[k];im.alt='';d.appendChild(im);el.appendChild(d);});
   $('order').classList.remove('hide');}
-function hearts(){const h=$('hearts');h.replaceChildren();for(let i=0;i<3;i++){const im=document.createElement('img');im.src=ART_SRC.heart;im.alt='';if(i>=G.hp)im.className='off';h.appendChild(im);}}
+function hearts(){const h=$('hearts');h.replaceChildren();for(let i=0;i<maxHp();i++){const im=document.createElement('img');im.src=ART_SRC.heart;im.alt='';if(i>=G.hp)im.className='off';h.appendChild(im);}}
 function start(){ac();$('title').classList.add('hide');$('over').classList.add('hide');
-  G={lane:1,y:0,t:0,dist:0,coins:0,served:0,hp:3,inv:0,turbo:0,speed:0,objs:[],decT:[],decB:[],nextSpawn:0,bgx:0,shake:0,count:3.2,cheer:null,order:null,run:true,wob:0};
+  G={lane:1,y:0,t:0,dist:0,coins:0,served:0,hp:maxHp(),inv:0,turbo:0,speed:0,objs:[],decT:[],decB:[],nextSpawn:0,bgx:0,shake:0,count:3.2,cheer:null,order:null,run:true,wob:0};
   G.y=laneY(1);P=[];FX=[];newOrder();hearts();
   for(let x=0;x<W+200;x+=rnd(70,140))G.decT.push({k:pick(DEC_TOP),x,s:rnd(.75,1.05)});for(let x=0;x<W+200;x+=rnd(60,120))G.decB.push({k:pick(DEC_BOT),x,s:rnd(.6,.85)});}
 function move(d){if(!G||!G.run||G.count>0)return;const n=clamp(G.lane+d,0,2);if(n!==G.lane){G.prevLane=G.lane;G.laneT=G.t;G.lane=n;SFX.lane();}}
@@ -162,11 +163,12 @@ cv.addEventListener('pointerup',e=>{if(sy===null)return;const dy=e.clientY-sy;if
 function spawn(){const x=W+laneH;const lanes=[0,1,2].sort(()=>Math.random()-.5);const diff=clamp(G.t/150,0,1);
   const nOb=Math.random()<0.25+diff*0.45?(Math.random()<diff*0.5?2:1):0;const need=G.order.r.need.filter((k,i)=>!G.order.got[i]);
   lanes.forEach((l,i)=>{let o=null;
-    if(i<nOb){if(G.t>18&&Math.random()<0.18+diff*0.15)o={k:'car',l,x:x+laneH*2,v:laneH*1.6,ob:1,flip:1};else o={k:pick(OBST),l,x,ob:1};}
+    if(i<nOb){if(G.t>18&&nOb===1&&(G.lastOb||0)<=1&&Math.random()<0.22+diff*0.18)o={k:'car',l,x:x+laneH*2,v:laneH*1.6,ob:1,flip:1};else o={k:pick(OBST),l,x,ob:1};}
     else if(i===nOb){const r=Math.random();if(r<0.55&&need.length)o={k:pick(need),l,x,ing:1};else if(r<0.75)o={k:pick(INGS),l,x,ing:1};
-      else if(r<0.9)o={k:'coin',l,x,coin:1};else if(r<0.95&&G.hp<3)o={k:'heart',l,x,heart:1};else o={k:'bolt',l,x,bolt:1};}
+      else if(r<0.9)o={k:'coin',l,x,coin:1};else if(r<0.95&&G.hp<maxHp())o={k:'heart',l,x,heart:1};else o={k:'bolt',l,x,bolt:1};}
     else if(Math.random()<0.3)o={k:'coin',l,x:x+laneH*rnd(.6,1.2),coin:1};
     if(o){o.t0=G.t;G.objs.push(o);}});
+  G.lastOb=nOb;
   if(nOb===0&&Math.random()<0.5){const l=pick([0,1,2]);for(let j=1;j<=3;j++)G.objs.push({k:'coin',l,x:x+laneH*(0.9+j*0.7),coin:1});}}
 
 /* update */
@@ -181,6 +183,7 @@ function step(dt){G.t+=dt;if(G.count>0){G.count-=dt;const c=Math.ceil(G.count);i
   const tl=Math.round((G.y-roadTop)/laneH-0.5),tw=laneH*1.25;
   for(let i=G.objs.length-1;i>=0;i--){const o=G.objs[i];o.x-=dx+(o.v||0)*dt;if(o.x<-laneH*2){G.objs.splice(i,1);continue;}
     if(o.ob&&!o.dead&&!o.passed&&o.x<TX-laneH*0.4){o.passed=1;if(o.l===G.prevLane&&o.l!==tl&&G.t-G.laneT<0.7&&G.hp>0){G.coins+=3;txt(TX,G.y-laneH*.6,'Close call! +3','#ffd34d');SFX.coin();burst(TX-laneH*.3,laneY(o.l),['#fff','#ffd34d'],6,120);}}
+    if(o.coin&&!o.dead&&SV.truck==='truck_yellow'&&Math.abs(o.l-tl)===1&&Math.abs(o.x-TX)<laneH*0.5){hitObj(o);continue;}
     if(o.l!==tl||o.dead)continue;const hw=o.k==='car'?laneH*0.6:laneH*0.32;if(Math.abs(o.x-TX)<tw*0.42+hw){hitObj(o);}}
   if(G.cheer&&G.t-G.cheer.t>1.6)G.cheer=null;
   for(let i=P.length-1;i>=0;i--){const p=P[i];p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=(p.g||0)*dt;p.r+=(p.vr||0)*dt;p.life-=dt*(p.fade||1.2);if(p.life<=0)P.splice(i,1);}
@@ -194,11 +197,11 @@ function hitObj(o){if(o.ob){if(G.inv>0||G.turbo>0){if(G.turbo>0){o.dead=1;o.fly=
     if(G.hp<=0){G.run=false;setTimeout(gameOver,900);}return;}
   o.dead=1;o.grab=G.t;
   if(o.coin){G.coins+=G.turbo>0?2:1;SFX.coin();burst(TX,G.y,['#ffd34d','#fff3a0'],5,140);return;}
-  if(o.heart){G.hp=Math.min(3,G.hp+1);hearts();SFX.grab();txt(TX,G.y-laneH*.6,'+1 ♥','#ef5a4c');return;}
+  if(o.heart){G.hp=Math.min(maxHp(),G.hp+1);hearts();SFX.grab();txt(TX,G.y-laneH*.6,'+1 ♥','#ef5a4c');return;}
   if(o.bolt){G.turbo=5;SFX.bolt();txt(TX,G.y-laneH*.6,'TURBO!','#4aa3df');burst(TX,G.y,['#4aa3df','#fff','#ffd34d'],16);return;}
   const od=G.order,i=od.r.need.findIndex((k,j)=>k===o.k&&!od.got[j]);
   if(i>=0){od.got[i]=true;SFX.grab();drawOrder();burst(TX,G.y,['#fff','#c9f0b8','#ffd34d'],8,160);
-    if(od.got.every(Boolean)){G.served++;G.clean=(G.clean||0)+1;const mul=1+Math.min(4,G.clean-1)*0.25,pay=Math.round((10+G.served*2)*mul);if(mul>1)setTimeout(()=>txt(W*0.62,roadTop-laneH*0.75,`No-bump streak ×${mul}`,'#4aa3df'),250);G.coins+=pay;SFX.serve();$('order').classList.add('done');
+    if(od.got.every(Boolean)){G.served++;G.clean=(G.clean||0)+1;const mul=1+Math.min(4,G.clean-1)*0.25,pay=Math.round((10+Math.min(30,G.served))*mul);if(mul>1)setTimeout(()=>txt(W*0.62,roadTop-laneH*0.75,`No-bump streak ×${mul}`,'#4aa3df'),250);G.coins+=pay;SFX.serve();$('order').classList.add('done');
       G.cheer={ani:od.ani,food:od.r.k,t:G.t,pay};txt(W*0.62,roadTop-laneH*1.1,`+${pay} ${od.r.n}!`,'#ffd34d');burst(W*0.75,roadTop-laneH*.6,['#ef5a4c','#ffd34d','#4aa3df','#7cc25c','#fff'],26,300);
       setTimeout(()=>{if(G){$('order').classList.remove('done');newOrder();}},650);}}
   else{G.coins++;SFX.coin();txt(TX,G.y-laneH*.55,'+1','#fff');}}
@@ -266,7 +269,7 @@ let last=now();function frame(t){const dt=Math.min(0.05,(t-last)/1000);last=t;if
 
 /* title / garage / over */
 function garage(){const g=$('garage');g.replaceChildren();TRUCKS.forEach(tr=>{const own=SV.own.includes(tr.k),b=document.createElement('button');b.className='tk'+(SV.truck===tr.k?' sel':'')+(own?'':' lock');
-  const im=document.createElement('img');im.src=ART_SRC[tr.k];im.alt='';b.appendChild(im);b.appendChild(document.createTextNode(own?tr.n:`🔒 ${tr.c} coins`));
+  const im=document.createElement('img');im.src=ART_SRC[tr.k];im.alt='';b.appendChild(im);b.appendChild(document.createTextNode(own?tr.n:`🔒 ${tr.c}`));const pk=document.createElement('div');pk.style.cssText='font-size:11px;font-weight:600;opacity:.75';pk.textContent=tr.p;b.appendChild(pk);
   b.onclick=()=>{ac();if(own){SV.truck=tr.k;SFX.lane();}else if(SV.bank>=tr.c){SV.bank-=tr.c;SV.own.push(tr.k);SV.truck=tr.k;SFX.serve();}else{SFX.hit();b.animate([{transform:'translateX(-5px)'},{transform:'translateX(5px)'},{transform:'none'}],{duration:240});}save();garage();};g.appendChild(b);});
   const p=document.createElement('div');p.style.cssText='width:100%;font-size:14px;font-weight:600;margin-top:-2px';p.textContent=`Bank: ${SV.bank} coins · Best: ${SV.best}`;g.appendChild(p);g.style.flexWrap='wrap';}
 function gameOver(){const nb=G.coins>SV.best;SV.best=Math.max(SV.best,G.coins);SV.bank+=G.coins;SV.bestDist=Math.max(SV.bestDist,Math.floor(G.dist));save();SFX.over();$('order').classList.add('hide');
