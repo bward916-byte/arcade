@@ -887,6 +887,18 @@ final class Game {
                 if id == 85 { timeTravel(era != 0 ? 0 : 1); return }
                 if id == 57 { timeTravel(era == 2 ? 1 : 2); return }
                 if id >= 300 && id < 304 { mapQuad = id - 300; events.append(3); return }
+                if id == 304 && !inPast {
+                    mapQuad = -1
+                    if area != .dome { go(.dome) }
+                    if area == .dome && !inRig {
+                        mapOpen = false
+                        px = 2720
+                        if onToy { toyX = px }
+                    }
+                    hint("nugget", "Gold Nugget Road runs east from Dome Rock, past the cleanup: mines, a stone cabin, a wash to detect")
+                    events.append(3)
+                    return
+                }
                 if id == 55 { mapQuad = -1; events.append(3); return }
                 if id == 54 { backToCamp(); events.append(3); return }
                 if id >= 70 && id < 70 + AREAS.count { mapQuad = -1; go(Area(rawValue: id - 70) ?? area) } else if id == 61 || id < 0 { mapOpen = false }

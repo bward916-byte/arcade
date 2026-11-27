@@ -478,9 +478,11 @@ final class Renderer {
                 c.translate(tx, tb - hop)
                 c.rotate(g.slope(gx) * 0.9)
                 toy(g.toy, 0, 0, g.onToy ? g.face : 1, g.onToy ? g.look : -1, g.onToy ? g.walk : 0)
+                toyFlag(0, 0, g.onToy ? g.face : 1)
                 c.restore()
             } else {
                 toy(g.toy, tx, tb, g.onToy ? g.face : 1, g.onToy ? g.look : -1, g.onToy ? g.walk : 0)
+                toyFlag(tx, tb, g.onToy ? g.face : 1)
             }
             if g.nearToy {
                 g.hits.append(Hit(id: 51, x: tx - len / 2 - 8, y: GY - 34, w: len + 16, h: 52))
@@ -2579,7 +2581,7 @@ final class Renderer {
             c.R(x - 36, GY - 30, 66, 5, Col(0xc8281e).shade(1 - dark * 0.35)); c.R(x - 36, GY - 25.4, 66, 1, Col(0xf2c418).shade(1 - dark * 0.35))
             pane(x - 30, GY - 19, 14, 11); pane(x - 14, GY - 19, 14, 11); doorway(x + 3, GY - 19, 9, 19, Col(0x5a5a5e))
             c.RR(x + 16, GY - 17, 9, 7, 0.8, GLASS.shade(1 - dark * 0.3)); c.R(x + 15, GY - 10, 11, 1, Col(0x8a8f96))
-            c.R(x - 3.8, GY - 36, 1.6, 6, Col(0x8a8a88))
+            c.R(x - 3.8, GY - 36, 1.6, 10, Col(0x8a8a88))
             c.RR(x - 17, GY - 49, 28, 14, 2, Col(0xc8281e).shade(1 - dark * 0.3))
             g.text("CARL'S JR.", x - 3, GY - 42, 3.8, Col(0xf8e8a0), bold: true)
             c.RR(x + 30, GY - 38, 24, 6, 1, Col(0xf4f4f0).shade(1 - dark * 0.3))
@@ -4065,6 +4067,16 @@ final class Renderer {
             c.poly(a.1.shade(1 - dark * 0.4), [fx, ty + 2 * s, fx - dir * 5 * s, ty + 2.4 * s + wv, fx - dir * 10 * s, ty + 2 * s + wv * 0.4, fx - dir * 10 * s, ty + 4 * s + wv * 0.4, fx - dir * 5 * s, ty + 4.4 * s + wv, fx, ty + 4 * s])
         }
     }
+    /// The flag you picked flies from a whip on your toy too.
+    private func toyFlag(_ x: Double, _ y: Double, _ dir: Double) {
+        if g.flag <= 0 { return }
+        let fx = x - dir * 9, ty = y - 27
+        c.seg(fx, y - 8, fx - dir * 0.8, ty, 0.3, Col(0xc8c8c4))
+        let wv = sin(NOW * 6) * 0.7
+        let a = FLAGS[g.flag % FLAGS.count]
+        c.poly(a.0.shade(1 - dark * 0.4), [fx - dir * 0.8, ty, fx - dir * 7, ty + 0.6 + wv, fx - dir * 7, ty + 4.2 + wv, fx - dir * 0.8, ty + 4])
+        c.poly(a.1.shade(1 - dark * 0.4), [fx - dir * 0.8, ty + 1.4, fx - dir * 7, ty + 1.9 + wv, fx - dir * 7, ty + 3 + wv, fx - dir * 0.8, ty + 2.7])
+    }
     private func customOverlay() {
         g.hits.removeAll(keepingCapacity: true)
         g.texts.removeAll(keepingCapacity: true)
@@ -4436,7 +4448,7 @@ final class Renderer {
             }
             let pop = sin(min(1, t * 3) * PI)
             c.glow(l + 10, 12, 10 + pop * 10, GOLD.alpha(0.5 * u), GOLD.alpha(0))
-            g.text("+\(g.coinPopN)", l + 20, 27 - pop * 2, 7 + pop * 3, GREEN, align: 1, bold: true, plate: true)
+            g.text("+\(g.coinPopN)", l + 12, 30 - pop * 2, 7 + pop * 3, GREEN, align: 1, bold: true, plate: true)
             if g.coinPopN >= 25 && !g.overlay {
                 for q in 0..<18 {
                     let d = Double(q)
@@ -4595,6 +4607,13 @@ final class Renderer {
             c.RR(mx0 + 10, my0 + mh - 15, 84, 12, 6, Col(0x4a6a8a))
             g.text(iceLabel, mx0 + 52, my0 + mh - 9, 3.8, CREAM, bold: true)
             g.hits.append(Hit(id: 57, x: mx0 + 8, y: my0 + mh - 18, w: 88, h: 18))
+        }
+        if !g.inPast && (!big || inside(33.618, -114.305)) {
+            // Gold Nugget Road: the old mines out past Dome Rock
+            let gn = mp(33.618, -114.305)
+            c.circ(gn.0, gn.1, big ? 2.4 : 1.8, Col(0xb8862e)); c.circ(gn.0, gn.1, big ? 1 : 0.7, Col(0xfff0a0))
+            g.text("Gold Nugget Rd", gn.0 + 3.4, gn.1 + 1, big ? 4.2 : 3.2, Col(0x6a4a1e), align: 1, bold: true)
+            g.hits.append(Hit(id: 304, x: gn.0 - 8, y: gn.1 - 7, w: 54, h: 14))
         }
         if !g.inPast && (!big || inside(33.607, -114.204)) {
             let mc = mp(33.607, -114.204)
@@ -5737,7 +5756,7 @@ final class Renderer {
         // a dog asleep by the fire
         c.ell(x + 132, GY + 1, 4, 1.8, Col(0x8a6a44).shade(1 - dark * 0.5))
         c.circ(x + 136, GY, 1.6, Col(0x8a6a44).shade(1 - dark * 0.5))
-        g.text("RIVER VILLAGE", x + 20, GY - 44, 5, CREAM.alpha(0.8), bold: true)
+        g.text("River Village", x + 20, GY - 46, 3.8, CREAM, bold: true, plate: true)
     }
 
     /// Hoofed animals: kind 0 pronghorn, 1 bighorn, 2 mule deer doe, 3 mule deer buck.
