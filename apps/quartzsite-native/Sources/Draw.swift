@@ -2458,15 +2458,15 @@ final class Renderer {
         let tx = x + 0.5 * s
         let ty = base - th
         joints.append((tx, ty + 1 * s, tx, ty - 4 * s))
-        let arms = 4 + Int(hashN(seed + 2) * 3)
+        let arms = 6 + Int(hashN(seed + 2) * 4)
         for k in 0..<arms {
             let d = Double(k)
-            var a = -PI / 2 + (hashN(seed + d * 3.1 + 10) - 0.5) * 2.6
+            var a = -PI / 2 + (hashN(seed + d * 3.1 + 10) - 0.5) * 2.8
             var px = tx
             var py = ty + hashN(seed + d + 20) * 4 * s
             let segs = 1 + Int(hashN(seed + d + 30) * 3)
             for q in 0..<segs {
-                let L = (3.4 + hashN(seed + d * 5 + Double(q)) * 1.6) * s
+                let L = (2.4 + hashN(seed + d * 5 + Double(q)) * 1.2) * s
                 let nx = px + cos(a) * L
                 let ny = py + sin(a) * L
                 joints.append((px, py, nx, ny))
@@ -2474,15 +2474,20 @@ final class Renderer {
                 a += (-PI / 2 - a) * 0.35
             }
         }
-        for j in joints { c.seg(j.0, j.1, j.2, j.3, 5 * s, Col(0xfff0b4, 0.2 * lit)) }
-        for j in joints { c.seg(j.0, j.1, j.2, j.3, 3.3 * s, gold) }
-        let spark = Col(0xfffbe6, 0.85 * lit)
+        for j in joints { c.seg(j.0, j.1, j.2, j.3, 4.2 * s, Col(0xfff0b4, 0.1 * lit)) }
+        let core = Col(0x8a9454).shade(0.55 + 0.45 * lit)
+        for j in joints { c.seg(j.0, j.1, j.2, j.3, 2.8 * s, core) }
+        // dense straw-gold spines: the fuzz that gives the teddy bear its name
+        let spine = Col(0xf4e6b0, 0.9 * lit + 0.1)
         for (i, j) in joints.enumerated() {
-            for q in 0..<3 {
-                let f = (Double(q) + 0.5) / 3
-                let h0 = hashN(seed + Double(i * 3 + q) + 70) - 0.5
-                let h1 = hashN(seed + Double(i * 3 + q) + 90) - 0.5
-                c.circ(j.0 + (j.2 - j.0) * f + h0 * 2.6 * s, j.1 + (j.3 - j.1) * f + h1 * 2.6 * s, 0.4 * s, spark)
+            for q in 0..<9 {
+                let k = Double(i * 9 + q)
+                let f = hashN(seed + k + 70)
+                let jx = j.0 + (j.2 - j.0) * f
+                let jy = j.1 + (j.3 - j.1) * f
+                let a = hashN(seed + k + 90) * PI * 2
+                let r0 = 0.9 * s, r1 = 2.1 * s
+                c.seg(jx + cos(a) * r0, jy + sin(a) * r0, jx + cos(a) * r1, jy + sin(a) * r1, 0.32 * s, q % 3 == 0 ? gold : spine)
             }
         }
         c.roundCaps(false)
@@ -2519,15 +2524,17 @@ final class Renderer {
         let trunks = 2 + Int(hashN(seed + 4) * 2)
         for k in 0..<trunks {
             let f = Double(k) / Double(trunks - 1) - 0.5
-            limbs(x + f * 4 * s, base, -PI / 2 + f * 0.9, 9 * s, 2.8 * s, 3, seed + Double(k) * 5.3, bark, 0.5, 0.18, &tips)
+            limbs(x + f * 4 * s, base, -PI / 2 + f * 1.0, 8 * s, 2.8 * s, 4, seed + Double(k) * 5.3, bark, 0.5, 0.16, &tips)
         }
-        let leaf = Col(0x6a7a44, 0.75).shade(1 - dark * 0.45)
-        let leaf2 = Col(0x7e8c50, 0.7).shade(1 - dark * 0.45)
+        let leaf = Col(0x6a7a44, 0.6).shade(1 - dark * 0.45)
+        let leaf2 = Col(0x86945a, 0.65).shade(1 - dark * 0.45)
         for (i, t) in tips.enumerated() {
             let d = Double(i)
-            for q in 0..<3 {
+            c.ell(t.0, t.1 + 1.4 * s, 3.4 * s, 1.8 * s, leaf)
+            for q in 0..<4 {
                 let e = Double(q)
-                c.ell(t.0 + (hashN(seed + d * 3 + e) - 0.5) * 6 * s, t.1 + 1.6 * s + e * 0.8 * s, 3.2 * s, 1.5 * s, q == 1 ? leaf2 : leaf)
+                let lx = t.0 + (hashN(seed + d * 4 + e) - 0.5) * 7 * s
+                c.seg(lx, t.1, lx + (e - 1.5) * 0.8 * s, t.1 + 3.2 * s, 0.7 * s, q % 2 == 0 ? leaf2 : leaf)
             }
             c.seg(t.0, t.1, t.0 + 1.6 * s, t.1 + 4 * s, 0.4 * s, bark.shade(1.2))
             if hashN(seed + d + 77) < 0.12 { c.seg(t.0 - 1 * s, t.1 + 2 * s, t.0 - 2.2 * s, t.1 + 6 * s, 0.7 * s, Col(0xc8a868).shade(1 - dark * 0.45)) }
@@ -2544,15 +2551,19 @@ final class Renderer {
         c.seg(x, base, x + 1 * s, base - 6 * s, 3.4 * s, bark.shade(0.85))
         for k in 0..<3 {
             let f = Double(k) - 1
-            limbs(x + 1 * s, base - 6 * s, -PI / 2 + f * 0.7, 8 * s, 2.4 * s, 3, seed + Double(k) * 6.1, bark, 0.5, 0.05, &tips)
+            limbs(x + 1 * s, base - 6 * s, -PI / 2 + f * 0.85, 8 * s, 2.4 * s, 3, seed + Double(k) * 6.1, bark, 0.45, 0.12, &tips)
         }
+        var lo = x, hi = x, tp = base
+        for t in tips { lo = min(lo, t.0); hi = max(hi, t.0); tp = min(tp, t.1) }
+        let crownY = tp + 7 * s
+        c.ell((lo + hi) / 2, crownY, (hi - lo) / 2 + 5 * s, 9 * s, Col(0x52625c).shade(1 - dark * 0.45))
         for k in 0..<4 { let d = Double(k); c.seg(x - 1 * s, base - 1 * s - d * 1.4 * s, x + 2 * s, base - 1.6 * s - d * 1.4 * s, 0.5 * s, bark.shade(0.7)) }
         let under = Col(0x52625c).shade(1 - dark * 0.45)
         let mid = Col(0x6e7f78).shade(1 - dark * 0.45)
         let top = Col(0x8a9a90).shade(1 - dark * 0.45)
-        for t in tips { c.circ(t.0, t.1 + 2 * s, 4.6 * s, under) }
-        for (i, t) in tips.enumerated() { c.circ(t.0 + (hashN(seed + Double(i)) - 0.5) * 3 * s, t.1, 4 * s, mid) }
-        for (i, t) in tips.enumerated() where hashN(seed + Double(i) + 50) < 0.5 { c.circ(t.0, t.1 - 2 * s, 2.6 * s, top) }
+        for t in tips { c.circ(t.0, t.1 + 2 * s, 3.4 * s, under) }
+        for (i, t) in tips.enumerated() { c.circ(t.0 + (hashN(seed + Double(i)) - 0.5) * 3 * s, t.1, 2.8 * s, mid) }
+        for (i, t) in tips.enumerated() where hashN(seed + Double(i) + 50) < 0.45 { c.circ(t.0, t.1 - 1.6 * s, 1.8 * s, top) }
         c.roundCaps(false)
     }
 
@@ -2560,14 +2571,14 @@ final class Renderer {
     private func beavertail(_ x: Double, _ base: Double, _ seed: Double) {
         if x < -24 || x > W + 24 { return }
         let lit = clampD(1 - dark, 0.3, 1)
-        let padC = Col.mix(Col(0x7d8fa0), Col(0x8a7090), hashN(seed + 4) * 0.6).shade(0.55 + 0.45 * lit)
+        let padC = Col.mix(Col(0x7a96a0), Col(0x8a7a96), hashN(seed + 4) * 0.45).shade(0.55 + 0.45 * lit)
         var pads: [(Double, Double, Double, Double)] = []
         let n = 3 + Int(hashN(seed) * 3)
         for k in 0..<n {
             let d = Double(k)
             let f = d / Double(n - 1) - 0.5
             let pa: Double = f * 1.3 + (hashN(seed + d + 1) - 0.5) * 0.3
-            let ps: Double = 0.85 + hashN(seed + d + 2) * 0.35
+            let ps: Double = 1.0 + hashN(seed + d + 2) * 0.4
             pads.append((x + f * 10, base + 0.5, pa, ps))
         }
         let firstTier = pads
@@ -2599,10 +2610,10 @@ final class Renderer {
         for i in 0..<(leftSide.count / 2) { innerL += [leftSide[i * 2] * 0.86 - 0.3 * sz, leftSide[i * 2 + 1] * 0.94] }
         c.poly(col, inner + innerL)
         c.ell(-1.2 * sz, -L * 0.62, 1.4 * sz, L * 0.22, Col(0xffffff, 0.1))
-        let gl = Col(0x8a4a34)
-        for r in 0..<4 {
-            let ry = -L * (0.25 + Double(r) * 0.18)
-            for q in -1...1 { c.circ(Double(q) * 1.8 * sz + (r % 2 == 0 ? 0.9 * sz : 0), ry, 0.42 * sz, gl) }
+        let gl = Col(0x6a3e2e, 0.85)
+        for r in 0..<5 {
+            let ry = -L * (0.2 + Double(r) * 0.15)
+            for q in -1...1 { c.circ(Double(q) * 1.5 * sz + (r % 2 == 0 ? 0.75 * sz : 0), ry, 0.26 * sz, gl) }
         }
         c.restore()
     }
