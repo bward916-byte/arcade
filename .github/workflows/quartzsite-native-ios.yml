@@ -63,14 +63,14 @@ jobs:
           xcrun simctl boot "$UDID"
           xcrun simctl bootstatus "$UDID" -b
           xcrun simctl install "$UDID" "$APP"
-          for shot in plants pastriver scaddan; do
+          for shot in title pick rigs ltva main mainwest maineast mainnight tyson gem rvshow dome skoolie trail night party drive hijolly crystal palms desertbar intaglios past map phone minein food toys; do
             xcrun simctl terminate "$UDID" com.brianward.quartzsitewinter 2>/dev/null || true
             if [ "$shot" = title ]; then
               xcrun simctl launch "$UDID" com.brianward.quartzsitewinter
             else
               xcrun simctl launch "$UDID" com.brianward.quartzsitewinter "-demo-$shot"
             fi
-            sleep 9
+            sleep 6
             xcrun simctl io "$UDID" screenshot "$RUNNER_TEMP/shots/$shot.png"
           done
           # if a demo crashed, keep the crashing thread for the log
