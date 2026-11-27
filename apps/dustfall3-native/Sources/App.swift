@@ -933,6 +933,7 @@ final class GameViewController: UIViewController {
         keep.append(CGRect(x: l + 6, y: bh - 74, width: 58, height: 62))
         keep.append(CGRect(x: bw - r - 168, y: bh - 44, width: 160, height: 34))
         keep.append(CGRect(x: nameAt.x - 22, y: nameAt.y - 20, width: 62, height: 50))
+        for q in [P(0.0, 0.45), P(0.13, 0.07), P(0.41, 0.94), P(0.57, 0.0), P(0.82, 0.92)] { keep.append(CGRect(x: q.x - 4, y: q.y - 2, width: 124, height: 18)) }
         var plates: [CGRect] = []
         for i in 0..<n {
             let p = stop(i)
