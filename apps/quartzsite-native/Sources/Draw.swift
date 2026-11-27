@@ -1476,8 +1476,8 @@ final class Renderer {
             c.dome(x + 0.3, hy + 0.2, 2.7, Col(0x2a2a2a))
             c.R(x + 1.2, hy - 1, 2, 1, Col(0x5a8aaa))
         } else {
-            c.dome(x + 0.3, hy - 0.6, 2.2, lk.hat == 4 ? hair : lk.hatCol)
-            if lk.hat != 4 && lk.hat != 1 { c.ell(x + 0.6, hy - 0.8, 3.6, 0.6, lk.hatCol.shade(0.9)) }
+            c.dome(x + 0.3, hy - 1.1, 2.1, lk.hat == 4 ? hair : lk.hatCol)
+            if lk.hat != 4 && lk.hat != 1 { c.ell(x + 0.7, hy - 1.2, 3.6, 0.55, lk.hatCol.shade(0.9)) }
         }
     }
 
