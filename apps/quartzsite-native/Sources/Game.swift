@@ -263,6 +263,17 @@ let WILD: [(String, String)] = [
     ("golden eagle", "A golden eagle on a snag, watching the whole valley"),
     ("kit fox", "A kit fox, all ears, at the mouth of its den")
 ]
+/// Places and moments you can look around from the title screen.
+let PREVIEWS: [(String, String)] = [
+    ("La Posa South camp", "ltva"), ("Camp at night", "night"), ("Camp party", "party"),
+    ("Main Street", "main"), ("Main Street west", "mainwest"), ("Main Street east", "maineast"),
+    ("Main Street at night", "mainnight"), ("Gem World", "gemfront"), ("Tyson Wells gem show", "gem"),
+    ("RV show", "rvshow"), ("Dome Rock", "dome"), ("Inside the mine", "minein"),
+    ("Ehrenberg: Skooliepalooza", "skoolie"), ("Pipeline Trail", "trail"), ("Scaddan Wash", "scaddan"),
+    ("Road Runner: Quartzfest", "qfest"), ("Hi Jolly", "hijolly"), ("Plomosa Road", "plomosa"),
+    ("Crystal Hill", "crystal"), ("Palm Canyon", "palms"), ("The Desert Bar", "desertbar"),
+    ("Blythe Intaglios", "intaglios"), ("1026: the desert", "past"), ("1026: river village", "pastriver")
+]
 let LANDMARKS = ["Pay respects at Hi Jolly's tomb", "Browse the books", "Read the stage-stop plaque", "Walk the old cemetery", "Walk Celia's Rainbow Gardens"]
 let CAMELS = 6
 /// The people camped around you. Short name, who they are.
@@ -398,6 +409,10 @@ struct SaveData: Codable {
     var sStart: Int?
     var best: Int?
     var began: Double?
+    var seen: [Int]?
+    var dug: [String: Int]?
+    var boothDay: Int?
+    var mailDay: Int?
 }
 
 final class Input {
@@ -444,6 +459,10 @@ final class Game {
     var bestSeason = 0
     var seasonBegan = 0.0
     var rulesOpen = false
+    // looking around: any place, any event, without touching the saved game or the contest score
+    var previewing = false
+    var previewOpen = false
+    private var previewStash: SaveData?
     var seasonCred: Int { return max(0, cred - seasonStartCred) }
     var plantShow = false   // demo only: a lineup of the desert plants
     var rigHere: Bool { return !inPast && rigArea == area }
@@ -728,7 +747,13 @@ final class Game {
                 events.append(3)
                 return
             }
+            if previewOpen {
+                if id >= 200 && id < 200 + PREVIEWS.count { startPreview(id - 200) } else { previewOpen = false }
+                events.append(3)
+                return
+            }
             if id == 83 { rulesOpen = true; events.append(3); return }
+            if id == 88 { previewOpen = true; events.append(3); return }
             if id == 69 { feedback(); return }
             if id == 2 || !hasSave { phase = .pick } else if id == 1 { phase = .play; arriveT = 4.5 } else { return }
             events.append(3)
@@ -740,6 +765,7 @@ final class Game {
             if id == 99 { begin() }
             if id >= 0 { events.append(3) }
         case .play:
+            if previewing && id == 86 { endPreview(); events.append(3); return }
             if inCine {
                 // a tap skips ahead to the last shot, a second tap ends it
                 if cineT < Double(cineShots.count - 1) * SHOT { cineT = Double(cineShots.count - 1) * SHOT } else { cineShots = [] }
@@ -974,13 +1000,15 @@ final class Game {
         driveCars = []; driveNext = 1.2; driveBump = 0
         stopX = -999; stopDone = false; stopMsgT = 0
         stopKind = Double.random(in: 0..<1) < 0.5 ? 0 : 1
-        if dirt || Double.random(in: 0..<1) > 0.6 { stopDone = true }
+        if dirt || seen.contains(33) || Double.random(in: 0..<1) > 0.6 { stopDone = true }
     }
 
     /// Pull over for whatever is on the shoulder.
     private func pullOver() {
         stopDone = true
+        seen.insert(33)
         driveSpeed = 0.08
+        if stopKind == 1 && odd >= 3 { stopKind = 0 }
         if stopKind == 0 {
             cred += 2
             stopMsg = "You helped a stranded van get going.  +2 cred"
@@ -1065,14 +1093,18 @@ final class Game {
     // MARK: saving
 
     func snapshot() -> SaveData? {
-        if phase != .play || ended { return nil }
+        if phase != .play || ended || previewing { return nil }
+        return rawSnapshot()
+    }
+    private func rawSnapshot() -> SaveData {
         return SaveData(life: life.rawValue, rig: rig.rawValue, look: look, money: money + ringPaid, health: health, cred: cred, day: day,
                         dayT: dayT, wood: wood, rockVals: rockVals, odd: odd, panels: panels, px: inRig ? rigX : px, rigX: rigX,
                         area: area.rawValue, rigArea: rigArea.rawValue, toy: toy, toyArea: toyArea.rawValue, toyX: onToy ? px : toyX,
                         permitDays: permitDays, business: business, adDays: adDays, page: page, jewelVals: jewelVals, detector: detector, campDays: campDays,
                         age: age, year: year, resident: resident, house: house, upgrades: Array(upgrades), followers: followers,
                         camels: Array(camels), hasDog: hasDog, dogCholla: dogCholla,
-                        weather: weather, afterRain: afterRain, tanks: tanks, propane: propane, stats: stats, notes: Array(fieldNotes), era: era, sStart: seasonStartCred, best: bestSeason, began: seasonBegan)
+                        weather: weather, afterRain: afterRain, tanks: tanks, propane: propane, stats: stats, notes: Array(fieldNotes), era: era, sStart: seasonStartCred, best: bestSeason, began: seasonBegan,
+                        seen: Array(seen), dug: dug, boothDay: boothDay, mailDay: mailDay)
     }
     func restore(_ s: SaveData) {
         life = Life(rawValue: s.life) ?? .nomad
@@ -1090,9 +1122,36 @@ final class Game {
         fieldNotes = Set(s.notes ?? []); era = s.era ?? 0
         seasonStartCred = s.sStart ?? s.cred; bestSeason = s.best ?? 0
         seasonBegan = s.began ?? Date().timeIntervalSince1970
+        // today's limits come back with the save, so quitting and reopening can't reset them
+        seen = Set(s.seen ?? []); dug = s.dug ?? [:]
+        boothDay = s.boothDay ?? 0; mailDay = s.mailDay ?? mailDay
         inRig = false; onToy = false
         shown = ["start"]
         hasSave = true
+    }
+
+    func startPreview(_ k: Int) {
+        previewStash = hasSave ? rawSnapshot() : nil
+        previewOpen = false
+        previewing = true
+        demo(PREVIEWS[k].1)
+        hintT = 0
+    }
+    func endPreview() {
+        refund()
+        previewing = false
+        clockFreeze = false; driveFreeze = false; cineFreeze = false
+        driving = false; mapOpen = false; browseOpen = false; phoneOpen = false; tourOpen = false; mineOpen = false; boardOpen = false
+        seasonCard = false; ended = false; cineShots = []; genOn = false; madT = 0; dustAmt = 0; plantShow = false; showRigs = false
+        floaters = []; hintT = 0
+        life = .nomad; pickRig = 1
+        begin()
+        cineShots = []
+        era = 0; fieldNotes = []; bestSeason = 0; dug = [:]; seen = []
+        if let s = previewStash { restore(s) } else { hasSave = false }
+        previewStash = nil
+        phase = .title
+        previewOpen = true
     }
 
     /// Screens for the build machine's screenshots.
@@ -1221,6 +1280,7 @@ final class Game {
         if key == "season" { day = SEASON_END + 1; resident = true; business = 2; cred = 40; money = 2840; followers = 1320; page = true; stats = [150, 0, 5, 214, 18, 31, 9, 3]; seasonCard = true }
         if key == "end" { age = 84; year = 24; cred = 210; money = 18000; house = true; finish() }
         if key == "rules" { phase = .title; rulesOpen = true }
+        if key == "previews" { phase = .title; previewOpen = true }
         if key == "tyson" { life = .rver; place(.tyson, 2390); money = 3000; day = 21; rig = .classB }
         if key == "dome" { place(.dome, 800); rig = .classB; rigArea = .dome; rigX = 1520; dayT = 0.56 }
         if key == "toys" { place(.main, 930); money = 3000; toy = 3; toyArea = .main; toyX = 860 }
@@ -1262,6 +1322,9 @@ final class Game {
         case .gemworld: cap = 3
         case .vendors: cap = 4
         case .skoolie: cap = 2
+        case .fire: cap = 2         // a neighbor only burns so much wood in a night
+        case .cabin: cap = 1
+        case .booth: cap = 8
         default: return 99
         }
         return cap - (dug["\(area.rawValue)-\(i)"] ?? 0)
@@ -1426,6 +1489,9 @@ final class Game {
             switch sp.kind {
             case .gemworld, .vendors, .skoolie: return "Sold out of that today. More tomorrow"
             case .mine: return "Explored enough for one day"
+            case .fire: return "They have plenty of wood for tonight"
+            case .cabin: return "You've been through the cabin today"
+            case .booth: return "A good day at the booth. Pack up till tomorrow"
             default: return "Picked over for today. Come back tomorrow"
             }
         }
@@ -2123,7 +2189,7 @@ final class Game {
         events.append(6)
         rockVals.append(Int(rnd(Double(wares[k].lo), Double(wares[k].hi))))
         wares[k].sold = true
-        cred += 1
+        if !seen.contains(34 + shop) { seen.insert(34 + shop); cred += 1 }
         events.append(1)
     }
 

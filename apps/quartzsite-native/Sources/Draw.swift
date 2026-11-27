@@ -327,17 +327,6 @@ final class Renderer {
             if g.phase == .play { drawYou() }
         }
 
-        // big cactus close to the camera
-        n = floor((cam * 1.5 - 120) / 210)
-        while n * 210 < cam * 1.5 + W + 120 {
-            let sx = n * 210 + hashN(n + 400) * 120 - cam * 1.5
-            let shadeC = Col(0x2a3a2a).shade(1 - dark * 0.5)
-            if hashN(n + 410) < 0.5 {
-                if g.phase == .title { saguaro(sx, H + 14, 86 + hashN(n + 420) * 26, n + 430, shadeC, false) }
-            }
-            n += 1
-        }
-
         if wx == 1 { wind() }
         if wx == 3 { rain() }
 
@@ -2985,6 +2974,11 @@ final class Renderer {
         }
         if g.page { pack += "  ·  \(g.followersText()) followers" }
         g.text(pack, r, 12, 5.5, CREAM, align: 2, bold: true, plate: true)
+        if g.previewing {
+            c.RR(l, 23, 74, 14, 7, REDC.alpha(0.9))
+            g.text("PREVIEW  ·  tap to exit", l + 37, 30, 4.2, CREAM, bold: true)
+            g.hits.append(Hit(id: 86, x: l - 4, y: 19, w: 82, h: 22))
+        }
         // the map button
         c.RR(r - 30, 24, 30, 13, 6.5, Col(0x1c1410, 0.68))
         c.arcStroke(r - 22, 30.5, 3.2, 0, PI * 2, 0.8, GOLD)
@@ -4616,26 +4610,58 @@ final class Renderer {
         c.vfill(0, 13, W, 70, [(0, Col(0x1c0f1c, 0.55)), (1, Col(0x1c0f1c, 0))])
         g.text("QUARTZSITE", W / 2, 42, 27, CREAM, bold: true)
         g.text("A DESERT WINTER", W / 2, 62, 8, GOLD, bold: true)
+        let cy = H - 62.0
         if g.hasSave {
             let bw = 96.0
-            c.RR(W / 2 - bw - 6, H - 52, bw, 22, 11, GOLD)
-            g.text("Back to camp", W / 2 - bw / 2 - 6, H - 41, 7.5, INK, bold: true)
-            g.hits.append(Hit(id: 1, x: W / 2 - bw - 6, y: H - 56, w: bw, h: 30))
-            c.RR(W / 2 + 6, H - 52, bw, 22, 11, Col(0x1c1410, 0.7))
-            g.text("New camper", W / 2 + bw / 2 + 6, H - 41, 7.5, CREAM, bold: true)
-            g.hits.append(Hit(id: 2, x: W / 2 + 6, y: H - 56, w: bw, h: 30))
+            c.RR(W / 2 - bw - 6, cy, bw, 22, 11, GOLD)
+            g.text("Back to camp", W / 2 - bw / 2 - 6, cy + 11, 7.5, INK, bold: true)
+            g.hits.append(Hit(id: 1, x: W / 2 - bw - 6, y: cy - 4, w: bw, h: 30))
+            c.RR(W / 2 + 6, cy, bw, 22, 11, Col(0x1c1410, 0.7))
+            g.text("New camper", W / 2 + bw / 2 + 6, cy + 11, 7.5, CREAM, bold: true)
+            g.hits.append(Hit(id: 2, x: W / 2 + 6, y: cy - 4, w: bw, h: 30))
         } else {
-            g.text("Tap to roll in", W / 2, H - 14, 8, CREAM.alpha(0.65 + 0.35 * sin(NOW * 3)), bold: true)
+            let bw = 120.0
+            c.RR(W / 2 - bw / 2, cy, bw, 22, 11, GOLD.alpha(0.85 + 0.15 * sin(NOW * 3)))
+            g.text("Tap to roll in", W / 2, cy + 11, 7.5, INK, bold: true)
         }
-        let fr = W - g.safeR - 12
-        c.RR(fr - 64, H - 34, 64, 15, 7.5, Col(0x1c1410, 0.65))
-        g.text("Send feedback", fr - 32, H - 26.5, 4.6, CREAM, bold: true)
-        g.hits.append(Hit(id: 69, x: fr - 70, y: H - 40, w: 76, h: 26))
-        let fl = g.safeL + 12
-        c.RR(fl, H - 34, 78, 15, 7.5, GOLD)
-        g.text("Contest: win 150 dollars", fl + 39, H - 26.5, 4.4, INK, bold: true)
-        g.hits.append(Hit(id: 83, x: fl - 6, y: H - 40, w: 90, h: 26))
+        // three small buttons in a row along the bottom
+        let names = ["Contest rules", "Preview areas", "Send feedback"]
+        let ids = [83, 88, 69]
+        let pw = 76.0, gap = 8.0
+        let rx = W / 2 - (pw * 3 + gap * 2) / 2
+        for k in 0..<3 {
+            let bx = rx + Double(k) * (pw + gap)
+            c.RR(bx, H - 33, pw, 14, 7, Col(0x1c1410, 0.7))
+            g.text(names[k], bx + pw / 2, H - 26, 4.6, k == 0 ? GOLD : CREAM, bold: true)
+            g.hits.append(Hit(id: ids[k], x: bx - 3, y: H - 37, w: pw + 6, h: 22))
+        }
         if g.rulesOpen { rulesOverlay() }
+        if g.previewOpen { previewOverlay() }
+    }
+
+    /// Pick any place or event to walk around in. Nothing here touches the saved game.
+    private func previewOverlay() {
+        g.hits.removeAll(keepingCapacity: true)
+        g.texts.removeAll(keepingCapacity: true)
+        c.R(0, 0, W, H, Col(0x0c0a08, 0.6))
+        let x0 = g.safeL + 16, x1 = W - g.safeR - 16, y0 = 8.0, y1 = H - 8
+        let paper = Col(0xeadfc4), ink = Col(0x3a2c1e)
+        c.RR(x0, y0, x1 - x0, y1 - y0, 6, paper)
+        g.hits.append(Hit(id: -2, x: 0, y: 0, w: W, h: H))
+        g.text("PREVIEW AREAS", x0 + 10, y0 + 10, 7, ink, align: 1, bold: true)
+        g.text("Look around anywhere. Your saved game and contest score are not touched.", x1 - 10, y0 + 10, 4, ink.alpha(0.7), align: 2)
+        let cols = 3
+        let rows = (PREVIEWS.count + cols - 1) / cols
+        let cw = (x1 - x0 - 20) / Double(cols)
+        let rh = min(17.5, (y1 - y0 - 30) / Double(rows))
+        for (k, pv) in PREVIEWS.enumerated() {
+            let bx = x0 + 10 + Double(k % cols) * cw
+            let by = y0 + 21 + Double(k / cols) * rh
+            c.RR(bx + 1, by + 1, cw - 2, rh - 2.4, 4, pv.1.hasPrefix("past") ? Col(0xd8c9a0) : Col(0xf4ecd8))
+            g.text(pv.0, bx + 8, by + rh / 2 - 0.4, 4.8, ink, align: 1, bold: true)
+            g.hits.append(Hit(id: 200 + k, x: bx, y: by, w: cw, h: rh))
+        }
+        g.text("tap outside the list to close", x0 + 10, y1 - 5, 3.4, ink.alpha(0.55), align: 1)
     }
 
     /// The contest's official rules, always a tap away from the title screen.
