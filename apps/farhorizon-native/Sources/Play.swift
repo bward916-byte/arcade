@@ -566,7 +566,9 @@ extension Game {
                     c.textS("✕", tg.x, tg.y, 26, Col(0xff5a3c, 1 - tg.age / 0.7), 0, FONTB)
                 }
             }
-            c.textS((p.theme == "leak" ? "Plugged " : (p.theme == "fire" ? "Doused " : (p.theme == "thief" || p.theme == "rats" || p.theme == "flyfish" || p.theme == "gleam" ? "Caught " : "Cleared "))) + "\(p.score) / \(p.total)", W / 2, H - safeB - 22, 16, CREAM, 0, FONTB)
+            var verb = "Cleared "
+            if p.theme == "gulls" { verb = "Shooed " } else if p.theme == "leak" { verb = "Plugged " } else if ["thief", "rats", "flyfish", "gleam"].contains(p.theme) { verb = "Caught " }
+            c.textS(verb + "\(p.score) / \(p.total)", W / 2, H - safeB - 22, 16, CREAM, 0, FONTB)
         case .pick:
             let r = pickRects(p)
             for (i, q) in r.enumerated() {

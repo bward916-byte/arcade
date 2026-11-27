@@ -29,6 +29,9 @@ extension Game {
                 p.a += p.dir * p.speed * dt
                 if p.a >= 1 { p.a = 1; p.dir = -1 }
                 if p.a <= 0 { p.a = 0; p.dir = 1 }
+                // a tick that climbs with the power, so it can be judged by ear
+                let step = Int(p.a * 10)
+                if step != p.cur { p.cur = step; snd?.tone(260 + p.a * 520, 0.05, 0, 0.03) }
             }
         case .steer:
             p.a += (p.b - p.a) * min(1, dt * 10)
@@ -61,7 +64,10 @@ extension Game {
                         p.score += 1
                         p.streak += 1
                         snd?.good(); buzz?(false)
-                        p.pop(px, by - 60, p.theme == "storm" ? "Over it!" : "Clear!", true)
+                        let margin = p.theme == "storm" ? p.obst[i].w - off : off - p.obst[i].w - 0.035
+                        let close = p.theme != "storm" && margin < 0.05
+                        if close { p.perfect += 1 }
+                        p.pop(px, by - 60, p.theme == "storm" ? "Over it!" : (close ? "A close shave!" : "Clear!"), true, big: close)
                         if p.streak >= 3 { p.pop(px + 90, by - 40, "\(p.streak) in a row!", true) }
                     }
                 }
@@ -217,6 +223,8 @@ extension Game {
             if p.streak >= 3 { p.pop(cx + 120, cy - 40, "\(p.streak) in a row!", true) }
             snd?.splash(); buzz?(false)
             puff(cx, cy, 14, Col(0xbfe6ff), 200, 300, 2.4, 0.5)
+            puff(W * 0.66, quayY() - 26, 16, Col(0xdff2ff, 0.9), 180, 320, 2.6, 0.5)
+            p.v = 0.3
         } else {
             swipeMiss(p, "Wrong way!")
         }
@@ -285,6 +293,10 @@ extension Game {
             p.wait = 0.9
         } else {
             buzz?(false)
+            p.v = 0.12
+            let (sx, wy, len) = shipSpot()
+            puff(sx - len * (0.55 + 0.45 * p.a), wy + 18, 4, Col(0xffffff, 0.8), 90, 260, 2, 0.3)
+            if surge { snd?.creak() } else { snd?.tone(520 + (1 - p.a) * 300, 0.04, 0, 0.03) }
         }
     }
     private func reelFail(_ p: Play, _ s: String) {
@@ -345,6 +357,12 @@ extension Game {
                 c.R(tx - 11, yb + 3, 22, 3, Col(0xb0802c))
                 c.circ(tx, yb + 8, 2.4, Col(0x6b4a26))
                 c.RR(tx - 10, y0 - th * p.a - 5, 20, 8, 2, REDC)
+                // the man with the hammer, winding up while you hold
+                let side: Double = tx > W / 2 ? -1 : 1
+                let wind = p.held ? 2.4 - p.a * 1.2 + sin(T * 20) * 0.05 : 0.6
+                c.save(); c.translate(tx + side * 34, y0 + 4); c.scale(1.7, 1.7)
+                tar(c, 0, 0, Col(0x8a2a22), 1, lean: side * -0.1, aL: wind, aR: wind)
+                c.restore()
             }
             darkBar(c, bx, by, bw, bh)
             let zw = bw * p.zone
@@ -373,17 +391,23 @@ extension Game {
                     let gl = bx + bw * (o.x - o.w), gr = bx + bw * (o.x + o.w)
                     if gl - bx > 16 { c.RR(bx + 5, oy - 5, gl - bx - 5, 10, 5, Col(0xffffff, 0.85)) }
                     if bx + bw - gr > 16 { c.RR(gr, oy - 5, bx + bw - 5 - gr, 10, 5, Col(0xffffff, 0.85)) }
+                    // the gap to steer for
+                    c.poly(Col(0x9ff0aa, 0.5 + 0.3 * sin(T * 8)), [bx + bw * o.x - 7, oy - 4, bx + bw * o.x + 7, oy - 4, bx + bw * o.x, oy + 7])
                 } else {
                     let al = clampD((o.y - p.fade) / 0.15, 0, 1)
                     let ox = bx + bw * o.x, rw = bw * o.w
                     c.poly(Col(0x6a7078, al), [ox - rw, oy + 8, ox - rw * 0.3, oy - 12, ox + rw * 0.2, oy - 4, ox + rw * 0.6, oy - 14, ox + rw, oy + 8])
+                    c.poly(Col(0x3e444c, al), [ox + rw * 0.2, oy - 4, ox + rw * 0.6, oy - 14, ox + rw, oy + 8, ox + rw * 0.3, oy + 8])
                     c.ellStroke(ox, oy + 8, rw * 1.1, 3, 1, Col(0xffffff, 0.5 * al))
                 }
             }
             let shx = bx + bw * p.a, shy = py + ph * 0.84
-            c.ellStroke(shx, shy + 14, 12, 3, 1, Col(0xffffff, 0.5))
-            c.poly(Col(0x8a5a2c), [shx, shy - 16, shx + 8, shy - 2, shx + 7, shy + 12, shx - 7, shy + 12, shx - 8, shy - 2])
-            c.poly(Col(0xf2e6c8), [shx, shy - 8, shx + 5, shy + 6, shx - 5, shy + 6])
+            // she leans the way she is turning, and leaves a wake
+            let lean = clampD((p.b - p.a) * 60, -9, 9)
+            c.seg(shx - 6, shy + 12, shx - 12 - lean, py + ph - 6, 1.4, Col(0xffffff, 0.35))
+            c.seg(shx + 6, shy + 12, shx + 12 - lean, py + ph - 6, 1.4, Col(0xffffff, 0.35))
+            c.poly(Col(0x8a5a2c), [shx + lean, shy - 16, shx + 8 + lean * 0.4, shy - 2, shx + 7, shy + 12, shx - 7, shy + 12, shx - 8 + lean * 0.4, shy - 2])
+            c.poly(Col(0xf2e6c8), [shx + lean * 0.7, shy - 8, shx + 5, shy + 6, shx - 5, shy + 6])
             c.textS(p.endT >= 0 ? "" : "Slide your finger left and right to steer", W / 2, py + ph + 18, 13, CREAM, 0, FONTI)
             c.textS("\(p.score) / \(p.total)", bx + bw - 30, py + 18, 13, CREAM, 0, FONTB)
         case .swipe:
@@ -396,6 +420,21 @@ extension Game {
                 let h = (34 + sin(T * 11 + Double(j) * 1.7) * 8) * f
                 c.poly(Col(0xff7a2a), [ox - 9 * f, fy, ox, fy - h, ox + 9 * f, fy])
                 c.poly(Col(0xffe08a), [ox - 4 * f, fy, ox, fy - h * 0.55, ox + 4 * f, fy])
+            }
+            // the chain of hands from the harbour to the fire, a bucket going down it
+            let x0 = W * 0.36, qy = quayY() + 2
+            for j in 0..<5 {
+                let hx = x0 + (fx - 30 - x0) * Double(j) / 4
+                let sw = sin(T * 6 + Double(j) * 1.2) * 0.4
+                c.save(); c.translate(hx, qy); c.scale(1.5, 1.5)
+                tar(c, 0, 0, [Col(0x2a5a8a), Col(0x8a2a22), Col(0x3a6a3a), Col(0x6a4a8a)][j % 4], 1, aL: 0.9 + sw, aR: 0.9 - sw)
+                c.restore()
+            }
+            if p.v > 0 {
+                let bk = 1 - p.v / 0.3
+                let bxx = x0 + (fx - 30 - x0) * bk, byy = qy - 22 - sin(bk * PI) * 10
+                c.poly(Col(0x8a6238), [bxx - 5, byy - 5, bxx + 5, byy - 5, bxx + 4, byy + 4, bxx - 4, byy + 4])
+                c.R(bxx - 4, byy - 5, 8, 2, Col(0xbfe6ff))
             }
             let cx = W / 2, cy = H - safeB - 92
             if p.wait <= 0 && p.endT < 0 {
@@ -427,6 +466,15 @@ extension Game {
                     c.seg(ox, wy - len * 0.03, ox + cos(ph2) * 16, wy + 14 + sin(ph2) * 5, 2, Col(0xc9a86a))
                 }
             }
+            if p.theme == "dock" {
+                // the load swinging on the crane: it is over the hold on the beat
+                let sw = sin(p.tb / max(0.1, p.life) * PI) * 70
+                let lx = cx + sw, ly = cy - 78
+                c.seg(cx, cy - 150, lx, ly - 10, 1.4, Col(0x3a2412))
+                c.RR(lx - 13, ly - 10, 26, 20, 3, Col(0xa8823f)); c.RRStroke(lx - 13, ly - 10, 26, 20, 3, 1.4, Col(0x5a3d20))
+                c.seg(lx - 13, ly - 10, lx + 13, ly + 10, 1.2, Col(0x5a3d20)); c.seg(lx + 13, ly - 10, lx - 13, ly + 10, 1.2, Col(0x5a3d20))
+            }
+            if p.endT < 0 && p.tries == 0 && p.tb > p.life * 0.5 { c.textS("Ready...", cx, cy - 50, 18, Col(0xfff2a0), 0, FONTB) }
             c.circ(cx, cy, R + 9, Col(0x1c1108, 0.88))
             c.circStroke(cx, cy, R, 3, Col(0xffe08a))
             if p.v > 0 { c.circ(cx, cy, R, Col(0xfff2a0, min(1, p.v * 4))) }
@@ -446,7 +494,10 @@ extension Game {
             let fx = sx - len * (0.55 + 0.45 * p.a)
             let wobF: Double = surge ? 14 : 3
             let wobA: Double = surge ? 4 : 2
-            let fy = wy + 18 + sin(T * wobF) * wobA
+            let leap: Double = surge && p.theme != "turtle" ? abs(sin(T * 5)) * 16 : 0
+            let fy = wy + 18 + sin(T * wobF) * wobA - leap
+            // the rod over the stern, bending as the strain comes on
+            c.curve(ox + 14, oy + 10, ox + 4, oy - 6, ox - 2 - p.b * 6, oy + p.b * 10, 2, Col(0x6b4a26))
             c.curve(ox, oy, (ox + fx) / 2, oy + 10 + 30 * (1 - p.b), fx, fy, 1.4, p.b > 0.75 ? Col(0xff5a3c) : Col(0xfff6d8, 0.9))
             if p.theme == "turtle" {
                 c.ell(fx, fy, 18, 10, Col(0x4a6a3a)); c.ell(fx - 2, fy - 2, 13, 6, Col(0x6a8a4a))
@@ -479,7 +530,10 @@ extension Game {
             c.textS("\(max(0, Int(p.tb.rounded(.up))))s", bx + bw + 22, by + bh / 2 + 5, 13, p.tb < 3 ? Col(0xff9a8a) : CREAM, 0, FONTB)
             let hint = p.endT >= 0 || p.wait > 0 ? "" : (surge ? "It runs! Ease off" : "Tap fast to reel in")
             c.textS(hint, W / 2, by + bh + 22, 14, surge ? Col(0xff9a8a) : CREAM, 0, surge ? FONTB : FONTI)
-            if p.rounds > 1 { marksRow(c, p, ty - 16) }
+            if p.v > 0 { c.RRStroke(bx - 2, ty - 2, bw + 4, 10, 5, 2, Col(0xfff6d8, min(1, p.v * 8))) }
+            if p.rounds > 1 {
+                c.textS("Fish \(min(p.rounds, p.tries + 1)) of \(p.rounds) · landed \(p.score)", bx + bw / 2, ty - 10, 13, CREAM, 0, FONTB)
+            }
         default: break
         }
     }
@@ -537,6 +591,10 @@ extension Game {
         if lit {
             c.RR(q.0, q.1, q.2, q.3, 12, Col(0xfff2a0, 0.5))
             c.RRStroke(q.0 - 2, q.1 - 2, q.2 + 4, q.3 + 4, 13, 3, Col(0xfff6d8))
+            var n = p.seqI
+            if p.phase == 1 { n = Int(floor((p.t - 0.9) / 0.55)) + 1 }
+            c.circ(cx, q.1 - 4, 11, Col(0x1c1108, 0.9)); c.circStroke(cx, q.1 - 4, 11, 1.5, Col(0xffe08a))
+            c.text("\(n)", cx, q.1 + 1, 14, Col(0xfff2a0), 0, FONTB)
         }
         if p.known && p.phase == 0 {
             let what = p.spots[i]
