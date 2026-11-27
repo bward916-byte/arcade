@@ -1599,7 +1599,7 @@ final class Game {
             return rocks < packCap ? Offer(label: "Rough rock to work (\(left(i)) left today)", cost: rockBuy + 14, earn: 0, dur: 1.0) : nil
         case .park:
             if on(EV_WESTERN) { return seen.contains(16) ? nil : Offer(label: "Cowboy poetry and live country music", cost: 0, earn: 0, dur: 2) }
-            if on(EV_RTR) { return seen.contains(12) ? nil : Offer(label: "Rubber Tramp Rendezvous: talks and the free pile", cost: 0, earn: 0, dur: 2) }
+            if on(EV_RTR) { return seen.contains(12) ? nil : Offer(label: "Rubber Tramp Rendezvous: free workshops on solar, builds and boondocking", cost: 0, earn: 0, dur: 2) }
             if dayT < 0.4 && !seen.contains(19) { return Offer(label: "Play pickleball", cost: 0, earn: 0, dur: 2.2) }
             return health < 96 && !seen.contains(14) ? Offer(label: "Rest in the shade", cost: 0, earn: 0, dur: 1.6) : nil
         case .hall:
@@ -1961,7 +1961,7 @@ final class Game {
             } else if on(EV_RTR) {
                 seen.insert(12)
                 cred += 2
-                if odd < 3 { odd += 1; float("Free pile: an old lantern", x, CREAM) } else { float("+2 cred", x, GOLD) }
+                if odd < 3 { odd += 1; float("Swapped gear with another nomad: an old lantern", x, CREAM) } else { float("+2 cred", x, GOLD) }
                 post("the Rubber Tramp Rendezvous", 50)
             } else if dayT < 0.4 && !seen.contains(19) {
                 seen.insert(19)
