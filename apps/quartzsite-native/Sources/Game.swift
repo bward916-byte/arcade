@@ -94,7 +94,7 @@ let EV_GEM = 0, EV_RTR = 1, EV_RV = 2, EV_SELL = 3, EV_SKOOL = 4, EV_CRAFT = 5, 
 let SEASON_END = 109
 let START_WEEKDAY = 1   // Monday
 
-enum SpotKind { case camp, bench, fire, wash, host, station, outhouse, board, grocery, gemworld, landmark, park, hall, yacht, lot, rides, tools, panorama, vendors, office, booth, bigtent, mine, detect, rockhound, river, skoolie, circle, cabin, parade, rvpark, house, computer, radio, cleanup, camel, dogpark, stray, pizza, post, laundry, shop, tour, hike, bar, watch, village, labyrinth, magic }
+enum SpotKind { case pool, camp, bench, fire, wash, host, station, outhouse, board, grocery, gemworld, landmark, park, hall, yacht, lot, rides, tools, panorama, vendors, office, booth, bigtent, mine, detect, rockhound, river, skoolie, circle, cabin, parade, rvpark, house, computer, radio, cleanup, camel, dogpark, stray, pizza, post, laundry, shop, tour, hike, bar, watch, village, labyrinth, magic }
 struct Spot {
     let kind: SpotKind
     let x: Double
@@ -156,7 +156,7 @@ let AREAS: [AreaDef] = [
         Spot(kind: .camel, x: 4590, name: "CAMEL SCULPTURE", arg: 2),
         Spot(kind: .camel, x: 4720, name: "CAMEL SCULPTURE", arg: 3)
     ]),
-    AreaDef(name: "Tyson Wells", sub: "The show grounds on Kuehn Street", w: 3000, arrive: 160, lat: 33.6625, lon: -114.2215, spots: [
+    AreaDef(name: "Tyson Wells", sub: "The show grounds on Kuehn Street", w: 3340, arrive: 160, lat: 33.6625, lon: -114.2215, spots: [
         Spot(kind: .tools, x: 380, name: "K&B TOOLS"),
         Spot(kind: .panorama, x: 700, name: "PROSPECTORS PANORAMA"),
         Spot(kind: .vendors, x: 1060, name: "SHOW VENDORS"),
@@ -165,7 +165,8 @@ let AREAS: [AreaDef] = [
         Spot(kind: .landmark, x: 1880, name: "TYSON'S WELL", arg: 2),
         Spot(kind: .camel, x: 2100, name: "CAMEL SCULPTURE", arg: 4),
         Spot(kind: .bigtent, x: 2400, name: "THE BIG TENT"),
-        Spot(kind: .camel, x: 2760, name: "CAMEL SCULPTURE", arg: 5)
+        Spot(kind: .camel, x: 2760, name: "CAMEL SCULPTURE", arg: 5),
+        Spot(kind: .pool, x: 3090, name: "RICE RANCH RV PARK")
     ]),
     AreaDef(name: "Dome Rock", sub: "Free BLM camping west of town · 14-day limit", w: 2640, arrive: 2350, lat: 33.648, lon: -114.33, spots: [
         Spot(kind: .rockhound, x: 430, name: "ROCKHOUNDING"),
@@ -454,6 +455,8 @@ struct SaveData: Codable {
     var boothDay: Int?
     var mailDay: Int?
     var magic: Bool?
+    var stripe: Int?
+    var flag: Int?
 }
 
 final class Input {
@@ -494,6 +497,9 @@ final class Game {
     var notesHere: Int { return fieldNotes.filter { iceAge ? $0 >= 100 : $0 < 100 }.count }
     var notesTotal: Int { return iceAge ? 14 : 18 }
     var foundMagic = false
+    var stripe = 0, flag = 0, customOpen = false
+    var mapQuad = -1
+    var moneySeen = -1.0, coinPopT = 0.0, coinPopN = 0
     var alsOpen = false
     // a thousand years back: same land, no roads, no rigs
     var era = 0
@@ -679,7 +685,7 @@ final class Game {
     }
     func areaName(_ a: Area) -> String { return AREAS[a.rawValue].name }
     /// A full-screen card is up and the day stands still.
-    var overlay: Bool { return mapOpen || browseOpen || seasonCard || ended || inCine || driving || phoneOpen || tourOpen || mineOpen || boardOpen || alsOpen }
+    var overlay: Bool { return mapOpen || browseOpen || seasonCard || ended || inCine || driving || phoneOpen || tourOpen || mineOpen || boardOpen || alsOpen || customOpen }
     var tourOpen = false, tourBus = 0
     var boardOpen = false
     var petT = -99.0                      // when you last petted the dog
@@ -839,6 +845,11 @@ final class Game {
                 events.append(3)
                 return
             }
+            if customOpen {
+                if id >= 310 && id < 318 { stripe = id - 310 } else if id >= 320 && id < 327 { flag = id - 320 } else if id != 62 { customOpen = false }
+                events.append(3)
+                return
+            }
             if alsOpen {
                 if id == 58 { playPool() } else { alsOpen = false }
                 events.append(3)
@@ -866,13 +877,15 @@ final class Game {
                 #endif
                 if id == 85 { timeTravel(era != 0 ? 0 : 1); return }
                 if id == 57 { timeTravel(era == 2 ? 1 : 2); return }
-                if id == 55 { mapBig.toggle(); events.append(3); return }
+                if id >= 300 && id < 304 { mapQuad = id - 300; events.append(3); return }
+                if id == 55 { mapQuad = -1; events.append(3); return }
                 if id == 54 { backToCamp(); events.append(3); return }
-                if id >= 70 && id < 70 + AREAS.count { go(Area(rawValue: id - 70) ?? area) } else if id == 61 || id < 0 { mapOpen = false }
+                if id >= 70 && id < 70 + AREAS.count { mapQuad = -1; go(Area(rawValue: id - 70) ?? area) } else if id == 61 || id < 0 { mapOpen = false }
                 events.append(3)
                 return
             }
             if id == 56 && !inPast { refund(); alsOpen = true; events.append(3); return }
+            if id == 59 && rigHere && !inRig { refund(); customOpen = true; events.append(3); return }
             if id == 50 { shown.insert("rigUsed"); toggleRig() }
             if id == 51 { shown.insert("toyUsed"); toggleToy() }
             if id == 53, let b = spots.firstIndex(where: { $0.kind == .board && abs($0.x - px) < 60 }) {
@@ -1197,7 +1210,7 @@ final class Game {
                         age: age, year: year, resident: resident, house: house, upgrades: Array(upgrades), followers: followers,
                         camels: Array(camels), hasDog: hasDog, dogCholla: dogCholla,
                         weather: weather, afterRain: afterRain, tanks: tanks, propane: propane, stats: stats, notes: Array(fieldNotes), era: era, sStart: seasonStartCred, best: bestSeason, began: seasonBegan,
-                        seen: Array(seen), dug: dug, boothDay: boothDay, mailDay: mailDay, magic: foundMagic)
+                        seen: Array(seen), dug: dug, boothDay: boothDay, mailDay: mailDay, magic: foundMagic, stripe: stripe, flag: flag)
     }
     func restore(_ s: SaveData) {
         life = Life(rawValue: s.life) ?? .nomad
@@ -1219,6 +1232,8 @@ final class Game {
         seen = Set(s.seen ?? []); dug = s.dug ?? [:]
         boothDay = s.boothDay ?? 0; mailDay = s.mailDay ?? mailDay
         foundMagic = s.magic ?? false
+        stripe = s.stripe ?? 0
+        flag = s.flag ?? 0
         inRig = false; onToy = false
         shown = ["start"]
         hasSave = true
@@ -1352,6 +1367,11 @@ final class Game {
         if key == "icecamp" { place(.plomosa, 1100); era = 2; dayT = 0.6; clockFreeze = true }
         if key == "labyrinth" { place(.ltva, 2640); dayT = 0.3; clockFreeze = true }
         if key == "magic" { place(.ltva, 2890); dayT = 0.4; clockFreeze = true }
+        if key == "pool" { place(.tyson, 3090); dayT = 0.5; clockFreeze = true }
+        if key == "custom" { place(.ltva, 1180); dayT = 0.5; clockFreeze = true; stripe = 3; flag = 2; customOpen = true }
+        if key == "mapq" { place(.ltva, 1180); mapOpen = true; mapQuad = 1 }
+        if key == "busy" { place(.ltva, 1900); dayT = 0.4; clockFreeze = true; stripe = 5; flag = 1 }
+        if key == "pops" { place(.dome, 600); dayT = 0.4; clockFreeze = true; cred += 3; money += 60 }
         if key == "als" { place(.main, 1200); dayT = 0.5; clockFreeze = true; alsOpen = true }
         if key == "past" { place(.ltva, 1500); era = 1; dayT = 0.3; clockFreeze = true }
         if key == "pastriver" { place(.skoolie, 800); era = 1; dayT = 0.35; clockFreeze = true }
@@ -1524,8 +1544,10 @@ final class Game {
             return seen.contains(24) ? nil : Offer(label: "Pizza and a cold one", cost: 14, earn: 0, dur: 1.6)
         case .post:
             return day - mailDay >= 7 ? Offer(label: "Pick up your General Delivery mail", cost: 0, earn: 0, dur: 1.2) : nil
+        case .pool:
+            return seen.contains(43) ? nil : Offer(label: "Day pass: swim in the new pool", cost: 8, earn: 0, dur: 2.4)
         case .laundry:
-            return seen.contains(25) || health >= 96 ? nil : Offer(label: "Shower and laundry", cost: 11, earn: 0, dur: 2)
+            return seen.contains(25) ? nil : Offer(label: "Shower and laundry", cost: 11, earn: 0, dur: 2)
         case .tour:
             return on(EV_SKOOL) && !seen.contains(28) ? Offer(label: "Tour a converted bus", cost: 0, earn: 0, dur: 1.4) : nil
         case .shop:
@@ -1628,6 +1650,7 @@ final class Game {
         case .outhouse: return "You're good for now"
         case .pizza: return "Back tomorrow for another slice"
         case .post: return "Next mail in \(7 - (day - mailDay)) days"
+        case .pool: return "One swim a day. The water was perfect"
         case .laundry: return seen.contains(25) ? "Clean as a whistle" : "You're clean enough"
         case .tour: return on(EV_SKOOL) ? "One open house a day. Back tomorrow" : "Bus open houses during Skooliepalooza"
         case .shop: return ["Hardware, groceries and RV basics", "RV spaces and propane", "Prescriptions. Call ahead in summer", "Parts for the rig", "Fresh meat, deli and quick groceries", "RV spaces and propane fills"][max(0, min(5, sp.arg))]
@@ -1776,6 +1799,11 @@ final class Game {
             money += Double(amt)
             float(life == .rver ? "Your check came  +\(amt)" : "A card from home with \(amt) inside", x, GOLD)
             events.append(5)
+        case .pool:
+            seen.insert(43)
+            health = min(100, health + 25)
+            if !shown.contains("pool") { shown.insert("pool"); cred += 1; post("the new pool at Rice Ranch", 10) }
+            float("A long swim in the new pool", x, GREEN)
         case .laundry:
             seen.insert(25)
             health = min(100, health + 30)
@@ -2090,6 +2118,7 @@ final class Game {
     private func refund() {
         if ringPaid > 0.5 {
             money += ringPaid
+            moneySeen = money
             float("Let go early: your \(Int(ringPaid.rounded())) coins came back", px, GOLD)
             hintT = 0
             hint("holdfull", "Keep holding HOLD until the ring closes all the way. Letting go early gives your coins back.")
@@ -2118,6 +2147,17 @@ final class Game {
         if arriveT > 0 && !overlay { arriveT -= dt }
         if flashT > 0 { flashT -= dt }
         if credPopT > 0 { credPopT -= dt }
+        if coinPopT > 0 { coinPopT -= dt }
+        if phase == .play {
+            if moneySeen < 0 || previewing { moneySeen = money }
+            let gain = money - moneySeen
+            if gain >= 1 {
+                coinPopN = (coinPopT > 0 ? coinPopN : 0) + Int(gain)
+                coinPopT = 1.5
+                if gain >= 25 { events.append(12) }
+                moneySeen = money
+            } else if gain < 0 { moneySeen = money }
+        }
         if phase == .play {
             if credSeen < 0 || previewing { credSeen = cred }
             if cred > credSeen { credPopN = credPopT > 0 ? credPopN + cred - credSeen : cred - credSeen; credPopT = 1.6; events.append(11) }

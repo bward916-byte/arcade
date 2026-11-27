@@ -119,6 +119,8 @@ final class Sound {
     func tick(_ step: Int) { tone(520 + Double(step) * 130, 0.05, 1, 0.035) }
     func done() { tone(SCALE[7] * 2, 0.35, 5, 0.06); tone(SCALE[9] * 2, 0.4, 5, 0.05, 0, 0.07) }
     func coin() { tone(1850, 0.06, 0, 0.05); tone(2470, 0.12, 0, 0.045, 0, 0.05) }
+    func cred() { for (i, f) in [784.0, 988, 1175, 1568, 1976].enumerated() { tone(f, 0.32, 5, 0.05, 0, Double(i) * 0.07) } }
+    func cash() { for (i, f) in [1319.0, 1568, 2093, 2637, 3136].enumerated() { tone(f, 0.11, 0, 0.042, 0, Double(i) * 0.055) } }
     func spend() { noise(0.05, 0.08, 3200, 3); tone(880, 0.08, 1, 0.03) }
     func refund() { tone(700, 0.08, 1, 0.04, 520); tone(520, 0.1, 1, 0.03, 0, 0.07) }
     func engine(_ big: Bool) { tone(big ? 55 : 80, 1.1, 3, 0.05, big ? 95 : 140); noise(1.0, 0.05, 300, 1) }

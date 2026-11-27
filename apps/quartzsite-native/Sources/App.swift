@@ -160,7 +160,7 @@ final class GameViewController: UIViewController {
         #if DEBUG
         if !demoDone {
             demoDone = true
-            for key in ["pick", "rigs", "play", "night", "ltva", "main", "gem", "tyson", "dome", "toys", "ride", "skoolie", "map", "trail", "scaddan", "browse", "parade", "home", "season", "end", "gear", "computer", "rain", "windy", "critters", "page", "qfest", "western", "trailride", "cine0", "cine1", "cine2", "cine3", "cine4", "happy", "cleanup", "dog", "camels", "drive", "drivenight", "drivetrail", "drivestop", "drivetow", "party", "gemworld", "mainwest", "maineast", "mainnight", "readers", "dust", "gen", "propane", "phone", "wildnight", "rainbow", "windy", "booth", "haggle", "river", "food", "blm", "coffee", "flood", "rvshow", "goals", "newyear", "xmas", "tour", "minein", "board", "hijolly", "plomosa", "crystal", "palms", "desertbar", "intaglios", "past", "pastriver", "pastmain", "plants", "gemfront", "rules", "previews", "intagyell", "ice", "icecamp", "labyrinth", "magic", "als"] where ProcessInfo.processInfo.arguments.contains("-demo-" + key) {
+            for key in ["pick", "rigs", "play", "night", "ltva", "main", "gem", "tyson", "dome", "toys", "ride", "skoolie", "map", "trail", "scaddan", "browse", "parade", "home", "season", "end", "gear", "computer", "rain", "windy", "critters", "page", "qfest", "western", "trailride", "cine0", "cine1", "cine2", "cine3", "cine4", "happy", "cleanup", "dog", "camels", "drive", "drivenight", "drivetrail", "drivestop", "drivetow", "party", "gemworld", "mainwest", "maineast", "mainnight", "readers", "dust", "gen", "propane", "phone", "wildnight", "rainbow", "windy", "booth", "haggle", "river", "food", "blm", "coffee", "flood", "rvshow", "goals", "newyear", "xmas", "tour", "minein", "board", "hijolly", "plomosa", "crystal", "palms", "desertbar", "intaglios", "past", "pastriver", "pastmain", "plants", "gemfront", "rules", "previews", "intagyell", "ice", "icecamp", "labyrinth", "magic", "als", "pool", "custom", "mapq", "busy", "pops"] where ProcessInfo.processInfo.arguments.contains("-demo-" + key) {
                 game.demo(key)
             }
         }
@@ -246,7 +246,8 @@ final class GameViewController: UIViewController {
             case 6: sound.spend()
             case 7: sound.dawn()
             case 8: sound.season()
-            case 11: tapDone.notificationOccurred(.success); sound.done()
+            case 11: tapDone.notificationOccurred(.success); sound.cred()
+            case 12: sound.cash()
             case 9: submitScore()
             case 10: showBoard()
             default: break
