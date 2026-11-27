@@ -214,6 +214,7 @@ final class Game {
     var grabDone = false
     var grabWon = false
     var rideFreeze = -1.0
+    var grabAt = 1.15
     var rideT = 0.0
     var rideDur = 0.0
     var rideTo = 0
@@ -645,12 +646,11 @@ final class Game {
         case .ride:
             rideT += dt
             if rideFreeze >= 0 { rideT = rideFreeze }
-            if rideKind == .rope && !grabDone && rideT > 1.15 {
+            if rideKind == .rope && !grabDone && rideT > 0.95 {
                 if auto && rideT > 1.4 { rideTap = true }
                 if rideTap {
-                    grabDone = true; grabWon = true
+                    grabDone = true; grabWon = true; grabAt = rideT
                     snd?.bigHit(); snd?.squelch(); buzz(2); shake = 10
-                    floaters.append(Floater(x: 0, y: 0, text: "KICKED OFF", col: GOLD, t: 0, size: 26))
                 } else if rideT > 1.9 {
                     grabDone = true; grabWon = false
                     hero.hp = max(1, hero.hp - 14 * (1 - 0.15 * Double(lv("armor"))))
@@ -1805,7 +1805,7 @@ final class Game {
         if what == "ropeR" || what == "ladderR" || what == "shaftR" || what == "ropeK" {
             startRide(what == "ladderR" ? .ladder : (what == "shaftR" ? .shaft : .rope), to: 78)
             rideFreeze = what == "ropeR" ? 1.5 : (what == "ropeK" ? 2.05 : 0.7)
-            if what == "ropeK" { grabDone = true; grabWon = true }
+            if what == "ropeK" { grabDone = true; grabWon = true; grabAt = 1.15 }
             return
         }
         if what == "pick" { rollPick(); mode = .pick; pickT = 0 } else { mode = .play; auto = ["play", "dogs", "boss", "gun", "escape", "hosp", "hotel", "casino", "mall", "lab", "lobby", "guns", "bat", "resid", "surgery", "pent", "ball", "fire", "hole", "lift", "street", "safe", "types"].contains(what) }

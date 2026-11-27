@@ -293,7 +293,7 @@ final class Renderer {
         if let im = wallFor("hall_brick.jpg", Col(0x050814).alpha(0.3), GY + 70, cv.sc) { wallTiles(cv, im, x0, x1, 0, GY + 70, f.n) }
         cv.lighter(true); cv.R(x0, 0, W, GY, rgba(255, 120, 40, 0.035 + 0.02 * sin(t * 7))); cv.lighter(false)
         cv.vfill(x0, GY + 12, W, VIEW_H - GY - 12, [(0, BLACK.alpha(0.5)), (1, BLACK.alpha(0.92))])
-        // the flight you came down, and the next one going on below
+        // the flight you came down; the way on is the ladder through the hatch
         let d = f.exitRight ? 1.0 : -1.0
         let e = FLOOR_W - f.exitX
         func flight(_ ax: Double, _ ay: Double, _ bx: Double, _ by: Double) {
@@ -303,7 +303,6 @@ final class Renderer {
             cv.seg(ax, ay - 58, bx, by - 58, 3.5, steel)
         }
         flight(e + d * 330, GY - 330, e + d * 40, GY)
-        flight(f.exitX - d * 40, GY + 12, f.exitX - d * 300, GY + 150)
         // back rail
         cv.R(x0, GY - 56, W, 4, steel); cv.R(x0, GY - 56, W, 1.2, steelL); cv.R(x0, GY - 30, W, 2.5, steel)
         var rx = (x0 / 60).rounded(.down) * 60
@@ -1980,7 +1979,7 @@ final class Renderer {
             var p = Pose()
             p.armF = 2.9; p.elbF = 0.35; p.armB = 2.6; p.elbB = 0.5; p.wpn = 2.4
             p.hipF = 1.25; p.kneeF = 1.4; p.hipB = 0.9; p.kneeB = 1.2; p.lean = -0.15
-            let kick = g.grabDone && g.grabWon ? clampD((rt - 1.15) / 0.25, 0, 1) * (1 - clampD((rt - 1.6) / 0.3, 0, 1)) : 0
+            let kick = g.grabDone && g.grabWon ? max(0, 1 - abs(rt - g.grabAt - 0.12) / 0.3) : 0
             if kick > 0 { p.hipF = lerp(1.25, -1.2, kick); p.kneeF = lerp(1.4, 0.1, kick) }
             figure(cv, cx + swing, hy, -1, 1.15, heroLook(g.tw), p)
             // the window and who is in it
@@ -1996,7 +1995,7 @@ final class Renderer {
                     let reach = clampD((rt - 0.9) / 0.9, 0, 1)
                     figure(cv, wx + reach * 70, wy - 10, 1, 1.1, zedLook(z), zp)
                 } else if g.grabWon {
-                    let k = rt - 1.15
+                    let k = max(0, rt - g.grabAt)
                     cv.save(); cv.translate(wx + 60 + k * 260, wy + k * k * 900); cv.rotate(k * 5)
                     figure(cv, 0, 0, 1, 1.1, zedLook(z), fallPose(g.t))
                     cv.restore()
