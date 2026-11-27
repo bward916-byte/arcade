@@ -667,6 +667,43 @@ final class Renderer {
                 let col = walls[Int(hashN(n + 1320) * 5) % 5].shade(1 - dark * 0.5)
                 c.R(sx, GY - h, w, h + 1, col)
                 for i in 0..<18 { let d = n * 7.1 + Double(i); c.R(sx + hashN(d) * w, GY - h + hashN(d + 3) * h, 0.7, 0.7, hashN(d + 5) < 0.5 ? col.shade(0.9) : col.shade(1.07)) }
+                let vr = Int(hashN(n + 1360) * 6) % 6
+                if vr == 0 {
+                    // brick: courses and a soldier row
+                    var by = GY - h + 3
+                    while by < GY - 1 { c.R(sx, by, w, 0.25, col.shade(0.84)); by += 2.2 }
+                    c.R(sx, GY - h + 1.6, w, 1.2, col.shade(0.9))
+                } else if vr == 1 {
+                    // board and batten
+                    var bx = sx + 2
+                    while bx < sx + w { c.R(bx, GY - h, 0.35, h, col.shade(0.84)); bx += 3 }
+                } else if vr == 2 {
+                    // a row of small upper windows and a painted band
+                    for i in 0..<4 { c.RR(sx + w * 0.62 + Double(i % 2) * 6, GY - h + 3.4 + Double(i / 2) * 5, 4, 3, 0.3, GLASS.shade(1 - dark * 0.3)) }
+                    c.R(sx, GY - h * 0.56, w, 1.6, signs_band(n).shade(1 - dark * 0.4))
+                } else if vr == 3 {
+                    // a mural: desert sunset on the side wall
+                    c.R(sx + w * 0.6, GY - h + 3, w * 0.34, h * 0.42, Col(0xf2a44e).shade(1 - dark * 0.4))
+                    c.dome(sx + w * 0.77, GY - h + 3 + h * 0.42, w * 0.09, Col(0xf8e08a).shade(1 - dark * 0.4))
+                    c.poly(Col(0x7a4a6a).shade(1 - dark * 0.4), [sx + w * 0.6, GY - h + 3 + h * 0.42, sx + w * 0.68, GY - h + 3 + h * 0.2, sx + w * 0.76, GY - h + 3 + h * 0.34, sx + w * 0.86, GY - h + 3 + h * 0.16, sx + w * 0.94, GY - h + 3 + h * 0.42])
+                } else if vr == 4 {
+                    // corrugated metal siding with rust streaks
+                    var bx = sx + 1
+                    while bx < sx + w { c.R(bx, GY - h, 0.5, h, col.shade(1.1)); bx += 2 }
+                    for i in 0..<4 { c.R(sx + hashN(n + Double(i) + 1370) * w, GY - h, 0.8, 4 + hashN(n + Double(i) + 1380) * 9, Col(0x8a4a2a, 0.45)) }
+                }
+                // rooftop: a swamp cooler, a water tank, a dish or a flag, by turns
+                let rf = Int(hashN(n + 1390) * 5) % 5
+                if rf == 0 {
+                    c.R(sx + 3, GY - h - 7, 0.8, 7, Col(0x6a6a6a)); c.R(sx + 6.2, GY - h - 7, 0.8, 7, Col(0x6a6a6a)); c.RR(sx + 1.6, GY - h - 12, 7, 5.4, 1.4, Col(0x9aa0a4).shade(1 - dark * 0.5))
+                } else if rf == 1 {
+                    c.R(sx + 4, GY - h - 13, 0.4, 13, Col(0xc8c8c4))
+                    c.poly(Col(0xc8281e).shade(1 - dark * 0.4), [sx + 4.4, GY - h - 13, sx + 10, GY - h - 12.4 + sin(NOW * 4 + n) * 0.5, sx + 4.4, GY - h - 10])
+                } else if rf == 2 {
+                    c.R(sx + 5, GY - h - 4, 0.5, 4, Col(0x6a6a6a)); c.arcFill(sx + 5.2, GY - h - 4.6, 2.4, PI * 0.2, PI * 1.2, Col(0xd8d8d4).shade(1 - dark * 0.5))
+                } else if rf == 3 {
+                    c.R(sx + 4, GY - h - 9, 0.4, 9, Col(0x5a5a5a)); for i in 0..<3 { c.R(sx + 2.4, GY - h - 8.6 + Double(i) * 1.8, 3.6, 0.3, Col(0x5a5a5a)) }
+                }
                 c.R(sx + w * 0.2, GY - h - 5, w * 0.6, 5, col)
                 c.R(sx + w * 0.2 - 0.6, GY - h - 5.6, w * 0.6 + 1.2, 1, col.shade(1.12))
                 c.R(sx - 0.6, GY - h - 0.6, w + 1.2, 1, col.shade(1.12))
@@ -2399,6 +2436,22 @@ final class Renderer {
             c.R(x - 380, GY - 3.6, 981, 0.6, Col(0x8a8a88)); c.R(x - 380, GY - 0.6, 981, 0.6, Col(0x8a8a88))
             c.RR(x - 18, GY - 26, 36, 12, 1.4, Col(0x5a3a22).shade(1 - dark * 0.4))
             c.R(x - 1, GY - 14, 2, 14, Col(0x5a4030))
+            // an interpretive panel with the giant drawn whole, since from the fence you only ever see a piece of him
+            let bx = x + 62.0
+            c.R(bx - 15, GY - 12, 1.4, 12, Col(0x5a4030)); c.R(bx + 13.6, GY - 12, 1.4, 12, Col(0x5a4030))
+            c.RR(bx - 22, GY - 38, 44, 27, 1.6, Col(0x5a3a22).shade(1 - dark * 0.4))
+            c.RR(bx - 20.4, GY - 36.4, 40.8, 18.4, 1, Col(0x7a5c46).shade(1 - dark * 0.3))
+            let ch = Col(0xeedcb8)
+            c.roundCaps(true)
+            c.circ(bx - 14, GY - 27, 1.8, ch); c.seg(bx - 12, GY - 27, bx + 2, GY - 27, 1.3, ch)
+            c.seg(bx - 9, GY - 27, bx - 8, GY - 33, 0.8, ch); c.seg(bx - 9, GY - 27, bx - 8, GY - 21, 0.8, ch)
+            c.seg(bx - 8, GY - 33, bx - 5.4, GY - 33.4, 0.7, ch); c.seg(bx - 8, GY - 21, bx - 5.4, GY - 20.6, 0.7, ch)
+            c.seg(bx + 2, GY - 27, bx + 15, GY - 31, 1, ch); c.seg(bx + 2, GY - 27, bx + 15, GY - 23, 1, ch)
+            c.seg(bx + 15, GY - 31, bx + 16.6, GY - 32.6, 0.7, ch); c.seg(bx + 15, GY - 23, bx + 16.6, GY - 21.4, 0.7, ch)
+            c.roundCaps(false)
+            c.circ(bx - 3, GY - 30.6, 0.5, Col(0xd9412e))
+            g.text("you are here", bx + 4, GY - 33.6, 1.7, Col(0xf2e8c8))
+            g.text("THE GIANT · 171 FEET · 450–2,000 YEARS OLD", bx, GY - 14.6, 1.7, Col(0xf2e8c8), bold: true)
             g.text("BLYTHE INTAGLIOS", x, GY - 22.4, 3, Col(0xf2e8c8), bold: true)
             g.text("PLEASE STAY OUTSIDE", x, GY - 17.6, 2.4, Col(0xf2e8c8, 0.85))
             label = false
@@ -2415,6 +2468,34 @@ final class Renderer {
             c.R(x - 16, GY - 10, 62, 10, Col(0x6a4a2e).shade(1 - dark * 0.4))
             for k in 0..<4 { c.poly(Col(0x24324a), [x - 14 + Double(k) * 16, GY - 27, x - 2 + Double(k) * 16, GY - 27, x + Double(k) * 16, GY - 32, x - 12 + Double(k) * 16, GY - 32]) }
             c.R(x + 58, GY - 6, 30, 6, Col(0x5a4030)); c.R(x + 58, GY - 26, 30, 2, Col(0x5a4030))
+            // the church is welded plate: seams, rivets, a rusted patina creeping up, a round window, a bell
+            let rust = Col(0x8a4a2a)
+            for k in 0..<5 { c.R(x - 70 + Double(k) * 8.5, GY - 30, 0.3, 30, steel.shade(0.8)) }
+            for k in 0..<4 { c.R(x - 70, GY - 30 + Double(k) * 8, 34, 0.3, steel.shade(0.82)) }
+            for k in 0..<7 { c.R(x - 69 + hashN(Double(k) + 8700) * 32, GY - 3 - hashN(Double(k) + 8710) * 10, 1 + hashN(Double(k) + 8720) * 2, 3 + hashN(Double(k) + 8710) * 10, rust.alpha(0.35)) }
+            c.circ(x - 53, GY - 36, 3, Col(0x2a2a2e)); c.circ(x - 53, GY - 36, 2.3, Col(0x6aa0c8).shade(1 - dark * 0.3)); c.seg(x - 55.3, GY - 36, x - 50.7, GY - 36, 0.3, Col(0x2a2a2e)); c.seg(x - 53, GY - 38.3, x - 53, GY - 33.7, 0.3, Col(0x2a2a2e))
+            c.R(x - 54, GY - 47, 2, 2.4, Col(0x2a2a2e)); c.dome(x - 53, GY - 43.4, 1.6, Col(0xb8924a))
+            c.seg(x - 74, GY - 30, x - 53, GY - 48, 0.5, steel.shade(1.15))
+            // the bar itself: corrugated shade, a back shelf of bottles, stools, a cooler, strings of lights
+            for k in 0..<17 { c.R(x - 20 + Double(k) * 4.2, GY - 26, 0.4, 2.4, Col(0x6a5238)) }
+            c.R(x - 14, GY - 20, 58, 0.6, Col(0x8a6238)); for k in 0..<14 { c.RR(x - 12 + Double(k) * 4, GY - 23.6, 1.3, 3.6, 0.4, [Col(0x4a9a6a), Col(0xd8a850), Col(0xb86a4a), Col(0x6a90d0)][k % 4].shade(1 - dark * 0.3)) }
+            c.R(x - 17, GY - 11, 64, 1.4, Col(0xb8742e).shade(1 - dark * 0.4))
+            for k in 0..<6 { c.R(x - 12 + Double(k) * 10.4 - 0.3, GY - 5, 0.6, 5, Col(0x8a8f96)); c.ell(x - 12 + Double(k) * 10.4, GY - 5.4, 2.2, 0.8, Col(0x5a3a22)) }
+            c.RR(x + 34, GY - 8, 9, 8, 0.8, Col(0xc8281e).shade(1 - dark * 0.4)); c.R(x + 34, GY - 8.6, 9, 1, Col(0xf4f4f0).shade(1 - dark * 0.4))
+            for k in 0..<16 {
+                let t = Double(k) / 15
+                c.circ(x - 20 + t * 70, GY - 24.6 + sin(t * PI * 4) * 1.2, 0.6, [Col(0xffd68a), Col(0xff8a6a), Col(0x8ad0ff)][k % 3])
+            }
+            // the stage: a tin back wall, two amps, a drum; and out front, the hand-lettered rules
+            c.R(x + 58, GY - 24, 30, 18, Col(0x9aa0a4).shade(1 - dark * 0.5)); for k in 0..<10 { c.R(x + 59 + Double(k) * 3, GY - 24, 0.4, 18, Col(0x7a8084).shade(1 - dark * 0.5)) }
+            c.RR(x + 60, GY - 13, 6, 7, 0.6, Col(0x1c1a1a)); c.circ(x + 63, GY - 9.6, 2, Col(0x3a3a3e)); c.RR(x + 81, GY - 13, 6, 7, 0.6, Col(0x1c1a1a)); c.circ(x + 84, GY - 9.6, 2, Col(0x3a3a3e))
+            c.RR(x - 96, GY - 22, 20, 12, 1, Col(0xf2e8c8).shade(1 - dark * 0.4)); c.R(x - 87, GY - 10, 1.4, 10, Col(0x6a4a2e))
+            g.text("NO CELL", x - 86, GY - 19, 2.4, REDC, bold: true); g.text("NO CARDS", x - 86, GY - 16, 2.4, REDC, bold: true); g.text("NO WORRIES", x - 86, GY - 13, 2.2, INK, bold: true)
+            // the wreck that's been parked out front for forty years, and the cooling tower
+            c.poly(rust.shade(1 - dark * 0.4), [x + 98, GY - 1, x + 98, GY - 7, x + 104, GY - 8, x + 107, GY - 13, x + 118, GY - 13, x + 121, GY - 8, x + 128, GY - 7, x + 128, GY - 1])
+            c.RR(x + 108.6, GY - 12, 8, 3.6, 0.5, Col(0x2a2420)); c.ell(x + 104, GY - 0.6, 2.6, 1, Col(0x2a2420)); c.ell(x + 122, GY - 0.6, 2.6, 1, Col(0x2a2420))
+            for k in 0..<4 { c.R(x - 28 + Double(k) * 0.9, GY - 44, 0.5, 44, steel.shade(0.9)) }
+            c.poly(steel.shade(0.95), [x - 31, GY - 44, x - 22, GY - 44, x - 24, GY - 50, x - 29, GY - 50])
             if g.barOpen && g.phase == .play {
                 person(x + 66, GY - 6, 920, 1, 0, false); person(x + 80, GY - 6, 921, -1, 0, false)
                 for k in 0..<3 { let t = (NOW * 0.6 + Double(k) / 3).truncatingRemainder(dividingBy: 1); g.text("♪", x + 72 + sin(t * 6) * 6, GY - 30 - t * 20, 4.4, CREAM.alpha(1 - t)) }
@@ -3447,7 +3528,7 @@ final class Renderer {
                 if kind > 0.93 {
                     c.poly(rockC, [sx - 4, y + 1, sx - 2.4, y - 2.6, sx + 0.6, y - 3.4, sx + 3.6, y - 1.4, sx + 4.6, y + 1])
                     c.poly(rockC.shade(1.25), [sx - 2.4, y - 2.6, sx + 0.6, y - 3.4, sx + 0.2, y - 1.6])
-                } else if kind > 0.64 && !g.inPast && g.phase == .play {
+                } else if kind > 0.64 && !g.inPast && g.phase == .play && abs(ridgeY(wx + 4, seed, base, amp) - ridgeY(wx - 4, seed, base, amp)) < 1.5 {
                     let hv = hashN(n + seed * 11 + 6030)
                     if hv < 0.3 {
                         // a trailer with its truck
@@ -3456,7 +3537,7 @@ final class Renderer {
                         c.poly(Col(0xd9772e).shade(1 - dark * 0.5), [sx + 2.4, y, sx + 3.6, y - 1.6, sx + 4.8, y])
                     }
                     if hv > 0.8 { c.R(sx - 3.2, y - 3.4, 0.2, 3.4, Col(0xc8c8c4)); c.R(sx - 3.2, y - 3.4, 1.2, 0.7, Col(0xd9412e)) }
-                    c.RR(sx - 1.8, y - 1.6, 3.6, 1.6, 0.4, (hv > 0.6 ? Col(0xd8cdb8) : Col(0xf0ece2)).shade(1 - dark * 0.5))
+                    c.RR(sx - 1.8, y - 1.6, 3.6, 1.6, 0.4, (hv > 0.6 ? Col(0xc8bca4) : Col(0xddd6c6)).shade(1 - dark * 0.5))
                     c.R(sx - 1, y - 1.3, 1.2, 0.6, Col(0x3a4a5a))
                     c.circ(sx - 0.9, y + 0.1, 0.35, Col(0x1a1614)); c.circ(sx + 0.9, y + 0.1, 0.35, Col(0x1a1614))
                     if dark > 0.5 { c.circ(sx + 2.6, y - 0.2, 0.5, Col(0xffb050, 0.9)) }
@@ -4207,6 +4288,10 @@ final class Renderer {
             }
             n += 1
         }
+    }
+
+    private func signs_band(_ n: Double) -> Col {
+        return [Col(0xb5452f), Col(0x2f5a7a), Col(0x3f8f6a), Col(0x7a4a8a), Col(0xd9a02e)][Int(hashN(n + 1365) * 5) % 5]
     }
 
     /// A desert rock with a lit top.
@@ -5819,6 +5904,47 @@ final class Renderer {
             soar(W * 0.6 + cos(t) * W * 0.3, GY * 0.44 + sin(t * 1.3) * 8, 24, true)
         }
         for k in 0..<5 { quail(260 + Double(k) * 7 - cam + sin(NOW * 0.3) * 20, GY + 2 + Double(k % 2), NOW * 6 + Double(k)) }
+        // people on the trail: traders walking between the river and the mountains, a runner now and then
+        let span = g.WORLD + 240
+        let tx = (NOW * 7 + Double(ar.rawValue) * 310).truncatingRemainder(dividingBy: span) - 120
+        for k in 0..<3 {
+            let vx = tx - Double(k) * 13 - cam
+            let bob = abs(sin(NOW * 5 + Double(k) * 1.3)) * 0.8
+            villager(vx, GY + 2 - bob, 40 + Double(k) + Double(ar.rawValue), k == 1 ? 1 : 0)
+            if k != 1 { c.RR(vx - 3.6, GY - 15 - bob, 3.2, 5, 1, Col(0xb8925e).shade(1 - dark * 0.45)); c.seg(vx - 2, GY - 15 - bob, vx + 0.6, GY - 19 - bob, 0.3, Col(0x6a4a2e)) }
+        }
+        let rx = g.WORLD - (NOW * 16 + Double(ar.rawValue) * 170).truncatingRemainder(dividingBy: span * 1.6) + 100
+        villager(rx - cam, GY + 2 - abs(sin(NOW * 9)) * 1.4, 77, 0)
+        // the small animals that were always here
+        var n = floor((cam - 60) / 230)
+        while n * 230 < cam + W + 60 {
+            let hk = hashN(n * 2.3 + Double(ar.rawValue) * 5 + 9980)
+            let wx = n * 230 + hk * 150
+            let sx = wx - cam
+            n += 1
+            if wx < 80 || wx > g.WORLD - 80 { continue }
+            switch Int(hk * 100) % 6 {
+            case 0: jackrabbit(sx, GY + 2, NOW + wx)
+            case 1: roadrunner(sx + sin(NOW * 0.4 + wx) * 30, GY + 2, NOW * 8)
+            case 2: coyote(sx + sin(NOW * 0.15 + wx) * 40, GY + 3, NOW * 2)
+            case 3:
+                // a trail shrine: a heap of stones every traveller adds to, and a broken pot
+                for q in 0..<9 { c.ell(sx - 5 + hashN(Double(q) + wx) * 10, GY + 1 - hashN(Double(q) + wx + 3) * 5, 2 - hashN(Double(q) + wx + 3) * 1, 1.1, Col(0x7a6a5e).shade(1 - dark * 0.45 + hashN(Double(q)) * 0.12)) }
+                c.arcStroke(sx + 10, GY + 1.4, 2, PI, PI * 1.8, 0.5, Col(0xb8704a)); c.poly(Col(0xb8704a), [sx + 13, GY + 2, sx + 14.6, GY + 1, sx + 15, GY + 2.2])
+            case 4:
+                // a grinding slick worn into a flat boulder, the handstone left on it
+                c.poly(Col(0x8a7a6a).shade(1 - dark * 0.45), [sx - 9, GY + 2, sx - 6, GY - 3, sx + 6, GY - 4, sx + 10, GY + 2])
+                c.ell(sx, GY - 3, 4, 0.9, Col(0xb0a290).shade(1 - dark * 0.45)); c.ell(sx + 1, GY - 3.6, 1.6, 0.8, Col(0x5a4e44))
+            default:
+                for k in 0..<4 { quail(sx + Double(k) * 6 + sin(NOW * 0.5 + wx) * 14, GY + 2 + Double(k % 2), NOW * 6 + Double(k)) }
+            }
+        }
+        // cooking smoke standing up from a camp somewhere off toward the hills
+        let smx = g.WORLD * 0.55 - cam * 0.3 - g.WORLD * 0.1
+        for q in 0..<9 {
+            let u = (NOW * 0.07 + Double(q) / 9).truncatingRemainder(dividingBy: 1)
+            c.circ(smx + sin(u * 5 + Double(q)) * 3 + u * 14, GY - 6 - u * 44, 1.2 + u * 4, Col(0xe8e0d8, (1 - u) * 0.3))
+        }
     }
 
     private func hawk(_ x: Double, _ y: Double, _ t: Double) {
