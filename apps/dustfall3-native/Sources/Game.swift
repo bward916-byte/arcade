@@ -867,6 +867,7 @@ final class Game {
 
     var hintText = ""
     var hintT = 0.0
+    var holdHint = false        // the town's name is burning over the street: messages wait their turn
     private(set) var seen: Set<String> = []
     var info = ""
     var slotsFor: Building?
@@ -1339,7 +1340,7 @@ final class Game {
         if duel != nil {
             // high noon: the day stands still until it is settled
             updDuel(dt)
-            if hintT > 0 { hintT -= dt }
+            if hintT > 0 && !holdHint { hintT -= dt }
             shake = max(0, shake - dt * 3); flash = max(0, flash - dt * 3)
             if fade > 0 { fade = max(0, fade - dt * 0.9) }
             updCoins(dt); updShots(dt); updParts(dt)
@@ -1353,7 +1354,7 @@ final class Game {
         t += dt / DAY_LEN
         if was < 0.72 && t >= 0.72 && !duskDone { dusk() }
         if t >= 1 { t -= 1; day += 1; dawn() }
-        if hintT > 0 { hintT -= dt }
+        if hintT > 0 && !holdHint { hintT -= dt }
         shake = max(0, shake - dt * 3)
         flash = max(0, flash - dt * 3)
         if tripT < 0 && fade > 0 { fade = max(0, fade - dt * 0.7) }
@@ -2235,7 +2236,7 @@ final class Game {
         fade = 1
         let news = [1: "a stable and a bank", 2: "a bordello and a doctor", 3: "a church and a blacksmith", 4: "a telegraph office"]
         let extra = (news[town].map { " This town has \($0) to open as well." } ?? "") + (sigName.isEmpty ? "" : " Its trade is the \(sigName.lowercased()), \(place == "redwater" ? "at the ford east of town" : (place == "bitterend" ? "at the east end of main street" : "outside the west gate")).")
-        hint("arrive\(town)", "\(nice(townName)): \(here.land.lowercased()). \(here.note) You step off with \(carry) coins, and everything here is boarded up.\(extra)" + (lastTown ? " No train comes past here. Gather \(RALLY_N) townsfolk and run Crane out." : ""), again: true)
+        hint("arrive\(town)", "\(nice(townName)): \(here.land.lowercased()). \(here.note) You step off with \(coins) coins, and everything here is boarded up.\(extra)" + (lastTown ? " No train comes past here. Gather \(RALLY_N) townsfolk and run Crane out." : ""), again: true)
         onSave?()
     }
 

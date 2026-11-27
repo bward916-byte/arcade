@@ -550,8 +550,9 @@ final class GameViewController: UIViewController {
             demoDone = true
             let args = ProcessInfo.processInfo.arguments
             for name in ["day", "night", "train", "snow", "storm", "map", "duel", "coach", "west", "west2", "fire", "yard", "over", "lv0", "lv1", "lv2", "lv3", "lv4", "sig1", "sig2", "sig3", "sig4", "mist1", "mist2", "ferry1", "cold4", "buy1", "finale", "finale2", "gone", "wild0", "wild1", "wild2", "wild3", "wild4", "lv5", "lv6", "lv7", "fort", "post", "mission", "gate0", "march", "rout", "rally", "see0", "see1", "see2", "see3", "see4", "see5", "see6", "see7", "see8", "see9"] where args.contains("-demo-" + name) { demoMode = true; game.demo(name) }
-            if args.contains("-demo-map") { showMap(choose: true) }
+            if args.contains("-demo-map") { showMap(choose: false) }
             if args.contains("-demo-intro") { game.beginIntro() }
+            if args.contains("-demo-pay") { demoMode = true; game.demo("day"); showPay() }
             if args.contains("-demo-plain") { demoMode = true; game.demo("day"); plainInfo = true }
             if args.contains("-demo-burn") { demoMode = true; game.demo("day"); logoOn = true; burnLogo.frozen = 0.52; burnLogo.reset(); burnLogo.ignite(after: 0) }
             if args.contains("-demo-gallery") { demoMode = true; game.demo("gallery") }
@@ -836,7 +837,8 @@ final class GameViewController: UIViewController {
         last = 0
     }
 
-    // ---------- the territory: every stage of the line and the places at each, the way you came, and the choice at a fork
+    // ---------- the territory, drawn as a surveyor's sheet: the country in its own colours, a river off the snow range,
+    // the railroad running town to town across it
     private func showMap(choose: Bool) {
         mapChoose = choose
         for v in mapBox.subviews { v.removeFromSuperview() }
@@ -846,16 +848,17 @@ final class GameViewController: UIViewController {
         let ins = view.safeAreaInsets
         let l = max(ins.left, 16), r = max(ins.right, 16)
         let ink = UIColor(red: 0.16, green: 0.1, blue: 0.06, alpha: 1)
-        let head = UILabel(frame: CGRect(x: 0, y: 12, width: bw, height: 30))
-        head.text = choose ? "The line forks. Where to?" : "The territory"
-        head.font = rye(22); head.textColor = UIColor(red: 0.54, green: 0.18, blue: 0.15, alpha: 1); head.textAlignment = .center
-        mapBox.addSubview(head)
+        let rust = UIColor(red: 0.54, green: 0.18, blue: 0.15, alpha: 1)
+        let paper = UIColor(red: 0.93, green: 0.86, blue: 0.68, alpha: 1)
         let n = STAGES.count
         let cur = game.town % n, lap = game.town / n, nxt = (cur + 1) % n
-        let cw = (bw - l - r) / CGFloat(n)
-        let rowH = (bh - 84 - 50) / 2
-        // a sheet of old paper with the country drawn on it: desert, a river, canyon, pines and the snow ranges,
-        // the railroad running stop to stop and forking where the towns do
+        // the sheet inside its margins
+        let mx = l + 18, my: CGFloat = 50
+        let mw = bw - l - r - 36, mh = bh - my - 58
+        func P(_ fx: CGFloat, _ fy: CGFloat) -> CGPoint { return CGPoint(x: mx + fx * mw, y: my + fy * mh) }
+        let spots: [CGPoint] = [P(0.09, 0.70), P(0.29, 0.36), P(0.50, 0.68), P(0.70, 0.34), P(0.90, 0.60)]
+        let above: [Bool] = [false, true, false, true, false]
+        func stop(_ i: Int) -> CGPoint { return spots[max(0, min(i, spots.count - 1))] }
         for ly in mapLayers { ly.removeAllAnimations(); ly.removeFromSuperlayer() }
         mapLayers = []
         var zi: UInt32 = 0
@@ -868,40 +871,97 @@ final class GameViewController: UIViewController {
         parch.endPoint = CGPoint(x: 1.06, y: 1.2)
         parch.frame = view.bounds
         put(parch)
-        func stops(_ i: Int) -> [CGPoint] {
-            let cnt = STAGES[i].count
-            return (0..<cnt).map { (k: Int) -> CGPoint in CGPoint(x: l + CGFloat(i) * cw + cw / 2, y: 82 + CGFloat(k) * rowH + (cnt == 1 ? rowH / 2 : 0) + 22) }
-        }
-        let midY = 82 + rowH / 2 + 22
-        // the river comes down out of the snow country, past Redwater, and away south-west
-        let river = UIBezierPath()
-        river.move(to: CGPoint(x: l + cw * 3.45, y: 44))
-        river.addCurve(to: CGPoint(x: l + cw * 1.5, y: 82 + 22 + 34), controlPoint1: CGPoint(x: l + cw * 3.0, y: midY - 6), controlPoint2: CGPoint(x: l + cw * 2.1, y: 60))
-        river.addCurve(to: CGPoint(x: l + cw * 0.62, y: bh + 6), controlPoint1: CGPoint(x: l + cw * 1.1, y: midY + 20), controlPoint2: CGPoint(x: l + cw * 1.05, y: bh - 60))
-        // the rails bend their way between stops, and the country is drawn clear of them, so the line runs through the gaps
-        func bend(_ a: CGPoint, _ b: CGPoint) -> CGPoint {
+        // the rails bend their way between towns
+        func bend(_ a: CGPoint, _ b: CGPoint, _ i: Int) -> CGPoint {
             let dx = b.x - a.x, dy = b.y - a.y
             let len = max(1, (dx * dx + dy * dy).squareRoot())
-            let sg: CGFloat = Int(a.y + b.y * 2) % 2 == 0 ? 1 : -1
-            return CGPoint(x: (a.x + b.x) / 2 - dy / len * 22 * sg, y: (a.y + b.y) / 2 + dx / len * 22 * sg)
+            let k: CGFloat = i % 2 == 0 ? 24 : -24
+            return CGPoint(x: (a.x + b.x) / 2 - dy / len * k, y: (a.y + b.y) / 2 + dx / len * k)
+        }
+        func quad(_ a: CGPoint, _ c: CGPoint, _ b: CGPoint, _ u: CGFloat) -> CGPoint {
+            let v = 1 - u
+            let x = v * v * a.x + 2 * v * u * c.x + u * u * b.x
+            let y = v * v * a.y + 2 * v * u * c.y + u * u * b.y
+            return CGPoint(x: x, y: y)
         }
         var railPts: [CGPoint] = []
         for i in 0..<(n - 1) {
-            for a in stops(i) {
-                for b in stops(i + 1) {
-                    let c = bend(a, b)
-                    for q in 0...14 {
-                        let u = CGFloat(q) / 14, v = 1 - u
-                        railPts.append(CGPoint(x: v * v * a.x + 2 * v * u * c.x + u * u * b.x, y: v * v * a.y + 2 * v * u * c.y + u * u * b.y))
-                    }
+            let a = stop(i), b = stop(i + 1)
+            let c = bend(a, b, i)
+            for q in 0...16 { railPts.append(quad(a, c, b, CGFloat(q) / 16)) }
+        }
+        // a smooth line through a handful of points, with a little wander put on it
+        func spline(_ w: [CGPoint], _ per: Int, _ wander: CGFloat) -> [CGPoint] {
+            var out: [CGPoint] = []
+            if w.count < 2 { return w }
+            for i in 0..<(w.count - 1) {
+                let p0 = w[max(0, i - 1)], p1 = w[i], p2 = w[i + 1], p3 = w[min(w.count - 1, i + 2)]
+                for q in 0..<per {
+                    let u = CGFloat(q) / CGFloat(per)
+                    let u2 = u * u, u3 = u2 * u
+                    let ax = 2 * p1.x + (p2.x - p0.x) * u
+                    let bx = (2 * p0.x - 5 * p1.x + 4 * p2.x - p3.x) * u2
+                    let cx = (3 * p1.x - p0.x - 3 * p2.x + p3.x) * u3
+                    let ay = 2 * p1.y + (p2.y - p0.y) * u
+                    let by = (2 * p0.y - 5 * p1.y + 4 * p2.y - p3.y) * u2
+                    let cy = (3 * p1.y - p0.y - 3 * p2.y + p3.y) * u3
+                    let m = CGFloat(out.count)
+                    out.append(CGPoint(x: 0.5 * (ax + bx + cx) + sin(m * 0.83) * wander, y: 0.5 * (ay + by + cy) + cos(m * 0.57) * wander * 0.8))
                 }
             }
+            out.append(w[w.count - 1])
+            return out
         }
-        func nearRail(_ x: CGFloat, _ y: CGFloat, _ d: CGFloat) -> Bool {
-            for p in railPts where abs(p.x - x) < d && abs(p.y - y) < d { return true }
+        func path(_ pts: [CGPoint]) -> UIBezierPath {
+            let p = UIBezierPath()
+            p.move(to: pts[0])
+            for q in pts.dropFirst() { p.addLine(to: q) }
+            p.lineCapStyle = .round; p.lineJoinStyle = .round
+            return p
+        }
+        // the river rises at a lake in the snow range, takes a creek from the north, passes Redwater and runs out south-west
+        let lake = P(0.82, 0.09)
+        let riverPts = spline([lake, P(0.64, 0.12), P(0.50, 0.22), P(0.38, 0.41), P(0.33, 0.58), P(0.24, 0.80), P(0.19, 1.12)], 12, 3)
+        let creekPts = spline([P(0.39, -0.14), P(0.43, 0.06), P(0.50, 0.22)], 10, 2)
+        let river = path(riverPts)
+        let nameAt = riverPts[min(riverPts.count - 1, 54)]
+        // what the country may not be drawn over
+        var keep: [CGRect] = []
+        let cart = CGRect(x: l + 16, y: 15, width: 216, height: 42)
+        keep.append(cart)
+        keep.append(CGRect(x: bw / 2 - 86, y: bh - 54, width: 172, height: 48))
+        keep.append(CGRect(x: l + 6, y: bh - 74, width: 58, height: 62))
+        keep.append(CGRect(x: bw - r - 168, y: bh - 44, width: 160, height: 34))
+        keep.append(CGRect(x: nameAt.x - 22, y: nameAt.y - 20, width: 62, height: 50))
+        var plates: [CGRect] = []
+        for i in 0..<n {
+            let p = stop(i)
+            let rc = CGRect(x: p.x - 58, y: above[i % above.count] ? p.y - 44 : p.y + 9, width: 116, height: 34)
+            plates.append(rc)
+            keep.append(rc.insetBy(dx: 6, dy: 0))
+            keep.append(CGRect(x: p.x - 11, y: p.y - 11, width: 22, height: 22))
+        }
+        let seeds: [(CGPoint, Int)] = [(spots[0], 0), (spots[1], 1), (spots[2], 2), (spots[3], 3), (spots[4], 4), (P(0.87, 0.03), 4), (P(-0.03, 0.3), 0)]
+        func biome(_ x: CGFloat, _ y: CGFloat, _ j: Int) -> Int {
+            var best = 0
+            var bd = CGFloat.greatestFiniteMagnitude
+            for (k, s) in seeds.enumerated() {
+                let dx = x - s.0.x, dy = (y - s.0.y) * 1.2
+                let d = (dx * dx + dy * dy).squareRoot() + CGFloat(hashN(Double(k) * 7.31 + Double(j) * 0.173)) * 44
+                if d < bd { bd = d; best = s.1 }
+            }
+            return best
+        }
+        func blocked(_ x: CGFloat, _ y: CGFloat, _ d: CGFloat) -> Bool {
+            for p in railPts where abs(p.x - x) < d + 3 && abs(p.y - y) < d + 3 { return true }
+            for p in riverPts where abs(p.x - x) < d && abs(p.y - y) < d { return true }
+            for p in creekPts where abs(p.x - x) < d - 3 && abs(p.y - y) < d - 3 { return true }
+            if abs(lake.x - x) < d + 12 && abs(lake.y - y) < d + 6 { return true }
+            for rc in keep where rc.insetBy(dx: -d * 0.7, dy: -d * 0.5).contains(CGPoint(x: x, y: y)) { return true }
             return false
         }
-        let land = UIGraphicsImageRenderer(size: view.bounds.size).image { _ in
+        let land = UIGraphicsImageRenderer(size: view.bounds.size).image { rc in
+            let cg = rc.cgContext
             let inkC = ink.withAlphaComponent(0.6)
             func hh(_ a: Int, _ b: Int) -> CGFloat { return CGFloat(hashN(Double(a) * 12.9898 + Double(b) * 78.233 + 0.5)) }
             func line(_ pts: [CGFloat], _ col: UIColor, _ w: CGFloat) {
@@ -920,16 +980,70 @@ final class GameViewController: UIViewController {
                 fill.setFill(); p.fill()
                 if outline { inkC.setStroke(); p.lineWidth = 1; p.lineJoinStyle = .round; p.stroke() }
             }
-            // stains and foxing on the paper
+            // paper: stains, foxing and the grain of it
             for i in 0..<26 {
                 UIColor(red: 0.55, green: 0.38, blue: 0.18, alpha: 0.05).setFill()
                 UIBezierPath(ovalIn: CGRect(x: hh(i, 1) * bw - 30, y: hh(i, 2) * bh - 20, width: 30 + hh(i, 3) * 90, height: 16 + hh(i, 4) * 44)).fill()
             }
-            // the river: a wash of blue between two inked banks
-            UIColor(red: 0.42, green: 0.62, blue: 0.72, alpha: 0.55).setStroke()
-            river.lineWidth = 8; river.lineCapStyle = .round; river.stroke()
-            UIColor(red: 0.2, green: 0.36, blue: 0.48, alpha: 0.5).setStroke()
-            river.lineWidth = 1; river.stroke()
+            UIColor(red: 0.3, green: 0.2, blue: 0.1, alpha: 0.1).setFill()
+            for i in 0..<420 { UIBezierPath(rect: CGRect(x: hh(i, 51) * bw, y: hh(i, 52) * bh, width: 1, height: 1)).fill() }
+            // the lie of the land, washed in: sand, meadow, forest, red rock and snow
+            let space = CGColorSpaceCreateDeviceRGB()
+            let tints: [UIColor] = [
+                UIColor(red: 0.93, green: 0.72, blue: 0.38, alpha: 0.2),
+                UIColor(red: 0.5, green: 0.64, blue: 0.3, alpha: 0.22),
+                UIColor(red: 0.2, green: 0.42, blue: 0.24, alpha: 0.24),
+                UIColor(red: 0.8, green: 0.38, blue: 0.22, alpha: 0.2),
+                UIColor(red: 0.95, green: 0.97, blue: 1, alpha: 0.5)]
+            var wy: CGFloat = 0
+            var wj = 0
+            while wy < bh + 30 {
+                var wx: CGFloat = 0
+                while wx < bw + 30 {
+                    let c = tints[biome(wx, wy, 900 + wj)]
+                    if let g = CGGradient(colorsSpace: space, colors: [c.cgColor, c.withAlphaComponent(0).cgColor] as CFArray, locations: [0, 1]) {
+                        let at = CGPoint(x: wx, y: wy)
+                        cg.drawRadialGradient(g, startCenter: at, startRadius: 0, endCenter: at, endRadius: 62, options: [])
+                    }
+                    wx += 44; wj += 1
+                }
+                wy += 40
+            }
+            // the surveyor's grid, with its degrees along the top
+            let small = UIFont(name: "Georgia-Italic", size: 8) ?? UIFont.systemFont(ofSize: 8)
+            for q in 0..<5 {
+                let gx = mx + mw * (0.1 + CGFloat(q) * 0.2)
+                line([gx, 10, gx - 6, bh - 10], ink.withAlphaComponent(0.13), 0.6)
+                ("\(113 - q)\u{00B0}" as NSString).draw(at: CGPoint(x: gx + 3, y: 11), withAttributes: [.font: small, .foregroundColor: ink.withAlphaComponent(0.55)])
+            }
+            for q in 0..<3 {
+                let gy = my + mh * (0.12 + CGFloat(q) * 0.38)
+                line([10, gy, bw - 10, gy + 4], ink.withAlphaComponent(0.13), 0.6)
+                ("\(37 - q)\u{00B0}" as NSString).draw(at: CGPoint(x: 12, y: gy + 1), withAttributes: [.font: small, .foregroundColor: ink.withAlphaComponent(0.55)])
+            }
+            // the old wagon road in from the west
+            let road = path(spline([P(-0.14, 0.9), P(-0.02, 0.84), stop(0)], 8, 1.5))
+            ink.withAlphaComponent(0.55).setStroke()
+            road.lineWidth = 1; road.setLineDash([3, 3], count: 2, phase: 0); road.stroke()
+            // water: banks inked dark, the stream widening as it runs down
+            let bank = UIColor(red: 0.16, green: 0.3, blue: 0.42, alpha: 0.75)
+            let water = UIColor(red: 0.5, green: 0.7, blue: 0.8, alpha: 1)
+            func stream(_ pts: [CGPoint], _ w0: CGFloat, _ w1: CGFloat, _ over: CGFloat, _ col: UIColor) {
+                col.setStroke()
+                for i in 1..<pts.count {
+                    let seg = UIBezierPath()
+                    seg.move(to: pts[i - 1]); seg.addLine(to: pts[i])
+                    seg.lineCapStyle = .round
+                    seg.lineWidth = w0 + (w1 - w0) * CGFloat(i) / CGFloat(pts.count) + over
+                    seg.stroke()
+                }
+            }
+            stream(creekPts, 1, 2.2, 1.4, bank); stream(riverPts, 2, 7, 1.6, bank)
+            stream(creekPts, 1, 2.2, 0, water); stream(riverPts, 2, 7, 0, water)
+            let lk = UIBezierPath(ovalIn: CGRect(x: lake.x - 15, y: lake.y - 8, width: 32, height: 15))
+            water.setFill(); lk.fill(); bank.setStroke(); lk.lineWidth = 1; lk.stroke()
+            line([lake.x - 7, lake.y - 2, lake.x + 5, lake.y - 2], bank.withAlphaComponent(0.4), 0.7)
+            line([lake.x - 3, lake.y + 2, lake.x + 9, lake.y + 2], bank.withAlphaComponent(0.4), 0.7)
             func cactus(_ x: CGFloat, _ y: CGFloat, _ k: CGFloat) {
                 let g2 = UIColor(red: 0.33, green: 0.46, blue: 0.26, alpha: 0.8)
                 line([x, y, x, y - 13 * k], g2, 2.8 * k)
@@ -976,37 +1090,75 @@ final class GameViewController: UIViewController {
                 let g2 = UIColor(red: 0.36, green: 0.52, blue: 0.28, alpha: 0.75)
                 line([x - 2, y, x - 3, y - 4], g2, 1); line([x, y, x, y - 5], g2, 1); line([x + 2, y, x + 3.4, y - 4], g2, 1)
             }
+            // the country itself, row by row so the nearer hills stand in front of the farther
             var gyI = 0
-            var yy: CGFloat = 56
-            while yy < bh - 14 {
+            var yy: CGFloat = 20
+            while yy < bh - 12 {
                 var gxI = 0
-                var xx: CGFloat = 14
-                while xx < bw - 8 {
-                    let jx = xx + (hh(gxI, gyI) - 0.5) * 24, jy = yy + (hh(gxI + 31, gyI + 7) - 0.5) * 16
-                    let rr = hh(gxI + 5, gyI + 13), kk = 0.8 + hh(gxI + 9, gyI + 3) * 0.5
-                    let col = Int(max(0, min(CGFloat(n) - 1, ((jx - l) / cw).rounded(.down))))
-                    let top = jy < midY
-                    // nothing stands on the right of way; mountains keep further back, and are fewer
-                    if nearRail(jx, jy - 8, col >= 3 ? 30 : 20) { xx += 44; gxI += 1; continue }
-                    if col == 0 {
-                        if rr < 0.3 { cactus(jx, jy, kk) } else if rr < 0.5 { mesa(jx, jy, 34 * kk, 15 * kk, false) } else if rr < 0.68 { dune(jx, jy, 30 * kk) }
-                    } else if col == 1 {
-                        if rr < 0.45 { tuft(jx, jy) } else if rr < 0.72 { tree(jx, jy, kk) }
-                    } else if col == 2 {
-                        if rr < 0.82 { pine(jx, jy, kk, false); pine(jx + 9 * kk, jy + 3, kk * 0.8, false) }
-                    } else if col == 3 {
-                        if rr < 0.6 { mesa(jx, jy, 30 * kk, 24 * kk, true) } else if rr < 0.78 { cactus(jx, jy, kk * 0.9) }
+                var xx: CGFloat = 16
+                while xx < bw - 10 {
+                    let jx = xx + (hh(gxI, gyI) - 0.5) * 22, jy = yy + (hh(gxI + 31, gyI + 7) - 0.5) * 14
+                    let rr = hh(gxI + 5, gyI + 13), kk = 0.55 + hh(gxI + 9, gyI + 3) * 0.35
+                    let bi = biome(jx, jy, gxI * 17 + gyI * 5)
+                    gxI += 1; xx += 30
+                    if blocked(jx, jy - 5, bi == 4 ? 21 : 13) { continue }
+                    if bi == 0 {
+                        if rr < 0.2 { cactus(jx, jy, kk) } else if rr < 0.32 { mesa(jx, jy, 30 * kk, 13 * kk, false) } else if rr < 0.5 { dune(jx, jy, 26 * kk) }
+                    } else if bi == 1 {
+                        if rr < 0.4 { tuft(jx, jy) } else if rr < 0.64 { tree(jx, jy, kk) }
+                    } else if bi == 2 {
+                        if rr < 0.84 { pine(jx, jy, kk, false); pine(jx + 8 * kk, jy + 3, kk * 0.8, false) }
+                    } else if bi == 3 {
+                        if rr < 0.5 { mesa(jx, jy, 30 * kk, 22 * kk, true) } else if rr < 0.64 { cactus(jx, jy, kk * 0.9) }
                     } else {
-                        if rr < 0.55 { mountain(jx, jy, 54 * kk, 42 * kk) } else if rr < 0.72 { pine(jx, jy, kk, true) }
+                        if rr < 0.62 { mountain(jx, jy, 46 * kk, 36 * kk) } else if rr < 0.8 { pine(jx, jy, kk, true) }
                     }
-                    xx += 44; gxI += 1
                 }
-                yy += 34; gyI += 1
+                yy += 22; gyI += 1
             }
-            // a ruled border, as on a surveyor's sheet
+            // the names of the country, lettered wide
+            let wide = UIFont(name: "Georgia-Italic", size: 10) ?? UIFont.systemFont(ofSize: 10)
+            func letter(_ s: String, _ at: CGPoint) {
+                (s as NSString).draw(at: at, withAttributes: [.font: wide, .foregroundColor: ink.withAlphaComponent(0.5), .kern: 3.2])
+            }
+            letter("HIGH DESERT", P(0.0, 0.45))
+            letter("RIVER VALLEY", P(0.13, 0.07))
+            letter("PINE COUNTRY", P(0.41, 0.94))
+            letter("CANYON LANDS", P(0.57, 0.0))
+            letter("SNOW RANGE", P(0.82, 0.92))
+            // the river's name, set along its bank
+            cg.saveGState()
+            cg.translateBy(x: nameAt.x + 9, y: nameAt.y + 6)
+            cg.rotate(by: -0.82)
+            ("Red Water R." as NSString).draw(at: CGPoint(x: -26, y: 0), withAttributes: [.font: UIFont(name: "Georgia-Italic", size: 9) ?? UIFont.systemFont(ofSize: 9), .foregroundColor: UIColor(red: 0.14, green: 0.27, blue: 0.4, alpha: 0.9)])
+            cg.restoreGState()
+            // a scale of miles
+            let sx = bw - r - 158, sy = bh - 24
+            for q in 0..<4 {
+                (q % 2 == 0 ? ink.withAlphaComponent(0.8) : paper).setFill()
+                UIBezierPath(rect: CGRect(x: sx + CGFloat(q) * 26, y: sy, width: 26, height: 4)).fill()
+            }
+            ink.withAlphaComponent(0.8).setStroke()
+            let sb = UIBezierPath(rect: CGRect(x: sx, y: sy, width: 104, height: 4)); sb.lineWidth = 0.7; sb.stroke()
+            ("0" as NSString).draw(at: CGPoint(x: sx - 2, y: sy - 11), withAttributes: [.font: small, .foregroundColor: ink])
+            ("50" as NSString).draw(at: CGPoint(x: sx + 47, y: sy - 11), withAttributes: [.font: small, .foregroundColor: ink])
+            ("100 miles" as NSString).draw(at: CGPoint(x: sx + 96, y: sy - 11), withAttributes: [.font: small, .foregroundColor: ink])
+            // the title block
+            paper.withAlphaComponent(0.9).setFill(); UIBezierPath(rect: cart).fill()
             inkC.setStroke()
+            let c1 = UIBezierPath(rect: cart); c1.lineWidth = 1.6; c1.stroke()
+            let c2 = UIBezierPath(rect: cart.insetBy(dx: 3, dy: 3)); c2.lineWidth = 0.6; c2.stroke()
+            // a ruled border, as on a surveyor's sheet
             let b1 = UIBezierPath(rect: view.bounds.insetBy(dx: 5, dy: 5)); b1.lineWidth = 2; b1.stroke()
             let b2 = UIBezierPath(rect: view.bounds.insetBy(dx: 9, dy: 9)); b2.lineWidth = 0.7; b2.stroke()
+            // the creases where the sheet has been folded
+            for q in 1...2 {
+                let fx = bw * CGFloat(q) / 3
+                line([fx, 0, fx, bh], ink.withAlphaComponent(0.09), 1)
+                line([fx + 1.2, 0, fx + 1.2, bh], UIColor(white: 1, alpha: 0.16), 1)
+            }
+            line([0, bh * 0.5, bw, bh * 0.5], ink.withAlphaComponent(0.08), 1)
+            line([0, bh * 0.5 + 1.2, bw, bh * 0.5 + 1.2], UIColor(white: 1, alpha: 0.14), 1)
         }
         let landLayer = CALayer()
         landLayer.frame = view.bounds
@@ -1017,24 +1169,24 @@ final class GameViewController: UIViewController {
         flow.frame = view.bounds
         flow.path = river.cgPath
         flow.fillColor = nil
-        flow.strokeColor = UIColor(white: 1, alpha: 0.55).cgColor
-        flow.lineWidth = 1.6
-        flow.lineDashPattern = [5, 16]
+        flow.strokeColor = UIColor(white: 1, alpha: 0.6).cgColor
+        flow.lineWidth = 1.2
+        flow.lineDashPattern = [4, 17]
         flow.lineCap = .round
         let fa = CABasicAnimation(keyPath: "lineDashPhase")
-        fa.fromValue = 0; fa.toValue = -21; fa.duration = 1.3; fa.repeatCount = .infinity
+        fa.fromValue = 0; fa.toValue = -21; fa.duration = 1.5; fa.repeatCount = .infinity
         flow.add(fa, forKey: "flow")
         put(flow)
         // the railroad: a rail with ties across it
         let tp = UIBezierPath()
-        for i in 0..<(n - 1) { for a in stops(i) { for b in stops(i + 1) { tp.move(to: a); tp.addQuadCurve(to: b, controlPoint: bend(a, b)) } } }
+        for i in 0..<(n - 1) { let a = stop(i), b = stop(i + 1); tp.move(to: a); tp.addQuadCurve(to: b, controlPoint: bend(a, b, i)) }
         let ties = CAShapeLayer()
         ties.frame = view.bounds; ties.path = tp.cgPath; ties.fillColor = nil
-        ties.strokeColor = ink.withAlphaComponent(0.7).cgColor; ties.lineWidth = 8; ties.lineDashPattern = [1.6, 6]
+        ties.strokeColor = ink.withAlphaComponent(0.8).cgColor; ties.lineWidth = 6; ties.lineDashPattern = [1.3, 4.7]
         put(ties)
         let track = CAShapeLayer()
         track.frame = view.bounds; track.path = tp.cgPath; track.fillColor = nil
-        track.strokeColor = ink.withAlphaComponent(0.85).cgColor; track.lineWidth = 2
+        track.strokeColor = ink.withAlphaComponent(0.9).cgColor; track.lineWidth = 1.6
         put(track)
         // cloud shadows crossing the country
         for i in 0..<2 {
@@ -1049,28 +1201,21 @@ final class GameViewController: UIViewController {
             put(cs)
         }
         // a train working the line you have already opened
-        var done: [CGPoint] = []
-        for i in 0...cur {
-            let li = lap * n + i
-            let key = i == cur ? game.place : (li < game.log.count ? game.log[li] : STAGES[i][0])
-            let pts = stops(i)
-            done.append(pts[min(pts.count - 1, max(0, STAGES[i].firstIndex(of: key) ?? 0))])
-        }
-        if done.count > 1 {
+        if cur > 0 {
             let rp = UIBezierPath()
-            rp.move(to: done[0])
-            for (k, p) in done.enumerated() where k > 0 { rp.addQuadCurve(to: p, controlPoint: bend(done[k - 1], p)) }
+            rp.move(to: stop(0))
+            for k in 1...cur { rp.addQuadCurve(to: stop(k), controlPoint: bend(stop(k - 1), stop(k), k - 1)) }
             let loco = CAShapeLayer()
-            let lp = UIBezierPath(roundedRect: CGRect(x: -9, y: -4, width: 18, height: 8), cornerRadius: 2)
-            lp.append(UIBezierPath(rect: CGRect(x: 3, y: -8, width: 4, height: 5)))
-            lp.append(UIBezierPath(rect: CGRect(x: -22, y: -3.5, width: 11, height: 7)))
+            let lp = UIBezierPath(roundedRect: CGRect(x: -7, y: -3, width: 14, height: 6), cornerRadius: 1.5)
+            lp.append(UIBezierPath(rect: CGRect(x: 2, y: -6, width: 3, height: 4)))
+            lp.append(UIBezierPath(rect: CGRect(x: -17, y: -2.5, width: 8, height: 5)))
             loco.path = lp.cgPath
             loco.fillColor = UIColor(red: 0.48, green: 0.14, blue: 0.11, alpha: 1).cgColor
             loco.strokeColor = ink.cgColor; loco.lineWidth = 1
-            loco.position = done[0]
+            loco.position = stop(0)
             let ka = CAKeyframeAnimation(keyPath: "position")
             ka.path = rp.cgPath; ka.calculationMode = .paced; ka.rotationMode = .rotateAuto
-            ka.duration = 3.2 * Double(done.count - 1); ka.repeatCount = .infinity
+            ka.duration = 3.2 * Double(cur); ka.repeatCount = .infinity
             loco.add(ka, forKey: "run")
             put(loco)
         }
@@ -1091,40 +1236,64 @@ final class GameViewController: UIViewController {
         wa.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
         rose.add(wa, forKey: "wobble")
         put(rose)
+        // the title block's lettering
+        let head = UILabel(frame: CGRect(x: cart.minX + 6, y: cart.minY + 4, width: cart.width - 12, height: 21))
+        head.text = choose ? "The line forks. Where to?" : "The Territory"
+        head.font = rye(17); head.textColor = rust; head.textAlignment = .center
+        head.adjustsFontSizeToFitWidth = true; head.minimumScaleFactor = 0.6
+        mapBox.addSubview(head)
+        let sub = UILabel(frame: CGRect(x: cart.minX + 6, y: cart.minY + 24, width: cart.width - 12, height: 13))
+        sub.text = "The Crane C. & R. line and its five towns"
+        sub.font = UIFont(name: "Georgia-Italic", size: 9.5) ?? serif(9.5, bold: false); sub.textColor = ink; sub.textAlignment = .center
+        sub.adjustsFontSizeToFitWidth = true; sub.minimumScaleFactor = 0.7
+        mapBox.addSubview(sub)
+        // the towns: a ringed dot each, filled where you have been, red where you stand
         for (i, opts) in STAGES.enumerated() {
-            let x = l + CGFloat(i) * cw
-            for (k, key) in opts.enumerated() {
-                guard let pl = PLACES[key] else { continue }
-                let y = 82 + CGFloat(k) * rowH + (opts.count == 1 ? rowH / 2 : 0)
-                let li = lap * n + i
-                let been = i < cur && li < game.log.count && game.log[li] == key
-                let hereNow = i == cur && key == game.place
-                let pick = choose && i == nxt
-                let b = UIButton(type: .system)
-                style(b, "", primary: pick)
-                let bwid = min(cw - 8, 128)
-                b.frame = CGRect(x: x + (cw - bwid) / 2, y: y, width: bwid, height: 44)
-                let second = hereNow ? "Here, day \(game.day - game.day0)" : (been ? "Rebuilt" : pl.land)
-                b.setTitle(nice(pl.name) + "\n" + second, for: .normal)
-                b.titleLabel?.numberOfLines = 2
-                b.titleLabel?.textAlignment = .center
-                b.titleLabel?.font = serif(12)
-                b.titleLabel?.adjustsFontSizeToFitWidth = true
-                b.isUserInteractionEnabled = pick
-                b.accessibilityIdentifier = key
-                b.addTarget(self, action: #selector(pickPlace(_:)), for: .touchUpInside)
-                if hereNow { b.layer.borderColor = gold.cgColor; b.layer.borderWidth = 2 }
-                if hereNow || pick {
-                    // where you are, and where you may go, glow slowly
-                    b.layer.shadowColor = (hereNow ? gold : UIColor.white).cgColor
-                    b.layer.shadowOffset = .zero; b.layer.shadowRadius = 10
-                    let ga = CABasicAnimation(keyPath: "shadowOpacity")
-                    ga.fromValue = 0.15; ga.toValue = 1; ga.duration = 0.9; ga.autoreverses = true; ga.repeatCount = .infinity
-                    b.layer.add(ga, forKey: "glow")
-                }
-                if !pick && !hereNow && !been { b.alpha = 0.72 }
-                mapBox.addSubview(b)
+            guard let key = opts.first, let pl = PLACES[key] else { continue }
+            let p = stop(i)
+            let li = lap * n + i
+            let been = i < cur && li < game.log.count && game.log[li] == key
+            let hereNow = i == cur && key == game.place
+            let pick = choose && i == nxt
+            let ring = CAShapeLayer()
+            ring.path = UIBezierPath(ovalIn: CGRect(x: -6, y: -6, width: 12, height: 12)).cgPath
+            ring.fillColor = paper.cgColor; ring.strokeColor = ink.cgColor; ring.lineWidth = 1.7
+            ring.position = p
+            put(ring)
+            if been || hereNow {
+                let dot = CAShapeLayer()
+                dot.path = UIBezierPath(ovalIn: CGRect(x: -3.2, y: -3.2, width: 6.4, height: 6.4)).cgPath
+                dot.fillColor = (hereNow ? rust : ink).cgColor
+                dot.position = p
+                put(dot)
             }
+            if hereNow || pick {
+                // where you are, and where you may go, glow slowly
+                let halo = CAShapeLayer()
+                halo.path = UIBezierPath(ovalIn: CGRect(x: -11, y: -11, width: 22, height: 22)).cgPath
+                halo.fillColor = nil; halo.strokeColor = (hereNow ? gold : UIColor.white).cgColor; halo.lineWidth = 2.4
+                halo.position = p
+                let ga = CABasicAnimation(keyPath: "opacity")
+                ga.fromValue = 0.15; ga.toValue = 1; ga.duration = 0.9; ga.autoreverses = true; ga.repeatCount = .infinity
+                halo.add(ga, forKey: "glow")
+                put(halo)
+            }
+            let b = UIButton(type: .custom)
+            b.frame = plates[i]
+            let second = hereNow ? "Here, day \(game.day - game.day0)" : (been ? "Rebuilt" : pl.land)
+            let ps = NSMutableParagraphStyle()
+            ps.alignment = .center
+            let at = NSMutableAttributedString(string: nice(pl.name), attributes: [.font: rye(14), .foregroundColor: hereNow ? rust : ink, .paragraphStyle: ps])
+            at.append(NSAttributedString(string: "\n" + second, attributes: [.font: UIFont(name: "Georgia-Italic", size: 10.5) ?? serif(10.5, bold: false), .foregroundColor: ink.withAlphaComponent(0.85), .paragraphStyle: ps]))
+            b.setAttributedTitle(at, for: .normal)
+            b.titleLabel?.numberOfLines = 2
+            b.titleLabel?.textAlignment = .center
+            b.titleLabel?.layer.shadowColor = paper.cgColor
+            b.titleLabel?.layer.shadowOffset = .zero; b.titleLabel?.layer.shadowRadius = 2; b.titleLabel?.layer.shadowOpacity = 1
+            b.isUserInteractionEnabled = pick
+            b.accessibilityIdentifier = key
+            b.addTarget(self, action: #selector(pickPlace(_:)), for: .touchUpInside)
+            mapBox.addSubview(b)
         }
         if !choose {
             let back = UIButton(type: .system)
@@ -1139,7 +1308,7 @@ final class GameViewController: UIViewController {
             mapBox.addSubview(ft)
         }
     }
-    @objc private func nextBeat() { if !game.cut.isEmpty && cutT > 0.9 { game.cut.removeFirst(); sound.click() } }
+
     @objc private func openMap() { showMap(choose: false) }
     @objc private func closeMap() { mapBox.isHidden = true }
     @objc private func pickPlace(_ b: UIButton) {
@@ -1179,6 +1348,7 @@ final class GameViewController: UIViewController {
         game.input.toss = tToss || tossLatch
         game.input.fire = tFire || fireLatch
         tossLatch = false; fireLatch = false
+        game.holdHint = logoOn || nameDue
         if !userPaused { game.update(min(0.05, max(0, raw))) }
         // the name over the first morning stands through the end of the opening, then burns off as the day starts
         let st = game.state
@@ -1312,7 +1482,7 @@ final class GameViewController: UIViewController {
         let tm = game.dark() > 0.5 ? "night" : (game.t > 0.6 ? "dusk" : "")
         let wn = game.cloudI() > 0.2 || game.wx == 1 || (game.wx == 2) ? game.wxName() : ""
         set(dayLabel, wn.isEmpty ? "Day \(game.day)" + (tm.isEmpty ? "" : ", " + tm) : "Day \(game.day), \(wn.lowercased())")
-        hint.isHidden = game.hintT <= 0 || userPaused
+        hint.isHidden = game.hintT <= 0 || userPaused || logoOn
         // the morning's takings: a card that fills in row by row, then goes
         if game.dawnSeq != dawnSeen { dawnSeen = game.dawnSeq; showDawn() }
         if !dawnCard.isHidden {
@@ -1323,7 +1493,7 @@ final class GameViewController: UIViewController {
             }
         }
         // the next thing worth doing, shown small under the purse whenever no message is up
-        let adv = hint.isHidden && !userPaused ? game.advice() : ""
+        let adv = hint.isHidden && !userPaused && !logoOn ? game.advice() : ""
         adviceLabel.isHidden = adv.isEmpty
         if !adv.isEmpty && adviceLabel.text != adv {
             adviceLabel.text = adv
