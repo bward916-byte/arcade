@@ -3466,8 +3466,9 @@ final class Renderer {
         let life = g.bio == .snow ? 14.0 : 4.0
         for p in g.prints where vis(p.x, 10) {
             let a = max(0, 1 - p.age / life), x = sx(p.x)
-            let col = g.bio == .snow ? Col(0x9aaac4, 0.55 * a) : Col(0x6a4a2e, 0.28 * a)
-            c.ell(x, gy + 3, 1.6, 0.6, col); c.ell(x + p.dir * 5, gy + 5, 1.6, 0.6, col)
+            let col = g.bio == .snow ? Col(0x6f82a8, 0.85 * a) : Col(0x5a3e26, 0.45 * a)
+            c.ell(x, gy + 3, 2.6, 1.1, col); c.ell(x + p.dir * 5, gy + 5.5, 2.6, 1.1, col)
+            if g.bio == .snow { c.ell(x, gy + 2.4, 2.6, 0.5, Col(0xffffff, 0.7 * a)); c.ell(x + p.dir * 5, gy + 4.9, 2.6, 0.5, Col(0xffffff, 0.7 * a)) }
         }
     }
 

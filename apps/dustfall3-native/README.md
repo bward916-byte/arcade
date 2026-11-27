@@ -37,3 +37,12 @@ Not ported: the handcar spur (removed from the web game too) and the cave (switc
 - Same bundle ID as the web-wrapped app (`com.brianward.dustfall3`, team `55NAZA6UKE`), so a finished native build can replace it in the same App Store record. Until then it uploads as **version 1.1** with build numbers from 101, so it sits in its own TestFlight group and cannot be confused with the 1.0 builds in review.
 - The Xcode project is generated from `project.yml` by XcodeGen, so there is no `.xcodeproj` in the repo.
 - Build: the "Dustfall III Native iOS" workflow runs on every push to this branch that touches this folder. It compiles on a GitHub Mac, takes simulator screenshots, uploads to TestFlight, and writes the result to the `dustfall3-native-buildlog` branch.
+
+## Builds 128 to 170
+
+- One line of five towns: Dustfall (desert), Redwater (river), Timberline (pines), Iron Gulch (canyon), Bitter End (snow). No forks.
+- Dustfall is free; the rest is a one-time purchase (`com.brianward.dustfall3.fullgame`, StoreKit 2 in `Shop.swift`).
+- Each later town has its own trade (ferry, sawmill, smelter, fur trader), its own western sights and its own building style.
+- Bitter End has no station. Gather 12 townsfolk, ride out the east gate to Crane's yard; the rout plays the ending and returns to the title.
+- `TESTBUILD` in `Core.swift` keeps the Towns jump menu, the coin cheat, the free unlock when the store has no product, and a march status line. Set it to false for the App Store.
+- Test scenes: launch with `-demo-<name>` (see the list in `App.swift`); the workflow screenshots the ones named in its `for shot in` line.
