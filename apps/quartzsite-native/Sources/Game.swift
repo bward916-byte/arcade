@@ -125,7 +125,7 @@ let AREAS: [AreaDef] = [
         Spot(kind: .fire, x: 1710, name: "NEIGHBORS' FIRE"),
         Spot(kind: .wash, x: 2150, name: "DRY WASH")
     ]),
-    AreaDef(name: "Main Street", sub: "Quartzsite, in season · west to east along Main", w: 5120, arrive: 180, lat: 33.667, lon: -114.214, spots: [
+    AreaDef(name: "Main Street", sub: "Quartzsite, in season · west to east along Main", w: 5420, arrive: 180, lat: 33.667, lon: -114.214, spots: [
         Spot(kind: .gemworld, x: 550, name: "GEM WORLD"),
         Spot(kind: .landmark, x: 760, name: "HI JOLLY MONUMENT", arg: 0),
         Spot(kind: .lot, x: 880, name: "USED RIGS"),
@@ -157,7 +157,7 @@ let AREAS: [AreaDef] = [
         Spot(kind: .camel, x: 5040, name: "CAMEL SCULPTURE", arg: 3),
         Spot(kind: .terribles, x: 150, name: "TERRIBLE'S"),
         Spot(kind: .carls, x: 345, name: "CARL'S JR."),
-        Spot(kind: .solar, x: 1730, name: "SOLAR BILL'S")
+        Spot(kind: .solar, x: 5250, name: "SOLAR BILL'S")
     ]),
     AreaDef(name: "Tyson Wells", sub: "The show grounds on Kuehn Street", w: 3340, arrive: 160, lat: 33.6625, lon: -114.2215, spots: [
         Spot(kind: .tools, x: 380, name: "K&B TOOLS"),
@@ -1398,7 +1398,7 @@ final class Game {
         if key == "west" { place(.main, 250); dayT = 0.4; clockFreeze = true }
         if key == "nugget" { place(.dome, 3120); dayT = 0.4; clockFreeze = true }
         if key == "beerbelly" { place(.tyson, 470); dayT = 0.5; clockFreeze = true }
-        if key == "solar" { place(.main, 1730); dayT = 0.4; clockFreeze = true }
+        if key == "solar" { place(.main, 5250); dayT = 0.4; clockFreeze = true }
         if key == "pool" { place(.tyson, 3090); dayT = 0.5; clockFreeze = true }
         if key == "custom" { place(.ltva, 1180); dayT = 0.5; clockFreeze = true; stripe = 3; flag = 2; customOpen = true }
         if key == "mapq" { place(.ltva, 1180); mapOpen = true; mapQuad = 1 }

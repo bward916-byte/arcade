@@ -2498,17 +2498,17 @@ final class Renderer {
             c.R(x - 36, GY - 30, 66, 5, Col(0xc8281e).shade(1 - dark * 0.35)); c.R(x - 36, GY - 25.4, 66, 1, Col(0xf2c418).shade(1 - dark * 0.35))
             pane(x - 30, GY - 19, 14, 11); pane(x - 14, GY - 19, 14, 11); doorway(x + 3, GY - 19, 9, 19, Col(0x5a5a5e))
             c.RR(x + 16, GY - 17, 9, 7, 0.8, GLASS.shade(1 - dark * 0.3)); c.R(x + 15, GY - 10, 11, 1, Col(0x8a8f96))
-            c.R(x - 52.6, GY - 48, 1.6, 48, Col(0x8a8a88))
-            c.RR(x - 66, GY - 60, 28, 14, 2, Col(0xc8281e).shade(1 - dark * 0.3))
-            g.text("CARL'S JR.", x - 52, GY - 53, 3.8, Col(0xf8e8a0), bold: true)
-            c.RR(x - 64, GY - 44, 24, 6, 1, Col(0xf4f4f0).shade(1 - dark * 0.3))
-            g.text("DRIVE THRU", x - 52, GY - 41, 2.6, INK, bold: true)
+            c.R(x - 3.8, GY - 36, 1.6, 6, Col(0x8a8a88))
+            c.RR(x - 17, GY - 49, 28, 14, 2, Col(0xc8281e).shade(1 - dark * 0.3))
+            g.text("CARL'S JR.", x - 3, GY - 42, 3.8, Col(0xf8e8a0), bold: true)
+            c.RR(x + 30, GY - 38, 24, 6, 1, Col(0xf4f4f0).shade(1 - dark * 0.3))
+            g.text("DRIVE THRU", x + 42, GY - 35, 2.6, INK, bold: true)
             c.RR(x + 36, GY - 20, 12, 14, 1, Col(0x2a2a2e)); c.R(x + 41.4, GY - 6, 1.2, 6, Col(0x5a5a5a))
             for q in 0..<4 { c.R(x + 37.4, GY - 18.6 + Double(q) * 3, 9.2, 2, [Col(0xf2c418), Col(0xe8782e), Col(0xf4f4f0), Col(0xc8281e)][q].shade(0.9)) }
             g.text("SORRY, NO RANCH", x + 42, GY - 23, 2.2, Col(0xf8e8a0), bold: true, plate: true)
             if g.phase == .play { toy(4, x + 30, GY + 2, 1, 740, 0) }
             c.poly(Col(0xf4f4f0, 0.8), [x + 52, GY + 5, x + 58, GY + 3, x + 58, GY + 7])
-            if dark > 0.3 { lights.append((x - 52, GY - 53, 24)); lights.append((x - 10, GY - 14, 30)) }
+            if dark > 0.3 { lights.append((x - 3, GY - 42, 24)); lights.append((x - 10, GY - 14, 30)) }
             label = false
             top = 66
         case .terribles:
@@ -3343,7 +3343,7 @@ final class Renderer {
     /// Life on the hills behind: scattered small rocks, a few outcrops, a dirt track winding across, and far-off campers.
     private func hillDetail(_ par: Double, _ seed: Double, _ base: Double, _ amp: Double, _ col: Col) {
         let rockC = col.shade(0.76)
-        let track = Col(0xe8d0a8, 0.28).shade(1 - dark * 0.5)
+        let track = Col(0xe8d0a8, 0.42).shade(1 - dark * 0.5)
         var px = -6.0
         var lastY = 0.0
         var have = false
@@ -3412,7 +3412,7 @@ final class Renderer {
                 if kind > 0.93 {
                     c.poly(rockC, [sx - 4, y + 1, sx - 2.4, y - 2.6, sx + 0.6, y - 3.4, sx + 3.6, y - 1.4, sx + 4.6, y + 1])
                     c.poly(rockC.shade(1.25), [sx - 2.4, y - 2.6, sx + 0.6, y - 3.4, sx + 0.2, y - 1.6])
-                } else if kind > 0.76 && !g.inPast && g.phase == .play {
+                } else if kind > 0.64 && !g.inPast && g.phase == .play {
                     let hv = hashN(n + seed * 11 + 6030)
                     if hv < 0.3 {
                         // a trailer with its truck
@@ -3785,7 +3785,7 @@ final class Renderer {
         for r in 0..<2 { c.R(bx + 2, y0 + 39 + Double(r) * 10, bw - 4, 0.8, Col(0x8a6238)); for q in 0..<Int(bw / 5) { c.RR(bx + 4 + Double(q) * 5, y0 + 32.4 + Double(r) * 10, 2.2, 6.4, 0.8, glass[(q + r) % 5]) } }
         c.RR(bx + bw * 0.3, y0 + 23, bw * 0.4, 6, 3, Col(0xff5a6a, 0.25 + 0.1 * sin(NOW * 3)))
         g.text("PIZZA · COLD BEER", bx + bw * 0.5, y0 + 26, 3.6, Col(0xff8a9a), bold: true)
-        person(bx + bw * 0.72, fl - 10, 640, -1, 0, false)
+        person(bx + bw * 0.72, fl - 14, 640, -1, 0, false)
         c.R(bx - 2, fl - 26, bw + 4, 3, Col(0xb8742e)); c.R(bx, fl - 23, bw, 23, Col(0x7a4a2a))
         for q in 0..<5 {
             let sx = bx + 10 + Double(q) * (bw - 20) / 4
@@ -4327,7 +4327,8 @@ final class Renderer {
         // the Dome Rock Mountains and the river side
         let dr = mp(33.635, -114.345)
         if !big || inside(33.635, -114.345) { c.ell(dr.0, dr.1, 16, 7, Col(0xb48a62)); c.ell(dr.0 + 6, dr.1 - 2, 9, 5, Col(0xa47a52)) }
-        c.curve(mx0 + 3, my0 + 4, mx0 + 8, my0 + mh * 0.5, mx0 + 2, my0 + mh - 4, 1.6, Col(0x4a86b0))
+        let riverSide = !big || g.mapQuad % 2 == 0
+        if riverSide { c.curve(mx0 + 3, my0 + 4, mx0 + 8, my0 + mh * 0.5, mx0 + 2, my0 + mh - 4, 1.6, Col(0x4a86b0)) }
         // I-10 and Highway 95
         let road = Col(0x6a5a4a)
         let i10: [(Double, Double)] = [(33.622, -114.42), (33.648, -114.33), (33.662, -114.25), (33.664, -114.18), (33.655, -114.13)]
@@ -4340,7 +4341,7 @@ final class Renderer {
         let lab10 = mp(33.652, -114.29), lab95 = mp(33.60 + 0.02, -114.211)
         g.text("I-10", lab10.0, lab10.1 - 5, 3.6, ink.alpha(0.6), bold: true)
         g.text("95", lab95.0 + 4, lab95.1, 3.6, ink.alpha(0.6), bold: true)
-        g.text("to the river", mx0 + 14, my0 + mh - 20, 3.2, Col(0x2a5a80), align: 1)
+        if riverSide { g.text("to the river", mx0 + 14, my0 + mh - 20, 3.2, Col(0x2a5a80), align: 1) }
         for a in AREAS.indices {
             let d = AREAS[a]
             if big && !inside(d.lat, d.lon) { continue }
@@ -4356,9 +4357,11 @@ final class Renderer {
             if !here { g.hits.append(Hit(id: 70 + a, x: p.0 - 9, y: p.1 - 9, w: 18, h: 18)) }
         }
         let iceLabel = g.era == 2 ? "GO TO THE YEAR 1026" : "GO BACK 13,000 YEARS"
-        c.RR(mx0 + 10, my0 + mh - 15, 84, 12, 6, Col(0x4a6a8a))
-        g.text(iceLabel, mx0 + 52, my0 + mh - 9, 3.8, CREAM, bold: true)
-        g.hits.append(Hit(id: 57, x: mx0 + 8, y: my0 + mh - 18, w: 88, h: 18))
+        if !big {
+            c.RR(mx0 + 10, my0 + mh - 15, 84, 12, 6, Col(0x4a6a8a))
+            g.text(iceLabel, mx0 + 52, my0 + mh - 9, 3.8, CREAM, bold: true)
+            g.hits.append(Hit(id: 57, x: mx0 + 8, y: my0 + mh - 18, w: 88, h: 18))
+        }
         if !g.inPast && (!big || inside(33.607, -114.204)) {
             let mc = mp(33.607, -114.204)
             c.circ(mc.0, mc.1, 1.6, Col(0x6a3a7a))
