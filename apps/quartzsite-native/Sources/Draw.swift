@@ -2348,7 +2348,7 @@ final class Renderer {
                 for j in 0..<3 { let hx = x - 12 + Double(j) * 9; doorway(hx - 3, GY - 5, 6, 5, Col(0xb89a74)); c.poly(Col(0x7a4a34), [hx - 4, GY - 5, hx, GY - 8, hx + 4, GY - 5]) }
                 cholla(x - 34, GY + 1, 0.8, 12); creosote(x + 34, GY + 1, 13)
                 c.R(x - 1, GY - 16, 2, 0.1, wood)
-                g.text("CELIA'S RAINBOW GARDENS", x, GY - 58, 3.8, CREAM, bold: true)
+                g.text("CELIA'S RAINBOW GARDENS", x, GY - 58, 3.8, CREAM, bold: true, plate: true)
                 label = false
                 top = 60
             } else if sp.arg == 2 {
