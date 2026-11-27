@@ -4612,8 +4612,8 @@ final class Renderer {
             // Gold Nugget Road: the old mines out past Dome Rock
             let gn = mp(33.618, -114.305)
             c.circ(gn.0, gn.1, big ? 2.4 : 1.8, Col(0xb8862e)); c.circ(gn.0, gn.1, big ? 1 : 0.7, Col(0xfff0a0))
-            g.text("Gold Nugget Rd", gn.0 + 3.4, gn.1 + 1, big ? 4.2 : 3.2, Col(0x6a4a1e), align: 1, bold: true)
-            g.hits.append(Hit(id: 304, x: gn.0 - 8, y: gn.1 - 7, w: 54, h: 14))
+            g.text("Gold Nugget Rd", gn.0 - 3.4, gn.1 + 4.4, big ? 4.2 : 3.2, Col(0x6a4a1e), align: 2, bold: true)
+            g.hits.append(Hit(id: 304, x: gn.0 - 48, y: gn.1 - 6, w: 56, h: 16))
         }
         if !g.inPast && (!big || inside(33.607, -114.204)) {
             let mc = mp(33.607, -114.204)
@@ -4663,7 +4663,7 @@ final class Renderer {
         g.text(nowLine, x0 + 10, cy, 4.4, ink, align: 1, bold: true, wrap: x1 - x0 - 20)
         if !next.isEmpty && !g.inPast {
             let up = next.prefix(2).map { EVENTS[$0].name + " (" + EVENTS[$0].when + ", " + AREAS[EVENTS[$0].area.rawValue].name + ")" }
-            g.text("Coming up: " + up.joined(separator: " · "), x0 + 10, cy + 11, 4, ink.alpha(0.75), align: 1, wrap: x1 - x0 - 20)
+            g.text("Coming up: " + up.joined(separator: " · "), x0 + 10, cy + 11, 4, ink.alpha(0.75), align: 1, wrap: x1 - x0 - 130)
         }
         #if DEBUG
         // testing only, never in a released build: skip a week to reach the events
