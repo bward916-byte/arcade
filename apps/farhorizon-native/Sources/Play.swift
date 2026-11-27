@@ -24,7 +24,7 @@ final class Play {
     var dir = 1.0
     var stopOnHit = false
     // taps
-    var targets: [(x: Double, y: Double, age: Double, life: Double, state: Int)] = []
+    var targets: [(x: Double, y: Double, age: Double, life: Double, state: Int, gold: Bool)] = []
     var spawnT = 0.7
     var spawned = 0
     var total = 6
@@ -35,6 +35,9 @@ final class Play {
     var open: [Double] = []
     var picksLeft = 3
     var found: [Int] = []
+    /// one crate with something in it glints for a moment at the start: a clue for sharp eyes
+    var tell = -1
+    var tellHold = false
     // shared
     var t = 0.0
     var msg = ""
@@ -145,9 +148,12 @@ extension Game {
                     x = rnd(W * 0.6, W - safeR - 50)
                     y = rnd(wy - 6, H - safeB - 40)
                 }
-                p.targets.append((x, y, 0, p.life, 0))
+                // now and then a quick golden one, worth a little prize
+                let gold = p.spawned > 0 && chance(0.18)
+                p.targets.append((x, y, 0, p.life * (gold ? 0.75 : 1), 0, gold))
                 p.spawned += 1
-                p.spawnT = rnd(0.45, 0.85)
+                // they come faster as it goes on
+                p.spawnT = rnd(0.45, 0.85) * (1 - 0.35 * Double(p.spawned) / Double(max(1, p.total)))
                 if p.theme == "leak" { snd?.splash() }
             }
             var open = 0
@@ -245,7 +251,13 @@ extension Game {
                 p.bestStreak = max(p.bestStreak, p.streak)
                 let tq = p.targets[best]
                 // quicker taps earn a louder cheer
-                p.pop(tq.x, tq.y - 30, "+1", true)
+                if tq.gold {
+                    gold += 5
+                    snd?.coin()
+                    p.pop(tq.x, tq.y - 34, "Quick hands! +5 gold", true, big: true)
+                } else {
+                    p.pop(tq.x, tq.y - 30, "+1", true)
+                }
                 if p.streak >= 3 { p.pop(tq.x, tq.y - 52, "\(p.streak) in a row!", true, big: p.streak >= 5) }
                 for j in 0..<10 {
                     let a = Double(j) / 10 * PI * 2
@@ -432,6 +444,15 @@ extension Game {
             for tg in p.targets {
                 if tg.state == 0 {
                     let k = clampD(tg.age / tg.life, 0, 1)
+                    if tg.gold {
+                        let pr = 30 + sin(T * 12) * 3
+                        c.circ(tg.x, tg.y, pr, Col(0xffd257, 0.18))
+                        c.circStroke(tg.x, tg.y, pr, 2.4, Col(0xffe08a, 0.95))
+                        for j in 0..<4 {
+                            let a = T * 3 + Double(j) * PI / 2
+                            c.circ(tg.x + cos(a) * pr, tg.y + sin(a) * pr, 2.6, Col(0xfff6d8))
+                        }
+                    }
                     if p.theme == "leak" {
                         // water jetting from a sprung plank
                         for j in 0..<5 {
@@ -555,6 +576,14 @@ extension Game {
                         c.ellStroke(cx, iy + 22, 28, 4, 1, Col(0xffffff, 0.5))
                     }
                     c.text("?", cx, q.1 + q.3 - 10, 15, CREAM.alpha(0.8), 0, FONTB)
+                    if i == p.tell && (p.tellHold || (p.t > 0.6 && p.t < 1.5)) {
+                        // a glint: there is something in this one
+                        let gk = p.tellHold ? 1.0 : sin((p.t - 0.6) / 0.9 * PI)
+                        let gx = cx + 16, gy = iy - 14, gl = 13 * gk
+                        c.seg(gx - gl, gy, gx + gl, gy, 2, Col(0xfff6d8, gk)); c.seg(gx, gy - gl, gx, gy + gl, 2, Col(0xfff6d8, gk))
+                        c.seg(gx - gl * 0.5, gy - gl * 0.5, gx + gl * 0.5, gy + gl * 0.5, 1.2, Col(0xffe08a, gk)); c.seg(gx - gl * 0.5, gy + gl * 0.5, gx + gl * 0.5, gy - gl * 0.5, 1.2, Col(0xffe08a, gk))
+                        c.circ(gx, gy, 3 * gk, WHITE)
+                    }
                 } else {
                     // opened: the lid flies and what was inside pops up
                     let k = min(1, o / 0.35)
@@ -568,6 +597,17 @@ extension Game {
                     c.scale(pop, pop)
                     spotIcon(c, what, 0, 0, 38)
                     c.restore()
+                    if o < 0.6 && p.theme != "island" {
+                        // the lid spinning away
+                        let lk = o / 0.6
+                        c.save()
+                        c.alpha(1 - lk)
+                        c.translate(cx + lk * 34, q.1 + q.3 * 0.2 - sin(lk * PI) * 46)
+                        c.rotate(lk * 3.2)
+                        c.RR(-22, -4, 44, 8, 2, p.theme == "ghost" ? Col(0x3a3f44) : Col(0xa8823f))
+                        c.RRStroke(-22, -4, 44, 8, 2, 1.2, p.theme == "ghost" ? Col(0x8fa0a8) : Col(0x5a3d20))
+                        c.restore()
+                    }
                     c.text(SPOT_NAMES[what], cx, q.1 + q.3 - 10, 13, what == 7 ? Col(0xff9a8a) : (good ? GOLD : CREAM.alpha(0.6)), 0, FONTB)
                 }
                 c.restore()
@@ -836,6 +876,7 @@ extension Game {
             self.done(parts.isEmpty ? "Nothing worth the trouble" : parts.joined(separator: " · "))
         }
         p.spots = spots.shuffled()
+        p.tell = p.spots.indices.filter { p.spots[$0] != 0 && p.spots[$0] != 7 }.randomElement() ?? -1
         p.open = [Double](repeating: -1, count: spots.count)
         p.picksLeft = picks
         startPlay(p)
