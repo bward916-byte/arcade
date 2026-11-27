@@ -4702,6 +4702,9 @@ final class Renderer {
     }
 
     private func pickOverlay() {
+        // nothing from the scene behind should show through or be tappable
+        g.texts.removeAll(keepingCapacity: true)
+        g.hits.removeAll(keepingCapacity: true)
         c.R(0, 0, W, H, Col(0x0c0a14, 0.6))
         let l = g.safeL + 14
         let uw = W - g.safeL - g.safeR - 28
@@ -4709,25 +4712,25 @@ final class Renderer {
         g.text("HOW DO YOU ROLL?", l, 11, 6, GOLD, align: 1, bold: true)
         let cw = (uw - 8) / 2
         let lifeName = ["NOMAD", "RVER"]
-        let lifeSub = ["Vans, skoolies, Skooliepalooza. Starts with friends (5 cred) and a bicycle.", "A snowbird with a check coming in. Starts with 100 more coins and a side-by-side."]
+        let lifeSub = ["Vans, skoolies and friends. Starts with 5 cred and a bicycle.", "A snowbird with a check coming. Starts with 100 more coins and a side-by-side."]
         for i in 0..<2 {
             let x = l + Double(i) * (cw + 8)
-            card(i, x, 17, cw, 36, g.life.rawValue == i)
-            rig(i == 0 ? .skoolie : .classC, x + 36, 48, i == 0 ? 1 : 0, 1, 0.56)
-            g.text(lifeName[i], x + 74, 28, 9, CREAM, align: 1, bold: true)
-            g.text(lifeSub[i], x + 74 + (cw - 80) / 2, 42, 4.6, CREAM.alpha(0.85), wrap: cw - 80)
+            card(i, x, 17, cw, 38, g.life.rawValue == i)
+            rig(i == 0 ? .skoolie : .classC, x + 27, 50, i == 0 ? 1 : 0, 1, 0.42)
+            g.text(lifeName[i], x + 54, 26, 8, CREAM, align: 1, bold: true)
+            g.text(lifeSub[i], x + 54, 42, 4.2, CREAM.alpha(0.85), align: 1, wrap: cw - 60)
         }
 
-        g.text("YOUR FIRST RIG", l, 64, 6, GOLD, align: 1, bold: true)
+        g.text("YOUR FIRST RIG", l, 66, 6, GOLD, align: 1, bold: true)
         let rw = (uw - 16) / 3
         for i in 0..<3 {
             let x = l + Double(i) * (rw + 8)
-            card(10 + i, x, 70, rw, 42, g.pickRig == i)
-            rig(START_RIGS[i], x + 29, 105, 0, 1, 0.74)
+            card(10 + i, x, 72, rw, 42, g.pickRig == i)
             let cash = Int(START_CASH[i]) + (g.life == .rver ? 100 : 0)
-            g.text(RIGS[START_RIGS[i].rawValue].name, x + 57, 84, 6, CREAM, align: 1, bold: true)
-            coin(x + 60, 96, 3)
-            g.text("start with \(cash)", x + 65, 96, 5.4, GOLD, align: 1)
+            g.text(RIGS[START_RIGS[i].rawValue].name, x + 7, 80, 5.6, CREAM, align: 1, bold: true)
+            rig(START_RIGS[i], x + 30, 109, 0, 1, 0.66)
+            coin(x + rw - 25, 102, 3)
+            g.text("\(cash)", x + rw - 20, 102, 6.4, GOLD, align: 1, bold: true)
         }
 
         g.text("YOU", l, 124, 6, GOLD, align: 1, bold: true)

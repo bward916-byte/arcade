@@ -63,7 +63,7 @@ jobs:
           xcrun simctl boot "$UDID"
           xcrun simctl bootstatus "$UDID" -b
           xcrun simctl install "$UDID" "$APP"
-          for shot in title ltva main; do
+          for shot in pick; do
             xcrun simctl terminate "$UDID" com.brianward.quartzsitewinter 2>/dev/null || true
             if [ "$shot" = title ]; then
               xcrun simctl launch "$UDID" com.brianward.quartzsitewinter
@@ -73,6 +73,29 @@ jobs:
             sleep 6
             xcrun simctl io "$UDID" screenshot "$RUNNER_TEMP/shots/$shot.png"
           done
+          # the same screens on a short, wide phone (iPhone SE), where layouts are tightest
+          SE=$(xcrun simctl list devices available | grep -E "iPhone SE" | head -1 | grep -oE "[0-9A-F-]{36}" || true)
+          if [ -z "$SE" ]; then
+            RT=$(xcrun simctl list runtimes | grep -E "^iOS" | tail -1 | grep -oE "com.apple.CoreSimulator.SimRuntime[A-Za-z0-9.-]+" || true)
+            SE=$(xcrun simctl create "SE check" "com.apple.CoreSimulator.SimDeviceType.iPhone-SE-3rd-generation" "$RT" 2>/dev/null || true)
+          fi
+          echo "se simulator: $SE"
+          if [ -n "$SE" ]; then
+            xcrun simctl boot "$SE" || true
+            xcrun simctl bootstatus "$SE" -b || true
+            xcrun simctl install "$SE" "$APP" || true
+            for shot in pick title previews rules map ltva main phone; do
+              xcrun simctl terminate "$SE" com.brianward.quartzsitewinter 2>/dev/null || true
+              if [ "$shot" = title ]; then
+                xcrun simctl launch "$SE" com.brianward.quartzsitewinter || true
+              else
+                xcrun simctl launch "$SE" com.brianward.quartzsitewinter "-demo-$shot" || true
+              fi
+              sleep 6
+              xcrun simctl io "$SE" screenshot "$RUNNER_TEMP/shots/se_$shot.png" || true
+            done
+            xcrun simctl shutdown "$SE" || true
+          fi
           # if a demo crashed, keep the crashing thread for the log
           CR=$(ls -t "$HOME"/Library/Logs/DiagnosticReports/*uartzsite* 2>/dev/null | head -1)
           if [ -n "$CR" ]; then
