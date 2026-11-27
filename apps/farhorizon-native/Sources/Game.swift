@@ -112,6 +112,12 @@ final class Game {
     var nextEvAt = 0.0
     /// The rare sights: each can be met once in a voyage, and most voyages meet only one or two.
     var rareSeen: Set<String> = []
+    /// Whether to offer a small game now: only well clear of the events either side, and only in about half the gaps.
+    func offerDue() -> Bool {
+        if !offerK.isEmpty || offerDone || nowDays() < lastEvEnd + 4 || nextEvAt - nowDays() < 4 { return false }
+        offerDone = true
+        return chance(0.5)
+    }
     func nowDays() -> Double { return (Double(day - 1) + dayT / DAYLEN) * Double(SUNS) }
     /// Leagues between two ports, as the chart shows them.
     func legDist(_ a: Port, _ b: Port) -> Double {
@@ -563,7 +569,7 @@ final class Game {
         dist = 0; dayT = 0; sinceEvent = 0
         legAte = 0; legDrank = 0
         evMarks = []
-        nextEvAt = nowDays() + rnd(2, 4)
+        nextEvAt = nowDays() + rnd(4, 6)
         lastEvEnd = nowDays(); offerDone = false; offerK = ""
         autoPost()
         mode = .sail
@@ -728,7 +734,7 @@ final class Game {
                 if !sceneK.isEmpty {
                     // whatever it was is over: nothing more for a week at the least
                     sceneK = ""
-                    nextEvAt = nowDays() + rnd(4, 6)
+                    nextEvAt = nowDays() + rnd(9, 13)
                     lastEvEnd = nowDays(); offerDone = false
                 }
                 // she gathers way again after whatever stopped her
@@ -745,9 +751,8 @@ final class Game {
                 legAte += f0 - food
                 if dist >= legLen {
                     arrive()
-                } else if offerK.isEmpty && !offerDone && nowDays() > lastEvEnd + 1.2 && nextEvAt - nowDays() > 1.6 {
-                    // midway between events, offer something to do
-                    offerDone = true
+                } else if offerDue() {
+                    // midway between some events, not all, offer something to do
                     var pool = ["flyfish", "trim", "cask", "gleam", "turtle", "gulls", "chest"]
                     if bait > 0 { pool.append("fishing") }
                     offerK = pool.randomElement() ?? "flyfish"
@@ -755,7 +760,7 @@ final class Game {
                     snd?.bell()
                 } else if nowDays() >= nextEvAt {
                     offerK = ""
-                    nextEvAt = nowDays() + rnd(4, 6)
+                    nextEvAt = nowDays() + rnd(9, 13)
                     rollEvent()
                 } else if dayT >= DAYLEN {
                     dayT = 0
