@@ -2728,8 +2728,6 @@ final class Game {
     func advice() -> String {
         if state != .play || over || !cut.isEmpty || gallery != nil || duel != nil || choosing { return "" }
         if dark() > 0.5 { return raidOn ? "Tonight: hold the gates until dawn." : "" }
-        if demoT != nil && !prints.isEmpty || holdRout == -7 { return "dbg prints \(prints.count) age \(prints.first?.age ?? -99) x \(Int(prints.first?.x ?? 0)) px \(Int(px)) cam \(Int(cam))" }
-        if demoT != nil && place == "bitterend" && px < 0 { return "dbg no prints, px \(Int(px))" }
         if TESTBUILD && lastTown && rallyBlock != "done" && folk.filter({ !$0.sick }).count >= RALLY_N {
             // test builds: say exactly where the march stands, so a stuck ending can be pinned down
             let n = folk.filter { !$0.sick }.count, rb = rallyBlock
