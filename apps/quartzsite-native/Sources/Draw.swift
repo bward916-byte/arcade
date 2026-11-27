@@ -325,6 +325,12 @@ final class Renderer {
                 let sx = wx - cam
                 let k = hashN(n + 31 + seed)
                 if g.iceAge { icePlant(sx, k, n) }
+                else if ar == .dome && wx > 2700 && !g.inPast {
+                    // Gold Nugget Road is thick with it: two or three plants where the flats have one
+                    goldPlant(sx, k, n)
+                    goldPlant(sx + 24 + hashN(n + 41) * 10, hashN(n + 131 + seed), n + 500)
+                    if hashN(n + 43) < 0.6 { goldPlant(sx - 20 - hashN(n + 47) * 8, hashN(n + 231 + seed), n + 900) }
+                }
                 else if ar == .skoolie && g.inPast && k < 0.4 { cottonwood(sx, GY + 1, n) }
                 else if ar == .skoolie && k < 0.25 { palm(sx, GY + 1, 40 + hashN(n + 5) * 22, n) }
                 else if k < sagCut {
@@ -4228,10 +4234,69 @@ final class Renderer {
 
     /// Gold Nugget Road, past the cleanup at Dome Rock: two-tracks branching everywhere, tailings, a headframe,
     /// stone ruins, rusted iron, prospect holes, and claim posts.
+    private func goldPlant(_ sx: Double, _ k: Double, _ n: Double) {
+        if k < 0.36 {
+            if hashN(n + 91) < 0.08 { sagSkeleton(sx, GY + 1, 30 + hashN(n + 5) * 24, n) } else { saguaro(sx, GY + 1, 30 + hashN(n + 5) * 36, n, SAG, true) }
+        }
+        else if k < 0.52 { paloverde(sx, GY + 1, n) }
+        else if k < 0.64 { ironwood(sx, GY + 1, n) }
+        else if k < 0.75 { mesquite(sx, GY + 1, n) }
+        else if k < 0.81 { barrel(sx, GY + 1, 0.9 + hashN(n + 8) * 0.6, n) }
+        else if k < 0.9 {
+            // teddy bear cholla comes in patches, a few big ones and their dropped joints rooting around them
+            let cnt = 3 + Int(hashN(n + 9) * 3)
+            for q in 0..<cnt { cholla(sx + (Double(q) - Double(cnt) / 2) * 7 + hashN(n + Double(q)) * 3, GY + 1 + Double(q % 2), 0.6 + hashN(n + Double(q) + 6) * 0.6, n + Double(q)) }
+        }
+        else if k < 0.95 { creosote(sx, GY + 1, n) }
+        else { brittlebush(sx, GY + 1, n) }
+    }
     private func goldRoad() {
         let x0 = 2640.0
-        if cam + W < x0 - 40 { return }
+        if cam + W < x0 - 140 { return }
         let sh = 1 - dark * 0.5
+        // the mountains close in: a dark volcanic range behind, rocky foothills in front, saguaros standing all over the slopes
+        for layer in 0..<2 {
+            let step = layer == 0 ? 70.0 : 46.0
+            let col = (layer == 0 ? Col(0x6e5246) : Col(0x8a6850)).shade(1 - dark * 0.55)
+            var pts: [Double] = []
+            var tops: [(Double, Double)] = []
+            let a = max(0, floor((cam - 200 - x0) / step)), b = floor((cam + W + 200 - x0) / step)
+            if b < a { continue }
+            var i = a
+            pts.append(x0 + (a - 1) * step - cam); pts.append(GY + 1)
+            while i <= b {
+                let wx = x0 + i * step
+                let ramp = min(1, (wx - x0 + 40) / 260)
+                let hh = (layer == 0 ? 46 + hashN(i * 1.7 + 9200) * 52 : 16 + hashN(i * 2.3 + 9300) * 30) * ramp
+                pts.append(wx - cam); pts.append(GY - hh)
+                tops.append((wx - cam, hh))
+                i += 1
+            }
+            pts.append(x0 + (b + 1) * step - cam); pts.append(GY + 1)
+            if pts.count >= 8 { massif(pts, col) }
+            for (q, t) in tops.enumerated() where t.1 > 12 {
+                for r in 0..<3 {
+                    let d = Double(q) * 3 + Double(r) + Double(layer) * 50 + floor(a)
+                    let px = t.0 + (hashN(d + 9400) - 0.5) * step * 0.8
+                    let py = GY - t.1 * (0.15 + hashN(d + 9410) * 0.45)
+                    let hgt = layer == 0 ? 4.0 : 6.5
+                    c.R(px - 0.4, py - hgt, 0.9, hgt, Col(0x4a6a3e).shade(1 - dark * 0.5))
+                    if r != 1 { c.R(px - 1.6, py - hgt * 0.6, 1.3, 0.5, Col(0x4a6a3e).shade(1 - dark * 0.5)); c.R(px - 1.6, py - hgt * 0.8, 0.5, hgt * 0.25, Col(0x4a6a3e).shade(1 - dark * 0.5)) }
+                    if layer == 1 { c.ell(px + 4, py + 1, 2.6, 1.4, Col(0x5e463a).shade(1 - dark * 0.5)); c.ell(px + 3.4, py + 0.4, 1.4, 0.6, Col(0xa88a70).shade(1 - dark * 0.5)) }
+                }
+            }
+        }
+        // boulders and outcrops shouldering up along the track
+        var bn = max(0, floor((cam - 60 - x0) / 58))
+        while x0 + bn * 58 < cam + W + 60 {
+            let wx = x0 + 30 + bn * 58 + hashN(bn + 9500) * 30
+            let hk = hashN(bn + 9510)
+            if !g.spots.contains(where: { abs($0.x - wx) < 40 }) {
+                rock(wx - cam, GY + 1, 3 + hk * 5)
+                if hk > 0.5 { rock(wx - cam + 7, GY + 1.6, 2 + hk * 2); rock(wx - cam - 5, GY + 2, 1.6 + hk) }
+            }
+            bn += 1
+        }
         let d = H - GY
         let sgn = x0 + 60 - cam
         c.R(sgn - 0.5, GY - 26, 1, 27, Col(0x8a8f96))
