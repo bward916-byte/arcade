@@ -777,8 +777,8 @@ final class Game {
                 h.atkStyle = st
             }
             h.crit = -1
-            if h.chain != 3 && sw <= 1 && chance(0.14) { h.crit = Int.random(in: 0..<5); h.atkStyle = [4, 9, 1, 5, 7][h.crit] }
-            if h.chain != 3 && sw > 1 && chance(0.14) { h.crit = sw == 4 ? 3 : (sw == 5 ? 4 : Int.random(in: 0..<3)); h.atkStyle = [4, 9, 1, 5, 7][h.crit] }
+            if h.chain != 3 && sw <= 1 && chance(0.1) { h.crit = Int.random(in: 0..<5); h.atkStyle = [4, 9, 1, 5, 7][h.crit] }
+            if h.chain != 3 && sw > 1 && chance(0.1) { h.crit = sw == 4 ? 3 : (sw == 5 ? 4 : Int.random(in: 0..<3)); h.atkStyle = [4, 9, 1, 5, 7][h.crit] }
             h.atkT = 0
             h.atkHit = false
             if mv == 0 && sw != 2 && sw != 3, let z = nearest(190) { h.face = z.x >= h.x ? 1 : -1 }
@@ -898,12 +898,10 @@ final class Game {
         let near = struck.min(by: { abs($0.x - h.x) < abs($1.x - h.x) })
         switch h.crit {
         case 0:
-            explode(near?.x ?? (h.x + h.face * 90), 180, 70 * dmgMul)
+            splatter(near?.x ?? (h.x + h.face * 90), 180, 70 * dmgMul, h.face)
             if let z = near { launch(z, h.face * 950, -320) }
         case 1:
             explode(h.x + h.face * 90, 200, 90 * dmgMul)
-            nades.append(Nade(x0: h.x + h.face * 250, x1: h.x + h.face * 250, t: 0, dur: 0.14, r: 150, dmg: 50 * dmgMul))
-            nades.append(Nade(x0: h.x + h.face * 400, x1: h.x + h.face * 400, t: 0, dur: 0.26, r: 130, dmg: 40 * dmgMul))
         case 2:
             if let z = near { launch(z, h.face * 1350, -160) }
             snd?.clang()
@@ -911,12 +909,9 @@ final class Game {
             for z in struck { launch(z, h.face * rnd(20, 120), -rnd(1000, 1250)) }
             rings.append(Ring(x: h.x + h.face * 60, y: -80, r: 200, t: 0, life: 0.35, col: tw.hue))
         default:
-            for i in 1...3 {
-                for d in [-1.0, 1.0] {
-                    let x = clampD(h.x + d * Double(i) * 150, 80, FLOOR_W - 80)
-                    nades.append(Nade(x0: x, x1: x, t: 0, dur: 0.06 + Double(i) * 0.09, r: 130, dmg: 45 * dmgMul))
-                }
-            }
+            // the slam bursts everything around him: guts, not fire
+            splatter(h.x - 150, 170, 55 * dmgMul, -1)
+            splatter(h.x + 150, 170, 55 * dmgMul, 1)
         }
     }
     /// Send one flying. It hurts whatever it hits on the way and bursts where it lands.
@@ -996,7 +991,7 @@ final class Game {
                         z.gibbed = true
                         z.x = clampD(z.x, 80, FLOOR_W - 80)
                         gore(z, sgn(z.flyVx), all: true)
-                        explode(z.x, 130, 45 * dmgMul)
+                        splatter(z.x, 130, 45 * dmgMul, sgn(z.flyVx))
                     }
                 }
                 continue
@@ -1322,6 +1317,29 @@ final class Game {
             f.items[i].used = true
             let bx = f.items[i].x
             nades.append(Nade(x0: bx, x1: bx, t: 0, dur: 0.18, r: 170, dmg: 90))
+        }
+    }
+    /// A body bursting: the same reach as a blast, but blood, ropes of gut and wet chunks in place of fire.
+    func splatter(_ x: Double, _ r: Double, _ dmg: Double, _ dir: Double) {
+        rings.append(Ring(x: x, y: -60, r: r * 0.9, t: 0, life: 0.3, col: Col(0xc01820)))
+        shake = max(shake, 9)
+        snd?.at(x - hero.x); snd?.squelch(); snd?.crack(); snd?.here(); buzz(2)
+        if gibs.count > 90 { gibs.removeFirst(24) }
+        for i in 0..<6 { gibs.append(Gib(x: x + rnd(-16, 16), y: -rnd(50, 110), vx: dir * rnd(40, 380) + rnd(-300, 300), vy: -rnd(260, 720), rot: rnd(0, 6), vr: rnd(-10, 10), kind: 10, col: i % 2 == 0 ? Col(0xc8566a) : Col(0xa83a4e), t: 0)) }
+        for _ in 0..<7 { gibs.append(Gib(x: x + rnd(-20, 20), y: -rnd(30, 120), vx: dir * rnd(40, 300) + rnd(-380, 380), vy: -rnd(200, 760), rot: rnd(0, 6), vr: rnd(-16, 16), kind: 2, col: BLOOD, t: 0)) }
+        for _ in 0..<3 { gibs.append(Gib(x: x, y: -rnd(60, 120), vx: rnd(-320, 320), vy: -rnd(300, 640), rot: rnd(0, 6), vr: rnd(-14, 14), kind: 1, col: Col(0xd8d0bc), t: 0)) }
+        if parts.count < 560 {
+            for _ in 0..<46 { let a = rnd(0, PI * 2), sp = rnd(120, 640); parts.append(Part(x: x, y: -rnd(50, 110), vx: cos(a) * sp + dir * 80, vy: sin(a) * sp - 220, t: 0, life: rnd(0.5, 1.2), size: rnd(3, 9), col: chance(0.3) ? Col(0x7a0c12) : BLOOD, grav: 1300, glow: false)) }
+            for _ in 0..<6 { parts.append(Part(x: x + rnd(-30, 30), y: -rnd(40, 130), vx: rnd(-50, 50), vy: -rnd(10, 70), t: 0, life: rnd(0.5, 0.9), size: rnd(16, 30), col: Col(0xa01018, 0.4), grav: 60, glow: false)) }
+        }
+        for _ in 0..<4 { floor.splats.append((x + rnd(-r, r) * 0.7, rnd(70, 240), rnd(14, 34))) }
+        if floor.splats.count > 60 { floor.splats.removeFirst(floor.splats.count - 60) }
+        floor.pools.append((x, rnd(50, 80))); floor.pools.append((x + rnd(-90, 90), rnd(24, 44)))
+        if floor.pools.count > 30 { floor.pools.removeFirst(floor.pools.count - 30) }
+        if dmg <= 0 { return }
+        for z in floor.zeds where z.alive {
+            let d = abs(z.x - x)
+            if d < r { hit(z, dmg * (1 - 0.5 * d / r), z.x >= x ? 1 : -1, 420) }
         }
     }
     func burst(_ x: Double, _ r: Double, _ dmg: Double, _ col: Col) {

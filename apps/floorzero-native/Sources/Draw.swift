@@ -1559,6 +1559,11 @@ final class Renderer {
                 cv.line(Col(0x0b0c10), 8, [-22, -50, -18, 0, 24, 0, 40, 30]); cv.line(gb.col, 4.5, [-22, -50, -18, 0, 24, 0, 40, 30]); cv.R(-20, -4, 44, 8, Col(0x3a5a8a))
             case 9:
                 cv.ring(0, 0, 28, 6.5, Col(0x0b0c10)); cv.ring(0, 0, 28, 3.5, gb.col); for i in 0..<6 { let a2 = Double(i) * PI / 3; cv.seg(0, 0, cos(a2) * 25, sin(a2) * 25, 1.6, Col(0xc9d2dc)) }
+            case 10:
+                // a rope of gut
+                let pts: [Double] = [-24, 2, -15, -6, -6, 5, 3, -5, 12, 5, 20, -3, 26, 3]
+                cv.line(Col(0x0b0c10), 9.5, pts); cv.line(gb.col, 6.5, pts); cv.line(Col.mix(gb.col, WHITE, 0.35), 1.6, [-15, -8, -6, 3, 3, -7, 12, 3])
+                cv.circ(-24, 2, 4, Col(0x7a1014)); cv.circ(26, 3, 3.5, BLOOD)
             default:
                 cv.poly(gb.col, [-9, 0, 2, -4, 10, 0, 1, 3])
             }
