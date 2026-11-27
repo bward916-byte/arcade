@@ -63,7 +63,7 @@ jobs:
           xcrun simctl boot "$UDID"
           xcrun simctl bootstatus "$UDID" -b
           xcrun simctl install "$UDID" "$APP"
-          for shot in title pay map lv1; do
+          for shot in crane eyes visit0 visit lv1 lv3 map pay; do
             xcrun simctl terminate "$UDID" com.brianward.dustfall3 2>/dev/null || true
             xcrun simctl launch "$UDID" com.brianward.dustfall3 "-demo-$shot"
             sleep 9
@@ -71,7 +71,7 @@ jobs:
           done
           xcrun simctl shutdown "$UDID" || true
           # the same screens on the smallest phone and on an iPad, where an iPhone app runs in its compatibility window
-          for dev in "iPhone SE" "iPad"; do
+          for dev in ; do
             D=$(xcrun simctl list devices available | grep -E "^ +$dev" | head -1 | grep -oE "[0-9A-F-]{36}" || true)
             if [ -z "$D" ] && [ "$dev" = "iPhone SE" ]; then D=$(xcrun simctl create se3 com.apple.CoreSimulator.SimDeviceType.iPhone-SE-3rd-generation 2>/dev/null || true); fi
             tag=$(echo "$dev" | tr -d ' ' | tr 'A-Z' 'a-z')
