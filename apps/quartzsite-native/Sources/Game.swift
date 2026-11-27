@@ -632,6 +632,7 @@ final class Game {
     var genOn = false, genMadDay = -1
     // living in a rig: the tanks fill up and the propane runs down
     var tanks = 100.0, propane = 100.0
+    var popFreeze = false
     var clockFreeze = false               // screenshots only
 
     /// The clock: 7 AM at first light (0), 6 PM at dusk (0.66), and 7 AM again at 1.
@@ -1403,7 +1404,8 @@ final class Game {
         if key == "custom" { place(.ltva, 1180); dayT = 0.5; clockFreeze = true; stripe = 3; flag = 2; customOpen = true }
         if key == "mapq" { place(.ltva, 1180); mapOpen = true; mapQuad = 1 }
         if key == "busy" { place(.ltva, 1900); dayT = 0.4; clockFreeze = true; stripe = 5; flag = 1 }
-        if key == "pops" { place(.dome, 600); dayT = 0.4; clockFreeze = true; cred += 3; money += 60 }
+        if key == "pops" { place(.dome, 600); dayT = 0.4; clockFreeze = true; popFreeze = true }
+        if key == "kb" { place(.tyson, 400); dayT = 0.4; clockFreeze = true }
         if key == "als" { place(.main, 1520); dayT = 0.5; clockFreeze = true; alsOpen = true }
         if key == "past" { place(.ltva, 1500); era = 1; dayT = 0.3; clockFreeze = true }
         if key == "pastriver" { place(.skoolie, 800); era = 1; dayT = 0.35; clockFreeze = true }
@@ -2204,6 +2206,7 @@ final class Game {
         if arriveT > 0 && !overlay { arriveT -= dt }
         if flashT > 0 { flashT -= dt }
         if credPopT > 0 { credPopT -= dt }
+        if popFreeze { credPopT = 0.9; credPopN = 3; coinPopT = 0.8; coinPopN = 60 }
         if coinPopT > 0 { coinPopT -= dt }
         if phase == .play {
             if moneySeen < 0 || previewing { moneySeen = money }
