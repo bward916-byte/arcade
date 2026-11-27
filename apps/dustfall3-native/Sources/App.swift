@@ -1284,7 +1284,7 @@ final class GameViewController: UIViewController {
             let been = i < cur && li < game.log.count && game.log[li] == key
             let hereNow = i == cur && key == game.place
             let pick = choose && i == nxt
-            let shut = i > 0 && !game.unlocked
+            let shut = i > 0 && !game.unlocked && !been && !hereNow
             let ring = CAShapeLayer()
             ring.path = UIBezierPath(ovalIn: CGRect(x: -6, y: -6, width: 12, height: 12)).cgPath
             ring.fillColor = paper.cgColor; ring.strokeColor = ink.cgColor; ring.lineWidth = 1.7
