@@ -1532,7 +1532,8 @@ final class Renderer {
         switch g.bio {
         case .desert:
             // adobe: plaster over mud brick, patched and worn, roof beams poking out under the parapet
-            c.R(x, top, w, h - 2, Col(0xc8996c, 0.5))
+            c.R(x, top, w, h - 2, Col(0xcf9e6e, 0.82))
+            c.R(x, top, w, 3, Col(0xe2b98a, 0.7)); c.R(x, top, 2.4, h - 2, Col(0xe2b98a, 0.35)); c.R(x + w - 2.4, top, 2.4, h - 2, Col(0x8a5e3a, 0.35))
             for k in 0..<5 { let r = hashN(hs0 + Double(k) * 3.3); c.RR(x + 3 + r * (w - 16), top + 4 + hashN(hs0 + Double(k)) * (h - 14), 8 + r * 6, 3 + r * 3, 1.5, Col(k % 2 == 0 ? 0xb88a5e : 0xdcb488, 0.45)) }
             var vx = x + 4
             while vx < x + w - 3 { c.R(vx, top + 1.5, 2.6, 2, Col(0x4a3220)); c.R(vx + 0.4, top + 1.7, 1.8, 0.6, Col(0x7a5a3a)); vx += 9 }
@@ -1540,7 +1541,10 @@ final class Renderer {
         case .river:
             // painted clapboard in a river-town colour, a white rail at the eaves
             let paints: [UInt32] = [0x7fb2c8, 0x9cc8a2, 0xe8cf7a, 0xe0a08a, 0xc0a8d8]
-            c.R(x, top, w, h - 2, Col(paints[Int(hashN(hs0) * 5) % 5], 0.42))
+            c.R(x, top, w, h - 2, Col(paints[Int(hashN(hs0) * 5) % 5], 0.78))
+            var by = top + 3.0
+            while by < gy - 4 { c.R(x, by, w, 0.5, Col(0x000000, 0.13)); c.R(x, by + 0.5, w, 0.4, Col(0xffffff, 0.12)); by += 3 }
+            c.R(x, top, 1.6, h - 2, Col(0xf4ecd8, 0.8)); c.R(x + w - 1.6, top, 1.6, h - 2, Col(0xf4ecd8, 0.8))
             c.R(x, top, w, 1.4, Col(0xf4ecd8, 0.85)); c.R(x, gy - 4, w, 1, Col(0xf4ecd8, 0.6))
         case .pine:
             // squared logs laid up with the ends showing at the corners

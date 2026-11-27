@@ -1152,7 +1152,7 @@ final class Game {
         hintT = 0
         // lv0 to lv7: each town on the line, opened up, for a picture of every one
         let stops = STOPS
-        let pre = ["lv", "sig", "wild", "buy"].first { name.hasPrefix($0) } ?? ""
+        let pre = ["lv", "sig", "wild", "buy", "mist", "ferry", "cold"].first { name.hasPrefix($0) } ?? ""
         if !pre.isEmpty, let n = Int(name.dropFirst(pre.count)), n >= 0, n < stops.count {
             place = stops[n].0; town = stops[n].1; log = stops[n].2
             day = 4 + town * 9; day0 = day - 4
@@ -1231,6 +1231,10 @@ final class Game {
         if name.hasPrefix("sig") { sig.level = 1; px = sig.x + (place == "redwater" ? 10 : 30); pdir = 1; noStory = true; hintT = 0 }
         if name.hasPrefix("wild") { rigLv = 1; px = -520; pdir = -1; noStory = true; hintT = 0; if bio == .river || bio == .pine { t = 0.13 } }
         // standing at the unopened trade, drifters at the camp beside it: the coin should go to the trade
+        if name.hasPrefix("mist") { px = -300; pdir = -1; demoT = 0.13; t = 0.13; noStory = true; hintT = 0 }
+        if name.hasPrefix("ferry") { sig.level = 1; px = sig.x - 36; pdir = 1; demoT = 0.4; noStory = true; hintT = 0 }
+        if name.hasPrefix("cold") { px = -300; pdir = 1; demoT = 0.4; noStory = true; hintT = 0; for k in 0..<9 { prints.append((px - 8 - Double(k) * 10, 1, Double(k))) } }
+        if name.hasPrefix("lv") { demoT = 0.4 }
         if name.hasPrefix("buy") { px = sig.cx; pdir = 1; coins = 20; noStory = true; hintT = 0 }
         if ["finale", "finale2", "gone"].contains(name) {
             // the last stretch for real: the rout already under way, stories on, every earlier scene already seen
@@ -1317,6 +1321,7 @@ final class Game {
         // the first moments of the rout play in slow motion
         let dt = routT >= 0 && routT < 1.6 ? rawDt * 0.45 : rawDt
         clock += dt
+        if let h = demoT { t = h }
         if state == .intro { updIntro(dt); updParts(dt); return }
         if state == .title {
             titleT += dt
@@ -2137,6 +2142,7 @@ final class Game {
     var routShow: Double { return routT < 0 && seen.contains("cranegone") ? 99 : routT }
     var toTitle = false          // after the last scene, back to the title
     var holdRout: Double?        // test stills only: keep the rout at one moment
+    var demoT: Double?           // test stills only: hold the time of day
     /// Crane's buggy: waiting by his office, then away east once he is in it.
     var buggyX: Double { let x0 = craneX + 74, u = min(8, max(0, routShow - 1.5)); return x0 + u * 30 + u * u * 55 }
     var craneX: Double { return EX(2490) }      // on the cavalry outpost's ground, which the last town doesn't have

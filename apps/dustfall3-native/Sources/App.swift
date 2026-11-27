@@ -549,7 +549,7 @@ final class GameViewController: UIViewController {
         if !demoDone && sw > sh {
             demoDone = true
             let args = ProcessInfo.processInfo.arguments
-            for name in ["day", "night", "train", "snow", "storm", "map", "duel", "coach", "west", "west2", "fire", "yard", "over", "lv0", "lv1", "lv2", "lv3", "lv4", "sig1", "sig2", "sig3", "sig4", "buy1", "finale", "finale2", "gone", "wild0", "wild1", "wild2", "wild3", "wild4", "lv5", "lv6", "lv7", "fort", "post", "mission", "gate0", "march", "rout", "rally", "see0", "see1", "see2", "see3", "see4", "see5", "see6", "see7", "see8", "see9"] where args.contains("-demo-" + name) { demoMode = true; game.demo(name) }
+            for name in ["day", "night", "train", "snow", "storm", "map", "duel", "coach", "west", "west2", "fire", "yard", "over", "lv0", "lv1", "lv2", "lv3", "lv4", "sig1", "sig2", "sig3", "sig4", "mist1", "mist2", "ferry1", "cold4", "buy1", "finale", "finale2", "gone", "wild0", "wild1", "wild2", "wild3", "wild4", "lv5", "lv6", "lv7", "fort", "post", "mission", "gate0", "march", "rout", "rally", "see0", "see1", "see2", "see3", "see4", "see5", "see6", "see7", "see8", "see9"] where args.contains("-demo-" + name) { demoMode = true; game.demo(name) }
             if args.contains("-demo-map") { showMap(choose: true) }
             if args.contains("-demo-intro") { game.beginIntro() }
             if args.contains("-demo-plain") { demoMode = true; game.demo("day"); plainInfo = true }
