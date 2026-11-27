@@ -971,14 +971,14 @@ function drawFloaters(t){for(let i=F.length-1;i>=0;i--){const f=F[i],u=(t-f.t0)/
 function drawToast(t){if(!TO)return;const u=(t-TO.t0)/2400;if(u>=1){TO=null;return;}
   ctx.save();ctx.globalAlpha=u>0.85?(1-u)/0.15:1;ctx.font=FONT(13,600);const tw=Math.min(W-20,ctx.measureText(TO.s).width+24),x=(W-tw)/2,y=by+6;
   rr(ctx,x,y,tw,28,14);ctx.fillStyle='rgba(107,66,87,.92)';ctx.fill();ctx.fillStyle='#fff';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(TO.s,W/2,y+14.5,W-30);ctx.restore();}
-function drawBanner(t){const b=BN[0];if(!b)return;if(!b.t0)b.t0=t;const age=(t-b.t0)/1000;if(age>b.dur){BN.shift();return;}
+function drawBanner(t){const b=BN[0];if(!b)return;if(!b.t0){b.t0=t;b.dur*=BN.length>1?.5:.7;}const age=(t-b.t0)/1000;if(age>b.dur){BN.shift();return;}
   const a=age<0.3?easeOutBack(age/0.3):age>b.dur-0.3?(b.dur-age)/0.3:1;const cx=W/2,cy=by+cell*ROWS*0.42;
   ctx.save();ctx.globalAlpha=clamp(a,0,1);ctx.translate(cx,cy);ctx.scale(a,a);
   ctx.save();ctx.rotate(t*0.0008);for(let i=0;i<12;i++){ctx.rotate(Math.PI/6);ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(-16,-150);ctx.lineTo(16,-150);ctx.closePath();ctx.fillStyle=i%2?'rgba(255,240,160,.5)':'rgba(255,200,225,.45)';ctx.fill();}ctx.restore();
   const cw=Math.min(W*0.72,250),chh=176;ctx.save();ctx.shadowColor='rgba(150,70,110,.3)';ctx.shadowBlur=24;ctx.shadowOffsetY=8;rr(ctx,-cw/2,-chh/2,cw,chh,26);ctx.fillStyle='#fff';ctx.fill();ctx.restore();
   const cg=ctx.createLinearGradient(0,-chh/2,0,chh/2);cg.addColorStop(0,'#fff');cg.addColorStop(1,'#fff0f6');rr(ctx,-cw/2,-chh/2,cw,chh,26);ctx.fillStyle=cg;ctx.fill();ctx.lineWidth=4;ctx.strokeStyle='#ff9ec7';ctx.stroke();
   for(const sx of[-1,1]){ctx.beginPath();ctx.moveTo(sx*cw*0.4,-chh/2-10);ctx.lineTo(sx*cw*0.56,-chh/2-10);ctx.lineTo(sx*cw*0.5,-chh/2+2);ctx.lineTo(sx*cw*0.56,-chh/2+14);ctx.lineTo(sx*cw*0.4,-chh/2+14);ctx.closePath();ctx.fillStyle='#e8558d';ctx.fill();}
-  ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.textAlign='center';ctx.textBaseline='middle';ctx.font=FONT(13,700);ctx.fillStyle='#fff';ctx.strokeStyle='rgba(120,60,90,.75)';ctx.lineWidth=4;ctx.strokeText('tap to close',0,chh/2+20);ctx.fillText('tap to close',0,chh/2+20);
   const title={new:'NEW ITEM!',level:'LEVEL UP!',unlock:'GRILL UNLOCKED!',tips:'TIP JAR!',spot:'NEW SPOT!',wheel:'YOU WON!',rush:'RUSH HOUR!',sugar:'SUGAR RUSH!'}[b.kind];
   rr(ctx,-cw*0.42,-chh/2-16,cw*0.84,32,16);const rg=ctx.createLinearGradient(0,-chh/2-16,0,-chh/2+16);rg.addColorStop(0,'#ff8fb8');rg.addColorStop(1,'#ff5f98');ctx.fillStyle=rg;ctx.fill();ctx.lineWidth=2.5;ctx.strokeStyle='#fff';ctx.stroke();ctx.fillStyle='#fff';ctx.font=FONT(18,700);ctx.fillText(title,0,-chh/2);
   if(b.kind==='new'){blit(itemSpr(b.c,b.l,84),0,-10,1+Math.sin(t*0.008)*0.04);ctx.fillStyle=OUT;ctx.font=FONT(18,700);ctx.fillText(nameOf(b.c,b.l),0,50);ctx.font=FONT(13,600);ctx.fillStyle='#9a6bd8';ctx.fillText('+1 💎 for discovering',0,70);}
@@ -1043,6 +1043,7 @@ function frame(t){
 function pos(e){const r=cv.getBoundingClientRect();return {x:e.clientX-r.left,y:e.clientY-r.top};}
 function cellAt(p){const x=Math.floor((p.x-bx)/cell),y=Math.floor((p.y-by)/cell);if(x<0||y<0||x>=COLS||y>=ROWS)return -1;return idx(x,y);}
 cv.addEventListener('pointerdown',e=>{
+  if(BN.length&&BN[0].t0&&now()-BN[0].t0>200){BN.shift();e.preventDefault();return;}   // tap closes a pop-up
   e.preventDefault();ac();lastAct=now();if(drag)return;const p=pos(e);
   if(p.y<SH+4){const pr=petRect;if(pr&&p.x>=pr.x&&p.x<=pr.x+pr.w&&p.y>=pr.y&&p.y<=pr.y+pr.h){tapPet();return;}for(let i=0;i<3;i++){const r=custRects[i];if(r&&p.x>=r.x&&p.x<=r.x+r.w&&p.y>=r.y&&p.y<=r.y+r.h){tapCustomer(i);return;}}return;}
   const k=cellAt(p);if(k<0)return;if(!S.board[k]){if(sel>=0&&S.board[sel]){const f=sel;sel=-1;moveTo(f,k);}else sel=-1;return;}
@@ -1101,7 +1102,7 @@ const TROPHIES=[['🥄','First 10 customers',S=>S.served>=10],['🍽️','50 cus
  ['⭐','Reach level 5',S=>S.lvl>=5],['🌟','Reach level 10',S=>S.lvl>=10],['📖','Discover 9 recipes',S=>Object.keys(S.disc).length>=9],
  ['🌈','Discover every recipe',S=>Object.keys(S.disc).length>=18],['🍀','Get a Lucky Merge',S=>(S.lucky||0)>=1],['💰','Hold 1,000 coins',S=>S.coins>=1000]];
 function checkTrophies(){if(!S||!S.disc)return;S.tro=S.tro||{};for(const [e,n,f] of TROPHIES){if(!S.tro[n]&&f(S)){S.tro[n]=1;S.gems+=5;toast(`${e} Trophy: ${n}! +5💎`);SFX.level();confetti();save();break;}}}
-setInterval(checkTrophies,1500);window.__dbg={get S(){return S;},cc};
+setInterval(checkTrophies,1500);window.__dbg={get S(){return S;},cc,BN};
 function trophyHTML(){S.tro=S.tro||{};const got=TROPHIES.filter(t=>S.tro[t[1]]).length;return `<div class="bt" style="margin-top:12px">Trophies · ${got}/${TROPHIES.length}</div><div class="tros">`+
   TROPHIES.map(([e,n])=>`<div class="tro${S.tro[n]?'':' lk'}"><span>${S.tro[n]?e:'🔒'}</span><small>${n}</small></div>`).join('')+'</div>';}
 function openBook(){
