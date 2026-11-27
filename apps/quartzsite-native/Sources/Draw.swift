@@ -249,6 +249,7 @@ final class Renderer {
         c.R(0, GY, W, 1, Col(0xf0d8ac, 0.7))
         washes()
         clutter()
+        if g.area == .dome && !g.inPast { goldRoad() }
         if g.iceAge {
             // wetter country: the flats are grassy between the shrubs
             c.R(0, GY, W, H - GY, Col(0x7a8a4a, 0.24))
@@ -2251,7 +2252,7 @@ final class Renderer {
             c.poly(Col(0x6a5a4a), [x + 20, GY - 9, x + 34, GY - 9, x + 32, GY - 2, x + 22, GY - 2])
             c.circ(x + 24, GY - 1.4, 1.6, TIRE); c.circ(x + 30, GY - 1.4, 1.6, TIRE)
             c.R(x - 34, GY - 14, 0.8, 14, wood); c.RR(x - 44, GY - 22, 20, 9, 1, Col(0xe8dcc4))
-            g.text("GOLD EYE", x - 34, GY - 17.6, 3.6, REDC, bold: true)
+            g.text(sp.arg == 1 ? "NUGGET" : "GOLD EYE", x - 34, GY - 17.6, 3.6, REDC, bold: true)
             top = 62
         case .detect:
             // old placer diggings: spoil piles and a cabin with the roof gone
@@ -2434,6 +2435,128 @@ final class Renderer {
             c.R(x + 30, GY - 12, 1.4, 12, post); c.RR(x + 26, GY - 18, 10, 7, 1, Col(0x8a8a88))
             label = false
             top = 46
+        case .solar:
+            // Solar Bill's: a low shop under a roof of panels, more panels racked out front, a service bay with a rig on charge
+            let wall = Col(0xf0e6c8)
+            facade(x - 40, GY - 24, 80, 24, wall)
+            for q in 0..<8 {
+                let px = x - 40 + Double(q) * 10
+                c.poly(Col(0x1e3a5c).shade(1 - dark * 0.4), [px + 0.6, GY - 25, px + 9.4, GY - 25, px + 8.4, GY - 31, px + 1.6, GY - 31])
+                c.seg(px + 5, GY - 25, px + 5, GY - 31, 0.25, Col(0xc8d8e8, 0.7)); c.seg(px + 1, GY - 28, px + 9, GY - 28, 0.25, Col(0xc8d8e8, 0.7))
+            }
+            c.RR(x - 30, GY - 46, 60, 12, 2, Col(0xf2c418).shade(1 - dark * 0.3))
+            c.circ(x - 23, GY - 40, 3.4, Col(0xe8782e)); for q in 0..<8 { let a = Double(q) / 8 * PI * 2; c.seg(x - 23 + cos(a) * 4, GY - 40 + sin(a) * 4, x - 23 + cos(a) * 5.4, GY - 40 + sin(a) * 5.4, 0.5, Col(0xe8782e)) }
+            g.text("SOLAR BILL'S", x + 5, GY - 40, 5, INK, bold: true)
+            c.R(x - 20, GY - 34, 0.8, 4, Col(0x6a6a6a)); c.R(x + 20, GY - 34, 0.8, 4, Col(0x6a6a6a))
+            pane(x - 34, GY - 18, 16, 10); doorway(x - 12, GY - 18, 10, 18, Col(0x4a3424))
+            c.R(x + 6, GY - 20, 30, 20, Col(0x2a2420).shade(1 - dark * 0.2)); c.R(x + 6, GY - 22, 30, 2.4, Col(0x9a9a98).shade(1 - dark * 0.4))
+            for q in 0..<4 { c.RR(x + 9 + Double(q) * 6.6, GY - 9, 5.4, 9, 0.6, Col(0x2e4a7a).shade(1 - dark * 0.4)); c.R(x + 10 + Double(q) * 6.6, GY - 8, 3.4, 1, Col(0xf2c418)) }
+            for q in 0..<3 {
+                let px = x + 50 + Double(q) * 13
+                c.seg(px + 8, GY, px + 7.4, GY - 8, 0.6, Col(0x8a8a88))
+                c.poly(Col(0x1e3a5c).shade(1 - dark * 0.4), [px - 2, GY, px + 7.4, GY - 10, px + 12, GY - 10, px + 3, GY])
+                c.seg(px + 0.5, GY - 2.6, px + 9.6, GY - 7.4, 0.25, Col(0xc8d8e8, 0.7))
+            }
+            g.text("PANELS · BATTERIES · INVERTERS", x, GY + 6, 2.6, CREAM.alpha(0.8))
+            top = 52
+        case .beerbelly:
+            // Beer Belly's Adult Day Care: an open-air bar under shade cloth, a little stage, string lights
+            for q in 0..<5 { c.R(x - 52 + Double(q) * 26 - 0.7, GY - 28, 1.4, 28, wood) }
+            c.poly(Col(0xd8c8a0).shade(1 - dark * 0.45), [x - 58, GY - 28, x - 50, GY - 34, x + 50, GY - 34, x + 58, GY - 28])
+            for q in 0..<12 { c.R(x - 54 + Double(q) * 9, GY - 28, 8, 1.6, (q % 2 == 0 ? Col(0xc8281e) : Col(0xf4f4f0)).shade(1 - dark * 0.4)) }
+            c.RR(x - 46, GY - 50, 92, 14, 2, Col(0x3a2414).shade(1 - dark * 0.2))
+            g.text("BEER BELLY'S", x, GY - 45.4, 5.4, GOLD, bold: true)
+            g.text("ADULT DAY CARE", x, GY - 39.6, 3.4, CREAM, bold: true)
+            c.R(x - 30, GY - 36, 0.8, 3, Col(0x6a6a6a)); c.R(x + 30, GY - 36, 0.8, 3, Col(0x6a6a6a))
+            c.R(x - 46, GY - 20, 50, 8, Col(0x2a1a14)); for q in 0..<9 { c.RR(x - 44 + Double(q) * 5.4, GY - 19, 2, 5.4, 0.7, [Col(0x8ad0a0), Col(0xd8a850), Col(0xb86a4a)][q % 3]) }
+            c.R(x - 48, GY - 10, 54, 2, Col(0xb8742e).shade(1 - dark * 0.3)); c.R(x - 46, GY - 8, 50, 8, Col(0x7a4a2a).shade(1 - dark * 0.3))
+            if g.phase == .play {
+                for q in 0..<4 {
+                    let sx0 = x - 40 + Double(q) * 12
+                    c.R(sx0 - 0.4, GY - 5, 0.8, 5, Col(0x8a8f96)); c.ell(sx0, GY - 5.4, 2.6, 0.9, Col(0x8a2e1e))
+                    if q != 2 { seated(sx0, GY - 5.8, 700 + q, 0.3) }
+                }
+                // the stage: one guitar, one amp, a few people dancing in the dust
+                c.R(x + 18, GY - 3, 34, 3, Col(0x5a4030).shade(1 - dark * 0.3))
+                person(x + 30, GY - 2, 720, -1, 0, false)
+                c.seg(x + 26, GY - 13, x + 34, GY - 9, 1.2, Col(0xb8742e)); c.ell(x + 34.6, GY - 8.6, 2.4, 1.8, Col(0xd8a850))
+                c.RR(x + 42, GY - 10, 7, 7, 0.8, Col(0x1c1a1a)); c.circ(x + 45.5, GY - 6.5, 2.2, Col(0x3a3a3e))
+                for q in 0..<2 { person(x + 66 + Double(q) * 12, GY + 2 - abs(sin(NOW * 5 + Double(q) * 1.4)) * 1.6, 730 + q, q == 0 ? -1 : 1, NOW * 6, true) }
+            }
+            for q in 0..<14 {
+                let t = Double(q) / 13
+                let lx = x - 52 + 104 * t, ly = GY - 27 + sin(PI * t * 4) * 1.4
+                c.circ(lx, ly, 0.7, [Col(0xffd68a), Col(0xff8a6a), Col(0x8ad0ff), Col(0xb8ff8a)][q % 4])
+            }
+            if dark > 0.3 { lights.append((x - 20, GY - 18, 30)); lights.append((x + 30, GY - 14, 26)) }
+            label = false
+            top = 58
+        case .carls:
+            // Carl's Jr.: the burger place by the freeway, a drive-thru lane wrapping round with a car at the window
+            let wall = Col(0xe8dcc0)
+            facade(x - 34, GY - 26, 62, 26, wall)
+            c.R(x - 36, GY - 30, 66, 5, Col(0xc8281e).shade(1 - dark * 0.35)); c.R(x - 36, GY - 25.4, 66, 1, Col(0xf2c418).shade(1 - dark * 0.35))
+            pane(x - 30, GY - 19, 14, 11); pane(x - 14, GY - 19, 14, 11); doorway(x + 3, GY - 19, 9, 19, Col(0x5a5a5e))
+            c.RR(x + 16, GY - 17, 9, 7, 0.8, GLASS.shade(1 - dark * 0.3)); c.R(x + 15, GY - 10, 11, 1, Col(0x8a8f96))
+            c.R(x - 52.6, GY - 48, 1.6, 48, Col(0x8a8a88))
+            c.RR(x - 66, GY - 60, 28, 14, 2, Col(0xc8281e).shade(1 - dark * 0.3))
+            g.text("CARL'S JR.", x - 52, GY - 53, 3.8, Col(0xf8e8a0), bold: true)
+            c.RR(x - 64, GY - 44, 24, 6, 1, Col(0xf4f4f0).shade(1 - dark * 0.3))
+            g.text("DRIVE THRU", x - 52, GY - 41, 2.6, INK, bold: true)
+            c.RR(x + 36, GY - 20, 12, 14, 1, Col(0x2a2a2e)); c.R(x + 41.4, GY - 6, 1.2, 6, Col(0x5a5a5a))
+            for q in 0..<4 { c.R(x + 37.4, GY - 18.6 + Double(q) * 3, 9.2, 2, [Col(0xf2c418), Col(0xe8782e), Col(0xf4f4f0), Col(0xc8281e)][q].shade(0.9)) }
+            g.text("SORRY, NO RANCH", x + 42, GY - 23, 2.2, Col(0xf8e8a0), bold: true, plate: true)
+            if g.phase == .play { toy(4, x + 30, GY + 2, 1, 740, 0) }
+            c.poly(Col(0xf4f4f0, 0.8), [x + 52, GY + 5, x + 58, GY + 3, x + 58, GY + 7])
+            if dark > 0.3 { lights.append((x - 52, GY - 53, 24)); lights.append((x - 10, GY - 14, 30)) }
+            label = false
+            top = 66
+        case .terribles:
+            // Terrible's: the big new travel centre off the exit. A long canopy over rows of pumps, the store with a
+            // coffee counter inside, a line of EV chargers along the side
+            let wall = Col(0xe6e0d4)
+            facade(x - 104, GY - 30, 70, 30, wall)
+            c.R(x - 106, GY - 35, 74, 6, Col(0xc8281e).shade(1 - dark * 0.35))
+            g.text("TERRIBLE'S", x - 69, GY - 32, 4.6, Col(0xf8e8a0), bold: true)
+            for q in 0..<3 { pane(x - 100 + Double(q) * 16, GY - 21, 13, 12) }
+            doorway(x - 50, GY - 20, 11, 20, Col(0x4a6a7a))
+            c.RR(x - 100, GY - 27.6, 30, 5, 1, Col(0x1e5a44).shade(1 - dark * 0.3))
+            g.text("STARBUCKS INSIDE", x - 85, GY - 25, 2.3, CREAM, bold: true)
+            // the canopy and its islands
+            let can = Col(0xf4f4f0).shade(1 - dark * 0.35)
+            c.R(x - 26, GY - 40, 132, 6, can); c.R(x - 26, GY - 35.4, 132, 1.4, Col(0xc8281e).shade(1 - dark * 0.35))
+            for q in 0..<6 {
+                let px = x - 16 + Double(q) * 22.4
+                c.R(px - 0.9, GY - 34, 1.8, 34, Col(0xd8d8d4).shade(1 - dark * 0.4))
+                c.RR(px - 5, GY - 2, 10, 2.6, 0.6, Col(0xb8b8b4).shade(1 - dark * 0.4))
+                for k in 0..<2 {
+                    let ux = px - 4.4 + Double(k) * 5.4
+                    c.RR(ux, GY - 12, 3.4, 10.4, 0.5, Col(0xe8e8e4).shade(1 - dark * 0.4)); c.R(ux + 0.4, GY - 11, 2.6, 2.4, Col(0x1a2a3a)); c.R(ux + 0.4, GY - 8, 2.6, 1.2, [Col(0xc8281e), Col(0x3a8a4a)][k])
+                    c.curve(ux + 3.4, GY - 8, ux + 5, GY - 4, ux + 3.6, GY - 5.6, 0.3, Col(0x1c1a1a))
+                }
+                if dark > 0.3 { c.R(px - 8, GY - 34.2, 16, 0.8, Col(0xfff2c0)); lights.append((px, GY - 18, 26)) }
+            }
+            if g.phase == .play {
+                rig(.classC, x + 40, GY + 1, 0, 1, 0.62); toy(4, x - 4, GY + 2, -1, 750, 0)
+                person(x + 14, GY + 1, 760, 1, 0, false)
+            }
+            // the EV chargers
+            for q in 0..<5 {
+                let ex = x + 116 + Double(q) * 9
+                c.RR(ex - 1.4, GY - 13, 2.8, 13, 0.8, Col(0xf4f4f0).shade(1 - dark * 0.4)); c.R(ex - 0.9, GY - 11.6, 1.8, 2.6, Col(0x3ad07a))
+                c.curve(ex + 1.4, GY - 8, ex + 4, GY - 3, ex + 2, GY - 1, 0.3, Col(0x1c1a1a))
+            }
+            c.RR(x + 112, GY - 22, 44, 6, 1, Col(0x2e8a5a).shade(1 - dark * 0.3))
+            g.text("EV CHARGING", x + 134, GY - 19, 2.6, CREAM, bold: true)
+            // the tall price sign you can read from the freeway
+            c.R(x - 122, GY - 70, 2.4, 70, Col(0x8a8a88))
+            c.RR(x - 138, GY - 86, 34, 18, 2, Col(0xc8281e).shade(1 - dark * 0.3))
+            g.text("TERRIBLE'S", x - 121, GY - 80, 3.4, Col(0xf8e8a0), bold: true)
+            g.text("GAS · DIESEL · EV", x - 121, GY - 74, 2.2, CREAM, bold: true)
+            c.RR(x - 136, GY - 66, 30, 9, 1, Col(0x1c1a1a)); g.text("3.89  4.29", x - 121, GY - 61.4, 2.8, Col(0x7aff8a), bold: true)
+            if dark > 0.3 { lights.append((x - 121, GY - 78, 28)); lights.append((x - 69, GY - 16, 36)) }
+            label = false
+            top = 94
         case .pool:
             // Rice Ranch RV Park and its new pool: a gate sign, a low block wall, blue water, umbrellas and palms
             palm(x - 64, GY + 1, 40, 21); palm(x + 66, GY + 1, 34, 23)
@@ -3654,7 +3777,7 @@ final class Renderer {
         c.R(x0, fl, w, 30, Col(0x6a4a34)); for q in 0..<12 { c.R(x0 + Double(q) * w / 12, fl, 0.6, 30, Col(0x4a3222)) }
         for q in 0..<14 { c.R(x0 + Double(q) * w / 14, y0 + 22, 0.6, fl - y0 - 22, Col(0x3a221a)) }
         g.text("SILLY AL'S", x0 + 12, y0 + 11, 8, GOLD, align: 1, bold: true)
-        g.text("tap the pool table for a game: 5 coins  ·  tap anywhere else to step back out", x1 - 12, y0 + 11, 3.8, CREAM.alpha(0.8), align: 2)
+        g.text("order at the bar  ·  tap the pool table for a game  ·  tap the floor to step back out", x1 - 12, y0 + 11, 3.8, CREAM.alpha(0.8), align: 2)
         // the bar: back shelf of bottles, a neon sign, stools, the regulars
         let bx = x0 + 14, bw = w * 0.42
         c.R(bx, y0 + 30, bw, 22, Col(0x2a1a14))
@@ -3682,6 +3805,15 @@ final class Renderer {
         person(tx - 20, fl, 655, 1, 0, false); person(tx + tw + 12, fl, 660, -1, 0, false)
         g.hits.append(Hit(id: 58, x: tx - 6, y: ty - 8, w: tw + 12, h: 34))
         tapArrow(tx + tw * 0.5, ty - 2, "Tap for a game")
+        g.hits.append(Hit(id: 62, x: x0, y: y0 + 20, w: w * 0.5, h: 50))
+        let menu: [(String, String)] = [("PIZZA", "10 coins"), ("SALAD", "8 coins"), ("COLD BEER", "5 coins")]
+        for q in 0..<3 {
+            let mx = bx + Double(q) * (bw / 3) + 2, mw = bw / 3 - 4
+            c.RR(mx, y0 + 56, mw, 15, 3, GOLD)
+            g.text(menu[q].0, mx + mw / 2, y0 + 61.4, 4.2, INK, bold: true)
+            g.text(menu[q].1, mx + mw / 2, y0 + 66.8, 3, INK.alpha(0.75))
+            g.hits.append(Hit(id: 340 + q, x: mx - 1, y: y0 + 54, w: mw + 2, h: 19))
+        }
         if g.mapMsgT > 0 { g.text(g.mapMsg, (x0 + x1) / 2, y1 - 12, 5.4, CREAM.alpha(clampD(g.mapMsgT, 0, 1)), bold: true, plate: true) }
     }
 
@@ -3849,6 +3981,82 @@ final class Renderer {
                     c.ell(x, b + 2, 3.6, 1, Col(0x6a4e30).shade(sh)); for q in 0..<5 { c.circ(x - 2 + Double(q), b + 1.6, 0.25, INK) }
                 }
             }
+        }
+    }
+
+    /// Gold Nugget Road, past the cleanup at Dome Rock: two-tracks branching everywhere, tailings, a headframe,
+    /// stone ruins, rusted iron, prospect holes, and claim posts.
+    private func goldRoad() {
+        let x0 = 2640.0
+        if cam + W < x0 - 40 { return }
+        let sh = 1 - dark * 0.5
+        let d = H - GY
+        let sgn = x0 + 60 - cam
+        c.R(sgn - 0.5, GY - 26, 1, 27, Col(0x8a8f96))
+        c.RR(sgn - 20, GY - 31, 40, 7, 1, Col(0x2e6a3e).shade(sh))
+        g.text("GOLD NUGGET RD", sgn, GY - 27.4, 2.8, CREAM, bold: true)
+        // two-tracks wandering off across the flat and forking
+        let track = Col(0xf0dcb4, 0.5).shade(sh)
+        var n = floor((cam - x0 - 120) / 170)
+        while x0 + n * 170 < cam + W + 120 {
+            if n >= 0 {
+                let wx = x0 + n * 170 + hashN(n + 9950) * 60
+                let sx = wx - cam
+                let lean = (hashN(n + 9951) - 0.5) * 120
+                for o in [-1.6, 1.6] {
+                    c.curve(sx + o, GY + 0.5, sx + lean * 0.3 + o * 1.6, GY + d * 0.5, sx + lean + o * 3, H, 0.8, track)
+                }
+                if hashN(n + 9952) < 0.6 {
+                    let fx = sx + lean * 0.25, fy = GY + d * 0.4
+                    for o in [-1.2, 1.2] { c.curve(fx + o, fy, fx + 40, fy + d * 0.1 + o, fx + 90, fy + d * 0.3 + o * 2, 0.6, track) }
+                }
+                // what the miners left
+                let px = sx + 70
+                switch Int(hashN(n + 9953) * 6) % 6 {
+                case 0:
+                    // a tailings pile with a prospect hole
+                    c.poly(Col(0xb89a78).shade(sh), [px - 20, GY + 1, px - 8, GY - 10, px + 6, GY - 12, px + 22, GY + 1])
+                    c.poly(Col(0xd0b490).shade(sh), [px - 8, GY - 10, px + 6, GY - 12, px + 2, GY - 5])
+                    c.ell(px + 30, GY + 4, 5, 1.6, Col(0x1c1410))
+                case 1:
+                    // a wooden headframe over a shaft, fenced with rusty wire
+                    let tim = Col(0x6a4a2e).shade(sh)
+                    c.seg(px - 8, GY + 1, px - 3, GY - 26, 1.2, tim); c.seg(px + 8, GY + 1, px + 3, GY - 26, 1.2, tim)
+                    c.seg(px - 4, GY - 26, px + 4, GY - 26, 1.2, tim); c.seg(px - 6.4, GY - 10, px + 6.4, GY - 10, 0.8, tim); c.seg(px - 6.4, GY - 10, px + 4.4, GY - 18, 0.6, tim)
+                    c.circ(px, GY - 24, 1.8, Col(0x5a4a40)); c.seg(px, GY - 22, px, GY + 1, 0.3, Col(0x3a3a3a))
+                    c.ell(px, GY + 2, 6, 1.6, Col(0x1c1410))
+                    for q in 0..<4 { c.R(px - 16 + Double(q) * 10.6, GY - 6, 0.5, 7, Col(0x8a5a3a)) }
+                    c.seg(px - 16, GY - 4, px + 16, GY - 4, 0.25, Col(0x8a5a3a)); c.seg(px - 16, GY - 1.6, px + 16, GY - 1.6, 0.25, Col(0x8a5a3a))
+                case 2:
+                    // a roofless stone cabin
+                    let st = Col(0x9a8068).shade(sh)
+                    c.poly(st, [px - 16, GY + 1, px - 16, GY - 12, px - 10, GY - 15, px - 6, GY - 11, px - 6, GY - 5, px + 2, GY - 5, px + 2, GY - 13, px + 12, GY - 10, px + 14, GY + 1])
+                    for q in 0..<10 { c.seg(px - 15 + hashN(Double(q) + 9960) * 26, GY - 2 - hashN(Double(q) + 9961) * 8, px - 12 + hashN(Double(q) + 9960) * 26, GY - 2 - hashN(Double(q) + 9961) * 8, 0.3, st.shade(0.75)) }
+                    c.seg(px - 20, GY + 1, px - 30, GY - 1, 0.8, Col(0x6a4a2e).shade(sh))
+                case 3:
+                    // an ore cart off its rails, and a boiler rusting in the sun
+                    c.poly(Col(0x7a4a32).shade(sh), [px - 8, GY - 8, px + 6, GY - 8, px + 4, GY - 2, px - 6, GY - 2]); c.circ(px - 4, GY - 0.6, 1.4, Col(0x2a2420)); c.circ(px + 2, GY - 0.6, 1.4, Col(0x2a2420))
+                    c.RR(px + 16, GY - 7, 18, 7, 3.4, Col(0x8a4a2a).shade(sh)); c.R(px + 22, GY - 12, 2.4, 5.4, Col(0x7a4028).shade(sh)); for q in 0..<4 { c.circ(px + 19 + Double(q) * 4, GY - 3.6, 0.4, Col(0x3a2418)) }
+                case 4:
+                    // claim posts and a stacked-rock corner marker
+                    c.R(px - 0.6, GY - 12, 1.2, 13, Col(0xf0f0ea).shade(sh)); c.RR(px - 5, GY - 17, 10, 5.4, 0.6, Col(0xf0f0ea).shade(sh))
+                    g.text("CLAIM", px, GY - 14.2, 1.9, REDC, bold: true)
+                    for q in 0..<4 { c.ell(px + 24, GY - Double(q) * 2.2, 3.4 - Double(q) * 0.6, 1.3, Col(0x8a7a6a).shade(sh - Double(q) * 0.03)) }
+                default:
+                    // an old truck gone to rust, and a rocker box
+                    c.poly(Col(0x8a4a2a).shade(sh), [px - 14, GY - 2, px - 14, GY - 8, px - 4, GY - 8, px - 2, GY - 13, px + 8, GY - 13, px + 10, GY - 8, px + 16, GY - 7, px + 16, GY - 2])
+                    c.RR(px - 0.6, GY - 12, 7, 3.6, 0.5, Col(0x2a2420)); c.ellStroke(px - 8, GY - 1.6, 2.4, 2.4, 0.8, Col(0x2a2420))
+                    c.poly(Col(0x8a6238).shade(sh), [px + 26, GY + 1, px + 28, GY - 5, px + 42, GY - 3, px + 42, GY + 1])
+                }
+                // quartz float and dark desert-varnished rock scattered thick out here
+                for q in 0..<10 {
+                    let dq = Double(q)
+                    let rx = sx + hashN(n * 7 + dq + 9970) * 170, ry = GY + 2 + hashN(n * 5 + dq + 9971) * (d - 4)
+                    let r = 0.6 + hashN(n + dq + 9972) * 1.6
+                    c.ell(rx, ry, r, r * 0.7, (q % 4 == 0 ? Col(0xf0f0f4) : Col(0x4e3e36)).shade(sh))
+                }
+            }
+            n += 1
         }
     }
 
@@ -4917,7 +5125,7 @@ final class Renderer {
             n += 1
         }
         // the intersection with Central Blvd / US 95
-        let ix = 2340 - cam
+        let ix = 2660 - cam
         if ix > -60 && ix < W + 60 {
             for k in 0..<6 { c.R(ix - 12 + Double(k) * 4.4, GY + 6.4, 2.4, 10, Col(0xf4f4f0, 0.75)) }
             c.R(ix + 16, GY - 40, 1.6, 41, pole)
