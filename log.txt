@@ -1,0 +1,20 @@
+run 61  commit ae4f463a185bd67b1dedad0236f41966451c14ca
+compile: success   testflight: success
+---- compile errors
+** ARCHIVE SUCCEEDED **
+---- export
+** EXPORT SUCCEEDED **
+---- upload
+Running altool at path '/Applications/Xcode_26.6.app/Contents/SharedFrameworks/ContentDelivery.framework/Resources/altool'...
+
+2026-11-27 23:46:06.491  INFO: [ContentDelivery.Uploader.A6101C340] 
+==========================================
+UPLOAD SUCCEEDED with no errors, 1 warning
+Delivery UUID: ce127e54-45a3-4e5f-8839-05fdf58273a1
+Transferred 2325906 bytes in 0.094 seconds (24.6MB/s, 197.198Mbps)
+==========================================
+2026-11-27 23:46:06.494  WARN: [altool.A6101C340] SDK version issue. This app was built with the iOS 26.5 SDK. Starting April 2027, iOS and iPadOS apps must be built with the iOS 27 SDK or later, included in Xcode 27 or later, in order to be uploaded to App Store Connect or submitted for distribution. (90725)
+   server_warning : 
+      code : 90725
+      description : SDK version issue. This app was built with the iOS 26.5 SDK. Starting April 2027, iOS and iPadOS apps must be built with the iOS 27 SDK or later, included in Xcode 27 or later, in order to be uploaded to App Store Connect or submitted for distribution.
+No errors, 1 warnings, uploading archive at '/Users/runner/work/_temp/export/FarHorizon.ipa'.
