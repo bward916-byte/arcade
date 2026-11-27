@@ -117,9 +117,23 @@ final class GameViewController: UIViewController {
 
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
-        stage.frame = view.bounds
-        words.frame = view.bounds
+        stage.frame = playRect
+        words.frame = playRect
         rebuild()
+    }
+    /// The whole screen, except in a test run asked to imitate a short, wide phone like the iPhone SE.
+    private var seCheck: Bool {
+        #if DEBUG
+        return ProcessInfo.processInfo.arguments.contains("-se")
+        #else
+        return false
+        #endif
+    }
+    private var playRect: CGRect {
+        let b = view.bounds
+        if !seCheck { return b }
+        let w = min(b.width, b.height * 1334 / 750)
+        return CGRect(x: (b.width - w) / 2, y: 0, width: w, height: b.height)
     }
     override func viewSafeAreaInsetsDidChange() {
         super.viewSafeAreaInsetsDidChange()
@@ -127,15 +141,15 @@ final class GameViewController: UIViewController {
     }
 
     private func rebuild() {
-        let sw = Double(view.bounds.width), sh = Double(view.bounds.height)
+        let sw = Double(playRect.width), sh = Double(playRect.height)
         if sw < 50 || sh < 50 || sw < sh { return }
         let dpr = Double(view.window?.screen.scale ?? UIScreen.main.scale)
-        let sc = max(2.0, 2 * (sh * dpr / 370).rounded())
+        let sc = seCheck ? (sh * dpr / 187.5).rounded() : max(2.0, 2 * (sh * dpr / 370).rounded())
         let w = Int(ceil(sw * dpr / sc)), h = Int(ceil(sh * dpr / sc))
         k = CGFloat(sw / Double(w))
         words.k = k
-        game.safeL = Double(view.safeAreaInsets.left) / Double(k)
-        game.safeR = Double(view.safeAreaInsets.right) / Double(k)
+        game.safeL = seCheck ? 0 : Double(view.safeAreaInsets.left) / Double(k)
+        game.safeR = seCheck ? 0 : Double(view.safeAreaInsets.right) / Double(k)
         if w == curW && h == curH && renderer != nil { return }
         guard let cv = Canvas(w: w, h: h, scale: Int(sc)) else { return }
         curW = w; curH = h

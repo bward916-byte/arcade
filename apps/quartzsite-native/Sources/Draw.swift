@@ -321,10 +321,10 @@ final class Renderer {
                 eventCrowds(ar)
                 if ar == .main { mainDecor() }
                 manners()
-                if ar == .main || ar == .tyson { streetTraffic(ar) }
             }
             if g.phase == .play && !g.inPast && g.area == .main && g.on(EV_PARADE) { parade() }
             if g.phase == .play { drawYou() }
+            if g.phase == .play && !g.inPast && (ar == .main || ar == .tyson) { streetTraffic(ar) }
         }
 
         if wx == 1 { wind() }
@@ -2964,15 +2964,18 @@ final class Renderer {
 
         var pack = (g.inPast ? "Winter 1026" : dateText(g.day)) + "  " + g.clockText() + "  ·  " + g.areaName(g.area)
         if g.inPast { pack += "  ·  field notes \(g.fieldNotes.count)/17" }
-        if g.wood > 0 { pack += "  ·  firewood \(g.wood)" }
-        if g.jewelry > 0 { pack += "  ·  pendants \(g.jewelry)" }
-        if g.rocks > 0 { pack += "  ·  specimens \(g.rocks)" }
-        if g.odd > 0 { pack += "  ·  oddities \(g.odd)" }
+        var extras: [String] = []
+        if g.wood > 0 { extras.append("firewood \(g.wood)") }
+        if g.jewelry > 0 { extras.append("pendants \(g.jewelry)") }
+        if g.rocks > 0 { extras.append("specimens \(g.rocks)") }
+        if g.odd > 0 { extras.append("oddities \(g.odd)") }
         if g.rig != .tent && !g.resident && !g.house {
-            if g.tanks < 40 { pack += "  ·  tanks \(Int(100 - g.tanks))% full" }
-            if g.propane < 40 { pack += "  ·  propane \(Int(g.propane))%" }
+            if g.tanks < 40 { extras.insert("tanks \(Int(100 - g.tanks))% full", at: 0) }
+            if g.propane < 40 { extras.insert("propane \(Int(g.propane))%", at: 0) }
         }
-        if g.page { pack += "  ·  \(g.followersText()) followers" }
+        if g.page { extras.append("\(g.followersText()) followers") }
+        let room = r - (l + 132) - 14
+        for e in extras where Double(pack.count + e.count + 5) * 2.75 < room { pack += "  ·  " + e }
         g.text(pack, r, 12, 5.5, CREAM, align: 2, bold: true, plate: true)
         if g.previewing {
             c.RR(l, 23, 74, 14, 7, REDC.alpha(0.9))
@@ -3450,8 +3453,8 @@ final class Renderer {
             } else {
                 gem(cx + 16, cy + ch * 0.5 + 6, 7, stones[n].shade(w.sold ? 0.5 : 1))
             }
-            g.text(w.name, cx + 32, cy + 9, 5, w.sold ? CREAM.alpha(0.5) : ink, align: 1, bold: true, wrap: cw - 36)
-            g.text(w.who, cx + 32, cy + 20, 3.6, w.sold ? CREAM.alpha(0.4) : ink.alpha(0.7), align: 1, wrap: cw - 36)
+            g.text(w.name, cx + 32, cy + 10, 4.8, w.sold ? CREAM.alpha(0.5) : ink, align: 1, bold: true, wrap: cw - 36)
+            g.text(w.who, cx + 32, cy + 22, 3.6, w.sold ? CREAM.alpha(0.4) : ink.alpha(0.7), align: 1, wrap: cw - 36)
             if w.sold {
                 g.text("Yours", cx + 32, cy + ch - 8, 5, GOLD, align: 1, bold: true)
             } else {
@@ -3460,11 +3463,11 @@ final class Renderer {
                 g.text("sells for about \(w.lo)–\(w.hi) coins", cx + 32, cy + ch - 5, 3.4, ink.alpha(0.65), align: 1)
                 g.hits.append(Hit(id: 90 + k, x: cx, y: cy, w: cw, h: ch))
                 if !w.haggled {
-                    c.RR(cx + cw - 30, cy + 3, 27, 9, 4.5, Col(0x2a1e14, 0.85))
-                    g.text("Haggle", cx + cw - 16.5, cy + 7.5, 3.8, GOLD, bold: true)
-                    g.hits.append(Hit(id: 100 + k, x: cx + cw - 34, y: cy, w: 34, h: 15))
+                    c.RR(cx + cw - 30, cy + ch - 19, 27, 10, 5, Col(0x2a1e14, 0.85))
+                    g.text("Haggle", cx + cw - 16.5, cy + ch - 14, 3.8, GOLD, bold: true)
+                    g.hits.append(Hit(id: 100 + k, x: cx + cw - 36, y: cy + ch - 24, w: 36, h: 18))
                 } else {
-                    g.text("haggled", cx + cw - 16.5, cy + 7.5, 3.4, ink.alpha(0.45))
+                    g.text("haggled", cx + cw - 16.5, cy + ch - 14, 3.4, ink.alpha(0.45))
                 }
             }
         }
@@ -4445,18 +4448,18 @@ final class Renderer {
         c.R(0, GY + 6, W, 14, Col(0x3a3634))
         var lx = -(pan * 2).truncatingRemainder(dividingBy: 26)
         while lx < W { c.R(lx, GY + 12.6, 12, 0.9, Col(0xf2c14e, 0.9)); lx += 26 }
-        // the exit sign slides in
-        let sx = W * 1.1 - u * W * 0.55
-        c.R(sx - 1, GY - 40, 2, 46, Col(0x8a8f96)); c.R(sx + 50, GY - 40, 2, 46, Col(0x8a8f96))
-        c.RR(sx - 6, GY - 66, 64, 28, 3, Col(0xf4f4f0)); c.RR(sx - 5, GY - 65, 62, 26, 2.6, Col(0x1f6b3a))
-        g.text("EXIT 17", sx + 26, GY - 58, 5.6, CREAM, bold: true)
-        g.text("QUARTZSITE", sx + 26, GY - 47.4, 6, CREAM, bold: true)
         // saguaros sliding past in silhouette
         for k in 0..<6 {
             let d = Double(k)
             let x = (d * 120 - pan * 1.6).truncatingRemainder(dividingBy: W + 200) + (d * 120 - pan * 1.6 < 0 ? W + 200 : 0) - 60
             saguaro(x, GY + 2, 50 + hashN(d + 40) * 30, d + 41, Col(0x2a2a24), false)
         }
+        // the exit sign slides in
+        let sx = W * 1.1 - u * W * 0.55
+        c.R(sx - 1, GY - 40, 2, 46, Col(0x8a8f96)); c.R(sx + 50, GY - 40, 2, 46, Col(0x8a8f96))
+        c.RR(sx - 6, GY - 66, 64, 28, 3, Col(0xf4f4f0)); c.RR(sx - 5, GY - 65, 62, 26, 2.6, Col(0x1f6b3a))
+        g.text("EXIT 17", sx + 26, GY - 58, 5.6, CREAM, bold: true)
+        g.text("QUARTZSITE", sx + 26, GY - 47.4, 6, CREAM, bold: true)
         let rk = g.rig == .tent ? RigKind.minivan : g.rig
         rig(rk, W * 0.42, GY + 18, g.panels, 1)
         for k in 0..<4 { let d = Double(k); c.circ(W * 0.42 - RIGS[rk.rawValue].len / 2 - 6 - d * 8, GY + 16 - d, 3 + d * 1.6, Col(0xe8c8a0, 0.25 - d * 0.05)) }
