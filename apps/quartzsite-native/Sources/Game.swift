@@ -436,6 +436,7 @@ final class Game {
     var inPast: Bool { return era == 1 }
     var fieldNotes: Set<Int> = []
     var flashT = 0.0
+    var plantShow = false   // demo only: a lineup of the desert plants
     var rigHere: Bool { return !inPast && rigArea == area }
     var toyHere: Bool { return !inPast && toyArea == area }
 
@@ -1165,6 +1166,7 @@ final class Game {
         if key == "plomosa" { place(.plomosa, 1200); dayT = 0.3; clockFreeze = true }
         if key == "crystal" { place(.crystal, 840); dayT = 0.35; clockFreeze = true }
         if key == "palms" { place(.palms, 960); dayT = 0.3; clockFreeze = true }
+        if key == "plants" { place(.plomosa, 300); dayT = 0.3; clockFreeze = true; plantShow = true }
         if key == "past" { place(.ltva, 1500); era = 1; dayT = 0.3; clockFreeze = true }
         if key == "pastriver" { place(.skoolie, 800); era = 1; dayT = 0.35; clockFreeze = true }
         if key == "pastmain" { place(.main, 1200); era = 1; dayT = 0.6; clockFreeze = true }
