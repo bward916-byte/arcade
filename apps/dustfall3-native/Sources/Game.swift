@@ -2206,7 +2206,7 @@ final class Game {
         payAsk = false; choosing = false; tripT = -1; fade = 0
         coins += ticket.cost
         train = Train(x: STOP, v: 0); ticket.paid = 0; ticket.live = true
-        hint("paylater", "You step back down with your ticket money. The train will wait: Dustfall is yours to keep building.", again: true)
+        hint("paylater", "You step back down with your ticket money. The train will wait: \(nice(townName)) is yours to keep building.", again: true)
     }
 
     /// The ticket is paid: the train pulls out east with you aboard.

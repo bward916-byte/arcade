@@ -95,6 +95,7 @@ final class GameViewController: UIViewController {
     private let coinIcon = UIImageView()
     private let newBtn = UIButton(type: .system)
     private let cheatBtn = UIButton(type: .system)
+    private let restoreBtn = UIButton(type: .system)
     private let mapBtn = UIButton(type: .system)
     private let crewBtn = UIButton(type: .system)
     private let townsBtn = UIButton(type: .system)
@@ -268,7 +269,7 @@ final class GameViewController: UIViewController {
         view.addSubview(coinBtn)
         game.onSave = { [weak self] in self?.saveGame() }
         game.unlocked = shop.owned
-        shop.onChange = { [weak self] in if let s = self { s.game.unlocked = s.game.unlocked || s.shop.owned } }
+        shop.onChange = { [weak self] in if let s = self { s.game.unlocked = s.game.unlocked || s.shop.owned; s.refreshTitle() } }
         shop.start()
         game.onBuzz = { [weak self] n in
             guard let me = self else { return }
@@ -334,6 +335,10 @@ final class GameViewController: UIViewController {
         cheatBtn.titleLabel?.font = rye(12)
         cheatBtn.addTarget(self, action: #selector(cheatTapped), for: .touchUpInside)
         titleBox.addSubview(cheatBtn)
+        style(restoreBtn, "Restore purchase", primary: false)
+        restoreBtn.titleLabel?.font = serif(12)
+        restoreBtn.addTarget(self, action: #selector(restoreTapped), for: .touchUpInside)
+        titleBox.addSubview(restoreBtn)
         startBtn.titleLabel?.adjustsFontSizeToFitWidth = true
         refreshTitle()
         view.addSubview(titleBox)
@@ -516,6 +521,7 @@ final class GameViewController: UIViewController {
         overBtn.frame = CGRect(x: bw / 2 - 110, y: bh * 0.2 + 112, width: 220, height: 50)
         newBtn.frame = CGRect(x: bw / 2 - 150, y: by + 86, width: 300, height: 38)
         cheatBtn.frame = CGRect(x: bw / 2 - 90, y: by + 130, width: 180, height: 28)
+        restoreBtn.frame = CGRect(x: bw - max(view.safeAreaInsets.right, 16) - 176, y: bh - 44, width: 170, height: 30)
         // the closeup fills the top of the frame, as in the web game; the words sit on a panel under it
         let ph = bh * 0.7
         let csc = max(bw / 200, ph / 78)
@@ -587,6 +593,8 @@ final class GameViewController: UIViewController {
         return try? JSONDecoder().decode(SaveData.self, from: d)
     }
     private func refreshTitle() {
+        restoreBtn.setTitle(game.unlocked ? "Full game unlocked" : "Restore purchase", for: .normal)
+        restoreBtn.isUserInteractionEnabled = !game.unlocked
         if let s = loadSave() {
             let stage = stageOf(max(0, s.town))
             let key = s.place.flatMap { stage.contains($0) ? $0 : nil } ?? stage[0]
@@ -607,6 +615,15 @@ final class GameViewController: UIViewController {
     }
 
     /// The cheat on the title screen: 200 coins straight into the saved game.
+    @objc private func restoreTapped() {
+        if game.unlocked { return }
+        restoreBtn.setTitle("Looking\u{2026}", for: .normal)
+        Task { [weak self] in
+            let ok = await self?.shop.restore() ?? false
+            guard let me = self else { return }
+            if ok { me.game.unlocked = true; me.refreshTitle() } else { me.restoreBtn.setTitle("No purchase found", for: .normal) }
+        }
+    }
     @objc private func cheatTapped() {
         guard var s = loadSave() else { return }
         s.coins += 200
@@ -1255,7 +1272,7 @@ final class GameViewController: UIViewController {
         head.adjustsFontSizeToFitWidth = true; head.minimumScaleFactor = 0.6
         mapBox.addSubview(head)
         let sub = UILabel(frame: CGRect(x: cart.minX + 6, y: cart.minY + 24, width: cart.width - 12, height: 13))
-        sub.text = "The Crane C. & R. line and its five towns"
+        sub.text = choose ? "You step off at \(nice(PLACES[STAGES[nxt][0]]?.name ?? "the next town")) with \(game.carryOut()) coins" : "The Crane C. & R. line and its five towns"
         sub.font = UIFont(name: "Georgia-Italic", size: 9.5) ?? serif(9.5, bold: false); sub.textColor = ink; sub.textAlignment = .center
         sub.adjustsFontSizeToFitWidth = true; sub.minimumScaleFactor = 0.7
         mapBox.addSubview(sub)
@@ -1267,6 +1284,7 @@ final class GameViewController: UIViewController {
             let been = i < cur && li < game.log.count && game.log[li] == key
             let hereNow = i == cur && key == game.place
             let pick = choose && i == nxt
+            let shut = i > 0 && !game.unlocked
             let ring = CAShapeLayer()
             ring.path = UIBezierPath(ovalIn: CGRect(x: -6, y: -6, width: 12, height: 12)).cgPath
             ring.fillColor = paper.cgColor; ring.strokeColor = ink.cgColor; ring.lineWidth = 1.7
@@ -1278,6 +1296,18 @@ final class GameViewController: UIViewController {
                 dot.fillColor = (hereNow ? rust : ink).cgColor
                 dot.position = p
                 put(dot)
+            }
+            if shut {
+                // the line past the first town is chained until it is bought: a padlock by each town
+                let at = CGPoint(x: p.x + 12, y: p.y - 9)
+                let bow = CAShapeLayer()
+                bow.path = UIBezierPath(arcCenter: CGPoint(x: 0, y: -1), radius: 3, startAngle: .pi, endAngle: 0, clockwise: true).cgPath
+                bow.fillColor = nil; bow.strokeColor = ink.cgColor; bow.lineWidth = 1.7; bow.position = at
+                put(bow)
+                let body = CAShapeLayer()
+                body.path = UIBezierPath(roundedRect: CGRect(x: -4.5, y: -1, width: 9, height: 7.5), cornerRadius: 1.5).cgPath
+                body.fillColor = gold.cgColor; body.strokeColor = ink.cgColor; body.lineWidth = 1.2; body.position = at
+                put(body)
             }
             if hereNow || pick {
                 // where you are, and where you may go, glow slowly
@@ -1292,7 +1322,7 @@ final class GameViewController: UIViewController {
             }
             let b = UIButton(type: .custom)
             b.frame = plates[i]
-            let second = hereNow ? "Here, day \(game.day - game.day0)" : (been ? "Rebuilt" : (pick ? "Tap to ride on" : pl.land))
+            let second = hereNow ? "Here, day \(game.day - game.day0)" : (been ? "Rebuilt" : (pick ? (shut ? "Tap to unlock" : "Tap to ride on") : (shut ? "Locked" : pl.land)))
             let ps = NSMutableParagraphStyle()
             ps.alignment = .center
             let at = NSMutableAttributedString(string: nice(pl.name), attributes: [.font: rye(14), .foregroundColor: hereNow ? rust : ink, .paragraphStyle: ps])
@@ -1315,16 +1345,24 @@ final class GameViewController: UIViewController {
             back.addTarget(self, action: #selector(closeMap), for: .touchUpInside)
             mapBox.addSubview(back)
         } else {
-            let ft = UILabel(frame: CGRect(x: 0, y: bh - 40, width: bw, height: 24))
-            ft.text = "Tap \(nice(PLACES[STAGES[nxt][0]]?.name ?? "the next town")) to ride on. You step off with \(game.carryOut()) coins."
-            ft.font = serif(13); ft.textColor = ink; ft.textAlignment = .center
-            mapBox.addSubview(ft)
+            // not ready to go: step back down and keep building here
+            let stay = UIButton(type: .system)
+            style(stay, "Stay in " + nice(game.townName), primary: false)
+            stay.titleLabel?.font = rye(15); stay.titleLabel?.adjustsFontSizeToFitWidth = true
+            stay.frame = CGRect(x: bw / 2 - 110, y: bh - 50, width: 220, height: 40)
+            stay.addTarget(self, action: #selector(stayHere), for: .touchUpInside)
+            mapBox.addSubview(stay)
         }
     }
 
     @objc private func nextBeat() { if !game.cut.isEmpty && cutT > 0.9 { game.cut.removeFirst(); sound.click() } }
     @objc private func openMap() { showMap(choose: false) }
     @objc private func closeMap() { mapBox.isHidden = true }
+    @objc private func stayHere() {
+        mapBox.isHidden = true; mapChoose = false; payKey = nil
+        game.payLater()
+        last = 0
+    }
     @objc private func pickPlace(_ b: UIButton) {
         guard mapChoose, let key = b.accessibilityIdentifier else { return }
         // the first town is free; the rest of the line is asked for here, at the map

@@ -887,6 +887,7 @@ final class Renderer {
             }
             if dusk > 0.05 { c.glow(x, gy, 150, Col(0xffa85a, 0.4 * dusk * (1 - dk)), Col(0xffa85a, 0)) }
             c.glow(x, y, 46, Col(0xfff2c0, 0.55 * (1 - dk)), Col(0xfff2c0, 0))
+            c.ellStroke(x, y, 16, 16, 0.7, Col(0xfff2c0, 0.2 * (1 - dk) * (1 - cl)))
             c.circ(x, y, 9, Col.mix(Col(0xfff6d8), Col(0xff9a4a), dusk))
         } else {
             let u = g.t >= 0.76 ? (g.t - 0.76) / 0.26 : (g.t + 0.24) / 0.26
@@ -895,6 +896,18 @@ final class Renderer {
             c.circ(x, y, 7, Col(0xeef2ff))
             c.circ(x - 2.6, y + 1.2, 1.3, Col(0xc6cfe6)); c.circ(x - 3.6, y - 2.4, 0.8, Col(0xc6cfe6)); c.circ(x - 0.6, y + 4, 0.9, Col(0xc6cfe6))
             c.circ(x + 2.5, y - 1.5, 6, Col.mix(Col(0x0a0f24), Col(0x1a2040), 0.5))
+        }
+        // high thin cloud, combed out by the wind
+        let ca = 0.2 * (1 - dk) * (1 - cl)
+        if ca > 0.01 {
+            for i in 0..<6 {
+                let span = W + 300
+                let x = (hashN(Double(i) * 5.9 + 1) * span + g.clock * 1.2 - g.cam * 0.02).truncatingRemainder(dividingBy: span) - 150
+                let y = 6 + hashN(Double(i) * 3.3 + 2) * gy * 0.22, w = 70 + hashN(Double(i) * 8.1) * 90
+                c.RR(x, y, w, 1.2, 0.6, Col(0xffffff, ca))
+                c.RR(x + w * 0.22, y + 1.8, w * 0.6, 0.9, 0.45, Col(0xffffff, ca * 0.7))
+                c.RR(x - w * 0.1, y + 3.4, w * 0.4, 0.8, 0.4, Col(0xffffff, ca * 0.5))
+            }
         }
         // a few clouds drifting
         for i in 0..<5 {
@@ -963,6 +976,9 @@ final class Renderer {
 
     private func groundBand(_ dk: Double) {
         let L = g.terrain
+        // haze lying along the horizon, so the far country sits back behind the town
+        let hz = Col.mix(Col(g.bio == .snow ? 0xf2f6fa : 0xf6e6c4), Col(0x2c2a4a), dk)
+        c.vfill(0, gy - 28, W, 28, [(0, hz.alpha(0)), (1, hz.alpha(0.36))])
         c.vfill(0, gy, W, H - gy, [(0, Col(L.g0)), (0.25, Col(L.g1)), (1, Col(L.g2))])
         c.R(0, gy, W, 1, Col(L.edge))
         // the ford east of a river town
@@ -1202,7 +1218,11 @@ final class Renderer {
             return
         }
         c.ell(x + w / 2, gy + 1.2, w * 0.56, 2.2, Col(0x000000, 0.16))
-        if dk < 0.6 { c.poly(Col(0x000000, 0.13 * (1 - dk / 0.6)), [x + 6, gy + 0.5, x + w + 6, gy + 0.5, x + w + 15, gy + 4.5, x + 12, gy + 4.5]) }
+        if dk < 0.6 {
+            // its shadow lies away from the sun: long one way in the morning, short at noon, long the other way by evening
+            let su = clampD((g.t - 0.02) / 0.74, 0, 1), sdx = (0.5 - su) * 34
+            c.poly(Col(0x000000, 0.15 * (1 - dk / 0.6)), [x, gy + 0.5, x + w, gy + 0.5, x + w + sdx, gy + 5.5, x + sdx, gy + 5.5])
+        }
         let wall = Col(d.wall), trim = Col(d.trim), roof = Col(d.roof)
         let wallD = Col.mix(wall, Col(0x000000), 0.2), wallL = Col.mix(wall, Col(0xffffff), 0.14)
         let lit = dk > 0.3 && !bl.robbed
@@ -3304,6 +3324,8 @@ final class Renderer {
                 c.ell(x - 130, gy + 8 + Double(i) * 6, 90 + Double(i) * 30, 5, Col(0x000000, 0.07 * (1 - dk * 2)))
             }
         }
+        // the corners of the picture fall away a little darker, as through a lens
+        c.glow(W / 2, H / 2, (W * W + H * H).squareRoot() / 2, Col(0x1a0c04, 0), Col(0x1a0c04, 0.24))
         // things close to the eye slide past faster than the street: fence posts, weeds, a cactus, dark and soft
         let near = Col.mix(Col(0x2a1c14), Col(0x05060c), dk)
         let off = g.cam * 1.5
