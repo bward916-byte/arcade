@@ -294,6 +294,38 @@ let ICE_SPOTS: [[Spot]] = [
     [Spot(kind: .watch, x: 900, name: "SABERTOOTH", arg: 112)],
     [Spot(kind: .watch, x: 960, name: "BARE PAVEMENT", arg: 113)]
 ]
+let DEEP_SPOTS: [[Spot]] = [
+    [Spot(kind: .watch, x: 1300, name: "THE SHORE", arg: 200)],
+    [Spot(kind: .watch, x: 1400, name: "GOMPHOTHERES", arg: 201)],
+    [Spot(kind: .watch, x: 1300, name: "THREE-TOED HORSES", arg: 202)],
+    [Spot(kind: .watch, x: 1300, name: "BONE-CRUSHING DOGS", arg: 203)],
+    [Spot(kind: .watch, x: 1400, name: "THE TIDE FLATS", arg: 204)],
+    [Spot(kind: .watch, x: 1100, name: "GIANT TORTOISE", arg: 205)],
+    [Spot(kind: .watch, x: 1200, name: "GIANT CAMELS", arg: 206)],
+    [Spot(kind: .watch, x: 1200, name: "SHOREBIRDS", arg: 207)],
+    [Spot(kind: .watch, x: 1200, name: "SABERTOOTH", arg: 208)],
+    [Spot(kind: .watch, x: 1200, name: "PALM GROVE", arg: 209)],
+    [Spot(kind: .watch, x: 1200, name: "PRONGHORN", arg: 210)],
+    [Spot(kind: .watch, x: 1100, name: "THE LAST RHINOS", arg: 211)],
+    [Spot(kind: .watch, x: 1100, name: "GROUND SLOTH", arg: 212)],
+    [Spot(kind: .watch, x: 1100, name: "FISH IN THE SHALLOWS", arg: 213)]
+]
+let WILD_DEEP: [(String, String)] = [
+    ("the shore", "Water where the desert will be. A long arm of the Gulf, or a great lake, reaches up this valley, and the Colorado River has not cut its way down to it yet"),
+    ("the gomphotheres", "Gomphotheres: four-tusked cousins of the elephant, browsing the trees"),
+    ("three-toed horses", "Small three-toed horses, a whole herd, grazing where the grass is green"),
+    ("bone-crushing dogs", "Heavy-jawed dogs built to crack bone, working over a carcass"),
+    ("the tide flats", "Mud flats that flood and drain. Barnacles on the rocks, this far from any sea you know"),
+    ("a giant tortoise", "A tortoise the size of a boulder, in no hurry at all"),
+    ("giant camels", "Camels taller than any you will see at Hi Jolly's tomb. They started out here, in North America"),
+    ("the shorebirds", "Wading birds by the hundred, working the shallows"),
+    ("a sabertooth", "A big sabertooth cat on a rock above the water, watching the horses"),
+    ("the palm grove", "Fan palms in a thick grove. It is warmer and much wetter than the desert you left"),
+    ("the pronghorn", "Pronghorn, with horns in shapes that will not last: forked, spiralled, four at a time"),
+    ("the last rhinos", "Short-legged, barrel-bodied rhinos wallowing at the water's edge, near the end of their time on this continent"),
+    ("a ground sloth", "A small ground sloth, new to this continent, pulling down branches"),
+    ("fish in the shallows", "Schools of fish flashing in clear warm water over a sand bottom")
+]
 let WILD_ICE: [(String, String)] = [
     ("the mammoths", "Columbian mammoths, a family of them, pulling up grass along the wash"),
     ("the Joshua trees", "Joshua trees and creosote where saguaros will stand one day. The saguaros have not arrived yet"),
@@ -310,7 +342,7 @@ let WILD_ICE: [(String, String)] = [
     ("the sabertooth", "A sabertooth cat on a ledge, in no hurry at all"),
     ("the pavement", "Bare desert pavement. The giant figures are twelve thousand years in the future")
 ]
-func wildOf(_ arg: Int) -> (String, String) { return arg >= 100 ? WILD_ICE[arg - 100] : WILD[arg] }
+func wildOf(_ arg: Int) -> (String, String) { return arg >= 200 ? WILD_DEEP[arg - 200] : (arg >= 100 ? WILD_ICE[arg - 100] : WILD[arg]) }
 /// Places and moments you can look around from the title screen.
 let PREVIEWS: [(String, String)] = [
     ("La Posa South camp", "ltva"), ("Camp at night", "night"), ("Camp party", "party"),
@@ -500,10 +532,11 @@ final class Game {
     // where everything is
     var area = Area.ltva
     var rigArea = Area.ltva
-    var spots: [Spot] { return iceAge ? ICE_SPOTS[area.rawValue] : (inPast ? PAST_SPOTS[area.rawValue] : AREAS[area.rawValue].spots) }
+    var spots: [Spot] { return deep ? DEEP_SPOTS[area.rawValue] : iceAge ? ICE_SPOTS[area.rawValue] : (inPast ? PAST_SPOTS[area.rawValue] : AREAS[area.rawValue].spots) }
     var iceAge: Bool { return era == 2 }
-    var notesHere: Int { return fieldNotes.filter { iceAge ? $0 >= 100 : $0 < 100 }.count }
-    var notesTotal: Int { return iceAge ? 14 : 18 }
+    var deep: Bool { return era == 3 }
+    var notesHere: Int { return fieldNotes.filter { deep ? $0 >= 200 : (iceAge ? ($0 >= 100 && $0 < 200) : $0 < 100) }.count }
+    var notesTotal: Int { return (iceAge || deep) ? 14 : 18 }
     var foundMagic = false
     var stripe = 0, flag = 0, customOpen = false
     var mapQuad = -1
@@ -542,6 +575,7 @@ final class Game {
         hintT = 0
         if era == 1 { hint("past", "Winter, 1026. No roads, no rigs, saguaros everywhere. Watch the animals for your field notes (each new one is +1 cred), and visit the river village at Ehrenberg: there is something to do there every day.") }
         if era == 2 { hint("ice", "About 13,000 years ago, at the end of the last ice age. Cooler and wetter: Joshua trees on the flats, juniper on the hills, no saguaros yet. Mammoths, camels, horses and ground sloths live here. Each new sighting is +1 cred.") }
+        if era == 3 { hint("deep", "About five million years ago. Water fills the valley toward Blythe, the Colorado River is only just arriving, and the country is warm, green and wet. No people anywhere. Each new sighting is +1 cred.") }
     }
     var WORLD: Double { return AREAS[area.rawValue].w }
 
@@ -884,8 +918,9 @@ final class Game {
                 #if DEBUG
                 if id == 64 { testWeek(); return }
                 #endif
-                if id == 85 { timeTravel(era != 0 ? 0 : 1); return }
-                if id == 57 { timeTravel(era == 2 ? 1 : 2); return }
+                if id == 85 { timeTravel(era == 1 ? 0 : 1); return }
+                if id == 57 { timeTravel(era == 2 ? 0 : 2); return }
+                if id == 305 { timeTravel(era == 3 ? 0 : 3); return }
                 if id >= 300 && id < 304 { mapQuad = id - 300; events.append(3); return }
                 if id == 304 && !inPast {
                     mapQuad = -1
@@ -1417,6 +1452,8 @@ final class Game {
         if key == "mapq" { place(.ltva, 1180); mapOpen = true; mapQuad = 1 }
         if key == "busy" { place(.ltva, 1900); dayT = 0.4; clockFreeze = true; stripe = 5; flag = 1 }
         if key == "pops" { place(.dome, 600); dayT = 0.4; clockFreeze = true; popFreeze = true }
+        if key == "deep" { place(.ltva, 1250); era = 3; dayT = 0.4; clockFreeze = true }
+        if key == "deep2" { place(.main, 1380); era = 3; dayT = 0.5; clockFreeze = true }
         if key == "kb" { place(.tyson, 400); dayT = 0.4; clockFreeze = true }
         if key == "als" { place(.main, 1520); dayT = 0.5; clockFreeze = true; alsOpen = true }
         if key == "past" { place(.ltva, 1500); era = 1; dayT = 0.3; clockFreeze = true }
