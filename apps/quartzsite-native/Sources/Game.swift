@@ -94,7 +94,7 @@ let EV_GEM = 0, EV_RTR = 1, EV_RV = 2, EV_SELL = 3, EV_SKOOL = 4, EV_CRAFT = 5, 
 let SEASON_END = 109
 let START_WEEKDAY = 1   // Monday
 
-enum SpotKind { case camp, bench, fire, wash, host, station, outhouse, board, grocery, gemworld, landmark, park, hall, yacht, lot, rides, tools, panorama, vendors, office, booth, bigtent, mine, detect, rockhound, river, skoolie, circle, cabin, parade, rvpark, house, computer, radio, cleanup, camel, dogpark, stray, pizza, post, laundry, shop, tour, hike, bar, watch, village }
+enum SpotKind { case camp, bench, fire, wash, host, station, outhouse, board, grocery, gemworld, landmark, park, hall, yacht, lot, rides, tools, panorama, vendors, office, booth, bigtent, mine, detect, rockhound, river, skoolie, circle, cabin, parade, rvpark, house, computer, radio, cleanup, camel, dogpark, stray, pizza, post, laundry, shop, tour, hike, bar, watch, village, labyrinth, magic }
 struct Spot {
     let kind: SpotKind
     let x: Double
@@ -113,7 +113,9 @@ struct AreaDef {
 
 /// Seven places around Quartzsite. You get between them from the map: drive, ride, or take the Camel Express.
 let AREAS: [AreaDef] = [
-    AreaDef(name: "La Posa South", sub: "LTVA 2.5 miles south of town · water and the dump station", w: 2500, arrive: 1130, lat: 33.6255, lon: -114.216, spots: [
+    AreaDef(name: "La Posa South", sub: "LTVA 2.5 miles south of town · water and the dump station", w: 3040, arrive: 1130, lat: 33.6255, lon: -114.216, spots: [
+        Spot(kind: .labyrinth, x: 2640, name: "ROCK LABYRINTH"),
+        Spot(kind: .magic, x: 2900, name: "MAGIC CIRCLE"),
         Spot(kind: .board, x: 260, name: "BULLETIN BOARD"),
         Spot(kind: .host, x: 500, name: "CAMP HOST"),
         Spot(kind: .station, x: 760, name: "DUMP & WATER"),
@@ -234,7 +236,7 @@ let PAST_SPOTS: [[Spot]] = [
     [Spot(kind: .watch, x: 1200, name: "OLD FOOT TRAIL", arg: 11), Spot(kind: .watch, x: 2600, name: "QUAIL", arg: 7)],
     [Spot(kind: .watch, x: 1400, name: "MULE DEER", arg: 5)],
     [Spot(kind: .watch, x: 900, name: "BIGHORN", arg: 1)],
-    [Spot(kind: .watch, x: 260, name: "BEAVER POND", arg: 4), Spot(kind: .village, x: 900, name: "RIVER VILLAGE")],
+    [Spot(kind: .watch, x: 260, name: "BEAVER POND", arg: 4), Spot(kind: .village, x: 900, name: "RIVER VILLAGE"), Spot(kind: .watch, x: 1500, name: "TRACKS IN THE MUD", arg: 16)],
     [Spot(kind: .watch, x: 1200, name: "COYOTES", arg: 6)],
     [Spot(kind: .watch, x: 1000, name: "DESERT TORTOISE", arg: 3)],
     [Spot(kind: .watch, x: 900, name: "ROADRUNNER", arg: 12)],
@@ -262,8 +264,44 @@ let WILD: [(String, String)] = [
     ("roadrunner", "A roadrunner sprinting after a lizard"),
     ("chuckwalla", "A chuckwalla sunning on a black rock, puffing up at you"),
     ("golden eagle", "A golden eagle on a snag, watching the whole valley"),
-    ("kit fox", "A kit fox, all ears, at the mouth of its den")
+    ("kit fox", "A kit fox, all ears, at the mouth of its den"),
+    ("the jaguar", "A jaguar, come down to the river at dusk to drink. It looks at you for a long moment, then goes on drinking")
 ]
+/// The same places near the end of the last ice age, about 13,000 years ago: cooler and wetter, Joshua trees and creosote on the
+/// valley floor, juniper and pinyon woodland on the hills, and no saguaros, ironwood or ocotillo yet.
+let ICE_SPOTS: [[Spot]] = [
+    [Spot(kind: .watch, x: 1300, name: "MAMMOTHS", arg: 100)],
+    [Spot(kind: .watch, x: 1400, name: "JOSHUA TREES", arg: 101)],
+    [Spot(kind: .watch, x: 1200, name: "WESTERN CAMELS", arg: 102)],
+    [Spot(kind: .watch, x: 900, name: "GROUND SLOTH", arg: 103)],
+    [Spot(kind: .watch, x: 1700, name: "THE BIG RIVER", arg: 104)],
+    [Spot(kind: .watch, x: 1100, name: "DIRE WOLVES", arg: 105)],
+    [Spot(kind: .watch, x: 1000, name: "WILD HORSES", arg: 106)],
+    [Spot(kind: .watch, x: 900, name: "PACKRAT NEST", arg: 107)],
+    [Spot(kind: .watch, x: 1000, name: "TERATORN", arg: 108)],
+    [Spot(kind: .watch, x: 1100, name: "HUNTERS' CAMP", arg: 109)],
+    [Spot(kind: .watch, x: 900, name: "JUNIPER WOODLAND", arg: 110)],
+    [Spot(kind: .watch, x: 400, name: "PINYON CANYON", arg: 111)],
+    [Spot(kind: .watch, x: 900, name: "SABERTOOTH", arg: 112)],
+    [Spot(kind: .watch, x: 960, name: "BARE PAVEMENT", arg: 113)]
+]
+let WILD_ICE: [(String, String)] = [
+    ("the mammoths", "Columbian mammoths, a family of them, pulling up grass along the wash"),
+    ("the Joshua trees", "Joshua trees and creosote where saguaros will stand one day. The saguaros have not arrived yet"),
+    ("the camels", "Western camels. Camels began in North America; these are the last of them"),
+    ("the ground sloth", "A Shasta ground sloth, big as a bear, stripping a Joshua tree"),
+    ("the river", "The Colorado running high and cold with meltwater from the Rockies"),
+    ("the dire wolves", "Dire wolves, heavier than any wolf alive now, watching you from the rise"),
+    ("the horses", "Wild horses. They will die out here, and come back with the Spanish twelve thousand years on"),
+    ("the packrat nest", "A packrat's nest of twigs and juniper berries. In 13,000 years, nests like this are how scientists will know what grew here"),
+    ("the teratorn", "A teratorn, twelve feet from wingtip to wingtip, circling"),
+    ("the hunters' camp", "A small band camped by the wash: a fire, stone points being worked, children. Among the first people in this country"),
+    ("the woodland", "Juniper and pinyon pine across hills that will be bare rock in your time"),
+    ("the canyon", "Pinyon pines and oaks in the canyon, in the cool and the shade"),
+    ("the sabertooth", "A sabertooth cat on a ledge, in no hurry at all"),
+    ("the pavement", "Bare desert pavement. The giant figures are twelve thousand years in the future")
+]
+func wildOf(_ arg: Int) -> (String, String) { return arg >= 100 ? WILD_ICE[arg - 100] : WILD[arg] }
 /// Places and moments you can look around from the title screen.
 let PREVIEWS: [(String, String)] = [
     ("La Posa South camp", "ltva"), ("Camp at night", "night"), ("Camp party", "party"),
@@ -273,7 +311,8 @@ let PREVIEWS: [(String, String)] = [
     ("Ehrenberg: Skooliepalooza", "skoolie"), ("Pipeline Trail", "trail"), ("Scaddan Wash", "scaddan"),
     ("Road Runner: Quartzfest", "qfest"), ("Hi Jolly", "hijolly"), ("Plomosa Road", "plomosa"),
     ("Crystal Hill", "crystal"), ("Palm Canyon", "palms"), ("The Desert Bar", "desertbar"),
-    ("Blythe Intaglios", "intaglios"), ("1026: the desert", "past"), ("1026: river village", "pastriver")
+    ("Blythe Intaglios", "intaglios"), ("1026: the desert", "past"), ("1026: river village", "pastriver"),
+    ("Ice age: mammoths", "ice"), ("Ice age: hunters' camp", "icecamp"), ("Rock labyrinth", "labyrinth")
 ]
 let LANDMARKS = ["Pay respects at Hi Jolly's tomb", "Browse the books", "Read the stage-stop plaque", "Walk the old cemetery", "Walk Celia's Rainbow Gardens"]
 let CAMELS = 6
@@ -414,6 +453,7 @@ struct SaveData: Codable {
     var dug: [String: Int]?
     var boothDay: Int?
     var mailDay: Int?
+    var magic: Bool?
 }
 
 final class Input {
@@ -449,10 +489,15 @@ final class Game {
     // where everything is
     var area = Area.ltva
     var rigArea = Area.ltva
-    var spots: [Spot] { return inPast ? PAST_SPOTS[area.rawValue] : AREAS[area.rawValue].spots }
+    var spots: [Spot] { return iceAge ? ICE_SPOTS[area.rawValue] : (inPast ? PAST_SPOTS[area.rawValue] : AREAS[area.rawValue].spots) }
+    var iceAge: Bool { return era == 2 }
+    var notesHere: Int { return fieldNotes.filter { iceAge ? $0 >= 100 : $0 < 100 }.count }
+    var notesTotal: Int { return iceAge ? 14 : 18 }
+    var foundMagic = false
+    var alsOpen = false
     // a thousand years back: same land, no roads, no rigs
     var era = 0
-    var inPast: Bool { return era == 1 }
+    var inPast: Bool { return era >= 1 }
     var fieldNotes: Set<Int> = []
     var flashT = 0.0
     var credSeen = -1, credPopT = 0.0, credPopN = 0
@@ -472,15 +517,17 @@ final class Game {
     var toyHere: Bool { return !inPast && toyArea == area }
 
     /// Step through: your rig and rides stay in 2026; you go on foot.
-    func timeTravel() {
+    func timeTravel(_ target: Int) {
         refund()
-        era = inPast ? 0 : 1
+        era = target
         inRig = false; onToy = false; vx = 0
         mapOpen = false
         flashT = 1.2
         arriveT = 4.5
         events.append(7)
-        if inPast { hintT = 0; hint("past", "Winter, 1026. No roads, no rigs, saguaros everywhere. The river people farm the floodplain at Ehrenberg. Walk the old trails, watch quietly, and fill your field notes. Open the map to come home.") }
+        hintT = 0
+        if era == 1 { hint("past", "Winter, 1026. No roads, no rigs, saguaros everywhere. Watch the animals for your field notes (each new one is +1 cred), and visit the river village at Ehrenberg: there is something to do there every day.") }
+        if era == 2 { hint("ice", "About 13,000 years ago, at the end of the last ice age. Cooler and wetter: Joshua trees on the flats, juniper on the hills, no saguaros yet. Mammoths, camels, horses and ground sloths live here. Each new sighting is +1 cred.") }
     }
     var WORLD: Double { return AREAS[area.rawValue].w }
 
@@ -632,7 +679,7 @@ final class Game {
     }
     func areaName(_ a: Area) -> String { return AREAS[a.rawValue].name }
     /// A full-screen card is up and the day stands still.
-    var overlay: Bool { return mapOpen || browseOpen || seasonCard || ended || inCine || driving || phoneOpen || tourOpen || mineOpen || boardOpen }
+    var overlay: Bool { return mapOpen || browseOpen || seasonCard || ended || inCine || driving || phoneOpen || tourOpen || mineOpen || boardOpen || alsOpen }
     var tourOpen = false, tourBus = 0
     var boardOpen = false
     var petT = -99.0                      // when you last petted the dog
@@ -676,7 +723,7 @@ final class Game {
             ("Trade up to a bigger rig", rig.rawValue > START_RIGS[min(pickRig, START_RIGS.count - 1)].rawValue),
             ("Start a business at Town Hall", business > 0),
             ("Adopt a dog from the dog park", hasDog),
-            ("Go back 1,000 years and fill your field notes", fieldNotes.count >= 10),
+            ("Go back in time and fill 10 field notes", fieldNotes.count >= 10),
             ("Save 5,000 coins", money >= 5000),
             ("Get a year-round RV site or a house", resident || house)
         ]
@@ -792,6 +839,11 @@ final class Game {
                 events.append(3)
                 return
             }
+            if alsOpen {
+                if id == 58 { playPool() } else { alsOpen = false }
+                events.append(3)
+                return
+            }
             if tourOpen { tourOpen = false; events.append(3); return }
             if mineOpen { mineOpen = false; events.append(3); return }
             if boardOpen { boardOpen = false; events.append(3); return }
@@ -812,13 +864,15 @@ final class Game {
                 #if DEBUG
                 if id == 64 { testWeek(); return }
                 #endif
-                if id == 85 { timeTravel(); return }
+                if id == 85 { timeTravel(era != 0 ? 0 : 1); return }
+                if id == 57 { timeTravel(era == 2 ? 1 : 2); return }
                 if id == 55 { mapBig.toggle(); events.append(3); return }
                 if id == 54 { backToCamp(); events.append(3); return }
                 if id >= 70 && id < 70 + AREAS.count { go(Area(rawValue: id - 70) ?? area) } else if id == 61 || id < 0 { mapOpen = false }
                 events.append(3)
                 return
             }
+            if id == 56 && !inPast { refund(); alsOpen = true; events.append(3); return }
             if id == 50 { shown.insert("rigUsed"); toggleRig() }
             if id == 51 { shown.insert("toyUsed"); toggleToy() }
             if id == 53, let b = spots.firstIndex(where: { $0.kind == .board && abs($0.x - px) < 60 }) {
@@ -980,6 +1034,22 @@ final class Game {
         if seasonCard { mapOpen = false }
     }
 
+    /// A game of eight-ball in the back room at Silly Al's. Once a day; half the time you win the table.
+    private func playPool() {
+        if seen.contains(42) { mapMsg = "One game a day. The table's taken"; mapMsgT = 2.5; return }
+        if money < 5 { mapMsg = "A game is 5 coins"; mapMsgT = 2.5; return }
+        seen.insert(42)
+        money -= 5
+        if Double.random(in: 0..<1) < 0.5 {
+            money += 17; cred += 1
+            mapMsg = "You ran the table. 12 coins up, and the regulars noticed"
+            events.append(5)
+        } else {
+            mapMsg = "Scratched on the eight. Good game anyway"
+        }
+        mapMsgT = 3.5
+    }
+
     /// Straight home: to the place your rig is parked, and to its door.
     private func backToCamp() {
         if inPast || inRig { return }
@@ -1127,7 +1197,7 @@ final class Game {
                         age: age, year: year, resident: resident, house: house, upgrades: Array(upgrades), followers: followers,
                         camels: Array(camels), hasDog: hasDog, dogCholla: dogCholla,
                         weather: weather, afterRain: afterRain, tanks: tanks, propane: propane, stats: stats, notes: Array(fieldNotes), era: era, sStart: seasonStartCred, best: bestSeason, began: seasonBegan,
-                        seen: Array(seen), dug: dug, boothDay: boothDay, mailDay: mailDay)
+                        seen: Array(seen), dug: dug, boothDay: boothDay, mailDay: mailDay, magic: foundMagic)
     }
     func restore(_ s: SaveData) {
         life = Life(rawValue: s.life) ?? .nomad
@@ -1148,6 +1218,7 @@ final class Game {
         // today's limits come back with the save, so quitting and reopening can't reset them
         seen = Set(s.seen ?? []); dug = s.dug ?? [:]
         boothDay = s.boothDay ?? 0; mailDay = s.mailDay ?? mailDay
+        foundMagic = s.magic ?? false
         inRig = false; onToy = false
         shown = ["start"]
         hasSave = true
@@ -1173,7 +1244,7 @@ final class Game {
         previewing = false
         clockFreeze = false; driveFreeze = false; cineFreeze = false
         driving = false; mapOpen = false; browseOpen = false; phoneOpen = false; tourOpen = false; mineOpen = false; boardOpen = false
-        seasonCard = false; ended = false; cineShots = []; genOn = false; madT = 0; dustAmt = 0; plantShow = false; showRigs = false
+        alsOpen = false; seasonCard = false; ended = false; cineShots = []; genOn = false; madT = 0; dustAmt = 0; plantShow = false; showRigs = false
         floaters = []; hintT = 0
         life = .nomad; pickRig = 1
         begin()
@@ -1277,6 +1348,11 @@ final class Game {
         if key == "crystal" { place(.crystal, 840); dayT = 0.35; clockFreeze = true }
         if key == "palms" { place(.palms, 960); dayT = 0.3; clockFreeze = true }
         if key == "plants" { place(.plomosa, 300); dayT = 0.3; clockFreeze = true; plantShow = true }
+        if key == "ice" { place(.ltva, 1300); era = 2; dayT = 0.3; clockFreeze = true }
+        if key == "icecamp" { place(.plomosa, 1100); era = 2; dayT = 0.6; clockFreeze = true }
+        if key == "labyrinth" { place(.ltva, 2640); dayT = 0.3; clockFreeze = true }
+        if key == "magic" { place(.ltva, 2890); dayT = 0.4; clockFreeze = true }
+        if key == "als" { place(.main, 1200); dayT = 0.5; clockFreeze = true; alsOpen = true }
         if key == "past" { place(.ltva, 1500); era = 1; dayT = 0.3; clockFreeze = true }
         if key == "pastriver" { place(.skoolie, 800); era = 1; dayT = 0.35; clockFreeze = true }
         if key == "pastmain" { place(.main, 1200); era = 1; dayT = 0.6; clockFreeze = true }
@@ -1488,9 +1564,18 @@ final class Game {
         case .river:
             return health < 96 ? Offer(label: "Sit by the river", cost: 0, earn: 0, dur: 2.2) : nil
         case .watch:
-            return !fieldNotes.contains(sp.arg) ? Offer(label: "Watch quietly: " + WILD[sp.arg].0, cost: 0, earn: 0, dur: 2.2) : nil
+            if sp.arg == 16 && dayT < 0.5 { return nil }
+            return !fieldNotes.contains(sp.arg) ? Offer(label: "Watch quietly: " + wildOf(sp.arg).0, cost: 0, earn: 0, dur: 2.2) : nil
         case .village:
-            return !fieldNotes.contains(20) ? Offer(label: "Visit the river village", cost: 0, earn: 0, dur: 2.4) : nil
+            if !fieldNotes.contains(20) { return Offer(label: "Visit the river village", cost: 0, earn: 0, dur: 2.4) }
+            if seen.contains(39) { return nil }
+            if day % 3 == 0 { return Offer(label: "Play hoop and pole with the village kids", cost: 0, earn: 0, dur: 2.4) }
+            if day % 3 == 1 { return Offer(label: "Help grind mesquite pods", cost: 0, earn: 0, dur: 2.6) }
+            return rocks > 0 ? Offer(label: "Trade a stone for a painted pot", cost: 0, earn: 0, dur: 1.8) : nil
+        case .labyrinth:
+            return seen.contains(40) ? nil : Offer(label: "Walk the labyrinth to the middle", cost: 0, earn: 0, dur: 6)
+        case .magic:
+            return seen.contains(41) ? nil : Offer(label: "Say hello at the Magic Circle", cost: 0, earn: 0, dur: 1.6)
         case .hike:
             if sp.arg == 2 { return !seen.contains(36) ? Offer(label: "Duck under the cable for a closer look", cost: 0, earn: 0, dur: 1.4) : nil }
             if sp.arg == 1 { return !seen.contains(30) ? Offer(label: "Walk the fence line to the figures", cost: 0, earn: 0, dur: 1.8) : nil }
@@ -1584,8 +1669,10 @@ final class Game {
         case .rockhound: return rocks >= packCap ? "Pack is full" : "Too worn out. Rest first"
         case .landmark: return "You've been here today"
         case .river: return "The river's nice today"
-        case .watch: return "In your field notes. Sit and watch as long as you like"
-        case .village: return "They wave as you pass. You're always welcome to watch the work"
+        case .watch: return sp.arg == 16 && !fieldNotes.contains(16) ? "Big cat tracks in the mud. Come back toward dusk" : "In your field notes. Sit and watch as long as you like"
+        case .village: return seen.contains(39) ? "They wave as you pass. Come back tomorrow" : "Bring a stone to trade for a pot"
+        case .labyrinth: return "You've walked it today. Getting to the middle is the point"
+        case .magic: return "Good people. No photos here"
         case .hike:
             if sp.arg == 2 { return "Stay outside the fence. One footprint lasts for centuries here" }
             if sp.arg == 1 { return "You've seen them today. Stay outside the fences" }
@@ -1891,8 +1978,29 @@ final class Game {
             fieldNotes.insert(sp.arg)
             health = min(100, health + 4)
             hintT = 0
-            hint("wild\(sp.arg)", WILD[sp.arg].1 + ".")
-            float("Field notes \(fieldNotes.count)/17", x, GOLD)
+            hint("wild\(sp.arg)", wildOf(sp.arg).1 + ".")
+            cred += sp.arg == 16 ? 4 : 1
+            float("Field notes \(notesHere)/\(notesTotal)", x, GOLD)
+        case .labyrinth:
+            seen.insert(40)
+            cred += 3
+            health = min(100, health + 6)
+            float("The middle. You stand there a while", x, GOLD)
+            post("the rock labyrinth at La Posa", 12)
+        case .magic:
+            seen.insert(41)
+            cred += 1
+            if !foundMagic {
+                foundMagic = true
+                hintT = 0
+                hint("magic", "The Magic Circle: a clothing-optional corner of La Posa South that the regulars keep quiet about. It's on your map now. Be respectful, and no photos.")
+            }
+            float("They wave you over for coffee", x, GREEN)
+        case .village where fieldNotes.contains(20):
+            seen.insert(39)
+            if o.label.hasPrefix("Play") { cred += 2; health = min(100, health + 4); float("You lose, badly. The kids are delighted", x, GOLD) }
+            else if o.label.hasPrefix("Help") { cred += 1; health = min(100, health + 12); float("Sweet mesquite flour, and a place by the fire", x, GREEN) }
+            else { if !rockVals.isEmpty { rockVals.removeFirst() }; if odd < 3 { odd += 1 }; cred += 2; float("A red-on-buff pot, wrapped in bark for the walk home", x, GOLD) }
         case .village:
             fieldNotes.insert(20)
             health = min(100, health + 10)
