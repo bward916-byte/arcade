@@ -784,9 +784,10 @@ final class Game {
         if (mode == .sail || mode == .port) && card == nil && play != nil { tapPlay(x, y); return }
         if mode == .duel && card == nil { duel?.touch(x, y, self) }
     }
-    func touchMove(_ x: Double, _ y: Double) {}
+    func touchMove(_ x: Double, _ y: Double) { movePlay(x, y) }
     func touchUp(_ x: Double, _ y: Double) {
         isDown = false
+        if play != nil && card == nil { releasePlay(x, y) }
         if sum != nil && card == nil && sumT < LegSum.fullT { sumT = LegSum.fullT; return }
         for h in hits.reversed() where h.has(x, y) && h.has(downX, downY) {
             snd?.click()
@@ -887,7 +888,9 @@ final class Game {
             case "strong": playStrong()
             default: startOdd(k)
             }
-            if play?.kind == .taps { play?.total = 60 }
+            if play?.kind == .taps || play?.kind == .steer || play?.kind == .swipe { play?.total = 60 }
+            if play?.kind == .hold { play?.held = true }
+            if play?.kind == .beat { play?.life = 4; play?.tb = 3 }
             if play?.kind == .pick { play?.tellHold = true }
             return
         }

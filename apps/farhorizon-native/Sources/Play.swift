@@ -7,7 +7,7 @@ import Foundation
 //   pick   — a row of crates, mounds or hatches; open a few and see what is inside
 
 final class Play {
-    enum Kind { case timing, taps, pick }
+    enum Kind { case timing, taps, pick, hold, steer, swipe, beat, reel }
     let kind: Kind
     let theme: String      // storm, run, fish, line, leak, fog, wreck, island, ghost
     let title: String
@@ -38,6 +38,23 @@ final class Play {
     /// one crate with something in it glints for a moment at the start: a clue for sharp eyes
     var tell = -1
     var tellHold = false
+    // the newer kinds (Play2.swift): two dials, a pause between rounds, a finger held, what is coming
+    var a = 0.0
+    var b = 0.0
+    var v = 0.0
+    var tb = 0.0
+    var fade = 0.3
+    var wait = 0.0
+    var held = false
+    var cur = 0
+    var obst: [(x: Double, y: Double, w: Double, done: Bool)] = []
+    // watch, then repeat
+    var seq: [Int] = []
+    var seqI = 0
+    var phase = 0
+    var known = false
+    var lastTap = -1
+    var lastTapT = 0.0
     // shared
     var t = 0.0
     var msg = ""
@@ -56,11 +73,11 @@ final class Play {
     /// How well it went, out of three, for the banner at the end.
     func stars() -> Int {
         switch kind {
-        case .timing:
+        case .timing, .hold, .beat, .reel:
             if stopOnHit { return score > 0 ? (perfect > 0 ? 3 : 2) : 0 }
             let r = Double(score) / Double(max(1, rounds))
             return r >= 1 ? (perfect * 2 >= rounds ? 3 : 2) : (r >= 0.5 ? 1 : 0)
-        case .taps:
+        case .taps, .steer, .swipe:
             let r = Double(score) / Double(max(1, total))
             return r >= 1 ? 3 : (r >= 0.67 ? 2 : (r >= 0.34 ? 1 : 0))
         case .pick:
@@ -177,7 +194,10 @@ extension Game {
             }
             if p.spawned >= p.total && open == 0 { p.endT = 1.6; p.endLen = 1.6 }
         case .pick:
+            updateMemory(p)
             for i in 0..<p.open.count where p.open[i] >= 0 { p.open[i] += dt }
+        case .hold, .steer, .swipe, .beat, .reel:
+            updatePlay2(p, dt)
         }
     }
 
@@ -266,8 +286,11 @@ extension Game {
                 buzz?(false)
                 if p.theme == "leak" { snd?.thud(); puff(p.targets[best].x, p.targets[best].y, 10, Col(0xc9a86a), 120, 260, 2.4, 0.4) } else { snd?.good(); puff(p.targets[best].x, p.targets[best].y, 12, Col(0xffffff, 0.9), 150, 260, 2.2, 0.4) }
             }
+        case .hold, .steer, .swipe, .beat, .reel:
+            tapPlay2(p, x, y)
         case .pick:
             if p.picksLeft <= 0 { return }
+            if tapMemory(p, x, y) { return }
             let r = pickRects(p)
             for (i, q) in r.enumerated() where p.open[i] < 0 && x >= q.0 && x <= q.0 + q.2 && y >= q.1 - 10 && y <= q.1 + q.3 + 10 {
                 p.open[i] = 0
@@ -576,6 +599,7 @@ extension Game {
                         c.ellStroke(cx, iy + 22, 28, 4, 1, Col(0xffffff, 0.5))
                     }
                     c.text("?", cx, q.1 + q.3 - 10, 15, CREAM.alpha(0.8), 0, FONTB)
+                    if !p.seq.isEmpty { drawMemoryMark(c, p, i, q, cx, iy) }
                     if i == p.tell && (p.tellHold || (p.t > 0.6 && p.t < 1.5)) {
                         // a glint: there is something in this one
                         let gk = p.tellHold ? 1.0 : sin((p.t - 0.6) / 0.9 * PI)
@@ -612,7 +636,9 @@ extension Game {
                 }
                 c.restore()
             }
-            c.textS(p.picksLeft > 0 ? "Picks left: \(p.picksLeft)" : "", W / 2, H - safeB - 12, 15, CREAM, 0, FONTB)
+            c.textS(p.phase > 0 ? memoryLine(p) : (p.picksLeft > 0 ? "Picks left: \(p.picksLeft)" : ""), W / 2, H - safeB - 12, 15, p.phase > 0 ? Col(0xfff2a0) : CREAM, 0, FONTB)
+        case .hold, .steer, .swipe, .beat, .reel:
+            drawPlay2(c, p)
         }
         for pp in p.pops {
             if pp.t < 0 { continue }
@@ -733,15 +759,15 @@ extension Game {
             evTitle = p.title
             startPlay(p)
         case "turtle":
-            let p = Play(.timing, "turtle", "A turtle alongside", "Drop the net over her. Three tries") { [unowned self] p in
+            let p = Play(.reel, "turtle", "A turtle alongside", "Tap fast to haul her in. Ease off when she dives") { [unowned self] p in
                 if p.score == 0 { self.done("She dives, and is gone"); return }
                 let got = self.addGood("food", 8 + p.perfect * 3)
                 self.done(got > 0 ? "Hauled aboard in the net. Turtle soup for a week: +\(got) stores" : "Netted, but the hold is full. You let her go")
             }
-            p.rounds = 3
-            p.stopOnHit = true
-            p.zone = 0.22
-            p.speed = 1.25
+            p.rounds = 1
+            p.speed = 0.05
+            p.life = 12; p.tb = 12
+            p.a = 1; p.spawnT = rnd(1.2, 2.0)
             evTitle = p.title
             startPlay(p)
         case "gulls":
@@ -769,7 +795,7 @@ extension Game {
     // ---------- the games behind each event
     func playStorm() {
         setWeather(3, days: 1)
-        let p = Play(.timing, "storm", "Take the helm", "Turn her bow into each wave as it comes") { [unowned self] p in
+        let p = Play(.steer, "storm", "Take the helm", "Slide your finger to steer through the gap in each wave") { [unowned self] p in
             let miss = p.rounds - p.score
             let d = Double(miss) * max(2, Double(rndI(3, 5)) - 0.8 * self.E("rig"))
             if d > 0 { self.dmg(d) }
@@ -778,9 +804,11 @@ extension Game {
             self.setWeather(2, days: 1)
             self.done(miss == 0 ? "Not a plank started. The crew cheers the helm" : "You came through. The storm cost \(Int(d)) hull")
         }
-        p.rounds = 4
-        p.zone = clampD(0.2 + 0.05 * E("helm"), 0.16, 0.36)
-        p.speed = 1.15
+        p.total = 5; p.rounds = 5
+        p.zone = clampD(0.12 + 0.03 * E("helm"), 0.1, 0.2)
+        p.speed = 0.5
+        p.life = 1.5
+        p.a = 0.5; p.b = 0.5
         startPlay(p)
     }
     func playRun(_ foes: Int, _ prize: Int) {
@@ -799,18 +827,19 @@ extension Game {
     func playFish() {
         let used = min(3, bait)
         bait -= used
-        let p = Play(.timing, "fish", "Fish running", "Strike as each one takes the bait") { [unowned self] p in
+        let p = Play(.reel, "fish", "Fish running", "Tap fast to reel each one in. Ease off when it runs") { [unowned self] p in
             let raw = Double(p.score * rndI(3, 5) + p.perfect * 3) * (1 + 0.2 * self.E("fish"))
             let got = self.addGood("food", Int(raw))
             self.done(p.score == 0 ? "Not a bite. The bait is gone" : (got > 0 ? "A fine catch: +\(got) stores" : "The hold is full"))
         }
         p.rounds = max(1, used)
-        p.zone = clampD(0.22 + 0.05 * E("fish"), 0.18, 0.36)
-        p.speed = 1.0
+        p.speed = 0.07 + 0.012 * E("fish")
+        p.life = 10; p.tb = 10
+        p.a = 1; p.spawnT = rnd(1.2, 2.0)
         startPlay(p)
     }
     func playLine() {
-        let p = Play(.timing, "line", "Man overboard!", "Throw the line. Three tries") { [unowned self] p in
+        let p = Play(.hold, "line", "Man overboard!", "Hold to swing the line, let go to throw. Three tries") { [unowned self] p in
             if p.score > 0 {
                 self.done("Hauled aboard, coughing and cursing, but alive")
             } else {
@@ -822,7 +851,8 @@ extension Game {
         p.rounds = 3
         p.stopOnHit = true
         p.zone = clampD(0.2 + 0.05 * E("helm"), 0.18, 0.34)
-        p.speed = 1.3
+        p.speed = 0.95
+        p.b = 0.72
         startPlay(p)
     }
     func playLeak() {
@@ -840,18 +870,21 @@ extension Game {
     }
     func playFog() {
         setWeather(4, days: 1)
-        let p = Play(.taps, "fog", "Rocks in the fog", "Tap each rock as it shows, to steer clear") { [unowned self] p in
+        let p = Play(.steer, "fog", "Rocks in the fog", "Slide your finger to steer between the rocks as they show") { [unowned self] p in
             let d = Double(p.missed * rndI(3, 5))
             if d > 0 { self.dmg(d) }
             if self.over { return }
             self.done(p.missed == 0 ? "You thread the rocks without a scratch" : "The hull scrapes \(p.missed) time\(p.missed == 1 ? "" : "s"): \(Int(d)) hull lost")
         }
-        p.total = 6
-        p.life = 1.25 + 0.3 * E("look")
+        p.total = 7
+        p.speed = 0.42
+        p.life = 1.25
+        p.fade = 0.34 - 0.1 * E("look")
+        p.a = 0.5; p.b = 0.5
         startPlay(p)
     }
     /// Opens a few of a row of spots and reports what was found.
-    private func playPick(_ theme: String, _ title: String, _ hint: String, _ spots: [Int], _ picks: Int, _ trouble: @escaping () -> String) {
+    private func playPick(_ theme: String, _ title: String, _ hint: String, _ spots: [Int], _ picks: Int, memory: Int = 0, _ trouble: @escaping () -> String) {
         let p = Play(.pick, theme, title, hint) { [unowned self] p in
             var parts: [String] = []
             var g = 0
@@ -877,22 +910,31 @@ extension Game {
         }
         p.spots = spots.shuffled()
         p.tell = p.spots.indices.filter { p.spots[$0] != 0 && p.spots[$0] != 7 }.randomElement() ?? -1
+        if memory > 0 {
+            // they light up in an order to be tapped back; get it right and you learn what is inside
+            var last = -1
+            for _ in 0..<memory {
+                var k = rndI(0, spots.count - 1)
+                if k == last { k = (k + 1) % spots.count }
+                p.seq.append(k); last = k
+            }
+            p.phase = 1; p.cur = -1; p.tell = -1
+        }
         p.open = [Double](repeating: -1, count: spots.count)
         p.picksLeft = picks
         startPlay(p)
     }
     // ---------- things that happen ashore
     func playDock() {
-        let p = Play(.timing, "dock", "Work on the docks", "Swing each load aboard as the crane comes over") { [unowned self] p in
+        let p = Play(.beat, "dock", "Work on the docks", "Swing each load aboard on the beat") { [unowned self] p in
             let g = p.score * 14 + p.perfect * 8
             self.gold += g
             self.portJobDone = true
             if g > 0 { self.snd?.coin() }
             self.done(g > 0 ? "The merchant counts out \(g) gold for \(p.score) loads" : "Every load in the harbour. No pay today")
         }
-        p.rounds = 5
-        p.zone = 0.24
-        p.speed = 1.2
+        p.rounds = 6
+        p.life = 0.9; p.tb = 0.9 * 1.6
         startPlay(p)
     }
     func playThief() {
@@ -929,18 +971,17 @@ extension Game {
         portJobDone = true
         var s = [3, 6, 4, 1, 0]
         if chance(0.35) { s[4] = 8 }
-        playPick("wreck", "An old sailor's gift", "\"Sailed with your father, I did. Take two, with my blessing.\"", s, 2) { return "" }
+        playPick("wreck", "An old sailor's gift", "\"Rap them back in my order and I'll show you the good ones.\" Then take two", s, 2, memory: 4) { return "" }
     }
     func playRow() {
-        let p = Play(.timing, "row", "Man the oars", "Call the stroke. Tap on the beat") { [unowned self] p in
+        let p = Play(.beat, "row", "Man the oars", "Call the stroke. Tap on each beat") { [unowned self] p in
             let miss = p.rounds - p.score
             if miss >= 2 { self.consume() }
             if self.over { return }
-            self.done(miss == 0 ? "Four clean strokes and she finds a breeze. Nothing lost" : (miss >= 2 ? "A ragged, thirsty hour at the oars. Extra rations used" : "She creeps out of the calm"))
+            self.done(miss == 0 ? "Six clean strokes and she finds a breeze. Nothing lost" : (miss >= 2 ? "A ragged, thirsty hour at the oars. Extra rations used" : "She creeps out of the calm"))
         }
-        p.rounds = 4
-        p.zone = 0.24
-        p.speed = 1.0
+        p.rounds = 6
+        p.life = 0.95; p.tb = 0.95 * 1.6
         startPlay(p)
     }
     func playShark() {
@@ -961,7 +1002,7 @@ extension Game {
         startPlay(p)
     }
     func playFire() {
-        let p = Play(.taps, "fire", "Fire in the town!", "Your crew forms a bucket chain. Tap each blaze") { [unowned self] p in
+        let p = Play(.swipe, "fire", "Fire in the town!", "Pass the buckets down the chain, the way each one is going") { [unowned self] p in
             self.portJobDone = true
             if p.missed <= 2 {
                 let g = 40 + p.score * 10
@@ -973,11 +1014,12 @@ extension Game {
             }
         }
         p.total = 7
-        p.life = 1.35
+        p.life = 1.6; p.a = 1.6
+        p.cur = rndI(0, 3)
         startPlay(p)
     }
     func playStrong() {
-        let p = Play(.timing, "strong", "Ring the bell", "The strongman's hammer. Tap at the top of the swing") { [unowned self] p in
+        let p = Play(.hold, "strong", "Ring the bell", "Hold to swing the hammer. Let go to send the puck to the bell") { [unowned self] p in
             self.portJobDone = true
             let g = p.score >= 3 ? 50 + p.perfect * 10 : (p.score == 2 ? 20 : 0)
             self.gold += g
@@ -985,8 +1027,9 @@ extension Game {
             self.done(p.score >= 3 ? "Three for three. The purse is yours: +\(g) gold" : (g > 0 ? "Two out of three wins a small prize: +\(g) gold" : "The strongman keeps his purse"))
         }
         p.rounds = 3
-        p.zone = 0.2
-        p.speed = 1.45
+        p.zone = 0.17
+        p.speed = 1.2
+        p.b = rnd(0.6, 0.85)
         startPlay(p)
     }
     func startRaid() {
@@ -1093,7 +1136,7 @@ extension Game {
     func playGhost() {
         var s = [2, 8, 7, 0]
         if chance(0.4) { s[3] = 1 }
-        playPick("ghost", "Ghost ship", "Three hatches on her deck. You dare open two", s, 2) { [unowned self] in
+        playPick("ghost", "Ghost ship", "The hatches creak in turn. Repeat it to learn which is cursed, then open two", s, 2, memory: 4) { [unowned self] in
             self.toastText = ""
             self.loseCrew("Something drags a sailor below")
             return self.toastText
