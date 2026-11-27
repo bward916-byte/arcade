@@ -7,6 +7,9 @@ let PI = Double.pi
 func clampD(_ v: Double, _ a: Double, _ b: Double) -> Double { return v < a ? a : (v > b ? b : v) }
 func rnd(_ a: Double, _ b: Double) -> Double { return a + Double.random(in: 0..<1) * (b - a) }
 func lerp(_ a: Double, _ b: Double, _ t: Double) -> Double { return a + (b - a) * t }
+/// How much closer the walking world is drawn than the HUD and menus.
+let ZOOM = 1.28
+
 func hashN(_ n: Double) -> Double { let v = sin(n * 127.1 + 3.7) * 43758.5453; return v - floor(v) }
 
 struct Col {

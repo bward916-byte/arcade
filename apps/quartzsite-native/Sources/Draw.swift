@@ -36,7 +36,7 @@ final class Renderer {
         if g.showRigs { rigSheet(); return }
         switch g.phase {
         case .title:
-            cam = (g.WORLD - W) * (0.5 - 0.5 * cos(NOW * 0.045))
+            cam = (g.WORLD - W / ZOOM) * (0.5 - 0.5 * cos(NOW * 0.045))
             scene(0.615)
             titleOverlay()
         case .pick:
@@ -188,6 +188,16 @@ final class Renderer {
         if wx >= 2 { c.R(0, 0, W, GY, Col(0x5a6274, wx == 3 ? 0.5 : 0.28)) }
         clouds(wx, sk.1)
 
+        // from here down the world is drawn closer in: bigger people, rigs and plants, less empty sky
+        let fullW = W, fullH = H
+        let gys = GY + 2
+        let text0 = g.texts.count, hit0 = g.hits.count
+        c.save()
+        c.translate(0, gys - GY * ZOOM)
+        c.scale(ZOOM, ZOOM)
+        W = fullW / ZOOM
+        H = GY + (fullH - gys) / ZOOM
+
         // the ranges: far and hazy, then nearer and darker; each place has its own skyline
         let haze = sk.1
         ridge(0.06, 1.3 + seed, GY - 6, 62, Col.mix(Col(0x6a5a80), haze, 0.55).shade(1 - dark * 0.55))
@@ -275,9 +285,10 @@ final class Renderer {
                 let k = hashN(n + 31 + seed)
                 if ar == .skoolie && g.inPast && k < 0.4 { cottonwood(sx, GY + 1, n) }
                 else if ar == .skoolie && k < 0.25 { palm(sx, GY + 1, 40 + hashN(n + 5) * 22, n) }
-                else if k < sagCut { saguaro(sx, GY + 1, 26 + hashN(n + 5) * 20, n, SAG, true) }
+                else if k < sagCut { saguaro(sx, GY + 1, 22 + hashN(n + 5) * 36, n, SAG, true) }
                 else if k < 0.48 { cholla(sx, GY + 1, 0.8 + hashN(n + 6) * 0.5, n) }
-                else if k < 0.62 { creosote(sx, GY + 1, n) }
+                else if k < 0.57 { creosote(sx, GY + 1, n) }
+                else if k < 0.62 { brittlebush(sx, GY + 1, n) }
                 else if k < 0.72 { ocotillo(sx, GY + 1, n) }
                 else if k < 0.78 { barrel(sx, GY + 1, 0.9 + hashN(n + 8) * 0.5, n) }
                 else if k < 0.85 { beavertail(sx, GY + 1, n) }
@@ -323,10 +334,6 @@ final class Renderer {
             let shadeC = Col(0x2a3a2a).shade(1 - dark * 0.5)
             if hashN(n + 410) < 0.5 {
                 if g.phase == .title { saguaro(sx, H + 14, 120 + hashN(n + 420) * 40, n + 430, shadeC, false) }
-            } else {
-                c.circ(sx, H + 4, 11, shadeC)
-                c.circ(sx + 12, H + 6, 9, shadeC)
-                c.circ(sx - 10, H + 7, 8, shadeC)
             }
             n += 1
         }
@@ -352,6 +359,20 @@ final class Renderer {
             g.text(f.s, f.x - cam, f.y, 6.5, f.col.alpha(clampD(1.8 - f.t, 0, 1)), bold: true)
         }
         if g.phase == .play && g.active >= 0 { ring(g.active) }
+
+        // back to screen units; move the labels and tap targets drawn in the world to where they landed
+        c.restore()
+        W = fullW; H = fullH
+        for i in text0..<g.texts.count {
+            g.texts[i].x *= ZOOM
+            g.texts[i].y = gys + (g.texts[i].y - GY) * ZOOM
+            g.texts[i].size *= ZOOM
+            g.texts[i].wrap *= ZOOM
+        }
+        for i in hit0..<g.hits.count {
+            let h = g.hits[i]
+            g.hits[i] = Hit(id: h.id, x: h.x * ZOOM, y: gys + (h.y - GY) * ZOOM, w: h.w * ZOOM, h: h.h * ZOOM)
+        }
     }
 
     /// Your rig, your toy and you, with a soft glow on whatever you can tap.
@@ -724,9 +745,11 @@ final class Renderer {
             let cx = W * 0.5 + 300 - cam * 0.3
             let wall = Col(0x8a6450).shade(1 - dark * 0.6)
             c.poly(wall, [cx - 320, GY + 1, cx - 300, GY - 70, cx - 220, GY - 90, cx - 120, GY - 84, cx - 60, GY - 100, cx + 40, GY - 96, cx + 140, GY - 82, cx + 260, GY - 88, cx + 340, GY + 1])
-            c.poly(Col(0x3a2a24).shade(1 - dark * 0.5), [cx - 34, GY - 98, cx - 14, GY - 98, cx - 4, GY - 20, cx - 40, GY - 20])
+            c.poly(wall.shade(0.9), [cx - 320, GY + 1, cx - 310, GY - 30, cx - 200, GY - 40, cx - 60, GY - 34, cx + 100, GY - 42, cx + 260, GY - 30, cx + 340, GY + 1])
+            c.poly(Col(0x4a342c).shade(1 - dark * 0.5), [cx - 30, GY - 99, cx - 18, GY - 99, cx - 15, GY - 40, cx - 21, GY - 14, cx - 31, GY - 40])
+            c.poly(wall.shade(1.12), [cx - 34, GY - 14, cx - 8, GY - 14, cx + 6, GY + 1, cx - 48, GY + 1])
             for k in 0..<4 {
-                let px = cx - 30 + Double(k) * 7, py = GY - 62 + Double(k % 2) * 6
+                let px = cx - 28 + Double(k) * 3.4, py = GY - 62 + Double(k % 2) * 7
                 c.R(px - 0.6, py, 1.2, 10, Col(0x6a5040))
                 for f in 0..<7 {
                     let a = Double(f) / 6 * PI
@@ -1042,52 +1065,7 @@ final class Renderer {
 
     // MARK: plants
 
-    private func saguaro(_ x: Double, _ base: Double, _ h: Double, _ seed: Double, _ col: Col, _ detail: Bool) {
-        if x < -40 || x > W + 40 { return }
-        let w = max(1.6, h * 0.17)
-        let body = detail ? col.shade(1 - dark * 0.35) : col
-        // arms first, so the trunk overlaps their roots
-        let arms = Int(hashN(seed + 11) * 3.4)
-        for i in 0..<arms {
-            let n = seed + Double(i) * 17
-            let side = i % 2 == 0 ? -1.0 : 1.0
-            let ay = base - h * (0.34 + hashN(n + 2) * 0.26)
-            let reach = w * (1.5 + hashN(n + 3) * 0.9)
-            let ah = h * (0.2 + hashN(n + 4) * 0.22)
-            let aw = w * 0.72
-            let ax = x + side * reach
-            c.RR(min(x, ax) - aw / 2, ay - aw / 2, abs(ax - x) + aw, aw, aw / 2, body)
-            c.RR(ax - aw / 2, ay - ah, aw, ah + aw / 2, aw / 2, body)
-            if detail { c.R(ax - aw / 2 + 0.4, ay - ah + aw / 2, 0.7, ah - aw / 2, Col(0xcfe0a8, 0.35)) }
-        }
-        c.RR(x - w / 2, base - h, w, h + 1, w / 2, body)
-        if detail {
-            // ribs, a lit edge and the spines catching the light
-            c.R(x - w * 0.18, base - h + w / 2, 0.6, h - w / 2, SAGD.alpha(0.6))
-            c.R(x + w * 0.16, base - h + w / 2, 0.6, h - w / 2, SAGD.alpha(0.6))
-            c.R(x - w / 2 + 0.4, base - h + w / 2, 0.8, h - w / 2, Col(0xdcecb0, 0.4))
-        }
-    }
 
-    private func creosote(_ x: Double, _ base: Double, _ seed: Double) {
-        if x < -20 || x > W + 20 { return }
-        let col = Col(0x5c6b3a).shade(1 - dark * 0.35)
-        for i in 0..<6 {
-            let n = seed + Double(i) * 3.1
-            c.circ(x + (hashN(n) - 0.5) * 16, base - 3 - hashN(n + 1) * 7, 2.6 + hashN(n + 2) * 2, i % 2 == 0 ? col : col.shade(1.18))
-        }
-    }
-    private func ocotillo(_ x: Double, _ base: Double, _ seed: Double) {
-        if x < -20 || x > W + 20 { return }
-        let col = Col(0x6a7a4a).shade(1 - dark * 0.35)
-        for i in 0..<7 {
-            let n = seed + Double(i) * 5.7
-            let lean = (Double(i) - 3) * 3.2 + (hashN(n) - 0.5) * 3
-            let h = 20 + hashN(n + 1) * 14
-            c.curve(x, base, x + lean * 0.3, base - h * 0.6, x + lean, base - h, 0.9, col)
-            if hashN(n + 2) < 0.4 { c.circ(x + lean, base - h, 1.1, Col(0xd9482e)) }
-        }
-    }
 
     // MARK: rigs and people
 
@@ -1381,22 +1359,6 @@ final class Renderer {
         }
     }
 
-    /// A desert fan palm, the kind that line the river.
-    private func palm(_ x: Double, _ base: Double, _ h: Double, _ seed: Double) {
-        if x < -40 || x > W + 40 { return }
-        let lean = (hashN(seed + 3) - 0.5) * 8
-        let trunk = Col(0x6a5240).shade(1 - dark * 0.4)
-        c.roundCaps(true)
-        c.curve(x, base, x + lean * 0.3, base - h * 0.5, x + lean, base - h, 3, trunk)
-        c.poly(Col(0x9a8a6a).shade(1 - dark * 0.4), [x + lean - 3, base - h + 2, x + lean + 3, base - h + 2, x + lean + 2.4, base - h + 12, x + lean - 2.4, base - h + 12])
-        let leaf = Col(0x4f7a3a).shade(1 - dark * 0.4)
-        for i in 0..<9 {
-            let a = -PI * 0.95 + Double(i) * PI * 0.95 / 8 + sin(NOW * 1.2 + seed + Double(i)) * 0.04
-            let r = 12 + hashN(seed + Double(i)) * 4
-            c.curve(x + lean, base - h, x + lean + cos(a) * r * 0.6, base - h + sin(a) * r * 0.6 - 3, x + lean + cos(a) * r, base - h + sin(a) * r + 3, 1.8, leaf)
-        }
-        c.roundCaps(false)
-    }
 
     /// A wheel drawn in screen space, outside a rig's own transform.
     private func wheelAt(_ x: Double, _ base: Double, _ r: Double) {
@@ -2409,15 +2371,6 @@ final class Renderer {
         }
     }
 
-    /// A barrel cactus, ribbed, with yellow flowers on top.
-    private func barrel(_ x: Double, _ base: Double, _ s: Double, _ seed: Double) {
-        if x < -20 || x > W + 20 { return }
-        let col = Col(0x5a8a4a).shade(1 - dark * 0.35)
-        c.ell(x, base - 5 * s, 4 * s, 5.4 * s, col)
-        for k in -1...1 { c.R(x + Double(k) * 1.6 * s - 0.25, base - 9.6 * s, 0.5, 9 * s, col.shade(0.8)) }
-        c.ell(x, base - 10.2 * s, 2.6 * s, 1 * s, Col(0xe8c040))
-        c.ell(x, base - 5 * s, 4 * s, 5.4 * s, Col(0xd04a3a, 0.12))
-    }
 
 
 
@@ -2700,6 +2653,160 @@ final class Renderer {
                 let py: Double = -L * (0.38 + Double(r) * 0.26)
                 c.circ(x + px * ca - py * sa, y + px * sa + py * ca, 0.14, gl)
             }
+        }
+    }
+
+    /// One ribbed saguaro column with a domed tip.
+    private func sagColumn(_ x: Double, _ y0: Double, _ y1: Double, _ w: Double, _ body: Col, _ detail: Bool, _ flat: Bool) {
+        let top = y1 + w / 2
+        c.R(x - w / 2, top, w, y0 - top, body)
+        c.circ(x, top, w / 2, body)
+        if !flat { c.circ(x, y0, w / 2, body) }
+        if detail {
+            let nr = max(2, Int(w / 1.5))
+            for i in 0..<nr {
+                let rx = x - w / 2 + w * (Double(i) + 0.5) / Double(nr)
+                c.R(rx - 0.2, y1 + w * 0.35, 0.4, y0 - y1 - w * 0.35, SAGD.alpha(0.55))
+            }
+            c.R(x - w / 2 + 0.25, y1 + w * 0.45, 0.55, y0 - y1 - w * 0.45, Col(0xdcecb0, 0.35))
+        }
+    }
+    /// Saguaro: young ones are plain spears; old ones grow arms that curve out and up. Pleated ribs, a lit edge, now and then a woodpecker hole.
+    private func saguaro(_ x: Double, _ base: Double, _ h: Double, _ seed: Double, _ col: Col, _ detail: Bool) {
+        if x < -50 || x > W + 50 { return }
+        let w = max(1.6, h < 70 ? min(7.5, h * 0.13 + 1.2) : h * 0.15)
+        let body = detail ? col.shade(1 - dark * 0.35) : col
+        let most = h < 44 ? 2.6 : 4.4
+        let arms = h < 30 ? 0 : Int(hashN(seed + 11) * most)
+        let flip = Int(hashN(seed + 5) * 2)
+        c.roundCaps(true)
+        for i in 0..<arms {
+            let n = seed + Double(i) * 17
+            let side = (i + flip) % 2 == 0 ? -1.0 : 1.0
+            let ay = base - h * (0.36 + hashN(n + 2) * 0.24)
+            let reach = w * (1.25 + hashN(n + 3) * 0.6)
+            let ah = h * (0.16 + hashN(n + 4) * 0.24)
+            let aw = w * 0.66
+            let ax = x + side * reach
+            c.curve(x, ay, ax, ay, ax, ay - reach * 0.9, aw, body)
+            sagColumn(ax, ay - reach * 0.8, ay - reach * 0.9 - ah, aw, body, detail, false)
+        }
+        c.roundCaps(false)
+        sagColumn(x, base + 1, base - h, w, body, detail, true)
+        if detail && h > 40 && hashN(seed + 21) < 0.5 { c.circ(x + w * 0.12, base - h * 0.72, 0.7, Col(0x1e2a1e)) }
+    }
+
+    /// Creosote: an open vase of thin grey stems with small dark olive leaves toward the tips.
+    private func creosote(_ x: Double, _ base: Double, _ seed: Double) {
+        if x < -24 || x > W + 24 { return }
+        let k = 1 - dark * 0.35
+        let stem = Col(0x6e6658).shade(k)
+        let leaf = Col(0x55682f).shade(k)
+        let leaf2 = Col(0x6c7d3a).shade(k)
+        let n = 11 + Int(hashN(seed) * 5)
+        for i in 0..<n {
+            let f = Double(i) / Double(n - 1) - 0.5
+            let m = seed + Double(i) * 3.1
+            let h = 9 + hashN(m + 1) * 8
+            let sx: Double = x + f * 3
+            let ex: Double = x + f * h * 1.5 + (hashN(m) - 0.5) * 3
+            let ey: Double = base - h * (1 - abs(f) * 0.5)
+            c.curve(sx, base, x + f * 5, base - h * 0.5, ex, ey, 0.4, stem)
+            for q in 0..<5 {
+                let e = Double(q)
+                let t = 0.45 + e * 0.13
+                let lx: Double = sx + (ex - sx) * t + (hashN(m + e) - 0.5) * 2.4
+                let ly: Double = base + (ey - base) * t + (hashN(m + e + 7) - 0.5) * 2
+                c.circ(lx, ly, 0.75 + hashN(m + e + 3) * 0.5, (i + q) % 2 == 0 ? leaf2 : leaf)
+            }
+        }
+    }
+    /// Brittlebush: a low silver-grey mound.
+    private func brittlebush(_ x: Double, _ base: Double, _ seed: Double) {
+        if x < -12 || x > W + 12 { return }
+        let k = 1 - dark * 0.35
+        let r = 4 + hashN(seed) * 2.5
+        for i in 0..<9 {
+            let a = PI + Double(i) / 8 * PI
+            c.circ(x + cos(a) * r * 0.75, base - 1 + sin(a) * r * 0.55, r * 0.42, (i % 2 == 0 ? Col(0xb4bca6) : Col(0x9fa890)).shade(k))
+        }
+        c.ell(x, base - 0.6, r * 0.9, r * 0.4, Col(0xa9b29a).shade(k))
+    }
+    /// Ocotillo: a spray of long thorny grey-green canes. Bare in winter; no flowers till spring.
+    private func ocotillo(_ x: Double, _ base: Double, _ seed: Double) {
+        if x < -30 || x > W + 30 { return }
+        let k = 1 - dark * 0.35
+        let c1 = Col(0x7c7f62).shade(k)
+        let c2 = Col(0x5f6a4c).shade(k)
+        let n = 9 + Int(hashN(seed) * 5)
+        c.roundCaps(true)
+        for i in 0..<n {
+            let f = Double(i) / Double(n - 1) - 0.5
+            let m = seed + Double(i) * 5.7
+            let h = 24 + hashN(m + 1) * 16
+            let lean: Double = f * h * 0.75 + (hashN(m) - 0.5) * 3
+            let wob: Double = (hashN(m + 3) - 0.5) * 5
+            let sx: Double = x + f * 2.4
+            c.curve(sx, base, sx + lean * 0.2 + wob, base - h * 0.55, x + lean, base - h, 0.75, i % 2 == 0 ? c2 : c1)
+        }
+        c.roundCaps(false)
+    }
+    /// Compass barrel: a ribbed column leaning toward the sun, red spines down the ribs, a ring of yellow fruit on top.
+    private func barrel(_ x: Double, _ base: Double, _ s: Double, _ seed: Double) {
+        if x < -20 || x > W + 20 { return }
+        let k = 1 - dark * 0.35
+        let h = (7 + hashN(seed + 1) * 5) * s
+        let w = 4.6 * s
+        let lean = (hashN(seed + 2) - 0.3) * 1.4 * s
+        let body = Col(0x5d8454).shade(k)
+        let tx = x + lean * 0.5
+        let ty = base - h + w * 0.3
+        c.poly(body, [x - w / 2, base, tx - w / 2, ty, tx + w / 2, ty, x + w / 2, base])
+        c.ell(tx, ty, w / 2, w * 0.36, body)
+        c.ell(x, base, w / 2, 0.8, body.shade(0.8))
+        let spine = Col(0xc8525a, 0.75).shade(k)
+        for i in 0..<5 {
+            let fx = (Double(i) / 4 - 0.5) * w * 0.82
+            c.seg(x + fx, base - 0.4, tx + fx, base - h + w * 0.18, 0.35 * s, spine)
+        }
+        c.ell(tx, base - h + w * 0.1, w * 0.36, w * 0.16, Col(0xd8a868).shade(k))
+        for i in 0..<3 { c.circ(tx + (Double(i) - 1) * w * 0.2, base - h + w * 0.02, 0.5 * s, Col(0xe8c83a).shade(k)) }
+    }
+    /// California fan palm: a stout ringed trunk, a skirt of dead thatch, a round crown of fan leaves.
+    private func palm(_ x: Double, _ base: Double, _ h: Double, _ seed: Double) {
+        if x < -40 || x > W + 40 { return }
+        let k = 1 - dark * 0.4
+        let lean = (hashN(seed + 3) - 0.5) * 6
+        let trunk = Col(0x7a6450).shade(k)
+        let tx = x + lean
+        let ty = base - h
+        taper(x, base, tx, ty + 8, 4.2, 3.2, trunk)
+        let rings = Int(h / 5)
+        for i in 0..<rings {
+            let d = Double(i)
+            c.R(x + lean * (d * 5 / h) - 2, base - 3 - d * 5, 4, 0.5, trunk.shade(0.75))
+        }
+        let thatch = Col(0xa8946a).shade(k)
+        c.poly(thatch, [tx - 2.4, ty + 1, tx + 2.4, ty + 1, tx + 4.2, ty + 12, tx + 2, ty + 15, tx - 2, ty + 15, tx - 4.2, ty + 12])
+        for i in 0..<6 {
+            let d = Double(i)
+            c.seg(tx - 3.4 + d * 1.36, ty + 4, tx - 3.8 + d * 1.5, ty + 14, 0.35, thatch.shade(0.75))
+        }
+        let leaf = Col(0x55803e).shade(k)
+        let leaf2 = Col(0x6a9448).shade(k)
+        for i in 0..<11 {
+            let d = Double(i)
+            let a: Double = -PI * 1.05 + d * PI * 1.1 / 10 + sin(NOW * 1.2 + seed + d) * 0.03
+            let r = 9 + hashN(seed + d) * 3
+            let fx: Double = tx + cos(a) * r
+            let fy: Double = ty + sin(a) * r * 0.8 + (sin(a) > -0.4 ? 2.5 : 0)
+            c.seg(tx, ty, fx, fy, 0.6, leaf.shade(0.8))
+            var pts: [Double] = [tx + (fx - tx) * 0.5, ty + (fy - ty) * 0.5]
+            for q in 0..<7 {
+                let b = a + (Double(q) / 6 - 0.5) * 1.5
+                pts.append(fx + cos(b) * 5.5); pts.append(fy + sin(b) * 5.5)
+            }
+            c.poly(i % 2 == 0 ? leaf2 : leaf, pts)
         }
     }
 
@@ -3139,7 +3246,7 @@ final class Renderer {
         // the quartz vein the miners followed, cutting down through the rock into the drift's back wall
         let vein: [Double] = [x0 + w * 0.40, y0 + 30, x0 + w * 0.44, y0 + 40, x0 + w * 0.42, y0 + 50, x0 + w * 0.47, roof, x0 + w * 0.45, roof + 16]
         for k in stride(from: 0, to: vein.count - 2, by: 2) {
-            c.seg(vein[k], vein[k + 1], vein[k + 2], vein[k + 3], k < 6 ? 2.6 : 1.4, Col(0xe8e4dc, k < 6 ? 0.9 : 0.35))
+            c.seg(vein[k], vein[k + 1], vein[k + 2], vein[k + 3], k < 6 ? 1.2 : 0.8, Col(0xd8d0c0, k < 6 ? 0.5 : 0.25))
         }
         for k in 0..<4 { let t = sin(NOW * 3 + Double(k) * 1.7); if t > 0.6 { c.circ(x0 + w * 0.41 + Double(k) * 1.6, y0 + 34 + Double(k) * 6, 0.9, Col(0xffffff)) } }
         // you, with a lantern (and the detector, if you found gold with it)
@@ -3846,7 +3953,9 @@ final class Renderer {
             let cx = W * 0.5 + 300 - cam * 0.3
             let wall = Col(0x8a6450).shade(1 - dark * 0.6)
             c.poly(wall, [cx - 320, GY + 1, cx - 300, GY - 70, cx - 220, GY - 90, cx - 120, GY - 84, cx - 60, GY - 100, cx + 40, GY - 96, cx + 140, GY - 82, cx + 260, GY - 88, cx + 340, GY + 1])
-            c.poly(Col(0x3a2a24).shade(1 - dark * 0.5), [cx - 34, GY - 98, cx - 14, GY - 98, cx - 4, GY - 20, cx - 40, GY - 20])
+            c.poly(wall.shade(0.9), [cx - 320, GY + 1, cx - 310, GY - 30, cx - 200, GY - 40, cx - 60, GY - 34, cx + 100, GY - 42, cx + 260, GY - 30, cx + 340, GY + 1])
+            c.poly(Col(0x4a342c).shade(1 - dark * 0.5), [cx - 30, GY - 99, cx - 18, GY - 99, cx - 15, GY - 40, cx - 21, GY - 14, cx - 31, GY - 40])
+            c.poly(wall.shade(1.12), [cx - 34, GY - 14, cx - 8, GY - 14, cx + 6, GY + 1, cx - 48, GY + 1])
         default:
             break
         }

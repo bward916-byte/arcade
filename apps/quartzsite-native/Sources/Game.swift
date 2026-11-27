@@ -1033,7 +1033,7 @@ final class Game {
             toyX = clampD(px - rigFace * (RIGS[rig.rawValue].len / 2 + 34), 40, WORLD - 40)
         }
         face = px < WORLD / 2 ? 1 : -1
-        cam = clampD(px - W / 2, 0, max(0, WORLD - W))
+        cam = clampD(px - W / ZOOM / 2, 0, max(0, WORLD - W / ZOOM))
         active = -1
         ringSpot = -1
         floaters = []
@@ -1213,7 +1213,7 @@ final class Game {
     private func place(_ a: Area, _ x: Double) {
         area = a
         px = x
-        cam = clampD(px - W / 2, 0, max(0, WORLD - W))
+        cam = clampD(px - W / ZOOM / 2, 0, max(0, WORLD - W / ZOOM))
     }
 
     // MARK: offers
@@ -1991,7 +1991,7 @@ final class Game {
         age += 1
         day = 1; dayT = 0.12
         permitDays = 14; campDays = 0; boothDay = 0; seen = []; adDays = 0
-        cam = clampD(px - W / 2, 0, max(0, WORLD - W))
+        cam = clampD(px - W / ZOOM / 2, 0, max(0, WORLD - W / ZOOM))
         floaters = []
         // the desert keeps everyone eventually
         if age >= 95 || (age >= 72 && Double.random(in: 0..<1) < Double(age - 70) * 0.05) {
@@ -2147,7 +2147,7 @@ final class Game {
             px = clampD(px + vx * dt, 30, WORLD - 30)
             if abs(vx) > 4 { face = vx > 0 ? 1 : -1; walk += dt * 11 }
         }
-        cam += (clampD(px - W / 2, 0, max(0, WORLD - W)) - cam) * min(1, dt * 6)
+        cam += (clampD(px - W / ZOOM / 2, 0, max(0, WORLD - W / ZOOM)) - cam) * min(1, dt * 6)
 
         // dust: a motor ride going fast on the dirt throws a cloud over everyone's camp
         let motor = onToy && toy >= 2 && toy < TOYS.count
