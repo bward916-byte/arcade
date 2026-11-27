@@ -3825,7 +3825,7 @@ final class Renderer {
             let d = Double(i)
             let jx = x + (hashN(seed + d) - 0.5) * 16 * s, jy = base - 9 * s - hashN(seed + d + 3) * 10 * s, jr = (4 + hashN(seed + d + 6) * 3) * s
             c.circ(jx, jy, jr, i % 2 == 0 ? g1 : g1.shade(1.18))
-            c.arcFill(jx, jy, jr, PI * 0.1, PI * 0.9, g1.shade(0.78))
+            c.arcFill(jx, jy, jr, PI * 0.15, PI * 0.85, g1.shade(0.9))
             for q in 0..<3 { c.circ(jx + (hashN(d + Double(q) + seed) - 0.5) * jr * 1.4, jy + (hashN(d + Double(q) + seed + 2) - 0.5) * jr, 0.35 * s, Col(0x7a8ab0).shade(1 - dark * 0.45)) }
         }
     }
@@ -4142,7 +4142,12 @@ final class Renderer {
             }
         case 12:
             let rock = Col(0x7a6a5a).shade(1 - dark * 0.5)
-            c.poly(rock, [x - 36, base, x - 24, base - 22, x + 10, base - 26, x + 30, base])
+            c.poly(rock, [x - 38, base, x - 30, base - 12, x - 22, base - 22, x - 4, base - 26.4, x + 12, base - 25, x + 22, base - 14, x + 32, base])
+            c.poly(rock.shade(1.22), [x - 22, base - 22, x - 4, base - 26.4, x + 12, base - 25, x + 4, base - 20, x - 14, base - 18])
+            c.poly(rock.shade(0.8), [x + 12, base - 25, x + 22, base - 14, x + 32, base, x + 14, base, x + 6, base - 12])
+            c.poly(rock.shade(0.9), [x - 38, base, x - 30, base - 12, x - 20, base - 8, x - 22, base])
+            c.seg(x - 14, base - 18, x - 18, base, 0.4, rock.shade(0.7)); c.seg(x + 4, base - 20, x + 2, base - 6, 0.4, rock.shade(0.7))
+            for q in 0..<5 { c.ell(x - 40 + Double(q) * 19, base + 0.6, 3 - Double(q % 2), 1.4, rock.shade(0.85)) }
             smilodon(x - 6, base - 25.4, 1.1)
         default:
             c.ell(x, base + 8, 110, 7, Col(0x5a4636).shade(1 - dark * 0.5))
