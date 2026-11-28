@@ -1,0 +1,6 @@
+{
+  "appId": "com.brianward.marbledescent",
+  "appName": "Marble Descent",
+  "webDir": "www",
+  "ios": { "contentInset": "never", "backgroundColor": "#0a0c18", "scrollEnabled": false, "allowsLinkPreview": false }
+}
