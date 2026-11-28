@@ -569,6 +569,11 @@ final class GameViewController: UIViewController {
             if args.contains("-demo-visit") { demoMode = true; game.demo("lv2"); game.front = 2; game.visit(0); game.visit(2); game.fade = 0 }
             if args.contains("-demo-crane") { demoMode = true; game.demo("day"); game.cut = [Beat(art: "eyes", who: "crane", head: "Silas Crane", cap: "Crane is here himself.")] }
             if args.contains("-demo-eyes") { demoMode = true; game.demo("day"); game.cut = [Beat(art: "eyes", who: "rider", head: "The rider", cap: "He rides in.")] }
+            for kind in ["badge", "brand", "hand", "map", "poster", "runout", "saucer", "shut", "star", "storm", "train", "vista", "wire", "gun", "hobo"] where args.contains("-demo-art" + kind) {
+                let all = STORY.values.flatMap { $0 }
+                let who = kind == "gun" || kind == "hobo"
+                if let bt = all.first(where: { who ? $0.who == kind : $0.art == kind }) { demoMode = true; game.demo("day"); game.cut = [bt] }
+            }
             if args.contains("-demo-pay") { demoMode = true; game.demo("day"); showPay() }
             if args.contains("-demo-plain") { demoMode = true; game.demo("day"); plainInfo = true }
             if args.contains("-demo-burn") { demoMode = true; game.demo("day"); logoOn = true; burnLogo.frozen = 0.52; burnLogo.reset(); burnLogo.ignite(after: 0) }
@@ -803,7 +808,7 @@ final class GameViewController: UIViewController {
         for v in card.subviews where v is UIButton { v.removeFromSuperview() }
         let body = UILabel(frame: CGRect(x: 24, y: 44, width: 412, height: 78))
         body.numberOfLines = 0; body.textAlignment = .center; body.font = serif(15, bold: false); body.textColor = cream
-        body.text = "Dustfall is yours to keep, free. Four bigger towns wait down the track: a river ferry, a sawmill in the pines, a copper smelter in the canyon, and Silas Crane at the end of the rails."
+        body.text = "Dustfall is yours. Four bigger towns wait down the track: a river ferry, a sawmill in the pines, a copper smelter in the canyon, and Silas Crane at the end of the rails."
         card.addSubview(body)
         let buy = UIButton(type: .system)
         let price = shop.product?.displayPrice ?? "$1.99"
