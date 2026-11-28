@@ -63,7 +63,7 @@ jobs:
           xcrun simctl boot "$UDID"
           xcrun simctl bootstatus "$UDID" -b
           xcrun simctl install "$UDID" "$APP"
-          for shot in zoo; do
+          for shot in pick rigs play night ltva main gem tyson dome toys ride skoolie map trail scaddan browse parade home season end gear computer rain windy critters page qfest western trailride cine0 cine1 cine2 cine3 cine4 happy cleanup dog camels drive drivenight drivetrail drivestop drivetow party gemworld mainwest maineast mainnight readers dust gen propane phone wildnight rainbow booth haggle river food blm coffee flood rvshow goals newyear xmas tour minein board hijolly plomosa crystal palms desertbar intaglios past pastriver pastmain gemfront rules previews intagyell ice icecamp labyrinth magic als pool custom mapq busy west nugget beerbelly solar kb deep deep2 icecamel icesloth icewolf icehorse icecat; do
             xcrun simctl terminate "$UDID" com.brianward.quartzsitewinter 2>/dev/null || true
             if [ "$shot" = title ]; then
               xcrun simctl launch "$UDID" com.brianward.quartzsitewinter
@@ -74,7 +74,7 @@ jobs:
             xcrun simctl io "$UDID" screenshot "$RUNNER_TEMP/shots/$shot.png"
           done
           # the same screens squeezed to an iPhone SE's shape, where layouts are tightest
-          for shot in zoo; do
+          for shot in pick rigs play night ltva main gem tyson dome toys ride skoolie map trail scaddan browse parade home season end gear computer rain windy critters page qfest western trailride cine0 cine1 cine2 cine3 cine4 happy cleanup dog camels drive drivenight drivetrail drivestop drivetow party gemworld mainwest maineast mainnight readers dust gen propane phone wildnight rainbow booth haggle river food blm coffee flood rvshow goals newyear xmas tour minein board hijolly plomosa crystal palms desertbar intaglios past pastriver pastmain gemfront rules previews intagyell ice icecamp labyrinth magic als pool custom mapq busy west nugget beerbelly solar kb deep deep2 icecamel icesloth icewolf icehorse icecat; do
             xcrun simctl terminate "$UDID" com.brianward.quartzsitewinter 2>/dev/null || true
             if [ "$shot" = title ]; then
               xcrun simctl launch "$UDID" com.brianward.quartzsitewinter -se
