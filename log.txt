@@ -1,0 +1,20 @@
+run 40  commit ea66293c2f8569c94850fb5853c88c8238dd3762
+compile: success   testflight: success
+---- compile errors
+** ARCHIVE SUCCEEDED **
+---- export
+** EXPORT SUCCEEDED **
+---- upload
+Running altool at path '/Applications/Xcode_26.6.app/Contents/SharedFrameworks/ContentDelivery.framework/Resources/altool'...
+
+2026-11-28 08:52:09.806  INFO: [ContentDelivery.Uploader.C0AC48340] 
+==========================================
+UPLOAD SUCCEEDED with no errors, 1 warning
+Delivery UUID: d8fdbcde-5c8f-4dd7-9d59-9cafa11907a6
+Transferred 3001014 bytes in 0.349 seconds (8.6MB/s, 68.877Mbps)
+==========================================
+2026-11-28 08:52:09.814  WARN: [altool.C0AC48340] SDK version issue. This app was built with the iOS 26.5 SDK. Starting April 2027, iOS and iPadOS apps must be built with the iOS 27 SDK or later, included in Xcode 27 or later, in order to be uploaded to App Store Connect or submitted for distribution. (90725)
+   server_warning : 
+      code : 90725
+      description : SDK version issue. This app was built with the iOS 26.5 SDK. Starting April 2027, iOS and iPadOS apps must be built with the iOS 27 SDK or later, included in Xcode 27 or later, in order to be uploaded to App Store Connect or submitted for distribution.
+No errors, 1 warnings, uploading archive at '/Users/runner/work/_temp/export/FloorZero.ipa'.

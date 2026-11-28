@@ -1,0 +1,10 @@
+careful bot
+  COLE: 6.0 min, deaths 1, damage taken 204
+  WILLOW: 3.1 min, deaths 1, damage taken 169
+  JO: 3.9 min, deaths 0, damage taken 210
+  FINISHED in 13.0 min, deaths 2, kills 1173, died on floors [83, 48]
+sloppy bot (idles a third of the time, never backs off)
+  COLE: 9.3 min, deaths 7, damage taken 1303
+  WILLOW: 3.6 min, deaths 1, damage taken 267
+  JO: 4.7 min, deaths 2, damage taken 445
+  FINISHED in 17.5 min, deaths 10, kills 1271, died on floors [83, 83, 77, 75, 83, 75, 54, 30, 57, 61]
