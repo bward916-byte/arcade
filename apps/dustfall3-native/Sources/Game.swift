@@ -885,7 +885,7 @@ final class Game {
         over = false
         carN = 0
         place = "dustfall"; log = []; choosing = false
-        coins = 10; bank = 0
+        coins = TESTGOLD ? 500 : 10; bank = 0
         hintText = ""; hintT = 0; seen = []
         layTown()
         // the title scene: dusk over the dead town, with thunder on the wind
