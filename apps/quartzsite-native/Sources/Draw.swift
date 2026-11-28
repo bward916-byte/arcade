@@ -3685,6 +3685,70 @@ final class Renderer {
                 c.RR(vx - 1.4, y - 1.5, 2.8, 1.3, 0.3, Col(0xc8281e).shade(1 - dark * 0.5))
             }
         }
+        // In the busy places the hills themselves are camped solid: little knots of rigs on every bench, trucks and
+        // trailers, tents, flags, smoke by day and fires and lit windows by night.
+        let busyAreas: [Area] = [.ltva, .dome, .scaddan, .plomosa, .hijolly, .roadrunner, .tyson, .main]
+        if busyAreas.contains(g.area) && !g.inPast && g.phase == .play {
+            let sc = par < 0.2 ? 0.7 : 1.0
+            let sh2 = 1 - dark * 0.5
+            let paints: [Col] = [Col(0xe8e2d4), Col(0xe8e2d4), Col(0xd8cdb8), Col(0xc8b48a), Col(0xc4c6c8), Col(0x5a5a5e), Col(0x8a2e2a), Col(0x2e4a6a), Col(0xa8b49a)]
+            var cn = floor((cam * par - 40) / 24)
+            while cn * 24 < cam * par + W + 40 {
+                let ck = hashN(cn * 1.9 + seed * 7 + 6200)
+                let cwx = cn * 24 + ck * 12
+                cn += 1
+                if ck < 0.18 { continue }
+                let ctop = ridgeY(cwx, seed, base, amp)
+                let croom = GY - ctop
+                if croom < 7 { continue }
+                let bench = 0.3 + hashN(cn + seed * 3 + 6210) * 0.6
+                let cnt = 2 + Int(hashN(cn + seed + 6220) * 5)
+                for j in 0..<cnt {
+                    let d = Double(j)
+                    let wx = cwx + (d - Double(cnt) / 2) * 5.6 * sc + (hashN(cn * 3 + d + 6230) - 0.5) * 2
+                    let top = ridgeY(wx, seed, base, amp)
+                    let room = GY - top
+                    if room < 5 { continue }
+                    let y = top + room * min(0.95, bench + (hashN(cn + d + 6240) - 0.5) * 0.12)
+                    let sx = wx - cam * par
+                    if sx < -8 || sx > W + 8 { continue }
+                    let hv = hashN(cn * 5 + d + seed + 6250)
+                    let col = paints[Int(hv * 90) % 9].shade(sh2)
+                    c.ell(sx, y + 0.3 * sc, 2.6 * sc, 0.5 * sc, Col(0x000000, 0.16))
+                    if hv < 0.16 {
+                        // a tent
+                        c.poly([Col(0xd9772e), Col(0x3f8f8a), Col(0x8a9a4a)][Int(hv * 60) % 3].shade(sh2), [sx - 1.6 * sc, y, sx, y - 2.2 * sc, sx + 1.6 * sc, y])
+                    } else if hv < 0.42 {
+                        // a trailer and the truck that pulled it
+                        c.RR(sx - 2.6 * sc, y - 2.1 * sc, 3.8 * sc, 2 * sc, 0.4 * sc, col); c.R(sx - 2 * sc, y - 1.7 * sc, 1 * sc, 0.6 * sc, Col(0x3a4a5a)); c.R(sx - 2.6 * sc, y - 1 * sc, 3.8 * sc, 0.25 * sc, col.shade(0.7))
+                        c.RR(sx + 1.6 * sc, y - 1.2 * sc, 2.4 * sc, 1.1 * sc, 0.3 * sc, paints[Int(hv * 500) % 9].shade(sh2 * 0.9)); c.R(sx + 2.6 * sc, y - 1.9 * sc, 1 * sc, 0.8 * sc, paints[Int(hv * 500) % 9].shade(sh2 * 0.9))
+                        c.circ(sx - 1 * sc, y, 0.4 * sc, Col(0x1a1614)); c.circ(sx + 2.2 * sc, y, 0.4 * sc, Col(0x1a1614)); c.circ(sx + 3.5 * sc, y, 0.4 * sc, Col(0x1a1614))
+                    } else {
+                        // a motorhome or van
+                        let long = hv > 0.7
+                        let w2 = (long ? 4.8 : 3.4) * sc
+                        c.RR(sx - w2 / 2, y - (long ? 2.4 : 1.9) * sc, w2, (long ? 2.3 : 1.8) * sc, 0.4 * sc, col)
+                        c.R(sx - w2 / 2 + 0.5 * sc, y - (long ? 2 : 1.6) * sc, w2 * 0.3, 0.6 * sc, Col(0x3a4a5a)); c.R(sx + w2 * 0.1, y - (long ? 2 : 1.6) * sc, w2 * 0.25, 0.6 * sc, Col(0x3a4a5a))
+                        c.R(sx - w2 / 2, y - 1.1 * sc, w2, 0.25 * sc, [Col(0x2f7f86), Col(0x8a3030), Col(0xc8742e), Col(0x2e4a7a)][Int(hv * 40) % 4].shade(sh2))
+                        c.circ(sx - w2 * 0.28, y, 0.4 * sc, Col(0x1a1614)); c.circ(sx + w2 * 0.28, y, 0.4 * sc, Col(0x1a1614))
+                        if hv > 0.86 { c.poly(Col(0xd8c8a0).shade(sh2), [sx - w2 / 2, y - 2.2 * sc, sx - w2 / 2 - 2 * sc, y - 1.5 * sc, sx - w2 / 2, y - 1.6 * sc]) }
+                    }
+                    if dark > 0.45 {
+                        c.R(sx - 0.8 * sc, y - 1.6 * sc, 0.8 * sc, 0.5 * sc, Col(0xffd68a, 0.9))
+                    }
+                }
+                let csx = cwx - cam * par
+                let cy = ctop + croom * min(0.95, bench) + 0.4
+                if hashN(cn + seed + 6260) < 0.5 { c.R(csx - 0.1, cy - 5 * sc, 0.2, 5 * sc, Col(0xc8c8c4)); c.poly([Col(0xd9412e), Col(0x2e4a7a), Col(0xf2c14e)][Int(ck * 30) % 3], [csx, cy - 5 * sc, csx + 1.8 * sc, cy - 4.6 * sc + sin(NOW * 4 + cwx) * 0.2, csx, cy - 4.1 * sc]) }
+                if dark > 0.45 {
+                    c.glow(csx + 1.5, cy, 3.2 * sc, Col(0xff9a40, 0.5 + 0.2 * sin(NOW * 6 + cwx)), Col(0xff9a40, 0)); c.circ(csx + 1.5, cy - 0.2, 0.45 * sc, Col(0xffd080))
+                } else if hashN(cn + seed + 6270) < 0.35 {
+                    for q in 0..<4 { let u = (NOW * 0.12 + Double(q) / 4 + ck).truncatingRemainder(dividingBy: 1); c.circ(csx + 1.5 + u * 3, cy - u * 7 * sc, (0.4 + u * 1.3) * sc, Col(0xe8e0d8, (1 - u) * 0.28)) }
+                }
+                // people standing about
+                for q in 0..<2 { let px = csx - 3 + Double(q) * 7 * sc + hashN(cn + Double(q) + 6280) * 2; c.R(px - 0.15 * sc, cy - 1.3 * sc, 0.35 * sc, 1.3 * sc, [Col(0x3a6ea5), Col(0xb5452f), Col(0x4a8a4a), Col(0xe8e2d4)][(Int(ck * 50) + q) % 4].shade(sh2)); c.circ(px, cy - 1.6 * sc, 0.28 * sc, Col(0xc89a7a).shade(sh2)) }
+            }
+        }
         var n = floor((cam * par - 10) / 9)
         while n * 9 < cam * par + W + 10 {
             let wx = n * 9 + hashN(n + seed * 31 + 6000) * 9
