@@ -1430,6 +1430,8 @@ final class Game {
         if key == "ltva" { px = 760; dayT = 0.3; rig = .classB; inRig = true; rigX = 760 }
         if key == "main" { place(.main, 3920); money = 400; day = 14 }
         if key == "mainwest" { place(.main, 2150); money = 400; day = 9; dayT = 0.35 }
+        if key == "parks" { place(.main, 6050); money = 400; day = 9; dayT = 0.4 }
+        if key == "parks2" { place(.tyson, 3800); money = 400; day = 9; dayT = 0.4 }
         if key == "maineast" { place(.main, 3060); money = 400; day = 9; dayT = 0.4 }
         if key == "mainnight" { place(.main, 3020); money = 400; day = 9; dayT = 0.78; clockFreeze = true }
         if key == "propane" { place(.main, 4400); money = 400; propane = 20; tanks = 30; dayT = 0.4; clockFreeze = true }
