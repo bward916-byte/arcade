@@ -1285,6 +1285,7 @@ final class Game {
             for i in 0..<5 { ground.append(GCoin(x: 1150 + Double(i) * 7, y: 0, vx: 0, vy: 0, age: 1)) }
         }
         if name == "fort" { px = sFort.x - 40 }
+        if name == "depart" || name == "depart2" { station.level = max(1, station.level); train = Train(x: STOP, v: 0); px = STOP + 96; pdir = -1; cam = clampD(px - W / 2, WEST, WORLD - W); demoTrip = name == "depart" ? 1.6 : 3.0; board() }
         if name == "post" { px = -60 }
         if name == "mission" { px = missionX + 40; pdir = -1 }
         // set last, after the catch-all above has put the rider on main street
@@ -2136,6 +2137,7 @@ final class Game {
             // at the map the train has gone on down the line: no more of it to hear until a town is picked
             if choosing { return }
             tripT += dt
+            if let h = demoTrip { tripT = min(tripT, h) }
             // the train is seen to pull out and gather way before the picture goes dark
             fade = clampD((tripT - 2.8) / 1.4, 0, 1)
             tr.x += tripT * tripT * 22 * dt
@@ -2200,6 +2202,7 @@ final class Game {
     var toTitle = false          // after the last scene, back to the title
     var holdRout: Double?        // test stills only: keep the rout at one moment
     var demoT: Double?           // test stills only: hold the time of day
+    var demoTrip: Double?        // test stills only: hold the train this far into pulling out
     var demoStick: Double?       // test stills only: ride by itself
     /// Crane's buggy: waiting by his office, then away east once he is in it.
     var buggyX: Double { let x0 = craneX + 74, u = min(8, max(0, routShow - 1.5)); return x0 + u * 30 + u * u * 55 }

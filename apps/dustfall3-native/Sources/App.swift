@@ -574,6 +574,7 @@ final class GameViewController: UIViewController {
                 let who = kind == "gun" || kind == "hobo"
                 if let bt = all.first(where: { who ? $0.who == kind : $0.art == kind }) { demoMode = true; game.demo("day"); game.cut = [bt] }
             }
+            for nm in ["depart", "depart2"] where args.contains("-demo-" + nm) { demoMode = true; game.demo(nm) }
             if args.contains("-demo-pay") { demoMode = true; game.demo("day"); showPay() }
             if args.contains("-demo-plain") { demoMode = true; game.demo("day"); plainInfo = true }
             if args.contains("-demo-burn") { demoMode = true; game.demo("day"); logoOn = true; burnLogo.frozen = 0.52; burnLogo.reset(); burnLogo.ignite(after: 0) }
