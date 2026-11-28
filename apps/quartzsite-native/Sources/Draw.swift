@@ -2940,7 +2940,9 @@ final class Renderer {
             g.text("DRIVE THRU", x + 42, GY - 35, 2.6, INK, bold: true)
             c.RR(x + 36, GY - 20, 12, 14, 1, Col(0x2a2a2e)); c.R(x + 41.4, GY - 6, 1.2, 6, Col(0x5a5a5a))
             for q in 0..<4 { c.R(x + 37.4, GY - 18.6 + Double(q) * 3, 9.2, 2, [Col(0xf2c418), Col(0xe8782e), Col(0xf4f4f0), Col(0xc8281e)][q].shade(0.9)) }
-            g.text("SORRY, NO RANCH", x + 42, GY - 23, 2.2, Col(0xf8e8a0), bold: true, plate: true)
+            // the hand-lettered card taped to Carl's own menu board
+            c.RR(x + 31, GY - 26, 22, 5, 0.6, Col(0xf4f1ea).shade(1 - dark * 0.3)); c.R(x + 40.5, GY - 26.6, 3, 1.2, Col(0xc8c0a8, 0.9))
+            g.text("SORRY, NO RANCH", x + 42, GY - 23.5, 2.1, Col(0xb0201a), bold: true)
             if g.phase == .play { toy(4, x + 30, GY + 2, 1, 740, 0) }
             c.poly(Col(0xf4f4f0, 0.8), [x + 52, GY + 5, x + 58, GY + 3, x + 58, GY + 7])
             if dark > 0.3 { lights.append((x - 3, GY - 42, 24)); lights.append((x - 10, GY - 14, 30)) }
