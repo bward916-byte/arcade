@@ -35,7 +35,16 @@ final class Shop {
         }
     }
 
+    private var busy = false
     func buy() async -> Bool {
+        // one purchase at a time: a second tap while the store's sheet is on its way must not queue another
+        if busy { return false }
+        busy = true
+        defer { busy = false }
+        // already owned on this Apple ID: hand it over without asking the store to sell it again
+        for await r in StoreKit.Transaction.currentEntitlements {
+            if case .verified(let tx) = r, tx.productID == Shop.id, tx.revocationDate == nil { grant(true); return true }
+        }
         guard let p = product, let res = try? await p.purchase() else { return false }
         if case .success(let v) = res, case .verified(let tx) = v {
             await tx.finish()

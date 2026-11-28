@@ -62,6 +62,7 @@ final class GameViewController: UIViewController {
     private let introCard = UIView()
     private let burnLogo = BurnLogoView()
     private var logoOn = false
+    private var buying = false       // a purchase is with the store: further taps on the button wait
     private var payKey: String?      // the town tapped on the map while the line is still locked
     private var wasIntro = false
     private var cardSeen = false
@@ -857,10 +858,13 @@ final class GameViewController: UIViewController {
             Task { [weak self] in await self?.shop.refresh() }
             return
         }
+        if buying { return }
+        buying = true
         payNote.text = "Asking the store\u{2026}"
         Task { [weak self] in
             let ok = await self?.shop.buy() ?? false
-            if ok { self?.payFinish() } else { self?.payNote.text = "Nothing was bought." }
+            self?.buying = false
+            if ok { self?.payFinish() } else if self?.game.unlocked == true { self?.payFinish() } else { self?.payNote.text = "Nothing was bought." }
         }
     }
     @objc private func payRestore() {
