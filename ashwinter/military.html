@@ -1576,7 +1576,7 @@ function initInput() {
   const up = e => {
     const p = IN.ptrs.get(e.pointerId); IN.ptrs.delete(e.pointerId); if (!p) return;
     if (UI.drag) { IN.drop = { x: e.clientX, y: e.clientY }; }
-    else if (IN.ptrs.size === 0 && !IN.dragging && IN.moved < 12 && performance.now() - IN.downT < 500) IN.taps.push({ x: e.clientX, y: e.clientY });
+    else if (IN.ptrs.size === 0 && !IN.dragging && IN.moved < 12 && performance.now() - IN.downT < 900) IN.taps.push({ x: e.clientX, y: e.clientY });
     if (IN.ptrs.size === 0) IN.dragging = false;
     AUDIO.unlock();   // sound starts on the way up, so starting it can never make the very first tap too slow to count
   };
@@ -5049,10 +5049,11 @@ function drawDawn() {
   textButton(x + w / 2 - 60, y + h - 50, 120, 40, 'OK', () => { afterDawn(); }, { primary: true });
 }
 function drawEvent() {
-  const ev = G.event, many = ev.choices.length > 2; const w = Math.min(W - 30, 560), h = many ? Math.min(H - 12, 100 + ev.choices.length * 42) : 190, x = (W - w) / 2, y = H - h - (many ? 6 : 14); panel(x, y, w, h);
+  const ev = G.event, many = ev.choices.length > 2; ev._t0 = ev._t0 || performance.now(); const fresh = () => performance.now() - ev._t0 < 900;   /* a choice cannot be made by the tap that closed the card before it */
+  const w = Math.min(W - 30, 560), h = many ? Math.min(H - 12, 100 + ev.choices.length * 42) : 190, x = (W - w) / 2, y = H - h - (many ? 6 : 14); panel(x, y, w, h);
   drawIcon(ev.icon, x + 50, y + 60, 44, GOLD); { ctx.font = '600 17px Oswald, Impact, sans-serif'; const ls = wrapLines(ev.text, w - 120, 3); ls.forEach((ln, i) => txt(ln, x + 90, y + 60 - (ls.length - 1) * 11 + i * 22, 17, INK, 'left')); }
-  if (many) { ev.choices.forEach((c, i) => { textButton(x + 24, y + 94 + i * 42, w - 48, 36, c.label, () => { applyEvent(ev, c); }, { icon: c.icon, primary: c.fx === 'swap' }); }); return; }   // several offers: one to a line
-  ev.choices.forEach((c, i) => { textButton(x + 30 + i * ((w - 60) / 2 + 8), y + 118, (w - 60) / 2 - 8, 44, c.label, () => { applyEvent(ev, c); }, { icon: c.icon, primary: i === 0 }); });
+  if (many) { ev.choices.forEach((c, i) => { textButton(x + 24, y + 94 + i * 42, w - 48, 36, c.label, () => { if (fresh()) return; applyEvent(ev, c); }, { icon: c.icon, primary: c.fx === 'swap' }); }); return; }   // several offers: one to a line
+  ev.choices.forEach((c, i) => { textButton(x + 30 + i * ((w - 60) / 2 + 8), y + 118, (w - 60) / 2 - 8, 44, c.label, () => { if (fresh()) return; applyEvent(ev, c); }, { icon: c.icon, primary: i === 0 }); });
 }
 const RECIPE_INFO = { stove: ['Stove', 'Heat for the house and somewhere to cook. Burns wood or fuel.'], collector: ['Rain collector', 'Fills with water when it rains or snows.'], bed: ['Second bed', 'One more survivor sleeps properly each night.'], radio: ['Radio', 'Lifts spirits once a day. Keep listening: the signal leads somewhere.'], trap: ['Door trap', 'Stops one intruder in every raid.'],
   shovel: ['Shovel', 'Clears debris nine times faster.'], crowbar: ['Crowbar', 'Forces locked doors and never breaks. Noisy outside.'], cutters: ['Bolt cutters', 'Cuts chains and wire. Opens fenced and chained roads.'], lockpick: ['Lockpick', 'Opens locked doors quietly. Can snap.'], knife: ['Knife', 'A light weapon for the scavenger or the guard.'], bat: ['Bat', 'Hits harder than a knife and knocks them back.'], bandage: ['Bandage', 'Treats a wound and restores health.'], backpack: ['Backpack', 'Two more slots when scavenging.'] };
