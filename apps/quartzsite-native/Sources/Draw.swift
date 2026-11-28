@@ -394,6 +394,7 @@ final class Renderer {
                 edgeBlock(20 - cam, kl, 1)
                 edgeBlock(g.WORLD - 20 - cam, kr, -1)
             }
+            if !g.inPast && (ar == .main || ar == .tyson) { parkRow(ar == .main ? PARK_ROW_MAIN : PARK_ROW_TYSON, ar == .main ? 5660 : 3360) }
             for (i, sp) in g.spots.enumerated() { spot(i, sp) }
             if g.phase == .play && g.inPast {
                 pastWild(ar)
@@ -1691,6 +1692,52 @@ final class Renderer {
     private func gem(_ x: Double, _ y: Double, _ r: Double, _ col: Col) {
         c.poly(col, [x - r, y, x - r * 0.4, y - r * 1.3, x + r * 0.5, y - r * 1.1, x + r, y])
         c.poly(col.shade(1.35), [x - r * 0.4, y - r * 1.3, x, y - r * 0.4, x - r, y])
+    }
+    /// The rest of the town's RV parks: each a short frontage with its sign, a fence or wall, and rigs parked in rows behind it.
+    private func parkRow(_ names: [String], _ x0: Double) {
+        let boards: [Col] = [Col(0x2f6a5a), Col(0x8a3030), Col(0x2e4a7a), Col(0x5a4a3a), Col(0xb5651d), Col(0x3a3a3e), Col(0xf4f1ea)]
+        let kinds: [RigKind] = [.classA, .classC, .van, .classB, .classA, .classC]
+        for (k, name) in names.enumerated() {
+            let d = Double(k) + x0 * 0.01
+            let x = x0 + 55 + Double(k) * 110 - cam
+            if x < -80 || x > W + 80 { continue }
+            let sh = 1 - dark * 0.5
+            // rigs in two rows behind the frontage
+            for q in 0..<3 { let rx = x - 34 + Double(q) * 34
+                if hashN(d * 3 + Double(q)) < 0.5 { rig(kinds[Int(hashN(d + Double(q) * 5) * 6) % 6], rx, GY - 9, 1, q % 2 == 0 ? 1 : -1, 0.42) } else { camper(Int(hashN(d + Double(q) * 9) * 3), rx, GY - 9, q % 2 == 0 ? 1 : -1, d * 7 + Double(q), 0.42) } }
+            let style = Int(hashN(d + 4) * 3)
+            if style != 1 { palm(x - 46, GY + 1, 34 + hashN(d + 5) * 16, d + 6) }
+            if style != 0 { mesquite(x + 44, GY + 1, d + 8, 0.8) }
+            for q in 0..<2 { let rx = x - 22 + Double(q) * 44
+                if hashN(d * 5 + Double(q) + 2) < 0.55 { rig(kinds[Int(hashN(d + Double(q) * 11 + 1) * 6) % 6], rx, GY, 1, q == 0 ? 1 : -1, 0.6) } else { camper(Int(hashN(d + Double(q) * 13) * 3), rx, GY, q == 0 ? 1 : -1, d * 11 + Double(q), 0.6) } }
+            // the frontage: block wall, split rail or chain link, with the drive left open
+            if style == 0 {
+                c.R(x - 52, GY - 6, 40, 6, Col(0xc9a87a).shade(sh)); c.R(x + 12, GY - 6, 40, 6, Col(0xc9a87a).shade(sh))
+                for j in 0..<5 { c.R(x - 52 + Double(j) * 10, GY - 6, 0.5, 6, Col(0xa8885a).shade(sh)); c.R(x + 12 + Double(j) * 10, GY - 6, 0.5, 6, Col(0xa8885a).shade(sh)) }
+            } else if style == 1 {
+                for j in 0..<5 { c.R(x - 52 + Double(j) * 10, GY - 6, 1, 6, Col(0x8a6a48).shade(sh)); c.R(x + 12 + Double(j) * 10, GY - 6, 1, 6, Col(0x8a6a48).shade(sh)) }
+                c.R(x - 52, GY - 5, 41, 0.8, Col(0x9a7a58).shade(sh)); c.R(x - 52, GY - 2.6, 41, 0.8, Col(0x9a7a58).shade(sh)); c.R(x + 12, GY - 5, 41, 0.8, Col(0x9a7a58).shade(sh)); c.R(x + 12, GY - 2.6, 41, 0.8, Col(0x9a7a58).shade(sh))
+            } else {
+                c.R(x - 52, GY - 7, 40, 7, Col(0xb8bcc0, 0.3)); c.R(x + 12, GY - 7, 40, 7, Col(0xb8bcc0, 0.3))
+                c.R(x - 52, GY - 7, 40, 0.5, Col(0x8a8f96)); c.R(x + 12, GY - 7, 40, 0.5, Col(0x8a8f96))
+                for j in 0..<5 { c.R(x - 52 + Double(j) * 10, GY - 7, 0.5, 7, Col(0x8a8f96)); c.R(x + 12 + Double(j) * 10, GY - 7, 0.5, 7, Col(0x8a8f96)) }
+            }
+            // a small office on some, with an OFFICE shingle and a propane tank
+            if hashN(d + 14) < 0.45 {
+                facade(x + 16, GY - 15, 20, 15, Col(0xe2d0ac)); c.poly(Col(0x7a4a34).shade(sh), [x + 14, GY - 15, x + 26, GY - 20, x + 38, GY - 15])
+                doorway(x + 19, GY - 10, 5, 10, Col(0x6a4a2e)); pane(x + 27, GY - 11, 7, 5)
+                c.RR(x + 39, GY - 5, 8, 4, 2, Col(0xf4f1ea).shade(sh))
+            }
+            // the sign, up on two posts
+            let bw = Double(name.count) * 2.25 + 8
+            let bc = boards[Int(hashN(d + 16) * 7) % 7]
+            let sy = GY - 34 - hashN(d + 17) * 8
+            c.R(x - bw / 2 + 3, sy, 1, GY - sy, Col(0x5a4a3a).shade(sh)); c.R(x + bw / 2 - 4, sy, 1, GY - sy, Col(0x5a4a3a).shade(sh))
+            c.RR(x - bw / 2, sy - 5, bw, 10, 1.5, bc.shade(sh)); c.RR(x - bw / 2 + 0.8, sy - 4.2, bw - 1.6, 8.4, 1, Col(0xffffff, 0.12))
+            g.text(name, x, sy, 3.5, bc.r > 0.8 ? INK : CREAM, bold: true)
+            let tag = ["FULL HOOKUPS", "55+ · PETS OK", "DAILY · WEEKLY · MONTHLY", "SHOWERS · LAUNDRY", "NO VACANCY", "DRY CAMPING"][Int(hashN(d + 18) * 6) % 6]
+            c.RR(x - 20, sy + 6, 40, 5, 1, Col(0xf4f1ea).shade(sh)); g.text(tag, x, sy + 8.5, 2.3, INK, bold: true)
+        }
     }
     /// One piece on a dealer's table, drawn as what it is. `y` is the table top it sits on.
     private func specimen(_ n: Int, _ x: Double, _ y: Double, _ r: Double, _ col: Col) {
