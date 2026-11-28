@@ -880,6 +880,7 @@ final class Game {
 
     func reset() {
         state = .title
+        front = 0; kept = [:]      // a new game starts the line over: nothing reached, nothing kept
         town = 0; day = 1; day0 = 0; t = 0.6; clock = 0
         over = false
         carN = 0
