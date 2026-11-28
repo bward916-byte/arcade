@@ -4870,7 +4870,8 @@ function drawHomeHud(dt) {
     if (cold || T < 9) drawIcon('cold', bx + 22, 33, 22, cold ? '#9cc7e6' : DIM); else { ctx.strokeStyle = DIM; ctx.fillStyle = DIM; ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(bx + 22, 22); ctx.lineTo(bx + 22, 38); ctx.stroke(); ctx.beginPath(); ctx.arc(bx + 22, 40, 4.5, 0, TAU); ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,.25)'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(bx + 22, 22); ctx.lineTo(bx + 22, 38); ctx.stroke(); }   /* a snowflake when it is cold, a plain thermometer when it is not */ txt((T > 0 ? '' : T < 0 ? '−' : '') + Math.abs(T) + '°', bx + 58, 33, 19, T < 0 ? '#9cc7e6' : cold ? '#c5d8e6' : INK);
     if (G.built.stove) { const f = fireLeft(); drawIcon('fire', bx + 100, 33, 22, f > 0 ? '#f08a3a' : '#555'); txt(f > 0 ? Math.ceil(f) + 'h' : '–', bx + 128, 33, 16, f > 0 ? INK : DIM); } } }
   // ---- portraits ----
-  const alive = G.survivors; let px = 20;
+  const alive = G.survivors; let px = 20; const pk = H < 430 ? .7 : 1;   /* on a phone the faces are smaller, so they cover less of the house */
+  ctx.save(); ctx.translate(0, H); ctx.scale(pk, pk); ctx.translate(0, -H);
   for (let i = 0; i < alive.length; i++) {
     const s = alive[i]; const py = H - 60; const r = 30;
     ctx.fillStyle = 'rgba(14,15,18,.75)'; rr(px - 4, py - 36, 72, 94, 10); ctx.fill();
@@ -4879,9 +4880,10 @@ function drawHomeHud(dt) {
     txt(s.name, px + 32, py + 40, 13, i === G.sel ? GOLD : DIM);
     const st = statusIcons(s); st.slice(0, 4).forEach((ic, j) => { drawIcon(ic, px + 8 + j * 16, py - r - 8, 16, ic === 'dead' ? DIM : ic === 'infected' ? GREEN : ic === 'cold' ? '#9cc7e6' : RED); });
     if (s.alive && G.phase === 'day') { bar(px + 2, py + 50, 60, 4, s.health / 100, needColor(s.health)); }
-    UI.btn(px - 4, py - 36, 72, 94, () => { if (!s.alive) return; if (G.sel === i) UI.survOpen = UI.survOpen === i ? -1 : i; else { G.sel = i; UI.survOpen = -1; } if (!cam.lock) UI.focus = { who: s, z: clamp(Math.max(cam.z, H / 330), cam.minZ, cam.maxZ), t: 0 }; AUDIO.sfx('tap'); });
+    UI.btn((px - 4) * pk, H - (H - py + 36) * pk, 72 * pk, 94 * pk, () => { if (!s.alive) return; if (G.sel === i) UI.survOpen = UI.survOpen === i ? -1 : i; else { G.sel = i; UI.survOpen = -1; } if (!cam.lock) UI.focus = { who: s, z: clamp(Math.max(cam.z, H / 330), cam.minZ, cam.maxZ), t: 0 }; AUDIO.sfx('tap'); });
     px += 78;
   }
+  ctx.restore();
   // ---- inventory button ----
   const total = Object.values(G.inv).reduce((a, b) => a + b, 0);
   iconButton(W - 44, H - 44, 60, 'backpack', () => { UI.invOpen = !UI.invOpen; UI.survOpen = -1; }, { active: UI.invOpen, badge: total });
@@ -5513,9 +5515,10 @@ function drawTitle() {
   for (const z of UI.titleZ) { z.t += 1 / 60; z._tw = z._tw || flatWorld(z.y, -1e5, 1e5); const c = rigInput(z, z._tw, z.facing * .3, 1 / 60, zombieExt(z, z.t)); z.x = c.x; if (z.x < W * .05) z.facing = 1; if (z.x > W * .95) z.facing = -1; drawPerson(z, 'zombie', _T); }
   txt('ASHWINTER', W / 2, H * .3, Math.min(96, W / 7), INK, 'center', '700'); txt('what is left of the city', W / 2, H * .3 + Math.min(70, W / 10), 20, DIM, 'center', '400');
   const has = !!loadSave();
-  textButton(W / 2 - 110, H * .58, 220, 50, 'NEW GAME', () => { UI.campPick = true; }, { primary: !has, icon: 'play' });
-  if (has) textButton(W / 2 - 110, H * .58 + 64, 220, 50, 'CONTINUE', () => continueGame(), { primary: true, icon: 'home' });
-  const by0 = Math.min(H * .58 + (has ? 128 : 64), H - 62);
+  const shortT = H < 470 && has;   /* a phone on its side: the two main buttons go side by side so nothing sits on top of Continue */
+  textButton(shortT ? W / 2 - 225 : W / 2 - 110, H * .58, 220, 50, 'NEW GAME', () => { UI.campPick = true; }, { primary: !has, icon: 'play' });
+  if (has) textButton(shortT ? W / 2 + 5 : W / 2 - 110, H * .58 + (shortT ? 0 : 64), 220, 50, 'CONTINUE', () => continueGame(), { primary: true, icon: 'home' });
+  const by0 = Math.min(H * .58 + (has && !shortT ? 128 : 64), H - 56);
   textButton(W / 2 - 201, by0, 94, 46, 'DEMO', () => demoStart(), {});
   textButton(W / 2 - 98, by0, 94, 46, 'AREAS', () => { UI.areaPick = true; }, {});
   textButton(W / 2 + 5, by0, 94, 46, 'STEALTH', () => startMission(), {});
