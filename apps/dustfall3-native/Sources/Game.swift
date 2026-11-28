@@ -2133,13 +2133,16 @@ final class Game {
     private func updTrain(_ dt: Double) {
         guard var tr = train else { return }
         if tripT >= 0 {
+            // at the map the train has gone on down the line: no more of it to hear until a town is picked
+            if choosing { return }
             tripT += dt
-            fade = clampD(tripT / 2.2, 0, 1)
-            tr.x += tripT * tripT * 26 * dt
+            // the train is seen to pull out and gather way before the picture goes dark
+            fade = clampD((tripT - 2.8) / 1.4, 0, 1)
+            tr.x += tripT * tripT * 22 * dt
             tr.chuff -= dt * (2 + tripT * 4)
             if tr.chuff <= 0 { tr.chuff = 1; sfx?.chuff(1); smoke(tr.x + 16) }
             train = tr
-            if tripT > 2.6 && !choosing {
+            if tripT > 4.3 {
                 // straight on if there is only one way, or stop at the fork and ask
                 if lastTown { tripT = -1; fade = 0; train = Train(x: STOP, v: 0); ticket.live = false; return }
                 // the map comes up with the next town on it to tap; past the first town the line is asked for there
