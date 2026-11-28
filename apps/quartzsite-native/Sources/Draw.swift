@@ -461,10 +461,10 @@ final class Renderer {
             let rx0 = g.rigX - cam
             let b = abs(sin(NOW * 4)) * 2.4
             let lx = g.safeL / ZOOM
-            if rx0 < -24 {
+            if rx0 < -70 {
                 c.poly(GOLD, [lx + 8 - b, GY - 34, lx + 15 - b, GY - 38.4, lx + 15 - b, GY - 29.6])
                 g.text("your camp", lx + 18 - b, GY - 34, 4.2, GOLD, align: 1, bold: true, plate: true)
-            } else if rx0 > W + 24 {
+            } else if rx0 > W + 70 {
                 let rx1 = W - g.safeR / ZOOM
                 c.poly(GOLD, [rx1 - 8 + b, GY - 34, rx1 - 15 + b, GY - 38.4, rx1 - 15 + b, GY - 29.6])
                 g.text("your camp", rx1 - 18 + b, GY - 34, 4.2, GOLD, align: 2, bold: true, plate: true)
@@ -2033,7 +2033,7 @@ final class Renderer {
             for q in 0..<3 {
                 let tx = x - 52 + Double(q) * 33
                 c.R(tx, GY - 8, 29, 1.4, Col(0x8a6238)); c.R(tx + 1, GY - 6.6, 1, 6.6, Col(0x6a6a6a)); c.R(tx + 27, GY - 6.6, 1, 6.6, Col(0x6a6a6a))
-                c.R(tx, GY - 6.6, 29, 2.6, Col(0xf2c418).shade(sh)); g.text(["$1 TABLE", "$5 TABLE", "TOOLS · KNIVES · LIGHTS"][q], tx + 14.5, GY - 5.2, 1.7, Col(0x2a1e14), bold: true)
+                c.R(tx, GY - 6.6, 29, 2.6, Col(0xf2c418).shade(sh)); g.text(["1 COIN TABLE", "5 COIN TABLE", "TOOLS · KNIVES · LIGHTS"][q], tx + 14.5, GY - 5.2, 1.7, Col(0x2a1e14), bold: true)
                 if q == 0 {
                     for k in 0..<7 { c.RR(tx + 1 + Double(k) * 4, GY - 12, 3.4, 4, 0.5, tc[k % 6].shade(sh)); c.R(tx + 1.4 + Double(k) * 4, GY - 12.8, 2.6, 0.8, Col(0x3a3a3e)) }
                 } else if q == 1 {
@@ -2051,7 +2051,7 @@ final class Renderer {
             for q in 0..<2 { let gx = x + 68 + Double(q) * 9; c.RR(gx, GY - 6.4, 7.4, 6, 0.8, [Col(0xc8281e), Col(0xf2c418)][q].shade(sh)); c.R(gx + 1, GY - 7.6, 5.4, 1.2, Col(0x2a2a2a)); c.R(gx + 1.2, GY - 4.6, 2.4, 1.6, Col(0x1c1a1a)); c.circ(gx + 5.4, GY - 3.6, 0.8, Col(0x1c1a1a)) }
             // flags along the eave, and the shoppers
             for q in 0..<14 { c.poly([Col(0xc8281e), Col(0xf4f4f0), Col(0x2e4a7a)][q % 3].shade(sh), [x - 58 + Double(q) * 8.4, GY - 26, x - 53 + Double(q) * 8.4, GY - 26, x - 55.5 + Double(q) * 8.4, GY - 22.6]) }
-            if g.phase == .play { person(x - 20, GY + 1, 516, 1, 0, false); person(x + 18, GY + 1, 519, -1, 0, false) }
+            if g.phase == .play && dark < 0.7 { person(x - 20, GY + 1, 516, 1, 0, false); person(x + 18, GY + 1, 519, -1, 0, false) }
             if g.phase == .play { person(x + 40, GY + 1, 512, -1, 0, false) }
             if dark > 0.3 { lights.append((x - 30, GY - 22, 24)); lights.append((x + 30, GY - 22, 24)) }
             label = false
@@ -2726,7 +2726,7 @@ final class Renderer {
             c.R(x - 30, GY - 36, 0.8, 3, Col(0x6a6a6a)); c.R(x + 30, GY - 36, 0.8, 3, Col(0x6a6a6a))
             c.R(x - 46, GY - 20, 50, 8, Col(0x2a1a14)); for q in 0..<9 { c.RR(x - 44 + Double(q) * 5.4, GY - 19, 2, 5.4, 0.7, [Col(0x8ad0a0), Col(0xd8a850), Col(0xb86a4a)][q % 3]) }
             c.R(x - 48, GY - 10, 54, 2, Col(0xb8742e).shade(1 - dark * 0.3)); c.R(x - 46, GY - 8, 50, 8, Col(0x7a4a2a).shade(1 - dark * 0.3))
-            if g.phase == .play {
+            if g.phase == .play && (dark < 0.7 || g.hour() >= 17) {
                 for q in 0..<4 {
                     let sx0 = x - 40 + Double(q) * 12
                     c.R(sx0 - 0.4, GY - 5, 0.8, 5, Col(0x8a8f96)); c.ell(sx0, GY - 5.4, 2.6, 0.9, Col(0x8a2e1e))
@@ -4375,7 +4375,7 @@ final class Renderer {
         let pt = sy(-34) - 14
         c.RR(x0, pt, w, y1 - pt, 5, Col(0x21140f))
         g.text("SILLY AL'S", x0 + 9, pt + 7.4, 7, GOLD, align: 1, bold: true)
-        g.text("order off the chalkboard  ·  tap the pool table for a game  ·  tap the floor to step back out", x1 - 9, pt + 7.4, 3.4, CREAM.alpha(0.8), align: 2)
+        g.text("\(Int(g.money)) coins  ·  \(g.cred) cred      order off the chalkboard  ·  tap the pool table  ·  tap the floor to leave", x1 - 9, pt + 7.4, 3.4, CREAM.alpha(0.85), align: 2)
         g.hits.append(Hit(id: 62, x: ox, y: sy(-34), w: RW * S, h: 34 * S))
         c.save()
         c.translate(ox, oy)
@@ -4522,7 +4522,7 @@ final class Renderer {
         }
         g.hits.append(Hit(id: 58, x: sx(87), y: sy(-25), w: 30 * S, h: 26 * S))
         tapArrow(sx(102), sy(-13.4), "Tap for a game")
-        if g.mapMsgT > 0 { g.text(g.mapMsg, (x0 + x1) / 2, y1 - 9, 5.4, CREAM.alpha(clampD(g.mapMsgT, 0, 1)), bold: true, plate: true) }
+        if g.mapMsgT > 0 { g.text(g.mapMsg, (x0 + x1) / 2, sy(4), 5.4, CREAM.alpha(clampD(g.mapMsgT, 0, 1)), bold: true, plate: true) }
     }
 
     /// Your own touches on your rig: a painted stripe down the side and a flag flying off the back.
@@ -5186,7 +5186,8 @@ final class Renderer {
 
     private func ring(_ i: Int) {
         let x = g.spots[i].x - cam
-        let y = GY - (g.spots[i].kind == .gemworld ? 90.0 : 68.0)
+        // never up under the coins, health and cred bar
+        let y = max(GY - (g.spots[i].kind == .gemworld ? 90.0 : 68.0), GY + (50 - GY - 2) / ZOOM)
         guard let o = g.offer(i) else {
             g.text(g.note(i), x, y, 5, CREAM, plate: true)
             return

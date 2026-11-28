@@ -1093,6 +1093,7 @@ final class Game {
             if t.range > 0 && mi > t.range { return Trip(ok: false, cost: 0, how: "Too far for the " + t.name.lowercased()) }
             return Trip(ok: true, cost: Int((mi * t.perMile).rounded(.up)), how: "Ride the " + t.name.lowercased())
         }
+        if rigFor(to) { return Trip(ok: true, cost: max(1, Int((mi * RIGS[rig.rawValue].perMile).rounded(.up))), how: "Drive the " + RIGS[rig.rawValue].name.lowercased()) }
         if to == .skoolie { return Trip(ok: false, cost: 0, how: "10 miles out. You need wheels") }
         if [.crystal, .palms, .desertbar, .intaglios].contains(to) { return Trip(ok: false, cost: 0, how: "\(Int(mi)) miles out. You need wheels") }
         if area == .skoolie { return Trip(ok: true, cost: 0, how: "Ride back with a nomad family") }
@@ -1156,7 +1157,12 @@ final class Game {
         cam = clampD(px - W / ZOOM / 2, 0, max(0, WORLD - W / ZOOM))
     }
 
+    /// On foot, but your rig is parked right here and the place is too far to walk: you take the rig.
+    private func rigFor(_ to: Area) -> Bool {
+        return !inRig && !onToy && !inPast && rigHere && rig != .tent && to != .trail && area != .trail && [Area.skoolie, .crystal, .palms, .desertbar, .intaglios].contains(to)
+    }
     private func go(_ to: Area) {
+        if rigFor(to) { inRig = true; px = rigX; vx = 0 }
         let t = trip(to)
         if !t.ok { mapMsg = t.how; mapMsgT = 2.5; return }
         if Double(t.cost) > money { mapMsg = "Not enough coins for that"; mapMsgT = 2.5; return }
@@ -1643,7 +1649,7 @@ final class Game {
         case .stray:
             return hasDog ? nil : Offer(label: "Share your sandwich with the stray", cost: 5, earn: 0, dur: 2.4)
         case .pizza:
-            return seen.contains(24) ? nil : Offer(label: "Pizza and a cold one", cost: 14, earn: 0, dur: 1.6)
+            return seen.contains(24) ? nil : Offer(label: "Pizza and a cold one", cost: 15, earn: 0, dur: 1.6)
         case .post:
             return day - mailDay >= 7 ? Offer(label: "Pick up your General Delivery mail", cost: 0, earn: 0, dur: 1.2) : nil
         case .pool:
@@ -2527,7 +2533,13 @@ final class Game {
             hint("gen", "No solar yet, so your generator runs in the evening. Shut it off at your camp before 10 PM. Quiet hours run until 6 AM. Solar panels at K&B Tools mean no generator at all.")
         }
         if genOn && dayT < 0.3 { genOn = false }
-        if genOn && quietHours && genMadDay != day && rigHere {
+        if genOn && quietHours && genMadDay != day && !shown.contains("genwarn") {
+            // the first time is a warning, not a fine
+            shown.insert("genwarn")
+            genMadDay = day
+            hintT = 0
+            hint("genwarn", "Quiet hours are 10 PM to 6 AM, and your generator is still running. Tonight it's a warning. After this it costs 2 cred. Shut it off at your rig, or add solar.")
+        } else if genOn && quietHours && genMadDay != day && rigHere {
             genMadDay = day
             cred = max(0, cred - 2)
             madT = 4; madX = rigX + 70; madText = "It's after ten! Shut that generator off!"

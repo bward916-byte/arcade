@@ -200,6 +200,12 @@ final class GameViewController: UIViewController {
     }
 
     private func showBoard() {
+        if !GKLocalPlayer.local.isAuthenticated {
+            let a = UIAlertController(title: "Leaderboard", message: "The contest leaderboard isn't switched on yet.", preferredStyle: .alert)
+            a.addAction(UIAlertAction(title: "OK", style: .default))
+            present(a, animated: true)
+            return
+        }
         let now = Date().timeIntervalSince1970
         let board = contestBoard(seasonBegan: now) ?? "qw.cred.mar2027"
         let vc = GKGameCenterViewController(leaderboardID: board, playerScope: .global, timeScope: .allTime)
