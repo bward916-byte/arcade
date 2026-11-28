@@ -2137,7 +2137,7 @@ final class Game {
             // at the map the train has gone on down the line: no more of it to hear until a town is picked
             if choosing { return }
             tripT += dt
-            if let h = demoTrip { tripT = min(tripT, h) }
+            if let h = demoTrip, tripT >= h { tripT = h; tr.x = STOP + 22 * h * h * h / 3; train = tr; return }
             // the train is seen to pull out and gather way before the picture goes dark
             fade = clampD((tripT - 2.8) / 1.4, 0, 1)
             tr.x += tripT * tripT * 22 * dt
