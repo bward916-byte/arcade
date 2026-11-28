@@ -102,12 +102,23 @@ jobs:
           PY
           fi
 
+      # Unsigned .ipa straight from the archive, for BrowserStack (it re-signs apps itself).
+      - name: Package an .ipa for BrowserStack
+        if: steps.archive.outcome == 'success'
+        continue-on-error: true
+        run: |
+          mkdir -p "$RUNNER_TEMP/ipa/Payload"
+          cp -R "$RUNNER_TEMP/App.xcarchive/Products/Applications/"*.app "$RUNNER_TEMP/ipa/Payload/"
+          cd "$RUNNER_TEMP/ipa" && zip -qry "$RUNNER_TEMP/QuartzsiteWinter-unsigned.ipa" Payload
+          ls -l "$RUNNER_TEMP/QuartzsiteWinter-unsigned.ipa"
+
       - name: Sign and upload to TestFlight
         id: testflight
-        if: steps.archive.outcome == 'success' && !contains(github.event.head_commit.message, '[no-tf]')
+        if: steps.archive.outcome == 'success'
         continue-on-error: true
         env:
           ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
         run: |
           set -o pipefail
           for v in ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_P8; do
@@ -123,6 +134,8 @@ jobs:
             -allowProvisioningUpdates \
             -authenticationKeyPath "$KEY_PATH" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID" 2>&1 | tee "$RUNNER_TEMP/export.log" | tail -n 30
           IPA=$(ls "$RUNNER_TEMP"/export/*.ipa | head -1)
+          cp "$IPA" "$RUNNER_TEMP/QuartzsiteWinter-appstore.ipa"
+          if [[ "$COMMIT_MSG" == *"[no-tf]"* ]]; then echo "[no-tf]: signed, not uploaded"; exit 0; fi
           xcrun altool --upload-app -f "$IPA" -t ios --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID" 2>&1 | tee "$RUNNER_TEMP/upload.log" | tail -n 30
 
       - name: Remove the key
@@ -153,6 +166,7 @@ jobs:
           for f in "$RUNNER_TEMP"/shots/*.png; do
             if [ -f "$f" ]; then sips -Z 1300 "$f" --out "$OUT/$(basename "$f")" >/dev/null 2>&1 || true; fi
           done
+          cp "$RUNNER_TEMP"/QuartzsiteWinter-*.ipa "$OUT/" 2>/dev/null || true
           git init -q
           git checkout -q -b quartzsite-native-buildlog
           git add -A
