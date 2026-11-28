@@ -1,4 +1,4 @@
-# TrailApp for iPhone (working title)
+# Trail app for iPhone (working title: Brian's Trail Log)
 
 An offline-minded land map: USGS topo and satellite base maps, a public-land layer from BLM's Surface Management Agency
 data, track recording and waypoints.
