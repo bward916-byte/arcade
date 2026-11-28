@@ -2143,7 +2143,7 @@ function makeShelter(saved, tier = 0) {
   const props = [];
   // decorative props per room: [type, x]
   const add = (f, x, t, o) => props.push(Object.assign({ f, x, t }, o || {}));
-  add(1, 300, 'sofa'); add(1, 180, 'table'); add(1, 460, 'shelf', { h: 60 }); add(1, 600, 'cabinet'); add(1, 820, 'fridge'); add(1, 640, 'counter'); add(1, 1060, 'rubble', { id: 'rubble1' }); add(1, 1200, 'garshelf'); add(1, 980, 'car');
+  add(1, 300, 'sofa'); add(1, 180, 'table'); add(1, 460, 'shelf', { h: 60 }); add(1, 600, 'cabinet'); add(1, 820, 'fridge'); add(1, 640, 'counter'); add(1, 1285, 'rubble', { id: 'rubble1' }); add(1, 1215, 'garshelf'); add(1, 1068, 'car');
   add(2, 130, 'dresser'); add(2, 340, 'bedframe'); add(2, 600, 'medcab'); add(2, 680, 'tub'); add(2, 900, 'rubble', { id: 'rubble2' }); add(2, 1180, 'desk'); add(2, 1050, 'bookcase');
   add(0, 1140, 'rubble', { id: 'rubble3' }); add(0, 1265, 'crates'); add(0, 1010, 'bench'); add(0, 400, 'storeshelf'); add(0, 200, 'rubble', { id: 'rubble4' }); add(0, 560, 'boiler');
   add(1, 530, 'pipe'); add(0, 1180, 'pipe'); add(2, 500, 'sink');
@@ -6071,7 +6071,7 @@ function frame(now) {
       if (!G.homeDrifters || G.homeDrifters.day !== G.day) { const w = G.world; G.homeDrifters = { day: G.day, list: G.day % 3 === 2 ? [{ drifter: true, name: 'yard' + G.day + 'a', x: w.x0 - 222, fy: 1, f: 1, facing: 1, pose: 'warm', alive: true, scale: .97 }] : [] }; }
       let actors = G.survivors.concat(G.homeDrifters.list), lights = homeLights(hour);
       if (G.phase === 'raid') { const R = G.raid, w = G.world; actors = G.survivors.concat(R.zs).concat(R.side < 0 ? [] : G.homeDrifters.list); lights = lights.filter(l => l.c !== '255,185,110'); for (const g of R.info.guards) if (g.alive) lights.push({ x: g.x + R.side * 30, y: w.fy2y(1) - 60, r: 230, a: .7, c: '255,200,130' }); lights.push({ x: R.edge + R.side * 150, y: w.fy2y(1) - 60, r: 460, a: .5, c: '150,170,220' }); lights.push({ x: (R.inner + R.edge) / 2, y: w.fy2y(1) - 70, r: 420, a: .3, c: '150,170,220' }); if (R.flash > 0) lights.push({ x: R.inner + R.side * 40, y: w.fy2y(1) - 60, r: 360, a: .95, c: '255,220,150' }); if (R.shake > 0) { cam.x = cam.tx + rnd(-2, 2) * R.shake; } }
-      else if (G.phase === 'event' && G.visitor) { actors = G.survivors.concat([G.visitor]).concat(G.homeDrifters.list); lights.push({ x: G.visitor.x, y: G.world.fy2y(1) - 60, r: 170, a: .55, c: '200,210,230' }); }
+      else if (G.phase === 'event' && G.visitor) { actors = G.survivors.concat([G.visitor]).concat(G.homeDrifters.list); lights.push({ x: G.visitor.x, y: G.world.fy2y(1) - 60, r: 170, a: .55, c: '200,210,230' }); lights.push({ x: G.visitor.x, y: G.world.fy2y(1) + 14, r: 110, a: .5, c: '200,210,230' }); }   /* and the ground they stand on, so nobody seems to hang in the dark */
       if (UI.focus) { const F = UI.focus, q = F.who; F.t += dt; if (G.phase !== 'day' || IN.dragging || F.t > 1.6) UI.focus = null; else { const k = 1 - Math.pow(.002, dt); cam.z = cam.tz = lerp(cam.z, F.z, k); cam.x = cam.tx = lerp(cam.x, q.x, k); cam.y = cam.ty = lerp(cam.y, G.world.fy2y(q.fy == null ? q.f : q.fy) - 70, k); clampCam(); } }   // a tapped face: the view glides over to that person
       drawScene(G.world, hour, actors, { t: _T, dt, lights });
       if (G.phase === 'raid') drawRaidHud();
