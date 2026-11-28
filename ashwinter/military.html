@@ -6054,7 +6054,7 @@ function soundTick(dt) { powerTick(dt); AUDIO.pos(null);
 let lastT = 0;
 function frame(now) {
   requestAnimationFrame(frame);
-  const dt = Math.min(.05, ((now - lastT) / 1000 || 0) * (DEMO.on ? DEMO.speed || 1 : 1)); lastT = now;   // the demo can run at double or triple speed
+  const dt = Math.min(.1, ((now - lastT) / 1000 || 0) * (DEMO.on ? DEMO.speed || 1 : 1)); lastT = now;   /* down to 10 frames a second the game keeps real time; below that it slows instead of jumping */   // the demo can run at double or triple speed
   UI.hits = [];
   if (H > W) { IN.taps.length = 0; ctx.fillStyle = '#101113'; ctx.fillRect(0, 0, W, H); const cx = W / 2, cy = H / 2, a = Math.sin(now / 1000 * 1.6) * .5 + .5, rot = -Math.PI / 2 * (a < .5 ? 2 * a * a : 1 - 2 * (1 - a) * (1 - a));   // held upright: nothing runs, and the screen says only what to do about it
     ctx.save(); ctx.translate(cx, cy - 50); ctx.rotate(rot); ctx.strokeStyle = GOLD; ctx.lineWidth = 4; rr(-32, -58, 64, 116, 11); ctx.stroke(); ctx.fillStyle = GOLD; ctx.fillRect(-9, 44, 18, 3); ctx.restore();
