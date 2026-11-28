@@ -4479,7 +4479,7 @@ function trUpdate(dt) { if (TR.climb) { trClimb(dt); return; } searchlightCheck(
   if (TR.fight && foe && foeD < 56 && TR.attackT <= 0 && !GUNS[trWeapon()]) trAttack();   // fighting stance: strike whoever comes within reach
   for (const d of TR.drifters || []) if (d.sayT > 0) d.sayT -= dt;
   const chasing = TR.zombies.some(z => z.alive && z.state === 'chase');
-  const speed = (TR.fight ? 52 : TR.run ? 124 : 80) * (p.trait === 'runner' ? 1.15 : 1);
+  const speed = (TR.fight ? 52 : TR.run ? 124 : 80) * (p.trait === 'runner' ? 1.15 : 1) * (TR.journey ? 1.3 : 1);   /* the walk home is brisk */
   if (TR.attackT > 0) {
     TR.attackT -= dt;
     if (TR.attackKind !== 'shoot' && TR.attackT < (TR.attackKind === 'swing' && TR.attackDur || .45) * (1 - (TR.attackKind === 'swing' && HIT_AT[p.style] || .5)) && !TR.attackHit) { TR.attackHit = true; const wep = trWeapon(), M = TR.attackKind === 'swing' && MELEE[wep] || FIST, dmg = M.dmg; for (const z of TR.zombies) if (z.alive && Math.abs(z.x - TR.x) < M.reach && Math.abs((z.py || 0) - TR.py) < 34 && (z.x - TR.x) * p.facing > -8) { hitSpark(z.x - p.facing * 5, GROUND_Y + 14 - (z.py || 0) - (p.style === 'chop' || p.style === 'butt' ? 74 : 54), dmg >= 2, dmg > 0); z.hp -= dmg * (p.trait === 'strong' ? 2 : 1); z.hurtT = .3; AUDIO.sfx('hit'); if (dmg) bleed(TR.bw, z.x, 0, p.facing, z.hp <= 0); z.kb = p.facing * M.kb; z.attackT = 0; z.state = 'chase'; if (z.hp <= 0) { z.alive = false; z.pose = 'dead'; TR.kills++; } AUDIO.sfx('groan'); } }
@@ -4784,7 +4784,7 @@ function handleTaps() {
     if (UI.invOpen || UI.survOpen >= 0 || UI.help) { UI.invOpen = false; UI.survOpen = -1; UI.help = false; continue; }
     const wx = s2wx(t.x), wy = s2wy(t.y);
     if (DEMO.on) continue;
-    if (G.phase === 'day') homeTapWorld(wx, wy); else if (G.phase === 'scav') scTapWorld(wx, wy); else if (G.phase === 'travel' && !TR.done) { TR.tx = clamp(wx, 20, TR.xMax != null ? TR.xMax : ST_END + 300); TR.run = isDoubleTap(wx, wy); if (TR.run) TR.fight = false; AUDIO.sfx('tap'); }
+    if (G.phase === 'day') homeTapWorld(wx, wy); else if (G.phase === 'scav') scTapWorld(wx, wy); else if (G.phase === 'travel' && !TR.done) { TR.tx = clamp(TR.journey && wx < TR.x ? Math.min(wx, TR.x - 1100) : wx, 20, TR.xMax != null ? TR.xMax : ST_END + 300); TR.run = isDoubleTap(wx, wy);   /* on the walk home one tap keeps you going until something stops you */ if (TR.run) TR.fight = false; AUDIO.sfx('tap'); }
   }
 }
 // ---- generic widgets ----
@@ -5460,7 +5460,8 @@ function drawJourneyHud(dt) { const Jn = TR.journey, p = TR.player, bar = H * .0
     if (Jn.end > 7.6) journeyHome(); else UI.btn(0, 0, W, H, () => { if (Jn.end > 1.4) journeyHome(); }); return; }
   if (Jn.hold <= 0) { if (!Jn.pack && Math.abs(TR.x - 1240) < 100) { const sx = w2sx(1240), sy = w2sy(GROUND_Y - 70); spotBubble(sx, sy, 'backpack', { hl: true, size: 48 }); UI.btn(sx - 30, sy - 30, 60, 60, () => { Jn.pack = true; p.hasPack = true; G.inv.water = (G.inv.water || 0) + 2; G.inv.canned = (G.inv.canned || 0) + 3; G.inv.bandage = (G.inv.bandage || 0) + 1; AUDIO.sfx('done'); jSay('A rucksack somebody dropped: two bottles of water, three tins, a bandage.'); }); }
     if (Math.abs(TR.x) < 160) { const sx = w2sx(0), sy = w2sy(GROUND_Y - 128); spotBubble(sx, sy, 'home', { hl: true, size: 52 }); UI.btn(sx - 32, sy - 32, 64, 64, () => { Jn.end = .01; TR.tx = null; AUDIO.sfx('reveal'); }); } }
-  if (Jn.t < 9 && Jn.t > 2.5) { ctx.globalAlpha = clamp(Math.min((Jn.t - 2.5) / .6, (9 - Jn.t) / .6), 0, 1) * .9; txt('◀  tap the road ahead to walk  ·  double-tap to run', W / 2, Math.max(bar, H * .085) + 22, 14, '#d9d2c2', 'center', '500'); ctx.globalAlpha = 1; }
+  if (TR.x > J_LEN - 700 && Jn.t > 1.5) { const a = clamp((Jn.t - 1.5) / .6, 0, 1), hy = Math.max(bar, 10) + 44, ht = '◀  tap the road ahead to walk  ·  double-tap to run'; ctx.globalAlpha = a; ctx.font = '600 14px system-ui, sans-serif'; const tw = ctx.measureText(ht).width + 24; ctx.fillStyle = 'rgba(14,15,18,.85)'; rr(10, hy - 15, tw, 30, 8); ctx.fill(); txt(ht, 22, hy, 14, GOLD, 'left', '600');
+    const px = w2sx(TR.x), py = w2sy(GROUND_Y - 118) + Math.sin(_T * 4) * 3; ctx.fillStyle = GOLD; ctx.beginPath(); ctx.moveTo(px - 8, py - 10); ctx.lineTo(px + 8, py - 10); ctx.lineTo(px, py); ctx.closePath(); ctx.fill(); txt('YOU', px, py - 20, 12, GOLD, 'center', '700'); ctx.globalAlpha = 1; }   /* the hint sits in its own box at the left, clear of the talk, and an arrow marks who you are until you have walked a little */
   { const d = Math.max(0, Math.round(TR.x / 46)); ctx.globalAlpha = .75 * (1 - Jn.bars * .6); txt(d > 3 ? d + ' m to Calder Row' : 'Calder Row', 14, Math.max(bar, 10) + 18, clamp(W / 75, 13, 20), '#d9d2c2', 'left', '500'); ctx.globalAlpha = 1; }
   textButton(W - 86, Math.max(6, bar * .5 - 15), 76, 30, 'SKIP', () => { TR.x = p.x = 60; if (!Jn.pack) { G.inv.water = (G.inv.water || 0) + 2; G.inv.canned = (G.inv.canned || 0) + 3; G.inv.bandage = (G.inv.bandage || 0) + 1; Jn.pack = true; } Jn.end = .01; }, {});
 }
