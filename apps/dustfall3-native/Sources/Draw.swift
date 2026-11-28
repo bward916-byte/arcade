@@ -100,6 +100,7 @@ final class Renderer {
             }
         }
         c.alpha(1)
+        if g.tripT >= 0 { trainOver = true; rail(dk); trainOver = false }
         if g.tripT < 0 { rider() }
         breath()
         coins()
@@ -323,7 +324,7 @@ final class Renderer {
             let all = bt.who == "all"
             let cur = all ? n : g.town % n
             let reach = all ? n : max(cur, g.front)
-            let xs = [24.0, 62, 100, 138, 176], ys = [58.0, 46, 62, 44, 56]
+            let xs = [24.0, 62, 100, 138, 176], ys = [60.0, 52, 63, 50, 58]
             let tint: [UInt32] = [0xeeb060, 0x7fa64c, 0x33683c, 0xcc6238, 0xf6f9ff]
             for i in 0..<5 { a.glow(xs[i], ys[i] + 2, 36, Col(tint[i], i == 4 ? 0.75 : 0.4), Col(tint[i], 0)) }
             let ink = Col(0x2a1c14)
@@ -332,9 +333,9 @@ final class Renderer {
                 a.curve(152, -2, 98, 20, 82, 52, w, c); a.curve(82, 52, 74, 78, 48, 114, w + 0.8, c)
             }
             // what grows and stands in each country: cactus, meadow trees, pines, mesas, peaks
-            for i in 0..<40 {
-                let k = i % 5, px = xs[k] + (hs(i + 3) - 0.5) * 46, py = ys[k] + (hs(i + 9) - 0.5) * 60
-                if (abs(py - ys[k]) < 14 && abs(px - xs[k]) < 27) || py < 9 || py > 72 || abs(px - (98 - (py - 20) * 0.5)) < 6 { continue }
+            for i in 0..<110 {
+                let k = i % 5, px = xs[k] + (hs(i + 3) - 0.5) * 46, py = ys[k] + (hs(i + 9) - 0.5) * 52
+                if (abs(py - ys[k]) < 15 && abs(px - xs[k]) < 25) || py < 31 || py > 77 || abs(px - (98 - (py - 20) * 0.5)) < 6 { continue }
                 switch k {
                 case 0:
                     a.seg(px, py, px, py - 5, 1, Col(0x55783c)); a.seg(px - 2, py - 2, px - 2, py - 4, 0.8, Col(0x55783c)); a.seg(px - 2, py - 2, px, py - 2, 0.8, Col(0x55783c))
@@ -369,7 +370,6 @@ final class Renderer {
                 if i == cur {
                     a.circ(x, y, 2, Col(0xb0261c))
                     a.ellStroke(x, y, 8 + sin(t * 3.2), 8 + sin(t * 3.2), 1.6, Col(0xb0261c))
-                    a.text("YOU ARE HERE", clampD(x, 42, 158), y + (up ? -19.5 : 19.5) + 2.1, 5.4, Col(0xb0261c))
                 }
                 a.text(nice(nm), clampD(x, 38, 162), y + (up ? -12 : 12) + 2.3, 6.5, ink, face: "Rye-Regular")
             }
@@ -481,6 +481,8 @@ final class Renderer {
             let cloud: UInt32 = fl ? 0x3a4060 : 0x0c0e1c
             for i in 0..<16 { a.circ(Double(i) * 14 - 4 + sin(t * 0.2 + Double(i)) * 2, 18 + hs(i + 3) * 10, 16 + hs(i + 5) * 10, Col(cloud)) }
             q(0, 0, 200, 20, cloud)
+            for i in 0..<12 { a.circ(Double(i) * 19 - 6 + sin(t * 0.3 + Double(i) * 2) * 3, 33 + hs(i + 41) * 7, 9 + hs(i + 43) * 6, Col(fl ? 0x5a6288 : 0x141830, 0.8)) }
+            for i in 0..<8 { a.ell(Double(i) * 27 + sin(t * 0.25 + Double(i)) * 4, 24 + hs(i + 47) * 6, 15, 3, Col(fl ? 0xc8d2f0 : 0x2a3052, fl ? 0.5 : 0.35)) }
             if fl {
                 var x = 128.0, y = 30.0
                 let seed = Int(t * 2)
@@ -496,8 +498,22 @@ final class Renderer {
             q(0, 100, 200, 12, fl ? 0x34364a : 0x06060c)
             let huts: [(Double, Double, Double)] = [(70, 14, 10), (86, 18, 14), (106, 12, 9), (120, 16, 12)]
             for (bx, bw, bh) in huts {
-                q(bx, 100 - bh, bw, bh, fl ? 0x22243a : 0x040408); q(bx + 3, 100 - bh + 3, 3, 3, 0xffcf6b)
+                let wall: UInt32 = fl ? 0x22243a : 0x040408
+                q(bx, 100 - bh, bw, bh, wall)
+                a.poly(Col(wall), [bx - 2, 100 - bh, bx + bw / 2, 100 - bh - 6, bx + bw + 2, 100 - bh])
+                a.seg(bx - 2, 100 - bh, bx + bw / 2, 100 - bh - 6, 0.7, Col(0xc8d6f0, fl ? 0.8 : 0.22)); a.seg(bx + bw / 2, 100 - bh - 6, bx + bw + 2, 100 - bh, 0.7, Col(0xc8d6f0, fl ? 0.5 : 0.12))
+                q(bx + bw - 4, 100 - bh - 8, 2, 5, wall)
+                a.glow(bx + 4.5, 100 - bh + 4.5, 7, Col(0xffcf6b, 0.35), Col(0xffcf6b, 0))
+                q(bx + 3, 100 - bh + 3, 3, 3, 0xffcf6b); q(bx + 4.2, 100 - bh + 3, 0.6, 3, 0x6a4a1c)
                 if bw > 13 { q(bx + bw - 6, 100 - bh + 3, 3, 3, 0xffcf6b) }
+                // the window again, broken up in the wet street
+                for j in 0..<3 { q(bx + 2.5 + sin(t * 3 + Double(j) + bx) * 0.8, 102 + Double(j) * 2.4, 4 - Double(j), 0.9, 0xffcf6b, 0.5 - Double(j) * 0.14) }
+            }
+            for i in 0..<6 { a.ell(20 + Double(i) * 34 + hs(i + 71) * 10, 106 + hs(i + 73) * 4, 9 + hs(i + 75) * 6, 1.2, Col(fl ? 0xdce6ff : 0x3a4266, fl ? 0.55 : 0.4)) }
+            // sheets of rain hanging under the cloud, slanting with the wind
+            for i in 0..<5 {
+                let rx = ((Double(i) * 53 - t * 14).truncatingRemainder(dividingBy: 265) + 265).truncatingRemainder(dividingBy: 265) - 30
+                a.poly(Col(0xc8d6f0, fl ? 0.12 : 0.06), [rx, 34, rx + 22, 34, rx + 2, 100, rx - 24, 100])
             }
             for i in 0..<70 {
                 let x = ((hs(i + 1) * 260 - t * 90 * (0.6 + hs(i + 2))).truncatingRemainder(dividingBy: 260) + 260).truncatingRemainder(dividingBy: 260) - 30
@@ -2853,17 +2869,19 @@ final class Renderer {
     }
 
     /// The rails, laid from the east as the station goes up, and the train standing on them.
+    private var trainOver = false      // a second pass, late in the frame: just the train, in front of the gate it is passing
     private func rail(_ dk: Double) {
         let s = g.station
         if s.level == 0 && !s.building { return }
         let headW = s.level > 0 ? STOP - 4 : WORLD - (WORLD - STOP + 4) * clampD(s.progress, 0, 1)
         let head = sx(headW)
-        if head < W {
+        if head < W && !trainOver {
             var wx = (max(headW, g.cam) / 4).rounded(.up) * 4
             while wx < g.cam + W { c.R(sx(wx), gy, 2, 1, Col(0x4a3626)); wx += 4 }
             c.R(max(head, 0), gy - 1, W - max(head, 0), 1, Col(0x8a8f98))
             if s.level > 0 { c.R(head - 2, gy - 5, 2, 5, Col(0x6a2f26)); c.R(head - 3, gy - 6, 4, 1, Col(0x6a2f26)) }
         }
+        if (g.tripT >= 0) != trainOver { return }
         guard let tr = g.train else { return }
         let x = sx(tr.x)
         if x > W + 10 || x < -230 { return }
@@ -2873,6 +2891,7 @@ final class Renderer {
         c.save()
         c.translate(x, gy - 1)
         c.scale(1.3, 1.3)
+        c.translate(143, 0); c.scale(-1, 1)        // she stands engine to the east, and leads the way out
         func wheel(_ wx: Double, _ r: Double) {
             c.circ(wx, -r, r, dkc); c.circ(wx, -r, r - 1, Col(0x4a4a56))
             let a = tr.x / (r * 1.3)
@@ -2930,8 +2949,8 @@ final class Renderer {
         c.R(28, -25.6, 16, 1.2, dkc); c.R(32.4, -21.6, 7.2, 0.6, br); c.R(32.4, -16, 7.2, 0.6, br)
         c.circ(36.4, -18.7, 1.3, Col(0xd9a06e)); c.R(35.1, -17.5, 2.8, 1.6, Col(0x34445a)); c.R(34.8, -20.3, 3.2, 0.8, Col(0x1c1410))
         // the company's name on the tender and along the car, curtains at the windows and a few faces behind them
-        c.R(47, -13, 13, 2.6, Col(0x15151a)); c.text("C.C.&R.", 53.5, -11, 2.2, br)
-        c.R(64, -22.8, 46, 1.8, Col(0x4a1c16)); c.text("CRANE CATTLE & RAIL", 87, -21.4, 1.5, br)
+        c.R(47, -13, 13, 2.6, Col(0x15151a)); c.save(); c.translate(53.5, -11); c.scale(-1, 1); c.text("C.C.&R.", 0, 0, 2.2, br); c.restore()
+        c.R(64, -22.8, 46, 1.8, Col(0x4a1c16)); c.save(); c.translate(87, -21.4); c.scale(-1, 1); c.text("CRANE CATTLE & RAIL", 0, 0, 1.5, br); c.restore()
         for k in 0..<5 {
             let wx0 = 68 + Double(k) * 7.5
             if k % 2 == 0 { c.circ(wx0 + 2.5, -16.4, 1, Col(0x1c1410, 0.8)); c.R(wx0 + 1.4, -15.5, 2.2, 1.5, Col(0x1c1410, 0.8)) }
@@ -3491,7 +3510,7 @@ final class Renderer {
         if u > 0 && u < 1 && dk < 0.3 && g.cloudI() < 0.3 && g.wx != 3 {
             let sxp = W * (0.08 + 0.84 * u), syp = gy - sin(u * PI) * gy * 0.82 + 6
             let ax = W / 2 - sxp, ay = H * 0.5 - syp
-            let fl: [(Double, Double, UInt32, Double)] = [(0.45, 5, 0xffe0a0, 0.10), (0.8, 9, 0xa0d8ff, 0.07), (1.25, 4, 0xffc0a0, 0.10), (1.6, 13, 0xfff0c0, 0.05), (1.95, 6, 0xa0ffd0, 0.06)]
+            let fl: [(Double, Double, UInt32, Double)] = [(0.45, 2.6, 0xffe0a0, 0.06), (1.25, 2, 0xffc0a0, 0.05), (1.7, 5, 0xfff0c0, 0.025)]
             c.blend(.plusLighter)
             for (fk, r, col, al) in fl { c.circ(sxp + ax * fk, syp + ay * fk, r, Col(col, al * (1 - dk / 0.3))) }
             c.blend(.normal)
@@ -3778,7 +3797,7 @@ final class Renderer {
         light(FIRE_X, 5, 60 + sin(g.clock * 9) * 3, 0.5)
         for bl in g.b where bl.def.wall != 0 && !bl.def.gate && bl.level > 0 { light(bl.x - 10.3, 26.5, 30, 0.5) }
         for cp in g.camps { light(cp.0 + 22, 4, 34, 0.4) }
-        if let tr = g.train { light(tr.x + 3, 25, 30, 0.6); light(tr.x + 130, 22, 40, 0.3) }
+        if let tr = g.train { light(tr.x + 183, 25, 30, 0.6); light(tr.x + 56, 22, 40, 0.3) }
         for bl in g.b where bl.level > 0 && !bl.def.gate && !bl.robbed {
             for wn in bl.def.wins { light(bl.x + wn.0 + wn.1 / 2, 15, 22, 0.28) }
         }

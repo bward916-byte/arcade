@@ -2144,7 +2144,7 @@ final class Game {
             fade = clampD((tripT - 2.8) / 1.4, 0, 1)
             tr.x += tripT * tripT * 22 * dt
             tr.chuff -= dt * (2 + tripT * 4)
-            if tr.chuff <= 0 { tr.chuff = 1; sfx?.chuff(1); smoke(tr.x + 16) }
+            if tr.chuff <= 0 { tr.chuff = 1; sfx?.chuff(1); smoke(tr.x + 172) }
             train = tr
             if tripT > 4.3 {
                 // straight on if there is only one way, or stop at the fork and ask
@@ -2156,7 +2156,7 @@ final class Game {
             return
         }
         if tr.v == 0 {
-            if chance(dt * 1.2) { smoke(tr.x + 16) }
+            if chance(dt * 1.2) { smoke(tr.x + 172) }
             if tr.wait > 0 {
                 tr.wait -= dt
                 if tr.wait <= 0 && lastTown {
@@ -2179,7 +2179,7 @@ final class Game {
         tr.v = -clampD((tr.x - STOP) * 1.1, 10, 120)
         tr.x += tr.v * dt
         tr.chuff -= dt * (1 + abs(tr.v) / 30)
-        if tr.chuff <= 0 { tr.chuff = 1; sfx?.chuff(clampD(1 - abs(tr.x - px) / 500, 0.15, 1)); smoke(tr.x + 16) }
+        if tr.chuff <= 0 { tr.chuff = 1; sfx?.chuff(clampD(1 - abs(tr.x - px) / 500, 0.15, 1)); smoke(tr.x + 172) }
         if tr.x <= STOP + 0.5 { tr.x = STOP; tr.v = 0; tr.wait = 1.5; sfx?.whistle(); flash = 0.2 }
         train = tr
     }
