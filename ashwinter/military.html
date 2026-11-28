@@ -3968,6 +3968,8 @@ function startScavenge(loc, surv, pack, cap) {
   scMsg('exit');
 }
 function beamReach(w, x, f, dir, len) { for (let q = 40; q < len; q += 24) { let ok = true; try { ok = w.passable(x, x + dir * q, f); } catch (_) {} if (!ok) return q + 10; } return len; }   /* a torch beam stops at a shut door or a wall */
+const MSG_WORDS = { alert: 'YOU HAVE BEEN SEEN', zombie: 'NOBODY WITHIN REACH', backpack: 'THE PACK IS FULL', bandage: 'HE NEEDS A BANDAGE', infected: 'THE WOUND IS INFECTED', lockpick: 'THE LOCKPICK BROKE', exit: 'INSIDE', lock: 'NO WAY THROUGH', heart: 'THANK YOU', run: 'GO' };
+function msgPill(icon, y) { const t = MSG_WORDS[icon] || '', bad = ['alert', 'infected', 'lock', 'lockpick', 'backpack', 'zombie', 'bandage'].includes(icon), cx = W / 2; ctx.font = '700 15px Oswald, Impact, sans-serif'; const tw = (t ? ctx.measureText(t).width + 14 : 0) + 56; ctx.fillStyle = 'rgba(14,15,18,.88)'; rr(cx - tw / 2, y, tw, 44, 10); ctx.fill(); if (icon === 'alert') { ctx.strokeStyle = RED; ctx.lineWidth = 2; rr(cx - tw / 2, y, tw, 44, 10); ctx.stroke(); } drawIcon(icon, cx - tw / 2 + 26, y + 22, 26, bad ? RED : undefined); if (t) txt(t, cx - tw / 2 + 48, y + 23, 15, bad ? '#e8b0a6' : INK, 'left', '700'); }   /* what happened, in words beside the picture */
 function scMsg(icon, t = 2.2) { SC.msg = icon; SC.msgT = t; }
 function scWeapon() { return ['rifle', 'pistol', 'bat', 'knife', 'crowbar', 'shovel'].find(w => packCount(SC.pack, w) > 0) || null; }   // anything with weight to it will do: a crowbar or a shovel if there is nothing better
 // ===== GEAR: coat, vest, boots and something on the head. Each piece does one plain thing and can be seen on whoever wears it. The good pieces are in particular places, or on the dead =====
@@ -4763,7 +4765,7 @@ function drawTravelHud(dt) {
   if ((near || (TR.aim && TR.aim.target)) && !TR.done) iconButton(W - 80, H - 70, 70, wep || 'shove', () => trAttack(), { bg: '#3a2020', edge: RED, badge: GUNS[wep] ? packCount(TR.pack, 'ammo') : undefined });
   iconButton(W - 50, 100, 56, 'backpack', () => { UI.modal = UI.modal && UI.modal.kind === 'inv' ? null : { kind: 'inv' }; }, { badge: TR.pack.length + '/' + TR.cap, active: UI.modal && UI.modal.kind === 'inv' });
   bar(W - 170, 20, 150, 10, p.health / 100, needColor(p.health)); drawIcon('hurt', W - 184, 25, 16, RED);
-  if (TR.msgT > 0 && TR.msg) { ctx.fillStyle = 'rgba(14,15,18,.85)'; rr(cx - 40, 78, 80, 50, 10); ctx.fill(); drawIcon(TR.msg, cx, 103, 30); }
+  if (TR.msgT > 0 && TR.msg && !(TR.msg === 'run' && TR.journey)) msgPill(TR.msg, 78);
 }
 
 // ---- 60_ui.js ----
@@ -4896,7 +4898,7 @@ function drawHomeHud(dt) {
   if (UI.help) drawHelp();
   if (G.flags.placing && G.phase === 'day' && !UI.modal) { const rc = RECIPES.find(r => r.id === G.flags.placing), bw = Math.min(W - 24, 430); ctx.fillStyle = 'rgba(14,15,18,.9)'; rr(cx - bw / 2, 66, bw, 46, 10); ctx.fill(); ctx.strokeStyle = GOLD; ctx.lineWidth = 1.5; rr(cx - bw / 2, 66, bw, 46, 10); ctx.stroke(); drawIcon(rc.icon, cx - bw / 2 + 28, 89, 28, GOLD); txt('Tap the floor where it should go', cx - bw / 2 + 52, 89, 15, INK, 'left'); G.msgT = 0; }
   // messages
-  if (G.msgT > 0) { G.msgT -= dt; ctx.font = '600 16px Oswald, Impact, sans-serif'; const mw2 = Math.min(W - 16, Math.max(220, ctx.measureText(G.msg).width + (G.msgIcon ? 76 : 36))); const low = UI.survOpen >= 0, my = low ? H - 62 : 70, mx = low ? Math.max(cx, Math.min(254 + mw2 / 2, W - 84 - mw2 / 2)) : cx; if (!UI.help) { ctx.fillStyle = 'rgba(14,15,18,.9)'; rr(mx - mw2 / 2, my, mw2, 44, 10); ctx.fill(); if (G.msgIcon) drawIcon(G.msgIcon, mx - mw2 / 2 + 28, my + 22, 26, G.msgColor); txt(G.msg, mx + (G.msgIcon ? 18 : 0), my + 22, 16, G.msgColor || INK); } }
+  if (G.msgT > 0) { G.msgT -= dt; ctx.font = '600 16px Oswald, Impact, sans-serif'; const mw2 = Math.min(W - 16, Math.max(220, ctx.measureText(G.msg).width + (G.msgIcon ? 76 : 36))); const low = UI.survOpen >= 0, my = low ? H - 62 : (cx - mw2 / 2 < 160 ? 100 : 70), mx = low ? Math.max(cx, Math.min(254 + mw2 / 2, W - 84 - mw2 / 2)) : cx; if (!UI.help) { ctx.fillStyle = 'rgba(14,15,18,.9)'; rr(mx - mw2 / 2, my, mw2, 44, 10); ctx.fill(); if (G.msgIcon) drawIcon(G.msgIcon, mx - mw2 / 2 + 28, my + 22, 26, G.msgColor); txt(G.msg, mx + (G.msgIcon ? 18 : 0), my + 22, 16, G.msgColor || INK); } }
 }
 function homeMsg(text, icon, color) { G.msg = text; G.msgIcon = icon; G.msgColor = color; G.msgT = 2.2; }
 
@@ -5157,7 +5159,7 @@ function drawScavHud(dt) { drawSay(SC.world, dt);
   // health
   bar(W - 170, 20, 150, 10, p.health / 100, needColor(p.health)); drawIcon('hurt', W - 184, 25, 16, RED);
   // message
-  if (SC.msgT > 0 && SC.msg) { ctx.fillStyle = 'rgba(14,15,18,.85)'; rr(cx - 40, 70, 80, 50, 10); ctx.fill(); drawIcon(SC.msg, cx, 95, 30); }
+  if (SC.msgT > 0 && SC.msg) msgPill(SC.msg, 72);
 }
 function drawNightClock(x, y) { const h = nightHour(); const late = G.nightT < 60; drawIcon('moon', x - 80, y, 22, '#aab'); bar(x - 58, y - 6, 110, 12, G.nightT / NIGHT_TOTAL, late ? RED : '#8a93a8'); txt(fmtClock(h), x + 96, y, 16, late ? RED : INK); }
 function drawPackGrid(x, y, cols, pack, cap, onTap) {
