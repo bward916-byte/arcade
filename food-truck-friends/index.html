@@ -622,5 +622,19 @@ const _rd5=render;render=function(){_rd5();
 (function(){R.intro=1;const d=document.createElement('div');d.id='intro';d.innerHTML=`<img class="itk" src="${ART_SRC.truck0}" alt=""><img class="ilg" src="${ART_SRC.logo}" alt=""><i></i><i></i><i></i><i></i><i></i><i></i>`;document.body.appendChild(d);
   let gone=0;const end=()=>{if(gone)return;gone=1;R.intro=0;d.classList.add('out');setTimeout(()=>d.remove(),450);};setTimeout(end,2700);d.addEventListener('pointerdown',e=>{e.stopPropagation();end();});})();
 window.FTF.ev=t=>{if(t==='bal')R.bal={t:3,dur:10,col:'#ff5d8f',prize:'co'};else{R.happy=20;banner('HAPPY HOUR!','#ff9f1c',1.5,'Double coins for 20 seconds');}};window.FTF.balPos=balPos;
+/* pass 2: item shadows + wanted glow, butterflies / fireflies, truck steam */
+const _di5=drawItem;drawItem=function(k,x,y,o){const it=S.board[k],a=A[k],cs=L.cell;
+  if(it&&!(o&&o.drag)&&a.pop>.3){ctx.fillStyle='rgba(120,60,90,.16)';ctx.beginPath();ctx.ellipse(x,y+cs*.36,cs*.3*Math.min(1,a.pop),cs*.065,0,0,TAU);ctx.fill();
+    if(it.t==='item'&&R.wantSet&&R.wantSet[it.c+it.l]){const p=.5+.5*Math.sin(T*4+k),gl=ctx.createRadialGradient(x,y,cs*.1,x,y,cs*.52);gl.addColorStop(0,`rgba(90,230,150,${.28+.2*p})`);gl.addColorStop(1,'rgba(90,230,150,0)');ctx.fillStyle=gl;ctx.beginPath();ctx.arc(x,y,cs*.52,0,TAU);ctx.fill();}}
+  _di5(k,x,y,o);};
+const CRIT=[];for(let i=0;i<5;i++)CRIT.push({ph:rnd(TAU),sp:rnd(.05,.09),y:rnd(.12,.5),col:pick(['#ffd166','#ff8fab','#9bf6ff','#cdb4ff'])});
+function drawCritters(){const {x0,gw,sy,sh}=L,night=spotIdx()>=3;
+  CRIT.forEach((c,i)=>{const u=((T*c.sp+c.ph)%1.3)-.15,x=x0+gw*(i%2?1-u:u)+Math.sin(T*2.3+c.ph)*gw*.02,y=sy+sh*(c.y+.07*Math.sin(T*1.4+c.ph*3));
+    if(night){const tw=.5+.5*Math.sin(T*3+c.ph*5);ctx.globalAlpha=.25*tw;ctx.fillStyle='#f6ff8f';ctx.beginPath();ctx.arc(x,y,gw*.018,0,TAU);ctx.fill();ctx.globalAlpha=.5+.5*tw;ctx.beginPath();ctx.arc(x,y,gw*.005,0,TAU);ctx.fill();ctx.globalAlpha=1;}
+    else if(i<3){const f=Math.abs(Math.sin(T*14+c.ph)),s=gw*.013;ctx.save();ctx.translate(x,y);ctx.rotate(Math.sin(T*2+c.ph)*.3);ctx.fillStyle=c.col;ctx.strokeStyle=OL;ctx.lineWidth=s*.14;
+      for(const d of[-1,1]){ctx.beginPath();ctx.ellipse(d*s*.55*f,-s*.2,s*.6*f+.1,s*.7,d*.3,0,TAU);ctx.fill();ctx.stroke();ctx.beginPath();ctx.ellipse(d*s*.4*f,s*.45,s*.4*f+.1,s*.45,d*-.3,0,TAU);ctx.fill();ctx.stroke();}
+      ctx.fillStyle=OL;ctx.beginPath();ctx.ellipse(0,0,s*.12,s*.6,0,0,TAU);ctx.fill();ctx.restore();}});}
+function drawTruckSteam(){const {gw,sy,sh}=L,x=L.truckX-gw*.06,y0=sy+sh*.42;for(let i=0;i<4;i++){const u=(T*.35+i/4)%1,s=gw*(.012+.022*u);ctx.globalAlpha=.42*(1-u)*Math.min(1,u*5);ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(x+Math.sin(u*5+i*2)*gw*.014,y0-u*sh*.3,s,0,TAU);ctx.fill();}ctx.globalAlpha=1;}
+const _ds6=drawScene;drawScene=function(){_ds6();const {x0,gw,sy,sh}=L;ctx.save();ctx.beginPath();ctx.rect(x0,sy,gw,sh);ctx.clip();drawTruckSteam();drawCritters();ctx.restore();};
 </script>
 </body></html>

@@ -540,7 +540,7 @@ function drawScene(){
   /* sun or moon */
   const lit=isNight()||G.rushOn;
   if(isNight()){ctx.fillStyle='#fff7c2';ctx.beginPath();ctx.arc(wx+ww*.82,wy+wh*.14,gw*.045,0,TAU);ctx.fill();}
-  else if(!G.wx||G.wx==='sun'){const sxx=wx+ww*.14,syy=wy+wh*.1;ctx.save();ctx.translate(sxx,syy);ctx.rotate(T*.3);ctx.fillStyle='rgba(255,236,150,.55)';for(let i=0;i<10;i++){ctx.rotate(TAU/10);ctx.beginPath();ctx.moveTo(-gw*.012,gw*.045);ctx.lineTo(0,gw*(.075+.008*Math.sin(T*3+i)));ctx.lineTo(gw*.012,gw*.045);ctx.fill();}ctx.restore();
+  else if((!G.wx||G.wx==='sun')&&Math.max(G.sunA||0,G.dawnA||0)<.3){const sxx=wx+ww*.14,syy=wy+wh*.1;ctx.save();ctx.translate(sxx,syy);ctx.rotate(T*.3);ctx.fillStyle='rgba(255,236,150,.55)';for(let i=0;i<10;i++){ctx.rotate(TAU/10);ctx.beginPath();ctx.moveTo(-gw*.012,gw*.045);ctx.lineTo(0,gw*(.075+.008*Math.sin(T*3+i)));ctx.lineTo(gw*.012,gw*.045);ctx.fill();}ctx.restore();
     ctx.fillStyle='#fff2a8';ctx.beginPath();ctx.arc(sxx,syy,gw*.04,0,TAU);ctx.fill();}
   ctx.fillStyle=G.wx==='rain'?'rgba(150,160,180,.9)':'rgba(255,255,255,.85)';
   for(const c of G.sky.clouds){const cx=wx+ww*c.x,cy=wy+wh*c.y,s=gw*.05*c.s;ctx.beginPath();ctx.arc(cx,cy,s,0,TAU);ctx.arc(cx+s*1.1,cy+s*.2,s*.8,0,TAU);ctx.arc(cx-s*1.1,cy+s*.25,s*.7,0,TAU);ctx.arc(cx+s*.3,cy-s*.5,s*.75,0,TAU);ctx.fill();}
