@@ -1463,6 +1463,7 @@ final class Game {
         if key == "busy" { place(.ltva, 1900); dayT = 0.4; clockFreeze = true; stripe = 5; flag = 1 }
         if key == "pops" { place(.dome, 600); dayT = 0.4; clockFreeze = true; popFreeze = true }
         if key == "deep" { place(.ltva, 1250); era = 3; dayT = 0.4; clockFreeze = true }
+        if key == "deeprhino" { place(.palms, 1100); era = 3; dayT = 0.5; clockFreeze = true }
         if key == "deep2" { place(.main, 1380); era = 3; dayT = 0.5; clockFreeze = true }
         if key == "kb" { place(.tyson, 400); dayT = 0.4; clockFreeze = true }
         if key == "als" { place(.main, 1520); dayT = 0.5; clockFreeze = true; alsOpen = true }

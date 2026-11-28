@@ -2962,6 +2962,20 @@ final class Renderer {
             lights.append((x + w / 2, y + h / 2, max(10, w * 1.3)))
         } else {
             c.vfill(x, y, w, h, [(0, Col(0x7a98b4)), (1, Col(0x2b3a4a))])
+            // what's in the window: a shelf of goods, a hanging sign or a plant, steady from day to day
+            let wk = hashN(floor(x + cam) * 0.37 + w * 3.1 + h)
+            if w >= 8 && h >= 6 {
+                let goods: [Col] = [Col(0xd9412e), Col(0xf2c14e), Col(0x3a8a6a), Col(0xe8e2d4), Col(0x3a6ea5), Col(0xc8742e)]
+                c.R(x + 0.6, y + h - 1.2, w - 1.2, 0.5, Col(0x8a6238, 0.9))
+                let cnt = Int(w / 2.2)
+                for q in 0..<cnt {
+                    let gh = 1.4 + hashN(wk * 50 + Double(q)) * (h * 0.36)
+                    c.RR(x + 1 + Double(q) * 2.1, y + h - 1.2 - gh, 1.6, gh, 0.3, goods[(q + Int(wk * 40)) % 6].shade(0.85 - dark * 0.3))
+                }
+                if wk < 0.3 { c.RR(x + w * 0.5 - 2.6, y + 0.8, 5.2, 2, 0.4, wk < 0.15 ? Col(0xc8281e) : Col(0x2e7a4a)); c.R(x + w * 0.5 - 1.8, y + 1.5, 3.6, 0.5, Col(0xffffff, 0.85)) }
+                else if wk < 0.5 { c.seg(x + w * 0.76, y, x + w * 0.76, y + 1.6, 0.2, Col(0x8a7a5a)); for q in 0..<4 { c.curve(x + w * 0.76, y + 1.6, x + w * 0.76 - 1.4 + Double(q), y + 3, x + w * 0.76 - 2 + Double(q) * 1.3, y + 4.2, 0.3, Col(0x4f9a5a)) } }
+                else if wk > 0.86 { c.RR(x + 1, y + 1, 3.4, 4.2, 0.4, Col(0xf2e8c8, 0.9)); for q in 0..<3 { c.R(x + 1.5, y + 1.8 + Double(q) * 1.1, 2.4, 0.3, Col(0x3a2c1e, 0.7)) } }
+            }
             c.poly(Col(0xffffff, 0.2), [x + w * 0.12, y + h, x + w * 0.42, y, x + w * 0.6, y, x + w * 0.3, y + h])
         }
         c.R(x + w / 2 - 0.3, y, 0.6, h, frame)
@@ -3459,12 +3473,12 @@ final class Renderer {
                 let hk = hashN(d * 1.9 + lo * 0.013 + 8610)
                 if hk < 0.4 {
                     let lean = (hashN(d + 8620) - 0.5) * 8
-                    c.seg(x, top + 1.5, x + lean, top + room * (0.35 + hk), 0.4, col.shade(0.76))
+                    c.seg(x, top + 1.5, x + lean, top + room * (0.35 + hk), 0.7, col.shade(0.68))
                     c.seg(x + 0.8, top + 2, x + lean + 0.8, top + room * (0.3 + hk), 0.25, col.shade(1.16))
                 } else if hk < 0.75 {
                     let y = top + room * (0.2 + hashN(d + 8630) * 0.65)
                     let len = 5 + hashN(d + 8640) * 12
-                    c.seg(x - len / 2, y, x + len / 2, y + (hashN(d + 8650) - 0.5) * 1.6, 0.5, col.shade(0.8))
+                    c.seg(x - len / 2, y, x + len / 2, y + (hashN(d + 8650) - 0.5) * 1.6, 0.8, col.shade(0.72))
                     c.seg(x - len / 2, y - 0.6, x + len / 2, y - 0.6 + (hashN(d + 8650) - 0.5) * 1.6, 0.25, col.shade(1.18))
                 } else {
                     let y = GY - hashN(d + 8660) * min(room * 0.3, 8)
@@ -4843,22 +4857,44 @@ final class Renderer {
         } else { juniper(sx, GY + 1, 0.9, n) }
     }
     /// A four-tusked gomphothere: an elephant cousin, lower and longer in the head, with short straight tusks above and below.
+    /// A gomphothere: an elephant's cousin, lower and longer. A flat brow, a long jaw, four tusks (two above, two
+    /// short ones in the lower jaw), a thin coat on wrinkled hide.
     private func gomphothere(_ x: Double, _ base: Double, _ s: Double, _ ph: Double) {
-        if x < -40 * s || x > W + 40 * s { return }
-        let hide = Col(0x7a6a5e).shade(1 - dark * 0.5)
-        let sw = sin(NOW * 1.2 + ph) * s
+        if x < -50 * s || x > W + 50 * s { return }
+        let sh = 1 - dark * 0.5
+        let hide = Col(0x7c6a58).shade(sh), deep = Col(0x58483a).shade(sh), lite = Col(0x968270).shade(sh)
+        let ivory = Col(0xf0e6d0).shade(1 - dark * 0.4)
+        let sw = sin(NOW * 1.1 + ph)
+        c.save(); c.translate(x, base); c.scale(s * 0.9, s * 0.9)
+        c.ell(0, 0.5, 22, 2, Col(0x000000, 0.2))
         c.roundCaps(true)
-        let legs: [(Double, Double)] = [(-8, sw), (-4, -sw), (6, -sw), (10, sw)]
-        for (lx, s0) in legs { c.seg(x + lx * s, base - 10 * s, x + lx * s + s0, base, 3.2 * s, hide.shade(0.84)) }
-        c.ell(x, base - 14 * s, 13 * s, 7 * s, hide)
-        c.ell(x + 13 * s, base - 16 * s, 6 * s, 5 * s, hide.shade(1.05))
-        c.ell(x + 9.6 * s, base - 16 * s, 2.6 * s, 3.4 * s, hide.shade(0.86))
-        c.curve(x + 18 * s, base - 14 * s, x + 23 * s, base - 8 * s, x + 21 * s + sin(NOW * 0.8 + ph) * 2 * s, base - 3 * s, 2.2 * s, hide.shade(1.05))
-        c.seg(x + 17 * s, base - 13.4 * s, x + 26 * s, base - 11.4 * s, 1 * s, Col(0xf0e8d8).shade(1 - dark * 0.4))
-        c.seg(x + 16.6 * s, base - 11.4 * s, x + 23 * s, base - 8.6 * s, 0.9 * s, Col(0xf0e8d8).shade(1 - dark * 0.4))
-        c.circ(x + 15 * s, base - 17.4 * s, 0.6 * s, INK)
-        c.seg(x - 12.6 * s, base - 16 * s, x - 14 * s, base - 9 * s, 0.7 * s, hide.shade(0.8))
+        func leg(_ lx: Double, _ a: Double, _ col: Col) {
+            c.seg(lx, -15, lx + a * 1.4, -7.4, 5.4, col); c.seg(lx + a * 1.4, -7.4, lx + a * 2.2, -1.8, 4.6, col); c.ell(lx + a * 2.2 + 0.3, -1.2, 2.9, 1.5, col)
+            for q in 0..<3 { c.arcStroke(lx + a * 2.2 + 0.8 + Double(q), -0.4, 0.5, PI, PI * 2, 0.3, Col(0xd8ccb4).shade(sh)) }
+        }
+        c.curve(18, -19, 30, -14, 34, -19, 1.5, ivory.shade(0.8))
+        leg(-10, -sw, deep); leg(9, sw, deep)
+        c.curve(-18.6, -22, -21, -17, -20.4 + sw * 0.6, -11, 1, deep); c.circ(-20.4 + sw * 0.6, -10.6, 0.9, deep)
+        c.ell(-8, -19, 11, 7.6, hide); c.ell(4, -20, 10, 8.6, hide)
+        c.poly(hide, [-16, -25, -4, -27, 6, -29, 12, -26, 12, -14, -14, -13])
+        c.ell(-2, -13, 12, 2.6, deep.shade(1.12))
+        for q in 0..<8 { let d = Double(q); c.arcStroke(-12 + d * 3.2, -19 + hashN(d) * 3, 2.4, PI * 0.2, PI * 0.8, 0.3, deep) }
+        leg(-13, sw, hide); leg(5, -sw, hide)
+        // the long low head
+        c.ell(15, -24, 6, 6, hide); c.poly(hide, [12, -29, 20, -28.6, 25, -21, 23, -15, 14, -16])
+        c.ell(10.4, -23.4, 2.8, 4, deep.shade(1.1))
+        c.circ(18.4, -25, 0.75, Col(0x1c1410)); c.circ(18.6, -25.2, 0.22, Col(0xf4f0e4))
+        // lower jaw, with its own pair of short tusks
+        c.poly(deep.shade(1.15), [15, -17, 24, -15.6, 29, -12.4, 28, -11, 16, -13.6])
+        c.seg(27, -12.4, 32, -11, 0.9, ivory); c.seg(26, -13, 30.4, -12.2, 0.7, ivory.shade(0.85))
+        // trunk and upper tusks
+        let curl = sin(NOW * 0.8 + ph) * 2
+        c.curve(23, -20, 28, -14, 26.4, -7, 3.6, hide); c.curve(26.4, -7, 26, -3.4, 23.4 + curl, -2.4, 2.4, hide)
+        for q in 0..<6 { let t = Double(q) / 6; c.seg(23.6 + t * 2.4, -19 + t * 13, 26.6 + t * 1.6, -18.6 + t * 13, 0.22, deep) }
+        c.curve(19.6, -19.6, 31, -15, 36, -20.4, 1.9, ivory); c.curve(21, -18.8, 30, -15.4, 35, -18.6, 0.3, Col(0xc8b89a).shade(sh))
+        c.curve(-15, -24.6, -3, -27.4, 7, -29.4, 0.5, lite)
         c.roundCaps(false)
+        c.restore()
     }
     private func deepWild(_ ar: Area) {
         if dark > 0.5 { return }
@@ -4933,18 +4969,27 @@ final class Renderer {
                 c.seg(px + 5.6, base - 12.6, px + 5, base - 16, 0.4, INK); c.seg(px + 5, base - 16, px + 6.4, base - 17.4, 0.4, INK); c.seg(px + 5, base - 16, px + 3.8, base - 17.6, 0.4, INK)
             }
         case 11:
+            // Teleoceras: barrel-bodied and short-legged like a hippo, one small horn on the nose, wallowing
+            c.ell(x, base + 3.4, 50, 2.6, Col(0x4a9ab8, 0.55))
             for q in 0..<2 {
-                let rx = x - 20 + Double(q) * 40
-                let hide = Col(0x8a8078).shade(sh)
+                let rx = x - 22 + Double(q) * 44 + sin(NOW * 0.06 + Double(q) * 2) * 6
+                let hide = Col(0x8a8078).shade(sh), dk2 = Col(0x625a54).shade(sh)
+                let sw2 = sin(NOW * 1.2 + Double(q)) * 0.8
                 c.roundCaps(true)
-                for lx in [-7.0, -3.0, 5.0, 9.0] { c.seg(rx + lx, base - 4, rx + lx, base + 1, 3, hide.shade(0.85)) }
-                c.ell(rx, base - 8, 13, 6.4, hide); c.ell(rx + 13, base - 8.4, 6, 4, hide.shade(1.05))
-                c.poly(Col(0xe8e0d0).shade(sh), [rx + 17.4, base - 10, rx + 19, base - 13.4, rx + 19.6, base - 9.6])
-                c.poly(hide.shade(0.9), [rx + 9.6, base - 12, rx + 10.4, base - 14.6, rx + 11.6, base - 12])
-                c.circ(rx + 14.6, base - 9.6, 0.5, INK)
+                for (lx, a2) in [(-8.0, -sw2), (7.0, sw2)] { c.seg(rx + lx, base - 5, rx + lx + a2, base, 3.6, dk2) }
+                c.ell(rx - 3, base - 9.4, 11, 6.6, hide); c.ell(rx + 6, base - 10, 8, 7, hide)
+                c.poly(hide, [rx - 12, base - 13, rx, base - 16, rx + 10, base - 16.4, rx + 13, base - 9, rx - 12, base - 4])
+                c.ell(rx - 1, base - 4.6, 11, 2, dk2.shade(1.14))
+                for (lx, a2) in [(-10.0, sw2), (5.0, -sw2)] { c.seg(rx + lx, base - 5, rx + lx + a2, base, 3.8, hide); c.ell(rx + lx + a2 + 0.4, base - 0.4, 2.4, 1, dk2) }
+                for k in 0..<5 { c.arcStroke(rx - 8 + Double(k) * 4, base - 10, 3, PI * 0.2, PI * 0.8, 0.3, dk2) }
+                c.seg(rx + 11, base - 11.4, rx + 15, base - 10.4, 5.6, hide)
+                c.ell(rx + 17.4, base - 9.6, 5, 3.6, hide); c.ell(rx + 21, base - 8.6, 2.4, 2.4, hide.shade(0.94))
+                c.poly(Col(0xd8ccb8).shade(sh), [rx + 20.4, base - 10.6, rx + 21.6, base - 14, rx + 22.6, base - 10.2])
+                c.poly(hide.shade(0.86), [rx + 13.6, base - 12.6, rx + 13.8, base - 15.4, rx + 15.4, base - 13])
+                c.circ(rx + 17.6, base - 11, 0.5, INK); c.seg(rx + 20, base - 7, rx + 22.4, base - 7.2, 0.3, dk2)
+                c.seg(rx - 13.4, base - 11, rx - 14.6, base - 6.6, 0.8, dk2)
                 c.roundCaps(false)
             }
-            c.ell(x, base + 3, 46, 2.2, Col(0x4a9ab8, 0.5))
         case 12:
             cottonwood(x + 12, base, 9120)
             let fur = Col(0x8a6a48).shade(sh)
@@ -6532,38 +6577,62 @@ final class Renderer {
 
     /// One of the river people at work: rabbit-skin robe for the cold, a willow-bark skirt, long hair.
     /// pose 0 standing, 1 grinding on a metate, 2 shaping a pot, 3 a child walking
+    /// A villager of 1026: cotton kilt or wrap, a woven sash, sandals, long black hair, a shell or turquoise necklace.
     private func villager(_ x: Double, _ base: Double, _ seed: Double, _ pose: Int) {
         if x < -20 || x > W + 20 { return }
-        let skin = Col(0x8a5a3a).shade(1 - dark * 0.45)
+        let sh = 1 - dark * 0.45
+        let skin = Col(0x8a5a3a).shade(sh)
         let hair = Col(0x1a1412)
-        let robe = (hashN(seed) < 0.5 ? Col(0x9a8a74) : Col(0x8a7058)).shade(1 - dark * 0.45)
-        let skirt = Col(0xc8a878).shade(1 - dark * 0.45)
+        let robe = (hashN(seed) < 0.5 ? Col(0xd8c8a8) : Col(0xb89a74)).shade(sh)
+        let skirt = Col(0xc8a878).shade(sh)
+        let sash = [Col(0xb5452f), Col(0x2f7f86), Col(0xc8902e)][Int(hashN(seed + 3) * 3) % 3].shade(sh)
+        func head(_ hx: Double, _ hy: Double) {
+            c.ell(hx - 1.2, hy + 1.8, 1.4, 3.4, hair)
+            c.ell(hx - 0.6, hy - 0.1, 1.9, 2.2, hair)
+            c.ell(hx, hy, 2.0, 2.3, skin)
+            c.poly(skin, [hx + 1.7, hy - 0.3, hx + 2.5, hy + 0.7, hx + 1.6, hy + 0.9])
+            c.R(hx + 0.7, hy - 0.5, 0.6, 0.6, hair); c.R(hx + 0.8, hy + 1.3, 0.8, 0.22, Col(0x6a3a2e))
+            c.dome(hx - 0.2, hy - 0.5, 2.1, hair); c.R(hx - 2.1, hy - 0.9, 4.2, 0.5, sash)
+        }
         if pose == 1 || pose == 2 {
+            // kneeling at work: grinding at the metate, or shaping a pot
             let a = sin(NOW * 3 + seed) * 1.6
-            c.ell(x, base - 3, 4, 3, skirt)
-            c.RR(x - 3, base - 12, 6, 9, 2, robe)
-            c.R(x - 3, base - 16.4, 3.6, 7, hair)
-            c.circ(x + 0.6, base - 14.4, 2.6, skin)
-            c.R(x - 2, base - 17.2, 4.4, 1.6, hair)
-            c.seg(x + 2, base - 9, x + 6 + a, base - 4, 1.2, skin)
+            c.ell(x, base - 2.6, 4.4, 2.8, skirt)
+            c.poly(robe, [x - 3, base - 4, x - 2.6, base - 11.6, x + 2.6, base - 11.6, x + 3.4, base - 4])
+            c.R(x - 3, base - 5.4, 6.4, 0.9, sash)
+            c.arcStroke(x + 0.4, base - 11.4, 1.6, PI * 0.1, PI * 0.9, 0.35, Col(0x3aa8a0))
+            c.roundCaps(true)
+            c.seg(x + 1.6, base - 10, x + 4.4, base - 6.4, 1.4, skin); c.seg(x + 4.4, base - 6.4, x + 6.4 + a, base - 4, 1.2, skin); c.circ(x + 6.4 + a, base - 3.8, 0.8, skin)
+            c.roundCaps(false)
+            head(x + 0.6, base - 14.6)
             if pose == 1 {
                 c.poly(Col(0x6a6460).shade(1 - dark * 0.4), [x + 4, base, x + 13, base, x + 12, base - 2.4, x + 5, base - 3])
-                c.RR(x + 5 + a, base - 4.6, 4, 1.6, 0.8, Col(0x8a8480))
+                c.RR(x + 5 + a, base - 4.6, 4, 1.6, 0.8, Col(0x8a8480)); c.ell(x + 9, base - 2.8, 2.6, 0.5, Col(0xe8dcb8, 0.8))
             } else {
                 pot(x + 8, base, 1)
             }
             return
         }
         let k = pose == 3 ? 0.7 : 1.0
-        let sw = pose == 3 ? sin(NOW * 5 + seed) * 1.2 : 0
-        c.seg(x - 1, base - 8 * k, x - 1 + sw, base, 1.3, skin)
-        c.seg(x + 1, base - 8 * k, x + 1 - sw, base, 1.3, skin)
-        c.poly(skirt, [x - 3.4 * k, base - 13 * k, x + 3.4 * k, base - 13 * k, x + 4 * k, base - 6 * k, x - 4 * k, base - 6 * k])
-        for f in 0..<4 { let fx = x - 3 * k + Double(f) * 2 * k; c.seg(fx, base - 7 * k, fx, base - 5.4 * k, 0.5, skirt.shade(0.8)) }
-        c.RR(x - 3.2 * k, base - 20 * k, 6.4 * k, 8 * k, 2, robe)
-        c.R(x - 3 * k, base - 25 * k, 3.4 * k, 8 * k, hair)
-        c.circ(x + 0.6 * k, base - 22.6 * k, 2.6 * k, skin)
-        c.R(x - 2 * k, base - 25.4 * k, 4.6 * k, 1.6 * k, hair)
+        let sw = pose == 3 ? sin(NOW * 5 + seed) * 1.2 : sin(NOW * 5 + seed) * 0.0
+        c.ell(x, base + 0.4, 3.6 * k, 0.9, Col(0x000000, 0.18))
+        c.roundCaps(true)
+        for (lx, a) in [(-1.0, sw), (1.0, -sw)] {
+            c.seg(x + lx * k, base - 9 * k, x + lx * k + a * 0.5, base - 4.4 * k, 1.7 * k, skin); c.seg(x + lx * k + a * 0.5, base - 4.4 * k, x + lx * k + a, base - 0.5, 1.4 * k, skin)
+            c.ell(x + lx * k + a + 0.6, base - 0.3, 1.4 * k, 0.6 * k, Col(0x7a5a3a))
+        }
+        c.roundCaps(false)
+        c.poly(skirt, [x - 2.8 * k, base - 14 * k, x + 2.8 * k, base - 14 * k, x + 3.6 * k, base - 7 * k, x - 3.6 * k, base - 7 * k])
+        for f in 0..<5 { let fx = x - 3.2 * k + Double(f) * 1.6 * k; c.seg(fx, base - 7 * k, fx, base - 6 * k, 0.4, skirt.shade(0.8)) }
+        c.R(x - 3.4 * k, base - 8.4 * k, 6.8 * k, 0.5 * k, sash.alpha(0.8))
+        c.poly(robe, [x - 2.6 * k, base - 20.4 * k, x - 1.6 * k, base - 21.4 * k, x + 1.6 * k, base - 21.4 * k, x + 2.6 * k, base - 20.4 * k, x + 2.4 * k, base - 13.6 * k, x - 2.4 * k, base - 13.6 * k])
+        c.R(x - 2.6 * k, base - 14.6 * k, 5.2 * k, 1.1 * k, sash); c.R(x + 1.4 * k, base - 13.6 * k, 0.9 * k, 3 * k, sash)
+        c.arcStroke(x + 0.4 * k, base - 21 * k, 1.6 * k, PI * 0.1, PI * 0.9, 0.35 * k, Col(0x3aa8a0))
+        c.roundCaps(true)
+        c.seg(x, base - 20.4 * k, x + 2.2 * k - sw * 0.6, base - 17 * k, 1.5 * k, skin); c.seg(x + 2.2 * k - sw * 0.6, base - 17 * k, x + 2.8 * k - sw, base - 13.8 * k, 1.2 * k, skin); c.circ(x + 2.8 * k - sw, base - 13.6 * k, 0.75 * k, skin)
+        c.roundCaps(false)
+        c.R(x - 0.4 * k, base - 22.6 * k, 1.4 * k, 1.6 * k, skin.shade(0.88))
+        c.save(); c.translate(x + 0.5 * k, base - 24.4 * k); c.scale(k, k); head(0, 0); c.restore()
     }
 
     /// A village on the floodplain at Ehrenberg: an earth-covered winter house, a ramada, a granary, the fields resting till the floods.
