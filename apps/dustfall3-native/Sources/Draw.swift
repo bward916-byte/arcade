@@ -260,7 +260,24 @@ final class Renderer {
             let gk = max(0, sin(t * 1.7))
             q(113 - 9 * gk, 38, 18 * gk + 1, 1, 0xffffff, gk); q(113, 38 - 9 * gk, 1, 18 * gk + 1, 0xffffff, gk); q(112, 37, 3, 3, 0xffffff, gk)
             let hk = clampD((t - 1.1) / 1.2, 0, 1), hx = 200 - hk * 62
-            q(hx, 70, 70, 34, 0x5a3a22); q(hx - 14, 74, 16, 7, 0x6a4429); q(hx - 18, 84, 20, 7, 0x6a4429); q(hx - 12, 94, 14, 7, 0x6a4429); q(hx, 70, 70, 3, 0x7a5434); q(hx + 40, 62, 40, 50, 0x2e241c)
+            // a gloved hand coming in for it: a coat sleeve and cuff, the back of the hand, four fingers and a thumb
+            a.save(); a.translate(hx + 22, 84); a.rotate(0.2)
+            let gl = Col(0x6a4429), glD = Col(0x4a2f1c), glL = Col(0x8a6240)
+            a.RR(24, -24, 90, 50, 9, Col(0x2e241c)); a.RR(24, -24, 90, 5, 2.5, Col(0x3d3026))
+            a.RR(17, -21, 11, 44, 4.5, glD); a.RR(18.5, -20, 3, 42, 1.5, glL.alpha(0.6))
+            let fl = [25.0, 30, 28, 21]
+            for i in 0..<4 {
+                let fy = -17.5 + Double(i) * 9.2, w = fl[i]
+                a.RR(-16 - w, fy, w + 8, 8, 4, i % 2 == 0 ? gl : Col(0x624026))
+                a.RR(-15 - w, fy + 0.8, w * 0.7, 2, 1, glL.alpha(0.55))
+                a.seg(-16 - w * 0.45, fy + 1.2, -16 - w * 0.45, fy + 6.8, 0.7, glD.alpha(0.8))
+            }
+            a.RR(-18, -20, 40, 40, 13, gl)
+            a.linear(-18, 0, 40, 20, 0, 0, 0, 20, [(0, glD.alpha(0)), (1, glD.alpha(0.7))])
+            a.RR(-14, -19, 30, 3, 1.5, glL.alpha(0.7))
+            for i in 0..<3 { a.seg(-12, -8.5 + Double(i) * 9.2, -4, -8.5 + Double(i) * 9.2, 0.7, glD.alpha(0.7)) }
+            a.save(); a.translate(-6, -19); a.rotate(-0.55); a.RR(-20, -4.5, 24, 9, 4.5, glL); a.RR(-19, -3.6, 12, 2, 1, Col(0xffffff, 0.14)); a.restore()
+            a.restore()
             motes(12, 0xe8d8b0)
         case "brand":
             // the brand on a raider's horse
