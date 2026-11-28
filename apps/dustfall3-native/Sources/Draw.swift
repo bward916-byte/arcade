@@ -336,7 +336,11 @@ final class Renderer {
             for i in 0..<110 {
                 let k = i % 5, px = xs[k] + (hs(i + 3) - 0.5) * 46, py = ys[k] + (hs(i + 9) - 0.5) * 52
                 // nothing drawn under a town or its name
-                if (0..<5).contains(where: { abs(py - 3 - ys[$0]) < 20 && abs(px - xs[$0]) < 31 }) || py < 31 || py > 75 || abs(px - (98 - (py - 20) * 0.5)) < 6 { continue }
+                let under = (0..<5).contains { (j: Int) -> Bool in
+                    let dx = abs(px - xs[j]), ny = ys[j] + (j % 2 == 1 ? -12.0 : 12.0)
+                    return (dx < 11 && py > ys[j] - 6 && py - 9 < ys[j] + 6) || (dx < 27 && py > ny - 6 && py - 9 < ny + 5)
+                }
+                if under || py < 31 || py > 75 || abs(px - (98 - (py - 20) * 0.5)) < 6 { continue }
                 switch k {
                 case 0:
                     a.seg(px, py, px, py - 5, 1, Col(0x55783c)); a.seg(px - 2, py - 2, px - 2, py - 4, 0.8, Col(0x55783c)); a.seg(px - 2, py - 2, px, py - 2, 0.8, Col(0x55783c))
