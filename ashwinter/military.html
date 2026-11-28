@@ -4969,13 +4969,13 @@ function drawPlan() {
     txt('weakest: ' + bname(wk).toLowerCase() + (wk.level ? ' · ' + wk.level + ' of 3 boards' : ' · not boarded'), x + w - 18, y + 36, 11, wk.level ? DIM : RED, 'right', '400'); }
   const P = G.plan;
   alive.forEach((s, i) => {
-    const ry = y + 60 + i * 64 + 20;
-    drawPortrait(s, x + 40, ry, 24); txt(s.name, x + 80, ry - 10, 17, INK, 'left'); statusIcons(s).slice(0, 4).forEach((ic, j) => drawIcon(ic, x + 86 + j * 18, ry + 12, 15, ic === 'infected' ? GREEN : RED));
+    const rowH = Math.min(64, (h - 150) / alive.length), ry = y + 60 + i * rowH + rowH * .31, bsz = Math.min(46, rowH - 4);   /* four or five people still fit on a phone */
+    drawPortrait(s, x + 40, ry, Math.min(24, rowH / 2 - 2)); txt(s.name, x + 80, ry - 10, 17, INK, 'left'); statusIcons(s).slice(0, 4).forEach((ic, j) => drawIcon(ic, x + 86 + j * 18, ry + 12, 15, ic === 'infected' ? GREEN : RED));
     const jobs = [['sleep', 'sleep'], ['guard', 'guard'], ['backpack', 'scav']];
     jobs.forEach(([ic, job], j) => {
       const bx = x + w - 190 + j * 60; const on = P[s.name] === job; const armed = ['rifle', 'pistol', 'bat', 'knife'].some(k => G.inv[k] > 0);
       const can = !(s.broken && job !== 'sleep') && (job !== 'scav' || (armed && s.health > 25 && !Object.entries(P).some(([n, v]) => v === 'scav' && n !== s.name)));
-      iconButton(bx, ry, 46, ic, can ? () => { P[s.name] = job; AUDIO.sfx('tap'); if (job === 'scav') UI.modal = { kind: 'map' }; } : () => { if (job === 'scav' && !armed) homeMsg('craft a weapon first', 'knife', RED); }, { active: on, bg: on ? '#3a3320' : undefined, disabled: !can, badge: job === 'scav' && !armed ? '!' : undefined, badgeColor: RED });
+      iconButton(bx, ry, bsz, ic, can ? () => { P[s.name] = job; AUDIO.sfx('tap'); if (job === 'scav') UI.modal = { kind: 'map' }; } : () => { if (job === 'scav' && !armed) homeMsg('craft a weapon first', 'knife', RED); }, { active: on, bg: on ? '#3a3320' : undefined, disabled: !can, badge: job === 'scav' && !armed ? '!' : undefined, badgeColor: RED });
     });
   });
   const scavName = Object.keys(P).find(n => P[n] === 'scav');
@@ -4984,7 +4984,7 @@ function drawPlan() {
   if (scavName) { drawIcon('run', x + 30, by - 18, 20, GOLD); txt(scavName + ' goes to ' + (dest ? dest.name : '… choose where'), x + 48, by - 18, 15, dest ? INK : RED, 'left'); txt('must be home by 5:00 AM', x + 48, by + 2, 12, DIM, 'left'); UI.btn(x + 16, by - 32, w - 190, 46, () => { UI.modal = { kind: 'map' }; }); }
   else txt('no one goes out tonight', x + 30, by - 10, 15, DIM, 'left');
   textButton(x + w - 150, by - 4, 130, 44, 'GO', () => { if (scavName && !dest) { UI.modal = { kind: 'map' }; return; } beginNight(); }, { primary: true, icon: 'arrow' });
-  if (G.msgT > 0) { G.msgT -= 1 / 60; ctx.fillStyle = 'rgba(14,15,18,.9)'; rr(W / 2 - 110, y - 50, 220, 40, 10); ctx.fill(); drawIcon(G.msgIcon, W / 2 - 80, y - 30, 22, G.msgColor); txt(G.msg, W / 2 + 12, y - 30, 14, G.msgColor); }
+  if (G.msgT > 0) { G.msgT -= 1 / 60; ctx.fillStyle = 'rgba(14,15,18,.9)'; rr(W / 2 - 130, Math.max(6, y - 50), 260, 40, 10); ctx.fill(); ctx.strokeStyle = G.msgColor || DIM; ctx.lineWidth = 1.5; rr(W / 2 - 130, Math.max(6, y - 50), 260, 40, 10); ctx.stroke(); drawIcon(G.msgIcon, W / 2 - 104, Math.max(6, y - 50) + 20, 22, G.msgColor); txt(G.msg, W / 2 + 12, Math.max(6, y - 50) + 20, 14, G.msgColor); }
 }
 function mapView(ids) {   // the frame that just holds everything known so far
   let x0 = 1, x1 = 0, y0 = 1, y1 = 0; for (const id of ids) { const n = NODE(id); if (!n) continue; x0 = Math.min(x0, n.x); x1 = Math.max(x1, n.x); y0 = Math.min(y0, n.y); y1 = Math.max(y1, n.y); }
@@ -5937,7 +5937,7 @@ function updateRaidLive(dt) {
   }
   // they lose heart when most of them are down, or when it has gone on too long
   if (!R.fled && living > 0 && (R.kills >= Math.ceil(R.zs.length * .6) || R.t >= R.dur)) raidFlee(R.t >= R.dur ? 'gave up' : 'ran');
-  if (!R.zs.some(z => z.alive && !z.gone)) { R.endT = (R.endT || 0) + dt; if (R.endT > 1.5) endRaidLive(); }
+  { const none = !R.zs.some(z => z.alive && !z.gone), running = !R.zs.some(z => z.alive && !z.gone && !z.flee); if (none || running) { R.endT = (R.endT || 0) + dt; if (R.endT > (none ? 1.5 : 5)) endRaidLive(); } }   /* once they are all running it is over: no waiting for the last one to leave the street */
 }
 function raidFlee(why) { const R = G.raid; if (!R.fled) R.fled = why; for (const z of R.zs) if (z.alive && !z.gone) z.flee = true; for (const d of R.def) d.aim = null; }
 function raidBang(z) { const R = G.raid, b = R.b, w = G.world; AUDIO.sfx('bang'); R.shake = 1; R.bang++; b.shakeT = .28;
@@ -5960,7 +5960,8 @@ function raidHit(d, z, melee) { if (!z.alive || z.flee) return; raidDamage(z, (m
 function raidDamage(z, dmg, shot) { const R = G.raid; z.hp -= dmg; z.hurtT = .3; bleed(G.world, z.x, 1, R.side, z.hp <= 0); AUDIO.sfx(shot ? 'thud' : 'hit');
   if (z.hp <= 0) { z.alive = false; z.pose = 'dead'; R.kills++; AUDIO.sfx('groan'); if (shot) for (const o of R.zs) if (o.alive && !o.flee && Math.random() < .3) o.flee = true; } }   // a gunshot sends some of them running
 function raidAuto() {   // SKIP: let it play out by the odds, as it would with nobody watching
-  const R = G.raid, b = R.b; let def = 0; for (const d of R.def) if (d.alive) def += (dGun(d) ? 3 : dMelee(d) ? 2 : 1) * (d.trait === 'strong' ? 1.5 : 1); if (G.built.trap && !R.trapUsed) { R.trapUsed = R.trapKill = true; def += 1; }
+  const R = G.raid, b = R.b; if (R.fled && !R.zs.some(z => z.alive && !z.gone && !z.flee)) { endRaidLive(); return; }   /* they were already running: skipping changes nothing */
+  let def = 0; for (const d of R.def) if (d.alive) def += (dGun(d) ? 3 : dMelee(d) ? 2 : 1) * (d.trait === 'strong' ? 1.5 : 1); if (G.built.trap && !R.trapUsed) { R.trapUsed = R.trapKill = true; def += 1; }
   let k = Math.floor(def), shots = 0; for (const z of R.zs) { if (!z.alive || z.flee || z.gone) continue; if (k > 0) { k--; z.alive = false; R.kills++; shots++; } }
   if (R.def.some(dGun) && shots) G.inv.ammo = Math.max(0, G.inv.ammo - Math.min(2, shots));
   const left = R.zs.filter(z => z.alive && !z.flee && !z.gone).length;
