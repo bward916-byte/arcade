@@ -4144,7 +4144,8 @@ function scTapWorld(wx, wy) {
   let bf = 0; for (let f = 0; f < w.nFloors; f++) if (wy <= w.fy2y(f) + 12) bf = f;   // the floor whose room the tap is in
   { const c = climbTap(w, p, wx, wy); if (c) { wx = c.x; bf = c.f; } }
   if (p.hidden) { p.hidden = false; p.visible = true; }
-  p.task = null; SC.leaving = false; const dbl = isDoubleTap(wx, wy);
+  p.task = null; SC.leaving = false; if (siteLink(w) != null && wx < w.x0 - 6) { const ex = w.spots.find(q => q.type === 'exit'); if (ex) { scUseSpot(ex); if (p.task) return; } }
+  const dbl = isDoubleTap(wx, wy);
   let path = w.path(p.x, p.f, wx, bf); if (!path) { scMsg('lock', 1); path = w.pathFar(p.x, p.f, wx, bf); } if (path) { p.path = path; p.run = dbl; if (dbl) SC.sneak = false; AUDIO.sfx('tap'); }
 }
 function scUseSpot(s) {
@@ -4363,7 +4364,7 @@ function scUpdate(dt) {
   for (const h of w.hides) SC.lights.push({ x: h.x, y: w.fy2y(h.f) - 90, r: 60, c: '120,160,200', a: .15 });
   // camera follow
   if (cam.panT > 0 && !(SC.aim && SC.aim.target)) { cam.panT -= dt; if (p.path && p.path.length) cam.panT = Math.min(cam.panT, 1.2); }   // looking around: the view stays where it was dragged for a few seconds
-  else { cam.tx = p.x + p.facing * 40; cam.ty = w.fy2y(p.fy) - 60; cam.x = lerp(cam.x, cam.tx, Math.min(1, dt * 4)); cam.y = lerp(cam.y, cam.ty, Math.min(1, dt * 4)); clampCam(); }
+  else { if ((p.path && p.path.length) || Math.abs(cam.x - p.x) > 130 || (SC.aim && SC.aim.target)) cam.tx = p.x + p.facing * 40; else cam.tx = cam.x; cam.ty = w.fy2y(p.fy) - 60; cam.x = lerp(cam.x, cam.tx, Math.min(1, dt * 4)); cam.y = lerp(cam.y, cam.ty, Math.min(1, dt * 4)); clampCam(); }
 }
 function endScavenge(timeout, died) {
   if (SC.done) return; siteSave(); SC.done = true; const p = SC.player;
@@ -5070,7 +5071,7 @@ function drawCraft() {
   ctx.save(); ctx.beginPath(); ctx.rect(A.x, A.y, A.w, A.h); ctx.clip();
   for (const r of rows) { const ry = A.y + r.y - M.scroll; if (ry > A.y + A.h || ry + CH < A.y) continue;
     if (r.head) { txt(r.head, A.x + 6, ry + 13, 11, GOLD, 'left'); continue; }
-    const rc = r.rc, inf = RECIPE_INFO[rc.id] || [rc.id, ''], q = queued(rc.id) + (s.task && s.task.kind === 'craft' && s.task.recipe.id === rc.id ? 1 : 0), done = rc.build && (G.built[rc.id] || G.flags.placing === rc.id || q > 0), ok = !r.locked && !done && canAfford(rc.cost), cw = A.w - 8, cx0 = A.x + 2;
+    const rc = r.rc, inf = RECIPE_INFO[rc.id] || [rc.id, ''], q = queued(rc.id) + (s.task && s.task.kind === 'craft' && s.task.recipe.id === rc.id ? 1 : 0), done = rc.build && (G.built[rc.id] || G.flags.placing === rc.id || (G.flags.placeQ || []).includes(rc.id) || q > 0), ok = !r.locked && !done && canAfford(rc.cost), cw = A.w - 8, cx0 = A.x + 2;
     ctx.fillStyle = r.locked ? '#1a1a1b' : done ? '#1c261c' : ok ? '#2b2d31' : '#211f1f'; rr(cx0, ry, cw, CH, 9); ctx.fill(); ctx.strokeStyle = r.locked ? '#2a2a2c' : done ? '#3d5a3a' : ok ? GOLD : '#34302f'; ctx.lineWidth = ok ? 1.5 : 1; rr(cx0, ry, cw, CH, 9); ctx.stroke();
     if (s.task && s.task.kind === 'craft' && s.task.recipe.id === rc.id) { ctx.fillStyle = 'rgba(217,179,90,.22)'; rr(cx0, ry, cw * clamp(s.task.t / s.task.dur, 0, 1), CH, 9); ctx.fill(); }   // being made right now
     ctx.fillStyle = 'rgba(0,0,0,.25)'; rr(cx0 + 8, ry + 8, 46, 46, 8); ctx.fill(); drawIcon(r.locked ? 'lock' : rc.icon, cx0 + 31, ry + 31, r.locked ? 24 : 32, r.locked ? '#55524c' : done ? GREEN : ok ? undefined : DIM);
@@ -5111,7 +5112,7 @@ function drawScavHud(dt) { drawSay(SC.world, dt);
       const sx = w2sx(s.x), sy = w2sy(w.fy2y(s.f) - (s.body ? 58 : 95)); if (sx < -40 || sx > W + 40 || sy < -40 || sy > H + 40) continue;
       const working = p.task && p.task.spot === s && !(p.path && p.path.length) && s.type === 'search';
       spotBubble(sx, sy, icon, Object.assign(opts, { progress: working ? clamp(p.task.t / s.dur, 0, 1) : undefined }));
-      UI.btn(sx - 26, sy - 26, 52, 52, () => scUseSpot(s));
+      UI.btn(sx - 36, sy - 36, 72, 72, () => scUseSpot(s));
       if (w.sit && w.sit.door === s && !s.room.open && !w.sit.done) { const ex = sx - (s.dir || 1) * 58; spotBubble(ex, sy, 'eye', { hl: true }); UI.btn(ex - 26, sy - 26, 52, 52, () => { const path = w.path(p.x, p.f, s.x - s.dir * 30, s.f); if (!path) return; if (p.hidden) { p.hidden = false; p.visible = true; } p.path = path; p.task = { peek: true, t: 0 }; AUDIO.sfx('tap'); }); }
     }
     for (const h of w.hides) { if (!(Math.abs(p.x - h.x) < 150 && Math.abs(p.fy - h.f) < .5)) continue; const sx = w2sx(h.x), sy = w2sy(w.fy2y(h.f) - 125); spotBubble(sx, sy, 'hideSpot', { size: 38, color: '#7cc4bc' }); UI.btn(sx - 22, sy - 22, 44, 44, () => scUseHide(h)); }
@@ -5675,7 +5676,7 @@ function placeAt(wx, f) {
   const id = G.flags.placing, w = G.world, room = w.roomAt(wx, f);
   if (!room || !room.open) { homeMsg('not there · pick an open room', 'lock', RED); return; }
   if (w.spots.some(d => d.type === 'dig' && d.left > 0 && d.f === f && Math.abs(d.x - wx) < RUB_W + 30)) { homeMsg('debris in the way', 'shovel', RED); return; }
-  const x = clamp(wx, room.x0 + 46, room.x1 - 46); setPlacement(id, x, f); G.flags.pos = G.flags.pos || {}; G.flags.pos[id] = { x, f }; G.built[id] = true; G.flags.placing = null; homeMsg('placed', RECIPES.find(r => r.id === id).icon, GOLD); AUDIO.sfx('done'); save();
+  const x = clamp(wx, room.x0 + 46, room.x1 - 46); setPlacement(id, x, f); G.flags.pos = G.flags.pos || {}; G.flags.pos[id] = { x, f }; G.built[id] = true; G.flags.placing = (G.flags.placeQ && G.flags.placeQ.shift()) || null; homeMsg('placed', RECIPES.find(r => r.id === id).icon, GOLD); AUDIO.sfx('done'); save();
 }
 function homeUseSpot(spot) {
   const s = G.survivors[G.sel]; if (!s || !s.alive) return; const w = G.world; const info = spotInfo(spot); if (!info) return;
@@ -5764,7 +5765,7 @@ function updateHome(dt) {
         case 'collector': { const n = G.collectorWater; G.collectorWater = 0; G.inv.water = (G.inv.water || 0) + n; floatIcon(s.x, w.fy2y(s.fy) - 60, 'water', n); s.task = null; AUDIO.sfx('pick'); break; }
         case 'fire': { const useWood = (G.inv.wood || 0) >= 2; if (useWood) G.inv.wood -= 2; else if ((G.inv.fuel || 0) >= 1) G.inv.fuel -= 1; else { s.task = null; break; } G.flags.fire = Math.min(18, fireLeft() + (useWood ? 4 : 6) + (G.flags.flue ? 2 : 0)); floatIcon(s.x, w.fy2y(s.fy) - 60, 'fire', useWood ? 4 : 6); s.task = null; AUDIO.sfx('done'); break; }
         case 'stove': { const n = COOK.give.meal + (s.quirk === 'cook' ? 1 : 0); sp.active = false; G.inv.meal = (G.inv.meal || 0) + n; floatIcon(s.x, w.fy2y(s.fy) - 60, 'meal', n); s.task = null; AUDIO.sfx('done'); break; }
-        case 'craft': { const rc = tk.recipe; if (rc.build && PLACEABLE[rc.id]) { G.flags.placing = rc.id; } else if (rc.build) { G.built[rc.id] = true; homeMsg(ITEMS[rc.give] ? '' : rc.id + ' built', rc.icon, GOLD); } else { G.inv[rc.give] = (G.inv[rc.give] || 0) + 1; floatIcon(s.x, w.fy2y(s.fy) - 60, rc.give, 1); } s.task = null; AUDIO.sfx('done'); break; }
+        case 'craft': { const rc = tk.recipe; if (rc.build && PLACEABLE[rc.id]) { if (G.flags.placing && G.flags.placing !== rc.id) (G.flags.placeQ || (G.flags.placeQ = [])).push(rc.id); else G.flags.placing = rc.id; } else if (rc.build) { G.built[rc.id] = true; homeMsg(ITEMS[rc.give] ? '' : rc.id + ' built', rc.icon, GOLD); } else { G.inv[rc.give] = (G.inv[rc.give] || 0) + 1; floatIcon(s.x, w.fy2y(s.fy) - 60, rc.give, 1); } s.task = null; AUDIO.sfx('done'); break; }
         case 'stairfix': G.flags.stairsOut = false; G.flags.stairsMended = true; s.task = null; AUDIO.sfx('done'); homeMsg('stairs mended · the top floor is open', 'repair', GOLD); break;
         case 'board': tk.bar.level++; tk.bar.hp = tk.bar.level * 30; s.task = null; AUDIO.sfx('done'); break;
         case 'repair': tk.bar.hp = tk.bar.level * 30; s.task = null; AUDIO.sfx('done'); break;
