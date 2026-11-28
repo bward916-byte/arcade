@@ -102,7 +102,7 @@ const OL='#5a3420',CREAM='#fff6e0';
 
 /* ---------- save ---------- */
 const KEY='foodTruckRush_v1';
-const SV={day:1,coins:0,stars:0,speed:0,patience:0,tips:0,helper:0,snd:1,mus:1,best:0,gems:0,streak:0,chest:0,dl:'',ds:0,album:{},albumT:{},tut:0};
+const SV={day:1,coins:0,stars:0,speed:0,patience:0,tips:0,helper:0,snd:1,mus:1,best:0,gems:0,streak:0,chest:0,dl:'',ds:0,album:{},albumT:{},tut:0,easy:0};
 try{const o=JSON.parse(localStorage.getItem(KEY)||'null');if(o&&typeof o==='object')Object.assign(SV,o);}catch(e){}
 if(SV.stars&&typeof SV.stars==='object')SV.stars=Object.values(SV.stars).reduce((a,b)=>a+(+b||0),0);
 ['day','coins','stars','speed','patience','tips','helper','best','gems','streak','chest','ds'].forEach(k=>{SV[k]=Math.max(0,Math.floor(+SV[k]||0));});
@@ -114,7 +114,7 @@ function save(){try{localStorage.setItem(KEY,JSON.stringify(SV));}catch(e){}}
 const DAYLEN=75,RUSH=22,BURN=8;
 const unlocked=d=>Math.min(MENU.length,clamp(2+d,3,12));
 const isFest=d=>d%5===0;
-const goalFor=d=>Math.round((340+60*Math.min(d,14)+30*Math.max(0,d-14))*(isFest(d)?1.8:1)/10)*10;
+const goalFor=d=>Math.round((400+120*Math.min(d-1,15)+30*Math.max(0,d-16))*(isFest(d)?1.8:1)*(SV.easy?.6:1)/10)*10;
 const patienceFor=(n,d)=>(7+n*4.5)*Math.pow(1.15,SV.patience)*clamp(1.1-d*.02,.6,1.1);
 const cookTime=m=>m.cook*Math.pow(.86,SV.speed);
 const UPG={
@@ -849,7 +849,7 @@ function showHome(){
       <button class="mini" id="bShop">${img('i_up')}<span>Upgrades</span></button>
       <button class="mini" id="bAlbum">${img('bunny')}<span>Stickers</span></button>
       <button class="mini ${dailyReady()?'alert':''}" id="bDaily">${img('i_gift')}<span>Daily Gift</span></button>
-      <button class="mini" id="bSet">${img('i_sound')}<span>Sound</span></button>
+      <button class="mini" id="bSet">${img('i_sound')}<span>Settings</span></button>
     </div>
   </div>`;
   homeEl.className='on';sheet.className='';
@@ -879,11 +879,13 @@ function openDaily(){
   h+=`</div>${can?'<button class="cta" id="bClaim">Claim!</button>':''}`;openSheet(h);
   if(can)$('bClaim').onclick=()=>{const d=DAILY[idx];if(d.c)SV.coins+=d.c;if(d.g)SV.gems+=d.g;SV.dl=today();SV.ds++;save();SFX.gift();partyDOM(40);openDaily();};}
 function openSettings(paused){
-  openSheet(`${paused?'':'<button class="x">✕</button>'}<h2>${paused?'Paused':'Sound'}</h2>
+  openSheet(`${paused?'':'<button class="x">✕</button>'}<h2>${paused?'Paused':'Settings'}</h2>
   <div class="toggles"><button class="tg ${SV.snd?'on':''}" id="tS">Sounds<b>${SV.snd?'ON':'OFF'}</b></button><button class="tg ${SV.mus?'on':''}" id="tM">Music<b>${SV.mus?'ON':'OFF'}</b></button></div>
+  ${paused?'':`<div class="toggles"><button class="tg ${SV.easy?'on':''}" id="tE">Relaxed mode<b>${SV.easy?'ON':'OFF'}</b><small>Lower daily goals</small></button></div>`}
   ${paused?'<button class="cta" id="bRes">Resume ▶</button><button class="ghost" id="bQuit">Quit to home</button>':''}`);
   $('tS').onclick=()=>{SV.snd=SV.snd?0:1;save();audio();if(master)master.gain.value=SV.snd?.55:0;SFX.tap();openSettings(paused);};
   $('tM').onclick=()=>{SV.mus=SV.mus?0:1;save();audio();if(musG)musG.gain.value=SV.mus?.5:0;if(!paused)music(SV.mus,'home');SFX.tap();openSettings(paused);};
+  if(!paused)$('tE').onclick=()=>{SV.easy=SV.easy?0:1;save();SFX.tap();openSettings(false);};
   if(paused){$('bRes').onclick=()=>{SFX.tap();closeSheet();};$('bQuit').onclick=()=>{SFX.tap();G.paused=false;sheet.className='';showHome();};}}
 function openPause(){if(G.paused)return;G.paused=true;MUS.on=false;openSettings(true);}
 function partyDOM(n){const cx=W/2,cy=H*.4;for(let i=0;i<n;i++){const e=document.createElement('i');e.className='pc';e.style.background=pick(CONF);e.style.left=cx+'px';e.style.top=cy+'px';
