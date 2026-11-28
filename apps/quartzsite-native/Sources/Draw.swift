@@ -391,8 +391,8 @@ final class Renderer {
                 let town = !g.inPast && (ar == .main || ar == .tyson)
                 let kl = g.inPast ? 0 : (town ? 2 : Int(hashN(Double(ar.rawValue) * 7.3 + 1) * 4) % 4)
                 let kr = g.inPast ? 0 : (town ? 3 : Int(hashN(Double(ar.rawValue) * 5.1 + 2) * 4) % 4)
-                edgeBlock(8 - cam, kl, 1)
-                edgeBlock(g.WORLD - 8 - cam, kr, -1)
+                edgeBlock(20 - cam, kl, 1)
+                edgeBlock(g.WORLD - 20 - cam, kr, -1)
             }
             for (i, sp) in g.spots.enumerated() { spot(i, sp) }
             if g.phase == .play && g.inPast {
@@ -1138,7 +1138,7 @@ final class Renderer {
         let left = g.driveLeft
         let mi = left == left.rounded() ? "\(Int(left))" : String(format: "%.1f", left)
         c.RR(W / 2 - 74, 6, 148, 18, 9, Col(0x1c1410, 0.7))
-        g.text("To " + AREAS[g.driveTo.rawValue].name + "  ·  " + mi + " mi", W / 2, 13, 5.4, CREAM, bold: true)
+        g.text("To " + AREAS[g.driveTo.rawValue].name + "  ·  " + mi + " mi to go", W / 2, 13, 5.4, CREAM, bold: true)
         c.RR(W / 2 - 60, 19, 120, 2.4, 1.2, Col(0xffffff, 0.2))
         c.RR(W / 2 - 60, 19, 120 * clampD(1 - left / max(0.01, g.driveMiles), 0, 1), 2.4, 1.2, GOLD)
         let r = W - g.safeR - 8
@@ -5323,7 +5323,7 @@ final class Renderer {
             }
         }
 
-        var pack = (g.inPast ? "Winter 1026" : dateText(g.day)) + "  " + g.clockText() + "  ·  " + g.areaName(g.area)
+        var pack = (g.inPast ? "Winter 1026" : dateText(g.day + (g.dayT > 0.66 && g.hour() < 7 ? 1 : 0))) + "  " + g.clockText() + "  ·  " + g.areaName(g.area)
         if g.inPast { pack = (g.deep ? "5 million years ago" : g.iceAge ? "Ice age, 11,000 BC" : "Winter 1026") + "  " + g.clockText() + "  ·  " + g.areaName(g.area) + "  ·  field notes \(g.notesHere)/\(g.notesTotal)" }
         var extras: [String] = []
         if g.wood > 0 { extras.append("firewood \(g.wood)") }
@@ -5461,7 +5461,17 @@ final class Renderer {
             let off: [(Double, Double, Int)] = [(-4, 4, 2), (4, -5, 1), (-5, 7, 2), (0, -6, 0), (0, 6, 0), (4, 6.5, 1), (5, 1, 1), (-4, 3, 2), (5, 1, 1), (-5, 1, 2), (-5, -2, 2), (-5, 6, 2), (3, 7, 2), (5, 2, 1)]
             let o = a < off.count ? off[a] : (0.0, -6.0, 0)
             let camp = !g.inPast && a == g.rigArea.rawValue
-            g.text(d.name + (camp ? " (camp)" : ""), p.0 + o.0, p.1 + o.1, big ? 4.8 : 3.6, ink, align: o.2, bold: true)
+            // keep every name inside the map: flip it to the other side of its pin, or lift it, when it would run off
+            let nm = d.name + (camp ? " (camp)" : "")
+            let fs = big ? 4.8 : 3.6
+            let tw = Double(nm.count) * fs * 0.52
+            var lx = p.0 + o.0, ly = p.1 + o.1, al = o.2
+            if al == 1 && lx + tw > mx0 + mw - 2 { al = 2; lx = p.0 - abs(o.0) - 1 }
+            if al == 2 && lx - tw < mx0 + 2 { al = 1; lx = p.0 + abs(o.0) + 1 }
+            if al == 0 { lx = clampD(lx, mx0 + tw / 2 + 2, mx0 + mw - tw / 2 - 2) }
+            if ly > my0 + mh - 3 { ly = p.1 - 6 }
+            if ly < my0 + 4 { ly = p.1 + 6 }
+            g.text(nm, lx, ly, fs, ink, align: al, bold: true)
             if !here { g.hits.append(Hit(id: 70 + a, x: p.0 - 9, y: p.1 - 9, w: 18, h: 18)) }
         }
         if !g.inPast && (!big || inside(33.618, -114.305)) {
