@@ -311,16 +311,19 @@ final class GameViewController: UIViewController {
                 game.tap(gx, gy)
                 continue
             }
-            if p.x < view.bounds.width * 0.42 {
-                if stickTouch == nil { stickTouch = t; moveStick(p) }
-            } else if holdTouch == nil {
-                holdTouch = t
-                game.input.hold = true
+            // the HOLD button does things; a touch anywhere else is where you want to go
+            let hbx = game.W - game.safeR - 34, hby = game.H - 24
+            let onHold = (gx - hbx) * (gx - hbx) + (gy - hby) * (gy - hby) < 26 * 26
+            if onHold {
+                if holdTouch == nil { holdTouch = t; game.input.hold = true }
+            } else if stickTouch == nil {
+                stickTouch = t
+                game.pointTo(gx)
             }
         }
     }
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
-        for t in touches where t === stickTouch { moveStick(t.location(in: view)) }
+        for t in touches where t === stickTouch { game.pointTo(Double(t.location(in: view).x / k)) }
     }
     private func lift(_ touches: Set<UITouch>) {
         for t in touches {

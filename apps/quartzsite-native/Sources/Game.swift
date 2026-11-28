@@ -585,6 +585,9 @@ final class Game {
     var face = 1.0
     var walk = 0.0
     var cam = 0.0
+    /// Where you last pointed: you walk, ride or drive there on your own.
+    var moveTarget: Double? = nil
+    func pointTo(_ gx: Double) { moveTarget = clampD(cam + gx / ZOOM, 30, WORLD - 30) }
     var rigX = 1150.0
     var rigFace = 1.0
     var inRig = false
@@ -993,7 +996,7 @@ final class Game {
         cineShots = [0, 1, 2, 3]
         cineCaps = ["I-10, Arizona. Exit 17.", "Every winter, the desert fills up.", "Snowbirds, nomads, skoolies and rockhounds.", "Your first winter · " + dateText(1)]
         cineT = 0
-        hint("start", "Walk with the left pad. Stand by a glowing spot and hold the right side to fill its ring. Let go early and your money comes back. Tap your " + (life == .nomad ? "bike" : "side-by-side") + " to ride; it's much faster than walking. Tap MAP to go somewhere else.")
+        hint("start", "Tap anywhere to walk there. Stand by a glowing spot and hold the HOLD button to fill its ring. Let go early and your money comes back. Tap your " + (life == .nomad ? "bike" : "side-by-side") + " to ride; it's much faster than walking. Tap MAP to go somewhere else.")
     }
 
     func toggleRig() {
@@ -2539,7 +2542,15 @@ final class Game {
         else if health < 35 { hint("hungry", "You're run down. Groceries on Main Street, the outhouse and your own camp all help.") }
 
         // moving: on foot, on a ride, or behind the wheel
-        let s = abs(input.stick) < 0.15 ? 0 : input.stick
+        var s = abs(input.stick) < 0.15 ? 0 : input.stick
+        if overlay || input.hold || arriveT > 0 || s != 0 { moveTarget = nil }
+        if let t = moveTarget {
+            let d = t - px
+            let wheels = inRig || onToy
+            if abs(d) < (wheels ? 6 : 2.5) { moveTarget = nil }
+            else if wheels { s = clampD(d / 46, -1, 1); if abs(s) < 0.3 { s = d > 0 ? 0.3 : -0.3 } }
+            else { s = d > 0 ? 1 : -1 }
+        }
         if inRig {
             let top = RIGS[rig.rawValue].speed
             vx += (s * top - vx) * min(1, dt * 2.2)

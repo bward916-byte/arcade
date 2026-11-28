@@ -450,6 +450,12 @@ final class Renderer {
     /// Your rig, your toy and you, with a soft glow on whatever you can tap.
     private func drawYou() {
         let pulse = 0.3 + 0.14 * sin(NOW * 4)
+        if let t = g.moveTarget {
+            // where you pointed
+            let mx = t - cam, b = abs(sin(NOW * 5)) * 1.6
+            c.ell(mx, GY + 6, 4.4, 1.3, GOLD.alpha(0.45)); c.arcStroke(mx, GY + 6, 5.4 + b, 0, PI * 2, 0.3, GOLD.alpha(0.5))
+            c.poly(GOLD, [mx - 2.4, GY - 3 - b, mx + 2.4, GY - 3 - b, mx, GY + 1.6 - b])
+        }
         if g.rigHere && !g.inRig {
             // always know which way home is; when you're run down, the camp itself is pointed out
             let rx0 = g.rigX - cam
@@ -5323,8 +5329,7 @@ final class Renderer {
         // the pad and the hold button
         let py = H - 24
         let pxc = g.safeL + 40
-        c.RR(pxc - 30, py - 9, 60, 18, 9, Col(0xffffff, 0.13))
-        c.circ(pxc + g.input.stick * 20, py, 8, Col(0xffffff, 0.4))
+        _ = pxc
         let bx = W - g.safeR - 34
         c.circ(bx, py, 13, Col(0xffffff, g.input.hold ? 0.34 : 0.14))
         c.arcStroke(bx, py, 13, 0, PI * 2, 1, Col(0xffffff, 0.45))
