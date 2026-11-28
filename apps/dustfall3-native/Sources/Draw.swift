@@ -652,7 +652,8 @@ final class Renderer {
             a.text("WANTED", 0, -26, 13, Col(0x2a1c14), face: "Rye-Regular")
             q(-17, -22, 34, 30, 0xcdb888); q(-17, -22, 34, 1, 0x2a1c14); q(-17, 7, 34, 1, 0x2a1c14); q(-17, -22, 1, 30, 0x2a1c14); q(16, -22, 1, 30, 0x2a1c14)
             let pk = Col(0x2a1c14)
-            a.ell(0, 9, 15, 7, Col(0x3a2e28)); q(-16, 6, 32, 1, 0xcdb888)                       // shoulders, cut off by the frame
+            a.save(); a.cg.clip(to: CGRect(x: -16, y: -21, width: 32, height: 28))
+            a.ell(0, 9, 15, 7, Col(0x3a2e28))                       // shoulders, cut off by the frame
             a.poly(Col(0xa02a22), [-6, 2, 6, 2, 3, 6.6, 0, 5, -3, 6.6])                          // neckerchief
             a.RR(-2.6, -1, 5.2, 4.5, 1.5, Col(0x9a7048))
             a.RR(-7, -13.5, 14, 15.5, 5.6, Col(0xb8885a))                                        // the face
@@ -668,6 +669,7 @@ final class Renderer {
             a.curve(0, -1.6, -4, -2.2, -6.6, 1.6, 1.9, pk); a.curve(0, -1.6, 4, -2.2, 6.6, 1.6, 1.9, pk)   // a drooping moustache
             a.seg(-2, 0.4, 2, 0.4, 0.6, Col(0x5a3020))
             for i in 0..<14 { a.R(-5.5 + hs(i + 31) * 11, -1 + hs(i + 33) * 3, 0.5, 0.5, Col(0x3a2a1c, 0.6)) }   // stubble
+            a.restore()
             a.text("VARNEY", 0, 18, 8, Col(0x2a1c14), face: "Rye-Regular")
             a.text("ROBBERY AND ARSON", 0, 25, 4.4, Col(0x2a1c14))
             a.text("$500 REWARD", 0, 35, 7, Col(0x8a2b22), face: "Rye-Regular")
