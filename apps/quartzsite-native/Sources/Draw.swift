@@ -2928,6 +2928,13 @@ final class Renderer {
             top = 58
         case .carls:
             // Carl's Jr.: the burger place by the freeway, a drive-thru lane wrapping round with a car at the window
+            // the cross street: Terrible's sits on the far corner of this intersection, kitty-corner from Carl's
+            let ix = x - 49.0, road = Col(0x48484c).shade(1 - dark * 0.5)
+            c.poly(road, [ix - 11, GY + 1, ix + 11, GY + 1, ix + 3.4, GY - 15, ix - 3.4, GY - 15])
+            for q in 0..<4 { let t = Double(q) / 4; c.R(ix - 0.4 + 0.2 * t, GY - 1.5 - t * 13, 0.8 - t * 0.4, 2 - t, Col(0xf2c14e, 0.85)) }
+            for q in 0..<5 { c.R(ix - 9 + Double(q) * 4, GY + 3, 2.2, 13, Col(0xf4f1ea, 0.8)) }
+            c.R(ix + 12.6, GY - 17, 0.8, 17, Col(0x8a8f96)); c.poly(Col(0xc8281e).shade(1 - dark * 0.3), [ix + 11, GY - 21, ix + 15, GY - 21, ix + 16.6, GY - 19.4, ix + 16.6, GY - 15.6, ix + 15, GY - 14, ix + 11, GY - 14, ix + 9.4, GY - 15.6, ix + 9.4, GY - 19.4])
+            g.text("STOP", ix + 13, GY - 17.5, 1.9, Col(0xf4f1ea), bold: true)
             let wall = Col(0xe8dcc0)
             facade(x - 34, GY - 26, 62, 26, wall)
             c.R(x - 36, GY - 30, 66, 5, Col(0xc8281e).shade(1 - dark * 0.35)); c.R(x - 36, GY - 25.4, 66, 1, Col(0xf2c418).shade(1 - dark * 0.35))
