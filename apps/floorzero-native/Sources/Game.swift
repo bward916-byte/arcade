@@ -387,6 +387,13 @@ final class Game {
         let k = tw.top - n
         return n >= 1 && k > 0 && k % 10 == 0 && !(tower == 0 && (n == 32 || n == 12))
     }
+    /// Floors until the next safe room, shown for the first stretch of each tower so players learn they exist.
+    var safeIn: Int? {
+        if depth > 31 || floor.kind == .safe || floor.kind == .street { return nil }
+        var c = floorN - 1
+        while c >= 1 { if isCheckpoint(c) { return floorN - c }; c -= 1 }
+        return nil
+    }
     var cpFloor = 0
     var cpUps: [String: Int] = [:]
     var cpSample = false

@@ -1697,9 +1697,19 @@ final class Renderer {
         cv.RR(gx, 10, gw, 26, 13, BLACK.alpha(0.55))
         cv.poly(GOLD, [gx + 12, 16, gx + 22, 23, gx + 12, 30])
         cv.text(s, gx + 30, 28, 13, WHITE, 0, 2)
+        var hy = 0.0
+        if let n = g.safeIn {
+            let cs = n == 1 ? "SAFE ROOM NEXT FLOOR" : "SAFE ROOM IN \(n) FLOORS"
+            let cw = cv.textW(cs, 11, 2) + 40
+            let cx = W - g.safeR - 12 - cw
+            cv.RR(cx, 41, cw, 22, 11, BLACK.alpha(0.5))
+            cv.R(cx + 13, 46, 4, 12, MINT); cv.R(cx + 9, 50, 12, 4, MINT)
+            cv.text(cs, cx + 28, 56, 11, MINT, 0, 2)
+            hy = 26
+        }
         if g.hits >= 3 {
-            cv.stamp("\(g.hits)", W - g.safeR - 74, 78, 34, WHITE, 2)
-            cv.text("HITS", W - g.safeR - 20, 76, 14, WHITE.alpha(0.9), 2, 3)
+            cv.stamp("\(g.hits)", W - g.safeR - 74, 78 + hy, 34, WHITE, 2)
+            cv.text("HITS", W - g.safeR - 20, 76 + hy, 14, WHITE.alpha(0.9), 2, 3)
         }
         if g.hero.hp < g.hero.maxHp * 0.3 {
             let a = (0.3 + 0.2 * sin(t * 7)) * (1 - g.hero.hp / (g.hero.maxHp * 0.3) * 0.6)
