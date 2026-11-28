@@ -126,7 +126,7 @@ let AREAS: [AreaDef] = [
         Spot(kind: .fire, x: 1710, name: "NEIGHBORS' FIRE"),
         Spot(kind: .wash, x: 2150, name: "DRY WASH")
     ]),
-    AreaDef(name: "Main Street", sub: "Quartzsite, in season · west to east along Main", w: 7990, arrive: 180, lat: 33.667, lon: -114.214, spots: [
+    AreaDef(name: "Main Street", sub: "Quartzsite, in season · west to east along Main", w: 6120, arrive: 180, lat: 33.667, lon: -114.214, spots: [
         Spot(kind: .gemworld, x: 550, name: "GEM WORLD"),
         Spot(kind: .landmark, x: 760, name: "HI JOLLY MONUMENT", arg: 0),
         Spot(kind: .lot, x: 880, name: "USED RIGS"),
@@ -161,7 +161,7 @@ let AREAS: [AreaDef] = [
         Spot(kind: .solar, x: 5250, name: "SOLAR BILL'S"),
         Spot(kind: .camelkiss, x: 5480, name: "CAMELPALOOZA")
     ]),
-    AreaDef(name: "Tyson Wells", sub: "The show grounds on Kuehn Street", w: 4810, arrive: 160, lat: 33.6625, lon: -114.2215, spots: [
+    AreaDef(name: "Tyson Wells", sub: "The show grounds on Kuehn Street", w: 3600, arrive: 160, lat: 33.6625, lon: -114.2215, spots: [
         Spot(kind: .tools, x: 380, name: "K&B TOOLS"),
         Spot(kind: .panorama, x: 700, name: "PROSPECTORS PANORAMA"),
         Spot(kind: .vendors, x: 1060, name: "SHOW VENDORS"),
@@ -384,8 +384,8 @@ func milesBetween(_ a: Area, _ b: Area) -> Double {
 }
 
 /// Every other RV park in town, by name, lined up along the east end of the two streets in town.
-let PARK_ROW_MAIN = ["88 SHADES RV RESORT", "AMERICAN RV PARK", "KOFA MOUNTAIN RV PARK", "LA MIRAGE RV PARK", "B-10 CAMPGROUND", "HAPPI J'S RV PARK", "CASA DEL SOL RV PARK", "DESERT OASIS RV PARK", "SHADY LANE RV PARK", "SPLIT RAIL RV PARK", "HASSLER'S RV PARK", "SNO BIRD RV PARK", "RV PITSTOP", "TEWS DATE PALM RV PARK", "CACTUS PATCH TRAILER PARK", "TK'S CORNER RV PARK", "SAFARI TRAILER PARK", "CRAWFORD'S TRAILER PARK", "LA-Z-DAZE TRAILER PARK", "PARK PLACE RV RESORT", "PARADISE RV PARK"]
-let PARK_ROW_TYSON = ["TYSON WELLS RV PARK", "DESERT DOG RANCHO", "ARIZONA SUN RV PARK", "DESERT EDGE RV PARK", "J.R.'S RV PARK", "LIL ACRE RV PARK", "BURRWOOD RV PARK", "ROCKING H RESORT", "SWEET'S RV PARK", "DESERT SUNSET RV PARK", "AMERICAN TRAILS RV PARK", "QUARTZSITE RV RESORT", "TUMBLEWEED RV PARK"]
+let PARK_ROW_MAIN = ["88 SHADES RV RESORT", "KOFA MOUNTAIN RV PARK", "LA MIRAGE RV PARK", "B-10 CAMPGROUND"]
+let PARK_ROW_TYSON = ["TYSON WELLS RV PARK", "DESERT GARDENS RV PARK"]
 func coinsText(_ n: Int) -> String { return n == 1 ? "1 coin" : "\(n) coins" }
 func dateText(_ d: Int) -> String {
     let wk = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][(START_WEEKDAY + d - 1) % 7]
@@ -1437,8 +1437,8 @@ final class Game {
         if key == "ltva" { px = 760; dayT = 0.3; rig = .classB; inRig = true; rigX = 760 }
         if key == "main" { place(.main, 3920); money = 400; day = 14 }
         if key == "mainwest" { place(.main, 2150); money = 400; day = 9; dayT = 0.35 }
-        if key == "parks" { place(.main, 6050); money = 400; day = 9; dayT = 0.4 }
-        if key == "parks2" { place(.tyson, 3800); money = 400; day = 9; dayT = 0.4 }
+        if key == "parks" { place(.main, 5900); money = 400; day = 9; dayT = 0.4 }
+        if key == "parks2" { place(.tyson, 3460); money = 400; day = 9; dayT = 0.4 }
         if key == "maineast" { place(.main, 3060); money = 400; day = 9; dayT = 0.4 }
         if key == "mainnight" { place(.main, 3020); money = 400; day = 9; dayT = 0.78; clockFreeze = true }
         if key == "propane" { place(.main, 4400); money = 400; propane = 20; tanks = 30; dayT = 0.4; clockFreeze = true }
