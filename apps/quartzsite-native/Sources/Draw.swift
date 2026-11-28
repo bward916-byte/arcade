@@ -443,7 +443,9 @@ final class Renderer {
             // a speech bubble or label near the edge slides in so none of it is cut off
             if g.texts[i].plate && g.texts[i].align == 0 && g.texts[i].wrap == 0 {
                 let tw = Double(g.texts[i].s.count) * g.texts[i].size * 0.5 + 10
-                if tw < fullW - 8 { g.texts[i].x = clampD(g.texts[i].x, g.safeL + tw / 2 + 2, fullW - g.safeR - tw / 2 - 2) }
+                if g.texts[i].y < 28 { g.texts[i].y = 28 }
+                let rightPad = g.texts[i].y < 124 ? 52.0 : 2.0
+                if tw < fullW - 8 - rightPad { g.texts[i].x = clampD(g.texts[i].x, g.safeL + tw / 2 + 2, fullW - g.safeR - tw / 2 - rightPad) }
             }
         }
         for i in hit0..<g.hits.count {
@@ -509,7 +511,7 @@ final class Renderer {
             }
             if g.nearToy && !g.onToy {
                 c.glow(tx, GY - 8, len * 0.9, Col(0xffe9a0, pulse), Col(0xffe9a0, 0))
-                if !g.shown.contains("toyUsed") { tapArrow(tx, GY - 22, "Tap here to ride") } else { g.text("Tap to ride", tx, GY - 26, 5.5, CREAM) }
+                if !g.shown.contains("toyUsed") { tapArrow(tx, GY - 22, "Tap here to ride") } else { g.text("Tap to ride", tx, GY - 36, 5, CREAM, plate: true) }
             }
             let gx = (g.onToy ? g.px : g.toyX)
             let tb = (g.onToy ? GY + 7 : GY + 2) + g.ground(gx)
@@ -586,7 +588,20 @@ final class Renderer {
         var n = floor((cam * 0.5 - 20) / 18)
         while n * 18 < cam * 0.5 + W + 20 {
             let sx = n * 18 + hashN(n + 1500) * 10 - cam * 0.5
-            c.circ(sx, top - 2, 3 + hashN(n + 1510) * 3, Col.mix(Col(0x5a7048), haze, 0.35).shade(1 - dark * 0.6))
+            let fr = 3 + hashN(n + 1510) * 3
+            let fc = Col.mix(Col(0x5a7048), haze, 0.35).shade(1 - dark * 0.6)
+            if hashN(n + 1520) < 0.22 {
+                // a cottonwood or willow standing over the brush
+                let th = 9 + hashN(n + 1530) * 6
+                c.seg(sx, top, sx + 0.6, top - th * 0.6, 0.8, Col.mix(Col(0x6a5a48), haze, 0.3).shade(1 - dark * 0.6))
+                c.seg(sx + 0.4, top - th * 0.45, sx - 2.4, top - th * 0.8, 0.45, Col.mix(Col(0x6a5a48), haze, 0.3).shade(1 - dark * 0.6))
+                let lc = Col.mix(Col(0x8a8a48), haze, 0.35).shade(1 - dark * 0.6)
+                c.ell(sx - 2.4, top - th * 0.82, 3.4, 2.2, lc.shade(0.86)); c.ell(sx + 1.8, top - th * 0.9, 3.8, 2.6, lc); c.ell(sx, top - th * 1.05, 2.8, 2, lc.shade(1.1))
+            } else {
+                c.ell(sx - fr * 0.5, top - 1.4, fr * 0.8, fr * 0.55, fc.shade(0.86)); c.ell(sx + fr * 0.5, top - 1.8, fr * 0.7, fr * 0.7, fc)
+                c.ell(sx, top - fr * 0.7, fr * 0.6, fr * 0.5, fc.shade(1.1))
+                for q in 0..<3 { c.seg(sx - fr + Double(q) * fr, top, sx - fr + Double(q) * fr + 0.6, top - fr * 1.25, 0.25, fc.shade(0.9)) }
+            }
             n += 1
         }
         // glints drifting downstream
@@ -1132,7 +1147,7 @@ final class Renderer {
         while n * 120 < np + W + 120 {
             let sx = n * 120 + hashN(n + 960) * 70 - np
             let k = hashN(n + 970)
-            if k < 0.12 { saguaro(sx, H + 6, 52 + hashN(n + 980) * 16, n, SAG, true) }
+            if k < 0.12 { saguaro(sx, H + 6, 30 + hashN(n + 980) * 8, n, SAG, true) }
             else if k < 0.35 { barrel(sx, H - 2, 1.2, n) }
             else if k < 0.55 { creosote(sx, H - 1, n) }
             else if k < 0.68 { cholla(sx, H - 1, 1.1, n) }
@@ -1234,18 +1249,19 @@ final class Renderer {
         case .minivan:
             // 17 ft long, under 6 ft tall: one box, a long raked windshield running into a short sloped hood
             let col = bodyPaint(Col(0x8fa3b0))
-            let body: [Double] = [-29.5, -4, -29.3, -14.5, -27, -20, 6, -20, 17, -12.6, 27.5, -10.4, 29.5, -7, 29.5, -3.6]
+            let body: [Double] = [-27.5, -4, -27.5, -19, -25.5, -25.4, 5, -25.4, 15.5, -15.6, 25, -13.4, 27.5, -9.6, 27.5, -3.6]
             c.poly(col, body)
-            c.poly(GLASS, [-25.4, -18.6, 5.2, -18.6, 14.4, -12.6, -26.4, -12.6])
-            c.R(-16, -18.6, 1.1, 6, col); c.R(-3.4, -18.6, 1.3, 6, col)
-            c.R(-27, -20.6, 30, 0.7, trim); c.R(-22, -21.4, 0.7, 1, trim); c.R(-2, -21.4, 0.7, 1, trim)
-            c.R(-29.4, -8.2, 58.6, 0.6, col.shade(0.78))
-            c.R(-29.5, -5, 59, 1.6, col.shade(0.6))
-            c.R(-16, -12.4, 0.5, 7.4, col.shade(0.8)); c.R(-3, -12.4, 0.5, 7.4, col.shade(0.8)); c.R(10.5, -12.4, 0.5, 7.4, col.shade(0.8))
-            c.R(-14, -11, 11, 0.6, col.shade(0.8))
-            c.RR(27.4, -9.6, 2.2, 2, 0.8, lamp); c.RR(-29.6, -13.5, 1.4, 4, 0.5, tail)
-            wheel(-18.5, 3.8); wheel(17.5, 3.8)
-            roof = -20.6; px0 = -24
+            c.poly(GLASS, [-24.6, -23.8, 4.4, -23.8, 12.8, -16, -25.4, -16])
+            c.R(-15, -23.8, 1.2, 7.8, col); c.R(-3, -23.8, 1.4, 7.8, col)
+            c.R(-25.5, -26, 29, 0.7, trim); c.R(-21, -26.8, 0.7, 1, trim); c.R(-1, -26.8, 0.7, 1, trim)
+            c.R(-27.4, -9.4, 54.6, 0.6, col.shade(0.78))
+            c.R(-27.5, -5, 55, 1.6, col.shade(0.6))
+            c.R(-15, -15.8, 0.5, 10.6, col.shade(0.8)); c.R(-2.6, -15.8, 0.5, 10.6, col.shade(0.8)); c.R(9.6, -15.4, 0.5, 10.2, col.shade(0.8))
+            c.R(-14, -13.6, 11.4, 0.7, col.shade(0.7)); c.RR(-5.4, -12.6, 2, 0.8, 0.3, trim); c.RR(6.4, -12.6, 2, 0.8, 0.3, trim)
+            c.R(-27.5, -19, 0.6, 14, col.shade(0.75))
+            c.RR(25.2, -12.6, 2.2, 2.2, 0.8, lamp); c.RR(-27.7, -18, 1.4, 5, 0.5, tail)
+            wheel(-17.5, 3.8); wheel(16.5, 3.8)
+            roof = -26; px0 = -22
 
         case .van:
             // an older full-size van, 18 ft by 7 ft: tall slab sides, a stubby hood, barn doors at the back
@@ -1675,6 +1691,44 @@ final class Renderer {
     private func gem(_ x: Double, _ y: Double, _ r: Double, _ col: Col) {
         c.poly(col, [x - r, y, x - r * 0.4, y - r * 1.3, x + r * 0.5, y - r * 1.1, x + r, y])
         c.poly(col.shade(1.35), [x - r * 0.4, y - r * 1.3, x, y - r * 0.4, x - r, y])
+    }
+    /// One piece on a dealer's table, drawn as what it is. `y` is the table top it sits on.
+    private func specimen(_ n: Int, _ x: Double, _ y: Double, _ r: Double, _ col: Col) {
+        switch n {
+        case 0:   // amethyst cluster: points crowding up off a grey base
+            c.ell(x, y - r * 0.2, r, r * 0.34, Col(0x8a8478))
+            for q in 0..<6 { let d = Double(q); let px = x - r * 0.75 + d * r * 0.3; let ph = r * (0.7 + hashN(d + 3) * 0.7); let lean = (d - 2.5) * r * 0.09
+                c.poly(col.shade(0.8 + hashN(d) * 0.4), [px - r * 0.17, y - r * 0.2, px + r * 0.17, y - r * 0.2, px + r * 0.17 + lean, y - ph, px + lean, y - ph - r * 0.3, px - r * 0.17 + lean, y - ph])
+                c.seg(px + lean * 0.5, y - r * 0.3, px + lean, y - ph - r * 0.2, 0.25, Col(0xffffff, 0.45)) }
+        case 1, 8:   // a sawn slab, polished, bands running through it
+            c.poly(col.shade(0.7), [x - r, y, x - r * 1.05, y - r * 1.0, x - r * 0.3, y - r * 1.3, x + r * 0.9, y - r * 1.1, x + r * 1.05, y - r * 0.2, x + r * 0.6, y])
+            c.poly(col, [x - r * 0.9, y - r * 0.1, x - r * 0.95, y - r * 0.95, x - r * 0.3, y - r * 1.2, x + r * 0.8, y - r * 1.0, x + r * 0.94, y - r * 0.25, x + r * 0.55, y - r * 0.1])
+            for q in 0..<3 { let d = Double(q); c.curve(x - r * 0.85, y - r * (0.3 + d * 0.25), x, y - r * (0.75 + d * 0.12), x + r * 0.8, y - r * (0.35 + d * 0.22), 0.5, n == 1 ? Col(0xf2c14e, 0.8).shade(1 - d * 0.2) : Col(0x5a2a1a, 0.6)) }
+            c.seg(x - r * 0.6, y - r * 1.0, x + r * 0.2, y - r * 1.1, 0.3, Col(0xffffff, 0.5))
+        case 2:   // a single clear quartz point, six-sided, on end
+            c.poly(col.shade(0.82), [x - r * 0.42, y, x - r * 0.42, y - r * 1.5, x, y - r * 2.1, x, y])
+            c.poly(col, [x, y, x, y - r * 2.1, x + r * 0.42, y - r * 1.5, x + r * 0.42, y])
+            c.poly(Col(0xffffff, 0.55), [x - r * 0.16, y, x - r * 0.16, y - r * 1.7, x, y - r * 2.1, x + r * 0.1, y - r * 1.7, x + r * 0.1, y])
+        case 3:   // a geode cracked in two, crystal lining each half
+            for q in 0..<2 { let gx = x + (q == 0 ? -r * 0.55 : r * 0.6), gr = r * (q == 0 ? 0.62 : 0.52)
+                c.circ(gx, y - gr, gr, Col(0x7a6a58)); c.circ(gx, y - gr, gr * 0.78, Col(0xe8e4f0)); c.circ(gx, y - gr, gr * 0.5, Col(0x9a7ac8)); c.circ(gx, y - gr, gr * 0.22, Col(0x3a2a4a))
+                for k in 0..<6 { let a = Double(k) * PI / 3; c.seg(gx + cos(a) * gr * 0.5, y - gr + sin(a) * gr * 0.5, gx + cos(a) * gr * 0.74, y - gr + sin(a) * gr * 0.74, 0.3, Col(0xffffff, 0.7)) } }
+        case 4:   // a round of petrified wood: bark edge, rings, a check split
+            c.ell(x, y - r * 0.6, r, r * 0.66, Col(0x4a3a2a)); c.ell(x, y - r * 0.6, r * 0.88, r * 0.56, col)
+            c.ell(x, y - r * 0.6, r * 0.62, r * 0.4, col.shade(0.8)); c.ell(x, y - r * 0.6, r * 0.4, r * 0.25, col.shade(1.15)); c.ell(x, y - r * 0.6, r * 0.16, r * 0.1, Col(0x3a2a1c))
+            c.seg(x, y - r * 0.6, x + r * 0.8, y - r * 0.82, 0.3, Col(0x2a1e14))
+        case 7:   // a desert rose: blades of sandy gypsum set like petals
+            for q in 0..<7 { let a = Double(q) * PI * 2 / 7; c.ell(x + cos(a) * r * 0.45, y - r * 0.6 + sin(a) * r * 0.3, r * 0.5, r * 0.26, col.shade(0.8 + Double(q % 3) * 0.14)) }
+            c.ell(x, y - r * 0.66, r * 0.34, r * 0.2, col.shade(1.2)); c.ell(x, y - r * 0.7, r * 0.14, r * 0.08, col.shade(0.7))
+        case 9:   // a chip of opal, flashing colour
+            c.ell(x, y - r * 0.4, r * 0.8, r * 0.44, Col(0xb8a890)); c.ell(x, y - r * 0.46, r * 0.66, r * 0.34, col)
+            let fl: [Col] = [Col(0x4ad0c0), Col(0xf06a8a), Col(0x6a8af0), Col(0xf2c14e), Col(0x5ad06a)]
+            for q in 0..<8 { let d = Double(q); c.ell(x - r * 0.46 + hashN(d + 40) * r * 0.9, y - r * 0.6 + hashN(d + 41) * r * 0.3, r * 0.1, r * 0.06, fl[q % 5]) }
+        default:   // a nugget: lumpy, with dark matrix running through it
+            c.ell(x - r * 0.3, y - r * 0.45, r * 0.7, r * 0.5, col.shade(0.82)); c.ell(x + r * 0.35, y - r * 0.5, r * 0.6, r * 0.55, col); c.ell(x, y - r * 0.85, r * 0.5, r * 0.36, col.shade(1.14))
+            c.curve(x - r * 0.7, y - r * 0.4, x - r * 0.1, y - r * 0.7, x + r * 0.2, y - r * 0.2, 0.4, Col(0x3a2a1c, 0.7)); c.curve(x + r * 0.1, y - r * 1.0, x + r * 0.4, y - r * 0.6, x + r * 0.8, y - r * 0.55, 0.35, Col(0x3a2a1c, 0.7))
+            c.ell(x - r * 0.1, y - r * 0.95, r * 0.18, r * 0.08, Col(0xffffff, 0.5))
+        }
     }
     private func skull(_ x: Double, _ y: Double, _ s: Double) {
         let bone = Col(0xefe6d2)
@@ -3637,8 +3691,7 @@ final class Renderer {
         if x < -50 || x > W + 50 { return }
         let w = max(1.6, h < 70 ? min(7.5, h * 0.13 + 1.2) : h * 0.15)
         let body = detail ? col.shade(1 - dark * 0.35) : col
-        let most = h < 44 ? 2.6 : 4.6
-        let arms = h < 30 ? 0 : Int(hashN(seed + 11) * most)
+        let arms = h < 24 ? 0 : (h < 44 ? Int(hashN(seed + 11) * 2.4 + 0.6) : 1 + Int(hashN(seed + 11) * 3.6))
         let flip = Int(hashN(seed + 5) * 2)
         c.roundCaps(true)
         for i in 0..<arms {
@@ -4970,7 +5023,7 @@ final class Renderer {
             let wx = dn * 240 + hk * 140
             let sx = wx - cam
             dn += 1
-            if wx < 100 || wx > g.WORLD - 100 || g.spots.contains(where: { abs($0.x - wx) < 130 }) { continue }
+            if wx < 100 || wx > g.WORLD - 100 || g.spots.contains(where: { abs($0.x - wx) < 80 }) { continue }
             let sh = 1 - dark * 0.5
             let t = NOW * 0.06 + wx
             switch Int(hk * 100) % 7 {
@@ -5284,7 +5337,7 @@ final class Renderer {
         // the ring stays on screen, clear of the edges
         let x = clampD(g.spots[i].x - cam, 46, W - 46)
         // never up under the coins, health and cred bar
-        let y = max(GY - (g.spots[i].kind == .gemworld ? 90.0 : (g.spots[i].kind == .skoolie ? 44.0 : 68.0)), GY + (50 - GY - 2) / ZOOM)
+        let y = max(GY - (g.spots[i].kind == .gemworld ? 70.0 : (g.spots[i].kind == .skoolie ? 44.0 : 68.0)), GY + (50 - GY - 2) / ZOOM)
         guard let o = g.offer(i) else {
             g.text(g.note(i), x, y, 5, CREAM, plate: true)
             return
@@ -5498,7 +5551,7 @@ final class Renderer {
         let paper = Col(0xeadfc4), ink = Col(0x3a2c1e)
         c.RR(x0, y0, x1 - x0, y1 - y0, 6, paper)
         g.text("WHERE TO?", x0 + 10, y0 + 10, 8, ink, align: 1, bold: true)
-        g.text(dateText(g.day) + "  ·  age \(g.age)  ·  season \(g.year)", x0 + 10, y0 + 18.4, 3.6, ink.alpha(0.7), align: 1, bold: true)
+        g.text(dateText(g.day + (g.dayT > 0.66 && g.hour() < 7 ? 1 : 0)) + "  ·  age \(g.age)  ·  season \(g.year)", x0 + 10, y0 + 18.4, 3.6, ink.alpha(0.7), align: 1, bold: true)
         // close
         c.circ(x1 - 11, y0 + 10, 6, ink.alpha(0.12))
         c.seg(x1 - 14, y0 + 7, x1 - 8, y0 + 13, 1, ink); c.seg(x1 - 8, y0 + 7, x1 - 14, y0 + 13, 1, ink)
@@ -5546,7 +5599,7 @@ final class Renderer {
         c.seg(n95.0, n95.1, s95.0, s95.1, 1.2, road)
         let lab10 = mp(33.652, -114.29), lab95 = mp(33.60 + 0.02, -114.211)
         g.text("I-10", lab10.0, lab10.1 - 5, 3.6, ink.alpha(0.6), bold: true)
-        g.text("95", lab95.0 - 4, lab95.1 + 13, 3.6, ink.alpha(0.6), bold: true)
+        g.text("95", lab95.0 - 4, min(lab95.1 + 13, my0 + mh - 5), 3.6, ink.alpha(0.6), bold: true)
         if riverSide { g.text("to the river", mx0 + 14, my0 + mh - 20, 3.2, Col(0x2a5a80), align: 1) }
         for a in AREAS.indices {
             let d = AREAS[a]
@@ -5557,7 +5610,7 @@ final class Renderer {
             if here { c.circ(p.0, p.1, 5 + sin(NOW * 4) * 0.8, GOLD.alpha(0.5)) }
             c.circ(p.0, p.1, 2.6, here ? GOLD : REDC)
             c.circ(p.0, p.1, 1, CREAM)
-            let off: [(Double, Double, Int)] = [(-4, 4, 2), (4, -5, 1), (-5, 7, 2), (0, -6, 0), (0, 6, 0), (4, 6.5, 1), (5, 1, 1), (-4, 3, 2), (5, 1, 1), (-5, 1, 2), (-5, -6, 2), (-5, 1, 2), (3, 7, 2), (5, 2, 1)]
+            let off: [(Double, Double, Int)] = [(-4, 9, 2), (4, -5, 1), (-5, 7, 2), (0, -6, 0), (0, 6, 0), (4, 6.5, 1), (5, 1, 1), (-4, 3, 2), (5, 1, 1), (-5, 1, 2), (-5, -6, 2), (-5, 1, 2), (3, 7, 2), (5, 2, 1)]
             let o = a < off.count ? off[a] : (0.0, -6.0, 0)
             let camp = !g.inPast && a == g.rigArea.rawValue
             // keep every name inside the map: flip it to the other side of its pin, or lift it, when it would run off
@@ -5604,8 +5657,8 @@ final class Renderer {
             g.text(AREAS[a].name, cx0 + 4, ry + rowH * 0.32, 4.4, ink.alpha(t.ok || here ? 1 : 0.5), align: 1, bold: true)
             var sub: String
             if here { sub = "You're here" }
-            else if !g.inPast && a == g.rigArea.rawValue && t.ok { sub = "Your camp · " + (t.cost == 0 ? "0 coins" : "\(t.cost) coins") }
-            else if t.ok { let m = milesBetween(g.area, to); sub = (m == m.rounded() ? "\(Int(m))" : "\(m)") + " mi · " + (t.cost == 0 ? "0 coins" : "\(t.cost) coins") }
+            else if !g.inPast && a == g.rigArea.rawValue && t.ok { sub = "Your camp · " + coinsText(t.cost) }
+            else if t.ok { let m = milesBetween(g.area, to); sub = (m == m.rounded() ? "\(Int(m))" : "\(m)") + " mi · " + coinsText(t.cost) }
             else { sub = t.how }
             g.text(sub, cx0 + 4, ry + rowH * 0.68, 3.2, here ? ink.alpha(0.7) : (t.ok ? Col(0x2f6a3a) : REDC.shade(0.8)), align: 1)
             if !here { g.hits.append(Hit(id: 70 + a, x: cx0, y: ry, w: cw, h: rowH - 3)) }
@@ -6018,7 +6071,7 @@ final class Renderer {
                 c.R(cx + 4.5, cy + ch * 0.5 - 2.5, 23, 10, Col(0xb8925e).shade(w.sold ? 0.5 : 1))
                 for q in 0..<12 { gem(cx + 7 + Double(q % 4) * 5.6, cy + ch * 0.5 + 0.5 + Double(q / 4) * 3.2, 1.6, stones[(q * 3 + k) % stones.count].shade(w.sold ? 0.5 : 1)) }
             } else {
-                gem(cx + 16, cy + ch * 0.5 + 6, 7, stones[n].shade(w.sold ? 0.5 : 1))
+                specimen(n, cx + 16, cy + ch * 0.5 + 6, 7, stones[n].shade(w.sold ? 0.5 : 1))
             }
             g.text(w.name, cx + 32, cy + 10, 4.8, w.sold ? CREAM.alpha(0.5) : ink, align: 1, bold: true, wrap: cw - 36)
             g.text(w.who, cx + 32, cy + 22, 3.6, w.sold ? CREAM.alpha(0.4) : ink.alpha(0.7), align: 1, wrap: cw - 36)
@@ -6038,7 +6091,7 @@ final class Renderer {
                 }
             }
         }
-        if g.mapMsgT > 0 { g.text(g.mapMsg, (x0 + x1) / 2, (y0 + y1) / 2, 6, CREAM.alpha(clampD(g.mapMsgT, 0, 1)), bold: true, plate: true) }
+        if g.mapMsgT > 0 { g.text(g.mapMsg, x1 - 120, y0 + 10, 4.6, CREAM.alpha(clampD(g.mapMsgT, 0, 1)), bold: true, plate: true) }
     }
 
     private func card(_ title: String, _ body: String) -> (Double, Double, Double, Double) {

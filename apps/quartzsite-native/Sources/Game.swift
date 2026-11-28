@@ -383,6 +383,7 @@ func milesBetween(_ a: Area, _ b: Area) -> Double {
     return (sqrt(dx * dx + dy * dy) * 2).rounded() / 2
 }
 
+func coinsText(_ n: Int) -> String { return n == 1 ? "1 coin" : "\(n) coins" }
 func dateText(_ d: Int) -> String {
     let wk = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][(START_WEEKDAY + d - 1) % 7]
     let months: [(String, Int)] = [("Dec", 31), ("Jan", 31), ("Feb", 28), ("Mar", 31), ("Apr", 30), ("May", 31), ("Jun", 30), ("Jul", 31), ("Aug", 31), ("Sep", 30), ("Oct", 31), ("Nov", 30)]
@@ -1116,7 +1117,7 @@ final class Game {
     private func orderAl(_ k: Int) {
         let cost = [10, 8, 5][k]
         if seen.contains(47 + k) { mapMsg = ["One pie is plenty for today", "You've had your greens", "One beer. You're driving"][k]; mapMsgT = 2.5; return }
-        if money < Double(cost) { mapMsg = "That's \(cost) coins"; mapMsgT = 2.5; return }
+        if money < Double(cost) { mapMsg = "That's " + coinsText(cost); mapMsgT = 2.5; return }
         seen.insert(47 + k)
         money -= Double(cost)
         events.append(6)
@@ -1184,7 +1185,8 @@ final class Game {
         stats[3] += Int(mi.rounded())
         let hiking = inPast || (!inRig && !onToy && (to == .trail || area == .trail))
         let veh = inRig ? 0 : (onToy ? 1 : (area == .skoolie ? 3 : 2))
-        let dirt = to == .trail || area == .trail
+        // a long haul from the trail reaches the pavement and is highway the rest of the way
+        let dirt = (to == .trail || area == .trail) && mi <= 4
         travel(to)
         if mi >= 1 && !hiking { startDrive(to, mi, veh, dirt) }
     }
@@ -1289,7 +1291,7 @@ final class Game {
         floaters = []
         arriveT = 4.5
         events.append(4)
-        if to == .main { hint("gwtap", "Tap the Gem World storefront to browse its flats and specimens.") }
+        if to == .main { hint("gwtap", "Gem World is the big tan warehouse up the street. Tap its storefront to browse the flats and specimens.") }
         if to == .skoolie && !on(EV_SKOOL) { hint("skoolnot", "Quiet out here. Skooliepalooza gathers on " + EVENTS[EV_SKOOL].when + ".") }
         if to == .tyson && tysonShow() == nil { hint("tysonnot", "The show grounds are empty today. Next: " + nextOf([EV_GEM, EV_SELL, EV_CRAFT]) + ".") }
     }
@@ -2475,6 +2477,7 @@ final class Game {
     func openBrowse() {
         let s: Int
         if area == .main { s = 1 } else if area == .tyson && tysonShow() == EV_GEM { s = 0 } else { return }
+        if hour() >= 19 || hour() < 8 { float("Closed for the night. Open 8 AM to 7 PM.", px, CREAM); return }
         refund()
         if waresDay == day { stock[shop] = (day, wares) }
         shop = s
@@ -2576,7 +2579,8 @@ final class Game {
         }
         health = max(0, health - dt * 100 / (DAYLEN * 2.2) * (weather == 1 ? 1.3 : 1))
         if health < 35 && inPast { hint("hungrypast", "You're run down, and there's no grocery for a thousand years. Open the map and return to 2026.") }
-        else if health < 35 { hint("hungry", "You're run down. Groceries on Main Street, the outhouse and your own camp all help.") }
+        else if health < 62 && !inPast { hint("wearing", "A day outdoors wears you down, cold wind faster. Eat, rest at camp or sit in the shade to bring the heart bar back up.") }
+        if health < 35 && !inPast { hint("hungry", "You're run down. Groceries on Main Street, the outhouse and your own camp all help.") }
 
         // moving: on foot, on a ride, or behind the wheel
         var s = abs(input.stick) < 0.15 ? 0 : input.stick
