@@ -324,7 +324,7 @@ final class Renderer {
             let all = bt.who == "all"
             let cur = all ? n : g.town % n
             let reach = all ? n : max(cur, g.front)
-            let xs = [24.0, 62, 100, 138, 176], ys = [60.0, 52, 63, 50, 58]
+            let xs = [24.0, 62, 100, 138, 176], ys = [58.0, 50, 61, 48, 56]
             let tint: [UInt32] = [0xeeb060, 0x7fa64c, 0x33683c, 0xcc6238, 0xf6f9ff]
             for i in 0..<5 { a.glow(xs[i], ys[i] + 2, 36, Col(tint[i], i == 4 ? 0.75 : 0.4), Col(tint[i], 0)) }
             let ink = Col(0x2a1c14)
@@ -335,7 +335,8 @@ final class Renderer {
             // what grows and stands in each country: cactus, meadow trees, pines, mesas, peaks
             for i in 0..<110 {
                 let k = i % 5, px = xs[k] + (hs(i + 3) - 0.5) * 46, py = ys[k] + (hs(i + 9) - 0.5) * 52
-                if (abs(py - ys[k]) < 15 && abs(px - xs[k]) < 25) || py < 31 || py > 77 || abs(px - (98 - (py - 20) * 0.5)) < 6 { continue }
+                // nothing drawn under a town or its name
+                if (0..<5).contains(where: { abs(py - 3 - ys[$0]) < 20 && abs(px - xs[$0]) < 31 }) || py < 31 || py > 75 || abs(px - (98 - (py - 20) * 0.5)) < 6 { continue }
                 switch k {
                 case 0:
                     a.seg(px, py, px, py - 5, 1, Col(0x55783c)); a.seg(px - 2, py - 2, px - 2, py - 4, 0.8, Col(0x55783c)); a.seg(px - 2, py - 2, px, py - 2, 0.8, Col(0x55783c))
