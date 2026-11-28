@@ -3049,10 +3049,12 @@ function drawStairs(world, s) {
     ctx.fillStyle = 'rgba(0,0,0,.22)'; ctx.beginPath(); ctx.ellipse(s.x + 4, ya - 1, 62, 4, 0, 0, TAU); ctx.fill(); for (let k = 0; k < 9; k++) { ctx.fillStyle = k % 2 ? '#5a4a3a' : '#3d3229'; ctx.fillRect(s.x - 50 + r() * 100, ya - 3 - r() * 2, 2 + r() * 4, 2); } }
   for (let i = 0; i < n; i++) { if (out && i >= g0 && i < g1) continue; const sx = x0 + i * tr, sy = ya - (i + 1) * rise, fresh = mended && i >= g0 && i < g1; ctx.fillStyle = fresh ? (i % 2 ? '#8a7352' : '#947c58') : i % 2 ? '#4a3b2e' : '#52412f'; ctx.fillRect(sx, sy, tr + 1, rise); ctx.fillStyle = fresh ? '#b89c70' : '#7a6248'; ctx.fillRect(sx - 1.5, sy, tr + 3, 2.6); ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(sx, sy + rise - 2.5, tr + 1, 2.5); if (fresh) { ctx.fillStyle = '#2a2420'; ctx.fillRect(sx + 2, sy + 4, 1.4, 1.4); ctx.fillRect(sx + tr - 3, sy + 4, 1.4, 1.4); } }   // new boards show pale against the old, nail heads in them
   if (mended) { const [ax, ay] = at(g0 - .5), [bx, by] = at(g1 + .5); ctx.strokeStyle = '#7a6444'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(ax + 8, ay + 12); ctx.lineTo(bx + 8, by + 12); ctx.stroke(); }   // a length of timber sistered along the break
+  ctx.save(); ctx.beginPath(); ctx.rect(x0 - 40, yb + 3, x1 - x0 + 90, ya - yb + 10); ctx.clip();
   ctx.strokeStyle = '#2b2622'; ctx.lineWidth = 3; const rail = (a, b) => { const [ax, ay] = at(a), [bx, by] = at(b); ctx.beginPath(); ctx.moveTo(ax + 4, ay - 44); ctx.lineTo(bx + 4, by - 44); ctx.stroke(); };
   if (!out) rail(0, n); else { rail(0, g0 - .6); rail(g1 + 1, n); const [hx, hy] = at(g0 - .6); ctx.beginPath(); ctx.moveTo(hx + 4, hy - 44); ctx.lineTo(hx + 22, hy - 20); ctx.stroke(); }   // the handrail snapped, one end hanging
   ctx.lineWidth = 2;
   for (let i = 0; i <= 6; i++) { const t = i / 6; if (out && t * n > g0 - .6 && t * n < g1 + 1) continue; const px = lerp(x0 + 4, x1 + 4, t), py = lerp(ya, yb, t); ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px, py - 44); ctx.stroke(); }
+  ctx.restore();
 }
 // sunlight (or the moon, or lightning) coming in at the windows: shafts across the room with the dust turning in them, swinging round as the day goes
 function shaftDx(hour, night) { return night ? 70 : lerp(135, -135, (clamp(hour, 6, 18) - 6) / 12); }
@@ -4402,7 +4404,7 @@ function startTravel(surv) {
   for (let x = 420, last = 300; x < ST_END - 200; x += 260 + r() * 420) {
     const k = kinds[Math.floor(r() * kinds.length)], half = k[1] / 2 + (k[2] ? RAMP : 0); if (x - half < last + 40) x = last + 40 + half; if (x > ST_END - 200) break;
     if (Object.values(TR.locX).some(lx => Math.abs(lx - x) < half + 130)) continue;
-    TR.obstacles.push({ x, w: k[1], h: k[2], t: k[0], dh: k[3] || k[2] }); last = x + half;
+    TR.obstacles.push({ x, w: k[1], h: 0, t: k[0], dh: k[3] || k[2] }); last = x + half;
   }
   TR.ew = engStreet(TR.obstacles, GROUND_Y, 0, ST_END + 400); p.mc = null; p.mcT = null;
   // zombies: denser further out
@@ -4719,10 +4721,10 @@ function drawObstacle(o, gy) {
     case 'car': { const sd = Math.round(o.x) | 0; drawCarAt(x, y, o.w / 186, sd, ['#5a4a44', '#4f5a66', '#6a5f4a', '#5a3f3a', '#4a5548'][sd % 5], !!o.fire || sd % 3 === 0); break; }
     case 'bus': drawBusAt(x, y, o.w, o.dh || 134, Math.round(o.x) | 0, !!o.fire); break;
     case 'rubble': { const r = mulberry(o.x); for (let i = 0; i < 14; i++) { const rx = x + (r() - .5) * 130, ry = y - r() * 36; const s = 10 + r() * 18; ctx.fillStyle = ['#5a5048', '#6a6058', '#4a4038'][Math.floor(r() * 3)]; ctx.save(); ctx.translate(rx, ry); ctx.rotate(r() * 3); ctx.fillRect(-s / 2, -s / 3, s, s * .66); ctx.restore(); } break; }
-    case 'barrier': { const { B, Ln, P, VG, rust } = PA, r = mulberry(Math.round(o.x)), hw = o.w / 2, h = o.h; ctx.save(); ctx.translate(x, y); ctx.fillStyle = VG(0, -h, 0, h, '#a3a199', '#6f6d66'); ctx.fillRect(-hw, -h, o.w, h); P([[-hw - 4, 0], [-hw, -14], [hw, -14], [hw + 4, 0]], '#77756e'); B(-hw, -h, o.w, 2, 'rgba(255,255,255,.2)'); B(-hw, -15, o.w, 1.6, 'rgba(0,0,0,.25)');
+    case 'barrier': { const { B, Ln, P, VG, rust } = PA, r = mulberry(Math.round(o.x)), hw = o.w / 2, h = o.dh || o.h; ctx.save(); ctx.translate(x, y); ctx.fillStyle = VG(0, -h, 0, h, '#a3a199', '#6f6d66'); ctx.fillRect(-hw, -h, o.w, h); P([[-hw - 4, 0], [-hw, -14], [hw, -14], [hw + 4, 0]], '#77756e'); B(-hw, -h, o.w, 2, 'rgba(255,255,255,.2)'); B(-hw, -15, o.w, 1.6, 'rgba(0,0,0,.25)');
       ctx.save(); ctx.beginPath(); ctx.rect(-hw, -h + 8, o.w, 12); ctx.clip(); for (let sx = -hw - 12; sx < hw + 12; sx += 14) P([[sx, -h + 20], [sx + 7, -h + 20], [sx + 15, -h + 8], [sx + 8, -h + 8]], '#b0402f'); ctx.restore(); ctx.fillStyle = 'rgba(0,0,0,.12)'; ctx.fillRect(-hw, -h + 8, o.w, 12);
       Ln([[-hw * .3, -h], [-hw * .2, -h * .6], [-hw * .4, -h * .3]], 'rgba(40,38,34,.6)', 1); P([[hw - 9, -h], [hw, -h], [hw, -h + 10]], '#5d5b55'); for (const lx of [-hw * .5, hw * .5]) { ctx.strokeStyle = '#4a4c49'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(lx, -h, 4, Math.PI, 0); ctx.stroke(); } rust(r, -hw, -h + 22, o.w, h - 30, 4, .3); ctx.restore(); break; }   // concrete, hazard stripes, a chipped corner, lifting eyes
-    case 'crates': { const { B, E, wood, SH } = PA, r = mulberry(Math.round(o.x)), h = o.h, cw = o.w / 2 - 1; ctx.save(); ctx.translate(x, y); for (const [cx0, c] of [[-o.w / 2, '#86683f'], [1, '#7a5f3a']]) { wood(cx0, -h, cw, h, c, r); for (let sy = -h + h / 4; sy < -1; sy += h / 4) B(cx0, sy, cw, 1.2, SH); wood(cx0, -h, 4.4, h, shade(c, .8), r, 1); wood(cx0 + cw - 4.4, -h, 4.4, h, shade(c, .8), r, 1); for (const [nx, ny] of [[cx0 + 2.2, -h + 3], [cx0 + cw - 2.2, -h + 3], [cx0 + 2.2, -3], [cx0 + cw - 2.2, -3]]) E(nx, ny, .8, .8, '#2a2622'); ctx.strokeStyle = 'rgba(30,24,16,.5)'; ctx.lineWidth = 1.4; ctx.strokeRect(cx0 + 9, -h + 9, cw - 18, 10); } ctx.restore(); break; }
+    case 'crates': { const { B, E, wood, SH } = PA, r = mulberry(Math.round(o.x)), h = o.dh || o.h, cw = o.w / 2 - 1; ctx.save(); ctx.translate(x, y); for (const [cx0, c] of [[-o.w / 2, '#86683f'], [1, '#7a5f3a']]) { wood(cx0, -h, cw, h, c, r); for (let sy = -h + h / 4; sy < -1; sy += h / 4) B(cx0, sy, cw, 1.2, SH); wood(cx0, -h, 4.4, h, shade(c, .8), r, 1); wood(cx0 + cw - 4.4, -h, 4.4, h, shade(c, .8), r, 1); for (const [nx, ny] of [[cx0 + 2.2, -h + 3], [cx0 + cw - 2.2, -h + 3], [cx0 + 2.2, -3], [cx0 + cw - 2.2, -3]]) E(nx, ny, .8, .8, '#2a2622'); ctx.strokeStyle = 'rgba(30,24,16,.5)'; ctx.lineWidth = 1.4; ctx.strokeRect(cx0 + 9, -h + 9, cw - 18, 10); } ctx.restore(); break; }
   }
 }
 function drawTravelHud(dt) {
@@ -4738,7 +4740,7 @@ function drawTravelHud(dt) {
       if (o) { const side = TR.x < o.x ? -1 : 1, hx = o.x + side * (o.w / 2 + (o.h ? RAMP : 0) + 12); if (heightAt(hx) < 3) { const sx = w2sx(hx), sy = w2sy(GROUND_Y - 96); spotBubble(sx, sy, 'hideSpot', { size: 38, color: '#7cc4bc' }); UI.btn(sx - 22, sy - 22, 44, 44, () => { TR.tx = hx; TR.run = false; TR.fight = false; TR.hideAt = { x: hx, o }; AUDIO.sfx('tap'); }); } } }
     if (GUNS[trWeapon()] && !UI.modal) lockMarks(TR.zombies.filter(z => z.alive && Math.abs(z.x - TR.x) < 1100).map(z => [z, w2sx(z.x), w2sy(GROUND_Y - (z.py || 0) - 32), 48 * cam.z * .5 + 10]), TR.lock, z => { TR.lock = z; });
     for (const z of TR.zombies) if (z.alive && z.state === 'chase') { const sx = w2sx(z.x), sy = w2sy(GROUND_Y - 100); if (sx > -30 && sx < W + 30) drawIcon('alert', sx, sy, 22, RED); }
-    for (const d of TR.drifters) if (!d.fed && Math.abs(d.x - TR.x) < 70 && packCount(TR.pack, 'canned') > 0) { const sx = w2sx(d.x), sy = w2sy(GROUND_Y - 120); spotBubble(sx, sy, 'canned', { size: 40, badgeIcon: 'heart' }); UI.btn(sx - 24, sy - 24, 48, 48, () => { packRemove(TR.pack, 'canned', 1); d.fed = true; d.say = 'heart'; d.sayT = 4; p.morale = clamp(p.morale + 12, 0, 100); trMsg('heart'); AUDIO.sfx('done'); }); break; }
+    for (const d of TR.drifters) if (!d.fed && Math.abs(d.x - TR.x) < 70 && packCount(TR.pack, 'canned') > 0) { const sx = w2sx(d.x), sy = w2sy(GROUND_Y - 120); spotBubble(sx, sy, 'canned', { size: 40, badgeIcon: 'heart', hl: true }); txt('GIVE A TIN', sx, sy - 30, 12, GOLD); UI.btn(sx - 24, sy - 24, 48, 48, () => { packRemove(TR.pack, 'canned', 1); d.fed = true; d.say = 'heart'; d.sayT = 4; p.morale = clamp(p.morale + 12, 0, 100); trMsg('heart'); AUDIO.sfx('done'); }); break; }
   }
   drawAim(TR.aim, TR.tracer); if (PREVIEW) drawPreviewBar();
   const cx = W / 2; ctx.fillStyle = 'rgba(14,15,18,.75)'; rr(cx - 170, 8, 340, 62, 10); ctx.fill(); drawNightClock(cx - 60, 33);
