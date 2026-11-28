@@ -227,7 +227,7 @@ function drawBanner(){const b=BN[0];if(!b)return;const u=b.t/b.dur,sc=u<.2?EZ.el
 /* ---------- runtime state ---------- */
 const A=Array.from({length:NC},(_,k)=>({pop:-.25-(k%COLS+((k/COLS)|0))*.07,sq:0,sh:0,fly:0,hint:0}));
 const CA=[0,1,2].map(i=>({x:0,state:'wait',t:rnd(3),ph:rnd(6),hop:0,leaving:null,lx:0}));
-const R={drag:null,sel:-1,sugar:0,toast:null,idle:0,hint:null,modal:false,hudP:{},pet:{x:.93,dir:-1,t:0,hop:0,pause:2},ufo:null,truckB:0,tutT:0};
+const R={morph:[],flash:0,install:null,drag:null,sel:-1,sugar:0,toast:null,idle:0,hint:null,modal:false,hudP:{},pet:{x:.93,dir:-1,t:0,hop:0,pause:2},ufo:null,truckB:0,tutT:0};
 function toast(s,d){R.toast={s,t:0,d:d||1.8};}
 function empties(){const e=[];for(let k=0;k<NC;k++)if(!S.board[k])e.push(k);return e;}
 function nearestEmpty(k){const x=k%COLS,y=(k/COLS)|0;let b=-1,bd=1e9;for(let i=0;i<NC;i++)if(!S.board[i]){const d=Math.hypot(i%COLS-x,((i/COLS)|0)-y)+Math.random()*.4;if(d<bd){bd=d;b=i;}}return b;}
@@ -268,7 +268,7 @@ function mergeFx(k,c,l,lucky){const p=cellC(k);A[k].pop=0;part('ring',p.x,p.y,{l
   burst('spark',p.x,p.y,lucky?22:10+l*2,{v:160+l*30,g:120,life:.7,s0:4,s:9,cols:lucky?CONF:['#ffe98a','#fff',CH[c].col]});if(l>=3)burst('star',p.x,p.y,l,{v:200,up:80,g:300,life:.9,s0:4,s:7});
   if(l===MAXL){confetti(p.x,p.y,60);R.shake=.3;}}
 function doMerge(k1,k2){const a=S.board[k1],b=S.board[k2];let l=b.l+1,lucky=false;if(l<MAXL&&Math.random()<.08){l++;lucky=true;}
-  S.board[k1]=null;S.board[k2]={t:'item',c:b.c,l};mergeFx(k2,b.c,l,lucky);const p=cellC(k2);
+  S.board[k1]=null;S.board[k2]={t:'item',c:b.c,l};startMorph(k2,b.c,b.l,l,lucky);const p=cellC(k2);
   if(lucky){SFX.frenzy();float('LUCKY MERGE!',p.x,p.y-L.cell*.5,'#ff9ec7',1.15);S.luckyN++;qProg('lucky');}else SFX.combo(l*2);
   float('+'+(1+l)+' xp',p.x,p.y-L.cell*.2,'#fff',.7);S.merges++;S.fever=Math.min(FEVER,S.fever+1);qProg('merge');if(l>=3)qProg('big');discover(b.c,l);addXp(1+l);
   if(S.tut===1)S.tut=2;if(S.fever>=FEVER&&R.sugar<=0)startSugar();R.idle=0;checkTro();save();}
@@ -278,6 +278,11 @@ function openBox(k){const bxo=S.board[k],a=A[k];a.sq=1;const t=nearestEmpty(k);i
   S.board[t]=it;A[t].fly=1;SFX.gift();confetti(p.x,p.y,18);fly({k:key,x0:p.x,y0:p.y,x1:q.x,y1:q.y,s:L.cell*.86,dur:.4,arc:.6,cb:()=>{A[t].fly=0;A[t].sq=1;SFX.pop();}});
   bxo.n--;if(bxo.n<=0){S.board[k]=null;burst('spark',p.x,p.y,12,{v:180,g:100,life:.6,cols:CONF});}save();}
 function sell(k){const it=S.board[k];if(!it||it.t!=='item')return;const v=it.l+1,p=cellC(k);S.board[k]=null;addCoins(v,p.x,p.y);SFX.coin(1);burst('dot',p.x,p.y,8,{v:120,g:0,life:.4,col:'#fff'});R.sel=-1;updChip();save();}
+function startMorph(k,c,l0,l1,lucky){A[k].fly=1;R.morph.push({k,c,l0,l1,lucky,t:0});tone(500,.25,'sine',.08,0,2.2);}
+function morphDone(m){A[m.k].fly=0;const it=S.board[m.k];if(!it||it.t!=='item')return;mergeFx(m.k,m.c,m.l1,m.lucky);const p=cellC(m.k);
+  if(m.l1===4){for(let i=0;i<10;i++){const a=i*TAU/10;part('heart',p.x,p.y,{vx:Math.cos(a)*170,vy:Math.sin(a)*170,g:0,drag:.93,life:.9,s:7});}SFX.star(1);}
+  if(m.l1===MAXL){R.flash=1;SFX.win();for(let i=0;i<3;i++)part('ring',p.x,p.y,{life:.5+i*.2,s:L.cell*(.2+i*.12),col:CONF[i*2]});banner(nameOf(m.c,m.l1).toUpperCase()+'!','#ffb000',1.6,'The best treat there is');}
+  for(let i=0;i<3;i++){const c=S.cust[i];if(c&&CA[i].state==='wait'&&c.want.some(w=>w.c===m.c&&w.l===m.l1)){CA[i].hop=1;CA[i].emo=1.3;SFX.yum();}}}
 function startSugar(){S.fever=0;R.sugar=10;banner('SUGAR RUSH!','#ff5fa2',1.5,'Free cooking and double coins for 10 seconds');SFX.frenzy();confetti(W/2,H*.4,90);MUS.mode='frenzy';}
 /* ---------- quests / trophies ---------- */
 function questDay(){const d=today();if(S.q&&S.q.day===d&&Array.isArray(S.q.list)&&S.q.list.every(x=>QPOOL.some(p=>p.id===x.id)))return S.q;
@@ -317,6 +322,13 @@ function update(dt){
   if(R.sugar>0){R.sugar-=dt;if(Math.random()<dt*14)part('conf',L.x0+rnd(L.gw),L.hud,{vy:rnd(120,260),vx:rnd(-30,30),g:60,life:2.2,s:rnd(6,11),vr:rnd(-6,6),col:pick(CONF)});if(R.sugar<=0){MUS.mode='home';toast('Sugar Rush over — nice!');}}
   if(S.fever>=FEVER&&R.sugar<=0&&S.tut>=5)startSugar();
   R.idle+=dt;if(R.idle>6&&!R.drag&&S.tut>=5){if(!R.hint||R.idle>10){R.hint=findPair();R.idle=6.01;}}else R.hint=null;
+  R.flash=Math.max(0,R.flash-dt*2.2);for(let i=R.morph.length-1;i>=0;i--){const m=R.morph[i];m.t+=dt;if(m.t>=.42){R.morph.splice(i,1);morphDone(m);}}
+  for(const a of CA)a.emo=Math.max(0,(a.emo||0)-dt);
+  if(R.install){const I=R.install,b=I.t;I.t+=dt;const c={x:L.truckX,y:L.ground-L.truckW*.28};
+    if(I.t<1.1){if(Math.random()<dt*30)part('steam',c.x+rnd(-.45,.45)*L.truckW,c.y+rnd(-.25,.25)*L.truckW,{vx:rnd(-40,40),vy:rnd(-40,10),life:rnd(.5,.9),s:rnd(9,18),col:'#fff'});
+      if(Math.floor(I.t/.22)!==Math.floor(b/.22)){tone(900+rnd(300),.05,'square',.09);noise(.06,.1,0,2500);burst('spark',c.x+rnd(-.4,.4)*L.truckW,c.y+rnd(-.2,.2)*L.truckW,5,{v:150,g:200,life:.4,cols:['#ffe98a','#fff']});}}
+    if(b<1.1&&I.t>=1.1){SFX.win();confetti(c.x,c.y,80);banner(I.n.toUpperCase()+'!','#33c47a',1.6,'Truck upgraded — coins +5%');}
+    if(I.t>2)R.install=null;}
   if(R.toast){R.toast.t+=dt;if(R.toast.t>R.toast.d)R.toast=null;}
   for(let i=0;i<3;i++){const a=CA[i],tx=L.slotX[i];a.t+=dt;a.ph+=dt;a.hop=Math.max(0,a.hop-dt*2.5);
     if(a.state==='wait'||a.state==='eat'){a.x=a.x?lerp(a.x,tx,1-Math.pow(.001,dt)):tx;}
@@ -347,7 +359,7 @@ function drawScene(){
   else{ctx.fillStyle='#fff';for(let i=0;i<16;i++){const tw=.5+.5*Math.sin(T*3+i*1.7);ctx.globalAlpha=.25+.6*tw;star4(x0+gw*((i*.173+.05)%1),sy+sh*(.03+((i*.31)%1)*.25),gw*.007*(1+tw*.5),0);}ctx.globalAlpha=1;
     const u=(T*.18)%1;if(u<.12){const q=u/.12;ctx.strokeStyle='rgba(255,255,255,'+(1-q)+')';ctx.lineWidth=gw*.004;ctx.beginPath();ctx.moveTo(x0+gw*(.9-q*.5),sy+sh*(.05+q*.2));ctx.lineTo(x0+gw*(.98-q*.5),sy+sh*(.01+q*.2));ctx.stroke();}}
   /* truck */
-  const tk=ART[truckKey()];if(tk&&tk.width){const tw=L.truckW,th=tw*tk.height/tk.width,by=ground-gw*.01,bob=Math.sin(T*10)*gw*.0018,sq=1+.008*Math.sin(T*2.2);
+  const I_=R.install,tk=ART[I_&&I_.t<1.1?I_.from:truckKey()];if(tk&&tk.width){const tw=L.truckW,th=tw*tk.height/tk.width,by=ground-gw*.01,bob=Math.sin(T*10)*gw*.0018+(I_&&I_.t<1.1?Math.sin(T*45)*gw*.004:0),sq=(1+.008*Math.sin(T*2.2))*(I_&&I_.t>=1.1?.7+.3*EZ.elastic(Math.min(1,(I_.t-1.1)/.7)):1);
     ctx.fillStyle='rgba(60,30,50,.25)';ctx.beginPath();ctx.ellipse(L.truckX,by,tw*.46,gw*.02,0,0,TAU);ctx.fill();
     ctx.save();ctx.translate(L.truckX,by+bob);ctx.scale(1,sq);ctx.drawImage(tk,-tw/2,-th,tw,th);
     if(S.up>=4){const n=9;ctx.strokeStyle='rgba(107,66,87,.7)';ctx.lineWidth=gw*.003;ctx.beginPath();ctx.moveTo(-tw*.4,-th*.78);ctx.quadraticCurveTo(0,-th*.66,tw*.36,-th*.78);ctx.stroke();
@@ -369,8 +381,12 @@ function drawScene(){
     if(a.state==='in'){if(R.ufo&&R.ufo.i===i){const u=clamp(R.ufo.t/1.5,0,1);o.lift=(1-EZ.out(u))*(sh*.6/cs);o.rot=Math.sin(T*6)*.15;ctx.globalAlpha=Math.min(1,u*3);}else{o.lift=Math.abs(Math.sin(a.t*10))*.08;o.rot=-.07+Math.sin(a.t*10)*.05;}}
     else if(a.state==='eat'){o.sy=1+.07*Math.sin(a.t*30);o.sx=1-.05*Math.sin(a.t*30);}
     else{if(rdy)o.lift=Math.abs(Math.sin(T*5+i))*.1;if(a.hop>0){o.lift=(o.lift||0)+Math.sin(a.hop*Math.PI)*.16;}
-      const d=R.drag;if(d&&d.moved){const it=S.board[d.k];if(it&&it.t==='item'&&c.want.some(w=>w.c===it.c&&w.l===it.l)){o.rot=clamp((d.x-a.x)/gw,-1,1)*.16;o.sy=1.05;}}}
+      const d=R.drag;if(d&&d.moved){const it=S.board[d.k];if(it&&it.t==='item'&&c.want.some(w=>w.c===it.c&&w.l===it.l)){o.rot=clamp((d.x-a.x)/gw,-1,1)*.16;o.sy=1.05;o.lift=(o.lift||0)+Math.abs(Math.sin(T*9))*.06;}else o.rot=(o.rot||0)+clamp((d.x-a.x)/gw,-1,1)*.06;}
+      else if(R.morph.length){const mp=cellC(R.morph[0].k);o.rot=(o.rot||0)+clamp((mp.x-a.x)/gw,-1,1)*.08;}}
     drawAnimal(c.a,a.x,cs*(c.vip?1.08:1),o);ctx.globalAlpha=1;
+    if(a.emo>0){const u=1-a.emo/1.3,ey=ground-cs*1.02-Math.sin(Math.min(1,u*3)*Math.PI/2)*cs*.12,sc=EZ.back(Math.min(1,u*4))*(a.emo<.25?a.emo*4:1);ctx.save();ctx.translate(a.x+cs*.3,ey);ctx.scale(sc,sc);ctx.rotate(.15);
+      ctx.fillStyle='#ffd23f';ctx.strokeStyle=OL;ctx.lineWidth=cs*.025;ctx.beginPath();ctx.arc(0,0,cs*.13,0,TAU);ctx.fill();ctx.stroke();txt('!',0,cs*.012,cs*.2,OL);ctx.restore();
+      ctx.fillStyle='#fff';star4(a.x-cs*.2,ground-cs*.62,cs*.07*(1+.4*Math.sin(T*14)),T*3);star4(a.x+cs*.12,ground-cs*.66,cs*.07*(1+.4*Math.cos(T*14)),-T*3);}
     if(c.vip&&a.state==='wait'){ctx.fillStyle='#fff';star4(a.x+cs*.34,ground-cs*.8+Math.sin(T*5)*4,cs*.07*(1+.4*Math.sin(T*7)),T*2);star4(a.x-cs*.36,ground-cs*.5,cs*.05*(1+.4*Math.cos(T*6)),-T*2);}}
   /* pet */
   if(S.tut>=5){const p=R.pet,px=x0+gw*p.x,ps=gw*.095,walking=p.pause<=0;ctx.save();ctx.translate(px,0);ctx.scale(p.dir<0?1:-1,1);ctx.translate(-px,0);
@@ -424,6 +440,11 @@ function drawBoard(){const {bx,by,bw,bh,cell,gw}=L,m=gw*.018;
     const it=S.board[k];if(d&&dit&&it&&k!==d.k&&((dit.t==='item'&&it.t==='item'&&it.c===dit.c&&it.l===dit.l&&it.l<MAXL)||(dit.t==='star'&&it.t==='item'&&it.l<MAXL))){ctx.strokeStyle=`hsla(${45+10*Math.sin(T*8)},100%,60%,${.7+.3*Math.sin(T*8)})`;ctx.lineWidth=cell*.07;rr(r.x+g_,r.y+g_,cell-2*g_,cell-2*g_,cell*.2);ctx.stroke();}
     if(k===R.sel){ctx.strokeStyle='#ff5fa2';ctx.lineWidth=cell*.06;ctx.setLineDash([cell*.14,cell*.09]);ctx.lineDashOffset=-T*30;rr(r.x+g_,r.y+g_,cell-2*g_,cell-2*g_,cell*.2);ctx.stroke();ctx.setLineDash([]);}}
   for(let k=0;k<NC;k++){if(!S.board[k]||A[k].fly||(d&&k===d.k))continue;const c=cellC(k);drawItem(k,c.x,c.y);}
+  for(const m of R.morph){const p=cellC(m.k),u=m.t/.42,e=EZ.io(u),rad=cell*.34*(1-e),ang=u*u*TAU*2.2,s=cell*.8*(1-.35*e);
+    ctx.globalAlpha=.35*(1-u);ctx.fillStyle=CH[m.c].col;ctx.beginPath();ctx.arc(p.x,p.y,cell*.5,0,TAU);ctx.fill();ctx.globalAlpha=1;
+    for(let j=0;j<2;j++){const a=ang+j*Math.PI;spr(m.c+m.l0,p.x+Math.cos(a)*rad,p.y+Math.sin(a)*rad,s,ang*.8);for(let q=1;q<4;q++){const a2=a-q*.35;ctx.globalAlpha=.3-q*.07;ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(p.x+Math.cos(a2)*rad,p.y+Math.sin(a2)*rad,cell*.1,0,TAU);ctx.fill();}ctx.globalAlpha=1;}
+    if(u>.6){const q=(u-.6)/.4;ctx.globalAlpha=q;ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(p.x,p.y,cell*(.15+.4*q),0,TAU);ctx.fill();ctx.globalAlpha=1;
+      if(m.l1===MAXL){ctx.save();ctx.translate(p.x,p.y);ctx.rotate(T*3);ctx.fillStyle='rgba(255,236,140,'+q*.8+')';for(let i=0;i<12;i++){ctx.rotate(TAU/12);ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(-cell*.1,cell*1.6*q);ctx.lineTo(cell*.1,cell*1.6*q);ctx.fill();}ctx.restore();}}}
   if(R.hint&&!d){const a=cellC(R.hint[0]),b=cellC(R.hint[1]);for(let i=0;i<6;i++){const u=((T*.8+i/6)%1),x=lerp(a.x,b.x,u),y=lerp(a.y,b.y,u)-Math.sin(u*Math.PI)*cell*.5;ctx.globalAlpha=Math.sin(u*Math.PI);ctx.fillStyle='#fff';star4(x,y,cell*.07,T*3);}ctx.globalAlpha=1;}}
 function drawDrag(){const d=R.drag;if(!d||!d.moved||!S.board[d.k])return;const cs=L.cell,y=d.y-cs*.35;ctx.fillStyle='rgba(60,30,50,.22)';ctx.beginPath();ctx.ellipse(d.x,d.y+cs*.2,cs*.32,cs*.1,0,0,TAU);ctx.fill();
   drawItem(d.k,d.x,y,{drag:1,sc:1.22,rot:clamp(d.vx*.03,-.4,.4)});d.vx*=.85;}
@@ -453,6 +474,7 @@ function render(){
   R.have=[0,1,2].map(i=>{const c=S.cust[i];if(!c)return[];const used=new Set();return c.want.map(w=>{for(let k=0;k<NC;k++){const it=S.board[k];if(it&&it.t==='item'&&it.c===w.c&&it.l===w.l&&!used.has(k)&&!A[k].fly){used.add(k);return true;}}return false;});});
   ctx.save();if(R.shake>0)ctx.translate(rnd(-1,1)*R.shake*12,rnd(-1,1)*R.shake*12);
   drawScene();drawBoard();drawFX();drawDrag();ctx.restore();
+  if(R.flash>0){ctx.fillStyle='rgba(255,255,255,'+R.flash*.7+')';ctx.fillRect(0,0,W,H);}
   if(R.sugar>0){ctx.save();ctx.globalAlpha=.5+.25*Math.sin(T*10);ctx.lineWidth=L.gw*.025;const gr=ctx.createLinearGradient(L.x0,0,L.x0+L.gw,0);for(let i=0;i<=6;i++)gr.addColorStop(i/6,`hsl(${(i*60+T*200)%360},100%,65%)`);ctx.strokeStyle=gr;ctx.strokeRect(L.x0+L.gw*.012,L.hud+L.gw*.012,L.gw*.976,H-L.hud-L.gw*.024);ctx.restore();}
   drawHUD();drawTut();drawToast();drawBanner();}
 
@@ -472,8 +494,8 @@ function updChip(){const k=R.sel,it=k>=0?S.board[k]:null;if(!it||it.t!=='item'){
   chip.innerHTML=`${img(it.c+it.l)}<span><b>${nameOf(it.c,it.l)}</b><small>${CH[it.c].n} · level ${it.l+1}${it.l===MAXL?' · MAX':''}</small></span><button id="bSell">Sell +${it.l+1} ${img('coin')}</button>`;chip.className='on';$('bSell').onclick=()=>{audio();sell(k);};}
 function openUp(){const nx=UPS[S.up];let h=`<h2>Truck Upgrades</h2><div class="truck">${img(truckKey(),'tk')}</div><p class="sub">Each upgrade adds +5% coins on every order (now +${S.up*5}%)</p>`;
   UPS.forEach((u,i)=>{const got=i<S.up,cur=i===S.up;h+=`<div class="item ${got?'got':''} ${cur?'cur':''}"><i class="em">${u.e}</i><div class="inf"><b>${u.n}</b><small>${u.d}</small></div>${got?'<span class="max">✓</span>':cur?`<button class="buy ${S.coins>=u.cost?'':'no'}" id="bUp">${img('coin')}${u.cost}</button>`:`<span class="lock">${img('coin')}${u.cost}</span>`}</div>`;});
-  openSheet(h);const b=$('bUp');if(b)b.onclick=()=>{if(S.coins<nx.cost){SFX.no();b.classList.remove('shake');void b.offsetWidth;b.classList.add('shake');return;}S.coins-=nx.cost;S.up++;SFX.buy();party(40);confetti(L.truckX,L.ground-L.truckW*.3,60);
-    if(S.up===3){if(placeGrill())toast('The Grill is here — savory food unlocked!',2.6);else{S.grillPending=1;toast('Grill arrives when a space is free');}}checkTro();save();openUp();};}
+  openSheet(h);const b=$('bUp');if(b)b.onclick=()=>{if(S.coins<nx.cost){SFX.no();b.classList.remove('shake');void b.offsetWidth;b.classList.add('shake');return;}const from_=truckKey();S.coins-=nx.cost;S.up++;R.install={t:0,n:nx.n,from:from_};SFX.buy();party(40);confetti(L.truckX,L.ground-L.truckW*.3,60);
+    if(S.up===3){if(placeGrill())toast('The Grill is here — savory food unlocked!',2.6);else{S.grillPending=1;toast('Grill arrives when a space is free');}}checkTro();save();closeSheet();};}
 function openBook(){S.newBook=0;let h=`<h2>Recipe Book</h2><p class="sub">${Object.keys(S.disc).length} of 18 discovered</p>`;
   for(const c of ['sweet','drink','savory']){const lock=c==='savory'&&S.up<3;h+=`<h3 style="color:${CH[c].col}">${CH[c].n}${lock?' · buy the Grill Station':''}</h3><div class="book">`;
     for(let l=0;l<=MAXL;l++){const d=S.disc[c+l];h+=`<div class="rc ${d?'':'un'}">${img(c+l,'ri')}<small>${d?nameOf(c,l):'???'}</small><i>${l+1}</i></div>`;}h+='</div>';}
