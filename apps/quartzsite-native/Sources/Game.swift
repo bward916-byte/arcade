@@ -87,14 +87,15 @@ let EVENTS: [EventDef] = [
     EventDef(name: "Prospectors Panorama", when: "Jan 1 – Feb 28", start: 5, end: 63, area: .tyson),
     EventDef(name: "Hi Jolly Parade", when: "Sat Jan 9", start: 13, end: 13, area: .main),
     EventDef(name: "Quartzfest", when: "Jan 17–23", start: 21, end: 27, area: .roadrunner),
-    EventDef(name: "Buck Connors Western Days", when: "Mar 19–20", start: 82, end: 83, area: .main)
+    EventDef(name: "Buck Connors Western Days", when: "Mar 19–20", start: 82, end: 83, area: .main),
+    EventDef(name: "Camelpalooza", when: "Jan 9–14", start: 13, end: 18, area: .main)
 ]
-let EV_GEM = 0, EV_RTR = 1, EV_RV = 2, EV_SELL = 3, EV_SKOOL = 4, EV_CRAFT = 5, EV_PAN = 6, EV_PARADE = 7, EV_QFEST = 8, EV_WESTERN = 9
+let EV_GEM = 0, EV_RTR = 1, EV_RV = 2, EV_SELL = 3, EV_SKOOL = 4, EV_CRAFT = 5, EV_PAN = 6, EV_PARADE = 7, EV_QFEST = 8, EV_WESTERN = 9, EV_CAMEL = 10
 /// April 15: the end of the LTVA season. Snowbirds head north the next morning.
 let SEASON_END = 109
 let START_WEEKDAY = 1   // Monday
 
-enum SpotKind { case pool, solar, beerbelly, carls, terribles, camp, bench, fire, wash, host, station, outhouse, board, grocery, gemworld, landmark, park, hall, yacht, lot, rides, tools, panorama, vendors, office, booth, bigtent, mine, detect, rockhound, river, skoolie, circle, cabin, parade, rvpark, house, computer, radio, cleanup, camel, dogpark, stray, pizza, post, laundry, shop, tour, hike, bar, watch, village, labyrinth, magic }
+enum SpotKind { case camelkiss, pool, solar, beerbelly, carls, terribles, camp, bench, fire, wash, host, station, outhouse, board, grocery, gemworld, landmark, park, hall, yacht, lot, rides, tools, panorama, vendors, office, booth, bigtent, mine, detect, rockhound, river, skoolie, circle, cabin, parade, rvpark, house, computer, radio, cleanup, camel, dogpark, stray, pizza, post, laundry, shop, tour, hike, bar, watch, village, labyrinth, magic }
 struct Spot {
     let kind: SpotKind
     let x: Double
@@ -125,7 +126,7 @@ let AREAS: [AreaDef] = [
         Spot(kind: .fire, x: 1710, name: "NEIGHBORS' FIRE"),
         Spot(kind: .wash, x: 2150, name: "DRY WASH")
     ]),
-    AreaDef(name: "Main Street", sub: "Quartzsite, in season · west to east along Main", w: 5420, arrive: 180, lat: 33.667, lon: -114.214, spots: [
+    AreaDef(name: "Main Street", sub: "Quartzsite, in season · west to east along Main", w: 5640, arrive: 180, lat: 33.667, lon: -114.214, spots: [
         Spot(kind: .gemworld, x: 550, name: "GEM WORLD"),
         Spot(kind: .landmark, x: 760, name: "HI JOLLY MONUMENT", arg: 0),
         Spot(kind: .lot, x: 880, name: "USED RIGS"),
@@ -157,7 +158,8 @@ let AREAS: [AreaDef] = [
         Spot(kind: .camel, x: 5040, name: "CAMEL SCULPTURE", arg: 3),
         Spot(kind: .terribles, x: 150, name: "TERRIBLE'S"),
         Spot(kind: .carls, x: 345, name: "CARL'S JR."),
-        Spot(kind: .solar, x: 5250, name: "SOLAR BILL'S")
+        Spot(kind: .solar, x: 5250, name: "SOLAR BILL'S"),
+        Spot(kind: .camelkiss, x: 5480, name: "CAMELPALOOZA")
     ]),
     AreaDef(name: "Tyson Wells", sub: "The show grounds on Kuehn Street", w: 3340, arrive: 160, lat: 33.6625, lon: -114.2215, spots: [
         Spot(kind: .tools, x: 380, name: "K&B TOOLS"),
@@ -669,6 +671,7 @@ final class Game {
     var genOn = false, genMadDay = -1
     // living in a rig: the tanks fill up and the propane runs down
     var tanks = 100.0, propane = 100.0
+    var kissT = 0.0
     var popFreeze = false
     var zooShow = false
     var clockFreeze = false               // screenshots only
@@ -1471,6 +1474,7 @@ final class Game {
         if key == "deep" { place(.ltva, 1250); era = 3; dayT = 0.4; clockFreeze = true }
         if key == "deeprhino" { place(.palms, 1100); era = 3; dayT = 0.5; clockFreeze = true }
         if key == "deep2" { place(.main, 1380); era = 3; dayT = 0.5; clockFreeze = true }
+        if key == "camelkiss" { day = 14; place(.main, 5470); dayT = 0.4; clockFreeze = true; kissT = 99 }
         if key == "kb" { place(.tyson, 400); dayT = 0.4; clockFreeze = true }
         if key == "als" { place(.main, 1520); dayT = 0.5; clockFreeze = true; alsOpen = true }
         if key == "past" { place(.ltva, 1500); era = 1; dayT = 0.3; clockFreeze = true }
@@ -1718,6 +1722,8 @@ final class Game {
             return on(EV_SKOOL) && !seen.contains(13) ? Offer(label: "Potluck at the circle", cost: 0, earn: 0, dur: 2) : nil
         case .cabin:
             return health > 15 ? Offer(label: "Search the old cabin", cost: 0, earn: 0, dur: 2.2) : nil
+        case .camelkiss:
+            return on(EV_CAMEL) && !seen.contains(50) ? Offer(label: "Kiss the camel for a photo", cost: 3, earn: 0, dur: 2.2) : nil
         case .parade:
             return on(EV_PARADE) && !seen.contains(15) ? Offer(label: "Watch the Hi Jolly Parade", cost: 0, earn: 0, dur: 2) : nil
         case .rvpark:
@@ -1816,6 +1822,7 @@ final class Game {
         case .skoolie: return on(EV_SKOOL) ? "Pack is full" : "Skooliepalooza: " + EVENTS[EV_SKOOL].when + " (projected)"
         case .circle: return on(EV_SKOOL) ? "See you tomorrow" : "Skooliepalooza: " + EVENTS[EV_SKOOL].when + " (projected)"
         case .cabin: return "Too worn out. Rest first"
+        case .camelkiss: return on(EV_CAMEL) ? "One kiss a day. She has standards" : "Camelpalooza: " + EVENTS[EV_CAMEL].when
         case .parade: return on(EV_PARADE) ? "What a parade" : "Hi Jolly Parade: " + EVENTS[EV_PARADE].when
         case .rvpark: return "Your site. You feel fine"
         case .house: return "Home. You feel fine"
@@ -2019,6 +2026,12 @@ final class Game {
         case .solar:
             panels += 1
             float("Solar on the roof", x, CREAM)
+        case .camelkiss:
+            seen.insert(50)
+            cred += 1
+            kissT = 3
+            if !shown.contains("camelkiss") { shown.insert("camelkiss"); cred += 2; post("kissing a camel at Camelpalooza", 40) }
+            float("Smooch! That photo is going on the fridge", x, GOLD)
         case .beerbelly:
             seen.insert(44)
             health = min(100, health + 8)
@@ -2272,6 +2285,7 @@ final class Game {
         if arriveT > 0 && !overlay { arriveT -= dt }
         if flashT > 0 { flashT -= dt }
         if credPopT > 0 { credPopT -= dt }
+        if kissT > 0 { kissT -= dt }
         if popFreeze { credPopT = 0.9; credPopN = 3; coinPopT = 0.8; coinPopN = 60 }
         if coinPopT > 0 { coinPopT -= dt }
         if phase == .play {

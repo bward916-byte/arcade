@@ -2704,6 +2704,51 @@ final class Renderer {
             c.R(x + 30, GY - 12, 1.4, 12, post); c.RR(x + 26, GY - 18, 10, 7, 1, Col(0x8a8a88))
             label = false
             top = 46
+        case .camelkiss:
+            // Camelpalooza: live camels in town for the week, and one who gives kisses for the camera
+            let on = g.phase == .play && g.on(EV_CAMEL)
+            let sh = 1 - dark * 0.45
+            c.R(x - 40, GY - 34, 1.4, 34, wood); c.R(x + 38.6, GY - 34, 1.4, 34, wood)
+            c.RR(x - 44, GY - 44, 88, 12, 2, Col(0x7a2e5a).shade(1 - dark * 0.3))
+            g.text("CAMELPALOOZA", x, GY - 38, 5.4, GOLD, bold: true)
+            for q in 0..<11 { c.poly([Col(0xd9412e), Col(0xf2c14e), Col(0x3f8f8a)][q % 3].shade(sh), [x - 40 + Double(q) * 7.3, GY - 32, x - 34 + Double(q) * 7.3, GY - 32, x - 37 + Double(q) * 7.3, GY - 28]) }
+            if on {
+                c.RR(x - 24, GY - 30, 48, 7, 1.5, Col(0xf4f1ea).shade(1 - dark * 0.3)); g.text("KISS A CAMEL · 3 COINS", x, GY - 26.4, 2.8, Col(0x7a2e5a), bold: true)
+                // the kissing camel: saddle blanket, halter, head stretched out and lips pushed forward
+                grazer(x - 44, GY + 1, 1.05, 1, true)
+                let kx = x + 2.0, lean = g.kissT > 0 ? 3.0 : sin(NOW * 1.2) * 1.2
+                let coat = Col(0xa88458).shade(sh), dk = Col(0x7a5c3a).shade(sh)
+                c.roundCaps(true)
+                for lx in [-8.0, -4.0, 5.0, 9.0] { c.seg(kx + lx, GY - 14, kx + lx, GY - 6, 2.3, coat.shade(lx < 0 ? 0.84 : 1)); c.seg(kx + lx, GY - 6, kx + lx, GY, 1.6, coat.shade(0.9)); c.R(kx + lx - 0.9, GY - 0.6, 1.8, 1, Col(0x1c1612)) }
+                c.ell(kx, GY - 18, 10, 5, coat); c.ell(kx - 1, GY - 23, 4.6, 3.2, coat)
+                c.RR(kx - 6, GY - 24, 10, 7, 1.4, Col(0xb5452f).shade(sh)); for q in 0..<4 { c.R(kx - 5 + Double(q) * 2.4, GY - 24, 1, 7, Col(0xf2c14e).shade(sh)) }
+                c.seg(kx - 10, GY - 18, kx - 12, GY - 12, 0.9, dk)
+                let hx = kx + 16 + lean, hy = GY - 27.0
+                c.curve(kx + 8, GY - 20, kx + 13, GY - 30, hx, hy, 2.8, coat)
+                c.seg(hx, hy, hx + 4, hy + 1, 2.6, coat); c.ell(hx + 5.2, hy + 1.6, 1.6, 1.3, dk.shade(1.2))
+                c.ell(hx + 6.4, hy + 2, 1, 0.8, Col(0xd88a8a).shade(sh))
+                c.poly(coat.shade(0.84), [hx - 0.8, hy - 1, hx - 0.4, hy - 3.4, hx + 0.8, hy - 1.2])
+                c.circ(hx + 1.6, hy - 0.4, 0.5, INK); c.seg(hx + 0.8, hy - 1.3, hx + 2.6, hy - 1, 0.25, INK)
+                c.seg(hx + 3.4, hy - 0.6, hx + 3.6, hy + 2.6, 0.3, Col(0xc8281e)); c.seg(hx + 0.6, hy + 1.6, hx + 3.6, hy + 2.6, 0.3, Col(0xc8281e))
+                c.roundCaps(false)
+                // the handler, and a photographer framing the shot
+                person(x + 34, GY + 1, 771, -1, 0, false)
+                c.RR(x + 29.6, GY - 15.4, 3.6, 2.4, 0.4, Col(0x1c1a1a)); c.circ(x + 29.4, GY - 14.2, 0.8, Col(0x6a8aa8))
+                person(x - 20, GY + 1, 774, 1, 0, false)
+                if g.kissT > 0 {
+                    for q in 0..<5 {
+                        let u = (NOW * 0.5 + Double(q) / 5).truncatingRemainder(dividingBy: 1)
+                        let px0 = hx + 8 + sin(u * 6 + Double(q)) * 3, py0 = hy - u * 18
+                        c.circ(px0 - 0.9, py0, 1.1, Col(0xe8486a, 1 - u)); c.circ(px0 + 0.9, py0, 1.1, Col(0xe8486a, 1 - u)); c.poly(Col(0xe8486a, 1 - u), [px0 - 1.9, py0 + 0.4, px0 + 1.9, py0 + 0.4, px0, py0 + 2.8])
+                    }
+                    c.glow(x + 30, GY - 14, 14, Col(0xffffff, 0.5 * max(0, sin(NOW * 9))), Col(0xffffff, 0))
+                }
+            } else {
+                c.RR(x - 24, GY - 30, 48, 7, 1.5, Col(0xf4f1ea).shade(1 - dark * 0.3)); g.text("LIVE CAMELS · " + EVENTS[EV_CAMEL].when.uppercased(), x, GY - 26.4, 2.8, Col(0x7a2e5a), bold: true)
+                c.R(x - 30, GY - 8, 60, 0.6, wood); c.R(x - 30, GY - 4, 60, 0.6, wood); for q in 0..<6 { c.R(x - 30 + Double(q) * 12, GY - 10, 1, 10, wood) }
+            }
+            label = false
+            top = 50
         case .solar:
             // Solar Bill's: a low shop under a roof of panels, more panels racked out front, a service bay with a rig on charge
             let wall = Col(0xf0e6c8)
