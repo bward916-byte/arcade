@@ -516,7 +516,7 @@ final class Game {
     var GY = 150.0
     var safeL = 0.0
     var safeR = 0.0
-    let DAYLEN = 160.0
+    let DAYLEN = 240.0
 
     var phase = Phase.title
     var time = 0.0
@@ -593,6 +593,7 @@ final class Game {
     var cam = 0.0
     /// Where you last pointed: you walk, ride or drive there on your own.
     var moveTarget: Double? = nil
+    var wantRide = false
     func pointTo(_ gx: Double) { moveTarget = clampD(cam + gx / ZOOM, 30, WORLD - 30) }
     var rigX = 1150.0
     var rigFace = 1.0
@@ -882,7 +883,7 @@ final class Game {
                 return
             }
             if driving {
-                if id == 65 { driveLeft = 0; driving = false; shown.insert("drive"); events.append(3); return }
+                if id == 65 { driveLeft = 0; driving = false; if inRig && rig != .tent { toggleRig() }; shown.insert("drive"); events.append(3); return }
                 if id == 66 && !stopDone { pullOver(); return }
                 if driveDirt { return }
                 let lane = y < GY ? 0 : 1
@@ -954,7 +955,11 @@ final class Game {
             if id == 56 && !inPast { refund(); alsOpen = true; events.append(3); return }
             if id == 59 && rigHere && !inRig { refund(); customOpen = true; events.append(3); return }
             if id == 50 { shown.insert("rigUsed"); toggleRig() }
-            if id == 51 { shown.insert("toyUsed"); toggleToy() }
+            if id == 51 {
+                // tapped from a way off: walk over and climb on when you get there
+                if !onToy && !inRig && toy >= 0 && toyHere && abs(px - toyX) >= TOYS[toy].len / 2 + 18 { moveTarget = toyX; wantRide = true; return }
+                shown.insert("toyUsed"); toggleToy()
+            }
             if id == 53, let b = spots.firstIndex(where: { $0.kind == .board && abs($0.x - px) < 60 }) {
                 _ = b
                 refund(); shown.insert("boardUsed"); boardOpen = true; events.append(3)
@@ -1097,12 +1102,12 @@ final class Game {
         if inRig { return Trip(ok: true, cost: max(1, Int((mi * RIGS[rig.rawValue].perMile).rounded(.up))), how: "Drive the " + RIGS[rig.rawValue].name.lowercased()) }
         if onToy {
             let t = TOYS[toy]
-            if t.range > 0 && mi > t.range { return Trip(ok: false, cost: 0, how: "Too far for the " + t.name.lowercased()) }
-            return Trip(ok: true, cost: Int((mi * t.perMile).rounded(.up)), how: "Ride the " + t.name.lowercased())
+            if !(t.range > 0 && mi > t.range) { return Trip(ok: true, cost: Int((mi * t.perMile).rounded(.up)), how: "Ride the " + t.name.lowercased()) }
+            // too far for this ride: leave it here and go the way you would on foot
         }
         if toyFor(to) { let t = TOYS[toy]; return Trip(ok: true, cost: Int((mi * t.perMile).rounded(.up)), how: "Ride the " + t.name.lowercased()) }
         if rigFor(to) { return Trip(ok: true, cost: max(1, Int((mi * RIGS[rig.rawValue].perMile).rounded(.up))), how: "Drive the " + RIGS[rig.rawValue].name.lowercased()) }
-        if to == .skoolie { return Trip(ok: false, cost: 0, how: "10 miles out. You need wheels") }
+        if to == .skoolie { return Trip(ok: true, cost: 3, how: "Ride out with a nomad convoy") }
         if [.crystal, .palms, .desertbar, .intaglios].contains(to) { return Trip(ok: false, cost: 0, how: "\(Int(mi)) miles out. You need wheels") }
         if area == .skoolie { return Trip(ok: true, cost: 0, how: "Ride back with a nomad family") }
         return Trip(ok: true, cost: 2, how: "Camel Express dial-a-ride")
@@ -1179,6 +1184,7 @@ final class Game {
     private func go(_ to: Area) {
         if rigFor(to) { inRig = true; px = rigX; vx = 0 }
         else if toyFor(to) { onToy = true; px = toyX; vx = 0 }
+        else if onToy, to != .trail, area != .trail, TOYS[toy].range > 0, milesBetween(area, to) > TOYS[toy].range { onToy = false; toyX = px }
         let t = trip(to)
         if !t.ok { mapMsg = t.how; mapMsgT = 2.5; return }
         if Double(t.cost) > money { mapMsg = "Not enough coins for that"; mapMsgT = 2.5; return }
@@ -1271,6 +1277,7 @@ final class Game {
         if driveLeft <= 0 {
             driveLeft = 0
             driving = false
+            if inRig && rig != .tent { toggleRig() }   // parked: you step out, ready to walk
             shown.insert("drive")
         }
     }
@@ -1655,7 +1662,7 @@ final class Game {
         case .beerbelly:
             return seen.contains(44) ? nil : Offer(label: "A cold one at Beer Belly's", cost: 6, earn: 0, dur: 1.6)
         case .carls:
-            return seen.contains(45) ? nil : Offer(label: inRig ? "Drive-thru burger" : "Burger and fries", cost: 9, earn: 0, dur: 1.4)
+            return seen.contains(45) || hour() < 6 || hour() >= 23 ? nil : Offer(label: inRig ? "Drive-thru burger" : "Burger and fries", cost: 9, earn: 0, dur: 1.4)
         case .terribles:
             return seen.contains(46) ? nil : Offer(label: "Coffee from the Starbucks inside", cost: 6, earn: 0, dur: 1.2)
         case .tools:
@@ -1773,8 +1780,8 @@ final class Game {
             return "Home. You feel fine"
         case .bench:
             if rigArea != area { return "Your tools are with your rig" }
-            return jewelry >= 4 ? "Plenty made. Sell them from a booth at a show" : "Bring rough rock or a specimen to work"
-        case .fire: return neighbor(sp.x > 1400 ? 2 : 4).0 + " needs firewood. Buy it at Big Market or from the host"
+            return jewelry >= 4 ? "Plenty made. Sell them from a booth at a show" : "Bring rough rock to work. Gem World on Main Street sells it, or dig your own at a wash"
+        case .fire: return neighbor(sp.x > 1400 ? 2 : 4).0 + " needs firewood. Big Market on Main Street sells it, and so does the camp host by the entrance"
         case .host: return "Camp host Gloria: permit good for \(permitDays) more days"
         case .station: return rig == .tent ? "Tents don't need it" : (seen.contains(11) ? "Done for today" : "Drive your rig over to dump and fill")
         case .outhouse: return "You're good for now"
@@ -1800,7 +1807,7 @@ final class Game {
         case .rides: return "Nothing faster for sale"
         case .solar: return rig == .tent ? "Solar needs a roof. Trade up first" : "Two panels up. You're set for sun"
         case .beerbelly: return "See you tomorrow at day care"
-        case .carls: return "They were out of ranch. They always are"
+        case .carls: return hour() < 6 || hour() >= 23 ? "Closed. Opens at 6 AM" : "Come back tomorrow"
         case .terribles: return "Rows of pumps, EV chargers out back"
         case .tools: return rig == .tent ? "Gear needs a rig. Trade up first" : "Your rig is fully kitted out"
         case .camel: return "On the tour: \(camels.count) of \(CAMELS) camels"
@@ -2482,7 +2489,7 @@ final class Game {
     func openBrowse() {
         let s: Int
         if area == .main { s = 1 } else if area == .tyson && tysonShow() == EV_GEM { s = 0 } else { return }
-        if hour() >= 19 || hour() < 8 { float("Closed for the night. Open 8 AM to 7 PM.", px, CREAM); return }
+        if hour() >= 19 || hour() < 8 { float("Gem World is closed. Open 8 AM to 7 PM.", px, CREAM); return }
         refund()
         if waresDay == day { stock[shop] = (day, wares) }
         shop = s
@@ -2582,7 +2589,7 @@ final class Game {
             hintT = 0
             hint("genaway\(day)", "Your generator ran past 10 PM while you were away. The neighbors are not happy.  -2 cred")
         }
-        health = max(0, health - dt * 100 / (DAYLEN * 2.2) * (weather == 1 ? 1.3 : 1))
+        health = max(0, health - dt * 100 / (DAYLEN * 4.5) * (weather == 1 ? 1.3 : 1))
         if health < 35 && inPast { hint("hungrypast", "You're run down, and there's no grocery for a thousand years. Open the map and return to 2026.") }
         else if health < 62 && !inPast { hint("wearing", "A day outdoors wears you down, cold wind faster. Eat, rest at camp or sit in the shade to bring the heart bar back up.") }
         if health < 35 && !inPast { hint("hungry", "You're run down. Groceries on Main Street, the outhouse and your own camp all help.") }
@@ -2644,6 +2651,11 @@ final class Game {
         }
         nearRig = rigHere && (inRig || abs(px - rigX) < RIGS[rig.rawValue].len / 2 + 22)
         nearToy = toy >= 0 && toyHere && !inRig && (onToy || abs(px - toyX) < TOYS[toy].len / 2 + 18)
+        if wantRide {
+            if onToy || inRig || toy < 0 || !toyHere { wantRide = false }
+            else if abs(px - toyX) < TOYS[toy].len / 2 + 14 { wantRide = false; moveTarget = nil; shown.insert("toyUsed"); toggleToy() }
+            else if let t = moveTarget, abs(t - toyX) < 40 { moveTarget = toyX } else { wantRide = false }
+        }
 
         // wild burros nearby make a good post, once a day
         if page && !seen.contains(20) && (area == .dome || area == .trail || area == .scaddan) && (dayT < 0.6 || dayT > 0.95) && abs(px - herdX()) < 50 {

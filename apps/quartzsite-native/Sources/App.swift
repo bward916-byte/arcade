@@ -326,7 +326,7 @@ final class GameViewController: UIViewController {
             }
             // the HOLD button does things; a touch anywhere else is where you want to go
             let hbx = game.W - game.safeR - 34, hby = game.H - 24
-            let onHold = (gx - hbx) * (gx - hbx) + (gy - hby) * (gy - hby) < 26 * 26
+            let onHold = (gx - hbx) * (gx - hbx) + (gy - hby) * (gy - hby) < 20 * 20
             if onHold {
                 if holdTouch == nil { holdTouch = t; game.input.hold = true }
             } else if stickTouch == nil {

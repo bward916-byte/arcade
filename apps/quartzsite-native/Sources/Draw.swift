@@ -449,6 +449,17 @@ final class Renderer {
                 if tw < fullW - 8 - rightPad { g.texts[i].x = clampD(g.texts[i].x, g.safeL + tw / 2 + 2, fullW - g.safeR - tw / 2 - rightPad) }
             }
         }
+        // two plated labels never sit on each other: the later one steps up until it is clear
+        var placed: [(Double, Double, Double, Double)] = []
+        for i in text0..<g.texts.count where g.texts[i].plate && g.texts[i].align == 0 && g.texts[i].wrap == 0 {
+            let tw = Double(g.texts[i].s.count) * g.texts[i].size * 0.5 + 10, th = g.texts[i].size * 1.9
+            var tries = 0
+            while tries < 5, placed.contains(where: { abs($0.0 - g.texts[i].x) < ($0.2 + tw) / 2 && abs($0.1 - g.texts[i].y) < ($0.3 + th) / 2 }) {
+                g.texts[i].y -= th + 1; tries += 1
+            }
+            if g.texts[i].y < 28 { g.texts[i].y += (th + 1) * Double(tries + 1) }
+            placed.append((g.texts[i].x, g.texts[i].y, tw, th))
+        }
         for i in hit0..<g.hits.count {
             let h = g.hits[i]
             g.hits[i] = Hit(id: h.id, x: h.x * ZOOM, y: gys + (h.y - GY) * ZOOM, w: h.w * ZOOM, h: h.h * ZOOM)
@@ -529,8 +540,8 @@ final class Renderer {
                 toy(g.toy, tx, tb, g.onToy ? g.face : 1, g.onToy ? g.look : -1, g.onToy ? g.walk : 0)
                 toyFlag(tx, tb, g.onToy ? g.face : 1)
             }
-            if g.nearToy {
-                g.hits.append(Hit(id: 51, x: tx - len / 2 - 8, y: GY - 34, w: len + 16, h: 52))
+            if g.nearToy || (!g.inRig && !g.onToy) {
+                g.hits.append(Hit(id: 51, x: tx - len / 2 - 18, y: GY - 40, w: len + 36, h: 60))
             }
         }
         if g.hasDog && !g.inRig {
