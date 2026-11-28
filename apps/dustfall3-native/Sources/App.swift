@@ -596,7 +596,7 @@ final class GameViewController: UIViewController {
         last = 0
         if !p { sound.resume() }
         if p { saveGame() }
-        if p && game.state == .play && !userPaused { openMenu() }
+        if p && game.state == .play && !userPaused && !payOpen { openMenu() }       // not over the store's own sheet
     }
 
     // ---------- the saved game: written at every dawn, when something is built, and whenever the app is left
@@ -845,6 +845,7 @@ final class GameViewController: UIViewController {
     private func payFinish() {
         game.unlocked = true
         sheetBox.isHidden = true; payOpen = false
+        if userPaused { closeMenu() }      // the store's sheet may have paused the game: bought, it rides straight on
         if game.payAsk { game.payDone() }
         if game.choosing, let key = payKey { payKey = nil; mapBox.isHidden = true; mapChoose = false; game.arrive(key) }
         last = 0
