@@ -63,7 +63,7 @@ jobs:
           xcrun simctl boot "$UDID"
           xcrun simctl bootstatus "$UDID" -b
           xcrun simctl install "$UDID" "$APP"
-          for shot in artbadge artbrand arthand artmap artposter artrunout artsaucer artshut artstar artstorm arttrain artvista artwire artgun arthobo pay; do
+          for shot in artmap arthand artsaucer artposter arttrain artvista artgun arthobo pay; do
             xcrun simctl terminate "$UDID" com.brianward.dustfall3 2>/dev/null || true
             xcrun simctl launch "$UDID" com.brianward.dustfall3 "-demo-$shot"
             sleep 9

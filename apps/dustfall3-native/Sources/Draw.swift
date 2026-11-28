@@ -217,13 +217,18 @@ final class Renderer {
                 for i in 0..<9 { q(52 + Double(i) * 12, 94 + Double(i % 2) * 7, 3, 3, 0xead7a4) }
                 q(96, 90, 8, 22, 0x9a3026)
             } else if who == "hobo" {
-                q(50, 80, 100, 32, 0x8a8478)
+                a.RR(49, 74, 102, 60, 26, Col(0x8a8478)); a.ell(100, 82, 30, 7, Col(0x9a9486))
+                for i in 0..<16 { let bx2 = 54 + Double(i) * 6; a.curve(bx2, 82 + hs(i + 90) * 4, bx2 + 1.5, 96, bx2 - 1 + hs(i + 92) * 3, 112, 0.8, Col(i % 2 == 0 ? 0x6a665c : 0xa8a296, 0.8)) }
                 for i in 0..<40 { q(52 + hs(i + 20) * 94, 82 + hs(i + 21) * 28, 2, 3, i % 2 == 1 ? 0xa8a296 : 0x6a665c) }
                 q(84, 90, 32, 3, 0x5a3a30); q(112, 90, 30, 4, 0x5a3a22); q(140, 86, 7, 8, 0x3a2a1e)
                 puffs(4, 0.25, 0.3, 0.35, 0xd8d2dc) { k, i in (144 + sin(t + Double(i)) * 3, 84 - k * 40, 2 + k * 6) }
             } else if who == "gun" {
-                q(72, 85, 56, 7, 0x16131a); q(66, 89, 10, 5, 0x16131a); q(124, 89, 10, 5, 0x16131a); q(84, 97, 32, 3, 0x7a4a34)
-                for i in 0..<8 { q(118 + Double(i) * 1.6, 34 + Double(i) * 5, 3, 4, 0x8a3a30) }
+                a.ell(86, 88.5, 16, 4.8, Col(0x16131a)); a.ell(114, 88.5, 16, 4.8, Col(0x16131a))
+                a.curve(72, 88, 66, 90, 66, 97, 3.6, Col(0x16131a)); a.curve(128, 88, 134, 90, 134, 97, 3.6, Col(0x16131a))
+                q(84, 97, 32, 3, 0x7a4a34)
+                // the scar: a pale seam through the brow and down the cheek, with the marks of the stitches
+                a.curve(116, 33, 121, 52, 131, 76, 2.6, Col(0x8a3a30)); a.curve(116, 33, 121, 52, 131, 76, 0.9, Col(0xe0b0a0, 0.8))
+                for i in 0..<7 { let u = 0.08 + Double(i) * 0.13, sx2 = 116 + 10 * u + 5 * u * u, sy2 = 33 + 43 * u; a.seg(sx2 - 2.6, sy2 + 0.8, sx2 + 2.6, sy2 - 0.8, 0.7, Col(0x8a3a30, 0.8)) }
                 for i in 0..<26 { q(58 + hs(i + 40) * 84, 98 + hs(i + 60) * 12, 1, 1, F[5]) }
             } else {
                 // a full white moustache, swept out and down at the ends
@@ -293,35 +298,71 @@ final class Renderer {
             }
             a.restore()
         case "map":
-            // the rail line: towns you have rebuilt, where you are now, and what Crane still holds
-            q(0, 0, 200, 112, 0xe2cf9c)
-            for i in 0..<30 { q(hs(i + 1) * 200, hs(i + 2) * 112, 10 + hs(i + 3) * 30, 6 + hs(i) * 10, 0xa0783c, 0.12) }
-            let n = STAGES.count, lap = g.town / n
+            // the rail line on a survey sheet: the country washed in under each town, the river, the rails,
+            // towns you have rebuilt, where you are now, and what Crane still holds
+            q(0, 0, 200, 112, 0xe6d3a0)
+            for i in 0..<30 { q(hs(i + 1) * 200, hs(i + 2) * 112, 10 + hs(i + 3) * 30, 6 + hs(i) * 10, 0xa0783c, 0.1) }
+            let n = STAGES.count
             let all = bt.who == "all"
             let cur = all ? n : g.town % n
-            let xs = [24.0, 62, 100, 138, 176], ys = [56.0, 50, 60, 48, 55]
+            let reach = all ? n : max(cur, g.front)
+            let xs = [24.0, 62, 100, 138, 176], ys = [58.0, 46, 62, 44, 56]
+            let tint: [UInt32] = [0xeeb060, 0x7fa64c, 0x33683c, 0xcc6238, 0xf6f9ff]
+            for i in 0..<5 { a.glow(xs[i], ys[i] + 2, 36, Col(tint[i], i == 4 ? 0.75 : 0.4), Col(tint[i], 0)) }
+            let ink = Col(0x2a1c14)
+            // the river, down off the snow and out to the south-west
+            for (w, c) in [(3.4, Col(0x2a4a62, 0.55)), (2.2, Col(0x74aac6))] {
+                a.curve(152, -2, 98, 20, 82, 52, w, c); a.curve(82, 52, 74, 78, 48, 114, w + 0.8, c)
+            }
+            // what grows and stands in each country: cactus, meadow trees, pines, mesas, peaks
+            for i in 0..<40 {
+                let k = i % 5, px = xs[k] + (hs(i + 3) - 0.5) * 46, py = ys[k] + (hs(i + 9) - 0.5) * 60
+                if (abs(py - ys[k]) < 14 && abs(px - xs[k]) < 27) || py < 9 || py > 72 || abs(px - (98 - (py - 20) * 0.5)) < 6 { continue }
+                switch k {
+                case 0:
+                    a.seg(px, py, px, py - 5, 1, Col(0x55783c)); a.seg(px - 2, py - 2, px - 2, py - 4, 0.8, Col(0x55783c)); a.seg(px - 2, py - 2, px, py - 2, 0.8, Col(0x55783c))
+                case 1:
+                    a.seg(px, py, px, py - 3, 0.7, ink.alpha(0.7)); a.circ(px, py - 4.5, 2.2, Col(0x4f8a3c))
+                case 2:
+                    a.poly(Col(0x24502e), [px - 2.4, py, px, py - 6.5, px + 2.4, py]); a.poly(Col(0x24502e), [px - 1.8, py - 3, px, py - 8, px + 1.8, py - 3])
+                case 3:
+                    a.poly(Col(0xc0603a), [px - 5, py, px - 3.5, py - 5, px + 3.5, py - 5, px + 5, py]); a.poly(Col(0x8a3a26), [px + 1, py, px + 1.5, py - 5, px + 3.5, py - 5, px + 5, py])
+                default:
+                    a.poly(Col(0xf4f6fa), [px - 6, py, px, py - 9, px + 6, py]); a.poly(Col(0x8a94a8), [px, py - 9, px + 6, py, px + 1.5, py])
+                    a.seg(px - 6, py, px, py - 9, 0.6, ink.alpha(0.7)); a.seg(px, py - 9, px + 6, py, 0.6, ink.alpha(0.7))
+                }
+            }
+            // the rails: a line with ties across it, fainter where you have not yet been
             for i in 0..<4 {
-                // a dashed line between stops
                 let dx = xs[i + 1] - xs[i], dy = ys[i + 1] - ys[i], len = (dx * dx + dy * dy).squareRoot()
-                var u = 0.0
-                while u < len { let v = min(len, u + 5); a.seg(xs[i] + dx * u / len, ys[i] + dy * u / len, xs[i] + dx * v / len, ys[i] + dy * v / len, 2, Col(0x2a1c14)); u += 8 }
+                let rc = ink.alpha(i < reach ? 0.95 : 0.45)
+                a.seg(xs[i], ys[i], xs[i + 1], ys[i + 1], 1.1, rc)
+                var u = 5.0
+                while u < len - 4 {
+                    let mx = xs[i] + dx * u / len, my = ys[i] + dy * u / len
+                    a.seg(mx - dy / len * 2, my + dx / len * 2, mx + dy / len * 2, my - dx / len * 2, 0.8, rc)
+                    u += 3.6
+                }
             }
             for i in 0..<n {
-                let x = xs[i], y = ys[i], up = i % 2 == 1, done = i < cur
-                var nm = STAGES[i].count > 1 ? "?" : (PLACES[STAGES[i][0]]?.name ?? "")
-                let li = lap * n + i
-                if done { nm = PLACES[li < g.log.count ? g.log[li] : STAGES[i][0]]?.name ?? nm } else if i == cur { nm = g.townName }
-                if done { star(x, y, 7.5, 3.3, 0, 0x2a1c14); star(x, y, 5.8, 2.5, 0, 0xe8b830) } else { a.circ(x, y, 4, Col(0x2a1c14)) }
+                let x = xs[i], y = ys[i], up = i % 2 == 1, done = all || (i != cur && i <= reach)
+                let nm = i == cur ? g.townName : (PLACES[STAGES[i][0]]?.name ?? "")
+                if done { star(x, y, 7.5, 3.3, 0, 0x2a1c14); star(x, y, 5.8, 2.5, 0, 0xe8b830) }
+                else { a.circ(x, y, 4.6, ink); a.circ(x, y, 3.2, Col(0xe6d3a0)); if i != cur { a.circ(x, y, 1.9, ink) } }
                 if i == cur {
+                    a.circ(x, y, 2, Col(0xb0261c))
                     a.ellStroke(x, y, 8 + sin(t * 3.2), 8 + sin(t * 3.2), 1.6, Col(0xb0261c))
-                    a.text("YOU ARE HERE", clampD(x, 42, 158), y + (up ? 13 : -13) + 2.1, 6, Col(0xb0261c))
+                    a.text("YOU ARE HERE", clampD(x, 42, 158), y + (up ? -19.5 : 19.5) + 2.1, 5.4, Col(0xb0261c))
                 }
-                a.text(nice(nm), clampD(x, 38, 162), y + (up ? -12 : 12) + 2.3, 6.5, Col(0x2a1c14))
+                a.text(nice(nm), clampD(x, 38, 162), y + (up ? -12 : 12) + 2.3, 6.5, ink, face: "Rye-Regular")
             }
-            star(36, 82, 4.6, 2, 0, 0x2a1c14); star(36, 82, 3.5, 1.5, 0, 0xe8b830)
-            a.text("rebuilt", 43, 84.6, 6, Col(0x2a1c14), center: false)
-            a.ellStroke(84, 82, 3.6, 3.6, 1.2, Col(0xb0261c)); a.text("you are here", 91, 84.6, 6, Col(0x2a1c14), center: false)
-            a.circ(140, 82, 2.8, Col(0x2a1c14)); a.text("held by Crane", 146, 84.6, 6, Col(0x2a1c14), center: false)
+            q(22, 77, 156, 12, 0xe6d3a0, 0.8)
+            star(36, 83, 4.6, 2, 0, 0x2a1c14); star(36, 83, 3.5, 1.5, 0, 0xe8b830)
+            a.text("rebuilt", 43, 85.6, 6, ink, center: false)
+            a.ellStroke(84, 83, 3.6, 3.6, 1.2, Col(0xb0261c)); a.text("you are here", 91, 85.6, 6, ink, center: false)
+            a.circ(140, 83, 2.8, ink); a.text("held by Crane", 146, 85.6, 6, ink, center: false)
+            // a ruled border
+            for (o, w) in [(3.0, 1.2), (5.5, 0.5)] { q(o, o, 200 - o * 2, w, 0x2a1c14); q(o, 112 - o - w, 200 - o * 2, w, 0x2a1c14); q(o, o, w, 112 - o * 2, 0x2a1c14); q(200 - o - w, o, w, 112 - o * 2, 0x2a1c14) }
         case "train":
             // Crane's private car, parked up the line at night
             q(0, 0, 200, 112, 0x12122a)
@@ -331,7 +372,15 @@ final class Renderer {
                 q(wx - 3, 35, 78, 40, 0x16281f); q(wx, 38, 72, 34, 0xffcf6b); q(wx, 38, 72, 5, 0x8a2f26); q(wx + 35, 38, 2, 34, 0x16281f)
                 a.vfill(wx, 38, 72, 34, [(0, Col(0xfff0be, 0)), (1, Col(0xc87828, 0.45))])
             }
-            hell(88, 52, 10, 6, 0x140c0a); q(74, 51, 28, 2, 0x140c0a); q(80, 53, 16, 13, 0x140c0a); q(70, 64, 36, 8, 0x140c0a); q(66, 68, 44, 4, 0x140c0a)
+            a.save(); a.cg.clip(to: CGRect(x: 64, y: 38, width: 72, height: 34))
+            let dkc = Col(0x140c0a)
+            a.ell(88, 82, 27, 16, dkc)                                                        // shoulders
+            a.RR(83, 62, 10, 8, 2, dkc)                                                       // neck and collar
+            a.ell(88, 58.5, 7, 7.4, dkc)                                                      // head
+            a.poly(dkc, [94, 55.5, 98.2, 59.6, 95, 60.6, 96, 62.4, 94, 64.5])                 // nose, lip and chin, in profile
+            a.RR(80.5, 38.5, 15, 14.5, 1.6, dkc); a.RR(74, 51.4, 28, 2.6, 1.3, dkc)           // a tall hat
+            a.RR(80.5, 48.6, 15, 1.6, 0.4, Col(0x4a3a2a))
+            a.restore()
             q(96, 61, 12, 2, 0x3a2416)
             let ck = 0.5 + 0.5 * sin(t * 2.4)
             q(108, 60, 3, 3, ck > 0.5 ? 0xffb13b : 0xc0501e); a.circ(109, 61, 6, Col(0xff9a2e, 0.5 * ck))
@@ -350,13 +399,25 @@ final class Renderer {
             q(0, 86, 200, 26, 0xb98f58)
             q(0, 0, 92, 112, 0x2e241c); q(84, 0, 10, 112, 0x3d3026); q(0, 0, 92, 3, 0x3d3026); q(0, 38, 128, 9, 0x5a3a22); q(0, 38, 128, 2, 0x7a5434)
             for i in 0..<8 { q(6 + Double(i) * 11, 34, 5, 8, 0xc9a14a); q(6 + Double(i) * 11, 34, 5, 2, 0xead7a4) }
-            q(58, 47, 40, 58, 0x6a4429); q(58, 47, 40, 3, 0x8a6240); q(62, 100, 32, 8, 0x5a3a22); q(58, 47, 4, 58, 0x4a2f1c)
+            a.RR(58, 45, 40, 66, 9, Col(0x4a2f1c)); a.RR(60, 46, 37, 63, 8, Col(0x6a4429)); a.RR(60, 46, 37, 4, 2, Col(0x8a6240))
+            a.linear(60, 46, 37, 63, 60, 0, 97, 0, [(0, Col(0x000000, 0.25)), (0.35, Col(0x000000, 0)), (1, Col(0x000000, 0.18))])
+            for i in 0..<9 { q(63, 53 + Double(i) * 6, 1, 3, 0xd8b888, 0.7); q(93, 53 + Double(i) * 6, 1, 3, 0xd8b888, 0.7) }
             for i in 0..<5 { q(66 + Double(i) * 6, 54, 2, 2, 0xc9a14a) }
-            q(66, 26, 20, 24, 0x3a2a1e); q(66, 26, 20, 3, 0x5a4636); q(70, 20, 8, 8, 0x6a6a72); q(84, 30, 6, 6, 0x8a8f98)
+            a.RR(70, 17, 9, 10, 2, Col(0x6a6a72)); a.RR(71, 18, 3, 8, 1.5, Col(0x9aa0aa)); a.RR(84, 28, 8, 9, 2.5, Col(0x8a8f98))
+            a.RR(64, 24, 23, 28, 7, Col(0x2a1c14)); a.RR(65.5, 25.5, 20, 25, 6, Col(0x5a3a26))
+            a.curve(69, 29, 74, 38, 70, 48, 1, Col(0x7a5434)); a.curve(75, 28, 80, 38, 77, 48, 1, Col(0x7a5434)); a.circ(75, 37, 1.5, Col(0xc9a14a))
             let tw = sin(t * 7) > 0.86 ? 2.0 : 0, hy = 40 + (sin(t * 1.1) * 1.5).rounded()
-            q(118, hy, 36, 24, 0xd9a06e); q(118, hy, 36, 3, 0xe8b888); q(150, hy - 10, 50, 30, 0x2e241c); q(146, hy - 4, 8, 26, 0xead7a4)
-            for i in 0..<4 { q(104 - Double(i) * 2 + (i == 1 ? -tw : 0), hy + 2 + Double(i) * 6, 16 + Double(i) * 2, 5, i % 2 == 1 ? 0xc99266 : 0xd9a06e) }
-            q(112, hy - 7 + tw, 8, 9, 0xd9a06e)
+            a.RR(148, hy - 12, 60, 34, 6, Col(0x2e241c)); a.RR(144, hy - 5, 9, 28, 3, Col(0xead7a4)); a.RR(144, hy - 5, 9, 3, 1.5, Col(0xffffff, 0.5))
+            a.RR(114, hy - 1, 36, 26, 9, Col(0xd9a06e)); a.RR(118, hy, 28, 4, 2, Col(0xe8b888))
+            a.linear(114, hy + 12, 36, 13, 0, hy + 12, 0, hy + 25, [(0, Col(0x96663f, 0)), (1, Col(0x96663f, 0.6))])
+            for i in 0..<4 {
+                let fx = 99 - Double(i) * 2 + (i == 1 ? -tw : 0), fy = hy + 1 + Double(i) * 6, fw = 22 + Double(i) * 2
+                a.RR(fx, fy, fw, 5.6, 2.8, Col(i % 2 == 1 ? 0xc99266 : 0xd9a06e))
+                a.RR(fx + 0.6, fy + 0.8, 3.4, 3.6, 1.6, Col(0xf0d2b0, 0.75))                    // a nail
+                a.seg(fx + fw * 0.45, fy + 1, fx + fw * 0.45, fy + 4.6, 0.6, Col(0x96663f, 0.7))  // a knuckle
+                a.seg(fx + 2, fy + 5.6, fx + fw - 4, fy + 5.6, 0.5, Col(0x96663f, 0.6))
+            }
+            a.RR(110, hy - 9 + tw, 9, 13, 4.2, Col(0xd9a06e)); a.RR(111, hy - 8 + tw, 3.6, 4, 1.6, Col(0xf0d2b0, 0.75))
             q(100, hy + 26, 60, 5, 0x140a06, 0.25)
             motes(10, 0xfff3c4)
         case "saucer":
@@ -372,9 +433,15 @@ final class Renderer {
                 q(sx0 - w, y, w * 2, 2, 0xd6ffe4, 0.3 * (1 - k))
             }
             a.save(); a.translate(sx0 + sin(t * 1.1) * 3, 66 + sin(t * 0.8) * 5); a.rotate(sin(t * 0.9) * 0.35)
-            q(-13, -7, 26, 13, 0x101a16); q(11, -11, 9, 9, 0x101a16); q(18, -13, 2, 3, 0x101a16); q(-15, -6, 3, 2, 0x101a16)
-            for lx in [-11.0, -6, 5, 10] { q(lx, 5, 3, 10 + sin(t * 4 + lx) * 2, 0x101a16) }
-            q(-17, -5, 2, 9, 0x101a16); q(-5, -7, 7, 5, 0x2a3a34)
+            let cowC = Col(0x101a16)
+            for lx in [-10.0, -5.5, 5.5, 10] { a.seg(lx, 3, lx + sin(t * 4 + lx) * 1.5, 13 + sin(t * 4 + lx) * 2, 2.6, cowC); }
+            a.ell(0, 0, 14, 7.4, cowC); a.ell(-9, -1, 6.5, 6.6, cowC); a.ell(9, -1.5, 6.5, 6.4, cowC)
+            a.poly(cowC, [9, -6, 14, -11, 20, -11, 22.5, -6.5, 20, -3.5, 13, -2])                // neck and head
+            a.RR(19, -8, 5.4, 4.6, 2, cowC); a.seg(15, -11, 13, -14.5, 1.1, cowC); a.seg(18.5, -11.5, 20.5, -14.5, 1.1, cowC)
+            a.ell(13.6, -10.6, 2.4, 1.2, cowC)
+            a.curve(-13.5, -3, -19, -2, -18, 8, 1.2, cowC); a.circ(-18, 8.6, 1.5, cowC)
+            a.ell(-3, -2, 5, 3.2, Col(0x2a3a34)); a.ell(6, 2, 3.2, 2.2, Col(0x2a3a34)); a.ell(3, 6.6, 3, 1.6, Col(0x3a2a34))
+            a.circ(20.4, -8.4, 0.7, Col(0xd6ffe4))
             a.restore()
             hell(sx0, sy0 - 5, 17, 14, 0xbfe8ff); q(sx0 - 10, sy0 - 14, 5, 3, 0xe8f8ff)
             a.ell(sx0, sy0 + 2, 50, 11, Col(0x565f74)); a.ell(sx0, sy0 - 1, 50, 8, Col(0x8a94a8)); q(sx0 - 36, sy0 - 5, 72, 2, 0xc8d0e0)
@@ -474,6 +541,10 @@ final class Renderer {
             let fronts: [(Double, Double, Double)] = [(44, 12, 13), (57, 14, 18), (72, 15, 14), (113, 15, 16), (129, 13, 20), (143, 14, 12)]
             for (bx, bw, bh) in fronts {
                 q(bx, 81 - bh, bw, bh, shack); q(bx - 1, 81 - bh - 3, bw + 2, 3, shack); q(bx, 81 - bh * 0.45, bw, 1, 0x000000, 0.3)
+                a.R(bx - 1, 81 - bh - 3, bw + 2, 0.8, Col(0xffffff, 0.16)); a.R(bx + bw * 0.62, 81 - bh, bw * 0.38, bh, Col(0x000000, 0.2))
+                a.poly(Col(lit ? 0x8a2f26 : 0x2a2220), [bx - 1.5, 81 - bh * 0.45, bx + bw + 1.5, 81 - bh * 0.45, bx + bw + 2.5, 81 - bh * 0.45 + 2.4, bx - 2.5, 81 - bh * 0.45 + 2.4])
+                a.R(bx - 1.6, 81 - bh * 0.45 + 2.4, 0.7, bh * 0.45 - 2.4, Col(0x1c1410)); a.R(bx + bw + 0.9, 81 - bh * 0.45 + 2.4, 0.7, bh * 0.45 - 2.4, Col(0x1c1410))
+                a.R(bx + bw / 2 - 1.3, 81 - 5, 2.6, 5, Col(lit ? 0x5a3a22 : 0x14100e)); a.R(bx - 2.5, 80.4, bw + 5, 1, Col(0x6a5a48, 0.8))
                 if lit { q(bx + 2, 81 - bh + 4, 3, 3, 0xffcf6b); q(bx + bw - 5, 81 - bh + 4, 3, 3, 0xffcf6b); a.circ(bx + bw / 2, 81 - bh + 5, 9, Col(0xffb85a, 0.14)) }
                 else { q(bx + 2, 81 - bh + 4, 3, 3, 0x14100e); q(bx + 1.5, 81 - bh + 5, 4, 1, 0x6a5a48) }
                 if bio == .snow { q(bx - 1, 81 - bh - 4, bw + 2, 1.5, 0xffffff) }
@@ -482,8 +553,12 @@ final class Renderer {
             let rb = sin(t * 6) * 0.6
             a.save(); a.translate(0, -9)
             q(88, 104.5, 24, 2, 0x000000, 0.2)
-            q(95, 96 + rb, 11, 5, 0x1c1410); q(104, 93 + rb, 4, 4, 0x1c1410); q(95.5, 100, 1.5, 5, 0x1c1410); q(99, 100, 1.5, 5 - rb, 0x1c1410); q(103, 100, 1.5, 5, 0x1c1410)
-            q(98, 89 + rb, 4, 7, 0x2a2430); q(96.5, 87.6 + rb, 7, 1.2, 0x14100e); q(98, 85.6 + rb, 4, 2.2, 0x14100e); q(94, 97 + rb, 1.5, 4, 0x1c1410)
+            let hc = Col(0x1c1410)
+            for lx in [95.8, 99.2, 103.4, 105.6] { a.seg(lx, 99.5 + rb, lx + sin(t * 6 + lx) * 0.8, 105, 1.3, hc) }
+            a.ell(100.5, 98 + rb, 6.6, 3.2, hc); a.poly(hc, [104.5, 97 + rb, 107.6, 91.6 + rb, 110.6, 92.6 + rb, 110, 95 + rb, 107, 99 + rb]); a.seg(108, 91.6 + rb, 108.6, 90.2 + rb, 0.7, hc)
+            a.curve(94.2, 97 + rb, 91.6, 98 + rb, 92, 102.5, 1, hc)
+            a.RR(98.2, 88.6 + rb, 4.2, 7.8, 1.6, Col(0x2a2430)); a.circ(100.3, 87.3 + rb, 1.7, Col(0xb8885a))
+            a.RR(96.4, 85.9 + rb, 8, 1.2, 0.6, Col(0x14100e)); a.RR(98.4, 83.8 + rb, 4, 2.6, 0.9, Col(0x14100e))
             a.restore()
             // the sign by the road, with the company's board nailed under it until the town is won
             a.save(); a.translate(160, 44); a.rotate(sin(t * 1.1) * 0.012)
@@ -576,12 +651,23 @@ final class Renderer {
             for i in 0..<12 { q(-44 + hs(i) * 74, -40 + hs(i + 4) * 74, 6 + hs(i + 2) * 8, 3, 0xc8b078, 0.35) }
             a.text("WANTED", 0, -26, 13, Col(0x2a1c14), face: "Rye-Regular")
             q(-17, -22, 34, 30, 0xcdb888); q(-17, -22, 34, 1, 0x2a1c14); q(-17, 7, 34, 1, 0x2a1c14); q(-17, -22, 1, 30, 0x2a1c14); q(16, -22, 1, 30, 0x2a1c14)
-            q(-12, -14, 24, 3, 0x1c1410); q(-7, -20, 14, 7, 0x1c1410); q(-7, -15, 14, 1, 0x6a231c)
-            q(-7, -11, 14, 13, 0xb8885a); q(-7, -11, 14, 2, 0x8a6240); q(5, -9, 2, 11, 0x9a7048)
-            q(-5, -7, 3, 2, 0x1c1410); q(2, -7, 3, 2, 0x1c1410); q(-5, -8, 3, 1, 0x3a2a1c); q(2, -8, 3, 1, 0x3a2a1c)
-            q(-6, -2, 12, 2, 0x2a1c14); q(-7, 0, 2, 2, 0x2a1c14); q(5, 0, 2, 2, 0x2a1c14)
-            a.seg(3, -10, 6, -3, 0.8, Col(0x7a3a2a))
-            q(-10, 2, 20, 5, 0x3a2e28); q(-2, 2, 4, 3, 0xa02a22)
+            let pk = Col(0x2a1c14)
+            a.ell(0, 9, 15, 7, Col(0x3a2e28)); q(-16, 6, 32, 1, 0xcdb888)                       // shoulders, cut off by the frame
+            a.poly(Col(0xa02a22), [-6, 2, 6, 2, 3, 6.6, 0, 5, -3, 6.6])                          // neckerchief
+            a.RR(-2.6, -1, 5.2, 4.5, 1.5, Col(0x9a7048))
+            a.RR(-7, -13.5, 14, 15.5, 5.6, Col(0xb8885a))                                        // the face
+            a.linear(-7, -13.5, 14, 15.5, -7, 0, 7, 0, [(0, Col(0x7a5434, 0.75)), (0.3, Col(0x7a5434, 0)), (0.75, Col(0x7a5434, 0)), (1, Col(0x7a5434, 0.9))])
+            a.ell(-7.2, -6, 1.4, 2.2, Col(0x9a7048)); a.ell(7.2, -6, 1.4, 2.2, Col(0x9a7048))
+            a.RR(-7.6, -21, 15.2, 8.4, 2.2, Col(0x1c1410)); a.RR(-13, -14.4, 26, 3, 1.5, Col(0x1c1410)); a.R(-7.6, -15.6, 15.2, 1.2, Col(0x6a231c))
+            a.R(-7, -11.6, 14, 2.4, Col(0x000000, 0.3))                                           // the brim's shadow
+            a.seg(-5.6, -9.2, -1.6, -8.4, 1.1, pk); a.seg(5.6, -9.2, 1.6, -8.4, 1.1, pk)          // brows, drawn down
+            a.ell(-3.6, -6.8, 1.9, 1, Col(0xefe2c4)); a.ell(3.6, -6.8, 1.9, 1, Col(0xefe2c4))
+            a.circ(-3.4, -6.8, 0.85, pk); a.circ(3.8, -6.8, 0.85, pk)
+            a.seg(-5.4, -7.7, -1.8, -7.5, 0.5, pk); a.seg(5.4, -7.7, 1.8, -7.5, 0.5, pk)
+            a.poly(Col(0x9a7048), [-0.5, -7, 0.6, -7, 1.9, -2.6, -1.5, -2.2])                     // nose
+            a.curve(0, -1.6, -4, -2.2, -6.6, 1.6, 1.9, pk); a.curve(0, -1.6, 4, -2.2, 6.6, 1.6, 1.9, pk)   // a drooping moustache
+            a.seg(-2, 0.4, 2, 0.4, 0.6, Col(0x5a3020))
+            for i in 0..<14 { a.R(-5.5 + hs(i + 31) * 11, -1 + hs(i + 33) * 3, 0.5, 0.5, Col(0x3a2a1c, 0.6)) }   // stubble
             a.text("VARNEY", 0, 18, 8, Col(0x2a1c14), face: "Rye-Regular")
             a.text("ROBBERY AND ARSON", 0, 25, 4.4, Col(0x2a1c14))
             a.text("$500 REWARD", 0, 35, 7, Col(0x8a2b22), face: "Rye-Regular")
