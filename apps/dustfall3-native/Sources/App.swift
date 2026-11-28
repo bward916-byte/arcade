@@ -276,7 +276,7 @@ final class GameViewController: UIViewController {
         view.addSubview(coinBtn)
         game.onSave = { [weak self] in self?.saveGame() }
         game.unlocked = shop.owned
-        shop.onChange = { [weak self] in if let s = self { s.game.unlocked = s.game.unlocked || s.shop.owned; s.refreshTitle() } }
+        shop.onChange = { [weak self] in if let s = self { s.game.unlocked = s.game.unlocked || s.shop.owned; s.refreshTitle(); if s.payOpen && s.shop.owned { s.payFinish() } } }      // the store may confirm a purchase late: the card closes and the game rides on by itself
         shop.start()
         game.onBuzz = { [weak self] n in
             guard let me = self else { return }
