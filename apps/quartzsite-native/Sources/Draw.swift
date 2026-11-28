@@ -3691,7 +3691,7 @@ final class Renderer {
         if x < -50 || x > W + 50 { return }
         let w = max(1.6, h < 70 ? min(7.5, h * 0.13 + 1.2) : h * 0.15)
         let body = detail ? col.shade(1 - dark * 0.35) : col
-        let arms = h < 24 ? 0 : (h < 44 ? Int(hashN(seed + 11) * 2.4 + 0.6) : 1 + Int(hashN(seed + 11) * 3.6))
+        let arms = h < 12 ? 0 : (h < 44 ? Int(hashN(seed + 11) * 2.4 + 0.6) : 1 + Int(hashN(seed + 11) * 3.6))
         let flip = Int(hashN(seed + 5) * 2)
         c.roundCaps(true)
         for i in 0..<arms {
