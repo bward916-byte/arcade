@@ -2136,38 +2136,51 @@ final class Renderer {
             label = false
             top = 42
         case .gemworld:
-            // Gem World on Main Street: a huge wholesale warehouse, five storefronts long, with a rock yard out front
-            let wall = Col(0xe2d6bc)
+            // Gem World on Main Street: a plain, tall metal warehouse. Tan ribbed siding, a low-pitched roof, a
+            // simple sign, big roll-up doors. Out by the left corner stands the camel somebody welded from tire rims.
+            let wall = Col(0xcfc4ac)
             let x0 = x - 145.0, bw = 290.0
-            let hh = 60.0
-            facade(x0, GY - hh, bw, hh, wall)
-            // corrugated siding and a long low metal roof, high overhead
-            var sx = x0 + 3
-            while sx < x0 + bw { c.R(sx, GY - hh + 1, 0.4, hh - 2, wall.shade(0.9 - dark * 0.4)); sx += 4 }
-            let roof = Col(0x8a8f96).shade(1 - dark * 0.45)
-            c.poly(roof, [x0 - 4, GY - hh, x0 + bw * 0.5, GY - hh - 10, x0 + bw + 4, GY - hh])
-            c.R(x0 - 4, GY - hh - 1, bw + 8, 1.6, roof.shade(0.8))
-            // the sign, painted big across the upper wall
-            c.RR(x - 74, GY - hh + 5, 148, 17, 2, Col(0x6a3a7a).shade(1 - dark * 0.3))
-            g.text("GEM WORLD", x, GY - hh + 12, 9, CREAM, bold: true)
-            g.text("WHOLESALE  ·  ROUGH  ·  SLABS  ·  BEADS  ·  FINDINGS", x, GY - hh + 19, 3, GOLD, bold: true)
-            // a row of high windows under the eaves
-            for w in 0..<7 { if w < 2 || w > 5 { c.RR(x0 + 12 + Double(w) * 41, GY - hh + 8, 14, 6, 0.8, GLASS.shade(1 - dark * 0.3)) } }
-            // three tall roll-up doors open onto aisles of pallet racking
+            let hh = 62.0
+            let sd = 1 - dark * 0.45
+            c.R(x0, GY - hh, bw, hh + 1, wall.shade(sd))
+            var sx = x0 + 2
+            while sx < x0 + bw { c.R(sx, GY - hh, 0.5, hh, wall.shade(sd * 0.9)); c.R(sx + 1.2, GY - hh, 0.3, hh, wall.shade(sd * 1.06)); sx += 3.6 }
+            c.R(x0, GY - 9, bw, 9, wall.shade(sd * 0.92)); c.R(x0, GY - 9.4, bw, 0.6, wall.shade(sd * 0.76))
+            let roof = Col(0x9a9c9e).shade(sd)
+            c.poly(roof, [x0 - 3, GY - hh, x0 + bw * 0.5, GY - hh - 9, x0 + bw + 3, GY - hh])
+            c.R(x0 - 3, GY - hh - 0.6, bw + 6, 1.6, roof.shade(0.78))
+            for q in 0..<3 { c.RR(x0 + 60 + Double(q) * 85, GY - hh - 8.6 + abs(Double(q) - 1) * 4.6, 6, 3, 1, roof.shade(0.86)) }
+            c.R(x0 + 3, GY - hh + 2, 1, hh - 2, wall.shade(sd * 0.7)); c.R(x0 + bw - 4, GY - hh + 2, 1, hh - 2, wall.shade(sd * 0.7))
+            // the sign: plain painted letters on a white board
+            c.RR(x - 62, GY - hh + 6, 124, 15, 1, Col(0xf4f1ea).shade(1 - dark * 0.3)); c.R(x - 62, GY - hh + 19.4, 124, 1.6, Col(0x3a2c1e).shade(1 - dark * 0.3))
+            g.text("GEM WORLD", x, GY - hh + 12.4, 8.6, Col(0x3a2c1e), bold: true)
+            g.text("WHOLESALE  ·  ROUGH  ·  SLABS  ·  BEADS  ·  FINDINGS", x, GY - hh + 25, 2.8, Col(0x3a2c1e), bold: true)
+            // three tall roll-up doors: steel shelving and crates in the dim inside
             let jewel: [Col] = [Col(0x9a5ad0), Col(0xf0f0f4), Col(0xe2742e), Col(0x2fa7a0), Col(0xc85a3a), Col(0x5a8ad0)]
             for d in 0..<3 {
                 let dx = x0 + 34 + Double(d) * 90
-                c.R(dx, GY - 34, 42, 34, Col(0x2a2420).shade(1 - dark * 0.2))
-                c.R(dx, GY - 37, 42, 4, Col(0x9a9a98).shade(1 - dark * 0.4))
-                if dark > 0.35 { c.R(dx, GY - 33, 42, 33, Col(0xffc060, 0.25)); lights.append((dx + 21, GY - 16, 34)) }
-                for r in 0..<6 {
-                    let sy = GY - 31 + Double(r) * 5.2
-                    c.R(dx + 3, sy + 3, 36, 0.7, Col(0x8a6238))
-                    for q in 0..<8 { c.R(dx + 4 + Double(q) * 4.4, sy, 3.6, 3, jewel[(q + r + d) % 6].shade(0.85 - dark * 0.3)) }
+                c.R(dx - 1, GY - 37, 44, 37, Col(0x8a8c8e).shade(sd))
+                c.R(dx, GY - 35, 42, 35, Col(0x24201c))
+                for r in 0..<4 { c.R(dx, GY - 35 + Double(r) * 1.6, 42, 0.5, Col(0xa8aaac).shade(sd)) }
+                if dark > 0.35 { c.R(dx, GY - 28, 42, 28, Col(0xffc060, 0.2)); lights.append((dx + 21, GY - 14, 30)) }
+                for r in 0..<4 {
+                    let sy = GY - 25 + Double(r) * 6.2
+                    c.R(dx + 2, sy + 4.2, 38, 0.6, Col(0x6a6e72))
+                    for q in 0..<7 { c.R(dx + 3 + Double(q) * 5.2, sy + 0.6, 4.4, 3.6, [Col(0x9a8466), Col(0x8a7456), Col(0xa89474)][(q + r) % 3].shade(0.8 - dark * 0.3)); c.circ(dx + 5.2 + Double(q) * 5.2, sy + 0.9, 0.7, jewel[(q + r + d) % 6].shade(0.8 - dark * 0.3)) }
                 }
+                c.R(dx + 2, GY - 26, 0.7, 26, Col(0x6a6e72)); c.R(dx + 39.4, GY - 26, 0.7, 26, Col(0x6a6e72))
             }
-            for w in 0..<4 { pane(x0 + 8 + Double(w) * 90, GY - 24, 18, 11) }
-            doorway(x0 + bw - 22, GY - 20, 11, 20, Col(0x4a3424))
+            c.RR(x0 + bw - 20, GY - 20, 11, 20, 0.6, Col(0x6a6e72).shade(sd)); c.RR(x0 + bw - 18.4, GY - 17, 7.8, 6, 0.4, GLASS.shade(1 - dark * 0.3)); c.circ(x0 + bw - 11, GY - 9, 0.6, Col(0xd8c060))
+            for w in 0..<2 { pane(x0 + 8 + Double(w) * 180, GY - 24, 16, 10) }
+            // the rim camel: wheel rims for the body and hump, pipe legs and neck, a hubcap head
+            let cx = x0 - 26.0
+            let iron = Col(0x7a6a5e).shade(sd), rust = Col(0x8a4a2a).shade(sd), chrome = Col(0xb8bcc0).shade(sd)
+            for lx in [-9.0, -5.0, 5.0, 9.0] { c.R(cx + lx - 0.6, GY - 14, 1.2, 14, iron); c.R(cx + lx - 1.4, GY - 1, 2.8, 1, iron.shade(0.8)) }
+            for q in 0..<3 { c.ellStroke(cx - 7 + Double(q) * 7, GY - 17, 4.6, 4.6, 1.4, q == 1 ? rust : iron); c.circ(cx - 7 + Double(q) * 7, GY - 17, 1.4, chrome); for k in 0..<5 { let a2 = Double(k) / 5 * PI * 2; c.seg(cx - 7 + Double(q) * 7, GY - 17, cx - 7 + Double(q) * 7 + cos(a2) * 4, GY - 17 + sin(a2) * 4, 0.4, iron.shade(0.8)) } }
+            c.ellStroke(cx, GY - 24.6, 4, 4, 1.3, rust); c.circ(cx, GY - 24.6, 1.2, chrome)
+            c.seg(cx + 10, GY - 19, cx + 15, GY - 31, 1.6, iron); c.ellStroke(cx + 16.6, GY - 33, 2.6, 2.2, 1, chrome); c.circ(cx + 17.4, GY - 33.4, 0.4, INK)
+            c.seg(cx + 15, GY - 35, cx + 14.4, GY - 37, 0.6, iron); c.seg(cx - 11, GY - 18, cx - 13.6, GY - 12, 0.6, iron)
+            c.R(cx - 12, GY - 0.6, 26, 0.8, Col(0x5a4a3e))
             // the yard: pallets of flats, bins of rough rock, and a few boulders of rose quartz and amethyst
             for k in 0..<6 {
                 let px = x0 + 12 + Double(k) * 48
@@ -2897,7 +2910,7 @@ final class Renderer {
             top = 34
         case .watch:
             pastSight(sp.arg, x)
-            top = 40
+            top = sp.arg == 100 ? 66 : ((sp.arg == 102 || sp.arg == 201 || sp.arg == 206) ? 50 : 40)
         case .village:
             village(x)
             label = false
@@ -4177,6 +4190,7 @@ final class Renderer {
         for k in 0..<3 {
             let vx = hx0 - Double(k) * 12 - cam
             let bob = abs(sin(NOW * 5 + Double(k) * 1.3)) * 0.8
+            if g.spots.contains(where: { abs($0.x - (vx + cam)) < 90 }) { continue }
             hunter(vx, GY + 2 - bob, 60 + Double(k), NOW * 5 + Double(k) * 1.3)
         }
         // and all along the valley, the rest of the ice-age country
@@ -4401,11 +4415,9 @@ final class Renderer {
         for q in 0..<5 { c.R(8 + Double(q) * 25, -34, 1.8, 3.6, Col(0x5a3a26)) }
         // red and cream checkerboard tile, scuffed
         c.R(0, 0, RW, 12, Col(0xe6dcc8))
-        let rows: [(Double, Double, Double)] = [(0, 2.6, 4), (2.6, 3.8, 5.2), (6.4, 5.6, 6.8)]
-        for (r, row) in rows.enumerated() {
-            var tx = -Double(r) * 1.4
-            var k = r
-            while tx < RW { if k % 2 == 0 { c.R(max(0, tx), row.0, min(row.2, RW - max(0, tx)), row.1, Col(0xa63a2c)) }; tx += row.2; k += 1 }
+        for r in 0..<3 {
+            var q = 0
+            while Double(q) * 4 < RW { if (q + r) % 2 == 0 { c.R(Double(q) * 4, Double(r) * 4, min(4, RW - Double(q) * 4), 4, Col(0xa63a2c)) }; q += 1 }
         }
         for q in 0..<14 { c.ell(hashN(Double(q) + 9611) * RW, 1 + hashN(Double(q) + 9612) * 10, 2.4, 0.5, Col(0x3a2418, 0.12)) }
         // a string of pennants and a row of old licence plates up under the ceiling
@@ -5185,9 +5197,10 @@ final class Renderer {
     // MARK: ring, HUD, screens
 
     private func ring(_ i: Int) {
-        let x = g.spots[i].x - cam
+        // the ring stays on screen, clear of the edges
+        let x = clampD(g.spots[i].x - cam, 46, W - 46)
         // never up under the coins, health and cred bar
-        let y = max(GY - (g.spots[i].kind == .gemworld ? 90.0 : 68.0), GY + (50 - GY - 2) / ZOOM)
+        let y = max(GY - (g.spots[i].kind == .gemworld ? 90.0 : (g.spots[i].kind == .skoolie ? 44.0 : 68.0)), GY + (50 - GY - 2) / ZOOM)
         guard let o = g.offer(i) else {
             g.text(g.note(i), x, y, 5, CREAM, plate: true)
             return

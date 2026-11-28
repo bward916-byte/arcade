@@ -2533,6 +2533,7 @@ final class Game {
             hint("gen", "No solar yet, so your generator runs in the evening. Shut it off at your camp before 10 PM. Quiet hours run until 6 AM. Solar panels at K&B Tools mean no generator at all.")
         }
         if genOn && dayT < 0.3 { genOn = false }
+        if previewing { genMadDay = day }
         if genOn && quietHours && genMadDay != day && !shown.contains("genwarn") {
             // the first time is a warning, not a fine
             shown.insert("genwarn")
