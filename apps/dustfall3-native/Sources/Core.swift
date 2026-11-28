@@ -543,7 +543,7 @@ struct Devil { var x: Double; var vx: Double; var t = 0.0; var life: Double; var
 /// Test builds carry the cheats: the coin button on the title, and a free unlock when the store has no product yet. False for the App Store.
 let TESTBUILD = false
 /// For test play only: a new game starts with a full purse. Must be false in the App Store build.
-let TESTGOLD = true
+let TESTGOLD = false
 /// How many townsfolk it takes, in the last town, to run Crane out.
 let RALLY_N = 12
 /// The saloon is this many screens wide, and the view pans slowly across it.
