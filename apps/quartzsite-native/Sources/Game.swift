@@ -512,7 +512,7 @@ final class Game {
     var GY = 150.0
     var safeL = 0.0
     var safeR = 0.0
-    let DAYLEN = 100.0
+    let DAYLEN = 160.0
 
     var phase = Phase.title
     var time = 0.0
@@ -1096,6 +1096,7 @@ final class Game {
             if t.range > 0 && mi > t.range { return Trip(ok: false, cost: 0, how: "Too far for the " + t.name.lowercased()) }
             return Trip(ok: true, cost: Int((mi * t.perMile).rounded(.up)), how: "Ride the " + t.name.lowercased())
         }
+        if toyFor(to) { let t = TOYS[toy]; return Trip(ok: true, cost: Int((mi * t.perMile).rounded(.up)), how: "Ride the " + t.name.lowercased()) }
         if rigFor(to) { return Trip(ok: true, cost: max(1, Int((mi * RIGS[rig.rawValue].perMile).rounded(.up))), how: "Drive the " + RIGS[rig.rawValue].name.lowercased()) }
         if to == .skoolie { return Trip(ok: false, cost: 0, how: "10 miles out. You need wheels") }
         if [.crystal, .palms, .desertbar, .intaglios].contains(to) { return Trip(ok: false, cost: 0, how: "\(Int(mi)) miles out. You need wheels") }
@@ -1164,8 +1165,16 @@ final class Game {
     private func rigFor(_ to: Area) -> Bool {
         return !inRig && !onToy && !inPast && rigHere && rig != .tent && to != .trail && area != .trail && [Area.skoolie, .crystal, .palms, .desertbar, .intaglios].contains(to)
     }
+    /// On foot with your ride parked right here: you take it, if it can make the trip.
+    private func toyFor(_ to: Area) -> Bool {
+        if inRig || onToy || inPast || !toyHere || toy < 0 || toy >= TOYS.count || rigFor(to) { return false }
+        if (to == .trail || area == .trail) && toy == 4 { return false }
+        let t = TOYS[toy]
+        return !(t.range > 0 && milesBetween(area, to) > t.range)
+    }
     private func go(_ to: Area) {
         if rigFor(to) { inRig = true; px = rigX; vx = 0 }
+        else if toyFor(to) { onToy = true; px = toyX; vx = 0 }
         let t = trip(to)
         if !t.ok { mapMsg = t.how; mapMsgT = 2.5; return }
         if Double(t.cost) > money { mapMsg = "Not enough coins for that"; mapMsgT = 2.5; return }

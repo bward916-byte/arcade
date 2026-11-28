@@ -234,7 +234,14 @@ final class GameViewController: UIViewController {
         game.update(min(0.05, max(0, raw)))
         if let u = game.openURL {
             game.openURL = nil
-            if let url = URL(string: u) { UIApplication.shared.open(url) }
+            if let url = URL(string: u) {
+                UIApplication.shared.open(url, options: [:]) { ok in
+                    if ok { return }
+                    let a = UIAlertController(title: "Send feedback", message: "No mail app is set up on this phone. Email bward916@gmail.com and say what happened.", preferredStyle: .alert)
+                    a.addAction(UIAlertAction(title: "OK", style: .default))
+                    self.present(a, animated: true)
+                }
+            }
         }
         guard let r = renderer, let cv = canvas else { return }
         r.draw()

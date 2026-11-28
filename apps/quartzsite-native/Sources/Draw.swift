@@ -440,6 +440,11 @@ final class Renderer {
             g.texts[i].y = gys + (g.texts[i].y - GY) * ZOOM
             g.texts[i].size *= ZOOM
             g.texts[i].wrap *= ZOOM
+            // a speech bubble or label near the edge slides in so none of it is cut off
+            if g.texts[i].plate && g.texts[i].align == 0 && g.texts[i].wrap == 0 {
+                let tw = Double(g.texts[i].s.count) * g.texts[i].size * 0.5 + 10
+                if tw < fullW - 8 { g.texts[i].x = clampD(g.texts[i].x, g.safeL + tw / 2 + 2, fullW - g.safeR - tw / 2 - 2) }
+            }
         }
         for i in hit0..<g.hits.count {
             let h = g.hits[i]
@@ -1764,6 +1769,10 @@ final class Renderer {
             }
             top = 30
         case .bench:
+            c.R(x + 13.6, GY - 26, 0.7, 26, Col(0x8a8a88)); c.poly(Col(0x3f8f8a).shade(1 - dark * 0.4), [x - 2, GY - 24, x + 14, GY - 30, x + 30, GY - 24]); c.poly(Col(0xf4f1ea).shade(1 - dark * 0.4), [x + 8, GY - 27.6, x + 14, GY - 30, x + 20, GY - 27.6, x + 14, GY - 24])
+            c.R(x + 18, GY - 5, 0.7, 5, Col(0x6a6a6a)); c.ell(x + 18.3, GY - 5.4, 2.6, 0.9, Col(0x8a5a32))
+            c.RR(x - 20, GY - 6, 6, 6, 0.6, Col(0xc8281e).shade(1 - dark * 0.4)); c.R(x - 19.4, GY - 4, 4.8, 0.3, Col(0x7a1812)); c.R(x - 19.4, GY - 2, 4.8, 0.3, Col(0x7a1812))
+            c.seg(x + 9, GY - 9.2, x + 10, GY - 15, 0.4, Col(0x3a3a3e)); c.poly(Col(0x3a3a3e), [x + 8.4, GY - 15, x + 11.6, GY - 16.4, x + 12, GY - 14.4]); if dark > 0.3 { lights.append((x + 6, GY - 10, 14)) }
             c.R(x - 12, GY - 9, 24, 1.6, Col(0xd8d4cc))
             c.seg(x - 10, GY - 7.4, x - 7, GY, 0.8, Col(0x6a6a6a)); c.seg(x - 7, GY - 7.4, x - 10, GY, 0.8, Col(0x6a6a6a))
             c.seg(x + 10, GY - 7.4, x + 7, GY, 0.8, Col(0x6a6a6a)); c.seg(x + 7, GY - 7.4, x + 10, GY, 0.8, Col(0x6a6a6a))
@@ -4955,6 +4964,36 @@ final class Renderer {
     }
     private func deepWild(_ ar: Area) {
         if dark > 0.5 { return }
+        var dn = floor((cam - 80) / 240)
+        while dn * 240 < cam + W + 80 {
+            let hk = hashN(dn * 3.1 + Double(ar.rawValue) * 7 + 9180)
+            let wx = dn * 240 + hk * 140
+            let sx = wx - cam
+            dn += 1
+            if wx < 100 || wx > g.WORLD - 100 || g.spots.contains(where: { abs($0.x - wx) < 130 }) { continue }
+            let sh = 1 - dark * 0.5
+            let t = NOW * 0.06 + wx
+            switch Int(hk * 100) % 7 {
+            case 0:
+                c.save(); c.translate(sx + sin(t) * 26, 0); c.scale(cos(t) >= 0 ? 1 : -1, 1); gomphothere(0, GY + 2, 0.9, wx); c.restore()
+            case 1:
+                for q in 0..<4 { grazer(sx + Double(q) * 22 + sin(NOW * 0.1 + wx) * 24, GY + 2 + Double(q % 2), 0.72, Double(q) * 1.3, false) }
+            case 2:
+                for q in 0..<2 { grazer(sx + Double(q) * 34 + sin(NOW * 0.07 + wx) * 16, GY + 2, 1.3, Double(q) * 1.7, true) }
+            case 3:
+                let tx = sx + sin(NOW * 0.05 + wx) * 10
+                c.dome(tx, GY + 1, 9, Col(0x6a6a3e).shade(sh)); c.dome(tx, GY + 1, 6.4, Col(0x7a7a48).shade(sh)); c.circ(tx + 11, GY - 3.4, 1.7, Col(0x8a8a5a).shade(sh)); c.R(tx - 6.4, GY, 2.4, 1.8, Col(0x5a5a34)); c.R(tx + 4, GY, 2.4, 1.8, Col(0x5a5a34))
+            case 4:
+                for q in 0..<9 { let d = Double(q); let bx = sx + d * 6 + sin(NOW * 0.5 + d) * 2; c.seg(bx, GY + 2, bx, GY - 3, 0.25, Col(0x3a3a3a)); c.ell(bx, GY - 4, 1.6, 1, Col(0xf4f4f0).shade(sh)); c.seg(bx + 1, GY - 4.4, bx + 2.2, GY - 6.4 + (sin(NOW * 3 + d) > 0.4 ? 5.0 : 0.0), 0.3, Col(0xf4f4f0).shade(sh)) }
+            case 5:
+                for q in 0..<2 { direWolf(sx + Double(q) * 22 + sin(NOW * 0.2 + wx) * 36, GY + 2, 1.2, NOW + Double(q)) }
+            default:
+                // a fish jumping out on the water
+                let u = (NOW * 0.4 + hk * 5).truncatingRemainder(dividingBy: 3)
+                if u < 1 { let fy = GY - 4 - sin(u * PI) * 7; c.ell(sx + u * 10, fy, 1.8, 0.7, Col(0xd8e8f0)); c.poly(Col(0xd8e8f0), [sx + u * 10 - 1.6, fy, sx + u * 10 - 3, fy - 0.9, sx + u * 10 - 3, fy + 0.9]) }
+                c.arcStroke(sx + 5, GY - 3.6, 3 + u * 2, PI, PI * 2, 0.25, Col(0xe8f6ff, max(0, 0.6 - u * 0.2)))
+            }
+        }
         // birds over the water, and something always moving along the shore
         for k in 0..<7 {
             let bx = (NOW * 9 + Double(k) * 23).truncatingRemainder(dividingBy: W + 80) - 40
@@ -5479,7 +5518,7 @@ final class Renderer {
             if g.mapQuad % 2 == 1 { lonA = lonB - lw } else { lonB = lonA + lw }
             if g.mapQuad / 2 == 0 { latA = latB - lh } else { latB = latA + lh }
             let qn = ["NORTHWEST", "NORTHEAST", "SOUTHWEST", "SOUTHEAST"][max(0, min(3, g.mapQuad))]
-            g.text(qn, mx0 + 6, my0 + 6, 4.4, ink.alpha(0.6), align: 1, bold: true)
+            g.text(qn, mx0 + 6, my0 + mh - 6, 4.4, ink.alpha(0.6), align: 1, bold: true)
         } else {
             c.seg(mx0 + mw / 2, my0 + 2, mx0 + mw / 2, my0 + mh - 2, 0.4, ink.alpha(0.25))
             c.seg(mx0 + 2, my0 + mh / 2, mx0 + mw - 2, my0 + mh / 2, 0.4, ink.alpha(0.25))
@@ -5511,13 +5550,14 @@ final class Renderer {
         if riverSide { g.text("to the river", mx0 + 14, my0 + mh - 20, 3.2, Col(0x2a5a80), align: 1) }
         for a in AREAS.indices {
             let d = AREAS[a]
-            if big && !inside(d.lat, d.lon) { continue }
+            // places past the edge of the sketch sit on its border, so they belong to the quarter on that side
+            if big && !inside(clampD(d.lat, 33.50, 33.77), clampD(d.lon, -114.42, -114.09)) { continue }
             let p = mp(d.lat, d.lon)
             let here = a == g.area.rawValue
             if here { c.circ(p.0, p.1, 5 + sin(NOW * 4) * 0.8, GOLD.alpha(0.5)) }
             c.circ(p.0, p.1, 2.6, here ? GOLD : REDC)
             c.circ(p.0, p.1, 1, CREAM)
-            let off: [(Double, Double, Int)] = [(-4, 4, 2), (4, -5, 1), (-5, 7, 2), (0, -6, 0), (0, 6, 0), (4, 6.5, 1), (5, 1, 1), (-4, 3, 2), (5, 1, 1), (-5, 1, 2), (-5, -2, 2), (-5, 6, 2), (3, 7, 2), (5, 2, 1)]
+            let off: [(Double, Double, Int)] = [(-4, 4, 2), (4, -5, 1), (-5, 7, 2), (0, -6, 0), (0, 6, 0), (4, 6.5, 1), (5, 1, 1), (-4, 3, 2), (5, 1, 1), (-5, 1, 2), (-5, -6, 2), (-5, 1, 2), (3, 7, 2), (5, 2, 1)]
             let o = a < off.count ? off[a] : (0.0, -6.0, 0)
             let camp = !g.inPast && a == g.rigArea.rawValue
             // keep every name inside the map: flip it to the other side of its pin, or lift it, when it would run off
@@ -5584,7 +5624,7 @@ final class Renderer {
         for e in EVENTS.indices where EVENTS[e].start > g.day && e != EV_PAN { next.append(e) }
         next.sort { EVENTS[$0].start < EVENTS[$1].start }
         let cy = y1 - 28
-        let nowLine = g.inPast ? "Winter, 1026: no shows, no swap meets. Just the desert, the animals and the river people." : "Happening now: " + (now.isEmpty ? "nothing big this week" : now.joined(separator: ", "))
+        let nowLine = g.deep ? "Five million years ago: water in the valley, palms on the shore, and no people anywhere." : g.iceAge ? "The ice age, 13,000 years ago: mammoths, camels and horses, and a few hunters following them." : g.inPast ? "Winter, 1026: no shows, no swap meets. Just the desert, the animals and the river people." : "Happening now: " + (now.isEmpty ? "nothing big this week" : now.joined(separator: ", "))
         g.text(nowLine, x0 + 10, cy, 4.4, ink, align: 1, bold: true, wrap: x1 - x0 - 20)
         if !next.isEmpty && !g.inPast {
             let up = next.prefix(2).map { EVENTS[$0].name + " (" + EVENTS[$0].when + ", " + AREAS[EVENTS[$0].area.rawValue].name + ")" }
