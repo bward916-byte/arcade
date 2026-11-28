@@ -882,7 +882,11 @@ final class Renderer {
             while n * 90 < cam * par + W + 70 {
                 if hashN(n + 2100) < 0.6 {
                     let sx = n * 90 + hashN(n + 2110) * 30 - cam * par
-                    if hashN(n + 2120) < 0.5 { toy(5, sx, GY + 0.5, 1, -1, 0) } else { toy(4, sx, GY + 0.5, -1, -1, 0) }
+                    let pk = hashN(n + 2120)
+                    if pk < 0.45 { sxs(sx, GY + 0.5, hashN(n + 2125) < 0.5 ? 1 : -1, Int(hashN(n + 2130) * 7), hashN(n + 2140) < 0.45, false) }
+                    else if pk < 0.7 { toy(5, sx, GY + 0.5, 1, -1, 0, carTint(n)) }
+                    else if pk < 0.85 { toy(2, sx, GY + 0.5, -1, -1, 0) }
+                    else { toy(4, sx, GY + 0.5, -1, -1, 0, carTint(n + 5)) }
                 }
                 n += 1
             }
@@ -1217,7 +1221,7 @@ final class Renderer {
     private func traffic(_ car: Game.Car) {
         let b = g.laneBase(Double(car.lane))
         let kinds: [RigKind] = [.minivan, .minivan, .van, .classC, .classA, .skoolie]
-        if car.kind == 0 { toy(4, car.x, b, 1, Int(hashN(car.v) * 4), g.driveScroll * 0.1) }
+        if car.kind == 0 { toy(4, car.x, b, 1, Int(hashN(car.v) * 4), g.driveScroll * 0.1, carTint(car.v)) }
         else { rig(kinds[car.kind], car.x, b, 0, 1) }
         if dark > 0.3 {
             let tail = car.x - CAR_LEN[car.kind] / 2
@@ -1411,7 +1415,7 @@ final class Renderer {
     }
 
     /// A bike, quad or side-by-side centred on `cx`, wheels on `base`. `rider` is a look index, or -1 for none.
-    func toy(_ k: Int, _ cx: Double, _ base: Double, _ dir: Double, _ rider: Int, _ spin: Double) {
+    func toy(_ k: Int, _ cx: Double, _ base: Double, _ dir: Double, _ rider: Int, _ spin: Double, _ tint: Col? = nil) {
         if cx < -60 || cx > W + 60 { return }
         c.save()
         c.translate(cx, base)
@@ -1458,7 +1462,7 @@ final class Renderer {
             c.circ(13, -9.4, 0.9, Col(0xfff2c0))
         case 4:
             // a small used SUV, the kind people tow behind a motorhome
-            let body = Col(0x6a7a5a)
+            let body = tint ?? Col(0x6a7a5a)
             c.poly(body, [-23, -5, -23, -17, -20, -21, 6, -21, 12, -14, 21, -12.6, 23, -9.6, 23, -5])
             c.poly(GLASS.alpha(0.55), [-18, -19.6, -6, -19.6, -6, -14, -19, -14])
             c.poly(GLASS.alpha(0.55), [-4.6, -19.6, 5, -19.6, 10, -14, -4.6, -14])
@@ -1471,7 +1475,7 @@ final class Renderer {
             for wx in [-14.0, 14.0] { c.circ(wx, -4.6, 4.6, Col(0x15120f)); c.circ(wx, -4.6, 3.6, TIRE); c.circ(wx, -4.6, 1.8, HUB) }
         case 5:
             // side-by-side: a stock utility side-by-side with half doors, a roof, a cargo bed and knobby tires
-            let body = Col(0x5a6a3a)
+            let body = tint ?? Col(0x5a6a3a)
             for wx in [-12.0, 12.6] { c.circ(wx, -5.2, 5.2, dk); c.circ(wx, -5.2, 2.4, Col(0x4a4a4a)); c.circ(wx, -5.2, 1, HUB) }
             c.poly(body, [-19, -8, -19, -13.4, -8, -13.4, -7, -10.6, 9, -10.6, 12, -14.4, 18.6, -12.6, 19.6, -8])
             c.poly(body.shade(1.12), [-6.6, -10.6, 7, -10.6, 7, -15.4, -6.6, -15.4])
@@ -2950,7 +2954,7 @@ final class Renderer {
             // the hand-lettered card taped to Carl's own menu board
             c.RR(x + 31, GY - 26, 22, 5, 0.6, Col(0xf4f1ea).shade(1 - dark * 0.3)); c.R(x + 40.5, GY - 26.6, 3, 1.2, Col(0xc8c0a8, 0.9))
             g.text("SORRY, NO RANCH", x + 42, GY - 23.5, 2.1, Col(0xb0201a), bold: true)
-            if g.phase == .play { toy(4, x + 30, GY + 2, 1, 740, 0) }
+            if g.phase == .play { toy(4, x + 30, GY + 2, 1, 740, 0, carTint(x)) }
             c.poly(Col(0xf4f4f0, 0.8), [x + 52, GY + 5, x + 58, GY + 3, x + 58, GY + 7])
             if dark > 0.3 { lights.append((x - 3, GY - 42, 24)); lights.append((x - 10, GY - 14, 30)) }
             label = false
@@ -2981,7 +2985,7 @@ final class Renderer {
                 if dark > 0.3 { c.R(px - 8, GY - 34.2, 16, 0.8, Col(0xfff2c0)); lights.append((px, GY - 18, 26)) }
             }
             if g.phase == .play {
-                rig(.classC, x + 40, GY + 1, 0, 1, 0.62); toy(4, x - 4, GY + 2, -1, 750, 0)
+                rig(.classC, x + 40, GY + 1, 0, 1, 0.62); toy(4, x - 4, GY + 2, -1, 750, 0, carTint(x + 3))
                 person(x + 14, GY + 1, 760, 1, 0, false)
             }
             // the EV chargers
@@ -3991,17 +3995,30 @@ final class Renderer {
 
     /// A tow vehicle in local units, nose to the right.
     private func towTruck(_ x0: Double, _ col: Col, _ suv: Bool) {
+        let len = suv ? 52.0 : 62.0
+        let rw = x0 + (suv ? 11.0 : 13.0), fw = x0 + len - 12
         if suv {
-            c.poly(col, [x0, -5, x0, -17, x0 + 3, -21, x0 + 24, -21, x0 + 30, -14, x0 + 38, -12.4, x0 + 38, -5])
-            c.RR(x0 + 4, -19.6, 8, 5.4, 0.8, GLASS); c.RR(x0 + 14, -19.6, 8, 5.4, 0.8, GLASS)
+            c.poly(col, [x0, -6, x0, -19, x0 + 3, -26, x0 + 32, -26, x0 + 39.6, -17.4, x0 + 50, -15.6, x0 + 52, -12, x0 + 52, -6])
+            c.RR(x0 + 3.6, -24.6, 8.4, 6.6, 0.8, GLASS); c.RR(x0 + 13.4, -24.6, 8.4, 6.6, 0.8, GLASS); c.RR(x0 + 23.2, -24.6, 7.6, 6.6, 0.8, GLASS)
+            c.poly(GLASS, [x0 + 32, -24.6, x0 + 37.6, -18, x0 + 32, -18])
+            c.R(x0 + 4, -26.8, 26, 0.7, Col(0x3a3a3e))
+            c.R(x0 + 12.4, -17.4, 0.4, 10.6, col.shade(0.78)); c.R(x0 + 22.2, -17.4, 0.4, 10.6, col.shade(0.78)); c.R(x0 + 31.6, -17.4, 0.4, 10.6, col.shade(0.78))
+            c.RR(x0 - 0.4, -17.6, 1.4, 4, 0.4, Col(0xc8281e))
         } else {
-            c.poly(col, [x0, -5, x0, -13, x0 + 18, -13, x0 + 18, -21, x0 + 29, -21, x0 + 33, -14, x0 + 42, -12.4, x0 + 42, -5])
-            c.RR(x0 + 20, -19.6, 8, 5.4, 0.8, GLASS)
-            c.R(x0, -13.6, 18, 0.8, col.shade(0.7))
+            // a crew-cab pickup: long bed, four doors, a tall hood
+            c.poly(col, [x0, -6, x0, -16.4, x0 + 23, -16.4, x0 + 24, -27, x0 + 43, -27, x0 + 49.6, -17.6, x0 + 60, -16, x0 + 62, -12, x0 + 62, -6])
+            c.RR(x0 + 25.4, -25.6, 7.8, 7.4, 0.8, GLASS); c.RR(x0 + 34.4, -25.6, 7.6, 7.4, 0.8, GLASS)
+            c.poly(GLASS, [x0 + 43, -25.6, x0 + 47.8, -18.2, x0 + 43, -18.2])
+            c.R(x0, -17, 23, 1, col.shade(0.7)); c.R(x0 + 22.6, -16.4, 0.5, 9.6, col.shade(0.72))
+            c.R(x0 + 33.6, -17.6, 0.4, 10.8, col.shade(0.78)); c.R(x0 + 42.6, -17.6, 0.4, 10.8, col.shade(0.78))
+            c.RR(x0 + 30, -16, 2, 0.8, 0.3, Col(0xc8c8c8)); c.RR(x0 + 39, -16, 2, 0.8, 0.3, Col(0xc8c8c8))
+            c.RR(x0 - 0.4, -15.6, 1.4, 4.6, 0.4, Col(0xc8281e)); c.R(x0 - 1.4, -8.4, 2.4, 2.2, Col(0xb8bcc0))
         }
-        let len = suv ? 38.0 : 42.0
-        c.RR(x0 + len - 1.6, -11, 1.8, 2.4, 0.5, Col(0xfff2c0))
-        wheel(x0 + 8, 4); wheel(x0 + len - 8, 4)
+        c.R(x0, -8, len, 2, col.shade(0.62))
+        c.poly(Col(0x3a3a3e), [x0 + len - 14.6, -19.4, x0 + len - 13, -21.4, x0 + len - 11.6, -19.4])
+        c.RR(x0 + len - 2.4, -14.6, 2.2, 3, 0.6, Col(0xfff2c0)); c.R(x0 + len - 1, -9, 2.2, 2.6, Col(0xb8bcc0))
+        c.circ(rw, -5.6, 7, Col(0x1c1a1a)); c.circ(fw, -5.6, 7, Col(0x1c1a1a))
+        wheel(rw, 5.4); wheel(fw, 5.4)
     }
 
     /// The other kinds of rig you see camped out there: fifth wheels, travel trailers, Airstreams, truck campers,
@@ -4017,13 +4034,13 @@ final class Renderer {
         c.save()
         c.translate(cx, base)
         c.scale(dir * s, s)
-        c.ell(0, 0.6, 46, 2.2, Col(0x000000, 0.2))
+        c.ell(6, 0.6, 58, 2.4, Col(0x000000, 0.2))
         switch style {
         case 0:
             // fifth wheel: the tall nose rides over the pickup's bed
             // the pickup out front, cab clear of the nose, the pin box dropping into the bed
-            towTruck(15, tcol, false)
-            c.R(22, -24, 3, 11, Col(0x3a3634)); c.R(20, -14.6, 7, 1.6, Col(0x2a2a2a))
+            towTruck(11, tcol, false)
+            c.R(22, -24, 3, 8, Col(0x3a3634)); c.R(20, -17.6, 7, 1.6, Col(0x2a2a2a))
             c.poly(white, [-52, -8, -52, -41, 20, -41, 30, -37, 30, -24, 8, -24, 8, -8])
             c.poly(white.shade(0.86), [8, -24, 30, -24, 30, -26, 8, -26])
             c.R(4, -8, 1.4, 8, Col(0x6a6a6a)); c.R(2.6, -0.8, 4.2, 0.8, Col(0x6a6a6a))
@@ -4054,9 +4071,9 @@ final class Renderer {
             wheel(-26, 4); wheel(-16, 4)
         case 3:
             // a truck camper: the box sits in the bed and reaches out over the cab
-            towTruck(-22, tcol, false)
-            c.poly(white, [-24, -13, -24, -36, 10, -36, 12, -28, 8, -22, -4, -22, -4, -13])
-            c.R(-24, -24, 20, 1.6, acc); c.RR(-20, -33, 9, 6, 1, GLASS); c.RR(-2, -34, 9, 5, 1, GLASS)
+            towTruck(-30, tcol, false)
+            c.poly(white, [-32, -16.4, -32, -44, 12, -44, 15, -34, 10, -28.4, -7, -28.4, -7, -16.4])
+            c.R(-32, -29, 25, 1.8, acc); c.RR(-27, -41, 10, 7, 1, GLASS); c.RR(-1, -42, 10, 6, 1, GLASS); c.R(-17, -39, 7, 22, white.shade(0.9))
         case 4:
             // a teardrop behind a small car
             towTruck(2, tcol, true)
@@ -4518,7 +4535,11 @@ final class Renderer {
     }
 
     /// A side-by-side in one of the makes you see out here, two seats or four, helmets on, whip flag up.
-    private func sxs(_ cx: Double, _ base: Double, _ dir: Double, _ brand: Int, _ four: Bool) {
+    private func carTint(_ seed: Double) -> Col {
+        let cs: [Col] = [Col(0xd8d4cc), Col(0x3a3a3e), Col(0x8a2a24), Col(0x2e4a6a), Col(0x9a9a98), Col(0xb8a070), Col(0x6a7a5a), Col(0xf4f1ea), Col(0x4a3a2e), Col(0x2f6a6a)]
+        return cs[Int(hashN(seed + 31) * 10) % 10].shade(1 - dark * 0.3)
+    }
+    private func sxs(_ cx: Double, _ base: Double, _ dir: Double, _ brand: Int, _ four: Bool, _ riders: Bool = true) {
         if cx < -60 || cx > W + 60 { return }
         let paints: [(Col, Col)] = [(Col(0xc8281e), Col(0xf4f4f0)), (Col(0xf2c418), Col(0x1c1a1a)), (Col(0x3a9a3a), Col(0x1c1a1a)), (Col(0x2a5ad0), Col(0xf4f4f0)), (Col(0x2a2a2e), Col(0xc8281e)), (Col(0xe8782e), Col(0x1c1a1a)), (Col(0x2fa7a0), Col(0xf4f4f0))]
         let p = paints[brand % 7]
@@ -4533,7 +4554,8 @@ final class Renderer {
         let cage = Col(0x1c1a1a)
         c.seg(-14 - ext, -12, -11 - ext, -22, 0.9, cage); c.seg(-11 - ext, -22, 4, -22, 0.9, cage); c.seg(4, -22, 9, -12.6, 0.9, cage)
         c.seg(-3 - ext / 2, -22, -3 - ext / 2, -13, 0.7, cage)
-        let seats = four ? 2 : 1
+        let seats = riders ? (four ? 2 : 1) : 0
+        if !riders { c.RR(-1.4, -17, 4.4, 5.6, 1.4, Col(0x2a2a2e)); if four { c.RR(-10.4, -17, 4.4, 5.6, 1.4, Col(0x2a2a2e)) } }
         for k in 0..<seats {
             let hx = 1.0 - Double(k) * 9
             c.RR(hx - 2.4, -17, 4.4, 5.6, 1.4, [Col(0x3a4a6a), Col(0x7a3a3a)][k % 2])
@@ -6373,7 +6395,7 @@ final class Renderer {
         // rigs that pulled in, and string lights from a pole
         if et > 4 {
             rig(.van, fx + 150, GY - 1, 1, -1, 0.9)
-            toy(4, fx + 205, GY, -1, -1, 0)
+            toy(4, fx + 205, GY, -1, -1, 0, carTint(fx))
             rig(.skoolie, fx + 290, GY - 1, 2, -1, 0.9)
         }
         c.R(fx + 92, GY - 26, 1, 26, Col(0x7a6a5a).shade(1 - dark * 0.4))
@@ -6579,7 +6601,7 @@ final class Renderer {
             let sx = wx - 200 - cam
             if sx < -130 || sx > W + 130 { continue }
             let base = dir > 0 ? GY + 12 : GY + 17
-            if k % 3 == 2 { toy(4, sx, base, dir, 4 + k * 13, NOW * sp * 0.1) }
+            if k % 3 == 2 { toy(4, sx, base, dir, 4 + k * 13, NOW * sp * 0.1, carTint(Double(k))) }
             else { rig(kinds[(k + Int(ar.rawValue)) % kinds.count], sx, base, 0, dir, 0.62) }
             if dark > 0.3 { c.glow(sx + dir * 26, base - 5, 16, Col(0xfff2c0, 0.3), Col(0xfff2c0, 0)) }
         }

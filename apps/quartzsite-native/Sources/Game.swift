@@ -1437,6 +1437,8 @@ final class Game {
         if key == "ltva" { px = 760; dayT = 0.3; rig = .classB; inRig = true; rigX = 760 }
         if key == "main" { place(.main, 3920); money = 400; day = 14 }
         if key == "mainwest" { place(.main, 2150); money = 400; day = 9; dayT = 0.35 }
+        if key == "dbar" { place(.desertbar, 900); dayT = 0.4; clockFreeze = true }
+        if key == "busy2" { place(.ltva, 2500); dayT = 0.4; clockFreeze = true }
         if key == "parks" { place(.main, 5900); money = 400; day = 9; dayT = 0.4 }
         if key == "parks2" { place(.tyson, 3460); money = 400; day = 9; dayT = 0.4 }
         if key == "maineast" { place(.main, 3060); money = 400; day = 9; dayT = 0.4 }
