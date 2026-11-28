@@ -1,8 +1,3 @@
-# Havasu Campfire for iPhone
+# Superseded
 
-The sister app of Quartzsite Campfire, for winter visitors around Lake Havasu City. Same Swift code as `apps/campfire-ios`, with Havasu content.
-
-- First edition: Guide, Shows and Map, all from the guide packed in `Resources/guide.json`. Nothing is fetched.
-- For Sale, Alerts, Questions, Photos, "Am I on BLM land?" and map layers are in the code but switched off by `Site.live` in `Sources/Site.swift`, because Havasu has no server and no land-boundary file yet.
-- The "Havasu iOS" workflow builds it on a GitHub Mac. The result (compile errors, upload outcome, screenshots) is pushed to the `havasu-ios-buildlog` branch.
-- Bundle ID `com.brianward.havasucampfire`. The TestFlight upload needs an App Store Connect record for it.
+This separate Havasu app was dropped on Nov 27, 2026 in favour of one Campfire app with an area picker. The build workflow has been removed, so nothing builds from this branch. The Havasu data lives on the `campfire-area-havasu` branch. This branch and `havasu-ios-buildlog` are safe to delete.
