@@ -4873,7 +4873,7 @@ function drawHomeHud(dt) {
   const alive = G.survivors; let px = 20; const pk = H < 430 ? .7 : 1;   /* on a phone the faces are smaller, so they cover less of the house */
   ctx.save(); ctx.translate(0, H); ctx.scale(pk, pk); ctx.translate(0, -H);
   for (let i = 0; i < alive.length; i++) {
-    const s = alive[i]; const py = H - 60; const r = 30;
+    const s = alive[i]; const py = H - 60; const r = 30; if (!s.alive && G.phase === 'day' && alive.some(q => q.alive)) continue;   /* the dead leave the row of faces */
     ctx.fillStyle = 'rgba(14,15,18,.75)'; rr(px - 4, py - 36, 72, 94, 10); ctx.fill();
     drawPortrait(s, px + 32, py, r);
     ctx.strokeStyle = i === G.sel ? GOLD : '#4a4d52'; ctx.lineWidth = i === G.sel ? 3 : 2; circ(px + 32, py, r); ctx.stroke();
@@ -5907,6 +5907,7 @@ function updateRaid(dt) {
 function drawRaidHud() {
   if (G.raid.live) return drawRaidHudLive();
   const cx = W / 2, R = G.raid; ctx.fillStyle = 'rgba(14,15,18,.75)'; rr(cx - 120, 8, 240, 50, 10); ctx.fill(); drawIcon('moon', cx - 92, 33, 22, '#aab'); txt('NIGHT ' + (G.day - 1), cx - 30, 33, 20, INK); drawIcon('zombie', cx + 50, 33, 22, RED); txt(String(R.zs.filter(z => z.alive).length), cx + 78, 33, 20, INK);
+  { const say = R.info.guards && R.info.guards.length ? 'Nobody you can command · this is how the night went' : 'Nobody was on guard · this is what happened while they slept', hurt = R.info.hurt; ctx.font = '600 15px Oswald, Impact, sans-serif'; const tw = Math.min(W - 16, ctx.measureText(say).width + 28); ctx.fillStyle = 'rgba(14,15,18,.85)'; rr(cx - tw / 2, 66, tw, 32, 8); ctx.fill(); txt(say, cx, 82, 15, hurt ? RED : GOLD); }   /* a replay, and it says so: put someone on guard and the fight is yours */
   textButton(W - 120, H - 60, 100, 40, 'SKIP', () => endRaid(), {});
 }
 // ----- the raid, fought: tap a raider and whoever is on guard goes for him. A gun reaches across the yard; a bat or a knife has to wait until they are at the boards. -----
@@ -5939,15 +5940,15 @@ function updateRaidLive(dt) {
   if (!R.fled && living > 0 && (R.kills >= Math.ceil(R.zs.length * .6) || R.t >= R.dur)) raidFlee(R.t >= R.dur ? 'gave up' : 'ran');
   { const none = !R.zs.some(z => z.alive && !z.gone), running = !R.zs.some(z => z.alive && !z.gone && !z.flee); if (none || running) { R.endT = (R.endT || 0) + dt; if (R.endT > (none ? 1.5 : 5)) endRaidLive(); } }   /* once they are all running it is over: no waiting for the last one to leave the street */
 }
-function raidFlee(why) { const R = G.raid; if (!R.fled) R.fled = why; for (const z of R.zs) if (z.alive && !z.gone) z.flee = true; for (const d of R.def) d.aim = null; }
+function raidFlee(why) { const R = G.raid; if (!R.fled && why !== 'got in') { R.msg = why === 'gave up' ? 'They gave up · nobody got in' : 'They are running · nobody got in'; R.msgT = 5; R.msgOk = true; } if (!R.fled) R.fled = why; for (const z of R.zs) if (z.alive && !z.gone) z.flee = true; for (const d of R.def) d.aim = null; }
 function raidBang(z) { const R = G.raid, b = R.b, w = G.world; AUDIO.sfx('bang'); R.shake = 1; R.bang++; b.shakeT = .28;
   if (G.built.trap && !R.trapUsed) { R.trapUsed = R.trapKill = true; z.alive = false; z.pose = 'dead'; bleed(w, z.x, 1, R.side, false); R.kills++; AUDIO.sfx('crack'); return; }
   if (b.level > 0) { b.hp -= 2; if (b.hp <= 0) { b.level--; b.hp = b.level * 30; R.tore = (R.tore || 0) + 1; AUDIO.sfx('crack'); FX.shake = 6; scar(w, R.edge - R.side * (56 + rnd(0, 40)), 1, 'splinter'); } }
-  else { R.in = (R.in || 0) + 1; if (R.in >= 3 && !R.breached) { R.breached = true; raidBreach(); } } }
+  else { R.in = (R.in || 0) + 1; if (R.in >= 3 && !R.breached) { R.breached = true; raidBreach(); } else if (!R.breached) { R.msg = bname(b) + ' is not boarded · ' + (3 - R.in) + ' more and they are in'; R.msgT = 2.2; } } }
 function raidBreach() { const R = G.raid, lines = R.lines || (R.lines = []), rest = R.info.sleepers.filter(s => s.alive && !R.def.includes(s));
   breach(R.b, rest, R.def.filter(d => d.alive), (icon, text, color) => lines.push({ icon, text, color }));
   const took = []; for (const k of ['canned', 'meal', 'water', 'meds', 'fuel']) { if (took.length >= 3) break; if (G.inv[k] > 0) { G.inv[k]--; took.push(ITEMS[k].n.toLowerCase()); } } if (took.length) lines.push({ icon: 'backpack', text: 'They got away with ' + took.join(', '), color: RED });
-  FX.shake = 8; raidFlee('got in'); }
+  FX.shake = 8; raidFlee('got in'); R.msg = 'THEY GOT IN · ' + bname(R.b).toLowerCase() + (took.length ? ' · took ' + took.join(', ') : ''); R.msgT = 6; }
 function raidTap(z) { const R = G.raid; if (!z.alive || z.flee) return; const free = R.def.filter(q => q.alive && q.ready && !(q.path && q.path.length) && !(q.cd > 0) && !q.aim && !q.swing); if (!free.length) return;
   const g = free.find(dGun); if (g) { const gun = dGun(g); g.aim = { z, t: 0, need: GUNS[gun].aim * .55, gun }; AUDIO.sfx('tap'); return; }
   if (!z.atB) { R.msg = 'too far · wait until he is at the boards'; R.msgT = 1.6; return; }
@@ -5988,7 +5989,7 @@ function drawRaidHudLive() {
   for (const d of R.def) if (d.aim && d.aim.z.alive) { const z = d.aim.z, sx = w2sx(z.x), sy = w2sy(w.fy2y(1) - 60), k = clamp(d.aim.t / d.aim.need, 0, 1), r = 30 - 15 * k; ctx.strokeStyle = 'rgba(240,235,220,.9)'; ctx.lineWidth = 1.5; circ(sx, sy, r); ctx.stroke(); ctx.strokeStyle = GOLD; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(sx, sy, r + 4, -Math.PI / 2, -Math.PI / 2 + k * TAU); ctx.stroke(); }   // the sight closing
   if (R.tracer) { const t = R.tracer; ctx.strokeStyle = `rgba(255,235,180,${Math.min(1, t.t * 8).toFixed(2)})`; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(w2sx(t.x0), w2sy(t.y0)); ctx.lineTo(w2sx(t.x1), w2sy(t.y1)); ctx.stroke(); }
   const say = R.msgT > 0 ? R.msg : R.t < 5 ? (gun ? 'Tap a raider to shoot' : 'Tap a raider when he reaches the boards') : !R.def.some(d => d.alive && d.ready) ? 'someone is coming down…' : '';
-  if (say) { ctx.font = '600 15px Oswald, Impact, sans-serif'; const tw = ctx.measureText(say).width + 28; ctx.fillStyle = 'rgba(14,15,18,.85)'; rr(cx - tw / 2, 66, tw, 32, 8); ctx.fill(); txt(say, cx, 82, 15, R.msgT > 0 ? RED : GOLD); }
+  if (say) { ctx.font = '600 15px Oswald, Impact, sans-serif'; const tw = ctx.measureText(say).width + 28; ctx.fillStyle = 'rgba(14,15,18,.85)'; rr(cx - tw / 2, 66, tw, 32, 8); ctx.fill(); txt(say, cx, 82, 15, R.msgT > 0 ? (R.msgOk && !R.breached ? GREEN : RED) : GOLD); }
   textButton(W - 120, H - 60, 100, 40, 'SKIP', () => raidAuto(), {});
 }
 function bname(b) { return b.id === 'frontdoor' ? 'Front door' : b.id === 'garagedoor' ? 'Garage door' : 'A window'; }
