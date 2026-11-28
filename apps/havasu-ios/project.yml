@@ -1,0 +1,44 @@
+name: Campfire
+options:
+  deploymentTarget:
+    iOS: "16.0"
+  createIntermediateGroups: true
+targets:
+  Campfire:
+    type: application
+    platform: iOS
+    sources:
+      - Sources
+      - Assets.xcassets
+      - Resources
+    info:
+      path: Info.plist
+      properties:
+        CFBundleDisplayName: Havasu
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSRequiresIPhoneOS: true
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        ITSAppUsesNonExemptEncryption: false
+        NSLocationWhenInUseUsageDescription: Shows where you are on the map when you tap Where am I. Your location stays on your phone.
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.brianward.havasucampfire
+        DEVELOPMENT_TEAM: 55NAZA6UKE
+        TARGETED_DEVICE_FAMILY: "1"
+        SWIFT_VERSION: "5.0"
+        MARKETING_VERSION: "0.1"
+        CURRENT_PROJECT_VERSION: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        CODE_SIGN_STYLE: Automatic
+schemes:
+  Campfire:
+    build:
+      targets:
+        Campfire: all
+    run:
+      config: Debug
+    archive:
+      config: Release

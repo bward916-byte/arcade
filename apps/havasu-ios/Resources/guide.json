@@ -1,0 +1,897 @@
+{
+ "made": "2026-11-27",
+ "lists": [
+  {
+   "id": "arrive",
+   "section": "start",
+   "label": "Just arrived",
+   "cards": [
+    {
+     "title": "No services at the free areas",
+     "text": "Free camping has no water, toilets or trash. Fill and dump before you settle in."
+    },
+    {
+     "title": "Where to dump and fill",
+     "text": "Lake Havasu State Park, 699 London Bridge Rd. $15 if you are not camping there. No tote tanks."
+    },
+    {
+     "title": "How long you can stay",
+     "text": "Free BLM areas are 14 days. The Steps is State Trust Land and needs a recreational permit."
+    },
+    {
+     "title": "Stay out of the wash",
+     "text": "Camp above the wash channel, never in it. Craggy Wash has had flood rescues."
+    }
+   ]
+  },
+  {
+   "id": "weekend",
+   "section": "start",
+   "label": "Here for a weekend",
+   "cards": [
+    {
+     "title": "Day 1",
+     "text": "Walk London Bridge, the English Village and the channel to Rotary Park, and find the two lighthouses there. Pick up the lighthouse guide at the visitor center. Stay for sunset over the lake."
+    },
+    {
+     "title": "Day 2, morning",
+     "text": "Hike Crack in the Mountain at SARA Park before it warms up, about 5 miles round trip."
+    },
+    {
+     "title": "Day 2, afternoon",
+     "text": "Drive 16 miles south to Parker Dam, or on a Sunday browse the swap meet in town."
+    },
+    {
+     "title": "Before you leave",
+     "text": "Dump and fill at the state park ($15), after 1 pm if you can."
+    }
+   ]
+  },
+  {
+   "id": "compare",
+   "section": "start",
+   "label": "Free, permit or paid?",
+   "cards": [
+    {
+     "title": "Free BLM areas",
+     "text": "Cost: $0. Stay: 14 days, then move on. No water, toilets, trash or dump. Craggy Wash, Lone Tree, Standard Wash and the others on the Map"
+    },
+    {
+     "title": "State Trust Land (The Steps)",
+     "text": "Cost: State recreational permit. Stay: Campers report 14 days a year. No services. Not BLM. A ranger can ask for the permit."
+    },
+    {
+     "title": "Lake Havasu State Park",
+     "text": "Cost: Nightly fee. Stay: 14 days at a stretch. Water and electric, showers, dump station, beach. Books up in winter. A dry overflow lot opens when it is full."
+    }
+   ]
+  },
+  {
+   "id": "faq",
+   "section": "start",
+   "label": "Asked every week",
+   "cards": [
+    {
+     "title": "How do I find Craggy Wash, and what is it like?",
+     "text": "Forum regulars say to turn at the immediate north end of the airport runway and follow the track in about half a mile. It is sheltered from the wind, and rigs up to 43 feet have been reported. Cell reports conflict: older posts say weak, recent ones say strong and that Starlink works. Some campers describe unpleasant run-ins and long-term occupants near the front, while others stay happily; the usual advice is to drive farther in, or use the flat a little north. (From RV forums and camper reviews, some several years old. Not verified.)"
+    },
+    {
+     "title": "What if every RV park is full?",
+     "text": "Forum posters say winter spaces are few and far between and that some people have had to change sites daily. The state park has roomier, cheaper sites but a 14-day limit, and opens a dry overflow lot by the beach when the campground is full (reviewers report about $25 a night and a 7-day limit). Book the state park well ahead. (From RV forums and camper reviews, some several years old. Not verified.)"
+    },
+    {
+     "title": "Can I boondock on the lake side of Hwy 95?",
+     "text": "No. The free camping is on the east side of the highway. For water-side camping, forum posters point to two paid BLM campgrounds on the California side of the river, Crossroads and Empire Landing. (From RV forums and camper reviews, some several years old. Not verified.)"
+    },
+    {
+     "title": "Is there a dump station besides the state park, or on the north side?",
+     "text": "The state park is the one everyone names. Campers also say: some RV parks let non-guests dump for a fee (Crazy Horse Campground and Sam's Beachcomber on the island were named); the Elks Lodge has one free for members, (928) 453-3557; and truck stops at the Hwy 95 and I-40 junction, about 15 miles north of London Bridge, may have one, so check first. A city RV dump with a posted season was also mentioned but nobody confirmed where or when. One tip: the state park line is shorter after 1 pm. Heading north, a reviewer reports a free two-lane dump at Moabi Regional Park near Needles, just before the fee booth. J Bird Storage has a dump too, but it is for its storage renters only. (From campers' replies on Facebook. Not verified.)"
+    },
+    {
+     "title": "Where can I empty a portable tote tank?",
+     "text": "Not at the state park: two separate campers report being turned away with a tote. Replies suggest paying an RV park to dump, or a septic pump-out service that comes to your site (John Smith Septic and Jackpots were named). (From campers' replies on Facebook. Not verified.)"
+    },
+    {
+     "title": "Who does mobile RV repair?",
+     "text": "Names campers gave each other: Black Sheep RV Repair, (928) 566-2834; Desert RV Werks; Bennett's RV Repairs; First Class RV & Marine, (928) 412-8686; Happy Camper. A common arrival problem is a water line that froze on the drive down. (From campers' replies on Facebook. Not verified.)"
+    },
+    {
+     "title": "Which RV park is best for the winter, and what does a month cost?",
+     "text": "Replies say it depends on what you want. With a boat, Sam's Beachcomber. Islander was called the prettiest. Full-timers also mentioned Prospectors RV Resort. One covered 50 by 20 foot pad at River Bound was quoted at $700 a month. Several people said parks do not answer the phone, so start early. (From campers' replies on Facebook. Not verified.)"
+    },
+    {
+     "title": "Where do people actually boondock?",
+     "text": "Replies point to Craggy Wash, just north of the airport off Hwy 95, and to the open BLM desert south of town along Hwy 95 across from SARA Park, which has off-road trails. One camper said the first BLM turn south of town has lake views. (From campers' replies on Facebook. Not verified.)"
+    },
+    {
+     "title": "Can I camp overnight on the lake shore?",
+     "text": "Replies say yes at the designated boat-in sites: buy the pass at the Windsor launch ramp in the state park. The fee covers restrooms, tables and grills at those sites. People disagreed about anchoring out for free, so ask the park. (From campers' replies on Facebook. Not verified.)"
+    },
+    {
+     "title": "Where can I camp for free?",
+     "text": "On BLM land north and south of town: Craggy Wash, Lone Tree and Havasu Heights to the north; Havasu Road, Standard Wash and Scenic View to the south. Open the Map tab for each one."
+    },
+    {
+     "title": "Is there water, a toilet or trash at the free areas?",
+     "text": "No. None of them have any services. Arrive with full water and empty tanks, and pack your trash out."
+    },
+    {
+     "title": "How long can I stay?",
+     "text": "14 days in a BLM area. Campers report the rule is that you then move at least 25 miles. Enforcement varies, so ask the camp host or call the BLM Lake Havasu Field Office at (928) 505-1200."
+    },
+    {
+     "title": "Where do I dump and fill water?",
+     "text": "Lake Havasu State Park, 699 London Bridge Rd. Non-campers pay $15 and do not pay the park entry fee just to dump. There are two dump lanes and a drinking-water spigot. Campers report long waits in season, and one was told portable tote tanks were not allowed. Boondocks RV Station in Parker (dump, filtered water, propane) gets very good reviews if you are heading south."
+    },
+    {
+     "title": "Is Havasu like Quartzsite?",
+     "text": "No. There is no long-term permit area with water and a dump station here. Free camping is smaller and more crowded, and most winter visitors stay in RV parks and resorts. The trade is a real city: big stores, a hospital, restaurants and the lake."
+    },
+    {
+     "title": "Do I need a permit at The Steps?",
+     "text": "Yes. It is Arizona State Trust Land, not BLM. Buy a recreational permit from the State Land Department before you camp."
+    },
+    {
+     "title": "Which free area is quietest?",
+     "text": "Not Standard Wash on a weekend: it is an official off-road area. Campers say Craggy Wash has less side-by-side traffic than Lone Tree, and that going farther in gets quieter."
+    },
+    {
+     "title": "Is it safe to camp in the wash?",
+     "text": "Camp on the benches above the channel, not in it. Craggy Wash floods: local posts report a swift-water rescue there and a family of eight pulled out after heavy rain. Rain miles away can send water down a dry wash under a clear sky. (From campers' replies on Facebook. Not verified.)"
+    },
+    {
+     "title": "Can I stay past the winter season?",
+     "text": "You can, but it is very hard without air conditioning. Summer stays above 100 degrees for months and passes 110. Locals told one family not to tent camp before October, with 108 degrees at 10 in the morning, and to try Williams or Flagstaff, about 30 degrees cooler. Most people leave in April. (From campers' replies on Facebook. Not verified.)"
+    },
+    {
+     "title": "How cold does it get?",
+     "text": "Daytime highs in the coldest weeks average in the mid 60s. Mornings are crisp and the wind can be strong, especially at Lone Tree."
+    },
+    {
+     "title": "What does the state park cost for the day?",
+     "text": "$15 a vehicle Monday to Thursday and $20 Friday to Sunday and holidays, when last reported."
+    },
+    {
+     "title": "Where can I rockhound?",
+     "text": "Join the Lake Havasu Gem & Mineral Society. Members get the collecting locations and club field trips, and the club runs a lapidary shop near the museum."
+    },
+    {
+     "title": "What do people here call it?",
+     "text": "Just \"Havasu\" (hav-uh-soo). The region sells itself as Arizona's West Coast, and many snowbirds here prefer \"winter visitors\"."
+    }
+   ]
+  },
+  {
+   "id": "wash",
+   "section": "wash",
+   "label": "Desert washes",
+   "cards": [
+    {
+     "title": "Camp above the channel",
+     "text": "Several free areas here are washes. Park on the benches and flats above the sandy channel, never in it."
+    },
+    {
+     "title": "Craggy Wash floods",
+     "text": "Local posts report a swift-water rescue there and a family of eight pulled out after heavy rain."
+    },
+    {
+     "title": "Rain you cannot see",
+     "text": "Storms miles away can send water down a dry wash under a clear sky. A forum poster adds that winter is not monsoon season, but winter storms still happen."
+    },
+    {
+     "title": "Driving",
+     "text": "Do not drive into moving water. Wait it out; washes usually drop within hours."
+    }
+   ]
+  },
+  {
+   "id": "trips:Day trips",
+   "section": "trips",
+   "label": "Day trips",
+   "cards": [
+    {
+     "title": "London Bridge and the channel",
+     "text": "Walk under and over the bridge, the English Village and Rotary Park. Free."
+    },
+    {
+     "title": "The lighthouses",
+     "text": "Small-scale copies of famous American lighthouses ring the lake. Several are reachable on foot at the state park and Rotary Park; the rest by boat."
+    },
+    {
+     "title": "Crack in the Mountain, SARA Park",
+     "text": "A slot-canyon hike of about 5 miles round trip, close to town. Watch for bighorn sheep."
+    },
+    {
+     "title": "Parker Dam and the Parker Strip",
+     "text": "16 miles south. River beaches and trails into the Buckskin Mountains below the dam."
+    },
+    {
+     "title": "The Desert Bar (Nellie E Saloon)",
+     "text": "A solar-powered bar on an old mine site in the hills near Parker, reached by Cienega Springs Road, about four and a half rough miles. Check its season and days before you go."
+    },
+    {
+     "title": "Oatman",
+     "text": "Old mining town on Route 66 where burros wander the street."
+    },
+    {
+     "title": "Bill Williams River refuge",
+     "text": "About 23 miles south. Birding and kayaking where the river meets the lake."
+    },
+    {
+     "title": "Off-road",
+     "text": "Standard Wash is the BLM off-road area near town. Crossroads, about 10 miles down Parker Dam Road, has 1,500 acres of trails."
+    }
+   ]
+  },
+  {
+   "id": "dir:Emergencies and who to call",
+   "section": "services",
+   "label": "Emergencies and who to call",
+   "cards": [
+    {
+     "title": "Emergency",
+     "text": "Call 911."
+    },
+    {
+     "title": "Havasu Regional Medical Center",
+     "text": "101 Civic Center Ln, (928) 855-8185. 24-hour emergency room, Level III trauma center."
+    },
+    {
+     "title": "BLM Lake Havasu Field Office",
+     "text": "(928) 505-1200. Stay limits, closures and fire restrictions for the free areas."
+    },
+    {
+     "title": "Lake Havasu State Park",
+     "text": "(928) 855-2784. Camping, dump station and boat-in sites."
+    },
+    {
+     "title": "Arizona State Land Department",
+     "text": "Recreational permits for trust land such as The Steps."
+    }
+   ]
+  },
+  {
+   "id": "dir:Urgent care and hospitals",
+   "section": "services",
+   "label": "Urgent care and hospitals",
+   "cards": [
+    {
+     "title": "NextCare Urgent Care",
+     "text": "(928) 453-4600."
+    },
+    {
+     "title": "TrueCare Urgent Care",
+     "text": "2035 Mesquite Ave, Ste A. Walk-in."
+    },
+    {
+     "title": "Troyer Urgent Care",
+     "text": "1810 Mesquite Ave, Ste B."
+    },
+    {
+     "title": "La Paz Regional Hospital, Parker",
+     "text": "1200 W Mohave Rd, (928) 669-9201. Closer if you are camped at the south end."
+    }
+   ]
+  },
+  {
+   "id": "dir:Dump and water",
+   "section": "services",
+   "label": "Dump and water",
+   "cards": [
+    {
+     "title": "Lake Havasu State Park",
+     "text": "699 London Bridge Rd, (928) 855-2784. $15 for non-campers. Two lanes plus a drinking-water spigot. No tote tanks."
+    },
+    {
+     "title": "Boondocks RV Station, Parker",
+     "text": "1721 S California Ave, (928) 575-7995. Dump with tank flush, filtered water, propane and firewood. About 40 minutes south."
+    },
+    {
+     "title": "Moabi Regional Park, Needles",
+     "text": "A reviewer reports a free two-lane dump just before the fee booth, close to I-40."
+    },
+    {
+     "title": "Cattail Cove State Park",
+     "text": "Park guests only."
+    },
+    {
+     "title": "Not public",
+     "text": "J Bird Storage: its dump is for storage renters only."
+    }
+   ]
+  },
+  {
+   "id": "dir:More dump options campers mention",
+   "section": "services",
+   "label": "More dump options campers mention (not yet verified)",
+   "cards": [
+    {
+     "title": "RV parks, for a fee",
+     "text": "Crazy Horse Campground and Sam's Beachcomber, both on the island. Call first."
+    },
+    {
+     "title": "Elks Lodge",
+     "text": "Free for members. (928) 453-3557."
+    },
+    {
+     "title": "Pump-out at your site",
+     "text": "John Smith Septic and Jackpots were named. Useful for tote tanks."
+    }
+   ]
+  },
+  {
+   "id": "dir:Propane",
+   "section": "services",
+   "label": "Propane",
+   "cards": [
+    {
+     "title": "Tractor Supply",
+     "text": "Refills by the gallon, tanks up to 100 lb, RV tanks included."
+    },
+    {
+     "title": "A & B Propane",
+     "text": "Reviewers say it is easy to pull an RV in. Fills fixed RV tanks; call ahead."
+    },
+    {
+     "title": "Love's Travel Stop",
+     "text": "Hwy 95 at I-40, open 24 hours. Propane and tank exchange."
+    },
+    {
+     "title": "Boondocks RV Station, Parker",
+     "text": "Propane on the same stop as dump and water."
+    }
+   ]
+  },
+  {
+   "id": "dir:Tires",
+   "section": "services",
+   "label": "Tires",
+   "cards": [
+    {
+     "title": "Discount Tire",
+     "text": "255 Lake Havasu Ave N. Big lot with room for trailers and motorhomes. Mon to Fri 8 to 6, Sat 8 to 5. Walk-ins welcome."
+    },
+    {
+     "title": "Big O Tires",
+     "text": "1625 Countryshire Ave, (928) 208-4596. Mon to Fri 7:30 to 6, Sat 7:30 to 4."
+    },
+    {
+     "title": "Love's truck tire shop",
+     "text": "Hwy 95 at I-40. Forum posters say motorhome owners buy tires here. RV and trailer tires and batteries listed."
+    },
+    {
+     "title": "Lakeside Tire",
+     "text": "Industrial Blvd, 1800 block. Recommended in an older forum thread; not confirmed open."
+    }
+   ]
+  },
+  {
+   "id": "dir:RV repair shops and parts",
+   "section": "services",
+   "label": "RV repair shops and parts",
+   "cards": [
+    {
+     "title": "London Bridge RV Parts and Service",
+     "text": "1592 Countryshire Ave. Parts counter and shop. Mon to Fri 8 to 5, Sat 9 to 4."
+    },
+    {
+     "title": "Jr Motors RV & Marine",
+     "text": "(928) 680-2886. Works on any RV wherever you bought it."
+    },
+    {
+     "title": "Sunshine RV",
+     "text": "2995 Maricopa Ave. Appliances, trailer tires, windshields, body and paint."
+    },
+    {
+     "title": "Workman RV, Marine and Auto",
+     "text": "1590 Industrial Blvd. Also comes to you."
+    },
+    {
+     "title": "Britton's Auto Truck & RV Center",
+     "text": "2958 Sweetwater Ave. Chassis, brakes and suspension. A reviewer says no mobile service."
+    },
+    {
+     "title": "Virgil's Auto RV Diesel & Repair",
+     "text": "2801 Maricopa Ave. Motorhome chassis and diesel."
+    },
+    {
+     "title": "Canyon Country Truck, Auto & RV",
+     "text": "1680 W Acoma Blvd."
+    },
+    {
+     "title": "Windshields",
+     "text": "Advantage Windshield & Glass, 501 N Lake Havasu Ave #104. Lake Havasu RV Glass is mobile."
+    }
+   ]
+  },
+  {
+   "id": "dir:Mobile RV repair",
+   "section": "services",
+   "label": "Mobile RV repair",
+   "cards": [
+    {
+     "title": "BlackSheep RV",
+     "text": "(928) 566-2834. Mobile RV and trailer repair; also named by campers on Facebook."
+    },
+    {
+     "title": "Byrd's Mobile RV & Marine",
+     "text": "(928) 412-0450. Covers Havasu and Kingman."
+    },
+    {
+     "title": "First Class RV & Marine",
+     "text": "(928) 412-8686."
+    },
+    {
+     "title": "Bennett's Mobile RV Repair",
+     "text": "(909) 213-1898."
+    },
+    {
+     "title": "Happy Camper",
+     "text": "(928) 275-2152. Named by campers on Facebook."
+    },
+    {
+     "title": "Also named on Facebook",
+     "text": "Desert RV Werks; Done Right Auto, RV, A/C and Alignment."
+    }
+   ]
+  },
+  {
+   "id": "dir:Laundry and showers",
+   "section": "services",
+   "label": "Laundry and showers (not yet verified)",
+   "cards": [
+    {
+     "title": "Southside Laundromat",
+     "text": "2837 Maricopa Ave. 34 washers, 22 dryers, attendant and drop-off service, per a listing. Confirm it is open."
+    },
+    {
+     "title": "Modern Laundromat",
+     "text": "491 N Lake Havasu Ave."
+    },
+    {
+     "title": "Love's Travel Stop",
+     "text": "Hwy 95 at I-40. Laundry and 8 showers, open 24 hours."
+    },
+    {
+     "title": "State park showers",
+     "text": "For park campers. Reviewers warn the push-button water runs very hot."
+    }
+   ]
+  },
+  {
+   "id": "dir:Mail and packages",
+   "section": "services",
+   "label": "Mail and packages",
+   "cards": [
+    {
+     "title": "The UPS Store",
+     "text": "55 Lake Havasu Ave S, Ste F, (928) 854-4877. Open 7 days. Mailboxes, takes packages from all carriers, holds and forwards mail."
+    },
+    {
+     "title": "A Mail Store and More",
+     "text": "1850 McCulloch Blvd N, C1, (928) 854-9379. UPS shipping outlet."
+    },
+    {
+     "title": "General Delivery",
+     "text": "USPS lists General Delivery for Lake Havasu City. Call 1-800-275-8777 to confirm which post office holds it."
+    }
+   ]
+  },
+  {
+   "id": "dir:Vets and pets",
+   "section": "services",
+   "label": "Vets and pets",
+   "cards": [
+    {
+     "title": "Novak Animal Care Center",
+     "text": "332 London Bridge Rd. After-hours on-call emergency care. Reviews on call-backs are mixed."
+    },
+    {
+     "title": "Paws & Claws Animal Care",
+     "text": "2715 Maricopa Ave. Its 24/7 emergency line is for established clients."
+    },
+    {
+     "title": "Lange Veterinary Center",
+     "text": "A visitor from out of state reports being squeezed in for an emergency."
+    },
+    {
+     "title": "Nearest listed emergency vet",
+     "text": "Colorado River Animal Medical Center, 5842 S Hwy 95, Bullhead City."
+    },
+    {
+     "title": "Tip",
+     "text": "Visitors report vets booked solid. Call the moment something is wrong."
+    },
+    {
+     "title": "Dog parks",
+     "text": "SARA Park has a large one. Love's at I-40 has a small one."
+    }
+   ]
+  },
+  {
+   "id": "dir:Groceries, hardware and gear",
+   "section": "services",
+   "label": "Groceries, hardware and gear",
+   "cards": [
+    {
+     "title": "Walmart",
+     "text": "5695 Hwy 95 N, (928) 764-3700. North end, the closest big store to Craggy Wash."
+    },
+    {
+     "title": "Home Depot",
+     "text": "100 Center Blvd."
+    },
+    {
+     "title": "Tractor Supply",
+     "text": "Propane, hardware and pet feed."
+    },
+    {
+     "title": "West Marine",
+     "text": "1517 Industrial Blvd, (928) 505-4444."
+    },
+    {
+     "title": "Big 5 Sporting Goods",
+     "text": "251 Lake Havasu Ave S, (928) 854-2770."
+    }
+   ]
+  },
+  {
+   "id": "dir:Fuel with room for a rig",
+   "section": "services",
+   "label": "Fuel with room for a rig",
+   "cards": [
+    {
+     "title": "Love's Travel Stop",
+     "text": "Hwy 95 at I-40. Open 24 hours, three pull-through RV spots."
+    },
+    {
+     "title": "Riverbound station",
+     "text": "3493 E Heights Blvd. A reviewer says the canopy clears big fifth wheels and it is easier than the Pilot."
+    },
+    {
+     "title": "Pilot",
+     "text": "14750 S AZ-95. A reviewer calls it hard to get in and out."
+    }
+   ]
+  },
+  {
+   "id": "dir:Meet people",
+   "section": "services",
+   "label": "Meet people",
+   "cards": [
+    {
+     "title": "Pickleball",
+     "text": "Dick Samp Memorial Park has 16 public courts. The Ark Center has 3 indoor courts, free. Lake Havasu Pickleball plays daily: (509) 787-5650."
+    },
+    {
+     "title": "Sunday swap meet",
+     "text": "London Bridge Plaza Association, (928) 680-5685."
+    },
+    {
+     "title": "Cars & Coffee",
+     "text": "First Sunday of the month at The Shops at Lake Havasu."
+    },
+    {
+     "title": "Winter visitor meet-ups by home state",
+     "text": "A 2019 visitor guide had these on Thursdays at Mudshark Brewery, (928) 453-2981. Ask if they still run."
+    },
+    {
+     "title": "Gem & Mineral Society",
+     "text": "Monthly meetings, field trips and a lapidary shop."
+    }
+   ]
+  },
+  {
+   "id": "dir:Visitor information",
+   "section": "services",
+   "label": "Visitor information",
+   "cards": [
+    {
+     "title": "Visitor Information Center",
+     "text": "In the English Village by London Bridge. Lighthouse guide and event listings."
+    },
+    {
+     "title": "Chamber of Commerce",
+     "text": "(928) 453-3444. Runs Winterfest."
+    }
+   ]
+  }
+ ],
+ "areas": [
+  {
+   "id": "heights",
+   "name": "Havasu Heights",
+   "kind": "free",
+   "text": "Free BLM. Reached by a paved road toward a small housing area, so it is easy to get into. Small and crowded in winter."
+  },
+  {
+   "id": "lonetree",
+   "name": "Lone Tree",
+   "kind": "free",
+   "text": "Free BLM, 14-day limit. Right off Hwy 95 between town and I-40 (a camper puts it at mile marker 195). Easiest for big rigs, but rigs pack in tight, there is no shade and it gets windy. Also an off-road staging area."
+  },
+  {
+   "id": "craggy",
+   "name": "Craggy Wash",
+   "kind": "free",
+   "text": "Free BLM, 14-day limit, north of town off Hwy 95. Camping starts about a quarter mile up the wash and the land runs back for miles. Very popular; campers report a camp host and strong cell signal. No water, toilets or trash."
+  },
+  {
+   "id": "hroad",
+   "name": "Havasu Road (south BLM)",
+   "kind": "free",
+   "text": "Free BLM south of town. Most camping is in the first quarter mile; past that you need high-clearance 4WD. Flat and hard packed. Some highway noise."
+  },
+  {
+   "id": "standard",
+   "name": "Standard Wash",
+   "kind": "free",
+   "text": "Free BLM, 14-day limit. A designated off-highway vehicle area, so weekends are loud. Camping is in the first half mile, which is bumpy and soft in places; trailers and motorhomes still make it."
+  },
+  {
+   "id": "scenic",
+   "name": "Scenic View",
+   "kind": "free",
+   "text": "Free BLM. A dirt road about a mile long across the highway from a viewpoint; camp in the first quarter mile."
+  },
+  {
+   "id": "steps",
+   "name": "The Steps",
+   "kind": "ltva",
+   "text": "Arizona State Trust Land, not BLM. You need a State Land recreational permit to camp here, and campers report a 14-days-per-year limit on trust land. Once an unfinished RV park, so it is terraced and popular."
+  },
+  {
+   "id": "statepark",
+   "name": "Lake Havasu State Park",
+   "kind": "ltva",
+   "text": "699 London Bridge Rd, (928) 855-2784. Paid sites with water and electric, showers, beach, boat ramps. The public dump station is here: $15 if you are not camping in the park."
+  },
+  {
+   "id": "cattail",
+   "name": "Cattail Cove State Park",
+   "kind": "ltva",
+   "text": "State park south of town on the lake. Slower pace than the big park, with showers and a dog park. Its dump station is for park guests only."
+  }
+ ],
+ "shows": [
+  {
+   "n": "London Bridge Swap Meet",
+   "b": [
+    "OCT–APR",
+    "Sundays"
+   ],
+   "w": "Sundays through the cooler months",
+   "p": "London Bridge Plaza Association, (928) 680-5685",
+   "s": "typ",
+   "d": "The weekly swap meet. Sources give the season as October to late April or Labor Day to Memorial Day, so call for dates."
+  },
+  {
+   "n": "Festival of Lights",
+   "b": [
+    "NOV–DEC",
+    "nightly"
+   ],
+   "w": "Late November through December",
+   "p": "English Village, under London Bridge",
+   "s": "typ",
+   "d": "Hundreds of thousands of lights along the channel. Free to walk."
+  },
+  {
+   "n": "Havasu Art Guild Holiday Shoppe",
+   "b": [
+    "NOV",
+    "28–29"
+   ],
+   "w": "November 28–29, 2026",
+   "p": "Aquatic Center, 100 Park Ave",
+   "s": "ok",
+   "d": "Local art and craft sale, this weekend."
+  },
+  {
+   "n": "Boat Parade of Lights",
+   "b": [
+    "DEC",
+    "mid"
+   ],
+   "w": "A Saturday in December (Dec 13 last year)",
+   "p": "Bridgewater Channel",
+   "s": "typ",
+   "d": "Lit-up boats through the channel. The state park has opened its shoreline free for viewing in past years."
+  },
+  {
+   "n": "Buses by the Bridge",
+   "b": [
+    "JAN",
+    "mid"
+   ],
+   "w": "Mid January (Jan 15–18 last season)",
+   "p": "Lake Havasu State Park, Windsor 4",
+   "s": "typ",
+   "d": "Hundreds of VW buses camp out by the lake. Live music, vendors, Sunday pancake breakfast."
+  },
+  {
+   "n": "Havasu Balloon Festival & Fair",
+   "b": [
+    "JAN",
+    "21–24"
+   ],
+   "w": "January 21–24, 2027",
+   "p": "Lake Havasu State Park, Windsor 4, 171 London Bridge Rd",
+   "s": "ok",
+   "d": "The signature winter event: mass launches over the channel, night glow, carnival and vendors. Pilots decide each morning on wind, so check their Facebook page. Pets are not allowed on the grounds."
+  },
+  {
+   "n": "Winterfest street festival",
+   "b": [
+    "FEB",
+    "early"
+   ],
+   "w": "Late January or early February (Jan 31–Feb 1 last season)",
+   "p": "McCulloch Blvd, downtown",
+   "s": "typ",
+   "d": "Main Street closes for 200-plus vendors and about 30,000 people. Free. The city runs shuttle buses from parking lots."
+  },
+  {
+   "n": "Winter Blast fireworks",
+   "b": [
+    "FEB",
+    "Pres. wknd"
+   ],
+   "w": "Presidents Day weekend (Feb 12–15 last season)",
+   "p": "SARA Park",
+   "s": "typ",
+   "d": "The pyrotechnics convention puts on public shows. Escapees have dry camped at the rodeo grounds for it."
+  },
+  {
+   "n": "Rockabilly Reunion",
+   "b": [
+    "FEB",
+    "mid"
+   ],
+   "w": "Mid February (Feb 13–15 last season)",
+   "p": "Lake Havasu State Park",
+   "s": "typ",
+   "d": "Hot rods, rat rods, retro fashion and oldies."
+  },
+  {
+   "n": "Bluegrass on the Beach",
+   "b": [
+    "MAR",
+    "early"
+   ],
+   "w": "March",
+   "p": "Lake Havasu State Park",
+   "s": "typ",
+   "d": "Bluegrass festival on the lakeshore."
+  },
+  {
+   "n": "Desert Storm and the Boat Show",
+   "b": [
+    "APR",
+    "—"
+   ],
+   "w": "April",
+   "p": "Channel and downtown",
+   "s": "typ",
+   "d": "Performance boats and a street party. Many winter visitors treat this as the sign to head north."
+  },
+  {
+   "n": "Gem & Mineral Roundup",
+   "b": [
+    "NOV",
+    "2nd wknd"
+   ],
+   "w": "Second weekend of November",
+   "p": "Aquatic Center, 100 Park Ave",
+   "s": "typ",
+   "d": "The Lake Havasu Gem & Mineral Society show. About 30 dealers, geode cracking, $5 last year."
+  }
+ ],
+ "pins": [
+  {
+   "name": "Havasu Heights",
+   "lat": 34.6627,
+   "lon": -114.3078,
+   "kind": "free",
+   "area": "heights",
+   "text": "Free BLM. Reached by a paved road toward a small housing area, so it is easy to get into. Small and crowded in winter.",
+   "map": "https://www.google.com/maps?q=34.6627,-114.3078"
+  },
+  {
+   "name": "Lone Tree",
+   "lat": 34.6279,
+   "lon": -114.3298,
+   "kind": "free",
+   "area": "lonetree",
+   "text": "Free BLM, 14-day limit. Right off Hwy 95 between town and I-40 (a camper puts it at mile marker 195). Easiest for big rigs, but rigs pack in tight, there is no shade and it gets windy. Also an off-road staging area.",
+   "map": "https://www.google.com/maps?q=34.6279,-114.3298"
+  },
+  {
+   "name": "Craggy Wash",
+   "lat": 34.585,
+   "lon": -114.3683,
+   "kind": "free",
+   "area": "craggy",
+   "text": "Free BLM, 14-day limit, north of town off Hwy 95. Camping starts about a quarter mile up the wash and the land runs back for miles. Very popular; campers report a camp host and strong cell signal. No water, toilets or trash.",
+   "map": "https://www.google.com/maps?q=34.585,-114.3683"
+  },
+  {
+   "name": "Havasu Road (south BLM)",
+   "lat": 34.4336,
+   "lon": -114.2181,
+   "kind": "free",
+   "area": "hroad",
+   "text": "Free BLM south of town. Most camping is in the first quarter mile; past that you need high-clearance 4WD. Flat and hard packed. Some highway noise.",
+   "map": "https://www.google.com/maps?q=34.4336,-114.2181"
+  },
+  {
+   "name": "Standard Wash",
+   "lat": 34.4193,
+   "lon": -114.1991,
+   "kind": "free",
+   "area": "standard",
+   "text": "Free BLM, 14-day limit. A designated off-highway vehicle area, so weekends are loud. Camping is in the first half mile, which is bumpy and soft in places; trailers and motorhomes still make it.",
+   "map": "https://www.google.com/maps?q=34.4193,-114.1991"
+  },
+  {
+   "name": "Scenic View",
+   "lat": 34.397,
+   "lon": -114.1737,
+   "kind": "free",
+   "area": "scenic",
+   "text": "Free BLM. A dirt road about a mile long across the highway from a viewpoint; camp in the first quarter mile.",
+   "map": "https://www.google.com/maps?q=34.397,-114.1737"
+  },
+  {
+   "name": "The Steps",
+   "lat": 34.3336,
+   "lon": -114.136,
+   "kind": "ltva",
+   "area": "steps",
+   "text": "Arizona State Trust Land, not BLM. You need a State Land recreational permit to camp here, and campers report a 14-days-per-year limit on trust land. Once an unfinished RV park, so it is terraced and popular.",
+   "map": "https://www.google.com/maps?q=34.3336,-114.136"
+  },
+  {
+   "name": "Lake Havasu State Park",
+   "lat": 34.4897,
+   "lon": -114.3562,
+   "kind": "ltva",
+   "area": "statepark",
+   "text": "699 London Bridge Rd, (928) 855-2784. Paid sites with water and electric, showers, beach, boat ramps. The public dump station is here: $15 if you are not camping in the park.",
+   "map": "https://www.google.com/maps?q=34.4897,-114.3562"
+  },
+  {
+   "name": "Cattail Cove State Park",
+   "lat": 34.354,
+   "lon": -114.166,
+   "kind": "ltva",
+   "area": "cattail",
+   "text": "State park south of town on the lake. Slower pace than the big park, with showers and a dog park. Its dump station is for park guests only.",
+   "map": "https://www.google.com/maps?q=34.354,-114.166"
+  },
+  {
+   "name": "London Bridge",
+   "lat": 34.4716,
+   "lon": -114.3475,
+   "kind": "see",
+   "area": "",
+   "map": "https://www.google.com/maps?q=34.4716,-114.3475"
+  },
+  {
+   "name": "SARA Park",
+   "lat": 34.425,
+   "lon": -114.275,
+   "kind": "see",
+   "area": "",
+   "map": "https://www.google.com/maps?q=34.425,-114.275"
+  },
+  {
+   "name": "Parker Dam",
+   "lat": 34.2965,
+   "lon": -114.1394,
+   "kind": "see",
+   "area": "",
+   "map": "https://www.google.com/maps?q=34.2965,-114.1394"
+  }
+ ]
+}

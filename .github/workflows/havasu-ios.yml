@@ -1,18 +1,18 @@
-name: Campfire iOS
+name: Havasu iOS
 
 # The native iPhone app: compiles on a GitHub Mac, takes simulator screenshots, uploads to TestFlight.
 on:
   workflow_dispatch:
   push:
     paths:
-      - 'apps/campfire-ios/**'
-      - '.github/workflows/campfire-ios.yml'
+      - 'apps/havasu-ios/**'
+      - '.github/workflows/havasu-ios.yml'
 
 permissions:
   contents: write
 
 concurrency:
-  group: campfire-ios
+  group: havasu-ios
   cancel-in-progress: true
 
 jobs:
@@ -21,19 +21,12 @@ jobs:
     timeout-minutes: 45
     defaults:
       run:
-        working-directory: apps/campfire-ios
+        working-directory: apps/havasu-ios
     env:
       ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
       ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
     steps:
       - uses: actions/checkout@v4
-
-      # The app ships with a copy of the guide so a first launch works with no signal. Take the newest one from the site;
-      # if the site does not answer, the copy already in the repo is used.
-      - name: Refresh the guide packed inside the app
-        run: |
-          if curl -fsS --max-time 30 https://qcampfire.com/api/guide -o /tmp/guide.json && grep -q '"lists"' /tmp/guide.json; then cp /tmp/guide.json Resources/guide.json; fi
-          ls -l Resources/guide.json
 
       - name: Make the Xcode project
         run: |
@@ -75,13 +68,9 @@ jobs:
           xcrun simctl bootstatus "$UDID" -b
           xcrun simctl status_bar "$UDID" override --time "9:41" --batteryState charged --batteryLevel 100 --cellularBars 4 --wifiBars 3 || true
           xcrun simctl install "$UDID" "$APP"
-          for shot in list ad post guide camping photos areamap shows alerts map; do
-            xcrun simctl terminate "$UDID" com.brianward.quartzsitecampfire 2>/dev/null || true
-            if [ "$shot" = list ]; then
-              xcrun simctl launch "$UDID" com.brianward.quartzsitecampfire
-            else
-              xcrun simctl launch "$UDID" com.brianward.quartzsitecampfire "-demo-$shot"
-            fi
+          for shot in guide camping shows map; do
+            xcrun simctl terminate "$UDID" com.brianward.havasucampfire 2>/dev/null || true
+            xcrun simctl launch "$UDID" com.brianward.havasucampfire "-demo-$shot"
             sleep 12
             xcrun simctl io "$UDID" screenshot "$RUNNER_TEMP/shots/$shot.png"
           done
@@ -140,7 +129,7 @@ jobs:
           cp "$RUNNER_TEMP"/shots/*.png store/ 2>/dev/null || true
           cp "$RUNNER_TEMP/simulator.txt" store/ 2>/dev/null || true
           git init -q
-          git checkout -q -b campfire-ios-buildlog
+          git checkout -q -b havasu-ios-buildlog
           git add -A
-          git -c user.name="github-actions" -c user.email="actions@users.noreply.github.com" commit -qm "Campfire iOS build $GITHUB_RUN_NUMBER"
-          git push -q -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:refs/heads/campfire-ios-buildlog
+          git -c user.name="github-actions" -c user.email="actions@users.noreply.github.com" commit -qm "Havasu iOS build $GITHUB_RUN_NUMBER"
+          git push -q -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:refs/heads/havasu-ios-buildlog
