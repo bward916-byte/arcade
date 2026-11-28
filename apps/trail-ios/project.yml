@@ -1,0 +1,53 @@
+name: TrailApp
+options:
+  deploymentTarget:
+    iOS: "16.0"
+  createIntermediateGroups: true
+packages:
+  MapLibre:
+    url: https://github.com/maplibre/maplibre-gl-native-distribution
+    from: "6.0.0"
+targets:
+  TrailApp:
+    type: application
+    platform: iOS
+    sources:
+      - Sources
+      - Assets.xcassets
+      - Resources
+    dependencies:
+      - package: MapLibre
+        product: MapLibre
+    info:
+      path: Info.plist
+      properties:
+        CFBundleDisplayName: Trail
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSRequiresIPhoneOS: true
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        ITSAppUsesNonExemptEncryption: false
+        UIBackgroundModes:
+          - location
+        NSLocationWhenInUseUsageDescription: Shows where you are on the map and records your track while you are recording. Your location stays on your phone.
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.brianward.trailapp
+        DEVELOPMENT_TEAM: 55NAZA6UKE
+        TARGETED_DEVICE_FAMILY: "1"
+        SWIFT_VERSION: "5.0"
+        MARKETING_VERSION: "0.1"
+        CURRENT_PROJECT_VERSION: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        CODE_SIGN_STYLE: Automatic
+schemes:
+  TrailApp:
+    build:
+      targets:
+        TrailApp: all
+    run:
+      config: Debug
+    archive:
+      config: Release

@@ -1,0 +1,30 @@
+{
+  "version": 8,
+  "name": "TrailApp",
+  "sources": {
+    "topo": {
+      "type": "raster",
+      "tiles": ["https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}"],
+      "tileSize": 256, "maxzoom": 16,
+      "attribution": "USGS The National Map"
+    },
+    "imagery": {
+      "type": "raster",
+      "tiles": ["https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}"],
+      "tileSize": 256, "maxzoom": 16,
+      "attribution": "USGS The National Map"
+    },
+    "land": {
+      "type": "raster",
+      "tiles": ["https://gis.blm.gov/arcgis/rest/services/lands/BLM_Natl_SMA_Cached_without_PriUnk/MapServer/tile/{z}/{y}/{x}"],
+      "tileSize": 256, "maxzoom": 14,
+      "attribution": "BLM Surface Management Agency"
+    }
+  },
+  "layers": [
+    { "id": "background", "type": "background", "paint": { "background-color": "#e9e4d8" } },
+    { "id": "topo", "type": "raster", "source": "topo" },
+    { "id": "imagery", "type": "raster", "source": "imagery", "layout": { "visibility": "none" } },
+    { "id": "land", "type": "raster", "source": "land", "paint": { "raster-opacity": 0.45 } }
+  ]
+}
