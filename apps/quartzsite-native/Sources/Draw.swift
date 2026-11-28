@@ -10,6 +10,8 @@ final class Renderer {
     var GY = 0.0
     var cam = 0.0
     var NOW = 0.0
+    var rigPaintSeed = -1.0
+    var passRV = false
     var passOn = false, passX = 0.0, passDir = 1.0, passWait = 3.0, passSeed = 0.0, passLast = 0.0, passBike = false, passBrand = 0, passFour = false, passSpeed = 50.0, passArea = -1
     var dark = 0.0
     var lights: [(Double, Double, Double)] = []
@@ -600,9 +602,9 @@ final class Renderer {
                     let k = kinds[Int(hashN(n + 1220) * 8) % 8]
                     let face = hashN(n + 1240) < 0.5 ? 1.0 : -1.0
                     let st = hashN(n + 1250)
-                    if st < 0.28 { camper(0, sx, GY + 0.5, face, n, 0.5) }
+                    if st < 0.36 { camper(0, sx, GY + 0.5, face, n, 0.56) }
                     else if st < 0.5 { camper(Int(hashN(n + 1260) * 9) % 9, sx, GY + 0.5, face, n, 0.5) }
-                    else { rig(k, sx, GY + 0.5, hashN(n + 1230) < 0.5 ? 2 : 0, face, 0.5) }
+                    else { rigPaintSeed = n; rig(k, sx, GY + 0.5, hashN(n + 1230) < 0.5 ? 2 : 0, face, 0.5); rigPaintSeed = -1 }
                     campDress(sx, n)
                 } else if h < 0.8 {
                     rig(.tent, sx, GY + 0.5, 0, 1, 0.55)
@@ -1193,6 +1195,14 @@ final class Renderer {
 
     /// A rig centred on `cx` with its wheels on `base`, drawn to the same scale as the people
     /// (about 3.5 game pixels to the foot). `dir` 1 faces right; `s` shrinks it for menu cards.
+    /// Other people's rigs are not all white: cream, tan, silver-grey, champagne, sage, charcoal, burgundy, navy.
+    func bodyPaint(_ stock: Col) -> Col {
+        if rigPaintSeed < 0 { return stock }
+        let k = hashN(rigPaintSeed * 1.37 + 7790)
+        if k < 0.3 { return stock }
+        let pal: [Col] = [Col(0xd8cdb8), Col(0xc8b48a), Col(0xc4c6c8), Col(0xe0d0b0), Col(0xa8b49a), Col(0x4a4a4e), Col(0x7a2e2a), Col(0x2e3e5e), Col(0x8a8f96), Col(0xb89a6a)]
+        return pal[Int((k - 0.3) / 0.7 * 10) % 10]
+    }
     func rig(_ kind: RigKind, _ cx: Double, _ base: Double, _ panels: Int, _ dir: Double, _ s: Double = 1) {
         if cx < -130 || cx > W + 130 { return }
         c.save()
@@ -1212,7 +1222,7 @@ final class Renderer {
 
         case .minivan:
             // 17 ft long, under 6 ft tall: one box, a long raked windshield running into a short sloped hood
-            let col = Col(0x8fa3b0)
+            let col = bodyPaint(Col(0x8fa3b0))
             let body: [Double] = [-29.5, -4, -29.3, -14.5, -27, -20, 6, -20, 17, -12.6, 27.5, -10.4, 29.5, -7, 29.5, -3.6]
             c.poly(col, body)
             c.poly(GLASS, [-25.4, -18.6, 5.2, -18.6, 14.4, -12.6, -26.4, -12.6])
@@ -1228,7 +1238,7 @@ final class Renderer {
 
         case .van:
             // an older full-size van, 18 ft by 7 ft: tall slab sides, a stubby hood, barn doors at the back
-            let col = Col(0xe6e0d2)
+            let col = bodyPaint(Col(0xe6e0d2))
             let body: [Double] = [-31.5, -5, -31.5, -22, -29.5, -24, 12, -24, 20.5, -15, 30, -13.4, 31.5, -10.5, 31.5, -4.4]
             c.poly(col, body)
             c.poly(GLASS, [2.5, -22.2, 11.4, -22.2, 17.6, -15.4, 2.5, -15.4])
@@ -1245,7 +1255,7 @@ final class Renderer {
 
         case .skoolie:
             // a conventional "dog-nose" school bus, seven windows, about 28 ft by 10 ft: body, cowl, long hood
-            let col = Col(0x3f8f8a)
+            let col = bodyPaint(Col(0x3f8f8a))
             c.RR(-48, -35, 75, 12, 4.5, Col(0xf1ede2))
             c.R(-48, -29, 75, 23, col)
             c.R(-48, -8, 75, 2.4, trim)
@@ -1277,7 +1287,7 @@ final class Renderer {
 
         case .classB:
             // a high-roof camper van (Sprinter-sized, about 20 ft by 9 ft): tall roof, short dropped hood
-            let col = Col(0xdcdfe2)
+            let col = bodyPaint(Col(0xdcdfe2))
             let body: [Double] = [-35, -5, -35, -29, -33, -32, 14, -32, 19.5, -29, 27, -17.4, 33.5, -14.2, 35, -10.4, 35, -4.4]
             c.poly(col, body)
             c.R(-35, -9.4, 70, 4.6, Col(0x3a3d40))
@@ -1294,7 +1304,7 @@ final class Renderer {
 
         case .classC:
             // a 25 ft Class C: van cab up front, the house box behind it, and the bunk hanging over the cab
-            let col = Col(0xf0ece2)
+            let col = bodyPaint(Col(0xf0ece2))
             // cab
             c.poly(col.shade(0.95), [18, -22, 27, -22, 35, -14.2, 42, -12.6, 43.5, -9.4, 43.5, -4.4, 18, -4.4])
             c.poly(GLASS, [22.4, -20.8, 26.6, -20.8, 32.6, -14.6, 22.4, -14.6])
@@ -1319,7 +1329,7 @@ final class Renderer {
 
         case .classA:
             // a 34 ft Class A: one tall bus-shaped body with a flat face, a huge windshield and a long rear overhang
-            let col = Col(0xe6dfd0)
+            let col = bodyPaint(Col(0xe6dfd0))
             let body: [Double] = [-59, -8, -59, -40, -56, -43, 52, -43, 57, -40.4, 59, -24, 59, -6.4, 54, -5, -52, -5]
             c.poly(col, body)
             // full-body paint first, so the windows and the door sit on top of it
@@ -1571,7 +1581,22 @@ final class Renderer {
         default: break
         }
         c.poly(skin.shade(0.94), [x - 0.9 + face * 0.4, sh, x + 0.9 + face * 0.4, sh, x + face * 0.7, sh + 1.5])
+        let extra = hashN(hl + 31)
+        if extra < 0.16 {
+            // a day pack
+            c.RR(x - face * (hw + 2.2) - 1.4, sh + 0.8, 2.8, 5.6, 1, shirt.shade(0.55)); c.R(x - face * hw * 0.5 - 0.2, sh + 0.2, 0.5, 5, shirt.shade(0.55))
+        } else if extra < 0.3 {
+            // a bag on a long strap
+            c.seg(x - hw * 0.7, sh + 0.4, x + hw * 0.7, hip - 0.4, 0.4, Col(0x5a3a22)); c.RR(x + face * hw * 0.5 - 1.6, hip - 1, 3.2, 2.8, 0.8, Col(0x7a4a2a))
+        } else if extra < 0.38 {
+            // a camera round the neck
+            c.seg(x - 0.8, sh, x + face * 0.6, sh + 3.4, 0.25, Col(0x1c1a1a)); c.RR(x + face * 0.6 - 1, sh + 3, 2, 1.5, 0.3, Col(0x1c1a1a)); c.circ(x + face * 0.6, sh + 3.8, 0.5, Col(0x6a8aa8))
+        }
+        if !longSleeve && hashN(hl + 32) < 0.2 { c.R(x + face * 0.2, sh + 4.4, 1.2, 0.4, Col(0x2e4a5a, 0.5)) }
+        c.R(x - hw * 0.84, hip - 0.9, hw * 1.68, 0.3, shirt.shade(0.7))
         c.RR(x - hw * 0.8, hip - 0.2, hw * 1.6, 1.9, 0.6, pants)
+        if shorts { c.R(x - hw * 0.8, hip + 4.4, hw * 1.6, 0.4, pants.shade(0.75)) }
+        else { c.R(x - 0.15, hip + 1.6, 0.3, 3, pants.shade(0.8)) }
         c.R(x - hw * 0.8, hip - 0.4, hw * 1.6, 0.7, Col(0x2a1c14, 0.75)); c.R(x + face * 0.5 - 0.4, hip - 0.5, 0.8, 0.9, Col(0xc8b060))
         // neck, the near arm, then the head
         c.R(x - 0.7 + face * 0.3, sh - 1.3, 1.4, 1.8, skin.shade(0.88))
@@ -1588,6 +1613,10 @@ final class Renderer {
         c.R(hx + face * 1.0 - 0.5, hy - 1.2, 1, 0.25, hair.shade(0.8))
         c.R(hx + face * 1.1 - 0.4, hy + 1.3, 0.8, 0.22, Col(0x8a4a3a))
         if beard { c.ell(hx + face * 0.6, hy + 1.7, 1.6, 1.1, hair); c.R(hx + face * 1.1 - 0.4, hy + 1.3, 0.8, 0.2, Col(0x6a3a2e)) }
+        if longHair && hashN(hl + 33) < 0.45 { c.curve(hx - face * 1.8, hy - 0.6, hx - face * 3.6, hy + 0.6, hx - face * 3 + sin(NOW * 3 + hl) * 0.4, hy + 3.4, 1, hair) }
+        if !beard && hashN(hl + 34) < 0.16 { c.R(hx + face * 0.9 - 0.5, hy + 0.9, 1.1, 0.35, hair) }
+        c.circ(hx + face * 0.5, hy + 0.7, 0.55, Col(0xd8684a, 0.18))
+        if !glasses && hashN(hl + 35) < 0.22 { c.RR(hx + face * 1.1 - 0.9, hy - 0.8, 1.8, 0.9, 0.3, Col(0x1c1a1a)); c.seg(hx + face * 0.3, hy - 0.5, hx - face * 0.7, hy - 0.2, 0.2, Col(0x1c1a1a)) }
         if glasses { c.ellStroke(hx + face * 1.1, hy - 0.3, 0.75, 0.65, 0.2, Col(0x1c1a1a)); c.seg(hx + face * 0.4, hy - 0.4, hx - face * 0.7, hy - 0.2, 0.2, Col(0x1c1a1a)) }
         let hc = lk.hatCol
         switch lk.hat {
@@ -1970,15 +1999,53 @@ final class Renderer {
             g.text("K&B", x - 14, GY - 48, 7.4, Col(0x2a1e14), bold: true)
             g.text("TOOLS", x + 12, GY - 48, 4.6, Col(0x2a1e14), bold: true)
             c.R(x - 30, GY - 42, 0.8, 4, Col(0x6a6a6a)); c.R(x + 30, GY - 42, 0.8, 4, Col(0x6a6a6a))
-            // pegboard at the back, bins and tables out front
-            c.R(x - 56, GY - 22, 112, 14, Col(0xb89a6a).shade(1 - dark * 0.5))
-            let tool: [Col] = [Col(0xc8281e), Col(0x2e4a7a), Col(0xf2c418), Col(0x3a3a3e), Col(0x3f8f6a)]
-            for q in 0..<22 { c.R(x - 53 + Double(q) * 5, GY - 20 + Double(q % 3) * 2, 1.2, 5 + Double(q % 2) * 2, tool[q % 5].shade(1 - dark * 0.4)) }
-            for q in 0..<3 {
-                let tx = x - 50 + Double(q) * 38
-                c.R(tx, GY - 8, 28, 1.6, Col(0x8a6238)); c.R(tx + 1, GY - 7, 1, 7, Col(0x6a6a6a)); c.R(tx + 26, GY - 7, 1, 7, Col(0x6a6a6a))
-                for k in 0..<6 { c.RR(tx + 1.5 + Double(k) * 4.4, GY - 11.4, 3.6, 3.4, 0.6, tool[(k + q) % 5].shade(1 - dark * 0.4)) }
+            // everything under the sun: a pegboard wall of hand tools, shelves of boxed goods, bins, buckets,
+            // tarps, hoses, cords, ladders, a row of red tool chests, generators, and the dollar tables out front
+            let sh = 1 - dark * 0.4
+            c.R(x - 57, GY - 23, 114, 15, Col(0xb89a6a).shade(1 - dark * 0.5))
+            for q in 0..<38 { for r in 0..<4 { c.circ(x - 55.5 + Double(q) * 3, GY - 21.6 + Double(r) * 3.6, 0.15, Col(0x6a5238, 0.6)) } }
+            let tc: [Col] = [Col(0xc8281e), Col(0x2e4a7a), Col(0xf2c418), Col(0x3a3a3e), Col(0x3f8f6a), Col(0xe8782e)]
+            for q in 0..<9 {
+                let hx = x - 53 + Double(q) * 4.2
+                switch q % 3 {
+                case 0: c.R(hx, GY - 21, 0.6, 6, Col(0x8a6238)); c.R(hx - 1, GY - 21.6, 2.8, 1.4, Col(0x5a5a5e))
+                case 1: c.R(hx, GY - 21, 0.7, 6.4, Col(0xa8a8ac)); c.arcStroke(hx + 0.35, GY - 21.6, 1, PI * 0.2, PI * 1.8, 0.5, Col(0xa8a8ac))
+                default: c.R(hx, GY - 15.6, 0.7, 1.4, tc[q % 6].shade(sh)); c.poly(Col(0xc8c8cc), [hx - 0.6, GY - 15.6, hx + 0.35, GY - 21.6, hx + 1.3, GY - 15.6])
+                }
             }
+            for q in 0..<4 { c.poly(Col(0xc8c8cc), [x - 13 + Double(q) * 6, GY - 21, x - 8.4 + Double(q) * 6, GY - 21, x - 9.4 + Double(q) * 6, GY - 18.6, x - 13 + Double(q) * 6, GY - 18.6]); c.RR(x - 14 + Double(q) * 6, GY - 19.6, 1.6, 3, 0.4, tc[(q + 1) % 6].shade(sh)) }
+            for q in 0..<5 { c.ellStroke(x + 16 + Double(q) * 5, GY - 18.4, 1.9, 1.9, 0.7, [Col(0xe8782e), Col(0xf2c418), Col(0x3f8f6a), Col(0x2a2a2e), Col(0xe8782e)][q].shade(sh)) }
+            for q in 0..<7 { c.R(x + 42 + Double(q) * 2, GY - 22, 0.9, 5 + Double(q % 3), tc[q % 6].shade(sh)) }
+            // a shelf of boxed goods
+            c.R(x - 57, GY - 15.4, 114, 0.6, Col(0x6a5238))
+            for q in 0..<26 { c.R(x - 56 + Double(q) * 4.3, GY - 14.6 + Double(q % 2), 3.6, 4.4 - Double(q % 2), [Col(0xf2c418), Col(0xc8281e), Col(0x2e4a7a), Col(0xe8e4dc), Col(0x3f8f6a), Col(0x1c1a1a), Col(0xe8782e)][q % 7].shade(sh)); c.R(x - 55.4 + Double(q) * 4.3, GY - 13 + Double(q % 2), 2.4, 0.5, Col(0xffffff, 0.6)) }
+            // ladders leaning on a pole, a stack of tarps, coiled hose
+            c.seg(x - 59, GY, x - 55.6, GY - 24, 0.5, Col(0xc8c8cc)); c.seg(x - 56.4, GY, x - 53, GY - 24, 0.5, Col(0xc8c8cc)); for q in 0..<8 { c.seg(x - 58.6 + Double(q) * 0.42, GY - 2 - Double(q) * 2.8, x - 56 + Double(q) * 0.42, GY - 2 - Double(q) * 2.8, 0.35, Col(0xc8c8cc)) }
+            for q in 0..<6 { c.RR(x + 46, GY - 2 - Double(q) * 1.6, 11, 1.5, 0.4, [Col(0x2e5a9a), Col(0x8a6238), Col(0x4a6a4a), Col(0xc8c8cc), Col(0x2e5a9a), Col(0xe8782e)][q].shade(sh)) }
+            c.ellStroke(x + 62, GY - 3.6, 3.2, 3.2, 1.1, Col(0x3f8f6a).shade(sh)); c.ellStroke(x + 62, GY - 3.6, 1.6, 1.6, 0.9, Col(0x3f8f6a).shade(sh * 0.85))
+            // three long tables, each a different heap
+            for q in 0..<3 {
+                let tx = x - 52 + Double(q) * 33
+                c.R(tx, GY - 8, 29, 1.4, Col(0x8a6238)); c.R(tx + 1, GY - 6.6, 1, 6.6, Col(0x6a6a6a)); c.R(tx + 27, GY - 6.6, 1, 6.6, Col(0x6a6a6a))
+                c.R(tx, GY - 6.6, 29, 2.6, Col(0xf2c418).shade(sh)); g.text(["$1 TABLE", "$5 TABLE", "TOOLS · KNIVES · LIGHTS"][q], tx + 14.5, GY - 5.2, 1.7, Col(0x2a1e14), bold: true)
+                if q == 0 {
+                    for k in 0..<7 { c.RR(tx + 1 + Double(k) * 4, GY - 12, 3.4, 4, 0.5, tc[k % 6].shade(sh)); c.R(tx + 1.4 + Double(k) * 4, GY - 12.8, 2.6, 0.8, Col(0x3a3a3e)) }
+                } else if q == 1 {
+                    for k in 0..<5 { c.poly(tc[(k + 2) % 6].shade(sh), [tx + 1 + Double(k) * 5.6, GY - 8, tx + 1.6 + Double(k) * 5.6, GY - 12.4, tx + 5 + Double(k) * 5.6, GY - 12.4, tx + 5.6 + Double(k) * 5.6, GY - 8]); c.arcStroke(tx + 3.3 + Double(k) * 5.6, GY - 12.4, 1.8, PI, PI * 2, 0.3, Col(0x8a8f96)) }
+                } else {
+                    for k in 0..<9 { c.RR(tx + 1 + Double(k) * 3.1, GY - 9.6 - Double(k % 3) * 0.8, 2.6, 1.6 + Double(k % 3) * 0.8, 0.4, k % 2 == 0 ? Col(0x1c1a1a) : Col(0xa8a8ac)); c.circ(tx + 1.4 + Double(k) * 3.1, GY - 9 - Double(k % 3) * 0.8, 0.5, Col(0xfff2c0)) }
+                }
+            }
+            // red rolling tool chests and a pair of generators by the entrance
+            for q in 0..<2 {
+                let cx0 = x - 74 + Double(q) * 9
+                c.RR(cx0, GY - 13, 8, 12, 0.6, Col(0xc8281e).shade(sh)); for k in 0..<5 { c.R(cx0 + 0.8, GY - 12 + Double(k) * 2.2, 6.4, 0.3, Col(0x7a1812)); c.R(cx0 + 2.6, GY - 11.4 + Double(k) * 2.2, 2.8, 0.4, Col(0xc8c8cc)) }
+                c.circ(cx0 + 1.4, GY - 0.6, 0.8, Col(0x1c1a1a)); c.circ(cx0 + 6.6, GY - 0.6, 0.8, Col(0x1c1a1a))
+            }
+            for q in 0..<2 { let gx = x + 68 + Double(q) * 9; c.RR(gx, GY - 6.4, 7.4, 6, 0.8, [Col(0xc8281e), Col(0xf2c418)][q].shade(sh)); c.R(gx + 1, GY - 7.6, 5.4, 1.2, Col(0x2a2a2a)); c.R(gx + 1.2, GY - 4.6, 2.4, 1.6, Col(0x1c1a1a)); c.circ(gx + 5.4, GY - 3.6, 0.8, Col(0x1c1a1a)) }
+            // flags along the eave, and the shoppers
+            for q in 0..<14 { c.poly([Col(0xc8281e), Col(0xf4f4f0), Col(0x2e4a7a)][q % 3].shade(sh), [x - 58 + Double(q) * 8.4, GY - 26, x - 53 + Double(q) * 8.4, GY - 26, x - 55.5 + Double(q) * 8.4, GY - 22.6]) }
+            if g.phase == .play { person(x - 20, GY + 1, 516, 1, 0, false); person(x + 18, GY + 1, 519, -1, 0, false) }
             if g.phase == .play { person(x + 40, GY + 1, 512, -1, 0, false) }
             if dark > 0.3 { lights.append((x - 30, GY - 22, 24)); lights.append((x + 30, GY - 22, 24)) }
             label = false
@@ -3674,7 +3741,8 @@ final class Renderer {
         let trucks: [Col] = [Col(0xd8d4cc), Col(0x3a3a3e), Col(0x8a2a24), Col(0x2e4a6a), Col(0x9a9a98), Col(0x5a6a4a)]
         let acc = accents[Int(hashN(seed + 7720) * 7) % 7]
         let tcol = trucks[Int(hashN(seed + 7730) * 6) % 6]
-        let white = hashN(seed + 7740) < 0.7 ? Col(0xeeeae0) : Col(0xd8cdb8)
+        let bodies: [Col] = [Col(0xeeeae0), Col(0xeeeae0), Col(0xd8cdb8), Col(0xc8b48a), Col(0xc4c6c8), Col(0xe0d0b0), Col(0x5a5a5e), Col(0xa8b49a), Col(0xb89a6a), Col(0x3e4a5e)]
+        let white = bodies[Int(hashN(seed + 7740) * 10) % 10]
         c.save()
         c.translate(cx, base)
         c.scale(dir * s, s)
@@ -3682,8 +3750,12 @@ final class Renderer {
         switch style {
         case 0:
             // fifth wheel: the tall nose rides over the pickup's bed
-            towTruck(8, tcol, false)
+            // the pickup out front, cab clear of the nose, the pin box dropping into the bed
+            towTruck(15, tcol, false)
+            c.R(22, -24, 3, 11, Col(0x3a3634)); c.R(20, -14.6, 7, 1.6, Col(0x2a2a2a))
             c.poly(white, [-52, -8, -52, -41, 20, -41, 30, -37, 30, -24, 8, -24, 8, -8])
+            c.poly(white.shade(0.86), [8, -24, 30, -24, 30, -26, 8, -26])
+            c.R(4, -8, 1.4, 8, Col(0x6a6a6a)); c.R(2.6, -0.8, 4.2, 0.8, Col(0x6a6a6a))
             c.curve(-51, -18, -20, -22, 28, -30, 2, acc); c.curve(-51, -14.6, -20, -18, 28, -26.6, 0.8, acc.shade(0.7))
             c.RR(-44, -34, 12, 8, 1, GLASS); c.RR(-26, -34, 10, 8, 1, GLASS); c.RR(12, -36, 12, 6, 1, GLASS)
             c.R(-10, -32, 8, 24, white.shade(0.9)); c.RR(-8.4, -30, 4.8, 5, 0.8, GLASS)
@@ -3761,6 +3833,11 @@ final class Renderer {
             c.seg(0, -8, 12, -7, 1, Col(0x3a3634))
             wheel(-20, 3.6)
         }
+        if style <= 1 && hashN(seed + 7750) < 0.4 {
+            // a second sweep of colour on about a third of them, the way the newer ones are painted
+            let a2 = accents[Int(hashN(seed + 7760) * 7) % 7]
+            c.curve(-50, -11, -24, -13, 6, -22, 1.4, a2); c.curve(-50, -26, -30, -30, -12, -39, 1.2, a2.alpha(0.8))
+        }
         c.restore()
         if dark > 0.3 { lights.append((cx, base - 12 * s, 20 * s)) }
     }
@@ -3768,9 +3845,9 @@ final class Renderer {
     /// One camp in the background: more often than not something other than a motorhome.
     private func campRig(_ n: Double, _ kind: RigKind, _ sx: Double, _ panels: Int, _ dir: Double) {
         let pick = hashN(n * 3.3 + 7700 + Double(g.area.rawValue))
-        if pick < 0.24 { camper(0, sx, GY + 0.5, dir, n, 0.5) }
+        if pick < 0.3 { camper(0, sx, GY + 0.5, dir, n, 0.56) }
         else if pick < 0.6 { camper(Int(hashN(n + 7710 + Double(g.area.rawValue) * 3) * 9) % 9, sx, GY + 0.5, dir, n, 0.5) }
-        else { rig(kind, sx, GY + 0.5, panels, dir, 0.5) }
+        else { rigPaintSeed = n; rig(kind, sx, GY + 0.5, panels, dir, 0.5); rigPaintSeed = -1 }
     }
 
     /// A dead saguaro: the grey woody ribs left standing in a bundle, some fallen at its foot.
@@ -6036,6 +6113,7 @@ final class Renderer {
                 passDir = hashN(passSeed + 31) < 0.5 ? 1 : -1
                 passX = passDir > 0 ? cam - 80 : cam + W + 80
                 passBike = hashN(passSeed * 3.1) > 0.78
+                passRV = !passBike && hashN(passSeed * 5.3) > 0.62
                 passBrand = Int(hashN(passSeed + 77) * 7) % 7
                 passFour = hashN(passSeed + 78) < 0.35
                 passSpeed = 46 + hashN(passSeed + 79) * 26
@@ -6051,7 +6129,8 @@ final class Renderer {
                     let u = (NOW * 1.6 + Double(i) / 8).truncatingRemainder(dividingBy: 1)
                     c.circ(sx - passDir * (18 + u * 60), GY + 11 - u * 12, 2.4 + u * 9, Col(0xd8bc90, (1 - u) * 0.32).shade(1 - dark * 0.5))
                 }
-                if passBike { toy(2, sx, GY + 13, passDir, 300 + Int(passSeed) % 40, NOW * 25) }
+                if passRV { camper(0, sx, GY + 13, passDir, passSeed, 0.66) }
+                else if passBike { toy(2, sx, GY + 13, passDir, 300 + Int(passSeed) % 40, NOW * 25) }
                 else { sxs(sx, GY + 13, passDir, passBrand, passFour) }
             }
         }
