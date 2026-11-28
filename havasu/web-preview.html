@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Havasu Campfire</title>
+<link rel="artifact-thumbnail" href="thumb.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+/* Sister site to Quartzsite Campfire: same roadside-sign type and quiet cards,
+   but the header is the lake at sundown with the bridge and a balloon drifting over. */
+:root{
+  --bg:#e9ecec; --surface:#fdfefe; --ink:#16202a; --muted:#52606b; --line:#cdd6d8;
+  --primary:#0b6a86; --on-primary:#fff; --accent:#c8481c; --gold:#8f6400; --soft:#dcecf1;
+  --ok:#1d7a41; --warn:#8a5a00; --land-a:#f3e6cf; --land-b:#e6d0aa; --road:#6b6672; --water:#3b8fc4;
+  --display:"Alfa Slab One","Rockwell",Georgia,serif; --body:"Atkinson Hyperlegible",Verdana,system-ui,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#0f151c; --surface:#18212b; --ink:#f1ece2; --muted:#a9b4bd; --line:#2e3b47;
+  --primary:#5cc8e6; --on-primary:#04222c; --accent:#ff8250; --gold:#f2c14e; --soft:#16303a;
+  --ok:#6fd08d; --warn:#f0c060; --land-a:#2a2433; --land-b:#1b1722; --road:#8f8aa0; --water:#3f9bd3; color-scheme:dark;}}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font:17px/1.45 var(--body)}
+body.big{font-size:20px}
+.app{height:100vh;height:100dvh;max-width:560px;margin:0 auto;display:flex;flex-direction:column}
+#hero{position:relative;height:150px;flex:none;overflow:hidden;background:#1b1740}
+#hero svg{position:absolute;inset:0;width:100%;height:100%;display:block}
+#hero h1{position:absolute;left:16px;top:12px;margin:0;font:400 27px/1 var(--display);letter-spacing:.5px;color:#fff;text-shadow:0 2px 0 rgba(0,0,0,.5),0 0 18px rgba(0,0,0,.55)}
+#hero h1 span{color:#ffc061}
+#hero p{position:absolute;left:16px;top:44px;margin:0;color:#fff;font-weight:700;font-size:14px;text-shadow:0 1px 6px rgba(0,0,0,.8)}
+#big{position:absolute;right:10px;bottom:8px;min-height:36px;padding:0 12px;border-radius:18px;border:1px solid rgba(255,255,255,.5);background:rgba(8,10,28,.5);color:#fff;font:700 13px var(--body);cursor:pointer}
+main{flex:1;overflow-y:auto;padding:14px 16px 20px;display:flex;flex-direction:column;gap:12px}
+main>*{flex-shrink:0}
+nav{flex:none;display:flex;border-top:1px solid var(--line);background:var(--surface);padding-bottom:max(8px,env(safe-area-inset-bottom))}
+nav a{flex:1;min-height:56px;display:flex;flex-direction:column;gap:2px;align-items:center;justify-content:center;text-decoration:none;color:var(--muted);font-weight:700;font-size:12px;position:relative}
+nav svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+nav a[aria-current="page"]{color:var(--primary)}
+nav a[aria-current="page"]::before{content:"";position:absolute;top:0;left:calc(50% - 22px);width:44px;height:4px;border-radius:0 0 4px 4px;background:var(--accent)}
+a:focus-visible,button:focus-visible,input:focus-visible,textarea:focus-visible,summary:focus-visible,[tabindex]:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+h2{font:400 20px/1.2 var(--display);letter-spacing:.3px;margin:8px 0 0;text-wrap:balance}
+h3{font:700 1em/1.25 var(--body);margin:0}
+p{margin:0}
+a{color:var(--primary);font-weight:700}
+.muted{color:var(--muted);font-size:.88em}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.card.gold{border:2px solid var(--gold)}
+.card.ev{flex-direction:row;gap:12px;align-items:flex-start}
+.evb{display:flex;flex-direction:column;gap:5px;min-width:0;flex:1}
+.badge{flex:none;width:68px;border-radius:10px;overflow:hidden;border:2px solid var(--primary);text-align:center}
+.badge span{display:block;background:var(--primary);color:var(--on-primary);font:700 11.5px var(--body);letter-spacing:.5px;padding:3px 0}
+.badge b{display:block;font:400 16px/1 var(--display);padding:9px 2px 8px}
+.card.feat{border:2px solid var(--gold)} .card.feat .badge{border-color:var(--accent)} .card.feat .badge span{background:var(--accent);color:#fff}
+.next{border:0;color:#fff;background:linear-gradient(135deg,#3a2a7a 0%,#b2416b 50%,#f08a35 100%);position:relative;overflow:hidden}
+.next b{font:400 50px/1 var(--display)} .next .unit{font:400 20px var(--display)}
+.next a{color:#fff}
+.tag{align-self:flex-start;font-size:.76em;font-weight:700;padding:1px 8px;border-radius:4px;border:1.5px solid currentColor}
+.tag.ok{color:var(--ok)} .tag.warn{color:var(--warn)} .tag.info{color:var(--primary)} .tag.fee{color:var(--gold)}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.when{font-weight:700;color:var(--primary)}
+.btn{min-height:46px;padding:0 16px;border-radius:10px;border:0;background:var(--primary);color:var(--on-primary);font:700 1em var(--body);cursor:pointer}
+.btn.ghost{background:transparent;color:var(--primary);border:2px solid var(--primary)}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{min-height:42px;padding:0 14px;border-radius:21px;border:2px solid var(--line);background:var(--surface);color:var(--ink);font:700 .88em var(--body);cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--primary);border-color:var(--primary);color:var(--on-primary)}
+label{font-weight:700;font-size:.9em;display:flex;flex-direction:column;gap:4px}
+input[type=text],textarea{font:1em var(--body);padding:10px 12px;border-radius:8px;border:2px solid var(--line);background:var(--surface);color:var(--ink);width:100%}
+textarea{resize:vertical;min-height:64px}
+.note{border-left:4px solid var(--warn);background:var(--soft);padding:8px 12px;border-radius:0 8px 8px 0;font-size:.9em}
+ul.plain{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:7px}
+details>summary{font-weight:700;cursor:pointer;list-style:none;display:flex;gap:10px;align-items:flex-start;min-height:32px}
+details>summary::-webkit-details-marker{display:none}
+details>summary::before{content:"+";flex:none;width:28px;height:28px;border-radius:50%;background:var(--soft);color:var(--primary);display:grid;place-items:center;font:400 20px/1 var(--display);transition:transform .25s}
+details[open]>summary::before{transform:rotate(45deg);background:var(--primary);color:var(--on-primary)}
+.list{display:flex;flex-direction:column;gap:10px}
+.map{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--land-a)}
+.map svg{display:block;width:100%;height:auto}
+.map text{font:700 11px var(--body);fill:var(--ink);paint-order:stroke;stroke:var(--land-a);stroke-width:3px;stroke-linejoin:round}
+.map .lbl{fill:var(--muted);font-weight:400;font-style:italic}
+.map .lake{fill:none;stroke:var(--water);stroke-linecap:round;stroke-linejoin:round;opacity:.85}
+.map .road{stroke:var(--road);stroke-width:5;fill:none;stroke-linejoin:round}
+.map .dash{stroke:var(--land-a);stroke-width:1.2;stroke-dasharray:6 6;fill:none}
+.map .pin{cursor:pointer}
+.map .pin circle.dot{fill:var(--surface);stroke:var(--ok);stroke-width:3}
+.map .pin.fee circle.dot{stroke:var(--gold)} .map .pin.poi circle.dot{stroke:var(--primary)}
+.map .pin.sel circle.dot{stroke:var(--accent);stroke-width:5}
+.map .pin .hit{fill:transparent}
+.lg{display:inline-block;width:14px;height:14px;border-radius:50%;border:3px solid var(--ok);vertical-align:-2px;margin:0 4px 0 8px}
+.lg.fee{border-color:var(--gold)} .lg.poi{border-color:var(--primary)}
+@media (prefers-reduced-motion:no-preference){
+  @keyframes drift{from{transform:translate(-40px,6px)}to{transform:translate(420px,-10px)}}
+  @keyframes bob{50%{transform:translateY(-3px)}}
+  @keyframes shimmer{to{stroke-dashoffset:-40}}
+  @keyframes rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+  .balloon{animation:drift 70s linear infinite} .balloon g{animation:bob 4s ease-in-out infinite}
+  .shim{animation:shimmer 6s linear infinite}
+  main.enter>*{animation:rise .45s cubic-bezier(.2,.8,.2,1) both}
+}
+#asking{flex:none;display:flex;background:var(--soft);border-bottom:1px solid var(--line)}#asking[hidden]{display:none}
+#asking .go{flex:1;text-align:left;background:none;border:0;padding:8px 14px;color:var(--primary);font:700 .85em var(--body);cursor:pointer}
+#asking .x{background:none;border:0;padding:0 14px;color:var(--primary);font:400 24px/1 var(--body);cursor:pointer}
+.warnmsg{color:var(--accent);font-weight:700;font-size:.9em}.warnmsg:empty{display:none}
+button:disabled{opacity:.5;cursor:default}
+</style>
+</head>
+<body>
+<div class="app">
+  <header id="hero">
+    <svg viewBox="0 0 400 150" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <defs><linearGradient id="sk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#241a5c"/><stop offset=".55" stop-color="#b3446c"/><stop offset="1" stop-color="#ffab4a"/></linearGradient>
+      <linearGradient id="wt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e98a4a"/><stop offset="1" stop-color="#1d3a6b"/></linearGradient></defs>
+      <rect width="400" height="150" fill="url(#sk)"/>
+      <circle cx="300" cy="96" r="22" fill="#ffe08a" opacity=".95"/>
+      <path d="M0 100 L40 78 70 92 110 66 150 90 190 74 230 94 280 70 330 92 370 76 400 90 V110 H0z" fill="#3b2352" opacity=".9"/>
+      <rect y="104" width="400" height="46" fill="url(#wt)"/>
+      <g fill="#1a1230"><rect x="60" y="92" width="280" height="7"/>
+        <path d="M60 99h280v9h-14a22 14 0 00-44 0h-12a22 14 0 00-44 0h-12a22 14 0 00-44 0h-12a22 14 0 00-44 0h-12a22 14 0 00-44 0H60z" transform="translate(7 0) scale(.965 1)"/></g>
+      <g stroke="#ffe7b0" stroke-width="1.5" stroke-linecap="round" fill="none" opacity=".7" class="shim" stroke-dasharray="14 26"><path d="M20 120h360M40 132h330M0 142h400"/></g>
+      <g class="balloon"><g><path d="M0 30a13 15 0 1126 0c0 9-9 15-10 20h-6c-1-5-10-11-10-20z" fill="#ffcf5a"/><path d="M8 17c-3 6-3 18 2 33M18 17c3 6 3 18-2 33" stroke="#c8481c" stroke-width="3" fill="none"/><rect x="10" y="53" width="6" height="5" fill="#3a2a22"/></g></g>
+    </svg>
+    <h1>Havasu <span>Campfire</span></h1><p id="tagline">Winter on Arizona's West Coast</p>
+    <button id="big" type="button" aria-pressed="false">Bigger text</button>
+  </header>
+  <div id="asking" hidden><button class="go" type="button"><span></span></button><button class="x" type="button" aria-label="Close">×</button></div>
+  <main id="view" tabindex="-1"></main>
+  <nav aria-label="Sections">
+    <a href="#guide"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></svg>Guide</a>
+    <a href="#forsale"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8.5" r="1.5"/></svg>For Sale</a>
+    <a href="#shows"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M8 3v4M16 3v4"/></svg>Shows</a>
+    <a href="#alerts"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 17V11a6 6 0 0112 0v6l2 2H4z"/><path d="M10 21h4"/></svg>Alerts</a>
+    <a href="#map"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6-6.3-6-11a6 6 0 0112 0c0 4.7-6 11-6 11z"/><circle cx="12" cy="10" r="2"/></svg>Map</a>
+  </nav>
+</div>
+<script>
+function h(tag,attrs,...kids){const e=document.createElement(tag);
+  for(const k in (attrs||{})){const v=attrs[k]; if(v==null||v===false)continue;
+    if(k==='class')e.className=v; else if(k.slice(0,2)==='on')e.addEventListener(k.slice(2),v); else e.setAttribute(k,v===true?'':v);}
+  for(const c of kids.flat(9)){ if(c==null||c===false)continue; e.append(c.nodeType?c:document.createTextNode(String(c))); }
+  return e;}
+function S(tag,attrs,...kids){const e=document.createElementNS('http://www.w3.org/2000/svg',tag);
+  for(const k in (attrs||{})){ if(k.slice(0,2)==='on')e.addEventListener(k.slice(2),attrs[k]); else if(attrs[k]!=null)e.setAttribute(k,attrs[k]); }
+  for(const c of kids.flat()){ if(c!=null)e.append(c.nodeType?c:document.createTextNode(String(c))); } return e;}
+const ext=(t,u)=>h('a',{href:u,target:'_blank',rel:'noopener'},t);
+const gmap=(la,lo)=>'https://www.google.com/maps?q='+la+','+lo;
+function ls(k,v){try{ if(v===undefined)return localStorage.getItem(k); localStorage.setItem(k,v);}catch(e){return null}}
+
+/* ---------- content, researched Nov 27 2026 ---------- */
+const AREAS=[
+ {id:'heights',n:'Havasu Heights',k:'free',la:34.6627,lo:-114.3078,t:'Small',d:'Free BLM. Reached by a paved road toward a small housing area, so it is easy to get into. Small and crowded in winter.'},
+ {id:'lonetree',n:'Lone Tree',k:'free',la:34.6279,lo:-114.3298,t:'Easy in, busy',d:'Free BLM, 14-day limit. Right off Hwy 95 between town and I-40 (a camper puts it at mile marker 195). Easiest for big rigs, but rigs pack in tight, there is no shade and it gets windy. Also an off-road staging area.'},
+ {id:'craggy',n:'Craggy Wash',k:'free',la:34.5850,lo:-114.3683,t:'Closest to town',d:'Free BLM, 14-day limit, north of town off Hwy 95. Camping starts about a quarter mile up the wash and the land runs back for miles. Very popular; campers report a camp host and strong cell signal. No water, toilets or trash.'},
+ {id:'hroad',n:'Havasu Road (south BLM)',k:'free',la:34.4336,lo:-114.2181,t:'Open desert',d:'Free BLM south of town. Most camping is in the first quarter mile; past that you need high-clearance 4WD. Flat and hard packed. Some highway noise.'},
+ {id:'standard',n:'Standard Wash',k:'free',la:34.4193,lo:-114.1991,t:'Off-road crowd',d:'Free BLM, 14-day limit. A designated off-highway vehicle area, so weekends are loud. Camping is in the first half mile, which is bumpy and soft in places; trailers and motorhomes still make it.'},
+ {id:'scenic',n:'Scenic View',k:'free',la:34.3970,lo:-114.1737,t:'Smaller',d:'Free BLM. A dirt road about a mile long across the highway from a viewpoint; camp in the first quarter mile.'},
+ {id:'steps',n:'The Steps',k:'fee',la:34.3336,lo:-114.1360,t:'Permit needed',d:'Arizona State Trust Land, not BLM. You need a State Land recreational permit to camp here, and campers report a 14-days-per-year limit on trust land. Once an unfinished RV park, so it is terraced and popular.'},
+ {id:'statepark',n:'Lake Havasu State Park',k:'fee',la:34.4897,lo:-114.3562,t:'Paid, on the lake',d:'699 London Bridge Rd, (928) 855-2784. Paid sites with water and electric, showers, beach, boat ramps. The public dump station is here: $15 if you are not camping in the park.'},
+ {id:'cattail',n:'Cattail Cove State Park',k:'fee',la:34.354,lo:-114.166,approx:1,t:'Paid, quieter',d:'State park south of town on the lake. Slower pace than the big park, with showers and a dog park. Its dump station is for park guests only.'}
+];
+const POI=[
+ {id:'bridge',n:'London Bridge',la:34.4716,lo:-114.3475,approx:1,d:'The bridge, the English Village, the visitor center and the Bridgewater Channel walk. Pick up the lighthouse guide at the visitor center.'},
+ {id:'sara',n:'SARA Park',la:34.425,lo:-114.275,approx:1,d:'Free county park: the Crack in the Mountain slot-canyon hike, about 80 miles of bike trails, a big dog park, rodeo grounds and the Winter Blast fireworks.'},
+ {id:'dam',n:'Parker Dam',la:34.2965,lo:-114.1394,approx:1,d:'The dam that made the lake, about 16 miles south. Most of its 320 feet is below the riverbed.'}
+];
+const EVENTS=[
+ {n:'London Bridge Swap Meet',b:['OCT–APR','Sundays'],w:'Sundays through the cooler months',p:'London Bridge Plaza Association, (928) 680-5685',s:'typ',d:'The weekly swap meet. Sources give the season as October to late April or Labor Day to Memorial Day, so call for dates.'},
+ {n:'Festival of Lights',b:['NOV–DEC','nightly'],w:'Late November through December',p:'English Village, under London Bridge',s:'typ',d:'Hundreds of thousands of lights along the channel. Free to walk.'},
+ {n:'Havasu Art Guild Holiday Shoppe',b:['NOV','28–29'],w:'November 28–29, 2026',p:'Aquatic Center, 100 Park Ave',s:'ok',d:'Local art and craft sale, this weekend.'},
+ {n:'Boat Parade of Lights',b:['DEC','mid'],w:'A Saturday in December (Dec 13 last year)',p:'Bridgewater Channel',s:'typ',d:'Lit-up boats through the channel. The state park has opened its shoreline free for viewing in past years.'},
+ {n:'Buses by the Bridge',b:['JAN','mid'],w:'Mid January (Jan 15–18 last season)',p:'Lake Havasu State Park, Windsor 4',s:'typ',d:'Hundreds of VW buses camp out by the lake. Live music, vendors, Sunday pancake breakfast.'},
+ {n:'Havasu Balloon Festival & Fair',b:['JAN','21–24'],f:1,date:'2027-01-21',w:'January 21–24, 2027',p:'Lake Havasu State Park, Windsor 4, 171 London Bridge Rd',s:'ok',d:'The signature winter event: mass launches over the channel, night glow, carnival and vendors. Pilots decide each morning on wind, so check their Facebook page. Pets are not allowed on the grounds.'},
+ {n:'Winterfest street festival',b:['FEB','early'],w:'Late January or early February (Jan 31–Feb 1 last season)',p:'McCulloch Blvd, downtown',s:'typ',d:'Main Street closes for 200-plus vendors and about 30,000 people. Free. The city runs shuttle buses from parking lots.'},
+ {n:'Winter Blast fireworks',b:['FEB','Pres. wknd'],w:'Presidents Day weekend (Feb 12–15 last season)',p:'SARA Park',s:'typ',d:'The pyrotechnics convention puts on public shows. Escapees have dry camped at the rodeo grounds for it.'},
+ {n:'Rockabilly Reunion',b:['FEB','mid'],w:'Mid February (Feb 13–15 last season)',p:'Lake Havasu State Park',s:'typ',d:'Hot rods, rat rods, retro fashion and oldies.'},
+ {n:'Bluegrass on the Beach',b:['MAR','early'],w:'March',p:'Lake Havasu State Park',s:'typ',d:'Bluegrass festival on the lakeshore.'},
+ {n:'Desert Storm and the Boat Show',b:['APR','—'],w:'April',p:'Channel and downtown',s:'typ',d:'Performance boats and a street party. Many winter visitors treat this as the sign to head north.'},
+ {n:'Gem & Mineral Roundup',b:['NOV','2nd wknd'],w:'Second weekend of November',p:'Aquatic Center, 100 Park Ave',s:'typ',d:'The Lake Havasu Gem & Mineral Society show. About 30 dealers, geode cracking, $5 last year.'}
+];
+const FAQ=[
+ ['How do I find Craggy Wash, and what is it like?','Forum regulars say to turn at the immediate north end of the airport runway and follow the track in about half a mile. It is sheltered from the wind, and rigs up to 43 feet have been reported. Cell reports conflict: older posts say weak, recent ones say strong and that Starlink works. Some campers describe unpleasant run-ins and long-term occupants near the front, while others stay happily; the usual advice is to drive farther in, or use the flat a little north.',2],
+ ['What if every RV park is full?','Forum posters say winter spaces are few and far between and that some people have had to change sites daily. The state park has roomier, cheaper sites but a 14-day limit, and opens a dry overflow lot by the beach when the campground is full (reviewers report about $25 a night and a 7-day limit). Book the state park well ahead.',2],
+ ['Can I boondock on the lake side of Hwy 95?','No. The free camping is on the east side of the highway. For water-side camping, forum posters point to two paid BLM campgrounds on the California side of the river, Crossroads and Empire Landing.',2],
+ ['Is there a dump station besides the state park, or on the north side?','The state park is the one everyone names. Campers also say: some RV parks let non-guests dump for a fee (Crazy Horse Campground and Sam\'s Beachcomber on the island were named); the Elks Lodge has one free for members, (928) 453-3557; and truck stops at the Hwy 95 and I-40 junction, about 15 miles north of London Bridge, may have one, so check first. A city RV dump with a posted season was also mentioned but nobody confirmed where or when. One tip: the state park line is shorter after 1 pm. Heading north, a reviewer reports a free two-lane dump at Moabi Regional Park near Needles, just before the fee booth. J Bird Storage has a dump too, but it is for its storage renters only.',1],
+ ['Where can I empty a portable tote tank?','Not at the state park: two separate campers report being turned away with a tote. Replies suggest paying an RV park to dump, or a septic pump-out service that comes to your site (John Smith Septic and Jackpots were named).',1],
+ ['Who does mobile RV repair?','Names campers gave each other: Black Sheep RV Repair, (928) 566-2834; Desert RV Werks; Bennett\'s RV Repairs; First Class RV & Marine, (928) 412-8686; Happy Camper. A common arrival problem is a water line that froze on the drive down.',1],
+ ['Which RV park is best for the winter, and what does a month cost?','Replies say it depends on what you want. With a boat, Sam\'s Beachcomber. Islander was called the prettiest. Full-timers also mentioned Prospectors RV Resort. One covered 50 by 20 foot pad at River Bound was quoted at $700 a month. Several people said parks do not answer the phone, so start early.',1],
+ ['Where do people actually boondock?','Replies point to Craggy Wash, just north of the airport off Hwy 95, and to the open BLM desert south of town along Hwy 95 across from SARA Park, which has off-road trails. One camper said the first BLM turn south of town has lake views.',1],
+ ['Can I camp overnight on the lake shore?','Replies say yes at the designated boat-in sites: buy the pass at the Windsor launch ramp in the state park. The fee covers restrooms, tables and grills at those sites. People disagreed about anchoring out for free, so ask the park.',1],
+ ['Where can I camp for free?','On BLM land north and south of town: Craggy Wash, Lone Tree and Havasu Heights to the north; Havasu Road, Standard Wash and Scenic View to the south. Open the Map tab for each one.'],
+ ['Is there water, a toilet or trash at the free areas?','No. None of them have any services. Arrive with full water and empty tanks, and pack your trash out.'],
+ ['How long can I stay?','14 days in a BLM area. Campers report the rule is that you then move at least 25 miles. Enforcement varies, so ask the camp host or call the BLM Lake Havasu Field Office at (928) 505-1200.'],
+ ['Where do I dump and fill water?','Lake Havasu State Park, 699 London Bridge Rd. Non-campers pay $15 and do not pay the park entry fee just to dump. There are two dump lanes and a drinking-water spigot. Campers report long waits in season, and one was told portable tote tanks were not allowed. Boondocks RV Station in Parker (dump, filtered water, propane) gets very good reviews if you are heading south.'],
+ ['Is Havasu like Quartzsite?','No. There is no long-term permit area with water and a dump station here. Free camping is smaller and more crowded, and most winter visitors stay in RV parks and resorts. The trade is a real city: big stores, a hospital, restaurants and the lake.'],
+ ['Do I need a permit at The Steps?','Yes. It is Arizona State Trust Land, not BLM. Buy a recreational permit from the State Land Department before you camp.'],
+ ['Which free area is quietest?','Not Standard Wash on a weekend: it is an official off-road area. Campers say Craggy Wash has less side-by-side traffic than Lone Tree, and that going farther in gets quieter.'],
+ ['Is it safe to camp in the wash?','Camp on the benches above the channel, not in it. Craggy Wash floods: local posts report a swift-water rescue there and a family of eight pulled out after heavy rain. Rain miles away can send water down a dry wash under a clear sky.',1],
+ ['Can I stay past the winter season?','You can, but it is very hard without air conditioning. Summer stays above 100 degrees for months and passes 110. Locals told one family not to tent camp before October, with 108 degrees at 10 in the morning, and to try Williams or Flagstaff, about 30 degrees cooler. Most people leave in April.',1],
+ ['How cold does it get?','Daytime highs in the coldest weeks average in the mid 60s. Mornings are crisp and the wind can be strong, especially at Lone Tree.'],
+ ['What does the state park cost for the day?','$15 a vehicle Monday to Thursday and $20 Friday to Sunday and holidays, when last reported.'],
+ ['Where can I rockhound?','Join the Lake Havasu Gem & Mineral Society. Members get the collecting locations and club field trips, and the club runs a lapidary shop near the museum.'],
+ ['What do people here call it?','Just "Havasu" (hav-uh-soo). The region sells itself as Arizona\'s West Coast, and many snowbirds here prefer "winter visitors".']
+];
+const OPEN=['Does an off-road event at Standard Wash mean campers have to move?','Where is a good swimming beach near Craggy Wash?','Does Craggy Wash ever close?','Where is the city RV dump station, and what dates is it open?','When do restaurants start hiring for snowbird season?'];
+const TRIPS=[
+ ['London Bridge and the channel','Walk under and over the bridge, the English Village and Rotary Park. Free.'],
+ ['The lighthouses','Small-scale copies of famous American lighthouses ring the lake. Several are reachable on foot at the state park and Rotary Park; the rest by boat.'],
+ ['Crack in the Mountain, SARA Park','A slot-canyon hike of about 5 miles round trip, close to town. Watch for bighorn sheep.'],
+ ['Parker Dam and the Parker Strip','16 miles south. River beaches and trails into the Buckskin Mountains below the dam.'],
+ ['The Desert Bar (Nellie E Saloon)','A solar-powered bar on an old mine site in the hills near Parker, reached by Cienega Springs Road, about four and a half rough miles. Check its season and days before you go.'],
+ ['Oatman','Old mining town on Route 66 where burros wander the street.'],
+ ['Bill Williams River refuge','About 23 miles south. Birding and kayaking where the river meets the lake.'],
+ ['Off-road','Standard Wash is the BLM off-road area near town. Crossroads, about 10 miles down Parker Dam Road, has 1,500 acres of trails.']
+];
+const DIR=[
+ {k:"Emergencies and who to call",it:[["Emergency", "Call 911."], ["Havasu Regional Medical Center", "101 Civic Center Ln, (928) 855-8185. 24-hour emergency room, Level III trauma center."], ["BLM Lake Havasu Field Office", "(928) 505-1200. Stay limits, closures and fire restrictions for the free areas."], ["Lake Havasu State Park", "(928) 855-2784. Camping, dump station and boat-in sites."], ["Arizona State Land Department", "Recreational permits for trust land such as The Steps."]]},
+ {k:"Urgent care and hospitals",it:[["NextCare Urgent Care", "(928) 453-4600."], ["TrueCare Urgent Care", "2035 Mesquite Ave, Ste A. Walk-in."], ["Troyer Urgent Care", "1810 Mesquite Ave, Ste B."], ["La Paz Regional Hospital, Parker", "1200 W Mohave Rd, (928) 669-9201. Closer if you are camped at the south end."]]},
+ {k:"Dump and water",it:[["Lake Havasu State Park", "699 London Bridge Rd, (928) 855-2784. $15 for non-campers. Two lanes plus a drinking-water spigot. No tote tanks."], ["Boondocks RV Station, Parker", "1721 S California Ave, (928) 575-7995. Dump with tank flush, filtered water, propane and firewood. About 40 minutes south."], ["Moabi Regional Park, Needles", "A reviewer reports a free two-lane dump just before the fee booth, close to I-40."], ["Cattail Cove State Park", "Park guests only."], ["Not public", "J Bird Storage: its dump is for storage renters only."]]},
+ {k:"More dump options campers mention",unv:1,it:[["RV parks, for a fee", "Crazy Horse Campground and Sam's Beachcomber, both on the island. Call first."], ["Elks Lodge", "Free for members. (928) 453-3557."], ["Pump-out at your site", "John Smith Septic and Jackpots were named. Useful for tote tanks."]]},
+ {k:"Propane",it:[["Tractor Supply", "Refills by the gallon, tanks up to 100 lb, RV tanks included."], ["A & B Propane", "Reviewers say it is easy to pull an RV in. Fills fixed RV tanks; call ahead."], ["Love's Travel Stop", "Hwy 95 at I-40, open 24 hours. Propane and tank exchange."], ["Boondocks RV Station, Parker", "Propane on the same stop as dump and water."]]},
+ {k:"Tires",it:[["Discount Tire", "255 Lake Havasu Ave N. Big lot with room for trailers and motorhomes. Mon to Fri 8 to 6, Sat 8 to 5. Walk-ins welcome."], ["Big O Tires", "1625 Countryshire Ave, (928) 208-4596. Mon to Fri 7:30 to 6, Sat 7:30 to 4."], ["Love's truck tire shop", "Hwy 95 at I-40. Forum posters say motorhome owners buy tires here. RV and trailer tires and batteries listed."], ["Lakeside Tire", "Industrial Blvd, 1800 block. Recommended in an older forum thread; not confirmed open."]]},
+ {k:"RV repair shops and parts",it:[["London Bridge RV Parts and Service", "1592 Countryshire Ave. Parts counter and shop. Mon to Fri 8 to 5, Sat 9 to 4."], ["Jr Motors RV & Marine", "(928) 680-2886. Works on any RV wherever you bought it."], ["Sunshine RV", "2995 Maricopa Ave. Appliances, trailer tires, windshields, body and paint."], ["Workman RV, Marine and Auto", "1590 Industrial Blvd. Also comes to you."], ["Britton's Auto Truck & RV Center", "2958 Sweetwater Ave. Chassis, brakes and suspension. A reviewer says no mobile service."], ["Virgil's Auto RV Diesel & Repair", "2801 Maricopa Ave. Motorhome chassis and diesel."], ["Canyon Country Truck, Auto & RV", "1680 W Acoma Blvd."], ["Windshields", "Advantage Windshield & Glass, 501 N Lake Havasu Ave #104. Lake Havasu RV Glass is mobile."]]},
+ {k:"Mobile RV repair",it:[["BlackSheep RV", "(928) 566-2834. Mobile RV and trailer repair; also named by campers on Facebook."], ["Byrd's Mobile RV & Marine", "(928) 412-0450. Covers Havasu and Kingman."], ["First Class RV & Marine", "(928) 412-8686."], ["Bennett's Mobile RV Repair", "(909) 213-1898."], ["Happy Camper", "(928) 275-2152. Named by campers on Facebook."], ["Also named on Facebook", "Desert RV Werks; Done Right Auto, RV, A/C and Alignment."]]},
+ {k:"Laundry and showers",unv:1,it:[["Southside Laundromat", "2837 Maricopa Ave. 34 washers, 22 dryers, attendant and drop-off service, per a listing. Confirm it is open."], ["Modern Laundromat", "491 N Lake Havasu Ave."], ["Love's Travel Stop", "Hwy 95 at I-40. Laundry and 8 showers, open 24 hours."], ["State park showers", "For park campers. Reviewers warn the push-button water runs very hot."]]},
+ {k:"Mail and packages",it:[["The UPS Store", "55 Lake Havasu Ave S, Ste F, (928) 854-4877. Open 7 days. Mailboxes, takes packages from all carriers, holds and forwards mail."], ["A Mail Store and More", "1850 McCulloch Blvd N, C1, (928) 854-9379. UPS shipping outlet."], ["General Delivery", "USPS lists General Delivery for Lake Havasu City. Call 1-800-275-8777 to confirm which post office holds it."]]},
+ {k:"Vets and pets",it:[["Novak Animal Care Center", "332 London Bridge Rd. After-hours on-call emergency care. Reviews on call-backs are mixed."], ["Paws & Claws Animal Care", "2715 Maricopa Ave. Its 24/7 emergency line is for established clients."], ["Lange Veterinary Center", "A visitor from out of state reports being squeezed in for an emergency."], ["Nearest listed emergency vet", "Colorado River Animal Medical Center, 5842 S Hwy 95, Bullhead City."], ["Tip", "Visitors report vets booked solid. Call the moment something is wrong."], ["Dog parks", "SARA Park has a large one. Love's at I-40 has a small one."]]},
+ {k:"Groceries, hardware and gear",it:[["Walmart", "5695 Hwy 95 N, (928) 764-3700. North end, the closest big store to Craggy Wash."], ["Home Depot", "100 Center Blvd."], ["Tractor Supply", "Propane, hardware and pet feed."], ["West Marine", "1517 Industrial Blvd, (928) 505-4444."], ["Big 5 Sporting Goods", "251 Lake Havasu Ave S, (928) 854-2770."]]},
+ {k:"Fuel with room for a rig",it:[["Love's Travel Stop", "Hwy 95 at I-40. Open 24 hours, three pull-through RV spots."], ["Riverbound station", "3493 E Heights Blvd. A reviewer says the canopy clears big fifth wheels and it is easier than the Pilot."], ["Pilot", "14750 S AZ-95. A reviewer calls it hard to get in and out."]]},
+ {k:"Meet people",it:[["Pickleball", "Dick Samp Memorial Park has 16 public courts. The Ark Center has 3 indoor courts, free. Lake Havasu Pickleball plays daily: (509) 787-5650."], ["Sunday swap meet", "London Bridge Plaza Association, (928) 680-5685."], ["Cars & Coffee", "First Sunday of the month at The Shops at Lake Havasu."], ["Winter visitor meet-ups by home state", "A 2019 visitor guide had these on Thursdays at Mudshark Brewery, (928) 453-2981. Ask if they still run."], ["Gem & Mineral Society", "Monthly meetings, field trips and a lapidary shop."]]},
+ {k:"Visitor information",it:[["Visitor Information Center", "In the English Village by London Bridge. Lighthouse guide and event listings."], ["Chamber of Commerce", "(928) 453-3444. Runs Winterfest."]]}
+];
+
+/* ---------- shared data: the artifact database when available, this device otherwise ---------- */
+const stores={};let dbP=null;
+function getDb(){ if(!dbP){ try{ dbP=Promise.resolve(window.claude&&claude.use?claude.use('db'):null).catch(()=>null); }catch(e){ dbP=Promise.resolve(null); } } return dbP; }
+function store(name){ if(stores[name])return stores[name];
+  const st={items:[],shared:false,subs:new Set(),db:null};
+  const emit=()=>st.subs.forEach(f=>{try{f()}catch(e){}});
+  try{st.items=JSON.parse(ls('hc-'+name)||'[]')||[]}catch(e){st.items=[]}
+  getDb().then(db=>{ if(!db){emit();return;}
+    try{ st.db=db; db.collection(name).onSnapshot(snap=>{ st.shared=true; st.items=snap.docs.map(d=>Object.assign({},d.data(),{id:d.id})); emit(); },()=>{st.db=null;emit();}); }catch(e){st.db=null;emit();} });
+  st.save=async item=>{ const id=item.id||('i'+Date.now().toString(36)+Math.random().toString(36).slice(2,6)); const data=JSON.parse(JSON.stringify(item)); delete data.id;
+    if(st.db){ try{ await st.db.collection(name).doc(id).set(data); return true; }catch(e){ return false; } }
+    const i=st.items.findIndex(x=>x.id===id),row=Object.assign({id},data); if(i>=0)st.items[i]=row; else st.items.push(row); ls('hc-'+name,JSON.stringify(st.items)); emit(); return true; };
+  st.remove=async id=>{ if(st.db){ try{ await st.db.collection(name).doc(id).delete(); return true; }catch(e){ return false; } }
+    st.items=st.items.filter(x=>x.id!==id); ls('hc-'+name,JSON.stringify(st.items)); emit(); return true; };
+  return stores[name]=st; }
+function ago(ts){ const m=Math.max(0,Math.round((Date.now()-ts)/60000)); if(m<1)return 'just now'; if(m<60)return m+' min ago'; const hr=Math.round(m/60); if(hr<24)return hr+' hr ago'; const d=Math.round(hr/24); return d+(d===1?' day ago':' days ago'); }
+const HARSH=/\b(idiot|idiots|stupid|moron|morons|dumbass|loser|losers|shut up|screw you|hate you|libtard|maga|woke|trump|biden|democrats?|republicans?|f+u+c+k\w*|sh[i1]t\w*|b[i1]tch\w*|a+s+s+hole\w*|bastard)\b/i;
+function toneProblem(t){ if(HARSH.test(t))return 'That reads as an insult, swearing or politics. Please reword it: keep it kind.';
+  const L=t.replace(/[^A-Za-z]/g,''); if(L.length>20&&L.replace(/[^A-Z]/g,'').length/L.length>.7)return 'All capitals reads as shouting. Please retype it in normal case.'; return ''; }
+function where(st){ return h('p',{class:'muted'},st.shared?'Shared with everyone who can open this page.':'Preview: saved on this device only until the Havasu site has its own server.'); }
+function mine(key,id){ let s=[]; try{s=JSON.parse(ls(key)||'[]')}catch(e){} if(id===undefined)return s; if(!s.includes(id)){s.push(id);ls(key,JSON.stringify(s));} return s; }
+
+/* ---------- views ---------- */
+const view=document.getElementById('view');
+function sec(title,...kids){return [h('h2',null,title),...kids];}
+const kindTag=a=>h('span',{class:'tag '+(a.k==='free'?'ok':'fee')},a.k==='free'?'Free BLM':a.t);
+function areaCard(a){return h('div',{class:'card'},h('div',{class:'row'},h('h3',null,a.n),kindTag(a)),h('p',null,a.d),
+  h('p',{class:'muted'},ext('Open in Google Maps',gmap(a.la,a.lo)),a.approx?' (approximate pin)':''));}
+const srcNote=fb=>fb?h('span',{class:'muted'},fb===2?' (From RV forums and camper reviews, some several years old. Not verified.)':' (From campers\' replies on Facebook. Not verified.)'):null;
+const faqCard=list=>h('div',{class:'card'},list.map(([q,a,fb])=>h('details',null,h('summary',null,q),h('p',{style:'padding:6px 0 8px 38px'},a,srcNote(fb)))));
+const dirCards=()=>DIR.map(g=>h('div',{class:'card'},h('div',{class:'row'},h('h3',null,g.k),g.unv&&h('span',{class:'tag warn'},'Not yet verified')),h('ul',{class:'plain'},g.it.map(([n,d])=>h('li',null,h('strong',null,n+'. '),d)))));
+const COMPARE=[
+ ['Free BLM areas','$0','14 days, then move on','No water, toilets, trash or dump','Craggy Wash, Lone Tree, Standard Wash and the others on the Map'],
+ ['State Trust Land (The Steps)','State recreational permit','Campers report 14 days a year','No services','Not BLM. A ranger can ask for the permit.'],
+ ['Lake Havasu State Park','Nightly fee','14 days at a stretch','Water and electric, showers, dump station, beach','Books up in winter. A dry overflow lot opens when it is full.']];
+function compareCard(){ return h('div',{class:'card gold',id:'compare'},h('h3',null,'Free, permit or paid?'),COMPARE.map(c=>h('div',{style:'border-top:1px solid var(--line);padding-top:6px'},
+  h('strong',null,c[0]),h('p',{class:'muted'},'Cost: '+c[1]+' · Stay: '+c[2]),h('p',null,c[3]+'. '+c[4])))); }
+const WEEKEND=[['Day 1','Walk London Bridge, the English Village and the channel to Rotary Park, and find the two lighthouses there. Pick up the lighthouse guide at the visitor center. Stay for sunset over the lake.'],
+ ['Day 2, morning','Hike Crack in the Mountain at SARA Park before it warms up, about 5 miles round trip.'],
+ ['Day 2, afternoon','Drive 16 miles south to Parker Dam, or on a Sunday browse the swap meet in town.'],
+ ['Before you leave','Dump and fill at the state park ($15), after 1 pm if you can.']];
+const WASH=[['Camp above the channel','Several free areas here are washes. Park on the benches and flats above the sandy channel, never in it.'],
+ ['Craggy Wash floods','Local posts report a swift-water rescue there and a family of eight pulled out after heavy rain.'],
+ ['Rain you cannot see','Storms miles away can send water down a dry wash under a clear sky. A forum poster adds that winter is not monsoon season, but winter storms still happen.'],
+ ['Driving','Do not drive into moving water. Wait it out; washes usually drop within hours.']];
+let gsec='start',gq='';
+const GSECS=[['start','Start here'],['camping','Camping'],['questions','Questions'],['services','Services'],['trips','Day trips'],['about','About']];
+function guide(){
+  const body=h('div',{class:'list'});
+  const chips=h('div',{class:'chips'},GSECS.map(([id,n])=>h('button',{class:'chip',type:'button','aria-pressed':String(gsec===id),onclick:()=>{gsec=id;gq='';search.value='';draw();chips.querySelectorAll('.chip').forEach((c,i)=>c.setAttribute('aria-pressed',String(GSECS[i][0]===gsec)));}},n)));
+  const search=h('input',{type:'text',placeholder:'Search the guide: dump, propane, vet…','aria-label':'Search the guide',value:gq,oninput:()=>{gq=search.value.trim();draw();}});
+  function found(){ const q=gq.toLowerCase(),hit=s=>s.toLowerCase().includes(q),out=[];
+    const fq=FAQ.filter(f=>hit(f[0])||hit(f[1])); if(fq.length)out.push(h('h2',null,'Questions'),faqCard(fq));
+    const ar=AREAS.filter(a=>hit(a.n)||hit(a.d)); if(ar.length)out.push(h('h2',null,'Camping'),...ar.map(areaCard));
+    const sv=[]; DIR.forEach(g=>g.it.forEach(i=>{ if(hit(g.k)||hit(i[0])||hit(i[1]))sv.push(h('li',null,h('strong',null,i[0]+'. '),i[1],h('span',{class:'muted'},' ('+g.k+')'))); }));
+    if(sv.length)out.push(h('h2',null,'Services'),h('div',{class:'card'},h('ul',{class:'plain'},sv)));
+    const tr=TRIPS.filter(t=>hit(t[0])||hit(t[1])); if(tr.length)out.push(h('h2',null,'Day trips'),h('div',{class:'card'},h('ul',{class:'plain'},tr.map(([n,d])=>h('li',null,h('strong',null,n+'. '),d)))));
+    return out.length?out:[h('div',{class:'card'},h('p',null,'Nothing found for "'+gq+'". Ask it under Questions and a camper may know.'))]; }
+  function draw(){ Object.values(stores).forEach(s=>s.subs.clear());
+    const k=gq.length>1?found():gsec==='start'?gStart():gsec==='camping'?gCamping():gsec==='questions'?gQuestions():gsec==='services'?[h('h2',null,'Services'),...dirCards(),h('p',{class:'muted'},'Collected November 27, 2026 from business listings, official pages, forums and Facebook replies. Nobody has called to confirm.')]:gsec==='trips'?gTrips():gAbout();
+    body.replaceChildren(...k.flat(9).filter(Boolean)); }
+  draw(); return [search,chips,body];
+}
+function gStart(){
+  const bf=EVENTS.find(e=>e.f),days=Math.max(0,Math.ceil((new Date(bf.date+'T08:00:00-07:00')-Date.now())/864e5));
+  return [h('div',{class:'card next'},h('p',null,'Next big one: ',h('strong',null,bf.n)),h('div',{class:'row'},h('b',null,days),h('span',{class:'unit'},days===1?'day':'days')),h('p',null,bf.w+' · ',h('a',{href:'#shows'},'All shows'))),
+   h('div',{class:'card gold'},h('h3',null,'Just arrived?'),h('ul',{class:'plain'},
+      h('li',null,'Free camping has no water, toilets or trash. Fill and dump before you settle in.'),
+      h('li',null,'The public dump and water fill is at Lake Havasu State Park, $15. No tote tanks.'),
+      h('li',null,'Free areas are 14 days. The Steps needs a State Trust permit.'),
+      h('li',null,'Camp above the wash channel, never in it. Craggy Wash has had flood rescues.')),
+     h('div',{class:'row'},h('a',{class:'btn',href:'#map',style:'display:inline-flex;align-items:center;text-decoration:none'},'See the map'))),
+   compareCard(),
+   h('div',{class:'card'},h('h3',null,'Here for a weekend'),h('ul',{class:'plain'},WEEKEND.map(([n,d])=>h('li',null,h('strong',null,n+'. '),d)))),
+   h('h2',null,'Asked every week'),faqCard(FAQ.slice(0,6)),
+   h('div',{class:'row'},h('button',{class:'btn ghost',type:'button',onclick:()=>{gsec='questions';gq='';route();}},'All questions, and ask your own'))];
+}
+function gCamping(){ return [sec('Free camping, north to south',...AREAS.filter(a=>a.k==='free').map(areaCard)),sec('Permit and paid',...AREAS.filter(a=>a.k==='fee').map(areaCard)),compareCard(),
+  sec('Desert washes',h('div',{class:'card'},h('ul',{class:'plain'},WASH.map(([n,d])=>h('li',null,h('strong',null,n+'. '),d)))))]; }
+function gTrips(){ return [h('h2',null,'Day trips and things to do'),h('div',{class:'card'},h('ul',{class:'plain'},TRIPS.map(([n,d])=>h('li',null,h('strong',null,n+'. '),d)))),
+  h('div',{class:'card'},h('h3',null,'Here for a weekend'),h('ul',{class:'plain'},WEEKEND.map(([n,d])=>h('li',null,h('strong',null,n+'. '),d))))]; }
+function allQuestions(st){ const have=new Set(st.items.map(x=>x.id)); return st.items.concat(OPEN.map((q,i)=>({id:'seed'+i,q,ts:0,answers:[],thanks:0})).filter(x=>!have.has(x.id))); }
+function gQuestions(){
+  const st=store('questions'),list=h('div',{class:'list'}),msg=h('p',{class:'warnmsg',role:'status'});
+  const q=h('textarea',{maxlength:300,placeholder:'Ask the campers around Havasu'});
+  function qCard(x){ const ans=x.answers||[],a=h('input',{type:'text',maxlength:400,placeholder:'Know the answer?','aria-label':'Answer: '+x.q}),thanked=mine('hc-thanked').includes(x.id);
+    return h('div',{class:'card'},h('div',{class:'row'},h('h3',{style:'flex:1'},x.q),!ans.length&&h('span',{class:'tag warn'},'Needs an answer')),
+      ans.map(r=>h('p',{style:'border-left:3px solid var(--primary);padding-left:10px'},r.a,h('span',{class:'muted'},r.ts?' · '+ago(r.ts):''))),
+      h('form',{class:'row',onsubmit:async e=>{e.preventDefault();const t=a.value.trim();if(!t)return;const p=toneProblem(t);if(p){msg.textContent=p;return;}msg.textContent='';
+          const ok=await st.save({id:x.id,q:x.q,ts:x.ts||Date.now(),thanks:x.thanks||0,answers:ans.concat([{a:t,ts:Date.now()}])}); if(!ok)msg.textContent='That could not be saved. You may only have view access.';}},
+        h('div',{style:'flex:1;min-width:160px'},a),h('button',{class:'chip',type:'submit'},'Answer')),
+      ans.length?h('div',{class:'row'},h('button',{class:'chip',type:'button',disabled:thanked,onclick:async()=>{mine('hc-thanked',x.id);await st.save(Object.assign({},x,{thanks:(x.thanks||0)+1}));draw();}},'Thanks'+(x.thanks?' · '+x.thanks:''))):null); }
+  function draw(){ const all=allQuestions(st),open=all.filter(x=>!(x.answers||[]).length),done=all.filter(x=>(x.answers||[]).length).sort((a,b)=>b.ts-a.ts);
+    list.replaceChildren(...[open.length&&h('h2',null,'Help answer these'),...open.map(qCard),done.length&&h('h2',null,'Answered by campers'),...done.map(qCard)].filter(Boolean)); }
+  st.subs.add(draw); draw();
+  return [h('h2',null,'Ask a question'),h('form',{class:'card',onsubmit:async e=>{e.preventDefault();const t=q.value.trim();if(t.length<8){q.focus();return;}const p=toneProblem(t);if(p){msg.textContent=p;return;}msg.textContent='';
+      const dup=FAQ.find(f=>t.toLowerCase().split(/\W+/).filter(w=>w.length>4).some(w=>f[0].toLowerCase().includes(w)));
+      const ok=await st.save({q:t,ts:Date.now(),answers:[],thanks:0}); if(ok){q.value='';msg.textContent=dup?'Posted. This may already be covered below: "'+dup[0]+'"':'';}else msg.textContent='That could not be saved. You may only have view access.';}},
+     h('label',null,'Your question',q),msg,h('button',{class:'btn',type:'submit'},'Ask'),where(st)),
+    list,h('h2',null,'Asked every week'),faqCard(FAQ)];
+}
+function gAbout(){
+  const st=store('suggestions'),t=h('textarea',{maxlength:500,placeholder:'What is wrong, missing or out of date?'}),msg=h('p',{class:'muted',role:'status'});
+  return [h('h2',null,'About Havasu Campfire'),h('div',{class:'card'},h('p',null,'A free guide, map, question board and classifieds for winter visitors around Lake Havasu City, Arizona. It is the sister site of Quartzsite Campfire and is run by one person. No accounts.'),
+     h('p',{class:'muted'},'First draft, researched November 27, 2026 from BLM, state park and visitor bureau pages, business listings, Good Sam and iRV2 forum threads, Campendium reviews and Havasu Facebook groups. Nothing has been checked on the ground yet.')),
+   h('h2',null,'Suggest a change'),h('form',{class:'card',onsubmit:async e=>{e.preventDefault();const v=t.value.trim();if(v.length<5){t.focus();return;}const ok=await st.save({text:v,ts:Date.now()});msg.textContent=ok?'Thank you. It has been noted.':'That could not be saved.';if(ok)t.value='';}},
+     h('label',null,'Your suggestion',t),h('button',{class:'btn',type:'submit'},'Send'),msg),
+   h('div',{class:'note'},'Not in this version: "Am I on BLM land?", sharing your GPS position, photos, and live road and weather feeds. They need location access and a server, which this preview page does not have.')];
+}
+function shows(){
+  const dated=EVENTS.filter(e=>e.date||/\d{4}/.test(e.w));
+  return [h('h2',null,'Winter shows and events'),
+   h('p',{class:'muted'},'"Confirmed" dates come from the organizer. "Usual timing" shows last season\'s dates until this season\'s are posted.'),
+   h('div',{class:'list'},EVENTS.map(e=>h('div',{class:'card ev'+(e.f?' feat':'')},h('div',{class:'badge'},h('span',null,e.b[0]),h('b',null,e.b[1])),
+     h('div',{class:'evb'},h('h3',null,e.n),h('span',{class:'tag '+(e.s==='ok'?'ok':'warn')},e.s==='ok'?'Confirmed':'Usual timing'),h('p',{class:'when'},e.w),h('p',{class:'muted'},e.p),h('p',null,e.d))))),
+   h('h2',null,'On the calendar'),h('div',{class:'card'},h('ul',{class:'plain'},dated.map(e=>h('li',null,h('strong',null,e.w+': '),e.n)))),
+   h('p',{class:'muted'},ext('Official event calendar','https://www.golakehavasu.com/annual-event-calendar'))];
+}
+function alerts(){
+  const st=store('alerts'),list=h('div',{class:'list'}),t=h('textarea',{maxlength:300,placeholder:'Road washed out, dump line an hour long, wind warning…'}),msg=h('p',{class:'warnmsg',role:'status'});
+  function draw(){ const rows=st.items.slice().sort((a,b)=>b.ts-a.ts);
+    list.replaceChildren(...(rows.length?rows.map(x=>{const did=mine('hc-still').includes(x.id);return h('div',{class:'card'},h('p',null,x.text),h('div',{class:'row'},h('span',{class:'muted'},ago(x.ts)),
+      h('button',{class:'chip',type:'button',disabled:did,onclick:async()=>{mine('hc-still',x.id);await st.save(Object.assign({},x,{still:(x.still||0)+1}));draw();}},'Still true'+(x.still?' · '+x.still:'')),
+      h('button',{class:'chip',type:'button',onclick:()=>st.remove(x.id)},'Remove')));}):[h('div',{class:'card'},h('p',null,'No camper reports yet.'))])); }
+  st.subs.add(draw); draw();
+  return [h('h2',null,'Alerts and conditions'),
+   h('div',{class:'card gold'},h('h3',null,'Standing warnings'),h('ul',{class:'plain'},
+     h('li',null,h('strong',null,'Flooding. '),'Craggy Wash has had swift-water rescues after heavy rain. Camp above the channel.'),
+     h('li',null,h('strong',null,'Dump station. '),'One public station for the whole city, with long lines in season. Go after 1 pm. No tote tanks.'),
+     h('li',null,h('strong',null,'Wind. '),'Lone Tree is exposed. Stow awnings.'),
+     h('li',null,h('strong',null,'Heat. '),'From late spring it passes 100 degrees daily. Locals say no tent camping before October.'))),
+   h('div',{class:'card'},h('h3',null,'Live conditions'),h('ul',{class:'plain'},
+     h('li',null,ext('National Weather Service forecast','https://forecast.weather.gov/MapClick.php?lat=34.4839&lon=-114.3225')),
+     h('li',null,ext('AZ511 road closures and cameras','https://www.az511.gov')),
+     h('li',null,ext('BLM Lake Havasu Field Office notices','https://www.blm.gov/office/lake-havasu-field-office')),
+     h('li',null,ext('Lake Havasu State Park','https://azstateparks.com/lake-havasu')))),
+   h('h2',null,'Camper reports'),h('form',{class:'card',onsubmit:async e=>{e.preventDefault();const v=t.value.trim();if(v.length<8){t.focus();return;}const p=toneProblem(v);if(p){msg.textContent=p;return;}
+       const ok=await st.save({text:v,ts:Date.now(),still:0});msg.textContent=ok?'':'That could not be saved.';if(ok)t.value='';}},h('label',null,'What should campers know?',t),msg,h('button',{class:'btn',type:'submit'},'Post alert'),where(st)),list];
+}
+const CATS=[['rv','RV parts and solar'],['camp','Camping gear'],['boat','Boats and water toys'],['wheels','Vehicles and off-road'],['tools','Tools'],['home','Household'],['free','Free'],['wanted','Wanted'],['services','Services']];
+let fcat='';
+function forsale(){
+  const st=store('ads'),list=h('div',{class:'list'}),msg=h('p',{class:'warnmsg',role:'status'});
+  const sel=(opts,label)=>{const s=h('select',{'aria-label':label,style:'font:1em var(--body);padding:10px 12px;border-radius:8px;border:2px solid var(--line);background:var(--surface);color:var(--ink);width:100%'},opts.map(([v,n])=>h('option',{value:v},n)));return s;};
+  const title=h('input',{type:'text',maxlength:80,placeholder:'What are you selling?'}),price=h('input',{type:'text',maxlength:20,placeholder:'$ or Free'}),body=h('textarea',{maxlength:500,placeholder:'Condition, and how to reach you'});
+  const cat=sel(CATS,'Category'),area=sel(AREAS.map(a=>[a.id,a.n]).concat([['town','In town'],['other','Somewhere else']]),'Where you are'),when=sel([['year','Show year round'],['winter','Winter season only']],'When to show');
+  const filt=h('div',{class:'chips'});
+  function drawFilt(){ filt.replaceChildren(...[['','All']].concat(CATS).map(([id,n])=>h('button',{class:'chip',type:'button','aria-pressed':String(fcat===id),onclick:()=>{fcat=id;drawFilt();draw();}},n))); }
+  const nm=(arr,id)=>(arr.find(x=>x[0]===id)||[0,''])[1];
+  function draw(){ const rows=st.items.filter(a=>!fcat||a.cat===fcat).sort((a,b)=>(a.sold?1:0)-(b.sold?1:0)||b.ts-a.ts);
+    list.replaceChildren(...(rows.length?rows.map(a=>h('div',{class:'card',style:a.sold?'opacity:.6':''},
+      h('div',{class:'row'},h('h3',{style:'flex:1'},a.t),a.price&&h('strong',{style:'color:var(--accent)'},a.price),a.sold&&h('span',{class:'tag warn'},'Sold')),
+      a.b&&h('p',{style:'white-space:pre-wrap;overflow-wrap:anywhere'},a.b),
+      h('p',{class:'muted'},[nm(CATS,a.cat),(AREAS.find(x=>x.id===a.area)||{}).n||(a.area==='town'?'In town':''),a.when==='winter'?'Winter only':'',ago(a.ts)].filter(Boolean).join(' · ')),
+      h('div',{class:'row'},h('button',{class:'chip',type:'button',onclick:()=>st.save(Object.assign({},a,{sold:!a.sold}))},a.sold?'Mark available':'Mark sold'),h('button',{class:'chip',type:'button',onclick:()=>st.remove(a.id)},'Remove')))):
+      [h('div',{class:'card'},h('p',null,fcat?'Nothing in this category yet.':'No ads yet. Be the first camper to post.'))])); }
+  st.subs.add(draw); drawFilt(); draw();
+  return [h('h2',null,'Buy, sell and trade around Havasu'),filt,list,h('h2',null,'Post an ad'),
+   h('form',{class:'card',onsubmit:async e=>{e.preventDefault();const t=title.value.trim();if(!t){title.focus();return;}const p=toneProblem(t+' '+body.value);if(p){msg.textContent=p;return;}
+       const ok=await st.save({t,price:price.value.trim(),b:body.value.trim(),cat:cat.value,area:area.value,when:when.value,sold:false,ts:Date.now()});
+       msg.textContent=ok?'':'That could not be saved. You may only have view access.';if(ok){title.value='';price.value='';body.value='';}}},
+     h('label',null,'Title',title),h('label',null,'Price',price),h('label',null,'Category',cat),h('label',null,'Where you are',area),h('label',null,'Details',body),h('label',null,'When to show it',when),msg,h('button',{class:'btn',type:'submit'},'Post ad'),where(st),
+     h('p',{class:'muted'},'No account needed. Be kind, nothing objectionable. Photos and email confirmation come with the real site.'))];
+}
+function mapView(){
+  const W=360,H=480,X=lo=>20+(lo+114.42)/0.34*320,Y=la=>20+(34.70-la)/0.43*440;
+  const path=pts=>pts.map((p,i)=>(i?'L':'M')+X(p[1]).toFixed(0)+' '+Y(p[0]).toFixed(0)).join(' ');
+  const lake=[[34.69,-114.44],[34.56,-114.40],[34.47,-114.375],[34.40,-114.31],[34.345,-114.20],[34.30,-114.145]];
+  const hwy=[[34.72,-114.28],[34.63,-114.325],[34.57,-114.355],[34.49,-114.335],[34.45,-114.27],[34.41,-114.205],[34.36,-114.15],[34.26,-114.12]];
+  const info=h('div',{class:'card','aria-live':'polite'},h('p',{class:'muted'},'Tap a pin for details.'));
+  const svg=S('svg',{viewBox:'0 0 '+W+' '+H,role:'group','aria-label':'Camping areas around Lake Havasu City'},
+    S('path',{class:'lake',d:path(lake),'stroke-width':34}),
+    S('path',{class:'road',d:path(hwy)}),S('path',{class:'dash',d:path(hwy)}),
+    S('text',{class:'lbl',x:X(-114.43),y:Y(34.50),transform:'rotate(62 '+X(-114.43)+' '+Y(34.50)+')'},'Lake Havasu'),
+    S('text',{class:'lbl',x:X(-114.25),y:Y(34.70)},'to I-40'),S('text',{class:'lbl',x:X(-114.20),y:Y(34.275)},'to Parker'),
+    S('text',{class:'lbl',x:X(-114.33),y:Y(34.525)},'Hwy 95'),S('text',{class:'lbl',x:22,y:H-10},'Sketch map, not to scale'));
+  const pins=[];
+  function pin(o,cls,side){ const x=X(o.lo),y=Y(o.la);
+    const g=S('g',{class:'pin '+cls,tabindex:0,role:'button','aria-label':o.n},S('circle',{class:'hit',cx:x,cy:y,r:20}),S('circle',{class:'dot',cx:x,cy:y,r:8}),
+      S('text',{x:x+(side<0?-13:13),y:y+4,'text-anchor':side<0?'end':'start'},o.n));
+    const pick=()=>{pins.forEach(p=>p.classList.remove('sel'));g.classList.add('sel');
+      info.replaceChildren(h('div',{class:'row'},h('h3',null,o.n),o.k&&h('span',{class:'tag '+(o.k==='free'?'ok':'fee')},o.k==='free'?'Free BLM':o.t)),h('p',null,o.d),
+        h('p',{class:'muted'},ext('Open in Google Maps',gmap(o.la,o.lo)),o.approx?' (approximate pin)':''));};
+    g.addEventListener('click',pick);g.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();pick();}});
+    pins.push(g);svg.append(g);}
+  const left={craggy:1,statepark:1,bridge:1};
+  AREAS.forEach(a=>pin(a,a.k==='free'?'free':'fee',left[a.id]?-1:1));
+  POI.forEach(p=>pin(p,'poi',p.id==='bridge'?1:(p.id==='sara'?-1:-1)));
+  return [h('h2',null,'Where to camp'),
+    h('p',{class:'muted'},h('span',{class:'lg'}),'Free BLM',h('span',{class:'lg fee'}),'Permit or paid',h('span',{class:'lg poi'}),'Landmark'),
+    h('div',{class:'map'},svg),info,
+    h('div',{class:'note'},'Land boundaries are not drawn here. The real version would carry the BLM and State Trust layers, like the Quartzsite map.')];
+}
+const VIEWS={guide,forsale,shows,alerts,map:mapView};
+const TAG={guide:"Winter on Arizona's West Coast",shows:'Balloons, buses and fireworks',map:'Free camping, north and south of town',alerts:'Floods, wind, heat and dump lines',forsale:'Buy, sell and trade around Havasu'};
+function route(){ let k=location.hash.slice(1); if(k==='services'){gsec='services';gq='';k='guide';} if(k==='questions'){gsec='questions';gq='';k='guide';} if(!VIEWS[k])k='guide';
+  Object.values(stores).forEach(s=>s.subs.clear());
+  view.replaceChildren(...VIEWS[k]().flat(9).filter(Boolean)); view.scrollTop=0;
+  view.classList.remove('enter'); void view.offsetWidth; view.classList.add('enter');
+  document.getElementById('tagline').textContent=TAG[k];
+  document.querySelectorAll('nav a').forEach(a=>{ if(a.getAttribute('href')==='#'+k)a.setAttribute('aria-current','page'); else a.removeAttribute('aria-current'); }); }
+addEventListener('hashchange',route); route();
+const big=document.getElementById('big');
+function setBig(on){document.body.classList.toggle('big',on);big.setAttribute('aria-pressed',on);big.textContent=on?'Normal text':'Bigger text';ls('hc-big',on?'1':'0');}
+big.addEventListener('click',()=>setBig(!document.body.classList.contains('big'))); if(ls('hc-big')==='1')setBig(true);
+/* "A camper is asking": shown once each time the page is opened, tucks away after 7.5 seconds. */
+(function(){ const strip=document.getElementById('asking'),st=store('questions'); let shown=false;
+  function show(){ if(shown)return; const open=allQuestions(st).filter(x=>!(x.answers||[]).length); if(!open.length)return; shown=true;
+    strip.querySelector('span').textContent='A camper is asking: \u201C'+open[Math.floor(Math.random()*open.length)].q+'\u201D Can you answer?';
+    strip.hidden=false; setTimeout(()=>{strip.hidden=true;},7500); }
+  strip.querySelector('.go').addEventListener('click',()=>{strip.hidden=true;gsec='questions';gq='';if(location.hash==='#guide'||!location.hash)route();else location.hash='#guide';});
+  strip.querySelector('.x').addEventListener('click',()=>{strip.hidden=true;});
+  setTimeout(show,1500); })();
+</script>
+</body>
+</html>

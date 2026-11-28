@@ -1,0 +1,409 @@
+diff -ru apps/campfire-ios/Sources/About.swift apps/havasu-ios/Sources/About.swift
+--- apps/campfire-ios/Sources/About.swift	2026-11-27 23:04:41.283430037 -0800
++++ apps/havasu-ios/Sources/About.swift	2026-11-27 23:07:03.226614592 -0800
+@@ -50,7 +50,7 @@
+         NavigationStack {
+             List {
+                 Section {
+-                    Text("Quartzsite Campfire is a free guide, map, question board and classifieds for campers around Quartzsite, Arizona. It is run by one person. There are no accounts and no passwords.")
++                    Text("Havasu Campfire is a free guide, map, question board and classifieds for winter visitors around Lake Havasu City, Arizona. It is the sister app of Quartzsite Campfire. It is run by one person. There are no accounts and no passwords.")
+                 }
+                 Section("Rules for posting") {
+                     Text("Be kind. No harassment, hate, sexual content, scams or illegal items.")
+diff -ru apps/campfire-ios/Sources/Album.swift apps/havasu-ios/Sources/Album.swift
+--- apps/campfire-ios/Sources/Album.swift	2026-11-27 23:04:41.284052747 -0800
++++ apps/havasu-ios/Sources/Album.swift	2026-11-27 23:07:03.228573838 -0800
+@@ -67,7 +67,7 @@
+     }
+ }
+ 
+-// The Photos page of the Guide: pictures campers took around Quartzsite.
++// The Photos page of the Guide: pictures campers took around Lake Havasu.
+ struct AlbumSection: View {
+     @State private var pics: [AlbumPic] = []
+     @State private var loaded = false
+@@ -88,7 +88,7 @@
+         } header: {
+             Text("Photos from campers")
+         } footer: {
+-            Text("Sunsets, camps, rocks and good days around Quartzsite. No account needed.")
++            Text("Sunsets, camps, rocks and good days around Lake Havasu. No account needed.")
+         }
+         .sheet(isPresented: $adding) {
+             AddPhotoView { note = "Thank you. Your photo shows to everyone once it has been checked."; Task { await load() } }
+@@ -206,7 +206,7 @@
+                     TextField("Caption: Sunset from Dome Rock", text: $caption)
+                     TextField("Your name (optional)", text: $name)
+                 } footer: {
+-                    Text("Photos taken around Quartzsite, please. Each one is checked before others see it.")
++                    Text("Photos taken around Lake Havasu, please. Each one is checked before others see it.")
+                 }
+                 if !problem.isEmpty { Section { Text(problem).foregroundColor(.red) } }
+                 Section {
+diff -ru apps/campfire-ios/Sources/App.swift apps/havasu-ios/Sources/App.swift
+--- apps/campfire-ios/Sources/App.swift	2026-11-27 23:04:41.284052747 -0800
++++ apps/havasu-ios/Sources/App.swift	2026-11-27 23:07:03.223873412 -0800
+@@ -1,6 +1,7 @@
+ import SwiftUI
+ 
+-// Quartzsite Campfire for iPhone: ads, guide, shows, alerts and map, all read from the live site.
++// Havasu Campfire for iPhone: the sister app of Quartzsite Campfire, for winter visitors around Lake Havasu City.
++// Until the Havasu site exists (Site.live) it shows the Guide, Shows and Map from the guide packed inside the app.
+ @main
+ struct CampfireApp: App {
+     var body: some Scene {
+@@ -13,10 +14,10 @@
+ 
+ // The site's colors.
+ enum Theme {
+-    static let primary = Color(red: 10 / 255, green: 111 / 255, blue: 105 / 255)
+-    static let accent = Color(red: 194 / 255, green: 67 / 255, blue: 26 / 255)
+-    static let soft = Color(red: 222 / 255, green: 238 / 255, blue: 234 / 255)
+-    static let page = Color(red: 236 / 255, green: 232 / 255, blue: 225 / 255)
++    static let primary = Color(red: 11 / 255, green: 106 / 255, blue: 134 / 255)
++    static let accent = Color(red: 200 / 255, green: 72 / 255, blue: 28 / 255)
++    static let soft = Color(red: 220 / 255, green: 236 / 255, blue: 241 / 255)
++    static let page = Color(red: 233 / 255, green: 236 / 255, blue: 236 / 255)
+     static let card = Color(red: 254 / 255, green: 252 / 255, blue: 247 / 255)
+ }
+ 
+@@ -27,7 +28,7 @@
+         let args = ProcessInfo.processInfo.arguments
+         if args.contains("-demo-areamap") || args.contains("-demo-photos") || args.contains("-demo-camping") { return "guide" }
+         for t in ["guide", "shows", "alerts", "map"] where args.contains("-demo-" + t) { return t }
+-        return "sale"
++        return Site.live ? "sale" : "guide"
+     }()
+ 
+     // A question nobody has answered yet, shown above every tab. A new one is picked each time the tab changes.
+@@ -39,7 +40,7 @@
+     @State private var stripShown = false    // it tucks itself away 7.5 seconds after each tab change
+ 
+     private func pickQuestion() async {
+-        guard let all = try? await Site.questions() else { return }
++        guard Site.live, let all = try? await Site.questions() else { return }
+         let open = all.filter { $0.answers.isEmpty && !$0.waiting }
+         waitingCount = open.count
+         asking = open.randomElement()?.text
+@@ -70,10 +71,10 @@
+                 .transition(.opacity)
+             }
+         TabView(selection: $tab) {
+-            ForSaleView().tabItem { Label("For Sale", systemImage: "tag") }.tag("sale")
++            if Site.live { ForSaleView().tabItem { Label("For Sale", systemImage: "tag") }.tag("sale") }
+             GuideView().tabItem { Label("Guide", systemImage: "book") }.tag("guide")
+             ShowsView().tabItem { Label("Shows", systemImage: "calendar") }.tag("shows")
+-            AlertsView().tabItem { Label("Alerts", systemImage: "bell") }.tag("alerts")
++            if Site.live { AlertsView().tabItem { Label("Alerts", systemImage: "bell") }.tag("alerts") }
+             PlacesView().tabItem { Label("Map", systemImage: "map") }.tag("map")
+         }
+         }
+diff -ru apps/campfire-ios/Sources/Compare.swift apps/havasu-ios/Sources/Compare.swift
+--- apps/campfire-ios/Sources/Compare.swift	2026-11-27 23:04:41.284052747 -0800
++++ apps/havasu-ios/Sources/Compare.swift	2026-11-27 23:07:03.226234269 -0800
+@@ -24,42 +24,44 @@
+ struct CompareView: View {
+     @Environment(\.dismiss) private var dismiss
+     private let rows: [(String, String, String)] = [
+-        ("Cost", "Free", "$40 for 14 days, or $180 for the season"),
+-        ("How long", "14 days in any 28", "All season, Sept 15 to April 15"),
+-        ("Dump station", "No", "Yes, at La Posa South"),
++        ("Cost", "Free", "A nightly fee. Dump only: $15"),
++        ("How long", "14 days, then move on", "14 days at a stretch"),
++        ("Dump station", "No", "Yes. No tote tanks"),
+         ("Water fill", "No", "Yes"),
+-        ("Trash", "No, carry it out", "Yes, dumpsters"),
+-        ("Restrooms", "No", "Yes"),
+-        ("Checking in", "A free date card from the camp host", "Buy the permit at the entrance. After hours, find a spot and register in the morning"),
+-        ("Where", "Plomosa Road, Hi Jolly, Dome Rock, Scaddan Wash, Road Runner", "La Posa North, South, West and Tyson Wash")]
++        ("Trash", "No, carry it out", "Yes"),
++        ("Restrooms", "No", "Yes, with showers"),
++        ("Checking in", "Nothing to buy. Craggy Wash has a camp host", "Reserve well ahead for winter. A dry overflow lot opens when the park is full"),
++        ("Where", "Craggy Wash, Lone Tree, Havasu Heights, Havasu Road, Standard Wash, Scenic View", "699 London Bridge Rd, on the lake")]
+ 
+     var body: some View {
+         NavigationStack {
+             List {
+                 Section {
+-                    Text("Both are on BLM land, the public land run by the Bureau of Land Management. The difference is what you get.")
++                    Text("Free camping here is on BLM land, the public land run by the Bureau of Land Management. There is no long-term permit area with water and a dump station, so the state park is the place with services. The Steps is different again: Arizona State Trust Land, where you need a state recreational permit.")
+                 }
+                 ForEach(rows, id: \.0) { row in
+                     Section(row.0) {
+                         HStack(alignment: .top, spacing: 12) {
+                             side("Free 14-day areas", row.1, Theme.accent)
+                             Divider()
+-                            side("La Posa permit area", row.2, Theme.primary)
++                            side("Lake Havasu State Park", row.2, Theme.primary)
+                         }
+                     }
+                 }
+                 Section {
+-                    Button {
+-                        dismiss()
+-                        LandAsk.go()
+-                    } label: {
+-                        Label("Am I on BLM land?", systemImage: "location.fill").font(.headline)
++                    if Site.live {
++                        Button {
++                            dismiss()
++                            LandAsk.go()
++                        } label: {
++                            Label("Am I on BLM land?", systemImage: "location.fill").font(.headline)
++                        }
+                     }
+                 } footer: {
+-                    Text("Prices and rules are the BLM's and can change. Away from these areas, most BLM land also allows free camping for 14 days unless it is posted closed.")
++                    Text("Prices and rules belong to the BLM and Arizona State Parks and can change. BLM Lake Havasu Field Office: (928) 505-1200.")
+                 }
+             }
+-            .navigationTitle("Free camping or the permit area?")
++            .navigationTitle("Free camping or the state park?")
+             .navigationBarTitleDisplayMode(.inline)
+             .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Close") { dismiss() } } }
+         }
+diff -ru apps/campfire-ios/Sources/ForSale.swift apps/havasu-ios/Sources/ForSale.swift
+--- apps/campfire-ios/Sources/ForSale.swift	2026-11-27 23:04:41.284052747 -0800
++++ apps/havasu-ios/Sources/ForSale.swift	2026-11-27 23:07:03.227659828 -0800
+@@ -56,7 +56,7 @@
+         NavigationStack(path: $path) {
+             ScrollView {
+                 VStack(alignment: .leading, spacing: 14) {
+-                    DesertBanner(title: "Quartzsite Campfire", subtitle: "Buy, sell and trade around Quartzsite", scene: "market")
++                    DesertBanner(title: "Havasu Campfire", subtitle: "Buy, sell and trade around Havasu", scene: "market")
+                         .padding(.horizontal)
+                     LandAskButton().padding(.horizontal)
+                     Button {
+diff -ru apps/campfire-ios/Sources/GPS.swift apps/havasu-ios/Sources/GPS.swift
+--- apps/campfire-ios/Sources/GPS.swift	2026-11-27 23:04:41.284052747 -0800
++++ apps/havasu-ios/Sources/GPS.swift	2026-11-27 23:07:03.228099530 -0800
+@@ -68,7 +68,7 @@
+ 
+     private func message(_ p: CLLocation) -> String {
+         let where_ = near(p)
+-        return "My location: " + numbers(p) + " (GPS, within about \(feet(p)) feet)." + (where_.isEmpty ? "" : " " + where_ + ", near Quartzsite, Arizona.")
++        return "My location: " + numbers(p) + " (GPS, within about \(feet(p)) feet)." + (where_.isEmpty ? "" : " " + where_ + ", near Lake Havasu City, Arizona.")
+             + " Map: https://maps.apple.com/?ll=" + String(format: "%.5f,%.5f", p.coordinate.latitude, p.coordinate.longitude)
+     }
+ 
+diff -ru apps/campfire-ios/Sources/Guide.swift apps/havasu-ios/Sources/Guide.swift
+--- apps/campfire-ios/Sources/Guide.swift	2026-11-27 23:04:41.284052747 -0800
++++ apps/havasu-ios/Sources/Guide.swift	2026-11-27 23:07:03.224381045 -0800
+@@ -102,6 +102,7 @@
+            let packed = try? Data(contentsOf: url), let old = try? JSONDecoder().decode(GuideData.self, from: packed) {
+             data = old
+         }
++        guard Site.live else { failed = data == nil; return }
+         do {
+             let fresh = try await Site.guide()
+             data = try JSONDecoder().decode(GuideData.self, from: fresh)
+@@ -121,9 +122,8 @@
+     @State private var search = ""
+ 
+     private let sections: [Category] = [
+-        Category(id: "start", name: "Start here"), Category(id: "areamap", name: "Map"), Category(id: "camping", name: "Camping"), Category(id: "wash", name: "Washes"),
+-        Category(id: "services", name: "Services"), Category(id: "rocks", name: "Rockhounding"),
+-        Category(id: "mines", name: "Gold and ghost camps"), Category(id: "trips", name: "Trips and trails"), Category(id: "photos", name: "Photos"), Category(id: "nature", name: "Plants and animals"), Category(id: "nomad", name: "Nomads and skoolies"), Category(id: "town", name: "Town")
++        Category(id: "start", name: "Start here"), Category(id: "camping", name: "Camping"), Category(id: "wash", name: "Washes"),
++        Category(id: "services", name: "Services"), Category(id: "trips", name: "Day trips")
+     ]
+ 
+     // The lists to show: one section, or every card that matches the search.
+@@ -145,7 +145,7 @@
+             List {
+                 if search.isEmpty {
+                     Section {
+-                        DesertBanner(title: "Quartzsite Guide", subtitle: "Camping, services, rocks and day trips")
++                        DesertBanner(title: "Havasu Guide", subtitle: "Camping, services and day trips")
+                     }
+                     .listRowInsets(EdgeInsets())
+                     .listRowBackground(Color.clear)
+@@ -179,12 +179,12 @@
+                 if search.isEmpty && section == "services" {
+                     Section { GPSCard(pins: guide.data?.pins ?? []) } header: { Text("In an emergency") }
+                 }
+-                if search.isEmpty && (section == "start" || section == "camping") {
++                if Site.live && search.isEmpty && (section == "start" || section == "camping") {
+                     Section { LandAskButton() }
+                         .listRowInsets(EdgeInsets())
+                         .listRowBackground(Color.clear)
+                 }
+-                if search.isEmpty && section == "start" {
++                if Site.live && search.isEmpty && section == "start" {
+                     Section {
+                         NavigationLink {
+                             QuestionsView()
+@@ -238,14 +238,24 @@
+                 if !search.isEmpty && lists.isEmpty && guide.data != nil {
+                     Text("Nothing in the guide matches.").foregroundColor(.secondary)
+                 }
+-                Section {
+-                    Button {
+-                        suggesting = true
+-                    } label: {
+-                        Label("Suggest a fix or a missing place", systemImage: "square.and.pencil")
++                if Site.live {
++                    Section {
++                        Button {
++                            suggesting = true
++                        } label: {
++                            Label("Suggest a fix or a missing place", systemImage: "square.and.pencil")
++                        }
++                    } footer: {
++                        Text("No account needed. Each suggestion is checked before the guide changes.")
++                    }
++                } else {
++                    Section {
++                        Link(destination: URL(string: "mailto:info@qcampfire.com?subject=Havasu%20Campfire")!) {
++                            Label("Email a fix or a missing place", systemImage: "envelope")
++                        }
++                    } footer: {
++                        Text("First edition, gathered in November 2026 from official pages, business listings and campers' posts. Call ahead before a long drive.")
+                     }
+-                } footer: {
+-                    Text("No account needed. Each suggestion is checked before the guide changes.")
+                 }
+             }
+             .listStyle(.insetGrouped)
+@@ -268,7 +278,7 @@
+             List {
+                 if let shows = guide.data?.shows {
+                     Section {
+-                        DesertBanner(title: "Show season", subtitle: "Gem, rock and RV shows all winter", scene: "bigtop")
++                        DesertBanner(title: "Show season", subtitle: "Balloons, buses and fireworks all winter", scene: "bigtop")
+                     }
+                     .listRowInsets(EdgeInsets())
+                     .listRowBackground(Color.clear)
+diff -ru apps/campfire-ios/Sources/Land.swift apps/havasu-ios/Sources/Land.swift
+--- apps/campfire-ios/Sources/Land.swift	2026-11-27 23:04:41.284052747 -0800
++++ apps/havasu-ios/Sources/Land.swift	2026-11-27 23:07:03.224753745 -0800
+@@ -15,10 +15,10 @@
+ let landLayers: [LandLayer] = [
+     LandLayer(id: "blm", name: "BLM land", color: UIColor(red: 181 / 255, green: 137 / 255, blue: 0, alpha: 1), fill: 0.26, dashed: false),
+     LandLayer(id: "free", name: "Free 14-day camping areas", color: UIColor(red: 194 / 255, green: 87 / 255, blue: 26 / 255, alpha: 1), fill: 0.18, dashed: false),
+-    LandLayer(id: "ltva", name: "La Posa long-term area (permit)", color: UIColor(red: 15 / 255, green: 118 / 255, blue: 110 / 255, alpha: 1), fill: 0.2, dashed: false),
++    LandLayer(id: "ltva", name: "Permit and paid areas", color: UIColor(red: 15 / 255, green: 118 / 255, blue: 110 / 255, alpha: 1), fill: 0.2, dashed: false),
+     LandLayer(id: "crit", name: "CRIT reservation", color: UIColor(red: 156 / 255, green: 54 / 255, blue: 181 / 255, alpha: 1), fill: 0.14, dashed: true),
+-    LandLayer(id: "town", name: "Quartzsite town limits", color: UIColor(red: 55 / 255, green: 65 / 255, blue: 81 / 255, alpha: 1), fill: 0.05, dashed: true),
+-    LandLayer(id: "refuge", name: "Wildlife refuges (Kofa)", color: UIColor(red: 47 / 255, green: 158 / 255, blue: 68 / 255, alpha: 1), fill: 0.16, dashed: false),
++    LandLayer(id: "town", name: "Lake Havasu City limits", color: UIColor(red: 55 / 255, green: 65 / 255, blue: 81 / 255, alpha: 1), fill: 0.05, dashed: true),
++    LandLayer(id: "refuge", name: "Wildlife refuges", color: UIColor(red: 47 / 255, green: 158 / 255, blue: 68 / 255, alpha: 1), fill: 0.16, dashed: false),
+     LandLayer(id: "state", name: "Arizona / California line", color: UIColor(red: 17 / 255, green: 24 / 255, blue: 39 / 255, alpha: 1), fill: 0, dashed: true)]
+ 
+ // The answer to "Am I on BLM land?"
+@@ -42,7 +42,7 @@
+             let saved = (try? Data(contentsOf: cacheFile)) ?? Bundle.main.url(forResource: "bounds", withExtension: "json").flatMap { try? Data(contentsOf: $0) }
+             if let saved { build(saved) }
+         }
+-        if let (fresh, response) = try? await URLSession.shared.data(from: Site.base.appendingPathComponent("bounds.json")),
++        if Site.live, let (fresh, response) = try? await URLSession.shared.data(from: Site.base.appendingPathComponent("bounds.json")),
+            (response as? HTTPURLResponse)?.statusCode == 200, build(fresh) {
+             try? fresh.write(to: cacheFile)
+         }
+@@ -131,13 +131,13 @@
+         let y = at.latitude, x = at.longitude, a = areas(y, x)
+         let near = accuracy > 60 ? " Your phone is only sure of your position to about \(Int((accuracy * 3.28 / 10).rounded()) * 10) feet." : ""
+         func named(_ key: String, _ fallback: String) -> String { let n = a[key] ?? ""; return n.isEmpty ? fallback : n }
+-        if a["ltva"] != nil { return LandAnswer(onBLM: true, words: "Yes. You are in the \(named("ltva", "La Posa")) long-term area, on BLM land. A permit is needed to camp here." + near) }
++        if a["ltva"] != nil { return LandAnswer(onBLM: true, words: "Yes. You are in the \(named("ltva", "permit")) area. A permit or fee is needed to camp here." + near) }
+         if a["free"] != nil { return LandAnswer(onBLM: true, words: "Yes. You are on BLM land, in the \(named("free", "free")) 14-day camping area. Camping is free for up to 14 days in any 28." + near) }
+         if a["blm"] != nil { return LandAnswer(onBLM: true, words: "Yes. You are on BLM land. Camping is generally allowed for up to 14 days unless the area is posted closed." + near) }
+         if a["crit"] != nil { return LandAnswer(onBLM: false, words: "No. You are not on BLM land. This is the Colorado River Indian Tribes reservation; tribal rules and permits apply." + near) }
+         if a["refuge"] != nil { return LandAnswer(onBLM: false, words: "No. You are not on BLM land. This is a national wildlife refuge, with its own rules." + near) }
+-        if a["town"] != nil { return LandAnswer(onBLM: false, words: "No. You are not on BLM land. You are inside Quartzsite town limits." + near) }
+-        if y < 33.2 || y > 34.25 || x < -114.75 || x > -113.85 { return LandAnswer(onBLM: nil, words: "You are outside the area this map covers, so it cannot say whose land you are on.") }
++        if a["town"] != nil { return LandAnswer(onBLM: false, words: "No. You are not on BLM land. You are inside Lake Havasu City limits." + near) }
++        if y < 34.1 || y > 34.9 || x < -114.6 || x > -113.9 { return LandAnswer(onBLM: nil, words: "You are outside the area this map covers, so it cannot say whose land you are on.") }
+         return LandAnswer(onBLM: false, words: "No. You are not on BLM land, as far as this map knows. It is likely private or state land. The map covers the Arizona side only." + near)
+     }
+ }
+diff -ru apps/campfire-ios/Sources/Places.swift apps/havasu-ios/Sources/Places.swift
+--- apps/campfire-ios/Sources/Places.swift	2026-11-27 23:04:41.284052747 -0800
++++ apps/havasu-ios/Sources/Places.swift	2026-11-27 23:07:03.225649276 -0800
+@@ -70,7 +70,7 @@
+         loading = true
+         failed = false
+         var data: Data?
+-        if let (fresh, response) = try? await URLSession.shared.data(from: Site.base.appendingPathComponent("trails.json")),
++        if Site.live, let (fresh, response) = try? await URLSession.shared.data(from: Site.base.appendingPathComponent("trails.json")),
+            (response as? HTTPURLResponse)?.statusCode == 200 {
+             data = fresh
+             try? fresh.write(to: cacheFile)
+@@ -175,8 +175,8 @@
+     func makeUIView(context: Context) -> MKMapView {
+         let map = MKMapView()
+         map.delegate = context.coordinator
+-        map.region = MKCoordinateRegion(center: CLLocationCoordinate2D(latitude: 33.655, longitude: -114.215),
+-                                        span: MKCoordinateSpan(latitudeDelta: 0.28, longitudeDelta: 0.28))
++        map.region = MKCoordinateRegion(center: CLLocationCoordinate2D(latitude: 34.48, longitude: -114.27),
++                                        span: MKCoordinateSpan(latitudeDelta: 0.5, longitudeDelta: 0.5))
+         map.showsScale = true
+         map.showsCompass = true
+         return map
+@@ -335,6 +335,7 @@
+             .ignoresSafeArea(edges: .bottom)
+             .overlay(alignment: .top) {
+                 VStack(spacing: 0) {
++                    if Site.live {
+                     VStack(spacing: 8) {
+                         Button {
+                             finding = true
+@@ -366,6 +367,7 @@
+                     .padding(.vertical, 8)
+                     .frame(maxWidth: .infinity)
+                     .background(Theme.page)
++                    }
+                     if finding {
+                         Text("Finding where you are…").font(.footnote).padding(.horizontal, 12).padding(.bottom, 8)
+                             .frame(maxWidth: .infinity, alignment: .leading).background(Theme.page)
+@@ -383,7 +385,7 @@
+                         .background(a.onBLM == true ? Theme.soft : Color(.systemBackground))
+                         .overlay(Rectangle().fill(a.onBLM == false ? Theme.accent : Theme.primary).frame(width: 5), alignment: .leading)
+                         .frame(maxWidth: .infinity, alignment: .leading)
+-                    } else if !hintSeen {
++                    } else if !hintSeen && Site.live {
+                         Text("Yellow is BLM land. Tap Layers to show trails, town limits, the reservation and more.")
+                             .font(.caption).foregroundColor(.secondary).padding(.horizontal, 12).padding(.bottom, 6)
+                             .frame(maxWidth: .infinity, alignment: .leading).background(Theme.page)
+diff -ru apps/campfire-ios/Sources/Questions.swift apps/havasu-ios/Sources/Questions.swift
+--- apps/campfire-ios/Sources/Questions.swift	2026-11-27 23:04:41.284052747 -0800
++++ apps/havasu-ios/Sources/Questions.swift	2026-11-27 23:07:03.228997646 -0800
+@@ -82,7 +82,7 @@
+ 
+     // Guide entries that share words with what is being typed.
+     private var matches: [GuideCard] {
+-        let skip: Set<String> = ["where", "what", "when", "does", "anyone", "know", "there", "have", "with", "that", "this", "from", "about", "quartzsite", "good", "best", "need", "find", "near", "area", "town", "place", "can", "the", "and", "for", "are", "any", "you", "get", "buy", "how", "who"]
++        let skip: Set<String> = ["where", "what", "when", "does", "anyone", "know", "there", "have", "with", "that", "this", "from", "about", "quartzsite", "havasu", "good", "best", "need", "find", "near", "area", "town", "place", "can", "the", "and", "for", "are", "any", "you", "get", "buy", "how", "who"]
+         let words = asking.lowercased().split(whereSeparator: { !$0.isLetter && !$0.isNumber }).map(String.init).filter { $0.count >= 3 && !skip.contains($0) }
+         guard !words.isEmpty, let data = guide.data else { return [] }
+         var scored: [(Int, GuideCard)] = []
+diff -ru apps/campfire-ios/Sources/Site.swift apps/havasu-ios/Sources/Site.swift
+--- apps/campfire-ios/Sources/Site.swift	2026-11-27 23:04:41.284052747 -0800
++++ apps/havasu-ios/Sources/Site.swift	2026-11-27 23:07:03.223412674 -0800
+@@ -34,18 +34,21 @@
+ 
+ // Everything the app asks the website for.
+ enum Site {
+-    static let base = URL(string: "https://qcampfire.com")!
++    // Havasu has no server yet. While live is false the app runs from the guide packed inside it:
++    // Guide, Shows and Map only, and nothing is fetched. Set the real address and flip live when the site exists.
++    static let live = false
++    static let base = URL(string: "https://havasu.invalid")!
+ 
+     static let cats: [Category] = [
+         Category(id: "rv", name: "RV parts and solar"), Category(id: "camp", name: "Camping gear"),
+-        Category(id: "rocks", name: "Rocks and gems"), Category(id: "wheels", name: "Vehicles and off-road"),
++        Category(id: "boat", name: "Boats and water toys"), Category(id: "wheels", name: "Vehicles and off-road"),
+         Category(id: "tools", name: "Tools"), Category(id: "home", name: "Household"),
+         Category(id: "free", name: "Free"), Category(id: "wanted", name: "Wanted"), Category(id: "services", name: "Services")
+     ]
+     static let areas: [String: String] = [
+-        "plomosa": "Plomosa Road", "hijolly": "Hi Jolly", "domerock": "Dome Rock", "scaddan": "Scaddan Wash",
+-        "lpnorth": "La Posa North", "lpwest": "La Posa West", "lptyson": "La Posa Tyson Wash", "lpsouth": "La Posa South",
+-        "roadrunner": "Road Runner", "town": "In town", "other": "Somewhere else"
++        "heights": "Havasu Heights", "lonetree": "Lone Tree", "craggy": "Craggy Wash", "hroad": "Havasu Road",
++        "standard": "Standard Wash", "scenic": "Scenic View", "steps": "The Steps", "statepark": "Lake Havasu State Park",
++        "cattail": "Cattail Cove State Park", "town": "In town", "other": "Somewhere else"
+     ]
+ 
+     static func catName(_ id: String) -> String {

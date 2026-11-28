@@ -1,0 +1,25 @@
+{
+  "id": "havasu",
+  "name": "Havasu Campfire",
+  "place": "Lake Havasu City, Arizona",
+  "tagline": "Winter on Arizona's West Coast",
+  "site": null,
+  "siteNote": "Havasu gets its own website (separate from qcampfire.com). No address yet, so For Sale, Alerts, Questions and Photos have nothing to load.",
+  "mapCenter": {"lat": 34.48, "lon": -114.27, "span": 0.5},
+  "landCoverage": {"south": 34.1, "north": 34.9, "west": -114.6, "east": -113.9},
+  "bounds": null,
+  "boundsNote": "No land-boundary file yet. 'Am I on BLM land?' and map layers need one generated the way the Quartzsite site's was.",
+  "theme": {"primary": [11,106,134], "accent": [200,72,28], "soft": [220,236,241], "page": [233,236,236], "card": [253,254,254]},
+  "guideSections": [["start","Start here"],["camping","Camping"],["wash","Washes"],["services","Services"],["trips","Day trips"]],
+  "adAreas": {"heights":"Havasu Heights","lonetree":"Lone Tree","craggy":"Craggy Wash","hroad":"Havasu Road","standard":"Standard Wash","scenic":"Scenic View","steps":"The Steps","statepark":"Lake Havasu State Park","cattail":"Cattail Cove State Park","town":"In town","other":"Somewhere else"},
+  "adCategoryChange": {"rocks": {"id":"boat","name":"Boats and water toys"}},
+  "compare": {
+    "title": "Free camping or the state park?",
+    "left": "Free 14-day areas", "right": "Lake Havasu State Park",
+    "intro": "Free camping here is on BLM land. There is no long-term permit area with water and a dump station, so the state park is the place with services. The Steps is Arizona State Trust Land, where you need a state recreational permit.",
+    "rows": [["Cost","Free","A nightly fee. Dump only: $15"],["How long","14 days, then move on","14 days at a stretch"],["Dump station","No","Yes. No tote tanks"],["Water fill","No","Yes"],["Trash","No, carry it out","Yes"],["Restrooms","No","Yes, with showers"],["Checking in","Nothing to buy. Craggy Wash has a camp host","Reserve well ahead for winter. A dry overflow lot opens when the park is full"],["Where","Craggy Wash, Lone Tree, Havasu Heights, Havasu Road, Standard Wash, Scenic View","699 London Bridge Rd, on the lake"]],
+    "footer": "Prices and rules belong to the BLM and Arizona State Parks and can change. BLM Lake Havasu Field Office: (928) 505-1200."
+  },
+  "showsSubtitle": "Balloons, buses and fireworks all winter",
+  "gpsPlace": "near Lake Havasu City, Arizona"
+}
