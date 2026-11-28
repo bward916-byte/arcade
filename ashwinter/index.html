@@ -4881,7 +4881,7 @@ function drawHomeHud(dt) {
     txt(s.name, px + 32, py + 40, 13, i === G.sel ? GOLD : DIM);
     const st = statusIcons(s); st.slice(0, 4).forEach((ic, j) => { drawIcon(ic, px + 8 + j * 16, py - r - 8, 16, ic === 'dead' ? DIM : ic === 'infected' ? GREEN : ic === 'cold' ? '#9cc7e6' : RED); });
     if (s.alive && G.phase === 'day') { bar(px + 2, py + 50, 60, 4, s.health / 100, needColor(s.health)); }
-    UI.btn((px - 4) * pk, H - (H - py + 36) * pk, 72 * pk, 94 * pk, () => { if (!s.alive) return; if (G.sel === i) UI.survOpen = UI.survOpen === i ? -1 : i; else { G.sel = i; UI.survOpen = -1; } if (!cam.lock) UI.focus = { who: s, z: clamp(Math.max(cam.z, H / 330), cam.minZ, cam.maxZ), t: 0 }; AUDIO.sfx('tap'); });
+    UI.btn((px - 4) * pk, H - (H - py + 36) * pk, 72 * pk, 94 * pk, () => { if (!s.alive) return; if (G.sel === i) UI.survOpen = UI.survOpen === i ? -1 : i; else { G.sel = i; UI.survOpen = -1; } if (!cam.lock) UI.focus = { who: s, z: clamp(Math.max(cam.z, H < 430 ? H / 420 : H / 330), cam.minZ, cam.maxZ), t: 0 }; AUDIO.sfx('tap'); });
     px += 78;
   }
   ctx.restore();
@@ -5573,7 +5573,8 @@ function newGame(c) { c = c || 'ash'; const storm = c === 'storm'; UI.campPick =
   G = { phase: 'day', day: 1, hour: 6, inv: storm ? { wood: 1 } : { wood: 2, water: 2, canned: 1 }, survivors: SURVIVOR_TEMPLATES.slice(0, storm ? 1 : 3).map((t, i) => makeSurvivor(t, i)), world: makeShelter(), built: {}, flags: { weather: 'clear', fire: 0, stairsOut: !DEMO.on, camp: c }, collectorWater: 0, sel: 0, plan: {}, planLoc: null, report: [], event: null, msg: '', msgT: 0 };
   applyCamp(); UI.modal = null; UI.ff = false; initFx(); if (storm && !HEADLESS) { startJourney(); return; } homeCam(); homeMsg('Tap a face, then an icon', 'search'); save();
 }
-function homeCam() { const w = G.world; fitCam({ x0: w.x0 - 120, x1: w.x1 + 120, y0: w.fy2y(2) - FLOOR_H - 170, y1: w.groundY + 240 }); cam.y = cam.ty = cam.y + 50 / cam.z; clampCam(); }
+function homeCam() { const w = G.world; fitCam({ x0: w.x0 - 120, x1: w.x1 + 120, y0: w.fy2y(2) - FLOOR_H - 170, y1: w.groundY + 240 }); cam.y = cam.ty = cam.y + 50 / cam.z; clampCam();
+  if (H < 430 && G.survivors && !HEADLESS) { const s = G.survivors[G.sel] && G.survivors[G.sel].alive ? G.survivors[G.sel] : G.survivors.find(q => q.alive); if (s) { cam.z = cam.tz = clamp(H / 420, cam.minZ, cam.maxZ); cam.x = cam.tx = s.x; cam.y = cam.ty = w.fy2y(s.fy == null ? s.f : s.fy) - 70; clampCam(); } } }   /* on a phone the view opens on whoever is selected, about twice the size; pinch out or tap a face to look elsewhere */
 // ----- area preview: walk any area from the title screen, unhurt and untimed; nothing is saved -----
 let PREVIEW = false;
 const AUTO_MISSION = false;   // the stealth demo build sets this: straight into the military post
