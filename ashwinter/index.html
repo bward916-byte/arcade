@@ -3919,6 +3919,10 @@ function makeSite(loc, day) {
     if (r() < .5) props.push({ f: room.f, x: room.x0 + 40 + r() * (w - 80), t: 'rubble' });
   }
   if (!hides.length) hides.push({ f: 0, x: x0 + 200, kind: (HIDE_KINDS[loc.id] || ['closet'])[0] });
+  { const cars = props.filter(q => q.t === 'car').sort((a, b) => a.f - b.f || a.x - b.x);   /* two cars never stand in the same space: the second is rolled along, or left out if there is no room */
+    for (let i = 1; i < cars.length; i++) { const a = cars[i - 1], c = cars[i]; if (a.gone || a.f !== c.f || c.x - a.x >= 205) { if (a.gone && i > 1 && cars[i - 2].f === c.f && c.x - cars[i - 2].x < 205) c.gone = true; continue; } const room = rooms.find(q => q.f === c.f && c.x >= q.x0 && c.x <= q.x1), nx = a.x + 205, sp = spots.find(q => q.f === c.f && q.x === c.x && q.type === 'search');
+      if (room && nx < room.x1 - 100 && !props.some(q => q !== c && q !== a && q.f === c.f && Math.abs(q.x - nx) < 110)) { c.x = nx; if (sp) sp.x = nx; } else { c.gone = true; if (sp) spots.splice(spots.indexOf(sp), 1); } }
+    for (const c of cars) if (c.gone) props.splice(props.indexOf(c), 1); }
   const world = new World({ x0, x1, nFloors: nF, rooms, stairs, spots, props, hides, site: loc });
   world.decor = makeDecor(loc, rooms, r);
   if (hasPower0(loc)) for (const room of rooms) { if (room.f > 1 || world.decor.some(d => d.t === 'window' && d.f === room.f && d.x > room.x0 && d.x < room.x1)) continue; const c = world.decor.find(d => d.f === room.f && d.x > room.x0 + 40 && d.x < room.x1 - 40 && d.t !== 'litter' && d.t !== 'stain'); if (c) c.t = 'window'; else world.decor.push({ f: room.f, x: (room.x0 + room.x1) / 2, t: 'window', s: .5, n: 1 }); }   // where the lamps still burn, every lower room has a window for them to come in at
