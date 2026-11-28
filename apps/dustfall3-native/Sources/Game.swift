@@ -1978,7 +1978,9 @@ final class Game {
     private func dusk() {
         duskDone = true
         let d = day - day0 + town         // every town down the line starts a night harder
-        let n = raidSize(d) + (place == "irongulch" && sigOn && raidSize(d) > 0 ? 1 : 0)      // smoke from the smelter draws them
+        // a fifth more raiders than the plain count, every night in every town
+        let base = Int((Double(raidSize(d)) * 1.2).rounded())
+        let n = base + (place == "irongulch" && sigOn && base > 0 ? 1 : 0)      // smoke from the smelter draws them
         if n == 0 { hint("dusk1", "Night is coming. The first night is quiet; raiders come from the second."); return }
         for i in 0..<n {
             let main = (town > 0 ? i % 3 : i % 2) != 0        // down the line, two in three come from the same side

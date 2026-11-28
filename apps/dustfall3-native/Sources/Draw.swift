@@ -2866,7 +2866,7 @@ final class Renderer {
         }
         guard let tr = g.train else { return }
         let x = sx(tr.x)
-        if x > W + 10 || x < -200 { return }
+        if x > W + 10 || x < -230 { return }
         let bk = Col(0x2b2b33), dkc = Col(0x1f1f26), br = Col(0xc9a14a), red = Col(0x7a2f26)
         let glass = dk > 0.3 ? Col(0xffd98a) : Col(0x9fc4d4)
         c.ell(x + 94, gy + 1, 96, 2.5, Col(0x000000, 0.2))
@@ -2922,6 +2922,29 @@ final class Renderer {
         }
         c.R(64, -10.5, 46, 0.5, Col(0x4a1c16)); c.R(64, -21, 46, 0.7, Col(0xffffff, 0.12)); c.R(64, -8, 46, 2, Col(0x000000, 0.2))
         c.R(66, -6, 12, 1.4, dkc); c.R(94, -6, 12, 1.4, dkc)
+        // more to her: a flared stack, a lamp in its housing, cylinders, a number plate, and the engineer at his window
+        c.poly(dkc, [6, -28.6, 15, -28.6, 13.6, -26, 7.4, -26]); c.R(6, -29.2, 9, 0.8, br)
+        c.R(1.2, -21.2, 4.4, 4.6, dkc); c.R(1.2, -21.8, 4.4, 0.8, br); c.circ(2.4, -18.9, 1.3, Col(0xffe58a))
+        c.RR(7, -7.8, 6.4, 3.8, 1, Col(0x3a3a44)); c.R(7, -7.8, 6.4, 0.6, Col(0x6a6a76)); c.seg(13.4, -5.8, 19, -4.4, 0.7, Col(0x9a9aa6))
+        c.circ(16.4, -12.4, 2.2, br); c.circ(16.4, -12.4, 1.5, red)
+        c.R(28, -25.6, 16, 1.2, dkc); c.R(32.4, -21.6, 7.2, 0.6, br); c.R(32.4, -16, 7.2, 0.6, br)
+        c.circ(36.4, -18.7, 1.3, Col(0xd9a06e)); c.R(35.1, -17.5, 2.8, 1.6, Col(0x34445a)); c.R(34.8, -20.3, 3.2, 0.8, Col(0x1c1410))
+        // the company's name on the tender and along the car, curtains at the windows and a few faces behind them
+        c.R(47, -13, 13, 2.6, Col(0x15151a)); c.text("C.C.&R.", 53.5, -11, 2.2, br)
+        c.R(64, -22.8, 46, 1.8, Col(0x4a1c16)); c.text("CRANE CATTLE & RAIL", 87, -21.4, 1.5, br)
+        for k in 0..<5 {
+            let wx0 = 68 + Double(k) * 7.5
+            if k % 2 == 0 { c.circ(wx0 + 2.5, -16.4, 1, Col(0x1c1410, 0.8)); c.R(wx0 + 1.4, -15.5, 2.2, 1.5, Col(0x1c1410, 0.8)) }
+            c.poly(Col(0xc9a14a, 0.75), [wx0, -19, wx0 + 1.7, -19, wx0, -15.2]); c.poly(Col(0xc9a14a, 0.75), [wx0 + 5, -19, wx0 + 3.3, -19, wx0 + 5, -15.2])
+        }
+        // a caboose bringing up the rear: a cupola on the roof, a railed platform and a red lamp
+        c.R(110, -6, 4, 1, dkc)
+        c.R(114, -19, 24, 13, Col(0x8a2f26)); c.R(113, -21, 26, 2, dkc); c.R(120, -25, 11, 4, Col(0x8a2f26)); c.R(119, -26.2, 13, 1.4, dkc)
+        c.R(122, -24, 3, 2.2, glass); c.R(126.5, -24, 3, 2.2, glass)
+        c.R(117, -17, 4, 4.6, glass); c.R(131, -17, 4, 4.6, glass); c.R(114, -10.4, 24, 0.6, br); c.R(114, -19, 24, 0.7, Col(0xffffff, 0.12)); c.R(114, -8, 24, 2, Col(0x000000, 0.2))
+        c.R(138, -8, 3.4, 2, dkc); c.R(140.6, -15, 0.8, 9, dkc); c.R(138, -15, 3.4, 0.7, dkc); c.R(138, -11.6, 3.4, 0.5, dkc)
+        c.circ(141, -16.4, 1.1, Col(0xff5a3c)); if dk > 0.3 { c.circ(141, -16.4, 3.4, Col(0xff5a3c, 0.3)) }
+        wheel(119, 2.5); wheel(133, 2.5)
         // steam off the stack, and the headlamp's beam after dark
         for i in 0..<5 {
             let k = (g.clock * 0.5 + Double(i) * 0.2).truncatingRemainder(dividingBy: 1)

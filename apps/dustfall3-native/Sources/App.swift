@@ -1338,7 +1338,11 @@ final class GameViewController: UIViewController {
                 put(halo)
             }
             let b = UIButton(type: .custom)
-            b.frame = plates[i]
+            // the name and the dot are one target: tap either
+            let up = above[i % above.count]
+            b.frame = plates[i].union(CGRect(x: p.x - 22, y: p.y - 22, width: 44, height: 44))
+            b.contentVerticalAlignment = up ? .top : .bottom
+            b.contentHorizontalAlignment = .center
             let second = hereNow ? "Here, day \(game.day - game.day0)" : (been ? (i == reach ? "Tap to return" : "Tap to visit") : (pick ? (shut ? "Tap to unlock" : "Tap to ride on") : (shut ? "Locked" : pl.land)))
             let ps = NSMutableParagraphStyle()
             ps.alignment = .center
@@ -1351,7 +1355,13 @@ final class GameViewController: UIViewController {
             b.titleLabel?.layer.shadowOffset = .zero; b.titleLabel?.layer.shadowRadius = 2; b.titleLabel?.layer.shadowOpacity = 1
             b.isUserInteractionEnabled = pick || been
             b.tag = i
-            if pick { b.backgroundColor = gold; b.layer.cornerRadius = 8; b.layer.borderWidth = 2; b.layer.borderColor = ink.cgColor; b.titleLabel?.layer.shadowOpacity = 0 }
+            if pick {
+                let plate = UIView(frame: plates[i])
+                plate.backgroundColor = gold; plate.layer.cornerRadius = 8; plate.layer.borderWidth = 2; plate.layer.borderColor = ink.cgColor
+                plate.isUserInteractionEnabled = false
+                mapBox.addSubview(plate)
+                b.titleLabel?.layer.shadowOpacity = 0
+            }
             b.accessibilityIdentifier = key
             b.addTarget(self, action: #selector(pickPlace(_:)), for: .touchUpInside)
             mapBox.addSubview(b)
