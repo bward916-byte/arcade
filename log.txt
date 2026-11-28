@@ -1,0 +1,20 @@
+run 2  commit 9284e05bbac9a4f8e3a886d3566c3b7967dba7e5
+compile: success   testflight: success
+---- compile errors
+** ARCHIVE SUCCEEDED **
+---- export
+** EXPORT SUCCEEDED **
+---- upload
+Running altool at path '/Applications/Xcode_26.6.app/Contents/SharedFrameworks/ContentDelivery.framework/Resources/altool'...
+
+2026-11-28 04:46:01.305  INFO: [ContentDelivery.Uploader.CA1068380] 
+==========================================
+UPLOAD SUCCEEDED with no errors, 1 warning
+Delivery UUID: efbaa1b5-0f94-4275-8d81-16440750b07d
+Transferred 3525622 bytes in 0.076 seconds (46.2MB/s, 369.859Mbps)
+==========================================
+2026-11-28 04:46:01.308  WARN: [altool.CA1068380] SDK version issue. This app was built with the iOS 26.5 SDK. Starting April 2027, iOS and iPadOS apps must be built with the iOS 27 SDK or later, included in Xcode 27 or later, in order to be uploaded to App Store Connect or submitted for distribution. (90725)
+   server_warning : 
+      code : 90725
+      description : SDK version issue. This app was built with the iOS 26.5 SDK. Starting April 2027, iOS and iPadOS apps must be built with the iOS 27 SDK or later, included in Xcode 27 or later, in order to be uploaded to App Store Connect or submitted for distribution.
+No errors, 1 warnings, uploading archive at '/Users/runner/work/_temp/export/TrailApp.ipa'.
